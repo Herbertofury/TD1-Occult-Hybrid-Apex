@@ -63,6 +63,22 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 - Final clean-profile proof with no MCCC installed.
 - Full details: [Apex Live CAS Studio](Live-CAS-Studio).
 
+## P0 — Apex Color Studio
+
+- Owner confirms full permission from thepancake1 for relevant Color Sliders baseline material.
+- Start from current authorized Color Sliders v4f package/tooling and work upward.
+- Preserve full compatible ColorState: base swatch + Hue + Saturation + Brightness/Value + Opacity.
+- Every part/category/outfit/all-outfits/Sim/form copy must preserve exact custom color by default.
+- Add explicit Part+Color, Part-only, Color-only and base-swatch-only copy modes.
+- F11 Color Studio works without the original Color Sliders mod installed.
+- Native CAS slider support is first-party Apex, patch-aware and optional.
+- Automatic current-game/installed-pack texture conversion coverage.
+- More CAS Columns and original Color Sliders coexistence/conflict diagnostics.
+- Saved colors/palettes and color-aware randomization.
+- CAS History/Undo/Redo/Saved Forms preserve exact ColorState.
+- Human/occult form colors remain independent.
+- Full details: [Apex Color Studio](Color-Studio).
+
 ## P1 — make F11 the best way to use the mod
 
 - Selected-Sim dashboard with active occults/current form/health.
@@ -132,4 +148,4 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 
 ## Release gate
 
-Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows including the standalone Apex Occult Hybrid Core, Apex Live CAS Studio, CAS Unlock Core/Unlock Matrix and CAS History/Undo/Redo, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.
+Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows including the standalone Apex Occult Hybrid Core, Apex Live CAS Studio, Apex Color Studio/full ColorState copy, CAS Unlock Core/Unlock Matrix and CAS History/Undo/Redo, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.

@@ -7,7 +7,7 @@ Current verified Sims 4 PC patch: 1.128.90.1030 (2026-09-22)
 
 Build an Apex-owned CAS unlock system that keeps intended CAS categories available for human and occult/hybrid forms, exposes compatible hidden/locked/debug/reward/occult items when the user wants them, survives normal form/outfit/CAS transitions, and has a repeatable update path when EA changes CAS resources.
 
-The goal is not to copy or depend on another unlocker. The goal is to independently reproduce the best user-visible capabilities, improve their maintenance/compatibility model, and integrate them with Apex's hybrid form ownership, CAS History Studio, Drift Guard, MCCC Shield and Post-CAS Commit.
+The goal is to **start from the authorized current Crilender CASUnlocks implementation**, preserve its strongest working category-unlock behavior, then consolidate and improve it into Apex's own integrated unlock system. The project owner has stated they have full author permission to use Crilender's work, so Codex may inspect, reuse, port, merge and adapt the authorized package resources directly instead of recreating equivalent tuning solely for clean-room reasons.
 
 ## Zero third-party unlocker dependency invariant
 
@@ -113,15 +113,16 @@ One subsystem owns the policy/model. `ApexCASUnlocks.package`, runtime UI, gener
 
 # Clean-room reference rule
 
-Current third-party unlockers are research/challenger inputs only.
+Crilender CASUnlocks is the primary authorized implementation baseline; other unlockers remain research/challenger inputs.
 
-Do not copy:
-- package resources from Crilender CASUnlocks;
+For Crilender material covered by the owner's author permission, direct reuse/port/adaptation is allowed. Do not copy:
 - package resources from Loulicorn Ultimate CAS Items Unlocker;
-- proprietary/all-rights-reserved code or assets;
+- material from unrelated third parties not covered by the owner's permission;
 - creator-specific identifiers or package structure unless independently required by the game format.
 
-Allowed work:
+Required/allowed work:
+- extract and inventory the authorized current Crilender package/addons;
+- reuse/port/merge authorized resources where they remain the strongest route;
 - observe/document user-visible behavior;
 - compare which categories/items become visible;
 - independently discover the responsible current-game CAS/tuning/CASP fields;

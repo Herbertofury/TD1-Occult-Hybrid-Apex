@@ -1,17 +1,18 @@
-# TD1 Occult Hybrid Apex
+# Apex Occult Hybrid
 
 > A safety-first, highly usable Sims 4 hybrid-occult control suite with an **F11 in-game overlay**, explicit CAS recovery workflows, saved occult forms, per-category appearance tools, drift detection, diagnostics, and a game-thread-only mutation backend.
 
 **Recovered project checkpoint:** V9.5 Final Accounting / Runtime Safe — May 29, 2026  
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
-**Current upstream compatibility target:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026
+**Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-TD1 Occult Hybrid Apex is an independent continuation/research project. It preserves attribution to TD1/TwelfthDoctor1, LordPercivalXII, IcedCream and other upstream contributors where their work or behavior is referenced. It is not presented as an official upstream release.
+Apex Occult Hybrid is a standalone first-party hybrid-occult project recovered from earlier Apex/TD1-oriented work. TD1/TwelfthDoctor1, IcedCream and LordPercivalXII remain historical behavioral/regression references with attribution where relevant; the production release is not an official upstream release and does not require their runtime files.
 
 ## Why Apex exists
 
-The upstream mod does the hard, important work of making hybrid occults viable. Apex keeps that compatibility goal and adds a much more observable, recoverable and user-friendly control layer around it:
+Apex now owns the full hybrid stack itself: occult coexistence, transformations, form switching, gameplay panels, CAS persistence, unlocks, diagnostics and recovery. Historical hybrid mods define useful behaviors/regressions to beat, not dependencies to install:
 
+- **Apex Occult Hybrid Core** — first-party `ApexOccultHybrid.package` + `ApexOccultHybrid.ts4script`; no TD1/IcedCream/LordPercival hybrid runtime dependency.
 - **F11 Dear ImGui control center** in the running game.
 - **Saved Forms** with labels, search, apply and reuse.
 - **CAS History Studio** — Photoshop-style live CAS history with semantic diffs, Undo/Redo, jump-to-state, branching history, named checkpoints, category revert and hybrid-aware cherry-pick.
@@ -40,33 +41,50 @@ These are known historical failure modes and are **release blockers**, not “ed
 
 The canonical reproduction and acceptance ledger is [`docs/USER_REPORTED_REGRESSIONS.md`](docs/USER_REPORTED_REGRESSIONS.md). Apex is not complete while any R001–R010 failure remains reproducible.
 
-Apex CAS Unlock Core and CAS History Studio are designed as part of that fix strategy. **Apex does not depend on Crilender, Loulicorn, Szemoka, or another CAS unlocker; those are research references only.** the same canonical appearance journal/diff layer powers live CAS history, MCCC Shield, Post-CAS Commit, Drift Guard and Saved Forms so the user can see exactly what changed and safely restore earlier states. See [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md) and [`docs/APEX_CAS_UNLOCK_CORE.md`](docs/APEX_CAS_UNLOCK_CORE.md).
+Apex Occult Hybrid Core, CAS Unlock Core and CAS History Studio are designed as one integrated fix strategy. **Apex does not depend on TD1/IcedCream/LordPercival for hybrid runtime behavior, or Crilender/Loulicorn/Szemoka for CAS unlocking; those are research references only.** The same canonical state/journal/diff layers power form ownership, live CAS history, MCCC Shield, Post-CAS Commit, Drift Guard and Saved Forms. See [`docs/APEX_OCCULT_HYBRID_CORE.md`](docs/APEX_OCCULT_HYBRID_CORE.md), [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md), and [`docs/APEX_CAS_UNLOCK_CORE.md`](docs/APEX_CAS_UNLOCK_CORE.md).
 
 ## Architecture
 
 ```text
-                 The Sims 4 / live Sim state
-                           ^
-                           | game-thread queue only
-                           |
-          +----------------+----------------+
-          |                                 |
-  Python script mod                  upstream package/tuning
-  TD1_OccultHybridApex               compatibility layer
-          ^
-          | localhost commands on 127.0.0.1:8017
-          |
-  +-------+-------------------------------+
-  |                                       |
-F11 DX11 Dear ImGui overlay          browser fallback UI
-(render/input only)                  (local only)
+                    The Sims 4 / save state
+                              ^
+                              | validated game-thread actions
+                              |
+                   ApexOccultHybrid.ts4script
+                    /        |          \
+                   /         |           \
+      hybrid state/form   CAS journal   unlock policy
+              |              |              |
+              +------- Apex domain ---------+
+                          ^
+                          |
+                F11 / browser / console
+                          |
+                existing native overlay
+                  (render/input only)
+
+   ApexOccultHybrid.package        ApexCASUnlocks.package
+   hybrid tuning/interactions      CAS/category/catalog layer
+             \                         /
+              \---- same policy/build ----/
 ```
 
-**Critical invariant:** the native render thread never edits Sims data directly. It renders UI, captures input/reference shots and sends commands. Gameplay mutation stays in the Python/Sims command queue.
+**Critical invariant:** the native render thread never edits Sims data directly. Gameplay mutation stays in the Apex Python/Sims game-thread domain.
 
-## Current upstream 1.13.7 parity target
+### Standalone release target
 
-The latest distributed upstream release verified for this handoff is **1.13.7 (FIXE)**. Apex must carry forward these upstream fixes before claiming parity:
+The normal release is built around Apex-owned artifacts:
+
+- `ApexOccultHybrid.package`
+- `ApexOccultHybrid.ts4script`
+- `ApexCASUnlocks.package`
+- optional Apex native F11 overlay component
+
+No TD1/TwelfthDoctor1/IcedCream/LordPercival hybrid file is required. No third-party CAS unlocker is required. MCCC/Lot51/XML Injector may be detected for optional interoperability but cannot be required for core hybrid/unlock behavior.
+
+## Historical 1.13.7 behavioral reference
+
+The latest verified historical reference release is **1.13.7 (FIXE)**. Apex must independently provide equivalent-or-better behavior for the useful fixes below before claiming the reference floor is covered:
 
 1. Missing STBL fix.
 2. TMex PhoneSearch compatibility: PlantSim interactions accessible from the Pie Menu rather than the conflicting path.
@@ -76,16 +94,11 @@ The latest distributed upstream release verified for this handoff is **1.13.7 (F
    - `td1hybrid.view_global_cached_occults`
    - `td1hybrid.view_cas_cached_sims`
 
-See [`docs/UPSTREAM_1.13.7_DELTA.md`](docs/UPSTREAM_1.13.7_DELTA.md) and the full Codex execution contract in [`docs/CODEX_MASTER_EXECUTION.md`](docs/CODEX_MASTER_EXECUTION.md).
+See [`docs/UPSTREAM_1.13.7_DELTA.md`](docs/UPSTREAM_1.13.7_DELTA.md), [`docs/APEX_OCCULT_HYBRID_CORE.md`](docs/APEX_OCCULT_HYBRID_CORE.md), and the full Codex execution contract in [`docs/CODEX_MASTER_EXECUTION.md`](docs/CODEX_MASTER_EXECUTION.md).
 
-## Install / use the recovered V9.5 package
+## Current recovery vs production target
 
-1. Back up the save before testing hybrid-occult mutations.
-2. Place the folder `TD1 Occult Hybrid Apex` one folder deep under `Documents\Electronic Arts\The Sims 4\Mods`.
-3. Enable Custom Content/Mods and Script Mods, then restart the game.
-4. The script/backend can run without the native overlay.
-5. To use the F11 overlay, build `NativeOverlay` on Windows x64 and follow `NativeOverlay/README_BUILD_AND_INSTALL.txt`.
-6. Run `NativeOverlay/verify_ts4_dx11_imports.py` against the current `TS4_x64.exe` before installing the proxy.
+The recovered V9.5 archive is historical implementation/research input. **It is not the desired production dependency layout.** Codex must converge the project onto the first-party Apex package/script artifacts above, then test those exact hashed release artifacts on a clean Mods profile. Back up saves during development/testing.
 
 ### Recommended safe CAS / MCCC flow
 
@@ -98,7 +111,7 @@ F11 -> MCCC Shield -> Arm Household
 -> Scan Selected Occult
 ```
 
-The V9.5 design intentionally refuses the old soft/private MCCC hook path.
+The Apex design intentionally refuses private MCCC monkey-patching. MCCC integration is optional and must degrade to native Apex workflows when MCCC is absent.
 
 ## Performance contract
 
@@ -121,19 +134,20 @@ The V9.5 design intentionally refuses the old soft/private MCCC hook path.
 
 ## Current truth, not marketing
 
-The recovered V9.5 source passed its recorded offline Python/static/audit checks, but **live Sims 4 runtime proof is still required** for the current game build, the native overlay, MCCC/CAS flows, new upstream 1.13.7 parity work, all supported occults and release packaging. The repository deliberately keeps these gates open instead of calling source presence “done.”
+The recovered V9.5 source passed recorded offline Python/static/audit checks, but **live Sims 4 runtime proof is still required** for the current game build, the first-party Apex Occult Hybrid package/script pair, CAS Unlock package, native overlay, CAS/MCCC interoperability, all supported occults and release packaging. The repository deliberately keeps these gates open instead of calling source presence “done.”
 
 ## Start here for Codex
 
 1. Read [`docs/CODEX_MASTER_EXECUTION.md`](docs/CODEX_MASTER_EXECUTION.md).
-2. Read [`docs/UPSTREAM_1.13.7_DELTA.md`](docs/UPSTREAM_1.13.7_DELTA.md).
-3. Read [`docs/USER_REPORTED_REGRESSIONS.md`](docs/USER_REPORTED_REGRESSIONS.md).
-4. Read [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md).
-5. Read [`docs/APEX_CAS_UNLOCK_CORE.md`](docs/APEX_CAS_UNLOCK_CORE.md).
-6. Read [`docs/CAS_UNLOCKER_REFERENCE_MATRIX.md`](docs/CAS_UNLOCKER_REFERENCE_MATRIX.md).
-7. Read [`docs/DEVELOPER_TOOLBOX.md`](docs/DEVELOPER_TOOLBOX.md).
-8. Preserve the V9.5 safety invariants and continue from the earliest ready task ID.
-9. Do not replace the project with a fresh scaffold.
+2. Read [`docs/APEX_OCCULT_HYBRID_CORE.md`](docs/APEX_OCCULT_HYBRID_CORE.md).
+3. Read [`docs/UPSTREAM_1.13.7_DELTA.md`](docs/UPSTREAM_1.13.7_DELTA.md).
+4. Read [`docs/USER_REPORTED_REGRESSIONS.md`](docs/USER_REPORTED_REGRESSIONS.md).
+5. Read [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md).
+6. Read [`docs/APEX_CAS_UNLOCK_CORE.md`](docs/APEX_CAS_UNLOCK_CORE.md).
+7. Read [`docs/CAS_UNLOCKER_REFERENCE_MATRIX.md`](docs/CAS_UNLOCKER_REFERENCE_MATRIX.md).
+8. Read [`docs/DEVELOPER_TOOLBOX.md`](docs/DEVELOPER_TOOLBOX.md).
+9. Preserve the V9.5 safety invariants and continue from the earliest ready task ID.
+10. Do not replace the project with a fresh scaffold.
 
 ## Provenance
 

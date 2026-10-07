@@ -9,6 +9,17 @@ Use these as challengers/references, not automatic dependencies.
 - `https://github.com/Oops19/TS4-XmlInjector` — Sims tuning/XML injection patterns.
 - `https://github.com/stark-studio-labs/sims4-stark-devkit` — current public Sims 4 development-kit reference.
 
+## CAS unlock / package-generation challengers
+
+- `https://www.curseforge.com/sims4/mods/casunlocks` — Crilender CASUnlocks; behavioral reference for keeping CAS categories available. All Rights Reserved: do not copy package content.
+- `https://www.curseforge.com/sims4/mods/ultimate-cas-items-unlocker` — Loulicorn Ultimate CAS Items Unlocker; behavioral reference for broad hidden/locked/debug/occult catalog exposure. All Rights Reserved.
+- `https://modthesims.info/d/672037` — Szemoka Unlock CAS Items; behavioral reference for using game-native reward unlock semantics rather than only static overrides.
+- `https://github.com/sims4toolkit/models` — MIT CAS/package resource models.
+- `https://github.com/sims4toolkit/extraction` — MIT game-file indexing/extraction.
+- `https://github.com/Llama-Logic/LlamaLogic` — MIT LlamaLogic.Packages reader/writer.
+- `https://github.com/PhuVinhAI/ModTS4` — MIT package-authoring/reference workflow with patch-delta precedence.
+- `https://github.com/CmarNYC-Tools/TS4SimRipper` and `TS4CASTools` — GPL-3.0 CASP/CAS technical reference; do not copy/link into a differently licensed Apex deliverable without explicit compatible licensing.
+
 ## Native overlay / diagnostics
 
 - `https://github.com/ocornut/imgui` — Dear ImGui; recovered V9.5 vendored 1.92.8-era sources.

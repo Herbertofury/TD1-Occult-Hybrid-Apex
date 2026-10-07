@@ -73,8 +73,10 @@ static std::mutex g_dataMutex;
 static std::string g_json = "{\"message\":\"Waiting for TD1 Apex Python server...\"}";
 static std::string g_status = "Not connected";
 static std::string g_selectedSim;
-static std::deque<std::string> g_commands;
-static ULONGLONG g_lastStatusMs = 0;
+struct QueuedCommand { std::string path; uint64_t generation; };
+static std::deque<QueuedCommand> g_commands;
+static uint64_t g_selectionGeneration = 0;
+static std::atomic<ULONGLONG> g_lastStatusMs{0};
 static int g_activeTab = 0;
 static bool g_wsStarted = false;
 static std::vector<std::string> g_logLines;
@@ -352,8 +354,11 @@ static std::string ExtractJsonValue(const std::string& json, const char* keyName
 
 static void QueueCommand(const std::string& path) {
     std::lock_guard<std::mutex> lock(g_dataMutex);
-    g_commands.push_back(path);
-    if (g_commands.size() > 48) g_commands.pop_front();
+    if (g_commands.size() >= 48) {
+        g_status = "Queue full: this command was rejected; earlier commands were retained";
+        return;
+    }
+    g_commands.push_back({path, g_selectionGeneration});
 }
 
 static std::string CurrentSimQuery() {
@@ -384,17 +389,20 @@ static bool ActionButton(const char* label, const char* action, const char* occu
 static void WorkerLoop() {
     g_workerActive = true;
     while (!g_done) {
-        std::string command;
+        QueuedCommand command;
         {
             std::lock_guard<std::mutex> lock(g_dataMutex);
             if (!g_commands.empty()) { command = g_commands.front(); g_commands.pop_front(); }
         }
-        if (!command.empty()) {
+        if (!command.path.empty()) {
             std::string body;
-            bool ok = HttpGet(command, body);
+            bool ok = HttpGet(command.path, body);
             std::lock_guard<std::mutex> lock(g_dataMutex);
-            g_status = ok ? "Command finished" : "Command request failed";
-            if (ok) { g_json = body; auto lines = ExtractHistory(body); if (!lines.empty()) g_logLines = lines; }
+            if (command.generation == g_selectionGeneration) {
+                g_status = !ok ? "Command request failed" :
+                    (ExtractJsonValue(body, "ok") == "true" ? "Command verified by backend" : "Backend rejected or has not verified the command");
+                if (ok) { g_json = body; auto lines = ExtractHistory(body); if (!lines.empty()) g_logLines = lines; }
+            }
             continue;
         }
         if (g_visible.load()) {
@@ -403,18 +411,20 @@ static void WorkerLoop() {
                 g_lastStatusMs = now;
                 std::string body;
                 std::string sim;
-                { std::lock_guard<std::mutex> lock(g_dataMutex); sim = g_selectedSim; }
+                uint64_t generation;
+                { std::lock_guard<std::mutex> lock(g_dataMutex); sim = g_selectedSim; generation = g_selectionGeneration; }
                 std::string path = "/api/overlay/state?count=220";
                 if (!sim.empty()) path += "&sim_id=" + UrlEncode(sim);
                 bool ok = HttpGet(path, body);
                 std::lock_guard<std::mutex> lock(g_dataMutex);
+                if (generation != g_selectionGeneration) continue;
                 g_status = ok ? "Connected to TD1 Apex" : "Waiting for 127.0.0.1:8017";
                 if (ok) {
                     g_json = body;
                     auto lines = ExtractHistory(body);
                     if (!lines.empty()) g_logLines = lines;
                     std::string sid = ExtractJsonValue(body, "sim_id");
-                    if (!sid.empty() && g_selectedSim.empty()) g_selectedSim = sid;
+                    if (!sid.empty() && g_selectedSim.empty()) { g_selectedSim = sid; ++g_selectionGeneration; }
                 }
             }
         }
@@ -809,7 +819,14 @@ static void DrawOverlay() {
     char simBuf[64] = {};
     strncpy_s(simBuf, sim.c_str(), _TRUNCATE);
     ImGui::SetNextItemWidth(260);
-    if (ImGui::InputText("Target Sim ID", simBuf, sizeof(simBuf))) { std::lock_guard<std::mutex> lock(g_dataMutex); g_selectedSim = simBuf; }
+    if (ImGui::InputText("Target Sim ID", simBuf, sizeof(simBuf))) {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        g_selectedSim = simBuf;
+        ++g_selectionGeneration;
+        g_json = "{}";
+        g_status = "Selection changed; waiting for current data";
+        g_lastStatusMs = 0;
+    }
     ImGui::SameLine(); ActionButton("Refresh", "status", nullptr, nullptr, ImVec2(86,0));
     ImGui::SameLine(); ActionButton("Health", "health", nullptr, nullptr, ImVec2(86,0));
     ImGui::SameLine(); ActionButton("Diagnostics", "diagnostics", nullptr, nullptr, ImVec2(112,0));

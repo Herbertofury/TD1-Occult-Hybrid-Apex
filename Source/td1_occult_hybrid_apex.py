@@ -86,7 +86,12 @@ _LOG_SEQ = 0
 _PENDING = []
 _RESULTS = {}
 _ACTION_COUNTER = 0
-_ALARM_OWNER = object()
+class _ApexAlarmOwner:
+    """The current Sims alarm API requires a weak-referenceable owner."""
+    pass
+
+
+_ALARM_OWNER = _ApexAlarmOwner()
 _ALARM_HANDLE = None
 _ALARM_READY = False
 _FORM_MEMORY = {}
@@ -4430,6 +4435,14 @@ def _handle_http_client(conn):
             conn.sendall(_http_payload('', 'text/plain; charset=utf-8', '204 No Content'))
             return
         path, query = _parse_request_path(raw_path)
+        if path == '/api/bridge':
+            conn.sendall(_http_payload({'ok': True, 'build_version': _BUILD_VERSION,
+                'alarm_ready': _ALARM_READY, 'bootstrap_status': _APEX_BOOTSTRAP_STATUS,
+                'queue': _APEX_COMMANDS.metrics(), 'sim_data_read': False}))
+            return
+        if path == '/api/requests/status':
+            conn.sendall(_http_payload(_APEX_COMMANDS.status(query.get('request_id', ''))))
+            return
         if path in ('/', '/index.html'):
             conn.sendall(_http_payload(_panel_html(), 'text/html; charset=utf-8'))
             return
@@ -4613,10 +4626,8 @@ if Command is not None:
         return True
 
 
-# Auto-start like RTBP's in-game bridge.
-_load_saved_forms()
-# V9.4: legacy Lot51 event hooks are not auto-installed; use explicit MCCC Shield/Lot51 commands.
-start_server()
+# Startup is deferred until every compatibility layer and owner is initialized.
+# See the canonical bootstrap at the end of this module.
 
 
 # -----------------------------------------------------------------------------
@@ -8148,3 +8159,139 @@ def run_action(action, sim_id=None, occult=None, value=None):
 
 
 _log('TD1 Occult Hybrid Apex v9.6 loaded: BodyType table corrected for Sims 4 1.124.63.1020, Base Layer moved to 117, and ambiguous old head/wings keys fail closed.')
+
+
+# Canonical transport owner: all Sim reads and writes belong to the game thread.
+from apex_core.command_queue import CommandQueue
+
+_APEX_GAME_THREAD_IDENT = threading.current_thread().ident
+_APEX_COMMANDS = CommandQueue(capacity=48, completed_limit=128)
+_APEX_PRE_OWNER_RUN_ACTION = run_action
+_BUILD_VERSION = '2026.10.07-apex-owner-queue-dev'
+_APEX_BOOTSTRAP_STATUS = 'not initialized'
+
+
+def run_action(action, sim_id=None, occult=None, value=None):
+    if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
+        return {'ok': False, 'message': 'Sim inspection and mutation require the canonical Sims game-thread owner.'}
+    if action == 'bridge_status':
+        return {'ok': True, 'message': 'Game-thread bridge ready', 'queue': _APEX_COMMANDS.metrics(),
+                'build_version': _BUILD_VERSION, 'alarm_ready': _ALARM_READY}
+    return _APEX_PRE_OWNER_RUN_ACTION(action, sim_id=sim_id, occult=occult, value=value)
+
+
+def _execute_owned_command(item):
+    started = time.monotonic()
+    _log('START owned {}'.format(item.get('action')))
+    result = run_action(item['action'], item.get('sim_id'), item.get('occult'), item.get('value'))
+    elapsed = (time.monotonic() - started) * 1000.0
+    _record_perf(item['action'], elapsed, ok=bool(result.get('ok')))
+    _log('{} owned {} in {:.1f} ms: {}'.format('DONE' if result.get('ok') else 'FAIL',
+         item['action'], elapsed, result.get('message', '')))
+    return result
+
+
+def _process_pending(_handle=None):
+    # Empty ticks perform no Sim reads/scans/HTTP and no disk writes.
+    count = _APEX_COMMANDS.drain(_execute_owned_command, max_commands=4, budget_seconds=0.02)
+    if _AUTO_REPAIR:
+        _auto_repair_tick()
+    if _MCCC_CAS_SHIELD_ENABLED:
+        _mccc_cas_shield_tick()
+    return True
+
+
+def _setup_alarm():
+    global _ALARM_HANDLE, _ALARM_READY, _APEX_BOOTSTRAP_STATUS
+    if threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
+        # HTTP/render workers may enqueue, but may never access the Sims timeline.
+        return False
+    if _ALARM_READY:
+        return True
+    if services is None or alarms is None or clock is None:
+        return False
+    try:
+        time_service = services.time_service()
+        if time_service is None or time_service.wall_clock_timeline is None:
+            _APEX_BOOTSTRAP_STATUS = 'waiting for a loaded zone/time service'
+            return False
+        _ALARM_HANDLE = alarms.add_alarm_real_time(_ALARM_OWNER,
+            clock.interval_in_real_seconds(_ACTION_QUEUE_INTERVAL_SECONDS), _process_pending, repeating=True)
+        _ALARM_READY = _ALARM_HANDLE is not None
+        _APEX_BOOTSTRAP_STATUS = 'ready' if _ALARM_READY else 'alarm creation returned no handle'
+        return _ALARM_READY
+    except Exception as exc:
+        _APEX_BOOTSTRAP_STATUS = str(exc)
+        _log('Canonical queue bootstrap failed safely: {}'.format(exc))
+        return False
+
+
+def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.0):
+    safe_action = (action or 'status').strip().lower()
+    if not _ALARM_READY:
+        return {'ok': False, 'state': 'rejected', 'message':
+                'Game-thread bridge is not ready. Load a disposable household or run apex.bridge.start from the game console.',
+                'bootstrap_status': _APEX_BOOTSTRAP_STATUS}
+    row = _APEX_COMMANDS.submit({'action': safe_action, 'sim_id': sim_id, 'occult': occult, 'value': value},
+                                ttl=max(0.1, min(60.0, float(wait_seconds))))
+    if row['state'] == 'rejected':
+        return row
+    _log('QUEUED owned {} #{}'.format(safe_action, row['request_id']))
+    status = _APEX_COMMANDS.wait(row['request_id'], max(0.0, float(wait_seconds)))
+    result = dict(status.get('result') or {'ok': False, 'message': status.get('message', 'Command was not executed.')})
+    result.update({'request_id': row['request_id'], 'request_state': status['state']})
+    return result
+
+
+def _apex_zone_queue_ready(zone_instance, *args, **kwargs):
+    global _APEX_GAME_THREAD_IDENT, _ALARM_HANDLE, _ALARM_READY
+    _APEX_GAME_THREAD_IDENT = threading.current_thread().ident
+    for request_id in list(_APEX_COMMANDS.pending):
+        _APEX_COMMANDS.cancel(request_id, 'Zone changed before execution; submit against the new zone explicitly.')
+    _APEX_COMMANDS.bind_owner()
+    if _ALARM_HANDLE is not None:
+        try:
+            alarms.cancel_alarm(_ALARM_HANDLE)
+        except Exception:
+            pass
+    _ALARM_HANDLE = None
+    _ALARM_READY = False
+    _setup_alarm()
+
+
+def _apex_install_zone_signal():
+    # Current 1.128.90 zone method was inspected read-only before adapting it.
+    # Preserve the original callback and its arguments/return value; no MCCC hooks.
+    try:
+        from zone import Zone
+        previous = Zone.on_loading_screen_animation_finished
+        if getattr(previous, '_apex_queue_signal', False):
+            return True
+        def signal(zone_instance, *args, **kwargs):
+            result = previous(zone_instance, *args, **kwargs)
+            try:
+                _apex_zone_queue_ready(zone_instance)
+            except Exception as exc:
+                _log('Zone queue readiness failed safely: {}'.format(exc))
+            return result
+        signal._apex_queue_signal = True
+        Zone.on_loading_screen_animation_finished = signal
+        return True
+    except Exception as exc:
+        _log('Zone readiness signal unavailable; manual apex.bridge.start remains available: {}'.format(exc))
+        return False
+
+
+if Command is not None:
+    @Command('apex.bridge.start', command_type=_LIVE, command_restrictions=_UNRESTRICTED)
+    def _apex_console_bridge_start(_connection=None):
+        ready = _setup_alarm()
+        _cmd_out(_connection)('Apex owner queue: {}'.format(_APEX_BOOTSTRAP_STATUS))
+        return ready
+
+
+if services is not None:
+    _load_saved_forms()
+    _apex_install_zone_signal()
+    _setup_alarm()
+    start_server()

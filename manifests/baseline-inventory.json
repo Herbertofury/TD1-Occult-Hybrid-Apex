@@ -1,0 +1,882 @@
+{
+  "archives": [
+    {
+      "archive": "LordPercivalXII.Occult.Hybrid.Unlocker.Stabilizer.Version.1.13.7.zip",
+      "entries": [
+        {
+          "bytes": 188708,
+          "modules": [
+            {
+              "bytes": 7165,
+              "path": "OccultHybrid/CoreLib/TD1_OccultHybrid_Config.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "f8e8faf87d4cf6359125c3454a01a9b2bdc65fa2c55506c8bf1fb48016838c72"
+            },
+            {
+              "bytes": 1804,
+              "path": "OccultHybrid/CoreLib/TD1_OccultHybrid_Decorator.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "50b5a55232127ee47443e512322ddf3bd845d90bc8bc3bed34b09994d30fc344"
+            },
+            {
+              "bytes": 2442,
+              "path": "OccultHybrid/CoreLib/TD1_OccultHybrid_Exception.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "2a882095a8705f7d8e6c89dfbf4804ac8be6c1ed69ef1943c8e62a1bf2fe0924"
+            },
+            {
+              "bytes": 18169,
+              "path": "OccultHybrid/CoreLib/TD1_OccultHybrid_MenuUI.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "408fa23b48ff633a2b9de343cc56cd622073b3ce73962c01c8146003755c94c0"
+            },
+            {
+              "bytes": 187,
+              "path": "OccultHybrid/CoreLib/__init__.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "1bae4059783df2772226385d1d543c1be3503349dce2580528d1ef99861d4dbe"
+            },
+            {
+              "bytes": 8965,
+              "path": "OccultHybrid/FrameworkLib/TD1_OccultHybrid_Add_Buff_Loot_Handler.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "fed215b6c115ca96a01dc85fdf02613812bccc8210da231a456030120362c614"
+            },
+            {
+              "bytes": 16062,
+              "path": "OccultHybrid/FrameworkLib/TD1_OccultHybrid_Add_Int_AF2.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "6622bb413b1dbfb20d5c753188b8e586b5bcf785351e8b96f31d69a1607ac5f3"
+            },
+            {
+              "bytes": 10481,
+              "path": "OccultHybrid/FrameworkLib/TD1_OccultHybrid_Add_Int_Loot_Handler.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "8524c9ff37ef76d0ba3e69a80657aa3da39fe0303a88e842ecc63f4a3377ddbb"
+            },
+            {
+              "bytes": 5810,
+              "path": "OccultHybrid/FrameworkLib/TD1_OccultHybrid_Add_LootActions_Handler.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "382c7370d3d91aea4346dccdf24a8e5dbad59ee7fa5b4c133d7b2a6a7d9b927e"
+            },
+            {
+              "bytes": 4444,
+              "path": "OccultHybrid/FrameworkLib/TD1_OccultHybrid_CheatSetter.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "a0361715a47f6d2427682aec93bc34d8b61c8b028908c340e6ea63ce41bd4db7"
+            },
+            {
+              "bytes": 8154,
+              "path": "OccultHybrid/FrameworkLib/TD1_OccultHybrid_TestInjector.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "f214faf113116808630b5ea7fc71cfb51c61dc50dd9bfe055b7af5a5512f4d33"
+            },
+            {
+              "bytes": 207,
+              "path": "OccultHybrid/FrameworkLib/__init__.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "14d368735651df136fc1af1be954e996b64492ce302cf6c996e5a4757483c68a"
+            },
+            {
+              "bytes": 204,
+              "path": "OccultHybrid/IC_Hybrid/__init__.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "3ccb4050430ee1f8f4c8488ce2280e2a9684aafc9b2bbb04932e2549776594fe"
+            },
+            {
+              "bytes": 2544,
+              "path": "OccultHybrid/IC_Hybrid/_appearance_tracker.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "4b7c5b557d24943ff044780e163e879721de36d9c11562d524b8b6050fb4aa6b"
+            },
+            {
+              "bytes": 661,
+              "path": "OccultHybrid/IC_Hybrid/_instance_manager.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "43fd4252f7eca31bb3a0d58372f835c3c1a0587295de7b4ab1fb57228b4e84db"
+            },
+            {
+              "bytes": 7518,
+              "path": "OccultHybrid/IC_Hybrid/_occult_tracker.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "29868291a78425c90a1f699b01707f8f4e725618c02d4cbc3f95239619371c07"
+            },
+            {
+              "bytes": 5198,
+              "path": "OccultHybrid/IC_Hybrid/_trait_tracker.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "bacc313982aa94f31ae5b9996f9f12dc79f3f3ea92a178928adff52e571a9c3b"
+            },
+            {
+              "bytes": 6629,
+              "path": "OccultHybrid/IC_Hybrid/class_instance_tuning_injection.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "0cda974e60c81c6bfa3782a92792e1dee8e819781b543ebf383c43c073248aa3"
+            },
+            {
+              "bytes": 14554,
+              "path": "OccultHybrid/IC_Hybrid/commands.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "e33e64171a00756c8d29809422dbeabf8c8cea1d10ae22b1cb94698b456b4a4a"
+            },
+            {
+              "bytes": 1096,
+              "path": "OccultHybrid/IC_Hybrid/injector.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "9301b6f96d2f5492a25c362b7105211db6af5872c90a7824e13ecf8fd193b41b"
+            },
+            {
+              "bytes": 21745,
+              "path": "OccultHybrid/IC_Hybrid/interactions.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "a4f02c94705f1648aad90ea81f702bfc32d033fe8ed6855a6fd27ee288abdb14"
+            },
+            {
+              "bytes": 2288,
+              "path": "OccultHybrid/IC_Hybrid/occult_cache.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "07ec77849b57b11bfadc7b4721de1e5e361332514ffce1134af9805e053a0ae0"
+            },
+            {
+              "bytes": 8884,
+              "path": "OccultHybrid/IC_Hybrid/occult_utils.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "f6b2e4fbd07f25b32b71ac0a02d6dd49ca7759e6934e903fc929c22d21511b1a"
+            },
+            {
+              "bytes": 283,
+              "path": "OccultHybrid/IC_Hybrid/settings.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "95654d63a688eb376bcae0b4f4b6edd04d433f18f64c60acca6ea987c84e202f"
+            },
+            {
+              "bytes": 7183,
+              "path": "OccultHybrid/IC_Hybrid/snippets.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "82f8b779d81a1d8ca605d0cf9dcb311a904b7479e134fb7623aff55107eb05f7"
+            },
+            {
+              "bytes": 3346,
+              "path": "OccultHybrid/IC_Hybrid/tuning_utils.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "812ad3069434a5a71b9706b1c4b59b86ab092ce9e48d092b6f7f1f732e7a5c7e"
+            },
+            {
+              "bytes": 4523,
+              "path": "OccultHybrid/Modules/TD1_OccultHybrid_StabilizeFix.py",
+              "pyc_magic": null,
+              "sha256": "598494b0b62b57eb971738be837f5b9299662cade3a4d68d5180f10854ff66f5"
+            },
+            {
+              "bytes": 202,
+              "path": "OccultHybrid/Modules/__init__.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "7d67c8d956af98d3a68319fcb56214144a09adfbf11f9e97af691a08b44dfd0d"
+            },
+            {
+              "bytes": 1998,
+              "path": "OccultHybrid/Modules/occult_cas_restore.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "16ccfacd38bfadd2a7aef0ce6a6a471250bcb914cb44a6e8339924140edb6cca"
+            },
+            {
+              "bytes": 530,
+              "path": "OccultHybrid/Modules/pelt_layer_cache.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "873f0e9dc4b0c8791e26905ad1fbf01506521e783ac30b994c24d1918bc9f0ce"
+            },
+            {
+              "bytes": 2657,
+              "path": "OccultHybrid/UtilLib/ConfigJSON.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "9e0090337a90439b700f0824c2e7bba3189977cf222e8a31bf243b93805c5eba"
+            },
+            {
+              "bytes": 468,
+              "path": "OccultHybrid/UtilLib/ConfigTemplate.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "d3b82754890ac41043dbb7258799c5155d77f3818e2405e0969ec78c641277db"
+            },
+            {
+              "bytes": 5214,
+              "path": "OccultHybrid/UtilLib/JSONHandler.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "3423dd8e64ebd257b3c2cb9c0abde62fe3ffa24466a510bc8efce5a43a5d4ea6"
+            },
+            {
+              "bytes": 786,
+              "path": "OccultHybrid/UtilLib/JSONParser.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "8962110ff8f75593cd3cdfc718c9208578400d98a82ad5f3748ac312feceb6e7"
+            },
+            {
+              "bytes": 187,
+              "path": "OccultHybrid/UtilLib/__init__.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "268812b8ecf82804774e4ab478008dac2f0d7ca84e4cf7214d42e747f5d77a8e"
+            },
+            {
+              "bytes": 194,
+              "path": "OccultHybrid/__init__.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "ff0e35d602e9a5ad06e95e156da8d9e3ed1bea900511c39446447aa41ad6438f"
+            }
+          ],
+          "path": "TwelfthDoctor1_OccultHybridHandler.ts4script",
+          "sha256": "3bad5aa906ab6395609c2e1e5f722765c4deff283858d6e1ca614ceeddbd826c"
+        },
+        {
+          "bytes": 3971,
+          "path": "[TD1-IC] Hybrid - Plantsim Interactions.package",
+          "sha256": "52cfe671129ee3059753d475b6ff1ee8728098f2e1c4c07f18bbdc646d7bbbe0"
+        },
+        {
+          "bytes": 424,
+          "path": "[TD1-IC] Hybrid - Plantsim No Vampire Thirst.package",
+          "sha256": "922edae4bcbbbf620c35b768b0395da5291a7706e95f7350592d43061f612d7d"
+        },
+        {
+          "bytes": 810,
+          "path": "[TD1-IC] Hybrid - Plantsim Permanent.package",
+          "sha256": "5e7bad6985be8406b9646638fcc45f2cb6f606ef0416bbe86f9d4463da188828"
+        },
+        {
+          "bytes": 4790,
+          "path": "[TD1-IC] Hybrid - Servo Interactions.package",
+          "sha256": "94998c922edf10ae7922d39b2620dbd0645fe716d489c00bb956d1b7dcccf6af"
+        },
+        {
+          "bytes": 438,
+          "path": "[TD1-IC] Hybrid - Servo No Vampire Thirst.package",
+          "sha256": "13df266856db72587895db1a1667ee864feb757b0b93454e9332740a02f3a6df"
+        },
+        {
+          "bytes": 208996,
+          "path": "[TD1-IC] OccultHybrid.package",
+          "sha256": "7b149f477e3328a1e1eb1d1b055a902f37f1da5b820006f79e95eff638352bba"
+        },
+        {
+          "bytes": 52487,
+          "path": "[TwelfthDoctor1] OccultTurnActionsUnlocker.package",
+          "sha256": "cd9492df2883d52bf417f6445c796cf7f0ce12d8fed13b20e5c48f7619c3bf70"
+        }
+      ],
+      "sha256": "012e1a04eeaf15c3a6bd78bd05171724a0514ae369c7a3fd32bc114d7e1a9124"
+    },
+    {
+      "archive": "MCCC-2026.5.0.zip",
+      "entries": [
+        {
+          "bytes": 10464,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 3493,
+              "path": "mc_career.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "7544ff4b592ec12f85c6f7c31ec28caeed97a891123fdfb67f1efc259af5bbb6"
+            },
+            {
+              "bytes": 3954,
+              "path": "mc_career_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "5764e16152907a08e3647d3486e03719c3cd6a7b8ed8218be5050ddaea23295e"
+            },
+            {
+              "bytes": 12732,
+              "path": "mc_career_inject.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "3031062e914d7f984940207c7ca1261fd087f89cc8aa660ef2919c4ded067f6c"
+            },
+            {
+              "bytes": 744,
+              "path": "mc_career_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "209f59df38c3fa90a25aebe4295defae3774fcd9686450448d3f68db5314bfdd"
+            }
+          ],
+          "path": "mc_career.ts4script",
+          "sha256": "ed13342714e1029795327193c84c2f2b9bc82af2fee586b01f0d628065dff54d"
+        },
+        {
+          "bytes": 44011,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 32766,
+              "path": "mc_cas.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "e18d49b31ec0bbb7a9c3e551f667b84e1b4b36f25799526f7d2a2861a3306722"
+            },
+            {
+              "bytes": 61664,
+              "path": "mc_cas_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "6e294997bddc4ed4bf100eb69355bf558ca91c88665f01379c5543bb6a52f92f"
+            },
+            {
+              "bytes": 6886,
+              "path": "mc_cas_inject.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "22867c71db1eea583ec77273f553cbdbb4765dff6f078f83f021f81f9f309b2c"
+            },
+            {
+              "bytes": 2690,
+              "path": "mc_cas_io.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "2da5097450e984f5a228c420f313b99890d51ad2118f771043bb3da267b9e963"
+            },
+            {
+              "bytes": 687,
+              "path": "mc_cas_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "0b21193efe969312b93333841b30d2e857aa48081910166de674979364186b9e"
+            }
+          ],
+          "path": "mc_cas.ts4script",
+          "sha256": "11f5df5602c4cab48a71f5ef039a38c419b694b3e0ad47b1dba9a55304d8e74e"
+        },
+        {
+          "bytes": 79535,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 27494,
+              "path": "mc_cheats.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "2b22f7ec7a6ae8b1713a643e75f06b0e941a84a3910bfb2ee0341fc5a11d3682"
+            },
+            {
+              "bytes": 180663,
+              "path": "mc_cheats_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "3d33d99ee241e2759d40b2a5f9e3162738af5d331524a51bf2ec7ca0b55fa2ab"
+            },
+            {
+              "bytes": 1699,
+              "path": "mc_cheats_tuning.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "5649f837a6cb7ac8b2a44fe71c954ff8817161d5b74b5046d8fd8df03a2de343"
+            },
+            {
+              "bytes": 696,
+              "path": "mc_cheats_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "e4f1846bd5ce3816d5ec416f3624efe16a76f188326ce7a060e0040927f825ca"
+            }
+          ],
+          "path": "mc_cheats.ts4script",
+          "sha256": "e8883b1643059c52347ad9bb02a28de6554ca6097eaa74023f0b8d8e29c10429"
+        },
+        {
+          "bytes": 26385,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 22532,
+              "path": "mc_cleaner.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "c1e2d66e89fe3fa955622f0e28ecf5dc39b00d710e15b19798f4b54bdb97331a"
+            },
+            {
+              "bytes": 32475,
+              "path": "mc_cleaner_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "efadd31a05f25f0840b763491c2c832c8635a9d10474022912a4e534aff1983a"
+            },
+            {
+              "bytes": 3167,
+              "path": "mc_cleaner_inject.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "4a6c7207bfe9c1bbc1fd50807fe97bf7eb38b062c928689d8730551edee334e5"
+            },
+            {
+              "bytes": 711,
+              "path": "mc_cleaner_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "267d65ca82f8a92bc3923d44e7f3a1934ac9156ffe58b87c0d15dbb996449321"
+            }
+          ],
+          "path": "mc_cleaner.ts4script",
+          "sha256": "6ba40882acf93e23849e26bc486bf547324416c8143ebd619ea2e16d90c87655"
+        },
+        {
+          "bytes": 6114,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 6283,
+              "path": "mc_clubs.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "4fb34f299a83c6186cd0f33cb18799e5a6a3e4feb4504637b3f119313a7d76a5"
+            },
+            {
+              "bytes": 2748,
+              "path": "mc_clubs_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "4b9d97d610604ee5a75c8b27411059468241f26c04904d15206680bcb7664e44"
+            },
+            {
+              "bytes": 703,
+              "path": "mc_clubs_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "13606d9198b89612bc73ec8f13ce376ebab46959b6bffc4442f9d0127cde9a80"
+            }
+          ],
+          "path": "mc_clubs.ts4script",
+          "sha256": "424ccaa5890a79fe88baf94df4578310b388b32598e880445f040986637bf3b1"
+        },
+        {
+          "bytes": 1425576,
+          "path": "mc_cmd_center.package",
+          "sha256": "23745bef3462d1087d372d633a48e5701a8a22561099f8114a2879b07bf7aa76"
+        },
+        {
+          "bytes": 335583,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 15981,
+              "path": "mc_bills.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "0fbcf1f85ff2135f235a15879f974632e264ab6686b40e737a2d6a490b925ec9"
+            },
+            {
+              "bytes": 33013,
+              "path": "mc_cmd_center.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "762fa8acb8ae34887c9fe82ad5fcee3fea61f77c19fbccfd0747c78a6df8b256"
+            },
+            {
+              "bytes": 20873,
+              "path": "mc_cmd_center_cmd.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "a340e59cf733134fddb809d7d5b73d70074f967aa3324a3c155330629e1c28ec"
+            },
+            {
+              "bytes": 188737,
+              "path": "mc_cmd_center_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "7c4f61dd26554734c53044a25424fdb8b1ef2c330a53c76ceadfdfcd246f7e50"
+            },
+            {
+              "bytes": 23835,
+              "path": "mc_cmd_center_tuning.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "e8f05cef3540d83c6433c2857bc091a42de16648a9b15c98cce97731e2b90c8e"
+            },
+            {
+              "bytes": 7832,
+              "path": "mc_cmd_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "4a2e46e2243f8e74bd632c794ef247e8b4ca8df903a18de423c8cbfc6b372bd8"
+            },
+            {
+              "bytes": 59745,
+              "path": "mc_dialogs.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "b7c9ecc24e05dca4e5b635d2e044c9f14aa7512d7db758ed3d114705b4f63fd4"
+            },
+            {
+              "bytes": 25072,
+              "path": "mc_file_io.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "3698071e2fad9744ced475679727d85ec477c75531294b64c17b73c62dcb2c86"
+            },
+            {
+              "bytes": 54295,
+              "path": "mc_injections.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "a7a9e7aa75d87d95b4d2996e1740d960f29340b82382e55c436886d109fdc9d4"
+            },
+            {
+              "bytes": 57598,
+              "path": "mc_logging.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "68222379e788c786bd51a4cce165542177dc38d7e2617febe868b99996d30043"
+            },
+            {
+              "bytes": 13786,
+              "path": "mc_occult_utils.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "9e3c32a50fd79d154e36202b590d378e2e7e01f19dd7390f8675a0f1e6ed3c93"
+            },
+            {
+              "bytes": 131239,
+              "path": "mc_settings.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "ff0baea77992de99ae4f742557a4654bff6a2047906e15691c72caf3b75ebd0a"
+            },
+            {
+              "bytes": 18639,
+              "path": "mc_shared_alarms.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "6e45b2f4b58fbd91faece3955f625a4789cd97f5ff76b1fe95d4a000f7b04cdb"
+            },
+            {
+              "bytes": 47026,
+              "path": "mc_shared_utils.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "f938d5f7b39dd0dad6ff640acbd2923871dace3a2257e795913c58f9fef1667a"
+            },
+            {
+              "bytes": 27541,
+              "path": "mc_story_actions.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "c7435ea9acb8790a124389af02c5a4e724877be97e1d23ecd9b70f33ec2970bd"
+            },
+            {
+              "bytes": 84778,
+              "path": "mc_utils.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "b4d7dc874e5ece2626ece6b8899152452e1a043951a0bfd2dc4e86ea03ea347e"
+            },
+            {
+              "bytes": 17423,
+              "path": "mc_workaround.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "1ed6ee0d972c7633bdd546dae09925a05a879c2f78a3028915f5a620ab1274c1"
+            }
+          ],
+          "path": "mc_cmd_center.ts4script",
+          "sha256": "f5a26bc40c645db9958fb4735a11480fd831540875b17402ff71e46ae62baa50"
+        },
+        {
+          "bytes": 5548,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 3533,
+              "path": "mc_control.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "20b39bb2d99841fea4122746ce2b2294c5e403b5a233274ccaca12685ae570a2"
+            },
+            {
+              "bytes": 5300,
+              "path": "mc_control_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "6ffcdca37c4213096defd954dc1b5c697587f653cfffbadc422918ef83f1be19"
+            }
+          ],
+          "path": "mc_control.ts4script",
+          "sha256": "9bfa2b4d95b2a07ebefd467bb1a90ae0131e2d3149d3af62200b7b4b29c857db"
+        },
+        {
+          "bytes": 79331,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 43581,
+              "path": "mc_dresser.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "e033e42e9ecbb99f1bbd11397db35697b24f4052c20dcc8fb8ed35379c3c2f83"
+            },
+            {
+              "bytes": 28628,
+              "path": "mc_dresser_cmd.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "47a03dc4c1e6ca8938cf2671b49939d2a6cbfe89a5327c35022bf181cafa0853"
+            },
+            {
+              "bytes": 80022,
+              "path": "mc_dresser_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "f7a8ac0e439e1f75f8049e4c9900ca621381506c71f7a6bab2253c170adf1116"
+            },
+            {
+              "bytes": 2232,
+              "path": "mc_dresser_inject.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "216c5f31f7f6cac56657569f07cf0e5f91277cfb0efe0169f216d3599a84b093"
+            },
+            {
+              "bytes": 16189,
+              "path": "mc_dresser_io.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "92e4d6c604930291846a59e222569cd08efb5ef6affd544adc0968518473a65f"
+            },
+            {
+              "bytes": 3867,
+              "path": "mc_dresser_tuning.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "e07132b0ef67702f1b35acd6f33a9c8a894dd5ebb6d26619bb6b2bc079107fb3"
+            },
+            {
+              "bytes": 15087,
+              "path": "mc_dresser_utils.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "edf48f61846edfcfeb40c0b94417429b6e26f4a7f0366c0d68ce7ec502b21d8c"
+            },
+            {
+              "bytes": 747,
+              "path": "mc_dresser_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "b754b6dba6eb070fbab69eeccb16801c5d3aad0707ccceb0adde7f5fe56f07bd"
+            }
+          ],
+          "path": "mc_dresser.ts4script",
+          "sha256": "ae768c9de258b7aebd9dc317f99dc5be4f5d749d1719bbce23eacd3a00cd7657"
+        },
+        {
+          "bytes": 6506,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 10801,
+              "path": "mc_gedcom.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "6788bbe7902b48652ece945b5519bba527c94e63bfc2b7873dbfdeb79970a037"
+            },
+            {
+              "bytes": 732,
+              "path": "mc_gedcom_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "c87fe03fba16525015ae7130e5fc1cb9218d12100f15bd27438f078a213bdd88"
+            }
+          ],
+          "path": "mc_gedcom.ts4script",
+          "sha256": "c91f0a58f1ec18569e0fabf9ecd45e53bc47acd9ff33d16717d63155728c206f"
+        },
+        {
+          "bytes": 38310,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 37308,
+              "path": "mc_occult.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "146e33092fc95abbad6ce945fbcb0a0826f672845e7aecacb9a83a6a9ce75891"
+            },
+            {
+              "bytes": 39393,
+              "path": "mc_occult_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "1b230add309f1c10569cba688c9451d1bdb03d5c1ccdfc2804c02e209e65ff5d"
+            },
+            {
+              "bytes": 3761,
+              "path": "mc_occult_inject.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "3c270c304d9fe14867bf73c9df7085e71637f3a71cab690757ff1916663f622a"
+            },
+            {
+              "bytes": 22912,
+              "path": "mc_occult_tuning.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "db1818e5aa7748e27e44cd18f605cc7e073073c470158cb89b28982df8d50e2a"
+            },
+            {
+              "bytes": 744,
+              "path": "mc_occult_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "2111dc221bc22dd27eb5ec6c9a2e62b1ec62c40a34a153414cab0a330c8fd6fa"
+            }
+          ],
+          "path": "mc_occult.ts4script",
+          "sha256": "51d35331fbd1db048bfbafc7d1b500c61a867cc4347765d212daac4b012e247a"
+        },
+        {
+          "bytes": 46483,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 24906,
+              "path": "mc_population.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "cc2736bbbbbaa49eac94002288f1f139a5eb6c9427f3af7b943f7e317aa07c3b"
+            },
+            {
+              "bytes": 2945,
+              "path": "mc_population_cmd.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "4f4d0ce99b58afa51aea69579dc74c0335dc48be52261271c5de975ee9db2364"
+            },
+            {
+              "bytes": 26620,
+              "path": "mc_population_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "284373905764088d5f7cc84f0b8f5aafa095bbdf5110cf4f17a2368aa98c1866"
+            },
+            {
+              "bytes": 28973,
+              "path": "mc_population_inject.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "a280fbe5213061a02c7854c3a1dd0139e1e09bdd5bc46669cd25facbd8913aad"
+            },
+            {
+              "bytes": 20814,
+              "path": "mc_population_tuning.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "778b71f7102c310eaca260842f2d89ee963ea32a441a5123c9409f6ecd6d4db4"
+            },
+            {
+              "bytes": 732,
+              "path": "mc_population_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "517ed135d2592b7d92845c66c8c21a515f1f83395475522c82cdb5399f299156"
+            }
+          ],
+          "path": "mc_population.ts4script",
+          "sha256": "e421fd3afcea9745b131cbb638016d45878a697a54f8b82c1a2df37961fdb9f1"
+        },
+        {
+          "bytes": 88000,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 30527,
+              "path": "mc_marriage.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "bfe0370a20fa366ac59219fb870eaece7d9f160442d2f25ce2cf9b40889cd5b4"
+            },
+            {
+              "bytes": 49192,
+              "path": "mc_pregnancy.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "015dc899a4cabf6a009b2c3d9df2e8bf8036f40f9d9998e116b80a18f22c4457"
+            },
+            {
+              "bytes": 4983,
+              "path": "mc_pregnancy_cmd.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "48e366af3ace7ca1579ef09711bda84a506a648099525b6a03e456126454f56f"
+            },
+            {
+              "bytes": 66846,
+              "path": "mc_pregnancy_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "ed073ef342161de38291e225036975be1d967025e35b43db062cc940bd539d75"
+            },
+            {
+              "bytes": 15659,
+              "path": "mc_pregnancy_inject.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "90cadeba192f92f3036804388f2b413ce5ab911c6676726a017542fac96cd412"
+            },
+            {
+              "bytes": 8835,
+              "path": "mc_pregnancy_tuning.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "2c80108d7c5b91b515bbb13e2f3409b82ae1e2671ac118cc9bebf0569c3745a6"
+            },
+            {
+              "bytes": 28076,
+              "path": "mc_pregnancy_utils.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "5af5439b6a2e01e8757f0457f2277d5f20145e85409405c710c64f00fc7aa4a1"
+            },
+            {
+              "bytes": 721,
+              "path": "mc_pregnancy_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "41ef35a938eefba06006c240787895d04dfded6a153522c3bfbf8841587f0e05"
+            }
+          ],
+          "path": "mc_pregnancy.ts4script",
+          "sha256": "074bb984b29561715d3e915a551d1561bbc4e64d16fdcb2c7783772491dd5b11"
+        },
+        {
+          "bytes": 25878,
+          "modules": [
+            {
+              "bytes": 225,
+              "path": "_DO_NOT_UNZIP_.txt",
+              "pyc_magic": null,
+              "sha256": "9e165caf2b83ffa3a03aca5d2f9c253bb44a7817db300a43dfa75cda31e4b652"
+            },
+            {
+              "bytes": 24291,
+              "path": "mc_tuner_dlg.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "3177dacf5c63111bfd554a13f53ead31a3b79b403a12bc3a9dd1456137457ff9"
+            },
+            {
+              "bytes": 2360,
+              "path": "mc_tuner_io.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "29b17847d042f2c77612d23dabcdb04349f07bb1f57de7ad6ab14a17de92aff6"
+            },
+            {
+              "bytes": 29625,
+              "path": "mc_tuner_tuning.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "977021f8ef9c7ba35593896c471937b3e10fcbcd71a64332d3f104d205628bc3"
+            },
+            {
+              "bytes": 741,
+              "path": "mc_tuner_version.pyc",
+              "pyc_magic": "420d0d0a",
+              "sha256": "228ff22c23134e526e7af4655f9c4600be9e1dcd3fde0420ae6ca7dbfd14b2d5"
+            }
+          ],
+          "path": "mc_tuner.ts4script",
+          "sha256": "c976eb380fecc8db3e72741e1387090848653beb0b5bef135e140c67c703355b"
+        }
+      ],
+      "sha256": "5596e47a5d4dab0c4800e80426caf17d28d15508cd711848f083b9c9f63672c9"
+    }
+  ],
+  "execution_policy": "Inventory only; no baseline script was executed.",
+  "schema": 1
+}

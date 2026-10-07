@@ -2,6 +2,10 @@
 
 The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/CODEX_MASTER_EXECUTION.md). This page is the human-readable wiki view.
 
+## Execution checkpoint — 2026-10-07
+
+T001–T004, T006, T146 and T199 are proven to their stated source/acquisition/validator scope in the canonical master. Exact V9.6 source was preserved before edits. Queue-owner, deterministic script build and reversible profile-isolation tooling now exist; 24 targeted fixtures pass. The native overlay builds on this Windows machine. No live save/mod/profile or game-bin file has been changed by this checkpoint. All runtime/regression/release gates remain open. This is a repository wiki mirror, not a claim that GitHub's live Wiki has been published.
+
 ## P0 — standalone Apex Occult Hybrid Core
 
 - Ship `ApexOccultHybrid.package` + `ApexOccultHybrid.ts4script` as the canonical hybrid engine.

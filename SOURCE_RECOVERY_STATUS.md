@@ -37,6 +37,12 @@ The GitHub connector used for this recovery writes repository text directly but 
 6. Commit the exact recovered sources.
 7. Only then begin T005/T007 and implementation changes.
 
+## Resolved local continuation — 2026-10-07
+
+The owner explicitly instructed continuation from the newer local source instead of waiting for the V9.5 ZIP. Commit `44b2827` preserves the exact V9.6 backend/overlay and historical reports before edits. The backend SHA-256 `2ffe2f12e36c7bbb1c246ad898d46924e49050c80d082ff502200f08eea02c19` matches the source embedded in the V9.6 script archive. ImGui's complete license matches the recorded hash. See `Reports/RECOVERY_2026-10-06.md` for all source identities and the canonical master for progress.
+
+The original V9.5 identities above remain historical evidence. They are not silently replaced by V9.6 hashes, and the unavailable V9.5 archive has not been claimed verified. Production acceptance remains open.
+
 
 ## Production convergence rule
 

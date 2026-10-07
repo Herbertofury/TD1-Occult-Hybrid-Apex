@@ -102,6 +102,29 @@ class IsolationTests(unittest.TestCase):
         self.assertFalse((self.root / test_profile.LOCK).exists())
         self.assertEqual(result['phase'], 'restored')
 
+    def test_retained_disposable_save_can_seed_next_session_without_original_mods(self):
+        self.activate()
+        (self.profile / 'saves' / 'test.save').write_bytes(b'owner-created test household')
+        result = test_profile.restore(self.state, self.guard)
+        next_state = self.root / 'next.json'
+        test_profile.activate(self.profile, next_state, [self.artifact], guard=self.guard, seed_state=self.state)
+        self.assertEqual((self.profile / 'saves' / 'test.save').read_bytes(), b'owner-created test household')
+        self.assertFalse((self.profile / 'saves' / 'Slot_00000001.save').exists())
+        self.assertFalse((self.profile / 'Mods' / 'original.package').exists())
+        self.assertTrue((Path(result['test_archive']) / 'saves' / 'test.save').exists())
+        test_profile.restore(next_state, self.guard)
+        self.assertEqual(test_profile.inventory(self.profile), self.baseline)
+
+    def test_unrestored_or_wrongly_marked_seed_is_rejected_before_mutation(self):
+        self.activate()
+        with self.assertRaises(ValueError):
+            test_profile.test_seed(self.state, self.profile)
+        result = test_profile.restore(self.state, self.guard)
+        (Path(result['test_archive']) / test_profile.MARKER).write_text('{}')
+        with self.assertRaises(ValueError):
+            test_profile.activate(self.profile, self.root / 'next.json', [self.artifact], guard=self.guard, seed_state=self.state)
+        self.assertEqual(test_profile.inventory(self.profile), self.baseline)
+
 
 if __name__ == '__main__':
     unittest.main()

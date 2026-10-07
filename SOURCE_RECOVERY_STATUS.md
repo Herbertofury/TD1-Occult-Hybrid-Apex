@@ -1,5 +1,21 @@
 # Source Recovery Status
 
+## Current owner-selected recovery — 2026-10-07
+
+The owner explicitly chose the newer local V9.6 source. It was preserved before
+edits in `44b2827`; the canonical backend, native source and full ImGui tree are
+now in this checkout. The V9.5 archive below was not found locally and its old
+hash record is historical provenance, not a fresh verification claim.
+
+Concrete authorized-baseline package/script candidates now build: six packages
+with 204 resources and a matching 44-module script, plus the rebuilt F11
+component. `Reports/AUTHORIZED_CANDIDATE_2026-10-07.md` records exact scope and
+limits. The owner handles game testing; runtime/regression/release gates remain
+open. Continue the canonical master, not the superseded missing-archive recovery
+steps below.
+
+## Historical connector handoff (preserved)
+
 Recovered baseline archive: `TD1_Occult_Hybrid_Apex_Full_Mod_FINAL_ACCOUNTING_V9_5.zip`  
 Archive SHA-256: `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`
 

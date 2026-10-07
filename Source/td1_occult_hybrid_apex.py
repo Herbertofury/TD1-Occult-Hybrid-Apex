@@ -1,6 +1,6 @@
 # TD1 Occult Hybrid Apex - ImGui overlay architecture build v9.6
 # Standalone Sims 4 occult hybrid controller with local API, native helper DLL support, Lot51/MCCC awareness, persistent form libraries, and a DirectX 11 Dear ImGui overlay companion source kit.
-# Source is intentionally packaged as .py so Sims 4 can load it directly from the .ts4script archive.
+# The build packages this source together with current-game Python 3.7 bytecode.
 
 import json
 import os
@@ -8,7 +8,12 @@ import socket
 import threading
 import time
 import traceback
-import ctypes
+try:
+    import ctypes
+except ImportError:
+    # Current TS4 Python does not ship ctypes. The optional native mask helper
+    # must not prevent the standalone Python core/bridge from importing.
+    ctypes = None
 import copy
 import base64
 import pickle
@@ -254,6 +259,8 @@ def _get_mod_root():
 
 
 def _data_dir():
+    if services is None:
+        raise RuntimeError('Persistent Apex data requires the running game.')
     root = _get_mod_root()
     path = os.path.join(root, 'TD1_Apex_Data')
     try:
@@ -398,6 +405,8 @@ def _detect_lot51_core():
 
 def _data_directory():
     global _DATA_DIR
+    if services is None:
+        raise RuntimeError('Persistent Apex data requires the running game.')
     if _DATA_DIR:
         return _DATA_DIR
     candidates = []
@@ -457,6 +466,9 @@ def _json_file(name):
 
 
 def _load_json_file(name, default):
+    if services is None:
+        # Offline source imports must never create/read the owner's game profile.
+        return copy.deepcopy(default)
     path = _json_file(name)
     try:
         if os.path.exists(path):
@@ -1167,6 +1179,8 @@ def _compact_status_for_overlay(sim_id=None):
         'health': full.get('health'),
         'cas_memory_saved': full.get('cas_memory_saved'),
         'stored_memory_slots': full.get('stored_memory_slots'),
+        'drift_warning_count': full.get('drift_warning_count', 0),
+        'drift_warnings': full.get('drift_warnings', []),
         'occults': occults,
         'mccc_guard_enabled': _MCCC_GUARD,
         'mccc_auto_restore': _MCCC_AUTO_RESTORE,
@@ -1206,6 +1220,8 @@ def _overlay_compact_from_status_payload(result):
         'health': full.get('health'),
         'cas_memory_saved': full.get('cas_memory_saved'),
         'stored_memory_slots': full.get('stored_memory_slots'),
+        'drift_warning_count': full.get('drift_warning_count', 0),
+        'drift_warnings': full.get('drift_warnings', []),
         'occults': occults,
         'mccc_guard_enabled': _MCCC_GUARD,
         'mccc_auto_restore': _MCCC_AUTO_RESTORE,
@@ -2001,6 +2017,9 @@ def _bind_native_functions(dll):
 
 def _load_native():
     global _NATIVE, _NATIVE_PATH, _NATIVE_STATUS
+    if ctypes is None:
+        _NATIVE_STATUS = 'unavailable: game Python omits ctypes; Python mask operations remain active'
+        return False
     if _NATIVE is not None:
         return True
     last_error = None
@@ -2090,7 +2109,7 @@ def _choose_safe_form(available, current, requested):
 
 def _get_occult_utils():
     try:
-        from OccultHybrid.IC_Hybrid import occult_utils
+        from apex_hybrid.IC_Hybrid import occult_utils
         return occult_utils
     except Exception:
         return None
@@ -2098,7 +2117,7 @@ def _get_occult_utils():
 
 def _get_occult_cache():
     try:
-        from OccultHybrid.IC_Hybrid.occult_cache import OccultDataCache
+        from apex_hybrid.IC_Hybrid.occult_cache import OccultDataCache
         return OccultDataCache
     except Exception:
         return None
@@ -5321,6 +5340,8 @@ except Exception:
 
 
 def _v62_dir():
+    if services is None:
+        raise RuntimeError('Persistent Apex data requires the running game.')
     try:
         return _data_directory()
     except Exception:
@@ -6420,37 +6441,9 @@ def _v8_imports_ready():
     return _V8_Outfits_pb2 is not None and _V8_S4Common_pb2 is not None
 
 
-def _v8_outfit_parallel_rows(outfit):
-    try:
-        ids = list(outfit.parts.ids)
-    except Exception:
-        ids = []
-    try:
-        body_types = list(outfit.body_types_list.body_types)
-    except Exception:
-        body_types = []
-    try:
-        shifts = list(outfit.part_shifts.color_shift)
-    except Exception:
-        shifts = []
-    try:
-        objects = list(outfit.object_ids.object_id)
-    except Exception:
-        objects = []
-    try:
-        layers = list(outfit.layer_ids.layer_id)
-    except Exception:
-        layers = []
-    rows = []
-    for idx, body_type in enumerate(body_types):
-        rows.append({
-            'id': int(ids[idx]) if idx < len(ids) else 0,
-            'body_type': int(body_type),
-            'color_shift': int(shifts[idx]) if idx < len(shifts) else 0,
-            'object_id': int(objects[idx]) if idx < len(objects) else 0,
-            'layer_id': int(layers[idx]) if idx < len(layers) else 0,
-        })
-    return rows
+def _v8_outfit_parallel_rows (outfit):
+    from apex_core.dresser_parts import read_rows
+    return read_rows(outfit)
 
 
 def _v8_clear_repeated(seq):
@@ -6553,35 +6546,9 @@ def _v8_write_genetic_blob(sim_info, blob):
     return False
 
 
-def _v8_write_outfit_parallel_rows(outfit, rows):
-    rows = sorted(list(rows or []), key=lambda item: (int(item.get('body_type', 0)), int(item.get('id', 0))))
-    # Protobuf composite fields cannot be assigned with ``outfit.parts = ...`` on
-    # many EA Python builds.  ClearField + repeated.extend is the safe path.
-    try:
-        outfit.ClearField('parts')
-    except Exception:
-        _v8_clear_repeated(getattr(getattr(outfit, 'parts', None), 'ids', []))
-    outfit.parts.ids.extend([int(r.get('id', 0)) for r in rows])
-    try:
-        outfit.ClearField('body_types_list')
-    except Exception:
-        _v8_clear_repeated(getattr(getattr(outfit, 'body_types_list', None), 'body_types', []))
-    outfit.body_types_list.body_types.extend([int(r.get('body_type', 0)) for r in rows])
-    try:
-        outfit.ClearField('part_shifts')
-    except Exception:
-        _v8_clear_repeated(getattr(getattr(outfit, 'part_shifts', None), 'color_shift', []))
-    outfit.part_shifts.color_shift.extend([int(r.get('color_shift', 0)) for r in rows])
-    try:
-        outfit.ClearField('object_ids')
-    except Exception:
-        _v8_clear_repeated(getattr(getattr(outfit, 'object_ids', None), 'object_id', []))
-    outfit.object_ids.object_id.extend([int(r.get('object_id', 0)) for r in rows])
-    try:
-        outfit.ClearField('layer_ids')
-    except Exception:
-        _v8_clear_repeated(getattr(getattr(outfit, 'layer_ids', None), 'layer_id', []))
-    outfit.layer_ids.layer_id.extend([int(r.get('layer_id', 0)) for r in rows])
+def _v8_write_outfit_parallel_rows (outfit, rows):
+    from apex_core.dresser_parts import write_rows
+    return write_rows(outfit, rows)
 
 
 def _v8_parse_outfits(sim_info):
@@ -8167,7 +8134,7 @@ from apex_core.command_queue import CommandQueue
 _APEX_GAME_THREAD_IDENT = threading.current_thread().ident
 _APEX_COMMANDS = CommandQueue(capacity=48, completed_limit=128)
 _APEX_PRE_OWNER_RUN_ACTION = run_action
-_BUILD_VERSION = '2026.10.07-apex-owner-queue-dev'
+_BUILD_VERSION = '2026.10.07-apex-authorized-packages-studio-dev'
 _APEX_BOOTSTRAP_STATUS = 'not initialized'
 
 
@@ -8177,6 +8144,15 @@ def run_action(action, sim_id=None, occult=None, value=None):
     if action == 'bridge_status':
         return {'ok': True, 'message': 'Game-thread bridge ready', 'queue': _APEX_COMMANDS.metrics(),
                 'build_version': _BUILD_VERSION, 'alarm_ready': _ALARM_READY}
+    if action in ('studio_status', 'studio_history', 'studio_checkpoint', 'studio_recover',
+                  'studio_color_copy', 'studio_color_preview', 'studio_cancel',
+                  'studio_undo', 'studio_redo', 'studio_jump', 'studio_apply'):
+        from apex_core.studio import dispatch
+        import sys
+        try:
+            return dispatch(sys.modules[__name__], action, sim_id, value)
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
     return _APEX_PRE_OWNER_RUN_ACTION(action, sim_id=sim_id, occult=occult, value=value)
 
 
@@ -8283,6 +8259,13 @@ def _apex_install_zone_signal():
 
 
 if Command is not None:
+    @Command('apex.studio', command_type=_LIVE, command_restrictions=_UNRESTRICTED)
+    def _apex_console_studio(action: str='status', value: str='', sim_id: str='', _connection=None):
+        result = run_action('studio_' + action.strip().lower(), sim_id=sim_id, value=value)
+        out = _cmd_out(_connection)
+        out(json.dumps(result, default=str, indent=2))
+        return bool(result.get('ok'))
+
     @Command('apex.bridge.start', command_type=_LIVE, command_restrictions=_UNRESTRICTED)
     def _apex_console_bridge_start(_connection=None):
         ready = _setup_alarm()

@@ -4,7 +4,9 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 
 ## Execution checkpoint — 2026-10-07
 
-T001–T004, T006, T146 and T199 are proven to their stated source/acquisition/validator scope in the canonical master. Exact V9.6 source was preserved before edits. Queue-owner, deterministic script build and reversible profile-isolation tooling now exist; 24 targeted fixtures pass. The native overlay builds on this Windows machine. No live save/mod/profile or game-bin file has been changed by this checkpoint. All runtime/regression/release gates remain open. This is a repository wiki mirror, not a claim that GitHub's live Wiki has been published.
+The owner-selected V9.6 source is preserved and the actual authorized hybrid, Crilender, MCCC and Color Sliders files are implementation bases. Six packages/204 resources and a matching 44-module script now build; Foundry independently extracts/verifies every resource. Four ported MCCC helpers match nine original-bytecode cases. The rebuilt F11 component includes selectable/searchable history, actual outfit/part selectors, explicit layered-part targeting and destructive-action confirmation. 87 offline fixtures and 18 compiled native data checks pass. See [the candidate report](../Reports/AUTHORIZED_CANDIDATE_2026-10-07.md) and the canonical task proofs. Current-game/native compatibility and all runtime/regression/release gates remain open.
+
+The owner handles game testing. The new candidate is not installed or launched by the agent. The exact original `The Sims 4 DO NOT FUCKING TOUCH!!!` folder is read/copy-only; only the owner may rename it. One test profile retains the disposable save/Sim. Older isolation/launch history is preserved in the reports with its original evidence limits. This remains a repository wiki mirror, not a claim of publishing GitHub's live Wiki.
 
 ## P0 — standalone Apex Occult Hybrid Core
 

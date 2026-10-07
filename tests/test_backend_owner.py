@@ -1,4 +1,6 @@
 from pathlib import Path
+import builtins
+import importlib.util
 import sys
 import threading
 import unittest
@@ -39,6 +41,38 @@ class BackendOwnerTests(unittest.TestCase):
             worker.start()
             worker.join()
         self.assertFalse(results[0]['ok'])
+
+    def test_actual_compact_status_preserves_selected_identity_and_drift_summary(self):
+        with patch.object(backend, '_list_saved_forms', return_value=[]):
+            result = backend._overlay_compact_from_status_payload({'ok': True, 'data': {
+                'sim_id': str(2**64-1), 'drift_warning_count': 2,
+                'drift_warnings': [{'form': 'WEREWOLF'}, {'form': 'VAMPIRE'}]}})
+        self.assertEqual(result['sim_id'], str(2**64-1))
+        self.assertEqual(result['drift_warning_count'], 2)
+        self.assertEqual(len(result['drift_warnings']), 2)
+
+    def test_game_without_ctypes_keeps_verified_python_mask_operations(self):
+        with patch.object(backend, 'ctypes', None), patch.object(backend, '_NATIVE', None):
+            self.assertFalse(backend._load_native())
+            self.assertIn('omits ctypes', backend._NATIVE_STATUS)
+            self.assertEqual(backend._mask_add(3, 4), 7)
+            self.assertEqual(backend._mask_remove(7, 2), 5)
+            self.assertTrue(backend._mask_has(7, 4))
+
+    def test_production_module_import_survives_actual_missing_ctypes_failure(self):
+        original_import = builtins.__import__
+        def game_import(name, *args, **kwargs):
+            if name == 'ctypes':
+                raise ModuleNotFoundError("No module named 'ctypes'")
+            return original_import(name, *args, **kwargs)
+        spec = importlib.util.spec_from_file_location('apex_missing_ctypes_fixture', backend.__file__)
+        module = importlib.util.module_from_spec(spec)
+        with patch.object(builtins, '__import__', side_effect=game_import), patch.object(backend.os, 'makedirs', side_effect=AssertionError('offline filesystem write')):
+            spec.loader.exec_module(module)
+        self.assertIsNone(module.ctypes)
+        self.assertFalse(module._load_native())
+        self.assertFalse(module._SERVER_RUNNING)
+        self.assertIsNone(module._DATA_DIR)
 
 
 if __name__ == '__main__':

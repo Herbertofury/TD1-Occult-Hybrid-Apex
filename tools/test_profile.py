@@ -16,6 +16,12 @@ from source_manifest import sha256, write_json
 
 MARKER = '.apex-disposable-profile.json'
 LOCK = '.apex-profile-session.lock'
+PROTECTED_NAME = 'The Sims 4 DO NOT FUCKING TOUCH!!!'
+
+
+def refuse_protected_layout(profile):
+    if (Path(profile).parent / PROTECTED_NAME).exists():
+        raise ValueError('The owner protected the original. Legacy profile swaps are disabled; use the reusable test profile.')
 
 
 def session_lock(profile, state, token):
@@ -97,9 +103,29 @@ def validate_artifacts(paths):
     return rows
 
 
-def activate(profile, state, artifacts, guard=require_closed):
+def test_seed(previous_state, profile):
+    """Accept only a restored session's retained, token-marked disposable profile."""
+    state = unlinked(previous_state)
+    previous = json.loads(state.read_text(encoding='utf-8'))
+    token = previous.get('token', '')
+    if previous.get('schema') != 1 or previous.get('phase') != 'restored' or len(token) != 32 or any(char not in '0123456789abcdef' for char in token):
+        raise ValueError('Test seed must be a fully restored prior isolation session.')
+    retained = unlinked(previous['test_archive'])
+    if retained.parent != profile.parent or retained.name != 'The Sims 4.ApexTest.' + token:
+        raise ValueError('Test seed is outside the verified retained-test location.')
+    marker = retained / MARKER
+    if not marker.is_file() or json.loads(marker.read_text(encoding='utf-8')).get('token') != token:
+        raise ValueError('Test seed is not the prior session\'s disposable profile.')
+    # Reject every linked entry before any copy. This is a small test profile,
+    # never the owner's preserved original or its full Mods library.
+    inventory(retained)
+    return retained
+
+
+def activate(profile, state, artifacts, guard=require_closed, seed_state=None):
     guard()
     profile = unlinked(profile)
+    refuse_protected_layout(profile)
     state = unlinked(state)
     if profile.name != 'The Sims 4' or not profile.is_dir() or (profile / MARKER).exists():
         raise ValueError('Expected an existing original The Sims 4 profile directory.')
@@ -112,11 +138,15 @@ def activate(profile, state, artifacts, guard=require_closed):
     for target in (original, staging, test_archive):
         if target.exists() or unlinked(target).parent != profile.parent:
             raise ValueError('Unsafe or occupied sibling path: ' + str(target))
+    seed = test_seed(seed_state, profile) if seed_state else None
     session_lock(profile, state, token)
     journal = {'schema': 1, 'token': token, 'profile': str(profile),
                'original': str(original), 'staging': str(staging), 'test_archive': str(test_archive),
                'phase': 'preparing', 'artifacts': validate_artifacts(artifacts),
                'original_inventory': inventory(profile)}
+    if seed is not None:
+        journal['test_seed'] = {'previous_state': str(unlinked(seed_state)), 'profile': str(seed),
+                                'copied_scopes': ['saves', 'Tray', 'Options.ini']}
     write_json(state, journal)
     staging.mkdir()
     (staging / 'Mods' / 'ApexTest').mkdir(parents=True)
@@ -129,6 +159,12 @@ def activate(profile, state, artifacts, guard=require_closed):
     if options.is_file():
         # Only configuration is copied. No live saves/Tray/persistent mod data.
         shutil.copy2(str(options), str(staging / 'Options.ini'))
+    if seed is not None:
+        for name in ('saves', 'Tray'):
+            if (seed / name).is_dir():
+                shutil.copytree(str(seed / name), str(staging / name), dirs_exist_ok=True)
+        if (seed / 'Options.ini').is_file():
+            shutil.copy2(str(seed / 'Options.ini'), str(staging / 'Options.ini'))
     for row in journal['artifacts']:
         destination = staging / 'Mods' / 'ApexTest' / row['name']
         shutil.copy2(row['source'], str(destination))
@@ -154,12 +190,15 @@ def restore(state, guard=require_closed):
     guard()
     state = unlinked(state)
     journal = json.loads(state.read_text(encoding='utf-8'))
+    if journal.get('schema') == 2:
+        raise ValueError('The protected original is read-only. Only the owner may rename/restore it; reuse the test profile.')
     if journal.get('schema') != 1 or journal.get('phase') not in ('preparing', 'ready', 'original_parked', 'active', 'test_parked', 'restored'):
         raise ValueError('Journal is not in a recoverable profile-swap phase.')
     token = journal['token']
     if len(token) != 32 or any(char not in '0123456789abcdef' for char in token):
         raise ValueError('Invalid session identity.')
     profile = unlinked(journal['profile'])
+    refuse_protected_layout(profile)
     if profile.name != 'The Sims 4' or profile == state or profile in state.parents:
         raise ValueError('Unsafe journal profile/state path.')
     lock = verify_lock(profile, state, token, already_restored=journal['phase'] == 'restored')
@@ -207,6 +246,9 @@ def status(state, verify_original=False):
     """Read-only launch preflight; never infer isolation from a folder name alone."""
     state = unlinked(state)
     journal = json.loads(state.read_text(encoding='utf-8'))
+    if journal.get('schema') == 2:
+        import reusable_profile
+        return reusable_profile.status(state, verify_original)
     if journal.get('schema') != 1:
         raise ValueError('Unsupported profile journal.')
     token = journal.get('token', '')
@@ -265,6 +307,7 @@ def main():
     stage.add_argument('--profile', required=True, type=Path)
     stage.add_argument('--state', required=True, type=Path)
     stage.add_argument('--artifact', required=True, type=Path, action='append')
+    stage.add_argument('--seed-state', type=Path, help='Reuse only the retained test saves/Tray from a restored session')
     revert = commands.add_parser('restore')
     revert.add_argument('--state', required=True, type=Path)
     inspect = commands.add_parser('status')
@@ -272,7 +315,7 @@ def main():
     inspect.add_argument('--verify-original', action='store_true')
     args = parser.parse_args()
     if args.command == 'activate':
-        result = activate(args.profile, args.state, args.artifact)
+        result = activate(args.profile, args.state, args.artifact, seed_state=args.seed_state)
     elif args.command == 'restore':
         result = restore(args.state)
     else:

@@ -14,8 +14,17 @@ add_library(TD1ApexD3D11Proxy SHARED
 target_include_directories(TD1ApexD3D11Proxy PRIVATE
     third_party/imgui
     third_party/imgui/backends
+    third_party
 )
 target_compile_definitions(TD1ApexD3D11Proxy PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
 target_compile_options(TD1ApexD3D11Proxy PRIVATE /W4 /permissive- /EHsc /O2)
 target_link_libraries(TD1ApexD3D11Proxy PRIVATE d3d11 dxgi user32 ws2_32)
 set_target_properties(TD1ApexD3D11Proxy PROPERTIES OUTPUT_NAME "d3d11")
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(ApexUiDataTests Tests/UiDataTests.cpp)
+    target_include_directories(ApexUiDataTests PRIVATE Source third_party)
+    target_compile_options(ApexUiDataTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+    add_test(NAME native-ui-data COMMAND ApexUiDataTests)
+endif()

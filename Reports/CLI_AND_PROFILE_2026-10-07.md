@@ -1,5 +1,40 @@
 # CLI and isolated-profile checkpoint
 
+## Current boundary after owner steering
+
+The owner now handles in-game testing and requested packages/scripts/F11 work.
+No new candidate installation, game launch, bridge polling, save load or native
+input was performed during candidate development. The original folder is now
+`The Sims 4 DO NOT FUCKING TOUCH!!!`: tools may read/copy it, never write/rename
+or delete it; only the owner restores its name. Prior recorded save hashes and
+file metadata matched the pre-test inventory. That proof does not claim hashing
+the entire Mods library.
+
+One reusable test profile remains at `The Sims 4`, retaining the owner's test
+save/Sim. Retired tool-created test profiles were fully content-hash backed up
+before consolidation. Reusable-profile operations serialize mutations, retain
+artifact rollback bytes and refuse protected-original swaps, unknown files and
+running games. Ten dedicated fixtures pass within the 87-fixture suite; native
+Studio data has 16 additional compiled checks.
+
+The actual EA handoff failures exposed percent-encoded identifier commas and a
+process observation that could not read an elevated executable path. These are
+corrected and fixture-covered; a protocol handoff alone never proves launch.
+An older patched development script with SHA-256
+`7f4194a7da9fc832807d7c79aa384216ab74559f269a511b00d3dbb442a2c31a`
+answered at the actual main menu. It reported alarm readiness false because no
+zone/time service was loaded. This proves that older packaged backend imported;
+it does not prove a loaded household, the newer candidate or domain/native
+behavior. No headless engine exists. UserSetting.ini copying did not reliably
+suppress DLC cards, so that issue remains open.
+
+The concrete candidate/source/native work is recorded in
+`Reports/AUTHORIZED_CANDIDATE_2026-10-07.md`. All runtime/regression/release gates
+remain open. The source below preserves the earlier checkpoint's chronology;
+its future restore/launch assumptions are superseded by the owner's constraints.
+
+## Earlier checkpoint before the profile/bytecode corrections
+
 37 production-path/offline fixtures pass across queue ownership, script builds,
 PE imports, interrupted profile swaps, exact-artifact preflight, CLI behavior,
 launch-plan validation and canonical Git manifest identities.

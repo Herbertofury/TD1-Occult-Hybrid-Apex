@@ -14,6 +14,7 @@ import urllib.request
 from source_manifest import write_json
 import test_profile
 import game_launch
+import reusable_profile
 
 
 class LocalRedirectGuard(urllib.request.HTTPRedirectHandler):
@@ -77,11 +78,27 @@ def parser():
     activate.add_argument('--profile', required=True, type=Path)
     activate.add_argument('--state', required=True, type=Path)
     activate.add_argument('--artifact', required=True, action='append', type=Path)
+    activate.add_argument('--seed-state', type=Path)
     inspect = profile_commands.add_parser('status')
     inspect.add_argument('--state', required=True, type=Path)
     inspect.add_argument('--verify-original', action='store_true')
     restore = profile_commands.add_parser('restore')
     restore.add_argument('--state', required=True, type=Path)
+    adopt = profile_commands.add_parser('adopt', help='Use one retained test profile; protected original stays read-only')
+    adopt.add_argument('--previous-state', required=True, type=Path)
+    adopt.add_argument('--profile', required=True, type=Path)
+    adopt.add_argument('--protected-original', required=True, type=Path)
+    adopt.add_argument('--state', required=True, type=Path)
+    adopt.add_argument('--artifact', type=Path, action='append')
+    install = profile_commands.add_parser('install', help='Replace only verified Apex test artifacts in the same test profile')
+    install.add_argument('--state', required=True, type=Path)
+    install.add_argument('--artifact', required=True, type=Path, action='append')
+    cleanup = profile_commands.add_parser('consolidate', help='Recover retired disposable profile contents then keep one test profile')
+    cleanup.add_argument('--state', required=True, type=Path)
+    cleanup.add_argument('--previous-state', required=True, type=Path, action='append')
+    for name in ('recover', 'preserve-settings'):
+        maintenance = profile_commands.add_parser(name)
+        maintenance.add_argument('--state', required=True, type=Path)
     wait = commands.add_parser('wait', help='Wait for a loaded zone and production owner queue')
     wait.add_argument('--state', required=True, type=Path)
     wait.add_argument('--seconds', type=float, default=30)
@@ -104,8 +121,18 @@ def execute(args):
     if args.command == 'launch':
         return game_launch.launch(args.game_root, args.state, args.execute, args.headless)
     if args.command == 'profile':
+        if args.profile_command == 'adopt':
+            return reusable_profile.adopt(args.previous_state, args.profile, args.state, args.protected_original, args.artifact)
+        if args.profile_command == 'install':
+            return reusable_profile.install(args.state, args.artifact)
+        if args.profile_command == 'recover':
+            return reusable_profile.recover(args.state)
+        if args.profile_command == 'preserve-settings':
+            return reusable_profile.preserve_settings(args.state)
+        if args.profile_command == 'consolidate':
+            return reusable_profile.consolidate(args.state, args.previous_state)
         if args.profile_command == 'activate':
-            return test_profile.activate(args.profile, args.state, args.artifact)
+            return test_profile.activate(args.profile, args.state, args.artifact, seed_state=args.seed_state)
         if args.profile_command == 'restore':
             return test_profile.restore(args.state)
         return test_profile.status(args.state, args.verify_original)

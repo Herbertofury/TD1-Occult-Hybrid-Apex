@@ -45,6 +45,28 @@ class LaunchPlanTests(unittest.TestCase):
                 game_launch.launch('game', 'state', execute=True, headless=True)
             plan.assert_not_called()
 
+    def test_ea_identifier_delimiters_are_literal_commas(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root, '<contentID>1011164</contentID><contentID>1015875</contentID>')
+            with patch.object(game_launch.test_profile, 'status', return_value={'ready_to_launch': True}):
+                plan = game_launch.launch_plan(root, root / 'state.json')
+            self.assertIn('offerIds=1011164,1015875&', plan['url'])
+            self.assertNotIn('%2C', plan['url'])
+
+    def test_process_start_requires_a_new_pid_and_exact_installed_path(self):
+        clock = [0.0]
+        def pause(seconds):
+            clock[0] += seconds
+        executable = Path('Game/Bin/TS4_x64.exe').resolve()
+        def wrong():
+            return [{'Id': 10, 'Path': str(executable)}, {'Id': 11, 'Path': str(executable.parent / 'other.exe')}]
+        result = game_launch.observe_start(executable, {10}, 2, wrong, lambda: clock[0], pause)
+        self.assertFalse(result['process_started'])
+        result = game_launch.observe_start(executable, {10}, 2, lambda: [{'Id': 12, 'Path': str(executable)}], lambda: clock[0], pause)
+        self.assertTrue(result['process_started'])
+        self.assertEqual(result['pid'], 12)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -37,6 +37,7 @@
 #include <ctime>
 #include <cctype>
 
+#include "ApexUiData.h"
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
@@ -72,6 +73,7 @@ static ID3D11RenderTargetView* g_rtv = nullptr;
 static std::mutex g_dataMutex;
 static std::string g_json = "{\"message\":\"Waiting for TD1 Apex Python server...\"}";
 static std::string g_status = "Not connected";
+static std::string g_commandReply = "{}";
 static std::string g_selectedSim;
 struct QueuedCommand { std::string path; uint64_t generation; };
 static std::deque<QueuedCommand> g_commands;
@@ -83,7 +85,7 @@ static std::vector<std::string> g_logLines;
 
 static int g_selectedOccultIndex = 1;
 static bool g_autoRepairToggle = false;
-static bool g_mcccAutoRestoreToggle = true;
+static bool g_mcccAutoRestoreToggle = false;
 static bool g_mcccSoftHooksToggle = false;
 static bool g_driftAfterCommandsToggle = true;
 static char g_formLabel[160] = "";
@@ -91,6 +93,21 @@ static char g_formSearch[160] = "";
 static char g_formSlot[220] = "";
 static char g_rawFlags[64] = "";
 static char g_rawCurrent[64] = "";
+static char g_studioTarget[100] = "0:HAIR";
+static char g_previewId[64] = "";
+static char g_historyId[64] = "";
+static char g_historySearch[160] = "";
+static int g_studioOutfitIndex = 0;
+static int g_studioPartIndex = 0;
+static ui::Json g_studioData = ui::Json::object();
+static std::string g_studioLastReply;
+static char g_checkpointLabel[160] = "";
+static UINT g_toggleKey = VK_F11;
+static bool g_configLoaded = false;
+static std::string g_confirmPath;
+static std::string g_confirmAction;
+static uint64_t g_confirmGeneration = 0;
+static bool g_openConfirmation = false;
 static char g_casCategoryFilter[160] = "";
 
 static const char* kOccults[] = {"ALIEN","VAMPIRE","MERMAID","WITCH","SPELLCASTER","WEREWOLF","FAIRY","PLANTSIM","ROBOT","SERVO","GHOST","SKELETON","SCARECROW"};
@@ -263,7 +280,9 @@ static bool HttpGet(const std::string& path, std::string& body) {
     }
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET) return false;
-    DWORD timeout = 350;
+    // This is a transport worker. A game-thread command can take several frames;
+    // a 350 ms deadline previously discarded its result while it still executed.
+    DWORD timeout = 12000;
     setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
     setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
     sockaddr_in addr{};
@@ -272,84 +291,41 @@ static bool HttpGet(const std::string& path, std::string& body) {
     inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
     if (connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) { closesocket(s); return false; }
     std::string req = "GET " + path + " HTTP/1.1\r\nHost: 127.0.0.1:8017\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n";
-    int sent = send(s, req.c_str(), static_cast<int>(req.size()), 0);
-    if (sent <= 0) { closesocket(s); return false; }
+    size_t sent = 0;
+    while (sent < req.size()) {
+        int n = send(s, req.data() + sent, static_cast<int>(req.size() - sent), 0);
+        if (n <= 0) { closesocket(s); return false; }
+        sent += static_cast<size_t>(n);
+    }
     std::string raw;
     char buf[8192];
     for (;;) {
         int n = recv(s, buf, sizeof(buf), 0);
-        if (n <= 0) break;
+        if (n < 0) { closesocket(s); return false; }
+        if (n == 0) break;
         raw.append(buf, buf + n);
-        if (raw.size() > 1024 * 512) break;
+        if (raw.size() > 1024 * 512) { closesocket(s); return false; }
     }
     closesocket(s);
     size_t pos = raw.find("\r\n\r\n");
-    body = (pos == std::string::npos) ? raw : raw.substr(pos + 4);
-    return !body.empty();
-}
-
-static std::string JsonUnescape(const std::string& s) {
-    std::string out;
-    out.reserve(s.size());
-    for (size_t i = 0; i < s.size(); ++i) {
-        char c = s[i];
-        if (c == '\\' && i + 1 < s.size()) {
-            char n = s[++i];
-            if (n == 'n') out.push_back('\n');
-            else if (n == 'r') out.push_back('\r');
-            else if (n == 't') out.push_back('\t');
-            else out.push_back(n);
-        } else out.push_back(c);
-    }
-    return out;
+    if (pos == std::string::npos || raw.find("HTTP/1.1 200 ") != 0) return false;
+    body = raw.substr(pos + 4);
+    size_t lengthKey = raw.find("Content-Length:");
+    if (lengthKey == std::string::npos || lengthKey >= pos) return false;
+    const char* begin = raw.c_str() + lengthKey + strlen("Content-Length:");
+    char* end = nullptr;
+    unsigned long declared = strtoul(begin, &end, 10);
+    if (!end || end == begin || *end != '\r' || declared != body.size()) return false;
+    size_t last = body.find_last_not_of(" \t\r\n");
+    return last != std::string::npos && body[last] == '}' && !ui::ReadObject(body).empty();
 }
 
 static std::vector<std::string> ExtractHistory(const std::string& json) {
-    std::vector<std::string> out;
-    size_t key = json.find("\"logs\"");
-    if (key == std::string::npos) key = json.find("\"history\"");
-    if (key == std::string::npos) return out;
-    size_t lb = json.find('[', key);
-    size_t rb = json.find(']', lb == std::string::npos ? key : lb);
-    if (lb == std::string::npos || rb == std::string::npos || rb <= lb) return out;
-    bool in = false, esc = false;
-    std::string cur;
-    for (size_t i = lb + 1; i < rb; ++i) {
-        char c = json[i];
-        if (!in) { if (c == '"') { in = true; cur.clear(); } continue; }
-        if (esc) { cur.push_back('\\'); cur.push_back(c); esc = false; continue; }
-        if (c == '\\') { esc = true; continue; }
-        if (c == '"') { out.push_back(JsonUnescape(cur)); in = false; continue; }
-        cur.push_back(c);
-    }
-    if (out.size() > 260) out.erase(out.begin(), out.end() - 260);
-    return out;
+    return ui::Logs(ui::ReadObject(json));
 }
 
 static std::string ExtractJsonValue(const std::string& json, const char* keyName) {
-    std::string key = std::string("\"") + keyName + "\"";
-    size_t k = json.find(key);
-    if (k == std::string::npos) return {};
-    size_t colon = json.find(':', k);
-    if (colon == std::string::npos) return {};
-    size_t p = json.find_first_not_of(" \t\r\n", colon + 1);
-    if (p == std::string::npos) return {};
-    if (json[p] == '"') {
-        size_t e = p + 1;
-        bool esc = false;
-        for (; e < json.size(); ++e) {
-            char c = json[e];
-            if (esc) { esc = false; continue; }
-            if (c == '\\') { esc = true; continue; }
-            if (c == '"') break;
-        }
-        if (e >= json.size()) return {};
-        return JsonUnescape(json.substr(p + 1, e - p - 1));
-    }
-    size_t e = json.find_first_of(",}\r\n", p);
-    std::string v = json.substr(p, e == std::string::npos ? std::string::npos : e - p);
-    while (!v.empty() && (v.back() == ' ' || v.back() == '\t')) v.pop_back();
-    return v;
+    return ui::Scalar(ui::ReadObject(json), keyName);
 }
 
 static void QueueCommand(const std::string& path) {
@@ -377,7 +353,22 @@ static std::string BuildCommandPath(const char* action, const char* occult = nul
 }
 
 static void QueueAction(const char* action, const char* occult = nullptr, const char* value = nullptr) {
-    QueueCommand(BuildCommandPath(action, occult, value));
+    std::string name = action ? action : "status";
+    bool destructive = name == "purge" || name == "remove" || name == "gameplay_remove" ||
+        name == "delete_form" || name == "delete_saved_form" || name == "add_all" ||
+        name == "repair_all" || name == "deep_repair_all" || name == "toggle_flag" ||
+        name.find("set_flags") == 0 || name.find("set_current") == 0 ||
+        name.find("_to_all_forms") != std::string::npos || name.find("force_apply") == 0 ||
+        name.find("cas_prepare") == 0 || name.find("mccc_prepare") == 0;
+    std::string path = BuildCommandPath(action, occult, value);
+    if (destructive) {
+        g_confirmPath = path;
+        g_confirmAction = name + (occult ? std::string(" / ") + occult : "");
+        { std::lock_guard<std::mutex> lock(g_dataMutex); g_confirmGeneration = g_selectionGeneration; }
+        g_openConfirmation = true;
+        return;
+    }
+    QueueCommand(path);
 }
 
 static bool ActionButton(const char* label, const char* action, const char* occult = nullptr, const char* value = nullptr, const ImVec2& size = ImVec2(-1, 0)) {
@@ -400,8 +391,8 @@ static void WorkerLoop() {
             std::lock_guard<std::mutex> lock(g_dataMutex);
             if (command.generation == g_selectionGeneration) {
                 g_status = !ok ? "Command request failed" :
-                    (ExtractJsonValue(body, "ok") == "true" ? "Command verified by backend" : "Backend rejected or has not verified the command");
-                if (ok) { g_json = body; auto lines = ExtractHistory(body); if (!lines.empty()) g_logLines = lines; }
+                    (ExtractJsonValue(body, "ok") == "true" ? "Command completed; see its result" : "Command rejected; see its reason");
+                if (ok) { g_json = body; g_commandReply = body; auto lines = ExtractHistory(body); if (!lines.empty()) g_logLines = lines; }
             }
             continue;
         }
@@ -423,7 +414,7 @@ static void WorkerLoop() {
                     g_json = body;
                     auto lines = ExtractHistory(body);
                     if (!lines.empty()) g_logLines = lines;
-                    std::string sid = ExtractJsonValue(body, "sim_id");
+                    std::string sid = ui::StatusScalar(ui::ReadObject(body), "sim_id");
                     if (!sid.empty() && g_selectedSim.empty()) { g_selectedSim = sid; ++g_selectionGeneration; }
                 }
             }
@@ -807,15 +798,193 @@ static void DrawRawTab() {
     DrawOccultCards("toggle_flag", "Toggle Raw", "on_add_actions", "On-Add Actions", "lock_perks", "Lock Perks", "unlock_perks", "Unlock Perks");
 }
 
+static void UpdateStudioData(const std::string& reply) {
+    if (reply == g_studioLastReply) return;
+    g_studioLastReply = reply;
+    const auto& parsed = ui::ReadObject(reply);
+    if (!ui::StudioDocument(parsed)) return;
+    if (ui::Scalar(parsed, "history_lane") != ui::Scalar(g_studioData, "history_lane")) {
+        g_studioData = ui::Json::object();
+        g_historyId[0] = '\0';
+        g_studioOutfitIndex = 0; g_studioPartIndex = 0;
+    }
+    for (auto item = parsed.begin(); item != parsed.end(); ++item) g_studioData[item.key()] = item.value();
+    // Successful Apply/Cancel replies include null; an old token must vanish.
+    if (parsed.contains("pending_preview"))
+        strncpy_s(g_previewId, ui::Scalar(parsed, "pending_preview").c_str(), _TRUNCATE);
+    // Refresh the inventory explicitly after a write; never present pre-write
+    // part metadata as current. History nodes remain useful after the change.
+    const auto message = ui::Scalar(parsed, "message");
+    if (message.find("Appearance write matches") == 0) g_studioData.erase("outfit_inventory");
+}
+
+static void DrawStudioParts() {
+    const auto found = g_studioData.find("outfit_inventory");
+    if (found == g_studioData.end() || found->empty()) {
+        ImGui::TextDisabled("Inspect outfits to choose the current form's actual parts.");
+        return;
+    }
+    const auto& outfits = *found;
+    g_studioOutfitIndex = std::clamp(g_studioOutfitIndex, 0, static_cast<int>(outfits.size()) - 1);
+    const auto& outfit = outfits[static_cast<size_t>(g_studioOutfitIndex)];
+    const auto outfitLabel = "Outfit " + ui::Scalar(outfit, "index") + " | category " + ui::Scalar(outfit, "category");
+    if (ImGui::BeginCombo("Outfit", outfitLabel.c_str())) {
+        for (size_t i = 0; i < outfits.size(); ++i) {
+            const auto label = "Outfit " + ui::Scalar(outfits[i], "index") + " | category " + ui::Scalar(outfits[i], "category");
+            if (ImGui::Selectable(label.c_str(), g_studioOutfitIndex == static_cast<int>(i))) {
+                g_studioOutfitIndex = static_cast<int>(i); g_studioPartIndex = 0;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    // Read again after a combo selection changed the outfit.
+    const auto& selected = outfits[static_cast<size_t>(g_studioOutfitIndex)];
+    const auto& parts = selected["parts"];
+    if (parts.empty()) { ImGui::TextDisabled("This outfit has no serialized CAS parts."); return; }
+    g_studioPartIndex = std::clamp(g_studioPartIndex, 0, static_cast<int>(parts.size()) - 1);
+    auto partLabel = [](const ui::Json& part) {
+        return ui::Scalar(part, "label") + " | row " + ui::Scalar(part, "index") + " | " + ui::Scalar(part, "cas_part_hex");
+    };
+    const auto label = partLabel(parts[static_cast<size_t>(g_studioPartIndex)]);
+    if (ImGui::BeginCombo("CAS part / layer", label.c_str())) {
+        for (size_t i = 0; i < parts.size(); ++i) {
+            ImGui::PushID(static_cast<int>(i));
+            if (ImGui::Selectable(partLabel(parts[i]).c_str(), g_studioPartIndex == static_cast<int>(i)))
+                g_studioPartIndex = static_cast<int>(i);
+            ImGui::PopID();
+        }
+        ImGui::EndCombo();
+    }
+    const auto& part = parts[static_cast<size_t>(g_studioPartIndex)];
+    const auto target = ui::Scalar(part, "target");
+    const auto color = ui::Scalar(part, "color_hex");
+    ImGui::Text("CAS resource: %s | object: %s | layer: %s", ui::Scalar(part, "cas_part_hex").c_str(),
+        ui::Scalar(part, "object_id").c_str(), ui::Scalar(part, "layer_id").c_str());
+    ImGui::Text("Exact color: %s", color.empty() ? "absent (preserved)" : color.c_str());
+    const bool supported = part["target_supported"].get<bool>() && !color.empty();
+    ImGui::BeginDisabled(!supported);
+    if (ImGui::Button("Copy selected part color")) QueueAction("studio_color_copy", nullptr, target.c_str());
+    ImGui::SameLine(); if (ImGui::Button("Preview paste to selected part")) QueueAction("studio_color_preview", nullptr, target.c_str());
+    ImGui::EndDisabled();
+    if (!supported) ImGui::TextWrapped("Unavailable: %s", color.empty() ? "this part has no explicit slider state" : ui::Scalar(part, "target_reason").c_str());
+}
+
+static void DrawStudioTimeline() {
+    ImGui::InputText("Search history", g_historySearch, sizeof(g_historySearch));
+    ImGui::SeparatorText("Preserved history branches");
+    const auto found = g_studioData.find("history_nodes");
+    if (found == g_studioData.end() || found->empty()) {
+        ImGui::TextDisabled("Capture a checkpoint to start this save/Sim/form lane."); return;
+    }
+    if (ImGui::BeginTable("studio_timeline", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp)) {
+        ImGui::TableSetupColumn("Checkpoint / operation"); ImGui::TableSetupColumn("Branch parent");
+        ImGui::TableSetupColumn("Identity"); ImGui::TableHeadersRow();
+        for (const auto& node : *found) {
+            const auto id = ui::Scalar(node, "id");
+            const auto label = ui::Scalar(node, "label");
+            if (!TextContainsNoCase(label.c_str(), g_historySearch) && !TextContainsNoCase(id.c_str(), g_historySearch)) continue;
+            const bool current = id == ui::Scalar(g_studioData, "history_cursor");
+            ImGui::PushID(id.c_str()); ImGui::TableNextRow(); ImGui::TableNextColumn();
+            if (ImGui::Selectable(((current ? "* " : "") + label).c_str(), id == g_historyId, ImGuiSelectableFlags_SpanAllColumns))
+                strncpy_s(g_historyId, id.c_str(), _TRUNCATE);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\nCaptured: %.0f (UTC epoch)\nReadback proof is separate from save/reload proof.", id.c_str(), node["time"].get<double>());
+            ImGui::TableNextColumn(); const auto parent = ui::Scalar(node, "parent");
+            ImGui::TextUnformatted(parent.empty() ? "Root" : parent.substr(0, 8).c_str());
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(id.substr(0, 8).c_str()); ImGui::PopID();
+        }
+        ImGui::EndTable();
+    }
+}
+
+static void DrawStudioTab(const std::string& reply, bool history) {
+    UpdateStudioData(reply);
+    ImGui::TextWrapped("Target: selected Sim's current form. Preview and Apply are separate; stale previews are rejected. Readback verification does not prove save/reload persistence.");
+    ActionButton("Inspect outfits / history", "studio_status");
+    std::string outfits = ExtractJsonValue(reply, "outfit_text");
+    if (!outfits.empty()) ImGui::TextUnformatted(outfits.c_str());
+    if (history) {
+        ImGui::InputText("Checkpoint label", g_checkpointLabel, sizeof(g_checkpointLabel));
+        if (ImGui::Button("Capture named checkpoint")) QueueAction("studio_checkpoint", nullptr, g_checkpointLabel);
+        DrawStudioTimeline();
+        ImGui::InputText("Selected history node / redo branch", g_historyId, sizeof(g_historyId));
+        if (ImGui::Button("Preview Undo")) QueueAction("studio_undo");
+        ImGui::SameLine(); if (ImGui::Button("Preview Redo")) QueueAction("studio_redo", nullptr, g_historyId);
+        ImGui::SameLine(); ImGui::BeginDisabled(!g_historyId[0]);
+        if (ImGui::Button("Preview Jump")) QueueAction("studio_jump", nullptr, g_historyId);
+        ImGui::EndDisabled();
+        if (ImGui::Button("Resolve interrupted transaction")) QueueAction("studio_recover");
+    } else {
+        DrawStudioParts();
+        if (ImGui::CollapsingHeader("Advanced explicit target")) {
+            ImGui::InputText("Outfit : BodyType : optional part row", g_studioTarget, sizeof(g_studioTarget));
+            ImGui::TextDisabled("Example: 0:HAIR or 0:HAIR:2. Layered slots require an explicit row.");
+            if (ImGui::Button("Copy exact part color")) QueueAction("studio_color_copy", nullptr, g_studioTarget);
+            ImGui::SameLine(); if (ImGui::Button("Preview color paste")) QueueAction("studio_color_preview", nullptr, g_studioTarget);
+        }
+        std::string color = ExtractJsonValue(reply, "raw_color_hex");
+        if (!color.empty()) ImGui::Text("Exact uint64 color state: %s", color.c_str());
+        ImGui::TextWrapped("Color-only paste requires the identical CAS part. The bundled native CAS slider UI provides the baseline sliders; numeric H/S/B/O decoding and texture conversion remain tracked work.");
+    }
+    std::string diff = ExtractJsonValue(reply, "preview_diff");
+    if (!diff.empty()) ImGui::TextWrapped("%s", diff.c_str());
+    ImGui::SeparatorText("Explicit transaction control");
+    ImGui::InputText("Preview ID", g_previewId, sizeof(g_previewId));
+    ImGui::BeginDisabled(!g_previewId[0]);
+    if (ImGui::Button("Apply accepted preview")) QueueAction("studio_apply", nullptr, g_previewId);
+    ImGui::SameLine(); if (ImGui::Button("Cancel preview")) QueueAction("studio_cancel", nullptr, g_previewId);
+    ImGui::EndDisabled();
+}
+
+static void DrawConfirmation() {
+    if (g_openConfirmation) { ImGui::OpenPopup("Confirm state-changing operation"); g_openConfirmation = false; }
+    if (ImGui::BeginPopupModal("Confirm state-changing operation", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextWrapped("Operation: %s", g_confirmAction.c_str());
+        ImGui::TextWrapped("This can remove or replace form/trait data, change multiple Sims, or prepare CAS by temporarily hiding occult traits. Capture the relevant forms first. Legacy operations are not yet covered by Studio Undo.");
+        if (ImGui::Button("Run this operation")) {
+            bool sameSelection;
+            { std::lock_guard<std::mutex> lock(g_dataMutex); sameSelection = g_confirmGeneration == g_selectionGeneration; }
+            if (sameSelection) QueueCommand(g_confirmPath);
+            else { std::lock_guard<std::mutex> lock(g_dataMutex); g_status = "Selection changed; confirmation cancelled"; }
+            g_confirmPath.clear(); ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine(); if (ImGui::Button("Cancel")) { g_confirmPath.clear(); ImGui::CloseCurrentPopup(); }
+        ImGui::EndPopup();
+    }
+}
+
+static void LoadOverlayConfig() {
+    if (g_configLoaded) return;
+    g_configLoaded = true;
+    HMODULE ownModule = nullptr;
+    wchar_t path[MAX_PATH] = {};
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        reinterpret_cast<LPCWSTR>(&LoadOverlayConfig), &ownModule)) return;
+    DWORD length = GetModuleFileNameW(ownModule, path, MAX_PATH);
+    if (!length || length >= MAX_PATH) return;
+    std::wstring config(path);
+    size_t slash = config.find_last_of(L"\\/");
+    if (slash == std::wstring::npos) return;
+    config = config.substr(0, slash + 1) + L"ApexOverlay.ini";
+    wchar_t key[16] = {};
+    GetPrivateProfileStringW(L"Overlay", L"ToggleKey", L"F11", key, 16, config.c_str());
+    if (key[0] == L'F' && key[1] >= L'0' && key[1] <= L'9') {
+        wchar_t* end = nullptr;
+        long number = wcstol(key + 1, &end, 10);
+        if (end && !*end && number >= 1 && number <= 24) g_toggleKey = VK_F1 + static_cast<UINT>(number - 1);
+    }
+}
+
 static void DrawOverlay() {
     ImGui::SetNextWindowSize(ImVec2(1320, 820), ImGuiCond_FirstUseEver);
-    ImGui::Begin("TD1 Occult Hybrid Apex V9.6 - Live BodyType Safe  (F11)", nullptr, ImGuiWindowFlags_NoCollapse);
-    std::string status, json, sim;
+    ImGui::Begin("Apex Occult Hybrid - Authorized Baseline Development Build", nullptr, ImGuiWindowFlags_NoCollapse);
+    std::string status, json, sim, reply;
     std::vector<std::string> logs;
-    { std::lock_guard<std::mutex> lock(g_dataMutex); status = g_status; json = g_json; logs = g_logLines; sim = g_selectedSim; }
+    { std::lock_guard<std::mutex> lock(g_dataMutex); status = g_status; json = g_json; logs = g_logLines; sim = g_selectedSim; reply = g_commandReply; }
 
     ImGui::TextColored(ImVec4(0.45f, 0.95f, 1.0f, 1.0f), "%s", status.c_str());
-    ImGui::SameLine(); ImGui::TextDisabled("Hidden mode: no HTTP polling | Drift Guard: fire-once / no timers");
+    ImGui::SameLine(); ImGui::TextDisabled("F%u toggle | hidden: no HTTP polling", g_toggleKey - VK_F1 + 1);
+    std::string commandMessage = ExtractJsonValue(reply, "message");
+    if (!commandMessage.empty()) ImGui::TextWrapped("Last command: %s", commandMessage.c_str());
     char simBuf[64] = {};
     strncpy_s(simBuf, sim.c_str(), _TRUNCATE);
     ImGui::SetNextItemWidth(260);
@@ -824,6 +993,10 @@ static void DrawOverlay() {
         g_selectedSim = simBuf;
         ++g_selectionGeneration;
         g_json = "{}";
+        g_commandReply = "{}";
+        g_previewId[0] = '\0'; g_historyId[0] = '\0';
+        g_studioData = ui::Json::object(); g_studioLastReply.clear();
+        g_studioOutfitIndex = 0; g_studioPartIndex = 0;
         g_status = "Selection changed; waiting for current data";
         g_lastStatusMs = 0;
     }
@@ -834,7 +1007,7 @@ static void DrawOverlay() {
     ImGui::SameLine(); ActionButton("Code Audit", "code_audit", nullptr, nullptr, ImVec2(112,0));
     ImGui::SameLine(); ActionButton("Research Audit", "research_audit", nullptr, nullptr, ImVec2(136,0));
     ImGui::SameLine(); ActionButton("Final Audit", "final_audit", nullptr, nullptr, ImVec2(116,0));
-    std::string warn = ExtractJsonValue(json, "drift_warning_count");
+    std::string warn = ui::StatusScalar(ui::ReadObject(json), "drift_warning_count");
     if (!warn.empty() && warn != "0") {
         ImGui::Separator();
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.40f, 1.0f), "DRIFT WARNING: %s issue(s) found. Open Drift Guard or press Fix.", warn.c_str());
@@ -843,9 +1016,13 @@ static void DrawOverlay() {
     }
     ImGui::Separator();
 
-    const char* tabs[] = {"Apex", "Forms", "Saved Forms", "Drift Guard", "Reference Shots", "CAS Tools", "CAS Categories", "MCCC Shield", "Raw Flags", "Sims/API", "Log"};
-    for (int i = 0; i < IM_ARRAYSIZE(tabs); ++i) { if (i) ImGui::SameLine(); if (ImGui::Selectable(tabs[i], g_activeTab == i, 0, ImVec2(132, 0))) g_activeTab = i; }
-    ImGui::Separator();
+    const char* tabs[] = {"Apex", "Forms", "Saved Forms", "Drift Guard", "Reference Shots", "CAS Tools", "CAS Categories", "MCCC Shield", "Raw Flags", "Sims/API", "Log", "CAS History", "Color Studio"};
+    ImGui::BeginChild("navigation", ImVec2(160, 0), true);
+    for (int i = 0; i < IM_ARRAYSIZE(tabs); ++i) {
+        if (ImGui::Selectable(tabs[i], g_activeTab == i)) g_activeTab = i;
+    }
+    ImGui::EndChild();
+    ImGui::SameLine();
 
     ImGui::BeginChild("main_left", ImVec2(ImGui::GetContentRegionAvail().x * 0.65f, 0), false);
     if (g_activeTab == 0) DrawApexTab();
@@ -864,16 +1041,20 @@ static void DrawOverlay() {
         ActionButton("MCCC Status", "mccc_status", nullptr, nullptr, ImVec2(120,0));
         ImGui::BeginChild("json", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar); ImGui::TextUnformatted(json.c_str()); ImGui::EndChild();
     } else if (g_activeTab == 10) DrawLogDock(logs);
+    else if (g_activeTab == 11) DrawStudioTab(reply, true);
+    else if (g_activeTab == 12) DrawStudioTab(reply, false);
     ImGui::EndChild();
     ImGui::SameLine();
     ImGui::BeginChild("right_dock", ImVec2(0, 0), true);
     DrawLogDock(logs);
     ImGui::EndChild();
+    DrawConfirmation();
     ImGui::End();
 }
 
 static HRESULT STDMETHODCALLTYPE HookPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
-    if ((GetAsyncKeyState(VK_F11) & 1) != 0) g_visible = !g_visible.load();
+    LoadOverlayConfig();
+    if (GetForegroundWindow() == g_hwnd && (GetAsyncKeyState(g_toggleKey) & 1) != 0) g_visible = !g_visible.load();
     if (g_visible.load()) {
         InitImGui(sc);
         if (g_device && g_context) {

@@ -6,14 +6,15 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-Apex Occult Hybrid is a standalone first-party hybrid-occult project recovered from earlier Apex/TD1-oriented work. The project owner has explicitly stated they have full permission from the relevant TD1/LordPercival hybrid and Crilender CASUnlocks authors to use their work in Apex. Their newest working packages are therefore the concrete starting code/resource baselines to import, inventory, port and improve—not merely inspiration—while the finished release converges on Apex-owned artifacts and preserves attribution/provenance.
+Apex Occult Hybrid is a standalone first-party hybrid-occult project recovered from earlier Apex/TD1-oriented work. The project owner has explicitly stated they have full permission from the relevant TD1/LordPercival hybrid, Crilender CASUnlocks, and MCCC authors to use their work in Apex. Their newest working packages are therefore the concrete starting code/resource baselines to import, inventory, port and improve—not merely inspiration—while the finished release converges on Apex-owned artifacts and preserves attribution/provenance.
 
 ## Why Apex exists
 
-Apex now owns the full hybrid stack itself, but development deliberately starts from the current authorized working TD1/LordPercival hybrid and Crilender CASUnlocks packages. Codex should preserve their useful working behavior first, then improve/replace weak pieces and converge them into Apex-owned artifacts:
+Apex now owns the full hybrid stack itself, but development deliberately starts from the current authorized working TD1/LordPercival hybrid, Crilender CASUnlocks, and MCCC MC CAS/MC Dresser baselines. Codex should preserve their useful working behavior first, then improve/replace weak pieces and converge them into Apex-owned artifacts:
 
 - **Apex Occult Hybrid Core** — first-party `ApexOccultHybrid.package` + `ApexOccultHybrid.ts4script`; no TD1/IcedCream/LordPercival hybrid runtime dependency.
 - **F11 Dear ImGui control center** in the running game.
+- **Apex Live CAS Studio** — a standalone MCCC CAS/Dresser superset: edit CAS-grade appearance data from Live Mode, copy whole outfits/all outfits/appearance between Sims, use Tray/preset sources, and undo/redo everything without requiring MCCC.
 - **Saved Forms** with labels, search, apply and reuse.
 - **CAS History Studio** — Photoshop-style live CAS history with semantic diffs, Undo/Redo, jump-to-state, branching history, named checkpoints, category revert and hybrid-aware cherry-pick.
 - **Apex CAS Unlock Core** — a fully standalone unlocker shipping its own first-party `ApexCASUnlocks.package`: keeps compatible CAS categories available, exposes optional hidden/locked/debug/occult items, understands hybrid forms and installed packs, regenerates against current game resources after patches, and requires no third-party CAS unlocker.
@@ -146,9 +147,11 @@ The recovered V9.5 source passed recorded offline Python/static/audit checks, bu
 6. Read [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md).
 7. Read [`docs/APEX_CAS_UNLOCK_CORE.md`](docs/APEX_CAS_UNLOCK_CORE.md).
 8. Read [`docs/CAS_UNLOCKER_REFERENCE_MATRIX.md`](docs/CAS_UNLOCKER_REFERENCE_MATRIX.md).
-9. Read [`docs/DEVELOPER_TOOLBOX.md`](docs/DEVELOPER_TOOLBOX.md).
-10. Preserve the V9.5 safety invariants and continue from the earliest ready task ID.
-11. Do not replace the project with a fresh scaffold.
+9. Read [`docs/APEX_LIVE_CAS_STUDIO.md`](docs/APEX_LIVE_CAS_STUDIO.md).
+10. Read [`docs/MCCC_CAS_BASELINE_MATRIX.md`](docs/MCCC_CAS_BASELINE_MATRIX.md).
+11. Read [`docs/DEVELOPER_TOOLBOX.md`](docs/DEVELOPER_TOOLBOX.md).
+12. Preserve the V9.5 safety invariants and continue from the earliest ready task ID.
+13. Do not replace the project with a fresh scaffold.
 
 ## Provenance
 

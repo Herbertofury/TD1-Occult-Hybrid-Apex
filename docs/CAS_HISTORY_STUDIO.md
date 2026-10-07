@@ -232,7 +232,7 @@ Jumping to an old state must:
 6. verify the resulting CAS state;
 7. add the restore as a new journal event instead of rewriting history.
 
-History is append-only evidence; reverting creates a new event.
+History is append-only evidence; reverting creates a new event. ColorState is part of the event payload and Undo/Redo must restore it exactly rather than only restoring the CAS part/swatches.
 
 ---
 

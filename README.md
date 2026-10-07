@@ -140,6 +140,8 @@ The recovered V9.5 source passed recorded offline Python/static/audit checks, bu
 
 ## Start here for Codex
 
+**Single-file handoff:** [`docs/CODEX_APEX_COMPLETE_EXECUTION_HANDOFF.md`](docs/CODEX_APEX_COMPLETE_EXECUTION_HANDOFF.md)
+
 1. Read [`docs/AUTHORIZED_BASELINE_STRATEGY.md`](docs/AUTHORIZED_BASELINE_STRATEGY.md).
 2. Read [`docs/CODEX_MASTER_EXECUTION.md`](docs/CODEX_MASTER_EXECUTION.md).
 3. Read [`docs/APEX_OCCULT_HYBRID_CORE.md`](docs/APEX_OCCULT_HYBRID_CORE.md).

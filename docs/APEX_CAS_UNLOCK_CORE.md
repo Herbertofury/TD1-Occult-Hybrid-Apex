@@ -7,7 +7,29 @@ Current verified Sims 4 PC patch: 1.128.90.1030 (2026-09-22)
 
 Build an Apex-owned CAS unlock system that keeps intended CAS categories available for human and occult/hybrid forms, exposes compatible hidden/locked/debug/reward/occult items when the user wants them, survives normal form/outfit/CAS transitions, and has a repeatable update path when EA changes CAS resources.
 
-The goal is not to copy another unlocker. The goal is to independently reproduce the best user-visible capabilities, fix their maintenance/compatibility gaps, and integrate them with Apex's hybrid form ownership, CAS History Studio, Drift Guard, MCCC Shield and Post-CAS Commit.
+The goal is not to copy or depend on another unlocker. The goal is to independently reproduce the best user-visible capabilities, improve their maintenance/compatibility model, and integrate them with Apex's hybrid form ownership, CAS History Studio, Drift Guard, MCCC Shield and Post-CAS Commit.
+
+## Zero third-party unlocker dependency invariant
+
+The shipped Apex CAS Unlock Core must be **fully standalone**.
+
+A normal user must not need to install:
+- Crilender CASUnlocks;
+- Loulicorn Ultimate CAS Items Unlocker;
+- Szemoka Unlock CAS Items;
+- another CAS unlock package;
+- Lot51 Core;
+- XML Injector;
+- another script library;
+- a separate package generator/parser/runtime just to make Apex unlocking work.
+
+Those projects may be researched as challengers. They are never runtime requirements, fallbacks, or hidden prerequisites.
+
+The only legitimate content prerequisites are The Sims 4 itself and the EA pack that owns a piece of content the user wants to use.
+
+Open-source technical libraries may be used internally during development/build tooling only when licensing permits and when the finished Apex user experience remains self-contained. Prefer vendored/embedded narrow functionality or generated final artifacts over asking the user to install developer tooling separately.
+
+If an optional third-party mod is present, Apex may diagnose overlap or coexist with it safely, but Apex functionality must be identical in capability when that third-party mod is absent.
 
 ## Current design decision
 
@@ -357,7 +379,8 @@ Provide:
 - overlapping TGI/resource report where available;
 - likely override winner/order;
 - recommendation to avoid redundant overlapping unlockers once Apex is proven;
-- a compatibility mode if a third-party package is intentionally retained and coexistence is safe.
+- a compatibility mode if a third-party package is intentionally retained and coexistence is safe;
+- explicit confirmation that Apex does not need that package and remains fully functional after it is removed.
 
 Apex should be able to explain “category X is being controlled by another override” rather than endlessly reasserting itself.
 
@@ -403,7 +426,7 @@ Evaluate before reinventing low-level parsing:
 - CmarNYC TS4SimRipper / TS4CASTools — GPL-3.0; strong CASP structure/reference implementation, but do not copy/link GPL code into a differently licensed Apex binary without making an explicit compatible licensing decision.
 - The Sims 4 Modders Reference — current game format/patch/appearance documentation.
 
-Record adopt/adapt/reference/reject decisions and licensing consequences.
+Record adopt/adapt/reference/reject decisions and licensing consequences. Any adopted technical library must not become a separate end-user runtime/mod dependency for CAS unlocking.
 
 ---
 
@@ -457,5 +480,7 @@ Apex CAS Unlock Core is complete only when:
 - F11 can explain exactly why a category/item is or is not available;
 - CAS History records unlock/reassert/application behavior;
 - no third-party proprietary package/code was copied;
+- no third-party CAS unlocker/script library is required at runtime;
+- a clean Mods profile containing Apex but none of the researched unlockers/libraries passes the full unlock regression matrix;
 - exact release build is current-game runtime-tested;
 - CAS responsiveness is materially non-regressive.

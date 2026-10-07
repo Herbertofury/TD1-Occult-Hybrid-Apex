@@ -2,7 +2,7 @@
 
 **Hybrid occult control without the mystery.**
 
-Apex turns the original hybrid-occult foundation into a recovery-first control suite: F11 overlay, explicit occult toggles, saved forms, category-scoped CAS operations, MCCC Shield, Drift Guard, reference shots and truthful diagnostics.
+Apex turns the original hybrid-occult foundation into a recovery-first control suite: F11 overlay, explicit occult toggles, saved forms, category-scoped CAS operations, Photoshop-style CAS History, an Apex-owned patch-aware CAS Unlock Core, MCCC Shield, Drift Guard, reference shots and truthful diagnostics.
 
 ## Status at a glance
 
@@ -15,12 +15,17 @@ Apex turns the original hybrid-occult foundation into a recovery-first control s
 | Offline audits | Recovered |
 | Current-game live runtime proof | **Open** |
 | 1.13.7 parity implementation | **Open** |
+| CAS History Studio | **Planned / execution spec live** |
+| Apex CAS Unlock Core | **Planned / execution spec live** |
 | Release packaging | **Open** |
 
 ## Start here
 
 - [Codex Master Execution](../docs/CODEX_MASTER_EXECUTION.md)
 - [Upstream 1.13.7 Delta](../docs/UPSTREAM_1.13.7_DELTA.md)
+- [CAS History Studio](CAS-History-Studio.md)
+- [Apex CAS Unlock Core](CAS-Unlock-Core.md)
+- [CAS Unlocker Research](../docs/CAS_UNLOCKER_REFERENCE_MATRIX.md)
 - [Developer Toolbox](../docs/DEVELOPER_TOOLBOX.md)
 - [Recovered binaries](../RECOVERED_BINARY_ARTIFACTS.md)
 - [Full TODO](TODO.md)

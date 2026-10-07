@@ -6,11 +6,11 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-Apex Occult Hybrid is a standalone first-party hybrid-occult project recovered from earlier Apex/TD1-oriented work. TD1/TwelfthDoctor1, IcedCream and LordPercivalXII remain historical behavioral/regression references with attribution where relevant; the production release is not an official upstream release and does not require their runtime files.
+Apex Occult Hybrid is a standalone first-party hybrid-occult project recovered from earlier Apex/TD1-oriented work. The project owner has explicitly stated they have full permission from the relevant TD1/LordPercival hybrid and Crilender CASUnlocks authors to use their work in Apex. Their newest working packages are therefore the concrete starting code/resource baselines to import, inventory, port and improve—not merely inspiration—while the finished release converges on Apex-owned artifacts and preserves attribution/provenance.
 
 ## Why Apex exists
 
-Apex now owns the full hybrid stack itself: occult coexistence, transformations, form switching, gameplay panels, CAS persistence, unlocks, diagnostics and recovery. Historical hybrid mods define useful behaviors/regressions to beat, not dependencies to install:
+Apex now owns the full hybrid stack itself, but development deliberately starts from the current authorized working TD1/LordPercival hybrid and Crilender CASUnlocks packages. Codex should preserve their useful working behavior first, then improve/replace weak pieces and converge them into Apex-owned artifacts:
 
 - **Apex Occult Hybrid Core** — first-party `ApexOccultHybrid.package` + `ApexOccultHybrid.ts4script`; no TD1/IcedCream/LordPercival hybrid runtime dependency.
 - **F11 Dear ImGui control center** in the running game.
@@ -138,16 +138,17 @@ The recovered V9.5 source passed recorded offline Python/static/audit checks, bu
 
 ## Start here for Codex
 
-1. Read [`docs/CODEX_MASTER_EXECUTION.md`](docs/CODEX_MASTER_EXECUTION.md).
-2. Read [`docs/APEX_OCCULT_HYBRID_CORE.md`](docs/APEX_OCCULT_HYBRID_CORE.md).
-3. Read [`docs/UPSTREAM_1.13.7_DELTA.md`](docs/UPSTREAM_1.13.7_DELTA.md).
-4. Read [`docs/USER_REPORTED_REGRESSIONS.md`](docs/USER_REPORTED_REGRESSIONS.md).
-5. Read [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md).
-6. Read [`docs/APEX_CAS_UNLOCK_CORE.md`](docs/APEX_CAS_UNLOCK_CORE.md).
-7. Read [`docs/CAS_UNLOCKER_REFERENCE_MATRIX.md`](docs/CAS_UNLOCKER_REFERENCE_MATRIX.md).
-8. Read [`docs/DEVELOPER_TOOLBOX.md`](docs/DEVELOPER_TOOLBOX.md).
-9. Preserve the V9.5 safety invariants and continue from the earliest ready task ID.
-10. Do not replace the project with a fresh scaffold.
+1. Read [`docs/AUTHORIZED_BASELINE_STRATEGY.md`](docs/AUTHORIZED_BASELINE_STRATEGY.md).
+2. Read [`docs/CODEX_MASTER_EXECUTION.md`](docs/CODEX_MASTER_EXECUTION.md).
+3. Read [`docs/APEX_OCCULT_HYBRID_CORE.md`](docs/APEX_OCCULT_HYBRID_CORE.md).
+4. Read [`docs/UPSTREAM_1.13.7_DELTA.md`](docs/UPSTREAM_1.13.7_DELTA.md).
+5. Read [`docs/USER_REPORTED_REGRESSIONS.md`](docs/USER_REPORTED_REGRESSIONS.md).
+6. Read [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md).
+7. Read [`docs/APEX_CAS_UNLOCK_CORE.md`](docs/APEX_CAS_UNLOCK_CORE.md).
+8. Read [`docs/CAS_UNLOCKER_REFERENCE_MATRIX.md`](docs/CAS_UNLOCKER_REFERENCE_MATRIX.md).
+9. Read [`docs/DEVELOPER_TOOLBOX.md`](docs/DEVELOPER_TOOLBOX.md).
+10. Preserve the V9.5 safety invariants and continue from the earliest ready task ID.
+11. Do not replace the project with a fresh scaffold.
 
 ## Provenance
 

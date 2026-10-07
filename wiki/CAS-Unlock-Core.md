@@ -4,11 +4,21 @@ Apex will include its own **always-unlocked, patch-aware CAS system** with **zer
 
 ## Standalone means standalone
 
-The user installs Apex. That's it for CAS unlocking.
+The user installs Apex. That's it for CAS unlocking. The normal release includes our own real `ApexCASUnlocks.package`.
 
 Crilender, Loulicorn, Szemoka, Lot51 Core, XML Injector, or another unlock/script package are **not required** for Apex CAS Unlock Core. We learn from good ideas in other projects, then independently implement the strongest combined behavior ourselves.
 
 If another unlocker is installed, Apex may report conflicts/overlap, but removing it must not reduce Apex's capabilities.
+
+## Our actual package
+
+The canonical unlock artifact is:
+
+`ApexCASUnlocks.package`
+
+It is Apex-owned, built from our policy/current-game resource analysis, hashed and runtime-tested. It is not a renamed third-party package and not a script-only imitation.
+
+The normal user should not juggle separate Werewolf/Mermaid/Fairy/per-pack unlock files. Apex handles pack/form policy and presents one coherent install path.
 
 ## What ours does
 

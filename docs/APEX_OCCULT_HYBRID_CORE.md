@@ -8,7 +8,7 @@ Ship a fully first-party Apex occult-hybrid engine that requires **none** of the
 
 Apex must independently provide the useful behavior of current hybrid solutions, preserve compatibility with normal Sims 4 occult gameplay, fix the historical corruption/persistence failures documented in this repository, and integrate the entire feature set with Apex CAS Unlock Core, CAS History Studio, Drift Guard, Saved Forms, MCCC Shield and the F11 control center.
 
-The historical TD1/IcedCream/LordPercival lineage is a behavioral/reference baseline only. It is not a runtime dependency or a release component.
+The current TD1/LordPercival hybrid lineage is an **authorized implementation baseline**. The project owner has stated they have full permission from the relevant author(s) to use it. Codex should start from the actual newest working package/script contents, port/reuse authorized working pieces directly when that is the strongest route, and improve upward from them. The old package remains a development baseline, not a required final dependency.
 
 ---
 
@@ -36,6 +36,18 @@ The normal release must **not** require:
 - another script library.
 
 MCCC/Lot51 or similar mods may remain optional interoperability targets, but Apex's core hybrid behavior must be complete without them.
+
+## Authorized baseline-first migration
+
+Do not rewrite working hybrid behavior from scratch merely to avoid reuse. First import/hash/inventory the newest authorized working hybrid archive and map every package resource/script module to its behavior. Preserve working pieces, fix broken pieces, and progressively move ownership into Apex namespaces/build inputs.
+
+The strongest path is allowed to be:
+- direct authorized reuse;
+- direct port with Apex IDs/namespaces;
+- merge/adaptation into the canonical Apex state model;
+- replacement when the baseline implementation is causal to a defect.
+
+Only remove the old baseline package/script from the development profile after the corresponding Apex path passes parity + improvement + persistence/runtime proof.
 
 ## Historical recovered artifacts
 

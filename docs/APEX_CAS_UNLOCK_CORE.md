@@ -107,6 +107,20 @@ Expose compatible:
 
 This is a catalog visibility feature, not permission to apply an incompatible resource.
 
+## Native Reward Unlock lane
+
+When a CAS item belongs to the game's own reward/ownership unlock system, prefer using that durable game mechanism instead of forcing visibility through a CASP override.
+
+Requirements:
+- discover current reward-unlock resources from current game data where technically possible;
+- allow targeted Sim/household unlock as well as an explicit all-supported-rewards action;
+- journal the unlock as an ownership/state event;
+- preserve normal save persistence;
+- never re-grant/rewrite the reward every CAS frame/session;
+- fall back to catalog visibility only when there is no safe native ownership path and the user explicitly enabled that catalog mode.
+
+This follows the stronger architectural idea demonstrated by Szemoka's Unlock CAS Items without copying its implementation.
+
 ## 4. Advanced Compatibility Bypass — default OFF
 
 Age/species/frame/body-type restrictions that can produce broken meshes, invalid state or unsupported gameplay remain enforced by default.
@@ -204,6 +218,7 @@ Scan:
 
 Generate:
 - `ApexCASUnlocks.package` or a small set of intentionally separated modules;
+- native reward-unlock discovery/manifest data for items that should use game ownership semantics instead of static visibility overrides;
 - `apex_cas_unlock_manifest.json`;
 - patch/build fingerprint;
 - list of categories unlocked;

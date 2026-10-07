@@ -25,6 +25,8 @@ Do not restart this project as a new mod. Reuse and harden the recovered impleme
 - Upstream 1.13.7 fixes are a required compatibility floor, not optional inspiration.
 - Keep attribution/licensing/provenance for upstream or vendored work.
 - Never call build/static checks live-game proof.
+- CAS History Studio must reuse the existing Apex overlay/injection and canonical game-thread mutation path; do not introduce a second always-running DLL/hook stack unless runtime evidence proves the shared path cannot satisfy the requirement safely.
+- CAS History observation may be native/read-only when necessary, but undo/redo/revert/apply must never mutate Sims state from the render thread.
 
 ## Resume rule
 
@@ -140,4 +142,30 @@ The detailed reproduction/acceptance contract is `docs/USER_REPORTED_REGRESSIONS
 - [ ] **T072** · Build the canonical real-runtime regression matrix from `docs/USER_REPORTED_REGRESSIONS.md` across representative human/vampire/spellcaster/werewolf/mermaid/alien/ghost/PlantSim/Servo/fairy hybrids where the packs/content are available.
 - [ ] **G010 · GATE** — R001–R010 are no longer reproducible on the current supported Sims 4 build; the regression suite includes normal CAS, MCCC CAS, CAS while already in werewolf form, category/outfit switching, form switching, save/reload/restart and stale-snapshot recovery, with no lost secondary forms or unrelated CAS/occult data.
 
-- [ ] **G009 · FINAL COMPLETION GATE** — All accepted tasks/gates are complete; no unresolved blocker remains; production packaging succeeds; the current TS4 build has exercised F11 occult toggles, form switching, Saved Forms, CAS Categories, MCCC Shield, Drift Guard, diagnostics, save/reload/restart and representative hybrid combinations; every R001–R010 original-mod regression is proven fixed on the current supported game build; upstream 1.13.7 parity is proven; overlay performance is measured on equivalent workloads; and no requested capability was silently removed or replaced by a placeholder.
+## Phase J — CAS History Studio
+
+Detailed product/architecture contract: `docs/CAS_HISTORY_STUDIO.md`.
+
+- [ ] **T073** · Create one canonical CAS Change Journal service shared by CAS History, Drift Guard, Post-CAS Commit, MCCC Shield and Saved Forms instead of separate snapshot/diff implementations.
+- [ ] **T074** · Detect CAS lifecycle boundaries and capture a deterministic full checkpoint at CAS entry without starting a per-frame scan.
+- [ ] **T075** · Capture meaningful CAS changes live as semantic events with target Sim, exact form identity, outfit slot, category/scope, source/provenance and before/after data.
+- [ ] **T076** · Coalesce continuous slider/sculpt/high-frequency edits into one useful history action without merging unrelated operations.
+- [ ] **T077** · Implement compact periodic checkpoint + semantic-delta storage with content-addressed deduplication, preserving the complete active CAS session without serializing every full form on every change.
+- [ ] **T078** · Build the F11 Photoshop-style CAS History timeline with selectable entries, clear active-form lane, action labels, timestamps, verification state and filtering/search by form/outfit/category/source.
+- [ ] **T079** · Build the change inspector showing added/removed/replaced CAS parts, resource IDs/names when resolvable, swatches, sliders/modifiers, skin details, tattoos, makeup, hair/headwear, accessories, clothing/body parts, occult-only parts, outfit scope and observed-vs-inferred provenance.
+- [ ] **T080** · Implement Undo and Redo as validated new mutations through the canonical action queue; history evidence remains append-only.
+- [ ] **T081** · Implement Jump to history state by computing the minimal current -> target delta, previewing protected changes, applying through the canonical action path, verifying result and recording the restore as a new event.
+- [ ] **T082** · Preserve forward history as a recoverable branch when the user edits after undo/jump-back; never silently discard the old branch.
+- [ ] **T083** · Implement named checkpoints and Compare-with-current, including optional reuse of Reference Shots for face/body/full-frame checkpoint images without capturing screenshots for every micro-change.
+- [ ] **T084** · Implement selected-change/category revert and compatible cherry-pick/copy-to-form with explicit target form, compatibility validation, occult-only-part protection and before/after preview.
+- [ ] **T085** · Give each human/occult/custom form an independent history lane and prevent cross-form flattening; unsupported custom forms remain opaque distinct identities until proven compatible.
+- [ ] **T086** · Integrate MCCC Shield so Arm creates a checkpoint, MCCC/CAS changes are journaled/reconciled, Post-CAS Commit is visible in history, and persistence verification is recorded.
+- [ ] **T087** · Integrate Drift Guard with the same snapshot/diff journal so drift detection/repair creates inspectable events and no second diff engine or timer scan exists.
+- [ ] **T088** · Integrate Saved Forms so any history state can become a durable named form, a Saved Form restore becomes a journal event, and compatible categories can be cherry-picked without making one form globally canonical.
+- [ ] **T089** · Persist interrupted CAS-session journals in Apex-owned local storage and provide read-only recovery inspection on next launch; never auto-apply an interrupted/stale checkpoint.
+- [ ] **T090** · Add live “what is being applied?” status for pending/completed mutations including target form/outfit/categories, added/removed/replaced resources, skipped items/reasons, compatibility decisions and post-apply verification.
+- [ ] **T091** · Prove the CAS History Studio specifically protects the R001–R010 failures: werewolf CAS while already transformed, hair/headwear/body-part retention, secondary-form survival, independent human/occult edits, stale-snapshot rejection and MCCC persistence.
+- [ ] **T092** · Benchmark equivalent CAS editing sessions with CAS History off/on and prove materially non-regressive input latency, frame time, CPU, memory and storage behavior; optimize shared capture/diff paths rather than dropping history fidelity.
+- [ ] **G011 · GATE** — CAS History Studio is live-runtime-proven on the current supported game build: history updates while editing, semantic diffs are understandable, undo/redo/jump/branches/checkpoints/reverts/cherry-pick work, hybrid form lanes remain isolated, MCCC/Drift/Saved Forms share one journal, interrupted recovery is safe, werewolf regression paths pass, and equivalent CAS responsiveness is materially non-regressive.
+
+- [ ] **G009 · FINAL COMPLETION GATE** — All accepted tasks/gates are complete; no unresolved blocker remains; production packaging succeeds; the current TS4 build has exercised F11 occult toggles, form switching, Saved Forms, CAS Categories, Photoshop-style CAS History/Undo/Redo, MCCC Shield, Drift Guard, diagnostics, save/reload/restart and representative hybrid combinations; every R001–R010 original-mod regression is proven fixed on the current supported game build; upstream 1.13.7 parity is proven; overlay performance is measured on equivalent workloads; and no requested capability was silently removed or replaced by a placeholder.

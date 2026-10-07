@@ -2,7 +2,7 @@
 
 Current verified Sims 4 PC build for this research: **1.128.90.1030**, released 2026-09-22.
 
-This document distinguishes **behavioral references** from **code/tooling references**. Third-party mod behavior may inspire independently implemented Apex features; proprietary package contents are not copied. **None of the unlocker projects in this matrix may become an Apex runtime dependency.**
+This document distinguishes **authorized implementation baselines** from **behavioral/code/tooling challengers**. The project owner states they have full permission from Crilender to use CASUnlocks in Apex, so current Crilender package resources may be directly inspected, reused, ported and adapted with attribution/provenance. Other projects remain subject to their own permissions. None remain required final runtime dependencies.
 
 ## Current unlocker challengers
 
@@ -26,7 +26,7 @@ Observed public behavior:
 - 2026 v1.9h added base-layer support;
 - ModTheSims currently lists addon packages for Werewolf, Mermaid, Fairy, Horse, Archetypes and Gloves-below-Tops.
 
-Apex disposition: **behavioral reference only**. Reimplement from current game resources/policy.
+Apex disposition: **authorized implementation baseline**. Start from the actual current v1.9h package/addons, inventory exact resources/category coverage, port/reuse strong working pieces, then improve/consolidate them into Apex.
 
 Public project:
 - https://www.curseforge.com/sims4/mods/casunlocks

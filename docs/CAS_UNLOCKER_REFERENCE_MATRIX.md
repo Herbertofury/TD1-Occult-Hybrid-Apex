@@ -2,7 +2,7 @@
 
 Current verified Sims 4 PC build for this research: **1.128.90.1030**, released 2026-09-22.
 
-This document distinguishes **behavioral references** from **code/tooling references**. Third-party mod behavior may inspire independently implemented Apex features; proprietary package contents are not copied.
+This document distinguishes **behavioral references** from **code/tooling references**. Third-party mod behavior may inspire independently implemented Apex features; proprietary package contents are not copied. **None of the unlocker projects in this matrix may become an Apex runtime dependency.**
 
 ## Current unlocker challengers
 
@@ -118,6 +118,12 @@ Apex disposition: **reference first**. Do not paste/link GPL implementation into
 
 - https://github.com/CmarNYC-Tools/TS4SimRipper
 - https://github.com/CmarNYC-Tools/TS4CASTools
+
+## Standalone requirement
+
+Apex must pass its complete CAS unlock runtime matrix with **none** of the researched unlockers installed. Their absence may not disable a feature or trigger a lesser fallback.
+
+Open-source parser/package libraries are implementation candidates, not user-facing mod dependencies. If one is used in a builder, its required functionality must ship inside the Apex toolchain/output so the end user does not separately install it.
 
 ## Recommended implementation stack
 

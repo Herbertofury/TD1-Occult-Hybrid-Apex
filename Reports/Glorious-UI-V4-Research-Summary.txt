@@ -1,0 +1,28 @@
+TD1 Occult Hybrid Apex - Glorious UI V4 Research Summary
+========================================================
+
+Research / reference checks performed:
+
+1. Current Sims 4 script mod structure was checked against contemporary references. A .ts4script remains a zip-style script package, and Sims 4 can load packaged Python source.
+
+2. Script mod installation depth was kept at one folder under Mods. Final layout is:
+   Mods/TD1 Occult Hybrid Apex/*.ts4script
+   Mods/TD1 Occult Hybrid Apex/*.package
+   Mods/TD1 Occult Hybrid Apex/Native/TD1OccultNativeBridge.dll
+
+3. Real-time alarm guidance was reviewed. The mod still queues browser commands onto the Sims game thread through add_alarm_real_time, but V4 arms that queue lazily instead of on mod load.
+
+4. RTBP package structure was inspected from the provided RTBP archive. Relevant design cues carried over:
+   - Local bridge style.
+   - Dedicated companion/control UI concept.
+   - Visible live logging philosophy.
+   - Command-server style separation between UI commands and simulation work.
+
+V4 design choices made from that research:
+
+- The UI is static HTML/CSS/JS served locally with no external network dependencies.
+- The live log polls /api/logs, which returns the in-memory history buffer and does not touch Sims.
+- Commands are explicit; the panel does not continuously scan Sim data.
+- Auto repair is OFF by default.
+- The game-thread alarm queue is not armed by script import/server start; it is armed by the first game action.
+- Command timings are recorded for diagnostics so expensive actions can be seen instead of hidden.

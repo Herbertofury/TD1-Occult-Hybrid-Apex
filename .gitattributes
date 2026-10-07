@@ -1,0 +1,8 @@
+* text=auto eol=lf
+Source/td1_occult_hybrid_apex.py -text
+NativeOverlay/Source/TD1ApexD3D11Proxy.cpp -text
+NativeOverlay/third_party/** -text
+*.package -text
+*.ts4script -text
+*.dll -text
+*.lib -text

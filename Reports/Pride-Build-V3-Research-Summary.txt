@@ -1,0 +1,18 @@
+TD1 Occult Hybrid Apex - Pride Build v3 research summary
+
+Research targets checked:
+- Current .ts4script packaging expectations: .ts4script is zip-style Python packaging, and packaged .py source can be loaded by Sims 4.
+- Script mod install depth: .ts4script files should be directly in Mods or one folder below Mods.
+- Hybrid failure model: stable hybrid state depends on both occult traits and the hidden occult_types value.
+- CAS failure model: recent Sims 4 CAS behavior can delete secondary hybrid forms except the form/occult used to enter CAS.
+- Game-thread command queue: real-time alarms are the correct recurring Sims-side callback pattern, and alarm owner/handle references must stay alive.
+- Loot-action initialization: SingleSimResolver and DoubleSimResolver are the expected resolver types for applying loot actions to Sims.
+
+Implementation changes made from this research:
+- Retained .py source inside TD1_OccultHybridApex.ts4script.
+- Kept install folder one level deep.
+- Added Health Check and Normalize around occult traits, hidden flags, current flags, and form maps.
+- Added CAS Keep Human and per-occult CAS Keep flows that save flags, form map, shape payload, and traits, then temporarily hide non-kept occult traits before CAS.
+- Added Restore After CAS to restore the stored form map, flags, shape payload, and trait snapshot, then run deep repair.
+- Kept HTTP commands on the Sims alarm queue and made the HTTP fallback read-only when the queue is not ready.
+- Added robust native optional binding and 21-export native helper DLL.

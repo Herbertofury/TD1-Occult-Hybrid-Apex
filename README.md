@@ -15,7 +15,7 @@ The upstream mod does the hard, important work of making hybrid occults viable. 
 - **F11 Dear ImGui control center** in the running game.
 - **Saved Forms** with labels, search, apply and reuse.
 - **CAS History Studio** — Photoshop-style live CAS history with semantic diffs, Undo/Redo, jump-to-state, branching history, named checkpoints, category revert and hybrid-aware cherry-pick.
-- **Apex CAS Unlock Core** — a fully standalone unlocker: keeps compatible CAS categories available, exposes optional hidden/locked/debug/occult items, understands hybrid forms and installed packs, regenerates against current game resources after patches, and requires no third-party CAS unlocker.
+- **Apex CAS Unlock Core** — a fully standalone unlocker shipping its own first-party `ApexCASUnlocks.package`: keeps compatible CAS categories available, exposes optional hidden/locked/debug/occult items, understands hybrid forms and installed packs, regenerates against current game resources after patches, and requires no third-party CAS unlocker.
 - **Drift Guard** to detect and repair occult-form appearance drift without constant scanning.
 - **Post-CAS Commit** so visible edits can be deliberately committed into the selected occult form.
 - **CAS Categories** for scoped copy/paste/apply-all-forms instead of blunt full-appearance replacement.

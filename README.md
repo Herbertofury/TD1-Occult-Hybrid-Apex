@@ -14,6 +14,7 @@ The upstream mod does the hard, important work of making hybrid occults viable. 
 
 - **F11 Dear ImGui control center** in the running game.
 - **Saved Forms** with labels, search, apply and reuse.
+- **CAS History Studio** — Photoshop-style live CAS history with semantic diffs, Undo/Redo, jump-to-state, branching history, named checkpoints, category revert and hybrid-aware cherry-pick.
 - **Drift Guard** to detect and repair occult-form appearance drift without constant scanning.
 - **Post-CAS Commit** so visible edits can be deliberately committed into the selected occult form.
 - **CAS Categories** for scoped copy/paste/apply-all-forms instead of blunt full-appearance replacement.
@@ -37,6 +38,8 @@ These are known historical failure modes and are **release blockers**, not “ed
 - Broad repair/copy operations can damage unrelated appearance data or occult state.
 
 The canonical reproduction and acceptance ledger is [`docs/USER_REPORTED_REGRESSIONS.md`](docs/USER_REPORTED_REGRESSIONS.md). Apex is not complete while any R001–R010 failure remains reproducible.
+
+CAS History Studio is designed as part of that fix strategy: the same canonical appearance journal/diff layer powers live CAS history, MCCC Shield, Post-CAS Commit, Drift Guard and Saved Forms so the user can see exactly what changed and safely restore earlier states. See [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md).
 
 ## Architecture
 
@@ -124,9 +127,10 @@ The recovered V9.5 source passed its recorded offline Python/static/audit checks
 1. Read [`docs/CODEX_MASTER_EXECUTION.md`](docs/CODEX_MASTER_EXECUTION.md).
 2. Read [`docs/UPSTREAM_1.13.7_DELTA.md`](docs/UPSTREAM_1.13.7_DELTA.md).
 3. Read [`docs/USER_REPORTED_REGRESSIONS.md`](docs/USER_REPORTED_REGRESSIONS.md).
-4. Read [`docs/DEVELOPER_TOOLBOX.md`](docs/DEVELOPER_TOOLBOX.md).
-5. Preserve the V9.5 safety invariants and continue from the earliest ready task ID.
-6. Do not replace the project with a fresh scaffold.
+4. Read [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md).
+5. Read [`docs/DEVELOPER_TOOLBOX.md`](docs/DEVELOPER_TOOLBOX.md).
+6. Preserve the V9.5 safety invariants and continue from the earliest ready task ID.
+7. Do not replace the project with a fresh scaffold.
 
 ## Provenance
 

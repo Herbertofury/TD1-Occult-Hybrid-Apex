@@ -2,7 +2,7 @@
 
 **Hybrid occult control without the mystery.**
 
-Apex is a standalone first-party hybrid-occult suite: F11 overlay, explicit occult toggles, saved forms, **Live CAS Studio**, category-scoped CAS operations, Photoshop-style CAS History, an Apex-owned patch-aware CAS Unlock Core, MCCC Shield, Drift Guard, reference shots and truthful diagnostics.
+Apex is a standalone first-party hybrid-occult suite: F11 overlay, explicit occult toggles, saved forms, **Live CAS Studio**, **Apex Color Studio**, category-scoped CAS operations, Photoshop-style CAS History, an Apex-owned patch-aware CAS Unlock Core, MCCC Shield, Drift Guard, reference shots and truthful diagnostics.
 
 ## Status at a glance
 
@@ -17,13 +17,14 @@ Apex is a standalone first-party hybrid-occult suite: F11 overlay, explicit occu
 | Current-game live runtime proof | **Open** |
 | Independent 1.13.7 behavioral coverage | **Open** |
 | Apex Live CAS Studio | **Planned / execution spec live** |
+| Apex Color Studio | **Planned / execution spec live** |
 | CAS History Studio | **Planned / execution spec live** |
 | Apex CAS Unlock Core | **Planned / execution spec live** |
 | Release packaging | **Open** |
 
 ## Authorized Package Baseline
 
-The project owner has full author permission to use the current TD1/LordPercival hybrid, Crilender CASUnlocks, and MCCC CAS-related material. Development starts from those real current packages, preserves/ports their useful working pieces, then improves them into standalone Apex artifacts.
+The project owner has full author permission to use the current TD1/LordPercival hybrid, Crilender CASUnlocks, MCCC CAS-related material, and relevant thepancake1 Color Sliders material. Development starts from those real current packages, preserves/ports their useful working pieces, then improves them into standalone Apex artifacts.
 
 - [Authorized Baseline Strategy](../docs/AUTHORIZED_BASELINE_STRATEGY.md)
 
@@ -33,6 +34,7 @@ The project owner has full author permission to use the current TD1/LordPercival
 - [Apex Occult Hybrid Core](Apex-Occult-Hybrid-Core.md)
 - [1.13.7 Behavioral Reference](../docs/UPSTREAM_1.13.7_DELTA.md)
 - [Apex Live CAS Studio](Live-CAS-Studio.md)
+- [Apex Color Studio](Color-Studio.md)
 - [CAS History Studio](CAS-History-Studio.md)
 - [Apex CAS Unlock Core](CAS-Unlock-Core.md)
 - [CAS Unlocker Research](../docs/CAS_UNLOCKER_REFERENCE_MATRIX.md)

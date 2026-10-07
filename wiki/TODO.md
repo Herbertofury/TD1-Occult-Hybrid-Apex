@@ -5,8 +5,10 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 ## P0 — standalone Apex Occult Hybrid Core
 
 - Ship `ApexOccultHybrid.package` + `ApexOccultHybrid.ts4script` as the canonical hybrid engine.
-- No TD1/TwelfthDoctor1/IcedCream/LordPercival hybrid runtime dependency.
-- Independently match/exceed the useful 1.13.7 behavior baseline.
+- Start from the newest authorized working TD1/LordPercival hybrid package/script set; import/inventory and work upward from it.
+- Owner confirms full author permission to use the hybrid baseline material in Apex.
+- No TD1/TwelfthDoctor1/IcedCream/LordPercival hybrid runtime dependency in the final install.
+- Preserve/port useful working 1.13.7 behavior first, then improve it.
 - Support compatible multiple-occult membership and normal transformation paths.
 - Safe Add/Remove Occult.
 - Verified form switching without stuck/snap-back states.
@@ -50,11 +52,14 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 
 ## P0 — Apex CAS Unlock Core
 
-- Own our unlock behavior instead of permanently depending on a third-party unlocker.
+- Start from the newest authorized Crilender CASUnlocks v1.9h package/addons; import/inventory and work upward from them.
+- Owner confirms full author permission to use Crilender baseline material in Apex.
+- Own the final unlock behavior instead of permanently depending on the old package.
 - Keep supported CAS categories unlocked through CAS entry, form switch, outfit switch, MCCC CAS and UI rebuilds.
 - Default hybrid-aware Werewolf/Vampire/Mermaid/Fairy/Alien category expansion.
 - Optional hidden/locked/debug/reward/occult item catalog.
 - Installed-pack detection; no manual deleting pack files the user does not own.
+- Preserve authorized working Crilender resources where strongest; replace only when Apex has a demonstrably better path.
 - Patch fingerprint + current-game resource scan + deterministic regenerated unlock package/manifest.
 - F11 Unlock Matrix explaining exactly why a category/item is available or blocked.
 - Detect overlap/conflicts with other CAS unlocker overrides without deleting them.

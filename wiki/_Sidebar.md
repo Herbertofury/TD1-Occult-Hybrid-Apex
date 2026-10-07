@@ -6,6 +6,7 @@
 - [Original Mod Regressions](Original-Mod-Regressions)
 - [Apex Occult Hybrid Core](Apex-Occult-Hybrid-Core)
 - [Apex Live CAS Studio](Live-CAS-Studio)
+- [Apex Color Studio](Color-Studio)
 - [CAS History Studio](CAS-History-Studio)
 - [Apex CAS Unlock Core](CAS-Unlock-Core)
 - [1.13.7 Behavioral Reference](Upstream-1.13.7-Parity)

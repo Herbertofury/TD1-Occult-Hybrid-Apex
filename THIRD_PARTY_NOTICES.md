@@ -24,3 +24,16 @@ Before shipping a rebuilt overlay, preserve the complete upstream license text f
 ## Optional interoperability
 
 MCCC, Lot51 Core, XML Injector and other Sims utilities are interoperability targets unless their files are explicitly included under compatible terms. Do not bundle third-party binaries merely because Apex can detect/use them.
+
+
+## Owner-provided author permissions
+
+The project owner states they have full permission from the relevant authors of:
+- the current TD1/LordPercival occult-hybrid baseline; and
+- Crilender CASUnlocks
+
+to use their material in Apex.
+
+For project execution, permissioned material may be inspected, reused, ported, adapted, merged and incorporated into Apex with attribution/provenance. Public license labels should not be treated as overriding a direct author permission for the material actually covered by that permission.
+
+This permission record does not automatically extend to unrelated third-party components bundled inside an archive; preserve those components' separate provenance/terms where applicable.

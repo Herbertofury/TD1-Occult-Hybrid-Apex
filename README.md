@@ -15,7 +15,7 @@ The upstream mod does the hard, important work of making hybrid occults viable. 
 - **F11 Dear ImGui control center** in the running game.
 - **Saved Forms** with labels, search, apply and reuse.
 - **CAS History Studio** — Photoshop-style live CAS history with semantic diffs, Undo/Redo, jump-to-state, branching history, named checkpoints, category revert and hybrid-aware cherry-pick.
-- **Apex CAS Unlock Core** — keeps compatible CAS categories available, exposes optional hidden/locked/debug/occult items, understands hybrid forms and installed packs, and regenerates against current game resources after patches.
+- **Apex CAS Unlock Core** — a fully standalone unlocker: keeps compatible CAS categories available, exposes optional hidden/locked/debug/occult items, understands hybrid forms and installed packs, regenerates against current game resources after patches, and requires no third-party CAS unlocker.
 - **Drift Guard** to detect and repair occult-form appearance drift without constant scanning.
 - **Post-CAS Commit** so visible edits can be deliberately committed into the selected occult form.
 - **CAS Categories** for scoped copy/paste/apply-all-forms instead of blunt full-appearance replacement.
@@ -40,7 +40,7 @@ These are known historical failure modes and are **release blockers**, not “ed
 
 The canonical reproduction and acceptance ledger is [`docs/USER_REPORTED_REGRESSIONS.md`](docs/USER_REPORTED_REGRESSIONS.md). Apex is not complete while any R001–R010 failure remains reproducible.
 
-Apex CAS Unlock Core and CAS History Studio are designed as part of that fix strategy: the same canonical appearance journal/diff layer powers live CAS history, MCCC Shield, Post-CAS Commit, Drift Guard and Saved Forms so the user can see exactly what changed and safely restore earlier states. See [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md) and [`docs/APEX_CAS_UNLOCK_CORE.md`](docs/APEX_CAS_UNLOCK_CORE.md).
+Apex CAS Unlock Core and CAS History Studio are designed as part of that fix strategy. **Apex does not depend on Crilender, Loulicorn, Szemoka, or another CAS unlocker; those are research references only.** the same canonical appearance journal/diff layer powers live CAS history, MCCC Shield, Post-CAS Commit, Drift Guard and Saved Forms so the user can see exactly what changed and safely restore earlier states. See [`docs/CAS_HISTORY_STUDIO.md`](docs/CAS_HISTORY_STUDIO.md) and [`docs/APEX_CAS_UNLOCK_CORE.md`](docs/APEX_CAS_UNLOCK_CORE.md).
 
 ## Architecture
 

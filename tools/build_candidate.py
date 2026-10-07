@@ -13,6 +13,7 @@ from build_script import build as build_script
 from dbpf_build import digest, read, tgi
 from source_manifest import write_json
 from verify_mccc_port import verify as verify_mccc
+from verify_overlay_sidecar import verify as verify_overlay
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -80,22 +81,26 @@ def build(output, foundry=None):
         payloads['Manifests/' + name + '.manifest.json'] = path.with_name(path.name + '.manifest.json').read_bytes()
     payloads['Mods/Apex/' + script['artifact']] = script_bytes
     payloads['Manifests/' + script['artifact'] + '.manifest.json'] = (output / (script['artifact'] + '.manifest.json')).read_bytes()
-    native = ROOT / 'NativeOverlay' / 'build' / 'Release' / 'd3d11.dll'
+    native = ROOT / 'NativeOverlay' / 'build' / 'Release' / 'ApexOverlay.dll'
     native_bytes = native.read_bytes()
     if native_bytes[:2] != b'MZ':
         raise ValueError('Build the actual native overlay before bundling it.')
-    payloads['NativeOverlay/build/Release/d3d11.dll'] = native_bytes
-    payloads['NativeOverlay/ApexOverlay.ini'] = (ROOT / 'NativeOverlay' / 'ApexOverlay.ini').read_bytes()
-    payloads['NativeOverlay/install_to_game_bin.ps1'] = (ROOT / 'NativeOverlay' / 'install_to_game_bin.ps1').read_bytes()
-    payloads['NativeOverlay/verify_ts4_dx11_imports.py'] = (ROOT / 'NativeOverlay' / 'verify_ts4_dx11_imports.py').read_bytes()
+    native_info = verify_overlay(native, script=output / script['artifact'])
+    write_json(output / 'overlay-manifest.json', native_info)
+    write_json(ROOT / 'manifests' / 'native-sidecar.json', native_info)
+    payloads['Mods/Apex/Native/ApexOverlay.dll'] = native_bytes
+    payloads['Mods/Apex/Native/ApexOverlay.ini'] = (ROOT / 'NativeOverlay' / 'ApexOverlay.ini').read_bytes()
+    payloads['Mods/Apex/Native/overlay-manifest.json'] = (output / 'overlay-manifest.json').read_bytes()
     payloads['README.md'] = (ROOT / 'docs' / 'CANDIDATE_INSTALL_AND_TEST.md').read_bytes()
     payloads['THIRD_PARTY_NOTICES.md'] = (ROOT / 'THIRD_PARTY_NOTICES.md').read_bytes()
     payloads['Licenses/ImGui-LICENSE.txt'] = (ROOT / 'NativeOverlay' / 'third_party' / 'imgui' / 'LICENSE.txt').read_bytes()
     payloads['Licenses/nlohmann-json-LICENSE.MIT'] = (ROOT / 'NativeOverlay' / 'third_party' / 'nlohmann' / 'LICENSE.MIT').read_bytes()
-    for name in ('baseline-inventory.json', 'mccc-dresser-port.json'):
+    payloads['Licenses/MinHook-LICENSE.txt'] = (ROOT / 'NativeOverlay' / 'third_party' / 'minhook' / 'LICENSE.txt').read_bytes()
+    for name in ('baseline-inventory.json', 'mccc-dresser-port.json', 'cas-color-format.json'):
         payloads['Manifests/' + name] = (ROOT / 'manifests' / name).read_bytes()
     manifest = {'schema': 1, 'status': 'owner-test-development-candidate', 'target_game': '1.128.90.1030',
         'runtime_verified': False, 'f11_game_loader_verified': False, 'deployed': False,
+        'native_load_model': 'mod-folder-sidecar-via-game-_ctypes', 'native_protocol': 1,
         'package_verification': evidence, 'compiled_script_modules': len(script['compiled_modules']),
         'mccc_pure_helpers': len(mccc['functions']), 'mccc_matching_cases': mccc['matching_cases'],
         'files': [{'file': name, 'bytes': len(raw), 'sha256': digest(raw)} for name, raw in sorted(payloads.items())]}

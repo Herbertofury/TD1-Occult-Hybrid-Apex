@@ -13,12 +13,12 @@ scope and remaining work stay in `docs/CODEX_MASTER_EXECUTION.md`.
 | `Mods/Apex/ApexCASUnlocks.package` | All seven Crilender v1.9h packages consolidated into 39 unique resources; explicit Fairy addon precedence for two overlaps |
 | `ExperimentalUI/ApexColorStudio.package` | Both authorized v4f slider and eyebrow SWFs merged; current-patch UI validation and converted texture coverage remain open |
 | `Optional/` | Permanent PlantSim and separate PlantSim/Servo no-vampire-thirst policies, preserving optional baseline behavior |
-| `NativeOverlay/` | Rebuilt x64 F11 ImGui component and `ApexOverlay.ini`; exact current-game hook compatibility is unverified |
+| `Mods/Apex/Native/` | x64 F11 sidecar, matching SHA-256 manifest and configuration; loads through the game's own Python extension loader |
 | `Manifests/` | Exact artifact/resource/module identities and source baseline provenance |
 
 MCCC is a concrete source of the ported Dresser part/color helpers. Its whole
 unrelated automation suite is not included. Full MC CAS/MC Dresser feature parity,
-Tray sources, numeric color codec, texture conversion, shared history across all
+Tray sources, texture conversion, shared history across all
 legacy actions and the regression/release gates remain unfinished.
 
 ## Install in your existing test profile
@@ -41,15 +41,16 @@ read-only to the tools; only you may rename it.
    converted EA/CC textures are not supplied by this candidate. Slider UI alone
    cannot make every texture support custom colors.
 4. Choose optional policy packages individually if you want their behavior.
-5. The native component belongs in the game's `Game/Bin`, never in `Mods`.
-   `NativeOverlay/install_to_game_bin.ps1` remains check-only by default and
-   refuses unsupported imports, running games and an existing `d3d11.dll` owner.
-   The currently inspected executable fails its import check. Do not overwrite
-   another proxy or assume this candidate's F11 hook has been proven to load.
-   The F11 interface compiles; resolving this game loader remains tracked work.
-   The bundle preserves the installer's `build/Release/d3d11.dll` source layout.
-   A custom key also requires the supplied `ApexOverlay.ini` beside the installed
-   DLL; keep an existing user configuration if one is already present.
+5. Keep `Native/ApexOverlay.dll`, `Native/overlay-manifest.json` and
+   `Native/ApexOverlay.ini` beside the script under `Mods/Apex`. This candidate
+   requires **no Game/Bin copies**. Use Windows x64 and DX11. After loading your
+   disposable household, the script checks the DLL hash and protocol and starts
+   the DXGI hook. Press F11 with the game window focused. `AutoStart=0` disables
+   automatic loading; `apex.overlay.start` starts it manually from the console.
+   `apex.overlay.status` reports loading failures and native initialization state.
+   The first keypress, actual DX11 render, resizing and render-state restoration
+   passed in an independent hidden WARP test host. Loading inside this exact game
+   remains an owner test; a foreign swapchain hook is refused rather than replaced.
 
 No installer has copied this candidate into your test profile or game directory.
 No game launch, save load, native input or in-game mutation was performed for
@@ -87,6 +88,17 @@ Apply, inspect again to refresh the part inventory; the old preview token clears
 The advanced console/overlay target syntax is `outfit:BodyType:part-row`, for
 example `0:HAIR:2`; leaving off the row is allowed only for a unique BodyType.
 
+Select a part and click **Inspect selected part slider bounds** to enable numeric
+hue, saturation, brightness and opacity controls. These read the effective CASP
+resource through the game's resource manager, including any loaded overrides.
+Only edited channels change; values quantize to signed Q14 and the preview shows
+the actual result. CASP-disabled channels and out-of-range/nonfinite values are
+rejected. Preparing an edit rechecks save/Sim/form, the whole outfit revision,
+part/color identity and effective resource hash. Apply/Cancel/Undo use the same
+recovery journal. Slider metadata does not establish texture compatibility; an
+unconverted texture can still ignore the color. Skin specularity's brightness
+lane corresponds to gloss in the authorized baseline CAS UI.
+
 The backend commands use the same game-thread dispatcher as the overlay. They
 are also callable from the Sims console, without a native overlay:
 
@@ -95,6 +107,7 @@ apex.studio status
 apex.studio checkpoint "Before color edit"
 apex.studio color_copy "0:HAIR"
 apex.studio color_preview "1:HAIR"
+apex.studio color_inspect "0:HAIR"
 apex.studio apply "PREVIEW_ID_RETURNED_ABOVE"
 apex.studio undo
 apex.studio redo

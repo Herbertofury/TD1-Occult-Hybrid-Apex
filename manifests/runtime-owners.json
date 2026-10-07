@@ -217,7 +217,7 @@
       "owner_line": 8117
     }
   ],
-  "definition_count": 357,
+  "definition_count": 358,
   "definitions": [
     {
       "captured_by": [],
@@ -1644,7 +1644,7 @@
       "captured_by": [],
       "final_global_owner": true,
       "kind": "FunctionDef",
-      "line": 8238,
+      "line": 8260,
       "name": "_apex_install_zone_signal",
       "reachability": "final-global-owner",
       "references": [
@@ -1667,13 +1667,36 @@
       "captured_by": [],
       "final_global_owner": true,
       "kind": "FunctionDef",
-      "line": 8222,
+      "line": 8245,
+      "name": "_apex_start_overlay",
+      "reachability": "final-global-owner",
+      "references": [
+        "Exception",
+        "_APEX_GAME_THREAD_IDENT",
+        "__file__",
+        "_log",
+        "automatic",
+        "exc",
+        "overlay_loader",
+        "paths",
+        "result",
+        "services",
+        "threading"
+      ],
+      "startup_calls": []
+    },
+    {
+      "captured_by": [],
+      "final_global_owner": true,
+      "kind": "FunctionDef",
+      "line": 8228,
       "name": "_apex_zone_queue_ready",
       "reachability": "final-global-owner",
       "references": [
         "Exception",
         "_ALARM_HANDLE",
         "_APEX_COMMANDS",
+        "_apex_start_overlay",
         "_setup_alarm",
         "alarms",
         "list",
@@ -2786,7 +2809,7 @@
       "captured_by": [],
       "final_global_owner": true,
       "kind": "FunctionDef",
-      "line": 8159,
+      "line": 8165,
       "name": "_execute_owned_command",
       "reachability": "final-global-owner",
       "references": [
@@ -4860,7 +4883,7 @@
       "captured_by": [],
       "final_global_owner": true,
       "kind": "FunctionDef",
-      "line": 8170,
+      "line": 8176,
       "name": "_process_pending",
       "reachability": "final-global-owner",
       "references": [
@@ -5844,7 +5867,7 @@
       "captured_by": [],
       "final_global_owner": true,
       "kind": "FunctionDef",
-      "line": 8180,
+      "line": 8186,
       "name": "_setup_alarm",
       "reachability": "final-global-owner",
       "references": [
@@ -6343,7 +6366,7 @@
       "captured_by": [],
       "final_global_owner": true,
       "kind": "FunctionDef",
-      "line": 8205,
+      "line": 8211,
       "name": "_submit_action",
       "reachability": "final-global-owner",
       "references": [
@@ -8599,12 +8622,14 @@
         "_APEX_PRE_OWNER_RUN_ACTION",
         "_BUILD_VERSION",
         "__name__",
+        "_apex_start_overlay",
         "action",
         "dispatch",
         "exc",
         "occult",
         "services",
         "sim_id",
+        "status",
         "str",
         "sys",
         "threading",
@@ -8718,7 +8743,7 @@
     ],
     "_process_pending": [
       4141,
-      8170
+      8176
     ],
     "_save_saved_forms": [
       597,
@@ -8726,7 +8751,7 @@
     ],
     "_setup_alarm": [
       4180,
-      8180
+      8186
     ],
     "_status": [
       3627,
@@ -8741,7 +8766,7 @@
     ],
     "_submit_action": [
       4198,
-      8205
+      8211
     ],
     "_v8_apply_bodytype_payload": [
       6668,
@@ -8780,7 +8805,7 @@
   ],
   "python_syntax_target": "3.7",
   "schema": 1,
-  "source_sha256": "7a9a2dddd3c9771829b275fb8b97c5a63232244a1b73f72d9c12da3e64cd145b",
+  "source_sha256": "7adb0f7f3cdd4bae3732083db3d0bb07dcb5df8efffd1719ceaf02701ef3a741",
   "top_level_calls": [
     {
       "call": "_log",

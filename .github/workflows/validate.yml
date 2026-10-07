@@ -29,3 +29,5 @@ jobs:
         run: cmake --build NativeOverlay/build --config Release
       - name: Native transport and UI data fixtures
         run: ctest --test-dir NativeOverlay/build -C Release --output-on-failure
+      - name: Game Python ABI and native host rejection
+        run: python tools/verify_overlay_sidecar.py

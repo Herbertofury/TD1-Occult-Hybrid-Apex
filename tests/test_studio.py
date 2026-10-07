@@ -7,6 +7,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
 from apex_core import studio
+from casp_fixture import casp
 
 
 class Message:
@@ -163,3 +164,41 @@ class StudioTests(unittest.TestCase):
         part = result['outfit_inventory'][0]['parts'][0]
         self.assertFalse(part['target_supported'])
         self.assertEqual(part['target_reason'], 'runtime enum differs')
+
+    def numeric_request(self, edits):
+        self.backend._studio_casp_bytes = lambda part_id: casp(body=7)
+        reply = self.request('studio_color_inspect', '0:7:0')
+        editor = reply['color_editor']
+        return dict(target=editor['target'], lane=reply['history_lane'], edits=edits,
+            **{key: editor[key] for key in ('cas_part_id', 'color_hex', 'appearance_sha256', 'resource_sha256')})
+
+    def test_numeric_color_has_preview_apply_readback_and_undo_without_other_lanes_changing(self):
+        before = self.sim.raw
+        request = self.numeric_request({'hue': 0.25})
+        preview = self.request('studio_color_edit', json.dumps(request))
+        self.assertEqual(self.sim.raw, before)
+        self.assertIn('FFFF1000FFFFFFFF', preview['preview_diff'])
+        self.request('studio_apply', preview['preview_id'])
+        after = Message(self.sim.raw)
+        self.assertEqual(after.outfits[0].part_shifts.color_shift[0], 0xFFFF1000FFFFFFFF)
+        self.assertEqual(after.outfits[0].parts.ids, [999, 888])
+        self.assertEqual(after.outfits[0].layer_ids.layer_id, [5, 6])
+        undo = self.request('studio_undo')
+        self.request('studio_apply', undo['preview_id'])
+        self.assertEqual(self.sim.raw, before)
+
+    def test_numeric_rejects_stale_appearance_form_resource_and_disabled_channels(self):
+        request = self.numeric_request({'hue': 0.25})
+        before = self.sim.raw
+        self.backend._studio_casp_bytes = lambda part_id: casp(body=7, step=0)
+        with self.assertRaisesRegex(ValueError, 'resource changed'):
+            self.request('studio_color_edit', json.dumps(request))
+        self.backend._studio_casp_bytes = lambda part_id: casp(body=7)
+        self.sim.flags = 1
+        with self.assertRaisesRegex(ValueError, 'Sim/form/save'):
+            self.request('studio_color_edit', json.dumps(request))
+        self.sim.flags = 32
+        request['appearance_sha256'] = 'f' * 64
+        with self.assertRaisesRegex(ValueError, 'appearance changed'):
+            self.request('studio_color_edit', json.dumps(request))
+        self.assertEqual(self.sim.raw, before)

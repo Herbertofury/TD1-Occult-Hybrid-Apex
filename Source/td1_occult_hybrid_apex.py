@@ -8134,7 +8134,7 @@ from apex_core.command_queue import CommandQueue
 _APEX_GAME_THREAD_IDENT = threading.current_thread().ident
 _APEX_COMMANDS = CommandQueue(capacity=48, completed_limit=128)
 _APEX_PRE_OWNER_RUN_ACTION = run_action
-_BUILD_VERSION = '2026.10.07-apex-authorized-packages-studio-dev'
+_BUILD_VERSION = '2026.10.07-apex-sidecar-color-studio-dev'
 _APEX_BOOTSTRAP_STATUS = 'not initialized'
 
 
@@ -8144,8 +8144,14 @@ def run_action(action, sim_id=None, occult=None, value=None):
     if action == 'bridge_status':
         return {'ok': True, 'message': 'Game-thread bridge ready', 'queue': _APEX_COMMANDS.metrics(),
                 'build_version': _BUILD_VERSION, 'alarm_ready': _ALARM_READY}
+    if action == 'overlay_start':
+        return _apex_start_overlay()
+    if action == 'overlay_status':
+        from apex_core.overlay_loader import status
+        return status()
     if action in ('studio_status', 'studio_history', 'studio_checkpoint', 'studio_recover',
                   'studio_color_copy', 'studio_color_preview', 'studio_cancel',
+                  'studio_color_inspect', 'studio_color_edit',
                   'studio_undo', 'studio_redo', 'studio_jump', 'studio_apply'):
         from apex_core.studio import dispatch
         import sys
@@ -8233,6 +8239,22 @@ def _apex_zone_queue_ready(zone_instance, *args, **kwargs):
     _ALARM_HANDLE = None
     _ALARM_READY = False
     _setup_alarm()
+    _apex_start_overlay(automatic=True)
+
+
+def _apex_start_overlay(automatic=False):
+    if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
+        return {'ok': False, 'message': 'F11 loading requires the canonical Sims game-thread owner.'}
+    try:
+        from apex_core import overlay_loader
+        if automatic and not overlay_loader.auto_start_enabled(__file__):
+            return {'ok': False, 'message': 'Automatic F11 loading is disabled in ApexOverlay.ini.'}
+        import paths
+        result = overlay_loader.start(__file__, paths.DLL_PATH)
+    except Exception as exc:
+        result = {'ok': False, 'message': 'F11 startup: {}'.format(exc)}
+    _log(result['message'])
+    return result
 
 
 def _apex_install_zone_signal():
@@ -8259,6 +8281,19 @@ def _apex_install_zone_signal():
 
 
 if Command is not None:
+    @Command('apex.overlay.start', command_type=_LIVE, command_restrictions=_UNRESTRICTED)
+    def _apex_console_overlay_start(_connection=None):
+        result = _apex_start_overlay()
+        _cmd_out(_connection)(json.dumps(result, default=str, indent=2))
+        return bool(result.get('ok'))
+
+    @Command('apex.overlay.status', command_type=_LIVE, command_restrictions=_UNRESTRICTED)
+    def _apex_console_overlay_status(_connection=None):
+        from apex_core.overlay_loader import status
+        result = status()
+        _cmd_out(_connection)(json.dumps(result, default=str, indent=2))
+        return bool(result.get('ok'))
+
     @Command('apex.studio', command_type=_LIVE, command_restrictions=_UNRESTRICTED)
     def _apex_console_studio(action: str='status', value: str='', sim_id: str='', _connection=None):
         result = run_action('studio_' + action.strip().lower(), sim_id=sim_id, value=value)

@@ -36,6 +36,17 @@ int main() {
     const auto envelope = ParseObject(R"({"mccc":{"sim_id":"wrong"},"status":{"sim_id":"selected","drift_warning_count":2}})");
     check(StatusScalar(envelope, "sim_id") == "selected", "documented compact status envelope");
     check(StatusScalar(ParseObject(R"({"data":{"sim_id":"selected","drift_warning_count":2}})"), "drift_warning_count") == "2", "documented command status envelope");
-    std::cout << "18 native transport/data checks; failures: " << failed << '\n';
+    auto numeric = studio;
+    numeric["color_editor"] = {{"target", "0:7:0"}, {"cas_part_id", "999"}, {"color_hex", "4000000000000000"},
+        {"appearance_sha256", std::string(64, 'a')}, {"resource_sha256", std::string(64, 'b')}, {"part_name", "Part"}};
+    for (const auto* name : {"hue", "saturation", "brightness", "opacity"})
+        numeric["color_editor"]["channels"][name] = {{"value", 0.0}, {"min", -0.5}, {"max", 0.5}, {"step", 0.05}, {"enabled", true}};
+    check(StudioDocument(numeric), "numeric color editor protocol");
+    numeric["color_editor"]["channels"]["hue"]["min"] = 1.0;
+    check(!StudioDocument(numeric), "reversed slider bounds rejected");
+    numeric["color_editor"]["channels"]["hue"]["min"] = -0.5;
+    numeric["color_editor"]["channels"]["hue"]["value"] = "0.25";
+    check(!StudioDocument(numeric), "wrong typed slider value rejected");
+    std::cout << "21 native transport/data checks; failures: " << failed << '\n';
     return failed ? 1 : 0;
 }

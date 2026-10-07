@@ -1,6 +1,7 @@
 // Typed transport data for the actual native overlay; no game/D3D dependencies.
 #pragma once
 #include <array>
+#include <cmath>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -96,6 +97,21 @@ inline bool StudioDocument(const Json& object) {
                     !part.contains("index") || !part["index"].is_number_unsigned() ||
                     !part.contains("color_hex") || !(part["color_hex"].is_null() || part["color_hex"].is_string())) return false;
             }
+        }
+    }
+    if (object.contains("color_editor")) {
+        const auto& editor = object["color_editor"];
+        if (!editor.is_object()) return false;
+        for (const auto* key : {"target", "cas_part_id", "color_hex", "appearance_sha256", "resource_sha256", "part_name"})
+            if (!editor.contains(key) || !editor[key].is_string()) return false;
+        if (!editor.contains("channels") || !editor["channels"].is_object()) return false;
+        for (const auto* name : {"hue", "saturation", "brightness", "opacity"}) {
+            if (!editor["channels"].contains(name) || !editor["channels"][name].is_object()) return false;
+            const auto& channel = editor["channels"][name];
+            if (!channel.contains("enabled") || !channel["enabled"].is_boolean()) return false;
+            for (const auto* key : {"value", "min", "max", "step"})
+                if (!channel.contains(key) || !channel[key].is_number() || !std::isfinite(channel[key].get<double>())) return false;
+            if (channel["min"].get<double>() > channel["max"].get<double>() || channel["step"].get<double>() < 0) return false;
         }
     }
     return true;

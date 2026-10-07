@@ -38,6 +38,8 @@
 #include <cctype>
 
 #include "ApexUiData.h"
+#include "OverlayInput.h"
+#include "MinHook.h"
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
@@ -66,6 +68,14 @@ static std::atomic<bool> g_done{false};
 static std::atomic<bool> g_workerActive{false};
 static std::atomic<int> g_captureRequest{0}; // 1 face, 2 body, 3 full
 static HWND g_hwnd = nullptr;
+static IDXGISwapChain* g_swapChain = nullptr; // identity only; owned by the caller
+static std::recursive_mutex g_renderMutex;
+static std::mutex g_hookMutex;
+static ToggleInput g_toggleInput;
+static std::atomic<int> g_loaderStatus{0}; // 0 not started, 1 hooked, negative error
+#ifdef APEX_NATIVE_SMOKE
+static unsigned g_presentCount = 0;
+#endif
 static WNDPROC g_oldWndProc = nullptr;
 static ID3D11Device* g_device = nullptr;
 static ID3D11DeviceContext* g_context = nullptr;
@@ -101,6 +111,9 @@ static int g_studioOutfitIndex = 0;
 static int g_studioPartIndex = 0;
 static ui::Json g_studioData = ui::Json::object();
 static std::string g_studioLastReply;
+static std::string g_colorEditorKey;
+static float g_colorValues[4]{};
+static bool g_colorChanged[4]{};
 static char g_checkpointLabel[160] = "";
 static UINT g_toggleKey = VK_F11;
 static bool g_configLoaded = false;
@@ -546,12 +559,15 @@ static void RequestScreenshot(int mode) {
 }
 
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    if (g_visible.load()) {
+    {
+    std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
+    if (g_visible.load() && ImGui::GetCurrentContext()) {
         if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam)) return TRUE;
         ImGuiIO& io = ImGui::GetIO();
         const bool mouse = (msg >= WM_MOUSEFIRST && msg <= WM_MOUSELAST);
         const bool key = (msg >= WM_KEYFIRST && msg <= WM_KEYLAST);
         if ((mouse && io.WantCaptureMouse) || (key && io.WantCaptureKeyboard)) return TRUE;
+    }
     }
     return g_oldWndProc ? CallWindowProcW(g_oldWndProc, hwnd, msg, wParam, lParam) : DefWindowProcW(hwnd, msg, wParam, lParam);
 }
@@ -571,15 +587,25 @@ static void InitImGui(IDXGISwapChain* sc) {
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 14.0f; style.FrameRounding = 9.0f; style.ScrollbarRounding = 9.0f; style.GrabRounding = 9.0f; style.WindowPadding = ImVec2(16, 14);
-    ImGui_ImplWin32_Init(g_hwnd);
-    ImGui_ImplDX11_Init(g_device, g_context);
+    if (!ImGui_ImplWin32_Init(g_hwnd) || !ImGui_ImplDX11_Init(g_device, g_context)) {
+        Debug("ImGui backend initialization failed");
+        if (ImGui::GetIO().BackendPlatformUserData) ImGui_ImplWin32_Shutdown();
+        ImGui::DestroyContext();
+        if (g_context) { g_context->Release(); g_context = nullptr; }
+        g_device->Release(); g_device = nullptr;
+        return;
+    }
     if (g_hwnd) {
+        SetLastError(0);
         g_oldWndProc = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(g_hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WndProc)));
         if (!g_oldWndProc && GetLastError() != 0) Debug("SetWindowLongPtrW failed; input capture will be disabled");
     }
     CreateRenderTarget(sc);
+#ifndef APEX_NATIVE_SMOKE
     EnsureWorker();
+#endif
     Debug("ImGui initialized");
+    g_loaderStatus = 3;
 }
 
 static const char* ActiveOccultName() {
@@ -815,7 +841,62 @@ static void UpdateStudioData(const std::string& reply) {
     // Refresh the inventory explicitly after a write; never present pre-write
     // part metadata as current. History nodes remain useful after the change.
     const auto message = ui::Scalar(parsed, "message");
-    if (message.find("Appearance write matches") == 0) g_studioData.erase("outfit_inventory");
+    if (message.find("Appearance write matches") == 0) {
+        g_studioData.erase("outfit_inventory"); g_studioData.erase("color_editor"); g_colorEditorKey.clear();
+    }
+    if (parsed.contains("appearance_sha256") && g_studioData.contains("color_editor") &&
+        ui::Scalar(parsed, "appearance_sha256") != ui::Scalar(g_studioData["color_editor"], "appearance_sha256")) {
+        g_studioData.erase("color_editor"); g_colorEditorKey.clear();
+    }
+}
+
+static void DrawNumericColor(const std::string& target) {
+    const auto found = g_studioData.find("color_editor");
+    if (found == g_studioData.end() || ui::Scalar(*found, "target") != target) {
+        ImGui::TextDisabled("Inspect this part's slider bounds to enable numeric editing."); return;
+    }
+    const auto& editor = *found;
+    const auto editorKey = target + ui::Scalar(g_studioData, "history_lane") +
+        ui::Scalar(editor, "appearance_sha256") + ui::Scalar(editor, "resource_sha256") + ui::Scalar(editor, "color_hex");
+    const char* names[] = {"hue", "saturation", "brightness", "opacity"};
+    if (g_colorEditorKey != editorKey) {
+        g_colorEditorKey = editorKey;
+        for (unsigned index = 0; index < 4; ++index) {
+            g_colorValues[index] = editor["channels"][names[index]]["value"].get<float>();
+            g_colorChanged[index] = false;
+        }
+    }
+    ImGui::SeparatorText("Numeric color / selected part");
+    ImGui::TextUnformatted(ui::Scalar(editor, "part_name").c_str());
+    bool changes = false;
+    for (unsigned index = 0; index < 4; ++index) {
+        const auto& channel = editor["channels"][names[index]];
+        ImGui::PushID(static_cast<int>(index));
+        ImGui::BeginDisabled(!channel["enabled"].get<bool>());
+        const float low = channel["min"].get<float>(), high = channel["max"].get<float>();
+        if (ImGui::SliderFloat(names[index], &g_colorValues[index], low, high, "%.6f")) g_colorChanged[index] = true;
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Reset")) {
+            const float neutral = index == 3 ? 1.0f : 0.0f;
+            if (neutral >= low && neutral <= high) { g_colorValues[index] = neutral; g_colorChanged[index] = true; }
+        }
+        ImGui::EndDisabled();
+        ImGui::TextDisabled("Range %.6g to %.6g | CAS increment %.6g%s", low, high,
+            channel["step"].get<double>(), g_colorChanged[index] ? " | edited" : "");
+        changes = changes || g_colorChanged[index];
+        ImGui::PopID();
+    }
+    ImGui::BeginDisabled(!changes);
+    if (ImGui::Button("Prepare numeric color preview")) {
+        ui::Json edits = ui::Json::object();
+        for (unsigned index = 0; index < 4; ++index) if (g_colorChanged[index]) edits[names[index]] = g_colorValues[index];
+        const ui::Json request = {{"target", target}, {"lane", ui::Scalar(g_studioData, "history_lane")},
+            {"cas_part_id", editor["cas_part_id"]}, {"color_hex", editor["color_hex"]},
+            {"appearance_sha256", editor["appearance_sha256"]}, {"resource_sha256", editor["resource_sha256"]}, {"edits", edits}};
+        const auto payload = request.dump(); QueueAction("studio_color_edit", nullptr, payload.c_str());
+    }
+    ImGui::EndDisabled();
+    ImGui::TextWrapped("Only edited lanes change. Preview reports the exact Q14 result; Apply commits it. Texture compatibility is separate from slider metadata. Skin specularity uses the brightness lane for gloss in the baseline CAS UI.");
 }
 
 static void DrawStudioParts() {
@@ -865,8 +946,10 @@ static void DrawStudioParts() {
     ImGui::BeginDisabled(!supported);
     if (ImGui::Button("Copy selected part color")) QueueAction("studio_color_copy", nullptr, target.c_str());
     ImGui::SameLine(); if (ImGui::Button("Preview paste to selected part")) QueueAction("studio_color_preview", nullptr, target.c_str());
+    if (ImGui::Button("Inspect selected part slider bounds")) QueueAction("studio_color_inspect", nullptr, target.c_str());
     ImGui::EndDisabled();
     if (!supported) ImGui::TextWrapped("Unavailable: %s", color.empty() ? "this part has no explicit slider state" : ui::Scalar(part, "target_reason").c_str());
+    if (supported) DrawNumericColor(target);
 }
 
 static void DrawStudioTimeline() {
@@ -923,7 +1006,7 @@ static void DrawStudioTab(const std::string& reply, bool history) {
         }
         std::string color = ExtractJsonValue(reply, "raw_color_hex");
         if (!color.empty()) ImGui::Text("Exact uint64 color state: %s", color.c_str());
-        ImGui::TextWrapped("Color-only paste requires the identical CAS part. The bundled native CAS slider UI provides the baseline sliders; numeric H/S/B/O decoding and texture conversion remain tracked work.");
+        ImGui::TextWrapped("Color-only paste requires the identical CAS part. Numeric editing reads the effective part resource and rejects stale Sim/form/save, appearance and resource revisions.");
     }
     std::string diff = ExtractJsonValue(reply, "preview_diff");
     if (!diff.empty()) ImGui::TextWrapped("%s", diff.c_str());
@@ -1052,9 +1135,67 @@ static void DrawOverlay() {
     ImGui::End();
 }
 
+static void ResetRenderer() {
+    g_visible = false;
+    CleanupRenderTarget();
+    if (g_hwnd && IsWindow(g_hwnd) && g_oldWndProc &&
+        reinterpret_cast<WNDPROC>(GetWindowLongPtrW(g_hwnd, GWLP_WNDPROC)) == WndProc)
+        SetWindowLongPtrW(g_hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldWndProc));
+    if (ImGui::GetCurrentContext()) {
+        ImGui_ImplDX11_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
+    }
+    if (g_context) { g_context->Release(); g_context = nullptr; }
+    if (g_device) { g_device->Release(); g_device = nullptr; }
+    g_swapChain = nullptr; g_hwnd = nullptr; g_oldWndProc = nullptr;
+    g_toggleInput = ToggleInput(); g_loaderStatus = 1;
+}
+
+static bool SelectSwapChain(IDXGISwapChain* sc) {
+    if (g_swapChain && !IsWindow(g_hwnd)) ResetRenderer();
+    if (g_swapChain) return sc == g_swapChain;
+    DXGI_SWAP_CHAIN_DESC desc{};
+    DWORD process = 0;
+    RECT client{};
+    if (!sc || FAILED(sc->GetDesc(&desc)) || !IsWindow(desc.OutputWindow)) return false;
+    GetWindowThreadProcessId(desc.OutputWindow, &process);
+    if (process != GetCurrentProcessId() || !GetClientRect(desc.OutputWindow, &client) ||
+        client.right <= client.left || client.bottom <= client.top) return false;
+#ifndef APEX_NATIVE_SMOKE
+    if (!IsWindowVisible(desc.OutputWindow) || GetAncestor(GetForegroundWindow(), GA_ROOT) !=
+        GetAncestor(desc.OutputWindow, GA_ROOT)) return false;
+#endif
+    // Discover the actual window before the first keypress. The previous code
+    // checked a null handle, then initialized it only after a successful toggle.
+    g_hwnd = desc.OutputWindow;
+    g_swapChain = sc;
+    g_loaderStatus = 2;
+    return true;
+}
+
+struct RestoreRenderTargets {
+    ID3D11DeviceContext* context;
+    ID3D11RenderTargetView* views[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT]{};
+    ID3D11DepthStencilView* depth = nullptr;
+    explicit RestoreRenderTargets(ID3D11DeviceContext* owner) : context(owner) {
+        context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, views, &depth);
+    }
+    ~RestoreRenderTargets() {
+        context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, views, depth);
+        for (auto* view : views) if (view) view->Release();
+        if (depth) depth->Release();
+    }
+};
+
 static HRESULT STDMETHODCALLTYPE HookPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
+    std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
+    if ((flags & DXGI_PRESENT_TEST) || !SelectSwapChain(sc)) return g_realPresent(sc, sync, flags);
+#ifdef APEX_NATIVE_SMOKE
+    ++g_presentCount;
+#endif
     LoadOverlayConfig();
-    if (GetForegroundWindow() == g_hwnd && (GetAsyncKeyState(g_toggleKey) & 1) != 0) g_visible = !g_visible.load();
+    const bool foreground = GetAncestor(GetForegroundWindow(), GA_ROOT) == GetAncestor(g_hwnd, GA_ROOT);
+    if (g_toggleInput.sample(foreground, (GetAsyncKeyState(g_toggleKey) & 0x8000) != 0))
+        g_visible = !g_visible.load();
     if (g_visible.load()) {
         InitImGui(sc);
         if (g_device && g_context) {
@@ -1066,30 +1207,85 @@ static HRESULT STDMETHODCALLTYPE HookPresent(IDXGISwapChain* sc, UINT sync, UINT
             ImGui::NewFrame();
             DrawOverlay();
             ImGui::Render();
-            g_context->OMSetRenderTargets(1, &g_rtv, nullptr);
-            ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+            if (g_rtv) {
+                // Capture before setting our target; the ImGui backend captures
+                // after this point and cannot restore the original game targets.
+                RestoreRenderTargets restore(g_context);
+                g_context->OMSetRenderTargets(1, &g_rtv, nullptr);
+                ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+            }
         }
     }
-    return g_realPresent(sc, sync, flags);
+    const HRESULT result = g_realPresent(sc, sync, flags);
+    if (result == DXGI_ERROR_DEVICE_REMOVED || result == DXGI_ERROR_DEVICE_RESET) ResetRenderer();
+    return result;
 }
 
 static HRESULT STDMETHODCALLTYPE HookResizeBuffers(IDXGISwapChain* sc, UINT count, UINT width, UINT height, DXGI_FORMAT format, UINT flags) {
-    CleanupRenderTarget();
+    std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
+    if (sc == g_swapChain) CleanupRenderTarget();
     return g_realResizeBuffers ? g_realResizeBuffers(sc, count, width, height, format, flags) : E_FAIL;
 }
 
-static void HookSwapChain(IDXGISwapChain* sc) {
-    if (!sc || g_hooked.exchange(true)) return;
+static bool SystemHookTarget(void* address) {
+    MEMORY_BASIC_INFORMATION info{};
+    if (!VirtualQuery(address, &info, sizeof(info)) || info.Type != MEM_IMAGE) return false;
+    wchar_t module[MAX_PATH]{}, system[MAX_PATH]{};
+    if (!GetModuleFileNameW(static_cast<HMODULE>(info.AllocationBase), module, MAX_PATH) ||
+        !GetSystemDirectoryW(system, MAX_PATH)) return false;
+    const std::wstring base = std::wstring(system) + L"\\";
+    return _wcsicmp(module, (base + L"dxgi.dll").c_str()) == 0 ||
+           _wcsicmp(module, (base + L"d3d11.dll").c_str()) == 0;
+}
+
+static bool HookSwapChain(IDXGISwapChain* sc) {
+    std::lock_guard<std::mutex> hookLock(g_hookMutex);
+    if (g_hooked.load()) return true;
+    if (!sc) return false;
     void** vtbl = *reinterpret_cast<void***>(sc);
-    DWORD old = 0;
-    if (VirtualProtect(&vtbl[8], sizeof(void*) * 6, PAGE_EXECUTE_READWRITE, &old)) {
-        g_realPresent = reinterpret_cast<PresentFn>(vtbl[8]);
-        g_realResizeBuffers = reinterpret_cast<ResizeBuffersFn>(vtbl[13]);
-        vtbl[8] = reinterpret_cast<void*>(&HookPresent);
-        vtbl[13] = reinterpret_cast<void*>(&HookResizeBuffers);
-        DWORD ignored = 0; VirtualProtect(&vtbl[8], sizeof(void*) * 6, old, &ignored);
-        Debug("SwapChain vtable hooked");
+    if (!SystemHookTarget(vtbl[8]) || !SystemHookTarget(vtbl[13])) {
+        Debug("Refusing foreign DXGI swapchain implementation");
+        return false;
     }
+    // Each linked MinHook owns its own registry. Detect an existing jump to
+    // foreign code so another overlay/proxy never gets silently overwritten.
+    for (const unsigned slot : {8u, 13u}) {
+        const auto* p = static_cast<const unsigned char*>(vtbl[slot]);
+        if (p[0] == 0xE9) {
+            int32_t offset = 0; memcpy(&offset, p + 1, sizeof(offset));
+            if (!SystemHookTarget(const_cast<unsigned char*>(p + 5 + offset))) return false;
+        } else if (p[0] == 0xFF && p[1] == 0x25) {
+            int32_t offset = 0; memcpy(&offset, p + 2, sizeof(offset));
+            const auto* pointer = p + 6 + offset;
+            MEMORY_BASIC_INFORMATION region{};
+            if (!VirtualQuery(pointer, &region, sizeof(region)) || region.State != MEM_COMMIT ||
+                (region.Protect & (PAGE_GUARD | PAGE_NOACCESS)) ||
+                reinterpret_cast<uintptr_t>(pointer) + sizeof(void*) >
+                reinterpret_cast<uintptr_t>(region.BaseAddress) + region.RegionSize) return false;
+            void* target = nullptr; memcpy(&target, pointer, sizeof(target));
+            if (!SystemHookTarget(target)) return false;
+        }
+    }
+    MH_STATUS status = MH_Initialize();
+    if (status != MH_OK && status != MH_ERROR_ALREADY_INITIALIZED) return false;
+    if (MH_CreateHook(vtbl[8], reinterpret_cast<void*>(&HookPresent), reinterpret_cast<void**>(&g_realPresent)) != MH_OK)
+        return false;
+    if (MH_CreateHook(vtbl[13], reinterpret_cast<void*>(&HookResizeBuffers), reinterpret_cast<void**>(&g_realResizeBuffers)) != MH_OK) {
+        MH_RemoveHook(vtbl[8]); return false;
+    }
+    // Active trampolines must never outlive this DLL. Do this outside DllMain.
+    HMODULE pinned = nullptr;
+    bool pin = GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
+        reinterpret_cast<LPCWSTR>(&HookPresent), &pinned) != 0;
+    if (!pin || MH_QueueEnableHook(vtbl[8]) != MH_OK || MH_QueueEnableHook(vtbl[13]) != MH_OK || MH_ApplyQueued() != MH_OK) {
+        MH_DisableHook(vtbl[8]); MH_DisableHook(vtbl[13]);
+        MH_RemoveHook(vtbl[8]); MH_RemoveHook(vtbl[13]);
+        return false;
+    }
+    g_hooked = true;
+    g_loaderStatus = 1;
+    Debug("System DXGI Present/ResizeBuffers hooks installed");
+    return true;
 }
 
 static HWND CreateDummyWindow() {
@@ -1140,6 +1336,46 @@ static void HookFromDevice(ID3D11Device* device) {
 }
 } // namespace td1
 
+extern "C" __declspec(dllexport) int WINAPI ApexOverlayProtocolVersion() { return 1; }
+extern "C" __declspec(dllexport) int WINAPI ApexOverlayStatus() { return td1::g_loaderStatus.load(); }
+extern "C" __declspec(dllexport) int WINAPI ApexOverlayStart() {
+    wchar_t executable[MAX_PATH]{};
+    if (!GetModuleFileNameW(nullptr, executable, MAX_PATH)) return -1;
+    const wchar_t* name = wcsrchr(executable, L'\\');
+    name = name ? name + 1 : executable;
+    if (_wcsicmp(name, L"TS4_x64.exe") || !GetModuleHandleW(L"python37_x64.dll") ||
+        !GetModuleHandleW(L"Simulation_x64.dll")) return -1;
+    if (td1::g_hooked.load()) return 0;
+    // A loaded household in DX11 already has this module. Never force a DX9
+    // game onto another renderer or modify the EA executable/activation layer.
+    if (!GetModuleHandleW(L"d3d11.dll")) return -2;
+    if (!td1::LoadRealD3D11()) return -3;
+    HWND window = td1::CreateDummyWindow();
+    if (!window) return -3;
+    DXGI_SWAP_CHAIN_DESC desc{};
+    desc.BufferCount = 1;
+    desc.BufferDesc.Width = desc.BufferDesc.Height = 64;
+    desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    desc.OutputWindow = window;
+    desc.SampleDesc.Count = 1;
+    desc.Windowed = TRUE;
+    desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    IDXGISwapChain* swap = nullptr;
+    ID3D11Device* device = nullptr;
+    ID3D11DeviceContext* context = nullptr;
+    HRESULT hr = td1::g_realCreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
+        nullptr, 0, D3D11_SDK_VERSION, &desc, &swap, &device, nullptr, &context);
+    const bool hooked = SUCCEEDED(hr) && td1::HookSwapChain(swap);
+    if (context) context->Release();
+    if (device) device->Release();
+    if (swap) swap->Release();
+    DestroyWindow(window);
+    if (!hooked) { td1::g_loaderStatus = -4; return -4; }
+    return 0;
+}
+
+#ifndef APEX_SIDECAR
 extern "C" __declspec(dllexport)
 HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter* pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL* pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device** ppDevice, D3D_FEATURE_LEVEL* pFeatureLevel, ID3D11DeviceContext** ppImmediateContext) {
     if (!td1::LoadRealD3D11()) return E_FAIL;
@@ -1155,9 +1391,94 @@ HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter* pAdapter, D3D_DRIVER_
     if (SUCCEEDED(hr) && ppSwapChain && *ppSwapChain) td1::HookSwapChain(*ppSwapChain);
     return hr;
 }
+#endif
 
 BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID) {
-    if (reason == DLL_PROCESS_ATTACH) { DisableThreadLibraryCalls(hInst); td1::Debug("v9.6 loaded; waiting for D3D11CreateDeviceAndSwapChain"); }
+    if (reason == DLL_PROCESS_ATTACH) DisableThreadLibraryCalls(hInst);
     else if (reason == DLL_PROCESS_DETACH) { td1::g_done = true; }
     return TRUE;
 }
+
+#ifdef APEX_NATIVE_SMOKE
+// Compiled only into the independent test EXE. No network worker, console
+// input, game processes, files, or exports that bypass the production guard.
+extern "C" int ApexRunNativeSmoke() {
+    using namespace td1;
+    if (!LoadRealD3D11()) return 10;
+    HWND window = CreateDummyWindow();
+    if (!window) return 11;
+    DXGI_SWAP_CHAIN_DESC desc{};
+    desc.BufferCount = 1; desc.BufferDesc.Width = desc.BufferDesc.Height = 64;
+    desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    desc.OutputWindow = window; desc.SampleDesc.Count = 1; desc.Windowed = TRUE;
+    IDXGISwapChain* swap = nullptr; ID3D11Device* device = nullptr; ID3D11DeviceContext* context = nullptr;
+    HRESULT hr = g_realCreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0,
+        nullptr, 0, D3D11_SDK_VERSION, &desc, &swap, &device, nullptr, &context);
+    if (FAILED(hr)) return 12;
+    if (!HookSwapChain(swap)) return 13;
+    D3D11_TEXTURE2D_DESC texture{};
+    texture.Width = texture.Height = 64; texture.MipLevels = texture.ArraySize = 1;
+    texture.Format = DXGI_FORMAT_R8G8B8A8_UNORM; texture.SampleDesc.Count = 1;
+    texture.BindFlags = D3D11_BIND_RENDER_TARGET;
+    ID3D11Texture2D* targets[2]{}; ID3D11RenderTargetView* views[8]{};
+    if (FAILED(device->CreateTexture2D(&texture, nullptr, &targets[0])) ||
+        FAILED(device->CreateTexture2D(&texture, nullptr, &targets[1])) ||
+        FAILED(device->CreateRenderTargetView(targets[0], nullptr, &views[0])) ||
+        FAILED(device->CreateRenderTargetView(targets[1], nullptr, &views[7]))) return 14;
+    texture.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; texture.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    ID3D11Texture2D* depthTexture = nullptr; ID3D11DepthStencilView* depth = nullptr;
+    if (FAILED(device->CreateTexture2D(&texture, nullptr, &depthTexture)) ||
+        FAILED(device->CreateDepthStencilView(depthTexture, nullptr, &depth))) return 15;
+    context->OMSetRenderTargets(8, views, depth);
+    // Exercise the actual DXGI function detour and all ImGui rendering code.
+    // No synthesized physical key events are sent to any application.
+    g_visible = true;
+    swap->Present(0, 0);
+    if (g_presentCount != 1 || !g_device || !ImGui::GetCurrentContext() || g_hwnd != window) return 16;
+    ID3D11RenderTargetView* restored[8]{}; ID3D11DepthStencilView* restoredDepth = nullptr;
+    context->OMGetRenderTargets(8, restored, &restoredDepth);
+    for (unsigned index = 0; index < 8; ++index) {
+        if (restored[index] != views[index]) return 17;
+        if (restored[index]) restored[index]->Release();
+    }
+    if (restoredDepth != depth) return 18;
+    restoredDepth->Release();
+    context->OMSetRenderTargets(0, nullptr, nullptr);
+    hr = swap->ResizeBuffers(1, 96, 96, DXGI_FORMAT_UNKNOWN, 0);
+    if (FAILED(hr) || g_rtv) return 19;
+    ui::Json numeric = {{"ok", true}, {"history_lane", "native-smoke"}, {"history_nodes", ui::Json::array()},
+        {"outfit_inventory", ui::Json::array({{{"index", 0u}, {"category", 0u}, {"outfit_id", "1"},
+            {"parts", ui::Json::array({{{"index", 0u}, {"target", "0:7:0"}, {"label", "Test part"},
+                {"target_supported", true}, {"cas_part_hex", "00000000000003E7"}, {"color_hex", "4000000000000000"}}})}}})},
+        {"color_editor", {{"target", "0:7:0"}, {"cas_part_id", "999"}, {"color_hex", "4000000000000000"},
+            {"appearance_sha256", std::string(64, 'a')}, {"resource_sha256", std::string(64, 'b')}, {"part_name", "Test part"}}}};
+    for (const auto* name : {"hue", "saturation", "brightness", "opacity"})
+        numeric["color_editor"]["channels"][name] = {{"value", 0.0}, {"min", -0.5}, {"max", 0.5}, {"step", 0.05}, {"enabled", true}};
+    g_commandReply = numeric.dump(); g_activeTab = 12;
+    swap->Present(0, 0);
+    if (g_colorEditorKey.empty() || !g_studioData.contains("color_editor")) return 22;
+    g_visible = false;
+    swap->Present(0, 0);
+    if (g_presentCount != 3 || g_workerActive.load()) return 20;
+    ResetRenderer();
+    if (g_device || g_context || g_hwnd || ImGui::GetCurrentContext() || g_loaderStatus != 1) return 23;
+    g_visible = true; swap->Present(0, 0);
+    if (!g_device || g_loaderStatus != 3 || g_presentCount != 4) return 24;
+    ToggleInput input;
+    if (!input.sample(true, true) || input.sample(true, true) || input.sample(true, false) ||
+        input.sample(false, true) || input.sample(true, true) || input.sample(false, false) ||
+        !input.sample(true, true)) return 21;
+    printf("DX11 WARP: actual Present detour/menu + numeric color render, 8 RTVs+depth restored, ResizeBuffers, renderer teardown/reinit, hidden zero worker, first keypress/held/focus edges passed\n");
+    // COM/UI cleanup while the hidden test window still exists.
+    CleanupRenderTarget();
+    SetWindowLongPtrW(window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldWndProc));
+    ImGui_ImplDX11_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
+    g_context->Release(); g_device->Release(); g_context = nullptr; g_device = nullptr;
+    for (auto* view : views) if (view) view->Release();
+    for (auto* target : targets) target->Release();
+    depth->Release(); depthTexture->Release();
+    context->Release(); device->Release(); swap->Release(); DestroyWindow(window);
+    return 0;
+}
+#endif

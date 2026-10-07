@@ -51,6 +51,13 @@ Never silently collapse a custom color to a standard EA swatch.
 
 ## F11 Color Studio
 
+The current candidate implements exact signed-Q14 numeric H/S/B/O controls and
+per-channel reset using the selected effective CASP's actual ranges. It preserves
+unedited lanes, requires explicit preview/Apply and supports scoped recovery and
+Undo/Redo. Independent original-C# comparisons and a real hidden DX11 render test
+pass. Palettes/favorites, conversion and full accepted runtime scope below remain
+tracked work. See [current evidence](../Reports/SIDECAR_AND_COLOR_2026-10-07.md).
+
 - Hue
 - Saturation
 - Brightness

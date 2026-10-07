@@ -12,7 +12,11 @@ The authorized `TwelfthDoctor1_OccultHybridHandler.ts4script` is now a concrete 
 
 ## Native overlay
 
-`NativeOverlay/Source/TD1ApexD3D11Proxy.cpp` is the overlay entrypoint, linked with the exact vendored ImGui tree. CMake builds an x64 `d3d11.dll` forwarding `D3D11CreateDevice` and `D3D11CreateDeviceAndSwapChain` to the Windows system DLL, and intercepts swapchain Present/ResizeBuffers. F11 toggles the overlay. HTTP transport runs in a worker; the render path must never mutate Sim data.
+`NativeOverlay/Source/TD1ApexD3D11Proxy.cpp` is the shared overlay entrypoint, linked with the vendored ImGui tree and pinned MinHook v1.3.4. The default distribution is `Mods/Apex/Native/ApexOverlay.dll`, loaded by `apex_core.overlay_loader` through the game's existing `_ctypes_x64.pyd` using `ExtensionFileLoader`. It does not require the absent pure Python `ctypes` package. Hash/protocol/host/path checks run before hooks; DLL initialization performs no hook or graphics work. A loaded-household signal invokes startup on the canonical owner; explicit `apex.overlay.start/status` diagnostics remain available. Active hooks pin the DLL until process exit. Static MSVC runtime linking avoids a separate VC-runtime installation requirement.
+
+The sidecar discovers system DXGI Present/ResizeBuffers addresses using a private hidden bootstrap swapchain, then hooks those functions so an already-running game swapchain can render F11. It refuses a foreign implementation or foreign entry detour. It discovers the real foreground game window before checking the first keypress, tracks the high key-state bit with its own edge, serializes native input/render access, restores all eight original render targets plus depth, isolates resizing to the selected swapchain, and tears down/reinitializes the renderer after device reset/removal. HTTP transport stays in its worker; the render path never mutates Sim data. An independent hidden WARP host exercises actual detouring/rendering/numeric controls, resizing, restoration and renderer recovery without HTTP or game interaction.
+
+CMake retains the older `d3d11.dll` proxy target for separately verified static import surfaces. Its bounded installer still refuses the installed wrapped executable. It is not included or required in the new candidate; `Game/Bin` is never modified by this build.
 
 The optional historical helper source is `Source/TD1OccultNativeBridge.c`. Its compiled mask-helper DLL is distinct from the DX11 proxy and must not be silently assumed present.
 
@@ -22,8 +26,8 @@ Build in this checkout:
 cmake -S NativeOverlay -B NativeOverlay/build -G "Visual Studio 17 2022" -A x64 -DCMAKE_GENERATOR_INSTANCE="H:/Visual Studio/Product"
 cmake --build NativeOverlay/build --config Release
 ctest --test-dir NativeOverlay/build -C Release --output-on-failure
-python NativeOverlay/verify_ts4_dx11_imports.py "C:/Games/The Sims 4/Game/Bin/TS4_x64.exe"
 python tools/fetch_build_python.py
+python tools/verify_overlay_sidecar.py
 python tools/build_script.py --output dist/dev/ApexOccultHybrid.ts4script
 python tools/build_candidate.py --foundry "C:/Users/Owner/Desktop/Sims 4 Foundry/target/release/foundry.exe"
 python tools/source_inventory.py Source/td1_occult_hybrid_apex.py --output manifests/runtime-owners.json
@@ -65,4 +69,4 @@ The pinned [official Python 3.7.9 embedded compiler](https://www.python.org/down
 
 ## Test and release boundary
 
-The owner tests with the single existing isolated profile and disposable save/Sim. The protected original is never written/renamed/deleted by tools, and only the owner restores it. No runtime/regression/release gate may be checked merely because a source manifest, build or fixture passes. Exact current evidence and limits are in `Reports/AUTHORIZED_CANDIDATE_2026-10-07.md`; 87 offline fixtures, 18 compiled native data checks and the native build pass.
+The owner tests with the single existing isolated profile and disposable save/Sim. The protected original is never written/renamed/deleted by tools, and only the owner restores it. No runtime/regression/release gate may be checked merely because a source manifest, build or fixture passes. Current evidence and limits are in `Reports/SIDECAR_AND_COLOR_2026-10-07.md`: 101 offline fixtures, 21 compiled native data checks, a real independent DX11 render test, packaged Python 3.7 extension-loader checks, and 41 original-C# CASP comparisons. Game loading, texture conversion, all-surface history and full accepted parity remain distinct work.

@@ -23,6 +23,21 @@ The upstream mod does the hard, important work of making hybrid occults viable. 
 - **Structured diagnostics and final audits** with fail-closed behavior on patch-sensitive paths.
 - **No hidden continuous Sim scanning by default.** Hidden overlay mode performs no HTTP polling.
 
+## Problems Apex exists to eliminate
+
+These are known historical failure modes and are **release blockers**, not “edge cases”:
+
+- CAS or MC Command Center edits appear saved but later revert because the intended stored occult form never received them.
+- CAS can damage or lose secondary hybrid forms, leaving only the entry/current form usable.
+- Hybrids can become stuck in one form or snap back after switching.
+- Werewolf hair/headwear and other werewolf CAS parts can disappear or corrupt when changing categories/outfits or editing through CAS.
+- Entering CAS while already in werewolf form can fail to preserve the edits.
+- Skin details, makeup, hair, tattoos, accessories, clothing or other CAS data can bleed between forms or vanish.
+- Stale recovery/CAS cache state can overwrite a newer good edit.
+- Broad repair/copy operations can damage unrelated appearance data or occult state.
+
+The canonical reproduction and acceptance ledger is [`docs/USER_REPORTED_REGRESSIONS.md`](docs/USER_REPORTED_REGRESSIONS.md). Apex is not complete while any R001–R010 failure remains reproducible.
+
 ## Architecture
 
 ```text
@@ -108,9 +123,10 @@ The recovered V9.5 source passed its recorded offline Python/static/audit checks
 
 1. Read [`docs/CODEX_MASTER_EXECUTION.md`](docs/CODEX_MASTER_EXECUTION.md).
 2. Read [`docs/UPSTREAM_1.13.7_DELTA.md`](docs/UPSTREAM_1.13.7_DELTA.md).
-3. Read [`docs/DEVELOPER_TOOLBOX.md`](docs/DEVELOPER_TOOLBOX.md).
-4. Preserve the V9.5 safety invariants and continue from the earliest ready task ID.
-5. Do not replace the project with a fresh scaffold.
+3. Read [`docs/USER_REPORTED_REGRESSIONS.md`](docs/USER_REPORTED_REGRESSIONS.md).
+4. Read [`docs/DEVELOPER_TOOLBOX.md`](docs/DEVELOPER_TOOLBOX.md).
+5. Preserve the V9.5 safety invariants and continue from the earliest ready task ID.
+6. Do not replace the project with a fresh scaffold.
 
 ## Provenance
 

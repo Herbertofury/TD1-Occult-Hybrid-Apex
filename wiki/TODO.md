@@ -33,6 +33,19 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 - Undo for the latest safe reversible appearance operation.
 - Keyboard/focus/accessibility pass.
 
+## P0 — Apex CAS Unlock Core
+
+- Own our unlock behavior instead of permanently depending on a third-party unlocker.
+- Keep supported CAS categories unlocked through CAS entry, form switch, outfit switch, MCCC CAS and UI rebuilds.
+- Default hybrid-aware Werewolf/Vampire/Mermaid/Fairy/Alien category expansion.
+- Optional hidden/locked/debug/reward/occult item catalog.
+- Installed-pack detection; no manual deleting pack files the user does not own.
+- Patch fingerprint + current-game resource scan + deterministic regenerated unlock package/manifest.
+- F11 Unlock Matrix explaining exactly why a category/item is available or blocked.
+- Detect overlap/conflicts with other CAS unlocker overrides without deleting them.
+- Werewolf faces/hair/headwear/base-layers/category regressions are P0.
+- Full details: [Apex CAS Unlock Core](CAS-Unlock-Core).
+
 ## P1 — CAS History Studio
 
 - Live Photoshop-style CAS history while edits happen.
@@ -76,4 +89,4 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 
 ## Release gate
 
-Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows including CAS History/Undo/Redo, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.
+Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows including CAS Unlock Core/Unlock Matrix and CAS History/Undo/Redo, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.

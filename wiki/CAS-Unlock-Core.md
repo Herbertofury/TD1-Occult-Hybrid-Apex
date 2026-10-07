@@ -1,6 +1,14 @@
 # Apex CAS Unlock Core
 
-Apex will include its own **always-unlocked, patch-aware CAS system** instead of permanently depending on another creator's unlocker.
+Apex will include its own **always-unlocked, patch-aware CAS system** with **zero dependency on another creator's unlocker**.
+
+## Standalone means standalone
+
+The user installs Apex. That's it for CAS unlocking.
+
+Crilender, Loulicorn, Szemoka, Lot51 Core, XML Injector, or another unlock/script package are **not required** for Apex CAS Unlock Core. We learn from good ideas in other projects, then independently implement the strongest combined behavior ourselves.
+
+If another unlocker is installed, Apex may report conflicts/overlap, but removing it must not reduce Apex's capabilities.
 
 ## What ours does
 

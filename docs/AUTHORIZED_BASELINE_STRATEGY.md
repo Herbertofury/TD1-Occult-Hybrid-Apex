@@ -2,11 +2,12 @@
 
 ## Owner authorization
 
-The project owner explicitly states they have full permission from the relevant authors of all three development baselines:
+The project owner explicitly states they have full permission from the relevant authors of all four development baselines:
 
 - the current TD1/LordPercival Occult Hybrid package/script lineage;
 - Crilender CASUnlocks; and
-- MC Command Center (MCCC), including the relevant MC CAS / MC Dresser / shared CAS-related implementation material.
+- MC Command Center (MCCC), including the relevant MC CAS / MC Dresser / shared CAS-related implementation material; and
+- thepancake1 Color Sliders, including the relevant thepancake1-owned UI/package/conversion material covered by the author's permission.
 
 For Apex development, Codex may inspect, extract, diff, reuse, port, adapt, merge, modify and incorporate material covered by that permission. Preserve attribution and source/version provenance. Do not assume this permission extends to unrelated third-party components bundled inside an archive.
 
@@ -41,6 +42,24 @@ Inventory the real MC CAS, MC Dresser and shared CAS-related helpers first, incl
 
 Preserve/port strong working behavior, then improve it into Apex Live CAS Studio so the final user can do CAS-grade editing from Live Mode/F11 without MCCC installed.
 
+### thepancake1 Color Sliders
+
+Start from the newest author-authorized **thepancake1 Color Sliders** package/tooling available to the project. The current public baseline is v4f, updated/checked through patch 1.127.41; Apex targets 1.128.90.1030 and must port it forward.
+
+Inventory:
+- slider-enable UI resources;
+- eyebrow slider resources;
+- classlibrarygamedata/cascustomizer changes;
+- Hue / Saturation / Brightness / Opacity state;
+- saved custom-color behavior;
+- converted texture architecture;
+- pack/category resource layout;
+- conversion tooling;
+- More CAS Columns compatibility;
+- CC slider-ready behavior.
+
+Preserve/port strong thepancake1-owned pieces and make ColorState a first-class Apex appearance field so exact custom colors survive every part/outfit/form/Sim copy. Final Apex color support must work with the original Color Sliders mod removed.
+
 ### CAS unlocker
 
 Start from the newest authorized **Crilender CASUnlocks v1.9h** package plus relevant current addons.
@@ -66,6 +85,6 @@ Use this order:
 9. remove the old runtime dependency only after Apex proves parity + improvement;
 10. finish with Apex-only clean-profile runtime proof.
 
-The final install is standalone, but authorized baseline material from TD1/LordPercival, Crilender and MCCC may legitimately survive inside the evolved Apex implementation with provenance.
+The final install is standalone, but authorized baseline material from TD1/LordPercival, Crilender, MCCC and thepancake1 may legitimately survive inside the evolved Apex implementation with provenance.
 
 Do not throw away good authorized code/resources merely to claim a rewrite.

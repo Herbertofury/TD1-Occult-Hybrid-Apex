@@ -31,3 +31,18 @@ Use these as challengers/references, not automatic dependencies.
 ## Working rule for Codex
 
 Challenge before reinventing. For every candidate, record: use as-is / adapt / reference only / reject, plus licensing/provenance and the reason. Do not pull in a framework merely because it is newer.
+
+
+## Authorized MCCC CAS baseline
+
+Project owner states full author permission to use relevant MCCC material.
+
+Current public baseline verified 2026-10-06:
+- MC Command Center 2026.5.0 — Sims 4 PC 1.128.90.1030
+- https://deaderpool-mccc.com/downloads.html
+- https://deaderpool-mccc.com/mccas.html
+- https://deaderpool-mccc.com/mcdresser.html
+- https://deaderpool-mccc.com/changelogs/mccc2026_4_0.html
+- https://deaderpool-mccc.com/changelogs/mccc2026_5_0.html
+
+Use MC CAS + MC Dresser + shared CAS helpers as an authorized implementation baseline for Apex Live CAS Studio. Preserve attribution/provenance; final runtime must not require MCCC.

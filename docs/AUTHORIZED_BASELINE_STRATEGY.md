@@ -2,10 +2,11 @@
 
 ## Owner authorization
 
-The project owner explicitly states they have full permission from the relevant authors of both development baselines:
+The project owner explicitly states they have full permission from the relevant authors of all three development baselines:
 
-- the current TD1/LordPercival Occult Hybrid package/script lineage; and
-- Crilender CASUnlocks.
+- the current TD1/LordPercival Occult Hybrid package/script lineage;
+- Crilender CASUnlocks; and
+- MC Command Center (MCCC), including the relevant MC CAS / MC Dresser / shared CAS-related implementation material.
 
 For Apex development, Codex may inspect, extract, diff, reuse, port, adapt, merge, modify and incorporate material covered by that permission. Preserve attribution and source/version provenance. Do not assume this permission extends to unrelated third-party components bundled inside an archive.
 
@@ -23,6 +24,22 @@ Inventory the real package/script contents first, preserve useful working behavi
 - `ApexOccultHybrid.ts4script`
 
 Preserve/port strong working membership, transformation, form-switch, CAS, panel/orb, tuning and diagnostic behavior. Replace pieces when they are stale, defective, or materially weaker than the Apex architecture.
+
+### MCCC CAS / Dresser
+
+Start from the newest author-authorized **MC Command Center** package/source available to the project. The current verified public release is MCCC 2026.5.0 for Sims 4 PC 1.128.90.1030; if the author provides a newer authorized source/package baseline, use that newer verified build.
+
+Inventory the real MC CAS, MC Dresser and shared CAS-related helpers first, including:
+- body-part value/range logic;
+- copy/paste appearance and face/body paths;
+- outfit save/load/copy/randomize;
+- included/excluded lists;
+- custom definitions;
+- Tray Sim paste/import paths;
+- occult appearance persistence helpers;
+- off-lot Sim selection and shared SimInfo/CAS helpers.
+
+Preserve/port strong working behavior, then improve it into Apex Live CAS Studio so the final user can do CAS-grade editing from Live Mode/F11 without MCCC installed.
 
 ### CAS unlocker
 
@@ -49,6 +66,6 @@ Use this order:
 9. remove the old runtime dependency only after Apex proves parity + improvement;
 10. finish with Apex-only clean-profile runtime proof.
 
-The final install is standalone, but authorized baseline material may legitimately survive inside the evolved Apex implementation with provenance.
+The final install is standalone, but authorized baseline material from TD1/LordPercival, Crilender and MCCC may legitimately survive inside the evolved Apex implementation with provenance.
 
 Do not throw away good authorized code/resources merely to claim a rewrite.

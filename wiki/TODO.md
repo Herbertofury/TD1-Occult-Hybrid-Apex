@@ -33,6 +33,22 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 - Undo for the latest safe reversible appearance operation.
 - Keyboard/focus/accessibility pass.
 
+## P1 — CAS History Studio
+
+- Live Photoshop-style CAS history while edits happen.
+- Undo / Redo / jump to any prior state.
+- Preserve redo branches when editing after undo.
+- Named checkpoints and Compare-with-current.
+- Inspect exactly which CAS parts/resources/values were added, removed or replaced.
+- Separate history lanes for human and every occult/custom form.
+- Revert one change or category without damaging unrelated data.
+- Safe cross-form cherry-pick with compatibility checks.
+- Optional Reference Shot images at checkpoints, not every micro-change.
+- Interrupted-session journal recovery.
+- Reuse the same F11 overlay/injection, snapshot/diff engine and game-thread mutation queue.
+- MCCC Shield, Drift Guard, Post-CAS Commit and Saved Forms all use the same CAS Change Journal.
+- Full details: [CAS History Studio](CAS-History-Studio).
+
 ## P1 — CAS/MCCC/Drift
 
 - Explicit MCCC Shield state machine.
@@ -60,4 +76,4 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 
 ## Release gate
 
-Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.
+Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows including CAS History/Undo/Redo, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.

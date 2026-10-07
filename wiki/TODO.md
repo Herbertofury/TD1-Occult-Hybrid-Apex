@@ -1,10 +1,25 @@
-# Full TODO — TD1 Occult Hybrid Apex
+# Full TODO — Apex Occult Hybrid
 
 The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/CODEX_MASTER_EXECUTION.md). This page is the human-readable wiki view.
 
-## P0 — parity and safety
+## P0 — standalone Apex Occult Hybrid Core
 
-- Close every verified upstream 1.13.7 delta.
+- Ship `ApexOccultHybrid.package` + `ApexOccultHybrid.ts4script` as the canonical hybrid engine.
+- No TD1/TwelfthDoctor1/IcedCream/LordPercival hybrid runtime dependency.
+- Independently match/exceed the useful 1.13.7 behavior baseline.
+- Support compatible multiple-occult membership and normal transformation paths.
+- Safe Add/Remove Occult.
+- Verified form switching without stuck/snap-back states.
+- Switch occult gameplay/perk/motive panels without changing membership.
+- Preserve Spellcaster charge / Werewolf Fury and other occult progression.
+- Replace remove-all-occults-before-CAS with targeted state/form reconciliation.
+- Patch-aware current-game tuning/resource generation.
+- Clean Mods profile proof with Apex + official EA packs only.
+- Full details: [Apex Occult Hybrid Core](Apex-Occult-Hybrid-Core).
+
+## P0 — behavioral reference and safety
+
+- Independently close every verified useful 1.13.7 behavior/fix without depending on upstream files.
 - Reconcile authoritative SimInfo/OccultTracker state versus transient caches.
 - Prove no native render-thread gameplay mutation.
 - Prove save/reload/restart on representative hybrids.
@@ -89,4 +104,4 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 
 ## Release gate
 
-Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows including CAS Unlock Core/Unlock Matrix and CAS History/Undo/Redo, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.
+Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows including the standalone Apex Occult Hybrid Core, CAS Unlock Core/Unlock Matrix and CAS History/Undo/Redo, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.

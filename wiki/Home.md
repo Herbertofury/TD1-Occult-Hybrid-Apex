@@ -20,6 +20,12 @@ Apex is a standalone first-party hybrid-occult suite: F11 overlay, explicit occu
 | Apex CAS Unlock Core | **Planned / execution spec live** |
 | Release packaging | **Open** |
 
+## Authorized Package Baseline
+
+The project owner has full author permission to use the current TD1/LordPercival hybrid and Crilender CASUnlocks material. Development starts from those real current packages, preserves/ports their useful working pieces, then improves them into standalone Apex artifacts.
+
+- [Authorized Baseline Strategy](../docs/AUTHORIZED_BASELINE_STRATEGY.md)
+
 ## Start here
 
 - [Codex Master Execution](../docs/CODEX_MASTER_EXECUTION.md)

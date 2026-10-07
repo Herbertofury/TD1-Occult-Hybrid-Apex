@@ -107,6 +107,7 @@ Model at minimum:
 - body/CAS part slots;
 - CASP resource IDs;
 - swatches/colors;
+- canonical per-part ColorState including base swatch + full current slider state (Hue, Saturation, Brightness/Value, Opacity) and exact form/outfit/resource ownership;
 - physique/fit/fat values;
 - face/body morph/modifier values;
 - skin tone;
@@ -250,6 +251,8 @@ Outside CAS, allow:
 Copy operations must allow explicit source and destination:
 `Sim -> form -> outfit category -> outfit index -> category/part scope`.
 
+**Color-copy invariant:** when a copied part/category includes slider-compatible color state, copy its exact canonical ColorState by default. Outfit copy, all-outfits copy and cross-Sim copy must never silently collapse a custom color back to an EA swatch.
+
 ## 6. Whole-Sim Appearance Copy
 
 Provide professional copy/paste modes:
@@ -283,6 +286,8 @@ Source may be:
 - saved Apex appearance preset.
 
 Never conflate appearance cloning with cloning relationships, career, inventory, occult progression, genealogy or gameplay identity unless a separate explicit feature requests it.
+
+Appearance Clone must include exact compatible ColorState for every included CAS part. Provide explicit modes for Part+Color, Part-only/preserve-destination-color, Color-only where compatible, and base-swatch-only.
 
 ## 7. Tray / Library Appearance Source
 
@@ -325,7 +330,28 @@ Missing CC/pack resources on restore:
 - apply compatible remainder only after explicit policy/preview;
 - never silently substitute random parts.
 
-## 9. Include / Exclude / Lock Rules
+## 9. Color Studio
+
+Integrate `docs/APEX_COLOR_STUDIO.md`.
+
+Outside CAS expose:
+- Hue;
+- Saturation;
+- Brightness/Value;
+- Opacity;
+- base swatch;
+- exact numeric state;
+- copy/paste color;
+- saved colors/palettes;
+- reset;
+- recent/favorite colors;
+- current part/form/outfit ColorState inspector.
+
+Apex uses the authorized thepancake1 Color Sliders implementation as the baseline but must provide full color controls with that mod absent.
+
+Color state must participate in every relevant copy, preset, Tray, Saved Form and history operation.
+
+## 10. Include / Exclude / Lock Rules
 
 Absorb and improve MC Dresser-style control.
 
@@ -342,7 +368,7 @@ Support:
 
 Rules must be editable through F11 UI rather than requiring config-file syntax.
 
-## 10. Randomize / Generate
+## 11. Randomize / Generate
 
 Provide safe randomization:
 
@@ -355,7 +381,8 @@ Provide safe randomization:
 - saved/include list only;
 - preserve locked categories;
 - preserve occult-only protected parts;
-- deterministic seed option for reproduction.
+- deterministic seed option for reproduction;
+- optional color randomization scope: preserve exact colors by default, or explicitly randomize base swatch/full ColorState/selected palette.
 
 Every randomize action is undoable and previewable.
 

@@ -31,7 +31,8 @@ MCCC, Lot51 Core, XML Injector and other Sims utilities are interoperability tar
 The project owner states they have full permission from the relevant authors of:
 - the current TD1/LordPercival occult-hybrid baseline; and
 - Crilender CASUnlocks; and
-- MC Command Center (MCCC), specifically the relevant CAS/Dresser/shared CAS-related material covered by the author's permission.
+- MC Command Center (MCCC), specifically the relevant CAS/Dresser/shared CAS-related material covered by the author's permission; and
+- thepancake1 Color Sliders, specifically relevant thepancake1-owned UI/package/conversion material covered by the author's permission.
 
 to use their material in Apex.
 
@@ -47,3 +48,12 @@ The owner-provided permission allows Apex development to inspect, reuse, port, a
 Current public compatibility baseline verified for research: MCCC 2026.5.0, documented for Sims 4 PC 1.128.90.1030.
 
 The final Apex release does not require MCCC; MCCC is a development/implementation baseline for Apex Live CAS Studio. Preserve attribution and provenance for permissioned material that survives into Apex.
+
+
+## thepancake1 Color Sliders authorized baseline
+
+The owner-provided permission allows Apex development to inspect, reuse, port, adapt and merge relevant thepancake1-owned Color Sliders material.
+
+Current public baseline verified for research: Color Sliders v4f, UI checked/updated through Sims 4 patch 1.127.41 on 2026-08-26. Apex targets the newer 1.128.90.1030 build and must port/revalidate the baseline forward.
+
+The final Apex release does not require the original Color Sliders mod. Preserve attribution/provenance for authorized material that survives into Apex, and preserve separate terms for any MizoreYukii/CmarNYC/other independently owned lineage material not covered by thepancake1 permission.

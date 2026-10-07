@@ -40,6 +40,29 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 - Every repair/commit must verify success after switching away/back and after save/reload.
 - Full details: [Original Mod Regressions](Original-Mod-Regressions).
 
+## P0 — Apex Live CAS Studio
+
+- Owner confirms full author permission to study/use MCCC CAS-related implementation material.
+- Start from current authorized MC CAS + MC Dresser + shared CAS helpers; preserve/port strong working behavior before replacing it.
+- Make CAS-grade appearance editing available from Live Mode/F11 wherever the game exposes a safe runtime or non-UI CAS-service path.
+- Body/face values and presets outside CAS.
+- Searchable CAS-part browser outside CAS.
+- Copy outfit category/slot within one Sim.
+- Copy outfit Sim A -> Sim B.
+- Copy **all outfits** Sim A -> Sim B.
+- Copy Face / Body / selected CAS categories / full appearance between Sims.
+- Searchable Tray/household source browser with preview.
+- Saved appearance/outfit libraries.
+- Visual include/exclude/lock/custom-definition rules.
+- Safe randomize by outfit/category/body type.
+- Exact human/occult form targeting.
+- Missing CC/pack diagnostics.
+- Bulk selected-Sim appearance operations.
+- Every change previewable and Undo/Redo through CAS History.
+- Current MCCC occult copy/body-part persistence fixes are permanent regression tests.
+- Final clean-profile proof with no MCCC installed.
+- Full details: [Apex Live CAS Studio](Live-CAS-Studio).
+
 ## P1 — make F11 the best way to use the mod
 
 - Selected-Sim dashboard with active occults/current form/health.
@@ -109,4 +132,4 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 
 ## Release gate
 
-Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows including the standalone Apex Occult Hybrid Core, CAS Unlock Core/Unlock Matrix and CAS History/Undo/Redo, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.
+Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows including the standalone Apex Occult Hybrid Core, Apex Live CAS Studio, CAS Unlock Core/Unlock Matrix and CAS History/Undo/Redo, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.

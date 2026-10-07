@@ -27,6 +27,8 @@ Do not restart this project as a new mod. Reuse and harden the recovered impleme
 - Never call build/static checks live-game proof.
 - CAS History Studio must reuse the existing Apex overlay/injection and canonical game-thread mutation path; do not introduce a second always-running DLL/hook stack unless runtime evidence proves the shared path cannot satisfy the requirement safely.
 - CAS History observation may be native/read-only when necessary, but undo/redo/revert/apply must never mutate Sims state from the render thread.
+- Apex owns its CAS unlock policy. Third-party unlockers are behavioral challengers only; do not copy proprietary/all-rights-reserved package content.
+- Unlock maintenance must be patch-aware: current game resources + exact build fingerprint are authority, and stale generated overrides must never be silently treated as current.
 
 ## Resume rule
 
@@ -168,4 +170,32 @@ Detailed product/architecture contract: `docs/CAS_HISTORY_STUDIO.md`.
 - [ ] **T092** · Benchmark equivalent CAS editing sessions with CAS History off/on and prove materially non-regressive input latency, frame time, CPU, memory and storage behavior; optimize shared capture/diff paths rather than dropping history fidelity.
 - [ ] **G011 · GATE** — CAS History Studio is live-runtime-proven on the current supported game build: history updates while editing, semantic diffs are understandable, undo/redo/jump/branches/checkpoints/reverts/cherry-pick work, hybrid form lanes remain isolated, MCCC/Drift/Saved Forms share one journal, interrupted recovery is safe, werewolf regression paths pass, and equivalent CAS responsiveness is materially non-regressive.
 
-- [ ] **G009 · FINAL COMPLETION GATE** — All accepted tasks/gates are complete; no unresolved blocker remains; production packaging succeeds; the current TS4 build has exercised F11 occult toggles, form switching, Saved Forms, CAS Categories, Photoshop-style CAS History/Undo/Redo, MCCC Shield, Drift Guard, diagnostics, save/reload/restart and representative hybrid combinations; every R001–R010 original-mod regression is proven fixed on the current supported game build; upstream 1.13.7 parity is proven; overlay performance is measured on equivalent workloads; and no requested capability was silently removed or replaced by a placeholder.
+## Phase K — Apex CAS Unlock Core
+
+Detailed architecture: `docs/APEX_CAS_UNLOCK_CORE.md`. Current challenger research: `docs/CAS_UNLOCKER_REFERENCE_MATRIX.md`.
+
+- [ ] **T093** · Build one versioned canonical CAS unlock-policy registry covering category visibility, item visibility, required packs, age/frame/species constraints, form/occult compatibility, safety state, patch verification and provenance.
+- [ ] **T094** · Resolve and fingerprint the actual current Sims 4 installation/build and installed packs; treat the current-game resources as authority rather than an old hand-maintained list.
+- [ ] **T095** · Implement a patch-aware scanner for current CASP/category/UI/tuning/SimData resources, honoring patch/delta precedence over older full-build resources where applicable.
+- [ ] **T096** · Implement the runtime Keep-Unlocked policy for supported CAS categories on CAS entry, Sim switch, form switch, outfit switch and real UI/category rebuild boundaries with no high-frequency polling.
+- [ ] **T097** · Keep human and occult/custom form category policy independent so unlocking more categories never flattens form identity or copies appearance across forms.
+- [ ] **T098** · Implement default-on Occult Expanded policy for compatible Werewolf, Vampire, Mermaid, Fairy, Alien/disguise and other supported occult/hybrid forms while preserving occult-only categories.
+- [ ] **T099** · Implement Hidden/Locked Catalog classification and optional exposure for locked, hidden/reward, debug/NPC, occult-restricted and special/temporary CAS resources.
+- [ ] **T100** · Preserve age/species/frame/body-type safety by default; visibility does not imply safe application, and advanced compatibility bypasses remain explicit/opt-in with warnings.
+- [ ] **T101** · Implement installed-pack-aware generation so users never need to manually remove unlock files for packs they do not own and pack install/uninstall invalidates only affected catalog segments.
+- [ ] **T102** · Implement the deterministic Patch-Aware Unlock Catalog Builder that generates minimal Apex-owned unlock package(s), JSON manifest, resource coverage/diff report and SHA-256 lineage from current game data.
+- [ ] **T103** · On a game-build mismatch, mark generated unlock data stale, retain only runtime policy that passes current introspection, regenerate in staging, diff/validate, and promote only after targeted proof.
+- [ ] **T104** · Detect new/changed CAS categories/resources after an EA patch and surface them as reviewed/unclassified/unsupported instead of silently omitting them.
+- [ ] **T105** · Implement P0 Werewolf unlock coverage including hair/headwear, skin details, tattoos, compatible makeup/face paint, accessories, scars/details, body/head/coat categories, archetype/face categories and base layers where current game data supports them.
+- [ ] **T106** · Regression-test the historical missing-Werewolf-faces/category class of failure and prove category/outfit/form switches cannot strip valid Werewolf parts merely because UI availability changed.
+- [ ] **T107** · Implement Mermaid/Fairy/occult parity including Mermaid fingernails, Fairy-era categories and occult archetype surfaces discovered in current game data; new future occult surfaces must be reported for policy review.
+- [ ] **T108** · Build the F11 Unlock Matrix showing category/item status, current form, pack source, CASP/resource identity, hidden/locked/debug/reward/occult state, safety/compatibility reason, last-verified patch and reassert/repair state.
+- [ ] **T109** · Add event-bound “stay unlocked” verification: when an enabled category unexpectedly disappears, journal the event, attempt one safe policy reassertion, verify it, and expose failure instead of looping.
+- [ ] **T110** · Integrate unlock visibility/application events with CAS History Studio while keeping visibility changes separate from actual appearance mutations.
+- [ ] **T111** · Detect likely overlapping CAS unlock overrides/packages, including Crilender/Loulicorn-style overlap where identifiable, report conflicting TGIs/winner order, and never delete third-party files.
+- [ ] **T112** · Evaluate MIT-licensed S4TK models/extraction, LlamaLogic.Packages and the ModTS4 package-authoring flow before writing new low-level parsing; treat GPL Cmar CAS tooling as reference unless Apex explicitly accepts compatible licensing obligations.
+- [ ] **T113** · Prove current-build runtime behavior across Human, Vampire/Dark Form, Werewolf, Mermaid, Fairy, Alien/disguise and a representative multi-occult hybrid through CAS entry/re-entry, outfit switch, form switch, MCCC CAS, CAS History undo/redo and save/reload/restart.
+- [ ] **T114** · Benchmark equivalent CAS interaction with unlock core disabled/enabled and prove category reassertion/catalog lookups add no material frame-time, input-latency, CPU or memory regression; expensive game-resource scans must remain outside active CAS.
+- [ ] **G012 · GATE** — Apex CAS Unlock Core is current-game-runtime-proven: intended categories stay unlocked through supported transitions, hidden/locked catalog exposure is pack/form/safety aware, Werewolf and other occult regressions remain fixed, patch mismatch/regeneration is deterministic and observable, F11 explains availability, third-party proprietary content is not copied, and CAS performance remains materially non-regressive.
+
+- [ ] **G009 · FINAL COMPLETION GATE** — All accepted tasks/gates are complete; no unresolved blocker remains; production packaging succeeds; the current TS4 build has exercised F11 occult toggles, form switching, Saved Forms, CAS Categories, Apex CAS Unlock Core/Unlock Matrix, Photoshop-style CAS History/Undo/Redo, MCCC Shield, Drift Guard, diagnostics, save/reload/restart and representative hybrid combinations; every R001–R010 original-mod regression is proven fixed on the current supported game build; upstream 1.13.7 parity is proven; overlay performance is measured on equivalent workloads; and no requested capability was silently removed or replaced by a placeholder.

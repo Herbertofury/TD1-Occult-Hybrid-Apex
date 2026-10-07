@@ -4,6 +4,7 @@
 - [Architecture & Safety](Architecture-and-Safety)
 - [Full TODO](TODO)
 - [Original Mod Regressions](Original-Mod-Regressions)
+- [CAS History Studio](CAS-History-Studio)
 - [Upstream 1.13.7 Parity](Upstream-1.13.7-Parity)
 - [Research & Tools](Research-and-Tools)
 - [Troubleshooting](Troubleshooting)

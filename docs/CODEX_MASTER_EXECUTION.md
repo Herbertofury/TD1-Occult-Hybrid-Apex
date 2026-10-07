@@ -1,18 +1,18 @@
-# TD1 Occult Hybrid Apex — Codex Master Execution Contract
+# Apex Occult Hybrid — Codex Master Execution Contract
 
 Last reconciled: 2026-10-06
 Recovered baseline: V9.5 Final Accounting / Runtime Safe
-Upstream parity floor: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE)
+Historical behavioral reference floor: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) — NOT a runtime dependency
 
 ## Objective
 
-Finish TD1 Occult Hybrid Apex as a safe, polished, observable hybrid-occult control suite that is materially easier to use and recover than the upstream mod while preserving upstream compatibility and all still-valid V9.5 behavior.
+Finish Apex Occult Hybrid as a fully standalone, safe, polished, observable hybrid-occult system that independently matches the useful behavior of current hybrid solutions, fixes the known failure modes, and materially improves usability, recovery, diagnostics, patch resilience and CAS integration while preserving all still-valid Apex V9.5 work.
 
 ## Context
 
 The recovered V9.5 project already contains a large Sims/Python backend, a Windows x64 DX11 Dear ImGui overlay source kit, saved-form support, MCCC/CAS shield behavior, Drift Guard, reference shots, category-scoped appearance operations, diagnostics, localhost control endpoints and extensive offline validation reports.
 
-Do not restart this project as a new mod. Reuse and harden the recovered implementation.
+Do not restart this project as a blank mod. Reuse the recovered Apex implementation, but production runtime ownership must converge on first-party Apex package/script artifacts rather than requiring TD1/IcedCream/LordPercival files.
 
 ## Constraints
 
@@ -22,8 +22,8 @@ Do not restart this project as a new mod. Reuse and harden the recovered impleme
 - No private MCCC monkey-patching.
 - Auto repair stays opt-in.
 - No quality/content reduction to claim performance wins.
-- Upstream 1.13.7 fixes are a required compatibility floor, not optional inspiration.
-- Keep attribution/licensing/provenance for upstream or vendored work.
+- The verified useful behavior/fixes from upstream 1.13.7 are a behavioral regression/reference floor only; Apex must independently implement equivalent-or-better behavior and must not require upstream package/script files.
+- Keep attribution/licensing/provenance for research/recovered/vendored work, while excluding third-party hybrid runtime files from the production dependency chain.
 - Never call build/static checks live-game proof.
 - CAS History Studio must reuse the existing Apex overlay/injection and canonical game-thread mutation path; do not introduce a second always-running DLL/hook stack unless runtime evidence proves the shared path cannot satisfy the requirement safely.
 - CAS History observation may be native/read-only when necessary, but undo/redo/revert/apply must never mutate Sims state from the render thread.
@@ -31,6 +31,7 @@ Do not restart this project as a new mod. Reuse and harden the recovered impleme
 - Apex CAS Unlock Core is standalone: no third-party unlocker, Lot51 Core, XML Injector or other external script/package library may be required for its normal runtime behavior. Open technical libraries may assist development/build tooling only if users do not need to install them separately.
 - The normal release must include a real first-party `ApexCASUnlocks.package`; script-only emulation of CAS unlock behavior does not satisfy the product requirement. That package must be reproducibly buildable from Apex source/policy + current game resources and must be the exact artifact runtime-tested.
 - Unlock maintenance must be patch-aware: current game resources + exact build fingerprint are authority, and stale generated overrides must never be silently treated as current.
+- Apex Occult Hybrid Core is standalone: the production hybrid engine must not require TD1/TwelfthDoctor1/IcedCream/LordPercival packages/scripts, another hybrid stabilizer, MCCC, Lot51 Core or XML Injector. The normal release must include first-party `ApexOccultHybrid.package` + `ApexOccultHybrid.ts4script` and prove them on a clean Mods profile.
 
 ## Resume rule
 
@@ -46,19 +47,19 @@ Continue from the earliest unchecked or invalidated task whose dependencies are 
 - [ ] **T006** · Add deterministic source-manifest generation for text and binary artifacts.
 - [ ] **G001 · GATE** — Recovery is reproducible and no V9.5 capability was silently lost.
 
-## Phase B — Upstream 1.13.7 parity floor
+## Phase B — 1.13.7 behavioral regression/reference floor
 
-- [ ] **T007** · Diff Apex behavior against the latest distributed 1.13.7 package/source evidence instead of assuming the public GitHub tree contains every 1.13.7 change.
-- [ ] **T008** · Port/verify the missing-STBL fix.
-- [ ] **T009** · Port/verify the TMex PhoneSearch / PlantSim Pie Menu compatibility change.
-- [ ] **T010** · Port/verify missing `ClassInstanceTuningInjections` coverage for werewolf traits.
-- [ ] **T011** · Port/verify missing `ClassInstanceTuningInjections` coverage for fairy traits.
-- [ ] **T012** · Port/verify missing `ClassInstanceTuningInjections` coverage for fairy bloodline traits.
+- [ ] **T007** · Diff Apex behavior against the latest distributed 1.13.7 behavioral/release evidence to define independent compatibility tests; do not use this as permission to depend on or blindly copy upstream package/script resources.
+- [ ] **T008** · Independently implement and verify equivalent missing-STBL coverage in Apex-owned resources.
+- [ ] **T009** · Independently implement and verify equivalent TMex PhoneSearch / PlantSim Pie Menu compatibility behavior.
+- [ ] **T010** · Independently generate/verify Apex-owned tuning injection coverage for werewolf traits.
+- [ ] **T011** · Independently generate/verify Apex-owned tuning injection coverage for fairy traits.
+- [ ] **T012** · Independently generate/verify Apex-owned tuning injection coverage for fairy bloodline traits.
 - [ ] **T013** · Provide Apex-equivalent diagnostics for selected-Sim occult cache state.
 - [ ] **T014** · Provide Apex-equivalent diagnostics for global occult cache state.
 - [ ] **T015** · Provide Apex-equivalent diagnostics for CAS-session cached Sims/households.
 - [ ] **T016** · Add regression fixtures proving 1.13.7 parity work does not bypass Apex safety/queue ownership.
-- [ ] **G002 · GATE** — Apex contains every verified 1.13.7 compatibility fix and retains V9.5 behavior.
+- [ ] **G002 · GATE** — Apex independently provides every verified useful 1.13.7 behavior/fix needed by the project, retains V9.5 behavior, and does so without a TD1/IcedCream/LordPercival runtime dependency.
 
 ## Phase C — Canonical occult state model
 
@@ -206,4 +207,35 @@ Detailed architecture: `docs/APEX_CAS_UNLOCK_CORE.md`. Current challenger resear
 - [ ] **T120** · Prove a normal user install requires one coherent Apex unlock package rather than per-pack/per-occult addon-file micromanagement; if internal generation modules exist, release packaging must converge them into one install path and one manifest/ownership model.
 - [ ] **G012 · GATE** — Apex CAS Unlock Core is current-game-runtime-proven: intended categories stay unlocked through supported transitions, hidden/locked catalog exposure is pack/form/safety aware, Werewolf and other occult regressions remain fixed, patch mismatch/regeneration is deterministic and observable, F11 explains availability, third-party proprietary content is not copied, the complete unlock feature set is proven standalone with no third-party unlocker/script-library runtime dependency, the exact first-party `ApexCASUnlocks.package` release artifact is reproducibly built/hashed/runtime-tested, and CAS performance remains materially non-regressive.
 
-- [ ] **G009 · FINAL COMPLETION GATE** — All accepted tasks/gates are complete; no unresolved blocker remains; production packaging succeeds; the current TS4 build has exercised F11 occult toggles, form switching, Saved Forms, CAS Categories, Apex CAS Unlock Core/Unlock Matrix and the exact release `ApexCASUnlocks.package`, Photoshop-style CAS History/Undo/Redo, MCCC Shield, Drift Guard, diagnostics, save/reload/restart and representative hybrid combinations; every R001–R010 original-mod regression is proven fixed on the current supported game build; upstream 1.13.7 parity is proven; overlay performance is measured on equivalent workloads; and no requested capability was silently removed or replaced by a placeholder.
+## Phase L — Standalone Apex Occult Hybrid Core
+
+Detailed architecture: `docs/APEX_OCCULT_HYBRID_CORE.md`.
+
+- [ ] **T121** · Define one first-party hybrid capability model that separates occult membership, visible/current form, linked form state, selected gameplay/perk-panel occult, pending transformation, temporary occult/status state and CAS/recovery state.
+- [ ] **T122** · Build the canonical `ApexOccultHybrid.package` source/policy pipeline from current supported game resources; every generated/authored tuning/STBL/injection resource must have an Apex owner, source/evidence record, patch fingerprint and regression test.
+- [ ] **T123** · Build the canonical `ApexOccultHybrid.ts4script` runtime entrypoint and domain modules; production code must not import or require TD1/TwelfthDoctor1/IcedCream/LordPercival runtime modules.
+- [ ] **T124** · Implement independent hybrid membership support so a compatible Sim can hold multiple supported occult identities without one identity erasing another.
+- [ ] **T125** · Independently unlock compatible official occult transformation paths for already-occult Sims using the narrowest current-build tuning/injection changes rather than globally deleting unrelated tests.
+- [ ] **T126** · Implement Apex Add Occult and Remove Occult actions with explicit previews, idempotence and verification; removing one occult must preserve every unrelated occult form, appearance, rank, perks, motives and progression.
+- [ ] **T127** · Replace blind “always human first” switching with an explicit transformation state machine that uses a safe intermediate only when current-game behavior actually requires it.
+- [ ] **T128** · Detect/recover stuck or contradictory transformation state: pending never clears, snap-back, current form absent from available forms, missing linked form, partial visual switch or multiple conflicting current-form indicators.
+- [ ] **T129** · Implement independent selected gameplay/perk-panel state so a hybrid can choose which occult UI/powers/motives are in focus without changing occult membership.
+- [ ] **T130** · Implement/verify Spellcaster charge/orb and Werewolf Fury/orb presentation according to the selected supported gameplay panel/secondary form, without corrupting underlying occult state.
+- [ ] **T131** · Implement/verify Vampire, Mermaid, Fairy, Alien and other current supported occult gameplay-panel/motive behavior where the game exposes such a surface; unsupported/new surfaces remain explicit rather than silently ignored.
+- [ ] **T132** · Model PlantSim, Ghost, Servo and other temporary/pseudo-occult/mechanical states through capabilities instead of forcing every state into the same linked-form implementation.
+- [ ] **T133** · Integrate hybrid membership/form transitions with the canonical CAS Change Journal so CAS History records transformations, membership changes, repairs and target-form commits with provenance.
+- [ ] **T134** · Replace historical remove-all-occults-before-CAS behavior with form inventory + minimal checkpoint + targeted post-CAS reconciliation; never remove every occult as the default CAS strategy.
+- [ ] **T135** · Preserve independent human/occult appearance ownership through CAS, MCCC, form switching, Saved Forms and Drift Guard; prove no cross-form flattening or stale snapshot overwrite.
+- [ ] **T136** · Preserve occult-specific progression through unrelated hybrid/form operations, including rank, powers/perks, weaknesses, points/currency, motives/commodities, spell knowledge, Fury/charge and pack-specific persistent state where applicable.
+- [ ] **T137** · Implement F11 hybrid diagnostics showing membership, current/available forms, linked-form identities, pending transition, selected gameplay panel, relevant motives/orbs, cache/recovery state and exact inconsistency reasons.
+- [ ] **T138** · Add patch-aware discovery of current occult traits/forms/transformation interactions/UI/tuning; new EA occult surfaces must appear as `unclassified / support review required` rather than being treated as human or discarded.
+- [ ] **T139** · Generate deterministic source/release manifests for `ApexOccultHybrid.package` and `ApexOccultHybrid.ts4script`, including Apex version, Sims 4 build, installed-pack coverage, resource/module counts, source-game hashes, SHA-256 and build commands.
+- [ ] **T140** · Detect overlapping legacy/third-party hybrid packages/scripts and report likely double-ownership/conflicts without deleting them; Apex core behavior must remain complete when they are absent.
+- [ ] **T141** · Prove clean-profile operation with Apex + official EA packs only: no TD1/IcedCream/LordPercival hybrid files, no other hybrid stabilizer, no MCCC, no Lot51 Core and no XML Injector.
+- [ ] **T142** · On the clean profile, prove compatible multiple-occult membership, official transformation paths, repeated form switching, Add/Remove Occult, selected gameplay/perk panels, Spellcaster/Werewolf orb behavior and save/reload/restart persistence.
+- [ ] **T143** · On the clean profile, prove CAS from human and already-transformed forms preserves every secondary occult/form, intended edits, independent appearances and progression while keeping R001–R010 closed.
+- [ ] **T144** · Test the exact hashed production `ApexOccultHybrid.package` + `ApexOccultHybrid.ts4script` pair in the current supported Sims 4 build; do not substitute recovered TD1 artifacts, dev-only mocks or an unpackaged fallback.
+- [ ] **T145** · Run a bounded challenger pass against current public hybrid solutions and retain only independently implementable, license-safe, behaviorally superior ideas; document adopt/adapt/reference/reject without reintroducing a runtime dependency.
+- [ ] **G013 · GATE** — Apex Occult Hybrid Core independently matches or exceeds the verified useful capabilities of current hybrid mods; the exact first-party package/script pair is reproducibly built, clean-profile/current-game-runtime-proven, preserves form/CAS/progression state, supports hybrid transformations/panels, keeps R001–R010 closed, and requires no TD1/IcedCream/LordPercival or other hybrid runtime dependency.
+
+- [ ] **G009 · FINAL COMPLETION GATE** — All accepted tasks/gates are complete; no unresolved blocker remains; production packaging succeeds; the current TS4 build has exercised the exact standalone `ApexOccultHybrid.package` + `ApexOccultHybrid.ts4script` pair, F11 occult toggles, form switching, Saved Forms, CAS Categories, Apex CAS Unlock Core/Unlock Matrix and the exact release `ApexCASUnlocks.package`, Photoshop-style CAS History/Undo/Redo, MCCC Shield, Drift Guard, diagnostics, save/reload/restart and representative hybrid combinations; every R001–R010 original-mod regression is proven fixed on the current supported game build; the useful 1.13.7 behavioral reference floor is independently satisfied without upstream runtime files; overlay performance is measured on equivalent workloads; and no requested capability was silently removed or replaced by a placeholder.

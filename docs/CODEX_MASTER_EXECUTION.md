@@ -32,7 +32,7 @@ Do not restart this project as a new mod. Reuse and harden the recovered impleme
 
 ## Resume rule
 
-Continue from the earliest unchecked or invalidated task whose dependencies are satisfied. Work in bounded internal windows of roughly 6–12 ready leaf tasks, update this file in place, checkpoint coherent source state, and continue. If two materially unchanged attempts fail without new evidence, change strategy. Blockers remain inline as `BLOCKED: ...; NEXT: ...`.
+Continue from the earliest unchecked or invalidated task whose dependencies are satisfied. Work in bounded internal windows of roughly 6–12 ready leaf tasks, update this file in place, checkpoint coherent source state, and continue. During leaf work, use the cheapest decisive targeted verification / changed-path test; broaden to section-wide regression at the containing parent gate and whole-product/runtime verification at the final gate when later changes have not already invalidated earlier proof. If two materially unchanged attempts fail without new evidence, change strategy. Blockers remain inline as `BLOCKED: ...; NEXT: ...`.
 
 ## Phase A — Recover and normalize V9.5
 

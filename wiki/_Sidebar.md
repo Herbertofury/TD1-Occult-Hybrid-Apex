@@ -1,12 +1,13 @@
-### TD1 Occult Hybrid Apex
+### Apex Occult Hybrid
 - [Home](Home)
 - [Getting Started](Getting-Started)
 - [Architecture & Safety](Architecture-and-Safety)
 - [Full TODO](TODO)
 - [Original Mod Regressions](Original-Mod-Regressions)
+- [Apex Occult Hybrid Core](Apex-Occult-Hybrid-Core)
 - [CAS History Studio](CAS-History-Studio)
 - [Apex CAS Unlock Core](CAS-Unlock-Core)
-- [Upstream 1.13.7 Parity](Upstream-1.13.7-Parity)
+- [1.13.7 Behavioral Reference](Upstream-1.13.7-Parity)
 - [Research & Tools](Research-and-Tools)
 - [Troubleshooting](Troubleshooting)
 

@@ -31,18 +31,75 @@ Open-source technical libraries may be used internally during development/build 
 
 If an optional third-party mod is present, Apex may diagnose overlap or coexist with it safely, but Apex functionality must be identical in capability when that third-party mod is absent.
 
+## Required release artifact: ApexCASUnlocks.package
+
+Apex CAS Unlock Core must ship with a real, first-party Sims 4 package:
+
+`ApexCASUnlocks.package`
+
+This is not optional and not merely a generated cache.
+
+It is the canonical packaged CAS/tuning/resource layer for Apex and should be the user-facing equivalent of installing a traditional CAS unlocker, except integrated with the rest of Apex and held to a much stronger maintenance/verification standard.
+
+The package should contain only Apex-owned or independently generated resources required for:
+- CAS category availability/unlock tuning;
+- occult/hybrid category expansion;
+- supported hidden/locked/debug/occult catalog exposure where package overrides are the correct mechanism;
+- Apex-owned STBL strings needed by packaged interactions/UI/tuning;
+- any minimal tuning/injection resources required to connect packaged CAS behavior to the Apex script/runtime;
+- package-level compatibility data needed by the current supported Sims 4 build.
+
+The package must not contain copied third-party unlocker resources.
+
+### Package identity and release discipline
+
+Every release must record:
+- package filename;
+- semantic project version;
+- supported Sims 4 build/fingerprint;
+- generated/source manifest version;
+- exact resource count by type;
+- installed/current pack coverage;
+- SHA-256;
+- source-game resource hashes for every overridden/generated resource;
+- reproducible build/generator command;
+- validation report.
+
+The package should be deterministic: identical input game data + identical Apex policy + identical toolchain must produce byte-identical output where the package format/tooling permits it, or a documented normalized-equivalent output otherwise.
+
+### One package for the normal user
+
+The normal installation target is one Apex CAS package, not a maze of per-pack/per-occult addon files.
+
+Prefer:
+- `ApexCASUnlocks.package`
+
+over:
+- `ApexCASUnlocks_Werewolf.package`
+- `ApexCASUnlocks_Mermaid.package`
+- dozens of pack-specific fragments.
+
+If technical/package-format evidence proves internal splitting is safer or materially better, the release process may build internal modules but should still present one coherent install path and one ownership/manifest model. Do not recreate the third-party “install/delete the right addon files manually” burden.
+
 ## Current design decision
 
-Use a two-layer architecture:
+Use a three-layer architecture:
 
-1. **Runtime Unlock Policy Engine**
+1. **ApexCASUnlocks.package**
+   - the canonical packaged CAS/tuning/resource layer;
+   - installs like a normal Sims 4 `.package`;
+   - carries the current verified category/catalog overrides and Apex-owned package resources;
+   - is generated/validated from Apex policy + current EA game data;
+   - remains fully first-party and reproducible.
+
+2. **Runtime Unlock Policy Engine**
    - keeps supported CAS categories available;
    - reapplies policy on real CAS lifecycle/form/outfit boundaries rather than polling;
    - understands the active hybrid form;
    - provides diagnostics and compatibility state;
    - remains useful even if a generated item catalog needs rebuilding after a patch.
 
-2. **Patch-Aware Unlock Catalog Builder**
+3. **Patch-Aware Unlock Catalog Builder**
    - reads CAS resources from the user's/current clean game installation;
    - inventories installed packs and CASP resources;
    - applies Apex-owned unlock policy to compatible resources;
@@ -50,7 +107,7 @@ Use a two-layer architecture:
    - does not depend on copying third-party unlocker packages;
    - can be rerun after EA patches and diffed against the prior generated manifest.
 
-One subsystem owns the policy/model. Runtime UI, generated package, diagnostics and CAS History must all consume the same policy data.
+One subsystem owns the policy/model. `ApexCASUnlocks.package`, runtime UI, generator, diagnostics and CAS History must all consume the same policy data so package behavior and script-side behavior cannot drift.
 
 ---
 
@@ -239,7 +296,7 @@ Scan:
 ## Outputs
 
 Generate:
-- `ApexCASUnlocks.package` or a small set of intentionally separated modules;
+- `ApexCASUnlocks.package` as the canonical normal-user artifact;
 - native reward-unlock discovery/manifest data for items that should use game ownership semantics instead of static visibility overrides;
 - `apex_cas_unlock_manifest.json`;
 - patch/build fingerprint;
@@ -250,7 +307,19 @@ Generate:
 - diff from prior manifest;
 - deterministic SHA-256 manifest.
 
-Generated packages must change only the minimum fields/resources required by the unlock policy.
+Generated package resources must change only the minimum fields/resources required by the unlock policy.
+
+## Package/source synchronization invariant
+
+For every resource inside `ApexCASUnlocks.package`, Codex must be able to answer:
+- why this resource exists;
+- which Apex policy rule owns it;
+- which current-game source resource/tuning it derives from, if any;
+- whether it is generated, authored, injected, or copied from an allowed first-party Apex source;
+- which patch/build it was last verified against;
+- which regression test covers it.
+
+No opaque binary-only package edits are allowed. Sims 4 Studio may be used to inspect/debug/package during development, but the authoritative package must be rebuildable from source/policy data rather than existing only as hand-edited binary state.
 
 ## Update behavior
 
@@ -468,6 +537,18 @@ On a controlled changed fixture/current next patch:
 
 ---
 
+# Better-than-current-unlockers acceptance
+
+Apex should materially exceed the current standalone unlockers in the areas that matter:
+
+- **Crilender-style category permanence**, but with patch fingerprinting, form awareness, diagnostics and one integrated package.
+- **Loulicorn-style breadth**, but with installed-pack awareness, safety classification, one install path and no manual per-pack file management.
+- **Szemoka-style native reward ownership**, used when that is the correct durable mechanism instead of forcing everything through static CASP visibility.
+- **Apex-only hybrid integration**: form identity, CAS History, Drift Guard, MCCC recovery, post-CAS persistence and werewolf regression protection all share one canonical state/policy model.
+- **Reproducible package generation** from current game resources instead of a package that must be manually rediscovered after every patch.
+
+"Better" must be proven by behavior and maintenance/runtime evidence, not by feature-count marketing.
+
 # Completion standard
 
 Apex CAS Unlock Core is complete only when:
@@ -482,5 +563,5 @@ Apex CAS Unlock Core is complete only when:
 - no third-party proprietary package/code was copied;
 - no third-party CAS unlocker/script library is required at runtime;
 - a clean Mods profile containing Apex but none of the researched unlockers/libraries passes the full unlock regression matrix;
-- exact release build is current-game runtime-tested;
+- exact release `ApexCASUnlocks.package` is rebuilt from source/policy, hashed, structurally validated and current-game runtime-tested;
 - CAS responsiveness is materially non-regressive.

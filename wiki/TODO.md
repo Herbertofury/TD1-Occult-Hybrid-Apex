@@ -10,6 +10,19 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 - Prove save/reload/restart on representative hybrids.
 - Fail closed on unknown game/native hook surfaces.
 
+## P0 — original-mod regression closure
+
+- CAS and MC Command Center edits must actually persist to the intended occult form.
+- CAS must never delete secondary hybrid forms.
+- Hybrids must never get stuck in one form.
+- Werewolf hair/headwear/body/CAS parts and custom content must survive category/outfit/form changes.
+- CAS entered while already in werewolf form must save correctly.
+- Skin details, makeup, hair, tattoos, accessories and clothing must not bleed across forms or disappear.
+- Stale CAS/MCCC/recovery snapshots must not overwrite newer intentional edits.
+- Human and occult forms must remain independently editable.
+- Every repair/commit must verify success after switching away/back and after save/reload.
+- Full details: [Original Mod Regressions](Original-Mod-Regressions).
+
 ## P1 — make F11 the best way to use the mod
 
 - Selected-Sim dashboard with active occults/current form/health.
@@ -47,4 +60,4 @@ The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/C
 
 ## Release gate
 
-Do not call Apex finished until the current Sims 4 build has exercised the actual F11 workflows, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.
+Do not call Apex finished until R001–R010 in the original-mod regression ledger are no longer reproducible and the current Sims 4 build has exercised the actual F11 workflows, representative hybrid combinations, CAS/MCCC recovery, Drift Guard, diagnostics, persistence, upgrade path and measured overlay overhead.

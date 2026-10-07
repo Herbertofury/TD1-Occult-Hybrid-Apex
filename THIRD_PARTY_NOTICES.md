@@ -1,6 +1,6 @@
-# Third-party / upstream provenance
+# Third-party / research provenance
 
-TD1 Occult Hybrid Apex is an independent continuation/research project.
+Apex Occult Hybrid uses recovered/historical hybrid projects as research and regression references while converging production runtime ownership on first-party Apex artifacts.
 
 ## Occult Hybrid lineage
 
@@ -9,6 +9,8 @@ TD1 Occult Hybrid Apex is an independent continuation/research project.
 - LordPercivalXII — current distributed Occult Hybrid Unlocker & Stabilizer releases and maintenance lineage.
 
 Apex must preserve upstream credits and applicable licenses/notices for any code or packaged content actually reused. Do not imply upstream endorsement.
+
+**Production dependency rule:** the release must not require or bundle TD1/TwelfthDoctor1/IcedCream/LordPercival hybrid package/script files as runtime dependencies. Recovered copies are historical research/regression fixtures unless an explicit later licensing decision says otherwise.
 
 ## Dear ImGui
 

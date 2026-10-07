@@ -203,6 +203,61 @@ def restore(state, guard=require_closed):
             'test_archive': str(test_archive), 'staging_retained': staging.exists()}
 
 
+def status(state, verify_original=False):
+    """Read-only launch preflight; never infer isolation from a folder name alone."""
+    state = unlinked(state)
+    journal = json.loads(state.read_text(encoding='utf-8'))
+    if journal.get('schema') != 1:
+        raise ValueError('Unsupported profile journal.')
+    token = journal.get('token', '')
+    if len(token) != 32 or any(char not in '0123456789abcdef' for char in token):
+        raise ValueError('Invalid session identity.')
+    profile = unlinked(journal['profile'])
+    original = unlinked(journal['original'])
+    if profile.name != 'The Sims 4' or profile == state or profile in state.parents:
+        raise ValueError('Unsafe journal profile/state path.')
+    if original.parent != profile.parent or original.name != 'The Sims 4.ApexOriginal.' + token:
+        raise ValueError('Invalid preserved original location.')
+    active = journal.get('phase') == 'active'
+    if active:
+        verify_lock(profile, state, token)
+    marker = profile / MARKER
+    marked = marker.is_file() and json.loads(marker.read_text(encoding='utf-8')).get('token') == token
+    rows, unexpected = [], []
+    if active and marked:
+        expected = {('ApexTest/' + row['name']).casefold(): row for row in journal['artifacts']}
+        mods = profile / 'Mods'
+        for directory, subdirs, files in os.walk(str(mods), followlinks=False):
+            for name in subdirs + files:
+                unlinked(Path(directory) / name)
+            for name in files:
+                path = Path(directory) / name
+                relative = path.relative_to(mods).as_posix()
+                if relative.casefold() == 'resource.cfg':
+                    continue
+                row = expected.pop(relative.casefold(), None)
+                if row is None:
+                    unexpected.append(relative)
+                else:
+                    digest = sha256(path)
+                    rows.append({'path': relative, 'sha256': digest, 'matches': digest == row['sha256']})
+        unexpected.extend('missing:' + key for key in sorted(expected))
+    isolated = active and marked and original.is_dir() and not unexpected and len(rows) == len(journal['artifacts']) and all(row['matches'] for row in rows)
+    original_matches = None
+    if verify_original:
+        preserved = original if original.exists() else profile
+        original_matches = inventory(preserved) == journal['original_inventory']
+        if original_matches is False:
+            isolated = False
+    return {'ok': isolated if active else journal.get('phase') == 'restored',
+            'phase': journal.get('phase'), 'profile': str(profile), 'original': str(original),
+            'ready_to_launch': isolated, 'original_inventory_verified_now': original_matches,
+            'original_verification_scope': 'all file paths/sizes/mtimes; SHA-256 of every save file',
+            'artifacts': sorted(rows, key=lambda row: row['path']), 'unexpected_mod_files': sorted(unexpected),
+            'test_save_files': sum(1 for path in (profile / 'saves').rglob('*') if path.is_file()) if isolated else None,
+            'test_tray_files': sum(1 for path in (profile / 'Tray').rglob('*') if path.is_file()) if isolated else None}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -212,8 +267,16 @@ def main():
     stage.add_argument('--artifact', required=True, type=Path, action='append')
     revert = commands.add_parser('restore')
     revert.add_argument('--state', required=True, type=Path)
+    inspect = commands.add_parser('status')
+    inspect.add_argument('--state', required=True, type=Path)
+    inspect.add_argument('--verify-original', action='store_true')
     args = parser.parse_args()
-    result = activate(args.profile, args.state, args.artifact) if args.command == 'activate' else restore(args.state)
+    if args.command == 'activate':
+        result = activate(args.profile, args.state, args.artifact)
+    elif args.command == 'restore':
+        result = restore(args.state)
+    else:
+        result = status(args.state, args.verify_original)
     print(json.dumps(result, indent=2))
 
 

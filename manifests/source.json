@@ -1,532 +1,680 @@
 {
   "algorithm": "SHA-256",
   "artifacts": [],
-  "schema": 1,
+  "schema": 2,
+  "source_encoding": "canonical-git-index-blobs",
   "source_files": [
     {
-      "bytes": 200,
-      "path": ".gitattributes",
-      "sha256": "5b4084e3487a78a407ef86df747f4da31d455b4ae728776a9503be2bafd4e84c"
-    },
-    {
-      "bytes": 94,
-      "path": ".gitignore",
-      "sha256": "49bab4b7b0dfb8057403871da677cb13d970784bb26fcc0ce3703313a2588fb7"
-    },
-    {
-      "bytes": 918,
-      "path": "NativeOverlay/CMakeLists.txt",
-      "sha256": "ea7e4e3d40c1515ff7114d8e85dce815932df302da52f978d629c889b9009f6d"
-    },
-    {
-      "bytes": 3200,
-      "path": "NativeOverlay/README_BUILD_AND_INSTALL.txt",
-      "sha256": "85b62220d028ac7f859420df473d5c67386e86e3ffe73bd3f49f79f3f915716f"
-    },
-    {
-      "bytes": 52933,
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "a8be8fd39b01268c8302616aeeda027318c6856c28bd14e9f5e9031ce3c9e8ad"
-    },
-    {
-      "bytes": 480,
-      "path": "NativeOverlay/build_msvc_x64.bat",
-      "sha256": "2775b01263573e82fa5112fd04134ce16f5f127b9e53b2a4a3bdc133bd5daa24"
-    },
-    {
-      "bytes": 652,
-      "path": "NativeOverlay/install_to_game_bin.ps1",
-      "sha256": "332b915cf82ee742e17b5d85ce1b5b44bab8ac449309e247c163ef7d0e0d7024"
-    },
-    {
-      "bytes": 1083,
-      "path": "NativeOverlay/third_party/imgui/LICENSE.txt",
-      "sha256": "173506a2d6f7fb67990d257fb2507f188690eca39060c39469ae7bef43aae2a3"
-    },
-    {
-      "bytes": 36392,
-      "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_dx11.cpp",
-      "sha256": "1c0c3af25b45dceb4c45de7da591244f4935718154e7149d0e90858958c6f19d"
-    },
-    {
-      "bytes": 2945,
-      "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_dx11.h",
-      "sha256": "fb8a314a6a2904dcc5bfeb938a169389e170f233ad367d33f1ce5c7bde586a7c"
-    },
-    {
-      "bytes": 51651,
-      "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_win32.cpp",
-      "sha256": "12316399a6acd772a2ec376df7a6eeb138b385f0e00c2dc4d48776a25cc81794"
-    },
-    {
-      "bytes": 3491,
-      "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_win32.h",
-      "sha256": "2736595b8de1e56871661d5d9b96deec567d35521746fbe2ade8f0543acdfd2b"
-    },
-    {
-      "bytes": 23778,
-      "path": "NativeOverlay/third_party/imgui/docs/BACKENDS.md",
-      "sha256": "6346fb936ec5102a492faef7bf18a94c446c88fb00643a761cbed86a78e0b5ce"
-    },
-    {
-      "bytes": 58484,
-      "path": "NativeOverlay/third_party/imgui/docs/FAQ.md",
-      "sha256": "d527123e125fc1a23fc5dee5777c4d921d7ee307246d62b0739f042c96050d10"
-    },
-    {
-      "bytes": 21988,
-      "path": "NativeOverlay/third_party/imgui/docs/README.md",
-      "sha256": "d9fb01b2967dab2fd384567528849529029fb1c6ca111465de58e82a091037c5"
-    },
-    {
-      "bytes": 12173,
-      "path": "NativeOverlay/third_party/imgui/imconfig.h",
-      "sha256": "1353bfa59da16eec481723fd4e5d910356f0406b79e3c4142e0c9867bafffab5"
-    },
-    {
-      "bytes": 965376,
-      "path": "NativeOverlay/third_party/imgui/imgui.cpp",
-      "sha256": "4e81a96e5a7c05bca66697225d9a3e42f85139833cd0cceed37918862394e3f4"
-    },
-    {
-      "bytes": 426837,
-      "path": "NativeOverlay/third_party/imgui/imgui.h",
-      "sha256": "12790cf3bd0a074893c74f6707fe4169038b42ed5e04c71e7e4bf5030fa1f0ba"
-    },
-    {
-      "bytes": 379689,
-      "path": "NativeOverlay/third_party/imgui/imgui_draw.cpp",
-      "sha256": "1ab7e62bbe1f7aefbe70b7b2a58b7f7cfed7000a6a9b70a2842c1f1671c28189"
-    },
-    {
-      "bytes": 303546,
-      "path": "NativeOverlay/third_party/imgui/imgui_internal.h",
-      "sha256": "341e5a7656be0079e1aac3203d18eaea224d5a0f2b655fa88851a5f4f8c714ff"
-    },
-    {
-      "bytes": 257058,
-      "path": "NativeOverlay/third_party/imgui/imgui_tables.cpp",
-      "sha256": "33b5146f5eb362605a166e532b336d1955579743eab719d96241a163a21222eb"
-    },
-    {
-      "bytes": 551648,
-      "path": "NativeOverlay/third_party/imgui/imgui_widgets.cpp",
-      "sha256": "ab471e013501084963b86240ad7b29246e52fa962c21fb20bf2d265a26110d4e"
-    },
-    {
-      "bytes": 20346,
-      "path": "NativeOverlay/third_party/imgui/imstb_rectpack.h",
-      "sha256": "889b396795202d1457560a797a7242e96f6f132d4b88ca2d69be58bf05e1771f"
-    },
-    {
-      "bytes": 60111,
-      "path": "NativeOverlay/third_party/imgui/imstb_textedit.h",
-      "sha256": "a985f5fa0ed97353d493b497961e9eef52082edcd045cf6954b69990ec9d0741"
-    },
-    {
-      "bytes": 199503,
-      "path": "NativeOverlay/third_party/imgui/imstb_truetype.h",
-      "sha256": "c51a0f7e7ea760f2366bd3752635ec58e21fccfec4a832501639990ba6ce0528"
-    },
-    {
-      "bytes": 7105,
-      "path": "NativeOverlay/verify_ts4_dx11_imports.py",
-      "sha256": "fd3cfdbcec9cdc06a06885d3bf0c5a95de2ea12e6d6a574d56769d247bea192d"
-    },
-    {
-      "bytes": 11532,
-      "path": "README.md",
-      "sha256": "6e6fc94f3a79001c53a717097a67b9a70ecc05353e8a4743c636116c97d8655d"
-    },
-    {
-      "bytes": 1903,
-      "path": "RECOVERED_BINARY_ARTIFACTS.md",
-      "sha256": "919b0f747344db3106b5bf21539875659d67022afe0590d321d8c1752fc910e8"
-    },
-    {
-      "bytes": 9118,
-      "path": "Reports/Apex-V10-ModdersReference-VSCode-S4S-Audit.md",
-      "sha256": "a7bb528641f9340fb2d00905a14f2987fd3e88ecc1156f68b92aa21015e59bd7"
-    },
-    {
-      "bytes": 2567,
-      "path": "Reports/Apex-V10.1-VSCode-Insiders-Studio-Warehouse-Validation.md",
-      "sha256": "c33049e3066b381f1c3179ee1aa2c22ce6fb2dd2630890ed1ef94ce31d6a6ab5"
-    },
-    {
-      "bytes": 3885,
-      "path": "Reports/Apex-V6-MCCC-SavedForms-ImGui-Validation.txt",
-      "sha256": "18722f8b1acca1ea969c22c8982ae8ef7be3c7bb32685bbd84955a6a9a1b6e8c"
-    },
-    {
-      "bytes": 3197,
-      "path": "Reports/Apex-V7-DriftGuard-ReferenceShots-Validation.txt",
-      "sha256": "704ef778eb5a398d46781e495a1f396b53ab886067319552b9d449a7c1fd9ca8"
-    },
-    {
-      "bytes": 1878,
-      "path": "Reports/Apex-V8-Codex-CASCategories-Validation.md",
-      "sha256": "421bd24efc0389c922521eea226dbc52ca603130882aca133f788dbb76d97714"
-    },
-    {
-      "bytes": 2786,
-      "path": "Reports/Apex-V9-Brutal-QA-Research-Validation.md",
-      "sha256": "848560e45f0273c0b8712ee9929da29eb41472649de861955090c168967225e7"
-    },
-    {
-      "bytes": 391,
-      "path": "Reports/Apex-V9-CAS-BodyType-Table-Audit.json",
-      "sha256": "de5ace0b3c95a95f75a01ca05d2dd533d04420b3d01b63b276ed2059c39bf6ec"
-    },
-    {
-      "bytes": 2755,
-      "path": "Reports/Apex-V9.1-Final-Readiness-Audit.md",
-      "sha256": "bf0fc6bf3f8af7a6ba30426f8cc76a183f6d1d7a96b9b5febd533a4472fc309e"
-    },
-    {
-      "bytes": 7442,
-      "path": "Reports/Apex-V9.2-Latest-Tech-Radar.md",
-      "sha256": "cbc00225f99c32c89b12a2f095c78f0b1627069227cd296b0946e15b9822d0f8"
-    },
-    {
-      "bytes": 7257,
-      "path": "Reports/Apex-V9.3-Above-Beyond-Code-Audit.md",
-      "sha256": "125f5cbdf33eae312cf161502980aa3bcb0763743b520debd5838cbab59b8e51"
-    },
-    {
-      "bytes": 6037,
-      "path": "Reports/Apex-V9.4-Unbelievable-Research-Accounting.md",
-      "sha256": "65925900a2fd6c02c6e2a7dfb5e72497ce0d9f2467467803d33209235b1f74cc"
-    },
-    {
-      "bytes": 3778,
-      "path": "Reports/Apex-V9.5-Final-Accounting-Research-Audit.md",
-      "sha256": "846c37ebdaeb6ec045bcc996603038b592ac4f9b10073520d7a308c5212061f2"
-    },
-    {
-      "bytes": 2004,
-      "path": "Reports/Apex-V9.6-Live-BodyType-DX11-Build-Validation.md",
-      "sha256": "4228bcd8e93a430f15351b9964831ffbf91b6ca5e5bad3617fc5106229bdb49f"
-    },
-    {
-      "bytes": 368,
-      "path": "Reports/Continued-Build-GameBin-Compatibility.txt",
-      "sha256": "530c43ea8b4872e60fe9af21e6543a80dfd104ca6a434fcbc61882206c41f0fc"
-    },
-    {
-      "bytes": 1469,
-      "path": "Reports/Continued-Build-Research-Summary.txt",
-      "sha256": "ba807c87a41a553528de134360ea3f13fc4a0acdfd39c21fa31ff7a5ab2ea805"
-    },
-    {
-      "bytes": 1254,
-      "path": "Reports/Continued-Build-Validation.txt",
-      "sha256": "4a22519344ecfc661e6136de309b86f2016605d28a84d079529212592218b6a4"
-    },
-    {
-      "bytes": 868,
-      "path": "Reports/GameBin-Compatibility.txt",
-      "sha256": "fa99c31c902f3f42e0413ddd183efa548d4a9fd46552ed719a271326fa659e2f"
-    },
-    {
-      "bytes": 635,
-      "path": "Reports/GameBin-FileTypes.txt",
-      "sha256": "058f1013e11bdb74ee8ffc77b043637d64af248c426d90576e21ab58034baa24"
-    },
-    {
-      "bytes": 473,
-      "path": "Reports/GameBin-SHA256.txt",
-      "sha256": "584cfdf6882f9ef8b01fcec7d03a02dd2de9fd5da942183fe224a4fa9e9bbec8"
-    },
-    {
-      "bytes": 1659,
-      "path": "Reports/Glorious-UI-V4-Performance-Design.txt",
-      "sha256": "f6f88a8576f3f97df00bd8a5a730fc86df4914d454d7b7d432fb91808bfad056"
-    },
-    {
-      "bytes": 1596,
-      "path": "Reports/Glorious-UI-V4-Research-Summary.txt",
-      "sha256": "6f08adce2c818eea0b6f3b2755cc51fd95d8033955f1e1314dfa585f599dfa7a"
-    },
-    {
-      "bytes": 1043,
-      "path": "Reports/Glorious-UI-V4-Validation.txt",
-      "sha256": "5ba7506d878c8da70c8daa3ebc3e3a17567001b2aad35ff778fb7be2e6bb87a6"
-    },
-    {
-      "bytes": 2640,
-      "path": "Reports/Glory-Build-V4.1-UI-Performance-Validation.txt",
-      "sha256": "64de3e4582df91595e9ac8453d297bc9119853dfd34cda9d0e35eb26215dcf6b"
-    },
-    {
-      "bytes": 1518,
-      "path": "Reports/ImGui-DX11-Overlay-Research-V5.txt",
-      "sha256": "024fcfcbab33ac57f11862a961629bae0c73d204d9d220f2a7d2046aebdfa08e"
-    },
-    {
-      "bytes": 1457,
-      "path": "Reports/ImGui-DX11-Overlay-Validation-V5.1.txt",
-      "sha256": "ecc852cfc09afb3444087e361a8669e31727d53cafa3d1e16fdfb52dd8e20f4f"
-    },
-    {
-      "bytes": 1790,
-      "path": "Reports/ImGui-DX11-Overlay-Validation-V5.txt",
-      "sha256": "11ce88439fb1ea5555cd194f4a5ea2215109fee461a93b65766830a8a9717ef8"
-    },
-    {
-      "bytes": 932,
-      "path": "Reports/Lot51-Core-Integration-Notes-V5.txt",
-      "sha256": "b6bf1ce840ed2a16c7d55ce5a2d7303dfec3c30ced1985e40d69067452dce49d"
-    },
-    {
-      "bytes": 807,
-      "path": "Reports/MCCC-Archive-Listing-2026-3-1.txt",
-      "sha256": "fb80abbe6b2682a1a1d785fa2413eb8a94bcc88509119aa40f4c9de978e72d72"
+      "bytes": 4545,
+      "mode": "100644",
+      "path": "docs/AUTHORIZED_BASELINE_STRATEGY.md",
+      "sha256": "3edf5d9d7fb4c44296c73e7c4af8df508f626518134169dd36040438a05bfe82"
     },
     {
       "bytes": 7400,
+      "mode": "100644",
       "path": "Reports/Manifest-SHA256.txt",
       "sha256": "a1ca7c21f8a68afe92d020ef10f14865a9a66c6cf74c1be8c6f44e1e2277fbd8"
     },
     {
-      "bytes": 1557,
-      "path": "Reports/Pride-Build-V3-Research-Summary.txt",
-      "sha256": "f641f06406723a9267e314238479489d9cbe9634601d200c9db9fcb91cb96b2a"
+      "bytes": 629,
+      "mode": "100644",
+      "path": "wiki/Research-and-Tools.md",
+      "sha256": "a52a31326aafa8f140dab6aaf5132b76885e78bfcd27698250337d06af6e94bf"
     },
     {
-      "bytes": 1422,
-      "path": "Reports/Pride-Build-V3-Validation.txt",
-      "sha256": "171144388eaa3d485ab2014d3570e015a1b95e56f1169cfc792a2f741dafcbdb"
+      "bytes": 1525,
+      "mode": "100644",
+      "path": "tests/test_cli.py",
+      "sha256": "657f872b57dce27ebddc2ce05b4fedbe8b4ab44ef19fba09bb461a245a45aa18"
     },
     {
-      "bytes": 2426,
-      "path": "Reports/RECOVERY_2026-10-06.md",
-      "sha256": "ef38217b42b8001d1e44a05772b59647fe236caeb5a7e1dfbeadb34d8ecb17c1"
-    },
-    {
-      "bytes": 3158,
+      "bytes": 3102,
+      "mode": "100644",
       "path": "SOURCE_RECOVERY_STATUS.md",
-      "sha256": "31c9a64fa916aa896785855c0263620eb6749146013a756d653fab0f48649e4e"
-    },
-    {
-      "bytes": 5722,
-      "path": "Source/TD1OccultNativeBridge.c",
-      "sha256": "922d4a11eaaa02a3e21b390dfb9568798340a478d949e8e832e5a3234a6f8a23"
-    },
-    {
-      "bytes": 82,
-      "path": "Source/apex_core/__init__.py",
-      "sha256": "bbdfb9b4b545c43d957d56761037a14741690c730cf21ee40d86c5d2eb8b89f0"
-    },
-    {
-      "bytes": 5927,
-      "path": "Source/apex_core/command_queue.py",
-      "sha256": "61a5369a5e7a727632596f7bdb2b1b08a0fc3bacdb70935450105623010ae81e"
-    },
-    {
-      "bytes": 390957,
-      "path": "Source/td1_occult_hybrid_apex.py",
-      "sha256": "03d6d3ad85e97d474a6f91abdd99dcdf75b696d097b1ad0be6290dc74700e34f"
-    },
-    {
-      "bytes": 3944,
-      "path": "THIRD_PARTY_NOTICES.md",
-      "sha256": "a6c128ee49c726ca075bfc8bcaaa30a62807b77818ee970a3a38a3b317c8fbce"
-    },
-    {
-      "bytes": 22998,
-      "path": "docs/APEX_CAS_UNLOCK_CORE.md",
-      "sha256": "c43e6e6c8ca645342a191e628afa4cf53409a6010bf4bb705a3d7da35b847fe7"
-    },
-    {
-      "bytes": 14070,
-      "path": "docs/APEX_COLOR_STUDIO.md",
-      "sha256": "f8cb2601f005d55ab955937f8c7e9cab0bde0e528f3ac66a4a2d64a69e35ba1d"
-    },
-    {
-      "bytes": 19079,
-      "path": "docs/APEX_LIVE_CAS_STUDIO.md",
-      "sha256": "1979df9112112556149d28f067cb55434c23264409bcccfe29716136126b02a5"
-    },
-    {
-      "bytes": 13405,
-      "path": "docs/APEX_OCCULT_HYBRID_CORE.md",
-      "sha256": "8f400423187f00c565c173c0c6444541ffa9997adc794e8d2fe66ecfc16b14da"
-    },
-    {
-      "bytes": 4635,
-      "path": "docs/AUTHORIZED_BASELINE_STRATEGY.md",
-      "sha256": "968b30a368156b465a5c4ba81d607562a170222eafecc00a721f5719d82555a0"
-    },
-    {
-      "bytes": 4384,
-      "path": "docs/BUILD_AND_OWNERS.md",
-      "sha256": "e818b953fa2d196938f27e3a084ad2480e7ff8f2eb6e681b89ab51aedbe48754"
-    },
-    {
-      "bytes": 14904,
-      "path": "docs/CAS_HISTORY_STUDIO.md",
-      "sha256": "90d99ac4a67d4ca8fd0317ec842eb071378b2fbe948ea646fcd2267ce1de2f04"
-    },
-    {
-      "bytes": 8652,
-      "path": "docs/CAS_UNLOCKER_REFERENCE_MATRIX.md",
-      "sha256": "590bebebb19b2061b8958d6828ec674807964cd542c46363d02df566de3dff22"
-    },
-    {
-      "bytes": 19886,
-      "path": "docs/CODEX_APEX_COMPLETE_EXECUTION_HANDOFF.md",
-      "sha256": "f2d5cb623f82d029f8538731daf59b37583b3e068b6d2a5ab64faf4006b9ff13"
-    },
-    {
-      "bytes": 54647,
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "8fd1738ec4205ba54c1f9c2e7bf94670d3d2d054053476309ea3c557b6e6f62f"
-    },
-    {
-      "bytes": 3992,
-      "path": "docs/DEVELOPER_TOOLBOX.md",
-      "sha256": "d857eebcd2cf30bdddb77e7d4aff962bcbccf1311fe38d4ab7c730576103b457"
-    },
-    {
-      "bytes": 3446,
-      "path": "docs/MCCC_CAS_BASELINE_MATRIX.md",
-      "sha256": "e11c12123fb70f1dc5162dc7cf21210a503e8c0ca7597c10c4bc1bf31af3c1de"
-    },
-    {
-      "bytes": 3075,
-      "path": "docs/PANCAKE_COLOR_SLIDER_BASELINE.md",
-      "sha256": "80359f0195c33d3c2672cf360de8cb0e27633f1f1ba9e0b9a58ffa3ddc1b4114"
-    },
-    {
-      "bytes": 2568,
-      "path": "docs/UPSTREAM_1.13.7_DELTA.md",
-      "sha256": "fb084d9bbb5309425e385ad37811f36b36e961c0c6470440a9ace0a5e00d7314"
-    },
-    {
-      "bytes": 10642,
-      "path": "docs/USER_REPORTED_REGRESSIONS.md",
-      "sha256": "8f12b6837bd0860b20cde82374321c482990f013ce690ffc64fd939200f08851"
-    },
-    {
-      "bytes": 1892,
-      "path": "tests/test_backend_owner.py",
-      "sha256": "51e5c3826356a8ab7cb23e1d377820b9341ef1e0238397e80e1fc9564bac7dec"
-    },
-    {
-      "bytes": 1865,
-      "path": "tests/test_build_script.py",
-      "sha256": "f8d8068a81514df456f4d5a7a9067004b1b80f4edc3d7180cfe17aea0c776953"
+      "sha256": "5bfb4875c19383215c850bca3558add7b839819b0e16ba5b7d7b27a99d2b1907"
     },
     {
       "bytes": 3648,
+      "mode": "100644",
       "path": "tests/test_command_queue.py",
       "sha256": "93f8b51480e31760ec1097d04562212607fbfacd9304ef507694a03951f72c1f"
     },
     {
-      "bytes": 2497,
-      "path": "tests/test_pe_imports.py",
-      "sha256": "45362b1409bb65d62cb7e71d036bcda334aaf1846b441618285fcbd5c50716da"
+      "bytes": 3520,
+      "mode": "100644",
+      "path": "tools/game_launch.py",
+      "sha256": "e8ed052cec1483ee7faf1fc65eda2dbbb2c4d28f7274c3a04bfec966dfe34d79"
     },
     {
-      "bytes": 4939,
-      "path": "tests/test_profile_isolation.py",
-      "sha256": "a9af35d036393664f95c2b59c6664ae4435a8515976d3db7f92c8de69d9dbdc5"
+      "bytes": 12173,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/imconfig.h",
+      "sha256": "1353bfa59da16eec481723fd4e5d910356f0406b79e3c4142e0c9867bafffab5"
     },
     {
-      "bytes": 2177,
+      "bytes": 1422,
+      "mode": "100644",
+      "path": "Reports/Pride-Build-V3-Validation.txt",
+      "sha256": "171144388eaa3d485ab2014d3570e015a1b95e56f1169cfc792a2f741dafcbdb"
+    },
+    {
+      "bytes": 1892,
+      "mode": "100644",
+      "path": "tests/test_backend_owner.py",
+      "sha256": "51e5c3826356a8ab7cb23e1d377820b9341ef1e0238397e80e1fc9564bac7dec"
+    },
+    {
+      "bytes": 2640,
+      "mode": "100644",
+      "path": "Reports/Glory-Build-V4.1-UI-Performance-Validation.txt",
+      "sha256": "64de3e4582df91595e9ac8453d297bc9119853dfd34cda9d0e35eb26215dcf6b"
+    },
+    {
+      "bytes": 1965,
+      "mode": "100644",
+      "path": "wiki/Original-Mod-Regressions.md",
+      "sha256": "f9bc0962dccd2939dfdc0144095ed5f2f133a02e3169f571ecd1f8d1596f8000"
+    },
+    {
+      "bytes": 5927,
+      "mode": "100644",
+      "path": "Source/apex_core/command_queue.py",
+      "sha256": "61a5369a5e7a727632596f7bdb2b1b08a0fc3bacdb70935450105623010ae81e"
+    },
+    {
+      "bytes": 257058,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/imgui_tables.cpp",
+      "sha256": "33b5146f5eb362605a166e532b336d1955579743eab719d96241a163a21222eb"
+    },
+    {
+      "bytes": 7329,
+      "mode": "100644",
       "path": "tools/apex_cli.py",
-      "sha256": "588a5255380f9b69109e708608606838cbff80fbb44539179f314a6463e54d14"
+      "sha256": "c428d0ae41a5491511fbbf9515891943bb075d7df25d519a48292d2f78253c0f"
     },
     {
-      "bytes": 2903,
-      "path": "tools/build_script.py",
-      "sha256": "b0f393ed354a6e3704e7c4bfddf217025423a95915c2d3bc5a174f1b41ef4416"
+      "bytes": 23778,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/docs/BACKENDS.md",
+      "sha256": "6346fb936ec5102a492faef7bf18a94c446c88fb00643a761cbed86a78e0b5ce"
+    },
+    {
+      "bytes": 6942,
+      "mode": "100644",
+      "path": "NativeOverlay/verify_ts4_dx11_imports.py",
+      "sha256": "12a41b5cf03ed69896bae88599039c84a016c99879ce55222c0e715fb853ea2e"
+    },
+    {
+      "bytes": 2469,
+      "mode": "100644",
+      "path": "wiki/Home.md",
+      "sha256": "8bb453d00379fb29e7455e267af04dca41199c7e31131e3aeb84dfa0457c22f6"
+    },
+    {
+      "bytes": 473,
+      "mode": "100644",
+      "path": "Reports/GameBin-SHA256.txt",
+      "sha256": "584cfdf6882f9ef8b01fcec7d03a02dd2de9fd5da942183fe224a4fa9e9bbec8"
+    },
+    {
+      "bytes": 2004,
+      "mode": "100644",
+      "path": "Reports/Apex-V9.6-Live-BodyType-DX11-Build-Validation.md",
+      "sha256": "4228bcd8e93a430f15351b9964831ffbf91b6ca5e5bad3617fc5106229bdb49f"
+    },
+    {
+      "bytes": 21988,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/docs/README.md",
+      "sha256": "d9fb01b2967dab2fd384567528849529029fb1c6ca111465de58e82a091037c5"
+    },
+    {
+      "bytes": 932,
+      "mode": "100644",
+      "path": "Reports/Lot51-Core-Integration-Notes-V5.txt",
+      "sha256": "b6bf1ce840ed2a16c7d55ce5a2d7303dfec3c30ced1985e40d69067452dce49d"
+    },
+    {
+      "bytes": 965376,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/imgui.cpp",
+      "sha256": "4e81a96e5a7c05bca66697225d9a3e42f85139833cd0cceed37918862394e3f4"
+    },
+    {
+      "bytes": 8516,
+      "mode": "100644",
+      "path": "docs/CAS_UNLOCKER_REFERENCE_MATRIX.md",
+      "sha256": "6c4edcede49cd10d9792147f3f93991b5217c936d7ac9efdc1c777b25226b4a1"
     },
     {
       "bytes": 3667,
+      "mode": "100644",
       "path": "tools/source_inventory.py",
       "sha256": "5872550246a244f060b8129bf5012e97ad2f2a9e365c9e71cecb7f4ea2635e46"
     },
     {
-      "bytes": 3160,
-      "path": "tools/source_manifest.py",
-      "sha256": "a30158c5527957ad10d146eb3bc720aa4055dfbde83870427fa68629c67ffa5c"
+      "bytes": 11369,
+      "mode": "100644",
+      "path": "README.md",
+      "sha256": "0225f823fae9a8fe2aecbb2fc23b3a29b8c6226f606fda8273fffc948abe4c70"
     },
     {
-      "bytes": 10690,
-      "path": "tools/test_profile.py",
-      "sha256": "0a1fbb4d361a7c261a6fe52409e2b6b4b4ea6dd13303020b197aa5dc7605743c"
+      "bytes": 1457,
+      "mode": "100644",
+      "path": "Reports/ImGui-DX11-Overlay-Validation-V5.1.txt",
+      "sha256": "ecc852cfc09afb3444087e361a8669e31727d53cafa3d1e16fdfb52dd8e20f4f"
     },
     {
-      "bytes": 1643,
+      "bytes": 635,
+      "mode": "100644",
+      "path": "Reports/GameBin-FileTypes.txt",
+      "sha256": "058f1013e11bdb74ee8ffc77b043637d64af248c426d90576e21ab58034baa24"
+    },
+    {
+      "bytes": 5674,
+      "mode": "100644",
+      "path": "Source/TD1OccultNativeBridge.c",
+      "sha256": "4ad9d5b4ce4bf57b0a6543f2e0d8cb2e14a7465e56b9163468317c2838bd0b4e"
+    },
+    {
+      "bytes": 3197,
+      "mode": "100644",
+      "path": "Reports/Apex-V7-DriftGuard-ReferenceShots-Validation.txt",
+      "sha256": "704ef778eb5a398d46781e495a1f396b53ab886067319552b9d449a7c1fd9ca8"
+    },
+    {
+      "bytes": 1603,
+      "mode": "100644",
       "path": "wiki/Apex-Occult-Hybrid-Core.md",
-      "sha256": "046ed340df6fc7cc895ede866bb91a7d0305842c992ba94f628d4294f4996c1d"
+      "sha256": "db8956effa0b8863f11a579c92c0a680cda6001a600816b3fff6c71e8bed9ab1"
     },
     {
-      "bytes": 876,
-      "path": "wiki/Architecture-and-Safety.md",
-      "sha256": "92bfeb3778b948a29eeb63e2f1ac702e004452bcf1908db27c7e314b0cc2c11b"
+      "bytes": 368,
+      "mode": "100644",
+      "path": "Reports/Continued-Build-GameBin-Compatibility.txt",
+      "sha256": "530c43ea8b4872e60fe9af21e6543a80dfd104ca6a434fcbc61882206c41f0fc"
     },
     {
-      "bytes": 2130,
-      "path": "wiki/CAS-History-Studio.md",
-      "sha256": "a8b76e94b6a460d50827f31b263f98a5af672fe26bb76e5aebbc42950d07480f"
+      "bytes": 464,
+      "mode": "100644",
+      "path": "NativeOverlay/build_msvc_x64.bat",
+      "sha256": "873aa15d22204009c7b54aba4583b116f0e6df04bc60fed80aba467be7c5dd29"
     },
     {
-      "bytes": 3304,
-      "path": "wiki/CAS-Unlock-Core.md",
-      "sha256": "ef86ddc3c1e522f78853f709de1321fc812dba3911a868a5c36e22708d75192f"
+      "bytes": 1878,
+      "mode": "100644",
+      "path": "Reports/Apex-V8-Codex-CASCategories-Validation.md",
+      "sha256": "421bd24efc0389c922521eea226dbc52ca603130882aca133f788dbb76d97714"
     },
     {
       "bytes": 2069,
-      "path": "wiki/Color-Studio.md",
-      "sha256": "94a512074a9106123df2cdd5ea4b023cb5570d9d5d6077768415daff3de123cd"
+      "mode": "100644",
+      "path": "tests/test_profile_status.py",
+      "sha256": "f75a09a152fd0777d39007119cf4b194d4d72d1e6442647293717ca47c151936"
     },
     {
-      "bytes": 1271,
-      "path": "wiki/Getting-Started.md",
-      "sha256": "d8c3d57d64742a4efa967e4eb595df2496f88a7d853834cf609e0155bc5f1375"
+      "bytes": 3363,
+      "mode": "100644",
+      "path": "docs/MCCC_CAS_BASELINE_MATRIX.md",
+      "sha256": "7a0b69f989d315b5bfb483224e5f17d769d2523bbee34b921536b3a51a2a4ee9"
     },
     {
-      "bytes": 2521,
-      "path": "wiki/Home.md",
-      "sha256": "e328fe78bf01db14d371e4c5901401310d9d2f6abdd319209846a4ce700af09b"
+      "bytes": 1557,
+      "mode": "100644",
+      "path": "Reports/Pride-Build-V3-Research-Summary.txt",
+      "sha256": "f641f06406723a9267e314238479489d9cbe9634601d200c9db9fcb91cb96b2a"
     },
     {
-      "bytes": 1930,
-      "path": "wiki/Live-CAS-Studio.md",
-      "sha256": "57a3a519a492f5938a462777f476384f93e30b3c723b2626e5598aa70c9b26a9"
-    },
-    {
-      "bytes": 1996,
-      "path": "wiki/Original-Mod-Regressions.md",
-      "sha256": "ec147d7422d1590745ea5945633e7d62f66e1610ca4eca8a864644435d94f67e"
-    },
-    {
-      "bytes": 646,
-      "path": "wiki/Research-and-Tools.md",
-      "sha256": "a65f452e2d1c20d5bb3b323a7bf9de9ebeafa4b2118216ae731e09eb99b4b0f1"
-    },
-    {
-      "bytes": 9107,
-      "path": "wiki/TODO.md",
-      "sha256": "de5732444a45c45ff4f1cb8464317759e70d7c18f016cb2a59ba08bc29b4c542"
-    },
-    {
-      "bytes": 983,
-      "path": "wiki/Troubleshooting.md",
-      "sha256": "a625985e2276f131d9732a6bd66fa87ded06a05b695ec8e4f13991b9c31c1472"
-    },
-    {
-      "bytes": 969,
+      "bytes": 948,
+      "mode": "100644",
       "path": "wiki/Upstream-1.13.7-Parity.md",
-      "sha256": "9988711854f47be956721f248ad4462c26340e2fa61edbf0e288dd3a196e8acd"
+      "sha256": "d6c2b04a4e6b60c8844bbbcd26d1f5d2b3c2575e4c0b04ba0a025a67b357b53d"
     },
     {
-      "bytes": 777,
+      "bytes": 14457,
+      "mode": "100644",
+      "path": "docs/CAS_HISTORY_STUDIO.md",
+      "sha256": "7f2da3292c0bd99c9fdc2015419978138a7d3af91f2b799999e8d2e15e464e00"
+    },
+    {
+      "bytes": 82,
+      "mode": "100644",
+      "path": "Source/apex_core/__init__.py",
+      "sha256": "bbdfb9b4b545c43d957d56761037a14741690c730cf21ee40d86c5d2eb8b89f0"
+    },
+    {
+      "bytes": 2564,
+      "mode": "100644",
+      "path": "tests/test_source_manifest.py",
+      "sha256": "352c9c17683ecff0a545e98642c6b926a77c1de364ed3dbdd99db03c1bb9b25e"
+    },
+    {
+      "bytes": 2945,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_dx11.h",
+      "sha256": "fb8a314a6a2904dcc5bfeb938a169389e170f233ad367d33f1ce5c7bde586a7c"
+    },
+    {
+      "bytes": 1865,
+      "mode": "100644",
+      "path": "tests/test_build_script.py",
+      "sha256": "f8d8068a81514df456f4d5a7a9067004b1b80f4edc3d7180cfe17aea0c776953"
+    },
+    {
+      "bytes": 60111,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/imstb_textedit.h",
+      "sha256": "a985f5fa0ed97353d493b497961e9eef52082edcd045cf6954b69990ec9d0741"
+    },
+    {
+      "bytes": 3885,
+      "mode": "100644",
+      "path": "Reports/Apex-V6-MCCC-SavedForms-ImGui-Validation.txt",
+      "sha256": "18722f8b1acca1ea969c22c8982ae8ef7be3c7bb32685bbd84955a6a9a1b6e8c"
+    },
+    {
+      "bytes": 1021,
+      "mode": "100644",
+      "path": ".github/workflows/validate.yml",
+      "sha256": "b8b36889930eea0235a4a62add65a4b5223958bbeab587781d85d113ec3d8b2c"
+    },
+    {
+      "bytes": 36392,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_dx11.cpp",
+      "sha256": "1c0c3af25b45dceb4c45de7da591244f4935718154e7149d0e90858958c6f19d"
+    },
+    {
+      "bytes": 2974,
+      "mode": "100644",
+      "path": "docs/PANCAKE_COLOR_SLIDER_BASELINE.md",
+      "sha256": "0d82894b4429bb5165d3fbdc36063e43c5814f51e0be25bdc94d69d02d32807b"
+    },
+    {
+      "bytes": 758,
+      "mode": "100644",
       "path": "wiki/_Sidebar.md",
-      "sha256": "db9c9eff8453f867bad6a4315b37a3848568a282c5297328ddace626d6ed7202"
+      "sha256": "e71119d70bb9b97d3bda6aad1b45223b4562419611c146d40f6aaf9151725563"
+    },
+    {
+      "bytes": 3227,
+      "mode": "100644",
+      "path": "wiki/CAS-Unlock-Core.md",
+      "sha256": "b0d09db6a4d6abc672e019906e43a99f17c0c8cd43c88ec26f915417f9dc2a8c"
+    },
+    {
+      "bytes": 1254,
+      "mode": "100644",
+      "path": "Reports/Continued-Build-Validation.txt",
+      "sha256": "4a22519344ecfc661e6136de309b86f2016605d28a84d079529212592218b6a4"
+    },
+    {
+      "bytes": 1659,
+      "mode": "100644",
+      "path": "Reports/Glorious-UI-V4-Performance-Design.txt",
+      "sha256": "f6f88a8576f3f97df00bd8a5a730fc86df4914d454d7b7d432fb91808bfad056"
+    },
+    {
+      "bytes": 963,
+      "mode": "100644",
+      "path": "wiki/Troubleshooting.md",
+      "sha256": "715fa5573a8df0f28f20c5de448d45f8666485deefd1bc86fa1f2da271d81353"
+    },
+    {
+      "bytes": 3778,
+      "mode": "100644",
+      "path": "Reports/Apex-V9.5-Final-Accounting-Research-Audit.md",
+      "sha256": "846c37ebdaeb6ec045bcc996603038b592ac4f9b10073520d7a308c5212061f2"
+    },
+    {
+      "bytes": 13654,
+      "mode": "100644",
+      "path": "docs/APEX_COLOR_STUDIO.md",
+      "sha256": "60c90cc07a661f2229b8a1222737bab724566c5be4812fd09556f67459b3ef19"
+    },
+    {
+      "bytes": 52933,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "a8be8fd39b01268c8302616aeeda027318c6856c28bd14e9f5e9031ce3c9e8ad"
+    },
+    {
+      "bytes": 391,
+      "mode": "100644",
+      "path": "Reports/Apex-V9-CAS-BodyType-Table-Audit.json",
+      "sha256": "de5ace0b3c95a95f75a01ca05d2dd533d04420b3d01b63b276ed2059c39bf6ec"
+    },
+    {
+      "bytes": 1469,
+      "mode": "100644",
+      "path": "Reports/Continued-Build-Research-Summary.txt",
+      "sha256": "ba807c87a41a553528de134360ea3f13fc4a0acdfd39c21fa31ff7a5ab2ea805"
+    },
+    {
+      "bytes": 14214,
+      "mode": "100644",
+      "path": "tools/test_profile.py",
+      "sha256": "b48be47d90bcbb3ffb88769b355112ffae6238c8f00ecd77f72a8c1023e25a8a"
+    },
+    {
+      "bytes": 1878,
+      "mode": "100644",
+      "path": "wiki/Live-CAS-Studio.md",
+      "sha256": "28eede1896f9bd30c6e67e3f45ec42843a3d0eed14794e3140815505d767108f"
+    },
+    {
+      "bytes": 10395,
+      "mode": "100644",
+      "path": "docs/USER_REPORTED_REGRESSIONS.md",
+      "sha256": "befaf682db49435046aa6cb7f951b623f902c0c56689b80b8390e90f2a111945"
+    },
+    {
+      "bytes": 200,
+      "mode": "100644",
+      "path": ".gitattributes",
+      "sha256": "5b4084e3487a78a407ef86df747f4da31d455b4ae728776a9503be2bafd4e84c"
+    },
+    {
+      "bytes": 3885,
+      "mode": "100644",
+      "path": "THIRD_PARTY_NOTICES.md",
+      "sha256": "943a4b8350aa818604905231d427452cf7e27a7449ad6f22b2b4fe6f6c84172a"
+    },
+    {
+      "bytes": 13027,
+      "mode": "100644",
+      "path": "docs/APEX_OCCULT_HYBRID_CORE.md",
+      "sha256": "5c0cfaa3e8c5a3fa27e1230d8ccb174624d4782d65b646743dfca561d9d99cbd"
+    },
+    {
+      "bytes": 8952,
+      "mode": "100644",
+      "path": "wiki/TODO.md",
+      "sha256": "c14a848d1a8b3b04a11b58fbce31486278690ee943c36530cdcaf3adaa531b11"
+    },
+    {
+      "bytes": 1881,
+      "mode": "100644",
+      "path": "RECOVERED_BINARY_ARTIFACTS.md",
+      "sha256": "35d81b538e32c6e1d65b722483180ce5a0d5c13ae022b8241963bea368583ca0"
+    },
+    {
+      "bytes": 22430,
+      "mode": "100644",
+      "path": "docs/APEX_CAS_UNLOCK_CORE.md",
+      "sha256": "ee0974e1ba4e7c37cf139970a22b8f178beb4e38b9c22b638af241634d7ee36e"
+    },
+    {
+      "bytes": 1043,
+      "mode": "100644",
+      "path": "Reports/Glorious-UI-V4-Validation.txt",
+      "sha256": "5ba7506d878c8da70c8daa3ebc3e3a17567001b2aad35ff778fb7be2e6bb87a6"
+    },
+    {
+      "bytes": 2786,
+      "mode": "100644",
+      "path": "Reports/Apex-V9-Brutal-QA-Research-Validation.md",
+      "sha256": "848560e45f0273c0b8712ee9929da29eb41472649de861955090c168967225e7"
+    },
+    {
+      "bytes": 426837,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/imgui.h",
+      "sha256": "12790cf3bd0a074893c74f6707fe4169038b42ed5e04c71e7e4bf5030fa1f0ba"
+    },
+    {
+      "bytes": 897,
+      "mode": "100644",
+      "path": "NativeOverlay/CMakeLists.txt",
+      "sha256": "456e5c43f554f305b2f53cc93f14d24c8b24ef5eeeac707df36a957ffbbdca5f"
+    },
+    {
+      "bytes": 18483,
+      "mode": "100644",
+      "path": "docs/APEX_LIVE_CAS_STUDIO.md",
+      "sha256": "9e99ce951ede43f37cd81f429897bc39819567493cc10dc4d4743ae29d79cbfa"
+    },
+    {
+      "bytes": 849,
+      "mode": "100644",
+      "path": "wiki/Architecture-and-Safety.md",
+      "sha256": "fde3e665195e2a706440788f03f84520ff03b28183ad9c3b4a0a838676982d92"
+    },
+    {
+      "bytes": 9118,
+      "mode": "100644",
+      "path": "Reports/Apex-V10-ModdersReference-VSCode-S4S-Audit.md",
+      "sha256": "a7bb528641f9340fb2d00905a14f2987fd3e88ecc1156f68b92aa21015e59bd7"
+    },
+    {
+      "bytes": 1518,
+      "mode": "100644",
+      "path": "Reports/ImGui-DX11-Overlay-Research-V5.txt",
+      "sha256": "024fcfcbab33ac57f11862a961629bae0c73d204d9d220f2a7d2046aebdfa08e"
+    },
+    {
+      "bytes": 390957,
+      "mode": "100644",
+      "path": "Source/td1_occult_hybrid_apex.py",
+      "sha256": "03d6d3ad85e97d474a6f91abdd99dcdf75b696d097b1ad0be6290dc74700e34f"
+    },
+    {
+      "bytes": 20346,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/imstb_rectpack.h",
+      "sha256": "889b396795202d1457560a797a7242e96f6f132d4b88ca2d69be58bf05e1771f"
+    },
+    {
+      "bytes": 4161,
+      "mode": "100644",
+      "path": "tools/source_manifest.py",
+      "sha256": "e420d5e25cb9b01598c510298dbbb294690b07c39ebc315323a53ef04a716335"
+    },
+    {
+      "bytes": 3137,
+      "mode": "100644",
+      "path": "NativeOverlay/README_BUILD_AND_INSTALL.txt",
+      "sha256": "96e378ff3a9aa0ebe2e990a8bb9d23bd270681f0fcf1d1d73a0a3fe100d3e9a9"
+    },
+    {
+      "bytes": 7442,
+      "mode": "100644",
+      "path": "Reports/Apex-V9.2-Latest-Tech-Radar.md",
+      "sha256": "cbc00225f99c32c89b12a2f095c78f0b1627069227cd296b0946e15b9822d0f8"
+    },
+    {
+      "bytes": 807,
+      "mode": "100644",
+      "path": "Reports/MCCC-Archive-Listing-2026-3-1.txt",
+      "sha256": "fb80abbe6b2682a1a1d785fa2413eb8a94bcc88509119aa40f4c9de978e72d72"
+    },
+    {
+      "bytes": 7257,
+      "mode": "100644",
+      "path": "Reports/Apex-V9.3-Above-Beyond-Code-Audit.md",
+      "sha256": "125f5cbdf33eae312cf161502980aa3bcb0763743b520debd5838cbab59b8e51"
+    },
+    {
+      "bytes": 2426,
+      "mode": "100644",
+      "path": "Reports/RECOVERY_2026-10-06.md",
+      "sha256": "ef38217b42b8001d1e44a05772b59647fe236caeb5a7e1dfbeadb34d8ecb17c1"
+    },
+    {
+      "bytes": 19838,
+      "mode": "100644",
+      "path": "docs/CODEX_APEX_COMPLETE_EXECUTION_HANDOFF.md",
+      "sha256": "53d134b6b12484d3164268d134225c31780b25635b5d28caa79f1b55212fa06e"
+    },
+    {
+      "bytes": 2497,
+      "mode": "100644",
+      "path": "tests/test_pe_imports.py",
+      "sha256": "45362b1409bb65d62cb7e71d036bcda334aaf1846b441618285fcbd5c50716da"
+    },
+    {
+      "bytes": 2903,
+      "mode": "100644",
+      "path": "tools/build_script.py",
+      "sha256": "b0f393ed354a6e3704e7c4bfddf217025423a95915c2d3bc5a174f1b41ef4416"
+    },
+    {
+      "bytes": 379689,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/imgui_draw.cpp",
+      "sha256": "1ab7e62bbe1f7aefbe70b7b2a58b7f7cfed7000a6a9b70a2842c1f1671c28189"
+    },
+    {
+      "bytes": 4939,
+      "mode": "100644",
+      "path": "tests/test_profile_isolation.py",
+      "sha256": "a9af35d036393664f95c2b59c6664ae4435a8515976d3db7f92c8de69d9dbdc5"
+    },
+    {
+      "bytes": 7004,
+      "mode": "100644",
+      "path": "docs/BUILD_AND_OWNERS.md",
+      "sha256": "d4d9a6cba98358fe02f1f53b403c8a449770631475c2dca3b767dd2a6bb890dd"
+    },
+    {
+      "bytes": 2516,
+      "mode": "100644",
+      "path": "docs/UPSTREAM_1.13.7_DELTA.md",
+      "sha256": "624e5cb8e8c0338ac0ecd04a8af424a7025cd3f336ac5820d33e07b4c92586f4"
+    },
+    {
+      "bytes": 3491,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_win32.h",
+      "sha256": "2736595b8de1e56871661d5d9b96deec567d35521746fbe2ade8f0543acdfd2b"
+    },
+    {
+      "bytes": 2755,
+      "mode": "100644",
+      "path": "Reports/Apex-V9.1-Final-Readiness-Audit.md",
+      "sha256": "bf0fc6bf3f8af7a6ba30426f8cc76a183f6d1d7a96b9b5febd533a4472fc309e"
+    },
+    {
+      "bytes": 6037,
+      "mode": "100644",
+      "path": "Reports/Apex-V9.4-Unbelievable-Research-Accounting.md",
+      "sha256": "65925900a2fd6c02c6e2a7dfb5e72497ce0d9f2467467803d33209235b1f74cc"
+    },
+    {
+      "bytes": 1083,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/LICENSE.txt",
+      "sha256": "173506a2d6f7fb67990d257fb2507f188690eca39060c39469ae7bef43aae2a3"
+    },
+    {
+      "bytes": 303546,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/imgui_internal.h",
+      "sha256": "341e5a7656be0079e1aac3203d18eaea224d5a0f2b655fa88851a5f4f8c714ff"
+    },
+    {
+      "bytes": 51651,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_win32.cpp",
+      "sha256": "12316399a6acd772a2ec376df7a6eeb138b385f0e00c2dc4d48776a25cc81794"
+    },
+    {
+      "bytes": 2407,
+      "mode": "100644",
+      "path": "tests/test_game_launch.py",
+      "sha256": "5ccce1c0a95e7e9b78c8880a81c45df5794a22059706d734b6271867536b5232"
+    },
+    {
+      "bytes": 1790,
+      "mode": "100644",
+      "path": "Reports/ImGui-DX11-Overlay-Validation-V5.txt",
+      "sha256": "11ce88439fb1ea5555cd194f4a5ea2215109fee461a93b65766830a8a9717ef8"
+    },
+    {
+      "bytes": 3921,
+      "mode": "100644",
+      "path": "docs/DEVELOPER_TOOLBOX.md",
+      "sha256": "3cc9b5a58dc94bdcb5316a1b015849fe251369643f36e7999b980f63122fd774"
+    },
+    {
+      "bytes": 2069,
+      "mode": "100644",
+      "path": "wiki/CAS-History-Studio.md",
+      "sha256": "3a8a112db65c408f950d975e238cac62a9ae522a3531fffb1e9c98e2577453e3"
+    },
+    {
+      "bytes": 2567,
+      "mode": "100644",
+      "path": "Reports/Apex-V10.1-VSCode-Insiders-Studio-Warehouse-Validation.md",
+      "sha256": "c33049e3066b381f1c3179ee1aa2c22ce6fb2dd2630890ed1ef94ce31d6a6ab5"
+    },
+    {
+      "bytes": 551648,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/imgui_widgets.cpp",
+      "sha256": "ab471e013501084963b86240ad7b29246e52fa962c21fb20bf2d265a26110d4e"
+    },
+    {
+      "bytes": 199503,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/imstb_truetype.h",
+      "sha256": "c51a0f7e7ea760f2366bd3752635ec58e21fccfec4a832501639990ba6ce0528"
+    },
+    {
+      "bytes": 55861,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "90aa53d2c8ca77663a9cca757c19edc5131318f47bddd209def53dc66f42b266"
+    },
+    {
+      "bytes": 1233,
+      "mode": "100644",
+      "path": "wiki/Getting-Started.md",
+      "sha256": "8c47a3919d802526e46904cd632213fd61dcdbb8b0f4cd120bbe7ae494fbf622"
+    },
+    {
+      "bytes": 1596,
+      "mode": "100644",
+      "path": "Reports/Glorious-UI-V4-Research-Summary.txt",
+      "sha256": "6f08adce2c818eea0b6f3b2755cc51fd95d8033955f1e1314dfa585f599dfa7a"
+    },
+    {
+      "bytes": 1955,
+      "mode": "100644",
+      "path": "Reports/CLI_AND_PROFILE_2026-10-07.md",
+      "sha256": "90358f3a1c9468d77d2eec6aa66979cd3cdb6dc72bd14b6a9d5c3f90e1f164b7"
+    },
+    {
+      "bytes": 58484,
+      "mode": "100644",
+      "path": "NativeOverlay/third_party/imgui/docs/FAQ.md",
+      "sha256": "d527123e125fc1a23fc5dee5777c4d921d7ee307246d62b0739f042c96050d10"
+    },
+    {
+      "bytes": 868,
+      "mode": "100644",
+      "path": "Reports/GameBin-Compatibility.txt",
+      "sha256": "fa99c31c902f3f42e0413ddd183efa548d4a9fd46552ed719a271326fa659e2f"
+    },
+    {
+      "bytes": 94,
+      "mode": "100644",
+      "path": ".gitignore",
+      "sha256": "49bab4b7b0dfb8057403871da677cb13d970784bb26fcc0ce3703313a2588fb7"
+    },
+    {
+      "bytes": 3804,
+      "mode": "100644",
+      "path": "NativeOverlay/install_to_game_bin.ps1",
+      "sha256": "7458c8ab56a92afeb5bff57cdb9aca25a70826a477da8b8d6f267215963b0f2c"
+    },
+    {
+      "bytes": 1990,
+      "mode": "100644",
+      "path": "wiki/Color-Studio.md",
+      "sha256": "399d4028d2d950b6422535f92b13dc5762d2b463beca58366fa063d38d876f7e"
     }
   ]
 }

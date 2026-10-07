@@ -46,3 +46,26 @@ Current public baseline verified 2026-10-06:
 - https://deaderpool-mccc.com/changelogs/mccc2026_5_0.html
 
 Use MC CAS + MC Dresser + shared CAS helpers as an authorized implementation baseline for Apex Live CAS Studio. Preserve attribution/provenance; final runtime must not require MCCC.
+
+
+## Authorized Color Sliders baseline
+
+Project owner states full permission from thepancake1 for relevant Color Sliders material.
+
+Current public baseline:
+- Color Sliders v4f
+- https://www.patreon.com/thepancake1/posts/color-sliders-157258822
+- UI checked/updated for 1.127.41 on 2026-08-26
+- Apex target is newer 1.128.90.1030, so diff/port/revalidate before release
+
+Study/port:
+- slider-enable UI resources
+- eyebrow slider resources
+- classlibrarygamedata / cascustomizer changes
+- converted texture package architecture
+- conversion tooling
+- pack/category manifests
+- More CAS Columns compatibility
+- CC compatibility and current slider-state serialization
+
+Final Apex Color Studio must work without the original mod installed.

@@ -30,10 +30,20 @@ MCCC, Lot51 Core, XML Injector and other Sims utilities are interoperability tar
 
 The project owner states they have full permission from the relevant authors of:
 - the current TD1/LordPercival occult-hybrid baseline; and
-- Crilender CASUnlocks
+- Crilender CASUnlocks; and
+- MC Command Center (MCCC), specifically the relevant CAS/Dresser/shared CAS-related material covered by the author's permission.
 
 to use their material in Apex.
 
 For project execution, permissioned material may be inspected, reused, ported, adapted, merged and incorporated into Apex with attribution/provenance. Public license labels should not be treated as overriding a direct author permission for the material actually covered by that permission.
 
 This permission record does not automatically extend to unrelated third-party components bundled inside an archive; preserve those components' separate provenance/terms where applicable.
+
+
+## MCCC CAS/Dresser authorized baseline
+
+The owner-provided permission allows Apex development to inspect, reuse, port, adapt and merge authorized MCCC MC CAS / MC Dresser / shared CAS-related implementation material.
+
+Current public compatibility baseline verified for research: MCCC 2026.5.0, documented for Sims 4 PC 1.128.90.1030.
+
+The final Apex release does not require MCCC; MCCC is a development/implementation baseline for Apex Live CAS Studio. Preserve attribution and provenance for permissioned material that survives into Apex.

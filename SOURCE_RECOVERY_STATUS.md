@@ -36,3 +36,15 @@ The GitHub connector used for this recovery writes repository text directly but 
 5. Compare against repository paths.
 6. Commit the exact recovered sources.
 7. Only then begin T005/T007 and implementation changes.
+
+
+## Production convergence rule
+
+Recovered TD1/TwelfthDoctor1/IcedCream/LordPercival package/script artifacts are historical recovery/regression inputs. They are **not** the target production runtime dependency chain.
+
+Codex must converge the release onto:
+- `ApexOccultHybrid.package`
+- `ApexOccultHybrid.ts4script`
+- `ApexCASUnlocks.package`
+
+and prove the full hybrid/unlock feature set on a clean Mods profile with the historical hybrid files removed.

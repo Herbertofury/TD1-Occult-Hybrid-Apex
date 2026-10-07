@@ -10,6 +10,7 @@ This document distinguishes **behavioral references** from **code/tooling refere
 |---|---|---|---|
 | Crilender — CASUnlocks | v1.9h; file uploaded 2026-05-31, listed for game 1.124.63 | Extremely small category-focused unlocker; keeps hidden CAS categories available; modular occult addons; Werewolf/Mermaid/Fairy/Archetypes support lineage; base-layer support | All Rights Reserved; current listing does not explicitly target 1.128.90; static override maintenance; separate addon model; Apex needs patch fingerprinting, hybrid diagnostics and generated current-game policy |
 | Loulicorn — Ultimate CAS Items Unlocker | latest listed 2026-04-16 for game 1.122.218 | Broad hidden/locked/debug/occult item exposure; useful functional grouping of catalog states | All Rights Reserved; static pack-specific files; warns users to remove unowned-pack files and recommends CAS-only usage; Apex should auto-detect installed packs, keep validity rules explicit and support normal integrated runtime |
+| Szemoka — Unlock CAS Items | updated 2026-02-13; reward unlock interaction path | Uses the game's reward-style unlock semantics via Sim/mailbox interactions and states it adds new resources rather than overriding game files | Focused on reward/unlock-state items rather than category visibility; content list is hand-maintained; current page still cites old game-version testing; Apex should dynamically discover reward resources and integrate the native-unlock path where possible |
 | LordPercivalXII / TD1 / IcedCream — Occult Hybrid Unlocker & Stabilizer | 1.13.7 FIXE, 2026-05-16 | Hybrid-occult ownership/state compatibility and recovery expectations | Not primarily a CAS catalog/category unlocker; use as hybrid-state floor, not as the unlock implementation |
 | Aravyn — Werewolf Abilities in CAS | updated 2026-08-21; supports 1.127.41-era builds | Modern proof that additional werewolf state can be exposed through CAS UI | Specialized werewolf abilities/rank/temperament UI, not a general category/item unlocker |
 
@@ -47,6 +48,20 @@ Apex disposition: **behavioral/catalog taxonomy reference only**. Reimplement wi
 
 Public project:
 - https://www.curseforge.com/sims4/mods/ultimate-cas-items-unlocker
+
+## Szemoka Unlock CAS Items — native reward-unlock pattern
+
+Observed public behavior:
+- adds an `Unlock CAS Items` interaction to Sims and mailboxes;
+- can unlock for one Sim/household or all Sims through mailbox interaction;
+- uses the game's own reward-style ownership/unlock behavior rather than exposing everything only through static CASP overrides;
+- states that it adds new resources instead of overriding in-game resources;
+- was updated 2026-02-13 with additional pack CAS items and uses Lot51 Core Library.
+
+Apex disposition: **strong behavioral/architecture reference for reward unlocks**. Prefer native game unlock/ownership semantics when a resource belongs to the game's unlock system; do not mutate CASP visibility just to simulate an ownership reward if the game already provides a durable supported unlock path.
+
+Public project:
+- https://modthesims.info/d/672037
 
 ## Current game-version gap
 

@@ -122,4 +122,22 @@ Continue from the earliest unchecked or invalidated task whose dependencies are 
 - [ ] **T060** · Run one final challenger pass against current public occult/hybrid utilities and adopt only demonstrably better compatible pieces with provenance.
 - [ ] **G008 · GATE** — Release artifacts, docs, provenance and upgrade path are complete.
 
-- [ ] **G009 · FINAL COMPLETION GATE** — All accepted tasks/gates are complete; no unresolved blocker remains; production packaging succeeds; the current TS4 build has exercised F11 occult toggles, form switching, Saved Forms, CAS Categories, MCCC Shield, Drift Guard, diagnostics, save/reload/restart and representative hybrid combinations; upstream 1.13.7 parity is proven; overlay performance is measured on equivalent workloads; and no requested capability was silently removed or replaced by a placeholder.
+## Phase I — Close the original-mod failure ledger
+
+The detailed reproduction/acceptance contract is `docs/USER_REPORTED_REGRESSIONS.md`. R001–R010 are release-blocking. A generic CAS smoke test does not satisfy this phase.
+
+- [ ] **T061** · Reproduce and permanently regression-test R001: edits made in normal CAS or MC Command Center Modify in CAS can appear saved yet fail to persist to the intended occult form.
+- [ ] **T062** · Reproduce and permanently regression-test R002: entering/customizing CAS must not delete, unlink, or make inaccessible any secondary hybrid form that existed before CAS.
+- [ ] **T063** · Reproduce and permanently regression-test R003: hybrids must not become stuck in one form; current/pending/available/link state and visible form must converge after switching.
+- [ ] **T064** · Reproduce and permanently regression-test R004: werewolf hair, headwear, body/CAS parts, custom content and outfit-specific parts must not disappear or corrupt during CAS, category changes, outfit changes, MCCC CAS, or form switching.
+- [ ] **T065** · Explicitly test CAS entered while the Sim is already in werewolf form; edits must survive Live Mode return, form switch away/back, save/reload and full restart.
+- [ ] **T066** · Reproduce and permanently regression-test R005: skin details, makeup, hair, tattoos, accessories, clothing/body parts and other CAS categories must not bleed across forms or disappear unexpectedly.
+- [ ] **T067** · Reproduce and permanently regression-test R006: stale CAS-session, MCCC Shield, Saved Form or recovery snapshots must never overwrite a newer intentional edit.
+- [ ] **T068** · Reproduce and permanently regression-test R007/R008: category-scoped copy/commit/repair must preserve unrelated CAS data, occult gameplay state and intentional differences between human and occult forms.
+- [ ] **T069** · Prove the full MCCC Shield workflow from arm -> Modify in CAS -> Live -> restore links/state -> commit intended appearance -> switch away/back -> save/reload, without private MCCC monkey-patching.
+- [ ] **T070** · Make Drift Guard fire-once/event-bounded around real risk points (CAS return, MCCC restore, form switch, outfit/category switch and explicit Scan) and prove it adds no timer/tick scanning regression.
+- [ ] **T071** · Require post-mutation verification for every form/CAS repair: expected forms still exist, selected form is coherent, intended categories match, protected categories remain unchanged, and persistence survives form switch + save/reload.
+- [ ] **T072** · Build the canonical real-runtime regression matrix from `docs/USER_REPORTED_REGRESSIONS.md` across representative human/vampire/spellcaster/werewolf/mermaid/alien/ghost/PlantSim/Servo/fairy hybrids where the packs/content are available.
+- [ ] **G010 · GATE** — R001–R010 are no longer reproducible on the current supported Sims 4 build; the regression suite includes normal CAS, MCCC CAS, CAS while already in werewolf form, category/outfit switching, form switching, save/reload/restart and stale-snapshot recovery, with no lost secondary forms or unrelated CAS/occult data.
+
+- [ ] **G009 · FINAL COMPLETION GATE** — All accepted tasks/gates are complete; no unresolved blocker remains; production packaging succeeds; the current TS4 build has exercised F11 occult toggles, form switching, Saved Forms, CAS Categories, MCCC Shield, Drift Guard, diagnostics, save/reload/restart and representative hybrid combinations; every R001–R010 original-mod regression is proven fixed on the current supported game build; upstream 1.13.7 parity is proven; overlay performance is measured on equivalent workloads; and no requested capability was silently removed or replaced by a placeholder.

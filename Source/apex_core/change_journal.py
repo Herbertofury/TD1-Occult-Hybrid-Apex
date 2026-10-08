@@ -35,7 +35,7 @@ def decoded(value):
 
 
 class ChangeJournal:
-    def __init__(self, path, lane):
+    def __init__(self, path, lane, normalize=None, representation=None):
         self.path, self.lane = path, str(lane)
         self.data = {'schema': 1, 'lane': self.lane, 'cursor': None, 'nodes': [], 'operations': [], 'pending': None}
         if os.path.exists(path):
@@ -60,6 +60,29 @@ class ChangeJournal:
                 fingerprint(decoded(pending['after'])) != pending['after_sha256'] or
                 (pending['restore_node'] is not None and pending['restore_node'] not in identities)):
                 raise ValueError('Corrupt pending recovery state; no restore allowed.')
+        if representation:
+            prior = self.data.get('representation')
+            if prior not in (None, representation):
+                raise ValueError('History uses an incompatible appearance representation.')
+            if prior is None:
+                # Preserve every original snapshot while migrating verification
+                # identities. Category order is not a lost appearance change.
+                for node in self.data['nodes']:
+                    raw = normalize(decoded(node['state']))
+                    if fingerprint(raw) != node['sha256']:
+                        node['original_state'], node['original_sha256'] = node['state'], node['sha256']
+                        node['state'], node['sha256'] = encoded(raw), fingerprint(raw)
+                pending = self.data.get('pending')
+                if pending:
+                    for name in ('before', 'after'):
+                        raw = normalize(decoded(pending[name]))
+                        if fingerprint(raw) != pending[name + '_sha256']:
+                            pending['original_' + name] = pending[name]
+                            pending['original_' + name + '_sha256'] = pending[name + '_sha256']
+                            pending[name], pending[name + '_sha256'] = encoded(raw), fingerprint(raw)
+                self.data['representation'] = representation
+                if os.path.exists(path):
+                    self._save()
 
     def _save(self):
         raw = json.dumps(self.data, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode('utf-8')

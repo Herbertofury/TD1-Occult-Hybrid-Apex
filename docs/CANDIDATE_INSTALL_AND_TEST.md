@@ -23,7 +23,7 @@ legacy actions and the regression/release gates remain unfinished.
 
 ## Install in your existing test profile
 
-You handle game testing. Close the game normally before changing test artifacts.
+The owner reauthorized CLI game testing. Close the game normally before changing test artifacts.
 Use the single existing test profile under
 `C:\Users\Owner\Documents\Electronic Arts\The Sims 4` and your disposable test
 save/Sim. The original folder named `The Sims 4 DO NOT FUCKING TOUCH!!!` is
@@ -49,13 +49,60 @@ read-only to the tools; only you may rename it.
    automatic loading; `apex.overlay.start` starts it manually from the console.
    `apex.overlay.status` reports loading failures and native initialization state.
    The first keypress, actual DX11 render, resizing and render-state restoration
-   passed in an independent hidden WARP test host. Loading inside this exact game
-   remains an owner test; a foreign swapchain hook is refused rather than replaced.
+   passed in an independent hidden WARP test host. The matching DLL also
+   initialized and submitted frames in the real game after verified CLI focus.
+   F11 key/input and all menu-action acceptance still require proof; a foreign
+   swapchain hook is refused rather than replaced.
 
-No installer has copied this candidate into your test profile or game directory.
-No game launch, save load, native input or in-game mutation was performed for
-this build. The older development script currently in your test profile is not
-the new candidate.
+The verified candidate installer has installed the package/script/native set in
+the single marked test profile. It preserves external recovery copies and
+refuses installation while the game runs. No game-directory deployment is required.
+`Reports/LIVE_CLI_2026-10-07.md` distinguishes exact tested builds from later fixes.
+
+## CLI testing and launch
+
+Run from this checkout, using `.work/reusable-profile-session.json`:
+
+```powershell
+python tools/apex_cli.py launch-config status --state .work/reusable-profile-session.json --game-root 'C:\Games\The Sims 4'
+python tools/apex_cli.py launch --state .work/reusable-profile-session.json --game-root 'C:\Games\The Sims 4' --execute
+python tools/apex_cli.py game pause --state .work/reusable-profile-session.json
+python tools/apex_cli.py game save --state .work/reusable-profile-session.json
+python tools/apex_cli.py game focus --state .work/reusable-profile-session.json
+python tools/apex_cli.py request overlay_show --state .work/reusable-profile-session.json
+python tools/apex_cli.py request overlay_status --state .work/reusable-profile-session.json
+```
+
+The launcher selects the account's last successful Client Play content ID for
+this exact installation, rather than guessing an edition. The owner's current
+verified ID is `1015806`. The three game executables request `asInvoker`, but
+had forced `RUNASADMIN` compatibility flags. Removing only those HKCU tokens
+with an external recovery receipt enabled an observed CLI launch. Other
+compatibility flags and executable manifests remain intact. To restore them,
+use `launch-config restore` with the same game root, state and receipt.
+
+Save verification observes a stable save-file rewrite. Full appearance/form
+reload comparison is a separate gate. Native `quit` opens the game's Save Game
+confirmation; automatic selection of Save and Exit remains unfinished. Do not
+interpret request acceptance as completed shutdown. `--headless` explicitly
+fails because an actual headless game runtime has not been implemented.
+
+The repeatable `test color-cycle` and `test hybrid-cycle` commands require an
+explicit Sim ID and evidence filename outside both profiles. They unpause
+briefly to settle changes, record every request/observation, and leave paused.
+They never blindly repeat an unresolved mutation or replace earlier evidence.
+
+## Phone menu
+
+The existing TD1 phone/Sim picker retains its original settings, continuations
+and icons. Its main picker now also exposes Apex Settings, Forms, Saved Forms,
+CAS History, Drift Guard, F11 visibility/status and diagnostics. Module-tuning
+owners, invalid blank species entries, a malformed localization ID and the
+placeholder-icon field are repaired. Apex actions use the canonical game-thread
+dispatcher; history Undo/Redo prepares a preview and never silently applies it.
+The settings rows read current values and refuse stale selections. Phone dialog
+rendering, every original setting and full phone feature coverage still require
+runtime acceptance.
 
 ## New Studio controls
 
@@ -114,8 +161,10 @@ apex.studio redo
 ```
 
 The new command signature is `apex.studio ACTION [VALUE] [SIM_ID]`. It prints the
-full result, including preview IDs and history nodes. These source paths are
-offline-tested, not game-tested.
+full result, including preview IDs and history nodes. Current-form numeric color
+edits, Apply/Cancel/Undo/Redo and inactive-form preservation have actual CLI proof
+for the exact build recorded in the live report. This does not establish texture
+render compatibility or full parity.
 
 ## Rollback
 

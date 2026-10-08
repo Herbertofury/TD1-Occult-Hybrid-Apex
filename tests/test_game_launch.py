@@ -16,14 +16,19 @@ class LaunchPlanTests(unittest.TestCase):
             (root / 'Game' / 'Bin' / name).write_bytes(b'fixture')
         (root / '__Installer' / 'installerdata.xml').write_text(
             '<DiPManifest><buildMetaData><gameVersion version="fixture"/></buildMetaData><contentIDs>' + ids + '</contentIDs></DiPManifest>')
+        self.identity = {'offer_id': 'OFB-EAST:fixture', 'content_id': '1011164'}
+
+    def identity_patch(self):
+        return patch.object(game_launch, 'account_launch_identity', return_value=self.identity)
 
     def test_plan_uses_installed_ids_and_does_not_launch_or_claim_headless(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             self.fixture(root)
-            with patch.object(game_launch.test_profile, 'status', return_value={'ready_to_launch': True}):
+            with patch.object(game_launch.test_profile, 'status', return_value={'ready_to_launch': True}), self.identity_patch():
                 plan = game_launch.launch(root, root / 'state.json')
-            self.assertIn('offerIds=1011164', plan['url'])
+            self.assertIn('offerIds=1011164&', plan['url'])
+            self.assertNotIn('OFB-EAST:', plan['url'])
             self.assertIn('autoDownload=0', plan['url'])
             self.assertFalse(plan['launched'])
             self.assertFalse(plan['headless_game_runtime'])
@@ -34,7 +39,7 @@ class LaunchPlanTests(unittest.TestCase):
             self.fixture(root, '<contentID>--login=bad</contentID>')
             with patch.object(game_launch.test_profile, 'status', return_value={'ready_to_launch': True}):
                 with self.assertRaisesRegex(ValueError, 'unsafe'):
-                    game_launch.launch_plan(root, root / 'state.json')
+                    game_launch.launch_plan(root, root / 'state.json', offer_id='OFB-EAST:109552414')
             with patch.object(game_launch.test_profile, 'status', return_value={'ready_to_launch': False}):
                 with self.assertRaisesRegex(ValueError, 'isolated'):
                     game_launch.launch_plan(root, root / 'state.json')
@@ -45,14 +50,36 @@ class LaunchPlanTests(unittest.TestCase):
                 game_launch.launch('game', 'state', execute=True, headless=True)
             plan.assert_not_called()
 
-    def test_ea_identifier_delimiters_are_literal_commas(self):
+    def test_only_account_verified_content_id_is_used_and_other_offers_refused(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             self.fixture(root, '<contentID>1011164</contentID><contentID>1015875</contentID>')
-            with patch.object(game_launch.test_profile, 'status', return_value={'ready_to_launch': True}):
+            with patch.object(game_launch.test_profile, 'status', return_value={'ready_to_launch': True}), self.identity_patch():
+                with self.assertRaisesRegex(ValueError, 'differs'):
+                    game_launch.launch_plan(root, root / 'state.json', 'OFB-EAST:another-account-edition')
                 plan = game_launch.launch_plan(root, root / 'state.json')
-            self.assertIn('offerIds=1011164,1015875&', plan['url'])
-            self.assertNotIn('%2C', plan['url'])
+                self.identity['content_id'] = '1015806'
+                with self.assertRaisesRegex(ValueError, 'not in'):
+                    game_launch.launch_plan(root, root / 'state.json')
+            self.assertIn('offerIds=1011164&', plan['url'])
+            self.assertNotIn(',', plan['url'])
+            self.assertEqual(plan['installer_content_ids'], ['1011164', '1015875'])
+
+    def test_account_identity_requires_successful_client_play_for_exact_installation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            log = root / 'EADesktop.log'
+            self.fixture(root)
+            executable = root / 'Game' / 'Bin' / 'TS4_Launcher_x64.exe'
+            success = 'Successful launch. IDs: offerKey.offerId=[OFB-EAST:fixture], slug=[the-sims-4]\n'
+            processing = 'Processing launch request: offerId[OFB-EAST:fixture] contentId[1011164] exe[{}] requestSource[Client]\n'
+            log.write_text(success + processing.format(executable))
+            self.assertEqual(game_launch.account_launch_identity(root, log)['content_id'], '1011164')
+            for raw in (processing.format(executable), success + processing.format(root / 'other.exe'),
+                        (success + processing.format(executable)).replace('requestSource[Client]', 'requestSource[RTP]')):
+                log.write_text(raw)
+                with self.assertRaisesRegex(ValueError, 'No verified'):
+                    game_launch.account_launch_identity(root, log)
 
     def test_process_start_requires_a_new_pid_and_exact_installed_path(self):
         clock = [0.0]

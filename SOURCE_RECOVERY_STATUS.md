@@ -8,10 +8,10 @@ now in this checkout. The V9.5 archive below was not found locally and its old
 hash record is historical provenance, not a fresh verification claim.
 
 Concrete authorized-baseline package/script candidates now build: six packages
-with 204 resources and a matching 44-module script, plus the rebuilt F11
+with 204 resources and a matching 50-module script, plus the rebuilt F11
 component. `Reports/AUTHORIZED_CANDIDATE_2026-10-07.md` records exact scope and
-limits. The owner handles game testing; runtime/regression/release gates remain
-open. Continue the canonical master, not the superseded missing-archive recovery
+limits. The owner reauthorized CLI game testing. Recorded live results are in
+`Reports/LIVE_CLI_2026-10-07.md`; remaining runtime/regression/release gates stay open. Continue the canonical master, not the superseded missing-archive recovery
 steps below.
 
 ## Historical connector handoff (preserved)

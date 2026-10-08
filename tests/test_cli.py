@@ -32,6 +32,38 @@ class CliTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'redirects'):
             apex_cli.LocalRedirectGuard().redirect_request(None, None, 302, '', {}, 'https://example.invalid')
 
+    def test_lost_response_polls_same_identity_without_resubmitting(self):
+        journal = {'token': 'a' * 32, 'artifacts': [{'name': 'ApexOccultHybrid.ts4script', 'sha256': 'b' * 64}]}
+        calls = []
+        def transport(path, query=None):
+            calls.append((path, query))
+            if path == '/api/bridge':
+                return {'test_token': 'a' * 32, 'script_sha256': 'b' * 64, 'alarm_ready': True, 'pid': 42}
+            if path == '/api/command':
+                raise OSError('lost response')
+            return {'state': 'completed', 'result': {'ok': True, 'observed': 1}}
+        with patch.object(apex_cli, 'require_isolated'), patch.object(apex_cli.reusable_profile, 'load', return_value=(None, journal, None, None)), patch.object(apex_cli.game_launch, 'running_game_processes', return_value=[{'Id': 42, 'Path': 'TS4_x64.exe'}]):
+            result = apex_cli.owned_request('state', 'test_create_sim', transport=transport)
+        self.assertTrue(result['ok'])
+        commands = [row for row in calls if row[0] == '/api/command']
+        polls = [row for row in calls if row[0] == '/api/requests/status']
+        self.assertEqual(len(commands), 1)
+        self.assertEqual(commands[0][1]['request_id'], polls[0][1]['request_id'])
+
+    def test_unknown_completion_never_counts_as_success(self):
+        ticks = [0]
+        result = apex_cli.poll_request('a' * 32, 1, transport=lambda *a, **k: {'state': 'unknown'},
+            monotonic=lambda: ticks[0], pause=lambda seconds: ticks.__setitem__(0, ticks[0] + seconds))
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['outcome'], 'unresolved')
+
+    def test_mismatched_runtime_cannot_execute_any_command(self):
+        journal = {'token': 'a' * 32, 'artifacts': [{'name': 'ApexOccultHybrid.ts4script', 'sha256': 'b' * 64}]}
+        with patch.object(apex_cli, 'require_isolated'), patch.object(apex_cli.reusable_profile, 'load', return_value=(None, journal, None, None)), patch.object(apex_cli, 'get') as transport:
+            with self.assertRaises(ValueError):
+                apex_cli.owned_request('state', 'test_create_sim', transport=lambda *a, **k: {'test_token': 'wrong'})
+            transport.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -530,6 +530,10 @@ def _trait_guid(trait):
 
 
 def _pack_value(value):
+    # Native protobuf messages cannot be pickled by the game's C extension.
+    # Preserve their actual serialized data, never an object-address repr.
+    if hasattr(value, 'SerializeToString'):
+        return {'kind': 'protobuf', 'data': base64.b64encode(value.SerializeToString()).decode('ascii')}
     try:
         if isinstance(value, tuple) and len(value) == 2 and value[0] == 'protobuf':
             return {'kind': 'protobuf', 'data': base64.b64encode(value[1]).decode('ascii')}
@@ -2251,7 +2255,7 @@ def _snapshot_siminfo_payload(sim_info):
             pass
     try:
         if hasattr(sim_info, 'save_outfits'):
-            data['__outfits__'] = sim_info.save_outfits()
+            data['__outfits__'] = _copy_value(sim_info.save_outfits())
     except Exception:
         pass
     return data
@@ -2281,6 +2285,11 @@ def _restore_siminfo_payload(sim_info, data):
     try:
         outfits = data.get('__outfits__')
         if outfits is not None and hasattr(sim_info, 'load_outfits'):
+            if isinstance(outfits, tuple) and len(outfits) == 2 and outfits[0] == 'protobuf':
+                from protocolbuffers import Outfits_pb2
+                message = Outfits_pb2.OutfitList()
+                message.ParseFromString(outfits[1])
+                outfits = message
             sim_info.load_outfits(outfits)
             restored = True
     except Exception:
@@ -2892,11 +2901,15 @@ def _switch_to(tracker, occult_type):
 
 def _add_occult(sim_info, occult_type, generate=True, add_traits=True, add_memory=True, use_gameplay_loot=True):
     tracker = sim_info.occult_tracker
+    if _has_occult(tracker, occult_type):
+        return ['already present; existing forms and progression retained']
     changed = []
     value = _int_value(occult_type)
     old_flags = _get_occult_flags(sim_info)
     old_current = _get_current_flags(sim_info)
     base_payload = _snapshot_siminfo_payload(sim_info)
+    existing_human = tracker.get_occult_sim_info(OccultType.HUMAN)
+    existing_form = tracker.get_occult_sim_info(occult_type)
     if use_gameplay_loot:
         loot_ok, loot_messages = _apply_gameplay_loots(sim_info, occult_type, operation='add')
         if loot_messages:
@@ -2917,11 +2930,11 @@ def _add_occult(sim_info, occult_type, generate=True, add_traits=True, add_memor
     safe_current = _choose_safe_form(merged_flags, old_current, old_current)
     _set_flags(sim_info, 'current_occult_types', safe_current)
     human_form = _ensure_human_form(tracker)
-    if base_payload and human_form is not None:
+    if existing_human is None and base_payload and human_form is not None:
         _restore_siminfo_payload(human_form, base_payload)
     if generate:
         form = _ensure_form(tracker, occult_type, generate_new=True)
-        if form is not None and base_payload:
+        if existing_form is None and form is not None and base_payload:
             _restore_siminfo_payload(form, base_payload)
         changed.append('form {}'.format('ok' if form is not None else 'missing'))
     if add_traits:
@@ -4177,6 +4190,35 @@ def _process_pending(_handle=None):
     _auto_repair_tick()
     _mccc_cas_shield_tick()
     return True
+
+
+_APEX_CORE_TICK_READY = False
+_APEX_CORE_TICKS = 0
+
+
+def _apex_install_core_tick():
+    # Installed 1.128.90 core_services.on_tick is the native core-loop boundary.
+    # Keep its return/errors intact. Empty ticks inspect no Sims and write nothing.
+    try:
+        import sims4.core_services as core
+        previous = core.on_tick
+        if getattr(previous, '_apex_core_tick', False):
+            return True
+        def tick(*args, **kwargs):
+            global _APEX_CORE_TICK_READY, _APEX_CORE_TICKS
+            result = previous(*args, **kwargs)
+            if threading.current_thread().ident == _APEX_GAME_THREAD_IDENT:
+                _APEX_CORE_TICK_READY = True
+                _APEX_CORE_TICKS += 1
+                if _APEX_COMMANDS.pending:
+                    _APEX_COMMANDS.drain(_execute_owned_command, max_commands=4, budget_seconds=0.02)
+            return result
+        tick._apex_core_tick = True
+        core.on_tick = tick
+        return True
+    except Exception as exc:
+        _log('Core owner tick unavailable: {}'.format(exc))
+        return False
 def _setup_alarm():
     global _ALARM_HANDLE, _ALARM_READY
     if _ALARM_READY:
@@ -4455,9 +4497,12 @@ def _handle_http_client(conn):
             return
         path, query = _parse_request_path(raw_path)
         if path == '/api/bridge':
-            conn.sendall(_http_payload({'ok': True, 'build_version': _BUILD_VERSION,
-                'alarm_ready': _ALARM_READY, 'bootstrap_status': _APEX_BOOTSTRAP_STATUS,
-                'queue': _APEX_COMMANDS.metrics(), 'sim_data_read': False}))
+            from apex_core.test_driver import runtime_identity
+            identity = runtime_identity(__file__)
+            conn.sendall(_http_payload(dict(identity, ok=True, build_version=_BUILD_VERSION,
+                alarm_ready=_ALARM_READY, bootstrap_status=_APEX_BOOTSTRAP_STATUS,
+                core_tick_ready=_APEX_CORE_TICK_READY, core_ticks=_APEX_CORE_TICKS,
+                queue=_APEX_COMMANDS.metrics(), sim_data_read=False)))
             return
         if path == '/api/requests/status':
             conn.sendall(_http_payload(_APEX_COMMANDS.status(query.get('request_id', ''))))
@@ -4471,7 +4516,7 @@ def _handle_http_client(conn):
             conn.sendall(_http_payload(payload))
             return
         if path in ('/api/command', '/api/status'):
-            payload = _submit_action(query.get('action', 'status'), query.get('sim_id', ''), query.get('occult'), query.get('value'))
+            payload = _submit_action(query.get('action', 'status'), query.get('sim_id', ''), query.get('occult'), query.get('value'), request_id=query.get('request_id'))
             conn.sendall(_http_payload(payload))
             return
         if path == '/api/sims':
@@ -8134,7 +8179,7 @@ from apex_core.command_queue import CommandQueue
 _APEX_GAME_THREAD_IDENT = threading.current_thread().ident
 _APEX_COMMANDS = CommandQueue(capacity=48, completed_limit=128)
 _APEX_PRE_OWNER_RUN_ACTION = run_action
-_BUILD_VERSION = '2026.10.07-apex-sidecar-color-studio-dev'
+_BUILD_VERSION = '2026.10.07-apex-in-game-cli-dev'
 _APEX_BOOTSTRAP_STATUS = 'not initialized'
 
 
@@ -8149,6 +8194,16 @@ def run_action(action, sim_id=None, occult=None, value=None):
     if action == 'overlay_status':
         from apex_core.overlay_loader import status
         return status()
+    if action in ('overlay_show', 'overlay_hide'):
+        from apex_core.overlay_loader import show
+        return show(action == 'overlay_show')
+    if str(action).startswith('test_'):
+        from apex_core.test_driver import dispatch
+        import sys
+        try:
+            return dispatch(sys.modules[__name__], action, sim_id, value)
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'traceback': traceback.format_exc()}
     if action in ('studio_status', 'studio_history', 'studio_checkpoint', 'studio_recover',
                   'studio_color_copy', 'studio_color_preview', 'studio_cancel',
                   'studio_color_inspect', 'studio_color_edit',
@@ -8208,14 +8263,16 @@ def _setup_alarm():
         return False
 
 
-def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.0):
+def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.0, request_id=None):
     safe_action = (action or 'status').strip().lower()
-    if not _ALARM_READY:
+    if request_id is not None and (len(request_id) != 32 or any(c not in '0123456789abcdef' for c in request_id)):
+        return {'ok': False, 'state': 'rejected', 'message': 'Invalid command request identity.'}
+    if not _ALARM_READY and not (_APEX_CORE_TICK_READY and safe_action == 'test_quit'):
         return {'ok': False, 'state': 'rejected', 'message':
                 'Game-thread bridge is not ready. Load a disposable household or run apex.bridge.start from the game console.',
                 'bootstrap_status': _APEX_BOOTSTRAP_STATUS}
     row = _APEX_COMMANDS.submit({'action': safe_action, 'sim_id': sim_id, 'occult': occult, 'value': value},
-                                ttl=max(0.1, min(60.0, float(wait_seconds))))
+                                ttl=max(0.1, min(60.0, float(wait_seconds))), request_id=request_id)
     if row['state'] == 'rejected':
         return row
     _log('QUEUED owned {} #{}'.format(safe_action, row['request_id']))
@@ -8311,5 +8368,6 @@ if Command is not None:
 if services is not None:
     _load_saved_forms()
     _apex_install_zone_signal()
+    _apex_install_core_tick()
     _setup_alarm()
     start_server()

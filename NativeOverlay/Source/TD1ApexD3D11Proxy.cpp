@@ -19,7 +19,7 @@
 #undef D3D11CreateDevice
 #undef D3D11CreateDeviceAndSwapChain
 
-#include <dxgi.h>
+#include <dxgi1_2.h>
 #include <atomic>
 #include <mutex>
 #include <thread>
@@ -55,12 +55,15 @@ namespace td1 {
 using PFN_D3D11CreateDevice = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, const D3D_FEATURE_LEVEL*, UINT, UINT, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**);
 using PFN_D3D11CreateDeviceAndSwapChain = HRESULT (WINAPI *)(IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT, const D3D_FEATURE_LEVEL*, UINT, UINT, const DXGI_SWAP_CHAIN_DESC*, IDXGISwapChain**, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext**);
 using PresentFn = HRESULT (STDMETHODCALLTYPE *)(IDXGISwapChain*, UINT, UINT);
+using Present1Fn = HRESULT (STDMETHODCALLTYPE *)(IDXGISwapChain1*, UINT, UINT, const DXGI_PRESENT_PARAMETERS*);
 using ResizeBuffersFn = HRESULT (STDMETHODCALLTYPE *)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
 
 static HMODULE g_realD3D11 = nullptr;
 static PFN_D3D11CreateDevice g_realCreateDevice = nullptr;
 static PFN_D3D11CreateDeviceAndSwapChain g_realCreateDeviceAndSwapChain = nullptr;
 static PresentFn g_realPresent = nullptr;
+static Present1Fn g_realPresent1 = nullptr;
+static std::atomic<int> g_renderedFrames{0};
 static ResizeBuffersFn g_realResizeBuffers = nullptr;
 static std::atomic<bool> g_hooked{false};
 static std::atomic<bool> g_visible{false};
@@ -1186,9 +1189,7 @@ struct RestoreRenderTargets {
     }
 };
 
-static HRESULT STDMETHODCALLTYPE HookPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
-    std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
-    if ((flags & DXGI_PRESENT_TEST) || !SelectSwapChain(sc)) return g_realPresent(sc, sync, flags);
+static void RenderOverlayFrame(IDXGISwapChain* sc) {
 #ifdef APEX_NATIVE_SMOKE
     ++g_presentCount;
 #endif
@@ -1213,10 +1214,40 @@ static HRESULT STDMETHODCALLTYPE HookPresent(IDXGISwapChain* sc, UINT sync, UINT
                 RestoreRenderTargets restore(g_context);
                 g_context->OMSetRenderTargets(1, &g_rtv, nullptr);
                 ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+                if (g_renderedFrames.load() < 1000000000) ++g_renderedFrames;
             }
         }
     }
+}
+
+static thread_local unsigned g_presentDepth = 0;
+struct PresentDepth {
+    PresentDepth() { ++g_presentDepth; }
+    ~PresentDepth() { --g_presentDepth; }
+};
+
+static HRESULT STDMETHODCALLTYPE HookPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
+    std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
+    const bool outer = g_presentDepth == 0;
+    PresentDepth depth;
+    if (outer && !(flags & DXGI_PRESENT_TEST) && SelectSwapChain(sc)) RenderOverlayFrame(sc);
     const HRESULT result = g_realPresent(sc, sync, flags);
+    if (result == DXGI_ERROR_DEVICE_REMOVED || result == DXGI_ERROR_DEVICE_RESET) ResetRenderer();
+    return result;
+}
+
+static HRESULT STDMETHODCALLTYPE HookPresent1(IDXGISwapChain1* sc, UINT sync, UINT flags,
+                                               const DXGI_PRESENT_PARAMETERS* parameters) {
+    std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
+    const bool outer = g_presentDepth == 0;
+    PresentDepth depth;
+    const bool selected = outer && !(flags & DXGI_PRESENT_TEST) && SelectSwapChain(sc);
+    if (selected) RenderOverlayFrame(sc);
+    // An overlay can paint beyond the caller's dirty region. Request a full
+    // presentation only while visible; hidden/test calls keep exact parameters.
+    DXGI_PRESENT_PARAMETERS fullFrame{};
+    const auto* forwarded = selected && g_visible.load() && parameters ? &fullFrame : parameters;
+    const HRESULT result = g_realPresent1(sc, sync, flags, forwarded);
     if (result == DXGI_ERROR_DEVICE_REMOVED || result == DXGI_ERROR_DEVICE_RESET) ResetRenderer();
     return result;
 }
@@ -1243,14 +1274,23 @@ static bool HookSwapChain(IDXGISwapChain* sc) {
     if (g_hooked.load()) return true;
     if (!sc) return false;
     void** vtbl = *reinterpret_cast<void***>(sc);
+    IDXGISwapChain1* newer = nullptr;
+    void* present1 = nullptr;
+    if (SUCCEEDED(sc->QueryInterface(__uuidof(IDXGISwapChain1), reinterpret_cast<void**>(&newer))) && newer) {
+        present1 = (*reinterpret_cast<void***>(newer))[22];
+        newer->Release();
+        if (!SystemHookTarget(present1)) return false;
+    }
     if (!SystemHookTarget(vtbl[8]) || !SystemHookTarget(vtbl[13])) {
         Debug("Refusing foreign DXGI swapchain implementation");
         return false;
     }
     // Each linked MinHook owns its own registry. Detect an existing jump to
     // foreign code so another overlay/proxy never gets silently overwritten.
-    for (const unsigned slot : {8u, 13u}) {
-        const auto* p = static_cast<const unsigned char*>(vtbl[slot]);
+    std::vector<void*> targets{vtbl[8], vtbl[13]};
+    if (present1) targets.push_back(present1);
+    for (void* address : targets) {
+        const auto* p = static_cast<const unsigned char*>(address);
         if (p[0] == 0xE9) {
             int32_t offset = 0; memcpy(&offset, p + 1, sizeof(offset));
             if (!SystemHookTarget(const_cast<unsigned char*>(p + 5 + offset))) return false;
@@ -1273,18 +1313,22 @@ static bool HookSwapChain(IDXGISwapChain* sc) {
     if (MH_CreateHook(vtbl[13], reinterpret_cast<void*>(&HookResizeBuffers), reinterpret_cast<void**>(&g_realResizeBuffers)) != MH_OK) {
         MH_RemoveHook(vtbl[8]); return false;
     }
+    if (present1 && MH_CreateHook(present1, reinterpret_cast<void*>(&HookPresent1), reinterpret_cast<void**>(&g_realPresent1)) != MH_OK) {
+        MH_RemoveHook(vtbl[8]); MH_RemoveHook(vtbl[13]); return false;
+    }
     // Active trampolines must never outlive this DLL. Do this outside DllMain.
     HMODULE pinned = nullptr;
     bool pin = GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
         reinterpret_cast<LPCWSTR>(&HookPresent), &pinned) != 0;
-    if (!pin || MH_QueueEnableHook(vtbl[8]) != MH_OK || MH_QueueEnableHook(vtbl[13]) != MH_OK || MH_ApplyQueued() != MH_OK) {
-        MH_DisableHook(vtbl[8]); MH_DisableHook(vtbl[13]);
-        MH_RemoveHook(vtbl[8]); MH_RemoveHook(vtbl[13]);
+    bool queued = pin;
+    for (void* address : targets) queued = queued && MH_QueueEnableHook(address) == MH_OK;
+    if (!queued || MH_ApplyQueued() != MH_OK) {
+        for (void* address : targets) { MH_DisableHook(address); MH_RemoveHook(address); }
         return false;
     }
     g_hooked = true;
     g_loaderStatus = 1;
-    Debug("System DXGI Present/ResizeBuffers hooks installed");
+    Debug(present1 ? "System DXGI Present/Present1/ResizeBuffers hooks installed" : "System DXGI Present/ResizeBuffers hooks installed");
     return true;
 }
 
@@ -1338,6 +1382,17 @@ static void HookFromDevice(ID3D11Device* device) {
 
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayProtocolVersion() { return 1; }
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayStatus() { return td1::g_loaderStatus.load(); }
+extern "C" __declspec(dllexport) int WINAPI ApexOverlayRenderedFrames() { return td1::g_renderedFrames.load(); }
+extern "C" __declspec(dllexport) int WINAPI ApexOverlayShow() {
+    if (!td1::g_hooked.load()) return -1;
+    td1::g_visible = true;
+    return 0;
+}
+extern "C" __declspec(dllexport) int WINAPI ApexOverlayHide() {
+    if (!td1::g_hooked.load()) return -1;
+    td1::g_visible = false;
+    return 0;
+}
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayStart() {
     wchar_t executable[MAX_PATH]{};
     if (!GetModuleFileNameW(nullptr, executable, MAX_PATH)) return -1;
@@ -1465,6 +1520,12 @@ extern "C" int ApexRunNativeSmoke() {
     if (g_device || g_context || g_hwnd || ImGui::GetCurrentContext() || g_loaderStatus != 1) return 23;
     g_visible = true; swap->Present(0, 0);
     if (!g_device || g_loaderStatus != 3 || g_presentCount != 4) return 24;
+    IDXGISwapChain1* newer = nullptr;
+    if (FAILED(swap->QueryInterface(__uuidof(IDXGISwapChain1), reinterpret_cast<void**>(&newer))) || !g_realPresent1) return 25;
+    DXGI_PRESENT_PARAMETERS parameters{};
+    hr = newer->Present1(0, 0, &parameters);
+    newer->Release();
+    if (FAILED(hr) || g_presentCount != 5 || !g_device) return 26;
     ToggleInput input;
     if (!input.sample(true, true) || input.sample(true, true) || input.sample(true, false) ||
         input.sample(false, true) || input.sample(true, true) || input.sample(false, false) ||

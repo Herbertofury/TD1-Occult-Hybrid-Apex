@@ -1,3 +1,10 @@
+# Later continuation
+
+The owner reauthorized CLI game testing after this checkpoint. See
+`LIVE_CLI_2026-10-07.md` for exact actual game proof, account launch correction,
+phone/F11 fixes and remaining limitations. Historical statements below retain
+their original scope and are superseded where explicitly noted.
+
 # CLI and isolated-profile checkpoint
 
 ## Current boundary after owner steering

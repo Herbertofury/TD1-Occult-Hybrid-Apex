@@ -32,6 +32,7 @@ class StudioTests(unittest.TestCase):
             shifts=[2**64-1 if index == 0 else 0, 19], objects=[3, 4], layers=[5, 6]) for index in range(2)]
         self.sim = Obj(id=1234, flags=32, raw=json.dumps(rows, sort_keys=True).encode())
         self.backend = Obj(_get_sim_info_by_id=lambda value: self.sim, _v8_imports_ready=lambda: True,
+            _studio_normalize_snapshot=lambda raw: raw, _studio_parse_snapshot=Message,
             _v8_read_outfit_blob=lambda sim: sim.raw, _v8_parse_outfits=lambda sim: Message(sim.raw),
             _sim_id=lambda sim: sim.id, _get_current_flags=lambda sim: sim.flags,
             _data_directory=lambda: self.temp.name, _v8_resolve_body_type=lambda value: (7, {}, 'runtime'),

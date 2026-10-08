@@ -43,7 +43,7 @@ def build(output, foundry=None):
             if resource.lstrip().startswith(b'<'):
                 for node in ElementTree.fromstring(resource).iter():
                     module = node.get('m', '')
-                    if module.startswith('apex_hybrid.'):
+                    if module.startswith(('apex_hybrid.', 'apex_core.')):
                         member = module.replace('.', '/') + '.pyc'
                         if member not in script_members:
                             raise ValueError('Package has an orphaned script reference: ' + module)

@@ -7,11 +7,25 @@ the selected effective CASP's actual bounds. No background Sim polling.
 import hashlib
 import json
 import os
-from . import cas_catalog, color_shift
+from . import cas_catalog, color_shift, outfit_snapshot
 from .change_journal import ChangeJournal, fingerprint
 from .dresser_parts import DresserParts, read_rows, write_rows
 
 _COLOR_CLIPBOARD = None
+
+
+def _normalize(backend, raw):
+    return getattr(backend, '_studio_normalize_snapshot', outfit_snapshot.normalize)(raw)
+
+
+def _message(backend, sim):
+    raw = _normalize(backend, backend._v8_read_outfit_blob(sim))
+    provider = getattr(backend, '_studio_parse_snapshot', None)
+    if provider is not None:
+        return provider(raw)
+    message = backend._V8_Outfits_pb2.OutfitList()
+    message.ParseFromString(raw)
+    return message
 
 
 def _context(backend, sim_id):
@@ -23,6 +37,7 @@ def _context(backend, sim_id):
     blob = backend._v8_read_outfit_blob(sim)
     if not blob:
         raise ValueError('The current form has no readable outfit snapshot.')
+    blob = _normalize(backend, blob)
     # Bind history to the actual save slot as well as Sim/current form. Reusing
     # IDs in another save must never grant access to a different recovery lane.
     persistence = backend.services.get_persistence_service()
@@ -33,7 +48,8 @@ def _context(backend, sim_id):
     save_id = int(slot.slot_id)
     lane = '{}:{}:{}:{}'.format(int(guid), save_id, backend._sim_id(sim), backend._get_current_flags(sim))
     filename = hashlib.sha256(lane.encode('ascii')).hexdigest() + '.json'
-    journal = ChangeJournal(os.path.join(backend._data_directory(), 'CASHistory', filename), lane)
+    journal = ChangeJournal(os.path.join(backend._data_directory(), 'CASHistory', filename), lane,
+        normalize=lambda raw: _normalize(backend, raw), representation='outfit-category-group-order-v1')
     return sim, blob, journal, lane
 
 
@@ -47,7 +63,7 @@ def _target(backend, sim, value):
     body, _, reason = backend._v8_resolve_body_type(body_type)
     if body is None:
         raise ValueError(reason)
-    message = backend._v8_parse_outfits(sim)
+    message = _message(backend, sim)
     if message is None or number >= len(message.outfits):
         raise ValueError('Outfit index does not exist in this form.')
     outfit = message.outfits[number]
@@ -105,13 +121,13 @@ def _response(journal, message, **extras):
 def dispatch(backend, action, sim_id, value):
     global _COLOR_CLIPBOARD
     sim, before, journal, lane = _context(backend, sim_id)
-    read = lambda: backend._v8_read_outfit_blob(sim)
+    read = lambda: _normalize(backend, backend._v8_read_outfit_blob(sim))
     def write(raw):
         if not backend._v8_write_outfit_blob(sim, raw):
             raise ValueError('The runtime rejected the outfit write.')
         backend._resend_all_visuals(sim)
     if action in ('studio_status', 'studio_history'):
-        message = backend._v8_parse_outfits(sim)
+        message = _message(backend, sim)
         if message is None:
             raise ValueError('Cannot parse outfit data.')
         lines = []

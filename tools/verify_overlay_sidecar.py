@@ -18,7 +18,8 @@ handle = _ctypes.LoadLibrary(sys.argv[2])
 try:
     calls = _bind(_ctypes, handle)
     result = {name: _integer(call) for name, call in calls.items()}
-    assert result == {'ApexOverlayProtocolVersion': 1, 'ApexOverlayStart': -1, 'ApexOverlayStatus': 0}, result
+    assert result == {'ApexOverlayProtocolVersion': 1, 'ApexOverlayStart': -1, 'ApexOverlayStatus': 0,
+                      'ApexOverlayShow': -1, 'ApexOverlayHide': -1, 'ApexOverlayRenderedFrames': 0}, result
     print(json.dumps(result, sort_keys=True))
 finally:
     _ctypes.FreeLibrary(handle)

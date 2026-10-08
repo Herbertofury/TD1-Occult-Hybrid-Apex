@@ -15,6 +15,32 @@ import test_profile as legacy
 
 PROTECTED_NAME = legacy.PROTECTED_NAME
 
+# Bundle files have fixed mod-relative locations. Legacy package-only journals
+# remain readable; a journal cannot authorize a write outside these locations.
+BUNDLE_PATHS = {
+    'Apex/ApexOccultHybrid.package', 'Apex/ApexOccultHybrid.ts4script',
+    'Apex/ApexCASUnlocks.package', 'Apex/Native/ApexOverlay.dll',
+    'Apex/Native/ApexOverlay.ini', 'Apex/Native/overlay-manifest.json',
+    'Apex/ApexColorStudio.package', 'Apex/ApexPlantSimPermanent.package',
+    'Apex/ApexPlantSimNoVampireThirst.package', 'Apex/ApexServoNoVampireThirst.package',
+}
+
+
+def artifact_relative(row):
+    if 'relative' in row:
+        if row['relative'] not in BUNDLE_PATHS or row['name'] != Path(row['relative']).name:
+            raise ValueError('Bundle artifact is not an owned Apex mod location.')
+        return row['relative']
+    name = row['name']
+    if Path(name).name != name or '/' in name or '\\' in name or Path(name).suffix.lower() not in ('.package', '.ts4script'):
+        raise ValueError('Journal artifact must have a plain package/script filename.')
+    return 'ApexTest/' + name
+
+
+def recovery_path(state, row, incoming=False):
+    return writable(state.parent / 'artifact-recovery' /
+                    (row['sha256'] + ('.incoming' if incoming else '') + Path(row['name']).suffix))
+
 
 @contextmanager
 def mutation_lock(state):
@@ -73,17 +99,24 @@ def load(state):
         names = set()
         for row in rows:
             name, digest = row['name'], row['sha256']
-            if Path(name).name != name or '/' in name or '\\' in name or Path(name).suffix.lower() not in ('.package', '.ts4script'):
-                raise ValueError('Journal artifact must have a plain package/script filename.')
-            if name.casefold() in names or len(digest) != 64 or any(char not in '0123456789abcdef' for char in digest):
+            relative = artifact_relative(row)
+            if relative.casefold() in names or len(digest) != 64 or any(char not in '0123456789abcdef' for char in digest):
                 raise ValueError('Invalid or duplicate journal artifact identity.')
-            names.add(name.casefold())
+            names.add(relative.casefold())
     return state, data, profile, original
+
+
+def generated_data(path, relative):
+    if relative != 'Apex/TD1_OccultHybrid_Settings.json':
+        return False
+    if path.stat().st_size > 65536 or not isinstance(json.loads(path.read_text(encoding='utf-8')), dict):
+        raise ValueError('Hybrid runtime settings are not bounded JSON data.')
+    return True
 
 
 def status(state, verify_original=False):
     state, data, profile, original = load(state)
-    expected = {('ApexTest/' + row['name']).casefold(): row for row in data['artifacts']}
+    expected = {artifact_relative(row).casefold(): row for row in data['artifacts']}
     artifacts, unexpected = [], []
     for directory, subdirs, files in os.walk(str(profile / 'Mods'), followlinks=False):
         for name in subdirs + files:
@@ -92,6 +125,10 @@ def status(state, verify_original=False):
             path = Path(directory) / name
             relative = path.relative_to(profile / 'Mods').as_posix()
             if relative.casefold() == 'resource.cfg':
+                continue
+            if generated_data(path, relative):
+                # The authorized hybrid module creates this exact configuration
+                # beside its script. It is data, not an additional loaded mod.
                 continue
             expected_row = expected.pop(relative.casefold(), None)
             if expected_row is None:
@@ -155,25 +192,28 @@ def install(state, artifacts, guard=legacy.require_closed):
 
 
 def _install(state, artifacts, guard):
+    return install_rows(state, legacy.validate_artifacts(artifacts), guard)
+
+
+def install_rows(state, incoming, guard, bundle=None):
     guard()
     state, data, profile, _original = load(state)
     if not status(state)['ready_to_launch']:
         raise ValueError('Unknown/changed test mods prevent replacement; no files were changed.')
-    incoming = legacy.validate_artifacts(artifacts)
-    old = {row['name'].casefold(): row for row in data['artifacts']}
-    destination = writable(profile / 'Mods' / 'ApexTest')
+    old = {artifact_relative(row).casefold(): row for row in data['artifacts']}
     recovery = writable(state.parent / 'artifact-recovery')
     recovery.mkdir(exist_ok=True)
     for row in old.values():
-        path = writable(destination / row['name'])
-        backup = recovery / (row['sha256'] + path.suffix)
+        path = writable(profile / 'Mods' / artifact_relative(row))
+        backup = recovery_path(state, row)
         if not backup.exists():
             shutil.copy2(str(path), str(backup))
         if sha256(backup) != row['sha256']:
             raise RuntimeError('Prior test artifact recovery verification failed.')
     pending = []
     for row in incoming:
-        stage = writable(recovery / (row['sha256'] + '.incoming' + Path(row['name']).suffix))
+        artifact_relative(row)
+        stage = recovery_path(state, row, True)
         if not stage.exists():
             with stage.open('xb') as output, Path(row['source']).open('rb') as source:
                 shutil.copyfileobj(source, output)
@@ -183,18 +223,21 @@ def _install(state, artifacts, guard):
     guard()
     data['phase'] = 'installing'
     data['pending_artifacts'] = incoming
+    if bundle is not None:
+        data['pending_bundle'] = bundle
     write_json(state, data)
     return finish_install(state, data, profile, pending, guard)
 
 
 def finish_install(state, data, profile, pending, guard):
-    destination = writable(profile / 'Mods' / 'ApexTest')
-    old = {row['name'].casefold(): row for row in data['artifacts']}
+    old = {artifact_relative(row).casefold(): row for row in data['artifacts']}
     incoming = data['pending_artifacts']
     for stage, row in pending:
-        target = writable(destination / row['name'])
+        relative = artifact_relative(row)
+        target = writable(profile / 'Mods' / relative)
+        target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists():
-            prior = old.get(row['name'].casefold())
+            prior = old.get(relative.casefold())
             allowed = {row['sha256']}
             if prior is not None:
                 allowed.add(prior['sha256'])
@@ -203,7 +246,7 @@ def finish_install(state, data, profile, pending, guard):
             if sha256(target) == row['sha256']:
                 continue
         # Copying the verified recovery blob leaves it available after an interrupted install.
-        temporary = writable(destination / ('.apex-stage-' + data['token']))
+        temporary = writable(target.parent / ('.apex-stage-' + data['token']))
         if temporary.exists():
             raise RuntimeError('Interrupted temporary artifact requires explicit recovery.')
         with temporary.open('xb') as output, stage.open('rb') as source:
@@ -212,10 +255,10 @@ def finish_install(state, data, profile, pending, guard):
             raise RuntimeError('Temporary artifact verification failed.')
         guard()
         os.replace(str(temporary), str(target))
-    desired = {row['name'].casefold() for row in incoming}
+    desired = {artifact_relative(row).casefold() for row in incoming}
     for name, row in old.items():
         if name not in desired:
-            path = writable(destination / row['name'])
+            path = writable(profile / 'Mods' / artifact_relative(row))
             if not path.exists():
                 continue
             if sha256(path) != row['sha256']:
@@ -224,6 +267,8 @@ def finish_install(state, data, profile, pending, guard):
             path.unlink()  # Exact tool-owned test artifact is verified in recovery first.
     data['artifacts'] = incoming
     data.pop('pending_artifacts', None)
+    if 'pending_bundle' in data:
+        data['bundle'] = data.pop('pending_bundle')
     data['generation'] += 1
     data['phase'] = 'active'
     write_json(state, data)
@@ -236,27 +281,31 @@ def recover(state, guard=legacy.require_closed):
     state, data, profile, _original = load(state)
     if data['phase'] != 'installing' or not data.get('pending_artifacts'):
         raise ValueError('No interrupted artifact installation to recover.')
-    old = {row['name'].casefold(): row['sha256'] for row in data['artifacts']}
-    desired = {row['name'].casefold(): row['sha256'] for row in data['pending_artifacts']}
+    old = {artifact_relative(row).casefold(): row['sha256'] for row in data['artifacts']}
+    desired = {artifact_relative(row).casefold(): row['sha256'] for row in data['pending_artifacts']}
     mods = profile / 'Mods'
     for path in mods.rglob('*'):
         writable(path)
         if not path.is_file() or path.relative_to(mods).as_posix().casefold() == 'resource.cfg':
             continue
-        if path == mods / 'ApexTest' / ('.apex-stage-' + data['token']):
+        if generated_data(path, path.relative_to(mods).as_posix()):
             continue
-        if path.parent != mods / 'ApexTest' or sha256(path) not in {old.get(path.name.casefold()), desired.get(path.name.casefold())}:
+        if path.name == '.apex-stage-' + data['token'] and path.parent in {mods / Path(artifact_relative(row)).parent for row in data['pending_artifacts']}:
+            continue
+        relative = path.relative_to(mods).as_posix().casefold()
+        if sha256(path) not in {old.get(relative), desired.get(relative)}:
             raise ValueError('Unknown test mods prevent recovery; no files changed.')
     pending = []
     for row in data['pending_artifacts']:
-        stage = writable(state.parent / 'artifact-recovery' / (row['sha256'] + '.incoming' + Path(row['name']).suffix))
+        stage = recovery_path(state, row, True)
         if sha256(stage) != row['sha256']:
             raise RuntimeError('Recovery artifact verification failed.')
         pending.append((stage, row))
-    temporary = writable(mods / 'ApexTest' / ('.apex-stage-' + data['token']))
-    if temporary.exists():
-        # Exact journal-owned scratch file; complete incoming contents remain verified above.
-        temporary.unlink()
+    for row in data['pending_artifacts']:
+        temporary = writable((mods / artifact_relative(row)).parent / ('.apex-stage-' + data['token']))
+        if temporary.exists():
+            # Exact journal-owned scratch file; complete incoming contents remain verified above.
+            temporary.unlink()
     return finish_install(state, data, profile, pending, guard)
 
 

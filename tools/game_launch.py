@@ -15,7 +15,32 @@ from source_manifest import sha256
 import test_profile
 
 
-def launch_plan(game_root, state):
+def account_launch_identity(game_root, log=None):
+    """Read a successful local account's Play record; never guess edition IDs."""
+    log = test_profile.unlinked(log or Path(os.environ.get('PROGRAMDATA', r'C:\ProgramData')) / 'EA Desktop' / 'Logs' / 'EADesktop.log')
+    if not log.is_file():
+        raise ValueError('No local EA launch history; use EA Play once to establish this account\'s launch identity.')
+    with log.open('rb') as stream:
+        stream.seek(max(0, log.stat().st_size - 2 * 1024 * 1024))
+        lines = stream.read().decode('utf-8', 'replace').splitlines()
+    executable = str(Path(game_root).resolve() / 'Game' / 'Bin' / 'TS4_Launcher_x64.exe')
+    for index in range(len(lines) - 1, -1, -1):
+        line = lines[index]
+        if 'Processing launch request:' not in line or 'requestSource[Client]' not in line:
+            continue
+        match = re.search(r'offerId\[([A-Za-z0-9:_-]+)\] contentId\[([0-9]{1,10})\] exe\[([^\]]+)\]', line)
+        if not match or os.path.normcase(match[3]) != os.path.normcase(executable):
+            continue
+        if not any('Successful launch.' in prior and 'offerKey.offerId=[' + match[1] + ']' in prior and
+                   'slug=[the-sims-4]' in prior for prior in lines[max(0, index - 30):index]):
+            continue
+        return {'offer_id': match[1], 'content_id': match[2], 'executable': executable,
+                'evidence': 'Successful EA Client Play request for this exact installation',
+                'log': str(log), 'record_sha256': __import__('hashlib').sha256(line.encode('utf-8')).hexdigest()}
+    raise ValueError('No verified successful EA Client Play record for this Sims installation; no launch ID will be guessed.')
+
+
+def launch_plan(game_root, state, offer_id=None):
     isolation = test_profile.status(state)
     if not isolation['ready_to_launch']:
         raise ValueError('Launch requires an exact isolated test profile.')
@@ -36,11 +61,17 @@ def launch_plan(game_root, state):
     ids = [node.text for node in metadata.findall('./contentIDs/contentID')]
     if not ids or len(ids) > 64 or any(not re.fullmatch(r'[0-9]{1,10}', value or '') for value in ids):
         raise ValueError('EA manifest content IDs are missing or unsafe; no launch URL will be guessed.')
-    # EA's installed protocol parser preserves %2C in id_list instead of decoding
-    # it as a delimiter. IDs are strictly numeric above; retain literal commas.
-    url = 'origin2://game/launch?' + urllib.parse.urlencode({'offerIds': ','.join(ids), 'autoDownload': '0'}, safe=',')
+    # This EA version's legacy offerIds URL parameter means CONTENT IDs.
+    # Pick the single edition actually launched by the owner's EA account.
+    identity = account_launch_identity(root)
+    if offer_id is not None and offer_id != identity['offer_id']:
+        raise ValueError('Requested storefront ID differs from this account\'s successful Play record.')
+    if identity['content_id'] not in ids:
+        raise ValueError('Account launch content ID is not in this installation manifest.')
+    url = 'origin2://game/launch?' + urllib.parse.urlencode({'offerIds': identity['content_id'], 'autoDownload': '0'})
     return {'ok': True, 'launched': False, 'mode': 'ea-client-handoff',
-            'url': url, 'game_version': version.get('version') if version is not None else None,
+            'url': url, 'account_launch_identity': identity, 'installer_content_ids': ids,
+            'game_version': version.get('version') if version is not None else None,
             'executable_sha256': sha256(executable), 'installer_manifest_sha256': sha256(manifest),
             'isolation': isolation, 'headless_game_runtime': False,
             'permission_prompts': 'EA/Windows may still require the owner to approve an administrator prompt.',
@@ -96,10 +127,10 @@ def observe_start(executable, prior_ids, seconds, probe=running_game_processes, 
     return {'process_started': False, 'message': 'EA handoff did not produce a verified Sims process. Check the EA client result; no retry was attempted.'}
 
 
-def launch(game_root, state, execute=False, headless=False, observe_seconds=20):
+def launch(game_root, state, execute=False, headless=False, observe_seconds=20, offer_id=None):
     if headless:
         raise ValueError('A headless Sims 4 runtime is not implemented. Use the real-game bridge for CLI testing.')
-    plan = launch_plan(game_root, state)
+    plan = launch_plan(game_root, state, offer_id)
     if execute:
         test_profile.require_closed()
         # Recheck immediately before handoff so no launch can use a restored/live profile.
@@ -115,6 +146,9 @@ def launch(game_root, state, execute=False, headless=False, observe_seconds=20):
         prior_ids = {row['Id'] for row in running_game_processes()}
         os.startfile(plan['url'])
         plan['handed_off'] = True
+        import ea_permission
+        time.sleep(1)
+        plan['ea_permission'] = ea_permission.acknowledge()
         plan['observation'] = observe_start(Path(game_root) / 'Game' / 'Bin' / 'TS4_x64.exe', prior_ids, observe_seconds)
         plan['launched'] = plan['observation']['process_started']
         plan['ok'] = plan['launched']

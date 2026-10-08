@@ -42,6 +42,11 @@ def migrate_xml(payload):
         raise ValueError('Unsupported baseline XML entities.')
     root = ElementTree.fromstring(payload)
     changed = False
+    # Module tuning binds class-level dialogs/icons by importable module name.
+    # Migrating interaction 'm' alone leaves every module-tuning owner orphaned.
+    if root.tag == 'M' and (root.get('n') or '').startswith('OccultHybrid.'):
+        root.set('n', 'apex_hybrid' + root.get('n')[len('OccultHybrid'):])
+        changed = True
     for node in root.iter():
         module = node.get('m')
         if module and (module == 'OccultHybrid' or module.startswith('OccultHybrid.')):
@@ -52,9 +57,23 @@ def migrate_xml(payload):
             for test in list(tests):
                 if test.get('t') == 'is_online':
                     tests.remove(test)
+        changed = True
+    if (root.get('m') or '').startswith('apex_hybrid.'):
         for item in root.findall(".//L[@n='species']/E"):
             if not (item.text or '').strip():
                 item.text = 'HUMAN'
+                changed = True
+        for item in root.iter():
+            if (item.text or '').strip().lower().startswith('0x0x'):
+                item.text = item.text.strip()[2:]
+                changed = True
+    if root.tag == 'M' and root.get('n') == 'apex_hybrid.CoreLib.TD1_OccultHybrid_MenuUI':
+        for item in root.findall(".//*[@n='UI_ICON_PLACEHOLDER']"):
+            item.set('n', 'UI_ICON_MENU_PLACEHOLDER')
+            changed = True
+    if root.get('n') == 'TD1:interactionPicker_OccultHybrid_Panel_Main':
+        root.set('m', 'apex_core.phone_interactions')
+        root.set('c', 'ApexPhoneMenu')
         changed = True
     return ElementTree.tostring(root, encoding='utf-8', xml_declaration=True) if changed else payload
 

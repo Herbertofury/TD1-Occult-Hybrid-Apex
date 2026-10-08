@@ -99,10 +99,11 @@ def _bind(native, handle):
         _argtypes_ = ()
     class Library:
         _handle = handle
-    # Only these three fixed exports can be invoked by this loader. There is
+    # Only these fixed exports can be invoked by this loader. There is
     # no configurable arbitrary procedure, address, argument list, or DLL path.
     return {name: NoArguments((name, Library())) for name in
-            ('ApexOverlayProtocolVersion', 'ApexOverlayStart', 'ApexOverlayStatus')}
+            ('ApexOverlayProtocolVersion', 'ApexOverlayStart', 'ApexOverlayStatus',
+             'ApexOverlayShow', 'ApexOverlayHide', 'ApexOverlayRenderedFrames')}
 
 
 def _integer(call):
@@ -145,7 +146,17 @@ def status():
         result['native_status'] = _integer(_CALLS['ApexOverlayStatus'])
         result['game_window_verified'] = result['native_status'] >= 2
         result['renderer_initialized'] = result['native_status'] >= 3
+        result['rendered_frames'] = _integer(_CALLS['ApexOverlayRenderedFrames'])
+        result['frame_submission_verified'] = result['rendered_frames'] > 0
     return result
+
+
+def show(visible=True):
+    if _CALLS is None:
+        return {'ok': False, 'message': 'Start the matching F11 sidecar first.'}
+    result = _integer(_CALLS['ApexOverlayShow' if visible else 'ApexOverlayHide'])
+    return dict(status(), ok=result == 0, visibility_requested=bool(visible),
+                message='Visibility requested; verify actual rendered frames separately.' if result == 0 else 'F11 hook is not ready.')
 
 
 def auto_start_enabled(module_file):

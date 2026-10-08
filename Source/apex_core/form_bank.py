@@ -50,15 +50,21 @@ def restore(backend, sim, lane, fields):
     target = backend._ensure_human_form(sim.occult_tracker) if int(lane) == 1 else backend._ensure_form(sim.occult_tracker, kind, generate_new=False)
     if target is None:
         raise ValueError('Required form missing; no replacement generated.')
-    backend._restore_siminfo_payload(target, appearance.payload(fields))
     expected = appearance.fingerprint(fields)['appearance_sha256']
+    # Native outfit loading and visual resends are unnecessary when every
+    # appearance field and normalized outfit byte already matches the bank.
     if appearance.evidence(backend, target)['appearance_sha256'] != expected:
-        raise ValueError('Stored form failed exact appearance readback.')
+        backend._restore_siminfo_payload(target, appearance.payload(fields))
+        if appearance.evidence(backend, target)['appearance_sha256'] != expected:
+            raise ValueError('Stored form failed exact appearance readback.')
     if backend._get_current_flags(sim) == int(lane):
-        backend._restore_siminfo_payload(sim, appearance.payload(fields))
-        backend._resend_all_visuals(sim)
+        # The active Sim and stored wrapper can diverge independently. Inspect
+        # the Sim after any wrapper write rather than inferring its state.
         if appearance.evidence(backend, sim)['appearance_sha256'] != expected:
-            raise ValueError('Live form failed exact appearance readback.')
+            backend._restore_siminfo_payload(sim, appearance.payload(fields))
+            backend._resend_all_visuals(sim)
+            if appearance.evidence(backend, sim)['appearance_sha256'] != expected:
+                raise ValueError('Live form failed exact appearance readback.')
 
 
 def begin(backend, sim, hair_target=None):

@@ -42,6 +42,101 @@ class FormBankTests(unittest.TestCase):
         path, key = form_bank.context(self.backend, self.sim)
         return form_bank.load(path)['records'][key]
 
+    def observe_restore_writes(self):
+        writes, resends = [], []
+        native_restore = self.backend._restore_siminfo_payload
+        def write(target, fields):
+            writes.append(target)
+            native_restore(target, fields)
+        self.backend._restore_siminfo_payload = write
+        self.backend._resend_all_visuals = resends.append
+        return writes, resends
+
+    def complete_human_appearance(self):
+        fields = dict(physique=self.human.physique, facial_attributes=b'face and unknown bytes',
+                      skin_tone=(1 << 64) - 11, skin_tone_val_shift=0.37,
+                      pelt_layers=b'pelt', genetic_data=b'genetics', custom_texture=b'texture',
+                      parts_custom_tattoos=(123456789, 987654321), voice_pitch=0.41,
+                      voice_actor=13, voice_effect=2)
+        for target in (self.human, self.sim):
+            for name, value in fields.items(): setattr(target, name, value)
+            target.blob = outfit(0, 1) + outfit(0, 2, (1 << 64) - 3) + outfit(7, 3) + b'\x42\x03top'
+        return appearance.packed(self.backend, self.human)
+
+    def test_unchanged_complete_appearance_skips_native_writes_and_visual_resends(self):
+        desired = self.complete_human_appearance()
+        self.assertEqual(set(desired), set(appearance.FIELDS + ('__outfits__',)))
+        # The native loader may reorder category groups without changing any
+        # category-relative outfit, unknown field, or exact uint64 color.
+        self.sim.blob = outfit(7, 3) + outfit(0, 1) + outfit(0, 2, (1 << 64) - 3) + b'\x42\x03top'
+        writes, resends = self.observe_restore_writes()
+        form_bank.restore(self.backend, self.sim, '1', desired)
+        self.assertEqual(writes, [])
+        self.assertEqual(resends, [])
+
+    def test_matching_stored_wrapper_does_not_hide_changed_live_fields_or_unknown_outfit_bytes(self):
+        desired = self.complete_human_appearance()
+        self.sim.voice_effect = 7
+        self.sim.blob = self.sim.blob[:-3] + b'new'
+        writes, resends = self.observe_restore_writes()
+        form_bank.restore(self.backend, self.sim, '1', desired)
+        self.assertEqual(writes, [self.sim])
+        self.assertEqual(resends, [self.sim])
+        self.assertEqual(appearance.packed(self.backend, self.sim), desired)
+        self.assertEqual(appearance.packed(self.backend, self.human), desired)
+
+    def test_changed_stored_wrapper_does_not_reload_matching_live_sim(self):
+        desired = self.complete_human_appearance()
+        self.human.facial_attributes = b'changed native facial attributes'
+        self.human.blob = self.human.blob[:-3] + b'new'
+        writes, resends = self.observe_restore_writes()
+        form_bank.restore(self.backend, self.sim, '1', desired)
+        self.assertEqual(writes, [self.human])
+        self.assertEqual(resends, [])
+        self.assertEqual(appearance.packed(self.backend, self.human), desired)
+        self.assertEqual(appearance.packed(self.backend, self.sim), desired)
+
+    def test_inactive_matching_form_does_not_write_unrelated_live_appearance(self):
+        desired = appearance.packed(self.backend, self.vampire)
+        live_before = appearance.packed(self.backend, self.sim)
+        writes, resends = self.observe_restore_writes()
+        form_bank.restore(self.backend, self.sim, '4', desired)
+        self.assertEqual(writes, [])
+        self.assertEqual(resends, [])
+        self.assertEqual(appearance.packed(self.backend, self.sim), live_before)
+
+    def test_changed_stored_form_requires_exact_readback_before_live_write(self):
+        desired = self.complete_human_appearance()
+        self.human.skin_tone -= 1
+        self.sim.physique = 'Different live appearance too'
+        attempted = []
+        self.backend._restore_siminfo_payload = lambda target, fields: attempted.append(target)
+        self.backend._resend_all_visuals = lambda _: self.fail('failed stored readback must stop reconciliation')
+        with self.assertRaisesRegex(ValueError, 'Stored form failed exact appearance readback'):
+            form_bank.restore(self.backend, self.sim, '1', desired)
+        self.assertEqual(attempted, [self.human])
+
+    def test_changed_live_form_requires_exact_readback_when_wrapper_already_matches(self):
+        desired = self.complete_human_appearance()
+        self.sim.genetic_data = b'Unaccepted live genetics'
+        attempted, resends = [], []
+        self.backend._restore_siminfo_payload = lambda target, fields: attempted.append(target)
+        self.backend._resend_all_visuals = resends.append
+        with self.assertRaisesRegex(ValueError, 'Live form failed exact appearance readback'):
+            form_bank.restore(self.backend, self.sim, '1', desired)
+        self.assertEqual(attempted, [self.sim])
+        self.assertEqual(resends, [self.sim])
+
+    def test_alias_of_stored_and_live_form_is_written_only_once(self):
+        desired = self.complete_human_appearance()
+        self.forms[1] = self.sim
+        self.sim.physique = 'Native form and Sim share one object'
+        writes, resends = self.observe_restore_writes()
+        form_bank.restore(self.backend, self.sim, '1', desired)
+        self.assertEqual(writes, [self.sim])
+        self.assertEqual(resends, [])
+        self.assertEqual(appearance.packed(self.backend, self.sim), desired)
+
     def native_hair_policy(self):
         from test_outfit_hair import native_outfit_parser, native_outfit_fields
         parse = native_outfit_parser()

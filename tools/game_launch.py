@@ -3,8 +3,9 @@
 Only an exact isolated test session may launch. This cannot silently approve an
 EA/Windows administrator prompt and does not implement a headless game engine.
 """
+import ctypes
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import re
 import json
 import subprocess
@@ -111,6 +112,53 @@ def process_image(pid):
         if kernel.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(capacity)):
             return buffer.value
         return None
+    finally:
+        kernel.CloseHandle(handle)
+
+
+def observe_game_process(pid, kernel=None, last_error=None):
+    """Observe one exact live DX11 Sims PID through a single read-only handle.
+
+    No shell, enumeration, process memory or elevation is needed. A vanished or
+    exited PID returns None; inaccessible and reused non-Sims PIDs fail closed.
+    Native bindings may be supplied for tests without inspecting host processes.
+    """
+    if type(pid) is not int or not 0 < pid <= 0xffffffff:
+        raise ValueError('Use an exact integer Windows process ID within the DWORD range.')
+    from ctypes import wintypes
+    if kernel is None:
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    if last_error is None:
+        last_error = lambda: ctypes.get_last_error()
+    kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    kernel.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
+                                               wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
+    kernel.QueryFullProcessImageNameW.restype = wintypes.BOOL
+    kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel.CloseHandle.restype = wintypes.BOOL
+    handle = kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION only.
+    if not handle:
+        error = last_error()
+        if error == 87:
+            return None
+        raise OSError(error, 'Could not observe the verified Sims process.')
+    try:
+        code = wintypes.DWORD()
+        if not kernel.GetExitCodeProcess(handle, ctypes.byref(code)):
+            raise OSError(last_error(), 'Could not inspect the verified Sims process exit state.')
+        if code.value != 259:  # STILL_ACTIVE
+            return None
+        capacity = wintypes.DWORD(32768)
+        name = ctypes.create_unicode_buffer(capacity.value)
+        if not kernel.QueryFullProcessImageNameW(handle, 0, name, ctypes.byref(capacity)):
+            raise OSError(last_error(), 'Could not inspect the verified Sims executable identity.')
+        image = name.value
+        if not image or PureWindowsPath(image).name.casefold() != 'ts4_x64.exe':
+            raise ValueError('Verified PID belongs to a different executable; no game command is authorized.')
+        return {'Id': pid, 'Path': image}
     finally:
         kernel.CloseHandle(handle)
 

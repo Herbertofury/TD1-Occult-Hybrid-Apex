@@ -5,7 +5,7 @@ claim that EA's graphical executable has a supported headless mode.
 """
 import argparse
 import json
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import sys
 import time
 import uuid
@@ -56,9 +56,11 @@ def verified_identity(state, transport=get):
     identity = transport('/api/bridge')
     if identity.get('test_token') != journal['token'] or identity.get('script_sha256') != expected:
         raise ValueError('Running bridge does not match this test profile and exact installed script.')
-    processes = game_launch.running_game_processes()
-    process = next((row for row in processes if row['Id'] == identity.get('pid')), None)
-    if not process or not process.get('Path') or Path(process['Path']).name.lower() != 'ts4_x64.exe':
+    pid = identity.get('pid')
+    if type(pid) is not int or not 0 < pid <= 0xffffffff:
+        raise ValueError('Bridge PID must be an exact valid Windows process identity.')
+    process = game_launch.observe_game_process(pid)
+    if not process or process.get('Id') != pid or not process.get('Path') or PureWindowsPath(process['Path']).name.casefold() != 'ts4_x64.exe':
         raise ValueError('Bridge PID is not an observed Sims 4 DX11 process.')
     return identity
 
@@ -188,6 +190,9 @@ def parser():
     addon.add_argument('operation', choices=('install', 'remove'))
     addon.add_argument('--state', required=True, type=Path)
     addon.add_argument('--archive', type=Path)
+    autostart = profile_commands.add_parser('overlay-autostart', help='Toggle automatic native overlay load with the game closed')
+    autostart.add_argument('operation', choices=('on', 'off'))
+    autostart.add_argument('--state', required=True, type=Path)
     cleanup = profile_commands.add_parser('consolidate', help='Recover retired disposable profile contents then keep one test profile')
     cleanup.add_argument('--state', required=True, type=Path)
     cleanup.add_argument('--previous-state', required=True, type=Path, action='append')
@@ -265,6 +270,9 @@ def execute(args):
     if args.command == 'launch':
         return game_launch.launch(args.game_root, args.state, args.execute, args.headless, offer_id=args.offer_id)
     if args.command == 'profile':
+        if args.profile_command == 'overlay-autostart':
+            from overlay_configuration import configure
+            return configure(args.state, args.operation == 'on')
         if args.profile_command == 'mccc':
             import test_addons
             return test_addons.configure(args.state, args.archive, remove=args.operation == 'remove')
@@ -346,6 +354,10 @@ def execute(args):
         from cas_client import execute as cas_execute
         return cas_execute(args, owned_request)
     if args.command == 'game':
+        if args.operation == 'cas' and args.output is not None:
+            from cas_transition import observe
+            return observe(args.state, args.output, verified_identity(args.state), owned_request,
+                           sim_id=args.sim_id, value=args.value, seconds=args.seconds, transport=get)
         if args.operation == 'resume':
             if args.output is None:
                 raise ValueError('A new external JSON proof filename is required for Resume.')

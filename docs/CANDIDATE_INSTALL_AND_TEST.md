@@ -410,3 +410,31 @@ loaded saved household through the bridge. It rejects pack cards and other menus
 Normal game save/exit remains through `game shutdown`. The socket cleanup now
 runs before original native Unload teardown; CAS accept/return must pass before
 this candidate can be treated as exit-safe.
+
+
+Use the bounded CAS entry observer when testing the disposable household:
+
+```powershell
+python tools/apex_cli.py game cas --state .work/reusable-profile-session.json --sim-id <exact-id> --value full --seconds 45 --output .work/cas-entry-proof.json
+```
+
+This submits entry once, waits for a fresh socket peer belonging to that exact Sim,
+then requests one complete mapped native inventory. Its external proof separates
+entry submission, handshake and inventory. Timeout, response loss and process exit
+retain their IDs without replay. A changed bounded valid lastCrash XML is preserved
+by hash beside the proof. The observer itself writes no profile data. A successful
+entry does not prove edits, normal return, persistence or a fully working hybrid.
+
+
+For controlled renderer isolation, with the game closed:
+
+```powershell
+python tools/apex_cli.py profile overlay-autostart off --state .work/reusable-profile-session.json
+python tools/apex_cli.py profile overlay-autostart on --state .work/reusable-profile-session.json
+```
+
+This changes only the pinned INI setting, preserving all artifact rows, comments,
+ToggleKey and save data. The configuration receipt is separate from the baseline
+candidate ZIP hash. Turning automatic loading off does not prohibit explicitly
+starting the overlay later; avoid overlay_start/capture/input during an isolation
+probe and verify the DLL's absence separately.

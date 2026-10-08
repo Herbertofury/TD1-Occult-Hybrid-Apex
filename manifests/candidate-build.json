@@ -1,9 +1,9 @@
 {
   "bundle": {
     "artifact": "Apex_Development_Candidate_2026-10-07.zip",
-    "bytes": 2376762,
+    "bytes": 2376922,
     "members": 28,
-    "sha256": "45f0f6bca38498ee17e0cd0b289c225bc2ab216f982816c725630ee9583f52ed"
+    "sha256": "3f44e24678ca6dcc23402d89203ccb3924a4d657349e64d22f6798305ecc7954"
   },
   "compiled_script_modules": 60,
   "deployed": false,
@@ -32,7 +32,7 @@
     {
       "bytes": 1212,
       "file": "Manifests/ApexCASBridge.package.manifest.json",
-      "sha256": "886a7c195d4a2f82985542c0bfe9b4b043bfc5fc51242e27fb572a28c2a5e1d8"
+      "sha256": "66be192a6d808d3fa64df689886a41801e9fdcaf9f00fc71f0d97b480199adc3"
     },
     {
       "bytes": 18738,
@@ -85,9 +85,9 @@
       "sha256": "eecf46ce7850a439dd8f7f78d7ca1bc2cbabe2a0a222225c210151a2ad3d955f"
     },
     {
-      "bytes": 145199,
+      "bytes": 145372,
       "file": "Mods/Apex/ApexCASBridge.package",
-      "sha256": "0715a3002a31c4e0a703bde0a9c9210fdb0965ddaea634f4ef7f1efae84dd49d"
+      "sha256": "3304bf7f2df19138cafb34eb3311b3b744f25ec448462f3dd70d5a7175aa6110"
     },
     {
       "bytes": 16550,

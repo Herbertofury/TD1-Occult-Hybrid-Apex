@@ -42,7 +42,6 @@
             apexSocket.removeEventListener(flash.events.Event.CONNECT,ApexSocketConnect);
             apexSocket.removeEventListener(flash.events.Event.CLOSE,ApexSocketFailure);
             apexSocket.removeEventListener(flash.events.IOErrorEvent.IO_ERROR,ApexSocketFailure);
-            apexSocket.removeEventListener("securityError",ApexSocketFailure);
             apexSocket.removeEventListener(flash.events.ProgressEvent.SOCKET_DATA,ApexSocketData);
             try { apexSocket.close(); } catch(closeError:Error) { }
          }
@@ -68,6 +67,19 @@
       {
          if(apexDisconnected) return;
          try {
+            // GFx implements Timer.currentCount, but explicitly does not support
+            // Socket.securityError. Bound every outstanding stage using the
+            // existing state string: stage|timer-count. Never register an
+            // unsupported native event or await its callback indefinitely.
+            if(apexAwaiting!="") {
+               var waiting:Array=apexAwaiting.split("|");
+               if(waiting.length!=2 || !/^[0-9]+$/.test(String(waiting[1])))
+                  throw new Error("Invalid CAS transport wait state");
+               var waitLimit:int=waiting[0]=="connect" ? 6 : 40;
+               if(int(apexTimer.currentCount)-int(waiting[1])>=waitLimit) {
+                  ApexSocketFailure("CAS socket "+waiting[0]+" timed out"); return;
+               }
+            }
             var native:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
             var simId:String=native ? String(native.simId) : "";
             if(!/^[1-9][0-9]{0,19}$/.test(simId)) return;
@@ -76,12 +88,9 @@
                apexSocket.addEventListener(flash.events.Event.CONNECT,ApexSocketConnect);
                apexSocket.addEventListener(flash.events.Event.CLOSE,ApexSocketFailure);
                apexSocket.addEventListener(flash.events.IOErrorEvent.IO_ERROR,ApexSocketFailure);
-               // GFx may expose a SecurityErrorEvent class stub; using its
-               // event-name string avoids resolving that unsupported class.
-               apexSocket.addEventListener("securityError",ApexSocketFailure);
                apexSocket.addEventListener(flash.events.ProgressEvent.SOCKET_DATA,ApexSocketData);
                apexSocket.timeout=1500;
-               apexAwaiting="connect";
+               apexAwaiting="connect|"+apexTimer.currentCount;
                apexSocket.connect("127.0.0.1",8021);
                return;
             }
@@ -89,7 +98,7 @@
                ApexResetSocket(); return;
             }
             if(apexSocketActive && apexNonce.length==64 && apexAwaiting=="") {
-               apexAwaiting="poll";
+               apexAwaiting="poll|"+apexTimer.currentCount;
                ApexSocketSend("POLL|"+apexNonce);
             }
          } catch(tickError:Error) { ApexSocketFailure(tickError); }
@@ -101,7 +110,7 @@
             var native:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
             var simId:String=native ? String(native.simId) : "";
             if(!/^[1-9][0-9]{0,19}$/.test(simId)) throw new Error("Native CAS has no selected Sim");
-            apexSocketActive=true; apexBoundSim=simId; apexAwaiting="hello";
+            apexSocketActive=true; apexBoundSim=simId; apexAwaiting="hello|"+apexTimer.currentCount;
             ApexSocketSend("HELLO|"+simId);
          } catch(connectError:Error) { ApexSocketFailure(connectError); }
       }
@@ -144,10 +153,11 @@
                if(apexFrame.length<apexExpected) return;
                var payload:String=apexFrame.substr(0,apexExpected);
                apexFrame=apexFrame.substr(apexExpected); apexExpected=-1;
-               if(apexAwaiting=="hello") {
+               var stage:String=apexAwaiting.split("|")[0];
+               if(stage=="hello") {
                   if(!/^HELLO\|[0-9a-f]{64}$/.test(payload)) throw new Error("Invalid CAS session nonce");
                   apexNonce=payload.substr(6); apexAwaiting="";
-               } else if(apexAwaiting=="poll") {
+               } else if(stage=="poll") {
                   if(payload=="WAIT") { apexAwaiting=""; }
                   else {
                      if(payload.length>512 || payload.split("|").length!=7)
@@ -160,7 +170,7 @@
                      // ACK has itself been acknowledged by the owning server.
                      ApexExecute();
                   }
-               } else if(apexAwaiting=="ack") {
+               } else if(stage=="ack") {
                   if(payload!="ACK|"+apexAckId) throw new Error("CAS result acknowledgement differs");
                   apexAckId=""; apexAwaiting="";
                } else throw new Error("Unsolicited CAS transport frame");
@@ -170,7 +180,7 @@
 
       private function ApexSocketReply(id:String, reply:String) : void
       {
-         apexAckId=id; apexAwaiting="ack";
+         apexAckId=id; apexAwaiting="ack|"+apexTimer.currentCount;
          ApexSocketSend("ACK|"+apexNonce+"|"+id+"|"+reply);
       }
 

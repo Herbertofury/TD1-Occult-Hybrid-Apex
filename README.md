@@ -6,12 +6,14 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Current development candidate — October 7, 2026:** six built packages/204 resources,
+**Current development candidate — October 8, 2026:** seven built packages/205 resources,
 matching compiled scripts, a mod-folder F11 sidecar, scoped numeric H/S/B/O editing,
 and persistent preview/Apply/Undo recovery. The independent DX11 host and packaged
 Python 3.7 loader checks pass. See [installation](docs/CANDIDATE_INSTALL_AND_TEST.md)
 and [current evidence/remaining work](Reports/SIDECAR_AND_COLOR_2026-10-07.md).
-Current-game and full-parity gates remain open; the owner handles live testing.
+Current-game and full-parity gates remain open. CLI testing uses one disposable
+profile; native CAS currently has unresolved entry/return crashes. See
+[`Reports/LIVE_CLI_2026-10-07.md`](Reports/LIVE_CLI_2026-10-07.md).
 
 Apex Occult Hybrid is a standalone first-party hybrid-occult project recovered from earlier Apex/TD1-oriented work. The project owner has explicitly stated they have full permission from the relevant TD1/LordPercival hybrid, Crilender CASUnlocks, MCCC, and thepancake1 authors to use the relevant baseline material in Apex. Their newest working packages are therefore the concrete starting code/resource baselines to import, inventory, port and improve—not merely inspiration—while the finished release converges on Apex-owned artifacts and preserves attribution/provenance.
 
@@ -132,6 +134,10 @@ The Apex design intentionally refuses private MCCC monkey-patching. MCCC integra
 - No quality/content reduction is an acceptable performance optimization.
 
 ## Repository map
+
+Run host fixtures with `python -m pip install -r requirements-test.txt`, then
+`python -m unittest discover -s tests -v`. The pinned protobuf dependency belongs
+to these host fixtures; the game uses its own bundled runtime.
 
 - `Source/td1_occult_hybrid_apex.py` — Sims/Python backend source.
 - `NativeOverlay/` — Windows x64 Dear ImGui/DX11 overlay source kit.

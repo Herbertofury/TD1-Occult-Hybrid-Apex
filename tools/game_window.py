@@ -36,6 +36,10 @@ def focus(pid):
     user.ShowWindow.restype = wintypes.BOOL
     user.SetForegroundWindow.argtypes = [wintypes.HWND]
     user.SetForegroundWindow.restype = wintypes.BOOL
+    user.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+    user.AttachThreadInput.restype = wintypes.BOOL
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.GetCurrentThreadId.restype = wintypes.DWORD
     callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     user.EnumWindows.argtypes = [callback_type, wintypes.LPARAM]
     user.EnumWindows.restype = wintypes.BOOL
@@ -67,6 +71,23 @@ def focus(pid):
     if user.IsIconic(hwnd):
         user.ShowWindow(hwnd, 9)  # SW_RESTORE
     accepted = bool(user.SetForegroundWindow(hwnd))
+    attached = []
+    # Temporary same-desktop input-queue attachment supports an explicitly
+    # requested CLI focus change. Detach before any native input is submitted;
+    # this does not inject keys or acknowledge another application's dialogs.
+    if not accepted and user.GetForegroundWindow() != hwnd:
+        current_thread = kernel.GetCurrentThreadId()
+        foreground_thread = user.GetWindowThreadProcessId(user.GetForegroundWindow(), None)
+        game_thread = user.GetWindowThreadProcessId(hwnd, None)
+        try:
+            for thread in dict.fromkeys((foreground_thread, game_thread)):
+                if thread and thread != current_thread and user.AttachThreadInput(current_thread, thread, True):
+                    attached.append(thread)
+            if owner(hwnd) == pid:
+                accepted = bool(user.SetForegroundWindow(hwnd))
+        finally:
+            for thread in reversed(attached):
+                user.AttachThreadInput(current_thread, thread, False)
     deadline = time.monotonic() + 2
     foreground = user.GetForegroundWindow()
     while foreground != hwnd and time.monotonic() < deadline:
@@ -74,5 +95,6 @@ def focus(pid):
         foreground = user.GetForegroundWindow()
     verified = foreground == hwnd and owner(foreground) == pid
     return {'ok': verified, 'window': row, 'focus_request_accepted': accepted,
+            'temporary_input_queue_attachment': bool(attached),
             'foreground_verified': verified, 'foreground_pid': owner(foreground),
             'message': 'Verified Sims window is foreground.' if verified else 'Windows refused Sims foreground ownership; no input was sent.'}

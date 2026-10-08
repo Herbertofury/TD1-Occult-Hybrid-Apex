@@ -1,11 +1,11 @@
 {
   "bundle": {
     "artifact": "Apex_Development_Candidate_2026-10-07.zip",
-    "bytes": 2123407,
-    "members": 26,
-    "sha256": "0e2d96be7ee95eb464d73eaa49247e7be96bd8bfe27021c66a7638f61dad03ac"
+    "bytes": 2356613,
+    "members": 28,
+    "sha256": "4a4e7ec94721a6375478a47c7f0782bfc6405b6d392f7fdd9be6d86d5a48a86d"
   },
-  "compiled_script_modules": 54,
+  "compiled_script_modules": 59,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -30,6 +30,11 @@
       "sha256": "c0d068392ea65358b798b8c165103560f06e9e3b38c4ab4e2d8810a7b931af86"
     },
     {
+      "bytes": 886,
+      "file": "Manifests/ApexCASBridge.package.manifest.json",
+      "sha256": "fd0dc6cb74dea62c39f148ead3c0fb972bff654f4e5a344fff7b345c3346266e"
+    },
+    {
       "bytes": 18738,
       "file": "Manifests/ApexCASUnlocks.package.manifest.json",
       "sha256": "ef84f398f52334040e5b7aea662521fc24442be6552d76cb5a8f17be2aacdf46"
@@ -45,9 +50,9 @@
       "sha256": "48f32388e16365e1de7a4ad0e28036bbe3e77b25a0cd7720b49c67c13e6e8f7f"
     },
     {
-      "bytes": 28577,
+      "bytes": 30178,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "22f53339cf49abfd6d3d36775d93dd7cfa8bf1fda6455891f31e9f38dec5afe0"
+      "sha256": "8938b59962ee1e7264e71b4fff0a43df31cb42794d8a5a98c787d81ae0dbbb7f"
     },
     {
       "bytes": 1506,
@@ -80,6 +85,11 @@
       "sha256": "eecf46ce7850a439dd8f7f78d7ca1bc2cbabe2a0a222225c210151a2ad3d955f"
     },
     {
+      "bytes": 141885,
+      "file": "Mods/Apex/ApexCASBridge.package",
+      "sha256": "0c18beabcc8a51a454ad4d4a75215a84cbbc7e131d2b5e173ac8a925ab421b45"
+    },
+    {
       "bytes": 16550,
       "file": "Mods/Apex/ApexCASUnlocks.package",
       "sha256": "b6e59c33b783530ba6d771fc98e69d21b719d95e48d9329f59ce5f2f4379c6e5"
@@ -90,14 +100,14 @@
       "sha256": "694dc9510a69c0232e77107a86e2c198b271ef6f1ee5c6f47b9514998cf58182"
     },
     {
-      "bytes": 359971,
+      "bytes": 406813,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "579ebb5680d7e7ab2d71270a3034980d342d04e5be9c71588948b9b389839342"
+      "sha256": "a84f58c852cd5508c603ef190ad7f6877db272869d470333b8ebcc4a5170190c"
     },
     {
-      "bytes": 1052672,
+      "bytes": 1138688,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "c6947847f79ebb077875f8c5c5f56d702eec11fb46ea3b7b014f609434224e3c"
+      "sha256": "56d607250d1b0efa330c027727d3be61ccfbe01a858642be9ebc41a7d2a37965"
     },
     {
       "bytes": 190,
@@ -105,9 +115,9 @@
       "sha256": "a8ff8b31a0c49c8b1972ba5d27b140cc091521d03bcccfb8283835f764bdf831"
     },
     {
-      "bytes": 1104,
+      "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "9a5a8eed7cfd430f77be9686c042db530c4e3b5b8bb2bb971e9331fe4eed0417"
+      "sha256": "828b92527c6e6d94fcdd5d73a5ebf9cedc154022a5b69035289bbcb61f498634"
     },
     {
       "bytes": 424,
@@ -125,14 +135,14 @@
       "sha256": "cc95624a1ac3fdec67ec00cfb2f4fa00ec72ab280011267e2bfd8e2d47ab39a4"
     },
     {
-      "bytes": 12244,
+      "bytes": 24799,
       "file": "README.md",
-      "sha256": "7ea5b0268048132e7e0f18f6f861884ffcce81525e8584eb20e14be64bd0ecf3"
+      "sha256": "1d90f496c32b7f538caa904d4272bc9cd57bb8cb1a2082f7ea64c04453d888d5"
     },
     {
-      "bytes": 6928,
+      "bytes": 7419,
       "file": "THIRD_PARTY_NOTICES.md",
-      "sha256": "9896e16bf795c9e3eb3cc9711022f47f4cdf095a5a6ce33a948a9708428cc7ba"
+      "sha256": "803d3871f7379be9ab6e5a303918d1ea92c26d5126b6026abb001cc81eb97135"
     }
   ],
   "package_verification": [
@@ -183,6 +193,13 @@
     },
     {
       "artifact": "Optional/ApexServoNoVampireThirst.package",
+      "independent_resource_hashes_verified": 1,
+      "independent_rust_verified": true,
+      "namespace_modules_resolved": [],
+      "resources": 1
+    },
+    {
+      "artifact": "ApexCASBridge.package",
       "independent_resource_hashes_verified": 1,
       "independent_rust_verified": true,
       "namespace_modules_resolved": [],

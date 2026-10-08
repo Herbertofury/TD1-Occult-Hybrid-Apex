@@ -35,8 +35,9 @@ def decoded(value):
 
 
 class ChangeJournal:
-    def __init__(self, path, lane, normalize=None, representation=None):
+    def __init__(self, path, lane, normalize=None, representation=None, capture_record=None):
         self.path, self.lane = path, str(lane)
+        self.capture_record = capture_record
         self.data = {'schema': 1, 'lane': self.lane, 'cursor': None, 'nodes': [], 'operations': [], 'pending': None}
         if os.path.exists(path):
             if os.path.getsize(path) > MAX_JOURNAL:
@@ -51,6 +52,9 @@ class ChangeJournal:
                     raise ValueError('Corrupt/duplicate history state; no restore allowed.')
                 if node['parent'] is not None and node['parent'] not in identities:
                     raise ValueError('History parent is missing.')
+                if 'sim_record' in node:
+                    from .sim_record import restore
+                    restore(node['sim_record'])
                 identities.add(node['id'])
             if self.data['cursor'] is not None and self.data['cursor'] not in identities:
                 raise ValueError('History cursor is missing.')
@@ -107,9 +111,11 @@ class ChangeJournal:
     def _node(self, identity):
         return next(node for node in self.data['nodes'] if node['id'] == identity)
 
-    def _append(self, label, raw, parent):
+    def _append(self, label, raw, parent, record=None):
         node = {'id': uuid.uuid4().hex, 'parent': parent, 'label': str(label)[:160], 'time': time.time(),
                 'sha256': fingerprint(raw), 'state': encoded(raw)}
+        if record is not None or self.capture_record is not None:
+            node['sim_record'] = record if record is not None else self.capture_record()
         self.data['nodes'].append(node)
         self.data['cursor'] = node['id']
         return node
@@ -117,11 +123,20 @@ class ChangeJournal:
     def observe(self, raw, label='Observed external appearance change', force=False):
         if self.data['pending']:
             raise ValueError('Resolve the interrupted transaction before observing a new state.')
+        record = self.capture_record() if self.capture_record else None
         if not force and self.data['cursor'] and self._node(self.data['cursor'])['sha256'] == fingerprint(raw):
+            prior_records = [item.get('sim_record') for item in self.data['operations'] if item.get('sim_record')]
+            prior_record = prior_records[-1] if prior_records else self._node(self.data['cursor']).get('sim_record')
+            if record is not None and (prior_record is None or prior_record['sha256'] != record['sha256']):
+                # Runtime/gameplay observations remain complete, but do not
+                # advance the appearance cursor or intercept the next Undo.
+                self.data['operations'].append({'kind': 'observed-native-record', 'node': self.data['cursor'],
+                                                'time': time.time(), 'sim_record': record})
+                self._save()
             return self.data['cursor']
         previous = copy.deepcopy(self.data)
         try:
-            node = self._append(label, raw, self.data['cursor'])
+            node = self._append(label, raw, self.data['cursor'], record)
             self.data['operations'].append({'kind': 'observe', 'id': node['id'], 'time': time.time()})
             self._save()
             return node['id']
@@ -153,7 +168,9 @@ class ChangeJournal:
             node_id = pending['restore_node']
         else:
             node_id = self._append(pending['label'], decoded(pending['after']), pending['parent'])['id']
+        operation_record = self.capture_record() if self.capture_record else None
         self.data['operations'].append({'id': pending['id'], 'kind': pending['label'], 'node': node_id,
+            'sim_record': operation_record,
             'from': pending['parent'], 'time': time.time(), 'readback_verified': True, 'recovered': recovered,
             'save_reload_verified': False})
         self.data['pending'] = None
@@ -217,6 +234,10 @@ class ChangeJournal:
         cursor = self._node(self.data['cursor'])
         if kind == 'Undo':
             node = cursor['parent']
+            # Preserve old redundant observations on disk, while an appearance
+            # Undo goes back to the preceding distinct state.
+            while node is not None and self._node(node)['sha256'] == cursor['sha256']:
+                node = self._node(node)['parent']
         elif kind == 'Redo' and node is None:
             children = [item['id'] for item in self.data['nodes'] if item['parent'] == cursor['id']]
             if len(children) != 1:
@@ -224,9 +245,13 @@ class ChangeJournal:
             node = children[0]
         if node is None:
             raise ValueError('No history state is available for this operation.')
-        if kind == 'Redo' and self._node(node)['parent'] != cursor['id']:
-            raise ValueError('Selected node is not a redo branch of the current state.')
+        if kind == 'Redo':
+            parent = self._node(node)['parent']
+            while parent is not None and parent != cursor['id'] and self._node(parent)['sha256'] == cursor['sha256']:
+                parent = self._node(parent)['parent']
+            if parent != cursor['id']:
+                raise ValueError('Selected node is not a redo branch of the current state.')
         return self.prepare(kind, current, decoded(self._node(node)['state']), restore_node=node)
 
     def timeline(self):
-        return [{key: value for key, value in node.items() if key != 'state'} for node in self.data['nodes']]
+        return [{key: value for key, value in node.items() if key not in ('state', 'sim_record')} for node in self.data['nodes']]

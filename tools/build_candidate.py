@@ -18,12 +18,21 @@ from verify_overlay_sidecar import verify as verify_overlay
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def build(output, foundry=None):
+def build(output, foundry=None, cas_ui_package=None):
     output = Path(output).resolve()
     if ROOT not in output.parents or '.work' in output.parts or output.name != 'candidate':
         raise ValueError('Use the single checkout artifact directory dist/candidate.')
     baseline = ROOT / '.work' / 'baselines'
     packages = build_packages(baseline, output)
+    if cas_ui_package is not None:
+        ui_path = Path(cas_ui_package).resolve(strict=True)
+        if ui_path != output / 'ApexCASBridge.package':
+            raise ValueError('Use the single built candidate CAS bridge package.')
+        ui_info = json.loads(Path(str(ui_path) + '.manifest.json').read_text(encoding='utf-8'))
+        contract = ui_info.get('native_bytecode_contract', {})
+        if ui_info.get('target_game') != '1.128.90.1030' or ui_info.get('sha256') != digest(ui_path.read_bytes()) or not ui_info.get('non_script_tags_preserved') or contract.get('unchanged_native_methods') != 1786 or not contract.get('native_lexical_scope_preserved') or not contract.get('owned_local_scope_indexes_verified'):
+            raise ValueError('CAS bridge package does not match its build evidence.')
+        packages.append(ui_info)
     script = build_script(ROOT / 'Source', output / 'ApexOccultHybrid.ts4script',
         hybrid_baseline=baseline / 'LordPercivalXII.Occult.Hybrid.Unlocker.Stabilizer.Version.1.13.7.zip')
     mccc = verify_mccc()
@@ -136,5 +145,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=ROOT / 'dist' / 'candidate')
     parser.add_argument('--foundry', type=Path)
+    parser.add_argument('--cas-ui-package', type=Path)
     args = parser.parse_args()
-    print(json.dumps(build(args.output, args.foundry), indent=2))
+    print(json.dumps(build(args.output, args.foundry, args.cas_ui_package), indent=2))

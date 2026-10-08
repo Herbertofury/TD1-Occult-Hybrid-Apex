@@ -46,6 +46,9 @@ class PhoneTests(unittest.TestCase):
         backend.run_action.reset_mock()
         self.phone.select(backend, '5', 'apex:action:studio_undo')
         backend.run_action.assert_called_once_with('studio_undo', sim_id='5')
+        backend.run_action.reset_mock()
+        self.phone.select(backend, '5', 'apex:action:cas_session_finish')
+        backend.run_action.assert_called_once_with('cas_session_finish', sim_id='5')
         with self.assertRaisesRegex(ValueError, 'stale'):
             self.phone.select(backend, '5', 'apex:action:eval')
 

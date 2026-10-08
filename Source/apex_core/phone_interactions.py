@@ -55,9 +55,15 @@ def catalog(backend, sim_id, page):
                 ('action:save_wardrobe', 'Capture CAS preset', 'MENU_PLACEHOLDER'),
                 ('action:list_wardrobes', 'Browse CAS presets', 'MENU_PLACEHOLDER')]
     if page == 'studio':
-        return [('action:studio_status', 'Current appearance and history', 'MENU_UNKNOWN'),
+        return [('action:cas_session_begin', 'Before CAS: retain all form originals', 'MENU_PLACEHOLDER'),
+                ('action:cas_session_finish', 'After CAS: accept selected form, restore other forms', 'MENU_PLACEHOLDER'),
+                ('action:cas_session_status', 'CAS form transaction status', 'MENU_UNKNOWN'),
+                ('action:studio_status', 'Current appearance and history', 'MENU_UNKNOWN'),
                 ('action:studio_checkpoint', 'Create appearance checkpoint', 'MENU_PLACEHOLDER'),
                 ('action:studio_history', 'Browse appearance history', 'MENU_PLACEHOLDER'),
+                ('action:studio_hair_enable', 'Keep hair separate for every outfit and form', 'SETTINGS_ENABLED'),
+                ('action:studio_hair_disable', 'Disable independent outfit hair protection', 'SETTINGS_DISABLED'),
+                ('action:studio_hair_status', 'Independent outfit hair status', 'MENU_UNKNOWN'),
                 ('action:studio_undo', 'Preview Undo', 'MENU_BACK'),
                 ('action:studio_redo', 'Preview Redo', 'MENU_BACK'),
                 ('action:studio_cancel', 'Cancel pending preview', 'MENU_EXIT')]

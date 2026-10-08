@@ -11,6 +11,19 @@ from apex_core.command_queue import CommandQueue
 
 
 class TestDriverTests(unittest.TestCase):
+    def test_outfit_switch_uses_existing_number_and_requires_unpaused_visual_proof(self):
+        current=[(0,0)]
+        def switch(value):current[0]=value;return True
+        sim=Obj(has_outfit=lambda value:value==(0,1),set_current_outfit=Mock(side_effect=switch),get_current_outfit=lambda:current[0])
+        fake=Obj(_get_sim_info_by_id=lambda _:sim,_resend_all_visuals=Mock())
+        modules={'sims':Obj(),'sims.outfits':Obj(),'sims.outfits.outfit_enums':Obj(OutfitCategory=lambda value:value)}
+        with patch.object(test_driver,'guard',return_value={'category':0,'index':1}),patch.object(test_driver,'snapshot',return_value={}),patch.dict(sys.modules,modules):
+            result=test_driver.dispatch(fake,'test_outfit','123','{}')
+        self.assertTrue(result['ok']);self.assertTrue(result['unpaused_visual_verification_required']);self.assertEqual(current[0],(0,1))
+        sim.set_current_outfit.reset_mock()
+        with patch.object(test_driver,'guard',return_value={'category':0,'index':2}),patch.dict(sys.modules,modules):
+            with self.assertRaisesRegex(ValueError,'does not exist'):test_driver.dispatch(fake,'test_outfit','123','{}')
+        sim.set_current_outfit.assert_not_called()
     def test_new_occult_initializes_new_form_without_overwriting_existing_human(self):
         human, new_form = Obj(id=1), Obj(id=2)
         tracker = Obj(get_occult_sim_info=lambda kind: human if kind == 1 else None)
@@ -74,6 +87,38 @@ class TestDriverTests(unittest.TestCase):
         with patch.dict(sys.modules, {'protocolbuffers': Obj(Outfits_pb2=Obj(OutfitList=Message))}):
             self.assertTrue(backend._restore_siminfo_payload(sim, data))
         self.assertEqual(sim.load_outfits.call_args[0][0].raw, b'full native bytes\x00\xff')
+
+    def test_full_cas_enables_native_full_edit_on_observed_client_before_entry(self):
+        sim = Obj(id=123, get_sim_instance=lambda: object())
+        fake = Obj(_get_sim_info_by_id=lambda _: sim,
+            services=Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987))))
+        calls = []
+        modules = {'server_commands': Obj(),
+            'server_commands.cas_commands': Obj(modify_in_cas=lambda target, **kwargs: calls.append(('cas', target, kwargs)) or True),
+            'server_commands.argument_helpers': Obj(OptionalTargetParam=lambda text: text),
+            'sims4.commands': Obj(client_cheat=lambda *args: calls.append(('cheat',) + args))}
+        with patch.object(test_driver, 'guard', return_value='full'), patch.object(test_driver, 'snapshot', return_value={}), patch.dict(sys.modules, modules):
+            self.assertTrue(test_driver.dispatch(fake, 'test_cas', '123', '{}')['ok'])
+        self.assertEqual(calls, [('cheat', 'cas.fulleditmode', 987), ('cas', '123', {'_connection': 987})])
+        calls.clear()
+        with patch.object(test_driver, 'guard', return_value='unsupported'), patch.dict(sys.modules, modules):
+            with self.assertRaisesRegex(ValueError, 'CAS mode'):
+                test_driver.dispatch(fake, 'test_cas', '123', '{}')
+        self.assertEqual(calls, [])
+
+    def test_mccc_uses_observed_client_and_cannot_fall_back_to_anonymous_execution(self):
+        execute = Mock(return_value=None)
+        command_module = Obj(execute=execute)
+        modules = {'sims4': Obj(commands=command_module), 'sims4.commands': command_module}
+        with patch.dict(sys.modules, modules), patch.object(backend, 'services',
+                Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987)))):
+            self.assertTrue(backend._run_console_command('mccc Apex Test')[0])
+        execute.assert_called_once_with('mccc Apex Test', 987)
+        execute.reset_mock()
+        with patch.dict(sys.modules, modules), patch.object(backend, 'services',
+                Obj(client_manager=lambda: Obj(get_first_client=lambda: None))):
+            self.assertFalse(backend._run_console_command('mccc Apex Test')[0])
+        execute.assert_not_called()
 
     def test_core_tick_preserves_original_and_only_owner_drains_accepted_work(self):
         import threading

@@ -21,7 +21,7 @@ BUNDLE_PATHS = {
     'Apex/ApexOccultHybrid.package', 'Apex/ApexOccultHybrid.ts4script',
     'Apex/ApexCASUnlocks.package', 'Apex/Native/ApexOverlay.dll',
     'Apex/Native/ApexOverlay.ini', 'Apex/Native/overlay-manifest.json',
-    'Apex/ApexColorStudio.package', 'Apex/ApexPlantSimPermanent.package',
+    'Apex/ApexColorStudio.package', 'Apex/ApexCASBridge.package', 'Apex/ApexPlantSimPermanent.package',
     'Apex/ApexPlantSimNoVampireThirst.package', 'Apex/ApexServoNoVampireThirst.package',
 }
 MCCC_PATHS = {'MCCC/' + name for name in ('mc_cmd_center.package', 'mc_cmd_center.ts4script', 'mc_cas.ts4script', 'mc_dresser.ts4script')}

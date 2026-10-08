@@ -148,7 +148,7 @@ def launch(game_root, state, execute=False, headless=False, observe_seconds=20, 
         plan['handed_off'] = True
         import ea_permission
         time.sleep(1)
-        plan['ea_permission'] = ea_permission.acknowledge()
+        plan['ea_permission'] = ea_permission.acknowledge(Path(state).resolve().parent)
         plan['observation'] = observe_start(Path(game_root) / 'Game' / 'Bin' / 'TS4_x64.exe', prior_ids, observe_seconds)
         plan['launched'] = plan['observation']['process_started']
         plan['ok'] = plan['launched']

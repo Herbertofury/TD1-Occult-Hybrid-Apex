@@ -6,7 +6,7 @@ Request identities deduplicate commands after response loss.
 from collections import OrderedDict
 import threading
 
-ACTIONS = frozenset(('test_input', 'test_capture', 'overlay_start', 'overlay_status', 'overlay_show', 'overlay_hide'))
+ACTIONS = frozenset(('test_input', 'test_capture', 'test_studio_ui', 'overlay_start', 'overlay_status', 'overlay_show', 'overlay_hide'))
 _LOCK = threading.RLock()
 _RESULTS = OrderedDict()
 
@@ -32,7 +32,9 @@ def dispatch(backend, action, value, request_id):
         elif action in ('overlay_show', 'overlay_hide'):
             result = overlay_loader.show(action == 'overlay_show')
         elif action == 'test_capture':
-            result = overlay_loader.capture()
+            result = overlay_loader.capture(overlay=argument == 'overlay')
+        elif action == 'test_studio_ui':
+            result = overlay_loader.studio_ui(backend.__file__, paths.DLL_PATH, argument)
         else:
             result = overlay_loader.input_event(backend.__file__, paths.DLL_PATH, argument)
         result = dict(result, request_id=request_id, request_state='completed',

@@ -1,7 +1,9 @@
 // Typed transport data for the actual native overlay; no game/D3D dependencies.
 #pragma once
 #include <array>
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -9,6 +11,14 @@
 
 namespace td1::ui {
 using Json = nlohmann::json;
+
+inline int StudioOverlayTab(int request) {
+    // Public sidecar API: 11/12 remain the accepted Live/bank views; 13/14
+    // explicitly request native CAS client history/equipped views.
+    if (request == 11 || request == 13) return 11;
+    if (request == 12 || request == 14) return 12;
+    return -1;
+}
 
 inline Json ParseObject(const std::string& raw) {
     if (raw.size() > 512 * 1024) return Json::object();
@@ -82,13 +92,13 @@ inline bool StudioDocument(const Json& object) {
             !node.contains("time") || !node["time"].is_number() ||
             !node.contains("parent") || !(node["parent"].is_null() || identity(node["parent"]))) return false;
     }
-    if (object.contains("outfit_inventory")) {
-        if (!object["outfit_inventory"].is_array()) return false;
-        for (const auto& outfit : object["outfit_inventory"]) {
+    auto inventory = [](const Json& outfits) {
+        if (!outfits.is_array() || outfits.size() > 1024) return false;
+        for (const auto& outfit : outfits) {
             if (!outfit.is_object() || !outfit.contains("index") || !outfit["index"].is_number_unsigned() ||
                 !outfit.contains("category") || !outfit["category"].is_number_unsigned() ||
                 !outfit.contains("outfit_id") || !outfit["outfit_id"].is_string() ||
-                !outfit.contains("parts") || !outfit["parts"].is_array()) return false;
+                !outfit.contains("parts") || !outfit["parts"].is_array() || outfit["parts"].size() > 1024) return false;
             for (const auto& part : outfit["parts"]) {
                 if (!part.is_object() || !part.contains("target") || !part["target"].is_string() ||
                     !part.contains("target_supported") || !part["target_supported"].is_boolean() ||
@@ -98,7 +108,45 @@ inline bool StudioDocument(const Json& object) {
                     !part.contains("color_hex") || !(part["color_hex"].is_null() || part["color_hex"].is_string())) return false;
             }
         }
+        return true;
+    };
+    if (object.contains("outfit_inventory") && !inventory(object["outfit_inventory"])) return false;
+    if (object.contains("form_inventory")) {
+        const auto& forms = object["form_inventory"];
+        if (!forms.is_array() || forms.size() > 128) return false;
+        if (!object.contains("inspected_form_flags") || !object["inspected_form_flags"].is_number_unsigned()) return false;
+        for (const auto& form : forms) {
+            if (!form.is_object() || !form.contains("flags") || !form["flags"].is_number_unsigned() ||
+                !form.contains("current") || !form["current"].is_boolean() || !form.contains("name") || !form["name"].is_string() ||
+                !form.contains("outfit_inventory") || !inventory(form["outfit_inventory"]) ||
+                !form.contains("appearance_fields") || !form["appearance_fields"].is_array()) return false;
+            for (const auto& field : form["appearance_fields"])
+                if (!field.is_object() || !field.contains("name") || !field["name"].is_string() ||
+                    !field.contains("kind") || !field["kind"].is_string() || !field.contains("value")) return false;
+        }
     }
+    if (object.contains("category_catalog")) {
+        const auto& categories = object["category_catalog"];
+        if (!categories.is_array() || categories.size() > 1024) return false;
+        for (const auto& category : categories)
+            if (!category.is_object() || !category.contains("body_type") || !category["body_type"].is_number_unsigned() ||
+                !category.contains("label") || !category["label"].is_string() || !category.contains("group") ||
+                !category["group"].is_string() || !category.contains("supported") || !category["supported"].is_boolean()) return false;
+    }
+    if (object.contains("hair_policy") && (!object["hair_policy"].is_object() ||
+        !object["hair_policy"].contains("enabled") || !object["hair_policy"]["enabled"].is_boolean())) return false;
+    if (object.contains("part_editor")) {
+        const auto& editor = object["part_editor"];
+        if (!editor.is_object()) return false;
+        for (const auto* key : {"target", "part_name", "appearance_sha256"})
+            if (!editor.contains(key) || !editor[key].is_string()) return false;
+        if (!editor.contains("candidates") || !editor["candidates"].is_array() || editor["candidates"].size() > 256) return false;
+        for (const auto& source : editor["candidates"])
+            for (const auto* key : {"target", "cas_part_hex"})
+                if (!source.contains(key) || !source[key].is_string()) return false;
+    }
+    if (object.contains("preview_delta") && (!object["preview_delta"].is_object() ||
+        !object["preview_delta"].contains("summary") || !object["preview_delta"]["summary"].is_string())) return false;
     if (object.contains("color_editor")) {
         const auto& editor = object["color_editor"];
         if (!editor.is_object()) return false;
@@ -115,5 +163,85 @@ inline bool StudioDocument(const Json& object) {
         }
     }
     return true;
+}
+
+inline bool ExactUint64Identity(const Json& value) {
+    if (!value.is_string()) return false;
+    const auto text = value.get<std::string>();
+    if (text.empty() || text.size() > 20 || text[0] == '0') return false;
+    for (const char c : text) if (c < '0' || c > '9') return false;
+    return text.size() < 20 || text <= "18446744073709551615";
+}
+
+inline bool CasInt(const Json& value, int64_t minimum, int64_t maximum) {
+    if (!value.is_number_integer()) return false;
+    if (value.is_number_unsigned()) {
+        const auto number = value.get<uint64_t>();
+        return maximum >= 0 && number <= static_cast<uint64_t>(maximum) &&
+            (minimum <= 0 || number >= static_cast<uint64_t>(minimum));
+    }
+    const auto number = value.get<int64_t>();
+    return number >= minimum && number <= maximum;
+}
+
+inline bool CasDocument(const Json& object, const std::string& sim) {
+    // Protocol 1 queries all 72 panels mapped by the pinned game build. An
+    // omitted category is not an empty category. Unknown item fields survive
+    // validation unchanged; this is validation, never a projected DTO.
+    if (Scalar(object, "scope") != "native-cas-client" || !object.contains("sim") || !object["sim"].is_object() ||
+        !object["sim"].contains("simId") || !ExactUint64Identity(object["sim"]["simId"]) ||
+        Scalar(object["sim"], "simId") != sim || !object.contains("menu_state") ||
+        !CasInt(object["menu_state"], -2147483648LL, 2147483647LL) ||
+        !object.contains("panel_visible") || !object["panel_visible"].is_boolean() ||
+        !object.contains("catalogs") || !object["catalogs"].is_array() || object["catalogs"].size() != 72 ||
+        !object.contains("outfit") || !object["outfit"].is_object() ||
+        !object["outfit"].contains("outfit_type") || !CasInt(object["outfit"]["outfit_type"], 0, 255) ||
+        !object["outfit"].contains("outfit_index") || !CasInt(object["outfit"]["outfit_index"], 0, 4)) return false;
+    std::vector<std::string> names;
+    std::vector<int64_t> states;
+    for (const auto& catalog : object["catalogs"]) {
+        const auto name = Scalar(catalog, "panel");
+        if (!catalog.is_object() || !catalog.contains("panel") || !catalog["panel"].is_string() ||
+            name.empty() || name.size() > 128 || std::find(names.begin(), names.end(), name) != names.end() ||
+            !catalog.contains("menu_state") || !CasInt(catalog["menu_state"], -2147483648LL, 2147483647LL) ||
+            !catalog.contains("supported") || !catalog["supported"].is_boolean() || !catalog.contains("items")) return false;
+        names.push_back(name);
+        const auto state = catalog["menu_state"].get<int64_t>();
+        if (std::find(states.begin(), states.end(), state) != states.end()) return false;
+        states.push_back(state);
+        const auto& items = catalog["items"];
+        if (!catalog["supported"].get<bool>()) { if (!items.is_null()) return false; }
+        else {
+            if (!items.is_array() || items.size() > 1024) return false;
+            for (const auto& item : items) if (!item.is_object()) return false;
+        }
+        if (!catalog.contains("preset") || !catalog.contains("preset_query") || !catalog["preset_query"].is_string()) return false;
+        const auto presetQuery = Scalar(catalog, "preset_query");
+        if (presetQuery == "returned-value") { if (!catalog["preset"].is_object()) return false; }
+        else if ((presetQuery != "returned-null" && presetQuery != "failed") || !catalog["preset"].is_null()) return false;
+    }
+    return true;
+}
+
+inline Json RefreshCasSelection(const Json& document, const std::string& panel, const Json& selected, bool preset = false) {
+    // Keep an inspected item only when the newly acknowledged catalog still
+    // identifies it uniquely. Use the new record so modified/unknown fields
+    // are never displayed from a previous outfit or refresh.
+    if (!selected.is_object() || selected.empty() || !document.contains("catalogs") || !document["catalogs"].is_array()) return Json::object();
+    const auto identity = Scalar(selected, "dataID");
+    Json found = Json::object();
+    for (const auto& catalog : document["catalogs"]) {
+        if (Scalar(catalog, "panel") != panel) continue;
+        if (preset) return Scalar(catalog, "preset_query") == "returned-value" && catalog.contains("preset") && catalog["preset"].is_object()
+            ? catalog["preset"] : Json::object();
+        if (!catalog.contains("items") || !catalog["items"].is_array()) continue;
+        for (const auto& item : catalog["items"]) {
+            if ((!identity.empty() && Scalar(item, "dataID") == identity) || (identity.empty() && item == selected)) {
+                if (!found.empty()) return Json::object();
+                found = item;
+            }
+        }
+    }
+    return found;
 }
 } // namespace td1::ui

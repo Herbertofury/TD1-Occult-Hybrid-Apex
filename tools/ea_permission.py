@@ -55,10 +55,21 @@ foreach ($eaProcess in $eaProcesses) {
 '''
 
 
-def acknowledge():
+def acknowledge(work=None):
     result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', SCRIPT],
         capture_output=True, text=True, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
     if result.returncode:
-        return {'ok': False, 'acknowledged': False, 'message': 'EA accessibility consent could not be invoked at this process integrity; owner acknowledgement is required.',
-                'windows_uac_approved': False}
-    return json.loads(result.stdout)
+        response = {'ok': False, 'acknowledged': False, 'message': 'EA accessibility consent could not be invoked at this process integrity; owner acknowledgement is required.',
+                    'windows_uac_approved': False}
+    else:
+        response = json.loads(result.stdout)
+    if response.get('acknowledged') or work is None:
+        return response
+    import ea_native_permission
+    try:
+        native = ea_native_permission.acknowledge(work)
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+        native = {'ok': False, 'acknowledged': False, 'windows_uac_approved': False, 'message': str(error)}
+    if native.get('acknowledged'):
+        return native
+    return dict(response, native_fallback=native)

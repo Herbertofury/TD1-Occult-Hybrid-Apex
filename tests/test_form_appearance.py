@@ -3,9 +3,10 @@ import sys
 import tempfile
 from types import SimpleNamespace as Obj
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
-from apex_core import form_appearance as appearance, human_werewolf
+from apex_core import form_appearance as appearance, human_werewolf, form_bank
 from test_outfit_snapshot import outfit
 
 
@@ -88,3 +89,20 @@ class HumanWerewolfTests(unittest.TestCase):
         self.assertEqual(self.wolf.physique, 'Wolf')
         data = human_werewolf.load(human_werewolf.storage(self.backend))
         self.assertEqual(data['records']['99:3']['state'], 'recovery-required')
+
+    def test_accepted_form_bank_follows_explicit_human_werewolf_enable_and_disable(self):
+        path, key = form_bank.context(self.backend, self.sim)
+        original = appearance.packed(self.backend, self.wolf)
+        form_bank.save(path, {'schema': 1, 'records': {key: {'bank': {'32': original}, 'history': []}}})
+        human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_on')
+        self.assertEqual(form_bank.load(path)['records'][key]['bank']['32'], appearance.packed(self.backend, self.human))
+        human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_off')
+        self.assertEqual(form_bank.load(path)['records'][key]['bank']['32'], original)
+
+    def test_failed_form_bank_write_rolls_back_appearance_and_retains_original_receipt(self):
+        with patch.object(form_bank, 'update', side_effect=OSError('storage full')):
+            with self.assertRaisesRegex(OSError, 'storage full'):
+                human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_on')
+        self.assertEqual((self.wolf.physique, self.sim.physique), ('Wolf', 'Wolf'))
+        self.assertEqual((self.sim.fury, self.sim.perks, self.sim.current_occult_types), (75, (7, 9), 32))
+        self.assertEqual(human_werewolf.load(human_werewolf.storage(self.backend))['records']['99:3']['state'], 'recovery-required')

@@ -108,7 +108,7 @@ def dispatch(backend, action, sim_id, value):
     if action in ('test_capture', 'test_input'):
         from . import overlay_loader
         if action == 'test_capture':
-            return overlay_loader.capture()
+            return overlay_loader.capture(overlay=argument == 'overlay')
         import paths
         return overlay_loader.input_event(backend.__file__, paths.DLL_PATH, argument)
     if action == 'test_quit':
@@ -122,14 +122,28 @@ def dispatch(backend, action, sim_id, value):
         if connection is None:
             raise ValueError('No observed native game-client connection for normal quit.')
         client_cheat('quit', connection)
-        return {'ok': True, 'transition': 'quit-confirmation-requested', 'game_exit_verified': False,
-                'confirmation_required': True, 'message': 'Native Save Game confirmation requested; process exit is not yet verified.'}
+        return {'ok': True, 'transition': 'quit-menu-requested', 'game_exit_verified': False,
+                'confirmation_required': True, 'message': 'Native quit menu requested; select Exit Game, then Save and Exit. Process exit is not yet verified.'}
     sim = backend._get_sim_info_by_id(sim_id)
     if action == 'test_all_data':
         from .sim_data import snapshot as all_data_snapshot
         return dict(all_data_snapshot(backend, sim), ok=True)
     if action in ('test_status', 'test_snapshot'):
         return snapshot(backend, sim, export_outfits=argument == 'outfits', export_forms=argument == 'forms')
+    if action == 'test_outfit':
+        request = json.loads(argument) if isinstance(argument, str) else argument
+        if not isinstance(request, dict) or set(request) != {'category', 'index'} or any(type(request[key]) is not int or not 0 <= request[key] < 1024 for key in request):
+            raise ValueError('Use one existing outfit category/index.')
+        if sim is None: raise ValueError('Select the explicit disposable Sim.')
+        from sims.outfits.outfit_enums import OutfitCategory
+        target = (OutfitCategory(request['category']), request['index'])
+        if not sim.has_outfit(target): raise ValueError('That outfit does not exist; no outfit generated.')
+        submitted = sim.set_current_outfit(target)
+        backend._resend_all_visuals(sim)
+        result = snapshot(backend, sim)
+        result.update(ok=bool(submitted) and tuple(sim.get_current_outfit()) == target,
+                      transition='existing-outfit-selected', unpaused_visual_verification_required=True)
+        return result
     manager = backend.services.client_manager()
     client = manager.get_first_client()
     if client is None:
@@ -164,7 +178,12 @@ def dispatch(backend, action, sim_id, value):
             raise ValueError('CAS entry requires an instanced selected Sim.')
         from server_commands.cas_commands import modify_in_cas
         from server_commands.argument_helpers import OptionalTargetParam
+        if argument not in (None, 'full'):
+            raise ValueError('CAS mode must be default or full.')
         before = snapshot(backend, sim)
+        if argument == 'full':
+            from sims4.commands import client_cheat
+            client_cheat('cas.fulleditmode', client.id)
         submitted = modify_in_cas(OptionalTargetParam(str(sim.id)), _connection=client.id)
         return {'ok': bool(submitted), 'transition': 'cas-entry-submitted', 'before': before,
                 'cas_visible_verified': False, 'message': 'CAS entry submitted to the real game client; UI completion must be observed separately.'}

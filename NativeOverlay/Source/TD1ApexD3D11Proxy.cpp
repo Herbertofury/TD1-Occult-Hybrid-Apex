@@ -71,6 +71,9 @@ static std::atomic<bool> g_done{false};
 static std::atomic<bool> g_workerActive{false};
 static std::atomic<int> g_captureRequest{0}; // 1 face, 2 body, 3 full
 static std::atomic<int> g_captureCompleted{0};
+static std::atomic<int> g_inputState{0}; // 1 staging, 2 cursor verified, 3 held, 4 released; negative refused
+static std::atomic<bool> g_inputBusy{false};
+static std::atomic<int> g_cursorX{-1}, g_cursorY{-1};
 static std::atomic<int> g_toggleEvents{0};
 static HWND g_hwnd = nullptr;
 static IDXGISwapChain* g_swapChain = nullptr; // identity only; owned by the caller
@@ -112,10 +115,27 @@ static char g_studioTarget[100] = "0:HAIR";
 static char g_previewId[64] = "";
 static char g_historyId[64] = "";
 static char g_historySearch[160] = "";
+static char g_partSearch[160] = "";
+static int g_partReplacementIndex = 0;
+static int g_studioFormIndex = 0;
+static bool g_showEmptySlots = true;
+static int g_equippedSort = 0;
+static int g_casGroupIndex = 0;
 static int g_studioOutfitIndex = 0;
 static int g_studioPartIndex = 0;
 static ui::Json g_studioData = ui::Json::object();
 static std::string g_studioLastReply;
+static bool g_nativeCasView = false;
+static ui::Json g_casClientData = ui::Json::object();
+static ui::Json g_casSelectedItem = ui::Json::object();
+static std::string g_casSelectedPanel;
+static bool g_casSelectedPreset = false;
+static std::string g_casLastReply;
+static char g_casPendingId[40] = "";
+static std::atomic<bool> g_casSubmissionBusy{false};
+static ULONGLONG g_casSnapshotMs = 0;
+static int g_casCatalogSort = 0;
+static ui::Json g_casDiagnostics = ui::Json::object();
 static std::string g_colorEditorKey;
 static float g_colorValues[4]{};
 static bool g_colorChanged[4]{};
@@ -346,13 +366,14 @@ static std::string ExtractJsonValue(const std::string& json, const char* keyName
     return ui::Scalar(ui::ReadObject(json), keyName);
 }
 
-static void QueueCommand(const std::string& path) {
+static bool QueueCommand(const std::string& path) {
     std::lock_guard<std::mutex> lock(g_dataMutex);
     if (g_commands.size() >= 48) {
         g_status = "Queue full: this command was rejected; earlier commands were retained";
-        return;
+        return false;
     }
     g_commands.push_back({path, g_selectionGeneration});
+    return true;
 }
 
 static std::string CurrentSimQuery() {
@@ -406,12 +427,31 @@ static void WorkerLoop() {
         if (!command.path.empty()) {
             std::string body;
             bool ok = HttpGet(command.path, body);
+            // HTTP submission is not a successful native CAS transition.
+            // Poll the native acknowledgement once; never replay input.
+            if (ok && command.path.find("action=cas_ui_request") != std::string::npos) {
+                const auto pending = ui::ParseObject(body);
+                const auto id = ui::Scalar(pending, "cas_request_id");
+                if (ui::Scalar(pending, "outcome") == "pending-client" && id.size() == 32) {
+                    const auto query = CurrentSimQuery();
+                    const auto deadline = GetTickCount64() + 10000;
+                    while (!g_done && GetTickCount64() < deadline) {
+                        std::string result;
+                        if (!HttpGet("/api/command?action=cas_ui_result" + query + "&value=" + UrlEncode(id), result)) break;
+                        body = result;
+                        if (ui::Scalar(ui::ReadObject(result), "outcome") != "pending-client") break;
+                        Sleep(150);
+                    }
+                }
+            }
             std::lock_guard<std::mutex> lock(g_dataMutex);
             if (command.generation == g_selectionGeneration) {
-                g_status = !ok ? "Command request failed" :
-                    (ExtractJsonValue(body, "ok") == "true" ? "Command completed; see its result" : "Command rejected; see its reason");
+                g_status = !ok ? "Command request failed; outcome unverified" :
+                    (ExtractJsonValue(body, "outcome") == "pending-client" ? "Awaiting native CAS acknowledgement; request retained" :
+                    (ExtractJsonValue(body, "ok") == "true" ? "Command completed; see its result" : "Command rejected; see its reason"));
                 if (ok) { g_json = body; g_commandReply = body; auto lines = ExtractHistory(body); if (!lines.empty()) g_logLines = lines; }
             }
+            if (command.path.find("action=cas_ui_request") != std::string::npos) g_casSubmissionBusy = false;
             continue;
         }
         if (g_visible.load()) {
@@ -524,6 +564,7 @@ static bool SaveBackbufferBmp(IDXGISwapChain* sc, int mode) {
     int x = 0, y = 0, cw = w, ch = h;
     const char* modeName = "full";
     if (mode == 1) { modeName = "face"; x = w / 4; y = h / 14; cw = w / 2; ch = h / 2; }
+    else if (mode == 4) { modeName = "overlay"; }
     else if (mode == 2) { modeName = "body"; x = w / 5; y = h / 20; cw = (w * 3) / 5; ch = (h * 9) / 10; }
     if (x < 0) x = 0; if (y < 0) y = 0; if (x + cw > w) cw = w - x; if (y + ch > h) ch = h - y;
     int rowBytes = ((cw * 3 + 3) / 4) * 4;
@@ -600,6 +641,18 @@ static void InitImGui(IDXGISwapChain* sc) {
     io.IniFilename = nullptr;
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
+    style.Colors[ImGuiCol_WindowBg] = ImVec4(0.045f, 0.060f, 0.080f, 0.97f);
+    style.Colors[ImGuiCol_ChildBg] = ImVec4(0.064f, 0.080f, 0.105f, 0.98f);
+    style.Colors[ImGuiCol_Border] = ImVec4(0.16f, 0.21f, 0.27f, 0.65f);
+    style.Colors[ImGuiCol_FrameBg] = ImVec4(0.095f, 0.13f, 0.17f, 1.0f);
+    style.Colors[ImGuiCol_Header] = ImVec4(0.08f, 0.31f, 0.34f, 0.80f);
+    style.Colors[ImGuiCol_HeaderHovered] = ImVec4(0.10f, 0.38f, 0.40f, 0.90f);
+    style.Colors[ImGuiCol_HeaderActive] = ImVec4(0.12f, 0.46f, 0.45f, 1.0f);
+    style.Colors[ImGuiCol_Button] = ImVec4(0.09f, 0.24f, 0.29f, 1.0f);
+    style.Colors[ImGuiCol_ButtonHovered] = ImVec4(0.11f, 0.38f, 0.41f, 1.0f);
+    style.Colors[ImGuiCol_ButtonActive] = ImVec4(0.12f, 0.46f, 0.45f, 1.0f);
+    style.Colors[ImGuiCol_SliderGrab] = ImVec4(0.30f, 0.83f, 0.73f, 1.0f);
+    style.ItemSpacing = ImVec2(9, 8);
     style.WindowRounding = 14.0f; style.FrameRounding = 9.0f; style.ScrollbarRounding = 9.0f; style.GrabRounding = 9.0f; style.WindowPadding = ImVec2(16, 14);
     if (!ImGui_ImplWin32_Init(g_hwnd) || !ImGui_ImplDX11_Init(g_device, g_context)) {
         Debug("ImGui backend initialization failed");
@@ -698,6 +751,12 @@ static void DrawApexTab() {
 }
 
 static void DrawFormsTab() {
+    ImGui::SeparatorText("Independent CAS form editing");
+    ImGui::TextWrapped("Switch to the form you intend to edit, retain originals, then enter CAS or MCCC CAS. On returning to Live, accept this form's edits and restore the other forms. Ambiguous destinations retain both states and refuse a guess.");
+    if (ImGui::Button("Before CAS: Retain Originals")) QueueAction("cas_session_begin");
+    ImGui::SameLine(); if (ImGui::Button("After CAS: Accept This Form")) QueueAction("cas_session_finish");
+    ImGui::SameLine(); if (ImGui::Button("CAS Transaction Status")) QueueAction("cas_session_status");
+    ImGui::Separator();
     DrawOccultSelector();
     ImGui::SameLine(); if (ImGui::Button("Switch Selected")) QueueAction("switch", ActiveOccultName());
     ImGui::SameLine(); if (ImGui::Button("Commit Current -> Selected Occult")) QueueAction("commit_current_to_occult", ActiveOccultName(), g_formLabel);
@@ -843,6 +902,16 @@ static void DrawRawTab() {
     DrawOccultCards("toggle_flag", "Toggle Raw", "on_add_actions", "On-Add Actions", "lock_perks", "Lock Perks", "unlock_perks", "Unlock Perks");
 }
 
+static void QueueStudioAction(const char* action, const char* occult = nullptr, const char* value = nullptr) {
+    const auto forms = g_studioData.find("form_inventory");
+    if (forms != g_studioData.end() && !forms->empty()) {
+        g_studioFormIndex = std::clamp(g_studioFormIndex, 0, static_cast<int>(forms->size()) - 1);
+        const auto& form = (*forms)[static_cast<size_t>(g_studioFormIndex)];
+        const ui::Json envelope = {{"form", form["flags"]}, {"value", value && value[0] ? ui::Json(value) : ui::Json(nullptr)}};
+        const auto payload = envelope.dump(); QueueAction(action, occult, payload.c_str());
+    } else QueueAction(action, occult, value);
+}
+
 static void UpdateStudioData(const std::string& reply) {
     if (reply == g_studioLastReply) return;
     g_studioLastReply = reply;
@@ -861,7 +930,21 @@ static void UpdateStudioData(const std::string& reply) {
     // part metadata as current. History nodes remain useful after the change.
     const auto message = ui::Scalar(parsed, "message");
     if (message.find("Appearance write matches") == 0) {
-        g_studioData.erase("outfit_inventory"); g_studioData.erase("color_editor"); g_colorEditorKey.clear();
+        g_studioData.erase("outfit_inventory"); g_studioData.erase("color_editor"); g_studioData.erase("part_editor"); g_colorEditorKey.clear();
+        QueueStudioAction("studio_status");
+    }
+    if (parsed.contains("form_inventory") && (!g_studioData.contains("form_selection_initialized"))) {
+        // A new history lane may be an explicitly inspected inactive form.
+        // Preserve that owner instead of snapping the selector back to Live.
+        for (size_t i = 0; i < parsed["form_inventory"].size(); ++i)
+            if (ui::Scalar(parsed["form_inventory"][i], "flags") == ui::Scalar(parsed, "inspected_form_flags"))
+                g_studioFormIndex = static_cast<int>(i);
+        g_studioData["form_selection_initialized"] = true;
+    }
+    if (parsed.contains("current_outfit_index") && parsed["current_outfit_index"].is_number_unsigned() &&
+        (!g_studioData.contains("selection_initialized") || !g_studioData["selection_initialized"].get<bool>())) {
+        g_studioOutfitIndex = parsed["current_outfit_index"].get<int>();
+        g_studioData["selection_initialized"] = true;
     }
     if (parsed.contains("appearance_sha256") && g_studioData.contains("color_editor") &&
         ui::Scalar(parsed, "appearance_sha256") != ui::Scalar(g_studioData["color_editor"], "appearance_sha256")) {
@@ -912,129 +995,438 @@ static void DrawNumericColor(const std::string& target) {
         const ui::Json request = {{"target", target}, {"lane", ui::Scalar(g_studioData, "history_lane")},
             {"cas_part_id", editor["cas_part_id"]}, {"color_hex", editor["color_hex"]},
             {"appearance_sha256", editor["appearance_sha256"]}, {"resource_sha256", editor["resource_sha256"]}, {"edits", edits}};
-        const auto payload = request.dump(); QueueAction("studio_color_edit", nullptr, payload.c_str());
+        const auto payload = request.dump(); QueueStudioAction("studio_color_edit", nullptr, payload.c_str());
     }
     ImGui::EndDisabled();
     ImGui::TextWrapped("Only edited lanes change. Preview reports the exact Q14 result; Apply commits it. Texture compatibility is separate from slider metadata. Skin specularity uses the brightness lane for gloss in the baseline CAS UI.");
 }
 
-static void DrawStudioParts() {
-    const auto found = g_studioData.find("outfit_inventory");
-    if (found == g_studioData.end() || found->empty()) {
-        ImGui::TextDisabled("Inspect outfits to choose the current form's actual parts.");
-        return;
+static std::string OutfitCategory(const ui::Json& outfit) {
+    const auto name = ui::Scalar(outfit, "category_name");
+    return name.empty() ? "Category " + ui::Scalar(outfit, "category") : name;
+}
+
+static const ui::Json& ViewedStudioOutfits() {
+    const auto forms = g_studioData.find("form_inventory");
+    if (forms != g_studioData.end() && !forms->empty()) {
+        g_studioFormIndex = std::clamp(g_studioFormIndex, 0, static_cast<int>(forms->size()) - 1);
+        return (*forms)[static_cast<size_t>(g_studioFormIndex)]["outfit_inventory"];
     }
-    const auto& outfits = *found;
+    static const auto empty = ui::Json::array();
+    const auto outfits = g_studioData.find("outfit_inventory");
+    return outfits == g_studioData.end() ? empty : *outfits;
+}
+static bool ViewedFormActive() {
+    const auto forms = g_studioData.find("form_inventory");
+    return forms == g_studioData.end() || forms->empty() || (*forms)[static_cast<size_t>(g_studioFormIndex)]["current"].get<bool>();
+}
+static const ui::Json* SelectedStudioPart() {
+    const auto& outfits = ViewedStudioOutfits();
+    if (outfits.empty()) return nullptr;
+    g_studioOutfitIndex = std::clamp(g_studioOutfitIndex, 0, static_cast<int>(outfits.size()) - 1);
+    const auto& parts = outfits[static_cast<size_t>(g_studioOutfitIndex)]["parts"];
+    if (parts.empty()) return nullptr;
+    g_studioPartIndex = std::clamp(g_studioPartIndex, 0, static_cast<int>(parts.size()) - 1);
+    return &parts[static_cast<size_t>(g_studioPartIndex)];
+}
+static void DrawEquippedList() {
+    ImGui::TextColored(ImVec4(0.35f, 0.88f, 0.77f, 1), "CAS / ALL CATEGORIES");
+    const auto forms = g_studioData.find("form_inventory");
+    if (forms != g_studioData.end() && !forms->empty()) {
+        g_studioFormIndex = std::clamp(g_studioFormIndex, 0, static_cast<int>(forms->size()) - 1);
+        const auto formName = ui::Scalar((*forms)[static_cast<size_t>(g_studioFormIndex)], "name");
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::BeginCombo("##form", formName.c_str())) {
+            for (size_t i = 0; i < forms->size(); ++i) {
+                const auto label = ui::Scalar((*forms)[i], "name") + ((*forms)[i]["current"].get<bool>() ? " / LIVE" : "");
+                if (ImGui::Selectable(label.c_str(), g_studioFormIndex == static_cast<int>(i))) {
+                    g_studioFormIndex = static_cast<int>(i); g_studioOutfitIndex = 0; g_studioPartIndex = 0; QueueStudioAction("studio_status");
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::TextDisabled("%s", ViewedFormActive() ? "Active form / editable" : "Stored form / direct editing");
+    }
+    const auto& outfits = ViewedStudioOutfits();
+    if (outfits.empty()) { ImGui::TextWrapped("Inspect this Sim to read every form/outfit."); return; }
     g_studioOutfitIndex = std::clamp(g_studioOutfitIndex, 0, static_cast<int>(outfits.size()) - 1);
     const auto& outfit = outfits[static_cast<size_t>(g_studioOutfitIndex)];
-    const auto outfitLabel = "Outfit " + ui::Scalar(outfit, "index") + " | category " + ui::Scalar(outfit, "category");
-    if (ImGui::BeginCombo("Outfit", outfitLabel.c_str())) {
+    const auto label = OutfitCategory(outfit) + " / outfit " + ui::Scalar(outfit, "number");
+    ImGui::SetNextItemWidth(-1);
+    if (ImGui::BeginCombo("##wardrobe", label.c_str())) {
         for (size_t i = 0; i < outfits.size(); ++i) {
-            const auto label = "Outfit " + ui::Scalar(outfits[i], "index") + " | category " + ui::Scalar(outfits[i], "category");
-            if (ImGui::Selectable(label.c_str(), g_studioOutfitIndex == static_cast<int>(i))) {
+            const auto name = OutfitCategory(outfits[i]) + " / outfit " + ui::Scalar(outfits[i], "number");
+            if (ImGui::Selectable(name.c_str(), g_studioOutfitIndex == static_cast<int>(i))) {
                 g_studioOutfitIndex = static_cast<int>(i); g_studioPartIndex = 0;
             }
         }
         ImGui::EndCombo();
     }
-    // Read again after a combo selection changed the outfit.
-    const auto& selected = outfits[static_cast<size_t>(g_studioOutfitIndex)];
-    const auto& parts = selected["parts"];
-    if (parts.empty()) { ImGui::TextDisabled("This outfit has no serialized CAS parts."); return; }
-    g_studioPartIndex = std::clamp(g_studioPartIndex, 0, static_cast<int>(parts.size()) - 1);
-    auto partLabel = [](const ui::Json& part) {
-        return ui::Scalar(part, "label") + " | row " + ui::Scalar(part, "index") + " | " + ui::Scalar(part, "cas_part_hex");
-    };
-    const auto label = partLabel(parts[static_cast<size_t>(g_studioPartIndex)]);
-    if (ImGui::BeginCombo("CAS part / layer", label.c_str())) {
-        for (size_t i = 0; i < parts.size(); ++i) {
-            ImGui::PushID(static_cast<int>(i));
-            if (ImGui::Selectable(partLabel(parts[i]).c_str(), g_studioPartIndex == static_cast<int>(i)))
-                g_studioPartIndex = static_cast<int>(i);
-            ImGui::PopID();
-        }
+    ImGui::SetNextItemWidth(-1); ImGui::InputTextWithHint("##parts-search", "Search skin details, jewelry...", g_partSearch, sizeof(g_partSearch));
+    ImGui::Checkbox("Show unequipped categories", &g_showEmptySlots);
+    ImGui::SetNextItemWidth(-1); ImGui::Combo("##sort", &g_equippedSort, "Equipped first\0Category / alphabetical\0Serialized row order\0");
+    const auto catalog = g_studioData.find("category_catalog");
+    std::vector<std::string> groups{"All categories"};
+    if (catalog != g_studioData.end()) for (const auto& category : *catalog) {
+        const auto group = ui::Scalar(category, "group");
+        if (std::find(groups.begin(), groups.end(), group) == groups.end()) groups.push_back(group);
+    }
+    g_casGroupIndex = std::clamp(g_casGroupIndex, 0, static_cast<int>(groups.size()) - 1);
+    ImGui::SetNextItemWidth(-1);
+    if (ImGui::BeginCombo("##cas-group", groups[static_cast<size_t>(g_casGroupIndex)].c_str())) {
+        for (size_t i = 0; i < groups.size(); ++i) if (ImGui::Selectable(groups[i].c_str(), g_casGroupIndex == static_cast<int>(i))) g_casGroupIndex = static_cast<int>(i);
         ImGui::EndCombo();
     }
-    const auto& part = parts[static_cast<size_t>(g_studioPartIndex)];
+    const auto& parts = outfits[static_cast<size_t>(g_studioOutfitIndex)]["parts"];
+    struct Row { int index; std::string label, group; };
+    std::vector<Row> rows;
+    auto categoryFor = [&](const ui::Json& part) -> const ui::Json* {
+        if (catalog != g_studioData.end()) for (const auto& category : *catalog)
+            if (ui::Scalar(category, "body_type") == ui::Scalar(part, "body_type")) return &category;
+        return nullptr;
+    };
+    for (size_t i = 0; i < parts.size(); ++i) {
+        const auto* category = categoryFor(parts[i]);
+        rows.push_back({static_cast<int>(i), ui::Scalar(parts[i], "label"), category ? ui::Scalar(*category, "group") : "Runtime discovered"});
+    }
+    if (g_showEmptySlots && catalog != g_studioData.end()) for (const auto& category : *catalog) {
+        bool equipped = false;
+        for (const auto& part : parts) if (ui::Scalar(part, "body_type") == ui::Scalar(category, "body_type")) equipped = true;
+        if (!equipped) rows.push_back({-1, ui::Scalar(category, "label"), ui::Scalar(category, "group")});
+    }
+    if (g_equippedSort != 2) std::stable_sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) {
+        if (g_equippedSort == 0 && (a.index >= 0) != (b.index >= 0)) return a.index >= 0;
+        return a.group == b.group ? a.label < b.label : a.group < b.group;
+    });
+    ImGui::TextDisabled("%u equipped / %u categories", static_cast<unsigned>(parts.size()), static_cast<unsigned>(catalog == g_studioData.end() ? 0 : catalog->size()));
+    ImGui::BeginChild("equipped-rows", ImVec2(0, 0), false);
+    for (size_t i = 0; i < rows.size(); ++i) {
+        const auto& row = rows[i];
+        if (g_casGroupIndex && row.group != groups[static_cast<size_t>(g_casGroupIndex)]) continue;
+        if (!TextContainsNoCase(row.label.c_str(), g_partSearch) && !TextContainsNoCase(row.group.c_str(), g_partSearch)) continue;
+        ImGui::PushID(static_cast<int>(i));
+        const auto label = row.label + (row.index < 0 ? " / empty" : "");
+        if (row.index < 0) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.44f, 0.51f, 0.60f, 1));
+        if (ImGui::Selectable(label.c_str(), row.index >= 0 && g_studioPartIndex == row.index, 0, ImVec2(0, 30)) && row.index >= 0) {
+            g_studioPartIndex = row.index; g_partReplacementIndex = 0; g_activeTab = 12;
+            const auto target = ui::Scalar(parts[static_cast<size_t>(row.index)], "target"); QueueStudioAction("studio_part_inspect", nullptr, target.c_str());
+        }
+        if (row.index < 0) ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s", row.group.c_str(), row.index < 0 ? "No part equipped in this outfit. Category is tracked without synthesizing a part." : "Exact equipped row / this form and outfit");
+        ImGui::PopID();
+    }
+    ImGui::EndChild();
+}
+
+static void DrawStudioParts() {
+    const auto* selected = SelectedStudioPart();
+    if (!selected) { ImGui::TextWrapped("Choose an equipped part on the left."); return; }
+    const auto& part = *selected;
     const auto target = ui::Scalar(part, "target");
     const auto color = ui::Scalar(part, "color_hex");
-    ImGui::Text("CAS resource: %s | object: %s | layer: %s", ui::Scalar(part, "cas_part_hex").c_str(),
-        ui::Scalar(part, "object_id").c_str(), ui::Scalar(part, "layer_id").c_str());
-    ImGui::Text("Exact color: %s", color.empty() ? "absent (preserved)" : color.c_str());
+    ImGui::TextColored(ImVec4(0.35f, 0.88f, 0.77f, 1), "%s", ui::Scalar(part, "label").c_str());
+    ImGui::TextDisabled("CASP %s | layer %s", ui::Scalar(part, "cas_part_hex").c_str(), ui::Scalar(part, "layer_id").c_str());
+    ImGui::SeparatorText("Replace equipped part");
+    if (ImGui::Button("Inspect part / find compatible sources")) QueueStudioAction("studio_part_inspect", nullptr, target.c_str());
+    const auto editor = g_studioData.find("part_editor");
+    if (editor != g_studioData.end() && ui::Scalar(*editor, "target") == target &&
+        ui::Scalar(*editor, "appearance_sha256") == ui::Scalar(g_studioData, "appearance_sha256")) {
+        ImGui::TextWrapped("%s", ui::Scalar(*editor, "part_name").c_str());
+        const auto& sources = (*editor)["candidates"];
+        if (sources.empty()) ImGui::TextWrapped("No alternate part of this body type exists in this Sim's current-form wardrobe.");
+        else {
+            g_partReplacementIndex = std::clamp(g_partReplacementIndex, 0, static_cast<int>(sources.size()) - 1);
+            auto name = [](const ui::Json& source) { return "Outfit " + ui::Scalar(source, "outfit_index") + " / " + ui::Scalar(source, "cas_part_hex"); };
+            if (ImGui::BeginCombo("Source", name(sources[static_cast<size_t>(g_partReplacementIndex)]).c_str())) {
+                for (size_t i = 0; i < sources.size(); ++i)
+                    if (ImGui::Selectable((name(sources[i]) + "##" + std::to_string(i)).c_str(), g_partReplacementIndex == static_cast<int>(i))) g_partReplacementIndex = static_cast<int>(i);
+                ImGui::EndCombo();
+            }
+            if (ImGui::Button("Preview replacement")) {
+                const ui::Json request = {{"target", target}, {"source", sources[static_cast<size_t>(g_partReplacementIndex)]["target"]},
+                    {"lane", g_studioData["history_lane"]}, {"appearance_sha256", g_studioData["appearance_sha256"]}};
+                const auto payload = request.dump(); QueueStudioAction("studio_part_preview", nullptr, payload.c_str());
+            }
+        }
+    }
+    ImGui::SeparatorText("Exact part color");
+    ImGui::TextDisabled("%s", color.empty() ? "No explicit color state" : color.c_str());
     const bool supported = part["target_supported"].get<bool>() && !color.empty();
     ImGui::BeginDisabled(!supported);
-    if (ImGui::Button("Copy selected part color")) QueueAction("studio_color_copy", nullptr, target.c_str());
-    ImGui::SameLine(); if (ImGui::Button("Preview paste to selected part")) QueueAction("studio_color_preview", nullptr, target.c_str());
-    if (ImGui::Button("Inspect selected part slider bounds")) QueueAction("studio_color_inspect", nullptr, target.c_str());
+    if (ImGui::Button("Copy color")) QueueStudioAction("studio_color_copy", nullptr, target.c_str());
+    ImGui::SameLine(); if (ImGui::Button("Preview paste")) QueueStudioAction("studio_color_preview", nullptr, target.c_str());
+    if (ImGui::Button("Inspect slider bounds")) QueueStudioAction("studio_color_inspect", nullptr, target.c_str());
     ImGui::EndDisabled();
-    if (!supported) ImGui::TextWrapped("Unavailable: %s", color.empty() ? "this part has no explicit slider state" : ui::Scalar(part, "target_reason").c_str());
     if (supported) DrawNumericColor(target);
 }
 
 static void DrawStudioTimeline() {
-    ImGui::InputText("Search history", g_historySearch, sizeof(g_historySearch));
-    ImGui::SeparatorText("Preserved history branches");
+    ImGui::SetNextItemWidth(-1); ImGui::InputTextWithHint("##history-search", "Search checkpoints and operations", g_historySearch, sizeof(g_historySearch));
     const auto found = g_studioData.find("history_nodes");
-    if (found == g_studioData.end() || found->empty()) {
-        ImGui::TextDisabled("Capture a checkpoint to start this save/Sim/form lane."); return;
-    }
-    if (ImGui::BeginTable("studio_timeline", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchProp)) {
-        ImGui::TableSetupColumn("Checkpoint / operation"); ImGui::TableSetupColumn("Branch parent");
-        ImGui::TableSetupColumn("Identity"); ImGui::TableHeadersRow();
-        for (const auto& node : *found) {
-            const auto id = ui::Scalar(node, "id");
-            const auto label = ui::Scalar(node, "label");
-            if (!TextContainsNoCase(label.c_str(), g_historySearch) && !TextContainsNoCase(id.c_str(), g_historySearch)) continue;
-            const bool current = id == ui::Scalar(g_studioData, "history_cursor");
-            ImGui::PushID(id.c_str()); ImGui::TableNextRow(); ImGui::TableNextColumn();
-            if (ImGui::Selectable(((current ? "* " : "") + label).c_str(), id == g_historyId, ImGuiSelectableFlags_SpanAllColumns))
-                strncpy_s(g_historyId, id.c_str(), _TRUNCATE);
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\nCaptured: %.0f (UTC epoch)\nReadback proof is separate from save/reload proof.", id.c_str(), node["time"].get<double>());
-            ImGui::TableNextColumn(); const auto parent = ui::Scalar(node, "parent");
-            ImGui::TextUnformatted(parent.empty() ? "Root" : parent.substr(0, 8).c_str());
-            ImGui::TableNextColumn(); ImGui::TextUnformatted(id.substr(0, 8).c_str()); ImGui::PopID();
+    if (found == g_studioData.end() || found->empty()) { ImGui::TextDisabled("Inspect or capture a checkpoint to begin."); return; }
+    ImGui::BeginChild("history-cards", ImVec2(0, 270), true);
+    for (const auto& node : *found) {
+        const auto id = ui::Scalar(node, "id"), label = ui::Scalar(node, "label");
+        if (!TextContainsNoCase(label.c_str(), g_historySearch) && !TextContainsNoCase(id.c_str(), g_historySearch)) continue;
+        const bool current = id == ui::Scalar(g_studioData, "history_cursor");
+        const auto at = ImGui::GetCursorScreenPos();
+        ImGui::PushID(id.c_str());
+        if (ImGui::Selectable("##history-card", id == g_historyId, 0, ImVec2(0, 54))) strncpy_s(g_historyId, id.c_str(), _TRUNCATE);
+        auto* draw = ImGui::GetWindowDrawList();
+        const ImU32 accent = current ? IM_COL32(85, 220, 186, 255) : IM_COL32(109, 141, 179, 255);
+        draw->AddLine(ImVec2(at.x + 9, at.y), ImVec2(at.x + 9, at.y + 54), IM_COL32(45, 72, 89, 255), 2);
+        draw->AddCircleFilled(ImVec2(at.x + 9, at.y + 16), 4, accent);
+        draw->AddText(ImVec2(at.x + 24, at.y + 4), accent, (label + (current ? "  / CURRENT" : "")).c_str());
+        const auto delta = node.find("delta");
+        const auto summary = delta != node.end() ? ui::Scalar(*delta, "summary") : "Retained checkpoint";
+        draw->AddText(ImVec2(at.x + 24, at.y + 27), IM_COL32(145, 165, 184, 255), summary.c_str());
+        if (ImGui::IsItemHovered()) {
+            const auto parent = ui::Scalar(node, "parent");
+            ImGui::SetTooltip("%s\nParent: %s\nComplete native Sim record retained: %s\nUTC epoch: %.0f", id.c_str(), parent.empty() ? "baseline" : parent.c_str(),
+                node.value("complete_native_record_retained", false) ? "yes" : "no", node["time"].get<double>());
         }
-        ImGui::EndTable();
+        ImGui::PopID();
     }
+    ImGui::EndChild();
+}
+
+static bool QueueCasAction(const ui::Json& request) {
+    // Reserve before queueing so successive frames cannot stack native inputs
+    // while the worker is waiting for the first request's identity.
+    bool idle = false;
+    if (!g_casSubmissionBusy.compare_exchange_strong(idle, true)) return false;
+    const auto value = request.dump();
+    if (!QueueCommand(BuildCommandPath("cas_ui_request", nullptr, value.c_str()))) { g_casSubmissionBusy = false; return false; }
+    return true;
+}
+
+static std::string CasLabel(std::string name) {
+    for (const auto* prefix : {"clothing_", "profile_"}) if (name.find(prefix) == 0) { name.erase(0, std::strlen(prefix)); break; }
+    std::replace(name.begin(), name.end(), '_', ' ');
+    return name;
+}
+
+static void DrawNativeCas(const std::string& reply, bool history) {
+    std::string sim;
+    { std::lock_guard<std::mutex> lock(g_dataMutex); sim = g_selectedSim; }
+    if (reply != g_casLastReply) {
+        g_casLastReply = reply;
+        const auto& data = ui::ReadObject(reply);
+        if (data.contains("cas_request_id")) {
+            strncpy_s(g_casPendingId, ui::Scalar(data, "cas_request_id").c_str(), _TRUNCATE);
+            if (data.contains("client") && ui::Scalar(data, "ok") == "true" && ui::CasDocument(data["client"], sim)) {
+                g_casClientData = data["client"];
+                g_casSelectedItem = ui::RefreshCasSelection(g_casClientData, g_casSelectedPanel, g_casSelectedItem, g_casSelectedPreset);
+                g_casSnapshotMs = GetTickCount64();
+                g_casPendingId[0] = '\0';
+            } else if (ui::Scalar(data, "outcome") != "pending-client") {
+                g_casClientData = ui::Json::object(); g_casSelectedItem = ui::Json::object();
+                g_casPendingId[0] = '\0'; g_casSnapshotMs = 0;
+            }
+        }
+        if (data.contains("native_initializer_observed") && data["native_initializer_observed"].is_boolean()) g_casDiagnostics = data;
+    }
+    ImGui::TextColored(ImVec4(0.35f, 0.88f, 0.77f, 1), "CAS / ACKNOWLEDGED CLIENT SNAPSHOT");
+    ImGui::BeginDisabled(g_casSubmissionBusy.load());
+    if (ImGui::Button("Refresh equipped items")) QueueCasAction({{"operation", "status"}});
+    ImGui::EndDisabled();
+    ImGui::SameLine(); if (ImGui::Button("CAS transport diagnostics")) QueueAction("cas_ui_diagnostics");
+    ImGui::SameLine(); ImGui::Checkbox("Show empty categories", &g_showEmptySlots);
+    ImGui::InputText("Search categories / exact item data", g_partSearch, sizeof(g_partSearch));
+    if (g_casSubmissionBusy.load()) ImGui::TextWrapped("Native request submitted once; waiting for its result. No additional CAS input will be queued.");
+    if (!g_casDiagnostics.empty() && ImGui::CollapsingHeader("Native CAS startup / transport")) {
+        ImGui::TextWrapped("Initializer observed: %s / distributor client: %s / queued operations: %s",
+            ui::Scalar(g_casDiagnostics, "native_initializer_observed").c_str(),
+            ui::Scalar(g_casDiagnostics, "distributor_client_available").c_str(),
+            ui::Scalar(g_casDiagnostics, "queued_operations").c_str());
+        ImGui::TextWrapped("This read-only diagnostic does not prove an outfit or category transition.");
+        if (ImGui::SmallButton("Copy complete transport diagnostic")) ImGui::SetClipboardText(g_casDiagnostics.dump(2).c_str());
+        if (ImGui::TreeNode("Exact diagnostic fields")) { ImGui::TextWrapped("%s", g_casDiagnostics.dump(2).c_str()); ImGui::TreePop(); }
+    }
+    if (g_casPendingId[0]) {
+        ImGui::TextWrapped("Awaiting native response: %s", g_casPendingId);
+        if (ImGui::Button("Check retained request")) QueueAction("cas_ui_result", nullptr, g_casPendingId);
+    }
+    if (!ui::CasDocument(g_casClientData, sim)) {
+        ImGui::TextWrapped("Refresh after entering CAS. A native response is required before equipped items can be shown.");
+        return;
+    }
+    const auto& info = g_casClientData["sim"];
+    ImGui::Text("%s %s / form %s / layer %s", ui::Scalar(info, "firstName").c_str(), ui::Scalar(info, "lastName").c_str(),
+        ui::Scalar(info, "occultType").c_str(), ui::Scalar(info, "occultLayer").c_str());
+    const auto& slot = g_casClientData["outfit"];
+    ImGui::TextDisabled("Current outfit: category %s / index %s (zero based)", ui::Scalar(slot, "outfit_type").c_str(), ui::Scalar(slot, "outfit_index").c_str());
+    ImGui::TextDisabled("Last acknowledgement: %.1f seconds ago / Refresh after editing", (GetTickCount64() - g_casSnapshotMs) / 1000.0);
+    ImGui::TextWrapped("This snapshot covers the selected CAS form and outfit. Changes made afterward require a refresh.");
+    if (ImGui::SmallButton("Copy complete CAS snapshot")) ImGui::SetClipboardText(g_casClientData.dump(2).c_str());
+    ImGui::SameLine(); ImGui::SetNextItemWidth(170);
+    ImGui::Combo("Category order", &g_casCatalogSort, "Category name\0Equipped first\0Native menu state\0");
+    const bool nativeActionPending = g_casSubmissionBusy.load() || g_casPendingId[0];
+    if (history) {
+        ImGui::BeginDisabled(nativeActionPending);
+        if (ImGui::Button("Native CAS Undo")) QueueCasAction({{"operation", "undo"}});
+        ImGui::SameLine(); if (ImGui::Button("Native CAS Redo")) QueueCasAction({{"operation", "redo"}});
+        ImGui::EndDisabled();
+    }
+    ImGui::BeginChild("native-cas-equipped", ImVec2(330, 0), true);
+    std::vector<ui::Json> catalogs;
+    for (const auto& item : g_casClientData["catalogs"]) catalogs.push_back(item);
+    std::sort(catalogs.begin(), catalogs.end(), [](const auto& a, const auto& b) {
+        if (g_casCatalogSort == 1) {
+            const auto left = (a["supported"].get<bool>() ? a["items"].size() : 0) + (ui::Scalar(a, "preset_query") == "returned-value" ? 1 : 0);
+            const auto right = (b["supported"].get<bool>() ? b["items"].size() : 0) + (ui::Scalar(b, "preset_query") == "returned-value" ? 1 : 0);
+            if (left != right) return left > right;
+        } else if (g_casCatalogSort == 2 && a["menu_state"] != b["menu_state"])
+            return a["menu_state"].get<int64_t>() < b["menu_state"].get<int64_t>();
+        return ui::Scalar(a, "panel") < ui::Scalar(b, "panel");
+    });
+    for (const auto& catalog : catalogs) {
+        const auto name = ui::Scalar(catalog, "panel"), label = CasLabel(name);
+        const bool supported = catalog["supported"].get<bool>();
+        const auto& items = catalog["items"];
+        const auto count = supported ? items.size() : 0;
+        const auto presetQuery = ui::Scalar(catalog, "preset_query");
+        const bool hasPreset = presetQuery == "returned-value";
+        if (!g_showEmptySlots && supported && !count && !hasPreset && presetQuery != "failed") continue;
+        const auto searchable = name + " " + catalog.dump();
+        if (g_partSearch[0] && !TextContainsNoCase(searchable.c_str(), g_partSearch)) continue;
+        ImGui::PushID(name.c_str());
+        if (supported) ImGui::TextWrapped("%s / %u equipped", label.c_str(), static_cast<unsigned>(count));
+        else ImGui::TextWrapped("%s / unresolved (not reported as empty)", label.c_str());
+        ImGui::SameLine();
+        ImGui::BeginDisabled(nativeActionPending);
+        if (ImGui::SmallButton("Edit")) QueueCasAction({{"operation", "panel"}, {"panel", name}});
+        ImGui::EndDisabled();
+        if (supported) for (size_t i = 0; i < items.size(); ++i) {
+            const auto id = ui::Scalar(items[i], "dataID");
+            const auto itemLabel = label + " / " + (id.empty() ? std::to_string(i + 1) : id);
+            ImGui::PushID(static_cast<int>(i));
+            ImGui::BeginDisabled(nativeActionPending);
+            if (ImGui::Selectable(itemLabel.c_str())) {
+                g_casSelectedItem = items[i]; g_casSelectedPanel = name; g_casSelectedPreset = false;
+                QueueCasAction({{"operation", "panel"}, {"panel", name}});
+            }
+            ImGui::EndDisabled(); ImGui::PopID();
+        }
+        if (hasPreset) {
+            ImGui::BeginDisabled(nativeActionPending);
+            if (ImGui::Selectable((label + " / selected preset").c_str())) {
+                g_casSelectedItem = catalog["preset"]; g_casSelectedPanel = name; g_casSelectedPreset = true;
+                QueueCasAction({{"operation", "panel"}, {"panel", name}});
+            }
+            ImGui::EndDisabled();
+        } else if (presetQuery == "failed") ImGui::TextDisabled("Preset query unresolved");
+        ImGui::Separator(); ImGui::PopID();
+    }
+    ImGui::EndChild(); ImGui::SameLine();
+    ImGui::BeginChild("native-cas-details", ImVec2(0, 0), true);
+    ImGui::SeparatorText(g_casSelectedPreset ? "Selected preset / exact client fields" : "Selected item / exact client fields");
+    if (g_casSelectedItem.empty()) ImGui::TextWrapped("Choose an equipped item to open its native category and inspect its complete returned fields.");
+    else {
+        if (ImGui::Button("Copy complete item record")) ImGui::SetClipboardText(g_casSelectedItem.dump(2).c_str());
+        for (auto field = g_casSelectedItem.begin(); field != g_casSelectedItem.end(); ++field)
+            if (ImGui::TreeNode(field.key().c_str())) { ImGui::TextWrapped("%s", field.value().dump(2).c_str()); ImGui::TreePop(); }
+    }
+    if (ImGui::CollapsingHeader("Fields returned by CASGetSimInfo")) {
+        if (ImGui::SmallButton("Copy exact CAS Sim record")) ImGui::SetClipboardText(info.dump(2).c_str());
+        for (auto field = info.begin(); field != info.end(); ++field)
+            if (ImGui::TreeNode(field.key().c_str())) { ImGui::TextWrapped("%s", field.value().dump(2).c_str()); ImGui::TreePop(); }
+    }
+    ImGui::EndChild();
 }
 
 static void DrawStudioTab(const std::string& reply, bool history) {
-    UpdateStudioData(reply);
-    ImGui::TextWrapped("Target: selected Sim's current form. Preview and Apply are separate; stale previews are rejected. Readback verification does not prove save/reload persistence.");
-    ActionButton("Inspect outfits / history", "studio_status");
-    std::string outfits = ExtractJsonValue(reply, "outfit_text");
-    if (!outfits.empty()) ImGui::TextUnformatted(outfits.c_str());
-    if (history) {
-        ImGui::InputText("Checkpoint label", g_checkpointLabel, sizeof(g_checkpointLabel));
-        if (ImGui::Button("Capture named checkpoint")) QueueAction("studio_checkpoint", nullptr, g_checkpointLabel);
-        DrawStudioTimeline();
-        ImGui::InputText("Selected history node / redo branch", g_historyId, sizeof(g_historyId));
-        if (ImGui::Button("Preview Undo")) QueueAction("studio_undo");
-        ImGui::SameLine(); if (ImGui::Button("Preview Redo")) QueueAction("studio_redo", nullptr, g_historyId);
-        ImGui::SameLine(); ImGui::BeginDisabled(!g_historyId[0]);
-        if (ImGui::Button("Preview Jump")) QueueAction("studio_jump", nullptr, g_historyId);
-        ImGui::EndDisabled();
-        if (ImGui::Button("Resolve interrupted transaction")) QueueAction("studio_recover");
-    } else {
-        DrawStudioParts();
-        if (ImGui::CollapsingHeader("Advanced explicit target")) {
-            ImGui::InputText("Outfit : BodyType : optional part row", g_studioTarget, sizeof(g_studioTarget));
-            ImGui::TextDisabled("Example: 0:HAIR or 0:HAIR:2. Layered slots require an explicit row.");
-            if (ImGui::Button("Copy exact part color")) QueueAction("studio_color_copy", nullptr, g_studioTarget);
-            ImGui::SameLine(); if (ImGui::Button("Preview color paste")) QueueAction("studio_color_preview", nullptr, g_studioTarget);
-        }
-        std::string color = ExtractJsonValue(reply, "raw_color_hex");
-        if (!color.empty()) ImGui::Text("Exact uint64 color state: %s", color.c_str());
-        ImGui::TextWrapped("Color-only paste requires the identical CAS part. Numeric editing reads the effective part resource and rejects stale Sim/form/save, appearance and resource revisions.");
+    if (ImGui::Checkbox("Editing in native CAS", &g_nativeCasView)) {
+        g_casClientData = ui::Json::object(); g_casSelectedItem = ui::Json::object();
+        if (g_nativeCasView) QueueCasAction({{"operation", "status"}});
     }
-    std::string diff = ExtractJsonValue(reply, "preview_diff");
-    if (!diff.empty()) ImGui::TextWrapped("%s", diff.c_str());
-    ImGui::SeparatorText("Explicit transaction control");
-    ImGui::InputText("Preview ID", g_previewId, sizeof(g_previewId));
+    if (g_nativeCasView) { DrawNativeCas(reply, history); return; }
+    UpdateStudioData(reply);
+    ImGui::TextColored(ImVec4(0.35f, 0.88f, 0.77f, 1), history ? "CAS HISTORY" : "EQUIPPED PART INSPECTOR");
+    ImGui::TextDisabled("Current form / exact targets / retained branches");
+    if (ImGui::Button("Inspect / refresh", ImVec2(160, 0))) QueueStudioAction("studio_status");
+    ImGui::SameLine(); ImGui::TextDisabled("%u checkpoints", static_cast<unsigned>(g_studioData.value("history_nodes", ui::Json::array()).size()));
+    ImGui::BeginChild("studio-equipped", ImVec2(270, 0), true); DrawEquippedList(); ImGui::EndChild(); ImGui::SameLine();
+    ImGui::BeginChild("studio-workspace", ImVec2(0, 0), true);
+    const auto& viewedOutfits = ViewedStudioOutfits();
+    if (!viewedOutfits.empty() && ImGui::Button("Duplicate selected outfit / preview")) {
+        const auto& outfit = viewedOutfits[static_cast<size_t>(g_studioOutfitIndex)];
+        const ui::Json request = {{"source", outfit["index"]}, {"category", outfit["category"]},
+            {"lane", ui::Scalar(g_studioData, "history_lane")}, {"appearance_sha256", ui::Scalar(g_studioData, "appearance_sha256")}};
+        const auto value = request.dump(); QueueStudioAction("studio_outfit_duplicate", nullptr, value.c_str());
+    }
+    const auto hairPolicy = g_studioData.find("hair_policy");
+    if (hairPolicy != g_studioData.end()) {
+        bool enabled = (*hairPolicy)["enabled"].get<bool>();
+        if (ImGui::Checkbox("Keep hairstyles / colors independent per outfit", &enabled))
+            QueueStudioAction(enabled ? "studio_hair_enable" : "studio_hair_disable");
+        if (enabled) {
+            ImGui::TextDisabled("Every category and outfit number / each form / event driven");
+            const auto& outfits = ViewedStudioOutfits();
+            ImGui::BeginDisabled(!ViewedFormActive() || outfits.empty());
+            if (!outfits.empty() && ImGui::Button("Before CAS: edit hair only in selected outfit")) {
+                const auto& outfit = outfits[static_cast<size_t>(g_studioOutfitIndex)];
+                const ui::Json request = {{"hair_target", ui::Json::array({outfit["category"], outfit["ordinal"]})}};
+                const auto value = request.dump(); QueueAction("cas_session_begin", nullptr, value.c_str());
+            }
+            ImGui::EndDisabled();
+            ImGui::SameLine(); if (ImGui::Button("After CAS: accept selected edit")) QueueAction("cas_session_finish");
+            ImGui::TextWrapped("CAS target must be selected before entry. Other outfits keep their captured hairstyles and exact colors.");
+            const auto error = ui::Scalar(*hairPolicy, "last_error");
+            if (!error.empty()) ImGui::TextWrapped("Retained protection issue: %s", error.c_str());
+        }
+        ImGui::Separator();
+    }
+    if (history) {
+        ImGui::SetNextItemWidth(-1); ImGui::InputTextWithHint("##checkpoint-label", "Name a checkpoint", g_checkpointLabel, sizeof(g_checkpointLabel));
+        if (ImGui::Button("Capture checkpoint")) QueueStudioAction("studio_checkpoint", nullptr, g_checkpointLabel);
+        DrawStudioTimeline();
+        if (ImGui::Button("Preview Undo")) QueueStudioAction("studio_undo");
+        ImGui::SameLine(); if (ImGui::Button("Preview Redo")) QueueStudioAction("studio_redo", nullptr, g_historyId);
+        ImGui::SameLine(); ImGui::BeginDisabled(!g_historyId[0]);
+        if (ImGui::Button("Preview Jump")) QueueStudioAction("studio_jump", nullptr, g_historyId);
+        ImGui::EndDisabled();
+        if (g_studioData.value("legacy_outfit_history_retained", false)) ImGui::TextDisabled("Earlier outfit-only history retained separately.");
+        ImGui::TextWrapped("Full native Sim records and their runtime schemas are retained at checkpoints. Undo restores captured appearance; gameplay records remain available for inspection.");
+    } else DrawStudioParts();
+    const auto forms = g_studioData.find("form_inventory");
+    if (forms != g_studioData.end() && !forms->empty() && ImGui::CollapsingHeader("All captured appearance fields / preset results")) {
+        const auto& form = (*forms)[static_cast<size_t>(g_studioFormIndex)];
+        for (const auto& field : form["appearance_fields"]) {
+            const auto label = ui::Scalar(field, "name");
+            if (ImGui::TreeNode(label.c_str())) {
+                const auto value = field["value"].dump();
+                ImGui::TextDisabled("Type: %s / full value retained", ui::Scalar(field, "kind").c_str());
+                if (ImGui::SmallButton("Copy exact field value")) ImGui::SetClipboardText(value.c_str());
+                ImGui::TextWrapped("%s", value.substr(0, 1024).c_str());
+                if (value.size() > 1024) ImGui::TextDisabled("Long value: copy/export for the complete record.");
+                ImGui::TreePop();
+            }
+        }
+    }
+    ImGui::SeparatorText("Accepted preview");
+    const auto delta = g_studioData.find("preview_delta");
+    if (g_previewId[0] && delta != g_studioData.end()) {
+        ImGui::TextWrapped("Changes: %s", ui::Scalar(*delta, "summary").c_str());
+        if (delta->contains("part_changes")) for (const auto& row : (*delta)["part_changes"]) {
+            const auto& before = row["before"]; const auto& after = row["after"];
+            ImGui::TextWrapped("%s / category %s / outfit %s: %s -> %s", ui::Scalar(row, "label").c_str(),
+                ui::Scalar(row, "category").c_str(), ui::Scalar(row, "outfit_ordinal").c_str(),
+                before.is_object() ? ui::Scalar(before, "id").c_str() : "absent",
+                after.is_object() ? ui::Scalar(after, "id").c_str() : "absent");
+        }
+    } else ImGui::TextDisabled("No pending preview");
     ImGui::BeginDisabled(!g_previewId[0]);
-    if (ImGui::Button("Apply accepted preview")) QueueAction("studio_apply", nullptr, g_previewId);
-    ImGui::SameLine(); if (ImGui::Button("Cancel preview")) QueueAction("studio_cancel", nullptr, g_previewId);
+    if (ImGui::Button("Apply preview", ImVec2(150, 34))) QueueStudioAction("studio_apply", nullptr, g_previewId);
+    ImGui::SameLine(); if (ImGui::Button("Cancel", ImVec2(90, 34))) QueueStudioAction("studio_cancel", nullptr, g_previewId);
     ImGui::EndDisabled();
+    if (ImGui::CollapsingHeader("Recovery / exact identities")) {
+        ImGui::TextWrapped("%s", ui::Scalar(g_studioData, "history_lane").c_str());
+        ImGui::InputText("History node", g_historyId, sizeof(g_historyId));
+        ImGui::InputText("Preview ID", g_previewId, sizeof(g_previewId));
+        if (ImGui::Button("Resolve interrupted transaction")) QueueStudioAction("studio_recover");
+    }
+    ImGui::EndChild();
 }
 
 static void DrawConfirmation() {
@@ -1077,8 +1469,10 @@ static void LoadOverlayConfig() {
 }
 
 static void DrawOverlay() {
-    ImGui::SetNextWindowSize(ImVec2(1320, 820), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Apex Occult Hybrid - Authorized Baseline Development Build", nullptr, ImGuiWindowFlags_NoCollapse);
+    const auto display = ImGui::GetIO().DisplaySize;
+    ImGui::SetNextWindowSize(ImVec2(std::max(400.0f, std::min(1180.0f, display.x - 40)), std::max(400.0f, std::min(920.0f, display.y - 60))), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(20, 30), ImGuiCond_FirstUseEver);
+    ImGui::Begin("APEX / Occult Hybrid Studio", nullptr, ImGuiWindowFlags_NoCollapse);
     std::string status, json, sim, reply;
     std::vector<std::string> logs;
     { std::lock_guard<std::mutex> lock(g_dataMutex); status = g_status; json = g_json; logs = g_logLines; sim = g_selectedSim; reply = g_commandReply; }
@@ -1098,17 +1492,20 @@ static void DrawOverlay() {
         g_commandReply = "{}";
         g_previewId[0] = '\0'; g_historyId[0] = '\0';
         g_studioData = ui::Json::object(); g_studioLastReply.clear();
+        g_casClientData = ui::Json::object(); g_casSelectedItem = ui::Json::object(); g_casLastReply.clear(); g_casPendingId[0] = '\0'; g_casSnapshotMs = 0; g_casDiagnostics = ui::Json::object();
         g_studioOutfitIndex = 0; g_studioPartIndex = 0;
         g_status = "Selection changed; waiting for current data";
         g_lastStatusMs = 0;
     }
     ImGui::SameLine(); ActionButton("Refresh", "status", nullptr, nullptr, ImVec2(86,0));
     ImGui::SameLine(); ActionButton("Health", "health", nullptr, nullptr, ImVec2(86,0));
-    ImGui::SameLine(); ActionButton("Diagnostics", "diagnostics", nullptr, nullptr, ImVec2(112,0));
-    ImGui::SameLine(); ActionButton("QA Self-Test", "qa_self_test", nullptr, nullptr, ImVec2(128,0));
-    ImGui::SameLine(); ActionButton("Code Audit", "code_audit", nullptr, nullptr, ImVec2(112,0));
-    ImGui::SameLine(); ActionButton("Research Audit", "research_audit", nullptr, nullptr, ImVec2(136,0));
-    ImGui::SameLine(); ActionButton("Final Audit", "final_audit", nullptr, nullptr, ImVec2(116,0));
+    if (ImGui::CollapsingHeader("Diagnostics")) {
+        ActionButton("Diagnostics", "diagnostics", nullptr, nullptr, ImVec2(112,0));
+        ImGui::SameLine(); ActionButton("QA Self-Test", "qa_self_test", nullptr, nullptr, ImVec2(128,0));
+        ImGui::SameLine(); ActionButton("Code Audit", "code_audit", nullptr, nullptr, ImVec2(112,0));
+        ImGui::SameLine(); ActionButton("Research Audit", "research_audit", nullptr, nullptr, ImVec2(136,0));
+        ImGui::SameLine(); ActionButton("Final Audit", "final_audit", nullptr, nullptr, ImVec2(116,0));
+    }
     std::string warn = ui::StatusScalar(ui::ReadObject(json), "drift_warning_count");
     if (!warn.empty() && warn != "0") {
         ImGui::Separator();
@@ -1118,7 +1515,7 @@ static void DrawOverlay() {
     }
     ImGui::Separator();
 
-    const char* tabs[] = {"Apex", "Forms", "Saved Forms", "Drift Guard", "Reference Shots", "CAS Tools", "CAS Categories", "MCCC Shield", "Raw Flags", "Sims/API", "Log", "CAS History", "Color Studio"};
+    const char* tabs[] = {"Apex", "Forms", "Saved Forms", "Drift Guard", "Reference Shots", "CAS Tools", "CAS Categories", "MCCC Shield", "Raw Flags", "Sims/API", "Log", "CAS History", "Equipped CAS"};
     ImGui::BeginChild("navigation", ImVec2(160, 0), true);
     for (int i = 0; i < IM_ARRAYSIZE(tabs); ++i) {
         if (ImGui::Selectable(tabs[i], g_activeTab == i)) g_activeTab = i;
@@ -1126,7 +1523,7 @@ static void DrawOverlay() {
     ImGui::EndChild();
     ImGui::SameLine();
 
-    ImGui::BeginChild("main_left", ImVec2(ImGui::GetContentRegionAvail().x * 0.65f, 0), false);
+    ImGui::BeginChild("main_left", ImVec2(g_activeTab >= 11 ? 0 : ImGui::GetContentRegionAvail().x * 0.65f, 0), false);
     if (g_activeTab == 0) DrawApexTab();
     else if (g_activeTab == 1) DrawFormsTab();
     else if (g_activeTab == 2) DrawSavedFormsTab();
@@ -1146,10 +1543,10 @@ static void DrawOverlay() {
     else if (g_activeTab == 11) DrawStudioTab(reply, true);
     else if (g_activeTab == 12) DrawStudioTab(reply, false);
     ImGui::EndChild();
-    ImGui::SameLine();
-    ImGui::BeginChild("right_dock", ImVec2(0, 0), true);
-    DrawLogDock(logs);
-    ImGui::EndChild();
+    if (g_activeTab < 11) {
+        ImGui::SameLine(); ImGui::BeginChild("right_dock", ImVec2(0, 0), true);
+        DrawLogDock(logs); ImGui::EndChild();
+    }
     DrawConfirmation();
     ImGui::End();
 }
@@ -1215,10 +1612,8 @@ static void RenderOverlayFrame(IDXGISwapChain* sc) {
         g_visible = !g_visible.load();
         ++g_toggleEvents;
     }
-    if (g_captureRequest.load() && g_loaderStatus.load() >= 3) {
-        const int capture = g_captureRequest.exchange(0);
-        if (capture) SaveBackbufferBmp(sc, capture);
-    }
+    const int capture = g_loaderStatus.load() >= 3 ? g_captureRequest.exchange(0) : 0;
+    if (capture && capture != 4) SaveBackbufferBmp(sc, capture);
     if (g_visible.load()) {
         InitImGui(sc);
         if (g_device && g_context) {
@@ -1235,6 +1630,7 @@ static void RenderOverlayFrame(IDXGISwapChain* sc) {
                 g_context->OMSetRenderTargets(1, &g_rtv, nullptr);
                 ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
                 if (g_renderedFrames.load() < 1000000000) ++g_renderedFrames;
+                if (capture == 4) SaveBackbufferBmp(sc, 4);
             }
         }
     }
@@ -1413,52 +1809,105 @@ extern "C" __declspec(dllexport) int WINAPI ApexCaptureFull() {
 }
 // Disposable-profile CLI input runs inside the already-authorized game. It
 // cannot address EA/UAC/another process, and stale viewport coordinates fail.
+// Thread-local DPI scope: never change the game's process DPI configuration.
+struct ApexInputDpi {
+    using SetContext = HANDLE (WINAPI *)(HANDLE);
+    SetContext set = reinterpret_cast<SetContext>(GetProcAddress(GetModuleHandleW(L"user32.dll"), "SetThreadDpiAwarenessContext"));
+    HANDLE previous = set ? set(reinterpret_cast<HANDLE>(static_cast<INT_PTR>(-4))) : nullptr; // PER_MONITOR_AWARE_V2
+    ~ApexInputDpi() { if (set && previous) set(previous); }
+};
+extern "C" __declspec(dllexport) int WINAPI ApexGameInputVersion() { return 2; }
+extern "C" __declspec(dllexport) int WINAPI ApexGameInputState() { return td1::g_inputState.load(); }
+extern "C" __declspec(dllexport) int WINAPI ApexGameCursorX() { return td1::g_cursorX.load(); }
+extern "C" __declspec(dllexport) int WINAPI ApexGameCursorY() { return td1::g_cursorY.load(); }
+extern "C" __declspec(dllexport) int WINAPI ApexCaptureOverlay() {
+    if (!td1::g_visible.load() || td1::g_loaderStatus.load() < 3) return -1;
+    int idle = 0;
+    return td1::g_captureRequest.compare_exchange_strong(idle, 4) ? 0 : -2;
+}
+extern "C" __declspec(dllexport) int WINAPI ApexOverlayStudio(unsigned long long sim, int tab) {
+    const auto activeTab = td1::ui::StudioOverlayTab(tab);
+    const bool nativeCas = tab == 13 || tab == 14;
+    if (!sim || activeTab < 0 || !td1::g_hooked.load()) return -1;
+    std::lock_guard<std::recursive_mutex> lock(td1::g_renderMutex);
+    if (nativeCas && (td1::g_casSubmissionBusy.load() || td1::g_casPendingId[0])) return -2;
+    {
+        std::lock_guard<std::mutex> data(td1::g_dataMutex);
+        td1::g_selectedSim = std::to_string(sim); ++td1::g_selectionGeneration;
+        td1::g_commandReply = "{}"; td1::g_studioLastReply.clear();
+        td1::g_studioData = td1::ui::Json::object();
+        td1::g_casClientData = td1::ui::Json::object(); td1::g_casSelectedItem = td1::ui::Json::object();
+        td1::g_casLastReply.clear(); td1::g_casPendingId[0] = '\0'; td1::g_casSnapshotMs = 0;
+        td1::g_historyId[0] = '\0'; td1::g_previewId[0] = '\0';
+    }
+    td1::g_activeTab = activeTab; td1::g_visible = true; td1::g_nativeCasView = nativeCas;
+    if (nativeCas) {
+        if (!td1::QueueCasAction({{"operation", "status"}})) return -3;
+    } else td1::QueueAction("studio_status"); // The canonical game owner supplies accepted Live/bank data.
+    return 0;
+}
 extern "C" __declspec(dllexport) int WINAPI ApexGameInput(int command, int x, int y, int width, int height) {
     std::lock_guard<std::recursive_mutex> renderLock(td1::g_renderMutex);
+    ApexInputDpi dpi;
     HWND hwnd = td1::g_hwnd;
     DWORD owner = 0;
     RECT rect{};
     if (!td1::g_hooked.load() || !hwnd || !IsWindow(hwnd) || !IsWindowVisible(hwnd)) return -1;
     GetWindowThreadProcessId(hwnd, &owner);
     if (owner != GetCurrentProcessId() || GetAncestor(GetForegroundWindow(), GA_ROOT) != GetAncestor(hwnd, GA_ROOT)) return -2;
-    if (!GetClientRect(hwnd, &rect) || rect.right - rect.left != width || rect.bottom - rect.top != height) return -3;
+    if (!GetClientRect(hwnd, &rect) || rect.right != width || rect.bottom != height) return -3;
     if (command == 2) {
         if (x != VK_F11 && x != VK_ESCAPE && x != VK_RETURN && x != VK_TAB && x != VK_SPACE) return -4;
-        // Do not hold renderLock while F11 is sampled on the render thread.
-        INPUT down{}; down.type = INPUT_KEYBOARD; down.ki.wVk = static_cast<WORD>(x);
-        if (SendInput(1, &down, sizeof(INPUT)) != 1) return -5;
-        // The matching release is scheduled by a short-lived game-owned worker;
-        // accepting the input does not claim the UI transition completed.
-        std::thread([key = static_cast<WORD>(x)] {
-            Sleep(80);
-            INPUT up{}; up.type = INPUT_KEYBOARD; up.ki.wVk = key; up.ki.dwFlags = KEYEVENTF_KEYUP;
-            SendInput(1, &up, sizeof(INPUT));
-        }).detach();
-        return 0;
-    }
-    if (command != 1 || x < 0 || y < 0 || x >= width || y >= height) return -4;
-    POINT point{x, y};
-    if (!ClientToScreen(hwnd, &point)) return -3;
-    const int left = GetSystemMetrics(SM_XVIRTUALSCREEN), top = GetSystemMetrics(SM_YVIRTUALSCREEN);
-    const int sw = GetSystemMetrics(SM_CXVIRTUALSCREEN), sh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    if (sw <= 1 || sh <= 1 || point.x < left || point.y < top || point.x >= left + sw || point.y >= top + sh) return -3;
-    INPUT input[3]{};
-    for (auto& event : input) event.type = INPUT_MOUSE;
-    input[0].mi.dx = MulDiv(point.x - left, 65535, sw - 1);
-    input[0].mi.dy = MulDiv(point.y - top, 65535, sh - 1);
-    input[0].mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
-    input[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-    input[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-    // Sims polls mouse state between frames. An immediate down/up batch can
-    // move the cursor without ever delivering a held button to that poll.
-    if (SendInput(2, input, sizeof(INPUT)) != 2) {
-        SendInput(1, &input[2], sizeof(INPUT));
-        return -5;
-    }
-    std::thread([] {
-        Sleep(100);
-        INPUT up{}; up.type = INPUT_MOUSE; up.mi.dwFlags = MOUSEEVENTF_LEFTUP;
-        SendInput(1, &up, sizeof(INPUT));
+    } else if ((command != 1 && command != 3) || x < 0 || y < 0 || x >= width || y >= height) return -4;
+    bool idle = false;
+    if (!td1::g_inputBusy.compare_exchange_strong(idle, true)) return -6;
+    td1::g_inputState = 1; td1::g_cursorX = -1; td1::g_cursorY = -1;
+    // Move is delivered on a game-owned worker, then allowed to traverse the
+    // real event/render loop BEFORE down. Same-batch move/down used stale CAS
+    // hit-testing. Every click checks the exact physical cursor and ownership.
+    std::thread([hwnd, command, x, y, width, height] {
+        ApexInputDpi workerDpi;
+        auto valid = [&] {
+            RECT current{}; DWORD pid = 0;
+            GetWindowThreadProcessId(hwnd, &pid);
+            return IsWindow(hwnd) && pid == GetCurrentProcessId() &&
+                GetAncestor(GetForegroundWindow(), GA_ROOT) == GetAncestor(hwnd, GA_ROOT) &&
+                GetClientRect(hwnd, &current) && current.right == width && current.bottom == height;
+        };
+        int outcome = -8;
+        if (valid()) {
+            if (command != 2) {
+                POINT screen{x, y};
+                const int left = GetSystemMetrics(SM_XVIRTUALSCREEN), top = GetSystemMetrics(SM_YVIRTUALSCREEN);
+                const int sw = GetSystemMetrics(SM_CXVIRTUALSCREEN), sh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+                if (ClientToScreen(hwnd, &screen) && sw > 1 && sh > 1 && screen.x >= left && screen.y >= top && screen.x < left + sw && screen.y < top + sh) {
+                    INPUT move{}; move.type = INPUT_MOUSE;
+                    move.mi.dx = static_cast<LONG>((2LL * (screen.x - left) + 1) * 65536 / (2LL * sw));
+                    move.mi.dy = static_cast<LONG>((2LL * (screen.y - top) + 1) * 65536 / (2LL * sh));
+                    move.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+                    outcome = SendInput(1, &move, sizeof(INPUT)) == 1 ? -7 : -5;
+                    Sleep(120);
+                    POINT actual{};
+                    if (GetCursorPos(&actual) && ScreenToClient(hwnd, &actual)) {
+                        td1::g_cursorX = actual.x; td1::g_cursorY = actual.y;
+                        if (actual.x == x && actual.y == y && valid()) outcome = 2;
+                    }
+                } else outcome = -3;
+            } else outcome = 2;
+            if (outcome == 2 && command != 3 && valid()) {
+                INPUT down{}; down.type = command == 2 ? INPUT_KEYBOARD : INPUT_MOUSE;
+                if (command == 2) down.ki.wVk = static_cast<WORD>(x);
+                else down.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+                if (SendInput(1, &down, sizeof(INPUT)) == 1) {
+                    td1::g_inputState = 3; Sleep(100);
+                    INPUT up{}; up.type = down.type;
+                    if (command == 2) { up.ki.wVk = static_cast<WORD>(x); up.ki.dwFlags = KEYEVENTF_KEYUP; }
+                    else up.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+                    outcome = SendInput(1, &up, sizeof(INPUT)) == 1 ? 4 : -5;
+                } else outcome = -5;
+            } else if (outcome == 2 && command == 3) outcome = 4;
+        }
+        td1::g_inputState = outcome; td1::g_inputBusy = false;
     }).detach();
     return 0;
 }

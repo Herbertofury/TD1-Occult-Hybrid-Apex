@@ -21,7 +21,8 @@ try:
     assert result == {'ApexOverlayProtocolVersion': 1, 'ApexOverlayStart': -1, 'ApexOverlayStatus': 0,
                       'ApexOverlayShow': -1, 'ApexOverlayHide': -1, 'ApexOverlayRenderedFrames': 0,
                       'ApexOverlayVisible': 0, 'ApexOverlayToggleEvents': 0,
-                      'ApexCaptureCompleted': 0, 'ApexCaptureFull': -1}, result
+                      'ApexCaptureCompleted': 0, 'ApexCaptureFull': -1, 'ApexCaptureOverlay': -1,
+                      'ApexGameInputVersion': 2, 'ApexGameInputState': 0, 'ApexGameCursorX': -1, 'ApexGameCursorY': -1}, result
     assert _integer(lambda: _bind_input(_ctypes, handle)(1, 0, 0, 1280, 720)) == -1
     print(json.dumps(result, sort_keys=True))
 finally:

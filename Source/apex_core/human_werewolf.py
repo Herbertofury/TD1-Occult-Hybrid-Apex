@@ -58,6 +58,8 @@ def dispatch(backend, sim, action):
                 'active_werewolf': backend._get_current_flags(sim) == int(werewolf),
                 'message': 'Human-looking Werewolf changes appearance only; all Werewolf gameplay remains owned by the game.'}
     active = backend._get_current_flags(sim) == int(werewolf)
+    from . import form_bank
+    form_bank.assert_idle(backend, sim)
     live_before = appearance.packed(backend, sim) if active else None
     before = appearance.packed(backend, target)
     before_sha = appearance.fingerprint(before)['appearance_sha256']
@@ -94,6 +96,7 @@ def dispatch(backend, sim, action):
             backend._restore_siminfo_payload(sim, appearance.payload(desired))
         if appearance.evidence(backend, target)['appearance_sha256'] != expected or active and appearance.evidence(backend, sim)['appearance_sha256'] != expected:
             raise ValueError('Exact appearance readback failed.')
+        form_bank.update(backend, sim, int(werewolf), desired)
     except Exception:
         backend._restore_siminfo_payload(target, appearance.payload(before))
         if active:

@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 import unittest
 from unittest.mock import patch
@@ -8,6 +9,17 @@ import apex_cli
 
 
 class CliTests(unittest.TestCase):
+    def test_native_cas_view_uses_fixed_native_selection_without_pointer_input(self):
+        for operation, tab in [('open-cas-history','cas_history'),('open-cas-parts','cas_parts')]:
+            args = apex_cli.parser().parse_args(['studio',operation,'--state','state.json','--sim-id','772674414928396571'])
+            with patch.object(apex_cli,'require_isolated'), \
+                    patch.object(apex_cli.reusable_profile,'load',return_value=(None,{'token':'a'*32},None,None)), \
+                    patch.object(apex_cli,'owned_request',return_value={'ok':True}) as request:
+                self.assertTrue(apex_cli.execute(args)['ok'])
+            self.assertEqual(request.call_args.args[1], 'test_studio_ui')
+            self.assertEqual(json.loads(request.call_args.kwargs['value'])['value'],
+                             {'sim_id':'772674414928396571','tab':tab})
+
     def test_not_ready_bridge_never_counts_as_runtime_success(self):
         ticks = [0]
         def clock():
@@ -63,6 +75,17 @@ class CliTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 apex_cli.owned_request('state', 'test_create_sim', transport=lambda *a, **k: {'test_token': 'wrong'})
             transport.assert_not_called()
+
+    def test_native_click_cannot_reach_transport_when_foreground_focus_is_refused(self):
+        identity = {'pid': 42, 'native_cli_available': True}
+        import game_window
+        with patch.object(apex_cli, 'verified_identity', return_value=identity), \
+                patch.object(apex_cli.reusable_profile, 'load', return_value=(None, {'token': 'a' * 32}, None, None)), \
+                patch.object(game_window, 'focus', return_value={'ok': False, 'foreground_verified': False}), \
+                patch.object(apex_cli, 'get') as transport:
+            result = apex_cli.owned_request('state', 'test_input', transport=transport)
+        self.assertFalse(result['input_submitted'])
+        transport.assert_not_called()
 
 
 if __name__ == '__main__':

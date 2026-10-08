@@ -71,3 +71,8 @@ The owner-provided permission allows Apex development to inspect, reuse, port, a
 Current public baseline verified for research: Color Sliders v4f, UI checked/updated through Sims 4 patch 1.127.41 on 2026-08-26. Apex targets the newer 1.128.90.1030 build and must port/revalidate the baseline forward.
 
 The final Apex release does not require the original Color Sliders mod. Preserve attribution/provenance for authorized material that survives into Apex, and preserve separate terms for any MizoreYukii/CmarNYC/other independently owned lineage material not covered by thepancake1 permission.
+
+
+### JPEXS Free Flash Decompiler (development-only CAS builder)
+
+The local CAS UI builder invokes separately installed FFDec 26.3.0 and its public ABC API; FFDec is GPL-3.0 licensed and is not redistributed in Apex's candidate. Our Java adapter contains original build logic. Sources and command reference: https://github.com/jindrapetrik/jpexs-decompiler and https://github.com/jindrapetrik/jpexs-decompiler/wiki/Commandline-arguments . Installed EA UI resources and private decompiled exports remain local build inputs and are not committed to this repository.

@@ -114,7 +114,8 @@ def _bind(native, handle):
     return {name: NoArguments((name, Library())) for name in
             ('ApexOverlayProtocolVersion', 'ApexOverlayStart', 'ApexOverlayStatus',
              'ApexOverlayShow', 'ApexOverlayHide', 'ApexOverlayRenderedFrames',
-             'ApexOverlayVisible', 'ApexOverlayToggleEvents', 'ApexCaptureCompleted', 'ApexCaptureFull')}
+             'ApexOverlayVisible', 'ApexOverlayToggleEvents', 'ApexCaptureCompleted', 'ApexCaptureFull',
+             'ApexCaptureOverlay', 'ApexGameInputVersion', 'ApexGameInputState', 'ApexGameCursorX', 'ApexGameCursorY')}
 
 
 def _bind_input(native, handle):
@@ -189,11 +190,11 @@ def show(visible=True):
 
 
 @serialized
-def capture():
+def capture(overlay=False):
     if not _CALLS:
         raise ValueError('The game overlay has not initialized.')
     before = status()
-    code = _integer(_CALLS['ApexCaptureFull'])
+    code = _integer(_CALLS['ApexCaptureOverlay' if overlay else 'ApexCaptureFull'])
     return dict(before, ok=code == 0, native_code=code, capture_requested=code == 0,
                 capture_completed_verified=False)
 
@@ -211,8 +212,23 @@ def input_event(module_file, dll_path, argument):
     call = _bind_input(_game_ctypes(dll_path), _HANDLE)
     result = call(*values)
     code = int(getattr(result, 'value', result))
-    return {'ok': code == 0, 'native_code': code, 'input_submitted': code == 0,
-            'ui_transition_verified': False, 'message': 'Game-owned input submitted; compare the next captured frame.'}
+    import time
+    state = 0
+    if code == 0:
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            state = _integer(_CALLS['ApexGameInputState'])
+            if state == 4 or state < 0:
+                break
+            time.sleep(0.02)
+    completed = code == 0 and state == 4
+    return {'ok': completed, 'native_code': code, 'input_state': state,
+            'input_version': _integer(_CALLS['ApexGameInputVersion']),
+            'cursor_client': {'x': _integer(_CALLS['ApexGameCursorX']), 'y': _integer(_CALLS['ApexGameCursorY'])},
+            'pointer_verified': completed and argument['command'] != 2,
+            'input_submitted': completed, 'ui_transition_verified': False,
+            'message': 'Game-owned input released; cursor readback verified for pointer commands. Verify the UI transition separately.'
+            if completed else 'Native input did not complete (code {}, state {}); no UI completion claimed.'.format(code, state)}
 
 
 def auto_start_enabled(module_file):
@@ -226,3 +242,27 @@ def auto_start_enabled(module_file):
     settings = configparser.ConfigParser()
     settings.read(str(config), encoding='utf-8')
     return settings.getboolean('Overlay', 'AutoStart', fallback=True)
+
+
+@serialized
+def studio_ui(module_file, dll_path, argument):
+    if not _CALLS or not isinstance(argument, dict) or set(argument) != {'sim_id', 'tab'}:
+        raise ValueError('Use the fixed Studio UI selection contract.')
+    sim_id, tab = argument['sim_id'], argument['tab']
+    if not isinstance(sim_id, str) or not sim_id.isdigit() or not 0 < int(sim_id) < 1 << 64 or tab not in ('history', 'parts', 'cas_history', 'cas_parts'):
+        raise ValueError('Invalid Studio Sim or tab.')
+    path, info = sidecar_paths(module_file)
+    if info['sha256'] != _LOADED_SHA or str(path) != _LOADED_PATH:
+        raise ValueError('The native build changed while the game runs.')
+    native = _game_ctypes(dll_path)
+    class UInt64(native._SimpleCData): _type_ = 'Q'
+    class Integer(native._SimpleCData): _type_ = 'i'
+    class StudioCall(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL
+        _restype_ = Integer
+        _argtypes_ = (UInt64, Integer)
+    class Library: _handle = _HANDLE
+    result = StudioCall(('ApexOverlayStudio', Library()))(int(sim_id),
+        {'history': 11, 'parts': 12, 'cas_history': 13, 'cas_parts': 14}[tab])
+    code = int(getattr(result, 'value', result))
+    return dict(status(), ok=code == 0, studio_ui_requested=code == 0, selected_sim=sim_id, selected_tab=tab)

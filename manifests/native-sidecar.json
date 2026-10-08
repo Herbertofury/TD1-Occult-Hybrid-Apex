@@ -1,5 +1,5 @@
 {
-  "bytes": 1052672,
+  "bytes": 1138688,
   "file": "ApexOverlay.dll",
   "game_files_modified": false,
   "game_runtime_verified": false,
@@ -21,6 +21,11 @@
   "python37_export_checks": {
     "ApexCaptureCompleted": 0,
     "ApexCaptureFull": -1,
+    "ApexCaptureOverlay": -1,
+    "ApexGameCursorX": -1,
+    "ApexGameCursorY": -1,
+    "ApexGameInputState": 0,
+    "ApexGameInputVersion": 2,
     "ApexOverlayHide": -1,
     "ApexOverlayProtocolVersion": 1,
     "ApexOverlayRenderedFrames": 0,
@@ -31,6 +36,6 @@
     "ApexOverlayVisible": 0
   },
   "schema": 1,
-  "sha256": "c6947847f79ebb077875f8c5c5f56d702eec11fb46ea3b7b014f609434224e3c",
-  "verified_script_sha256": "579ebb5680d7e7ab2d71270a3034980d342d04e5be9c71588948b9b389839342"
+  "sha256": "56d607250d1b0efa330c027727d3be61ccfbe01a858642be9ebc41a7d2a37965",
+  "verified_script_sha256": "a84f58c852cd5508c603ef190ad7f6877db272869d470333b8ebcc4a5170190c"
 }

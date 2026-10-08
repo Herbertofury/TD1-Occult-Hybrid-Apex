@@ -73,6 +73,11 @@ python tools/apex_cli.py request overlay_show --state .work/reusable-profile-ses
 python tools/apex_cli.py request overlay_status --state .work/reusable-profile-session.json
 python tools/apex_cli.py game capture --state .work/reusable-profile-session.json --output .work/cas-before.bmp
 python tools/apex_cli.py game all-data --state .work/reusable-profile-session.json --sim-id YOUR_TEST_SIM_ID --output .work/sim-complete-before.json
+python tools/apex_cli.py request cas_session_begin --state .work/reusable-profile-session.json --sim-id YOUR_TEST_SIM_ID
+python tools/apex_cli.py game cas --state .work/reusable-profile-session.json --sim-id YOUR_TEST_SIM_ID --value full
+# After accepting CAS and returning to Live:
+python tools/apex_cli.py request cas_session_finish --state .work/reusable-profile-session.json --sim-id YOUR_TEST_SIM_ID
+python tools/apex_cli.py game shutdown --state .work/reusable-profile-session.json --output .work/normal-save-exit-proof.json
 ```
 
 The launcher selects the account's last successful Client Play content ID for
@@ -84,9 +89,14 @@ compatibility flags and executable manifests remain intact. To restore them,
 use `launch-config restore` with the same game root, state and receipt.
 
 Save verification observes a stable save-file rewrite. Full appearance/form
-reload comparison is a separate gate. Native `quit` opens the game's Save Game
-confirmation; automatic selection of Save and Exit remains unfinished. Do not
-interpret request acceptance as completed shutdown. `--headless` explicitly
+reload comparison is a separate gate. Native `quit` opens the main menu first.
+The held native CLI click accepted CAS's checkmark, returned to Live, selected
+Exit Game and then Save and Exit in the actual game. The normal save rewrite
+and process exit were observed. `game shutdown` now recognizes both complete
+native menus with local Windows OCR and selects their observed buttons; its
+single-command end-to-end game acceptance still needs the next launch. It
+retains every observation and requires both a normal slot rewrite and process
+exit before reporting success. `--headless` explicitly
 fails because an actual headless game runtime has not been implemented.
 
 The repeatable `test color-cycle` and `test hybrid-cycle` commands require an
@@ -98,8 +108,29 @@ The new game-owned capture/input candidate adds `game key` (F11, Escape, Enter,
 Tab and Space) and `game click`, requiring the observed viewport dimensions.
 The native sidecar refuses input outside its own foreground game window and
 refuses stale coordinates. Inputs are submissions; captured frames and game
-data must prove the resulting UI state. These new controls require replacing
-the matching script/DLL while the game is closed and remain pending live proof.
+data must prove the resulting UI state. Matching script/DLL replacement requires
+normal game closure. F11 toggling, actual CAS checkmark acceptance and normal
+Save and Exit now have game evidence; all controls and form persistence do not.
+
+## Independent CAS form ownership
+
+Switch to the intended form before choosing **Before CAS: Retain Originals** in
+F11 → Forms or Phone → Apex CAS History. The command retains all form appearances,
+occult membership/traits and the complete native Sim record. Enter native full
+CAS or MCCC CAS, make the intended form's edits, accept, then return to Live.
+Choose **After CAS: Accept This Form**. Only this form's returned appearance is
+accepted; other form appearances are restored from their retained originals.
+Returned appearances and full native records are saved before any recovery write.
+Ambiguous destinations, failed readbacks and interrupted operations retain both
+states and refuse further switches. This explicit single-form workflow is
+implemented and has offline regressions; actual edited-form switch/restart proof
+and automatic capture for every native/MCCC entry path remain open. Do not use
+the legacy CAS restore action to accept a newer edit.
+
+The accepted form bank preserves exact outfit/color bytes, physique, face,
+genetics, pelt, skin tone/brightness, custom textures/tattoos and voice fields.
+Appearance restores do not load old whole-Sim data or replace progression.
+Accepted Human-looking Werewolf changes also update an existing form bank.
 
 `game all-data` uses the exact game's full Sim save serializer, retaining native
 bytes and every declared schema field, even absent or apparently irrelevant
@@ -194,3 +225,156 @@ existing unrelated proxy. Your original profile is left for you to rename.
 The earlier UserSetting.ini copy did not reliably suppress DLC announcement
 cards; that issue is still open. No false suppression or headless-launch claim
 is attached to this candidate.
+
+
+## Equipped CAS inspector and complete-record checkpoints
+
+F11 now has a searchable **Equipped CAS** list and a shared History workspace.
+Click an actual equipped row to inspect its part resource and choose a replacement
+from the same Sim/form wardrobe. Preview preserves destination references/layers;
+Apply verifies exact appearance and synchronizes the accepted form bank.
+
+History checkpoints retain the complete native Sim save model, runtime-discovered
+schema, absent fields and unknown wire bytes, compressed losslessly. This includes
+serialized preset results, eyebrows and every serialized part, rather than a
+relevance-based category filter. Full-record tracking does not imply complete
+runtime-only coverage or safe editing handlers for every gameplay field. Appearance
+Undo includes shape, face, skin, genetics, tattoos, voice and every captured outfit;
+it never loads a whole Sim or rewinds unrelated gameplay. Older outfit-only journals
+are retained separately. Native CAS changes are observed when returned to the owner
+and explicitly inspected/checkpointed; individual client-only CAS drags are not yet
+automatically intercepted.
+
+```powershell
+python tools/apex_cli.py studio open-history --state .work/reusable-profile-session.json --sim-id 772674414928396571
+python tools/apex_cli.py studio open-parts --state .work/reusable-profile-session.json --sim-id 772674414928396571
+python tools/apex_cli.py studio part-inspect --state .work/reusable-profile-session.json --sim-id 772674414928396571 --value '0:2:0'
+python tools/apex_cli.py studio record --state .work/reusable-profile-session.json --sim-id 772674414928396571 --output .work/native-history-record.json
+python tools/apex_cli.py game capture --state .work/reusable-profile-session.json --with-overlay --output .work/history-ui.bmp
+```
+
+Use actual targets returned by `studio status`; the example row is illustrative.
+Part previews use a bounded JSON value file containing `target`, `source`, `lane`
+and `appearance_sha256`. GUI and CLI use the same current owner and transactions.
+Native pointer controls now separate movement from button-down, scope DPI locally,
+verify the exact cursor position and report release completion; accepting input
+still requires an observed UI/data transition. EA administrator confirmation and a
+truly headless EA game runtime remain unproven.
+
+## Inspect and edit a stored form without activating it
+
+The form selector scopes inspection, preview, Apply, Undo, Redo and Jump to that
+form's independent history. Existing native forms are written to their stored
+appearance owner and read back exactly. An accepted bank-only form can be edited
+in its bank for the next switch. Neither path activates the form or changes the
+current form's gameplay. An absent form is refused rather than generated.
+
+The CLI uses the identical transaction path with `--form`, for example:
+
+```powershell
+python tools/apex_cli.py studio status --state .work/reusable-profile-session.json --sim-id 772674414928396571 --form 4
+python tools/apex_cli.py studio undo --state .work/reusable-profile-session.json --sim-id 772674414928396571 --form 4
+```
+
+Form IDs are Human 1, Alien 2, Vampire 4, Mermaid 8, Spellcaster 16,
+Werewolf 32 and Fairy 64; use the owners returned by status. Apply needs the
+preview ID from the same form/save/Sim lane. A preview from another lane is refused.
+
+The outfit selector and equipped list follow the selected form. **Show unequipped
+categories** is optional; hiding empty rows changes presentation only. Group,
+alphabetical/equipped-first/serialized-row ordering and search include skin details,
+jewelry, eyebrows and runtime-discovered categories. Empty rows do not invent a
+part. Complete native field/schema checkpoints remain retained regardless of these
+display filters. Preset results are retained as native face/body/outfit data; the
+original preset asset identity is available only if the game serializes it.
+
+Current direct part editing replaces an equipped part from that form's own wardrobe.
+Adding/removing empty slots, searching the entire game/CC catalog and complete
+runtime-only/all-owner editing remain open checklist work.
+
+## Independent hairstyles for every outfit
+
+Enable **Keep hairstyles / colors independent per outfit** in F11, use the phone's
+CAS History choices, or run `studio hair-enable --state ... --sim-id ...`.
+This captures Hair and supported HairColorOverride rows for every existing form,
+outfit category and category-relative outfit number, including exact uint64 color
+values and absent/layered rows. The game’s real outfit-change callback restores
+unaccepted propagation. Approved Studio changes update only their accepted outfit
+rows. Repairs are journaled; clothes, skin, gameplay and unknown outfit fields stay
+outside the repair. Disabling protection retains its captured data.
+
+For native/MCCC CAS, choose the intended form/outfit in F11 and use **Before CAS:
+edit hair only in selected outfit**, then **After CAS: accept selected edit** after
+returning. This preserves returned hair in the explicit target and restores hair
+elsewhere. The raw CLI capture accepts `{"hair_target":[CATEGORY, ZERO_BASED_NUMBER]}`.
+Other outfits can retain different hairstyles and colors. A single CAS session
+that intentionally edits hair in multiple outfits needs separate explicit targets;
+automatic discovery of the CAS client's current editing target remains open.
+
+The hook uses the installed game's `register_for_outfit_changed_callback` contract
+and reattaches an enabled Sim on its first outfit change after loading. No per-frame
+wardrobe scan is introduced. Replaced outfit identities, incomplete native arrays,
+pending CAS/Studio transactions and unavailable owners are refused or deferred
+without guessing. Existing corruption before capture cannot reconstruct lost hair.
+Unpause briefly before checking live appearance; paused readback is data proof only.
+
+**Duplicate selected outfit / preview** creates another numbered outfit in its
+existing category, with a fresh identity from the game's allocator and all source
+outfit fields copied. Apply, Cancel and exact Undo/Redo use the same form/history
+transactions, including inactive forms. The CLI `studio outfit-duplicate` takes a
+bounded value file with `source` (serialized source index), `category` (existing
+destination category), `lane` and `appearance_sha256` from status. It refuses stale
+owners/revisions, duplicate IDs and a sixth outfit in a category. User-facing outfit
+numbers are category-relative and start at 1; CLI `game outfit` uses zero-based
+`{"category": CATEGORY, "index": NUMBER}` for an existing outfit and still requires
+unpaused visual verification.
+
+
+## Native CAS semantic prototype
+
+The optional `ApexCASBridge.package` targets the exact installed 1.128.90.1030 CAS resource, SHA-256 `8fe6d87964b8d2e1ad919972d8bb2168c4c176b9aab7300b2a838e638f87aad6`. It retains original class/script construction and 1,786 untouched native method bodies; one original Initialize method receives an Apex initialization call. Apex's compiled methods are appended with the native lexical scope. All non-script SWF tags remain unchanged. Game assets/decompiled exports stay in ignored local research and are not source-controlled.
+
+This is a development prototype. The first full-class recompilation crashed on native CAS entry; compilation/offline tests do not prove game compatibility. The builder now refuses that approach. Do not treat an unresolved request as success or replay it. Pending request identity is retained for inspection.
+
+Build from the locally extracted matching SWF and class export with Java 17 and FFDec 26.3.0:
+
+```powershell
+python -X utf8 tools/cas_ui_build.py --input-swf .work/research/current-cas-customizer.swf --decompiled .work/research/current-cas/scripts/widgets/CAS/Customizer/CASCustomizerMain.as --ffdec .work/research/ffdec/ffdec-cli.exe
+python -X utf8 tools/build_candidate.py --foundry '<foundry executable>' --cas-ui-package dist/candidate/ApexCASBridge.package
+```
+
+The bridge replaces the same CAS Customizer resource as the earlier Color Studio UI experiment. The installer refuses installing both together. Native CAS UI data is separate from the accepted Live/form-bank appearance record.
+
+```powershell
+python -X utf8 tools/apex_cli.py cas panels --state .work/reusable-profile-session.json
+python -X utf8 tools/apex_cli.py cas status --state .work/reusable-profile-session.json --sim-id <decimal Sim ID>
+python -X utf8 tools/apex_cli.py cas panel --panel skin_details --state .work/reusable-profile-session.json --sim-id <decimal Sim ID>
+python -X utf8 tools/apex_cli.py cas outfit --category 0 --index 1 --state .work/reusable-profile-session.json --sim-id <decimal Sim ID>
+python -X utf8 tools/apex_cli.py cas result --request-id <returned request ID> --state .work/reusable-profile-session.json --sim-id <decimal Sim ID>
+```
+
+Inside F11, CAS History / Equipped CAS has an **Editing in native CAS** mode. Refresh requests a complete readout of all mapped panel catalogs, including empty/unsupported results. Selecting an equipped row requests its matching native panel and displays all returned item metadata. Panel opening does not reapply the item. Empty catalogs can be hidden; unsupported results remain distinguishable. Every item and returned CAS Sim field can be copied exactly. This is the current outfit/selected CAS form, refreshed on request; automatic freshness, all-outfit/inactive native CAS client editing and complete runtime Sim field ownership remain unfinished.
+
+
+`cas diagnostics --state <session.json>` is read-only. It distinguishes native
+CAS initializer observation from a verified client snapshot and reports whether
+the distributor can send operations. An unresolved status read can be refreshed
+after ten seconds; an unresolved edit still blocks subsequent edits. Startup
+observation alone does not prove that catalog navigation or field edits work.
+
+
+Open the native CAS equipped-items/history view directly through the CLI:
+
+```powershell
+python tools/apex_cli.py studio open-cas-parts --state <session.json> --sim-id <exact-id>
+python tools/apex_cli.py studio open-cas-history --state <session.json> --sim-id <exact-id>
+```
+
+These commands select the exact Sim in F11 and submit one native CAS status
+request. They use no category or menu pointer clicks. Pending requests remain
+tracked; the readout labels the last acknowledged snapshot and its age. Presets
+use their separate native query and preserve raw fields; a null/failed query is
+not complete preset coverage. Direct native item writes currently support only
+ordinary hair/tops/bottoms/full-body/shoes. Other panels still support navigation
+and returned metadata; preset, layered, skin-tone and featured-look writes require
+their own verified contracts.

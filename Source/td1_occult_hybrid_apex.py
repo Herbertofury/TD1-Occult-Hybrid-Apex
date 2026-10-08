@@ -873,31 +873,25 @@ def _run_console_command(command_text):
     except Exception as exc:
         return False, 'sims4.commands unavailable: {}'.format(exc)
     tried = []
+    try:
+        manager = services.client_manager()
+        client = manager.get_first_client() if manager is not None else None
+    except AttributeError:
+        client = None
+    if client is None:
+        return False, 'No observed game client for the fixed MCCC command.'
     for attr in ('execute', 'execute_command'):
         func = getattr(command_module, attr, None)
         if func is None:
             continue
-        for args in ((command_text,), (command_text, None), (command_text, 0)):
+        for args in ((command_text, client.id),):
             try:
                 result = func(*args)
+                if result is False:
+                    return False, 'The game rejected the fixed command: ' + command_text
                 return True, '{} -> {}'.format(command_text, result)
             except Exception as exc:
                 tried.append('{}{}: {}'.format(attr, len(args), exc))
-    try:
-        command_service = getattr(services, 'command_service', None)
-        if callable(command_service):
-            svc = command_service()
-            for attr in ('execute', 'execute_command'):
-                func = getattr(svc, attr, None)
-                if func is None:
-                    continue
-                try:
-                    result = func(command_text)
-                    return True, '{} -> {}'.format(command_text, result)
-                except Exception as exc:
-                    tried.append('service.{}: {}'.format(attr, exc))
-    except Exception as exc:
-        tried.append('command_service: {}'.format(exc))
     return False, 'could not execute command; tried {}'.format('; '.join(tried[-5:]))
 
 
@@ -8197,6 +8191,12 @@ _APEX_BOOTSTRAP_STATUS = 'not initialized'
 def run_action(action, sim_id=None, occult=None, value=None):
     if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
         return {'ok': False, 'message': 'Sim inspection and mutation require the canonical Sims game-thread owner.'}
+    if action in ('cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics'):
+        from apex_core.cas_ui import dispatch
+        try:
+            return dispatch(action, sim_id, value)
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'ui_transition_verified': False}
     if action == 'bridge_status':
         return {'ok': True, 'message': 'Game-thread bridge ready', 'queue': _APEX_COMMANDS.metrics(),
                 'build_version': _BUILD_VERSION, 'alarm_ready': _ALARM_READY}
@@ -8222,10 +8222,35 @@ def run_action(action, sim_id=None, occult=None, value=None):
             return dispatch(sys.modules[__name__], _get_sim_info_by_id(sim_id), action)
         except Exception as exc:
             return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
-    if action in ('studio_status', 'studio_history', 'studio_checkpoint', 'studio_recover',
+    if action in ('cas_session_begin', 'cas_session_finish', 'cas_session_status', 'human', 'switch'):
+        import sys
+        from apex_core import form_bank
+        try:
+            sim = _get_sim_info_by_id(sim_id)
+            if action == 'cas_session_begin':
+                hair_target = None
+                if value:
+                    request = json.loads(value)
+                    if not isinstance(request, dict) or set(request) != {'hair_target'} or not isinstance(request['hair_target'], list) or len(request['hair_target']) != 2 or any(type(item) is not int or item < 0 for item in request['hair_target']):
+                        raise ValueError('Use an explicit category/outfit-number CAS hair target.')
+                    hair_target = request['hair_target']
+                return form_bank.begin(sys.modules[__name__], sim, hair_target)
+            if action == 'cas_session_finish':
+                return form_bank.finish(sys.modules[__name__], sim)
+            if action == 'cas_session_status':
+                return form_bank.status(sys.modules[__name__], sim)
+            target = OccultType.HUMAN if action == 'human' else _parse_occult(occult)
+            if target is None:
+                return {'ok': False, 'message': 'Select a supported target form.'}
+            return form_bank.switch(sys.modules[__name__], sim, target,
+                lambda: _APEX_PRE_OWNER_RUN_ACTION(action, sim_id=sim_id, occult=occult, value=value))
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
+    if action in ('studio_status', 'studio_history', 'studio_record', 'studio_checkpoint', 'studio_recover',
                   'studio_color_copy', 'studio_color_preview', 'studio_cancel',
-                  'studio_color_inspect', 'studio_color_edit',
-                  'studio_undo', 'studio_redo', 'studio_jump', 'studio_apply'):
+                  'studio_color_inspect', 'studio_color_edit', 'studio_part_inspect', 'studio_part_preview',
+                  'studio_undo', 'studio_redo', 'studio_jump', 'studio_apply',
+                  'studio_hair_enable', 'studio_hair_disable', 'studio_hair_status', 'studio_outfit_duplicate'):
         from apex_core.studio import dispatch
         import sys
         try:
@@ -8273,6 +8298,14 @@ def _setup_alarm():
         _ALARM_HANDLE = alarms.add_alarm_real_time(_ALARM_OWNER,
             clock.interval_in_real_seconds(_ACTION_QUEUE_INTERVAL_SECONDS), _process_pending, repeating=True)
         _ALARM_READY = _ALARM_HANDLE is not None
+        if _ALARM_READY and not globals().get('_APEX_HAIR_HOOK_READY'):
+            try:
+                from apex_core import outfit_hair
+                import sys
+                outfit_hair.install(sys.modules[__name__])
+                globals()['_APEX_HAIR_HOOK_READY'] = True
+            except Exception as hook_error:
+                _log('Outfit hair hook unavailable: {}'.format(hook_error))
         _APEX_BOOTSTRAP_STATUS = 'ready' if _ALARM_READY else 'alarm creation returned no handle'
         return _ALARM_READY
     except Exception as exc:
@@ -8286,7 +8319,8 @@ def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.
     if request_id is not None and (len(request_id) != 32 or any(c not in '0123456789abcdef' for c in request_id)):
         return {'ok': False, 'state': 'rejected', 'message': 'Invalid command request identity.'}
     if not _ALARM_READY and not (_APEX_CORE_TICK_READY and safe_action in (
-            'test_quit', 'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start')):
+            'test_quit', 'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start',
+            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics')):
         return {'ok': False, 'state': 'rejected', 'message':
                 'Game-thread bridge is not ready. Load a disposable household or run apex.bridge.start from the game console.',
                 'bootstrap_status': _APEX_BOOTSTRAP_STATUS}
@@ -8315,6 +8349,12 @@ def _apex_zone_queue_ready(zone_instance, *args, **kwargs):
     _ALARM_HANDLE = None
     _ALARM_READY = False
     _setup_alarm()
+    try:
+        from apex_core.cas_ui import observe_connection
+        client = services.client_manager().get_first_client()
+        if client is not None: observe_connection(client.id)
+    except Exception as exc:
+        _log('CAS client connection observation unavailable: {}'.format(exc))
     _apex_start_overlay(automatic=True)
 
 
@@ -8376,6 +8416,35 @@ if Command is not None:
         out = _cmd_out(_connection)
         out(json.dumps(result, default=str, indent=2))
         return bool(result.get('ok'))
+
+    @Command('apex.cas.ready', command_type=_LIVE, command_restrictions=_UNRESTRICTED)
+    def _apex_cas_ready(protocol: int, _connection=None):
+        from apex_core.cas_ui import observe_ready, connection_matches
+        if threading.current_thread().ident != _APEX_GAME_THREAD_IDENT or not (_connection is None or connection_matches(_connection)):
+            _log('CAS startup connection refused')
+            return False
+        try:
+            observe_ready(protocol, _connection)
+            _log('Native CAS initializer observed')
+            return True
+        except Exception as exc:
+            _log('CAS startup refused: {}'.format(exc))
+            return False
+
+    @Command('apex.cas.reply', command_type=_LIVE, command_restrictions=_UNRESTRICTED)
+    def _apex_cas_reply(request_id: str, payload: str, _connection=None):
+        from apex_core.cas_ui import receive, reply_connection_allowed, observe_reply
+        accepted = threading.current_thread().ident == _APEX_GAME_THREAD_IDENT and reply_connection_allowed(request_id, _connection)
+        observe_reply(request_id, _connection, accepted)
+        if not accepted:
+            _log('CAS reply connection refused for request {}'.format(request_id))
+            return False
+        try:
+            receive(request_id, payload)
+            return True
+        except Exception as exc:
+            _log('CAS client acknowledgement refused: {}'.format(exc))
+            return False
 
     @Command('apex.bridge.start', command_type=_LIVE, command_restrictions=_UNRESTRICTED)
     def _apex_console_bridge_start(_connection=None):

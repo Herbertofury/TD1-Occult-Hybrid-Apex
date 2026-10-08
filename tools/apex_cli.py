@@ -66,19 +66,30 @@ def verified_identity(state, transport=get):
 def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=30, transport=get):
     identity = verified_identity(state, transport)
     if identity.get('native_cli_available') and action in (
-            'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start'):
+            'test_capture', 'test_input', 'test_studio_ui', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start'):
         _path, journal, _profile, _original = reusable_profile.load(state)
         if value is None:
             value = json.dumps({'test_token': journal['token'], 'value': None})
         request_id = uuid.uuid4().hex
         query = {'action': action, 'value': value, 'request_id': request_id}
+        if action == 'test_input':
+            import game_window
+            focused = game_window.focus(identity['pid'])
+            if not focused.get('ok') or not focused.get('foreground_verified'):
+                return dict(focused, ok=False, input_submitted=False)
         try:
-            return transport('/api/native', query)
+            result = transport('/api/native', query)
         except (OSError, urllib.error.URLError):
             # Reuse the exact identity so response loss cannot repeat a click.
-            return transport('/api/native', query)
+            result = transport('/api/native', query)
+        if action == 'test_input' and result.get('ok'):
+            # The game-owned handler releases its held button/key asynchronously.
+            # Do not let the next CLI action move/focus a surface before release.
+            time.sleep(0.25)
+        return result
     if not identity.get('alarm_ready') and not (action in (
-            'test_quit', 'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start')
+            'test_quit', 'test_capture', 'test_input', 'test_studio_ui', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start',
+            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics')
             and identity.get('core_tick_ready')):
         raise ValueError('Load the disposable household before in-game commands.')
     request_id = uuid.uuid4().hex
@@ -96,7 +107,7 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
 
 def poll_request(request_id, seconds=30, transport=get, monotonic=time.monotonic, pause=time.sleep):
     if len(request_id) != 32 or any(char not in '0123456789abcdef' for char in request_id) or not 0 < seconds <= 300:
-        raise ValueError('Use a returned request ID and a 0–300 second completion timeout.')
+        raise ValueError('Use a returned request ID and a 0-300 second completion timeout.')
     deadline = monotonic() + seconds
     while monotonic() < deadline:
         row = transport('/api/requests/status', {'request_id': request_id})
@@ -200,21 +211,35 @@ def parser():
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
     game = commands.add_parser('game', help='Real in-game test controls; requires the marked disposable profile')
-    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'save', 'snapshot', 'quit'))
+    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown'))
     game.add_argument('--state', required=True, type=Path)
     game.add_argument('--sim-id')
     game.add_argument('--value')
     game.add_argument('--output', type=Path)
+    game.add_argument('--with-overlay', action='store_true')
     game.add_argument('--key', choices=('F11', 'ESC', 'ENTER', 'TAB', 'SPACE'))
     game.add_argument('--x', type=int)
     game.add_argument('--y', type=int)
     game.add_argument('--width', type=int)
     game.add_argument('--height', type=int)
-    studio = commands.add_parser('studio', help='Current-form CAS History/Color Studio on the real game thread')
-    studio.add_argument('operation', choices=('status', 'history', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'cancel', 'undo', 'redo', 'jump', 'apply'))
+    cas = commands.add_parser('cas', help='Semantic native CAS controls; no mouse input')
+    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'select', 'undo', 'redo', 'result', 'diagnostics'))
+    cas.add_argument('--state', required=True, type=Path)
+    cas.add_argument('--sim-id')
+    cas.add_argument('--panel')
+    cas.add_argument('--category', type=int)
+    cas.add_argument('--index', type=int, help='Zero-based existing outfit number')
+    cas.add_argument('--data-id', help='Exact decimal native CAS catalog data identity')
+    cas.add_argument('--request-id')
+    cas.add_argument('--seconds', type=float, default=10)
+    cas.add_argument('--output', type=Path)
+    studio = commands.add_parser('studio', help='Live/stored-form CAS History and appearance editing on the real game thread')
+    studio.add_argument('operation', choices=('status', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'part-inspect', 'part-preview', 'outfit-duplicate', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
     studio.add_argument('--state', required=True, type=Path)
     studio.add_argument('--sim-id')
+    studio.add_argument('--form', type=int, help='Explicit existing native/bank form owner; editing does not activate it')
     studio.add_argument('--value')
+    studio.add_argument('--output', type=Path, help='New external JSON evidence file for complete native history records')
     studio.add_argument('--value-file', type=Path, help='UTF-8 JSON for numeric color edits')
     test = commands.add_parser('test', help='Run actual gameplay suites, unpause to settle, record proof and leave paused')
     test.add_argument('suite', choices=('color-cycle', 'hybrid-cycle'))
@@ -293,13 +318,38 @@ def execute(args):
         write_json(output, result)
         return result
     if args.command == 'studio':
+        if args.operation in ('open-history', 'open-parts', 'open-cas-history', 'open-cas-parts'):
+            if not args.sim_id:
+                raise ValueError('An explicit Sim ID is required for Studio UI selection.')
+            _, data, _, _ = reusable_profile.load(args.state)
+            return owned_request(args.state, 'test_studio_ui', value=json.dumps({'test_token': data['token'],
+                'value': {'sim_id': args.sim_id, 'tab': args.operation[5:].replace('-', '_')}}))
         value = args.value
         if args.value_file:
             if value is not None or args.value_file.stat().st_size > 2048:
                 raise ValueError('Supply one bounded Studio value or value file.')
             value = args.value_file.read_text(encoding='utf-8')
-        return owned_request(args.state, 'studio_' + args.operation.replace('-', '_'), args.sim_id, value=value)
+        if args.form is not None:
+            value = json.dumps({'form': args.form, 'value': value})
+        result = owned_request(args.state, 'studio_' + args.operation.replace('-', '_'), args.sim_id, value=value)
+        if args.output is not None:
+            _, _, active, original = reusable_profile.load(args.state)
+            output = reusable_profile.writable(args.output)
+            if args.operation != 'record' or output.exists() or any(output == root or root in output.parents for root in (active, original)):
+                raise ValueError('Complete history record output requires a new external filename.')
+            if result.get('ok'):
+                write_json(output, result)
+                return {'ok': True, 'output': str(output), 'sha256': sha256(output), 'history_node': result['history_node'], 'evidence_only': True}
+        return result
+    if args.command == 'cas':
+        from cas_client import execute as cas_execute
+        return cas_execute(args, owned_request)
     if args.command == 'game':
+        if args.operation == 'shutdown':
+            if args.output is None:
+                raise ValueError('A new external JSON proof filename is required for normal Save and Exit.')
+            from game_lifecycle import shutdown
+            return shutdown(args.state, args.output, verified_identity(args.state), owned_request)
         if args.operation == 'focus':
             import game_window
             return game_window.focus(verified_identity(args.state)['pid'])
@@ -308,8 +358,8 @@ def execute(args):
             if args.output is None:
                 raise ValueError('An external proof image filename is required.')
             from game_capture import capture
-            return capture(args.state, args.output, owned_request)
-        if args.operation in ('key', 'click'):
+            return capture(args.state, args.output, owned_request, overlay=args.with_overlay)
+        if args.operation in ('key', 'click', 'move'):
             if args.width is None or args.height is None or not 1 <= args.width <= 8192 or not 1 <= args.height <= 8192:
                 raise ValueError('Supply the observed client viewport width/height.')
             if args.operation == 'key':
@@ -320,7 +370,7 @@ def execute(args):
                 x, y = args.x, args.y
                 if x is None or y is None or not 0 <= x < args.width or not 0 <= y < args.height:
                     raise ValueError('Click must be inside the observed game viewport.')
-            argument = {'command': 2 if args.operation == 'key' else 1, 'x': x, 'y': y,
+            argument = {'command': 2 if args.operation == 'key' else 3 if args.operation == 'move' else 1, 'x': x, 'y': y,
                         'width': args.width, 'height': args.height}
             return owned_request(args.state, 'test_input', value=json.dumps({'test_token': data['token'], 'value': argument}))
         value = json.dumps({'test_token': data['token'], 'value': args.value})

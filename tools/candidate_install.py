@@ -70,6 +70,8 @@ def install(state, bundle, experimental_ui=False, optional=False, guard=test_pro
         raise ValueError('The marked test profile contains unknown/changed mods.')
     bundle, digest, manifest, payloads = read_bundle(bundle)
     selected = {name[5:]: raw for name, raw in payloads.items() if name.startswith('Mods/Apex/')}
+    if experimental_ui and 'Mods/Apex/ApexCASBridge.package' in payloads:
+        raise ValueError('CAS Bridge and the old Color Studio replace the same CAS UI resource; install only the version-matched bridge.')
     if experimental_ui:
         selected['Apex/ApexColorStudio.package'] = payloads['ExperimentalUI/ApexColorStudio.package']
     if optional:

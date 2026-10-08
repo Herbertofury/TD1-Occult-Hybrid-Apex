@@ -91,6 +91,30 @@ class OverlayLoaderTests(unittest.TestCase):
                     loader.input_event(self.module, 'unused', value)
             native.assert_not_called()
 
+    def test_optional_metrics_preserve_hwnd_bits_without_input_or_old_export_requirement(self):
+        class Integer:
+            _type_ = 'i'
+        values = [1278, 1376, -4, 10, 34600, 34600, -2147483647, -2147483647, 1]
+        class Function:
+            def __init__(self, symbol):
+                self.name = symbol[0]
+            def __call__(self, index):
+                return values[index]
+        class Native:
+            _SimpleCData = Integer
+            CFuncPtr = Function
+            FUNCFLAG_STDCALL = 0
+        metrics = loader._input_metrics(Native, 123)
+        self.assertTrue(metrics['available'])
+        self.assertEqual(metrics['overlay_hwnd'], 0x80000001)
+        self.assertEqual(metrics['screen_x'], -4)
+        self.assertTrue(metrics['root_match'])
+        class Missing(Function):
+            def __init__(self, symbol):
+                raise AttributeError('missing export')
+        with patch.object(Native, 'CFuncPtr', Missing):
+            self.assertEqual(loader._input_metrics(Native, 123), {'available': False})
+
 
 if __name__ == '__main__':
     unittest.main()

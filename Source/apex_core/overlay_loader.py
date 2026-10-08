@@ -130,6 +130,32 @@ def _bind_input(native, handle):
     return InputCall(('ApexGameInput', Library()))
 
 
+def _input_metrics(native, handle):
+    """Read optional diagnostics; older loaded DLLs remain usable."""
+    class Integer(native._SimpleCData):
+        _type_ = 'i'
+    class MetricCall(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL
+        _restype_ = Integer
+        _argtypes_ = (Integer,)
+    class Library:
+        _handle = handle
+    try:
+        call = MetricCall(('ApexGameInputMetric', Library()))
+    except (AttributeError, OSError):
+        return {'available': False}
+    names = ('width', 'height', 'screen_x', 'screen_y', 'foreground_pid',
+             'overlay_pid', 'overlay_hwnd', 'foreground_hwnd', 'root_match')
+    result = {'available': True}
+    for index, name in enumerate(names):
+        value = call(index)
+        result[name] = int(getattr(value, 'value', value))
+        if 4 <= index <= 7:
+            result[name] &= 0xffffffff
+    result['root_match'] = bool(result['root_match'])
+    return result
+
+
 def _integer(call):
     value = call()
     return int(getattr(value, 'value', value))
@@ -209,7 +235,8 @@ def input_event(module_file, dll_path, argument):
     native_path, info = sidecar_paths(module_file)
     if info['sha256'] != _LOADED_SHA or str(native_path) != _LOADED_PATH:
         raise ValueError('The native build changed while the game runs.')
-    call = _bind_input(_game_ctypes(dll_path), _HANDLE)
+    native = _game_ctypes(dll_path)
+    call = _bind_input(native, _HANDLE)
     result = call(*values)
     code = int(getattr(result, 'value', result))
     import time
@@ -223,6 +250,7 @@ def input_event(module_file, dll_path, argument):
             time.sleep(0.02)
     completed = code == 0 and state == 4
     return {'ok': completed, 'native_code': code, 'input_state': state,
+            'window_metrics': _input_metrics(native, _HANDLE),
             'input_version': _integer(_CALLS['ApexGameInputVersion']),
             'cursor_client': {'x': _integer(_CALLS['ApexGameCursorX']), 'y': _integer(_CALLS['ApexGameCursorY'])},
             'pointer_verified': completed and argument['command'] != 2,

@@ -1,4 +1,4 @@
-"""Normal Save and Exit through recognized, game-owned native menu buttons."""
+"""Bounded Resume and normal Save and Exit through game-owned menu buttons."""
 import json
 from pathlib import Path
 import re
@@ -23,6 +23,17 @@ def button(observation, phase):
         if not all(item in text for item in ('save game?', 'are you sure you want to exit the game?', 'cancel', 'exit game')):
             raise ValueError('Native Save Game confirmation is not recognized; no Save and Exit click submitted.')
         label = 'save and exit'
+    elif phase == 'resume':
+        required = ('home', 'marketplace', 'load game', 'new game', 'gallery')
+        forbidden = ('save game?', 'buy now', 'expansion pack', 'game pack', 'stuff pack',
+                     'this game requires permissions', 'you don’t have access',
+                     "you don't have access", 'cancel')
+        if observation.get('ok') is not True or not all(text.count(item) == 1 for item in required) or any(item in text for item in forbidden):
+            raise ValueError('Complete Sims 4 Home menu is not recognized; no Resume click submitted.')
+        labels = [item for item in ('resume game', 'resume') if item in text]
+        if len(labels) != 1:
+            raise ValueError('Native Resume button is absent or ambiguous.')
+        label = labels[0]
     else:
         raise ValueError('Unknown lifecycle phase.')
     matches = [row for row in lines if normalized(row.get('text')) == label]
@@ -36,6 +47,118 @@ def button(observation, phase):
     if not 0 <= left < right <= observation['width'] or not 0 <= top < bottom <= observation['height']:
         raise ValueError('Lifecycle button is outside the observed game viewport.')
     return {'command': 1, 'x': x, 'y': y, 'width': observation['width'], 'height': observation['height']}
+
+
+def loaded_household(snapshot, prior_saves, sim_id=None):
+    """Require a real saved Live household; no menu/loading submission is proof."""
+    if not snapshot.get('ok') or snapshot.get('in_build_buy') is not False:
+        return False
+    try:
+        slot = snapshot['save_slot']
+        if type(slot) is not int or not 0 < slot < 0xffffffff:
+            return False
+        if 'Slot_{:08x}.save'.format(slot) not in prior_saves:
+            return False
+        if any(not 0 < int(str(snapshot[field]), 10) < 1 << 64
+               for field in ('zone_id', 'save_guid', 'household_id')):
+            return False
+        sim = snapshot['sim']
+        if sim.get('instanced') is not True or not 0 < int(sim['id'], 10) < 1 << 64:
+            return False
+        return sim_id is None or sim['id'] == sim_id
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def resume(state, output, identity, request, sim_id=None, seconds=60,
+           capture=game_capture.capture, ocr=recognize,
+           processes=game_launch.running_game_processes, monotonic=time.monotonic, pause=time.sleep):
+    """Recognize Resume once, then observe a saved household through the owned bridge."""
+    _, journal, profile, original = reusable_profile.load(state)
+    if sim_id is not None:
+        if not isinstance(sim_id, str) or not sim_id.isascii() or not sim_id.isdecimal() or not 0 < int(sim_id) < 1 << 64:
+            raise ValueError('Use an exact decimal existing Sim ID.')
+        sim_id = str(int(sim_id))
+    if not 0 < seconds <= 60:
+        raise ValueError('Resume completion wait must be between 0 and 60 seconds.')
+    output = reusable_profile.writable(output)
+    if output.exists() or output.suffix.lower() != '.json' or any(output == root or root in output.parents for root in (profile, original)):
+        raise ValueError('Use one new external JSON lifecycle proof filename.')
+    if not output.parent.is_dir():
+        raise ValueError('Use an existing evidence directory.')
+    proof = {'schema': 1, 'ok': False, 'operation': 'resume-existing-disposable-household',
+             'identity': identity, 'inputs': journal['artifacts'], 'requested_sim_id': sim_id,
+             'before_saves': save_files(profile), 'steps': [], 'resume_input_accepted': False,
+             'household_loaded_verified': False, 'save_reload_verified': False}
+    write_json(output, proof)
+    def record(action, result):
+        proof['steps'].append({'action': action, 'result': result})
+        write_json(output, proof)
+        return result
+    def still_running():
+        return any(row['Id'] == identity['pid'] for row in processes())
+    envelope = lambda value: json.dumps({'test_token': journal['token'], 'value': value})
+    try:
+        if not proof['before_saves']:
+            raise ValueError('No existing normal disposable save was found; Resume was not submitted.')
+        if not still_running():
+            raise ValueError('Verified game process exited before Resume.')
+        hidden = record('overlay_hide', request(state, 'overlay_hide'))
+        if not hidden.get('ok'):
+            raise ValueError('Could not hide Apex overlay before recognizing native Resume.')
+        for attempt in range(3):
+            if not still_running():
+                raise ValueError('Verified game process changed before Resume.')
+            image = output.with_name(output.stem + '-resume-' + str(attempt + 1) + '.bmp')
+            frame = record('capture-resume', capture(state, image, request))
+            if not frame.get('ok'):
+                raise ValueError('Native Resume capture was unresolved; no input submitted.')
+            observed = ocr(image)
+            try:
+                selected = button(observed, 'resume')
+            except ValueError as error:
+                record('recognize-resume', {'observation': observed, 'error': str(error)})
+                # Only observations repeat: never dismiss a card or choose a different menu action.
+                pause(0.5)
+                continue
+            if (selected['width'], selected['height']) != (frame['width'], frame['height']):
+                raise ValueError('OCR/capture viewport differs; no Resume click submitted.')
+            record('recognize-resume', {'observation': observed, 'selected': selected})
+            if not still_running():
+                raise ValueError('Verified game process changed before Resume input.')
+            result = record('click-resume', request(state, 'test_input', value=envelope(selected)))
+            if not result.get('ok'):
+                if result.get('input_version') == 2 and result.get('input_submitted') is False and result.get('native_code') == -2:
+                    pause(0.5)
+                    continue  # Explicit pre-input refusal; reobserve all menu labels and dimensions.
+                raise ValueError('Resume input unresolved; no successful or ambiguous press is repeated.')
+            proof['resume_input_accepted'] = True
+            write_json(output, proof)
+            break
+        if not proof['resume_input_accepted']:
+            raise ValueError('Native Resume surface did not converge; no Resume completion claimed.')
+        deadline = monotonic() + seconds
+        while monotonic() < deadline and still_running():
+            try:
+                snapshot = record('test_snapshot', request(state, 'test_snapshot', sim_id=sim_id,
+                                                           value=envelope(None), seconds=2))
+            except (OSError, ValueError, RuntimeError) as error:
+                snapshot = record('test_snapshot', {'ok': False, 'error': str(error)})
+            if loaded_household(snapshot, proof['before_saves'], sim_id):
+                proof['household_loaded_verified'] = True
+                proof['loaded_household'] = snapshot
+                break
+            pause(min(0.5, max(0, deadline - monotonic())))
+        proof['ok'] = proof['household_loaded_verified']
+        proof['message'] = ('Existing disposable household loaded; native saved slot, Live Sim and optional requested Sim identity verified.'
+                            if proof['ok'] else 'Resume was submitted once; the saved household was not verified. Inspect retained proof before another action.')
+    except (OSError, ValueError, RuntimeError) as error:
+        proof['error'] = str(error)
+    write_json(output, proof)
+    return {'ok': proof['ok'], 'proof': str(output), 'proof_sha256': sha256(output),
+            'resume_input_accepted': proof['resume_input_accepted'],
+            'household_loaded_verified': proof['household_loaded_verified'], 'save_reload_verified': False,
+            'message': proof.get('message', proof.get('error'))}
 
 
 def save_files(profile):

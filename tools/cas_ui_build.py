@@ -119,7 +119,9 @@ def build(input_swf, decompiled, ffdec, output):
         'patched_resource_sha256': hashlib.sha256(payload).hexdigest(),
         'sha256': hashlib.sha256(Path(output).read_bytes()).hexdigest(),
         'runtime_verified': False, 'non_script_tags_preserved': True, 'native_bytecode_contract': contract,
-        'resources': [dbpf_build.tgi(KEY)], 'transport': 'ordered game-owned UI messages, native CAS acknowledgement'}
+        'resources': [dbpf_build.tgi(KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
+        'socket_protocol': {'host': '127.0.0.1', 'port': 8021, 'length_digits': 8,
+            'encoding': 'utf-8', 'maximum_frame_bytes': 131072, 'poll_interval_ms': 500}}
     write_json(Path(str(output) + '.manifest.json'), info)
     return info
 

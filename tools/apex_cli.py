@@ -89,7 +89,7 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
         return result
     if not identity.get('alarm_ready') and not (action in (
             'test_quit', 'test_capture', 'test_input', 'test_studio_ui', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start',
-            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics')
+            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack')
             and identity.get('core_tick_ready')):
         raise ValueError('Load the disposable household before in-game commands.')
     request_id = uuid.uuid4().hex
@@ -211,7 +211,7 @@ def parser():
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
     game = commands.add_parser('game', help='Real in-game test controls; requires the marked disposable profile')
-    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown'))
+    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown', 'resume'))
     game.add_argument('--state', required=True, type=Path)
     game.add_argument('--sim-id')
     game.add_argument('--value')
@@ -222,8 +222,9 @@ def parser():
     game.add_argument('--y', type=int)
     game.add_argument('--width', type=int)
     game.add_argument('--height', type=int)
+    game.add_argument('--seconds', type=float, default=60)
     cas = commands.add_parser('cas', help='Semantic native CAS controls; no mouse input')
-    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'select', 'undo', 'redo', 'result', 'diagnostics'))
+    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'undo', 'redo', 'result', 'diagnostics'))
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
     cas.add_argument('--panel')
@@ -345,6 +346,12 @@ def execute(args):
         from cas_client import execute as cas_execute
         return cas_execute(args, owned_request)
     if args.command == 'game':
+        if args.operation == 'resume':
+            if args.output is None:
+                raise ValueError('A new external JSON proof filename is required for Resume.')
+            from game_lifecycle import resume
+            return resume(args.state, args.output, verified_identity(args.state), owned_request,
+                          sim_id=args.sim_id, seconds=args.seconds)
         if args.operation == 'shutdown':
             if args.output is None:
                 raise ValueError('A new external JSON proof filename is required for normal Save and Exit.')

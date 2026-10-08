@@ -57,6 +57,39 @@ def guard(backend, value):
     return payload.get('value')
 
 
+def persistence_evidence(backend, sim, household):
+    """Read current native save buffers; disk save/reload remains a separate gate."""
+    checks = {}
+    result = {'checks': checks, 'household_sim_ids': [],
+              'persisted_household_sim_ids': [], 'errors': [],
+              'persistence_verified_before_save': False, 'save_reload_verified': False}
+    if sim is None or household is None:
+        result['errors'].append('A selected Sim and active household are required.')
+        return result
+    try:
+        result['household_sim_ids'] = [str(item.id) for item in household.sim_info_gen()]
+        checks['active_household_membership'] = str(sim.id) in result['household_sim_ids']
+        checks['runtime_household_identity'] = sim.household_id == household.id
+        checks['manager_identity'] = backend.services.sim_info_manager().get(sim.id) is sim
+        checks['account_save_eligible'] = sim.account_id is not None
+        persistence = backend.services.get_persistence_service()
+        native_sim = persistence.get_sim_proto_buff(sim.id)
+        checks['sim_proto_exists'] = native_sim is not None
+        checks['sim_proto_identity'] = native_sim is not None and native_sim.sim_id == sim.id
+        checks['sim_proto_household_identity'] = native_sim is not None and native_sim.household_id == household.id
+        native_household = persistence.get_household_proto_buff(household.id)
+        checks['household_proto_exists'] = native_household is not None
+        checks['household_proto_identity'] = native_household is not None and native_household.household_id == household.id
+        if native_household is not None:
+            result['persisted_household_sim_ids'] = [str(item) for item in native_household.sims.ids]
+        checks['household_proto_membership'] = str(sim.id) in result['persisted_household_sim_ids']
+        result['persistence_verified_before_save'] = all(checks.values())
+    except Exception as error:
+        # Never save or repair here: preserve evidence of the original state.
+        result['errors'].append(str(error))
+    return result
+
+
 def snapshot(backend, sim, export_outfits=False, export_forms=False):
     persistence = backend.services.get_persistence_service()
     slot = persistence.get_save_slot_proto_buff()
@@ -69,6 +102,7 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
               'clock_speed': int(game_clock.clock_speed), 'sim_now': str(game_clock.now()),
               'in_build_buy': bool(zone.is_in_build_buy)}
     if sim is not None:
+        result['persistence'] = persistence_evidence(backend, sim, household)
         linked = []
         tracker = sim.occult_tracker
         membership = []
@@ -168,10 +202,22 @@ def dispatch(backend, action, sim_id, value):
                                  household_id='active', instantiate=True, _connection=client.id)
         created = [item for item in household.sim_info_gen() if item.id not in before]
         if len(created) != 1:
-            return {'ok': False, 'outcome': 'unresolved', 'message': 'Creation was submitted but one new Sim was not observed; do not repeat blindly.'}
+            return {'ok': False, 'outcome': 'unresolved',
+                    'created_sim_ids': [str(item.id) for item in created],
+                    'persistence_verified_before_save': False, 'save_reload_verified': False,
+                    'creation_submitted': True, 'retry_safe': False,
+                    'message': 'Creation was submitted but one new Sim was not observed; do not repeat blindly.'}
         created[0].first_name, created[0].last_name = 'Apex', 'Test'
         result = snapshot(backend, created[0])
-        result.update({'created_sim_id': str(created[0].id), 'message': 'One disposable test Sim was created and observed in the active household.'})
+        evidence = result.get('persistence') or persistence_evidence(backend, created[0], household)
+        verified = evidence['persistence_verified_before_save']
+        result.update({'ok': verified, 'created_sim_id': str(created[0].id),
+                       'created_sim_ids': [str(created[0].id)], 'persistence': evidence,
+                       'persistence_verified_before_save': verified, 'save_reload_verified': False,
+                       'creation_submitted': True, 'retry_safe': False,
+                       'outcome': 'native-save-buffers-verified' if verified else 'persistence-unresolved',
+                       'message': ('Created Sim identity and household membership verified in the native save buffers; disk save/reload is still required.'
+                                   if verified else 'One test Sim was observed, but native persistence postconditions failed; retain its ID and do not repeat creation blindly.')})
         return result
     if action == 'test_cas':
         if sim is None or sim.get_sim_instance() is None:

@@ -55,6 +55,86 @@ class TestDriverTests(unittest.TestCase):
                 test_driver.dispatch(fake, 'test_create_sim', '1', '{}')
         fake._get_sim_info_by_id.assert_not_called()
 
+    def creation_fixture(self, *, missing_proto=False, missing_membership=False,
+                         wrong_manager=False, wrong_household=False, no_account=False,
+                         created_count=1):
+        # Use IDs above IEEE-754's exact range to catch accidental numeric coercion.
+        household_id = (1 << 63) + 9
+        sim_id = (1 << 63) + 7
+        existing = Obj(id=20)
+        created = [Obj(id=sim_id + number, household_id=household_id,
+                       account_id=None if no_account else 5) for number in range(created_count)]
+        members = [existing]
+        household = Obj(id=household_id, sim_info_gen=lambda: iter(members))
+        sim_proto = Obj(sim_id=sim_id, household_id=household_id + int(wrong_household))
+        native_household = Obj(household_id=household_id,
+                               sims=Obj(ids=[existing.id] if missing_membership else [existing.id, sim_id]))
+        persistence = Obj(get_sim_proto_buff=Mock(return_value=None if missing_proto else sim_proto),
+                          get_household_proto_buff=Mock(return_value=native_household))
+        manager = Obj(get=lambda identity: object() if wrong_manager else
+                      next((item for item in members if item.id == identity), None))
+        spawn = Mock(side_effect=lambda **_kwargs: members.extend(created))
+        fake = Obj(_get_sim_info_by_id=lambda _: None, services=Obj(
+            active_household=lambda: household,
+            client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987)),
+            sim_info_manager=lambda: manager, get_persistence_service=lambda: persistence))
+        modules = {'server_commands': Obj(),
+                   'server_commands.sim_commands': Obj(spawn_client_sims_simple=spawn),
+                   'sims': Obj(), 'sims.sim_info_types': Obj(
+                       Age=Obj(YOUNGADULT=2), Gender=Obj(FEMALE=1), Species=Obj(HUMAN=1))}
+        return fake, modules, spawn, sim_id, persistence
+
+    def create_with_fixture(self, **failures):
+        fake, modules, spawn, sim_id, persistence = self.creation_fixture(**failures)
+        with patch.object(test_driver, 'guard', return_value=None), \
+             patch.object(test_driver, 'snapshot', return_value={}), patch.dict(sys.modules, modules):
+            result = test_driver.dispatch(fake, 'test_create_sim', '0', '{}')
+        spawn.assert_called_once()
+        return result, sim_id, persistence
+
+    def test_creation_native_buffers_are_distinct_from_disk_save_reload_proof(self):
+        result, sim_id, persistence = self.create_with_fixture()
+        self.assertTrue(result['ok'])
+        self.assertTrue(result['persistence_verified_before_save'])
+        self.assertFalse(result['save_reload_verified'])
+        self.assertFalse(result['retry_safe'])
+        self.assertEqual(result['created_sim_id'], str(sim_id))
+        self.assertIn(str(sim_id), result['persistence']['persisted_household_sim_ids'])
+        persistence.get_sim_proto_buff.assert_called_once_with(sim_id)
+
+    def test_creation_retains_identity_if_native_sim_or_household_would_not_save(self):
+        for failure in ('missing_proto', 'missing_membership', 'wrong_manager',
+                        'wrong_household', 'no_account'):
+            with self.subTest(failure=failure):
+                result, sim_id, _ = self.create_with_fixture(**{failure: True})
+                self.assertFalse(result['ok'])
+                self.assertFalse(result['persistence_verified_before_save'])
+                self.assertFalse(result['save_reload_verified'])
+                self.assertFalse(result['retry_safe'])
+                self.assertEqual(result['outcome'], 'persistence-unresolved')
+                self.assertEqual(result['created_sim_id'], str(sim_id))
+
+    def test_ambiguous_creation_reports_every_observed_identity_without_retry(self):
+        for count in (0, 2):
+            with self.subTest(count=count):
+                result, sim_id, persistence = self.create_with_fixture(created_count=count)
+                self.assertFalse(result['ok'])
+                self.assertFalse(result['retry_safe'])
+                self.assertFalse(result['save_reload_verified'])
+                self.assertEqual(result['created_sim_ids'], [str(sim_id + n) for n in range(count)])
+                persistence.get_sim_proto_buff.assert_not_called()
+
+    def test_unavailable_native_persistence_is_explicit_and_does_not_write(self):
+        fake, _modules, _spawn, sim_id, persistence = self.creation_fixture()
+        household = fake.services.active_household()
+        sim = Obj(id=sim_id, household_id=household.id, account_id=5)
+        persistence.get_sim_proto_buff.side_effect = RuntimeError('native buffer unavailable')
+        result = test_driver.persistence_evidence(fake, sim, household)
+        self.assertFalse(result['persistence_verified_before_save'])
+        self.assertFalse(result['save_reload_verified'])
+        self.assertEqual(result['errors'], ['native buffer unavailable'])
+        persistence.get_household_proto_buff.assert_not_called()
+
     def test_cas_uses_actual_string_target_contract_not_integer(self):
         sim = Obj(id=(1 << 63) + 7, get_sim_instance=lambda: object())
         fake = Obj(_get_sim_info_by_id=lambda _: sim,

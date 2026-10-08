@@ -378,3 +378,35 @@ not complete preset coverage. Direct native item writes currently support only
 ordinary hair/tops/bottoms/full-body/shoes. Other panels still support navigation
 and returned metadata; preset, layered, skin-tone and featured-look writes require
 their own verified contracts.
+
+
+The CAS data transport now uses fixed loopback `127.0.0.1:8021`, because the
+installed game disconnects its Python Distributor client during native CAS.
+HELLO identifies the exact native selected Sim, then a connection nonce binds
+POLL and ACK. Eight decimal length bytes frame UTF-8 payloads; a complete frame
+is limited to 131072 bytes. Requests are claimed once; losing an acknowledgement
+never permits another mutation or blind replay. ACKs return through the canonical
+game-thread queue. Unload stops the native timer and closes its socket.
+
+The bytecode builder reopens the serialized result and verifies both owned
+Initialize/Unload calls, bounded local scope indexes and all 1785 unchanged
+unowned native methods. This catches FFDec's cached code-byte insertion issue.
+Runtime socket startup, native panel operations and hairstyle independence in
+CAS still require proof from the matching installed package.
+
+
+Native category IDs follow the installed enum: Everyday0/Formal1/Athletic2/
+Sleep3/Party4/Swimwear9/HotWeather10/ColdWeather11. Snapshot `planned_outfits`
+queries all14native categories0..13 without selecting each; those records describe
+slots, not inactive outfit parts. `outfit-add --category <id>` appends one slot
+and verifies counts/selection. `hair-swatch --data-id <returned ID>` selects an
+exact native hair swatch. Exact part selection requires an unambiguous returned
+color-family variant and matching body type; it never accepts a different color
+variant as equivalent. These writes require current-game proof.
+
+`game resume --output <new external proof.json>` recognizes the complete native
+Home/Marketplace/Resume/Load/New/Gallery menu, presses Resume once and verifies the
+loaded saved household through the bridge. It rejects pack cards and other menus.
+Normal game save/exit remains through `game shutdown`. The socket cleanup now
+runs before original native Unload teardown; CAS accept/return must pass before
+this candidate can be treated as exit-safe.

@@ -30,7 +30,7 @@ def build(output, foundry=None, cas_ui_package=None):
             raise ValueError('Use the single built candidate CAS bridge package.')
         ui_info = json.loads(Path(str(ui_path) + '.manifest.json').read_text(encoding='utf-8'))
         contract = ui_info.get('native_bytecode_contract', {})
-        if ui_info.get('target_game') != '1.128.90.1030' or ui_info.get('sha256') != digest(ui_path.read_bytes()) or not ui_info.get('non_script_tags_preserved') or contract.get('unchanged_native_methods') != 1786 or not contract.get('native_lexical_scope_preserved') or not contract.get('owned_local_scope_indexes_verified'):
+        if ui_info.get('target_game') != '1.128.90.1030' or ui_info.get('sha256') != digest(ui_path.read_bytes()) or not ui_info.get('non_script_tags_preserved') or contract.get('unchanged_native_methods') != 1785 or not contract.get('native_lexical_scope_preserved') or not contract.get('owned_local_scope_indexes_verified') or not contract.get('native_unload_bytecode_extended') or not contract.get('native_unload_cleanup_precedes_teardown') or not contract.get('serialized_lifecycle_hooks_verified'):
             raise ValueError('CAS bridge package does not match its build evidence.')
         packages.append(ui_info)
     script = build_script(ROOT / 'Source', output / 'ApexOccultHybrid.ts4script',

@@ -18,6 +18,49 @@ _CAPACITY = 64
 _CONNECTION = None
 _READY = None
 _LAST_REPLY = None
+_PEERS = {}
+
+
+def attach_client(sim_id, clock=time.monotonic):
+    global _READY
+    if not isinstance(sim_id, str) or not sim_id.isdigit() or not 0 < int(sim_id) < 2 ** 64:
+        raise ValueError('Native CAS must identify its exact selected Sim.')
+    token = uuid.uuid4().hex + uuid.uuid4().hex
+    with _LOCK:
+        if len(_PEERS) >= 4:
+            raise ValueError('Native CAS peer limit reached.')
+        _PEERS[token] = {'sim_id': sim_id, 'observed_at': clock()}
+        _READY = {'protocol': 1, 'transport': 'loopback-socket', 'sim_id': sim_id,
+                  'observed_at': clock()}
+    return token
+
+
+def detach_client(token):
+    with _LOCK:
+        _PEERS.pop(token, None)
+
+
+def poll_client(token, clock=time.monotonic):
+    with _LOCK:
+        peer = _PEERS.get(token)
+        if peer is None:
+            raise ValueError('Native CAS peer is not bound.')
+        peer['observed_at'] = clock()
+        for row in _RECORDS.values():
+            if row['state'] == 'pending' and row.get('transport') == 'loopback-socket' and row['sim_id'] == peer['sim_id'] and row.get('delivery') == 'queued':
+                row.update(delivery='claimed', peer=token)
+                return row['wire']
+    return None
+
+
+def receive_socket(token, request_id, payload):
+    with _LOCK:
+        peer, row = _PEERS.get(token), _RECORDS.get(request_id)
+        if peer is None or row is None or row.get('peer') != token or peer['sim_id'] != row['sim_id']:
+            raise ValueError('CAS acknowledgement does not match its claimed peer/Sim/request.')
+        receive(request_id, payload)
+    return {'ok': True, 'acknowledgement_accepted': True, 'cas_request_id': request_id,
+            'ui_transition_verified': bool(row['result'].get('ok'))}
 
 
 def observe_connection(connection):
@@ -61,6 +104,10 @@ def diagnostics():
                   'ready': copy.deepcopy(_READY), 'last_reply': copy.deepcopy(_LAST_REPLY),
                   'observed_connection': None if _CONNECTION is None else str(_CONNECTION), 'requests': rows,
                   'ui_transition_verified': False}
+        result['native_peers'] = [{'sim_id': peer['sim_id'], 'age_seconds': max(0, time.monotonic() - peer['observed_at'])} for peer in _PEERS.values()]
+    from .cas_socket import status as socket_status
+    result['socket_transport'] = socket_status()
+    result['socket_transport']['native_connection_verified'] = any(peer['age_seconds'] <= 3 for peer in result['native_peers'])
     try:
         from distributor.system import Distributor
         distributor = Distributor.instance()
@@ -74,6 +121,12 @@ def diagnostics():
 def validate_client(client, sim_id, request):
     if not isinstance(client, dict) or client.get('scope') != 'native-cas-client' or not isinstance(client.get('sim'), dict) or str(client['sim'].get('simId')) != sim_id:
         raise ValueError('CAS response belongs to another selected Sim.')
+    slot = client.get('outfit')
+    if (type(client.get('menu_state')) is not int or not -2 ** 31 <= client['menu_state'] < 2 ** 31 or
+            type(client.get('panel_visible')) is not bool or not isinstance(slot, dict) or
+            type(slot.get('outfit_type')) is not int or not 0 <= slot['outfit_type'] <= 255 or
+            type(slot.get('outfit_index')) is not int or not 0 <= slot['outfit_index'] < 5):
+        raise ValueError('CAS snapshot lacks its typed menu visibility and outfit identity.')
     catalogs = client.get('catalogs')
     if not isinstance(catalogs, list) or len(catalogs) != len(PANELS):
         raise ValueError('CAS inventory must include every mapped panel, including empty/unsupported panels.')
@@ -97,6 +150,15 @@ def validate_client(client, sim_id, request):
         slot = client.get('outfit')
         if not isinstance(slot, dict) or any(type(slot.get(key)) is not int or slot[key] != request[value] for key, value in (('outfit_type', 'category'), ('outfit_index', 'index'))):
             raise ValueError('Native outfit readback did not match the request.')
+    if operation == 'outfit-add':
+        created = client.get('outfit_created')
+        if (not isinstance(created, dict) or type(created.get('before_count')) is not int or
+                type(created.get('after_count')) is not int or not 0 <= created['before_count'] < 5 or
+                created['after_count'] != created['before_count'] + 1 or
+                slot['outfit_type'] != request['category'] or slot['outfit_index'] != created['before_count']):
+            raise ValueError('Native CAS outfit creation did not verify exactly one appended slot.')
+    if operation == 'hair-swatch' and client.get('hair_selected_swatch_id') != request['data_id']:
+        raise ValueError('Native hair swatch did not match the exact selected identity.')
     if operation == 'select' and not any(isinstance(item, dict) and str(item.get('dataID')) == request['data_id'] for item in client.get('selected') or []):
         raise ValueError('Native selected item did not match the request.')
 
@@ -114,6 +176,7 @@ def envelope(sim_id, request):
     op = request.get('operation')
     allowed = {'status': {'operation'}, 'panel': {'operation', 'panel'},
         'outfit': {'operation', 'category', 'index'},
+        'outfit-add': {'operation', 'category'}, 'hair-swatch': {'operation', 'data_id'},
         'select': {'operation', 'panel', 'data_id'}, 'undo': {'operation'}, 'redo': {'operation'}}
     if op not in allowed or set(request) != allowed[op]: raise ValueError('Unsupported or incomplete CAS request.')
     state = panel(request['panel']) if 'panel' in request else 0
@@ -124,7 +187,9 @@ def envelope(sim_id, request):
     if type(category) is not int or not 0 <= category <= 255 or type(index) is not int or not 0 <= index < 5:
         raise ValueError('CAS outfit category/index is out of range.')
     value = request.get('data_id', '')
-    if value and (not isinstance(value, str) or not value.isdigit() or not 0 < int(value) < 2 ** 64):
+    if op == 'outfit-add' and category > 13:
+        raise ValueError('Only installed native CAS outfit categories may be appended.')
+    if op in ('select', 'hair-swatch') and (not isinstance(value, str) or not value.isdigit() or not 0 < int(value) < 2 ** 64):
         raise ValueError('Native CAS data_id must be an exact decimal resource identity.')
     request_id = uuid.uuid4().hex
     wire = '|'.join(map(str, (request_id, sim_id, op, state, category, index, value)))
@@ -134,7 +199,9 @@ def envelope(sim_id, request):
 
 def submit(sim_id, request, send=None, clock=time.monotonic):
     request_id, wire = envelope(sim_id, request)
-    if send is None:
+    with _LOCK:
+        socket_ready = send is None and any(peer['sim_id'] == sim_id and clock() - peer['observed_at'] <= 3 for peer in _PEERS.values())
+    if send is None and not socket_ready:
         from distributor.ops import SendUIMessage
         from distributor.system import Distributor
         distributor = Distributor.instance()
@@ -155,11 +222,13 @@ def submit(sim_id, request, send=None, clock=time.monotonic):
         if pending:
             raise ValueError('A CAS client request is unresolved; inspect its request ID before another operation.')
         _RECORDS[request_id] = {'state': 'pending', 'sim_id': sim_id, 'request': copy.deepcopy(request),
-                              'created': clock(), 'result': None}
+                              'created': clock(), 'result': None, 'wire': wire,
+                              'transport': 'loopback-socket' if socket_ready else 'game-ui-message', 'delivery': 'queued'}
         while len(_RECORDS) > _CAPACITY: _RECORDS.popitem(last=False)
     try:
-        for name in ['ApexCAS.Begin'] + ['ApexCAS.Char.' + str(ord(c)) for c in wire] + ['ApexCAS.End']:
-            send(name)
+        if not socket_ready:
+            for name in ['ApexCAS.Begin'] + ['ApexCAS.Char.' + str(ord(c)) for c in wire] + ['ApexCAS.End']:
+                send(name)
     except Exception:
         # Partial delivery is unresolved, never silently replayed.
         raise
@@ -169,7 +238,8 @@ def submit(sim_id, request, send=None, clock=time.monotonic):
 
 
 def receive(request_id, payload):
-    if not isinstance(payload, str) or len(payload) > 32768: raise ValueError('CAS client response exceeds its bound.')
+    if not isinstance(payload, str) or len(payload.encode('utf-8')) > 131072:
+        raise ValueError('CAS client response exceeds its UTF-8 byte bound.')
     data = json.loads(payload)
     if not isinstance(data, dict) or data.get('protocol') != 1 or type(data.get('ok')) is not bool or data.get('cas_request_id') != request_id:
         raise ValueError('CAS client response identity/protocol differs.')
@@ -201,6 +271,21 @@ def dispatch(action, sim_id, value):
     if action == 'cas_ui_result': return result(value)
     if action == 'cas_ui_panels': return {'ok': True, 'panels': sorted(PANELS), 'aliases': dict(ALIASES)}
     if action == 'cas_ui_diagnostics': return diagnostics()
+    if action == 'cas_ui_socket_ack':
+        # Internal socket callbacks carry typed values through the owner queue,
+        # avoiding a second JSON string escaping every Unicode/raw field.
+        if isinstance(value, str):
+            if len(value.encode('utf-8')) > 262656:
+                raise ValueError('Use a bounded native CAS acknowledgement.')
+            data = json.loads(value)
+        else:
+            data = value
+        if not isinstance(data, dict) or set(data) != {'peer', 'request_id', 'payload'}:
+            raise ValueError('Invalid native CAS acknowledgement envelope.')
+        for name, size in (('peer', 64), ('request_id', 32)):
+            if not isinstance(data[name], str) or len(data[name]) != size or any(c not in '0123456789abcdef' for c in data[name]):
+                raise ValueError('Invalid native CAS acknowledgement identity.')
+        return receive_socket(data['peer'], data['request_id'], data['payload'])
     if action != 'cas_ui_request': raise ValueError('Unknown CAS UI operation.')
     if not isinstance(value, str) or len(value) > 2048: raise ValueError('Use a bounded typed CAS request.')
     return submit(str(sim_id), json.loads(value))

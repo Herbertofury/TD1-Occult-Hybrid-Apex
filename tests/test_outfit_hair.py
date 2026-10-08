@@ -11,6 +11,111 @@ from apex_core import outfit_hair, studio, form_bank, form_appearance as appeara
 import test_studio
 
 
+def native_outfit_parser():
+    """Small real proto2 schema with the installed field numbers/wire types."""
+    from google.protobuf import descriptor_pb2, descriptor_pool, message_factory
+    file = descriptor_pb2.FileDescriptorProto(name='apex_hair_fixture.proto',
+        package='EA.Sims4.Persistence', syntax='proto2')
+    def message(name): return file.message_type.add(name=name)
+    def field(owner, name, number, kind, repeated=False, nested=None):
+        item = owner.field.add(name=name, number=number, type=kind, label=3 if repeated else 1)
+        if nested: item.type_name = '.EA.Sims4.Persistence.' + nested
+        if repeated: item.options.packed = True
+        return item
+    field(message('IdList'), 'ids', 1, 6, repeated=True)  # packed fixed64
+    field(message('BodyTypesList'), 'body_types', 1, 13, repeated=True)
+    field(message('ColorShiftList'), 'color_shift', 1, 4, repeated=True)
+    field(message('ObjectIdsList'), 'object_id', 1, 4, repeated=True)
+    field(message('LayerIdsList'), 'layer_id', 1, 13, repeated=True)
+    data = message('OutfitData')
+    field(data, 'outfit_id', 1, 4)
+    field(data, 'category', 2, 13)
+    field(data, 'parts', 5, 11, nested='IdList')
+    field(data, 'created', 6, 4)
+    field(data, 'body_types_list', 7, 11, nested='BodyTypesList')
+    field(data, 'match_hair_style', 9, 8).default_value = 'false'
+    field(data, 'outfit_flags', 10, 4)
+    field(data, 'outfit_flags_high', 11, 4)
+    field(data, 'part_shifts', 12, 11, nested='ColorShiftList')
+    field(data, 'title', 13, 9)
+    field(data, 'object_ids', 14, 11, nested='ObjectIdsList')
+    field(data, 'layer_ids', 15, 11, nested='LayerIdsList')
+    field(data, 'outfitflags_array', 16, 4, repeated=True)
+    field(message('OutfitList'), 'outfits', 1, 11, repeated=True, nested='OutfitData').options.packed = False
+    pool = descriptor_pool.DescriptorPool(); pool.Add(file)
+    cls = message_factory.GetMessageClass(pool.FindMessageTypeByName('EA.Sims4.Persistence.OutfitList'))
+    def parse(raw):
+        result = cls(); result.ParseFromString(raw); return result
+    return parse
+
+
+def native_outfit_fields(parse):
+    from test_outfit_snapshot import varint
+    message = parse(b'')
+    for index, category in enumerate((0, 0, 1, 2, 3, 4, 5, 6, 7)):
+        outfit = message.outfits.add(outfit_id=2**64-20+index, category=category,
+            created=123+index, title='Numbered outfit ' + str(index),
+            outfit_flags=2**64-1, outfit_flags_high=2**63+index)
+        outfit.parts.ids.extend((2**64-1-index, 414264+index))
+        outfit.body_types_list.body_types.extend((2, 75))
+        outfit.part_shifts.color_shift.extend((2**64-1-index, 4611686018427387904+index))
+        outfit.object_ids.object_id.extend((2**64-2-index, 0))
+        outfit.layer_ids.layer_id.extend((9, 17))
+        outfit.outfitflags_array.extend((0, 2**64-1))
+        if index != 2: outfit.match_hair_style = index % 2 == 0
+        # Unknown nested fields emulate a newer patch's values.
+        raw = outfit.SerializeToString() + varint(100 << 3) + varint(2**64-2)
+        raw += varint((101 << 3) | 2) + b'\x04\x00\xff\x01\x02'
+        outfit.ParseFromString(raw)
+    raw = message.SerializeToString() + varint((110 << 3) | 2) + b'\x06future'
+    return {'__outfits__': appearance.encode(('protobuf', raw)),
+            'genetic_data': appearance.encode(b'\x00genetic hair stays owned\xff'),
+            'skin_tone': appearance.encode(999), 'physique': appearance.encode('unchanged shape')}
+
+
+class NativeHairPreparationTests(unittest.TestCase):
+    def setUp(self):
+        self.parse = native_outfit_parser()
+        self.backend = Obj(_studio_parse_snapshot=self.parse)
+        self.fields = native_outfit_fields(self.parse)
+
+    def test_all_categories_and_numbered_outfits_keep_parts_exact_colors_unknowns_and_other_flags(self):
+        before = copy.deepcopy(self.fields)
+        desired = outfit_hair.independent_style_fields(self.backend, self.fields)
+        original = self.parse(appearance.decode(self.fields['__outfits__'])[1])
+        prepared = self.parse(appearance.decode(desired['__outfits__'])[1])
+        self.assertEqual(self.fields, before)  # Pure planning, no original mutation.
+        self.assertEqual({key: value for key, value in desired.items() if key != '__outfits__'},
+                         {key: value for key, value in before.items() if key != '__outfits__'})
+        self.assertEqual(outfit_hair.style_match_status(self.backend, desired),
+                         {'outfit_count': 9, 'matching_outfit_count': 0})
+        for left, right in zip(original.outfits, prepared.outfits):
+            self.assertFalse(right.match_hair_style)
+            self.assertTrue(right.HasField('match_hair_style'))
+            self.assertEqual(list(left.parts.ids), list(right.parts.ids))
+            self.assertEqual(list(left.part_shifts.color_shift), list(right.part_shifts.color_shift))
+            left.ClearField('match_hair_style'); right.ClearField('match_hair_style')
+            self.assertEqual(left.SerializeToString(), right.SerializeToString())
+        self.assertEqual(original.SerializeToString(), prepared.SerializeToString())
+
+    def test_missing_schema_wrong_type_or_missing_native_assignment_refuses_preparation(self):
+        with self.assertRaisesRegex(ValueError, 'field 9 is unavailable'):
+            outfit_hair.independent_style_fields(Obj(_studio_parse_snapshot=lambda _: Obj(outfits=[])), self.fields)
+        message = self.parse(appearance.decode(self.fields['__outfits__'])[1])
+        descriptor = message.DESCRIPTOR.fields_by_name['outfits'].message_type
+        with patch.object(outfit_hair, '_message', return_value=Obj(DESCRIPTOR=message.DESCRIPTOR,
+                outfits=[Obj(DESCRIPTOR=descriptor, match_hair_style=1)])):
+            with self.assertRaisesRegex(ValueError, 'API is unavailable'):
+                outfit_hair.independent_style_fields(self.backend, self.fields)
+        class ReadOnly:
+            DESCRIPTOR = descriptor
+            @property
+            def match_hair_style(self): return True
+        with patch.object(outfit_hair, '_message', return_value=Obj(DESCRIPTOR=message.DESCRIPTOR, outfits=[ReadOnly()])):
+            with self.assertRaisesRegex(ValueError, 'cannot set'):
+                outfit_hair.independent_style_fields(self.backend, self.fields)
+
+
 class OutfitHairTests(unittest.TestCase):
     def setUp(self):
         test_studio.StudioTests.setUp(self)

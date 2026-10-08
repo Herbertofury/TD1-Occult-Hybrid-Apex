@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -11,6 +12,15 @@
 
 namespace td1::ui {
 using Json = nlohmann::json;
+
+inline int32_t MetricHandleBits(uint64_t value) {
+    // The C sidecar ABI returns signed int32 values. Windows HWND identity
+    // uses the low 32 bits; preserve their exact pattern for Python's & mask.
+    const auto bits = static_cast<uint32_t>(value);
+    int32_t result = 0;
+    std::memcpy(&result, &bits, sizeof(result));
+    return result;
+}
 
 inline int StudioOverlayTab(int request) {
     // Public sidecar API: 11/12 remain the accepted Live/bank views; 13/14
@@ -188,7 +198,8 @@ inline bool CasDocument(const Json& object, const std::string& sim) {
     // Protocol 1 queries all 72 panels mapped by the pinned game build. An
     // omitted category is not an empty category. Unknown item fields survive
     // validation unchanged; this is validation, never a projected DTO.
-    if (Scalar(object, "scope") != "native-cas-client" || !object.contains("sim") || !object["sim"].is_object() ||
+    if (!object.is_object() || object.dump().size() > 131072 ||
+        Scalar(object, "scope") != "native-cas-client" || !object.contains("sim") || !object["sim"].is_object() ||
         !object["sim"].contains("simId") || !ExactUint64Identity(object["sim"]["simId"]) ||
         Scalar(object["sim"], "simId") != sim || !object.contains("menu_state") ||
         !CasInt(object["menu_state"], -2147483648LL, 2147483647LL) ||
@@ -221,6 +232,56 @@ inline bool CasDocument(const Json& object, const std::string& sim) {
         else if ((presetQuery != "returned-null" && presetQuery != "failed") || !catalog["preset"].is_null()) return false;
     }
     return true;
+}
+
+inline bool CasPresetAbsent(const Json& preset) {
+    // Observed native no-selection sentinel. Do not coerce strings/numbers or
+    // discard future fields in the same raw record.
+    return preset.is_object() && preset.contains("index") && CasInt(preset["index"], -1, -1) &&
+        preset.contains("presetId") && preset["presetId"].is_string() && preset["presetId"] == "0";
+}
+
+inline bool CasPresetSelected(const Json& preset) {
+    return preset.is_object() && preset.contains("index") && CasInt(preset["index"], 0, 2147483647LL) &&
+        preset.contains("presetId") && ExactUint64Identity(preset["presetId"]);
+}
+
+inline bool CasHasPreset(const Json& catalog) {
+    return Scalar(catalog, "preset_query") == "returned-value" && catalog.contains("preset") &&
+        catalog["preset"].is_object() && !CasPresetAbsent(catalog["preset"]);
+}
+
+inline bool CasCatalogEmpty(const Json& catalog) {
+    if (!catalog.contains("supported") || !catalog["supported"].is_boolean() || !catalog["supported"].get<bool>() ||
+        !catalog.contains("items") || !catalog["items"].is_array() || !catalog["items"].empty()) return false;
+    const auto query = Scalar(catalog, "preset_query");
+    return query == "returned-null" || (query == "returned-value" && catalog.contains("preset") && CasPresetAbsent(catalog["preset"]));
+}
+
+inline std::string CasPanelLabel(std::string name) {
+    for (const auto& entry : std::array<std::pair<const char*, const char*>, 5>{{
+        {"clothing_accessories_earrings", "Jewelry / Earrings"}, {"clothing_accessories_necklaces", "Jewelry / Necklaces"},
+        {"clothing_accessories_rings", "Jewelry / Rings"}, {"clothing_accessories_piercings", "Jewelry / Piercings"},
+        {"clothing_accessories_bracelets", "Jewelry / Bracelets"}}})
+        if (name == entry.first) return entry.second;
+    for (const auto* prefix : {"clothing_", "profile_"})
+        if (name.find(prefix) == 0) { name.erase(0, std::strlen(prefix)); break; }
+    std::replace(name.begin(), name.end(), '_', ' ');
+    for (const auto& entry : std::array<std::pair<const char*, const char*>, 12>{{
+        {"bodyhair", "body hair"}, {"skincolor", "skin color"}, {"skinspecularity", "skin specularity"},
+        {"fullbody", "full body"}, {"bodydetails", "body details"}, {"bodyscar", "body scars"},
+        {"headdeco", "head decoration"}, {"fingernail", "fingernails"}, {"toenail", "toenails"},
+        {"hoofcolor", "hoof color"}, {"torsoback", "torso back"}, {"torsofront", "torso front"}}}) {
+        const auto at = name.find(entry.first);
+        if (at != std::string::npos) name.replace(at, std::strlen(entry.first), entry.second);
+    }
+    if (name.find("body body hair ") == 0) name.erase(0, 5);
+    bool beginning = true;
+    for (char& c : name) {
+        if (beginning && c >= 'a' && c <= 'z') c = static_cast<char>(c - 'a' + 'A');
+        beginning = c == ' ';
+    }
+    return name;
 }
 
 inline Json RefreshCasSelection(const Json& document, const std::string& panel, const Json& selected, bool preset = false) {

@@ -8191,7 +8191,7 @@ _APEX_BOOTSTRAP_STATUS = 'not initialized'
 def run_action(action, sim_id=None, occult=None, value=None):
     if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
         return {'ok': False, 'message': 'Sim inspection and mutation require the canonical Sims game-thread owner.'}
-    if action in ('cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics'):
+    if action in ('cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack'):
         from apex_core.cas_ui import dispatch
         try:
             return dispatch(action, sim_id, value)
@@ -8320,7 +8320,7 @@ def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.
         return {'ok': False, 'state': 'rejected', 'message': 'Invalid command request identity.'}
     if not _ALARM_READY and not (_APEX_CORE_TICK_READY and safe_action in (
             'test_quit', 'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start',
-            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics')):
+            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack')):
         return {'ok': False, 'state': 'rejected', 'message':
                 'Game-thread bridge is not ready. Load a disposable household or run apex.bridge.start from the game console.',
                 'bootstrap_status': _APEX_BOOTSTRAP_STATUS}
@@ -8458,4 +8458,14 @@ if services is not None:
     _apex_install_zone_signal()
     _apex_install_core_tick()
     _setup_alarm()
+    try:
+        from apex_core.cas_socket import start as _apex_start_cas_socket
+        def _apex_owned_cas_ack(peer, request_id, payload):
+            response = _submit_action('cas_ui_socket_ack', value={
+                'peer': peer, 'request_id': request_id, 'payload': payload}, wait_seconds=8.0)
+            return bool(response.get('acknowledgement_accepted'))
+        _apex_start_cas_socket(_apex_owned_cas_ack)
+    except Exception as exc:
+        _log('Native CAS transport unavailable: {}'.format(exc))
+
     start_server()

@@ -81,7 +81,34 @@ def begin(backend, sim, hair_target=None):
     record['pending']['hair_target'] = outfit_hair.cas_target(backend, sim, hair_target)
     data['records'][key] = record
     save(path, data)
-    return {'ok': True, 'lane': lane, 'message': 'Complete CAS originals retained. Enter native or MCCC CAS, then explicitly finish this transaction.'}
+    preparation = None
+    if record.get('hair_policy', {}).get('enabled'):
+        pending = record['pending']
+        pending['hair_preparation'] = {'state': 'preparing', 'lane': lane}
+        save(path, data)  # Originals and preparation intent precede native writes.
+        try:
+            before = outfit_hair.style_match_status(backend, originals[lane])
+            desired = outfit_hair.independent_style_fields(backend, originals[lane])
+            restore(backend, sim, lane, desired)
+            readback = appearance.packed(backend, sim)
+            after = outfit_hair.style_match_status(backend, readback)
+            if after['matching_outfit_count'] or after['outfit_count'] != before['outfit_count']:
+                raise ValueError('Pre-CAS independent hair flags failed native readback.')
+            preparation = dict(state='prepared', lane=lane, outfit_count=after['outfit_count'],
+                               matching_before=before['matching_outfit_count'],
+                               matching_after=after['matching_outfit_count'],
+                               appearance_sha256=appearance.fingerprint(readback)['appearance_sha256'],
+                               native_cas_propagation_verified=False)
+            pending['hair_preparation'] = preparation
+            save(path, data)
+        except Exception as error:
+            pending['state'] = 'recovery-required'
+            pending['hair_preparation'].update(state='failed', error=str(error))
+            save(path, data)
+            raise
+    result = {'ok': True, 'lane': lane, 'message': 'Complete CAS originals retained. Enter native or MCCC CAS, then explicitly finish this transaction.'}
+    if preparation is not None: result['hair_preparation'] = preparation
+    return result
 
 
 def update(backend, sim, lane, fields, create=False):

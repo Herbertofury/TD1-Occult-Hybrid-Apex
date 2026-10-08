@@ -32,6 +32,50 @@ def _types(backend):
     return result
 
 
+def _style_message(backend, fields):
+    message = _message(backend, fields)
+    descriptor = getattr(message, 'DESCRIPTOR', None)
+    outfits = getattr(descriptor, 'fields_by_name', {}).get('outfits')
+    native = getattr(outfits, 'message_type', None)
+    flag = getattr(native, 'fields_by_name', {}).get('match_hair_style')
+    if (getattr(native, 'full_name', None) != 'EA.Sims4.Persistence.OutfitData'
+            or getattr(flag, 'number', None) != 9 or getattr(flag, 'type', None) != 8
+            or getattr(flag, 'label', None) != 1):
+        raise ValueError('Native OutfitData.match_hair_style boolean field 9 is unavailable.')
+    for outfit in message.outfits:
+        if getattr(outfit, 'DESCRIPTOR', None) is not native or type(getattr(outfit, 'match_hair_style', None)) is not bool:
+            raise ValueError('Native outfit hair-match API is unavailable.')
+    return message
+
+
+def style_match_status(backend, fields):
+    """Inspect the native per-outfit match flag without changing a Sim."""
+    message = _style_message(backend, fields)
+    return {'outfit_count': len(message.outfits),
+            'matching_outfit_count': sum(outfit.match_hair_style for outfit in message.outfits)}
+
+
+def independent_style_fields(backend, fields):
+    """Plan native match-flag clearing, preserving the complete outfit message.
+
+    Parts, exact uint64 colors, other flags and unknown protobuf fields remain
+    owned by the existing native parser. This is pure preparation; native CAS
+    propagation behavior requires a separate in-game probe.
+    """
+    message = _style_message(backend, fields)
+    try:
+        for outfit in message.outfits:
+            outfit.match_hair_style = False
+    except (AttributeError, TypeError, ValueError) as error:
+        raise ValueError('Native outfit hair-match API cannot set its boolean flag: ' + str(error))
+    desired = copy.deepcopy(fields)
+    desired['__outfits__'] = appearance.encode(('protobuf', message.SerializeToString()))
+    status = style_match_status(backend, desired)
+    if status['matching_outfit_count'] or status['outfit_count'] != len(message.outfits):
+        raise ValueError('Native outfit hair-match preparation failed serialized readback.')
+    return desired
+
+
 def capture(backend, fields):
     types, ordinals, result = _types(backend), {}, []
     for outfit in _message(backend, fields).outfits:

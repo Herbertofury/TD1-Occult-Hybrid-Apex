@@ -1200,11 +1200,6 @@ static bool QueueCasAction(const ui::Json& request) {
     return true;
 }
 
-static std::string CasLabel(std::string name) {
-    for (const auto* prefix : {"clothing_", "profile_"}) if (name.find(prefix) == 0) { name.erase(0, std::strlen(prefix)); break; }
-    std::replace(name.begin(), name.end(), '_', ' ');
-    return name;
-}
 
 static void DrawNativeCas(const std::string& reply, bool history) {
     std::string sim;
@@ -1273,21 +1268,21 @@ static void DrawNativeCas(const std::string& reply, bool history) {
     for (const auto& item : g_casClientData["catalogs"]) catalogs.push_back(item);
     std::sort(catalogs.begin(), catalogs.end(), [](const auto& a, const auto& b) {
         if (g_casCatalogSort == 1) {
-            const auto left = (a["supported"].get<bool>() ? a["items"].size() : 0) + (ui::Scalar(a, "preset_query") == "returned-value" ? 1 : 0);
-            const auto right = (b["supported"].get<bool>() ? b["items"].size() : 0) + (ui::Scalar(b, "preset_query") == "returned-value" ? 1 : 0);
+            const auto left = (a["supported"].get<bool>() ? a["items"].size() : 0) + (ui::CasHasPreset(a) ? 1 : 0);
+            const auto right = (b["supported"].get<bool>() ? b["items"].size() : 0) + (ui::CasHasPreset(b) ? 1 : 0);
             if (left != right) return left > right;
         } else if (g_casCatalogSort == 2 && a["menu_state"] != b["menu_state"])
             return a["menu_state"].get<int64_t>() < b["menu_state"].get<int64_t>();
         return ui::Scalar(a, "panel") < ui::Scalar(b, "panel");
     });
     for (const auto& catalog : catalogs) {
-        const auto name = ui::Scalar(catalog, "panel"), label = CasLabel(name);
+        const auto name = ui::Scalar(catalog, "panel"), label = ui::CasPanelLabel(name);
         const bool supported = catalog["supported"].get<bool>();
         const auto& items = catalog["items"];
         const auto count = supported ? items.size() : 0;
         const auto presetQuery = ui::Scalar(catalog, "preset_query");
-        const bool hasPreset = presetQuery == "returned-value";
-        if (!g_showEmptySlots && supported && !count && !hasPreset && presetQuery != "failed") continue;
+        const bool presetRecord = presetQuery == "returned-value";
+        if (!g_showEmptySlots && ui::CasCatalogEmpty(catalog)) continue;
         const auto searchable = name + " " + catalog.dump();
         if (g_partSearch[0] && !TextContainsNoCase(searchable.c_str(), g_partSearch)) continue;
         ImGui::PushID(name.c_str());
@@ -1308,9 +1303,12 @@ static void DrawNativeCas(const std::string& reply, bool history) {
             }
             ImGui::EndDisabled(); ImGui::PopID();
         }
-        if (hasPreset) {
+        if (presetRecord) {
+            const auto& preset = catalog["preset"];
+            const char* presetState = ui::CasPresetAbsent(preset) ? "No preset selected / raw record" :
+                (ui::CasPresetSelected(preset) ? "Selected preset / raw record" : "Preset record / unknown fields retained");
             ImGui::BeginDisabled(nativeActionPending);
-            if (ImGui::Selectable((label + " / selected preset").c_str())) {
+            if (ImGui::Selectable((label + " / " + presetState).c_str())) {
                 g_casSelectedItem = catalog["preset"]; g_casSelectedPanel = name; g_casSelectedPreset = true;
                 QueueCasAction({{"operation", "panel"}, {"panel", name}});
             }
@@ -1320,7 +1318,8 @@ static void DrawNativeCas(const std::string& reply, bool history) {
     }
     ImGui::EndChild(); ImGui::SameLine();
     ImGui::BeginChild("native-cas-details", ImVec2(0, 0), true);
-    ImGui::SeparatorText(g_casSelectedPreset ? "Selected preset / exact client fields" : "Selected item / exact client fields");
+    ImGui::SeparatorText(g_casSelectedPreset ? "Native preset record / exact client fields" : "Selected item / exact client fields");
+    if (g_casSelectedPreset && ui::CasPresetAbsent(g_casSelectedItem)) ImGui::TextDisabled("Native no-selection sentinel; every returned field is retained.");
     if (g_casSelectedItem.empty()) ImGui::TextWrapped("Choose an equipped item to open its native category and inspect its complete returned fields.");
     else {
         if (ImGui::Button("Copy complete item record")) ImGui::SetClipboardText(g_casSelectedItem.dump(2).c_str());
@@ -1820,6 +1819,38 @@ extern "C" __declspec(dllexport) int WINAPI ApexGameInputVersion() { return 2; }
 extern "C" __declspec(dllexport) int WINAPI ApexGameInputState() { return td1::g_inputState.load(); }
 extern "C" __declspec(dllexport) int WINAPI ApexGameCursorX() { return td1::g_cursorX.load(); }
 extern "C" __declspec(dllexport) int WINAPI ApexGameCursorY() { return td1::g_cursorY.load(); }
+// Observational diagnostics only. Input Version 2 and every ownership/focus
+// guard remain unchanged. HWNDs use signed int32 ABI bits, not decimal casts.
+extern "C" __declspec(dllexport) int WINAPI ApexGameInputMetric(int index) {
+    std::lock_guard<std::recursive_mutex> renderLock(td1::g_renderMutex);
+    ApexInputDpi dpi;
+    const HWND expected = td1::g_hwnd, foreground = GetForegroundWindow();
+    DWORD expectedPid = 0, foregroundPid = 0;
+    if (expected) GetWindowThreadProcessId(expected, &expectedPid);
+    if (foreground) GetWindowThreadProcessId(foreground, &foregroundPid);
+    switch (index) {
+    case 0: case 1: {
+        RECT client{};
+        if (!expected || !GetClientRect(expected, &client)) return -1;
+        return index == 0 ? client.right - client.left : client.bottom - client.top;
+    }
+    case 2: case 3: {
+        POINT origin{};
+        if (!expected || !ClientToScreen(expected, &origin)) return -1;
+        return index == 2 ? origin.x : origin.y;
+    }
+    case 4: return td1::ui::MetricHandleBits(foregroundPid);
+    case 5: return td1::ui::MetricHandleBits(expectedPid);
+    case 6: return td1::ui::MetricHandleBits(reinterpret_cast<uintptr_t>(expected));
+    case 7: return td1::ui::MetricHandleBits(reinterpret_cast<uintptr_t>(foreground));
+    case 8: {
+        const HWND expectedRoot = expected ? GetAncestor(expected, GA_ROOT) : nullptr;
+        const HWND foregroundRoot = foreground ? GetAncestor(foreground, GA_ROOT) : nullptr;
+        return expectedRoot && foregroundRoot && expectedRoot == foregroundRoot ? 1 : 0;
+    }
+    default: return -1;
+    }
+}
 extern "C" __declspec(dllexport) int WINAPI ApexCaptureOverlay() {
     if (!td1::g_visible.load() || td1::g_loaderStatus.load() < 3) return -1;
     int idle = 0;
@@ -2019,6 +2050,17 @@ extern "C" int ApexRunNativeSmoke() {
     g_visible = true;
     swap->Present(0, 0);
     if (g_presentCount != 1 || !g_device || !ImGui::GetCurrentContext() || g_hwnd != window) return 16;
+    // Query real native window metrics without activating it or submitting
+    // input. This exercises the diagnostic export against the selected WARP
+    // swapchain and catches pointer/sign truncation or stale-window reads.
+    RECT observedClient{}; POINT observedOrigin{};
+    if (!GetClientRect(window, &observedClient) || !ClientToScreen(window, &observedOrigin)) return 27;
+    if (ApexGameInputMetric(0) != observedClient.right - observedClient.left ||
+        ApexGameInputMetric(1) != observedClient.bottom - observedClient.top ||
+        ApexGameInputMetric(2) != observedOrigin.x || ApexGameInputMetric(3) != observedOrigin.y ||
+        static_cast<uint32_t>(ApexGameInputMetric(5)) != GetCurrentProcessId() ||
+        static_cast<uint32_t>(ApexGameInputMetric(6)) != static_cast<uint32_t>(reinterpret_cast<uintptr_t>(window)) ||
+        ApexGameInputMetric(9) != -1 || ApexGameInputVersion() != 2) return 28;
     ID3D11RenderTargetView* restored[8]{}; ID3D11DepthStencilView* restoredDepth = nullptr;
     context->OMGetRenderTargets(8, restored, &restoredDepth);
     for (unsigned index = 0; index < 8; ++index) {
@@ -2046,6 +2088,7 @@ extern "C" int ApexRunNativeSmoke() {
     if (g_presentCount != 3 || g_workerActive.load()) return 20;
     ResetRenderer();
     if (g_device || g_context || g_hwnd || ImGui::GetCurrentContext() || g_loaderStatus != 1) return 23;
+    if (ApexGameInputMetric(0) != -1 || ApexGameInputMetric(5) != 0 || ApexGameInputMetric(6) != 0 || ApexGameInputMetric(8) != 0) return 29;
     g_visible = true; swap->Present(0, 0);
     if (!g_device || g_loaderStatus != 3 || g_presentCount != 4) return 24;
     IDXGISwapChain1* newer = nullptr;
@@ -2058,7 +2101,7 @@ extern "C" int ApexRunNativeSmoke() {
     if (!input.sample(true, true) || input.sample(true, true) || input.sample(true, false) ||
         input.sample(false, true) || input.sample(true, true) || input.sample(false, false) ||
         !input.sample(true, true)) return 21;
-    printf("DX11 WARP: actual Present detour/menu + numeric color render, 8 RTVs+depth restored, ResizeBuffers, renderer teardown/reinit, hidden zero worker, first keypress/held/focus edges passed\n");
+    printf("DX11 WARP: actual Present detour/menu + numeric color render, native HWND/PID/geometry diagnostics, 8 RTVs+depth restored, ResizeBuffers, renderer teardown/reinit, hidden zero worker, first keypress/held/focus edges passed\n");
     // COM/UI cleanup while the hidden test window still exists.
     CleanupRenderTarget();
     SetWindowLongPtrW(window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldWndProc));

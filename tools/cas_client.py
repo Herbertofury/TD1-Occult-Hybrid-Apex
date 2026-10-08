@@ -26,7 +26,8 @@ def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
         value = {'operation': args.operation}
         if args.operation in ('panel', 'select'): value['panel'] = args.panel
         if args.operation == 'outfit': value.update(category=args.category, index=args.index)
-        if args.operation == 'select': value['data_id'] = args.data_id
+        if args.operation == 'outfit-add': value['category'] = args.category
+        if args.operation in ('select', 'hair-swatch'): value['data_id'] = args.data_id
         # Validate before any transport, using the same production contract.
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
         from apex_core.cas_ui import envelope

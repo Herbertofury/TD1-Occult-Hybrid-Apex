@@ -18,6 +18,7 @@ from cas_ui_build import replace_abc, unpack, tags
 class CasUiTests(unittest.TestCase):
     def setUp(self):
         cas_ui._RECORDS.clear()
+        cas_ui._PEERS.clear()
         cas_ui._CONNECTION = cas_ui._READY = cas_ui._LAST_REPLY = None
 
     def test_native_startup_is_separate_from_complete_client_state(self):
@@ -97,6 +98,15 @@ class CasUiTests(unittest.TestCase):
         client['selected'] = [{'dataID':'18446744073709551615', 'newPackField': {'raw': 'preserved'}}]
         cas_ui.validate_client(client, '12', {'operation':'select', 'panel':'hair', 'data_id':'18446744073709551615'})
 
+    def test_every_snapshot_requires_the_same_base_fields_as_f11(self):
+        for operation in ('status', 'undo', 'redo'):
+            for name, value in (('outfit', None), ('outfit', {'outfit_type':0,'outfit_index':5}),
+                                ('menu_state', 2**31), ('menu_state', True), ('panel_visible', None)):
+                client = self.client('12')
+                client[name] = value
+                with self.assertRaisesRegex(ValueError, 'typed menu'):
+                    cas_ui.validate_client(client, '12', {'operation':operation})
+
     def test_complete_catalog_coverage_empty_unknown_and_future_fields(self):
         client = self.client('12')
         client['catalogs'][0].update(supported=False, items=None)
@@ -109,6 +119,28 @@ class CasUiTests(unittest.TestCase):
         client['catalogs'].pop()
         with self.assertRaisesRegex(ValueError, 'every mapped'): cas_ui.validate_client(client, '12', {'operation':'status'})
 
+    def test_append_and_exact_hair_swatch_require_native_identity_evidence(self):
+        client = self.client('12')
+        request = {'operation':'outfit-add','category':0}
+        with self.assertRaisesRegex(ValueError, 'appended slot'):
+            cas_ui.validate_client(client,'12',request)
+        client['outfit_created'] = {'before_count':1,'after_count':2}
+        client['outfit']['outfit_index'] = 1
+        cas_ui.validate_client(client,'12',request)
+        client['outfit_created']['after_count'] = 3
+        with self.assertRaisesRegex(ValueError, 'appended slot'):
+            cas_ui.validate_client(client,'12',request)
+        request = {'operation':'hair-swatch','data_id':'18446744073709551615'}
+        with self.assertRaisesRegex(ValueError, 'exact selected'):
+            cas_ui.validate_client(client,'12',request)
+        client['hair_selected_swatch_id'] = request['data_id']
+        cas_ui.validate_client(client,'12',request)
+        for request in ({'operation':'outfit-add','category':14},
+                        {'operation':'hair-swatch','data_id':''},
+                        {'operation':'hair-swatch','data_id':18446744073709551615}):
+            with self.assertRaises(ValueError):
+                cas_ui.submit('12',request,send=lambda _:self.fail('invalid request sent'))
+
     def test_bounded_failure_ack_resolves_without_native_mutation_claim(self):
         submitted = cas_ui.submit('12', {'operation':'status'}, send=lambda _: None)
         rid = submitted['cas_request_id']
@@ -116,6 +148,24 @@ class CasUiTests(unittest.TestCase):
         self.assertEqual(cas_ui.result(rid)['cas_request_state'], 'failed')
         self.assertFalse(cas_ui.result(rid)['ui_transition_verified'])
         cas_ui.submit('12', {'operation':'status'}, send=lambda _: None)
+
+    def test_full_unknown_fields_preserved_and_utf8_overflow_refused_as_whole_record(self):
+        submitted = cas_ui.submit('12', {'operation':'status'}, send=lambda _: None)
+        rid = submitted['cas_request_id']
+        reply = {'protocol': 1, 'ok': True, 'cas_request_id': rid, 'client': self.client('12')}
+        reply['client']['futureField'] = 'Ω' * 20000
+        raw = json.dumps(reply, ensure_ascii=False)
+        self.assertGreater(len(raw.encode('utf-8')), 32768)
+        cas_ui.receive(rid, raw)
+        self.assertEqual(cas_ui.result(rid)['client']['futureField'], 'Ω' * 20000)
+        second = cas_ui.submit('12', {'operation':'status'}, send=lambda _: None)['cas_request_id']
+        reply['cas_request_id'] = second
+        reply['client']['futureField'] = 'Ω' * 65536
+        raw = json.dumps(reply, ensure_ascii=False)
+        self.assertLess(len(raw), 131072)
+        with self.assertRaisesRegex(ValueError, 'UTF-8'):
+            cas_ui.receive(second, raw)
+        self.assertEqual(cas_ui.result(second)['outcome'], 'pending-client')
 
     def test_lost_or_partial_ui_delivery_never_replays_mutation(self):
         count = [0]

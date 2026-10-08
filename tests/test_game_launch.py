@@ -23,7 +23,7 @@ class LaunchPlanTests(unittest.TestCase):
 
     def test_plan_uses_installed_ids_and_does_not_launch_or_claim_headless(self):
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
+            root = Path(temp).resolve()
             self.fixture(root)
             with patch.object(game_launch.test_profile, 'status', return_value={'ready_to_launch': True}), self.identity_patch():
                 plan = game_launch.launch(root, root / 'state.json')
@@ -35,7 +35,7 @@ class LaunchPlanTests(unittest.TestCase):
 
     def test_unsafe_ids_and_nonisolated_profile_refuse(self):
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
+            root = Path(temp).resolve()
             self.fixture(root, '<contentID>--login=bad</contentID>')
             with patch.object(game_launch.test_profile, 'status', return_value={'ready_to_launch': True}):
                 with self.assertRaisesRegex(ValueError, 'unsafe'):
@@ -67,7 +67,7 @@ class LaunchPlanTests(unittest.TestCase):
 
     def test_account_identity_requires_successful_client_play_for_exact_installation(self):
         with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
+            root = Path(temp).resolve()
             log = root / 'EADesktop.log'
             self.fixture(root)
             executable = root / 'Game' / 'Bin' / 'TS4_Launcher_x64.exe'

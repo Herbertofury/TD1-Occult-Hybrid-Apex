@@ -41,6 +41,9 @@ class PhoneTests(unittest.TestCase):
         self.phone.select(backend, '5', 'apex:occult:switch:VAMPIRE')
         backend.run_action.assert_called_once_with('switch', sim_id='5', occult='VAMPIRE')
         backend.run_action.reset_mock()
+        self.phone.select(backend, '5', 'apex:action:human')
+        backend.run_action.assert_called_once_with('human', sim_id='5')
+        backend.run_action.reset_mock()
         self.phone.select(backend, '5', 'apex:action:studio_undo')
         backend.run_action.assert_called_once_with('studio_undo', sim_id='5')
         with self.assertRaisesRegex(ValueError, 'stale'):

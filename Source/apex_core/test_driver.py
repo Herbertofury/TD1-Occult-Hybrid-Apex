@@ -57,7 +57,7 @@ def guard(backend, value):
     return payload.get('value')
 
 
-def snapshot(backend, sim, export_outfits=False):
+def snapshot(backend, sim, export_outfits=False, export_forms=False):
     persistence = backend.services.get_persistence_service()
     slot = persistence.get_save_slot_proto_buff()
     game_clock = backend.services.game_clock_service()
@@ -87,6 +87,14 @@ def snapshot(backend, sim, export_outfits=False):
                          'outfit_sha256': hashlib.sha256(blob).hexdigest() if blob else None,
                          'linked_forms': linked, 'instanced': sim.get_sim_instance() is not None,
                          'current_outfit': list(sim.get_current_outfit())}
+        if export_forms:
+            from .form_appearance import evidence
+            result['sim']['full_appearance'] = evidence(backend, sim, export=True)
+            forms = []
+            for kind, form in sorted(backend._form_map(tracker).items(), key=lambda pair: int(pair[0])):
+                forms.append({'flags': int(kind), 'occult': backend._safe_name(kind),
+                              'sim_id': str(form.id), 'appearance': evidence(backend, form, export=True)})
+            result['sim']['form_appearances'] = forms
         if export_outfits:
             from .outfit_snapshot import normalize
             result['sim']['outfit_base64'] = base64.b64encode(blob).decode('ascii')
@@ -97,9 +105,18 @@ def snapshot(backend, sim, export_outfits=False):
 def dispatch(backend, action, sim_id, value):
     global _LAST_CLIENT_ID
     argument = guard(backend, value)
+    if action in ('test_capture', 'test_input'):
+        from . import overlay_loader
+        if action == 'test_capture':
+            return overlay_loader.capture()
+        import paths
+        return overlay_loader.input_event(backend.__file__, paths.DLL_PATH, argument)
     if action == 'test_quit':
         from sims4.commands import client_cheat
-        manager = backend.services.client_manager()
+        try:
+            manager = backend.services.client_manager()
+        except AttributeError:
+            manager = None  # CAS may unload gameplay services.
         client = manager.get_first_client() if manager is not None else None
         connection = client.id if client is not None else _LAST_CLIENT_ID
         if connection is None:
@@ -108,8 +125,11 @@ def dispatch(backend, action, sim_id, value):
         return {'ok': True, 'transition': 'quit-confirmation-requested', 'game_exit_verified': False,
                 'confirmation_required': True, 'message': 'Native Save Game confirmation requested; process exit is not yet verified.'}
     sim = backend._get_sim_info_by_id(sim_id)
+    if action == 'test_all_data':
+        from .sim_data import snapshot as all_data_snapshot
+        return dict(all_data_snapshot(backend, sim), ok=True)
     if action in ('test_status', 'test_snapshot'):
-        return snapshot(backend, sim, export_outfits=argument == 'outfits')
+        return snapshot(backend, sim, export_outfits=argument == 'outfits', export_forms=argument == 'forms')
     manager = backend.services.client_manager()
     client = manager.get_first_client()
     if client is None:

@@ -65,7 +65,7 @@ def read_bundle(bundle):
 @profiles.serialized
 def install(state, bundle, experimental_ui=False, optional=False, guard=test_profile.require_closed):
     guard()
-    state, _data, profile, _original = profiles.load(state)
+    state, data, profile, _original = profiles.load(state)
     if not profiles.status(state)['ready_to_launch']:
         raise ValueError('The marked test profile contains unknown/changed mods.')
     bundle, digest, manifest, payloads = read_bundle(bundle)
@@ -92,6 +92,9 @@ def install(state, bundle, experimental_ui=False, optional=False, guard=test_pro
         # install_rows consumes immutable staged blobs; no unbounded extraction.
         row['source'] = str(stage)
         rows.append(row)
+    # Test add-ons have their own explicit removal command. A candidate update
+    # must retain the exact already-verified MCCC recipe and its user settings.
+    rows.extend(row for row in data['artifacts'] if row.get('test_addon') == 'mccc-2026.5.0')
     receipt = {'sha256': digest, 'source': str(bundle), 'target_game': manifest['target_game'],
                'experimental_ui': experimental_ui, 'optional': optional}
     return profiles.install_rows(state, rows, guard, bundle=receipt)

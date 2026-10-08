@@ -11,6 +11,16 @@ import json
 import os
 from pathlib import Path
 import sys
+import threading
+
+_LOAD_LOCK = threading.RLock()
+
+
+def serialized(function):
+    def wrapped(*args, **kwargs):
+        with _LOAD_LOCK:
+            return function(*args, **kwargs)
+    return wrapped
 
 PROTOCOL = 1
 _HANDLE = None
@@ -103,7 +113,20 @@ def _bind(native, handle):
     # no configurable arbitrary procedure, address, argument list, or DLL path.
     return {name: NoArguments((name, Library())) for name in
             ('ApexOverlayProtocolVersion', 'ApexOverlayStart', 'ApexOverlayStatus',
-             'ApexOverlayShow', 'ApexOverlayHide', 'ApexOverlayRenderedFrames')}
+             'ApexOverlayShow', 'ApexOverlayHide', 'ApexOverlayRenderedFrames',
+             'ApexOverlayVisible', 'ApexOverlayToggleEvents', 'ApexCaptureCompleted', 'ApexCaptureFull')}
+
+
+def _bind_input(native, handle):
+    class Integer(native._SimpleCData):
+        _type_ = 'i'
+    class InputCall(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL
+        _restype_ = Integer
+        _argtypes_ = (Integer, Integer, Integer, Integer, Integer)
+    class Library:
+        _handle = handle
+    return InputCall(('ApexGameInput', Library()))
 
 
 def _integer(call):
@@ -111,6 +134,7 @@ def _integer(call):
     return int(getattr(value, 'value', value))
 
 
+@serialized
 def start(module_file, dll_path):
     global _HANDLE, _CALLS, _STATUS, _LOADED_SHA, _LOADED_PATH
     try:
@@ -140,6 +164,7 @@ def start(module_file, dll_path):
     return dict(_STATUS)
 
 
+@serialized
 def status():
     result = dict(_STATUS)
     if _CALLS is not None:
@@ -148,15 +173,46 @@ def status():
         result['renderer_initialized'] = result['native_status'] >= 3
         result['rendered_frames'] = _integer(_CALLS['ApexOverlayRenderedFrames'])
         result['frame_submission_verified'] = result['rendered_frames'] > 0
+        result['visible'] = bool(_integer(_CALLS['ApexOverlayVisible']))
+        result['toggle_events'] = _integer(_CALLS['ApexOverlayToggleEvents'])
+        result['captures_completed'] = _integer(_CALLS['ApexCaptureCompleted'])
     return result
 
 
+@serialized
 def show(visible=True):
     if _CALLS is None:
         return {'ok': False, 'message': 'Start the matching F11 sidecar first.'}
     result = _integer(_CALLS['ApexOverlayShow' if visible else 'ApexOverlayHide'])
     return dict(status(), ok=result == 0, visibility_requested=bool(visible),
                 message='Visibility requested; verify actual rendered frames separately.' if result == 0 else 'F11 hook is not ready.')
+
+
+@serialized
+def capture():
+    if not _CALLS:
+        raise ValueError('The game overlay has not initialized.')
+    before = status()
+    code = _integer(_CALLS['ApexCaptureFull'])
+    return dict(before, ok=code == 0, native_code=code, capture_requested=code == 0,
+                capture_completed_verified=False)
+
+
+@serialized
+def input_event(module_file, dll_path, argument):
+    if not _CALLS or not isinstance(argument, dict) or set(argument) != {'command', 'x', 'y', 'width', 'height'}:
+        raise ValueError('Use the bounded game-input contract.')
+    values = [argument[name] for name in ('command', 'x', 'y', 'width', 'height')]
+    if any(type(value) is not int for value in values) or any(not -1 <= value <= 8192 for value in values):
+        raise ValueError('Game-input values must be bounded integers.')
+    native_path, info = sidecar_paths(module_file)
+    if info['sha256'] != _LOADED_SHA or str(native_path) != _LOADED_PATH:
+        raise ValueError('The native build changed while the game runs.')
+    call = _bind_input(_game_ctypes(dll_path), _HANDLE)
+    result = call(*values)
+    code = int(getattr(result, 'value', result))
+    return {'ok': code == 0, 'native_code': code, 'input_submitted': code == 0,
+            'ui_transition_verified': False, 'message': 'Game-owned input submitted; compare the next captured frame.'}
 
 
 def auto_start_enabled(module_file):

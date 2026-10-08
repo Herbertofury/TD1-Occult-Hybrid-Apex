@@ -65,7 +65,21 @@ def verified_identity(state, transport=get):
 
 def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=30, transport=get):
     identity = verified_identity(state, transport)
-    if not identity.get('alarm_ready') and not (action == 'test_quit' and identity.get('core_tick_ready')):
+    if identity.get('native_cli_available') and action in (
+            'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start'):
+        _path, journal, _profile, _original = reusable_profile.load(state)
+        if value is None:
+            value = json.dumps({'test_token': journal['token'], 'value': None})
+        request_id = uuid.uuid4().hex
+        query = {'action': action, 'value': value, 'request_id': request_id}
+        try:
+            return transport('/api/native', query)
+        except (OSError, urllib.error.URLError):
+            # Reuse the exact identity so response loss cannot repeat a click.
+            return transport('/api/native', query)
+    if not identity.get('alarm_ready') and not (action in (
+            'test_quit', 'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start')
+            and identity.get('core_tick_ready')):
         raise ValueError('Load the disposable household before in-game commands.')
     request_id = uuid.uuid4().hex
     query = {'action': action, 'sim_id': sim_id, 'occult': occult, 'value': value, 'request_id': request_id}
@@ -159,6 +173,10 @@ def parser():
     bundle.add_argument('--optional', action='store_true')
     backup = profile_commands.add_parser('backup', help='Preserve disposable saves/Tray externally and hash original saves read-only')
     backup.add_argument('--state', required=True, type=Path)
+    addon = profile_commands.add_parser('mccc', help='Exact minimal MCCC CAS/Dresser interoperability recipe')
+    addon.add_argument('operation', choices=('install', 'remove'))
+    addon.add_argument('--state', required=True, type=Path)
+    addon.add_argument('--archive', type=Path)
     cleanup = profile_commands.add_parser('consolidate', help='Recover retired disposable profile contents then keep one test profile')
     cleanup.add_argument('--state', required=True, type=Path)
     cleanup.add_argument('--previous-state', required=True, type=Path, action='append')
@@ -182,10 +200,16 @@ def parser():
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
     game = commands.add_parser('game', help='Real in-game test controls; requires the marked disposable profile')
-    game.add_argument('operation', choices=('status', 'focus', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'save', 'snapshot', 'quit'))
+    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'save', 'snapshot', 'quit'))
     game.add_argument('--state', required=True, type=Path)
     game.add_argument('--sim-id')
     game.add_argument('--value')
+    game.add_argument('--output', type=Path)
+    game.add_argument('--key', choices=('F11', 'ESC', 'ENTER', 'TAB', 'SPACE'))
+    game.add_argument('--x', type=int)
+    game.add_argument('--y', type=int)
+    game.add_argument('--width', type=int)
+    game.add_argument('--height', type=int)
     studio = commands.add_parser('studio', help='Current-form CAS History/Color Studio on the real game thread')
     studio.add_argument('operation', choices=('status', 'history', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'cancel', 'undo', 'redo', 'jump', 'apply'))
     studio.add_argument('--state', required=True, type=Path)
@@ -215,6 +239,9 @@ def execute(args):
     if args.command == 'launch':
         return game_launch.launch(args.game_root, args.state, args.execute, args.headless, offer_id=args.offer_id)
     if args.command == 'profile':
+        if args.profile_command == 'mccc':
+            import test_addons
+            return test_addons.configure(args.state, args.archive, remove=args.operation == 'remove')
         if args.profile_command == 'install-candidate':
             return candidate_install.install(args.state, args.bundle, args.experimental_ui, args.optional)
         if args.profile_command == 'backup':
@@ -277,7 +304,39 @@ def execute(args):
             import game_window
             return game_window.focus(verified_identity(args.state)['pid'])
         _path, data, _profile, _original = reusable_profile.load(args.state)
+        if args.operation == 'capture':
+            if args.output is None:
+                raise ValueError('An external proof image filename is required.')
+            from game_capture import capture
+            return capture(args.state, args.output, owned_request)
+        if args.operation in ('key', 'click'):
+            if args.width is None or args.height is None or not 1 <= args.width <= 8192 or not 1 <= args.height <= 8192:
+                raise ValueError('Supply the observed client viewport width/height.')
+            if args.operation == 'key':
+                if args.key is None:
+                    raise ValueError('A supported key is required.')
+                x, y = {'F11': 122, 'ESC': 27, 'ENTER': 13, 'TAB': 9, 'SPACE': 32}[args.key], 0
+            else:
+                x, y = args.x, args.y
+                if x is None or y is None or not 0 <= x < args.width or not 0 <= y < args.height:
+                    raise ValueError('Click must be inside the observed game viewport.')
+            argument = {'command': 2 if args.operation == 'key' else 1, 'x': x, 'y': y,
+                        'width': args.width, 'height': args.height}
+            return owned_request(args.state, 'test_input', value=json.dumps({'test_token': data['token'], 'value': argument}))
         value = json.dumps({'test_token': data['token'], 'value': args.value})
+        if args.operation == 'all-data':
+            if not args.sim_id:
+                raise ValueError('An explicit Sim ID is required for complete data capture.')
+            output = reusable_profile.writable(args.output) if args.output else None
+            if output is not None and (output.exists() or any(output == root or root in output.parents for root in (_profile, _original))):
+                raise ValueError('Use a new complete-data evidence file outside both profiles.')
+            result = owned_request(args.state, 'test_all_data', args.sim_id, value=value)
+            if output is not None and result.get('ok'):
+                write_json(output, result)
+                return {'ok': True, 'output': str(output), 'sha256': sha256(output), 'native_sha256': result['native_sha256'],
+                        'native_bytes': result['native_bytes'], 'schema_messages': len(result['field_schemas']),
+                        'runtime_only_fields_complete': False, 'all_edit_handlers_complete': False}
+            return result
         if args.operation == 'save':
             snapshot = owned_request(args.state, 'test_snapshot', args.sim_id, value=value)
             if not snapshot.get('ok'):

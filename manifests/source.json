@@ -35,16 +35,22 @@
       "sha256": "a52a31326aafa8f140dab6aaf5132b76885e78bfcd27698250337d06af6e94bf"
     },
     {
-      "bytes": 9353,
-      "mode": "100644",
-      "path": "Source/apex_core/test_driver.py",
-      "sha256": "11e8098cecc0fb1e7e26792a21e76a2064e0de2a9ecc5f0f6f941e1ca1d36d69"
-    },
-    {
       "bytes": 3648,
       "mode": "100644",
       "path": "tests/test_command_queue.py",
       "sha256": "93f8b51480e31760ec1097d04562212607fbfacd9304ef507694a03951f72c1f"
+    },
+    {
+      "bytes": 396412,
+      "mode": "100644",
+      "path": "Source/td1_occult_hybrid_apex.py",
+      "sha256": "90eb514201b31e6335a6a60064f5ac5e905586ccae2e347f119e3da392eee259"
+    },
+    {
+      "bytes": 3337,
+      "mode": "100644",
+      "path": "tests/test_test_addons.py",
+      "sha256": "d860e5240b3a7e2732f134c46504103777fa22f66673d682253cb4da385feef1"
     },
     {
       "bytes": 12173,
@@ -63,12 +69,6 @@
       "mode": "100644",
       "path": "Reports/Glory-Build-V4.1-UI-Performance-Validation.txt",
       "sha256": "64de3e4582df91595e9ac8453d297bc9119853dfd34cda9d0e35eb26215dcf6b"
-    },
-    {
-      "bytes": 395307,
-      "mode": "100644",
-      "path": "Source/td1_occult_hybrid_apex.py",
-      "sha256": "87913b7a8890d672049c25cea03b93db02572c456220c30305b661ecf4d9e290"
     },
     {
       "bytes": 1965,
@@ -149,12 +149,6 @@
       "sha256": "23c5d418e390283736f277224f681816324e48859e83c9c11484ffc1cf1ce3ae"
     },
     {
-      "bytes": 5940,
-      "mode": "100644",
-      "path": "tools/verify_overlay_sidecar.py",
-      "sha256": "856fd59b653befad52e025aeaee57eb63e023154c8e60ed69516f730c50e71af"
-    },
-    {
       "bytes": 6465,
       "mode": "100644",
       "path": "tests/test_profile_isolation.py",
@@ -171,12 +165,6 @@
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/docs/README.md",
       "sha256": "d9fb01b2967dab2fd384567528849529029fb1c6ca111465de58e82a091037c5"
-    },
-    {
-      "bytes": 3937,
-      "mode": "100644",
-      "path": "tests/test_launch_compatibility.py",
-      "sha256": "924259ee140c8f5e2ceda699729ec581156863ff706733090b570cff1ce9307e"
     },
     {
       "bytes": 4327,
@@ -203,6 +191,12 @@
       "sha256": "6c4edcede49cd10d9792147f3f93991b5217c936d7ac9efdc1c777b25226b4a1"
     },
     {
+      "bytes": 4425,
+      "mode": "100644",
+      "path": "tools/test_addons.py",
+      "sha256": "af195671c78f38d72ee10d83cb6693660f80fba8298e1ea6b11f649452c13904"
+    },
+    {
       "bytes": 2479,
       "mode": "100644",
       "path": "wiki/Color-Studio.md",
@@ -215,16 +209,16 @@
       "sha256": "5872550246a244f060b8129bf5012e97ad2f2a9e365c9e71cecb7f4ea2635e46"
     },
     {
+      "bytes": 5647,
+      "mode": "100644",
+      "path": "tests/test_game_launch.py",
+      "sha256": "dce88755448c80807b5ab577ac8ecfebced28c9335d44c6b38f00c0c32c98744"
+    },
+    {
       "bytes": 1457,
       "mode": "100644",
       "path": "Reports/ImGui-DX11-Overlay-Validation-V5.1.txt",
       "sha256": "ecc852cfc09afb3444087e361a8669e31727d53cafa3d1e16fdfb52dd8e20f4f"
-    },
-    {
-      "bytes": 8141,
-      "mode": "100644",
-      "path": "tools/candidate_install.py",
-      "sha256": "3e8d28b6cbbd393422c09fe7249c3d975985ccc322a6392d55724cd086a82252"
     },
     {
       "bytes": 635,
@@ -257,12 +251,6 @@
       "sha256": "36ac3035ccdeb9cc1fadb587ef6e05b0e7d7dd7c8727052995cdc3f2ad2c2bb6"
     },
     {
-      "bytes": 4264,
-      "mode": "100644",
-      "path": "tests/test_overlay_loader.py",
-      "sha256": "42d5bb83beae62833cf42ce64dca58ef3cb9c5321f20ee6b5d03bc286a60d7f1"
-    },
-    {
       "bytes": 3619,
       "mode": "100644",
       "path": "tools/ea_permission.py",
@@ -279,12 +267,6 @@
       "mode": "100644",
       "path": "wiki/Apex-Occult-Hybrid-Core.md",
       "sha256": "db8956effa0b8863f11a579c92c0a680cda6001a600816b3fff6c71e8bed9ab1"
-    },
-    {
-      "bytes": 19142,
-      "mode": "100644",
-      "path": "tools/apex_cli.py",
-      "sha256": "97c5f716dec646053005d0ae4ccedbeb36f8fe81907fd167133a87ab2d00e31a"
     },
     {
       "bytes": 368,
@@ -353,6 +335,12 @@
       "sha256": "bbdfb9b4b545c43d957d56761037a14741690c730cf21ee40d86c5d2eb8b89f0"
     },
     {
+      "bytes": 10482,
+      "mode": "100644",
+      "path": "Source/apex_core/test_driver.py",
+      "sha256": "506e6caa88d3ad6e47f8f0ece3b184d9ac01818a27de25817bb5cdc304c4afab"
+    },
+    {
       "bytes": 2564,
       "mode": "100644",
       "path": "tests/test_source_manifest.py",
@@ -389,16 +377,22 @@
       "sha256": "afae45a1ace172e82398a905e8a5a13143d460936cb1ad1f4060c28dcd7ad13e"
     },
     {
+      "bytes": 6414,
+      "mode": "100644",
+      "path": "Source/apex_core/human_werewolf.py",
+      "sha256": "1c27f85c41c822e6597643781ea76ba8cc56ee8f6ba079a5478d341b5d017950"
+    },
+    {
+      "bytes": 12244,
+      "mode": "100644",
+      "path": "docs/CANDIDATE_INSTALL_AND_TEST.md",
+      "sha256": "7ea5b0268048132e7e0f18f6f861884ffcce81525e8584eb20e14be64bd0ecf3"
+    },
+    {
       "bytes": 3885,
       "mode": "100644",
       "path": "Reports/Apex-V6-MCCC-SavedForms-ImGui-Validation.txt",
       "sha256": "18722f8b1acca1ea969c22c8982ae8ef7be3c7bb32685bbd84955a6a9a1b6e8c"
-    },
-    {
-      "bytes": 5617,
-      "mode": "100644",
-      "path": "tests/test_game_launch.py",
-      "sha256": "741770f081f0604375fe70e78f93921dedf2c0950faa7eaa27dbe95e7021fa9d"
     },
     {
       "bytes": 7026,
@@ -479,6 +473,12 @@
       "sha256": "76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56"
     },
     {
+      "bytes": 7581,
+      "mode": "100644",
+      "path": "Reports/LIVE_CLI_2026-10-07.md",
+      "sha256": "20495523bc94b1157e0da8aaf8188440cbcc21ebd43bce688b0bbda8151bf033"
+    },
+    {
       "bytes": 3778,
       "mode": "100644",
       "path": "Reports/Apex-V9.5-Final-Accounting-Research-Audit.md",
@@ -527,12 +527,6 @@
       "sha256": "ba807c87a41a553528de134360ea3f13fc4a0acdfd39c21fa31ff7a5ab2ea805"
     },
     {
-      "bytes": 18794,
-      "mode": "100644",
-      "path": "tools/reusable_profile.py",
-      "sha256": "511ef0758e28c0dc723c359d3bbce35894e9b21f2ad9486f7b26def63b8693e8"
-    },
-    {
       "bytes": 1878,
       "mode": "100644",
       "path": "wiki/Live-CAS-Studio.md",
@@ -569,6 +563,12 @@
       "sha256": "f93483745f13f73f9c9b715762542ba8e8e296153a9e80597e3406d7bc6462de"
     },
     {
+      "bytes": 5302,
+      "mode": "100644",
+      "path": "tests/test_form_appearance.py",
+      "sha256": "2e02ccf69b7d696848ebbeb4e4063a5310b44b979e886932328994a1511ff7ee"
+    },
+    {
       "bytes": 1662,
       "mode": "100644",
       "path": "NativeOverlay/third_party/minhook/src/hde/pstdint.h",
@@ -597,6 +597,12 @@
       "mode": "100644",
       "path": "docs/APEX_OCCULT_HYBRID_CORE.md",
       "sha256": "5c0cfaa3e8c5a3fa27e1230d8ccb174624d4782d65b646743dfca561d9d99cbd"
+    },
+    {
+      "bytes": 3957,
+      "mode": "100644",
+      "path": "tests/test_launch_compatibility.py",
+      "sha256": "e367246f60b2d4ed033eab8daba1e7bee5e3e044135fefede32f6ba606466ecb"
     },
     {
       "bytes": 7797,
@@ -653,22 +659,16 @@
       "sha256": "06f5b746627614d2e22419cf10ae75c05afc01c5b2a5442f9f48fd33c7fc68ce"
     },
     {
-      "bytes": 64581,
+      "bytes": 1961,
       "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "0d090013add7b93e92e20c5b1567a704aeaba855bd6b32838618f20a13a13840"
+      "path": "Source/apex_core/native_controls.py",
+      "sha256": "2a17c2213e56357fe94cbb652424aaa214a3d5f07b733b31d57b52a1ea4682c8"
     },
     {
       "bytes": 426837,
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/imgui.h",
       "sha256": "12790cf3bd0a074893c74f6707fe4169038b42ed5e04c71e7e4bf5030fa1f0ba"
-    },
-    {
-      "bytes": 5597,
-      "mode": "100644",
-      "path": "Reports/LIVE_CLI_2026-10-07.md",
-      "sha256": "e9d9cd1b67e13b36849941534ba8f4f3a59415738072d993d070901240fa4785"
     },
     {
       "bytes": 18483,
@@ -695,6 +695,12 @@
       "sha256": "024fcfcbab33ac57f11862a961629bae0c73d204d9d220f2a7d2046aebdfa08e"
     },
     {
+      "bytes": 2707,
+      "mode": "100644",
+      "path": "tests/test_phone_menu.py",
+      "sha256": "b8144edafd209f4fa070c960053db853eddd11e65aad4370506329f91e0f97a6"
+    },
+    {
       "bytes": 20346,
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/imstb_rectpack.h",
@@ -707,16 +713,16 @@
       "sha256": "e420d5e25cb9b01598c510298dbbb294690b07c39ebc315323a53ef04a716335"
     },
     {
-      "bytes": 85370,
+      "bytes": 19758,
       "mode": "100644",
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "21796d66087a10f4e48afb7c2ad81c4e01c6558d7f9d6fe8e51420b79ea0e78f"
+      "path": "tools/reusable_profile.py",
+      "sha256": "7878de5a390776be438b50db009836872a84281c6eda0864f28027b4150efed4"
     },
     {
-      "bytes": 8486,
+      "bytes": 4819,
       "mode": "100644",
-      "path": "Source/apex_core/overlay_loader.py",
-      "sha256": "ae2e98d272d17a1aa960b1f79d31c3e5e002f4937c21112723363d29e9bff407"
+      "path": "tests/test_overlay_loader.py",
+      "sha256": "cee90af0e8a95ed3072ed08f9b64b54cac8c04cbeb90aa875b34614d88f2d976"
     },
     {
       "bytes": 2502,
@@ -767,6 +773,12 @@
       "sha256": "e70ad5b9a63a7eb8f1744e09665efd6c683a26e38e1a5b85c6e580266b0001fe"
     },
     {
+      "bytes": 5569,
+      "mode": "100644",
+      "path": "Source/apex_core/form_appearance.py",
+      "sha256": "789b6b1f2e4d0d2cc947215db276536eabe3be090424d1886683d8f2e58fbf02"
+    },
+    {
       "bytes": 7257,
       "mode": "100644",
       "path": "Reports/Apex-V9.3-Above-Beyond-Code-Audit.md",
@@ -815,16 +827,34 @@
       "sha256": "53d134b6b12484d3164268d134225c31780b25635b5d28caa79f1b55212fa06e"
     },
     {
+      "bytes": 8393,
+      "mode": "100644",
+      "path": "tools/candidate_install.py",
+      "sha256": "101f127b926af572963b165d983dc8ff5b89f12d2e0857577cff25716ad0e0ed"
+    },
+    {
       "bytes": 9066,
       "mode": "100644",
       "path": "tools/game_launch.py",
       "sha256": "ad5c82a5b45fbfc1cc88ceb5273c508d92d0ccd51c4ceaa815f4677fc9523856"
     },
     {
+      "bytes": 65790,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "e837269dde355edd9948ce284e906edc79100bddde4985a1650b46f52c9c862a"
+    },
+    {
       "bytes": 16763,
       "mode": "100644",
       "path": "tools/test_profile.py",
       "sha256": "baa736e158985d162e690953c57450d4d3f733df4195757580319474166399c3"
+    },
+    {
+      "bytes": 6186,
+      "mode": "100644",
+      "path": "tools/verify_overlay_sidecar.py",
+      "sha256": "cef0ad03ffcf79eedab7ced75bb445d7475e7b4cd679ba8e4e237a45555f4e1f"
     },
     {
       "bytes": 4528,
@@ -851,10 +881,22 @@
       "sha256": "1ab7e62bbe1f7aefbe70b7b2a58b7f7cfed7000a6a9b70a2842c1f1671c28189"
     },
     {
+      "bytes": 7202,
+      "mode": "100644",
+      "path": "Source/apex_core/phone_interactions.py",
+      "sha256": "fd94e0fb3d9e404d016d753fff7519c16003e9f04b349e1318b7198db45c5bf9"
+    },
+    {
       "bytes": 2516,
       "mode": "100644",
       "path": "docs/UPSTREAM_1.13.7_DELTA.md",
       "sha256": "624e5cb8e8c0338ac0ecd04a8af424a7025cd3f336ac5820d33e07b4c92586f4"
+    },
+    {
+      "bytes": 5459,
+      "mode": "100644",
+      "path": "Source/apex_core/sim_data.py",
+      "sha256": "e82260f1aef92190a070cea76dbd63c3cfef33689f40297b83c03290eb19794e"
     },
     {
       "bytes": 7920,
@@ -899,12 +941,6 @@
       "sha256": "341e5a7656be0079e1aac3203d18eaea224d5a0f2b655fa88851a5f4f8c714ff"
     },
     {
-      "bytes": 10962,
-      "mode": "100644",
-      "path": "docs/CANDIDATE_INSTALL_AND_TEST.md",
-      "sha256": "9cd9139a1e261f3a9324b83484fbd96894b9415db036cdd836d67ebf50ed7403"
-    },
-    {
       "bytes": 51651,
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_win32.cpp",
@@ -945,12 +981,6 @@
       "mode": "100644",
       "path": "Reports/ImGui-DX11-Overlay-Validation-V5.txt",
       "sha256": "11ce88439fb1ea5555cd194f4a5ea2215109fee461a93b65766830a8a9717ef8"
-    },
-    {
-      "bytes": 2534,
-      "mode": "100644",
-      "path": "tests/test_phone_menu.py",
-      "sha256": "b3c090888bb07847f492522de5f47346c15499dde5b23484c4c590da4e867e31"
     },
     {
       "bytes": 11266,
@@ -995,6 +1025,12 @@
       "sha256": "5990915130f37b98109a8501c8212e90aac2b75717afe712b269ab08c1ede22f"
     },
     {
+      "bytes": 23101,
+      "mode": "100644",
+      "path": "tools/apex_cli.py",
+      "sha256": "7276634162e3c6004d8d95d39e66972bb48061f7aa015046c72ea6126d57a60c"
+    },
+    {
       "bytes": 199503,
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/imstb_truetype.h",
@@ -1007,16 +1043,16 @@
       "sha256": "e99aa4997bda14b534c614c3d8cb78a72c4aca91a1212c8b03ec605d1d75e36e"
     },
     {
-      "bytes": 6715,
-      "mode": "100644",
-      "path": "Source/apex_core/phone_interactions.py",
-      "sha256": "0afddd50bf8381c8e5fb02978e4dfcb4be366aa6eb55455dd4de2c4b21f31fc4"
-    },
-    {
       "bytes": 8755,
       "mode": "100644",
       "path": "tools/build_candidate.py",
       "sha256": "68224b8619ed26e1940e2f2fced88c5fd1a844f8c53bc6c48998e34c8a10e3b7"
+    },
+    {
+      "bytes": 3064,
+      "mode": "100644",
+      "path": "tools/game_capture.py",
+      "sha256": "1922b223e98d87171f4d87a6b85e0270638aac041330b29fe1e407a68949f109"
     },
     {
       "bytes": 215,
@@ -1037,6 +1073,12 @@
       "sha256": "2e5e66b707ecc05e3db478da6eed143fa8fce21bedef86858c1d872780b058e7"
     },
     {
+      "bytes": 2824,
+      "mode": "100644",
+      "path": "tests/test_sim_data.py",
+      "sha256": "d84134d14790a7a9c292e37fc3a8bfbaf046b9f9f01cb15591cbd7a9a526c601"
+    },
+    {
       "bytes": 1370,
       "mode": "100644",
       "path": ".github/workflows/validate.yml",
@@ -1047,6 +1089,12 @@
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/docs/FAQ.md",
       "sha256": "d527123e125fc1a23fc5dee5777c4d921d7ee307246d62b0739f042c96050d10"
+    },
+    {
+      "bytes": 10779,
+      "mode": "100644",
+      "path": "Source/apex_core/overlay_loader.py",
+      "sha256": "909dfb010c7ede3ff7ffe8a4e8fb84c1ac0ca58a369b30e5f8e58f9843569e2e"
     },
     {
       "bytes": 868,
@@ -1077,6 +1125,18 @@
       "mode": "100644",
       "path": "NativeOverlay/install_to_game_bin.ps1",
       "sha256": "7458c8ab56a92afeb5bff57cdb9aca25a70826a477da8b8d6f267215963b0f2c"
+    },
+    {
+      "bytes": 1879,
+      "mode": "100644",
+      "path": "tests/test_native_controls.py",
+      "sha256": "0b7ae0ecb15fe41e1a550d818fe38551b2356f8e0822b78051c57d1e70b24516"
+    },
+    {
+      "bytes": 89967,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "36d502470725661cff66e45229e10bd435068a0567cb80a04ada161b2a75d51e"
     }
   ]
 }

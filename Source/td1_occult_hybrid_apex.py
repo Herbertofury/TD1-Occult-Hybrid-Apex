@@ -203,7 +203,8 @@ _GAMEPLAY_REMOVE_LOOTS = {
 
 _SIMINFO_COPY_ATTRS = (
     'physique', 'facial_attributes', 'voice_pitch', 'voice_actor', 'voice_effect',
-    'skin_tone', 'flags', 'pelt_layers', 'base_trait_ids', 'genetic_data',
+    'skin_tone', 'skin_tone_val_shift', 'flags', 'pelt_layers', 'base_trait_ids', 'genetic_data',
+    'custom_texture', 'parts_custom_tattoos',
 )
 
 _SPECIAL_OCCULT_NAME_ORDER = (
@@ -2273,7 +2274,10 @@ def _restore_siminfo_payload(sim_info, data):
         try:
             if isinstance(value, tuple) and len(value) == 2 and value[0] == 'protobuf':
                 target_value = getattr(sim_info, attr)
-                if hasattr(target_value, 'MergeFromString'):
+                if hasattr(target_value, 'ParseFromString'):
+                    target_value.ParseFromString(value[1])
+                elif hasattr(target_value, 'Clear') and hasattr(target_value, 'MergeFromString'):
+                    target_value.Clear()
                     target_value.MergeFromString(value[1])
                 else:
                     setattr(sim_info, attr, value[1])
@@ -4501,8 +4505,15 @@ def _handle_http_client(conn):
             identity = runtime_identity(__file__)
             conn.sendall(_http_payload(dict(identity, ok=True, build_version=_BUILD_VERSION,
                 alarm_ready=_ALARM_READY, bootstrap_status=_APEX_BOOTSTRAP_STATUS,
+                native_cli_available=True,
                 core_tick_ready=_APEX_CORE_TICK_READY, core_ticks=_APEX_CORE_TICKS,
                 queue=_APEX_COMMANDS.metrics(), sim_data_read=False)))
+            return
+        if path == '/api/native':
+            from apex_core.native_controls import dispatch
+            import sys
+            payload = dispatch(sys.modules[__name__], query.get('action'), query.get('value'), query.get('request_id'))
+            conn.sendall(_http_payload(payload))
             return
         if path == '/api/requests/status':
             conn.sendall(_http_payload(_APEX_COMMANDS.status(query.get('request_id', ''))))
@@ -8204,6 +8215,13 @@ def run_action(action, sim_id=None, occult=None, value=None):
             return dispatch(sys.modules[__name__], action, sim_id, value)
         except Exception as exc:
             return {'ok': False, 'message': str(exc), 'traceback': traceback.format_exc()}
+    if action in ('werewolf_human_status', 'werewolf_human_on', 'werewolf_human_off'):
+        from apex_core.human_werewolf import dispatch
+        import sys
+        try:
+            return dispatch(sys.modules[__name__], _get_sim_info_by_id(sim_id), action)
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
     if action in ('studio_status', 'studio_history', 'studio_checkpoint', 'studio_recover',
                   'studio_color_copy', 'studio_color_preview', 'studio_cancel',
                   'studio_color_inspect', 'studio_color_edit',
@@ -8267,7 +8285,8 @@ def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.
     safe_action = (action or 'status').strip().lower()
     if request_id is not None and (len(request_id) != 32 or any(c not in '0123456789abcdef' for c in request_id)):
         return {'ok': False, 'state': 'rejected', 'message': 'Invalid command request identity.'}
-    if not _ALARM_READY and not (_APEX_CORE_TICK_READY and safe_action == 'test_quit'):
+    if not _ALARM_READY and not (_APEX_CORE_TICK_READY and safe_action in (
+            'test_quit', 'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start')):
         return {'ok': False, 'state': 'rejected', 'message':
                 'Game-thread bridge is not ready. Load a disposable household or run apex.bridge.start from the game console.',
                 'bootstrap_status': _APEX_BOOTSTRAP_STATUS}

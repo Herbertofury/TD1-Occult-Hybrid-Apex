@@ -70,6 +70,8 @@ static std::atomic<bool> g_visible{false};
 static std::atomic<bool> g_done{false};
 static std::atomic<bool> g_workerActive{false};
 static std::atomic<int> g_captureRequest{0}; // 1 face, 2 body, 3 full
+static std::atomic<int> g_captureCompleted{0};
+static std::atomic<int> g_toggleEvents{0};
 static HWND g_hwnd = nullptr;
 static IDXGISwapChain* g_swapChain = nullptr; // identity only; owned by the caller
 static std::recursive_mutex g_renderMutex;
@@ -475,7 +477,8 @@ static std::string TimestampName(const char* mode) {
     std::tm tm{};
     localtime_s(&tm, &t);
     std::ostringstream ss;
-    ss << ScreenshotFolder() << "\\TD1Apex_" << mode << "_" << std::put_time(&tm, "%Y%m%d_%H%M%S") << ".bmp";
+    ss << ScreenshotFolder() << "\\TD1Apex_" << mode << "_" << std::put_time(&tm, "%Y%m%d_%H%M%S")
+       << "_" << GetTickCount64() << ".bmp";
     return ss.str();
 }
 
@@ -485,6 +488,11 @@ static bool SaveBackbufferBmp(IDXGISwapChain* sc, int mode) {
     if (FAILED(sc->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer))) || !backBuffer) return false;
     D3D11_TEXTURE2D_DESC desc{};
     backBuffer->GetDesc(&desc);
+    const bool rgba = desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM || desc.Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+    const bool bgra = desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+    if ((!rgba && !bgra) || !desc.Width || !desc.Height || desc.Width > 8192 || desc.Height > 8192) {
+        backBuffer->Release(); return false;
+    }
     ID3D11Texture2D* sourceTex = backBuffer;
     ID3D11Texture2D* resolveTex = nullptr;
     D3D11_TEXTURE2D_DESC readableDesc = desc;
@@ -527,7 +535,6 @@ static bool SaveBackbufferBmp(IDXGISwapChain* sc, int mode) {
     f.put('B'); f.put('M'); WriteLE32(f, fileSize); WriteLE16(f, 0); WriteLE16(f, 0); WriteLE32(f, 54);
     WriteLE32(f, 40); WriteLE32(f, static_cast<uint32_t>(cw)); WriteLE32(f, static_cast<uint32_t>(-ch)); WriteLE16(f, 1); WriteLE16(f, 24); WriteLE32(f, 0); WriteLE32(f, pixelDataSize); WriteLE32(f, 2835); WriteLE32(f, 2835); WriteLE32(f, 0); WriteLE32(f, 0);
     std::vector<unsigned char> row(static_cast<size_t>(rowBytes), 0);
-    bool bgra = (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB);
     for (int yy = 0; yy < ch; ++yy) {
         const unsigned char* src = static_cast<const unsigned char*>(mapped.pData) + (y + yy) * mapped.RowPitch + x * 4;
         std::fill(row.begin(), row.end(), static_cast<unsigned char>(0));
@@ -542,10 +549,14 @@ static bool SaveBackbufferBmp(IDXGISwapChain* sc, int mode) {
         }
         f.write(reinterpret_cast<const char*>(row.data()), rowBytes);
     }
+    f.flush();
+    const bool written = f.good();
     g_context->Unmap(copyTex, 0);
     copyTex->Release();
     if (resolveTex) resolveTex->Release();
     backBuffer->Release();
+    if (!written) return false;
+    ++g_captureCompleted;
     {
         std::lock_guard<std::mutex> lock(g_dataMutex);
         g_status = std::string("Saved reference screenshot: ") + path;
@@ -695,6 +706,11 @@ static void DrawFormsTab() {
     DrawOccultCards("generate_form", "Generate", "delete_form", "Delete", "copy_human_to_form", "Human -> Form", "copy_current_to_form", "Current -> Form");
     ImGui::SeparatorText("Direct occult control");
     DrawOccultCards("add", "Add", "remove", "Remove", "switch", "Switch", "gameplay_add", "Gameplay Init");
+    ImGui::SeparatorText("Human-looking Werewolf");
+    ImGui::TextWrapped("Copy the Human look into the Werewolf appearance while keeping Werewolf gameplay. The original look is retained. Restore refuses to overwrite newer CAS edits.");
+    if (ImGui::Button("Use Human look")) QueueAction("werewolf_human_on");
+    ImGui::SameLine(); if (ImGui::Button("Restore original Werewolf look")) QueueAction("werewolf_human_off");
+    ImGui::SameLine(); if (ImGui::Button("Werewolf appearance status")) QueueAction("werewolf_human_status");
 }
 
 static void DrawSavedFormsTab() {
@@ -1195,14 +1211,18 @@ static void RenderOverlayFrame(IDXGISwapChain* sc) {
 #endif
     LoadOverlayConfig();
     const bool foreground = GetAncestor(GetForegroundWindow(), GA_ROOT) == GetAncestor(g_hwnd, GA_ROOT);
-    if (g_toggleInput.sample(foreground, (GetAsyncKeyState(g_toggleKey) & 0x8000) != 0))
+    if (g_toggleInput.sample(foreground, (GetAsyncKeyState(g_toggleKey) & 0x8000) != 0)) {
         g_visible = !g_visible.load();
+        ++g_toggleEvents;
+    }
+    if (g_captureRequest.load() && g_loaderStatus.load() >= 3) {
+        const int capture = g_captureRequest.exchange(0);
+        if (capture) SaveBackbufferBmp(sc, capture);
+    }
     if (g_visible.load()) {
         InitImGui(sc);
         if (g_device && g_context) {
             CreateRenderTarget(sc);
-            int capture = g_captureRequest.exchange(0);
-            if (capture != 0) SaveBackbufferBmp(sc, capture);
             ImGui_ImplDX11_NewFrame();
             ImGui_ImplWin32_NewFrame();
             ImGui::NewFrame();
@@ -1383,6 +1403,65 @@ static void HookFromDevice(ID3D11Device* device) {
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayProtocolVersion() { return 1; }
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayStatus() { return td1::g_loaderStatus.load(); }
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayRenderedFrames() { return td1::g_renderedFrames.load(); }
+extern "C" __declspec(dllexport) int WINAPI ApexOverlayVisible() { return td1::g_visible.load() ? 1 : 0; }
+extern "C" __declspec(dllexport) int WINAPI ApexOverlayToggleEvents() { return td1::g_toggleEvents.load(); }
+extern "C" __declspec(dllexport) int WINAPI ApexCaptureCompleted() { return td1::g_captureCompleted.load(); }
+extern "C" __declspec(dllexport) int WINAPI ApexCaptureFull() {
+    if (!td1::g_hooked.load() || td1::g_loaderStatus.load() < 3) return -1;
+    int idle = 0;
+    return td1::g_captureRequest.compare_exchange_strong(idle, 3) ? 0 : -2;
+}
+// Disposable-profile CLI input runs inside the already-authorized game. It
+// cannot address EA/UAC/another process, and stale viewport coordinates fail.
+extern "C" __declspec(dllexport) int WINAPI ApexGameInput(int command, int x, int y, int width, int height) {
+    std::lock_guard<std::recursive_mutex> renderLock(td1::g_renderMutex);
+    HWND hwnd = td1::g_hwnd;
+    DWORD owner = 0;
+    RECT rect{};
+    if (!td1::g_hooked.load() || !hwnd || !IsWindow(hwnd) || !IsWindowVisible(hwnd)) return -1;
+    GetWindowThreadProcessId(hwnd, &owner);
+    if (owner != GetCurrentProcessId() || GetAncestor(GetForegroundWindow(), GA_ROOT) != GetAncestor(hwnd, GA_ROOT)) return -2;
+    if (!GetClientRect(hwnd, &rect) || rect.right - rect.left != width || rect.bottom - rect.top != height) return -3;
+    if (command == 2) {
+        if (x != VK_F11 && x != VK_ESCAPE && x != VK_RETURN && x != VK_TAB && x != VK_SPACE) return -4;
+        // Do not hold renderLock while F11 is sampled on the render thread.
+        INPUT down{}; down.type = INPUT_KEYBOARD; down.ki.wVk = static_cast<WORD>(x);
+        if (SendInput(1, &down, sizeof(INPUT)) != 1) return -5;
+        // The matching release is scheduled by a short-lived game-owned worker;
+        // accepting the input does not claim the UI transition completed.
+        std::thread([key = static_cast<WORD>(x)] {
+            Sleep(80);
+            INPUT up{}; up.type = INPUT_KEYBOARD; up.ki.wVk = key; up.ki.dwFlags = KEYEVENTF_KEYUP;
+            SendInput(1, &up, sizeof(INPUT));
+        }).detach();
+        return 0;
+    }
+    if (command != 1 || x < 0 || y < 0 || x >= width || y >= height) return -4;
+    POINT point{x, y};
+    if (!ClientToScreen(hwnd, &point)) return -3;
+    const int left = GetSystemMetrics(SM_XVIRTUALSCREEN), top = GetSystemMetrics(SM_YVIRTUALSCREEN);
+    const int sw = GetSystemMetrics(SM_CXVIRTUALSCREEN), sh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    if (sw <= 1 || sh <= 1 || point.x < left || point.y < top || point.x >= left + sw || point.y >= top + sh) return -3;
+    INPUT input[3]{};
+    for (auto& event : input) event.type = INPUT_MOUSE;
+    input[0].mi.dx = MulDiv(point.x - left, 65535, sw - 1);
+    input[0].mi.dy = MulDiv(point.y - top, 65535, sh - 1);
+    input[0].mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+    input[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+    input[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+    // Sims polls mouse state between frames. An immediate down/up batch can
+    // move the cursor without ever delivering a held button to that poll.
+    if (SendInput(2, input, sizeof(INPUT)) != 2) {
+        SendInput(1, &input[2], sizeof(INPUT));
+        return -5;
+    }
+    std::thread([] {
+        Sleep(100);
+        INPUT up{}; up.type = INPUT_MOUSE; up.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+        SendInput(1, &up, sizeof(INPUT));
+    }).detach();
+    return 0;
+}
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayShow() {
     if (!td1::g_hooked.load()) return -1;
     td1::g_visible = true;

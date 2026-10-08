@@ -24,11 +24,14 @@ BUNDLE_PATHS = {
     'Apex/ApexColorStudio.package', 'Apex/ApexPlantSimPermanent.package',
     'Apex/ApexPlantSimNoVampireThirst.package', 'Apex/ApexServoNoVampireThirst.package',
 }
+MCCC_PATHS = {'MCCC/' + name for name in ('mc_cmd_center.package', 'mc_cmd_center.ts4script', 'mc_cas.ts4script', 'mc_dresser.ts4script')}
+MCCC_DATA = {'MCCC/' + name for name in ('mc_settings.cfg', 'mc_cas.cfg', 'mc_dresser.cfg', 'mc_cmd_center.log', 'mc_lastexception.html')}
 
 
 def artifact_relative(row):
     if 'relative' in row:
-        if row['relative'] not in BUNDLE_PATHS or row['name'] != Path(row['relative']).name:
+        valid_addon = row['relative'] in MCCC_PATHS and row.get('test_addon') == 'mccc-2026.5.0'
+        if (row['relative'] not in BUNDLE_PATHS and not valid_addon) or row['name'] != Path(row['relative']).name:
             raise ValueError('Bundle artifact is not an owned Apex mod location.')
         return row['relative']
     name = row['name']
@@ -106,7 +109,13 @@ def load(state):
     return state, data, profile, original
 
 
-def generated_data(path, relative):
+def generated_data(path, relative, mccc=False):
+    if mccc and relative in MCCC_DATA:
+        if path.stat().st_size > 16 * 1024 * 1024:
+            raise ValueError('MCCC generated data exceeds its bound.')
+        if relative.endswith('.cfg') and not isinstance(json.loads(path.read_text(encoding='utf-8-sig')), dict):
+            raise ValueError('MCCC settings must be JSON data.')
+        return True
     if relative != 'Apex/TD1_OccultHybrid_Settings.json':
         return False
     if path.stat().st_size > 65536 or not isinstance(json.loads(path.read_text(encoding='utf-8')), dict):
@@ -117,6 +126,7 @@ def generated_data(path, relative):
 def status(state, verify_original=False):
     state, data, profile, original = load(state)
     expected = {artifact_relative(row).casefold(): row for row in data['artifacts']}
+    mccc = any(row.get('test_addon') == 'mccc-2026.5.0' for row in data['artifacts'])
     artifacts, unexpected = [], []
     for directory, subdirs, files in os.walk(str(profile / 'Mods'), followlinks=False):
         for name in subdirs + files:
@@ -126,7 +136,7 @@ def status(state, verify_original=False):
             relative = path.relative_to(profile / 'Mods').as_posix()
             if relative.casefold() == 'resource.cfg':
                 continue
-            if generated_data(path, relative):
+            if generated_data(path, relative, mccc):
                 # The authorized hybrid module creates this exact configuration
                 # beside its script. It is data, not an additional loaded mod.
                 continue
@@ -288,7 +298,7 @@ def recover(state, guard=legacy.require_closed):
         writable(path)
         if not path.is_file() or path.relative_to(mods).as_posix().casefold() == 'resource.cfg':
             continue
-        if generated_data(path, path.relative_to(mods).as_posix()):
+        if generated_data(path, path.relative_to(mods).as_posix(), any(row.get('test_addon') == 'mccc-2026.5.0' for row in data['artifacts'] + data['pending_artifacts'])):
             continue
         if path.name == '.apex-stage-' + data['token'] and path.parent in {mods / Path(artifact_relative(row)).parent for row in data['pending_artifacts']}:
             continue

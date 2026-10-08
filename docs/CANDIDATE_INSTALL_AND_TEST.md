@@ -71,6 +71,8 @@ python tools/apex_cli.py game save --state .work/reusable-profile-session.json
 python tools/apex_cli.py game focus --state .work/reusable-profile-session.json
 python tools/apex_cli.py request overlay_show --state .work/reusable-profile-session.json
 python tools/apex_cli.py request overlay_status --state .work/reusable-profile-session.json
+python tools/apex_cli.py game capture --state .work/reusable-profile-session.json --output .work/cas-before.bmp
+python tools/apex_cli.py game all-data --state .work/reusable-profile-session.json --sim-id YOUR_TEST_SIM_ID --output .work/sim-complete-before.json
 ```
 
 The launcher selects the account's last successful Client Play content ID for
@@ -91,6 +93,21 @@ The repeatable `test color-cycle` and `test hybrid-cycle` commands require an
 explicit Sim ID and evidence filename outside both profiles. They unpause
 briefly to settle changes, record every request/observation, and leave paused.
 They never blindly repeat an unresolved mutation or replace earlier evidence.
+
+The new game-owned capture/input candidate adds `game key` (F11, Escape, Enter,
+Tab and Space) and `game click`, requiring the observed viewport dimensions.
+The native sidecar refuses input outside its own foreground game window and
+refuses stale coordinates. Inputs are submissions; captured frames and game
+data must prove the resulting UI state. These new controls require replacing
+the matching script/DLL while the game is closed and remain pending live proof.
+
+`game all-data` uses the exact game's full Sim save serializer, retaining native
+bytes and every declared schema field, even absent or apparently irrelevant
+fields. Runtime-only field coverage and complete owner editing remain open.
+The Human-looking Werewolf controls are in Phone → Apex Forms and F11 → Forms,
+or `request werewolf_human_on/off/status`. They copy appearance only, preserve
+the original Werewolf look, and refuse automatic restore over a later CAS edit.
+Visible human shape, gameplay and persistence still require the in-game test.
 
 ## Phone menu
 

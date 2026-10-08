@@ -34,7 +34,7 @@ def catalog(backend, sim_id, page):
              'CAS recovery shield: ' + ('On' if shield else 'Off'), 'SETTINGS_ENABLED' if shield else 'SETTINGS_DISABLED')]
     if page == 'forms':
         sim = backend._get_sim_info_by_id(sim_id)
-        choices = [('occult:switch:HUMAN', 'Switch to Human', 'MENU_PLACEHOLDER')]
+        choices = [('action:human', 'Switch to Human', 'MENU_PLACEHOLDER')]
         for name in ('ALIEN', 'VAMPIRE', 'MERMAID', 'WITCH', 'WEREWOLF', 'FAIRY'):
             occult = backend._occult_by_name(name)
             if occult is None:
@@ -42,6 +42,12 @@ def catalog(backend, sim_id, page):
             member = sim is not None and backend._has_occult(sim.occult_tracker, occult)
             choices.append(('occult:' + ('switch' if member else 'add') + ':' + name,
                             ('Switch to ' if member else 'Add ') + name.title(), 'MENU_PLACEHOLDER'))
+        wolf = backend._occult_by_name('WEREWOLF')
+        if sim is not None and wolf is not None and backend._has_occult(sim.occult_tracker, wolf):
+            choices.extend([
+                ('action:werewolf_human_status', 'Human-looking Werewolf status', 'MENU_UNKNOWN'),
+                ('action:werewolf_human_on', 'Use Human appearance in Werewolf form', 'SETTINGS_ENABLED'),
+                ('action:werewolf_human_off', 'Restore original Werewolf appearance', 'SETTINGS_DISABLED')])
         return choices
     if page == 'saved':
         return [('action:save_current_form', 'Capture current form', 'MENU_PLACEHOLDER'),

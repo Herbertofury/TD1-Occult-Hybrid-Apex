@@ -83,6 +83,14 @@ class OverlayLoaderTests(unittest.TestCase):
         self.assertFalse(result['ok'])
         self.assertIn('already loaded', result['message'])
 
+    def test_input_rejects_unbounded_or_malformed_values_before_native_binding(self):
+        with patch.object(loader, '_CALLS', object()), patch.object(loader, '_bind_input') as native:
+            for value in ({'arbitrary': 'function'}, {'command': 1, 'x': True, 'y': 0, 'width': 100, 'height': 100},
+                          {'command': 1, 'x': 0, 'y': 0, 'width': 8193, 'height': 100}):
+                with self.assertRaises(ValueError):
+                    loader.input_event(self.module, 'unused', value)
+            native.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

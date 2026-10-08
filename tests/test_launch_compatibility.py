@@ -33,7 +33,7 @@ class CompatibilityTests(unittest.TestCase):
 
     def test_crash_recovery_and_restore_are_exact_and_refuse_new_user_edits(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary) / 'GameInstall'
+            root = Path(temporary).resolve() / 'GameInstall'
             binary = root / 'Game' / 'Bin'
             binary.mkdir(parents=True)
             values = {}
@@ -66,7 +66,7 @@ class CompatibilityTests(unittest.TestCase):
 
     def test_never_overrides_manifest_privilege_requirement(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             binary = root / 'Game' / 'Bin'
             binary.mkdir(parents=True)
             for name in compatibility.EXECUTABLES:

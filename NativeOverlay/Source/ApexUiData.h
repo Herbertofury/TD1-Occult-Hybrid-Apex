@@ -12,6 +12,7 @@
 
 namespace td1::ui {
 using Json = nlohmann::json;
+inline constexpr size_t kMaxOwnerJsonBytes = 4 * 1024 * 1024;
 
 inline int32_t MetricHandleBits(uint64_t value) {
     // The C sidecar ABI returns signed int32 values. Windows HWND identity
@@ -31,7 +32,7 @@ inline int StudioOverlayTab(int request) {
 }
 
 inline Json ParseObject(const std::string& raw) {
-    if (raw.size() > 512 * 1024) return Json::object();
+    if (raw.size() > kMaxOwnerJsonBytes) return Json::object();
     try {
         auto result = Json::parse(raw, [](int depth, Json::parse_event_t, Json&) {
             if (depth > 32) throw std::runtime_error("Overlay JSON nesting exceeds its bound");
@@ -194,6 +195,134 @@ inline bool CasInt(const Json& value, int64_t minimum, int64_t maximum) {
     return number >= minimum && number <= maximum;
 }
 
+inline bool CasRequestIdentity(const Json& value) {
+    if (!value.is_string() || value.get_ref<const std::string&>().size() != 32) return false;
+    for (const auto c : value.get_ref<const std::string&>())
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+    return true;
+}
+
+inline bool CasNativePaneVisible(bool overlayVisible, bool nativeView, int tab) {
+    return overlayVisible && nativeView && (tab == 11 || tab == 12);
+}
+
+struct CasRefreshClock {
+    uint64_t lastAttemptMs = 0;
+    uint64_t backoffUntilMs = 0;
+    unsigned failures = 0;
+    bool unresolved = false;
+};
+
+inline bool CasRefreshDue(const CasRefreshClock& clock, uint64_t now, uint64_t snapshotMs,
+                          const std::string& sim, bool visible, bool enabled, bool busy, bool retainedRequest) {
+    if (!visible || !enabled || busy || retainedRequest || clock.unresolved ||
+        !ExactUint64Identity(Json(sim)) || now < clock.backoffUntilMs) return false;
+    const auto last = std::max(clock.lastAttemptMs, snapshotMs);
+    return !last || (now >= last && now - last >= 2000);
+}
+
+inline bool CasReadReconcileDue(const CasRefreshClock& clock, uint64_t now, const std::string& sim,
+                                bool visible, bool enabled, bool busy, const std::string& automaticReadId,
+                                const std::string& retainedId) {
+    return CasRequestIdentity(Json(automaticReadId)) && automaticReadId == retainedId &&
+        CasRefreshDue(clock, now, 0, sim, visible, enabled, busy, false);
+}
+
+inline void CasRefreshFailed(CasRefreshClock& clock, uint64_t now, bool unresolved = false) {
+    clock.failures = std::min(clock.failures + 1, 4u);
+    const auto delay = std::min<uint64_t>(5000ULL << (clock.failures - 1), 30000);
+    clock.backoffUntilMs = now > UINT64_MAX - delay ? UINT64_MAX : now + delay;
+    clock.unresolved = clock.unresolved || unresolved;
+}
+
+inline bool CasFreshNativePeer(const Json& diagnostic, const std::string& sim, uint64_t receivedMs, uint64_t now) {
+    // A global "some client connected" flag cannot authorize a selected Sim.
+    // Account for locally elapsed time as well as the server's heartbeat age.
+    if (!ExactUint64Identity(Json(sim)) || now < receivedMs || now - receivedMs > 3000 ||
+        !diagnostic.is_object() || !diagnostic.contains("ok") || diagnostic["ok"] != true ||
+        !diagnostic.contains("socket_transport") || !diagnostic["socket_transport"].is_object() ||
+        !diagnostic.contains("native_peers") || !diagnostic["native_peers"].is_array()) return false;
+    const auto& transport = diagnostic["socket_transport"];
+    if (!transport.contains("bound") || transport["bound"] != true || Scalar(transport, "host") != "127.0.0.1" ||
+        !transport.contains("port") || !CasInt(transport["port"], 8021, 8021)) return false;
+    for (const auto& peer : diagnostic["native_peers"]) {
+        if (!peer.is_object() || !peer.contains("sim_id") || !ExactUint64Identity(peer["sim_id"]) ||
+            Scalar(peer, "sim_id") != sim || !peer.contains("age_seconds") || !peer["age_seconds"].is_number()) continue;
+        const auto age = peer["age_seconds"].get<double>();
+        if (std::isfinite(age) && age >= 0 && age + (now - receivedMs) / 1000.0 <= 3.0) return true;
+    }
+    return false;
+}
+
+inline bool CasTransportIdle(const Json& diagnostic) {
+    if (!diagnostic.is_object() || !diagnostic.contains("requests") || !diagnostic["requests"].is_array()) return false;
+    for (const auto& request : diagnostic["requests"]) {
+        if (!request.is_object() || !request.contains("state") || !request["state"].is_string()) return false;
+        const auto state = Scalar(request, "state");
+        const bool expiredStatus = state == "superseded-read" && Scalar(request, "operation") == "status";
+        if (state != "completed" && state != "failed" && !expiredStatus) return false;
+        if (request.contains("outcome")) {
+            const auto outcome = Scalar(request, "outcome");
+            if (outcome != "completed" && outcome != "failed" && outcome != "live-return" && outcome != "accept-rejected" &&
+                !(expiredStatus && outcome == "superseded-read")) return false;
+        }
+        if (request.contains("commit_outcome")) {
+            const auto outcome = Scalar(request, "commit_outcome");
+            if (outcome != "accepted" && outcome != "rejected") return false;
+        }
+        const auto stage = Scalar(request, "lifecycle_stage");
+        if (stage == "accept-intent" || stage == "accept-unresolved") return false;
+    }
+    return true;
+}
+
+inline bool CasExplicitFailure(const Json& reply) {
+    return reply.contains("ok") && reply["ok"].is_boolean() && !reply["ok"].get<bool>() &&
+        Scalar(reply, "cas_request_state") == "failed";
+}
+
+inline bool CasCatalogMetadata(const Json& object) {
+    if (!object.contains("catalog_metadata")) return true; // Earlier cached client.
+    if (!object["catalog_metadata"].is_array() || object["catalog_metadata"].size() > 128 ||
+        !object.contains("catalog_metadata_complete") || !object["catalog_metadata_complete"].is_boolean() ||
+        Scalar(object, "catalog_metadata_scope") != "native-catalog-identities-only") return false;
+    std::vector<std::string> equipped, seen;
+    if (!object.contains("catalogs") || !object["catalogs"].is_array()) return false;
+    for (const auto& catalog : object["catalogs"]) if (catalog.contains("items") && catalog["items"].is_array())
+        for (const auto& item : catalog["items"]) if (item.contains("dataID") && item["dataID"].is_string()) equipped.push_back(Scalar(item, "dataID"));
+    for (const auto& row : object["catalog_metadata"]) {
+        if (!row.is_object() || !row.contains("data_id") || !ExactUint64Identity(row["data_id"])) return false;
+        const auto id = Scalar(row, "data_id");
+        if (std::find(equipped.begin(), equipped.end(), id) == equipped.end() ||
+            std::find(seen.begin(), seen.end(), id) != seen.end() ||
+            Scalar(row, "source") != "native:GetCatalogItem" || Scalar(row, "name_source") != "native:LocKey" ||
+            Scalar(row, "image_source") != "native:GetCatalogItem.image") return false;
+        seen.push_back(id);
+        const auto query = Scalar(row, "query"), nameQuery = Scalar(row, "name_query"), imageQuery = Scalar(row, "image_query");
+        if (query != "returned-value" && query != "returned-null" && query != "failed") return false;
+        if (!row.contains("name") || !row.contains("native_image_uri") || !row.contains("raw_json")) return false;
+        if (nameQuery == "localized-title") {
+            if (query != "returned-value" || !row["name"].is_string() || Scalar(row, "name").empty() || Scalar(row, "name").size() > 8192) return false;
+        } else if ((nameQuery != "empty-title" && nameQuery != "failed" && nameQuery != "unavailable") || !row["name"].is_null()) return false;
+        if (imageQuery == "native-uri") {
+            if (query != "returned-value" || !row["native_image_uri"].is_string() || Scalar(row, "native_image_uri").empty() || Scalar(row, "native_image_uri").size() > 2048) return false;
+        } else if (imageQuery != "not-returned" || !row["native_image_uri"].is_null()) return false;
+        if (query == "returned-value") {
+            const auto raw = Scalar(row, "raw_json");
+            if (!row["raw_json"].is_string() || raw.size() > 262144 || (raw != "{}" && ParseObject(raw).empty())) return false;
+        } else if (!row["raw_json"].is_null()) return false;
+    }
+    return true;
+}
+
+inline Json CasItemMetadata(const Json& object, const Json& item) {
+    if (!CasCatalogMetadata(object) || !object.contains("catalog_metadata") || !item.is_object() ||
+        !item.contains("dataID") || !item["dataID"].is_string()) return Json::object();
+    for (const auto& row : object["catalog_metadata"])
+        if (Scalar(row, "data_id") == Scalar(item, "dataID")) return row;
+    return Json::object();
+}
+
 inline bool CasDocument(const Json& object, const std::string& sim) {
     // Protocol 1 queries all 72 panels mapped by the pinned game build. An
     // omitted category is not an empty category. Unknown item fields survive
@@ -231,7 +360,27 @@ inline bool CasDocument(const Json& object, const std::string& sim) {
         if (presetQuery == "returned-value") { if (!catalog["preset"].is_object()) return false; }
         else if ((presetQuery != "returned-null" && presetQuery != "failed") || !catalog["preset"].is_null()) return false;
     }
-    return true;
+    return CasCatalogMetadata(object);
+}
+
+enum class CasReadResolution { Blocked, Pending, Completed, Failed, Expired };
+
+inline CasReadResolution ResolveCasRead(const Json& reply, const std::string& requestId, const std::string& sim) {
+    if (!reply.is_object() || !CasRequestIdentity(Json(requestId)) || !reply.contains("cas_request_id") ||
+        !CasRequestIdentity(reply["cas_request_id"]) || Scalar(reply, "cas_request_id") != requestId ||
+        (reply.contains("operation") && Scalar(reply, "operation") != "status")) return CasReadResolution::Blocked;
+    if (Scalar(reply, "lifecycle_stage") == "accept-intent" || Scalar(reply, "lifecycle_stage") == "accept-unresolved" ||
+        Scalar(reply, "commit_outcome") == "unresolved" || Scalar(reply, "cas_request_state") == "accept-intent" ||
+        Scalar(reply, "cas_request_state") == "accept-unresolved") return CasReadResolution::Blocked;
+    const auto outcome = Scalar(reply, "outcome");
+    if (outcome == "pending-client" && reply.contains("ok") && reply["ok"] == false) return CasReadResolution::Pending;
+    if (outcome == "superseded-read" && reply.contains("ok") && reply["ok"] == false) return CasReadResolution::Expired;
+    if (!outcome.empty() && outcome != "completed" && outcome != "failed") return CasReadResolution::Blocked;
+    if (Scalar(reply, "operation") != "status") return CasReadResolution::Blocked;
+    if (CasExplicitFailure(reply)) return CasReadResolution::Failed;
+    if (Scalar(reply, "cas_request_state") == "completed" && reply.contains("ok") && reply["ok"] == true &&
+        reply.contains("client") && CasDocument(reply["client"], sim)) return CasReadResolution::Completed;
+    return CasReadResolution::Blocked;
 }
 
 inline bool CasPresetAbsent(const Json& preset) {

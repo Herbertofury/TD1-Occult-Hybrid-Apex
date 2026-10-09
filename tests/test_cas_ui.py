@@ -141,6 +141,24 @@ class CasUiTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 cas_ui.submit('12',request,send=lambda _:self.fail('invalid request sent'))
 
+    def test_append_wire_placeholder_does_not_select_the_native_append_index(self):
+        # The caller supplies only a category. Native count determines the new
+        # slot; a one-slot category must accept exact evidence for appended 1.
+        request = {'operation':'outfit-add','category':0}
+        rid, wire = cas_ui.envelope('12', request)
+        self.assertEqual(wire.split('|')[2:6], ['outfit-add','0','0','0'])
+        client = self.client('12')
+        client['outfit_created'] = {'before_count':1,'after_count':2}
+        client['outfit']['outfit_index'] = 1
+        submitted = cas_ui.submit('12', request, send=lambda _: None)
+        cas_ui.receive(submitted['cas_request_id'], json.dumps({
+            'ok':True, 'protocol':1, 'cas_request_id':submitted['cas_request_id'],
+            'client':client}))
+        self.assertTrue(cas_ui.result(submitted['cas_request_id'])['ui_transition_verified'])
+        client['outfit']['outfit_index'] = 0
+        with self.assertRaisesRegex(ValueError, 'appended slot'):
+            cas_ui.validate_client(client, '12', request)
+
     def test_bounded_failure_ack_resolves_without_native_mutation_claim(self):
         submitted = cas_ui.submit('12', {'operation':'status'}, send=lambda _: None)
         rid = submitted['cas_request_id']
@@ -190,6 +208,22 @@ class CasUiTests(unittest.TestCase):
         self.assertEqual(row['outcome'], 'unresolved')
         self.assertEqual(sum(action=='cas_ui_request' for action, _ in calls), 1)
         self.assertTrue(all(action in ('cas_ui_request', 'cas_ui_result') for action, _ in calls))
+
+    def test_cli_accept_binds_household_and_missing_identity_never_transports(self):
+        calls = []
+        def request(state, action, sim=None, value=None):
+            calls.append((action, value))
+            if action == 'cas_ui_request': return {'cas_request_id': 'a' * 32}
+            return {'ok': True, 'outcome': 'accept-intent'}
+        args = argparse.Namespace(operation='accept', state=Path('state'), sim_id='12',
+                                  household_id='18446744073709551615', output=None, seconds=1)
+        execute(args, request)
+        self.assertEqual(json.loads(calls[0][1]), {
+            'operation': 'accept', 'household_id': '18446744073709551615'})
+        calls.clear(); args.household_id = None
+        with self.assertRaisesRegex(ValueError, 'original household identity'):
+            execute(args, request)
+        self.assertEqual(calls, [])
 
     def test_invalid_panel_and_missing_outfit_number_refuse_before_delivery(self):
         for req in ({'operation':'panel','panel':'execute-anything'},

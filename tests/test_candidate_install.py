@@ -107,6 +107,35 @@ class CandidateTests(unittest.TestCase):
         self.assertEqual(test_profile.inventory(self.profile), before)
         self.assert_preserved()
 
+    def test_candidate_replacement_preserves_exact_installed_cc_recipe(self):
+        import test_cc_addons
+        name = next(iter(test_cc_addons.ASSETS))
+        cc = self.profile/'Mods'/'ApexTest'/name; cc.write_bytes(b'DBPF verified CC fixture')
+        digest = sha256(cc)
+        journal = json.loads(self.state.read_bytes())
+        journal['artifacts'].append({'name': name, 'sha256': digest, 'source': str(cc),
+                                    'test_addon': test_cc_addons.ADDON})
+        write_json(self.state, journal)
+        with patch.dict(test_cc_addons.ASSETS, {name: digest}):
+            result = installer.install(self.state, self.bundle, guard=lambda: None)
+        self.assertTrue(result['ready_to_launch']); self.assertEqual(cc.read_bytes(), b'DBPF verified CC fixture')
+        self.assertTrue(any(row.get('test_addon') == test_cc_addons.ADDON
+            for row in json.loads(self.state.read_bytes())['artifacts']))
+        self.assert_preserved()
+
+    def test_changed_cc_recipe_cannot_be_accepted_by_candidate_replacement(self):
+        import test_cc_addons
+        name = next(iter(test_cc_addons.ASSETS))
+        cc = self.profile/'Mods'/'ApexTest'/name; cc.write_bytes(b'DBPF mismatched CC fixture')
+        journal = json.loads(self.state.read_bytes())
+        journal['artifacts'].append({'name': name, 'sha256': sha256(cc), 'source': str(cc),
+                                    'test_addon': test_cc_addons.ADDON})
+        write_json(self.state, journal)
+        before = test_profile.inventory(self.profile)
+        with self.assertRaisesRegex(ValueError, 'CC add-on recipe'):
+            installer.install(self.state, self.bundle, guard=lambda: None)
+        self.assertEqual(test_profile.inventory(self.profile), before); self.assert_preserved()
+
 
 if __name__ == '__main__':
     unittest.main()

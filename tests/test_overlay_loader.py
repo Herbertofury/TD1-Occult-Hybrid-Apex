@@ -115,6 +115,40 @@ class OverlayLoaderTests(unittest.TestCase):
         with patch.object(Native, 'CFuncPtr', Missing):
             self.assertEqual(loader._input_metrics(Native, 123), {'available': False})
 
+    def test_status_updates_startup_runtime_evidence_only_after_renderer_and_frame(self):
+        native = {'status': 2, 'frames': 0}
+        calls = {'ApexOverlayStatus': lambda: native['status'],
+                 'ApexOverlayRenderedFrames': lambda: native['frames'],
+                 'ApexOverlayVisible': lambda: 0, 'ApexOverlayToggleEvents': lambda: 0,
+                 'ApexCaptureCompleted': lambda: 0}
+        startup = {'ok': True, 'runtime_verified': False, 'message': 'F11 overlay hook is ready; press F11 in the game window.'}
+        with patch.object(loader, '_CALLS', calls), patch.object(loader, '_STATUS', startup):
+            status = loader.status()
+            self.assertFalse(status['runtime_verified'])
+            self.assertIn('visible overlay frame', status['message'])
+            native['status'] = 3
+            status = loader.status()
+            self.assertFalse(status['runtime_verified'])
+            self.assertIn('first submitted frame', status['message'])
+            native['frames'] = 7
+            status = loader.status()
+            self.assertTrue(status['runtime_verified'])
+            self.assertIn('UI actions require their own acknowledgements', status['message'])
+            native['status'] = 2  # Historical frames alone do not verify the current renderer.
+            self.assertFalse(loader.status()['runtime_verified'])
+        self.assertFalse(startup['runtime_verified'])  # No stale cached status is mutated.
+
+    def test_status_preserves_loader_failure_and_does_not_claim_unloaded_runtime(self):
+        failure = {'ok': False, 'message': 'F11 loader: build mismatch', 'runtime_verified': False}
+        with patch.object(loader, '_CALLS', None), patch.object(loader, '_STATUS', failure):
+            self.assertEqual(loader.status(), failure)
+        calls = {name: lambda: 3 for name in ('ApexOverlayStatus', 'ApexOverlayRenderedFrames',
+                    'ApexOverlayVisible', 'ApexOverlayToggleEvents', 'ApexCaptureCompleted')}
+        with patch.object(loader, '_CALLS', calls), patch.object(loader, '_STATUS', failure):
+            status = loader.status()
+            self.assertFalse(status['runtime_verified'])
+            self.assertEqual(status['message'], failure['message'])
+
 
 if __name__ == '__main__':
     unittest.main()

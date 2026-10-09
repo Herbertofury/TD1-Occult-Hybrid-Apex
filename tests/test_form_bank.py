@@ -38,6 +38,29 @@ class FormBankTests(unittest.TestCase):
     def begin(self):
         return form_bank.begin(self.backend, self.sim)
 
+    def test_native_serializer_side_effect_is_repaired_before_final_completed_receipt(self):
+        self.begin()
+        self.sim.physique = 'accepted Human edit'
+        calls = [0]
+        def serialize(_backend, _sim):
+            calls[0] += 1
+            if calls[0] == 2:
+                self.human.physique = 'native serializer shared rewrite'
+                self.vampire.blob = outfit(0, 999)
+                self.sim.physique = 'native active rewrite'
+            return {'native_base64': 'complete native serializer buffer'}
+        with patch.object(sim_data, 'snapshot', side_effect=serialize):
+            result = form_bank.finish(self.backend, self.sim)
+        self.assertTrue(result['ok'])
+        self.assertEqual(self.human.physique, 'accepted Human edit')
+        self.assertEqual(self.sim.physique, 'accepted Human edit')
+        self.assertEqual(self.vampire.blob, outfit(0, 2))
+        receipt = self.record()['history'][-1]
+        self.assertEqual(receipt['state'], 'completed')
+        self.assertTrue(receipt['final_native_appearance']['verified'])
+        self.assertEqual(set(receipt['final_native_appearance']['stored']), {'1', '4'})
+        self.assertIn('before final', receipt['native_after_scope'])
+
     def record(self):
         path, key = form_bank.context(self.backend, self.sim)
         return form_bank.load(path)['records'][key]
@@ -224,21 +247,25 @@ class FormBankTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'retained'):
             form_bank.begin(self.backend, self.sim)
 
-    def test_real_cas_changes_preserved_and_other_form_corruption_repaired(self):
-        before = appearance.evidence(self.backend, self.vampire)
+    def test_legacy_cas_retains_simultaneous_edits_instead_of_guessing_corruption(self):
         self.begin()
         self.sim.physique, self.sim.blob = 'CAS accepted shape', outfit(0, 99)
-        self.vampire.physique = 'CAS accidentally clobbered inactive form'
+        self.vampire.physique = 'CAS second deliberate edit or propagation: intent unknown'
         edited = appearance.evidence(self.backend, self.sim)
-        result = form_bank.finish(self.backend, self.sim)
-        self.assertTrue(result['edited'])
+        other = appearance.evidence(self.backend, self.vampire)
+        writes, _resends = self.observe_restore_writes()
+        with self.assertRaisesRegex(ValueError, 'another form'):
+            form_bank.finish(self.backend, self.sim)
+        self.assertEqual(writes, [])
         self.assertEqual(appearance.evidence(self.backend, self.sim), edited)
-        self.assertEqual(appearance.evidence(self.backend, self.vampire), before)
+        self.assertEqual(appearance.evidence(self.backend, self.vampire), other)
         self.assertEqual((self.sim.perks, self.sim.fury), ((10, 20), 45))
-        self.assertIsNone(self.record()['pending'])
-        self.assertIn('returned', self.record()['history'][0])
-        self.assertEqual(self.record()['history'][0]['native_returned']['native_base64'], 'complete native CAS accepted shape')
-        self.assertEqual(self.record()['history'][0]['native_after']['native_base64'], 'complete native CAS accepted shape')
+        pending = self.record()['pending']
+        self.assertIn('returned', pending)
+        self.assertEqual(pending['returned']['4'], appearance.packed(self.backend, self.vampire))
+        self.assertEqual(pending['returned']['1'], appearance.packed(self.backend, self.sim))
+        self.assertNotIn('native_returned', pending)
+        self.assertEqual(self.native_snapshot.call_count, 1)  # Only original legacy capture.
 
     def test_wrong_form_edit_retains_both_states_without_overwriting_or_guessing(self):
         self.sim.current_occult_types = 4
@@ -254,7 +281,7 @@ class FormBankTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Pending'):
             form_bank.switch(self.backend, self.sim, 4, lambda: self.fail('must not mutate'))
 
-    def test_switch_restores_every_accepted_byte_and_stale_restart_does_not_erase_bank(self):
+    def test_switch_restores_current_accepted_bytes_but_uncertified_restart_refuses_replay(self):
         self.begin()
         self.sim.physique = 'Accepted new Human'
         form_bank.finish(self.backend, self.sim)
@@ -270,9 +297,102 @@ class FormBankTests(unittest.TestCase):
         def human_switch():
             self.sim.current_occult_types = 1
             return {'ok': True}
-        self.assertTrue(form_bank.switch(self.backend, self.sim, 1, human_switch)['ok'])
-        self.assertEqual(appearance.evidence(self.backend, self.sim), accepted)
-        self.assertEqual(len(self.record()['restart_observations']), 1)
+        before = appearance.packed(self.backend, self.sim)
+        with patch('apex_core.form_bank_seal.current_runtime_bank_verified', return_value=False), self.assertRaisesRegex(ValueError, 'uncertified'):
+            form_bank.switch(self.backend, self.sim, 1, lambda: self.fail('uncertified native switch must not run'))
+        self.assertEqual(appearance.packed(self.backend, self.sim), before)
+        self.assertEqual(self.record(), data['records'][key])
+
+    def test_fresh_cas_checkpoint_replaces_lane_map_and_retains_prior_missing_owner_as_history(self):
+        self.begin(); form_bank.finish(self.backend, self.sim)
+        path, key = form_bank.context(self.backend, self.sim)
+        data = form_bank.load(path); old = data['records'][key]
+        old['bank']['16'] = appearance.packed(self.backend, self.vampire)
+        old['runtime_pid'] = -1
+        retained = json.loads(json.dumps(old['bank']))
+        form_bank.save(path, data)
+        self.human.physique = self.sim.physique = 'fresh native Human after reload'
+        self.begin()
+        pending = self.record()['pending']
+        self.assertTrue(pending['fresh_runtime_checkpoint'])
+        self.assertEqual(pending['prior_bank'], retained)
+        self.assertNotIn('16', pending['originals'])
+        self.sim.physique = 'fresh CAS accepted Human'
+        form_bank.finish(self.backend, self.sim)
+        final = self.record()
+        self.assertEqual(set(final['bank']), {'1', '4'})
+        self.assertEqual(final['history'][-1]['prior_bank'], retained)
+        self.assertNotIn(16, self.forms)
+        self.assertEqual(self.sim.physique, 'fresh CAS accepted Human')
+
+    def test_certified_current_runtime_switch_preserves_new_unsaved_source_appearance(self):
+        self.begin(); form_bank.finish(self.backend, self.sim)
+        path, key = form_bank.context(self.backend, self.sim)
+        data = form_bank.load(path); data['records'][key]['runtime_pid'] = -1
+        form_bank.save(path, data)
+        self.sim.physique = 'latest unsaved Human edit after certified reload'
+        source = appearance.packed(self.backend, self.sim)
+        def native_switch():
+            self.sim.current_occult_types = 4
+            self.sim.physique = 'native target shared rewrite'
+            return {'ok': True}
+        with patch('apex_core.form_bank_seal.current_runtime_bank_verified', return_value=True):
+            self.assertTrue(form_bank.switch(self.backend, self.sim, 4, native_switch)['ok'])
+        self.assertEqual(self.record()['bank']['1'], source)
+        self.assertEqual(self.sim.physique, self.vampire.physique)
+
+    def test_fresh_cas_hair_baseline_uses_current_originals_and_retains_old_policy(self):
+        self.native_hair_policy()
+        path, key = form_bank.context(self.backend, self.sim)
+        data = form_bank.load(path)
+        old = data['records'][key]
+        old['runtime_pid'] = -1
+        old['hair_policy']['forms']['1'][0]['id'] = 999999
+        old_policy = json.loads(json.dumps(old['hair_policy']))
+        current = outfit_hair.capture(self.backend, appearance.packed(self.backend, self.sim))
+        form_bank.save(path, data)
+        form_bank.begin(self.backend, self.sim, [0, 1])
+        self.assertEqual(self.record()['pending']['prior_hair_policy'], old_policy)
+        self.assertEqual(self.record()['hair_policy']['forms']['1'], current)
+
+    def test_explicit_one_lane_update_rebases_all_stale_lanes_before_current_pid_stamp(self):
+        self.begin(); form_bank.finish(self.backend, self.sim)
+        path, key = form_bank.context(self.backend, self.sim)
+        data = form_bank.load(path); data['records'][key]['runtime_pid'] = -1
+        old_bank = json.loads(json.dumps(data['records'][key]['bank']))
+        form_bank.save(path, data)
+        self.vampire.physique = 'Fresh reload Vampire must survive'
+        self.sim.physique = self.human.physique = 'Explicit current-runtime Human edit'
+        form_bank.update(self.backend, self.sim, 1, appearance.packed(self.backend, self.sim))
+        record = self.record()
+        self.assertTrue(record['native_rebase_requires_cas_completion'])
+        self.assertEqual(appearance.decode(record['bank']['4']['physique']), 'Fresh reload Vampire must survive')
+        self.assertEqual(record['bank_rebase_history'][-1]['prior_bank'], old_bank)
+        def native_switch():
+            self.sim.current_occult_types = 4
+            self.sim.physique, self.sim.blob = self.vampire.physique, self.vampire.blob
+            return {'ok': True}
+        self.assertTrue(form_bank.switch(self.backend, self.sim, 4, native_switch)['ok'])
+        self.assertEqual(self.sim.physique, 'Fresh reload Vampire must survive')
+        self.assertEqual(self.vampire.physique, 'Fresh reload Vampire must survive')
+        self.begin(); form_bank.finish(self.backend, self.sim)
+        self.assertFalse(self.record()['native_rebase_requires_cas_completion'])
+
+    def test_prior_or_unknown_pending_runtime_cannot_finish_or_touch_native_appearance(self):
+        self.begin()
+        path, key = form_bank.context(self.backend, self.sim)
+        for prior in (-1, None, True):
+            data = form_bank.load(path); data['records'][key]['pending']['runtime_pid'] = prior
+            form_bank.save(path, data)
+            original_file = path.read_bytes()
+            self.human.physique = self.sim.physique = 'fresh reload Human'
+            self.vampire.physique = 'fresh reload Vampire'
+            fields = appearance.packed(self.backend, self.sim)
+            with self.subTest(pid=prior), self.assertRaisesRegex(ValueError, 'another or unknown runtime'):
+                form_bank.finish(self.backend, self.sim)
+            self.assertEqual(path.read_bytes(), original_file)
+            self.assertEqual(appearance.packed(self.backend, self.sim), fields)
+            self.assertEqual(self.vampire.physique, 'fresh reload Vampire')
 
     def test_interrupted_restore_preserves_edits_and_refuses_second_transition(self):
         self.begin()

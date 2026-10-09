@@ -91,14 +91,27 @@ def slider_metadata(raw):
 
 
 def effective_metadata(backend, part_id):
+    if type(part_id) is not int or not 0 < part_id <= 0xffffffffffffffff:
+        raise ValueError('An exact nonzero CAS part instance is required.')
+    resource_tgi = None
     provider = getattr(backend, '_studio_casp_bytes', None)
     if provider is not None:
         raw = provider(part_id)
     else:
         from sims4 import resources
         key = resources.get_resource_key(part_id, resources.Types.CASPART)
+        values = (getattr(key, 'type', None), getattr(key, 'group', None), getattr(key, 'instance', None))
+        if (any(type(value) is not int for value in values) or
+                not 0 <= values[0] <= 0xffffffff or not 0 <= values[1] <= 0xffffffff or
+                not 0 < values[2] <= 0xffffffffffffffff or
+                values[0] != resources.Types.CASPART or values[2] != part_id):
+            raise ValueError('The native CASP resource key has an invalid type/group/instance identity.')
+        resource_tgi = '{:08X}:{:08X}:{:016X}'.format(*values)
         value = resources.ResourceLoader(key).load_raw(silent_fail=True)
         if value is None:
             raise ValueError('The effective CAS part resource could not be read.')
         raw = bytes(value)
-    return slider_metadata(raw)
+    metadata = slider_metadata(raw)
+    metadata['resource_tgi'] = resource_tgi
+    metadata['resource_key_query'] = 'native-key' if resource_tgi is not None else 'unavailable'
+    return metadata

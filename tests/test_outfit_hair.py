@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
 from apex_core import outfit_hair, studio, form_bank, form_appearance as appearance
+from apex_core.dresser_parts import read_rows
 import test_studio
 
 
@@ -116,6 +117,142 @@ class NativeHairPreparationTests(unittest.TestCase):
                 outfit_hair.independent_style_fields(self.backend, self.fields)
 
 
+class NativeHairTargetReconciliationTests(unittest.TestCase):
+    def setUp(self):
+        self.parse = native_outfit_parser()
+        self.backend = Obj(_studio_parse_snapshot=self.parse,
+                           _v8_resolve_body_type=lambda value: (2 if value == 'HAIR' else 75, {}, 'native-fixture'))
+        self.original = native_outfit_fields(self.parse)
+        message = self.parse(appearance.decode(self.original['__outfits__'])[1])
+        for index, outfit in enumerate(message.outfits):
+            # Keep an unrelated clothing row alongside hair and color override.
+            outfit.parts.ids.append(90000 + index)
+            outfit.body_types_list.body_types.append(9)
+            outfit.part_shifts.color_shift.append(2**64 - 1000 - index)
+            outfit.object_ids.object_id.append(80000 + index)
+            outfit.layer_ids.layer_id.append(19)
+        self.original['__outfits__'] = appearance.encode(('protobuf', message.SerializeToString()))
+        self.held = outfit_hair.capture(self.backend, self.original)
+        for index, outfit in enumerate(message.outfits):
+            outfit.parts.ids[0] = 2**64 - 100 - index
+            outfit.parts.ids[1] = 70000 + index
+            outfit.part_shifts.color_shift[0] = 2**64 - 200 - index
+            outfit.part_shifts.color_shift[1] = 2**63 + index
+            outfit.object_ids.object_id[0] = 2**64 - 300 - index
+            outfit.layer_ids.layer_id[0] = 30 + index
+            outfit.parts.ids[2] = 95000 + index  # Legitimate unrelated CAS edit.
+            outfit.title = 'Edited outfit ' + str(index)
+        self.returned = copy.deepcopy(self.original)
+        self.returned['__outfits__'] = appearance.encode(('protobuf', message.SerializeToString()))
+        self.returned['skin_tone'] = appearance.encode(111111)
+        self.record = {'hair_policy': {'enabled': True, 'forms': {'32': self.held}}}
+
+    def targets(self, keys, lane='32'):
+        held = {(row['category'], row['ordinal']): row for row in self.held}
+        return {'schema': 1, 'lane': lane, 'targets': [
+                {'category': category, 'ordinal': ordinal, 'outfit_id': held[(category, ordinal)]['outfit_id']}
+                for category, ordinal in keys]}
+
+    def message(self, fields):
+        return self.parse(appearance.decode(fields['__outfits__'])[1])
+
+    def test_multiple_explicit_targets_across_category_and_ordinal_keep_exact_rows_without_accepting_propagation(self):
+        keys = {(0, 0), (0, 1), (1, 0)}
+        before_original, before_returned, before_record = copy.deepcopy(self.original), copy.deepcopy(self.returned), copy.deepcopy(self.record)
+        chosen = outfit_hair.accept_cas(self.backend, self.record, '32', self.returned, self.targets(sorted(keys)))
+        captured = outfit_hair.capture(self.backend, chosen)
+        propagated = outfit_hair.capture(self.backend, self.returned)
+        for held, current, accepted in zip(self.held, propagated, captured):
+            key = (held['category'], held['ordinal'])
+            self.assertEqual(accepted['hair'], current['hair'] if key in keys else held['hair'])
+            self.assertEqual(accepted['outfit_id'], held['outfit_id'])
+        self.assertTrue(all(row['hair'][0]['row']['color_shift'] > 2**53 for row in captured))
+        self.assertEqual(chosen['skin_tone'], self.returned['skin_tone'])
+        self.assertEqual(chosen['genetic_data'], self.returned['genetic_data'])
+        self.assertEqual((self.original, self.returned, self.record), (before_original, before_returned, before_record))
+        for returned, accepted, capture in zip(self.message(self.returned).outfits, self.message(chosen).outfits, captured):
+            key = (capture['category'], capture['ordinal'])
+            if key in keys:
+                self.assertEqual(accepted.SerializeToString(), returned.SerializeToString())
+            else:
+                self.assertEqual(read_rows(accepted)[2], read_rows(returned)[2])
+                # Clear only known array entries. Native unknown outfit fields,
+                # flags, title and message extensions must remain byte exact.
+                for item in (accepted, returned):
+                    del item.parts.ids[:]; del item.body_types_list.body_types[:]
+                    del item.part_shifts.color_shift[:]; del item.object_ids.object_id[:]; del item.layer_ids.layer_id[:]
+                self.assertEqual(accepted.SerializeToString(), returned.SerializeToString())
+        left, right = self.message(self.returned), self.message(chosen)
+        del left.outfits[:]; del right.outfits[:]
+        self.assertEqual(left.SerializeToString(), right.SerializeToString())
+
+    def test_preserved_single_target_cannot_bypass_replaced_native_outfit_uid(self):
+        message = self.message(self.returned)
+        message.outfits[1].outfit_id = 9999
+        returned = copy.deepcopy(self.returned)
+        returned['__outfits__'] = appearance.encode(('protobuf', message.SerializeToString()))
+        before = copy.deepcopy(returned)
+        with self.assertRaisesRegex(ValueError, 'Outfit identity changed'):
+            outfit_hair.accept_cas(self.backend, self.record, '32', returned, [0, 1])
+        self.assertEqual(returned, before)
+
+    def test_preserved_multiple_targets_cannot_bypass_reorder_or_deleted_selected_slot(self):
+        for change in ('reorder', 'delete'):
+            with self.subTest(change=change):
+                message = self.message(self.returned)
+                if change == 'reorder':
+                    first = copy.deepcopy(message.outfits[0]); second = copy.deepcopy(message.outfits[1])
+                    message.outfits[0].CopyFrom(second); message.outfits[1].CopyFrom(first)
+                else:
+                    del message.outfits[1]
+                returned = copy.deepcopy(self.returned)
+                returned['__outfits__'] = appearance.encode(('protobuf', message.SerializeToString()))
+                before = copy.deepcopy(returned)
+                with self.assertRaisesRegex(ValueError, 'identity changed|target outfit disappeared'):
+                    outfit_hair.accept_cas(self.backend, self.record, '32', returned, self.targets([(0, 1)]))
+                self.assertEqual(returned, before)
+
+    def test_wrong_lane_uid_and_missing_original_are_rejected_before_hair_is_reconciled(self):
+        invalid = [self.targets([(0, 1)], lane='4')]
+        wrong_uid = self.targets([(0, 1)]); wrong_uid['targets'][0]['outfit_id'] = '123'
+        missing = self.targets([(0, 1)]); missing['targets'][0]['ordinal'] = 2
+        invalid.extend((wrong_uid, missing))
+        for targets in invalid:
+            with self.subTest(targets=targets), self.assertRaisesRegex(ValueError, 'lane|original outfit identity'):
+                outfit_hair.accept_cas(self.backend, self.record, '32', self.returned, targets)
+        with self.assertRaisesRegex(ValueError, 'exact selected occult lane'):
+            outfit_hair.reconcile(self.backend, self.returned, self.held, preserve=self.targets([(0, 1)]))
+
+    def test_duplicate_or_coerced_targets_and_noncanonical_ids_never_turn_into_additional_intent(self):
+        invalid = []
+        duplicate = self.targets([(0, 1)]); duplicate['targets'].append(copy.deepcopy(duplicate['targets'][0])); invalid.append(duplicate)
+        for field, value in (('ordinal', True), ('category', '0'), ('outfit_id', int(self.held[0]['outfit_id'])),
+                             ('outfit_id', '0'), ('outfit_id', '01'), ('outfit_id', str(2**64))):
+            target = self.targets([(0, 1)]); target['targets'][0][field] = value; invalid.append(target)
+        for targets in invalid:
+            with self.subTest(targets=targets), self.assertRaises(ValueError):
+                outfit_hair.accept_cas(self.backend, self.record, '32', self.returned, targets)
+        for targets in ([True, 0], [0, '1'], [], {'schema': True, 'lane': '32', 'targets': []}):
+            with self.subTest(targets=targets), self.assertRaises(ValueError):
+                outfit_hair.accept_cas(self.backend, self.record, '32', self.returned, targets)
+
+    def test_duplicate_held_slot_refuses_instead_of_silently_overwriting_its_original(self):
+        record = copy.deepcopy(self.record)
+        record['hair_policy']['forms']['32'].append(copy.deepcopy(self.held[0]))
+        with self.assertRaisesRegex(ValueError, 'duplicates an outfit identity'):
+            outfit_hair.accept_cas(self.backend, record, '32', self.returned, [0, 1])
+
+    def test_disabled_policy_does_not_consume_or_guess_target_intent(self):
+        record = copy.deepcopy(self.record)
+        record['hair_policy']['enabled'] = False
+        self.assertIs(outfit_hair.accept_cas(self.backend, record, '32', self.returned, None), self.returned)
+
+    def test_enabled_policy_missing_selected_lane_cannot_silently_accept_propagated_changes(self):
+        for lane in ('4', '032'):
+            with self.subTest(lane=lane), self.assertRaisesRegex(ValueError, 'no held hair wardrobe'):
+                outfit_hair.accept_cas(self.backend, self.record, lane, self.returned, self.targets([(0, 1)], lane=lane))
+
+
 class OutfitHairTests(unittest.TestCase):
     def setUp(self):
         test_studio.StudioTests.setUp(self)
@@ -157,6 +294,32 @@ class OutfitHairTests(unittest.TestCase):
         self.assertEqual((self.sim.skin_tone,self.sim.progression),(999,77))
         self.assertIn('Keep independent outfit hairstyle',self.request('studio_history')['history_nodes'][-1]['label'])
 
+    def test_prior_runtime_held_hair_cannot_run_automatic_repair_after_native_selection(self):
+        self.request('studio_hair_enable')
+        path, key = form_bank.context(self.backend, self.sim)
+        data = form_bank.load(path); data['records'][key]['runtime_pid'] = -1
+        form_bank.save(path, data)
+        bank_before = path.read_bytes()
+        self.change_all_hair(); native_before = self.sim.raw
+        with patch('apex_core.form_bank_seal.current_runtime_bank_verified', return_value=False):
+            self.assertFalse(outfit_hair.enforce(self.backend, self.sim))
+        self.assertEqual(self.sim.raw, native_before)
+        self.assertEqual(path.read_bytes(), bank_before)
+
+    def test_explicit_enable_after_restart_rebases_to_current_native_hair_and_retains_old_rows(self):
+        self.request('studio_hair_enable')
+        path, key = form_bank.context(self.backend, self.sim)
+        data = form_bank.load(path); data['records'][key]['runtime_pid'] = -1
+        prior = copy.deepcopy(data['records'][key]['hair_policy'])
+        form_bank.save(path, data)
+        self.change_all_hair()
+        native = outfit_hair.capture(self.backend, appearance.packed(self.backend, self.sim))
+        self.request('studio_hair_enable')
+        record = form_bank.load(path)['records'][key]
+        self.assertEqual(record['hair_policy']['forms']['32'], native)
+        self.assertEqual(record['bank_rebase_history'][-1]['prior_hair_policy'], prior)
+        self.assertFalse(outfit_hair.enforce(self.backend, self.sim))
+
     def test_accepted_live_hair_edit_updates_only_selected_number_and_survives_propagation(self):
         self.request('studio_hair_enable'); before=self.request('studio_status')
         preview=self.request('studio_part_preview',__import__('json').dumps(dict(target='0:7:0',source='1:7:0',
@@ -181,6 +344,9 @@ class OutfitHairTests(unittest.TestCase):
         self.assertEqual(self.sim.raw,appearance.decode(returned['__outfits__'])[1]) # Preview/repair planning is pure.
         with self.assertRaisesRegex(ValueError,'explicit CAS hair target'):
             outfit_hair.accept_cas(self.backend,record,'32',returned,None)
+        policy = outfit_hair.status(self.backend, self.sim)
+        self.assertFalse(policy['automatic_cas_intent_classification_supported'])
+        self.assertFalse(policy['durable_native_cas_intent_capture_supported'])
 
     def test_disabled_policy_and_unknown_outfit_identity_do_not_overwrite_new_wardrobe(self):
         self.request('studio_hair_enable');self.request('studio_hair_disable');self.change_all_hair()

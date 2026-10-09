@@ -8,11 +8,21 @@ import hashlib
 import json
 import os
 import copy
+import re
 from . import cas_catalog, color_shift, outfit_snapshot, form_appearance as appearance, form_bank, sim_record, outfit_hair
 from .change_journal import ChangeJournal, fingerprint, decoded
 from .dresser_parts import DresserParts, read_rows, write_rows, uint
 
 _COLOR_CLIPBOARD = None
+_ITEM_SHA = re.compile(r'[0-9a-f]{64}\Z')
+_ITEM_TGI = re.compile(r'034AEECB:[0-9A-F]{8}:([0-9A-F]{16})\Z')
+
+
+def _capture_native_record(backend, primary):
+    # Native serialization can rebuild hidden wardrobes. History observers
+    # must not call it while a raw CAS return awaits explicit decisions.
+    form_bank.assert_idle(backend, primary)
+    return sim_record.capture(backend, primary)
 
 
 def _normalize(backend, raw):
@@ -90,7 +100,7 @@ def _part_delta(backend, before, after):
     return {'part_changes': changes[:256], 'part_change_count': len(changes), 'part_changes_truncated': len(changes) > 256}
 
 
-def _context(backend, sim_id, form=None):
+def _context(backend, sim_id, form=None, history=True):
     sim = backend._get_sim_info_by_id(sim_id)
     if sim is None:
         raise ValueError('Select a live Sim first.')
@@ -99,31 +109,51 @@ def _context(backend, sim_id, form=None):
     persistence = backend.services.get_persistence_service()
     slot = persistence.get_save_slot_proto_buff()
     guid = persistence.get_save_slot_proto_guid()
-    if slot is None or guid is None or not int(guid) or not 0 < int(slot.slot_id) < 0xffffffff:
+    if slot is None or guid is None or not 0 < int(guid) < 1 << 64 or not 0 <= int(slot.slot_id) <= 0xffffffff:
         raise ValueError('Save this disposable game first so history has a stable save identity.')
+    stable_slot = 0 < int(slot.slot_id) < 0xffffffff
     primary = sim
     flags = backend._get_current_flags(primary) if form is None else int(form)
     inactive = flags != backend._get_current_flags(primary)
     native_target = None
+    source = 'Current live form'
     if inactive:
         path, key = form_bank.context(backend, primary)
-        stored = form_bank.load(path)['records'].get(key, {}).get('bank', {}).get(str(flags))
+        record = form_bank.load(path)['records'].get(key, {})
+        stored = (record.get('bank', {}).get(str(flags))
+                  if form_bank.current_runtime_authorized(backend, primary, record) else None)
         native_target = backend._form_map(primary.occult_tracker).get(backend._coerce_flags(flags))
+        source = 'Accepted independent appearance bank' if stored is not None else 'Native stored form'
         if stored is None and native_target is not None: stored = appearance.packed(backend, native_target)
         if stored is None: raise ValueError('No existing appearance owner for this form; no new form generated.')
         class StoredOwner: pass
         sim = StoredOwner(); sim._studio_fields = copy.deepcopy(stored)
     base_lane = '{}:{}:{}:{}'.format(int(guid), int(slot.slot_id), backend._sim_id(primary), flags)
+    if not stable_slot:
+        # CAS and native Resume temporarily report slot zero/the autosave
+        # sentinel. Keep their exact native GUID, Sim and form, with an
+        # explicit runtime lane. Never guess a disk slot or replay this lane
+        # after restart; the normal saved-slot history remains untouched.
+        base_lane += ':runtime-{}'.format(os.getpid())
     # Prior outfit-only history remains intact. It cannot truthfully restore
     # face/skin/genetics it never captured, so full appearance gets its own lane.
     lane = base_lane + ':full-appearance-v1'
     filename = hashlib.sha256(lane.encode('ascii')).hexdigest() + '.json'
-    journal = ChangeJournal(os.path.join(backend._data_directory(), 'CASHistory', filename), lane,
-                            capture_record=lambda: sim_record.capture(backend, primary))
-    legacy = os.path.join(backend._data_directory(), 'CASHistory', hashlib.sha256(base_lane.encode('ascii')).hexdigest() + '.json')
-    journal.legacy_available = os.path.isfile(legacy)
+    if history:
+        journal = ChangeJournal(os.path.join(backend._data_directory(), 'CASHistory', filename), lane,
+                                capture_record=lambda: _capture_native_record(backend, primary))
+        legacy = os.path.join(backend._data_directory(), 'CASHistory', hashlib.sha256(base_lane.encode('ascii')).hexdigest() + '.json')
+        journal.legacy_available = os.path.isfile(legacy)
+    else:
+        # Metadata pages need the exact native owner, not a potentially large
+        # persistent undo graph or full gameplay serialization on every chunk.
+        class ReadContext: pass
+        journal = ReadContext()
     journal.backend = backend
     journal.primary_sim, journal.form_flags, journal.inactive, journal.native_target = primary, flags, inactive, native_target
+    journal.appearance_source = source
+    journal.stable_save_slot_verified = stable_slot
+    journal.history_runtime_only = not stable_slot
     return sim, _state(backend, sim), journal, lane
 
 
@@ -210,8 +240,9 @@ def _form_inventory(backend, sim):
         fields[int(kind)] = (appearance.packed(backend, form), 'Native stored form')
     path, key = form_bank.context(backend, sim)
     record = form_bank.load(path)['records'].get(key, {})
-    for kind, stored in record.get('bank', {}).items():
-        fields[int(kind)] = (stored, 'Accepted independent appearance bank')
+    if form_bank.current_runtime_authorized(backend, sim, record):
+        for kind, stored in record.get('bank', {}).items():
+            fields[int(kind)] = (stored, 'Accepted independent appearance bank')
     fields[current] = (appearance.packed(backend, sim), 'Current live form')
     names = {1:'Human', 2:'Alien / disguise', 4:'Vampire', 8:'Mermaid', 16:'Spellcaster', 32:'Werewolf', 64:'Fairy'}
     result = []
@@ -245,6 +276,10 @@ def _response(journal, message, **extras):
     observations = [item for item in journal.data['operations'] if item['kind'] == 'observed-native-record']
     result = {'ok': True, 'native_observation_count': len(observations), 'message': message, 'history_nodes': timeline,
               'history_cursor': journal.data['cursor'], 'history_lane': journal.lane,
+              'runtime_pid': os.getpid(), 'inspected_form_flags': journal.form_flags,
+              'stable_save_slot_verified': journal.stable_save_slot_verified,
+              'history_runtime_only': journal.history_runtime_only,
+              'appearance_sha256': fingerprint(journal.appearance_reader()),
               'history_scope': 'Complete native Sim records tracked, including runtime-discovered schemas and unknown wire fields. Undo restores readable appearance fields/outfits; gameplay records are retained as evidence.',
               'legacy_outfit_history_retained': getattr(journal, 'legacy_available', False),
               'pending_preview': (pending or {}).get('id'), 'save_reload_verified': False}
@@ -270,6 +305,103 @@ def _current_outfit(sim, inventory):
         return None  # No fabricated current-outfit selection.
 
 
+def _items_response(backend, sim, before, journal, lane, value):
+    if not isinstance(value, str) or len(value) > 4096:
+        raise ValueError('Use a bounded explicit equipped-item page request.')
+    request = json.loads(value)
+    fields = {'lane', 'appearance_sha256', 'runtime_pid', 'cursor', 'limit', 'outfit_index'}
+    if not isinstance(request, dict) or set(request) != fields:
+        raise ValueError('Equipped-item page protocol differs.')
+    appearance_hash = fingerprint(before)
+    if (request['lane'] != lane or request['appearance_sha256'] != appearance_hash or
+            type(request['runtime_pid']) is not int or request['runtime_pid'] != os.getpid()):
+        raise ValueError('Sim/form/save, process or appearance changed; inspect again.')
+    cursor, limit, selected = request['cursor'], request['limit'], request['outfit_index']
+    if (type(cursor) is not int or not 0 <= cursor <= 16384 or type(limit) is not int or not 1 <= limit <= 8 or
+            selected is not None and (type(selected) is not int or not 0 <= selected < 128)):
+        raise ValueError('Use an exact nonnegative page cursor, limit one through eight and existing outfit index.')
+    # Parse the already captured, normalized state. Never call get_outfit(),
+    # which generates absent outfits in the current game Python contract.
+    raw = appearance.decode(_fields(before)['__outfits__'])[1]
+    parser = getattr(backend, '_studio_parse_snapshot', None)
+    if parser is not None: message = parser(raw)
+    else:
+        message = backend._V8_Outfits_pb2.OutfitList(); message.ParseFromString(raw)
+    if len(message.outfits) > 128 or selected is not None and selected >= len(message.outfits):
+        raise ValueError('Outfit inventory exceeds the bound or the requested owner is absent.')
+    page, total, ordinals = [], 0, {}
+    for outfit_index, outfit in enumerate(message.outfits):
+        category = int(outfit.category); ordinal = ordinals.get(category, 0)
+        ordinals[category] = ordinal + 1
+        if selected is not None and selected != outfit_index: continue
+        rows = read_rows(outfit)
+        for index, row in enumerate(rows):
+            if cursor <= total < cursor + limit:
+                page.append(dict(row, index=index, outfit_index=outfit_index, category=category,
+                    ordinal=ordinal, outfit_id=str(outfit.outfit_id),
+                    target='{}:{}:{}'.format(outfit_index, row['body_type'], index)))
+            total += 1
+            if total > 16384:
+                raise ValueError('Equipped-item inventory exceeds the bounded traversal; no rows were omitted.')
+    if cursor > total:
+        raise ValueError('Equipped-item page cursor exceeds the exact current inventory.')
+    parts = lane.split(':')
+    owner = {'runtime_pid': os.getpid(), 'sim_id': str(backend._sim_id(journal.primary_sim)),
+             'save_guid': parts[0], 'slot_id': int(parts[1]), 'form_flags': journal.form_flags}
+    items, resources = [], {}
+    inspections = 0
+    for row in page:
+        part_id = row.pop('id')
+        item = dict(row, cas_part_id=str(part_id), cas_part_hex='{:016X}'.format(part_id),
+            status='unresolved', reason=None, display_name=None, name_status='unresolved',
+            name_reason='Genuine CASP internal name is unavailable.', part_editor=None)
+        if part_id not in resources:
+            inspections += 1
+            try:
+                resources[part_id] = (cas_catalog.effective_metadata(backend, part_id), None)
+            except Exception as error:
+                resources[part_id] = (None, '{}: {}'.format(type(error).__name__, error)[:2048])
+        metadata, error = resources[part_id]
+        try:
+            if error: raise ValueError(error)
+            if type(metadata.get('body_type')) is not int or metadata['body_type'] != row['body_type']:
+                raise ValueError('Effective CASP body type differs from this exact equipped row.')
+            if not isinstance(metadata.get('resource_sha256'), str) or not _ITEM_SHA.fullmatch(metadata['resource_sha256']):
+                raise ValueError('Effective CASP bytes have no exact resource hash.')
+            name = metadata.get('part_name')
+            if isinstance(name, str) and name and len(name) <= 4096:
+                item.update(display_name=name, name_status='casp-internal-name', name_reason=None)
+            editor = dict(metadata, target=row['target'], cas_part_id=str(part_id), appearance_sha256=appearance_hash)
+            # Only primitive metadata crosses the transport/cache boundary.
+            item['part_editor'] = json.loads(json.dumps(editor, ensure_ascii=True, allow_nan=False))
+            tgi = metadata.get('resource_tgi')
+            match = _ITEM_TGI.fullmatch(tgi) if isinstance(tgi, str) else None
+            if metadata.get('resource_key_query') != 'native-key' or match is None or int(match.group(1), 16) != part_id:
+                raise ValueError('Native effective CASP type/group/instance is unavailable or differs.')
+            item['status'] = 'resolved'
+        except Exception as error:
+            item['reason'] = '{}: {}'.format(type(error).__name__, error)[:2048]
+        editor = item['part_editor'] or {}
+        binding = dict(owner, appearance_sha256=appearance_hash, outfit_index=row['outfit_index'],
+            outfit_id=row['outfit_id'], target=row['target'], body_type=row['body_type'], cas_part_id=str(part_id),
+            resource_tgi=editor.get('resource_tgi'), resource_sha256=editor.get('resource_sha256'))
+        item['cache_key'] = hashlib.sha256(json.dumps(binding, sort_keys=True, ensure_ascii=True,
+            allow_nan=False, separators=(',', ':')).encode('ascii')).hexdigest()
+        items.append(item)
+    next_cursor = cursor + len(items) if cursor + len(items) < total else None
+    result = {'ok': True, 'message': 'Exact equipped-item metadata page read.', 'owner': owner,
+        'runtime_pid': owner['runtime_pid'], 'history_lane': lane, 'appearance_sha256': appearance_hash,
+        'stable_save_slot_verified': journal.stable_save_slot_verified,
+        'history_runtime_only': journal.history_runtime_only,
+        'inspected_form_flags': journal.form_flags, 'current_form_flags': backend._get_current_flags(journal.primary_sim),
+        'appearance_source': journal.appearance_source, 'outfit_index': selected, 'cursor': cursor, 'limit': limit,
+        'total': total, 'next_cursor': next_cursor, 'complete': next_cursor is None,
+        'resource_inspection_count': inspections, 'items': items}
+    if len(json.dumps(result, ensure_ascii=True, allow_nan=False).encode('ascii')) > 500 * 1024:
+        raise ValueError('Equipped-item page exceeds the bounded transport response; no partial page returned.')
+    return result
+
+
 def dispatch(backend, action, sim_id, value):
     global _COLOR_CLIPBOARD
     form = None
@@ -279,9 +411,12 @@ def dispatch(backend, action, sim_id, value):
             if type(envelope['form']) is not int or not 0 < envelope['form'] < 1 << 32:
                 raise ValueError('Invalid explicit form owner.')
             form, value = envelope['form'], envelope['value']
-    sim, before, journal, lane = _context(backend, sim_id, form)
+    sim, before, journal, lane = _context(backend, sim_id, form, history=action != 'studio_items')
     primary, flags = journal.primary_sim, journal.form_flags
+    if action == 'studio_items':
+        return _items_response(backend, sim, before, journal, lane, value)
     read = lambda: _state(backend, sim)
+    journal.appearance_reader = read
     def write(raw):
         form_bank.assert_idle(backend, primary)
         prior = _packed(backend, sim)
@@ -320,10 +455,12 @@ def dispatch(backend, action, sim_id, value):
             rows = read_rows(outfit)
             lines.append('Outfit {} | category {} | ID {} | {} parts'.format(index, outfit.category, outfit.outfit_id, len(rows)))
         return _response(journal, 'Current-form outfit/history data read.', outfit_text='\n'.join(lines),
+            runtime_pid=os.getpid(),
             lane=lane, outfit_inventory=_outfit_inventory(backend, message),
             current_outfit_index=_current_outfit(primary, _outfit_inventory(backend, message)) if not journal.inactive else None,
             readable_appearance_fields=sorted(_fields(before)),
             current_form_flags=backend._get_current_flags(primary), inspected_form_flags=flags, stored_form_edit_supported=True,
+            appearance_source=journal.appearance_source,
             hair_policy=outfit_hair.status(backend, primary),
             form_inventory=_form_inventory(backend, primary) if hasattr(primary, 'occult_tracker') else [],
             category_catalog=_category_catalog(backend),
@@ -434,6 +571,7 @@ def dispatch(backend, action, sim_id, value):
         channels = {name: dict(bounds, value=values[name]) for name, bounds in metadata['ranges'].items()}
         editor = {'target': value, 'cas_part_id': str(row['id']), 'color_hex': '{:016X}'.format(row['color_shift']),
             'appearance_sha256': fingerprint(before), 'resource_sha256': metadata['resource_sha256'],
+            'resource_tgi': metadata['resource_tgi'], 'resource_key_query': metadata['resource_key_query'],
             'casp_version': metadata['version'], 'part_name': metadata['part_name'], 'channels': channels}
         return _response(journal, 'Read effective CASP slider bounds and exact Q14 values.', color_editor=editor)
     if action == 'studio_color_edit':

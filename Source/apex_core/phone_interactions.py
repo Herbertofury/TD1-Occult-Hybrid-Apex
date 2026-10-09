@@ -1,6 +1,7 @@
 """Extend the authorized TD1 phone picker with Apex's game-thread controls.
 
-Existing TD1 continuations, settings and packaged icons remain available.
+Verified TD1 settings and packaged icons remain available. Unsafe legacy CAS
+editing/cache restoration never delegates to the old mutation paths.
 Selections use the same canonical dispatcher as F11 and the CLI.
 """
 import json
@@ -10,6 +11,39 @@ from sims4.localization import LocalizationHelperTuning
 from sims4.utils import flexmethod
 from ui.ui_dialog_picker import BasePickerRow
 from ui.ui_dialog_notification import UiDialogNotification
+
+_LEGACY_RESTORE = 14750162471935511872
+_LEGACY_CAS_EDIT = 14551493822752611098
+# Verified native tuning references. Unknown/mixed continuations are never
+# accepted merely because their first row resembles a harmless navigation.
+_LEGACY_VERIFIED = {_LEGACY_RESTORE, _LEGACY_CAS_EDIT, 18005779871921288443,
+    10500364228855805156, 16827766500387554810, 12059503387640811203,
+    12469456690192303078, 16390568676589611435, 10100061338497243401,
+    12894422578383759913, 13107731844359391213, 14784139966780459732}
+
+
+def _legacy_continuations(choice):
+    sequence = getattr(choice, 'continuation', None)
+    if not isinstance(sequence, (tuple, list)) or not 1 <= len(sequence) <= 16:
+        raise ValueError('Legacy phone continuation is unknown; use the Apex controls.')
+    identities = []
+    for item in sequence:
+        identity = getattr(getattr(item, 'affordance', None), 'guid64', None)
+        if type(identity) is not int or identity not in _LEGACY_VERIFIED:
+            raise ValueError('Legacy phone continuation is unverified; use the Apex controls.')
+        identities.append(identity)
+    return tuple(identities)
+
+
+def legacy_choice(choice):
+    """Classify every queued continuation before the baseline can push it."""
+    identities = _legacy_continuations(choice)
+    if _LEGACY_RESTORE in identities or _LEGACY_CAS_EDIT in identities:
+        if len(identities) != 1:
+            raise ValueError('Mixed legacy CAS continuations were refused before any mutation.')
+        return {'ok': True, 'page': 'cas_review' if identities[0] == _LEGACY_RESTORE else 'studio',
+            'legacy_cas_entry_supported': False, 'legacy_mutation_submitted': False}
+    return None
 
 
 def catalog(backend, sim_id, page):
@@ -55,9 +89,10 @@ def catalog(backend, sim_id, page):
                 ('action:save_wardrobe', 'Capture CAS preset', 'MENU_PLACEHOLDER'),
                 ('action:list_wardrobes', 'Browse CAS presets', 'MENU_PLACEHOLDER')]
     if page == 'studio':
-        return [('action:cas_session_begin', 'Before CAS: retain all form originals', 'MENU_PLACEHOLDER'),
-                ('action:cas_session_finish', 'After CAS: accept selected form, restore other forms', 'MENU_PLACEHOLDER'),
-                ('action:cas_session_status', 'CAS form transaction status', 'MENU_UNKNOWN'),
+        return [('cas:begin', 'Before CAS: retain every form original', 'MENU_PLACEHOLDER'),
+                ('cas:observe', 'After CAS: run, pause and review every changed form', 'MENU_PLACEHOLDER'),
+                ('page:cas_review', 'Review every form decision / apply prepared plan', 'MENU_PLACEHOLDER'),
+                ('action:cas_bank_status', 'CAS form transaction status', 'MENU_UNKNOWN'),
                 ('action:studio_status', 'Current appearance and history', 'MENU_UNKNOWN'),
                 ('action:studio_checkpoint', 'Create appearance checkpoint', 'MENU_PLACEHOLDER'),
                 ('action:studio_history', 'Browse appearance history', 'MENU_PLACEHOLDER'),
@@ -70,14 +105,25 @@ def catalog(backend, sim_id, page):
     if page == 'drift':
         return [('action:drift_status', 'Drift Guard status', 'MENU_UNKNOWN'),
                 ('action:scan_occult_drift', 'Scan for appearance drift', 'MENU_PLACEHOLDER')]
+    if page == 'cas_review' or page.startswith('cas_form:'):
+        from .phone_cas import rows
+        return rows(backend, sim_id, page)
     raise ValueError('Unknown Apex phone page.')
 
 
-def select(backend, sim_id, tag):
+def select(backend, sim_id, tag, callback=None):
     """Revalidate the offered action on click against current Sim/settings."""
     if not isinstance(tag, str) or not tag.startswith('apex:'):
         raise ValueError('Not an Apex phone choice.')
     tag = tag[5:]
+    if tag.startswith('cas:'):
+        from .phone_cas import select as cas_select
+        return cas_select(backend, sim_id, tag, callback)
+    if tag.startswith('page:cas_form:'):
+        from .phone_cas import rows
+        if tag not in {row[0] for row in rows(backend, sim_id, 'cas_review')}:
+            raise ValueError('Form review page is stale; reopen every changed form.')
+        return {'page': tag[5:]}
     allowed = {row[0] for page in ('root', 'settings', 'forms', 'saved', 'studio', 'drift')
                for row in catalog(backend, sim_id, page)}
     if tag == 'page:root':
@@ -102,7 +148,13 @@ class ApexPhoneMenu(TD1OccultHybridMenuUIPicker):
         sim_id = str(context.sim.sim_info.id)
         page = getattr(inst, '_apex_page', 'root')
         if page == 'root':
-            yield from super(ApexPhoneMenu, inst if inst is not None else cls).picker_rows_gen(target, context, **kwargs)
+            for row in super(ApexPhoneMenu, inst if inst is not None else cls).picker_rows_gen(target, context, **kwargs):
+                try:
+                    replacement = legacy_choice(row.tag)
+                except ValueError:
+                    continue
+                if replacement is None:
+                    yield row
         choices = catalog(backend, sim_id, page)
         if page != 'root':
             choices.append(('page:root', 'Back to Occult Hybrid', 'MENU_BACK'))
@@ -112,9 +164,27 @@ class ApexPhoneMenu(TD1OccultHybridMenuUIPicker):
 
     def on_choice_selected(self, choice, **kwargs):
         if not isinstance(choice, str) or not choice.startswith('apex:'):
+            if choice is None:
+                return None
+            try:
+                replacement = legacy_choice(choice)
+            except ValueError as error:
+                return self._present_apex_result({'ok': False, 'message': str(error)})
+            if replacement is not None:
+                return self._present_apex_result(replacement)
             return super().on_choice_selected(choice)
         import td1_occult_hybrid_apex as backend
-        result = select(backend, str(self.sim.sim_info.id), choice)
+        try:
+            result = select(backend, str(self.sim.sim_info.id), choice, callback=self._present_apex_result)
+        except Exception as error:
+            result = {'ok': False, 'message': str(error)}
+        # Showing a modal notification here would pause the clock before the
+        # bounded game-thread Live probe can advance. Its callback opens review.
+        if result.get('pending') is True:
+            return
+        return self._present_apex_result(result)
+
+    def _present_apex_result(self, result):
         if 'page' in result:
             self._apex_page = result['page']
             self._show_picker_dialog(self.sim)

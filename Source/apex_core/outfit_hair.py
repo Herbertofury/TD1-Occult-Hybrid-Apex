@@ -86,20 +86,97 @@ def capture(backend, fields):
     return result
 
 
-def reconcile(backend, fields, held, preserve=None):
-    """Restore held hair only; preserve other parts and unknown protobuf fields."""
+def _outfit_uid(value):
+    if (not isinstance(value, str) or not value.isascii() or not value.isdecimal()
+            or not 0 < int(value) < 1 << 64 or str(int(value)) != value):
+        raise ValueError('Hair ownership requires an exact original native outfit UID.')
+    return value
+
+
+def _slot(category, ordinal):
+    if (type(category) is not int or not 0 <= category < 1 << 32
+            or type(ordinal) is not int or not 0 <= ordinal < 4096):
+        raise ValueError('Hair target category/ordinal must be typed existing outfit identities.')
+    return category, ordinal
+
+
+def _held_index(held):
+    if not isinstance(held, list) or len(held) > 4096:
+        raise ValueError('Held hair wardrobe is unavailable or exceeds its bound.')
+    originals = {}
+    for item in held:
+        if not isinstance(item, dict) or any(name not in item for name in ('category', 'ordinal', 'outfit_id', 'hair')):
+            raise ValueError('Held hair wardrobe lacks a complete outfit identity.')
+        key = _slot(item['category'], item['ordinal'])
+        if key in originals:
+            raise ValueError('Held hair wardrobe duplicates an outfit identity; no target guessed.')
+        _outfit_uid(item['outfit_id'])
+        if not isinstance(item['hair'], list) or len(item['hair']) > 4096:
+            raise ValueError('Held native hair rows are unavailable or exceed their bound.')
+        originals[key] = item
+    return originals
+
+
+def _preserved_targets(originals, preserve, lane):
+    """Validate caller-owned intent, never classify native propagation as intent.
+
+    Legacy single-slot records bind to their already held original UID. A
+    multiple-target record must supply its independently established lane and
+    original UIDs. Producing/durably capturing native edit intent is a separate,
+    currently unsupported integration; post-CAS diffs cannot fill that role.
+    """
+    if preserve is None:
+        return {}
+    if isinstance(preserve, (tuple, list)) and len(preserve) == 2 and all(type(value) is int for value in preserve):
+        key = _slot(*preserve)
+        if key not in originals:
+            raise ValueError('Explicit CAS hair target has no held original outfit; identity cannot be guessed.')
+        return {key: originals[key]['outfit_id']}
+    if (not isinstance(preserve, dict) or set(preserve) != {'schema', 'lane', 'targets'}
+            or type(preserve.get('schema')) is not int or preserve['schema'] != 1
+            or not isinstance(preserve.get('lane'), str) or not preserve['lane'].isascii()
+            or not preserve['lane'].isdecimal() or not 0 < int(preserve['lane']) < 1 << 32
+            or str(int(preserve['lane'])) != preserve['lane']
+            or not isinstance(lane, str) or preserve['lane'] != lane
+            or not isinstance(preserve.get('targets'), list) or not 0 < len(preserve['targets']) <= 4096):
+        raise ValueError('Multiple CAS hair targets require a typed set bound to the exact selected occult lane.')
+    targets = {}
+    for item in preserve['targets']:
+        if not isinstance(item, dict) or set(item) != {'category', 'ordinal', 'outfit_id'}:
+            raise ValueError('Multiple CAS hair targets require category, ordinal and original native UID.')
+        key = _slot(item['category'], item['ordinal'])
+        uid = _outfit_uid(item['outfit_id'])
+        if key in targets:
+            raise ValueError('Multiple CAS hair targets duplicate a slot; intent must be explicitly deduplicated.')
+        if key not in originals or originals[key]['outfit_id'] != uid:
+            raise ValueError('CAS hair target differs from its held original outfit identity.')
+        targets[key] = uid
+    return targets
+
+
+def reconcile(backend, fields, held, preserve=None, lane=None):
+    """Restore held hair outside explicitly bound targets; retain full messages.
+
+    A preserved target cannot bypass replacement/reorder detection. Planning is
+    pure and accepts no target inferred from native propagated appearance diffs.
+    """
     types, ordinals = _types(backend), {}
-    originals = {(item['category'], item['ordinal']): item for item in held}
+    originals = _held_index(held)
+    targets = _preserved_targets(originals, preserve, lane)
+    observed_targets = set()
     message = _message(backend, fields)
     for outfit in message.outfits:
         category = int(outfit.category); ordinal = ordinals.get(category, 0)
         ordinals[category] = ordinal + 1; key = (category, ordinal)
         original = originals.get(key)
-        if original is None or key == preserve: continue
+        if original is None: continue
         # A replaced/reordered outfit needs explicit acceptance; its old hair
         # cannot truthfully be assigned just because the numeric index matches.
         if original['outfit_id'] != str(outfit.outfit_id):
             raise ValueError('Outfit identity changed; accept the new wardrobe before hair repair.')
+        if key in targets:
+            observed_targets.add(key)
+            continue
         rows = read_rows(outfit)
         current = [{'index': i, 'row': row} for i, row in enumerate(rows) if row['body_type'] in types]
         if current == original['hair']: continue
@@ -107,6 +184,8 @@ def reconcile(backend, fields, held, preserve=None):
         for item in original['hair']:
             revised.insert(min(item['index'], len(revised)), copy.deepcopy(item['row']))
         write_rows(outfit, revised)
+    if set(targets) != observed_targets:
+        raise ValueError('Explicit CAS hair target outfit disappeared; originals and returned state must be retained.')
     desired = copy.deepcopy(fields)
     desired['__outfits__'] = appearance.encode(('protobuf', message.SerializeToString()))
     return desired
@@ -120,6 +199,11 @@ def sync(backend, record, lane, fields):
 
 def configure(backend, sim, enabled):
     form_bank.assert_idle(backend, sim)
+    if enabled:
+        # Explicitly enabling this option captures the whole current native
+        # bank before any callback can treat held prior-runtime rows as current.
+        form_bank.update(backend, sim, backend._get_current_flags(sim),
+                         appearance.packed(backend, sim), create=True)
     path, key = form_bank.context(backend, sim); data = form_bank.load(path)
     record = data['records'].setdefault(key, {'bank': form_bank.capture(backend, sim), 'history': []})
     if enabled:
@@ -139,7 +223,10 @@ def status(backend, sim):
     policy = form_bank.load(path)['records'].get(key, {}).get('hair_policy', {})
     return {'enabled': bool(policy.get('enabled')), 'form_count': len(policy.get('forms', {})),
             'outfit_count': sum(len(rows) for rows in policy.get('forms', {}).values()),
-            'last_error': _ERRORS.get(key), 'scope': 'Independent hair and exact color per form/category/outfit number; explicit CAS target required.'}
+            'last_error': _ERRORS.get(key), 'typed_multiple_targets_supported': True,
+            'automatic_cas_intent_classification_supported': False,
+            'durable_native_cas_intent_capture_supported': False,
+            'scope': 'Live repair retains exact serialized hair rows per form/category/number; native CAS propagation unverified. Explicit target intent required.'}
 
 
 def cas_target(backend, sim, value=None):
@@ -154,18 +241,27 @@ def cas_target(backend, sim, value=None):
 def accept_cas(backend, record, lane, chosen, target):
     policy = record.get('hair_policy', {})
     held = policy.get('forms', {}).get(str(lane))
-    if policy.get('enabled') and held is not None:
+    if policy.get('enabled'):
+        if held is None:
+            raise ValueError('Selected occult lane has no held hair wardrobe; native propagation cannot be classified as intent.')
         if target is None: raise ValueError('Choose an explicit CAS hair target before accepting propagated changes.')
-        return reconcile(backend, chosen, held, preserve=tuple(target))
+        return reconcile(backend, chosen, held, preserve=target, lane=str(lane))
     return chosen
 
 
 def enforce(backend, sim):
     path, key = form_bank.context(backend, sim)
     if key in _BUSY: return False
+    try:
+        form_bank.assert_idle(backend, sim)
+    except ValueError as error:
+        if len(_ERRORS) < 256 or key in _ERRORS: _ERRORS[key] = str(error)
+        return False
     record = form_bank.load(path)['records'].get(key, {})
     policy = record.get('hair_policy', {})
     if not policy.get('enabled') or record.get('pending') or record.get('switch_pending'): return False
+    if not form_bank.current_runtime_authorized(backend, sim, record):
+        return False  # A prior-runtime held wardrobe cannot overwrite fresh native hair.
     held = policy.get('forms', {}).get(str(backend._get_current_flags(sim)))
     if held is None: return False
     from . import studio

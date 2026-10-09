@@ -4,16 +4,19 @@ Only an exact isolated test session may launch. This cannot silently approve an
 EA/Windows administrator prompt and does not implement a headless game engine.
 """
 import ctypes
+from datetime import datetime, timezone
 import os
 from pathlib import Path, PureWindowsPath
 import re
 import json
+import math
 import subprocess
 import time
 import urllib.parse
 from xml.etree import ElementTree
 from source_manifest import sha256
 import test_profile
+import windows_process
 
 
 def account_launch_identity(game_root, log=None):
@@ -116,66 +119,50 @@ def process_image(pid):
         kernel.CloseHandle(handle)
 
 
-def observe_game_process(pid, kernel=None, last_error=None):
+def observe_game_process(pid, kernel=None, last_error=None, *, expected_path=None, expected_creation_time=None):
     """Observe one exact live DX11 Sims PID through a single read-only handle.
 
     No shell, enumeration, process memory or elevation is needed. A vanished or
     exited PID returns None; inaccessible and reused non-Sims PIDs fail closed.
     Native bindings may be supplied for tests without inspecting host processes.
+    Optional path and creation FILETIME guards reject a reused Sims PID too.
     """
-    if type(pid) is not int or not 0 < pid <= 0xffffffff:
-        raise ValueError('Use an exact integer Windows process ID within the DWORD range.')
-    from ctypes import wintypes
-    if kernel is None:
-        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
-    if last_error is None:
-        last_error = lambda: ctypes.get_last_error()
-    kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
-    kernel.OpenProcess.restype = wintypes.HANDLE
-    kernel.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
-    kernel.GetExitCodeProcess.restype = wintypes.BOOL
-    kernel.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
-                                               wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
-    kernel.QueryFullProcessImageNameW.restype = wintypes.BOOL
-    kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
-    kernel.CloseHandle.restype = wintypes.BOOL
-    handle = kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION only.
-    if not handle:
-        error = last_error()
-        if error == 87:
-            return None
-        raise OSError(error, 'Could not observe the verified Sims process.')
-    try:
-        code = wintypes.DWORD()
-        if not kernel.GetExitCodeProcess(handle, ctypes.byref(code)):
-            raise OSError(last_error(), 'Could not inspect the verified Sims process exit state.')
-        if code.value != 259:  # STILL_ACTIVE
-            return None
-        capacity = wintypes.DWORD(32768)
-        name = ctypes.create_unicode_buffer(capacity.value)
-        if not kernel.QueryFullProcessImageNameW(handle, 0, name, ctypes.byref(capacity)):
-            raise OSError(last_error(), 'Could not inspect the verified Sims executable identity.')
-        image = name.value
-        if not image or PureWindowsPath(image).name.casefold() != 'ts4_x64.exe':
-            raise ValueError('Verified PID belongs to a different executable; no game command is authorized.')
-        return {'Id': pid, 'Path': image}
-    finally:
-        kernel.CloseHandle(handle)
+    observed = windows_process.observe(pid, expected_path=expected_path,
+        expected_creation_time=expected_creation_time, kernel=kernel, last_error=last_error)
+    if observed and PureWindowsPath(observed['Path']).name.casefold() != 'ts4_x64.exe':
+        raise ValueError('Verified PID belongs to a different executable; no game command is authorized.')
+    return observed
 
 
 def observe_start(executable, prior_ids, seconds, probe=running_game_processes, monotonic=time.monotonic, pause=time.sleep):
-    if not 0 < seconds <= 60:
+    if type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 60:
         raise ValueError('Launch observation must be between 0 and 60 seconds.')
-    deadline = monotonic() + seconds
-    while monotonic() < deadline:
-        for row in probe():
+    started = monotonic(); deadline = started + seconds
+    observations = 0
+    while True:
+        rows = probe(); observations += 1
+        if not isinstance(rows, list) or len(rows) > 64:
+            raise ValueError('Sims launch process inventory exceeds its passive observation bound.')
+        final = []
+        for row in rows:
+            if (not isinstance(row, dict) or type(row.get('Id')) is not int or not 0 < row['Id'] <= 0xffffffff or
+                    row.get('Path') is not None and not isinstance(row['Path'], str)):
+                raise ValueError('Sims launch process inventory has no exact typed identity.')
+            final.append({'Id': row['Id'], 'Path': row.get('Path')})
             if row['Id'] not in prior_ids and row.get('Path') and Path(row['Path']).resolve() == executable.resolve():
-                return {'process_started': True, 'pid': row['Id'], 'executable': row['Path']}
-        pause(min(1, max(0, deadline - monotonic())))
-    return {'process_started': False, 'message': 'EA handoff did not produce a verified Sims process. Check the EA client result; no retry was attempted.'}
+                return {'process_started': True, 'pid': row['Id'], 'executable': row['Path'],
+                    'observation_limit_seconds': seconds, 'elapsed_seconds': max(0, monotonic() - started),
+                    'process_observation_count': observations, 'retry_attempted': False}
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            return {'process_started': False, 'outcome': 'start-unresolved', 'final_process_inventory': final,
+                'observation_limit_seconds': seconds, 'elapsed_seconds': max(0, monotonic() - started),
+                'process_observation_count': observations, 'retry_attempted': False,
+                'message': 'No verified Sims process was observed within this limit. The existing handoff may still complete; no retry was attempted.'}
+        pause(min(1, remaining))
 
 
-def launch(game_root, state, execute=False, headless=False, observe_seconds=20, offer_id=None):
+def launch(game_root, state, execute=False, headless=False, observe_seconds=60, offer_id=None, elevate_permission_once=False):
     if headless:
         raise ValueError('A headless Sims 4 runtime is not implemented. Use the real-game bridge for CLI testing.')
     plan = launch_plan(game_root, state, offer_id)
@@ -192,11 +179,34 @@ def launch(game_root, state, execute=False, headless=False, observe_seconds=20, 
         if not registered or 'EALauncher.exe' not in registered or '%1' not in registered:
             raise ValueError('The origin2 handler is not the expected installed EA launcher.')
         prior_ids = {row['Id'] for row in running_game_processes()}
+        if elevate_permission_once:
+            # This read offset excludes all old/other account launch attempts.
+            ea_log = test_profile.unlinked(plan['account_launch_identity']['log'])
+            log_offset = ea_log.stat().st_size
+        handoff_at = time.time()
+        plan['handoff_evidence'] = {
+            'timestamp': handoff_at,
+            'utc': datetime.fromtimestamp(handoff_at, timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
+        }
+        if elevate_permission_once:
+            plan['handoff_evidence']['ea_log_start_offset'] = log_offset
         os.startfile(plan['url'])
         plan['handed_off'] = True
         import ea_permission
         time.sleep(1)
         plan['ea_permission'] = ea_permission.acknowledge(Path(state).resolve().parent)
+        if elevate_permission_once and not plan['ea_permission'].get('acknowledged'):
+            import ea_permission_broker
+            try:
+                if not test_profile.status(state)['ready_to_launch']:
+                    raise ValueError('Test profile changed before the explicit permission helper.')
+                plan['handoff_evidence']['permission_context_observation_seconds'] = ea_permission_broker.LAUNCH_RECORD_WAIT_SECONDS
+                context = ea_permission_broker.wait_launch_context(plan, handoff_at, log_offset)
+                plan['ea_permission_broker'] = ea_permission_broker.elevate_once(
+                    Path(state).resolve().parent, launch_context=context)
+            except (OSError, ValueError, RuntimeError) as error:
+                plan['ea_permission_broker'] = {'ok': False, 'acknowledged': False,
+                    'game_start_verified': False, 'windows_uac_automated': False, 'message': str(error)}
         plan['observation'] = observe_start(Path(game_root) / 'Game' / 'Bin' / 'TS4_x64.exe', prior_ids, observe_seconds)
         plan['launched'] = plan['observation']['process_started']
         plan['ok'] = plan['launched']

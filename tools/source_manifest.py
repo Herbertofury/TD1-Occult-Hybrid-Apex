@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import time
 
 
 def sha256(path):
@@ -32,7 +33,17 @@ def write_json(path, data):
             stream.write(payload)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, str(path))
+        # Windows readers/antivirus can briefly hold the destination without
+        # delete sharing. Retry only this atomic publication of already-flushed
+        # evidence; callers must never replay a game operation to repair a log.
+        for attempt in range(11):
+            try:
+                os.replace(temporary, str(path))
+                break
+            except PermissionError as error:
+                if getattr(error, 'winerror', None) not in (5, 32, 33) or attempt == 10:
+                    raise
+                time.sleep(0.05)
     finally:
         if temporary and os.path.exists(temporary):
             os.unlink(temporary)

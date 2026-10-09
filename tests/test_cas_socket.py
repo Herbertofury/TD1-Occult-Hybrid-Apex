@@ -85,5 +85,71 @@ class CasSocketTests(unittest.TestCase):
         self.assertTrue(result['acknowledgement_accepted'])
         self.assertEqual(cas_ui.result(rid)['futureField'], value)
 
+    def test_claim_wait_allows_delayed_ack_without_relaxing_idle_wait(self):
+        nonce = 'a' * 64
+        self.assertGreater(cas_socket.response_wait('POLL|' + nonce, 'b' * 32 + '|12|undo|0|0|0|0'), 20)
+        for value, reply in (('POLL|' + nonce, 'WAIT'), ('HELLO|12', 'HELLO|' + nonce),
+                             ('ACK|' + nonce + '|' + 'b' * 32 + '|{}', 'ACK|' + 'b' * 32)):
+            self.assertEqual(cas_socket.response_wait(value, reply), 3)
+
+    def test_fragmented_header_and_payload_share_absolute_deadline(self):
+        now = [0.0]
+        class Fragmented:
+            def __init__(self):
+                self.data = cas_socket.frame('HELLO|12')
+                self.timeouts = []
+            def settimeout(self, remaining):
+                self.timeouts.append(remaining)
+            def recv(self, size):
+                now[0] += 0.6
+                block, self.data = self.data[:1], self.data[1:]
+                return block
+        slow = Fragmented()
+        with self.assertRaises(socket.timeout):
+            cas_socket.read_frame(slow, deadline=3, clock=lambda: now[0])
+        self.assertTrue(slow.data)
+        self.assertEqual(slow.timeouts[0], 3)
+        self.assertTrue(all(left > right for left, right in zip(slow.timeouts, slow.timeouts[1:])))
+
+    def test_validated_accept_intent_retains_claim_wait_until_native_outcome(self):
+        nonce, rid = 'a' * 64, 'b' * 32
+        receipt = {'protocol': 1, 'ok': True, 'cas_request_id': rid,
+                   'lifecycle_stage': 'accept-intent', 'commit_submitted': False}
+        wire = 'ACK|' + nonce + '|' + rid + '|' + json.dumps(receipt)
+        self.assertEqual(cas_socket.response_wait(wire, 'ACK|' + rid), cas_socket.CLAIM_SECONDS)
+        rejected = dict(receipt, ok=False, lifecycle_stage='accept-result', commit_attempted=True,
+                        commit_accepted=False)
+        wire = 'ACK|' + nonce + '|' + rid + '|' + json.dumps(rejected)
+        self.assertEqual(cas_socket.response_wait(wire, 'ACK|' + rid), cas_socket.IDLE_SECONDS)
+
+    def test_wait_extension_requires_exact_accepted_intent_metadata(self):
+        nonce, rid = 'a' * 64, 'b' * 32
+        receipt = {'protocol': 1, 'ok': True, 'cas_request_id': rid,
+                   'lifecycle_stage': 'accept-intent', 'commit_submitted': False}
+        cases = [dict(receipt, protocol=True), dict(receipt, ok=1),
+                 dict(receipt, cas_request_id='c' * 32), dict(receipt, commit_submitted=0),
+                 dict(receipt, lifecycle_stage='completed'), [], 'bad JSON']
+        for value in cases:
+            payload = value if value == 'bad JSON' else json.dumps(value)
+            wire = 'ACK|' + nonce + '|' + rid + '|' + payload
+            with self.subTest(value=value):
+                self.assertEqual(cas_socket.response_wait(wire, 'ACK|' + rid), cas_socket.IDLE_SECONDS)
+        wire = 'ACK|' + nonce + '|' + rid + '|' + json.dumps(receipt)
+        self.assertEqual(cas_socket.response_wait(wire, 'ACK|' + 'c' * 32), cas_socket.IDLE_SECONDS)
+
+    def test_partial_payload_does_not_get_new_deadline_after_header(self):
+        now = [0.0]
+        class Parts:
+            def __init__(self): self.parts = [b'00000008', b'HELLO|', b'12']; self.timeouts = []
+            def settimeout(self, remaining): self.timeouts.append(remaining)
+            def recv(self, size):
+                now[0] += 1.1
+                return self.parts.pop(0)
+        connection = Parts()
+        self.assertEqual(cas_socket.read_frame(connection, deadline=4, clock=lambda: now[0]), 'HELLO|12')
+        self.assertEqual(len(connection.timeouts), 3)
+        self.assertAlmostEqual(connection.timeouts[1], 2.9)
+        self.assertAlmostEqual(connection.timeouts[2], 1.8)
+
 
 if __name__ == '__main__': unittest.main()

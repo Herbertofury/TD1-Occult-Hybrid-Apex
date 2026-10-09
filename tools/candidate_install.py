@@ -69,6 +69,17 @@ def install(state, bundle, experimental_ui=False, optional=False, guard=test_pro
     if not profiles.status(state)['ready_to_launch']:
         raise ValueError('The marked test profile contains unknown/changed mods.')
     bundle, digest, manifest, payloads = read_bundle(bundle)
+    # Exact separately installed test recipes survive a candidate replacement.
+    # Their removal remains an explicit add-on operation.
+    from test_cc_addons import ADDON as CC_ADDON, ASSETS as CC_ASSETS
+    addons = []
+    for row in data['artifacts']:
+        if row.get('test_addon') == 'mccc-2026.5.0':
+            addons.append(row)
+        elif row.get('test_addon') == CC_ADDON:
+            if row.get('name') not in CC_ASSETS or row.get('sha256') != CC_ASSETS[row['name']]:
+                raise ValueError('The retained CC add-on recipe differs; no candidate replacement.')
+            addons.append(row)
     selected = {name[5:]: raw for name, raw in payloads.items() if name.startswith('Mods/Apex/')}
     if experimental_ui and 'Mods/Apex/ApexCASBridge.package' in payloads:
         raise ValueError('CAS Bridge and the old Color Studio replace the same CAS UI resource; install only the version-matched bridge.')
@@ -96,7 +107,7 @@ def install(state, bundle, experimental_ui=False, optional=False, guard=test_pro
         rows.append(row)
     # Test add-ons have their own explicit removal command. A candidate update
     # must retain the exact already-verified MCCC recipe and its user settings.
-    rows.extend(row for row in data['artifacts'] if row.get('test_addon') == 'mccc-2026.5.0')
+    rows.extend(addons)
     receipt = {'sha256': digest, 'source': str(bundle), 'target_game': manifest['target_game'],
                'experimental_ui': experimental_ui, 'optional': optional}
     return profiles.install_rows(state, rows, guard, bundle=receipt)

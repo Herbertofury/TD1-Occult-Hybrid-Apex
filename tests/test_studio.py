@@ -245,6 +245,40 @@ class StudioTests(unittest.TestCase):
             self.request('studio_checkpoint', 'Must not persist')
         self.assertEqual(list(Path(self.temp.name).iterdir()), [])
 
+    def test_transient_native_slots_keep_history_in_an_exact_runtime_lane(self):
+        from unittest.mock import patch
+        saved = self.request('studio_status')
+        for slot in (0, 0xffffffff):
+            self.backend.services.get_persistence_service = lambda: Obj(
+                get_save_slot_proto_buff=lambda: Obj(slot_id=slot), get_save_slot_proto_guid=lambda: 9876)
+            with patch.object(studio.os, 'getpid', return_value=77):
+                transient = self.request('studio_status')
+            self.assertFalse(transient['stable_save_slot_verified'])
+            self.assertTrue(transient['history_runtime_only'])
+            self.assertIn(':runtime-77:', transient['history_lane'])
+            self.assertNotEqual(saved['history_lane'], transient['history_lane'])
+            self.assertEqual(transient['outfit_inventory'], saved['outfit_inventory'])
+        self.backend.services.get_persistence_service = lambda: Obj(
+            get_save_slot_proto_buff=lambda: Obj(slot_id=42), get_save_slot_proto_guid=lambda: 9876)
+        self.assertEqual(self.request('studio_status')['history_cursor'], saved['history_cursor'])
+
+    def test_transient_preview_cannot_cross_runtime_or_become_a_saved_slot_preview(self):
+        from unittest.mock import patch
+        self.backend.services.get_persistence_service = lambda: Obj(
+            get_save_slot_proto_buff=lambda: Obj(slot_id=0), get_save_slot_proto_guid=lambda: 9876)
+        with patch.object(studio.os, 'getpid', return_value=77):
+            self.request('studio_color_copy', '0:HAIR')
+            preview = self.request('studio_color_preview', '1:HAIR')
+        before = self.sim.raw
+        with patch.object(studio.os, 'getpid', return_value=78):
+            with self.assertRaisesRegex(ValueError, 'Unknown'):
+                self.request('studio_apply', preview['preview_id'])
+        self.backend.services.get_persistence_service = lambda: Obj(
+            get_save_slot_proto_buff=lambda: Obj(slot_id=42), get_save_slot_proto_guid=lambda: 9876)
+        with self.assertRaisesRegex(ValueError, 'Unknown'):
+            self.request('studio_apply', preview['preview_id'])
+        self.assertEqual(self.sim.raw, before)
+
     def test_inventory_preserves_uint64_identities_and_absent_colors(self):
         message = Message(self.sim.raw)
         message.outfits[0].parts.ids[0] = 2**64-1
@@ -415,6 +449,9 @@ class StudioTests(unittest.TestCase):
         self.backend._studio_casp_bytes = lambda part_id: casp(body=7)
         reply = self.request('studio_color_inspect', '0:7:0')
         editor = reply['color_editor']
+        self.assertEqual(reply['runtime_pid'], __import__('os').getpid())
+        self.assertEqual(reply['inspected_form_flags'], self.sim.flags)
+        self.assertEqual(reply['appearance_sha256'], editor['appearance_sha256'])
         return dict(target=editor['target'], lane=reply['history_lane'], edits=edits,
             **{key: editor[key] for key in ('cas_part_id', 'color_hex', 'appearance_sha256', 'resource_sha256')})
 

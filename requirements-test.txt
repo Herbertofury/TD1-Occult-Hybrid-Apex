@@ -1,3 +1,5 @@
 # Host-only fixtures exercise the native protobuf wire contract.
 # The game uses its own bundled protobuf runtime.
 protobuf==6.33.6
+# Host-only decoding and thumbnail fixtures; never bundled into the game script.
+Pillow==12.2.0

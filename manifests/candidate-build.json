@@ -1,11 +1,12 @@
 {
+  "build_epoch": "2026-10-09-native-trait-load-defer-v18",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-07.zip",
-    "bytes": 2376922,
+    "artifact": "Apex_Development_Candidate_2026-10-09-native-trait-load-defer-v18.zip",
+    "bytes": 2807830,
     "members": 28,
-    "sha256": "3f44e24678ca6dcc23402d89203ccb3924a4d657349e64d22f6798305ecc7954"
+    "sha256": "7f8984083fbb08e0bbf260774b123ad555f7e7ff1a3d9efda22bbb72a08f4848"
   },
-  "compiled_script_modules": 60,
+  "compiled_script_modules": 68,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -30,9 +31,9 @@
       "sha256": "c0d068392ea65358b798b8c165103560f06e9e3b38c4ab4e2d8810a7b931af86"
     },
     {
-      "bytes": 1212,
+      "bytes": 4911,
       "file": "Manifests/ApexCASBridge.package.manifest.json",
-      "sha256": "66be192a6d808d3fa64df689886a41801e9fdcaf9f00fc71f0d97b480199adc3"
+      "sha256": "07cf67d19ba4bdfff816ebe0850a6a1860fb0f4056ccb72c504b75c6e6af5cd7"
     },
     {
       "bytes": 18738,
@@ -47,12 +48,12 @@
     {
       "bytes": 74970,
       "file": "Manifests/ApexOccultHybrid.package.manifest.json",
-      "sha256": "48f32388e16365e1de7a4ad0e28036bbe3e77b25a0cd7720b49c67c13e6e8f7f"
+      "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 30503,
+      "bytes": 44165,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "841eb298b9bc36639be4e31039672421e123d5fc1cfb5ff0b085d3704217fb34"
+      "sha256": "8ee107d17e8369e0a460585210f3fe7e2b965e1660d0b385b2826a17e86b02d1"
     },
     {
       "bytes": 1506,
@@ -85,9 +86,9 @@
       "sha256": "eecf46ce7850a439dd8f7f78d7ca1bc2cbabe2a0a222225c210151a2ad3d955f"
     },
     {
-      "bytes": 145372,
+      "bytes": 192576,
       "file": "Mods/Apex/ApexCASBridge.package",
-      "sha256": "3304bf7f2df19138cafb34eb3311b3b744f25ec448462f3dd70d5a7175aa6110"
+      "sha256": "936fa20ef444786c3de8cadbc958d180a70dbb8c33187fbc12448dbfffaa62d7"
     },
     {
       "bytes": 16550,
@@ -95,19 +96,19 @@
       "sha256": "b6e59c33b783530ba6d771fc98e69d21b719d95e48d9329f59ce5f2f4379c6e5"
     },
     {
-      "bytes": 264479,
+      "bytes": 264471,
       "file": "Mods/Apex/ApexOccultHybrid.package",
-      "sha256": "694dc9510a69c0232e77107a86e2c198b271ef6f1ee5c6f47b9514998cf58182"
+      "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 418574,
+      "bytes": 635667,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "322304ee75641337878267bd0fc80fdfc24dedfd668c6c3e48828c21a045b55a"
+      "sha256": "5372338c6c5fce009708a61387befce613f0edf782b44c4c750b1b74e0426493"
     },
     {
-      "bytes": 1147904,
+      "bytes": 1439232,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "1d4b20ce63a524e19683ec0dbd1ef183f072e24a8927a3f747c1a85522b8676a"
+      "sha256": "9712945c05ab848d272534e736bd5419539b2536cc82f97fb151e290c4e41e89"
     },
     {
       "bytes": 190,
@@ -117,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "a1e3ab71c0b2c9849fa5012bee9ca5287d780484b20851e99997214a4fa10e4a"
+      "sha256": "24eb16136916f49f82367c36abde40901c3ff5a1533ec12e1722ccfb4dd9432e"
     },
     {
       "bytes": 424,
@@ -135,9 +136,9 @@
       "sha256": "cc95624a1ac3fdec67ec00cfb2f4fa00ec72ab280011267e2bfd8e2d47ab39a4"
     },
     {
-      "bytes": 27705,
+      "bytes": 111815,
       "file": "README.md",
-      "sha256": "7986c4b94e6cad6ea3bf1e3c85af04dbd2afc9836a419ff1bcff7ebfeb9e1a63"
+      "sha256": "75326c7461809ae16614cb472b2819ba7cae3562b0f797eb2ae029fa3ec473ef"
     },
     {
       "bytes": 7419,
@@ -200,10 +201,10 @@
     },
     {
       "artifact": "ApexCASBridge.package",
-      "independent_resource_hashes_verified": 1,
+      "independent_resource_hashes_verified": 2,
       "independent_rust_verified": true,
       "namespace_modules_resolved": [],
-      "resources": 1
+      "resources": 2
     }
   ],
   "runtime_verified": false,

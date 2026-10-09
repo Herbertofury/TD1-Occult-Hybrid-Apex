@@ -94,6 +94,14 @@ def fingerprint(fields):
     if '__outfits__' in canonical:
         raw = decode(canonical['__outfits__'])[1]
         canonical['__outfits__'] = encode(('protobuf', normalize(raw)))
+    if 'genetic_data' in canonical and canonical['genetic_data']['kind'] in ('bytes', 'protobuf'):
+        from .genetics_snapshot import normalize as normalize_genetics
+        row = canonical['genetic_data']
+        raw = decode(row)
+        if row['kind'] == 'protobuf':
+            raw = raw[1]
+        projected = normalize_genetics(raw)
+        canonical['genetic_data'] = encode(projected if row['kind'] == 'bytes' else ('protobuf', projected))
     identities = {name: hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
                   ensure_ascii=True, allow_nan=False).encode('utf-8')).hexdigest() for name, value in canonical.items()}
     digest = hashlib.sha256(json.dumps(identities, sort_keys=True, separators=(',', ':')).encode('ascii')).hexdigest()

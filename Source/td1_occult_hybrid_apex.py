@@ -2260,11 +2260,24 @@ def _restore_siminfo_payload(sim_info, data):
     if sim_info is None or not data:
         return False
     restored = False
-    for attr, value in data.items():
-        if attr == '__outfits__':
-            continue
+    genetics_diagnostic = {'stages': [], 'assignment_error': None}
+    def observe_genetics(stage):
+        if 'genetic_data' not in data:
+            return
+        try:
+            import hashlib
+            raw = sim_info.genetic_data
+            if hasattr(raw, 'SerializeToString'):
+                raw = raw.SerializeToString()
+            genetics_diagnostic['stages'].append({'stage': stage, 'kind': type(raw).__name__,
+                'bytes': len(raw) if isinstance(raw, bytes) else None,
+                'sha256': hashlib.sha256(raw).hexdigest() if isinstance(raw, bytes) else None})
+        except Exception as error:
+            genetics_diagnostic['stages'].append({'stage': stage, 'error': str(error)[:2048]})
+    def restore_attribute(attr, value):
+        nonlocal restored
         if value is None:
-            continue
+            return
         try:
             if isinstance(value, tuple) and len(value) == 2 and value[0] == 'protobuf':
                 target_value = getattr(sim_info, attr)
@@ -2278,8 +2291,13 @@ def _restore_siminfo_payload(sim_info, data):
             else:
                 setattr(sim_info, attr, _copy_value(value))
             restored = True
-        except Exception:
-            pass
+        except Exception as error:
+            if attr == 'genetic_data':
+                genetics_diagnostic['assignment_error'] = str(error)[:2048]
+    for attr, value in data.items():
+        if attr in ('__outfits__', 'genetic_data'):
+            continue
+        restore_attribute(attr, value)
     try:
         outfits = data.get('__outfits__')
         if outfits is not None and hasattr(sim_info, 'load_outfits'):
@@ -2292,11 +2310,24 @@ def _restore_siminfo_payload(sim_info, data):
             restored = True
     except Exception:
         pass
+    # Native outfit loading can rebuild the GeneticData CAS-parts lane. Restore
+    # exact captured genetics last, including fields not represented in the
+    # loaded outfits. Callers still require complete appearance readback.
+    if 'genetic_data' in data:
+        observe_genetics('before-genetics-assignment')
+        restore_attribute('genetic_data', data['genetic_data'])
+        observe_genetics('after-genetics-assignment')
     for call in ('resend_physical_attributes', 'resend_current_outfit', 'force_resend_suntan_data', 'resend_outfits'):
         try:
             getattr(sim_info, call)()
         except Exception:
             pass
+        observe_genetics('after-' + call)
+    if 'genetic_data' in data:
+        cache = globals().setdefault('_APEX_APPEARANCE_RESTORE_DIAGNOSTICS', {})
+        if len(cache) >= 64:
+            cache.clear()
+        cache[str(getattr(sim_info, 'id', 'unknown'))] = genetics_diagnostic
     return restored
 
 
@@ -2866,35 +2897,26 @@ def _set_tracker_form_available(tracker, value=True):
 def _switch_human(tracker):
     if OccultType is None:
         return False
-    try:
-        tracker.set_pending_occult_type(getattr(tracker._sim_info, 'current_occult_types', OccultType.HUMAN))
-    except Exception:
-        pass
-    try:
-        tracker.switch_to_occult_type(OccultType.HUMAN)
-        return True
-    except Exception:
-        try:
-            _set_flags(tracker._sim_info, 'current_occult_types', _int_value(OccultType.HUMAN))
-            return True
-        except Exception:
-            return False
+    return _switch_to(tracker, OccultType.HUMAN)
 
 
 def _switch_to(tracker, occult_type):
-    try:
-        tracker.set_pending_occult_type(getattr(tracker._sim_info, 'current_occult_types', OccultType.HUMAN))
-    except Exception:
-        pass
+    # This is an immediate user selection. Native pending is a deferred
+    # transformation executed by post_load, not a previous-form bookmark.
+    # Keeping the old form here changes the selected form on the next load.
+    if (not callable(getattr(tracker, 'switch_to_occult_type', None)) or
+            not callable(getattr(tracker, 'set_pending_occult_type', None)) or
+            not hasattr(tracker, '_pending_occult_type')):
+        return False
     try:
         tracker.switch_to_occult_type(occult_type)
-        return True
-    except Exception:
-        try:
-            _set_flags(tracker._sim_info, 'current_occult_types', _int_value(occult_type))
-            return True
-        except Exception:
+        if _get_current_flags(tracker._sim_info) != _int_value(occult_type):
             return False
+        tracker.set_pending_occult_type(None)
+        return (tracker._pending_occult_type is None and
+                _get_current_flags(tracker._sim_info) == _int_value(occult_type))
+    except Exception:
+        return False
 
 
 def _add_occult(sim_info, occult_type, generate=True, add_traits=True, add_memory=True, use_gameplay_loot=True):
@@ -8188,13 +8210,158 @@ _BUILD_VERSION = '2026.10.07-apex-in-game-cli-dev'
 _APEX_BOOTSTRAP_STATUS = 'not initialized'
 
 
+def _apex_assert_appearance_idle(sim):
+    """Refuse an unresolved durable checkpoint before a legacy native write."""
+    if threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
+        raise ValueError('Appearance mutation requires the canonical game thread.')
+    if sim is None or _get_sim_info_by_id(sim.id) is not sim:
+        raise ValueError('Appearance mutation requires the exact manager-owned Sim.')
+    from apex_core import cas_bank_transaction
+    return cas_bank_transaction.assert_idle(sys.modules[__name__], sim)
+
+
+def _apex_preflight_appearance_targets(targets):
+    """Check the complete bulk selection before its first member can change."""
+    if threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
+        raise ValueError('Appearance preflight requires the canonical game thread.')
+    rows = tuple(targets)
+    if len(rows) > 4096:
+        raise ValueError('Appearance selection exceeds its native ownership bound.')
+    identities = set()
+    for sim in rows:
+        if sim is None or id(sim) in identities:
+            raise ValueError('Appearance selection has a missing or duplicate native owner.')
+        identities.add(id(sim))
+        _apex_assert_appearance_idle(sim)
+    return rows
+
+
+def _apex_legacy_read_only(action):
+    # Saved-form capture may ensure a missing wrapper, so it is not exempted.
+    return action in _READ_ONLY_ACTIONS or action in {
+        'health', 'drift_status', 'baseline_status', 'drift_scan', 'scan_occult_drift',
+        'copy_full_cas', 'copy_cas', 'copy_wardrobe', 'copy_body', 'copy_skin',
+        'copy_tattoos', 'copy_voice', 'appearance_copy', 'copy_cas_category',
+        'copy_bodytype', 'copy_body_type', 'reference_shot_note',
+        'mccc_open_settings', 'mccc_open_cheats', 'mccc_open_sim_menu',
+        'auto_off', 'mccc_auto_restore_off', 'mccc_cas_shield_off',
+        'mccc_guardian_off', 'mccc_guard_off', 'mccc_soft_hooks_off',
+        'mccc_private_hooks_off', 'drift_scan_after_commands_off',
+    }
+
+
+def _apex_legacy_action_targets(action, sim_id):
+    if action in ('repair_all', 'deep_repair_all'):
+        return tuple(item for item in services.sim_info_manager().get_all() if item is not None)
+    sim = _get_sim_info_by_id(sim_id)
+    if sim is None and sim_id in (None, ''):
+        sim = _get_active_sim_info()
+    if sim is None:
+        raise ValueError('Legacy mutation requires the exact selected or active native Sim.')
+    if action.endswith('_household') or action in ('mccc_cas_shield_on', 'mccc_cas_restore'):
+        return tuple(_household_sim_infos(sim))
+    return (sim,)
+
+
+def _apex_legacy_callback_targets(scope, args, kwargs):
+    sim = args[0] if args else kwargs.get('sim_info')
+    if scope == 'all':
+        return tuple(item for item in services.sim_info_manager().get_all() if item is not None)
+    if scope == 'guard-memory':
+        return tuple(target for target in (_get_sim_info_by_id(sid) for sid in _MCCC_GUARD_MEMORY) if target is not None)
+    if sim is None:
+        sim = _get_active_sim_info()
+    if scope == 'disk-cas':
+        payload = _load_json_file('cas_mccc_recovery_snapshot.json', {'records': []})
+        if not isinstance(payload, dict) or not isinstance(payload.get('records'), list):
+            raise ValueError('Legacy CAS disk recovery selection is malformed.')
+        members = tuple(_household_sim_infos(sim)) if sim is not None else ()
+        selected = set()
+        for row in payload['records']:
+            if not isinstance(row, dict):
+                raise ValueError('Legacy CAS disk recovery owner is malformed.')
+            try:
+                selected.add(int(row.get('sim_id') or 0))
+            except (TypeError, ValueError):
+                raise ValueError('Legacy CAS disk recovery Sim identity is malformed.')
+        targets = tuple(item for item in members if _sim_id(item) in selected)
+        # The legacy restorer explicitly falls back to its active argument
+        # when household enumeration omits it. Preflight that exact fallback.
+        if sim is not None and _sim_id(sim) in selected and all(item is not sim for item in targets):
+            targets += (sim,)
+        return targets
+    if scope == 'shield-restore':
+        household = args[1] if len(args) > 1 else kwargs.get('household')
+        if household is True and sim is not None:
+            return tuple(_household_sim_infos(sim))
+        ids = tuple(_MCCC_SHIELD.get('sim_ids') or ())
+        if not ids and sim is not None:
+            ids = (str(_sim_id(sim)),)
+        return tuple(target for target in (_get_sim_info_by_id(sid) for sid in ids) if target is not None)
+    if scope == 'shield-arm':
+        household = args[1] if len(args) > 1 else kwargs.get('household', True)
+        return tuple(_household_sim_infos(sim)) if household and sim is not None else (sim,)
+    if scope == 'household':
+        return tuple(_household_sim_infos(sim)) if sim is not None else ()
+    return (sim,)
+
+
+def _apex_guard_legacy_callable(function, scope):
+    import functools
+    @functools.wraps(function)
+    def guarded(*args, **kwargs):
+        _apex_preflight_appearance_targets(_apex_legacy_callback_targets(scope, args, kwargs))
+        return function(*args, **kwargs)
+    return guarded
+
+
+def _apex_install_legacy_transaction_gates():
+    # Cover alarms/Lot51 which bypass run_action. Raw setters remain owned by
+    # the explicit receiver commit/form-bank switch while their WAL is pending.
+    scopes = {
+        '_repair_sim': 'one', '_normalize_sim_state': 'one',
+        '_cas_prepare_one': 'one', '_cas_prepare_keep_one': 'one',
+        '_cas_restore_one': 'one', '_restore_guard_one': 'one',
+        '_restore_guard_household': 'household', '_repair_all': 'all',
+        '_restore_cas_recovery_snapshot': 'disk-cas',
+        '_mccc_cas_shield_arm': 'household',
+        '_mccc_guard_restore_household': 'guard-memory',
+        '_apex6_mccc_arm': 'shield-arm', '_apex6_mccc_restore': 'shield-restore',
+    }
+    for name, scope in scopes.items():
+        function = globals().get(name)
+        if not callable(function):
+            raise ValueError('Required legacy mutation boundary is unavailable: ' + name)
+        globals()[name] = _apex_guard_legacy_callable(function, scope)
+
+
+def _apex_cas_transaction_argument(value):
+    if not isinstance(value, str) or not 0 < len(value.encode('utf-8')) <= 256 * 1024:
+        raise ValueError('CAS transaction requires one bounded typed JSON object.')
+    def pairs(items):
+        result = {}
+        for key, item in items:
+            if key in result:
+                raise ValueError('CAS transaction JSON repeats an intent field.')
+            result[key] = item
+        return result
+    def constant(_value):
+        raise ValueError('CAS transaction JSON requires finite values.')
+    result = json.loads(value, object_pairs_hook=pairs, parse_constant=constant)
+    if not isinstance(result, dict):
+        raise ValueError('CAS transaction requires a typed object; external bytes are forbidden.')
+    return result
+
+
 def run_action(action, sim_id=None, occult=None, value=None):
+    action = (action or 'status').strip().lower()
     if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
         return {'ok': False, 'message': 'Sim inspection and mutation require the canonical Sims game-thread owner.'}
     if action in ('cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack'):
         from apex_core.cas_ui import dispatch
+        import sys
         try:
-            return dispatch(action, sim_id, value)
+            return dispatch(action, sim_id, value, backend=sys.modules[__name__])
         except Exception as exc:
             return {'ok': False, 'message': str(exc), 'ui_transition_verified': False}
     if action == 'bridge_status':
@@ -8215,6 +8382,39 @@ def run_action(action, sim_id=None, occult=None, value=None):
             return dispatch(sys.modules[__name__], action, sim_id, value)
         except Exception as exc:
             return {'ok': False, 'message': str(exc), 'traceback': traceback.format_exc()}
+    if action in ('cas_bank_ui_review', 'cas_bank_ui_status', 'cas_bank_ui_prepare', 'cas_bank_ui_commit'):
+        from apex_core import phone_cas
+        import sys
+        try:
+            sim = _get_sim_info_by_id(sim_id)
+            if sim is None:
+                raise ValueError('Select the exact existing Sim for CAS review.')
+            if action == 'cas_bank_ui_status':
+                if value not in (None, ''):
+                    raise ValueError('CAS UI status accepts no external payload.')
+                argument = None
+            else:
+                argument = _apex_cas_transaction_argument(value)
+            return phone_cas.ui_dispatch(sys.modules[__name__], str(sim.id), action, argument)
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
+    if action in ('cas_bank_begin', 'cas_bank_status', 'cas_bank_observe', 'cas_bank_prepare', 'cas_bank_commit'):
+        from apex_core import cas_bank_transaction
+        import sys
+        try:
+            sim = _get_sim_info_by_id(sim_id)
+            if action in ('cas_bank_begin', 'cas_bank_status'):
+                if value not in (None, ''):
+                    raise ValueError('CAS begin/status accepts no external checkpoint or appearance payload.')
+                function = cas_bank_transaction.begin if action == 'cas_bank_begin' else cas_bank_transaction.status
+                return function(sys.modules[__name__], sim)
+            argument = _apex_cas_transaction_argument(value)
+            function = {'cas_bank_observe': cas_bank_transaction.observe,
+                        'cas_bank_prepare': cas_bank_transaction.prepare,
+                        'cas_bank_commit': cas_bank_transaction.commit}[action]
+            return function(sys.modules[__name__], sim, argument)
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
     if action in ('werewolf_human_status', 'werewolf_human_on', 'werewolf_human_off'):
         from apex_core.human_werewolf import dispatch
         import sys
@@ -8228,13 +8428,10 @@ def run_action(action, sim_id=None, occult=None, value=None):
         try:
             sim = _get_sim_info_by_id(sim_id)
             if action == 'cas_session_begin':
-                hair_target = None
                 if value:
-                    request = json.loads(value)
-                    if not isinstance(request, dict) or set(request) != {'hair_target'} or not isinstance(request['hair_target'], list) or len(request['hair_target']) != 2 or any(type(item) is not int or item < 0 for item in request['hair_target']):
-                        raise ValueError('Use an explicit category/outfit-number CAS hair target.')
-                    hair_target = request['hair_target']
-                return form_bank.begin(sys.modules[__name__], sim, hair_target)
+                    raise ValueError('Begin captures raw native owners only. Use cas-bank prepare for explicit per-form outfit hair intent.')
+                from apex_core import cas_bank_transaction
+                return cas_bank_transaction.begin(sys.modules[__name__], sim)
             if action == 'cas_session_finish':
                 return form_bank.finish(sys.modules[__name__], sim)
             if action == 'cas_session_status':
@@ -8246,7 +8443,7 @@ def run_action(action, sim_id=None, occult=None, value=None):
                 lambda: _APEX_PRE_OWNER_RUN_ACTION(action, sim_id=sim_id, occult=occult, value=value))
         except Exception as exc:
             return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
-    if action in ('studio_status', 'studio_history', 'studio_record', 'studio_checkpoint', 'studio_recover',
+    if action in ('studio_status', 'studio_items', 'studio_history', 'studio_record', 'studio_checkpoint', 'studio_recover',
                   'studio_color_copy', 'studio_color_preview', 'studio_cancel',
                   'studio_color_inspect', 'studio_color_edit', 'studio_part_inspect', 'studio_part_preview',
                   'studio_undo', 'studio_redo', 'studio_jump', 'studio_apply',
@@ -8257,7 +8454,15 @@ def run_action(action, sim_id=None, occult=None, value=None):
             return dispatch(sys.modules[__name__], action, sim_id, value)
         except Exception as exc:
             return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
+    if not _apex_legacy_read_only(action):
+        try:
+            _apex_preflight_appearance_targets(_apex_legacy_action_targets(action, sim_id))
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
     return _APEX_PRE_OWNER_RUN_ACTION(action, sim_id=sim_id, occult=occult, value=value)
+
+
+_apex_install_legacy_transaction_gates()
 
 
 def _execute_owned_command(item):

@@ -91,6 +91,39 @@ class CasTransitionTests(unittest.TestCase):
     def pause(self, seconds):
         self.clock += seconds
 
+    def pending_entry_transport(self, state='running', result=None, finish_at=None, initial_delay=0,
+                                lost_submission=False, override=None):
+        self.transport_calls = []
+        request_id = 'e' * 32
+        def transport(path, query=None, timeout=12):
+            self.assertGreater(timeout, 0)
+            self.transport_calls.append((path, copy.deepcopy(query), timeout))
+            self.clock += .01
+            if path == '/api/command':
+                self.assertEqual(query['action'], 'test_cas')
+                self.assertEqual(query['request_id'], request_id)
+                self.clock += initial_delay
+                if lost_submission:
+                    raise OSError('Initial entry response lost after native submission')
+                return {'ok': False, 'outcome': 'unresolved', 'request_id': request_id}
+            if path == '/api/bridge':
+                return copy.deepcopy(self.identity)
+            self.assertEqual(path, '/api/requests/status')
+            self.assertEqual(query, {'request_id': request_id})
+            persisted = json.loads(self.output.read_text(encoding='utf-8'))
+            self.assertEqual(persisted['entry_request_id'], request_id)
+            self.assertEqual(persisted['owner_requests'], [{'action': 'test_cas', 'request_id': request_id}])
+            if override is not None:
+                return override(path, query)
+            ready = finish_at is not None and self.clock >= finish_at
+            return {'ok': True, 'request_id': request_id, 'state': 'completed' if ready else state,
+                    'result': {'ok': True} if ready else copy.deepcopy(result)}
+        def handler(action, kwargs):
+            if action == 'test_cas':
+                return kwargs['transport']('/api/command', {'action': 'test_cas', 'request_id': request_id})
+        self.handler = handler
+        return transport
+
     def run_observer(self, seconds=1, **kwargs):
         original_before, active_before = self.tree(self.original), self.tree(self.profile)
         result = cas_transition.observe(self.state, self.output, self.identity, self.request, SIM_ID,
@@ -164,6 +197,119 @@ class CasTransitionTests(unittest.TestCase):
         self.assertEqual(result['outcome'], 'unresolved')
         self.assertEqual(proof['steps'][0]['result']['request_id'], 'e' * 32)
         self.assertEqual(len(self.calls), 1)
+
+    def test_initial_entry_longer_than_short_poll_completes_with_same_uuid_within_whole_deadline(self):
+        transport = self.pending_entry_transport(finish_at=3.5, initial_delay=2.1)
+        result, proof = self.run_observer(seconds=5, transport=transport)
+        self.assertTrue(result['ok'])
+        self.assertTrue(proof['entry_accepted'])
+        self.assertEqual(proof['entry_request_id'], 'e' * 32)
+        self.assertGreater(proof['entry_status_poll_count'], 1)
+        self.assertGreaterEqual(result['elapsed_seconds'], 3.5)
+        self.assertLess(result['elapsed_seconds'], 5)
+        self.assertEqual(sum(path == '/api/command' for path, _, _ in self.transport_calls), 1)
+        self.assertEqual({query['request_id'] for path, query, _ in self.transport_calls
+                          if path == '/api/requests/status'}, {'e' * 32})
+        self.assertEqual(self.calls[0][1]['seconds'], 2)
+        self.assertEqual([action for action, _ in self.calls],
+                         ['test_cas', 'cas_ui_diagnostics', 'cas_ui_request', 'cas_ui_result'])
+
+    def test_lost_initial_response_recovers_only_same_predetermined_uuid(self):
+        transport = self.pending_entry_transport(finish_at=.3, lost_submission=True)
+        result, proof = self.run_observer(transport=transport)
+        self.assertTrue(result['ok'])
+        self.assertTrue(proof['steps'][0]['result']['response_lost_or_failed'])
+        self.assertEqual(proof['entry_request_id'], 'e' * 32)
+        self.assertEqual(sum(path == '/api/command' for path, _, _ in self.transport_calls), 1)
+        self.assertGreater(proof['entry_status_poll_count'], 1)
+
+    def test_unknown_initial_entry_uses_whole_deadline_retains_uuid_and_never_enters_inventory(self):
+        transport = self.pending_entry_transport(state='unknown')
+        result, proof = self.run_observer(seconds=.6, transport=transport)
+        self.assertFalse(result['ok'])
+        self.assertEqual(proof['outcome'], 'unresolved')
+        self.assertEqual(proof['entry_request_id'], 'e' * 32)
+        self.assertGreaterEqual(result['elapsed_seconds'], .6)
+        self.assertLessEqual(result['elapsed_seconds'], .6)
+        self.assertFalse(proof['entry_accepted'])
+        self.assertEqual([action for action, _ in self.calls], ['test_cas'])
+        self.assertEqual(sum(path == '/api/command' for path, _, _ in self.transport_calls), 1)
+
+    def test_failed_and_cancelled_initial_entries_are_terminal_without_another_submission(self):
+        for state in ('failed', 'cancelled'):
+            with self.subTest(state=state):
+                self.clock = 0; self.calls.clear()
+                if self.output.exists(): self.output.unlink()
+                transport = self.pending_entry_transport(state=state, result={'ok': False, 'message': 'Native refusal'})
+                result, proof = self.run_observer(transport=transport)
+                self.assertEqual(result['outcome'], 'entry-rejected')
+                self.assertFalse(proof['entry_accepted'])
+                self.assertEqual(proof['steps'][-1]['result']['request_state'], state)
+                self.assertEqual(self.calls[0][0], 'test_cas')
+                self.assertEqual(len(self.calls), 1)
+                self.assertEqual(sum(path == '/api/command' for path, _, _ in self.transport_calls), 1)
+
+    def test_wrong_uuid_or_untyped_terminal_result_cannot_claim_initial_entry_completion(self):
+        rows = ({'state': 'completed', 'request_id': 'd' * 32, 'result': {'ok': True}},
+                {'state': 'completed', 'request_id': 'e' * 32, 'result': {'ok': 1}},
+                {'state': 'completed', 'request_id': 'e' * 32, 'result': None},
+                {'state': 'completed', 'request_id': 'e' * 32, 'result': {'ok': True, 'request_id': 'd' * 32}},
+                {'state': 'unrecognised', 'request_id': 'e' * 32})
+        for row in rows:
+            with self.subTest(row=row):
+                self.clock = 0; self.calls.clear()
+                if self.output.exists(): self.output.unlink()
+                transport = self.pending_entry_transport(override=lambda _p, _q: copy.deepcopy(row))
+                result, proof = self.run_observer(transport=transport)
+                self.assertFalse(result['ok'])
+                self.assertFalse(proof['entry_accepted'])
+                self.assertEqual(proof['outcome'], 'unresolved')
+                self.assertEqual(proof['entry_request_id'], 'e' * 32)
+                self.assertEqual(len(self.calls), 1)
+                self.assertEqual(sum(path == '/api/command' for path, _, _ in self.transport_calls), 1)
+
+    def test_changed_bridge_identity_stops_before_original_entry_status_poll(self):
+        base_transport = self.pending_entry_transport(finish_at=.1)
+        def transport(path, query=None, timeout=12):
+            result = base_transport(path, query, timeout=timeout)
+            return dict(result, pid=43) if path == '/api/bridge' else result
+        result, proof = self.run_observer(transport=transport)
+        self.assertFalse(result['ok'])
+        self.assertIn('pinned PID/token/script', proof['error'])
+        self.assertFalse(any(path == '/api/requests/status' for path, _, _ in self.transport_calls))
+        self.assertEqual(len(self.calls), 1)
+
+    def test_lost_status_read_can_recover_without_entry_replay(self):
+        reads = [0]
+        def override(_path, _query):
+            reads[0] += 1
+            if reads[0] == 1:
+                raise OSError('One read-only status response was lost')
+            return {'state': 'completed', 'request_id': 'e' * 32, 'result': {'ok': True}}
+        transport = self.pending_entry_transport(override=override)
+        result, proof = self.run_observer(transport=transport)
+        self.assertTrue(result['ok'])
+        self.assertEqual(reads[0], 2)
+        self.assertEqual(sum(path == '/api/command' for path, _, _ in self.transport_calls), 1)
+        lost = [row for row in proof['steps'] if row['action'] == 'test_cas_status' and
+                row['result'].get('response_lost_or_failed')]
+        self.assertEqual(len(lost), 1)
+        self.assertEqual(lost[0]['result']['request_id'], 'e' * 32)
+
+    def test_process_exit_during_initial_completion_stops_reads_without_replay(self):
+        def override(_path, _query):
+            self.alive = False
+            return {'state': 'running', 'request_id': 'e' * 32, 'result': None}
+        transport = self.pending_entry_transport(override=override)
+        result, proof = self.run_observer(transport=transport)
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['outcome'], 'process-exited')
+        self.assertTrue(proof['process_exit_verified'])
+        self.assertFalse(proof['entry_accepted'])
+        self.assertEqual(proof['entry_request_id'], 'e' * 32)
+        self.assertEqual(proof['entry_status_poll_count'], 1)
+        self.assertEqual(len(self.calls), 1)
+        self.assertEqual(sum(path == '/api/command' for path, _, _ in self.transport_calls), 1)
 
     def test_lost_native_ack_only_polls_same_id_under_overall_deadline(self):
         self.inventory = {'ok': False, 'outcome': 'pending-client', 'cas_request_id': 'c' * 32}

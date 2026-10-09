@@ -65,7 +65,7 @@ def verified_identity(state, transport=get):
     return identity
 
 
-def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=30, transport=get):
+def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=30, transport=get, submission_observer=None):
     identity = verified_identity(state, transport)
     if identity.get('native_cli_available') and action in (
             'test_capture', 'test_input', 'test_studio_ui', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start'):
@@ -75,14 +75,32 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
         request_id = uuid.uuid4().hex
         query = {'action': action, 'value': value, 'request_id': request_id}
         if action == 'test_input':
+            from game_focus import requires_elevated_input, native_input_once
+            if requires_elevated_input(identity['pid']):
+                return native_input_once(state, value, request_id)
             import game_window
             focused = game_window.focus(identity['pid'])
+            if focused.get('ok') is False and focused.get('foreground_verified') is False:
+                from game_focus import focus_for_input
+                focused = focus_for_input(state, identity['pid'], focused)
             if not focused.get('ok') or not focused.get('foreground_verified'):
                 return dict(focused, ok=False, input_submitted=False)
+            fresh = verified_identity(state, transport)
+            if any(fresh.get(key) != identity.get(key) for key in ('pid', 'test_token', 'script_sha256')):
+                raise ValueError('Game identity changed after focus; no native input submitted.')
+        if submission_observer is not None:
+            submission_observer(action, request_id)
         try:
             result = transport('/api/native', query)
-        except (OSError, urllib.error.URLError):
-            # Reuse the exact identity so response loss cannot repeat a click.
+        except (OSError, urllib.error.URLError) as error:
+            if action == 'test_input':
+                # The native UUID cache belongs to this game process. A lost
+                # response can follow a completed input or a process restart;
+                # resending here cannot establish which one occurred.
+                return {'ok': False, 'outcome': 'unresolved', 'request_id': request_id,
+                        'input_submitted': None, 'transport_error': str(error),
+                        'message': 'Native input completion was not observed. Retain this request ID; do not replay the input.'}
+            # Existing non-input controls retain their exact request identity.
             result = transport('/api/native', query)
         if action == 'test_input' and result.get('ok'):
             # The game-owned handler releases its held button/key asynchronously.
@@ -91,11 +109,14 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
         return result
     if not identity.get('alarm_ready') and not (action in (
             'test_quit', 'test_capture', 'test_input', 'test_studio_ui', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start',
+            'test_snapshot', 'test_status',
             'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack')
             and identity.get('core_tick_ready')):
         raise ValueError('Load the disposable household before in-game commands.')
     request_id = uuid.uuid4().hex
     query = {'action': action, 'sim_id': sim_id, 'occult': occult, 'value': value, 'request_id': request_id}
+    if submission_observer is not None:
+        submission_observer(action, request_id)
     try:
         result = transport('/api/command', query)
     except (OSError, urllib.error.URLError) as error:
@@ -152,7 +173,23 @@ def parser():
     launch.add_argument('--state', required=True, type=Path)
     launch.add_argument('--offer-id', help='Verified Sims 4 storefront identity from local EA metadata')
     launch.add_argument('--execute', action='store_true')
+    launch.add_argument('--elevate-permission-once', action='store_true',
+                        help='If exact EA consent is inaccessible, request normal UAC for one Sims-bound helper; approval remains manual')
     launch.add_argument('--headless', action='store_true', help='Fails explicitly until an actual headless runtime exists')
+    ea_update = commands.add_parser('ea-update', help='Inspect or once restart a verified pending EA client update')
+    ea_update.add_argument('--state', required=True, type=Path)
+    ea_update.add_argument('--work', type=Path, help='External evidence directory; defaults to the profile journal directory')
+    ea_update.add_argument('--restart-once', action='store_true', help='Invoke the exact native pending-update action through normal Windows elevation')
+    ea_restart = commands.add_parser('ea-restart', help='Restart the exact installed EA client from normal user permissions, preserving account and saves')
+    ea_restart.add_argument('operation', choices=('status', 'restart', 'restore'))
+    ea_restart.add_argument('--state', required=True, type=Path)
+    ea_restart.add_argument('--output', required=True, type=Path)
+    ea_restart.add_argument('--seconds', type=float, default=45)
+    ea_restart.add_argument('--normal-permissions', action='store_true', help='Reversibly remove only the exact EA HKCU RUNASADMIN token')
+    ea_restart.add_argument('--force-if-tray', action='store_true', help='After normal close, explicitly stop only the exact remaining tray-only EA lifetime')
+    ea_restart.add_argument('--elevate-close-once', action='store_true', help='Request normal Windows approval for one source-pinned close-only helper; never launches an elevated client')
+    ea_restart.add_argument('--recovery', type=Path)
+    ea_restart.add_argument('--expected-recovery-sha256')
     compatibility = commands.add_parser('launch-config', help='Inspect or reversibly remove forced game administrator compatibility')
     compatibility.add_argument('operation', choices=('status', 'prepare', 'restore'))
     compatibility.add_argument('--game-root', required=True, type=Path)
@@ -186,6 +223,13 @@ def parser():
     bundle.add_argument('--optional', action='store_true')
     backup = profile_commands.add_parser('backup', help='Preserve disposable saves/Tray externally and hash original saves read-only')
     backup.add_argument('--state', required=True, type=Path)
+    autosaves = profile_commands.add_parser('recover-autosaves', help='Recover only six disposable autosaves after a verified normal unsaved exit')
+    autosaves.add_argument('--state', required=True, type=Path)
+    autosaves.add_argument('--backup-manifest', required=True, type=Path)
+    autosaves.add_argument('--backup-sha256', required=True)
+    autosaves.add_argument('--exit-proof', required=True, type=Path)
+    autosaves.add_argument('--exit-sha256', required=True)
+    autosaves.add_argument('--output', required=True, type=Path)
     addon = profile_commands.add_parser('mccc', help='Exact minimal MCCC CAS/Dresser interoperability recipe')
     addon.add_argument('operation', choices=('install', 'remove'))
     addon.add_argument('--state', required=True, type=Path)
@@ -216,37 +260,159 @@ def parser():
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
     game = commands.add_parser('game', help='Real in-game test controls; requires the marked disposable profile')
-    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown', 'resume'))
+    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown', 'exit', 'resume', 'load', 'map-select', 'map-play', 'live-observe', 'main-menu', 'native-human'))
     game.add_argument('--state', required=True, type=Path)
     game.add_argument('--sim-id')
     game.add_argument('--value')
     game.add_argument('--output', type=Path)
     game.add_argument('--with-overlay', action='store_true')
+    game.add_argument('--elevate-once', action='store_true', help='One normal Windows elevation for authenticated game focus only')
     game.add_argument('--key', choices=('F11', 'ESC', 'ENTER', 'TAB', 'SPACE'))
     game.add_argument('--x', type=int)
     game.add_argument('--y', type=int)
     game.add_argument('--width', type=int)
     game.add_argument('--height', type=int)
     game.add_argument('--seconds', type=float, default=60)
+    game.add_argument('--slot-id', type=lambda value: int(value, 0), help='Existing normal slot only; required for typed save targeting')
+    game.add_argument('--slot-name', help='Bounded explicit save name; required for typed save targeting')
+    game.add_argument('--expected-save-sha256', help='Exact current existing target-file hash')
+    game.add_argument('--save-guid', help='Exact original native save GUID for save targeting')
+    game.add_argument('--household-id', help='Exact existing household identity for save targeting')
+    game.add_argument('--world', help='Exact current native world label for one measured played-lot marker')
+    game.add_argument('--load-proof', type=Path, help='Exact indexed-load proof preceding the current map')
+    game.add_argument('--load-proof-sha256')
+    game.add_argument('--recovered-input-proof', type=Path, help='Completed native acknowledgment for the original indexed Play request ID')
+    game.add_argument('--recovered-input-sha256')
+    game.add_argument('--allow-autosave-drift', action='store_true',
+                      help='Record drift only in six existing disposable autosave files; normal saves remain exact')
+    game.add_argument('--selection-proof', type=Path, help='Exact selected-household native capture and indexed-save evidence')
+    game.add_argument('--selection-proof-sha256')
+    game.add_argument('--map-play-proof', type=Path, help='Immutable prior native household Play evidence for read-only Live observation')
+    game.add_argument('--map-play-proof-sha256')
+    game.add_argument('--expected-current-form', type=int, choices=(1, 2, 4, 8, 16, 32, 64),
+                      help='Exact currently observed native form for native-human')
+    game.add_argument('--ensure-witch-owner', action='store_true',
+                      help='Allow native-human to construct a missing tuned Witch owner without random generation')
     cas = commands.add_parser('cas', help='Semantic native CAS controls; no mouse input')
-    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'undo', 'redo', 'result', 'diagnostics'))
+    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'undo', 'redo', 'result', 'diagnostics', 'return'))
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
+    cas.add_argument('--household-id', help='Exact existing household identity required for semantic CAS return')
+    cas.add_argument('--settle-ticks', type=int, default=30, help='Native simulation timeline ticks required before leaving Live paused')
+    cas.add_argument('--form', dest='form_flags', type=int, choices=(1, 2, 4, 8, 16, 32, 64),
+                     help='Exact form actually present in the observed native base/alternate pair')
+    cas.add_argument('--expected-layer', type=int, choices=(0, 1), help='Exact currently observed native CAS layer')
+    cas.add_argument('--native-session', type=int, help='Exact owner observation session from a fresh CAS status')
     cas.add_argument('--panel')
     cas.add_argument('--category', type=int)
     cas.add_argument('--index', type=int, help='Zero-based existing outfit number')
     cas.add_argument('--data-id', help='Exact decimal native CAS catalog data identity')
     cas.add_argument('--request-id')
-    cas.add_argument('--seconds', type=float, default=10)
+    cas.add_argument('--seconds', type=float, help='Wait limit; defaults to 60 seconds for return and 10 for other CAS operations')
     cas.add_argument('--output', type=Path)
+    cas_bank = commands.add_parser('cas-bank', help='Durable all-form CAS checkpoint, explicit edit decisions and verified commit')
+    cas_bank.add_argument('operation', choices=('begin', 'status', 'observe', 'prepare', 'commit'))
+    cas_bank.add_argument('--state', required=True, type=Path)
+    cas_bank.add_argument('--sim-id', required=True)
+    cas_bank.add_argument('--output', required=True, type=Path)
+    cas_bank.add_argument('--seconds', type=float, default=30)
+    cas_bank.add_argument('--expected-pending-sha256')
+    cas_bank.add_argument('--expected-raw-return-sha256')
+    cas_bank.add_argument('--expected-plan-sha256')
+    cas_bank.add_argument('--dispositions-file', type=Path)
+    cas_bank.add_argument('--dispositions-sha256')
+    cas_bank.add_argument('--hair-targets-file', type=Path)
+    cas_bank.add_argument('--hair-targets-sha256')
+    cas_probe = commands.add_parser('cas-probe', help='Regression probe for already open native CAS; no entry or acceptance')
+    cas_probe.add_argument('--state', required=True, type=Path)
+    cas_probe.add_argument('--sim-id', required=True)
+    cas_probe.add_argument('--output', required=True, type=Path)
+    cas_probe.add_argument('--seconds', type=float, default=60)
+    cas_probe.add_argument('--step-seconds', type=float, default=30)
+    cas_probe.add_argument('--outfit-add', action='store_true', help='Explicitly allow an Everyday second-outfit probe')
+    hair_audit = commands.add_parser('cas-hair-audit', help='Retain all outfit metadata and observe hair in verified existing clothing categories twice')
+    hair_audit.add_argument('--state', required=True, type=Path)
+    hair_audit.add_argument('--sim-id', required=True)
+    hair_audit.add_argument('--output', required=True, type=Path)
+    hair_audit.add_argument('--seconds', type=float, default=120)
+    hair_audit.add_argument('--step-seconds', type=float, default=15)
+    reload = commands.add_parser('cas-reload', help='Verify native stored appearances after normal save, exit and restart')
+    reload.add_argument('--state', required=True, type=Path)
+    reload.add_argument('--sim-id', required=True)
+    reload.add_argument('--household-id', required=True)
+    reload.add_argument('--save-guid', required=True)
+    reload.add_argument('--save-exit-proof', required=True, type=Path)
+    reload.add_argument('--expected-proof-sha256', required=True)
+    reload.add_argument('--save-proof', type=Path, help='Exact earlier controlled save proof for a seal-preserving unsaved exit')
+    reload.add_argument('--expected-save-proof-sha256', help='SHA-256 of the exact controlled save proof')
+    reload.add_argument('--output', required=True, type=Path)
+    reload.add_argument('--seconds', type=float, default=60)
+    reload.add_argument('--settle-ticks', type=int, default=750)
+    discard = commands.add_parser('game-discard', help='Normal exit without saving after an exact failed CAS return')
+    discard.add_argument('--state', required=True, type=Path)
+    discard.add_argument('--sim-id', required=True)
+    discard.add_argument('--household-id', required=True)
+    discard.add_argument('--save-guid', required=True)
+    discard.add_argument('--failed-return-proof', required=True, type=Path)
+    discard.add_argument('--expected-proof-sha256', required=True)
+    discard.add_argument('--output', required=True, type=Path)
+    discard.add_argument('--seconds', type=float, default=60)
+    crash = commands.add_parser('cas-crash', help='Preserve a later native crash against an immutable completed CAS entry')
+    crash.add_argument('--state', required=True, type=Path)
+    crash.add_argument('--entry-proof', required=True, type=Path)
+    crash.add_argument('--expected-proof-sha256', required=True)
+    crash.add_argument('--output', required=True, type=Path)
+    crash_archive = commands.add_parser('cas-crash-archive', help='Archive only never-observed CAS metadata while the crashed disposable game is closed')
+    crash_archive.add_argument('--state', required=True, type=Path)
+    crash_archive.add_argument('--crash-proof', required=True, type=Path)
+    crash_archive.add_argument('--expected-proof-sha256', required=True)
+    crash_archive.add_argument('--slot-id', required=True, type=int)
+    crash_archive.add_argument('--expected-save-sha256', required=True)
+    crash_archive.add_argument('--output', required=True, type=Path)
+    captured_archive = commands.add_parser('cas-captured-archive', help='Closed disposable only: preserve and archive an exact never-observed CAS checkpoint; no return/reload claim')
+    captured_archive.add_argument('--state', required=True, type=Path)
+    captured_archive.add_argument('--entry-proof', required=True, type=Path)
+    captured_archive.add_argument('--expected-proof-sha256', required=True)
+    captured_archive.add_argument('--slot-id', required=True, type=int)
+    captured_archive.add_argument('--expected-save-sha256', required=True)
+    captured_archive.add_argument('--output', required=True, type=Path)
+    abandon = commands.add_parser('cas-abandon', help='Archive retained failed CAS metadata after a verified restart of the unchanged save')
+    abandon.add_argument('--state', required=True, type=Path)
+    abandon.add_argument('--sim-id', required=True)
+    abandon.add_argument('--household-id', required=True)
+    abandon.add_argument('--save-guid', required=True)
+    abandon.add_argument('--slot-id', required=True, type=lambda value: int(value, 0))
+    abandon.add_argument('--failed-return-proof', required=True, type=Path)
+    abandon.add_argument('--expected-proof-sha256', required=True)
+    abandon.add_argument('--unsaved-exit-proof', type=Path)
+    abandon.add_argument('--expected-unsaved-exit-proof-sha256')
+    abandon.add_argument('--observer-failure-proof', type=Path)
+    abandon.add_argument('--expected-observer-failure-sha256')
+    abandon.add_argument('--expected-save-sha256', required=True)
+    abandon.add_argument('--output', required=True, type=Path)
+    abandon.add_argument('--seconds', type=float, default=30)
+    abandon.add_argument('--allow-auto-save-slot-metadata-only', action='store_true',
+                         help='Allow only the native autosave sentinel when archiving metadata; proves no loaded disk slot')
+    catalog = commands.add_parser('cas-catalog-audit', help='Audit native CAS panel navigation and retain complete returned catalogs')
+    catalog.add_argument('--state', required=True, type=Path)
+    catalog.add_argument('--sim-id', required=True)
+    catalog.add_argument('--output', required=True, type=Path)
+    catalog.add_argument('--panel', dest='panels', action='append')
+    catalog.add_argument('--seconds', type=float, default=120)
+    catalog.add_argument('--step-seconds', type=float, default=5)
+    catalog.add_argument('--step-budget', type=int, default=20)
     studio = commands.add_parser('studio', help='Live/stored-form CAS History and appearance editing on the real game thread')
-    studio.add_argument('operation', choices=('status', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'part-inspect', 'part-preview', 'outfit-duplicate', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
+    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'part-inspect', 'part-preview', 'outfit-duplicate', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
     studio.add_argument('--state', required=True, type=Path)
     studio.add_argument('--sim-id')
     studio.add_argument('--form', type=int, help='Explicit existing native/bank form owner; editing does not activate it')
     studio.add_argument('--value')
     studio.add_argument('--output', type=Path, help='New external JSON evidence file for complete native history records')
     studio.add_argument('--value-file', type=Path, help='UTF-8 JSON for numeric color edits')
+    studio.add_argument('--all-forms', action='store_true', help='Read every existing observed form without activating it')
+    studio.add_argument('--catalog-manifest', type=Path, help='Exact external CAS resource cache manifest for verified names/images/package provenance')
+    studio.add_argument('--catalog-manifest-sha256')
+    studio.add_argument('--jobs', type=int, default=4, help='Inventory read-only page concurrency, one through four')
     test = commands.add_parser('test', help='Run actual gameplay suites, unpause to settle, record proof and leave paused')
     test.add_argument('suite', choices=('color-cycle', 'hybrid-cycle'))
     test.add_argument('--state', required=True, type=Path)
@@ -259,6 +425,27 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'cas-captured-archive':
+        from cas_crash_archive import archive
+        return archive(args.state, args.entry_proof, args.expected_proof_sha256,
+            args.slot_id, args.expected_save_sha256, args.output, entry_only=True)
+    if args.command == 'cas-crash-archive':
+        from cas_crash_archive import archive
+        return archive(args.state, args.crash_proof, args.expected_proof_sha256,
+            args.slot_id, args.expected_save_sha256, args.output)
+    if args.command == 'cas-crash':
+        from cas_crash import record
+        return record(args.state, args.entry_proof, args.expected_proof_sha256, args.output)
+    if args.command == 'ea-update':
+        import ea_update
+        work = args.work if args.work is not None else args.state.resolve().parent
+        return (ea_update.restart_once if args.restart_once else ea_update.inspect)(work=work, state=args.state)
+    if args.command == 'ea-restart':
+        import ea_restart
+        return ea_restart.run(args.state, args.operation, args.output,
+            normal_permissions=args.normal_permissions, force_if_tray=args.force_if_tray,
+            elevate_close_once=args.elevate_close_once, recovery=args.recovery,
+            expected_recovery_sha256=args.expected_recovery_sha256, seconds=args.seconds)
     if args.command == 'launch-config':
         import launch_compatibility
         require_isolated(args.state)
@@ -268,7 +455,8 @@ def execute(args):
             raise ValueError('A recovery receipt is required for compatibility changes.')
         return launch_compatibility.configure(args.state, args.game_root, args.receipt, restore=args.operation == 'restore')
     if args.command == 'launch':
-        return game_launch.launch(args.game_root, args.state, args.execute, args.headless, offer_id=args.offer_id)
+        return game_launch.launch(args.game_root, args.state, args.execute, args.headless, offer_id=args.offer_id,
+                                 elevate_permission_once=args.elevate_permission_once)
     if args.command == 'profile':
         if args.profile_command == 'overlay-autostart':
             from overlay_configuration import configure
@@ -280,6 +468,10 @@ def execute(args):
             return candidate_install.install(args.state, args.bundle, args.experimental_ui, args.optional)
         if args.profile_command == 'backup':
             return candidate_install.backup(args.state)
+        if args.profile_command == 'recover-autosaves':
+            from test_autosave_recovery import recover
+            return recover(args.state, args.backup_manifest, args.backup_sha256,
+                           args.exit_proof, args.exit_sha256, args.output)
         if args.profile_command == 'adopt':
             return reusable_profile.adopt(args.previous_state, args.profile, args.state, args.protected_original, args.artifact)
         if args.profile_command == 'install':
@@ -304,6 +496,49 @@ def execute(args):
     if args.command == 'capabilities':
         return owned_request(args.state, 'overlay_capabilities')
     profile = require_isolated(args.state)
+    if args.command == 'cas-bank':
+        from cas_bank_cli import run
+        return run(args, owned_request)
+    if args.command == 'game-discard':
+        from game_discard import observe
+        return observe(args.state, args.output, verified_identity(args.state), owned_request,
+                       args.failed_return_proof, args.expected_proof_sha256, args.sim_id,
+                       args.household_id, args.save_guid, seconds=args.seconds, transport=get)
+    if args.command == 'cas-abandon':
+        from cas_abandon import observe
+        recovery_options = {}
+        if args.observer_failure_proof is not None or args.expected_observer_failure_sha256 is not None:
+            if args.observer_failure_proof is None or args.expected_observer_failure_sha256 is None:
+                raise ValueError('Observer failure proof and its exact hash must be supplied together.')
+            recovery_options.update(observer_failure_proof=args.observer_failure_proof,
+                expected_observer_failure_sha256=args.expected_observer_failure_sha256)
+            if args.unsaved_exit_proof is None or args.expected_unsaved_exit_proof_sha256 is None:
+                raise ValueError('Observer failure recovery also requires the separate unsaved exit proof and hash.')
+        if args.unsaved_exit_proof is not None or args.expected_unsaved_exit_proof_sha256 is not None:
+            if args.unsaved_exit_proof is None or args.expected_unsaved_exit_proof_sha256 is None:
+                raise ValueError('Unsaved exit proof and its exact hash must be supplied together.')
+            recovery_options.update(unsaved_exit_proof=args.unsaved_exit_proof,
+                expected_unsaved_exit_proof_sha256=args.expected_unsaved_exit_proof_sha256)
+        return observe(args.state, args.output, verified_identity(args.state), owned_request,
+                       args.failed_return_proof, args.expected_proof_sha256, args.expected_save_sha256,
+                       args.sim_id, args.household_id, args.save_guid, args.slot_id,
+                       seconds=args.seconds, transport=get,
+                       allow_auto_save_slot_metadata_only=args.allow_auto_save_slot_metadata_only,
+                       **recovery_options)
+    if args.command == 'cas-reload':
+        from cas_reload import observe
+        if (args.save_proof is None) != (args.expected_save_proof_sha256 is None):
+            raise ValueError('A controlled save proof and its exact SHA-256 must be supplied together.')
+        return observe(args.state, args.output, verified_identity(args.state), owned_request,
+                       args.save_exit_proof, args.expected_proof_sha256, args.sim_id,
+                       args.household_id, args.save_guid, seconds=args.seconds,
+                       settle_ticks=args.settle_ticks, transport=get,
+                       save_proof=args.save_proof, expected_save_proof_sha256=args.expected_save_proof_sha256)
+    if args.command == 'cas-catalog-audit':
+        from cas_catalog_audit import run
+        return run(args.state, args.output, verified_identity(args.state), owned_request,
+                   args.sim_id, seconds=args.seconds, step_seconds=args.step_seconds,
+                   panels=args.panels, step_budget=args.step_budget, transport=get)
     if args.command == 'test':
         from runtime_tests import RuntimeTest
         return RuntimeTest(args.state, args.sim_id, args.output, owned_request).run(
@@ -327,12 +562,37 @@ def execute(args):
         write_json(output, result)
         return result
     if args.command == 'studio':
+        if args.operation == 'inventory':
+            if args.output is None or args.value is not None or args.value_file is not None:
+                raise ValueError('Inventory needs one new JSON output and uses typed paging automatically.')
+            from studio_inventory import collect
+            return collect(args.state, args.output, verified_identity(args.state), owned_request,
+                           args.sim_id, form=args.form, all_forms=args.all_forms,
+                           catalog_manifest=args.catalog_manifest,
+                           catalog_manifest_sha256=args.catalog_manifest_sha256,
+                           identity_provider=verified_identity, jobs=args.jobs)
+        if args.all_forms or args.catalog_manifest is not None or args.catalog_manifest_sha256 is not None:
+            raise ValueError('All-form/catalog options are specific to the inventory operation.')
+        output = None
+        if args.output is not None:
+            _, _, active, original = reusable_profile.load(args.state)
+            output = reusable_profile.writable(args.output)
+            if (output.exists() or output.suffix.lower() != '.json' or output == Path(args.state).resolve() or
+                    any(output == root or root in output.parents for root in (active, original))):
+                raise ValueError('Studio receipts require one new external JSON filename before any command.')
+
+        def studio_receipt(result):
+            if output is None:
+                return result
+            write_json(output, result)
+            return dict(result, proof=str(output), proof_sha256=sha256(output))
+
         if args.operation in ('open-history', 'open-parts', 'open-cas-history', 'open-cas-parts'):
             if not args.sim_id:
                 raise ValueError('An explicit Sim ID is required for Studio UI selection.')
             _, data, _, _ = reusable_profile.load(args.state)
-            return owned_request(args.state, 'test_studio_ui', value=json.dumps({'test_token': data['token'],
-                'value': {'sim_id': args.sim_id, 'tab': args.operation[5:].replace('-', '_')}}))
+            return studio_receipt(owned_request(args.state, 'test_studio_ui', value=json.dumps({'test_token': data['token'],
+                'value': {'sim_id': args.sim_id, 'tab': args.operation[5:].replace('-', '_')}})))
         value = args.value
         if args.value_file:
             if value is not None or args.value_file.stat().st_size > 2048:
@@ -341,19 +601,85 @@ def execute(args):
         if args.form is not None:
             value = json.dumps({'form': args.form, 'value': value})
         result = owned_request(args.state, 'studio_' + args.operation.replace('-', '_'), args.sim_id, value=value)
-        if args.output is not None:
-            _, _, active, original = reusable_profile.load(args.state)
-            output = reusable_profile.writable(args.output)
-            if args.operation != 'record' or output.exists() or any(output == root or root in output.parents for root in (active, original)):
-                raise ValueError('Complete history record output requires a new external filename.')
-            if result.get('ok'):
-                write_json(output, result)
-                return {'ok': True, 'output': str(output), 'sha256': sha256(output), 'history_node': result['history_node'], 'evidence_only': True}
-        return result
+        return studio_receipt(result)
     if args.command == 'cas':
+        if args.seconds is None:
+            args.seconds = 60 if args.operation == 'return' else 10
+        if args.operation == 'return':
+            if args.output is None:
+                raise ValueError('Semantic CAS return requires a new external JSON proof filename.')
+            from cas_return import observe
+            return observe(args.state, args.output, verified_identity(args.state), owned_request,
+                           args.sim_id, args.household_id, seconds=args.seconds,
+                           settle_ticks=args.settle_ticks, transport=get)
         from cas_client import execute as cas_execute
         return cas_execute(args, owned_request)
+    if args.command == 'cas-probe':
+        from cas_runtime_probe import run
+        return run(args.state, args.output, verified_identity(args.state), owned_request, args.sim_id,
+                   seconds=args.seconds, step_seconds=args.step_seconds, everyday_second=args.outfit_add, transport=get)
+    if args.command == 'cas-hair-audit':
+        from cas_hair_audit import run
+        return run(args.state, args.output, verified_identity(args.state), owned_request, args.sim_id,
+                   seconds=args.seconds, step_seconds=args.step_seconds, transport=get)
     if args.command == 'game':
+        if args.operation == 'live-observe':
+            if args.output is None:
+                raise ValueError('Read-only paused Live observation needs one new external proof.')
+            from game_live_observe import observe
+            return observe(args.state, args.output, verified_identity(args.state), owned_request,
+                           args.sim_id, args.household_id, args.save_guid, args.slot_id,
+                           args.expected_save_sha256, args.map_play_proof, args.map_play_proof_sha256,
+                           identity_provider=verified_identity)
+        if args.operation == 'map-play':
+            if args.output is None or args.value is not None:
+                raise ValueError('Map Play requires a new external proof and explicit selected-household parameters.')
+            from game_map_play import observe
+            return observe(args.state, args.output, verified_identity(args.state), owned_request,
+                           args.sim_id, args.household_id, args.save_guid, args.slot_id,
+                           args.expected_save_sha256, args.selection_proof,
+                           args.selection_proof_sha256, seconds=args.seconds,
+                           identity_provider=verified_identity)
+        if args.operation == 'map-select':
+            if args.output is None or args.value is not None:
+                raise ValueError('Measured map selection requires a new external proof and explicit saved-household parameters.')
+            from game_map import select_marker
+            return select_marker(args.state, args.output, verified_identity(args.state), owned_request,
+                                 args.sim_id, args.household_id, args.save_guid, args.slot_id,
+                                 args.expected_save_sha256, args.world, args.load_proof,
+                                 args.load_proof_sha256, args.recovered_input_proof,
+                                 args.recovered_input_sha256, identity_provider=verified_identity,
+                                 allow_autosave_drift=args.allow_autosave_drift)
+        if args.operation == 'load':
+            if args.output is None or args.value is not None:
+                raise ValueError('Exact existing-save load requires a new external proof and named save parameters.')
+            from game_load import observe
+            return observe(args.state, args.output, verified_identity(args.state), owned_request,
+                           args.sim_id, args.household_id, args.save_guid, args.slot_id,
+                           args.slot_name, args.expected_save_sha256, seconds=args.seconds,
+                           identity_provider=verified_identity)
+        if args.operation == 'native-human':
+            if not all((args.sim_id, args.household_id, args.save_guid)) or args.expected_current_form is None or args.value is not None:
+                raise ValueError('Native Human selection requires exact Sim/household/save GUID and observed current form.')
+            _path, journal, profile, original = reusable_profile.load(args.state)
+            output = reusable_profile.writable(args.output) if args.output else None
+            if output is not None and (output.exists() or output.suffix.casefold() != '.json' or
+                    any(output == root or root in output.parents for root in (profile, original))):
+                raise ValueError('Use a new external JSON native-selection proof outside both profiles.')
+            result = owned_request(args.state, 'test_native_form_select', args.sim_id,
+                value=json.dumps({'test_token': journal['token'], 'value': {
+                    'form_flags': 1, 'expected_current_form_flags': args.expected_current_form,
+                    'household_id': args.household_id, 'save_guid': args.save_guid,
+                    'ensure_witch_owner': args.ensure_witch_owner}}), seconds=args.seconds)
+            if output is not None:
+                write_json(output, result)
+                return {'ok': result.get('ok') is True, 'output': str(output), 'sha256': sha256(output),
+                        'outcome': result.get('outcome'), 'request_id': result.get('request_id'),
+                        'native_switch_attempted': result.get('native_switch_attempted'),
+                        'witch_owner_created': result.get('witch_owner_created'),
+                        'bank_appearance_restored': result.get('bank_appearance_restored'),
+                        'unpaused_visual_verification_required': result.get('unpaused_visual_verification_required')}
+            return result
         if args.operation == 'cas' and args.output is not None:
             from cas_transition import observe
             return observe(args.state, args.output, verified_identity(args.state), owned_request,
@@ -363,13 +689,32 @@ def execute(args):
                 raise ValueError('A new external JSON proof filename is required for Resume.')
             from game_lifecycle import resume
             return resume(args.state, args.output, verified_identity(args.state), owned_request,
-                          sim_id=args.sim_id, seconds=args.seconds)
+                          sim_id=args.sim_id, seconds=args.seconds,
+                          household_id=args.household_id, save_guid=args.save_guid)
         if args.operation == 'shutdown':
             if args.output is None:
                 raise ValueError('A new external JSON proof filename is required for normal Save and Exit.')
             from game_lifecycle import shutdown
             return shutdown(args.state, args.output, verified_identity(args.state), owned_request)
+        if args.operation == 'main-menu':
+            if args.output is None or not all((args.sim_id, args.household_id, args.save_guid)):
+                raise ValueError('Unsaved main-menu exit requires a new external proof and exact native identities.')
+            from game_main_menu import observe
+            return observe(args.state, args.output, verified_identity(args.state), owned_request,
+                           args.sim_id, args.household_id, args.save_guid)
+        if args.operation == 'exit':
+            if args.output is None or not all((args.sim_id, args.household_id, args.save_guid)):
+                raise ValueError('Unsaved normal exit requires a new external proof and exact Sim/household/save GUID.')
+            from game_lifecycle import shutdown
+            return shutdown(args.state, args.output, verified_identity(args.state), owned_request,
+                            save=False, sim_id=args.sim_id, household_id=args.household_id,
+                            save_guid=args.save_guid)
         if args.operation == 'focus':
+            if args.elevate_once:
+                if args.output is None:
+                    raise ValueError('One-shot game focus requires a new external --output proof.')
+                from game_focus import elevate_once
+                return elevate_once(args.state, args.output)
             import game_window
             return game_window.focus(verified_identity(args.state)['pid'])
         _path, data, _profile, _original = reusable_profile.load(args.state)
@@ -378,6 +723,17 @@ def execute(args):
                 raise ValueError('An external proof image filename is required.')
             from game_capture import capture
             return capture(args.state, args.output, owned_request, overlay=args.with_overlay)
+        direct_output = None
+        if args.output is not None and args.operation not in ('all-data', 'save'):
+            direct_output = reusable_profile.writable(args.output)
+            if (direct_output.exists() or direct_output.suffix.casefold() != '.json' or
+                    any(direct_output == root or root in direct_output.parents for root in (_profile, _original))):
+                raise ValueError('Use a new external JSON command receipt outside both profiles.')
+        def receipt(result):
+            if direct_output is None:
+                return result
+            write_json(direct_output, result)
+            return dict(result, proof=str(direct_output), proof_sha256=sha256(direct_output))
         if args.operation in ('key', 'click', 'move'):
             if args.width is None or args.height is None or not 1 <= args.width <= 8192 or not 1 <= args.height <= 8192:
                 raise ValueError('Supply the observed client viewport width/height.')
@@ -391,7 +747,7 @@ def execute(args):
                     raise ValueError('Click must be inside the observed game viewport.')
             argument = {'command': 2 if args.operation == 'key' else 3 if args.operation == 'move' else 1, 'x': x, 'y': y,
                         'width': args.width, 'height': args.height}
-            return owned_request(args.state, 'test_input', value=json.dumps({'test_token': data['token'], 'value': argument}))
+            return receipt(owned_request(args.state, 'test_input', value=json.dumps({'test_token': data['token'], 'value': argument})))
         value = json.dumps({'test_token': data['token'], 'value': args.value})
         if args.operation == 'all-data':
             if not args.sim_id:
@@ -407,29 +763,12 @@ def execute(args):
                         'runtime_only_fields_complete': False, 'all_edit_handlers_complete': False}
             return result
         if args.operation == 'save':
-            snapshot = owned_request(args.state, 'test_snapshot', args.sim_id, value=value)
-            if not snapshot.get('ok'):
-                return snapshot
-            slot = snapshot['save_slot']
-            if not 0 < slot < 0xffffffff:
-                raise ValueError('Refusing the scratch/unsaved slot.')
-            save = reusable_profile.writable(_profile / 'saves' / ('Slot_{:08x}.save'.format(slot)))
-            prior_time = save.stat().st_mtime_ns if save.exists() else None
-            result = owned_request(args.state, 'test_save', args.sim_id, value=value)
-            if not result.get('ok'):
-                return result
-            deadline, previous = time.monotonic() + 15, None
-            while time.monotonic() < deadline:
-                if save.exists() and save.stat().st_size:
-                    stat = save.stat()
-                    observed = (stat.st_mtime_ns, stat.st_size, sha256(save))
-                    if observed == previous and stat.st_mtime_ns != prior_time:
-                        return dict(result, save_completed_file_verified=True, save_reload_verified=False,
-                            save_file=str(save), save_sha256=observed[2], save_bytes=observed[1])
-                    previous = observed
-                time.sleep(0.25)
-            return dict(result, ok=False, outcome='unresolved', save_completed_file_verified=False,
-                message='Save was submitted once but a completed file rewrite was not observed; do not resubmit blindly.')
+            if args.output is None or args.value is not None:
+                raise ValueError('Typed existing-target save requires a new external proof and named save parameters.')
+            from game_save import observe
+            return observe(args.state, args.output, verified_identity(args.state), owned_request, args.sim_id,
+                           args.slot_id, args.slot_name, args.expected_save_sha256, args.save_guid,
+                           args.household_id, seconds=args.seconds, transport=get)
         quit_pid = get('/api/bridge')['pid'] if args.operation == 'quit' else None
         result = owned_request(args.state, 'test_' + args.operation.replace('-', '_'), args.sim_id, value=value)
         if args.operation == 'quit' and result.get('ok'):
@@ -437,11 +776,11 @@ def execute(args):
             deadline = time.monotonic() + 10
             while time.monotonic() < deadline:
                 if not any(row['Id'] == pid for row in game_launch.running_game_processes()):
-                    return dict(result, game_exit_verified=True, pid=pid)
+                    return receipt(dict(result, game_exit_verified=True, pid=pid))
                 time.sleep(0.5)
-            return dict(result, ok=False, outcome='unresolved', game_exit_verified=False,
-                message='Normal quit was submitted once but process exit was not observed.')
-        return result
+            return receipt(dict(result, ok=False, outcome='unresolved', game_exit_verified=False,
+                message='Normal quit was submitted once but process exit was not observed.'))
+        return receipt(result)
     return owned_request(args.state, args.action, args.sim_id, args.occult, args.value)
 
 

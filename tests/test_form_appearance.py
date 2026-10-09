@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import sys
 import tempfile
 from types import SimpleNamespace as Obj
@@ -51,6 +52,7 @@ class HumanWerewolfTests(unittest.TestCase):
         self.backend = Obj(_data_directory=lambda: self.directory.name, OccultType=Obj(HUMAN=1),
             _occult_by_name=lambda _: 32, _has_occult=lambda *_: True,
             _get_current_flags=lambda sim: sim.current_occult_types, _v8_read_outfit_blob=lambda sim: sim.blob,
+            _form_map=lambda tracker: {1: self.human, 32: self.wolf},
             _restore_siminfo_payload=restore,
             services=Obj(get_persistence_service=lambda: Obj(get_save_slot_proto_guid=lambda: 99)))
 
@@ -93,7 +95,7 @@ class HumanWerewolfTests(unittest.TestCase):
     def test_accepted_form_bank_follows_explicit_human_werewolf_enable_and_disable(self):
         path, key = form_bank.context(self.backend, self.sim)
         original = appearance.packed(self.backend, self.wolf)
-        form_bank.save(path, {'schema': 1, 'records': {key: {'bank': {'32': original}, 'history': []}}})
+        form_bank.save(path, {'schema': 1, 'records': {key: {'bank': {'32': original}, 'history': [], 'runtime_pid': os.getpid()}}})
         human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_on')
         self.assertEqual(form_bank.load(path)['records'][key]['bank']['32'], appearance.packed(self.backend, self.human))
         human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_off')

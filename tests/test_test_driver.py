@@ -6,22 +6,110 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
 import td1_occult_hybrid_apex as backend
-from apex_core import test_driver
+from apex_core import test_driver, form_bank, cas_bank_transaction
 from apex_core.command_queue import CommandQueue
 
 
 class TestDriverTests(unittest.TestCase):
+    @staticmethod
+    def timeline_fixture(timeline, game_ticks):
+        class NativeTime:
+            def __init__(self, ticks, label):
+                self.ticks, self.label = ticks, label
+            def absolute_ticks(self):
+                return self.ticks
+            def __str__(self):
+                return self.label
+        game = Obj(clock_speed=1, now=lambda: NativeTime(game_ticks[0], 'game ' + str(game_ticks[0])))
+        persistence = Obj(get_save_slot_proto_buff=lambda: Obj(slot_id=2),
+                          get_save_slot_proto_guid=lambda: 333)
+        service = Obj(sim_now=NativeTime(timeline, 'simulation ' + str(timeline)))
+        services = Obj(get_persistence_service=lambda: persistence, game_clock_service=lambda: game,
+            active_household=lambda: Obj(id=222), current_zone=lambda: Obj(id=444, is_in_build_buy=False, is_zone_running=True),
+            client_manager=lambda: Obj(get_first_client=lambda: Obj(id=555)), time_service=lambda: service)
+        return Obj(services=services), service
+
+    def test_frozen_simulation_does_not_inherit_advancing_game_clock(self):
+        game_ticks = [100]
+        fake, _timeline = self.timeline_fixture((1 << 63) + 7, game_ticks)
+        before = test_driver.snapshot(fake, None)
+        game_ticks[0] += 1000
+        after = test_driver.snapshot(fake, None)
+        self.assertEqual(before['sim_now_ticks'], str((1 << 63) + 7))
+        self.assertEqual(after['sim_now_ticks'], before['sim_now_ticks'])
+        self.assertEqual(after['sim_now'], before['sim_now'])
+        self.assertEqual(before['game_now_ticks'], '100')
+        self.assertEqual(after['game_now_ticks'], '1100')
+        self.assertNotEqual(after['game_now'], before['game_now'])
+        self.assertEqual(after['sim_time_source'], 'services.time_service().sim_now')
+        self.assertEqual(after['runtime_queries']['sim_now_ticks'], 'returned-value')
+
+    def test_simulation_timeline_advances_independently_from_game_clock(self):
+        fake, timeline = self.timeline_fixture(20, [100])
+        before = test_driver.snapshot(fake, None)
+        timeline.sim_now.ticks = 35
+        after = test_driver.snapshot(fake, None)
+        self.assertEqual((before['sim_now_ticks'], after['sim_now_ticks']), ('20', '35'))
+        self.assertEqual(before['game_now_ticks'], after['game_now_ticks'])
+
+    def test_missing_failed_or_null_timeline_never_falls_back_to_game_clock(self):
+        for unavailable in ('missing-service', 'null-service', 'failed-service', 'missing-timeline', 'null-timeline'):
+            with self.subTest(unavailable=unavailable):
+                fake, timeline = self.timeline_fixture(20, [100])
+                if unavailable == 'missing-service':
+                    del fake.services.time_service
+                elif unavailable == 'null-service':
+                    fake.services.time_service = lambda: None
+                elif unavailable == 'failed-service':
+                    fake.services.time_service = Mock(side_effect=RuntimeError('timeline unavailable'))
+                elif unavailable == 'missing-timeline':
+                    del timeline.sim_now
+                else:
+                    timeline.sim_now = None
+                result = test_driver.snapshot(fake, None)
+                self.assertIsNone(result['sim_now'])
+                self.assertIsNone(result['sim_now_ticks'])
+                state = 'returned-null' if unavailable.startswith('null-') else 'failed'
+                self.assertEqual(result['runtime_queries']['sim_now'], state)
+                self.assertEqual(result['runtime_queries']['sim_now_ticks'], state)
+                self.assertEqual(result['game_now_ticks'], '100')
+                if state == 'failed':
+                    self.assertIn('sim_now_ticks', result['runtime_errors'])
+
+    def test_malformed_native_timeline_ticks_are_explicit_without_clock_fallback(self):
+        for malformed in (True, -1, 1 << 64, 1.25, '123'):
+            with self.subTest(malformed=malformed):
+                fake, timeline = self.timeline_fixture(malformed, [100])
+                result = test_driver.snapshot(fake, None)
+                self.assertIsNone(result['sim_now_ticks'])
+                self.assertIsNone(result['sim_now'])
+                self.assertEqual(result['runtime_queries']['sim_now_ticks'], 'failed')
+                self.assertEqual(result['game_now_ticks'], '100')
+        fake, timeline = self.timeline_fixture(20, [100])
+        timeline.sim_now = Obj()
+        result = test_driver.snapshot(fake, None)
+        self.assertIsNone(result['sim_now_ticks'])
+        self.assertEqual(result['runtime_queries']['sim_now_ticks'], 'failed')
+
+    def test_unavailable_game_clock_time_does_not_erase_valid_simulation_timeline(self):
+        fake, _timeline = self.timeline_fixture(20, [100])
+        fake.services.game_clock_service().now = Mock(side_effect=RuntimeError('game now unavailable'))
+        result = test_driver.snapshot(fake, None)
+        self.assertEqual(result['sim_now_ticks'], '20')
+        self.assertIsNone(result['game_now_ticks'])
+        self.assertEqual(result['runtime_queries']['game_now_ticks'], 'failed')
+
     def test_outfit_switch_uses_existing_number_and_requires_unpaused_visual_proof(self):
         current=[(0,0)]
         def switch(value):current[0]=value;return True
         sim=Obj(has_outfit=lambda value:value==(0,1),set_current_outfit=Mock(side_effect=switch),get_current_outfit=lambda:current[0])
         fake=Obj(_get_sim_info_by_id=lambda _:sim,_resend_all_visuals=Mock())
         modules={'sims':Obj(),'sims.outfits':Obj(),'sims.outfits.outfit_enums':Obj(OutfitCategory=lambda value:value)}
-        with patch.object(test_driver,'guard',return_value={'category':0,'index':1}),patch.object(test_driver,'snapshot',return_value={}),patch.dict(sys.modules,modules):
+        with patch.object(test_driver,'guard',return_value={'category':0,'index':1}),patch.object(test_driver,'snapshot',return_value={}),patch.object(form_bank, 'assert_idle'),patch.dict(sys.modules,modules):
             result=test_driver.dispatch(fake,'test_outfit','123','{}')
         self.assertTrue(result['ok']);self.assertTrue(result['unpaused_visual_verification_required']);self.assertEqual(current[0],(0,1))
         sim.set_current_outfit.reset_mock()
-        with patch.object(test_driver,'guard',return_value={'category':0,'index':2}),patch.dict(sys.modules,modules):
+        with patch.object(test_driver,'guard',return_value={'category':0,'index':2}),patch.object(form_bank, 'assert_idle'),patch.dict(sys.modules,modules):
             with self.assertRaisesRegex(ValueError,'does not exist'):test_driver.dispatch(fake,'test_outfit','123','{}')
         sim.set_current_outfit.assert_not_called()
     def test_new_occult_initializes_new_form_without_overwriting_existing_human(self):
@@ -146,7 +234,8 @@ class TestDriverTests(unittest.TestCase):
         modules = {'server_commands': Obj(),
             'server_commands.cas_commands': Obj(modify_in_cas=lambda *_a, **_k: True),
             'server_commands.argument_helpers': Obj(OptionalTargetParam=target)}
-        with patch.object(test_driver, 'guard', return_value=None), patch.object(test_driver, 'snapshot', return_value={}), patch.dict(sys.modules, modules):
+        with patch.object(test_driver, 'guard', return_value=None), patch.object(test_driver, 'snapshot', return_value={}), \
+                patch.object(cas_bank_transaction, 'begin', return_value={'ok': True, 'lane': '1'}), patch.dict(sys.modules, modules):
             result = test_driver.dispatch(fake, 'test_cas', str(sim.id), '{}')
         self.assertTrue(result['ok'])
         self.assertEqual(calls, [str(sim.id)])
@@ -177,14 +266,50 @@ class TestDriverTests(unittest.TestCase):
             'server_commands.cas_commands': Obj(modify_in_cas=lambda target, **kwargs: calls.append(('cas', target, kwargs)) or True),
             'server_commands.argument_helpers': Obj(OptionalTargetParam=lambda text: text),
             'sims4.commands': Obj(client_cheat=lambda *args: calls.append(('cheat',) + args))}
-        with patch.object(test_driver, 'guard', return_value='full'), patch.object(test_driver, 'snapshot', return_value={}), patch.dict(sys.modules, modules):
+        with patch.object(test_driver, 'guard', return_value='full'), patch.object(test_driver, 'snapshot', side_effect=lambda *_a: calls.append(('snapshot-after-checkpoint',)) or {}), \
+                patch.object(cas_bank_transaction, 'begin', side_effect=lambda *_a: calls.append(('checkpoint',)) or {'ok': True, 'lane': '1'}), patch.dict(sys.modules, modules):
             self.assertTrue(test_driver.dispatch(fake, 'test_cas', '123', '{}')['ok'])
-        self.assertEqual(calls, [('cheat', 'cas.fulleditmode', 987), ('cas', '123', {'_connection': 987})])
+        self.assertEqual(calls, [('checkpoint',), ('snapshot-after-checkpoint',), ('cheat', 'cas.fulleditmode', 987), ('cas', '123', {'_connection': 987})])
         calls.clear()
         with patch.object(test_driver, 'guard', return_value='unsupported'), patch.dict(sys.modules, modules):
             with self.assertRaisesRegex(ValueError, 'CAS mode'):
                 test_driver.dispatch(fake, 'test_cas', '123', '{}')
         self.assertEqual(calls, [])
+
+    def test_cas_checkpoint_failure_or_pending_transaction_prevents_native_entry(self):
+        sim = Obj(id=123, get_sim_instance=lambda: object())
+        fake = Obj(_get_sim_info_by_id=lambda _: sim,
+            services=Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987))))
+        entry, cheat = Mock(return_value=True), Mock()
+        modules = {'server_commands': Obj(),
+            'server_commands.cas_commands': Obj(modify_in_cas=entry),
+            'server_commands.argument_helpers': Obj(OptionalTargetParam=lambda text: text),
+            'sims4.commands': Obj(client_cheat=cheat)}
+        for options in ({'side_effect': ValueError('CAS transaction retained')},
+                        {'return_value': {'ok': False}}, {'return_value': None}):
+            with self.subTest(options=options), patch.object(test_driver, 'guard', return_value='full'), \
+                    patch.object(test_driver, 'snapshot', return_value={}), \
+                    patch.object(cas_bank_transaction, 'begin', **options), patch.dict(sys.modules, modules):
+                with self.assertRaises(ValueError):
+                    test_driver.dispatch(fake, 'test_cas', '123', '{}')
+        entry.assert_not_called()
+        cheat.assert_not_called()
+
+    def test_rejected_native_cas_entry_keeps_form_checkpoint_for_recovery(self):
+        sim = Obj(id=123, get_sim_instance=lambda: object())
+        fake = Obj(_get_sim_info_by_id=lambda _: sim,
+            services=Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987))))
+        saved = []
+        modules = {'server_commands': Obj(),
+            'server_commands.cas_commands': Obj(modify_in_cas=lambda *_a, **_k: False),
+            'server_commands.argument_helpers': Obj(OptionalTargetParam=lambda text: text)}
+        with patch.object(test_driver, 'guard', return_value=None), patch.object(test_driver, 'snapshot', return_value={}), \
+                patch.object(cas_bank_transaction, 'begin', side_effect=lambda *_a: saved.append('originals') or {'ok': True, 'lane': '32'}), \
+                patch.dict(sys.modules, modules):
+            result = test_driver.dispatch(fake, 'test_cas', '123', '{}')
+        self.assertFalse(result['ok'])
+        self.assertEqual(saved, ['originals'])
+        self.assertEqual(result['form_checkpoint'], {'ok': True, 'lane': '32'})
 
     def test_mccc_uses_observed_client_and_cannot_fall_back_to_anonymous_execution(self):
         execute = Mock(return_value=None)

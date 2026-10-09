@@ -28,6 +28,12 @@ def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
         if args.operation == 'outfit': value.update(category=args.category, index=args.index)
         if args.operation == 'outfit-add': value['category'] = args.category
         if args.operation in ('select', 'hair-swatch'): value['data_id'] = args.data_id
+        if args.operation == 'accept': value['household_id'] = getattr(args, 'household_id', None)
+        if args.operation == 'form-select':
+            value.update(household_id=getattr(args, 'household_id', None),
+                         expected_layer=getattr(args, 'expected_layer', None),
+                         form_flags=getattr(args, 'form_flags', None),
+                         native_session=getattr(args, 'native_session', None))
         # Validate before any transport, using the same production contract.
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
         from apex_core.cas_ui import envelope

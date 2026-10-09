@@ -125,6 +125,7 @@ Lost or failed requests are retained and never resubmitted by this observer.
              'seconds': seconds, 'steps': [], 'entry_submitted': False, 'entry_accepted': False,
              'handshake_verified': False, 'inventory_verified': False, 'process_exit_verified': False,
              'owner_requests': [], 'cas_request_id': None,
+             'entry_request_id': None, 'entry_status_poll_count': 0,
              'crash_before': before, 'profile_read_only': True, 'no_input_replay': True}
     # Reserve this evidence filename exclusively before any game command.
     with output.open('x', encoding='utf-8') as stream:
@@ -182,14 +183,68 @@ Lost or failed requests are retained and never resubmitted by this observer.
             raise ValueError('Native CAS acknowledgement belongs to a different request identity.')
         return result
 
+    def retained_entry_id(entry):
+        owners = [row for row in proof['owner_requests'] if row.get('action') == 'test_cas']
+        returned = entry.get('request_id') if isinstance(entry, dict) else None
+        known = owners[0].get('request_id') if len(owners) == 1 else returned if not owners else None
+        if (not isinstance(known, str) or len(known) != 32 or
+                any(char not in '0123456789abcdef' for char in known) or
+                returned is not None and returned != known):
+            raise ValueError('Initial CAS entry lacks its exact single retained request identity.')
+        proof['entry_request_id'] = known
+        write_json(output, proof)
+        return known
+
+    def entry_completion(entry):
+        """Read the one submitted owner UUID; never submit another entry."""
+        if transport is None:
+            return entry  # Low-level compatibility without an HTTP observer.
+        request_id = retained_entry_id(entry)
+        while remaining() > 0:
+            running()
+            try:
+                bridge = bounded_transport('/api/bridge')
+                if (not isinstance(bridge, dict) or
+                        any(bridge.get(name) != identity[name] for name in ('pid', 'test_token', 'script_sha256'))):
+                    raise ValueError('CAS entry bridge changed its pinned PID/token/script; no entry replay allowed.')
+                row = bounded_transport('/api/requests/status', {'request_id': request_id})
+            except OSError as error:
+                record('test_cas_status', {'ok': False, 'request_id': request_id,
+                    'response_lost_or_failed': True, 'error': str(error)})
+                pause(min(.25, remaining()))
+                continue
+            proof['entry_status_poll_count'] += 1
+            record('test_cas_status', row)
+            if (not isinstance(row, dict) or row.get('request_id') != request_id or
+                    row.get('state') not in ('pending', 'running', 'unknown', 'completed', 'failed', 'cancelled')):
+                raise ValueError('Initial CAS entry status is untyped or belongs to another request identity.')
+            if row['state'] in ('completed', 'failed', 'cancelled'):
+                result = row.get('result')
+                if (not isinstance(result, dict) or type(result.get('ok')) is not bool or
+                        'request_id' in result and result['request_id'] != request_id):
+                    raise ValueError('Initial CAS entry terminal result is untyped or has a different owner UUID.')
+                return dict(result, request_id=request_id, request_state=row['state'],
+                            ok=result['ok'] if row['state'] == 'completed' else False)
+            pause(min(.25, remaining()))
+        raise TimeoutError('Initial CAS entry completion was not observed within the whole observer deadline.')
+
     try:
         running()
         remaining()
         proof['entry_submitted'] = True
         proof['outcome'] = 'entry-submitted'
         write_json(output, proof)
-        entry = call(state, 'test_cas', sim_id=sim_id,
-                     value=json.dumps({'test_token': journal['token'], 'value': value}))
+        try:
+            entry = call(state, 'test_cas', sim_id=sim_id,
+                         value=json.dumps({'test_token': journal['token'], 'value': value}))
+        except OSError:
+            if transport is None:
+                raise
+            entry = {'ok': False, 'outcome': 'unresolved', 'request_id': retained_entry_id(None)}
+        if (entry.get('outcome') == 'unresolved' or
+                entry.get('request_state') in ('pending', 'running', 'unknown')):
+            entry = entry_completion(entry)
+            record('test_cas_completion', entry)
         proof['entry_accepted'] = entry.get('ok') is True
         if not proof['entry_accepted']:
             proof['outcome'] = 'unresolved' if entry.get('outcome') == 'unresolved' else 'entry-rejected'

@@ -8,6 +8,14 @@ from build_packages import migrate_xml
 
 
 class PickerResourceTests(unittest.TestCase):
+    def test_phone_bypass_reaches_same_protected_first_party_menu(self):
+        raw = b'<I n="TD1:interactionPicker_OccultHybrid_Panel_Phone_Bypass" s="15547938809666529362" m="OccultHybrid.CoreLib.TD1_OccultHybrid_MenuUI" c="TD1OccultHybridMenuUIPicker"><L n="possible_actions"><T>14551493822752611098</T></L></I>'
+        root = ElementTree.fromstring(migrate_xml(raw))
+        self.assertEqual(root.get('m'), 'apex_core.phone_interactions')
+        self.assertEqual(root.get('c'), 'ApexPhoneMenu')
+        self.assertEqual(root.get('s'), '15547938809666529362')
+        self.assertEqual(root.find('./L/T').text, '14551493822752611098')
+
     def test_phone_root_keeps_original_continuations_and_uses_first_party_extension(self):
         raw = b'<I n="TD1:interactionPicker_OccultHybrid_Panel_Main" m="OccultHybrid.CoreLib.TD1_OccultHybrid_MenuUI" c="TD1OccultHybridMenuUIPicker"><L n="possible_actions"><T>16827766500387554810</T></L></I>'
         root = ElementTree.fromstring(migrate_xml(raw))

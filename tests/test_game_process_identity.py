@@ -23,8 +23,13 @@ class ProcessIdentityTests(unittest.TestCase):
                 buffer.value = image
                 capacity._obj.value = len(image)
             return image_success
+        def process_times(_handle, creation, exit_time, kernel_time, user_time):
+            creation._obj.dwLowDateTime = 134359714148505702 & 0xffffffff
+            creation._obj.dwHighDateTime = 134359714148505702 >> 32
+            return True
         return SimpleNamespace(OpenProcess=Mock(return_value=handle),
                 GetExitCodeProcess=Mock(side_effect=exit_code),
+                GetProcessTimes=Mock(side_effect=process_times),
                 QueryFullProcessImageNameW=Mock(side_effect=query_image), CloseHandle=Mock(return_value=True))
 
     def test_live_exact_pid_image_and_exit_state_share_one_read_only_handle_without_shell(self):
@@ -32,9 +37,12 @@ class ProcessIdentityTests(unittest.TestCase):
         error = Mock(return_value=0)
         with patch.object(game_launch.subprocess, 'run', side_effect=AssertionError('no shell')):
             result = game_launch.observe_game_process(42, kernel=kernel, last_error=error)
-        self.assertEqual(result, {'Id': 42, 'Path': r'C:\Games\The Sims 4\Game\Bin\TS4_x64.exe'})
+        self.assertEqual(result, {'Id': 42, 'Path': r'C:\Games\The Sims 4\Game\Bin\TS4_x64.exe',
+                                  'CreationFileTime': 134359714148505702})
         kernel.OpenProcess.assert_called_once_with(0x1000, False, 42)
         self.assertEqual(kernel.GetExitCodeProcess.call_args.args[0], 12345)
+        self.assertEqual(kernel.GetExitCodeProcess.call_count, 2)
+        self.assertEqual(kernel.GetProcessTimes.call_args.args[0], 12345)
         self.assertEqual(kernel.QueryFullProcessImageNameW.call_args.args[0], 12345)
         kernel.CloseHandle.assert_called_once_with(12345)
         error.assert_not_called()
@@ -77,7 +85,7 @@ class ProcessIdentityTests(unittest.TestCase):
     def test_pid_reused_for_non_sims_or_dx9_is_refused_and_handle_is_closed(self):
         for image in (r'C:\EA\EADesktop.exe', r'C:\Game\TS4_DX9_x64.exe', r'C:\Game\TS4.exe', ''):
             kernel = self.kernel(image=image)
-            with self.subTest(image=image), self.assertRaisesRegex(ValueError, 'different executable'):
+            with self.subTest(image=image), self.assertRaisesRegex(ValueError, 'different executable|absolute Windows|image bound'):
                 game_launch.observe_game_process(42, kernel=kernel)
             kernel.CloseHandle.assert_called_once_with(12345)
 
@@ -95,6 +103,7 @@ class ProcessIdentityTests(unittest.TestCase):
         factory.assert_called_once_with('kernel32', use_last_error=True)
         self.assertEqual(len(kernel.OpenProcess.argtypes), 3)
         self.assertEqual(len(kernel.QueryFullProcessImageNameW.argtypes), 4)
+        self.assertEqual(len(kernel.GetProcessTimes.argtypes), 5)
         kernel.CloseHandle.assert_called_once_with(12345)
 
     def test_cas_entry_observer_reuses_central_process_identity_check(self):

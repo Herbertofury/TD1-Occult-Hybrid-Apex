@@ -71,7 +71,8 @@ def migrate_xml(payload):
         for item in root.findall(".//*[@n='UI_ICON_PLACEHOLDER']"):
             item.set('n', 'UI_ICON_MENU_PLACEHOLDER')
             changed = True
-    if root.get('n') == 'TD1:interactionPicker_OccultHybrid_Panel_Main':
+    if root.get('n') in ('TD1:interactionPicker_OccultHybrid_Panel_Main',
+                          'TD1:interactionPicker_OccultHybrid_Panel_Phone_Bypass'):
         root.set('m', 'apex_core.phone_interactions')
         root.set('c', 'ApexPhoneMenu')
         changed = True

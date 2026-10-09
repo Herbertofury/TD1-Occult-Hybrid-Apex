@@ -203,6 +203,16 @@ def status():
         result['visible'] = bool(_integer(_CALLS['ApexOverlayVisible']))
         result['toggle_events'] = _integer(_CALLS['ApexOverlayToggleEvents'])
         result['captures_completed'] = _integer(_CALLS['ApexCaptureCompleted'])
+        result['runtime_verified'] = (result.get('ok') is True and result['game_window_verified'] and
+                                      result['renderer_initialized'] and result['frame_submission_verified'])
+        if result.get('ok') is True:
+            result['message'] = ('F11 renderer is initialized and has submitted frames; UI actions require their own acknowledgements.'
+                                 if result['runtime_verified'] else
+                                 'F11 renderer is initialized; waiting for its first submitted frame.'
+                                 if result['renderer_initialized'] else
+                                 'F11 hook found the game window; renderer initialization requires a visible overlay frame.'
+                                 if result['game_window_verified'] else
+                                 'F11 hook is ready; waiting to observe the game window.')
     return result
 
 

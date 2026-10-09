@@ -36,8 +36,15 @@
 #include <iomanip>
 #include <ctime>
 #include <cctype>
+#include <map>
 
 #include "ApexUiData.h"
+#include "ApexResourceImage.h"
+#include "ApexStudioItems.h"
+#include "ApexPartColorControls.h"
+#include "ApexOwnerCommand.h"
+#include "ApexCasBank.h"
+#include "ApexCasRoom.h"
 #include "OverlayInput.h"
 #include "MinHook.h"
 #include "imgui.h"
@@ -48,6 +55,9 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "windowscodecs.lib")
+#pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "bcrypt.lib")
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -92,10 +102,24 @@ static std::mutex g_dataMutex;
 static std::string g_json = "{\"message\":\"Waiting for TD1 Apex Python server...\"}";
 static std::string g_status = "Not connected";
 static std::string g_commandReply = "{}";
+static ULONGLONG g_commandReplyMs = 0;
 static std::string g_selectedSim;
-struct QueuedCommand { std::string path; uint64_t generation; };
+struct QueuedCommand { std::string path; uint64_t generation; bool automaticCasRefresh = false; std::string sim;
+    bool automaticCasReconcile = false; std::string casRequestId;
+    bool automaticStudioItems = false;
+    int resourceOperation = 0; ui::Json resourceRow = ui::Json::object(); uint64_t resourceSelection = 0;
+    bool ownerObservation = false; std::string ownerRequestId;
+    std::string casBankAction; };
 static std::deque<QueuedCommand> g_commands;
 static uint64_t g_selectionGeneration = 0;
+static ui::OwnerObservation g_ownerObservation; // worker/render, g_dataMutex
+static QueuedCommand g_ownerOriginalCommand;
+static std::atomic<bool> g_ownerBlocked{false};
+static std::atomic<bool> g_ownerNativeDeliveryBusy{false};
+static std::atomic<bool> g_ownerSubmissionBusy{false};
+static ui::CasBankView g_casBank; // owner worker/render, protected by g_dataMutex
+static std::atomic<bool> g_casBankBusy{false};
+static std::string g_ownerDeliveredNativeReply; // g_dataMutex
 static std::atomic<ULONGLONG> g_lastStatusMs{0};
 static int g_activeTab = 0;
 static bool g_wsStarted = false;
@@ -120,6 +144,7 @@ static int g_partReplacementIndex = 0;
 static int g_studioFormIndex = 0;
 static bool g_showEmptySlots = true;
 static int g_equippedSort = 0;
+static int g_itemNameMode = 0;
 static int g_casGroupIndex = 0;
 static int g_studioOutfitIndex = 0;
 static int g_studioPartIndex = 0;
@@ -127,6 +152,7 @@ static ui::Json g_studioData = ui::Json::object();
 static std::string g_studioLastReply;
 static bool g_nativeCasView = false;
 static ui::Json g_casClientData = ui::Json::object();
+static ui::Json g_casRoomData = ui::Json::object();
 static ui::Json g_casSelectedItem = ui::Json::object();
 static std::string g_casSelectedPanel;
 static bool g_casSelectedPreset = false;
@@ -134,8 +160,29 @@ static std::string g_casLastReply;
 static char g_casPendingId[40] = "";
 static std::atomic<bool> g_casSubmissionBusy{false};
 static ULONGLONG g_casSnapshotMs = 0;
-static int g_casCatalogSort = 0;
+static int g_casCatalogSort = 1;
 static ui::Json g_casDiagnostics = ui::Json::object();
+static bool g_casAutoRefresh = true;
+static std::atomic<bool> g_casAutoRefreshEnabled{true};
+static ui::CasRefreshClock g_casRefreshClock;
+static std::atomic<bool> g_nativeCasPaneVisible{false};
+static std::atomic<ULONGLONG> g_nativeCasPaneMs{0};
+// Worker receipts are copied under g_dataMutex; all presentation state stays
+// on the render thread. A diagnostics fetch never scans gameplay Sim records.
+static std::string g_casDiagnosticReply;
+static ULONGLONG g_casDiagnosticMs = 0;
+static uint64_t g_casRefreshReceipt = 0;
+static bool g_casRefreshFailed = false, g_casRefreshUnresolved = false;
+static std::string g_casRefreshMessage;
+static std::string g_casRefreshNativeId;
+static uint64_t g_casRefreshSeen = 0;
+static ULONGLONG g_casDiagnosticsSeenMs = 0;
+static std::string g_casAutoMessage;
+static std::string g_casAutoRetainedId;
+static ui::CasRefreshClock g_casReconcileClock;
+static std::string g_casReconcileReply, g_casReconcileNativeId, g_casReconcileSim;
+static bool g_casReconcileOk = false;
+static uint64_t g_casReconcileReceipt = 0, g_casReconcileSeen = 0;
 static std::string g_colorEditorKey;
 static float g_colorValues[4]{};
 static bool g_colorChanged[4]{};
@@ -147,6 +194,26 @@ static std::string g_confirmAction;
 static uint64_t g_confirmGeneration = 0;
 static bool g_openConfirmation = false;
 static char g_casCategoryFilter[160] = "";
+// Fixed local broker returns pinned resources, never shell commands or paths.
+static ui::Json g_resourceCatalog = ui::Json::object(); // worker, g_dataMutex
+static std::string g_resourceCatalogStatus = "Resource broker has not been queried.";
+static std::atomic<bool> g_resourceCatalogBusy{false}, g_resourceImageBusy{false}, g_resourceOpenBusy{false};
+static bool g_resourceCatalogAttempted = false; // render thread
+static std::atomic<uint64_t> g_resourceSelectionSerial{0};
+static std::string g_resourceViewKey, g_resourceRequestedImage; // render thread
+static std::string g_resourceImageKey, g_resourceImageStatus, g_resourceOpenKey, g_resourceOpenStatus;
+static resource::Pixels g_resourcePixels; // worker, g_dataMutex
+static uint64_t g_resourcePixelReceipt = 0, g_resourceTextureReceipt = 0;
+static ID3D11ShaderResourceView* g_resourceTexture = nullptr; // render thread only
+static std::string g_resourceTextureKey;
+static std::map<std::string, ui::Json> g_resourceInspections; // render thread, bounded1024
+static ui::Json g_studioItemRequest = ui::Json::object(), g_studioItemRows = ui::Json::object();
+static std::atomic<bool> g_studioItemsBusy{false};
+static std::string g_studioItemsReply, g_studioItemsContext, g_studioItemsMessage;
+static uint64_t g_studioItemsReceipt = 0, g_studioItemsSeen = 0;
+static size_t g_studioItemsCursor = 0;
+static ULONGLONG g_studioItemsNextMs = 0;
+static bool g_studioItemsComplete = false;
 
 static const char* kOccults[] = {"ALIEN","VAMPIRE","MERMAID","WITCH","SPELLCASTER","WEREWOLF","FAIRY","PLANTSIM","ROBOT","SERVO","GHOST","SKELETON","SCARECROW"};
 
@@ -310,7 +377,8 @@ static std::string UrlEncode(const std::string& s) {
     return out;
 }
 
-static bool HttpGet(const std::string& path, std::string& body) {
+static bool HttpGet(const std::string& path, std::string& body, ULONGLONG deadline = 0) {
+    if (!deadline) deadline = GetTickCount64() + 12000;
     if (!g_wsStarted) {
         WSADATA wsa{};
         if (WSAStartup(MAKEWORD(2,2), &wsa) != 0) return false;
@@ -320,17 +388,36 @@ static bool HttpGet(const std::string& path, std::string& body) {
     if (s == INVALID_SOCKET) return false;
     // This is a transport worker. A game-thread command can take several frames;
     // a 350 ms deadline previously discarded its result while it still executed.
-    DWORD timeout = 12000;
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
-    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
+    auto remainingTimeout = [&]() -> DWORD {
+        const auto now = GetTickCount64();
+        return now < deadline ? static_cast<DWORD>(std::min<ULONGLONG>(deadline - now, 12000)) : 0;
+    };
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(8017);
     inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-    if (connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) { closesocket(s); return false; }
+    u_long nonblocking = 1;
+    if (ioctlsocket(s, FIONBIO, &nonblocking) == SOCKET_ERROR) { closesocket(s); return false; }
+    if (connect(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) {
+        if (WSAGetLastError() != WSAEWOULDBLOCK) { closesocket(s); return false; }
+        const auto remaining = remainingTimeout();
+        if (!remaining) { closesocket(s); return false; }
+        fd_set writable, errors; FD_ZERO(&writable); FD_ZERO(&errors); FD_SET(s, &writable); FD_SET(s, &errors);
+        timeval wait{static_cast<long>(remaining / 1000), static_cast<long>((remaining % 1000) * 1000)};
+        int error = 0, errorSize = sizeof(error);
+        if (select(0, nullptr, &writable, &errors, &wait) <= 0 || FD_ISSET(s, &errors) ||
+            getsockopt(s, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&error), &errorSize) == SOCKET_ERROR || error) {
+            closesocket(s); return false;
+        }
+    }
+    nonblocking = 0;
+    if (ioctlsocket(s, FIONBIO, &nonblocking) == SOCKET_ERROR) { closesocket(s); return false; }
     std::string req = "GET " + path + " HTTP/1.1\r\nHost: 127.0.0.1:8017\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n";
     size_t sent = 0;
     while (sent < req.size()) {
+        DWORD timeout = remainingTimeout();
+        if (!timeout) { closesocket(s); return false; }
+        setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
         int n = send(s, req.data() + sent, static_cast<int>(req.size() - sent), 0);
         if (n <= 0) { closesocket(s); return false; }
         sent += static_cast<size_t>(n);
@@ -338,11 +425,14 @@ static bool HttpGet(const std::string& path, std::string& body) {
     std::string raw;
     char buf[8192];
     for (;;) {
+        DWORD timeout = remainingTimeout();
+        if (!timeout) { closesocket(s); return false; }
+        setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
         int n = recv(s, buf, sizeof(buf), 0);
         if (n < 0) { closesocket(s); return false; }
         if (n == 0) break;
         raw.append(buf, buf + n);
-        if (raw.size() > 1024 * 512) { closesocket(s); return false; }
+        if (raw.size() > ui::kMaxOwnerJsonBytes + 16384) { closesocket(s); return false; }
     }
     closesocket(s);
     size_t pos = raw.find("\r\n\r\n");
@@ -358,21 +448,182 @@ static bool HttpGet(const std::string& path, std::string& body) {
     return last != std::string::npos && body[last] == '}' && !ui::ReadObject(body).empty();
 }
 
+static bool HttpOwnedCommand(const std::string& path, std::string& body) {
+    if (path.rfind("/api/command?",0)!=0) return HttpGet(path,body);
+    GUID guid{};
+    if (FAILED(CoCreateGuid(&guid))) {
+        body=ui::Json{{"ok",false},{"state","rejected"},{"message","Owner identity could not be generated; no HTTP request was submitted."}}.dump();
+        return true; // Proven refusal before any HTTP call, not uncertainty.
+    }
+    const auto bytes=reinterpret_cast<const unsigned char*>(&guid);
+    const char* hex="0123456789abcdef"; std::string id;
+    for(size_t i=0;i<sizeof(guid);++i) { id.push_back(hex[bytes[i]>>4]); id.push_back(hex[bytes[i]&15]); }
+    if(path.find("request_id=")!=std::string::npos) {
+        body=ui::Json{{"ok",false},{"state","rejected"},{"message","A caller-supplied owner identity is forbidden; no HTTP request was submitted."}}.dump();
+        return true;
+    }
+    const auto deadline=GetTickCount64()+15000;
+    bool received=HttpGet(path+"&request_id="+id,body,deadline);
+    auto submission=received ? ui::ReadOwnerSubmission(ui::ParseObject(body),id) : ui::OwnerReply::Pending;
+    if(submission==ui::OwnerReply::Terminal || submission==ui::OwnerReply::Rejected) return true;
+    // Retain the same owner identity even when its first response was lost.
+    // Polling observes execution; it never repeats the command submission.
+    while(!g_done && submission!=ui::OwnerReply::Invalid && GetTickCount64()<deadline) {
+        std::string raw; ui::Json result;
+        if(!HttpGet("/api/requests/status?request_id="+id,raw,deadline)) break;
+        submission=ui::ReadOwnerCompletion(ui::ParseObject(raw),id,result);
+        if(submission==ui::OwnerReply::Terminal) { body=result.dump(); return true; }
+        if(submission==ui::OwnerReply::Invalid) break;
+        Sleep(120);
+    }
+    body=ui::Json({{"ok",false},{"outcome","unresolved"},{"request_id",id},{"request_state","unknown"},
+        {"message","Command result is unverified. Observe this retained owner ID; do not repeat the action."}}).dump();
+    return true;
+}
+
+static std::string ResourceKey(const ui::Json& row) {
+    return ui::Scalar(row, "resource_id") + ":" + ui::Scalar(row, "cache_proof");
+}
+
+static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) {
+    body.clear();
+    if (operation < 1 || operation > 3) return false;
+    if (operation != 1 && !resource::CatalogIdentities({{"schema", 1}, {"items", ui::Json::array({row})}})) return false;
+    if (!g_wsStarted) {
+        WSADATA wsa{};
+        if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return false;
+        g_wsStarted = true;
+    }
+    const size_t bound = operation == 2 ? 8 * 1024 * 1024 : 512 * 1024;
+    const std::string path = operation == 1 ? "/v1/resources" : operation == 2 ?
+        "/v1/resources/" + ui::Scalar(row, "resource_id") + "/thumbnail" : "/v1/open";
+    const std::string payload = operation == 3 ? ui::Json({{"resource_id", row["resource_id"]},
+        {"cache_proof", row["cache_proof"]}}).dump() : "";
+    std::string request = std::string(operation == 3 ? "POST " : "GET ") + path +
+        " HTTP/1.1\r\nHost: 127.0.0.1:8022\r\nConnection: close\r\nCache-Control: no-store\r\n";
+    if (operation == 3) request += "Content-Type: application/json\r\nContent-Length: " + std::to_string(payload.size()) + "\r\n";
+    request += "\r\n" + payload;
+    SOCKET socketHandle = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (socketHandle == INVALID_SOCKET) return false;
+    sockaddr_in address{}; address.sin_family = AF_INET; address.sin_port = htons(8022);
+    inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);
+    DWORD timeout = 12000;
+    setsockopt(socketHandle, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
+    if (connect(socketHandle, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == SOCKET_ERROR) {
+        closesocket(socketHandle); return false;
+    }
+    const auto deadline = GetTickCount64() + 12000;
+    size_t sent = 0;
+    while (sent < request.size()) {
+        const int amount = send(socketHandle, request.data() + sent, static_cast<int>(request.size() - sent), 0);
+        if (amount <= 0 || GetTickCount64() >= deadline) { closesocket(socketHandle); return false; }
+        sent += static_cast<size_t>(amount);
+    }
+    std::string raw; char buffer[8192];
+    for (;;) {
+        const auto now = GetTickCount64();
+        if (now >= deadline) { closesocket(socketHandle); return false; }
+        timeout = static_cast<DWORD>(deadline - now);
+        setsockopt(socketHandle, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
+        const int amount = recv(socketHandle, buffer, sizeof(buffer), 0);
+        if (amount < 0) { closesocket(socketHandle); return false; }
+        if (!amount) break;
+        raw.append(buffer, static_cast<size_t>(amount));
+        const auto header = raw.find("\r\n\r\n");
+        if (raw.size() > bound + 16388 || (header == std::string::npos && raw.size() > 16384)) {
+            closesocket(socketHandle); return false;
+        }
+    }
+    closesocket(socketHandle);
+    return resource::HttpBody(raw, bound, body);
+}
+
+static bool QueueResource(int operation, const ui::Json& row = ui::Json::object()) {
+    if (operation < 1 || operation > 3 || (operation != 1 &&
+        !resource::Catalog({{"schema", 1}, {"items", ui::Json::array({row})}}))) return false;
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    auto& busy = operation == 1 ? g_resourceCatalogBusy : operation == 2 ? g_resourceImageBusy : g_resourceOpenBusy;
+    if (busy.load() || g_commands.size() >= 48) return false;
+    QueuedCommand command{"", g_selectionGeneration};
+    command.resourceOperation = operation; command.resourceRow = row;
+    command.resourceSelection = g_resourceSelectionSerial.load();
+    if (operation == 3) {
+        g_resourceOpenKey = ResourceKey(row);
+        g_resourceOpenStatus = "Opening the verified containing package copy; request is submitted once.";
+    }
+    busy = true; g_commands.push_back(std::move(command));
+    return true;
+}
+
+static void RunResourceCommand(const QueuedCommand& command) {
+    const int operation = command.resourceOperation;
+    bool current;
+    {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        current = command.generation == g_selectionGeneration &&
+            (operation == 1 || command.resourceSelection == g_resourceSelectionSerial.load());
+    }
+    std::string body, message; resource::Pixels pixels;
+    bool ok = current && ResourceHttp(operation, command.resourceRow, body);
+    ui::Json catalog = ui::Json::object();
+    if (operation == 1) {
+        catalog = ui::ParseObject(body); ok = ok && resource::CatalogIdentities(catalog);
+        message = ok ? "Pinned resource cache received from 127.0.0.1:8022." :
+            "Resource broker unavailable or its complete pinned catalog was rejected.";
+    } else if (operation == 2) {
+        if (ok) ok = resource::DecodeThumbnail(body, command.resourceRow, pixels, message);
+        if (ok) message = "Verified cached PNG bytes and dimensions; decoded with WIC.";
+        else if (message.empty()) message = current ? "Thumbnail transport failed; no substitute image was used." : "Thumbnail selection changed before delivery.";
+    } else if (operation == 3) {
+        const auto receipt = ui::ParseObject(body);
+        ok = ok && resource::OpenReceipt(receipt, ui::Scalar(command.resourceRow, "resource_id"));
+        message = ok ? "Studio received the verified containing package copy. Selecting the individual resource is unsupported." :
+            (current ? "Studio open outcome is unverified or rejected. The request was not replayed." : "Selection changed; Studio request was canceled before delivery.");
+    }
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    if (operation == 1) {
+        if (ok) g_resourceCatalog = std::move(catalog);
+        g_resourceCatalogStatus = message; g_resourceCatalogBusy = false;
+    } else if (operation == 2) {
+        g_resourceImageKey = ResourceKey(command.resourceRow); g_resourceImageStatus = message;
+        g_resourcePixels = std::move(pixels); ++g_resourcePixelReceipt; g_resourceImageBusy = false;
+    } else if (operation == 3) {
+        g_resourceOpenKey = ResourceKey(command.resourceRow); g_resourceOpenStatus = message; g_resourceOpenBusy = false;
+    }
+}
+
 static std::vector<std::string> ExtractHistory(const std::string& json) {
     return ui::Logs(ui::ReadObject(json));
+}
+
+// Called with g_dataMutex held. Native replies reserve their UUID until the
+// render thread has consumed this exact body, including normal submissions.
+static void PublishCommandReply(const std::string& body, ULONGLONG receivedMs) {
+    g_json = body; g_commandReply = body; g_commandReplyMs = receivedMs;
+    const auto receipt = ui::ParseObject(body);
+    if (receipt.contains("cas_request_id") && ui::CasRequestIdentity(receipt["cas_request_id"])) {
+        g_ownerNativeDeliveryBusy = true; g_ownerDeliveredNativeReply = body;
+    }
+    auto lines = ExtractHistory(body); if (!lines.empty()) g_logLines = std::move(lines);
 }
 
 static std::string ExtractJsonValue(const std::string& json, const char* keyName) {
     return ui::Scalar(ui::ReadObject(json), keyName);
 }
 
-static bool QueueCommand(const std::string& path) {
+static bool QueueCommand(const std::string& path, const std::string& nativeId = {}) {
     std::lock_guard<std::mutex> lock(g_dataMutex);
+    if ((g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() || g_casBankBusy.load()) && path.rfind("/api/command?", 0) == 0) {
+        g_status = "An owner result is unresolved; check its retained ID before another command";
+        return false;
+    }
     if (g_commands.size() >= 48) {
         g_status = "Queue full: this command was rejected; earlier commands were retained";
         return false;
     }
-    g_commands.push_back({path, g_selectionGeneration});
+    QueuedCommand command{path, g_selectionGeneration}; command.sim = g_selectedSim;
+    if (ui::CasRequestIdentity(ui::Json(nativeId))) command.casRequestId = nativeId;
+    g_commands.push_back(std::move(command));
     return true;
 }
 
@@ -391,8 +642,34 @@ static std::string BuildCommandPath(const char* action, const char* occult = nul
     return path;
 }
 
+// Queue only typed review intent. Native owner reads and writes stay on the
+// authenticated game thread; the renderer receives canonical owner receipts.
+static bool QueueCasBankAction(const std::string& action) {
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    if (g_done.load() || g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() ||
+        g_ownerSubmissionBusy.load() || g_casSubmissionBusy.load() || g_casBankBusy.load() ||
+        g_casPendingId[0] || !g_commands.empty() || !ui::ExactUint64Identity(ui::Json(g_selectedSim))) {
+        g_status="CAS review waits for the existing request; nothing was submitted."; return false;
+    }
+    if (!ui::BankCurrent(g_casBank,g_selectedSim,g_selectionGeneration)) {
+        g_casBank={}; g_casBank.sim=g_selectedSim; g_casBank.generation=g_selectionGeneration;
+    }
+    ui::Json argument;
+    if (!ui::BankRequest(g_casBank,action,argument)) {
+        g_status="CAS review requires its exact previous receipt and explicit decisions."; return false;
+    }
+    const auto route=ui::BankRoute(action);
+    if (!route[0]) return false;
+    std::string path="/api/command?action="+UrlEncode(route)+"&sim_id="+UrlEncode(g_selectedSim);
+    if (!argument.is_null()) path+="&value="+UrlEncode(argument.dump());
+    QueuedCommand command{path,g_selectionGeneration}; command.sim=g_selectedSim; command.casBankAction=action;
+    ui::BankSubmitted(g_casBank,action); g_casBankBusy=true;
+    g_commands.push_back(std::move(command)); return true;
+}
+
 static void QueueAction(const char* action, const char* occult = nullptr, const char* value = nullptr) {
     std::string name = action ? action : "status";
+    if (name.rfind("cas_bank_",0)==0) { QueueCasBankAction(name); return; }
     bool destructive = name == "purge" || name == "remove" || name == "gameplay_remove" ||
         name == "delete_form" || name == "delete_saved_form" || name == "add_all" ||
         name == "repair_all" || name == "deep_repair_all" || name == "toggle_flag" ||
@@ -407,13 +684,112 @@ static void QueueAction(const char* action, const char* occult = nullptr, const 
         g_openConfirmation = true;
         return;
     }
-    QueueCommand(path);
+    QueueCommand(path, name == "cas_ui_result" && value ? value : "");
 }
 
 static bool ActionButton(const char* label, const char* action, const char* occult = nullptr, const char* value = nullptr, const ImVec2& size = ImVec2(-1, 0)) {
     if (!ImGui::Button(label, size)) return false;
     QueueAction(action, occult, value);
     return true;
+}
+
+static bool AutomaticCasPaneVisible() {
+    const auto now = GetTickCount64(), observed = g_nativeCasPaneMs.load();
+    return g_visible.load() && g_nativeCasPaneVisible.load() && observed && now >= observed && now - observed <= 1000;
+}
+
+static bool RetainCommandOwner(const QueuedCommand& command, const std::string& body) {
+    const auto receipt = ui::ParseObject(body);
+    if (!ui::OwnerCommandUnresolved(receipt)) return false;
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    if (ui::RetainOwnerObservation(g_ownerObservation, receipt, command.generation, command.sim,
+        command.casRequestId, GetTickCount64())) {
+        g_ownerOriginalCommand = command;
+        g_ownerBlocked = true;
+    }
+    return g_ownerBlocked.load();
+}
+
+static bool QueueOwnerObservation(bool explicitCheck) {
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    const auto now = GetTickCount64();
+    if (g_done.load() || g_commands.size() >= 48 || !ui::OwnerObservationDue(g_ownerObservation, now,
+        g_visible.load(), explicitCheck)) return false;
+    QueuedCommand command{ui::OwnerObservationPath(g_ownerObservation), g_ownerObservation.generation};
+    command.sim = g_ownerObservation.sim; command.ownerObservation = true;
+    command.ownerRequestId = g_ownerObservation.requestId;
+    g_ownerObservation.checking = true; g_ownerObservation.lastCheckMs = now;
+    g_commands.push_back(std::move(command));
+    return true;
+}
+
+static bool BeginOwnerObservation(const QueuedCommand& command) {
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    const bool matching = command.ownerRequestId == g_ownerObservation.requestId &&
+        command.path == ui::OwnerObservationPath(g_ownerObservation);
+    if (matching && g_visible.load() && !g_done.load()) return true;
+    if (matching) g_ownerObservation.checking = false;
+    return false;
+}
+
+// Apply a status GET only to its retained owner and original selection. A
+// completed owner observation may still leave a distinct native CAS request.
+static void ApplyOwnerObservation(const QueuedCommand& command, bool received, const std::string& body) {
+    const auto receipt = ui::ParseObject(body);
+    ui::Json result;
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    if (command.ownerRequestId != g_ownerObservation.requestId) return;
+    g_ownerObservation.checking = false;
+    g_ownerObservation.lastReply = received ? receipt : ui::Json({{"ok",false},{"state","unknown"},
+        {"request_id",command.ownerRequestId},{"message","Owner status check failed; the retained command remains unresolved."}});
+    if (!received || ui::ReadOwnerCompletion(receipt, command.ownerRequestId, result) != ui::OwnerReply::Terminal) return;
+    const bool current = command.generation == g_selectionGeneration && command.sim == g_selectedSim;
+    const auto nativeId = g_ownerObservation.nativeRequestId;
+    if (!nativeId.empty()) {
+        if (result.contains("cas_request_id") && ui::Scalar(result, "cas_request_id") != nativeId) return;
+        if (!result.contains("cas_request_id")) {
+            result["cas_request_id"] = nativeId; result["ok"] = false; result["outcome"] = "unresolved";
+            result["message"] = "Owner observation completed; the retained native CAS result remains unverified.";
+        }
+    }
+    const auto recovered = result.dump();
+    const auto& original = g_ownerOriginalCommand;
+    if (result.contains("cas_request_id") && !ui::CasRequestIdentity(result["cas_request_id"])) return;
+    if (current && result.contains("cas_request_id")) {
+        g_ownerNativeDeliveryBusy = true;
+        g_ownerDeliveredNativeReply = recovered;
+    }
+    if (!current) {
+        // The GET resolves the historical command; its data cannot overwrite
+        // a new selection. Queued work is cancelled before owner submission.
+        g_ownerObservation.lastReply["message"] = "Owner command resolved for an earlier selection; its result was retained without replacing current data.";
+    } else if (original.automaticStudioItems) {
+        g_studioItemsReply = recovered; ++g_studioItemsReceipt;
+    } else if (original.automaticCasReconcile) {
+        g_casReconcileReply = recovered; g_casReconcileOk = true;
+        g_casReconcileNativeId = original.casRequestId; g_casReconcileSim = original.sim;
+        ++g_casReconcileReceipt;
+    } else {
+        if (!original.casBankAction.empty()) {
+            ui::BankApply(g_casBank,original.sim,original.generation,original.casBankAction,result);
+            g_casBankBusy=g_casBank.busy;
+        }
+        PublishCommandReply(recovered, g_ownerObservation.retainedAtMs);
+        if (original.automaticCasRefresh) {
+            if (original.path.find("action=cas_ui_diagnostics") != std::string::npos) {
+                g_casDiagnosticReply = recovered; g_casDiagnosticMs = GetTickCount64();
+            }
+            // A recovered automatic acknowledgement is historical. Let the
+            // native exact-ID reconciler release it before a new live read.
+            g_casRefreshNativeId = result.contains("cas_request_id") && ui::CasRequestIdentity(result["cas_request_id"])
+                ? ui::Scalar(result, "cas_request_id") : "";
+            g_casRefreshFailed = false; g_casRefreshUnresolved = false;
+            g_casRefreshMessage = "Retained owner command resolved; its original result is shown below.";
+            ++g_casRefreshReceipt;
+        }
+    }
+    g_ownerObservation.requestId.clear(); g_ownerBlocked = false; g_casSubmissionBusy = false;
+    g_status = "Retained owner command resolved; see its original result";
 }
 
 static void WorkerLoop() {
@@ -424,37 +800,155 @@ static void WorkerLoop() {
             std::lock_guard<std::mutex> lock(g_dataMutex);
             if (!g_commands.empty()) { command = g_commands.front(); g_commands.pop_front(); }
         }
+        if (command.resourceOperation) { RunResourceCommand(command); continue; }
         if (!command.path.empty()) {
+            if (command.ownerObservation) {
+                if (!BeginOwnerObservation(command)) continue;
+                std::string body;
+                const bool ok = HttpGet(command.path, body, GetTickCount64() + 3000);
+                ApplyOwnerObservation(command, ok, body);
+                continue;
+            }
+            if ((g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() ||
+                (g_casBankBusy.load() && command.casBankAction.empty())) && command.path.rfind("/api/command?", 0) == 0) {
+                g_casSubmissionBusy = false;
+                if (command.automaticStudioItems) g_studioItemsBusy = false;
+                if (!command.casBankAction.empty()) {
+                    std::lock_guard<std::mutex> lock(g_dataMutex);
+                    g_casBank.busy=false; g_casBank.failed=true; g_casBankBusy=false;
+                    g_casBank.message="CAS review was cancelled before submission because another owner is unresolved. Read status after resolving that owner.";
+                }
+                continue;
+            }
+            {
+                std::lock_guard<std::mutex> lock(g_dataMutex);
+                if (command.generation != g_selectionGeneration || command.sim != g_selectedSim) {
+                    g_casSubmissionBusy = false;
+                    if (command.automaticStudioItems) g_studioItemsBusy = false;
+                    if (!command.casBankAction.empty() && ui::BankCurrent(g_casBank,command.sim,command.generation)) {
+                        g_casBank.busy=false; g_casBank.failed=true; g_casBankBusy=false;
+                        g_casBank.message="Selection changed before submission; no CAS review operation was sent.";
+                    }
+                    continue;
+                }
+                g_ownerSubmissionBusy = true;
+            }
+            struct OwnerSubmissionGuard { ~OwnerSubmissionGuard() { g_ownerSubmissionBusy = false; } } ownerSubmission;
+            if (command.automaticStudioItems) {
+                bool current;
+                { std::lock_guard<std::mutex> lock(g_dataMutex); current = command.generation == g_selectionGeneration; }
+                std::string result;
+                if (current && g_visible.load()) HttpOwnedCommand(command.path, result);
+                RetainCommandOwner(command, result);
+                { std::lock_guard<std::mutex> lock(g_dataMutex);
+                  g_studioItemsReply = current ? result : "{}"; ++g_studioItemsReceipt; }
+                continue; // A metadata page cannot overwrite a user's command result.
+            }
+            bool automaticFailed = false, automaticUnresolved = false;
+            std::string automaticMessage;
+            if (command.automaticCasRefresh || command.automaticCasReconcile) {
+                bool sameSelection;
+                { std::lock_guard<std::mutex> lock(g_dataMutex); sameSelection = command.generation == g_selectionGeneration; }
+                if (!AutomaticCasPaneVisible() || !g_casAutoRefreshEnabled.load() || !sameSelection) {
+                    g_casSubmissionBusy = false;
+                    continue; // Hidden/superseded auto work was never submitted.
+                }
+            }
             std::string body;
-            bool ok = HttpGet(command.path, body);
+            bool ok = HttpOwnedCommand(command.path, body);
+            if (command.automaticCasReconcile) {
+                RetainCommandOwner(command, body);
+                std::lock_guard<std::mutex> lock(g_dataMutex);
+                if (command.generation == g_selectionGeneration) {
+                    g_casReconcileReply = body; g_casReconcileOk = ok;
+                    g_casReconcileNativeId = command.casRequestId; g_casReconcileSim = command.sim;
+                    ++g_casReconcileReceipt;
+                }
+                g_casSubmissionBusy = false;
+                continue; // Cached exact-ID result only; never render it as a new snapshot.
+            }
+            if (command.automaticCasRefresh) {
+                const auto diagnosticMs = GetTickCount64();
+                const auto diagnostic = ui::ParseObject(body);
+                {
+                    std::lock_guard<std::mutex> lock(g_dataMutex);
+                    if (command.generation == g_selectionGeneration && ok) {
+                        g_casDiagnosticReply = body; g_casDiagnosticMs = diagnosticMs;
+                    }
+                }
+                const bool peerFresh = ok && ui::CasFreshNativePeer(diagnostic, command.sim, diagnosticMs, GetTickCount64());
+                const bool transportIdle = peerFresh && ui::CasTransportIdle(diagnostic);
+                bool sameSelection;
+                { std::lock_guard<std::mutex> lock(g_dataMutex); sameSelection = command.generation == g_selectionGeneration; }
+                if (peerFresh && transportIdle && sameSelection && AutomaticCasPaneVisible() && g_casAutoRefreshEnabled.load()) {
+                    // This is one fresh read, after one exact-Sim heartbeat check.
+                    // Preserve the existing native request/polling contract.
+                    command.path = "/api/command?action=cas_ui_request&sim_id=" + UrlEncode(command.sim) +
+                        "&value=" + UrlEncode("{\"operation\":\"status\"}");
+                    ok = HttpOwnedCommand(command.path, body);
+                    if (!ok || ui::OwnerCommandUnresolved(ui::ParseObject(body))) {
+                        automaticFailed = true; automaticUnresolved = true;
+                        automaticMessage = "Auto refresh paused: submission outcome is unverified. Inspect transport requests before another native read.";
+                    }
+                } else {
+                    automaticFailed = !ok || !peerFresh || !transportIdle;
+                    automaticMessage = !ok ? "Auto refresh backed off: transport diagnostics failed." :
+                        (!peerFresh ? "Auto refresh waiting for a fresh native CAS peer for this exact Sim." :
+                        (!transportIdle ? "Auto refresh waiting for the existing native request to resolve." : "Auto refresh canceled after leaving this view."));
+                }
+            }
             // HTTP submission is not a successful native CAS transition.
             // Poll the native acknowledgement once; never replay input.
             if (ok && command.path.find("action=cas_ui_request") != std::string::npos) {
                 const auto pending = ui::ParseObject(body);
                 const auto id = ui::Scalar(pending, "cas_request_id");
                 if (ui::Scalar(pending, "outcome") == "pending-client" && id.size() == 32) {
-                    const auto query = CurrentSimQuery();
+                    command.casRequestId = id;
+                    const auto query = "&sim_id=" + UrlEncode(command.sim);
                     const auto deadline = GetTickCount64() + 10000;
                     while (!g_done && GetTickCount64() < deadline) {
+                        if (command.automaticCasRefresh && !AutomaticCasPaneVisible()) break;
                         std::string result;
-                        if (!HttpGet("/api/command?action=cas_ui_result" + query + "&value=" + UrlEncode(id), result)) break;
+                        if (!HttpOwnedCommand("/api/command?action=cas_ui_result" + query + "&value=" + UrlEncode(id), result)) break;
                         body = result;
                         if (ui::Scalar(ui::ReadObject(result), "outcome") != "pending-client") break;
                         Sleep(150);
                     }
                 }
             }
+            if (command.automaticCasRefresh && command.path.find("action=cas_ui_request") != std::string::npos && ok) {
+                const auto data = ui::ParseObject(body);
+                if (!data.contains("client") || !data.contains("ok") || data["ok"] != true || !ui::CasDocument(data["client"], command.sim)) {
+                    automaticFailed = true;
+                    automaticUnresolved = ui::OwnerCommandUnresolved(data) || (!ui::CasExplicitFailure(data) &&
+                        (data.contains("cas_request_id") || ui::Scalar(data, "outcome") == "pending-client"));
+                    automaticMessage = automaticUnresolved ? "Auto refresh paused; retain and inspect the native request ID. No read will be replayed." :
+                        "Auto refresh backed off after a rejected or invalid native response.";
+                } else automaticMessage = "Equipped inventory refreshed from the native CAS client.";
+            }
+            RetainCommandOwner(command, body);
             std::lock_guard<std::mutex> lock(g_dataMutex);
             if (command.generation == g_selectionGeneration) {
+                if (!command.casBankAction.empty()) {
+                    ui::BankApply(g_casBank,command.sim,command.generation,command.casBankAction,ui::ParseObject(body));
+                    g_casBankBusy=g_casBank.busy;
+                }
                 g_status = !ok ? "Command request failed; outcome unverified" :
                     (ExtractJsonValue(body, "outcome") == "pending-client" ? "Awaiting native CAS acknowledgement; request retained" :
                     (ExtractJsonValue(body, "ok") == "true" ? "Command completed; see its result" : "Command rejected; see its reason"));
-                if (ok) { g_json = body; g_commandReply = body; auto lines = ExtractHistory(body); if (!lines.empty()) g_logLines = lines; }
+                if (ok) PublishCommandReply(body, GetTickCount64());
+                if (command.automaticCasRefresh) {
+                    g_casRefreshFailed = automaticFailed; g_casRefreshUnresolved = automaticUnresolved;
+                    g_casRefreshMessage = automaticMessage; ++g_casRefreshReceipt;
+                    const auto data = ui::ParseObject(body);
+                    g_casRefreshNativeId = automaticUnresolved && data.contains("cas_request_id") && ui::CasRequestIdentity(data["cas_request_id"])
+                        ? ui::Scalar(data, "cas_request_id") : "";
+                }
             }
-            if (command.path.find("action=cas_ui_request") != std::string::npos) g_casSubmissionBusy = false;
+            if (command.automaticCasRefresh || command.path.find("action=cas_ui_request") != std::string::npos) g_casSubmissionBusy = false;
             continue;
         }
-        if (g_visible.load()) {
+        if (g_visible.load() && !g_nativeCasPaneVisible.load() && !g_ownerBlocked.load()) {
             ULONGLONG now = GetTickCount64();
             if (now - g_lastStatusMs >= 1300) {
                 g_lastStatusMs = now;
@@ -498,6 +992,38 @@ static void CreateRenderTarget(IDXGISwapChain* sc) {
 
 static void CleanupRenderTarget() {
     if (g_rtv) { g_rtv->Release(); g_rtv = nullptr; }
+}
+
+static void CleanupResourceTexture() {
+    if (g_resourceTexture) { g_resourceTexture->Release(); g_resourceTexture = nullptr; }
+    g_resourceTextureKey.clear(); g_resourceTextureReceipt = 0;
+}
+
+static bool ResourceTexture(const std::string& key) {
+    resource::Pixels pixels; uint64_t receipt = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if (g_resourceImageKey != key || g_resourcePixels.rgba.empty()) return false;
+        receipt = g_resourcePixelReceipt;
+        if (g_resourceTexture && g_resourceTextureKey == key && receipt == g_resourceTextureReceipt) return true;
+        pixels = g_resourcePixels;
+    }
+    CleanupResourceTexture();
+    if (!g_device || !pixels.width || !pixels.height || pixels.width > 512 || pixels.height > 512 ||
+        pixels.rgba.size() != static_cast<size_t>(pixels.width) * pixels.height * 4) return false;
+    D3D11_TEXTURE2D_DESC description{};
+    description.Width = pixels.width; description.Height = pixels.height;
+    description.MipLevels = description.ArraySize = description.SampleDesc.Count = 1;
+    description.Format = DXGI_FORMAT_R8G8B8A8_UNORM; description.Usage = D3D11_USAGE_IMMUTABLE;
+    description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    D3D11_SUBRESOURCE_DATA data{}; data.pSysMem = pixels.rgba.data(); data.SysMemPitch = pixels.width * 4;
+    ID3D11Texture2D* texture = nullptr;
+    if (FAILED(g_device->CreateTexture2D(&description, &data, &texture)) || !texture) return false;
+    const HRESULT result = g_device->CreateShaderResourceView(texture, nullptr, &g_resourceTexture);
+    texture->Release();
+    if (FAILED(result) || !g_resourceTexture) return false;
+    g_resourceTextureKey = key; g_resourceTextureReceipt = receipt;
+    return true;
 }
 
 static void WriteLE16(std::ofstream& f, uint16_t v) { f.put(char(v & 255)); f.put(char((v >> 8) & 255)); }
@@ -658,6 +1184,7 @@ static void InitImGui(IDXGISwapChain* sc) {
         Debug("ImGui backend initialization failed");
         if (ImGui::GetIO().BackendPlatformUserData) ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
+        CleanupResourceTexture();
         if (g_context) { g_context->Release(); g_context = nullptr; }
         g_device->Release(); g_device = nullptr;
         return;
@@ -750,17 +1277,171 @@ static void DrawApexTab() {
     ImGui::Columns(1);
 }
 
+static std::string CasBankFormLabel(const std::string& lane) {
+    if (lane=="1") return "Human";
+    if (lane=="2") return "Alien";
+    if (lane=="4") return "Vampire";
+    if (lane=="8") return "Mermaid";
+    if (lane=="16") return "Spellcaster";
+    if (lane=="32") return "Werewolf";
+    if (lane=="64") return "Fairy";
+    return "Native form "+lane;
+}
+
+static std::string CasBankFieldLabel(std::string name) {
+    while (!name.empty() && name.front()=='_') name.erase(name.begin());
+    while (!name.empty() && name.back()=='_') name.pop_back();
+    std::replace(name.begin(),name.end(),'_',' ');
+    if (!name.empty() && name.front()>='a' && name.front()<='z') name.front()-='a'-'A';
+    return name;
+}
+
+static void DrawCasBankHash(const char* label, const std::string& hash) {
+    if (hash.empty()) return;
+    ImGui::TextDisabled("%s: %.12s...",label,hash.c_str());
+    if (ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::TextUnformatted(hash.c_str()); ImGui::EndTooltip(); }
+}
+
+// UI intent is independent of appearance authority. The canonical game owner
+// captures, compares, prepares and verifies every native appearance owner.
+static void DrawCasBankTransaction() {
+    ui::CasBankView state;
+    {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if (!ui::BankCurrent(g_casBank,g_selectedSim,g_selectionGeneration) && !g_casBankBusy.load()) {
+            g_casBank={}; g_casBank.sim=g_selectedSim; g_casBank.generation=g_selectionGeneration;
+        }
+        state=g_casBank;
+    }
+    const bool requestBlocked=g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() || g_ownerSubmissionBusy.load() ||
+        g_casSubmissionBusy.load() || g_casPendingId[0];
+    ImGui::PushID("all-owner-cas-review");
+    ImGui::SeparatorText("CAS form review");
+    ImGui::TextWrapped("Retain originals before entering CAS. Return to Live through the semantic CLI, then run the verified Live review below. The game owner runs normal ticks, pauses, and observes every native form once. Choose which returned changes to keep.");
+    ImGui::TextDisabled("1 Retain  /  2 Observe  /  3 Review each changed form  /  4 Prepare  /  5 Commit");
+    const auto color=state.unresolved || state.failed ? ImVec4(1.0f,0.64f,0.34f,1) : ImVec4(0.35f,0.88f,0.77f,1);
+    ImGui::TextColored(color,"%s",state.phase.empty() ? "Read transaction status to begin" : state.phase.c_str());
+    if (!state.sim.empty()) ImGui::TextDisabled("Exact Sim: %s",state.sim.c_str());
+    if (!state.message.empty()) ImGui::TextWrapped("%s",state.message.c_str());
+    if (!state.ownerId.empty()) { ImGui::TextWrapped("Owner request: %s",state.ownerId.c_str()); }
+    if (!state.reviewPhase.empty()) ImGui::TextWrapped("Live review: %s",state.reviewPhase.c_str());
+    if (!state.reviewNonce.empty()) ImGui::TextDisabled("Review nonce: %.12s...",state.reviewNonce.c_str());
+    if (state.clockProof) ImGui::TextColored(ImVec4(0.35f,0.88f,0.77f,1),"Exact Live context / positive normal ticks / Pause verified");
+    const auto clockError=ui::Scalar(state.lastReply,"clock_proof_error");
+    if (!state.clockProof && !clockError.empty() && !state.phase.empty()) ImGui::TextWrapped("Live proof: %s",clockError.c_str());
+    DrawCasBankHash("Transaction",state.pendingHash); DrawCasBankHash("Raw return",state.rawHash); DrawCasBankHash("Prepared plan",state.planHash);
+
+    ImGui::BeginDisabled(requestBlocked || state.busy || state.unresolved || !ui::ExactUint64Identity(ui::Json(state.sim)));
+    if (ImGui::Button("Read transaction status")) QueueAction("cas_bank_status");
+    ImGui::EndDisabled();
+    ImGui::SameLine(); ImGui::BeginDisabled(requestBlocked || !ui::BankCanBegin(state));
+    if (ImGui::Button("Before CAS: retain all originals")) QueueAction("cas_bank_begin");
+    ImGui::EndDisabled();
+    if (state.phase=="captured" || (state.phase=="observed" && !state.clockProof)) {
+        ImGui::BeginDisabled(requestBlocked || !ui::BankCanObserve(state));
+        if (ImGui::Button("After CAS: run, pause and review every form")) QueueAction("cas_bank_observe");
+        ImGui::EndDisabled();
+        ImGui::TextWrapped("The Source-owned review checks the exact Sim, household, save, zone and client. Existing raw observations are reused; no serializer or appearance observation is repeated.");
+    }
+    if (state.reviewPhase=="ready-status")
+        ImGui::TextWrapped("Source retained a verified clock proof. Read transaction status for the actual returned-owner evidence; this acknowledgement supplies no appearance inventory.");
+    else if (state.phase=="settling-live" || state.reviewPhase=="settling-live")
+        ImGui::TextWrapped("Live review started; this acknowledgement is not an observed return. Read transaction status after the bounded normal-speed/Pause probe finishes. No mutation is retried.");
+    if (!state.currentRuntime && !state.pendingHash.empty())
+        ImGui::TextWrapped("This checkpoint belongs to another runtime. Inspect the retained history and use the pinned recovery CLI; old appearance will not be replayed here.");
+    if (state.unresolved) {
+        ImGui::TextWrapped("The existing owner request is unresolved. Use Check retained owner above. Only its exact result may release this review; no mutation is retried.");
+    }
+    if (ui::BankEvidence(state.evidence)) {
+        const auto changed=state.evidence["changed_lanes"].size();
+        ImGui::TextColored(ImVec4(0.35f,0.88f,0.77f,1),"%u changed / %u native forms observed",static_cast<unsigned>(changed),
+            static_cast<unsigned>(state.evidence["lane_change_evidence"].size()));
+        ImGui::TextWrapped("A difference does not establish edit intent. Review each changed form independently; unchanged owners retain their originals.");
+        for (const auto& row:state.evidence["lane_change_evidence"]) {
+            const auto lane=ui::Scalar(row,"lane"), label=CasBankFormLabel(lane);
+            const bool changedOwner=row["changed"].get<bool>();
+            ImGui::PushID(lane.c_str());
+            const bool expanded=ImGui::CollapsingHeader((label+(changedOwner ? "  /  changed" : "  /  unchanged")).c_str(),
+                changedOwner ? ImGuiTreeNodeFlags_DefaultOpen : ImGuiTreeNodeFlags_None);
+            if (expanded) {
+                if (changedOwner) {
+                    int decision=0;
+                    const auto found=state.choices.find(lane);
+                    if (found!=state.choices.end()) decision=found->second=="accept-returned" ? 1 : found->second=="restore-original" ? 2 : 0;
+                    ImGui::BeginDisabled(requestBlocked || !ui::BankIdle(state) || state.phase!="observed" || state.prepareAttempted || state.localPrepared);
+                    ImGui::SetNextItemWidth(-1);
+                    if (ImGui::Combo("##form-decision",&decision,"Choose explicitly...\0Keep returned CAS changes\0Restore original appearance\0")) {
+                        std::lock_guard<std::mutex> lock(g_dataMutex);
+                        if (ui::BankChoiceCurrent(g_casBank,state)) {
+                            if (!decision) { g_casBank.choices.erase(lane); state.choices.erase(lane); }
+                            else { const auto choice=decision==1 ? "accept-returned" : "restore-original";
+                                g_casBank.choices[lane]=choice; state.choices[lane]=choice; }
+                        }
+                    }
+                    ImGui::EndDisabled();
+                    const auto& before=row["before_fingerprint"]["field_sha256"], &after=row["returned_fingerprint"]["field_sha256"];
+                    for (const auto& field:row["changed_fields"]) {
+                        const auto name=field.get<std::string>();
+                        ImGui::TextWrapped("%s",CasBankFieldLabel(name).c_str());
+                        const auto oldHash=before.contains(name) ? before[name].get<std::string>() : "Unavailable before";
+                        const auto newHash=after.contains(name) ? after[name].get<std::string>() : "Unavailable after";
+                        DrawCasBankHash("Before",oldHash); DrawCasBankHash("Returned",newHash);
+                    }
+                }
+                if (ImGui::TreeNode("All before / returned field fingerprints")) {
+                    // Preserve returned future fields as well as known ones.
+                    std::set<std::string> fields;
+                    for (const auto* side:{"before_fingerprint","returned_fingerprint"})
+                        for (auto it=row[side]["field_sha256"].begin();it!=row[side]["field_sha256"].end();++it) fields.insert(it.key());
+                    for (const auto& name:fields) {
+                        ImGui::TextWrapped("%s",name.c_str());
+                        for (const auto* side:{"before_fingerprint","returned_fingerprint"}) {
+                            const auto& fieldHashes=row[side]["field_sha256"];
+                            const auto hash=fieldHashes.contains(name) ? fieldHashes[name].get<std::string>() : "Unavailable";
+                            DrawCasBankHash(side==std::string("before_fingerprint") ? "Before" : "Returned",hash);
+                        }
+                    }
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::PopID();
+        }
+        if (state.hairEnabled)
+            ImGui::TextWrapped("Hair isolation is enabled. Keeping changed hair requires exact original outfit UID, category and ordinal through the CLI. F11 does not guess hair targets; preparation will refuse unsupported hair intent.");
+        if (!state.clockProof) ImGui::TextWrapped("Preparation and commit stay disabled until canonical status verifies the current Live clock proof and Pause.");
+        ImGui::BeginDisabled(requestBlocked || !ui::BankCanPrepare(state));
+        if (ImGui::Button("Prepare the explicit choices")) QueueAction("cas_bank_prepare");
+        ImGui::EndDisabled();
+        ImGui::SameLine(); ImGui::BeginDisabled(requestBlocked || !ui::BankCanCommit(state));
+        if (ImGui::Button("Commit this exact reviewed plan once")) QueueAction("cas_bank_commit");
+        ImGui::EndDisabled();
+    } else if (state.phase=="observed" || state.phase=="planned") {
+        ImGui::TextWrapped("Complete changed-owner evidence is unavailable. Mutations stay disabled; inspect the exact owner result.");
+    }
+    if (state.phase=="planned" && !state.localPrepared)
+        ImGui::TextWrapped("This plan was prepared outside this F11 review. Complete it through the CLI that retained its exact request and plan hash.");
+    if (state.phase=="completed")
+        ImGui::TextWrapped("Native appearance owners and the form bank are committed. A certified game save and reload are still required to prove durability.");
+    if (!state.lastReply.empty() && ImGui::TreeNode("Complete transaction receipt / raw review metadata")) {
+        const auto receipt=state.lastReply.dump(2); ImGui::TextWrapped("%s",receipt.c_str());
+        if (ImGui::SmallButton("Copy receipt")) ImGui::SetClipboardText(receipt.c_str());
+        ImGui::TreePop();
+    }
+    if (!state.lastFailure.empty() && ImGui::TreeNode("Retained failure receipt")) {
+        const auto failure=state.lastFailure.dump(2); ImGui::TextWrapped("%s",failure.c_str());
+        if (ImGui::SmallButton("Copy failure")) ImGui::SetClipboardText(failure.c_str());
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+}
+
 static void DrawFormsTab() {
-    ImGui::SeparatorText("Independent CAS form editing");
-    ImGui::TextWrapped("Switch to the form you intend to edit, retain originals, then enter CAS or MCCC CAS. On returning to Live, accept this form's edits and restore the other forms. Ambiguous destinations retain both states and refuse a guess.");
-    if (ImGui::Button("Before CAS: Retain Originals")) QueueAction("cas_session_begin");
-    ImGui::SameLine(); if (ImGui::Button("After CAS: Accept This Form")) QueueAction("cas_session_finish");
-    ImGui::SameLine(); if (ImGui::Button("CAS Transaction Status")) QueueAction("cas_session_status");
+    DrawCasBankTransaction();
     ImGui::Separator();
     DrawOccultSelector();
     ImGui::SameLine(); if (ImGui::Button("Switch Selected")) QueueAction("switch", ActiveOccultName());
     ImGui::SameLine(); if (ImGui::Button("Commit Current -> Selected Occult")) QueueAction("commit_current_to_occult", ActiveOccultName(), g_formLabel);
-    ImGui::TextWrapped("After CAS editing, use Commit Current -> Selected Occult. This copies the visible/current appearance into the stored occult sim_info, saves a baseline, and mirrors it into saved forms.");
+    ImGui::TextWrapped("Review CAS changes above before using direct form commands. The separate copy command applies the current visible appearance to one selected occult; it does not complete a CAS transaction.");
     ImGui::SeparatorText("Form data commands");
     DrawOccultCards("generate_form", "Generate", "delete_form", "Delete", "copy_human_to_form", "Human -> Form", "copy_current_to_form", "Current -> Form");
     ImGui::SeparatorText("Direct occult control");
@@ -917,12 +1598,24 @@ static void UpdateStudioData(const std::string& reply) {
     g_studioLastReply = reply;
     const auto& parsed = ui::ReadObject(reply);
     if (!ui::StudioDocument(parsed)) return;
+    if (ui::StudioMetadataChanged(parsed, g_studioData))
+        g_resourceInspections.clear();
     if (ui::Scalar(parsed, "history_lane") != ui::Scalar(g_studioData, "history_lane")) {
         g_studioData = ui::Json::object();
         g_historyId[0] = '\0';
         g_studioOutfitIndex = 0; g_studioPartIndex = 0;
     }
     for (auto item = parsed.begin(); item != parsed.end(); ++item) g_studioData[item.key()] = item.value();
+    if (parsed.contains("part_editor")) {
+        const auto& editor = parsed["part_editor"];
+        if (resource::Hash(editor, "resource_sha256") && resource::Tgi(ui::Scalar(editor, "resource_tgi")) &&
+            ui::Scalar(editor, "appearance_sha256") == ui::Scalar(g_studioData, "appearance_sha256")) {
+            const auto key = ui::Scalar(g_studioData, "history_lane") + ":" + ui::Scalar(g_studioData, "appearance_sha256") + ":" +
+                ui::Scalar(g_studioData, "inspected_form_flags") + ":" + ui::Scalar(editor, "target") + ":" + ui::Scalar(editor, "cas_part_id");
+            if (g_resourceInspections.size() >= 1024) g_resourceInspections.clear();
+            g_resourceInspections[key] = editor;
+        }
+    }
     // Successful Apply/Cancel replies include null; an old token must vanish.
     if (parsed.contains("pending_preview"))
         strncpy_s(g_previewId, ui::Scalar(parsed, "pending_preview").c_str(), _TRUNCATE);
@@ -968,37 +1661,75 @@ static void DrawNumericColor(const std::string& target) {
             g_colorChanged[index] = false;
         }
     }
-    ImGui::SeparatorText("Numeric color / selected part");
-    ImGui::TextUnformatted(ui::Scalar(editor, "part_name").c_str());
+    ImGui::SeparatorText("Part color / HSB shifts");
+    if (g_itemNameMode == 2) ImGui::TextUnformatted(ui::Scalar(editor, "part_name").c_str());
+    color::Bounds bounds[4]; bool editable[4]{}; double lows[4]{}, highs[4]{};
+    float wheel[4]{0.5f, 0.5f, 0.5f, 1.0f};
+    for (unsigned index = 0; index < 4; ++index) {
+        editable[index] = color::ReadBounds(editor, index, bounds[index]) && color::EditRange(bounds[index], lows[index], highs[index]);
+        if (index < 3) wheel[index] = color::WheelPosition(bounds[index], g_colorValues[index]);
+    }
+    const float previousWheel[3]{wheel[0], wheel[1], wheel[2]};
+    ImGui::TextDisabled("Shift wheel / selected CASP ranges");
+    ImGui::SetNextItemWidth(std::min(250.0f, ImGui::GetContentRegionAvail().x));
+    ImGui::BeginDisabled(!editable[0] && !editable[1] && !editable[2]);
+    if (ImGui::ColorPicker4("##part-shift-wheel", wheel, ImGuiColorEditFlags_PickerHueWheel |
+            ImGuiColorEditFlags_InputHSV | ImGuiColorEditFlags_DisplayHSV | ImGuiColorEditFlags_NoInputs |
+            ImGuiColorEditFlags_NoAlpha | ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_NoSmallPreview |
+            ImGuiColorEditFlags_NoOptions)) {
+        for (unsigned index = 0; index < 3; ++index) {
+            double value;
+            if (wheel[index] != previousWheel[index] && editable[index] && color::WheelValue(bounds[index], wheel[index], value)) {
+                g_colorValues[index] = static_cast<float>(value); g_colorChanged[index] = true;
+            }
+        }
+    }
+    ImGui::EndDisabled();
+    ImGui::TextWrapped("The wheel selects hue, saturation and brightness shifts within this part's ranges. Its colors are a control guide; the texture determines the final appearance.");
+    const char* labels[]{"Hue shift", "Saturation shift", "Brightness shift", "Opacity"};
     bool changes = false;
     for (unsigned index = 0; index < 4; ++index) {
         const auto& channel = editor["channels"][names[index]];
         ImGui::PushID(static_cast<int>(index));
-        ImGui::BeginDisabled(!channel["enabled"].get<bool>());
-        const float low = channel["min"].get<float>(), high = channel["max"].get<float>();
-        if (ImGui::SliderFloat(names[index], &g_colorValues[index], low, high, "%.6f")) g_colorChanged[index] = true;
+        ImGui::BeginDisabled(!editable[index]);
+        const float low = editable[index] ? static_cast<float>(lows[index]) : g_colorValues[index];
+        const float high = editable[index] ? static_cast<float>(highs[index]) : low;
+        float controlValue = editable[index] ? std::clamp(g_colorValues[index], low, high) : g_colorValues[index];
+        if (ImGui::SliderFloat(labels[index], &controlValue, low, high, "%.6f", ImGuiSliderFlags_AlwaysClamp)) {
+            double value; int32_t lane;
+            if (color::Quantize(bounds[index], controlValue, value, lane)) {
+                g_colorValues[index] = static_cast<float>(value); g_colorChanged[index] = true;
+            }
+        }
         ImGui::SameLine();
         if (ImGui::SmallButton("Reset")) {
-            const float neutral = index == 3 ? 1.0f : 0.0f;
-            if (neutral >= low && neutral <= high) { g_colorValues[index] = neutral; g_colorChanged[index] = true; }
+            double value; int32_t lane;
+            if (color::Quantize(bounds[index], index == 3 ? 1.0 : 0.0, value, lane)) {
+                g_colorValues[index] = static_cast<float>(value); g_colorChanged[index] = true;
+            }
         }
         ImGui::EndDisabled();
-        ImGui::TextDisabled("Range %.6g to %.6g | CAS increment %.6g%s", low, high,
-            channel["step"].get<double>(), g_colorChanged[index] ? " | edited" : "");
+        ImGui::TextDisabled("%.6f | CASP %.6g to %.6g | CAS increment %.6g%s", g_colorValues[index],
+            bounds[index].low, bounds[index].high, channel["step"].get<double>(), g_colorChanged[index] ? " | edited" : "");
+        if (!editable[index]) ImGui::TextDisabled("This channel has no enabled representable editing range.");
+        else if (g_colorValues[index] < low || g_colorValues[index] > high)
+            ImGui::TextDisabled("Current raw value is outside the editing range; retained until explicitly changed.");
         changes = changes || g_colorChanged[index];
         ImGui::PopID();
     }
-    ImGui::BeginDisabled(!changes);
-    if (ImGui::Button("Prepare numeric color preview")) {
-        ui::Json edits = ui::Json::object();
-        for (unsigned index = 0; index < 4; ++index) if (g_colorChanged[index]) edits[names[index]] = g_colorValues[index];
+    ui::Json edits; std::string rawPreview;
+    const bool validPreview = changes && color::Prepare(editor, g_colorValues, g_colorChanged, edits, rawPreview);
+    ImGui::TextDisabled("Q14 resolution: 1 / 16384 (%.8f)", 1.0 / color::kQ14Scale);
+    if (validPreview) ImGui::TextDisabled("Draft packed shift: %s", rawPreview.c_str());
+    ImGui::BeginDisabled(!validPreview);
+    if (ImGui::Button("Prepare part color preview")) {
         const ui::Json request = {{"target", target}, {"lane", ui::Scalar(g_studioData, "history_lane")},
             {"cas_part_id", editor["cas_part_id"]}, {"color_hex", editor["color_hex"]},
             {"appearance_sha256", editor["appearance_sha256"]}, {"resource_sha256", editor["resource_sha256"]}, {"edits", edits}};
         const auto payload = request.dump(); QueueStudioAction("studio_color_edit", nullptr, payload.c_str());
     }
     ImGui::EndDisabled();
-    ImGui::TextWrapped("Only edited lanes change. Preview reports the exact Q14 result; Apply commits it. Texture compatibility is separate from slider metadata. Skin specularity uses the brightness lane for gloss in the baseline CAS UI.");
+    ImGui::TextWrapped("Only edited channels change. Preview reports the quantized result; Apply commits it. Skin specularity uses the brightness shift for gloss in the baseline CAS UI.");
 }
 
 static std::string OutfitCategory(const ui::Json& outfit) {
@@ -1029,6 +1760,142 @@ static const ui::Json* SelectedStudioPart() {
     g_studioPartIndex = std::clamp(g_studioPartIndex, 0, static_cast<int>(parts.size()) - 1);
     return &parts[static_cast<size_t>(g_studioPartIndex)];
 }
+
+static ui::Json ResourcePartEditor(const ui::Json& part) {
+    const auto forms = g_studioData.find("form_inventory");
+    if (forms != g_studioData.end() && !forms->empty() &&
+        ui::Scalar((*forms)[static_cast<size_t>(g_studioFormIndex)], "flags") != ui::Scalar(g_studioData, "inspected_form_flags"))
+        return ui::Json::object();
+    const auto key = ui::Scalar(g_studioData, "history_lane") + ":" + ui::Scalar(g_studioData, "appearance_sha256") + ":" +
+        ui::Scalar(g_studioData, "inspected_form_flags") + ":" + ui::Scalar(part, "target") + ":" + ui::Scalar(part, "cas_part_id");
+    const auto cached = g_resourceInspections.find(key);
+    return cached == g_resourceInspections.end() ? ui::Json::object() : cached->second;
+}
+
+static resource::ItemName StudioPartName(const ui::Json& part, const ui::Json& editor,
+                                       const ui::Json& catalog, bool catalogValid) {
+    const auto mode = static_cast<resource::NameMode>(std::clamp(g_itemNameMode, 0, 2));
+    auto row = catalogValid ? resource::EquippedFromValidatedCatalog(catalog, part, editor,
+        ui::Scalar(g_studioData, "appearance_sha256")) : ui::Json::object();
+    auto name = resource::Name(row, mode);
+    if (name.text.empty() && mode != resource::NameMode::Package) {
+        name.text = ui::Scalar(editor, "part_name");
+        if (!name.text.empty()) name.source = "casp-internal-name / native bytes";
+    }
+    return name;
+}
+
+static void RefreshStudioItems() {
+    const auto& outfits = ViewedStudioOutfits();
+    if (outfits.empty() || !g_studioData.contains("runtime_pid") ||
+        !g_studioData.contains("inspected_form_flags")) return;
+    g_studioOutfitIndex = std::clamp(g_studioOutfitIndex, 0, static_cast<int>(outfits.size()) - 1);
+    const auto& outfit = outfits[static_cast<size_t>(g_studioOutfitIndex)];
+    const auto forms = g_studioData.find("form_inventory");
+    if (forms != g_studioData.end() && !forms->empty() &&
+        (*forms)[static_cast<size_t>(g_studioFormIndex)]["flags"] != g_studioData["inspected_form_flags"]) return;
+    const int form = g_studioData["inspected_form_flags"].get<int>();
+    ui::Json request = {{"lane", g_studioData["history_lane"]}, {"appearance_sha256", g_studioData["appearance_sha256"]},
+        {"runtime_pid", g_studioData["runtime_pid"]}, {"cursor", 0}, {"limit", 8}, {"outfit_index", outfit["index"]}};
+    if (!ui::StudioItemRequest(request)) return;
+    const auto context = request.dump();
+    if (context != g_studioItemsContext) {
+        g_studioItemsContext = context; g_studioItemsCursor = 0; g_studioItemsComplete = false;
+        g_studioItemRows = ui::Json::object(); g_studioItemsMessage.clear();
+    }
+    std::string reply; uint64_t receipt;
+    { std::lock_guard<std::mutex> lock(g_dataMutex); receipt = g_studioItemsReceipt; reply = g_studioItemsReply; }
+    const auto now = GetTickCount64();
+    if (receipt != g_studioItemsSeen) {
+        g_studioItemsSeen = receipt; g_studioItemsBusy = false;
+        const auto page = ui::ParseObject(reply);
+        auto currentRequest = request; currentRequest["cursor"] = g_studioItemsCursor;
+        if (g_studioItemRequest == currentRequest && ui::StudioItemPage(page, currentRequest, outfit, form)) {
+            for (const auto& item : page["items"]) {
+                const auto key = ui::Scalar(page, "history_lane") + ":" + ui::Scalar(page, "appearance_sha256") + ":" +
+                    std::to_string(form) + ":" + ui::Scalar(item, "target") + ":" + ui::Scalar(item, "cas_part_id");
+                g_studioItemRows[ui::Scalar(item, "target")] = item;
+                if (item["part_editor"].is_object()) {
+                    if (g_resourceInspections.size() >= 1024) g_resourceInspections.clear();
+                    g_resourceInspections[key] = item["part_editor"];
+                }
+            }
+            g_studioItemsComplete = page["complete"].get<bool>();
+            g_studioItemsCursor += page["items"].size();
+            g_studioItemsMessage = g_studioItemsComplete ? "All equipped rows inspected." : "Reading equipped item names...";
+            g_studioItemsNextMs = now + 300;
+        } else if (g_studioItemRequest != currentRequest) {
+            g_studioItemsNextMs = now; // A prior outfit's response cannot stop the newly selected owner.
+        } else {
+            g_studioItemsMessage = "Item metadata changed or is unavailable. Refresh this Sim to retry.";
+            g_studioItemsComplete = true; // Explicit refresh/context change, never an automatic retry loop.
+        }
+    }
+    if (!g_studioItemsComplete && !g_studioItemsBusy.load() && now >= g_studioItemsNextMs) {
+        request["cursor"] = g_studioItemsCursor;
+        const ui::Json envelope = {{"form", form}, {"value", request.dump()}};
+        const auto value = envelope.dump(); const auto path = BuildCommandPath("studio_items", nullptr, value.c_str());
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if (g_commands.empty() && !g_casSubmissionBusy.load() && !g_ownerBlocked.load() && !g_ownerNativeDeliveryBusy.load() && !g_casBankBusy.load()) {
+            QueuedCommand command{path, g_selectionGeneration}; command.automaticStudioItems = true; command.sim = g_selectedSim;
+            g_commands.push_back(std::move(command)); g_studioItemRequest = request; g_studioItemsBusy = true;
+        }
+    }
+}
+
+static void DrawResourcePart(const ui::Json& part, const ui::Json& editor) {
+    const auto viewKey = ui::Scalar(g_studioData, "history_lane") + ":" + ui::Scalar(g_studioData, "appearance_sha256") + ":" +
+        ui::Scalar(g_studioData, "inspected_form_flags") + ":" + ui::Scalar(part, "target") + ":" + ui::Scalar(part, "cas_part_id");
+    if (g_resourceViewKey != viewKey) { g_resourceViewKey = viewKey; ++g_resourceSelectionSerial; g_resourceRequestedImage.clear(); }
+    if (!g_resourceCatalogAttempted) { g_resourceCatalogAttempted = true; QueueResource(1); }
+    ui::Json catalog; std::string catalogStatus;
+    { std::lock_guard<std::mutex> lock(g_dataMutex); catalog = g_resourceCatalog; catalogStatus = g_resourceCatalogStatus; }
+    const auto row = resource::Equipped(catalog, part, editor, ui::Scalar(g_studioData, "appearance_sha256"));
+    ImGui::SeparatorText("Item / source package");
+    ImGui::BeginDisabled(g_resourceCatalogBusy.load());
+    if (ImGui::Button("Refresh resource cache")) QueueResource(1);
+    ImGui::EndDisabled();
+    if (row.empty()) {
+        const auto internalName = ui::Scalar(editor, "part_name");
+        if (g_itemNameMode != 1 && !internalName.empty()) { ImGui::TextWrapped("%s", internalName.c_str()); ImGui::TextDisabled("CASP internal name / effective native bytes"); }
+        else if (g_itemNameMode == 1) ImGui::TextDisabled("Containing package filename unavailable without an exact cache match.");
+        else ImGui::TextDisabled("Item name unavailable; inspect the exact equipped part.");
+        ImGui::TextWrapped("Thumbnail unavailable: no pinned cache record matches this exact native resource TGI, body type and effective hash.");
+        ImGui::TextWrapped("%s", catalogStatus.c_str());
+        ImGui::BeginDisabled(); ImGui::Button("Open containing package in Sims 4 Studio"); ImGui::EndDisabled();
+        return;
+    }
+    const auto name = resource::Name(row, static_cast<resource::NameMode>(std::clamp(g_itemNameMode, 0, 2)));
+    if (!name.text.empty()) ImGui::TextWrapped("%s", name.text.c_str());
+    else ImGui::TextDisabled("Item name unavailable in the verified package.");
+    ImGui::TextDisabled("%s | %s", name.source.c_str(), ui::Scalar(row["provenance"], "origin").c_str());
+    ImGui::TextDisabled("%s", ui::Scalar(row, "resource_tgi").c_str());
+    const auto key = ResourceKey(row); const auto& thumbnail = row["thumbnail"];
+    if (ui::Scalar(thumbnail, "status") == "resolved") {
+        if (g_resourceRequestedImage != key && !g_resourceImageBusy.load() && QueueResource(2, row)) g_resourceRequestedImage = key;
+        std::string imageStatus; unsigned width = 0, height = 0;
+        {
+            std::lock_guard<std::mutex> lock(g_dataMutex);
+            if (g_resourceImageKey == key) { imageStatus = g_resourceImageStatus; width = g_resourcePixels.width; height = g_resourcePixels.height; }
+        }
+        if (ResourceTexture(key)) {
+            const float scale = std::min(1.0f, 180.0f / static_cast<float>(std::max(width, height)));
+            ImGui::Image(reinterpret_cast<ImTextureID>(g_resourceTexture), ImVec2(width * scale, height * scale));
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Actual cached CAS thumbnail\nPNG SHA-256 %s\nResource %s", ui::Scalar(thumbnail, "sha256").c_str(), ui::Scalar(row, "resource_id").c_str());
+        } else ImGui::TextDisabled("%s", g_resourceImageBusy.load() ? "Loading the pinned thumbnail..." : "Thumbnail not decoded/uploaded.");
+        if (!imageStatus.empty()) ImGui::TextWrapped("%s", imageStatus.c_str());
+    } else ImGui::TextWrapped("Thumbnail unavailable: %s", ui::Scalar(thumbnail, "reason").c_str());
+    const bool ready = ui::Scalar(row["studio_open"], "status") == "ready";
+    ImGui::BeginDisabled(!ready || g_resourceOpenBusy.load());
+    if (ImGui::Button("Open containing package in Sims 4 Studio")) QueueResource(3, row);
+    ImGui::EndDisabled();
+    if (!ready) ImGui::TextWrapped("Studio unavailable: %s", ui::Scalar(row["studio_open"], "reason").c_str());
+    else ImGui::TextWrapped("Opens an independent verified package copy. Automatic selection of this individual CASP inside Studio is unsupported.");
+    std::string openStatus;
+    { std::lock_guard<std::mutex> lock(g_dataMutex); if (g_resourceOpenKey == key) openStatus = g_resourceOpenStatus; }
+    if (!openStatus.empty()) ImGui::TextWrapped("%s", openStatus.c_str());
+    if (ImGui::TreeNode("Resource provenance")) { const auto raw = row.dump(2); ImGui::TextWrapped("%s", raw.c_str()); ImGui::TreePop(); }
+}
 static void DrawEquippedList() {
     ImGui::TextColored(ImVec4(0.35f, 0.88f, 0.77f, 1), "CAS / ALL CATEGORIES");
     const auto forms = g_studioData.find("form_inventory");
@@ -1051,6 +1918,7 @@ static void DrawEquippedList() {
     if (outfits.empty()) { ImGui::TextWrapped("Inspect this Sim to read every form/outfit."); return; }
     g_studioOutfitIndex = std::clamp(g_studioOutfitIndex, 0, static_cast<int>(outfits.size()) - 1);
     const auto& outfit = outfits[static_cast<size_t>(g_studioOutfitIndex)];
+    RefreshStudioItems();
     const auto label = OutfitCategory(outfit) + " / outfit " + ui::Scalar(outfit, "number");
     ImGui::SetNextItemWidth(-1);
     if (ImGui::BeginCombo("##wardrobe", label.c_str())) {
@@ -1063,6 +1931,11 @@ static void DrawEquippedList() {
         ImGui::EndCombo();
     }
     ImGui::SetNextItemWidth(-1); ImGui::InputTextWithHint("##parts-search", "Search skin details, jewelry...", g_partSearch, sizeof(g_partSearch));
+    ImGui::SetNextItemWidth(-1); ImGui::Combo("Item names", &g_itemNameMode, "Preferred / friendly\0Package filename\0Internal code\0");
+    if (!g_resourceCatalogAttempted) { g_resourceCatalogAttempted = true; QueueResource(1); }
+    ui::Json resourceCatalog;
+    { std::lock_guard<std::mutex> lock(g_dataMutex); resourceCatalog = g_resourceCatalog; }
+    const bool resourceCatalogValid = resource::Catalog(resourceCatalog);
     ImGui::Checkbox("Show unequipped categories", &g_showEmptySlots);
     ImGui::SetNextItemWidth(-1); ImGui::Combo("##sort", &g_equippedSort, "Equipped first\0Category / alphabetical\0Serialized row order\0");
     const auto catalog = g_studioData.find("category_catalog");
@@ -1087,7 +1960,12 @@ static void DrawEquippedList() {
     };
     for (size_t i = 0; i < parts.size(); ++i) {
         const auto* category = categoryFor(parts[i]);
-        rows.push_back({static_cast<int>(i), ui::Scalar(parts[i], "label"), category ? ui::Scalar(*category, "group") : "Runtime discovered"});
+        const auto name = StudioPartName(parts[i], ResourcePartEditor(parts[i]), resourceCatalog, resourceCatalogValid);
+        const auto fallback = g_itemNameMode == 1 ? "Package name unavailable" : "Name unavailable";
+        const bool codeFallback = g_itemNameMode == 0 && name.source.find("casp-internal-name") == 0;
+        rows.push_back({static_cast<int>(i), (name.text.empty() ? fallback : name.text) +
+            (codeFallback ? " (internal code)" : "") + " / " + ui::Scalar(parts[i], "label"),
+            category ? ui::Scalar(*category, "group") : "Runtime discovered"});
     }
     if (g_showEmptySlots && catalog != g_studioData.end()) for (const auto& category : *catalog) {
         bool equipped = false;
@@ -1099,6 +1977,7 @@ static void DrawEquippedList() {
         return a.group == b.group ? a.label < b.label : a.group < b.group;
     });
     ImGui::TextDisabled("%u equipped / %u categories", static_cast<unsigned>(parts.size()), static_cast<unsigned>(catalog == g_studioData.end() ? 0 : catalog->size()));
+    if (!g_studioItemsMessage.empty()) ImGui::TextWrapped("%s", g_studioItemsMessage.c_str());
     ImGui::BeginChild("equipped-rows", ImVec2(0, 0), false);
     for (size_t i = 0; i < rows.size(); ++i) {
         const auto& row = rows[i];
@@ -1112,7 +1991,15 @@ static void DrawEquippedList() {
             const auto target = ui::Scalar(parts[static_cast<size_t>(row.index)], "target"); QueueStudioAction("studio_part_inspect", nullptr, target.c_str());
         }
         if (row.index < 0) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s", row.group.c_str(), row.index < 0 ? "No part equipped in this outfit. Category is tracked without synthesizing a part." : "Exact equipped row / this form and outfit");
+        if (ImGui::IsItemHovered()) {
+            std::string reason;
+            if (row.index >= 0) {
+                const auto target = ui::Scalar(parts[static_cast<size_t>(row.index)], "target");
+                const auto item = g_studioItemRows.find(target);
+                if (item != g_studioItemRows.end()) reason = ui::Scalar(*item, "reason");
+            }
+            ImGui::SetTooltip("%s\n%s%s%s", row.group.c_str(), row.index < 0 ? "No part equipped in this outfit. Category is tracked without synthesizing a part." : "Exact equipped row / this form and outfit", reason.empty() ? "" : "\n", reason.c_str());
+        }
         ImGui::PopID();
     }
     ImGui::EndChild();
@@ -1126,6 +2013,7 @@ static void DrawStudioParts() {
     const auto color = ui::Scalar(part, "color_hex");
     ImGui::TextColored(ImVec4(0.35f, 0.88f, 0.77f, 1), "%s", ui::Scalar(part, "label").c_str());
     ImGui::TextDisabled("CASP %s | layer %s", ui::Scalar(part, "cas_part_hex").c_str(), ui::Scalar(part, "layer_id").c_str());
+    DrawResourcePart(part, ResourcePartEditor(part));
     ImGui::SeparatorText("Replace equipped part");
     if (ImGui::Button("Inspect part / find compatible sources")) QueueStudioAction("studio_part_inspect", nullptr, target.c_str());
     const auto editor = g_studioData.find("part_editor");
@@ -1193,6 +2081,7 @@ static void DrawStudioTimeline() {
 static bool QueueCasAction(const ui::Json& request) {
     // Reserve before queueing so successive frames cannot stack native inputs
     // while the worker is waiting for the first request's identity.
+    if (g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() || g_casPendingId[0] || g_casRefreshClock.unresolved) return false;
     bool idle = false;
     if (!g_casSubmissionBusy.compare_exchange_strong(idle, true)) return false;
     const auto value = request.dump();
@@ -1200,35 +2089,134 @@ static bool QueueCasAction(const ui::Json& request) {
     return true;
 }
 
+static bool QueueAutomaticCasRefresh(const std::string& sim) {
+    if (g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() || g_casBankBusy.load()) return false;
+    bool idle = false;
+    if (!g_casSubmissionBusy.compare_exchange_strong(idle, true)) return false;
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    // Automatic work cannot overtake a user's queued command or a changed
+    // selection. The worker rechecks visibility before diagnostics and read.
+    if (!g_commands.empty() || sim != g_selectedSim || g_done.load() || g_casBankBusy.load()) {
+        g_casSubmissionBusy = false; return false;
+    }
+    g_commands.push_back({"/api/command?action=cas_ui_diagnostics&sim_id=" + UrlEncode(sim),
+        g_selectionGeneration, true, sim});
+    return true;
+}
 
-static void DrawNativeCas(const std::string& reply, bool history) {
+static bool QueueAutomaticCasReconcile(const std::string& sim, const std::string& requestId) {
+    if (g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() || g_casBankBusy.load()) return false;
+    bool idle = false;
+    if (!g_casSubmissionBusy.compare_exchange_strong(idle, true)) return false;
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    if (!g_commands.empty() || sim != g_selectedSim || g_done.load() || g_casBankBusy.load()) {
+        g_casSubmissionBusy = false; return false;
+    }
+    g_commands.push_back({"/api/command?action=cas_ui_result&sim_id=" + UrlEncode(sim) + "&value=" + UrlEncode(requestId),
+        g_selectionGeneration, false, sim, true, requestId});
+    return true;
+}
+
+static bool ReleaseAutomaticCasRead(const ui::Json& data, const std::string& sim) {
+    if (g_casAutoRetainedId.empty() || g_casAutoRetainedId != g_casPendingId) return false;
+    const auto state = ui::ResolveCasRead(data, g_casAutoRetainedId, sim);
+    if (state != ui::CasReadResolution::Completed && state != ui::CasReadResolution::Failed && state != ui::CasReadResolution::Expired) return false;
+    // This is the completion of an old read, not a newly captured inventory.
+    // Keep snapshot data/age intact, release only our own status-read UUID,
+    // then let the distinct fresh-status scheduler observe current CAS data.
+    g_casPendingId[0] = '\0'; g_casAutoRetainedId.clear();
+    g_casRefreshClock = {}; g_casReconcileClock = {};
+    g_casAutoMessage = "Retained automatic read resolved. Refreshing the current native CAS inventory.";
+    return true;
+}
+
+
+static void DrawNativeCas(const std::string& reply, ULONGLONG replyMs, bool history) {
     std::string sim;
-    { std::lock_guard<std::mutex> lock(g_dataMutex); sim = g_selectedSim; }
-    if (reply != g_casLastReply) {
-        g_casLastReply = reply;
-        const auto& data = ui::ReadObject(reply);
-        if (data.contains("cas_request_id")) {
+    std::string observedReply = reply, deliveredReply;
+    ULONGLONG observedReplyMs = replyMs;
+    const auto now = GetTickCount64();
+    g_nativeCasPaneVisible = true; g_nativeCasPaneMs = now;
+    {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        sim = g_selectedSim;
+        if (g_ownerNativeDeliveryBusy.load() && !g_ownerDeliveredNativeReply.empty()) {
+            deliveredReply = g_ownerDeliveredNativeReply;
+            observedReply = deliveredReply; observedReplyMs = g_commandReplyMs;
+        }
+        if (g_casDiagnosticMs != g_casDiagnosticsSeenMs) {
+            g_casDiagnostics = ui::ParseObject(g_casDiagnosticReply);
+            g_casDiagnosticsSeenMs = g_casDiagnosticMs;
+        }
+        if (g_casRefreshReceipt != g_casRefreshSeen) {
+            g_casRefreshSeen = g_casRefreshReceipt; g_casAutoMessage = g_casRefreshMessage;
+            g_casAutoRetainedId = g_casRefreshNativeId; g_casReconcileClock = {};
+            if (g_casRefreshFailed) ui::CasRefreshFailed(g_casRefreshClock, now, g_casRefreshUnresolved);
+            else if (!g_ownerBlocked.load()) g_casRefreshClock.unresolved = false;
+        }
+        if (g_casReconcileReceipt != g_casReconcileSeen) {
+            g_casReconcileSeen = g_casReconcileReceipt;
+            if (g_casReconcileNativeId == g_casAutoRetainedId && g_casReconcileSim == sim &&
+                (!g_casReconcileOk || !ReleaseAutomaticCasRead(ui::ParseObject(g_casReconcileReply), sim))) {
+                ui::CasRefreshFailed(g_casReconcileClock, now);
+                g_casAutoMessage = "Retained automatic read is still unresolved; only its same result ID will be checked. No CAS operation is replayed.";
+            }
+            if (g_ownerNativeDeliveryBusy.load() && g_ownerOriginalCommand.automaticCasReconcile) {
+                // The native exact-ID reconciler consumed this delivery above;
+                // keep it out of the fresh inventory presentation path.
+                g_ownerNativeDeliveryBusy = false; observedReply = reply; observedReplyMs = replyMs;
+                deliveredReply.clear();
+            }
+        }
+    }
+    if (observedReply != g_casLastReply) {
+        g_casLastReply = observedReply;
+        const auto& data = ui::ReadObject(observedReply);
+        if (data.contains("cas_request_id") && ui::CasRequestIdentity(data["cas_request_id"])) {
             strncpy_s(g_casPendingId, ui::Scalar(data, "cas_request_id").c_str(), _TRUNCATE);
-            if (data.contains("client") && ui::Scalar(data, "ok") == "true" && ui::CasDocument(data["client"], sim)) {
+            if (ui::Scalar(data, "cas_request_id") == g_casAutoRetainedId) {
+                // Manual inspection of that same automatic UUID also releases
+                // it without presenting its historical inventory as live.
+                if (!ReleaseAutomaticCasRead(data, sim)) g_casRefreshClock.unresolved = true;
+            } else if (data.contains("client") && ui::Scalar(data, "ok") == "true" && ui::CasDocument(data["client"], sim)) {
                 g_casClientData = data["client"];
+                g_casRoomData = data.value("cas_room", ui::Json::object());
                 g_casSelectedItem = ui::RefreshCasSelection(g_casClientData, g_casSelectedPanel, g_casSelectedItem, g_casSelectedPreset);
-                g_casSnapshotMs = GetTickCount64();
+                g_casSnapshotMs = observedReplyMs; // Receipt time survives hiding; showing never renews its age.
                 g_casPendingId[0] = '\0';
-            } else if (ui::Scalar(data, "outcome") != "pending-client") {
+                g_casRefreshClock.failures = 0; g_casRefreshClock.backoffUntilMs = 0; g_casRefreshClock.unresolved = false;
+            } else if (ui::CasExplicitFailure(data)) {
                 g_casClientData = ui::Json::object(); g_casSelectedItem = ui::Json::object();
                 g_casPendingId[0] = '\0'; g_casSnapshotMs = 0;
+                g_casRefreshClock.unresolved = false;
+                if (g_casRefreshClock.backoffUntilMs <= now) ui::CasRefreshFailed(g_casRefreshClock, now);
+            } else {
+                // Pending, unknown, superseded, or malformed readback keeps its
+                // exact native UUID; no fresh status request may hide it.
+                g_casRefreshClock.unresolved = true;
             }
         }
         if (data.contains("native_initializer_observed") && data["native_initializer_observed"].is_boolean()) g_casDiagnostics = data;
     }
+    // The render thread has now consumed the recovered result and retained
+    // any native UUID before lifting the worker-to-render delivery barrier.
+    if (!deliveredReply.empty()) {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if (g_ownerDeliveredNativeReply == deliveredReply) g_ownerNativeDeliveryBusy = false;
+    }
     ImGui::TextColored(ImVec4(0.35f, 0.88f, 0.77f, 1), "CAS / ACKNOWLEDGED CLIENT SNAPSHOT");
-    ImGui::BeginDisabled(g_casSubmissionBusy.load());
+    ImGui::BeginDisabled(g_casSubmissionBusy.load() || g_ownerBlocked.load() || g_casPendingId[0] || g_casRefreshClock.unresolved);
     if (ImGui::Button("Refresh equipped items")) QueueCasAction({{"operation", "status"}});
     ImGui::EndDisabled();
-    ImGui::SameLine(); if (ImGui::Button("CAS transport diagnostics")) QueueAction("cas_ui_diagnostics");
+    ImGui::SameLine(); ImGui::BeginDisabled(g_casSubmissionBusy.load() || g_ownerBlocked.load());
+    if (ImGui::Button("CAS transport diagnostics")) QueueAction("cas_ui_diagnostics");
+    ImGui::EndDisabled();
     ImGui::SameLine(); ImGui::Checkbox("Show empty categories", &g_showEmptySlots);
+    if (ImGui::Checkbox("Automatically refresh while this CAS view is open", &g_casAutoRefresh))
+        g_casAutoRefreshEnabled = g_casAutoRefresh;
     ImGui::InputText("Search categories / exact item data", g_partSearch, sizeof(g_partSearch));
     if (g_casSubmissionBusy.load()) ImGui::TextWrapped("Native request submitted once; waiting for its result. No additional CAS input will be queued.");
+    if (!g_casAutoMessage.empty()) ImGui::TextWrapped("%s", g_casAutoMessage.c_str());
     if (!g_casDiagnostics.empty() && ImGui::CollapsingHeader("Native CAS startup / transport")) {
         ImGui::TextWrapped("Initializer observed: %s / distributor client: %s / queued operations: %s",
             ui::Scalar(g_casDiagnostics, "native_initializer_observed").c_str(),
@@ -1240,10 +2228,20 @@ static void DrawNativeCas(const std::string& reply, bool history) {
     }
     if (g_casPendingId[0]) {
         ImGui::TextWrapped("Awaiting native response: %s", g_casPendingId);
+        ImGui::BeginDisabled(g_casSubmissionBusy.load() || g_ownerBlocked.load());
         if (ImGui::Button("Check retained request")) QueueAction("cas_ui_result", nullptr, g_casPendingId);
+        ImGui::EndDisabled();
     }
+    if (ui::CasReadReconcileDue(g_casReconcileClock, now, sim,
+        ui::CasNativePaneVisible(g_visible.load(), g_nativeCasView, g_activeTab), g_casAutoRefresh,
+        g_casSubmissionBusy.load(), g_casAutoRetainedId, g_casPendingId) && QueueAutomaticCasReconcile(sim, g_casAutoRetainedId))
+        g_casReconcileClock.lastAttemptMs = now;
+    if (ui::CasRefreshDue(g_casRefreshClock, now, g_casSnapshotMs, sim,
+        ui::CasNativePaneVisible(g_visible.load(), g_nativeCasView, g_activeTab),
+        g_casAutoRefresh, g_casSubmissionBusy.load(), g_casPendingId[0] != '\0') && QueueAutomaticCasRefresh(sim))
+        g_casRefreshClock.lastAttemptMs = now;
     if (!ui::CasDocument(g_casClientData, sim)) {
-        ImGui::TextWrapped("Refresh after entering CAS. A native response is required before equipped items can be shown.");
+        ImGui::TextWrapped("A fresh native CAS response for this Sim is required before equipped items can be shown.");
         return;
     }
     const auto& info = g_casClientData["sim"];
@@ -1251,19 +2249,46 @@ static void DrawNativeCas(const std::string& reply, bool history) {
         ui::Scalar(info, "occultType").c_str(), ui::Scalar(info, "occultLayer").c_str());
     const auto& slot = g_casClientData["outfit"];
     ImGui::TextDisabled("Current outfit: category %s / index %s (zero based)", ui::Scalar(slot, "outfit_type").c_str(), ui::Scalar(slot, "outfit_index").c_str());
-    ImGui::TextDisabled("Last acknowledgement: %.1f seconds ago / Refresh after editing", (GetTickCount64() - g_casSnapshotMs) / 1000.0);
-    ImGui::TextWrapped("This snapshot covers the selected CAS form and outfit. Changes made afterward require a refresh.");
+    const auto snapshotAge = (GetTickCount64() - g_casSnapshotMs) / 1000.0;
+    ImGui::TextColored(snapshotAge > 2.5 ? ImVec4(1, 0.76f, 0.37f, 1) : ImVec4(0.55f, 0.76f, 0.71f, 1),
+        "Last native acknowledgement: %.1f seconds ago", snapshotAge);
+    ImGui::TextWrapped("Selected CAS form and outfit at that acknowledgement. Automatic refresh checks this exact Sim at most every two seconds while this view is open.");
     if (ImGui::SmallButton("Copy complete CAS snapshot")) ImGui::SetClipboardText(g_casClientData.dump(2).c_str());
     ImGui::SameLine(); ImGui::SetNextItemWidth(170);
     ImGui::Combo("Category order", &g_casCatalogSort, "Category name\0Equipped first\0Native menu state\0");
-    const bool nativeActionPending = g_casSubmissionBusy.load() || g_casPendingId[0];
+    const bool nativeActionPending = g_casSubmissionBusy.load() || g_ownerBlocked.load() || g_casPendingId[0] || g_casRefreshClock.unresolved;
+    if (ui::CasRoomDocument(g_casRoomData,g_casClientData,sim)) {
+        ImGui::SeparatorText("Apex CAS workspace / retained forms");
+        int column=0;
+        for (const auto& row:g_casRoomData["rows"]) {
+            if (column++%4!=0) ImGui::SameLine();
+            const bool chosen=row["selected"]==true;
+            const bool available=row["navigation_supported"]==true;
+            const auto form=row["form_flags"].get<int>();
+            ImGui::PushID(form);
+            if (chosen) ImGui::PushStyleColor(ImGuiCol_Button,ImVec4(0.36f,0.22f,0.54f,1.0f));
+            ImGui::BeginDisabled(nativeActionPending || snapshotAge>2.5 || !available);
+            if (ImGui::Button(ui::Scalar(row,"label").c_str(),ImVec2(125,32)) && !chosen)
+                QueueCasAction({{"operation","form-select"},{"household_id",ui::Scalar(g_casRoomData,"household_id")},
+                    {"form_flags",form},{"expected_layer",g_casRoomData["selected_layer"]},
+                    {"native_session",g_casRoomData["native_session"]}});
+            ImGui::EndDisabled();
+            if (chosen) ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("%s\n%s",ui::Scalar(row,"label").c_str(),
+                    available ? "Selects the observed native CAS layer. Edits are reviewed after returning to Live."
+                              : "Original form retained. Editing this form requires a separate CAS visit with the current native transport.");
+            ImGui::PopID();
+        }
+        ImGui::TextDisabled("Every captured form remains listed. Changing selection never removes an occult.");
+    }
     if (history) {
         ImGui::BeginDisabled(nativeActionPending);
         if (ImGui::Button("Native CAS Undo")) QueueCasAction({{"operation", "undo"}});
         ImGui::SameLine(); if (ImGui::Button("Native CAS Redo")) QueueCasAction({{"operation", "redo"}});
         ImGui::EndDisabled();
     }
-    ImGui::BeginChild("native-cas-equipped", ImVec2(330, 0), true);
+    ImGui::BeginChild("native-cas-equipped", ImVec2(std::min(420.0f, std::max(300.0f, ImGui::GetContentRegionAvail().x * 0.4f)), 0), true);
     std::vector<ui::Json> catalogs;
     for (const auto& item : g_casClientData["catalogs"]) catalogs.push_back(item);
     std::sort(catalogs.begin(), catalogs.end(), [](const auto& a, const auto& b) {
@@ -1286,31 +2311,53 @@ static void DrawNativeCas(const std::string& reply, bool history) {
         const auto searchable = name + " " + catalog.dump();
         if (g_partSearch[0] && !TextContainsNoCase(searchable.c_str(), g_partSearch)) continue;
         ImGui::PushID(name.c_str());
-        if (supported) ImGui::TextWrapped("%s / %u equipped", label.c_str(), static_cast<unsigned>(count));
-        else ImGui::TextWrapped("%s / unresolved (not reported as empty)", label.c_str());
-        ImGui::SameLine();
         ImGui::BeginDisabled(nativeActionPending);
         if (ImGui::SmallButton("Edit")) QueueCasAction({{"operation", "panel"}, {"panel", name}});
         ImGui::EndDisabled();
+        ImGui::SameLine();
+        const bool equipped = count || ui::CasHasPreset(catalog);
+        ImGui::PushStyleColor(ImGuiCol_Text, equipped ? ImVec4(0.45f, 0.93f, 0.81f, 1) :
+            (!supported ? ImVec4(1, 0.76f, 0.37f, 1) : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled)));
+        if (supported) ImGui::TextWrapped("%s / %u equipped%s", label.c_str(), static_cast<unsigned>(count),
+            ui::CasHasPreset(catalog) ? " + preset" : "");
+        else ImGui::TextWrapped("%s / unresolved", label.c_str());
+        ImGui::PopStyleColor();
         if (supported) for (size_t i = 0; i < items.size(); ++i) {
             const auto id = ui::Scalar(items[i], "dataID");
-            const auto itemLabel = label + " / " + (id.empty() ? std::to_string(i + 1) : id);
+            const auto annotation = ui::CasItemMetadata(g_casClientData, items[i]);
+            const auto resolvedName = ui::Scalar(annotation, "name");
+            const auto itemLabel = (resolvedName.empty() ? "Name unavailable" : resolvedName) + "##native-item";
             ImGui::PushID(static_cast<int>(i));
             ImGui::BeginDisabled(nativeActionPending);
-            if (ImGui::Selectable(itemLabel.c_str())) {
+            const bool selected = !g_casSelectedPreset && g_casSelectedPanel == name &&
+                ((!id.empty() && id == ui::Scalar(g_casSelectedItem, "dataID")) || (id.empty() && g_casSelectedItem == items[i]));
+            if (ImGui::Selectable(itemLabel.c_str(), selected)) {
                 g_casSelectedItem = items[i]; g_casSelectedPanel = name; g_casSelectedPreset = false;
                 QueueCasAction({{"operation", "panel"}, {"panel", name}});
             }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::BeginTooltip(); ImGui::PushTextWrapPos(440);
+                ImGui::TextWrapped("%s\nCatalog identity: %s\nName source: %s\n%s", label.c_str(), id.c_str(),
+                    annotation.empty() ? "Not fetched by this cached client" : ui::Scalar(annotation, "name_query").c_str(), items[i].dump(2).c_str());
+                ImGui::PopTextWrapPos(); ImGui::EndTooltip();
+            }
+            ImGui::TextDisabled("Catalog %s", id.empty() ? "identity unavailable" : id.c_str());
             ImGui::EndDisabled(); ImGui::PopID();
         }
         if (presetRecord) {
             const auto& preset = catalog["preset"];
-            const char* presetState = ui::CasPresetAbsent(preset) ? "No preset selected / raw record" :
-                (ui::CasPresetSelected(preset) ? "Selected preset / raw record" : "Preset record / unknown fields retained");
+            const char* presetState = ui::CasPresetAbsent(preset) ? "No preset selected" :
+                (ui::CasPresetSelected(preset) ? "Selected preset" : "Preset / inspect raw fields");
+            const auto presetLabel = std::string(presetState) + (ui::CasPresetSelected(preset) ? " / " + ui::Scalar(preset, "presetId") : "");
             ImGui::BeginDisabled(nativeActionPending);
-            if (ImGui::Selectable((label + " / " + presetState).c_str())) {
+            if (ImGui::Selectable(presetLabel.c_str(), g_casSelectedPreset && g_casSelectedPanel == name)) {
                 g_casSelectedItem = catalog["preset"]; g_casSelectedPanel = name; g_casSelectedPreset = true;
                 QueueCasAction({{"operation", "panel"}, {"panel", name}});
+            }
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                ImGui::BeginTooltip(); ImGui::PushTextWrapPos(440);
+                ImGui::TextWrapped("%s\n%s", label.c_str(), preset.dump(2).c_str());
+                ImGui::PopTextWrapPos(); ImGui::EndTooltip();
             }
             ImGui::EndDisabled();
         } else if (presetQuery == "failed") ImGui::TextDisabled("Preset query unresolved");
@@ -1322,6 +2369,24 @@ static void DrawNativeCas(const std::string& reply, bool history) {
     if (g_casSelectedPreset && ui::CasPresetAbsent(g_casSelectedItem)) ImGui::TextDisabled("Native no-selection sentinel; every returned field is retained.");
     if (g_casSelectedItem.empty()) ImGui::TextWrapped("Choose an equipped item to open its native category and inspect its complete returned fields.");
     else {
+        const auto annotation = g_casSelectedPreset ? ui::Json::object() : ui::CasItemMetadata(g_casClientData, g_casSelectedItem);
+        const auto resolvedName = ui::Scalar(annotation, "name");
+        if (!resolvedName.empty()) ImGui::TextColored(ImVec4(0.45f, 0.93f, 0.81f, 1), "%s", resolvedName.c_str());
+        else ImGui::TextDisabled("Equipped item name unavailable");
+        if (!annotation.empty()) {
+            ImGui::TextDisabled("Name: %s / %s", ui::Scalar(annotation, "name_query").c_str(), ui::Scalar(annotation, "name_source").c_str());
+            const auto virtualImage = ui::Scalar(annotation, "native_image_uri");
+            ImGui::TextWrapped("Thumbnail unresolved: %s", virtualImage.empty() ? "the native catalog returned no image URI" : "native virtual image URI is retained; extracted pixels are not available");
+            if (!virtualImage.empty() && ImGui::TreeNode("Native image provenance")) {
+                ImGui::TextWrapped("%s", virtualImage.c_str()); ImGui::TreePop();
+            }
+            const auto metadataError = ui::Scalar(annotation, "error"), nameError = ui::Scalar(annotation, "name_error");
+            if (!metadataError.empty()) ImGui::TextWrapped("Catalog query: %s", metadataError.c_str());
+            if (!nameError.empty()) ImGui::TextWrapped("Name query: %s", nameError.c_str());
+        } else ImGui::TextWrapped("Native CAS catalog names are unavailable while bulk lookup awaits a stable native contract. Accepted Live and stored-form views resolve exact CASP names. Preset metadata uses a separate native contract.");
+        ImGui::BeginDisabled(true); ImGui::Button("Open containing package in Sims 4 Studio"); ImGui::EndDisabled();
+        ImGui::TextWrapped("Studio access unresolved: this native catalog ID has no verified CASP resource binding.");
+        ImGui::Separator();
         if (ImGui::Button("Copy complete item record")) ImGui::SetClipboardText(g_casSelectedItem.dump(2).c_str());
         for (auto field = g_casSelectedItem.begin(); field != g_casSelectedItem.end(); ++field)
             if (ImGui::TreeNode(field.key().c_str())) { ImGui::TextWrapped("%s", field.value().dump(2).c_str()); ImGui::TreePop(); }
@@ -1334,19 +2399,27 @@ static void DrawNativeCas(const std::string& reply, bool history) {
     ImGui::EndChild();
 }
 
-static void DrawStudioTab(const std::string& reply, bool history) {
-    if (ImGui::Checkbox("Editing in native CAS", &g_nativeCasView)) {
+static void DrawStudioTab(const std::string& reply, ULONGLONG replyMs, bool history) {
+    ImGui::BeginDisabled(g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() || g_ownerSubmissionBusy.load() || g_casSubmissionBusy.load() || g_casPendingId[0] || g_casBankBusy.load());
+    bool requestedNativeView = g_nativeCasView;
+    if (ImGui::Checkbox("Editing in native CAS", &requestedNativeView) && !g_ownerBlocked.load() &&
+        !g_ownerNativeDeliveryBusy.load() && !g_ownerSubmissionBusy.load() && !g_casSubmissionBusy.load() && !g_casPendingId[0] && !g_casBankBusy.load()) {
+        g_nativeCasView = requestedNativeView;
         g_casClientData = ui::Json::object(); g_casSelectedItem = ui::Json::object();
         if (g_nativeCasView) QueueCasAction({{"operation", "status"}});
     }
-    if (g_nativeCasView) { DrawNativeCas(reply, history); return; }
+    ImGui::EndDisabled();
+    if (g_nativeCasView) { DrawNativeCas(reply, replyMs, history); return; }
     UpdateStudioData(reply);
     ImGui::TextColored(ImVec4(0.35f, 0.88f, 0.77f, 1), history ? "CAS HISTORY" : "EQUIPPED PART INSPECTOR");
     ImGui::TextDisabled("Current form / exact targets / retained branches");
-    if (ImGui::Button("Inspect / refresh", ImVec2(160, 0))) QueueStudioAction("studio_status");
+    if (g_studioData.value("history_runtime_only", ui::Json(false)) == true)
+        ImGui::TextDisabled("Session history: this view is tied to the current game session.");
+    if (ImGui::Button("Inspect / refresh", ImVec2(160, 0))) { g_studioItemsContext.clear(); QueueStudioAction("studio_status"); }
     ImGui::SameLine(); ImGui::TextDisabled("%u checkpoints", static_cast<unsigned>(g_studioData.value("history_nodes", ui::Json::array()).size()));
     ImGui::BeginChild("studio-equipped", ImVec2(270, 0), true); DrawEquippedList(); ImGui::EndChild(); ImGui::SameLine();
     ImGui::BeginChild("studio-workspace", ImVec2(0, 0), true);
+    if (ImGui::CollapsingHeader("CAS form acceptance / review",ImGuiTreeNodeFlags_DefaultOpen)) DrawCasBankTransaction();
     const auto& viewedOutfits = ViewedStudioOutfits();
     if (!viewedOutfits.empty() && ImGui::Button("Duplicate selected outfit / preview")) {
         const auto& outfit = viewedOutfits[static_cast<size_t>(g_studioOutfitIndex)];
@@ -1361,16 +2434,7 @@ static void DrawStudioTab(const std::string& reply, bool history) {
             QueueStudioAction(enabled ? "studio_hair_enable" : "studio_hair_disable");
         if (enabled) {
             ImGui::TextDisabled("Every category and outfit number / each form / event driven");
-            const auto& outfits = ViewedStudioOutfits();
-            ImGui::BeginDisabled(!ViewedFormActive() || outfits.empty());
-            if (!outfits.empty() && ImGui::Button("Before CAS: edit hair only in selected outfit")) {
-                const auto& outfit = outfits[static_cast<size_t>(g_studioOutfitIndex)];
-                const ui::Json request = {{"hair_target", ui::Json::array({outfit["category"], outfit["ordinal"]})}};
-                const auto value = request.dump(); QueueAction("cas_session_begin", nullptr, value.c_str());
-            }
-            ImGui::EndDisabled();
-            ImGui::SameLine(); if (ImGui::Button("After CAS: accept selected edit")) QueueAction("cas_session_finish");
-            ImGui::TextWrapped("CAS target must be selected before entry. Other outfits keep their captured hairstyles and exact colors.");
+            ImGui::TextWrapped("Retain all owners before CAS using the review above. After verified Live return, hair choices require original outfit UID, category and ordinal through the typed CLI. The obsolete pre-entry hair-target buttons are removed; F11 does not infer which hairstyle change was intended.");
             const auto error = ui::Scalar(*hairPolicy, "last_error");
             if (!error.empty()) ImGui::TextWrapped("Retained protection issue: %s", error.c_str());
         }
@@ -1468,34 +2532,63 @@ static void LoadOverlayConfig() {
 }
 
 static void DrawOverlay() {
+    g_nativeCasPaneVisible = ui::CasNativePaneVisible(g_visible.load(), g_nativeCasView, g_activeTab);
+    g_nativeCasPaneMs = GetTickCount64();
     const auto display = ImGui::GetIO().DisplaySize;
     ImGui::SetNextWindowSize(ImVec2(std::max(400.0f, std::min(1180.0f, display.x - 40)), std::max(400.0f, std::min(920.0f, display.y - 60))), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(20, 30), ImGuiCond_FirstUseEver);
     ImGui::Begin("APEX / Occult Hybrid Studio", nullptr, ImGuiWindowFlags_NoCollapse);
     std::string status, json, sim, reply;
+    ULONGLONG replyMs = 0;
     std::vector<std::string> logs;
-    { std::lock_guard<std::mutex> lock(g_dataMutex); status = g_status; json = g_json; logs = g_logLines; sim = g_selectedSim; reply = g_commandReply; }
+    { std::lock_guard<std::mutex> lock(g_dataMutex); status = g_status; json = g_json; logs = g_logLines; sim = g_selectedSim; reply = g_commandReply; replyMs = g_commandReplyMs; }
 
     ImGui::TextColored(ImVec4(0.45f, 0.95f, 1.0f, 1.0f), "%s", status.c_str());
     ImGui::SameLine(); ImGui::TextDisabled("F%u toggle | hidden: no HTTP polling", g_toggleKey - VK_F1 + 1);
     std::string commandMessage = ExtractJsonValue(reply, "message");
     if (!commandMessage.empty()) ImGui::TextWrapped("Last command: %s", commandMessage.c_str());
+    ui::OwnerObservation owner;
+    { std::lock_guard<std::mutex> lock(g_dataMutex); owner = g_ownerObservation; }
+    if (!owner.lastReply.empty()) {
+        ImGui::TextWrapped("Owner result: %s / %s", ui::Scalar(owner.lastReply, "request_id").c_str(),
+            (g_ownerBlocked.load() ? "unresolved; commands paused" : "resolved"));
+        const auto ownerMessage = ui::Scalar(owner.lastReply, "message");
+        if (!ownerMessage.empty()) ImGui::TextWrapped("Last owner check: %s", ownerMessage.c_str());
+        if (g_ownerBlocked.load()) {
+            ImGui::BeginDisabled(!ui::OwnerObservationDue(owner, GetTickCount64(), true, true));
+            if (ImGui::Button("Check retained owner")) QueueOwnerObservation(true);
+            ImGui::EndDisabled();
+            if (owner.checking) { ImGui::SameLine(); ImGui::TextDisabled("Checking the same owner ID..."); }
+            QueueOwnerObservation(false);
+        }
+        if (ImGui::TreeNode("Last owner status result")) { ImGui::TextWrapped("%s", owner.lastReply.dump(2).c_str()); ImGui::TreePop(); }
+    }
     char simBuf[64] = {};
     strncpy_s(simBuf, sim.c_str(), _TRUNCATE);
     ImGui::SetNextItemWidth(260);
+    ImGui::BeginDisabled(g_casSubmissionBusy.load() || g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() ||
+        g_ownerSubmissionBusy.load() || g_casBankBusy.load() || g_casPendingId[0] || g_casRefreshClock.unresolved);
     if (ImGui::InputText("Target Sim ID", simBuf, sizeof(simBuf))) {
         std::lock_guard<std::mutex> lock(g_dataMutex);
+        if (!g_ownerSubmissionBusy.load() && !g_ownerBlocked.load() && !g_ownerNativeDeliveryBusy.load() &&
+            !g_casSubmissionBusy.load() && !g_casBankBusy.load() && !g_casPendingId[0] && !g_casRefreshClock.unresolved) {
         g_selectedSim = simBuf;
         ++g_selectionGeneration;
         g_json = "{}";
         g_commandReply = "{}";
+        g_commandReplyMs = 0;
         g_previewId[0] = '\0'; g_historyId[0] = '\0';
         g_studioData = ui::Json::object(); g_studioLastReply.clear();
         g_casClientData = ui::Json::object(); g_casSelectedItem = ui::Json::object(); g_casLastReply.clear(); g_casPendingId[0] = '\0'; g_casSnapshotMs = 0; g_casDiagnostics = ui::Json::object();
+        g_casRefreshClock = {}; g_casDiagnosticReply.clear(); g_casDiagnosticMs = 0; g_casDiagnosticsSeenMs = 0;
+        g_casAutoRetainedId.clear(); g_casReconcileClock = {}; g_casReconcileSeen = g_casReconcileReceipt;
+        g_casRefreshSeen = g_casRefreshReceipt; g_casAutoMessage.clear();
         g_studioOutfitIndex = 0; g_studioPartIndex = 0;
         g_status = "Selection changed; waiting for current data";
         g_lastStatusMs = 0;
+        }
     }
+    ImGui::EndDisabled();
     ImGui::SameLine(); ActionButton("Refresh", "status", nullptr, nullptr, ImVec2(86,0));
     ImGui::SameLine(); ActionButton("Health", "health", nullptr, nullptr, ImVec2(86,0));
     if (ImGui::CollapsingHeader("Diagnostics")) {
@@ -1539,20 +2632,24 @@ static void DrawOverlay() {
         ActionButton("MCCC Status", "mccc_status", nullptr, nullptr, ImVec2(120,0));
         ImGui::BeginChild("json", ImVec2(0, 0), true, ImGuiWindowFlags_HorizontalScrollbar); ImGui::TextUnformatted(json.c_str()); ImGui::EndChild();
     } else if (g_activeTab == 10) DrawLogDock(logs);
-    else if (g_activeTab == 11) DrawStudioTab(reply, true);
-    else if (g_activeTab == 12) DrawStudioTab(reply, false);
+    else if (g_activeTab == 11) DrawStudioTab(reply, replyMs, true);
+    else if (g_activeTab == 12) DrawStudioTab(reply, replyMs, false);
     ImGui::EndChild();
     if (g_activeTab < 11) {
         ImGui::SameLine(); ImGui::BeginChild("right_dock", ImVec2(0, 0), true);
         DrawLogDock(logs); ImGui::EndChild();
     }
     DrawConfirmation();
+    g_nativeCasPaneVisible = ui::CasNativePaneVisible(g_visible.load(), g_nativeCasView, g_activeTab);
+    g_nativeCasPaneMs = GetTickCount64();
     ImGui::End();
 }
 
 static void ResetRenderer() {
     g_visible = false;
+    g_nativeCasPaneVisible = false;
     CleanupRenderTarget();
+    CleanupResourceTexture();
     if (g_hwnd && IsWindow(g_hwnd) && g_oldWndProc &&
         reinterpret_cast<WNDPROC>(GetWindowLongPtrW(g_hwnd, GWLP_WNDPROC)) == WndProc)
         SetWindowLongPtrW(g_hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldWndProc));
@@ -1632,7 +2729,7 @@ static void RenderOverlayFrame(IDXGISwapChain* sc) {
                 if (capture == 4) SaveBackbufferBmp(sc, 4);
             }
         }
-    }
+    } else g_nativeCasPaneVisible = false;
 }
 
 static thread_local unsigned g_presentDepth = 0;
@@ -1861,17 +2958,24 @@ extern "C" __declspec(dllexport) int WINAPI ApexOverlayStudio(unsigned long long
     const bool nativeCas = tab == 13 || tab == 14;
     if (!sim || activeTab < 0 || !td1::g_hooked.load()) return -1;
     std::lock_guard<std::recursive_mutex> lock(td1::g_renderMutex);
-    if (nativeCas && (td1::g_casSubmissionBusy.load() || td1::g_casPendingId[0])) return -2;
+    if (td1::g_ownerBlocked.load() || td1::g_ownerNativeDeliveryBusy.load() || td1::g_ownerSubmissionBusy.load() ||
+        td1::g_casSubmissionBusy.load() || td1::g_casBankBusy.load() || td1::g_casPendingId[0] || td1::g_casRefreshClock.unresolved) return -2;
     {
         std::lock_guard<std::mutex> data(td1::g_dataMutex);
+        if (td1::g_ownerBlocked.load() || td1::g_ownerNativeDeliveryBusy.load() || td1::g_ownerSubmissionBusy.load() || td1::g_casBankBusy.load()) return -2;
         td1::g_selectedSim = std::to_string(sim); ++td1::g_selectionGeneration;
         td1::g_commandReply = "{}"; td1::g_studioLastReply.clear();
+        td1::g_commandReplyMs = 0;
         td1::g_studioData = td1::ui::Json::object();
         td1::g_casClientData = td1::ui::Json::object(); td1::g_casSelectedItem = td1::ui::Json::object();
         td1::g_casLastReply.clear(); td1::g_casPendingId[0] = '\0'; td1::g_casSnapshotMs = 0;
+        td1::g_casRefreshClock = {}; td1::g_casDiagnosticReply.clear(); td1::g_casDiagnosticMs = 0;
+        td1::g_casAutoRetainedId.clear(); td1::g_casReconcileClock = {}; td1::g_casReconcileSeen = td1::g_casReconcileReceipt;
+        td1::g_casDiagnosticsSeenMs = 0; td1::g_casRefreshSeen = td1::g_casRefreshReceipt; td1::g_casAutoMessage.clear();
         td1::g_historyId[0] = '\0'; td1::g_previewId[0] = '\0';
     }
     td1::g_activeTab = activeTab; td1::g_visible = true; td1::g_nativeCasView = nativeCas;
+    td1::g_nativeCasPaneVisible = nativeCas; td1::g_nativeCasPaneMs = GetTickCount64();
     if (nativeCas) {
         if (!td1::QueueCasAction({{"operation", "status"}})) return -3;
     } else td1::QueueAction("studio_status"); // The canonical game owner supplies accepted Live/bank data.
@@ -2018,6 +3122,56 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID) {
 // input, game processes, files, or exports that bypass the production guard.
 extern "C" int ApexRunNativeSmoke() {
     using namespace td1;
+    // Exercise the actual owner recovery and queue guards with deterministic
+    // receipts. This test never starts HTTP or repeats a command submission.
+    const std::string ownerId(32, 'a'), nativeId(32, 'b');
+    const auto uncertain = ui::Json({{"ok",false},{"outcome","unresolved"},
+        {"request_id",ownerId},{"request_state","unknown"}}).dump();
+    g_selectedSim = "22"; g_selectionGeneration = 2; g_visible = true;
+    g_commandReply = "{\"message\":\"current selection\"}";
+    QueuedCommand historical{"/api/command?action=studio_status&sim_id=11", 1}; historical.sim = "11";
+    if (!RetainCommandOwner(historical, uncertain)) return 35;
+    g_ownerObservation.lastCheckMs = 0;
+    if (!QueueOwnerObservation(true) || g_commands.size() != 1 ||
+        g_commands.front().path != "/api/requests/status?request_id=" + ownerId ||
+        !g_commands.front().ownerObservation || g_commands.front().sim != "11") return 36;
+    const auto historicalCheck = g_commands.front(); g_commands.pop_front();
+    g_visible = false;
+    if (BeginOwnerObservation(historicalCheck) || g_ownerObservation.checking) return 46;
+    g_visible = true; g_ownerObservation.lastCheckMs = 0;
+    if (!QueueOwnerObservation(true) || g_commands.size() != 1) return 47;
+    const auto resumedCheck = g_commands.front(); g_commands.pop_front();
+    if (!BeginOwnerObservation(resumedCheck)) return 48;
+    ApplyOwnerObservation(resumedCheck, true, ui::Json({{"request_id",ownerId},{"state","completed"},
+        {"result",{{"ok",true},{"message","historical result"}}}}).dump());
+    if (g_ownerBlocked.load() || !g_ownerObservation.requestId.empty() ||
+        ui::Scalar(ui::ParseObject(g_commandReply),"message") != "current selection") return 37;
+    g_ownerObservation = {}; g_ownerOriginalCommand = {}; g_selectedSim.clear(); g_selectionGeneration = 0;
+    g_commandReply = "{}";
+    // Exercise the production typed bank queue and same-UUID completion
+    // without any HTTP submission or native Sim access.
+    g_selectedSim="11"; g_selectionGeneration=3;
+    if (!QueueCasBankAction("cas_bank_status") || g_commands.size()!=1 || !g_casBankBusy.load() ||
+        g_commands.front().path!="/api/command?action=cas_bank_ui_status&sim_id=11" ||
+        QueueCommand("/api/command?action=status") || QueueCasBankAction("cas_bank_begin")) return 49;
+    const auto bankCommand=g_commands.front(); g_commands.pop_front();
+    ui::BankApply(g_casBank,"11",3,"cas_bank_status",ui::Json{{"ok",false},{"request_id",ownerId},{"request_state","unknown"}});
+    if (!RetainCommandOwner(bankCommand,uncertain)) return 50;
+    g_ownerObservation.lastCheckMs=0;
+    if (!QueueOwnerObservation(true) || g_commands.size()!=1) return 51;
+    const auto bankCheck=g_commands.front(); g_commands.pop_front();
+    ApplyOwnerObservation(bankCheck,true,ui::Json{{"request_id",ownerId},{"state","completed"},
+        {"result",{{"ok",true},{"blocked",false},{"legacy_pending_not_converted",false},
+            {"clock_proof_validated",false},{"review_nonce",nativeId},{"review_state","idle"}}}}.dump());
+    if (g_casBankBusy.load() || g_ownerBlocked.load() || !ui::BankCanBegin(g_casBank) ||
+        !QueueCasBankAction("cas_bank_begin") || g_commands.size()!=1 ||
+        g_commands.front().path!="/api/command?action=cas_bank_begin&sim_id=11") return 52;
+    g_commands.clear(); g_casBank={}; g_casBankBusy=false;
+    g_selectedSim.clear(); g_selectionGeneration=0; g_commandReply="{}";
+    std::string preSubmitRefusal;
+    if (!HttpOwnedCommand("/api/command?action=status&request_id=forbidden",preSubmitRefusal) ||
+        ui::Scalar(ui::ParseObject(preSubmitRefusal),"state")!="rejected" ||
+        ui::ParseObject(preSubmitRefusal).contains("request_id")) return 53;
     if (!LoadRealD3D11()) return 10;
     HWND window = CreateDummyWindow();
     if (!window) return 11;
@@ -2050,6 +3204,62 @@ extern "C" int ApexRunNativeSmoke() {
     g_visible = true;
     swap->Present(0, 0);
     if (g_presentCount != 1 || !g_device || !ImGui::GetCurrentContext() || g_hwnd != window) return 16;
+    g_selectedSim = "11"; g_selectionGeneration = 3; g_casAutoRefresh = false;
+    QueuedCommand nativeCommand{"/api/command?action=cas_ui_request&sim_id=11", 3};
+    nativeCommand.sim = "11"; nativeCommand.casRequestId = nativeId;
+    if (!RetainCommandOwner(nativeCommand, uncertain)) return 38;
+    g_ownerObservation.lastCheckMs = 0;
+    if (!QueueOwnerObservation(true) || g_commands.size() != 1) return 39;
+    const auto ownerCheck = g_commands.front(); g_commands.pop_front();
+    const auto pendingNative = ui::Json({{"ok",false},{"outcome","pending-client"},{"cas_request_id",nativeId}});
+    ApplyOwnerObservation(ownerCheck, true, ui::Json({{"request_id",ownerId},{"state","failed"},{"result",pendingNative}}).dump());
+    if (g_ownerBlocked.load() || !g_ownerNativeDeliveryBusy.load() ||
+        QueueCasAction({{"operation","status"}}) || QueueAutomaticCasRefresh("11") ||
+        QueueCommand("/api/command?action=cas_ui_request&sim_id=11")) return 40;
+    auto drawNativeReceipt = [&](const std::string& staleSnapshot) {
+        ImGui_ImplDX11_NewFrame(); ImGui_ImplWin32_NewFrame(); ImGui::NewFrame();
+        ImGui::Begin("owner recovery smoke"); DrawNativeCas(staleSnapshot, 0, false); ImGui::End(); ImGui::Render();
+    };
+    drawNativeReceipt("{}"); // Deliberately predates worker publication.
+    if (g_ownerNativeDeliveryBusy.load() || std::string(g_casPendingId) != nativeId ||
+        std::string(g_casPendingId) == ownerId || QueueCasAction({{"operation","undo"}}) ||
+        ApexOverlayStudio(22, 11) != -2 || g_selectedSim != "11") return 41;
+    const auto failedNative = ui::Json({{"ok",false},{"cas_request_id",nativeId},{"cas_request_state","failed"},
+        {"message","Native action refused."}}).dump();
+    { std::lock_guard<std::mutex> lock(g_dataMutex); PublishCommandReply(failedNative, GetTickCount64()); }
+    if (!g_ownerNativeDeliveryBusy.load() || QueueCommand("/api/command?action=status")) return 42;
+    drawNativeReceipt("{}");
+    if (g_ownerNativeDeliveryBusy.load() || g_casPendingId[0] || g_casRefreshClock.unresolved) return 43;
+    // The same reservation is required for ordinary pending-client replies,
+    // before the render thread has copied their native UUID.
+    { std::lock_guard<std::mutex> lock(g_dataMutex); PublishCommandReply(pendingNative.dump(), GetTickCount64()); }
+    if (!g_ownerNativeDeliveryBusy.load() || QueueCasAction({{"operation","status"}})) return 44;
+    drawNativeReceipt(failedNative);
+    if (g_ownerNativeDeliveryBusy.load() || std::string(g_casPendingId) != nativeId) return 45;
+    g_ownerObservation = {}; g_ownerOriginalCommand = {}; g_ownerDeliveredNativeReply.clear();
+    g_selectedSim.clear(); g_selectionGeneration = 0; g_commandReply = g_json = "{}";
+    g_casPendingId[0] = '\0'; g_casRefreshClock = {}; g_casLastReply.clear(); g_casAutoRefresh = true;
+    g_nativeCasPaneVisible = false;
+    // Upload actual owned RGBA pixels, then read back the GPU resource. This
+    // isolates texture ownership/device cleanup from broker HTTP and CAS.
+    const auto thumbnailKey = std::string(64, 'e') + ":" + std::string(64, 'f');
+    g_resourceImageKey = thumbnailKey; g_resourcePixels = {1, 1, {17, 34, 51, 255}}; ++g_resourcePixelReceipt;
+    if (!ResourceTexture(thumbnailKey) || !g_resourceTexture) return 30;
+    ID3D11Resource* thumbnailResource = nullptr; g_resourceTexture->GetResource(&thumbnailResource);
+    ID3D11Texture2D* thumbnailTexture = nullptr;
+    if (!thumbnailResource || FAILED(thumbnailResource->QueryInterface(__uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&thumbnailTexture)))) return 31;
+    thumbnailResource->Release();
+    D3D11_TEXTURE2D_DESC thumbnailDescription{}; thumbnailTexture->GetDesc(&thumbnailDescription);
+    thumbnailDescription.Usage = D3D11_USAGE_STAGING; thumbnailDescription.BindFlags = 0; thumbnailDescription.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    ID3D11Texture2D* thumbnailReadback = nullptr;
+    if (FAILED(g_device->CreateTexture2D(&thumbnailDescription, nullptr, &thumbnailReadback))) return 32;
+    g_context->CopyResource(thumbnailReadback, thumbnailTexture); thumbnailTexture->Release();
+    D3D11_MAPPED_SUBRESOURCE mappedThumbnail{};
+    if (FAILED(g_context->Map(thumbnailReadback, 0, D3D11_MAP_READ, 0, &mappedThumbnail))) return 33;
+    const unsigned char expectedThumbnail[] = {17, 34, 51, 255};
+    const bool exactThumbnail = !std::memcmp(mappedThumbnail.pData, expectedThumbnail, sizeof(expectedThumbnail));
+    g_context->Unmap(thumbnailReadback, 0); thumbnailReadback->Release();
+    if (!exactThumbnail || ResourceTexture("foreign-resource")) return 34;
     // Query real native window metrics without activating it or submitting
     // input. This exercises the diagnostic export against the selected WARP
     // swapchain and catches pointer/sign truncation or stale-window reads.
@@ -2087,7 +3297,7 @@ extern "C" int ApexRunNativeSmoke() {
     swap->Present(0, 0);
     if (g_presentCount != 3 || g_workerActive.load()) return 20;
     ResetRenderer();
-    if (g_device || g_context || g_hwnd || ImGui::GetCurrentContext() || g_loaderStatus != 1) return 23;
+    if (g_device || g_context || g_hwnd || g_resourceTexture || !g_resourceTextureKey.empty() || ImGui::GetCurrentContext() || g_loaderStatus != 1) return 23;
     if (ApexGameInputMetric(0) != -1 || ApexGameInputMetric(5) != 0 || ApexGameInputMetric(6) != 0 || ApexGameInputMetric(8) != 0) return 29;
     g_visible = true; swap->Present(0, 0);
     if (!g_device || g_loaderStatus != 3 || g_presentCount != 4) return 24;
@@ -2101,9 +3311,10 @@ extern "C" int ApexRunNativeSmoke() {
     if (!input.sample(true, true) || input.sample(true, true) || input.sample(true, false) ||
         input.sample(false, true) || input.sample(true, true) || input.sample(false, false) ||
         !input.sample(true, true)) return 21;
-    printf("DX11 WARP: actual Present detour/menu + numeric color render, native HWND/PID/geometry diagnostics, 8 RTVs+depth restored, ResizeBuffers, renderer teardown/reinit, hidden zero worker, first keypress/held/focus edges passed\n");
+    printf("DX11 WARP: visible owner same-ID recovery/hidden cancellation/stale-selection refusal, recovered and ordinary native UUID delivery/mutation guards, actual Present detour/menu + numeric color render, exact thumbnail GPU upload/readback/foreign-key refusal, native HWND/PID/geometry diagnostics, 8 RTVs+depth restored, ResizeBuffers, renderer teardown/reinit, hidden zero worker, first keypress/held/focus edges passed\n");
     // COM/UI cleanup while the hidden test window still exists.
     CleanupRenderTarget();
+    CleanupResourceTexture();
     SetWindowLongPtrW(window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldWndProc));
     ImGui_ImplDX11_Shutdown(); ImGui_ImplWin32_Shutdown(); ImGui::DestroyContext();
     g_context->Release(); g_device->Release(); g_context = nullptr; g_device = nullptr;

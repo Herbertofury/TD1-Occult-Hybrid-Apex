@@ -8,6 +8,7 @@ $null = [Windows.Storage.FileAccessMode,Windows.Storage,ContentType=WindowsRunti
 $null = [Windows.Storage.Streams.IRandomAccessStream,Windows.Storage.Streams,ContentType=WindowsRuntime]
 $null = [Windows.Graphics.Imaging.BitmapDecoder,Windows.Graphics.Imaging,ContentType=WindowsRuntime]
 $null = [Windows.Graphics.Imaging.SoftwareBitmap,Windows.Graphics.Imaging,ContentType=WindowsRuntime]
+$null = [Windows.Graphics.Imaging.BitmapTransform,Windows.Graphics.Imaging,ContentType=WindowsRuntime]
 $null = [Windows.Media.Ocr.OcrEngine,Windows.Foundation,ContentType=WindowsRuntime]
 $null = [Windows.Media.Ocr.OcrResult,Windows.Foundation,ContentType=WindowsRuntime]
 $null = [Windows.Globalization.Language,Windows.Globalization,ContentType=WindowsRuntime]
@@ -21,6 +22,8 @@ function Complete-ApexOperation($Operation, $ResultType) {
     return $apexTask.Result
 }
 $apexRequest = [Console]::In.ReadToEnd() | ConvertFrom-Json
+if ($apexRequest.scale -isnot [int] -and $apexRequest.scale -isnot [long]) { throw 'OCR scale must be an exact integer.' }
+if ($apexRequest.scale -ne 1 -and $apexRequest.scale -ne 2) { throw 'OCR scale must be one or two.' }
 $apexPath = [System.IO.Path]::GetFullPath($apexRequest.path)
 $apexFile = Complete-ApexOperation ([Windows.Storage.StorageFile]::GetFileFromPathAsync($apexPath)) ([Windows.Storage.StorageFile])
 $apexStream = Complete-ApexOperation ($apexFile.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
@@ -28,8 +31,19 @@ try {
     $apexDecoder = Complete-ApexOperation ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($apexStream)) ([Windows.Graphics.Imaging.BitmapDecoder])
     if ($apexDecoder.PixelWidth -gt [Windows.Media.Ocr.OcrEngine]::MaxImageDimension -or
         $apexDecoder.PixelHeight -gt [Windows.Media.Ocr.OcrEngine]::MaxImageDimension) { throw 'Image exceeds native OCR dimension bound.' }
+    $apexScale = $apexRequest.scale
+    if (($apexDecoder.PixelWidth * $apexScale) -gt [Windows.Media.Ocr.OcrEngine]::MaxImageDimension -or
+        ($apexDecoder.PixelHeight * $apexScale) -gt [Windows.Media.Ocr.OcrEngine]::MaxImageDimension -or
+        ([long]$apexDecoder.PixelWidth * $apexDecoder.PixelHeight * $apexScale * $apexScale) -gt 16777216) { $apexScale = 1 }
+    if ([long]$apexDecoder.PixelWidth * $apexDecoder.PixelHeight -gt 16777216) { throw 'Image exceeds native OCR pixel bound.' }
+    $apexTransform = [Windows.Graphics.Imaging.BitmapTransform]::new()
+    $apexTransform.ScaledWidth = $apexDecoder.PixelWidth * $apexScale
+    $apexTransform.ScaledHeight = $apexDecoder.PixelHeight * $apexScale
+    $apexTransform.InterpolationMode = [Windows.Graphics.Imaging.BitmapInterpolationMode]::Cubic
     $apexBitmap = Complete-ApexOperation ($apexDecoder.GetSoftwareBitmapAsync(
-        [Windows.Graphics.Imaging.BitmapPixelFormat]::Bgra8, [Windows.Graphics.Imaging.BitmapAlphaMode]::Ignore)) ([Windows.Graphics.Imaging.SoftwareBitmap])
+        [Windows.Graphics.Imaging.BitmapPixelFormat]::Bgra8, [Windows.Graphics.Imaging.BitmapAlphaMode]::Ignore,
+        $apexTransform, [Windows.Graphics.Imaging.ExifOrientationMode]::IgnoreExifOrientation,
+        [Windows.Graphics.Imaging.ColorManagementMode]::DoNotColorManage)) ([Windows.Graphics.Imaging.SoftwareBitmap])
     try {
         $apexEngine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage([Windows.Globalization.Language]::new('en-US'))
         if ($null -eq $apexEngine) { throw 'English Windows OCR is unavailable.' }
@@ -39,6 +53,9 @@ try {
                 @{ text=$_.Text; x=$_.BoundingRect.X; y=$_.BoundingRect.Y; width=$_.BoundingRect.Width; height=$_.BoundingRect.Height }
             }) }
         })
-        @{ ok=$true; width=$apexDecoder.PixelWidth; height=$apexDecoder.PixelHeight; lines=$apexLines } | ConvertTo-Json -Depth 6 -Compress
+        @{ ok=$true; width=$apexDecoder.PixelWidth; height=$apexDecoder.PixelHeight; lines=$apexLines;
+           preprocessing=@{ requested_scale=$apexRequest.scale; scale=$apexScale;
+               ocr_width=$apexBitmap.PixelWidth; ocr_height=$apexBitmap.PixelHeight; interpolation='cubic'; coordinates='scaled-bitmap' }
+        } | ConvertTo-Json -Depth 6 -Compress
     } finally { $apexBitmap.Dispose() }
 } finally { $apexStream.Dispose() }

@@ -94,6 +94,30 @@ class LaunchPlanTests(unittest.TestCase):
         self.assertTrue(result['process_started'])
         self.assertEqual(result['pid'], 12)
 
+    def test_delayed_start_at_52_seconds_is_observed_without_new_handoff(self):
+        clock = [0.0]; probes = []
+        executable = Path('Game/Bin/TS4_x64.exe').resolve()
+        def inventory():
+            probes.append(clock[0])
+            return [] if clock[0] < 52 else [{'Id': 29596, 'Path': str(executable)}]
+        result = game_launch.observe_start(executable, set(), 60, inventory, lambda: clock[0],
+            lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+        self.assertTrue(result['process_started']); self.assertEqual(result['pid'], 29596)
+        self.assertEqual(result['elapsed_seconds'], 52); self.assertFalse(result['retry_attempted'])
+
+    def test_deadline_final_snapshot_retains_unresolved_process_inventory_and_never_sleeps_past_bound(self):
+        clock = [0.0]; executable = Path('Game/Bin/TS4_x64.exe').resolve()
+        result = game_launch.observe_start(executable, {10}, 2,
+            lambda: [{'Id': 10, 'Path': str(executable)}], lambda: clock[0],
+            lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+        self.assertFalse(result['process_started']); self.assertEqual(result['outcome'], 'start-unresolved')
+        self.assertEqual(result['final_process_inventory'], [{'Id': 10, 'Path': str(executable)}])
+        self.assertEqual(clock[0], 2); self.assertEqual(result['process_observation_count'], 3)
+        self.assertFalse(result['retry_attempted'])
+        for seconds in (True, False, 0, -1, 61, float('nan'), float('inf')):
+            with self.subTest(seconds=seconds), self.assertRaises(ValueError):
+                game_launch.observe_start(executable, set(), seconds, lambda: self.fail('Invalid limit cannot inspect processes.'))
+
 
 if __name__ == '__main__':
     unittest.main()

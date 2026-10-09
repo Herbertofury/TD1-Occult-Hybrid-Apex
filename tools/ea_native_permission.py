@@ -7,6 +7,7 @@ import ctypes
 from ctypes import wintypes as W
 import hashlib
 import json
+import math
 from pathlib import Path
 import struct
 import subprocess
@@ -19,21 +20,49 @@ from game_launch import process_image
 
 
 def dialog_button(observation):
-    lines = observation.get('lines', [])
-    text = ' '.join(' '.join(str(row.get('text', '')).split()) for row in lines).lower()
+    if (not isinstance(observation, dict) or observation.get('ok') is not True or
+            type(observation.get('width')) is not int or type(observation.get('height')) is not int or
+            not 200 <= observation['width'] <= 2600 or not 150 <= observation['height'] <= 2600):
+        raise ValueError('Captured window has no typed bounded EA viewport.')
+    lines = observation.get('lines')
+    if (not isinstance(lines, list) or not 0 < len(lines) <= 64 or
+            any(not isinstance(row, dict) or not isinstance(row.get('text'), str) or
+                not isinstance(row.get('words'), list) or not 0 < len(row['words']) <= 64 for row in lines)):
+        raise ValueError('Captured window has no bounded EA dialog text inventory.')
+    def rectangle(word):
+        if not isinstance(word, dict) or not isinstance(word.get('text'), str):
+            raise ValueError('EA dialog word is not typed.')
+        values = [word.get(name) for name in ('x', 'y', 'width', 'height')]
+        if any(type(value) not in (int, float) or not math.isfinite(value) for value in values):
+            raise ValueError('EA dialog word requires finite measured bounds.')
+        x, y, width, height = values
+        if not (0 <= x < x + width <= observation['width'] and 0 <= y < y + height <= observation['height']):
+            raise ValueError('EA dialog word exceeds its verified viewport.')
+        return x, y, width, height
+    for row in lines:
+        for word in row['words']: rectangle(word)
+    text = ' '.join(' '.join(row['text'].split()) for row in lines).lower()
     if 'this game requires permissions' not in text or (
         'this game requires administrative privileges. do you want to grant access and launch the game?' not in text):
         raise ValueError('Captured window is not the exact EA game permission dialog.')
-    ok = [row for row in lines if row.get('text', '').strip().upper() == 'OK']
+    # Windows OCR reads the round O on EA's blue button as zero in the retained
+    # 635x287 modal. Accept this one glyph variant only after complete wording.
+    ok = [row for row in lines if row['text'].strip().upper() in ('OK', '0K')]
     close = [row for row in lines if row.get('text', '').strip().upper() == 'CLOSE']
-    if len(ok) != 1 or len(close) != 1 or len(ok[0].get('words', [])) != 1:
+    heading = [row for row in lines if ' '.join(row['text'].split()).lower() == 'this game requires permissions']
+    if (len(ok) != 1 or len(close) != 1 or len(heading) != 1 or
+            len(ok[0]['words']) != 1 or len(close[0]['words']) != 1 or
+            ok[0]['words'][0]['text'].strip().upper() != ok[0]['text'].strip().upper() or
+            close[0]['words'][0]['text'].strip().upper() != 'CLOSE'):
         raise ValueError('Exact EA dialog buttons are absent or ambiguous.')
     word = ok[0]['words'][0]
-    x, y = word['x'] + word['width'] / 2, word['y'] + word['height'] / 2
-    heading = next(row for row in lines if 'this game requires permissions' in row.get('text', '').lower())
-    heading_y = max(item['y'] + item['height'] for item in heading['words'])
-    if not heading_y < y < observation['height'] or not 0 < x < observation['width']:
-        raise ValueError('EA button is not below its verified permission heading.')
+    ox, oy, ow, oh = rectangle(word)
+    cx, cy, cw, ch = rectangle(close[0]['words'][0])
+    x, y = ox + ow / 2, oy + oh / 2
+    heading_y = max(item['y'] + item['height'] for item in heading[0]['words'])
+    if (not heading_y < min(oy, cy) or not ox + ow < cx or
+            abs(y - (cy + ch / 2)) > max(oh, ch)):
+        raise ValueError('EA buttons are not a distinct measured row below the verified permission heading.')
     return round(x), round(y)
 
 

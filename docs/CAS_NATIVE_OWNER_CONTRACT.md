@@ -2,7 +2,26 @@
 
 Contract and Source implementation status, 2026-10-09. This document summarizes inspected contracts and retained test receipts; it does not reproduce private game source. The owned semantic accept guard requires an exact native integer `occultLayer == 0` in host preflight, the owner-validated intent ACK, and the fresh native commit preflight. Missing, untyped or nonzero layers are refused. This guard does not intercept the game's own manual checkmark. Alternate-form acceptance remains a release blocker until the original owner mapping and retained-Sim return are proved.
 
-## Current generation 55 V18 - immutable native load records
+## Current generation 56 V19 - observed native pair layers
+
+Alien can expose the original creature as layer zero and Human disguise as
+layer one. Human is not universally the base layer. Source preflight and the
+matching AS package derive target layers from the fresh observed same-original
+pair, preserving the exact session, native identities and primary-only accept
+guard. The retained seven-form rail supports pair navigation in either order;
+it does not manufacture mappings for forms absent from the native pair.
+
+V19 passes 1,503 frozen Python tests/four native targets and independently
+verified package/import checks. Actual cold reload of the controlled V18 Alien
+edit retains all seven stored forms and distinct active Alien across 12 readable
+fields after 1,644 simulation ticks, with unchanged save/bank and original Sim.
+The genuine disguise-only full-CAS edit and original-Sim unpaused Live return
+preserve all six other owners and distinct active Alien. Only Human outfits/
+genetics changed. Raw return was written; the subsequent complete serializer
+append hit the 48 MiB form-bank limit. The case remains open before explicit
+commit, away/back and reload; broader gates stay open.
+
+## V18 immutable native load records
 
 Native pending is a deferred post-load transformation, not a previous-form
 bookmark. Immediate selections verify the requested form and clear the queue.

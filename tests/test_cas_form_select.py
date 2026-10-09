@@ -24,18 +24,19 @@ def request(layer=0, form=64):
             'form_flags': form, 'native_session': 1}
 
 
-def client(layer=0, sequence=1):
+def client(layer=0, sequence=1, base_form=1, alternate_form=64):
+    mask = base_form | alternate_form
     def row(side):
-        return {'sim_id': SIM, 'index': 0, 'occult_type': 1 if side == 0 else 64,
-                'all_occult_types': 65, 'occult_layer': side, 'selected': side == layer}
+        return {'sim_id': SIM, 'index': 0, 'occult_type': base_form if side == 0 else alternate_form,
+                'all_occult_types': mask, 'occult_layer': side, 'selected': side == layer}
     pair = {'index': 0, 'base': row(0), 'alternate': row(1)}
     raw_pair = copy.deepcopy(pair)
     raw_pair['base']['selected'] = raw_pair['alternate']['selected'] = False
     selected = {key: value for key, value in row(layer).items() if key not in ('selected', 'index')}
     selected['household_id'] = HH
     return {'scope': 'native-cas-client',
-            'sim': {'simId': SIM, 'householdId': HH, 'occultType': 1 if layer == 0 else 64,
-                    'allOccultTypes': 65, 'occultLayer': layer},
+            'sim': {'simId': SIM, 'householdId': HH, 'occultType': base_form if layer == 0 else alternate_form,
+                    'allOccultTypes': mask, 'occultLayer': layer},
             'native_context': {'edit_mode': {'query': 'returned-value', 'value': 7},
                 'new_family': {'query': 'returned-value', 'value': False},
                 'entered_from_play_area': {'query': 'returned-value', 'value': {'result': True}}},
@@ -73,21 +74,22 @@ class CasFormSelectTests(unittest.TestCase):
         cas_ui.capture_original_owner(self.backend, self.sim)
         self.peer = cas_ui.attach_client(SIM, clock=lambda: self.now)
 
-    def observe(self, layer=0):
+    def observe(self, layer=0, **pair):
         rid = cas_ui.submit(SIM, {'operation': 'status'}, clock=lambda: self.now)['cas_request_id']
         cas_ui.poll_client(self.peer, clock=lambda: self.now)
         cas_ui.receive_socket(self.peer, rid, json.dumps({'protocol': 1, 'ok': True,
-            'cas_request_id': rid, 'client': client(layer)}), clock=lambda: self.now, backend=self.backend)
+            'cas_request_id': rid, 'client': client(layer, **pair)}), clock=lambda: self.now, backend=self.backend)
         return rid
 
     def submit(self, value=None):
         return cas_ui.submit(SIM, value or request(), clock=lambda: self.now, backend=self.backend)['cas_request_id']
 
-    def receipt(self, rid, layer, expected):
-        return {'protocol': 1, 'ok': True, 'cas_request_id': rid, 'client': client(layer),
+    def receipt(self, rid, layer, expected, base_form=1, alternate_form=64):
+        return {'protocol': 1, 'ok': True, 'cas_request_id': rid,
+                'client': client(layer, base_form=base_form, alternate_form=alternate_form),
                 'form_selection': {'native_session': 1, 'sim_id': SIM, 'household_id': HH,
                     'selected_index': 0, 'expected_layer': expected, 'target_layer': layer,
-                    'form_flags': 1 if layer == 0 else 64, 'selection_changed': expected != layer,
+                    'form_flags': base_form if layer == 0 else alternate_form, 'selection_changed': expected != layer,
                     'selection_verified': True, 'mapping_verified': False, 'alternate_accept_authorized': False}}
 
     def acknowledge(self, rid, value):
@@ -113,6 +115,32 @@ class CasFormSelectTests(unittest.TestCase):
         value = self.receipt(rid, 0, 0)
         self.acknowledge(rid, value)
         self.assertFalse(cas_ui.result(rid)['form_selection']['selection_changed'])
+
+    def test_creature_base_human_disguise_uses_observed_layer_in_both_directions(self):
+        for before, after in ((0, 1), (1, 0)):
+            self.setUp()
+            self.tracker.forms = {1: Obj(id=int(SIM)+1), 2: Obj(id=int(SIM)+2)}
+            cas_ui.capture_original_owner(self.backend, self.sim)
+            self.observe(before, base_form=2, alternate_form=1)
+            target = 1 if after == 1 else 2
+            rid = self.submit(request(before, target))
+            wire = cas_ui.poll_client(self.peer, clock=lambda: self.now)
+            self.assertEqual(wire.split('|')[1:], [SIM, 'form-select', str(target), str(before), '1', HH])
+            self.acknowledge(rid, self.receipt(rid, after, before, base_form=2, alternate_form=1))
+            result = cas_ui.result(rid)
+            self.assertTrue(result['selection_only_verified'])
+            self.assertEqual(result['form_selection']['target_layer'], after)
+            self.assertEqual(result['client']['sim']['occultType'], target)
+            self.assertFalse(result['alternate_accept_authorized'])
+
+    def test_reversed_pair_cannot_acknowledge_requested_disguise_at_creature_layer(self):
+        self.tracker.forms = {1: Obj(id=int(SIM)+1), 2: Obj(id=int(SIM)+2)}
+        cas_ui.capture_original_owner(self.backend, self.sim)
+        self.observe(0, base_form=2, alternate_form=1)
+        rid = self.submit(request(0, 1))
+        with self.assertRaisesRegex(ValueError, 'actual observed target layer'):
+            self.acknowledge(rid, self.receipt(rid, 0, 0, base_form=2, alternate_form=1))
+        self.assertFalse(cas_ui.result(rid)['ok'])
 
     def test_unloaded_live_zone_keeps_original_capability_for_cas_navigation_only(self):
         self.observe(1)

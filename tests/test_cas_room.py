@@ -46,7 +46,8 @@ class CasRoomTests(unittest.TestCase):
         self.assertEqual(r['selected_form'],2)
         self.assertEqual(next(x for x in r['rows'] if x['form_flags']==2)['native_layer'],0)
         self.assertEqual(next(x for x in r['rows'] if x['form_flags']==1)['native_layer'],1)
-        self.assertFalse(any(x['navigation_supported'] for x in r['rows']))
+        self.assertEqual([x['form_flags'] for x in r['rows'] if x['navigation_supported']], [1,2])
+        self.assertFalse(r['alternate_accept_authorized'])
 
     def test_captured_owner_alias_missing_or_foreign_identity_is_refused(self):
         for change in ('pid','sim','household','owner-alias','main-alias','duplicate-lane','invalid-lane'):

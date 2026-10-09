@@ -4,28 +4,39 @@ This is a concrete development build for owner testing, not a completed release
 or a claim of current-game parity. Target game: PC 1.128.90.1030. Full accepted
 scope and remaining work stay in `docs/CODEX_MASTER_EXECUTION.md`.
 
-## Current generation 55 V18 - immutable native load retention
+## Current generation 56 V19 - native Alien/disguise navigation
 
-Epoch `2026-10-09-native-trait-load-defer-v18` passes **1,501 frozen Python tests
+Epoch `2026-10-09-native-alien-disguise-navigation-v19` passes **1,503 frozen Python tests
 and four native targets**. All 68 compiled Python 3.7 modules import; seven
 packages/206 resources pass independent Rust verification. Installation matches
 fourteen artifacts and changed no saves/sidecars.
 
 | Artifact | SHA-256 |
 |---|---|
-| Candidate bundle | `7f8984083fbb08e0bbf260774b123ad555f7e7ff1a3d9efda22bbb72a08f4848` |
-| Script | `5372338c6c5fce009708a61387befce613f0edf782b44c4c750b1b74e0426493` |
+| Candidate bundle | `a87278e39c3ba1b932794447c6eae98ae201f788ddfd363a7f63dcf80cfef431` |
+| Script | `8a45eaf56e2700d96fa7cafa4d936ae559c6eba6b743b0bdb2f6aa7d8b6bc528` |
 | Native DLL | `9712945c05ab848d272534e736bd5419539b2536cc82f97fb151e290c4e41e89` |
-| CAS bridge | `936fa20ef444786c3de8cadbc958d180a70dbb8c33187fbc12448dbfffaa62d7` |
+| CAS bridge | `9b3208d88655baf22597faeb1ea198be11e78a53139b26cd0ee6799db466b503` |
 
 Actual cold reload retains the original Sim, every stored form and the distinct
-active Alien across all 12 readable fields before/after **1,656 TimeService
+active Alien across all 12 readable fields before/after **1,644 TimeService
 ticks** and Pause, with unchanged save/bank. No bank reconciliation, probe
 appearance writes or Save ran. Receipt:
-`b2ea61a7ef360e6e33d323b8480201e21d1c919b78e936908e49afd92139d5d5`.
+`9581403c7e8f7b99a8075e408d4c941836361d50dd49d3013706abd8bc3f24d9`.
 This changed-script regression against the older sealed save is separate from
 a new certified save/reload. Fresh native ownership must be checkpointed before
 ordinary bank-driven edits; an uncertified historical bank is refused.
+
+V18's Alien creature hair edit is in the new controlled Slot02 save. V19
+reload preserves it independently of Human and all other appearances. The
+selector accepts only the actual observed Human/occult pair and derives its
+target layer from those rows, including Alien base / Human alternate ordering.
+Visibility of all seven retained forms does not authorize same-visit selection
+of forms outside that native pair. The genuine Human-disguise full-CAS edit
+returned to the original Sim after unpause; independent comparison changed
+only Human outfits/genetics while all six other stored owners and active Alien
+remained exact. The complete serializer append exceeded the 48 MiB bank limit.
+Raw return is retained; explicit commit, away/back and reload remain unproved.
 
 V17's early readback exception left the Sim out of the loaded household. V18
 defers only appearance failures after a verified native transition until native

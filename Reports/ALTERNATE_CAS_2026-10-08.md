@@ -432,6 +432,76 @@ converge on this launch; retained failures supplied no capture/input replay.
 A separate exact-PID Win32 client capture and one bound Resume message reached
 Live. This launch does not prove F11 rendering on V18.
 
+## V19 reversed Alien/disguise pair and edited-save reload
+
+The V18 Alien creature edit was saved through the controlled public CLI;
+receipt `5361227285be03f91a252dda60c8bc3872004bb71dcd39146b1fea1945ad8aa2`.
+Slot02 is now `ff9d8c0f20eb28b23d26424bd8a3f6cc43496d5cbc410e853144078be366a26e`
+(10,959,759 bytes), seal
+`afecdd1b8f95c21929082561a8bfdde96bf5d8ca41ef373482d0db25a8d6092c`.
+The previous normal save remains its preceding backup. The V18 public native
+renderer-dependent exit failed before input. Separate exact-PID game-window
+messages selected the observed normal Exit Game / Exit Game without Save;
+process exit and every save/backup unchanged are independently verified by
+`5712be24f2ae113e82737e32e6422d9b866c4fbb2928dafd47f35a38366d973a`.
+This is not relabeled a public same-script exit certificate.
+
+V19 fixes the real observed pair: Alien creature is layer zero and Human
+disguise layer one. Both Source validation and matching AS navigation derive
+the target layer from the actual native rows; membership/session/original-ID
+checks and primary-only acceptance remain. Two new reversed-pair fixtures
+cover bidirectional navigation and wrong-layer acknowledgement rejection.
+The bytecode audit preserves 1,785/1,787 native customizer methods and 459/462
+selector methods, with non-script SWF tags unchanged.
+
+| V19 build/installation evidence | SHA-256 |
+|---|---|
+| Frozen 1,503 Python tests / four native checks | `5df6c3b766e11f983a2f13639bc4f71e77f84ba6200f09453148fa3794d5b764` |
+| 68 compiled imports / 206 independent resources | `35891d637967aa41d00e7e961e04600cce154868c98e974f57deac17032388ea` |
+| Bundle | `a87278e39c3ba1b932794447c6eae98ae201f788ddfd363a7f63dcf80cfef431` |
+| Script | `8a45eaf56e2700d96fa7cafa4d936ae559c6eba6b743b0bdb2f6aa7d8b6bc528` |
+| CAS bridge | `9b3208d88655baf22597faeb1ea198be11e78a53139b26cd0ee6799db466b503` |
+| Generation 56, fourteen artifacts; unchanged saves/sidecars | `5ff39cb90da3d35d5bf2f92fd7a46f08e82f98b4944451eb0bdaed34b58a4a1b` |
+
+The account-specific public CLI launch reached PID 32256 with the exact new
+script. The native renderer submitted frames and captured the actual new-game
+Home news card at 1278x1376. Public native input refused foreground ownership
+before submission; separate exact-window messages dismissed the captured news
+card and selected Resume once. They are not certified native input ACKs.
+
+Actual cold reload of the new controlled save retains the original Sim and
+all ten persistence checks. All seven stored appearances and the distinct
+active Alien match the immutable completed V18 edited bank across all twelve
+readable fields, before and after **1,644 actual TimeService ticks**, with final
+Pause and unchanged save/bank. Receipt
+`9581403c7e8f7b99a8075e408d4c941836361d50dd49d3013706abd8bc3f24d9`.
+No historical bank replay, appearance writes by the probe or Save were requested.
+This is a changed-script regression, not a new same-script public save cycle.
+
+The genuine Human-disguise layer-one full-CAS edit now has native ACKs.
+Hair swatch `414264 -> 414266` was selected on Human layer one, then the exact
+observed Alien layer zero restored before the one semantic accept. Sequence
+receipt `15d4eb2617109e3cf74ebf29429edda58b4e52ec823e4569a0337abec7ea763b`.
+The original Sim returned to Live, simulation advanced and final Pause verified.
+The raw return was written, but complete serializer append failed under original
+UUID `1bd4184ea23c4e07b4dd896925d07d5c`: the form bank reached its 48 MiB limit.
+No observer, accept or mutation was replayed. Return failure remains failed:
+`b38c523a025448a102bc76e4089cfa53a6852d45c639729847eab084a432a658`.
+
+Independent read-only inspection of the fresh native state against the captured
+originals changes only Human `__outfits__` / `genetic_data`; all six other stored
+forms and distinct active Alien remain exact across every readable field.
+The original Sim and normal save remain intact and final Pause is verified.
+Receipt `5d0ec5db3fd68d41afbfb42a1e7965cb17904a206fcaad5b63b3e783a8d70cd7`.
+The 49,943,144-byte bank retains the originals and raw-observed journal.
+This is scoped live isolation evidence, not completed reconciliation or
+save/reload proof. NEXT: durable bounded history storage preserving every raw
+original/return, then complete a fresh disguise case without mutation replay.
+
+Broader independent
+presets/skin details/jewelry, manual/MCCC routes, default all-occult selector,
+full custom room, all gameplay fields and the release gate remain unfinished.
+
 ## Research references
 
 [Oops19 EditInCAS](https://github.com/Oops19/TS4-EditInCAS) documents cloning and

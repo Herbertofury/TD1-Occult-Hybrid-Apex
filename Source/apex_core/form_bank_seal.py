@@ -31,13 +31,13 @@ _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
 UPGRADE_EPOCH = '2026-10-09-native-load-record-retention-v17'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '0149efb1aba26ce21bd2fe8a16ea330b13f067c0dc39cf304c595c047c610b0b'
+UPGRADE_SELF_BODY_SHA = '081611553b40afdb8f9abfb58fdb708d254fb4ccea15fe13ea215e33bbf15ae7'
 UPGRADE_MODULE_PINS = {
     'apex_core/cas_bank_transaction.py': '42401d2245acdd2f7ac2a3d1042b75f8c03a0f14c948b5b0b3b84a8deb639dbd',
     'apex_core/cas_commit_plan.py': '24017e741194bb667afc4e53c018b53098907d3fa6134eb8fc089ac7112d7225',
     'apex_core/cas_panels.py': 'bb834947bf4dc3ae9e85fd389c2d2edde8ab0c720848fb3cda9bb53105bcacbc',
-    'apex_core/cas_room.py': '03149ac7b52235295d4041c1e3d2ff469a4bce9d9aadd20121c5bf36a314ee7f',
-    'apex_core/cas_ui.py': '6911ca825243ada5f8c2086cddf72b4924db5854b1df24590d56e29b63a85889',
+    'apex_core/cas_room.py': '20c804026b9b09ac4b14e40c1a7f7719c270bada3997cea6857df374a36a2626',
+    'apex_core/cas_ui.py': '545f2c522378030eb6d8dccbbbffabc6e943af4622324f1063fa7bc909c660f7',
     'apex_core/change_journal.py': '152a400b9fc994542d47b77b1f1bb00d4c033beb7b55a627e14ab1950eaa37b8',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
     'apex_core/form_bank.py': 'ad30d37d1f241dc36d4d1944e9d2e2fcd4a51c7cc91c303919fba47625bb0a55',

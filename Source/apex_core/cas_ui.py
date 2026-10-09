@@ -267,8 +267,9 @@ def form_selection_binding(client, sim_id, request, resulting=False):
             observation.get('stable') is not True or observation.get('selected_query') != 'returned-value'):
         raise ValueError('CAS form selection native session/selected observation is stale or incomplete.')
     selected = _owner_record(observation.get('selected'))
-    expected_layer = (0 if request['form_flags'] == 1 else 1) if resulting else request['expected_layer']
+    expected_layer = selected['occult_layer'] if resulting else request['expected_layer']
     if (selected['sim_id'] != sim_id or selected['household_id'] != request['household_id'] or
+            expected_layer not in (0, 1) or
             selected['occult_layer'] != expected_layer or
             native.get('simId') != sim_id or native.get('householdId') != request['household_id'] or
             any(type(native.get(key)) is not int or native[key] != selected[field] for key, field in
@@ -326,18 +327,24 @@ def form_selection_binding(client, sim_id, request, resulting=False):
             original_indexes.append(position)
     pair = pairs[index]
     base, alternate = pair['base'], pair['alternate']
+    pair_kinds = {base['occult_type'], alternate['occult_type']}
+    nonhuman = pair_kinds - {1}
     if (original_indexes != [index] or base['sim_id'] != sim_id or alternate['sim_id'] != sim_id or
-            base['occult_type'] != 1 or alternate['occult_type'] not in (2, 4, 8, 16, 32, 64) or
+            len(pair_kinds) != 2 or 1 not in pair_kinds or not nonhuman.issubset({2, 4, 8, 16, 32, 64}) or
             base['all_occult_types'] != alternate['all_occult_types'] or base['all_occult_types'] < 0 or
-            not base['all_occult_types'] & 1 or not base['all_occult_types'] & alternate['occult_type']):
+            any(not base['all_occult_types'] & kind for kind in pair_kinds)):
         raise ValueError('CAS form selection requires one observed same-original-ID base/alternate pair; wrapper ownership is unproved.')
     chosen = pair['base' if expected_layer == 0 else 'alternate']
     if (chosen['selected'] is not True or pair['alternate' if expected_layer == 0 else 'base']['selected'] is not False or
             any(chosen[field] != selected[field] for field in ('occult_type', 'all_occult_types', 'occult_layer'))):
         raise ValueError('CAS form selection fresh native selection does not match its retained pair.')
-    target_layer = 0 if request['form_flags'] == 1 else 1
-    if pair['base' if target_layer == 0 else 'alternate']['occult_type'] != request['form_flags']:
+    targets = [layer for layer, side in ((0, 'base'), (1, 'alternate'))
+               if pair[side]['occult_type'] == request['form_flags']]
+    if len(targets) != 1:
         raise ValueError('Requested form is not the actual observed base/alternate; no selection authorized.')
+    target_layer = targets[0]
+    if resulting and expected_layer != target_layer:
+        raise ValueError('CAS form selection did not reach the actual observed target layer.')
     return {'native_session': observation['session'], 'sim_id': sim_id, 'household_id': selected['household_id'],
             'selected_index': index, 'selected_layer': expected_layer, 'target_layer': target_layer,
             'form_flags': request['form_flags'], 'feed_sequence': raw['sequence'],

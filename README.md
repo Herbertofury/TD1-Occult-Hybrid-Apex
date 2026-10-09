@@ -6,21 +6,28 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Latest development checkpoint - V18 installed; native reload passed:**
+**Latest development checkpoint - V19 installed; native reload passed:**
 The candidate retains independent hybrid appearances through native transitions
 and initialization, clears stale deferred transformations, and keeps immutable
 incoming records until native initialization finishes. Early readback failures
 preserve the Sim and diagnostics; final native readback decides success.
 Raw payloads and distinct/unknown captured fields remain preserved.
 
-The frozen checkpoint passes **1,501 Python tests / four native CTest targets**.
+The frozen checkpoint passes **1,503 Python tests / four native CTest targets**.
 All 68 compiled Python 3.7 modules import and all **206 package resources** pass
-independent Rust checks. Generation 55 matches fourteen artifacts; installation
+independent Rust checks. Generation 56 matches fourteen artifacts; installation
 changed no saves/sidecars. Actual cold reload of retained Slot02 matches all
 seven stored appearances and the distinct active Alien across all 12 readable
-fields, before/after **1,656 simulation ticks**, with the original Sim retained
+fields, before/after **1,644 simulation ticks**, with the original Sim retained
 and bank/save unchanged. This changed-script regression is separate from a
-new certified save/reload cycle on V18.
+new certified save/reload cycle on V19. V18's Alien creature hair edit was
+committed, retained through unpaused away/back switches and saved; V19 reload
+preserves that edit. Alien/disguise navigation now derives the target layer
+from the actual native pair, including Alien base / Human alternate ordering.
+The genuine disguise-only full-CAS edit and Live return changed only Human
+outfits/genetics; all six other stored forms and distinct active Alien remained
+exact. Its serializer journal append hit the 48 MiB bank limit, so commit,
+away/back and save/reload for this disguise case remain incomplete.
 
 V13 Mermaid alternate hair and Werewolf alternate outfit-addition tests passed
 full CAS, original-Sim return, explicit seven-owner reconciliation and unpaused

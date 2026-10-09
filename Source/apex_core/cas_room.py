@@ -2,8 +2,8 @@
 
 Every captured owner stays visible even when EA exposes only two layers.
 Visibility never authorizes selection, owner mapping, or appearance acceptance.
-Only the exact observed Human-base pair supports the current native transport.
-Alien's creature-base/disguise ordering is retained without guessing a layer.
+The exact observed Human/occult pair supports the native transport in either
+ordering. Target layers come from the native rows, including Alien disguise.
 """
 import copy
 import os
@@ -78,14 +78,16 @@ def inventory(baseline, client):
             native.get('allOccultTypes') != selected['all_occult_types'] or
             pair['base']['all_occult_types'] != pair['alternate']['all_occult_types']):
         raise ValueError('CAS room fresh selected form differs from native pair.')
-    human_base = pair['base']['occult_type'] == 1
+    pair_supported = (len(available) == 2 and 1 in available and
+                      set(available).issubset(NAMES) and
+                      all(selected['all_occult_types'] & form for form in available))
     rows = []
     for form in sorted(owners):
         native_layer = available.get(form)
         rows.append({'form_flags': form, 'label': NAMES.get(form, 'Native form '+str(form)),
             'captured_owner_id': owners[form], 'native_layer': native_layer,
             'selected': form == native['occultType'], 'visible': True,
-            'navigation_supported': native_layer is not None and human_base,
+            'navigation_supported': native_layer is not None and pair_supported,
             'state': 'native-pair' if native_layer is not None else 'retained-outside-native-pair'})
     return copy.deepcopy({'schema': 1, 'scope': 'captured-cas-room-inventory',
         'runtime_pid': baseline['runtime_pid'], 'sim_id': baseline['original_sim_id'],

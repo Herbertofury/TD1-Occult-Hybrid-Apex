@@ -430,18 +430,21 @@
                if(i==selectedIndex) projection=copied;
             }
             pair=retained.pairs[selectedIndex];
-            if(matches!=1 || pair.base.occult_type!=1 ||
-               (pair.alternate.occult_type!=2 && pair.alternate.occult_type!=4 && pair.alternate.occult_type!=8 &&
-                pair.alternate.occult_type!=16 && pair.alternate.occult_type!=32 && pair.alternate.occult_type!=64) ||
+            var nonhumanKind:int=pair.base.occult_type==1 ? int(pair.alternate.occult_type) : int(pair.base.occult_type);
+            if(matches!=1 || (pair.base.occult_type!=1 && pair.alternate.occult_type!=1) ||
+               pair.base.occult_type==pair.alternate.occult_type ||
+               (nonhumanKind!=2 && nonhumanKind!=4 && nonhumanKind!=8 &&
+                nonhumanKind!=16 && nonhumanKind!=32 && nonhumanKind!=64) ||
                pair.base.all_occult_types!=pair.alternate.all_occult_types || pair.base.all_occult_types<0 ||
-               (pair.base.all_occult_types & 1)==0 || (pair.base.all_occult_types & pair.alternate.occult_type)==0)
+               (pair.base.all_occult_types & 1)==0 || (pair.base.all_occult_types & nonhumanKind)==0)
                throw new Error("CAS form selection lacks the observed Human/alternate form context");
             var current:Object=expectedLayer==0 ? pair.base : pair.alternate;
             var other:Object=expectedLayer==0 ? pair.alternate : pair.base;
             if(current.selected!==true || other.selected!==false || current.occult_type!=selected.occult_type ||
                current.all_occult_types!=selected.all_occult_types || current.occult_layer!=selected.occult_layer)
                throw new Error("CAS form selection fresh selected context differs from retained selection");
-            var targetLayer:int=formFlags==1 ? 0 : 1;
+            var targetLayer:int=pair.base.occult_type==formFlags ? 0 : pair.alternate.occult_type==formFlags ? 1 : -1;
+            if(targetLayer<0) throw new Error("Requested form is absent from the actual base/alternate pair");
             var target:Object=targetLayer==0 ? pair.base : pair.alternate;
             if(target.occult_type!=formFlags) throw new Error("Requested form is absent from the actual base/alternate pair");
             native=CommunicationManager.CallGameService("CASGetSimInfo",null,true);

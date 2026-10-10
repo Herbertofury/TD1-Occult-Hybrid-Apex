@@ -1062,3 +1062,33 @@ is not certified-seal reconciliation or another CAS visit.
 Read-only verification matches all 369 protected original saves against their
 retained reference, with zero writes:
 `e9aea53a39f373822167bb369282b0663f37c3d5dab425ac446d6ffede9c7b4b`.
+
+
+### Post-reload switches after explicit current-native metadata adoption
+
+Fresh native begin/observe/prepare-empty/commit confirms zero changed lanes and
+all-owner equality without old appearance replay or another native CAS visit.
+It adopts the current PID metadata rather than bypassing the certification
+guard: `b856d3c78e7244937e384670f72a31b607dd1f7916554b2f77fc4150910dd0f7`.
+This is an explicit test handoff, not automatic source authorization or a new
+certified save. Every subsequent switch confirms all seven stored appearances,
+the distinct active appearance, unchanged membership, actual TimeService
+progress and final Pause:
+
+| Source → target | Actual ticks | Proof SHA-256 |
+| --- | --- | --- |
+| 2 → 4 | 1467 | `8ecbba20235510f37ff50242c8daba618fb9ed5610d4b9aedcd33e561498f183` |
+| 4 → 2 | 1568 | `1994d41bac935a6841a6bb88e2d0f17bf1c1626147f8eed8cf4327f1120f2388` |
+| 2 → 8 | 1673 | `4fe70b03501681d2dd7378f6acc8bc0deb2a40ee6f10ca5eaf0b4a222e56f252` |
+| 8 → 32 | 1397 | `4b220ec5177ab0cd49265bda50b456fa4de5b5b227964aea7656c47d76f516bf` |
+| 32 → 64 | 1178 | `3dfd9ad3438ce87a5d4d8cc4406b9e2182c8ebee5deb60995e6f4819c5a9eecd` |
+| 64 → 16 | 1195 | `9fe492fe6b3f868ee7a087aa9e789e98806dade56ce7898a8f456bf5f05f3f2c` |
+| 16 → 1 | 1220 | `a05b2e0a37ad5cf9d607e567b3b0a646737ac3674e0ebf342c1fa83a843fe207` |
+| 1 → 2 | 1197 | `cb18cf14b275e3164fe487039ee58cb4bf9f383088c2b1346486010633fd0491` |
+
+Final normal unsaved CLI closure preserves all twenty saves/backups:
+`ccdfc8bc4725f9e4f76b263fc98c051816447e4eae8543bb8fc4c184b0105ccb`.
+The controlled normal Slot02 file remains
+`b632c0111479a185f5343839f8bd595bccf7976fa19af6cdeb2a5cc745c67ebc`.
+Automatic bank handoff after certified reload, manual/MCCC full-CAS entry,
+every panel/field and same-visit all-occult editing remain open.

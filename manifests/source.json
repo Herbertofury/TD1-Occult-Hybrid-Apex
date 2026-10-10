@@ -173,6 +173,12 @@
       "sha256": "61a5369a5e7a727632596f7bdb2b1b08a0fc3bacdb70935450105623010ae81e"
     },
     {
+      "bytes": 59178,
+      "mode": "100644",
+      "path": "docs/CAS_NATIVE_OWNER_CONTRACT.md",
+      "sha256": "3d38882735979ad1e60c9743d7ce9fcef7b7a2a069ab63d42ed5ee6da1a7386b"
+    },
+    {
       "bytes": 14948,
       "mode": "100644",
       "path": "tools/studio_inventory.py",
@@ -477,12 +483,6 @@
       "mode": "100644",
       "path": "tests/test_cas_failed_commit_archive.py",
       "sha256": "e7b096c06353a5156a96a73a1ddf650a8ea032ee29ad3e5075e77c6edfd923f3"
-    },
-    {
-      "bytes": 75510,
-      "mode": "100644",
-      "path": "Reports/ALTERNATE_CAS_2026-10-08.md",
-      "sha256": "39007f226f154b9d1f69ec41f9baf371c3fd6d9c3af731590b60b519e7674244"
     },
     {
       "bytes": 1496,
@@ -1041,12 +1041,6 @@
       "mode": "100644",
       "path": "tests/test_phone_menu.py",
       "sha256": "94d242aa130edeb1db4d01e40e5c4f30cbd76768f21ac249a15992b790403ced"
-    },
-    {
-      "bytes": 58827,
-      "mode": "100644",
-      "path": "docs/CAS_NATIVE_OWNER_CONTRACT.md",
-      "sha256": "6361439c462e02334826475645e82c759239bfc9e6999cea3098c21972d6d870"
     },
     {
       "bytes": 1878,
@@ -1745,6 +1739,12 @@
       "sha256": "bf0fc6bf3f8af7a6ba30426f8cc76a183f6d1d7a96b9b5febd533a4472fc309e"
     },
     {
+      "bytes": 146577,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "c5c5ef48615ce9966a9eff37d9c2d1259532eecd20ba860f10019554b0c12f28"
+    },
+    {
       "bytes": 10718,
       "mode": "100644",
       "path": "NativeOverlay/third_party/minhook/src/trampoline.c",
@@ -1767,12 +1767,6 @@
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/imgui_internal.h",
       "sha256": "341e5a7656be0079e1aac3203d18eaea224d5a0f2b655fa88851a5f4f8c714ff"
-    },
-    {
-      "bytes": 146292,
-      "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "dc6e9ed75ed0ae4e164e7cbe2e759a67445caa5a4d681f1055d746348efba2c9"
     },
     {
       "bytes": 51651,
@@ -1827,6 +1821,12 @@
       "mode": "100644",
       "path": "tools/CasAcceptLinkageTests.java",
       "sha256": "36e70b51b633a64ec8c892ff779dde212200749eaf344cfb6c019693cfd1b0bb"
+    },
+    {
+      "bytes": 77322,
+      "mode": "100644",
+      "path": "Reports/ALTERNATE_CAS_2026-10-08.md",
+      "sha256": "cb99603868d17f4b60753e1baadce5985ef8adbc7ece7b8297aebc263d62c616"
     },
     {
       "bytes": 1186,

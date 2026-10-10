@@ -42,7 +42,7 @@ def select(backend, sim, sim_id, argument):
         raise ValueError('Native Witch owner construction is unsupported by current tuning.')
     data = form_bank.load(path)
     record = data['records'].setdefault(key, {'bank': {}, 'history': []})
-    if record.get('pending') or record.get('switch_pending') or not isinstance(record.get('native_selection_history', []), list) or len(record.get('native_selection_history', [])) >= 32:
+    if record.get('pending') or record.get('switch_pending') or not isinstance(record.get('native_selection_history', []), list):
         raise ValueError('Native selection ownership is retained or its bounded history is full.')
     pending = {'state': 'native-only-intent', 'runtime_pid': identity['pid'], 'argument': dict(argument),
                'native_before': seal._native(backend, sim), 'before_context': before_context,

@@ -29,22 +29,24 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-09-native-load-record-retention-v17'
+UPGRADE_EPOCH = '2026-10-09-household-full-cas-sealed-filters-v24'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '081611553b40afdb8f9abfb58fdb708d254fb4ccea15fe13ea215e33bbf15ae7'
+UPGRADE_SELF_BODY_SHA = 'cded03b4eefd8374a9fd77ce848b420a385c2a0f27898825b824255748cdf9be'
 UPGRADE_MODULE_PINS = {
-    'apex_core/cas_bank_transaction.py': '42401d2245acdd2f7ac2a3d1042b75f8c03a0f14c948b5b0b3b84a8deb639dbd',
-    'apex_core/cas_commit_plan.py': '24017e741194bb667afc4e53c018b53098907d3fa6134eb8fc089ac7112d7225',
-    'apex_core/cas_panels.py': 'bb834947bf4dc3ae9e85fd389c2d2edde8ab0c720848fb3cda9bb53105bcacbc',
+    'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
+    'apex_core/cas_bank_transaction.py': '04b148a860fe94177de83711e6b1973e6435be53ba04850ce9f3307001e22889',
+    'apex_core/cas_commit_plan.py': '77a5eda1eb8f1b2706f7e76cfbd27a95597d4676e8a9833c4721d6737c08e00d',
+    'apex_core/cas_controls.py': '090e8c7fe0c879899bd34e7363b79d68ba2159e3524b8b00cf5016c1e81fbfb9',
+    'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '20c804026b9b09ac4b14e40c1a7f7719c270bada3997cea6857df374a36a2626',
-    'apex_core/cas_ui.py': '545f2c522378030eb6d8dccbbbffabc6e943af4622324f1063fa7bc909c660f7',
-    'apex_core/change_journal.py': '152a400b9fc994542d47b77b1f1bb00d4c033beb7b55a627e14ab1950eaa37b8',
+    'apex_core/cas_ui.py': '62d11719476f76b84546662ed0650db0e68e0b8aad328f001444ce8fbe4abd14',
+    'apex_core/change_journal.py': 'b8442037e86dc04334a375daf86471992dffa617bc7d36ea5c84a6c4563c0d2e',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
-    'apex_core/form_bank.py': 'ad30d37d1f241dc36d4d1944e9d2e2fcd4a51c7cc91c303919fba47625bb0a55',
+    'apex_core/form_bank.py': '05cc6666f0189409cf418849701766fd0d716fd15639a485d5418f9e3a3be973',
     'apex_core/genetics_snapshot.py': '8fefbe2898884cfbc8aab7675d3ff169f376848175d9f0ee7277e2d75bc73640',
     'apex_core/hybrid_persistence.py': 'd63b42795401435cb37ec37f8de9f898a664b203797ed63b6df9d0c186a20379',
     'apex_core/legacy_phone_guard.py': '097e88240ed8828101de5389c8f966a76e2c393b821f0580808735b663b600cd',
-    'apex_core/native_form_select.py': '2d2d59c4631af4d63fc125e792e6896fc4fd8577ddf9767b3082e51aa3d47ab5',
+    'apex_core/native_form_select.py': '5c3c9b28d82df3e6515169f3bb653f94ed9c9505d7745673514d85ed79744c44',
     'apex_core/outfit_hair.py': '530fb5e8f5e80137b3607e55a796a6423648f0ff25b6780f3430b8361d2f61d8',
     'apex_core/outfit_snapshot.py': '76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56',
     'apex_core/overlay_loader.py': 'ab45896f36af7ce23290fbd3a1e43819f020b61988d791876742dbb417742263',
@@ -52,7 +54,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/phone_interactions.py': '033c9b9f788adb075f7519ec8ff90994d22fbeb0861aa22eba216cefec0aae0d',
     'apex_core/sim_data.py': 'e82260f1aef92190a070cea76dbd63c3cfef33689f40297b83c03290eb19794e',
     'apex_core/studio.py': '36446997face1dc68281cd6c1b6ba8220263250f1d1c5a0f4878a16cb252b0be',
-    'apex_core/test_driver.py': 'b06ec8c8f119a01c4b679312d1920f3f3573e07674c36b90ab6ab597776a3e08',
+    'apex_core/test_driver.py': '4f7ac8521f77f145b82ef60678132d8851859113568ac12c141b4b3582c456ea',
     'td1_occult_hybrid_apex.py': '2c194763e74aa761b1bea2832da87b2fdcbb08eabc2fa328c0d27a6232aed363',
 }
 _SEAL_FIELDS = ('intent_id', 'identity', 'contract_sha256', 'target',
@@ -266,7 +268,7 @@ def _upgrade_inventory(profile, receipt):
         raise ValueError('Upgrade retained artifact is missing.')
 
 
-def upgrade_bank_authority(bank, row, receipt):
+def upgrade_bank_authority(bank, row, receipt, bank_path=None):
     """Exact appearances plus an explicitly certified metadata-only archive.
 
     Ordinary seals still bind their full original record. This extra case is
@@ -282,10 +284,17 @@ def upgrade_bank_authority(bank, row, receipt):
         return
     evidence = receipt['metadata_archive_proof']
     history = bank.get('failed_history')
+    if isinstance(history, list) and history:
+        from .bank_history import reference, resolve
+        if reference(history[-1]):
+            if bank_path is None:
+                raise ValueError('Archived upgrade evidence requires its exact bank path.')
+            history = list(history)
+            history[-1] = resolve(bank_path, history[-1])
     if (not isinstance(evidence, dict) or set(evidence) != {'sha256', 'raw'} or not _sha(evidence['sha256']) or
             not isinstance(evidence['raw'], str) or not 0 < len(evidence['raw'].encode('utf-8')) <= 12 * 1024 * 1024 or
             hashlib.sha256(evidence['raw'].encode('utf-8')).hexdigest() != evidence['sha256'] or
-            not _sha(receipt['failed_history_leaf_sha256']) or not isinstance(history, list) or not 0 < len(history) <= 32 or
+            not _sha(receipt['failed_history_leaf_sha256']) or not isinstance(history, list) or not history or
             not isinstance(history[-1], dict) or _hash(history[-1]) != receipt['failed_history_leaf_sha256']):
         raise ValueError('A changed bank requires the exact retained metadata-archive proof and failed-history leaf.')
     proof = json.loads(evidence['raw'], parse_constant=lambda _value: (_ for _ in ()).throw(ValueError('Nonfinite archive proof.')))
@@ -359,12 +368,12 @@ def _upgrade_receipt(backend, identity, profile, bank_path, key, seal_path, row)
         raise ValueError('Explicit script upgrade receipt is altered or mismatched.')
     seal_file = _unlinked(seal_path)
     before = seal_file.stat()
-    with seal_file.open('rb') as stream: raw_seal = stream.read(MAX_BYTES + 1)
+    with seal_file.open('rb') as stream: raw_seal = stream.read()
     after = seal_file.stat()
-    if (len(raw_seal) > MAX_BYTES or (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns) or
+    if (len(raw_seal) != after.st_size or (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns) or
             hashlib.sha256(raw_seal).hexdigest() != receipt['old_seal_file_sha256']):
         raise ValueError('Original upgrade seal file changed.')
-    upgrade_bank_authority(_record(bank_path, key), row, receipt)
+    upgrade_bank_authority(_record(bank_path, key), row, receipt, bank_path)
     from .test_driver import _save_file_evidence
     if _save_file_evidence(profile, row['target']['slot_id'])['sha256'] != receipt['file_sha256']:
         raise ValueError('Upgrade save file changed; newer saves were preserved.')
@@ -436,17 +445,15 @@ def _read(path):
     path = _unlinked(path)
     before = path.stat()
     with path.open('rb') as stream:
-        raw = stream.read(MAX_BYTES + 1)
+        raw = stream.read()
     after = path.stat()
-    if not 0 < len(raw) <= MAX_BYTES or (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
-        raise ValueError('Bounded sidecar changed during reading.')
+    if not raw or len(raw) != after.st_size or (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+        raise ValueError('Complete sidecar changed during reading.')
     return json.loads(raw.decode('utf-8'), parse_constant=lambda _value: (_ for _ in ()).throw(ValueError('Nonfinite sidecar.')))
 
 
 def _write(path, value):
     raw = _bytes(value)
-    if len(raw) > MAX_BYTES:
-        raise ValueError('Sidecar capacity exceeded; prior evidence retained.')
     temporary = _unlinked(path.with_suffix('.pending'))
     with temporary.open('xb') as stream:
         stream.write(raw); stream.flush(); os.fsync(stream.fileno())
@@ -455,7 +462,7 @@ def _write(path, value):
 
 def _store(path):
     value = _read(path) if path.exists() else {'schema': 1, 'records': {}}
-    if not isinstance(value, dict) or type(value.get('schema')) is not int or value['schema'] != 1 or not isinstance(value.get('records'), dict) or len(value['records']) > 256:
+    if not isinstance(value, dict) or type(value.get('schema')) is not int or value['schema'] != 1 or not isinstance(value.get('records'), dict):
         raise ValueError('Invalid sealed appearance store.')
     return value
 

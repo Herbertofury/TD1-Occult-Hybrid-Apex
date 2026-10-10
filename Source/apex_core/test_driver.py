@@ -639,7 +639,7 @@ def dispatch(backend, action, sim_id, value):
     if action == 'test_cas':
         if sim is None or sim.get_sim_instance() is None:
             raise ValueError('CAS entry requires an instanced selected Sim.')
-        from server_commands.cas_commands import modify_in_cas
+        from server_commands.cas_commands import modify_in_cas, modify_in_cas_with_household_id
         from server_commands.argument_helpers import OptionalTargetParam
         if argument not in (None, 'full'):
             raise ValueError('CAS mode must be default or full.')
@@ -655,10 +655,14 @@ def dispatch(backend, action, sim_id, value):
         if argument == 'full':
             from sims4.commands import client_cheat
             client_cheat('cas.fulleditmode', client.id)
-        submitted = modify_in_cas(OptionalTargetParam(str(sim.id)), _connection=client.id)
+        # Single-Sim CAS hides personality and the selector even with full-edit.
+        # Use the native existing-household entry with the same protected Sim.
+        entry = modify_in_cas_with_household_id if argument == 'full' else modify_in_cas
+        submitted = entry(OptionalTargetParam(str(sim.id)), _connection=client.id)
         return {'ok': bool(submitted), 'transition': 'cas-entry-submitted', 'before': before,
                 'form_checkpoint': protection,
                 'original_owner': owner_observation,
+                'requested_editor': 'existing-household-full' if argument == 'full' else 'existing-single-sim',
                 'cas_visible_verified': False, 'message': 'CAS entry submitted to the real game client; UI completion must be observed separately.'}
     if action == 'test_save':
         return _submit_existing_save(backend, sim, client, argument)

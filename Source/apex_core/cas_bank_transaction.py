@@ -37,7 +37,6 @@ _ACTIVE = {}
 _CAPTURED = {}
 _WRITER_LEASES = {}
 _UNSPECIFIED = object()
-MAX_HISTORY = 32
 ACTION_NAMES = ('cas_bank_begin', 'cas_bank_observe', 'cas_bank_prepare',
                 'cas_bank_commit', 'cas_bank_status')
 
@@ -74,14 +73,12 @@ def _read(path):
     path = _unlinked(path)
     if not path.exists():
         return {'schema': 1, 'records': {}}, None
-    if not path.is_file() or path.stat().st_size > primitive.MAX_DOCUMENT_BYTES:
-        raise ValueError('Form bank is not a bounded regular file.')
+    if not path.is_file():
+        raise ValueError('Form bank is not a regular file.')
     raw = path.read_bytes()
-    if len(raw) > primitive.MAX_DOCUMENT_BYTES:
-        raise ValueError('Form bank changed beyond its preservation bound.')
     value = json.loads(raw.decode('utf-8'), object_pairs_hook=_pairs)
     if (not isinstance(value, dict) or type(value.get('schema')) is not int or value['schema'] != 1 or
-            not isinstance(value.get('records'), dict) or len(value['records']) > 256):
+            not isinstance(value.get('records'), dict)):
         raise ValueError('Invalid form bank; no metadata replaced.')
     primitive.digest(value)
     return value, hashlib.sha256(raw).hexdigest()
@@ -200,11 +197,9 @@ def atomic_save(path, data, expected_file_sha256=_UNSPECIFIED, _lease=None):
             return atomic_save(path, data, expected_file_sha256, _lease=lease)
     _valid_lease(path, _lease)
     if (not isinstance(data, dict) or type(data.get('schema')) is not int or data['schema'] != 1 or
-            not isinstance(data.get('records'), dict) or len(data['records']) > 256):
+            not isinstance(data.get('records'), dict)):
         raise ValueError('Invalid form bank for shared atomic save.')
     raw = json.dumps(data, sort_keys=True, ensure_ascii=True, allow_nan=False).encode('utf-8')
-    if len(raw) > primitive.MAX_DOCUMENT_BYTES:
-        raise ValueError('Form bank capacity reached; prior originals retained.')
     _current, current_hash = _read(path)
     if expected_file_sha256 is _UNSPECIFIED:
         if current_hash is not None:
@@ -508,8 +503,8 @@ def _commit_metadata(backend, sim, token, receipt):
                 receipt['active_lane'] != journal['plan']['active_lane']):
             raise ValueError('No complete verified native-owner receipt for the bank commit.')
         history = record.setdefault('history', [])
-        if not isinstance(history, list) or len(history) >= MAX_HISTORY:
-            raise ValueError('CAS history capacity reached; all prior originals retained.')
+        if not isinstance(history, list):
+            raise ValueError('CAS history must retain its typed index.')
         # All parsing below is pure and runs on the owned clone. No metadata is
         # replaced unless every desired wardrobe can be captured successfully.
         policy = copy.deepcopy(record.get('hair_policy'))
@@ -706,10 +701,9 @@ def begin(backend, sim, snapshot_reader=None):
         assert_idle(backend, sim)
         identity, path, key, data, file_hash, existing = _context(backend, sim)
         record = copy.deepcopy(existing) if existing is not None else {'bank': {}, 'history': []}
-        if (not isinstance(record.get('history', []), list) or len(record.get('history', [])) >= MAX_HISTORY or
-                not isinstance(record.get('cas_transaction_history', []), list) or
-                len(record.get('cas_transaction_history', [])) >= MAX_HISTORY):
-            raise ValueError('CAS history capacity reached; prior records retained.')
+        if (not isinstance(record.get('history', []), list) or
+                not isinstance(record.get('cas_transaction_history', []), list)):
+            raise ValueError('CAS history must retain its typed index.')
         raw_checkpoint = primitive.checkpoint(backend, sim, lambda: _identity(backend, sim))
         policy = record.get('hair_policy', {})
         if not isinstance(policy, dict) or type(policy.get('enabled', False)) is not bool:
@@ -724,6 +718,8 @@ def begin(backend, sim, snapshot_reader=None):
         previous = record.pop('cas_transaction', None)
         if previous is not None:
             record.setdefault('cas_transaction_history', []).append(copy.deepcopy(previous))
+        from .bank_history import externalize
+        externalize(path, record)
         token = uuid.uuid4().hex
         guard = _record_guard(record)
         checkpoint_hash = primitive.digest(raw_checkpoint)

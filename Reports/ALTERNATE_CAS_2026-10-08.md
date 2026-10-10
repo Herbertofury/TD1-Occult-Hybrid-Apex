@@ -517,3 +517,116 @@ Open priorities remain broader Mermaid/Werewolf edits, Alien return proof,
 repeat Fairy on the new exact candidate, Vampire after the others, MCCC/manual
 paths, native save/reload,
 the actual custom room scene and every-occult default native selector.
+
+## October 9 V20/V21 CLI and history checkpoint
+
+V20 generation 57 passes 1,522 frozen Python checks and four native targets; all fourteen artifacts match and installation changes no saves/sidecars. The full V19 raw-observed failure was archived only after verified normal unsaved closure; complete original bank backup and immutable raw record remain, with every appearance owner and save unchanged. The new archive storage removes arbitrary total history/count limits.
+
+A fresh native baseline completed without prior-bank appearance replay (`56308df5b5e136bc28ac5ac2a35f06974a7693b67d036eeda6b0a50561939972`). Read-only all-seven/distinct-active comparison matches across all 12 readable fields before/after 1,539 TimeService ticks and final Pause, save/bank unchanged (`bddcfc5d4a56930347ac5b74df271fe56fde3bba4371ab4974e573446af3cc05`). This launch has native slot 0xffffffff, so it is not disk-slot or certified reload proof. The retained initial slot-2 probe correctly failed its slot assertion (`270ae221dac95d50e8563dd56a4ef45f0708ceabc1bf71502add4dc097bfe0ce`). Historical native genetics warnings remain visible; the current complete owner comparison is separate evidence.
+
+The Fairy Live switch passes after 1,639 actual ticks with all seven stored owners, active owner and membership unchanged (`bca8e89ec8c85165302ae800fdbf69e4ef951658ef80cbb096664667b089a0f4`). Full CAS entry confirms forced_full_edit true (`70807307dc8a0748a34f3dd86756ed68a5222884eaca55c96418843178e42779`). Native catalog paging returns 433 hairs; selecting returned Fairy hair 272383 acknowledges. Eyebrow catalog returns 61 entries, but the preset setter/readback fails: this face panel uses equipped-part selection and returns preset index -1. Its complete response retains the actual changed equipped identity 88163 and mutation_started true; that failed UUID is not repeated. Workbench failure and full JSONL evidence: `c2dd6135b2e9ce475a64867bf31df8a0d93dcd92b64b2249d9b3c3348fa7e21c`, raw SHA `2fcd6e01f9cb4bf136b0f080eb8833e0d318cccbd2351ca86b4ae04180e968ed`.
+
+Windows Application events 1000/1001 identify TS4 PID 44908, exception 0x80000003 at executable offset 0x1a42781, on October 9 at 16:19:09. No native crash report is present; exact filtered Windows evidence is retained privately. The process exited before primary navigation or Live return. No save, explicit acceptance, complete Fairy retention or causally proven crash fix is claimed. Closed captured-only archival preserves the entire checkpoint and bank lanes/saves unchanged (`.work/owner-qol-v26-gen57-fairy-crashed-captured-archive.json`).
+
+V21 is built to select eyebrow/whisker variants as parts and avoid their inapplicable preset getter. Four native color sliders, complete modifier readback, hair matching flags and a default all-panel workbench are added. It passes 1,532 frozen Python checks and four native targets; seventy Python 3.7 modules import; independent Rust verifies all 206 resources from exact bundle `c01faa1037246e28cfa61a5c76904d96738d3f89941670a9a6c0a7961143bf93`. Runtime retest is pending. Every prior failure remains failed; complete panel/form/edit/return/switch/reload coverage remains open.
+
+
+## October 9 V21 native failure and V23 corrected-build verification
+
+Generation 58 V21 installed fourteen matching artifacts with saves/sidecars unchanged (`1b0220a399d37c574e944979935851ff1ff9fc30556ba4a29bc4711f8f815986`). The account-specific CLI launch reached PID 45588. Before editing, all seven stored appearances and the distinct active Fairy matched the saved baseline across all twelve readable fields before/after 1,534 actual simulation ticks, final Pause and unchanged save/bank (`f35752876f884946a4e91d3732264f6268de3986b8b427fc7f3128b1b619d0ed`). Native slot 0xffffffff grants no normal disk-slot reload authority.
+
+A fresh native baseline completed without old-bank replay. Full Fairy CAS entry verified mode 7, existing original Sim/household, entered_from_play_area true and forced_full_edit true (`b95b1a420e0fde3b433ace213fdbecc633faab0bea6c85a15f47bfb5645ea0d2`). Exact returned Fairy hair 272383 was acknowledged. Eyebrow select requested 320731 but read back 320735: this remains a failed edit (`60da01a5e3b2a067ceb0aba4997dcc3c3c62990b436b6b386f92c98f0c9ea080`), not successful same-family matching. Full raw JSONL SHA is `f850478f0ffb4b88b0f73d951a2c40ffa2805d6333bde83509ec1904d3edb002`. No skin-detail/nose edit, semantic accept or Live return occurred in that case.
+
+A later read-only hair-matching query remained unresolved under original UUID 476821d0173f4aaa9c725a7d8b58fac9. Inspection found four typed controls missing from result dispatch. They are corrected in V22/V23; complete rejected native replies now remain available without clearing pending mutation ownership. Native face-part selection uses the installed face panel's string argument and a separate next-tick palette for exact eyebrow color. The captured native Match Hair checkbox was unchecked; hair-matching as the cause of the variant mismatch remains unproven.
+
+Windows Application 1000/1001 confirms V21 PID 45588 exited with exception 0xc0000005 at executable offset 0x112c645 on October 9 at 16:42:25 local. This differs from V20's breakpoint exception. Cause remains unproven. The normal quit attempt found the process already absent and is not relabeled a successful shutdown. Captured-only closed metadata archival retained the full checkpoint/original bank backup and preserved all seven appearance owners and every save unchanged (`.work/owner-qol-v27-gen58-fairy-crashed-captured-archive.json`).
+
+V23 adds native voice inventories/actor/pitch, walkstyles, detailed edit mode and native filter discovery/clear commands. Native item inventories are immediately copied into owned arrays/objects, preserving unknown fields before subsequent getter calls. Source and serialized-bytecode ownership/dispatch checks pass; this is not a causally proven crash fix. Exact bundle `d8ffd5f9e10e02586357d2972edaee148bd79f3777fc2d9b4d23e51e42750247` imports seventy Python 3.7 modules and passes independent Rust checks for all 206 resources (`3f5d4f57ad3a2861c68061eaf800139516b38ddf4a8f49d5df44ed6ce828b82b`). V22's full suite failed one obsolete pending-reply assertion; V23's first run failed five history subcases for the same changed diagnostic contract. Both failed receipts remain retained. Updated tests still require exact full rejected replies, blocked pending ownership and no repeat mutation. Full-suite rerun, installation and native alternate retest are pending.
+
+
+V23's immutable full-suite rerun passes all 1,541 Python checks and four native targets with source unchanged (`b7700d9d2b670586cd5acba500fbe5c64fe8c051f1646e89bcfc59b006fc0d68`). Generation 59 guarded installation verifies fourteen artifacts and every save/sidecar unchanged (`7a3b81a772be8787019eb4bf8ac73314d65eee35d126562c4798a10821db2a79`). The initial account-specific launch timed out before EA restarted; no autonomous permission acknowledgment or successful launch is assigned to that failed receipt. The later process PID 37944 loads the exact new script. The public Resume command did not recognize Home because the process had reached Live; that receipt remains unresolved and sent no Resume input. A separate current native Live snapshot verifies the original Sim/household/GUID. All seven stored forms and distinct active Fairy remain exact before/after 1,554 actual TimeService ticks and final Pause, with save/bank unchanged (`fa84fa58460140c4246b418f7262a08a251df63ab4fa1e71b470b7d04d5d4746`). Native autosave slot remains explicitly uncertified for normal disk reload. A fresh native baseline commits under UUID a566e4b9cb4540429de0ef6d70034c31, with no old-bank replay and no save (`0d9c8830ff22c752b2d380c1331565e0e465107884a7b1f3dbde8ff562bafd95`). Full-CAS editing retest is in progress.
+
+
+## Generation 59 V23: Fairy full-CAS multi-category retention passes
+
+Native full CAS confirms the original Sim/household, mode 7, existing family and forced_full_edit true. Four different exact native edits acknowledge: hair 272383, eyebrow variant 283802, head skin detail 36931 and nose preset 315104. Complete workbench manifest SHA: `da2c823fe232ae23da0fe7a11d3841a2475fa0a96ae97622352ae17e264341cb`. Complete raw response ranges/lengths/hashes are retained in its adjacent append-only JSONL. This proves four scoped edit paths, not all CAS categories.
+
+An expired-status form-select refusal occurred before any native navigation and remains failed (`8e86a89013d166764b3ded5e157915a403216bcf8d49ee0d4b5cbd3f08d17221`). A fresh owned status followed by one native navigation restores primary layer zero (`8bf478d2887de31a8a30079ffe91a1b956cc2439bf77cc96563130c42670776e`). The host CLI now obtains that fresh status itself while keeping the caller's exact household/layer/session capability; mismatches and rejected native replies block navigation. This host change does not require a new game script.
+
+One semantic CAS acceptance returns the original Sim to Live, observes actual TimeService progress and leaves final Pause. Raw observation finds only Human and Fairy changed. Human has incidental outfits/genetics propagation; Fairy has intended outfits/facial attributes/genetics changes. Explicit disposition keeps Fairy 64 and restores original Human 1. All six unrelated stored owners remain exact. Native all-owner commit passes (`6415b05d87cf13b8fd2a20844ad51e0bef6378d91b519694b65cadd6242921ee`). Seven-owner/distinct-active verification SHA: `73bcc5c739eb3e3c84f77cb40a0f3f72ed3fe835f735ea9f77f44be3b04178ba`.
+
+Switching Fairy -> Human verifies every stored owner, membership and active Human after 2,189 actual simulation ticks and final Pause (`361ab4355008eb70fb97acc620c15618d8761747d2237aa501c6e669d2bb1ba0`). Switching Human -> edited Fairy verifies the same after 1,601 ticks (`2780d49267660d5704b3038bbe252dba41d3a3d844b151e4a78342bdd1eb250c`). These are native unpaused retention tests, not inferred from paused snapshots.
+
+The public typed save command subsequently verifies the existing normal Slot02 target and completed stable file (`4c557af4544d88a85b54f314a6f1e3424e184aef081d2a74a2a6c4ddc44e0c8e`). New save SHA is `28f04c44c394cfa56fb14fa10d4b03e3fc993f2b1f6fee80a2034e97e81debee`, with verified matching native form-bank seal `491f6b51e6c17f856152f6efa4320886ef7f0ab0041271df5b359ca8dd9efe28`. The protected original is never written. This proves a controlled disposable save; cold reload is still required. Broader all-panel, other-form, MCCC/manual and custom-room/default-selector gates remain open.
+
+
+## October 9 — requested actual Alien → Vampire → Alien priority, V23 generation 59
+
+The same disposable Sim `285159751289798669`, household
+`285159751289798668`, save GUID `1841692672` was retained. The prior read-only
+Fairy CAS visit was found closed. Its never-observed entry checkpoint was
+archived through the public guarded CLI, with all bank lanes and save hashes
+unchanged (`.work/owner-qol-v30-gen59-closed-read-only-cas-archive.json`). This
+establishes neither normal closure nor crash causality.
+
+The account-bound CLI launch observed PID 19528. Resume verified the original
+household already in Live. Read-only comparison against the completed Fairy
+bank matched all seven stored appearances and the distinct active Fairy,
+before and after 1,550 actual simulation ticks. The normal Slot02 hash remains
+`28f04c44c394cfa56fb14fa10d4b03e3fc993f2b1f6fee80a2034e97e81debee`.
+Native autosave-slot observation is not authority that the normal disk slot was
+loaded. Comparison receipt SHA-256:
+`1331377b46ebdfddb69706ff53a86e6857f5e58fb637893bf1c593b806ba47b7`.
+
+A first switch was explicitly refused because a prior-runtime bank could not
+certify current ownership. That failed UUID and complete receipt are retained.
+The CLI then captured and committed a fresh, unchanged current-native bank,
+with no dispositions and no old-bank appearance replay. The requested direct
+sequence passed with all seven stored hashes, distinct active appearance and
+membership unchanged after unpausing and a verified final pause at every step:
+
+| Actual transition | Simulation ticks | Immutable proof SHA-256 |
+| --- | ---: | --- |
+| Fairy → Alien | 1,609 | `295c41e2a79543bcb895f93aae932ded43f68f9a8616aac5c64816c4c7527fd3` |
+| Alien → Vampire | 1,549 | `637fe99ce500b07bfebaa4216f649da681d63181793ac47cf0ea114f7005b1de` |
+| Vampire → Alien | 1,573 | `83e3cc9ac4a18f92bcbc8eff30e2e56f4656855cd83bbf5f9fae1cd3d3523570` |
+
+These are real Live occult appearances, not Human intermediates. New Alien
+and Vampire CAS edits in this sequence are still separate work. Normal unsaved
+CLI exit succeeded and verified every disposable save unchanged; receipt
+`31b86bf66190be4ab9997779504a07cdd7e1ee2de62a58c0c85650d18e5e995f`.
+
+## Full household editor and sealed filters — V24 build
+
+Native UI code explains the missing personality/selector: `CONFIG_SINGLE_SIM`
+sets `CANNOT_MODIFY_PERSONALITY` and `HIDE_SIM_SELECTOR`. Forced full-edit does
+not remove that configuration. Full CLI entry now delegates the installed
+native `modify_in_cas_with_household_id` route after retaining every original
+appearance. Single-Sim entry remains available for the default operation.
+Both existing-household mode 0 and single-Sim mode 7 retain the exact original
+Sim/household, non-new-family, entry-from-Live and primary-layer acceptance
+guards. No new Sim or temporary household is substituted.
+
+The prior 77-panel Fairy discovery had 76 native catalogs (60 nonempty and 16
+empty); featured looks were explicitly unavailable. Voice, walkstyle,
+hair-matching and detail queries acknowledged, but filter inspection returned
+an empty object and stayed blocked under UUID
+`035f998d5dff4ddd9c8b9e7a35e093a8`. `CASCatalogFilter` is a sealed data class:
+ordinary enumeration loses its public instance slots. The copier now reflects
+only this native data class, preserving every public variable and readable
+accessor, including future fields, without traversing arbitrary UI getters.
+The failed complete native response remains retained.
+
+V24 epoch: `2026-10-09-household-full-cas-sealed-filters-v24`.
+Build/compiled Python 3.7 imports and independent Rust resource verification
+passed. Full frozen verification, installation and native household-CAS proof
+are tracked separately; compile success does not prove the controls are visible.
+
+The installed unlock package is byte-for-byte equivalent to the merge of all
+seven authorized Crilender inputs, including the six addons and explicit Fairy
+overlap precedence: 39 resources, package SHA-256
+`b6e59c33b783530ba6d771fc98e69d21b719d95e48d9329f59ce5f2f4379c6e5`.
+Independent installed resource audit SHA-256:
+`aa53564a249bd31ab487ed26dc4dc557b755751c3018ed24ffd6859564111e0a`.
+This proves import and installation, not universal cross-occult CASP availability.
+Category unlocking and item compatibility are distinct remaining runtime checks.

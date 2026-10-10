@@ -227,7 +227,7 @@ class CasUiTests(unittest.TestCase):
 
     def test_invalid_panel_and_missing_outfit_number_refuse_before_delivery(self):
         for req in ({'operation':'panel','panel':'execute-anything'},
-                    {'operation':'select','panel':'skin_details','data_id':'12'},
+                    {'operation':'select','panel':'clothing_body_tattoos','data_id':'12'},
                     {'operation':'select','panel':'eyes','data_id':'12'},
                     {'operation':'outfit','category':0,'index':None},
                     {'operation':'select','panel':'hair','data_id':'1|undo'},

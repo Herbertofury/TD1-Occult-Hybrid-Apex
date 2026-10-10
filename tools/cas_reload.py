@@ -103,9 +103,9 @@ def read_json(path, maximum):
     path = reusable_profile.writable(path)
     before = path.stat()
     with path.open('rb') as stream:
-        raw = stream.read(maximum + 1)
+        raw = stream.read() if maximum is None else stream.read(maximum + 1)
     after = path.stat()
-    if (not 0 < len(raw) <= maximum or (before.st_mtime_ns, before.st_size) != (after.st_mtime_ns, after.st_size) or len(raw) != after.st_size):
+    if (not raw or maximum is not None and len(raw) > maximum or (before.st_mtime_ns, before.st_size) != (after.st_mtime_ns, after.st_size) or len(raw) != after.st_size):
         raise ValueError('Input JSON is oversized or changed during its read.')
     return json.loads(raw.decode('utf-8'), parse_constant=lambda _value: (_ for _ in ()).throw(ValueError('Non-finite JSON input.'))), hashlib.sha256(raw).hexdigest(), len(raw)
 
@@ -366,7 +366,7 @@ def observe(state, output, identity, request, save_exit_proof, expected_proof_sh
     if sha256(slot) != reference['save']['sha256'] or slot.stat().st_size != reference['save'].get('bytes'):
         raise ValueError('Reloaded Slot02 bytes differ from the pinned successful save/exit proof.')
     bank_path = reusable_profile.writable(profile / 'TD1_OccultHybridApexData/form_bank.json')
-    bank, bank_sha, bank_bytes = read_json(bank_path, 48 * 1024 * 1024)
+    bank, bank_sha, bank_bytes = read_json(bank_path, None)
     if not isinstance(bank, dict):
         raise ValueError('Saved form bank must be a typed JSON object.')
     key = save_guid + ':' + sim_id
@@ -376,7 +376,7 @@ def observe(state, output, identity, request, save_exit_proof, expected_proof_sh
             selected.get('switch_pending') is not None or type(selected.get('runtime_pid')) is not int or
             selected['runtime_pid'] != reference['prior_identity']['pid'] or
             not isinstance(selected.get('bank'), dict) or set(selected['bank']) != {str(form) for form in FORMS} or
-            not isinstance(selected.get('history'), list) or len(selected['history']) > 32 or
+            not isinstance(selected.get('history'), list) or
             (not selected['history'] and selected.get('cas_transaction') is None)):
         raise ValueError('Saved bank key/lanes/prior PID or transaction ownership is unavailable.')
     history = completed_bank_history(selected, reference, sim_id, household_id, save_guid)

@@ -87,8 +87,8 @@ def begin(backend, sim, hair_target=None):
     lane = str(backend._get_current_flags(sim))
     members = [int(kind) for kind in backend._all_occults() if backend._has_occult(sim.occult_tracker, kind)]
     record = record or {'bank': {}, 'history': []}
-    if len(record.get('history', [])) >= 32:
-        raise ValueError('CAS recovery history full; no original discarded.')
+    if not isinstance(record.get('history', []), list):
+        raise ValueError('CAS recovery history must retain its typed index.')
     record['pending'] = {'state': 'captured', 'lane': lane, 'originals': originals,
                          'runtime_pid': os.getpid(),
                          'membership': members, 'traits': backend._disk_trait_snapshot(sim),
@@ -153,8 +153,8 @@ def update(backend, sim, lane, fields, create=False):
     appearance.fingerprint(fields)
     if not current_runtime_authorized(backend, sim, record):
         history = record.setdefault('bank_rebase_history', [])
-        if not isinstance(history, list) or len(history) >= 32:
-            raise ValueError('Native bank rebase history full; prior lanes retained.')
+        if not isinstance(history, list):
+            raise ValueError('Native bank rebase history must retain its typed index.')
         native = capture(backend, sim)
         history.append({'state': 'current-native-rebase', 'prior_runtime_pid': record.get('runtime_pid'),
                         'runtime_pid': os.getpid(), 'prior_bank': copy.deepcopy(record['bank']),
@@ -329,7 +329,7 @@ def abandon_unsaved(backend, sim, argument):
     if (not isinstance(pending, dict) or pending_hash != argument['expected_pending_sha256'] or
             pending.get('state') not in ('captured', 'returned', 'reconciling', 'recovery-required') or
             pending.get('runtime_pid') is not None and (type(pending['runtime_pid']) is not int or pending['runtime_pid'] != argument['prior_pid']) or
-            record.get('switch_pending') is not None or not isinstance(record.get('failed_history', []), list) or len(record.get('failed_history', [])) >= 32):
+            record.get('switch_pending') is not None or not isinstance(record.get('failed_history', []), list)):
         raise ValueError('Exact abandoned CAS pending ownership is unavailable; no metadata changed.')
     if not schema2:
         original = pending.get('native_original')
@@ -629,8 +629,8 @@ def switch(backend, sim, target, operation):
     if record and record.get('bank') and not current_runtime_authorized(backend, sim, record):
         raise ValueError('Prior-runtime bank is uncertified; no old appearance replay authorized.')
     prior_history = record.get('switch_history', []) if record else []
-    if not isinstance(prior_history, list) or len(prior_history) >= 32:
-        raise ValueError('Switch recovery history full; no original is discarded.')
+    if not isinstance(prior_history, list):
+        raise ValueError('Switch recovery history must retain its typed index.')
 
     source, target = _switch_lane(backend._get_current_flags(sim)), _switch_lane(target)
     tracker = sim.occult_tracker
@@ -658,6 +658,8 @@ def switch(backend, sim, target, operation):
 
     record = record or {'bank': {}, 'history': []}
     data['records'][key] = record
+    from .bank_history import externalize
+    externalize(path, record)
     record['bank'][source] = copy.deepcopy(active_original)
     pending = {'schema': 2, 'state': 'captured', 'request_id': uuid.uuid4().hex,
                'source': source, 'target': target, 'runtime_pid': os.getpid(),
@@ -770,8 +772,8 @@ def switch(backend, sim, target, operation):
         record['runtime_pid'] = os.getpid()
         # Retain full before/after evidence even after clearing the write block.
         history = record.setdefault('switch_history', [])
-        if not isinstance(history, list) or len(history) >= 32:
-            raise ValueError('Switch recovery history full; complete WAL retained.')
+        if not isinstance(history, list):
+            raise ValueError('Switch recovery history must retain its typed index.')
         history.append(copy.deepcopy(pending))
         record['switch_pending'] = None
         save(path, data)

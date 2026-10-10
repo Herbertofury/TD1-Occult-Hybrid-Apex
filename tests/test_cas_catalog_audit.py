@@ -76,7 +76,7 @@ class CasCatalogAuditTests(unittest.TestCase):
         result, proof = self.run_audit()
         self.assertTrue(result['ok'], result['message'])
         self.assertEqual(result['outcome'], 'completed-with-partial-coverage')
-        self.assertEqual(result['catalog_count'], 72)
+        self.assertEqual(result['catalog_count'], len(cas_ui.PANELS))
         self.assertTrue(result['complete_catalog_inventory'])
         self.assertFalse(result['full_72_panel_transition_coverage'])
         self.assertEqual(result['verified_panels'], ['clothing_accessories_earrings', 'clothing_head_skin_details'])
@@ -86,8 +86,8 @@ class CasCatalogAuditTests(unittest.TestCase):
         for row in proof['observations']:
             self.assertTrue(row['validated'])
             raw = row['native_client']
-            self.assertEqual(len(raw['catalogs']), 72)
-            self.assertEqual(len(row['catalog_queries']), 72)
+            self.assertEqual(len(raw['catalogs']), len(cas_ui.PANELS))
+            self.assertEqual(len(row['catalog_queries']), len(cas_ui.PANELS))
             self.assertEqual(raw['sim']['arbitraryFutureSimField']['exactId'], HIGH_ID)
             self.assertEqual(raw['futureSnapshotField']['identity'], HIGH_ID)
             self.assertTrue(all(catalog['futureCatalogRecord']['id'] == HIGH_ID for catalog in raw['catalogs']))
@@ -261,14 +261,14 @@ class CasCatalogAuditTests(unittest.TestCase):
         self.visible = False
         result, proof = self.run_audit()
         self.assertFalse(result['ok'])
-        self.assertEqual(result['catalog_count'], 72)
+        self.assertEqual(result['catalog_count'], len(cas_ui.PANELS))
         self.assertTrue(result['complete_catalog_inventory'])
         self.assertFalse(result['initial_panel_restored'])
         self.assertFalse(result['all_requested_supported_panels_verified'])
         self.assertEqual(result['verified_panels'], [])
         self.assertFalse(proof['panel_navigation_submitted'])
         self.assertFalse(proof['initial_panel']['visible'])
-        self.assertEqual(len(proof['observations'][0]['native_client']['catalogs']), 72)
+        self.assertEqual(len(proof['observations'][0]['native_client']['catalogs']), len(cas_ui.PANELS))
         self.assertEqual([row['operation'] for row in self.game.submitted], ['status'])
         self.game.output.unlink(); self.game.submitted.clear(); self.game.pending.clear()
         for options in ({'seconds': 121}, {'step_budget': 25}, {'panels': ['hair', 'clothing_hair']}, {'panels': ['unknown']}):
@@ -281,7 +281,7 @@ class CasCatalogAuditTests(unittest.TestCase):
         self.menu = -987654321
         result, proof = self.run_audit()
         self.assertFalse(result['ok'])
-        self.assertEqual(result['catalog_count'], 72)
+        self.assertEqual(result['catalog_count'], len(cas_ui.PANELS))
         self.assertTrue(result['complete_catalog_inventory'])
         self.assertIsNone(proof['initial_panel']['panel'])
         self.assertEqual(proof['initial_panel']['menu_state'], self.menu)

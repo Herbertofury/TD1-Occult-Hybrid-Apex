@@ -4,7 +4,76 @@ This is a concrete development build for owner testing, not a completed release
 or a claim of current-game parity. Target game: PC 1.128.90.1030. Full accepted
 scope and remaining work stay in `docs/CODEX_MASTER_EXECUTION.md`.
 
-## Current generation 56 V19 - native Alien/disguise navigation
+## Current build V24 — existing-household full CAS
+
+Epoch `2026-10-09-household-full-cas-sealed-filters-v24` retains the complete
+original Sim/household checkpoint and calls the native household CAS route.
+Existing-family mode 0 is accepted alongside single-Sim mode 7; exact identity,
+entry from Live and primary-layer accept guards remain. Native retesting must
+confirm the returned mode and visible controls. This is not a finished custom
+all-occult room or same-visit every-form editor.
+
+The complete frozen suite passes **1,546 Python tests and four native targets**,
+with source unchanged: `a95c13dadf2402a498cf3ddf650b4537c504112d3c2a83ad15ff6d28fb2d029b`.
+Python 3.7 imports and all 206 independent Rust resource checks also pass.
+Generation 60 installation preserves every disposable save and sidecar:
+`68fd0c75fd4e7e037d07c99f8ad740a68f50ed4426c30788b389576ecff8a72e`.
+
+| V24 artifact | SHA-256 |
+| --- | --- |
+| Bundle | `f2b2f1047907b4343b058b843bfe57e874f662b5c95f693d89109974a748ef7d` |
+| Script | `27ee078fcf621e11e7eebcf850e175aa3b5bde05cda59e1c2e0c6cd9a92862aa` |
+| Native DLL | `9712945c05ab848d272534e736bd5419539b2536cc82f97fb151e290c4e41e89` |
+| CAS bridge | `39b02809e6aa17e204f28f7ee3059662606d3af87f0229fec89b672780d53089` |
+
+The installed Crilender baseline/addons are all present and exact (39 merged
+resources). This proves inclusion, not every cross-occult item being selectable.
+The real requested Alien → Vampire → Alien Live sequence is retained in the
+[alternate ledger](../Reports/ALTERNATE_CAS_2026-10-08.md). Normal unsaved CLI
+exit passed. The saved Fairy edits match reopened native owners; native autosave
+slot observations are not certified normal-slot reload evidence.
+
+## Historical V23 — native CAS control coverage
+
+Epoch `2026-10-09-native-cas-detached-inventory-v23` contains 70
+compiled Python 3.7 modules, seven packages and 206 resources checked by the
+independent Rust reader. It adds a default 77-panel CLI workbench, 27 typed
+native controls and complete response archives. No arbitrary total history
+or edit-count cutoff remains in appearance storage. See the
+[native CAS CLI guide](CAS_CLI_CONTROLS.md) for exact commands and remaining
+coverage. The frozen rerun passes 1,541 Python checks and four native targets
+with source unchanged (receipt `b7700d9d2b670586cd5acba500fbe5c64fe8c051f1646e89bcfc59b006fc0d68`).
+Generation 59 installs fourteen matching artifacts with every save/sidecar
+unchanged (receipt `7a3b81a772be8787019eb4bf8ac73314d65eee35d126562c4798a10821db2a79`).
+Native full-CAS retesting is in progress.
+
+| V23 artifact | SHA-256 |
+|---|---|
+| Candidate bundle | `d8ffd5f9e10e02586357d2972edaee148bd79f3777fc2d9b4d23e51e42750247` |
+| Script | `5f1067288f375f68e73b22efe7e4969ab844259d070713921f0265798dff9469` |
+| Native DLL | `9712945c05ab848d272534e736bd5419539b2536cc82f97fb151e290c4e41e89` |
+| CAS bridge | `c6dc473357b5eb2c1316f3f8ff3e42a527743cef891db2ecadffabf028c6147e` |
+
+V21 generation 58 passed 1,532 Python/four native checks. All seven appearances
+and distinct active Fairy remained exact through 1,534 simulation ticks before
+CAS. The native full-CAS hair edit acknowledged; eyebrow selection returned a
+different color variant. The game later crashed before Live return, and a new
+query revealed missing result dispatch. All failures, original captures and
+raw replies are retained. Saves and bank appearances are unchanged by the
+closed metadata archive. V23 uses the native face string setter and a separate
+eyebrow palette phase, checks every typed result route, and retains rejected
+native acknowledgments. It immediately copies every native inventory result
+before the next getter, with source and serialized bytecode checks. V22 was not
+installed; its full suite exposed one outdated assertion, retained as a failure
+and corrected without relaxing the blocked-mutation rule. These corrections
+are not a causally proven crash fix. Generation 59 native full-CAS Fairy
+hair, eyebrow, head skin-detail and nose-preset edits now pass original-Sim
+Live return, explicit Fairy-only reconciliation and unpaused Human/Fairy
+away-back retention. All six other forms remain unchanged. A controlled
+normal Slot02 save and matching seal are verified; cold reload is still open.
+Full per-panel/per-form and MCCC/manual-entry testing remains required. The protected original profile remains read/copy only.
+
+## Historical generation 56 V19 - native Alien/disguise navigation
 
 Epoch `2026-10-09-native-alien-disguise-navigation-v19` passes **1,503 frozen Python tests
 and four native targets**. All 68 compiled Python 3.7 modules import; seven

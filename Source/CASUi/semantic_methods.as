@@ -378,8 +378,8 @@
             var mode:* = CommunicationManager.CallGameService("CasGetCASEditMode");
             var family:* = CommunicationManager.CallGameService("CasIsNewFamily");
             var area:Object=CommunicationManager.CallGameService("CasIsEnteredFromPlayArea");
-            if(!(mode is int) || int(mode)!=7 || family!==false || area==null || area.result!==true)
-               throw new Error("CAS form selection requires mode7, existing family and explicit Live entry");
+            if(!(mode is int) || (int(mode)!=0 && int(mode)!=7) || family!==false || area==null || area.result!==true)
+               throw new Error("CAS form selection requires mode0 or mode7, existing family and explicit Live entry");
             area=null;
             selector=CommunicationManager.CallUIService("ApexReadOwnerPairFeed",null);
             if(selector==null || !(selector.protocol is int) || int(selector.protocol)!=1 ||
@@ -547,11 +547,19 @@
          // Null remains unsupported/unknown; it must never masquerade as empty.
          var panels:Object=__APEX_PANEL_STATES__;
          for(var name:String in panels) {
-            var items:* = CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:panels[name]});
+            // Detach each returned record before another native getter. No
+            // borrowed GFx catalog/preset objects survive subsequent calls.
+            var items:* = ApexClone(CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:panels[name]}));
             var preset:* = null; var presetQuery:String="returned-null";
             try {
-               preset=CommunicationManager.CallGameService("GetSelectedPresetFromMenuState",panels[name],true);
+               if(int(panels[name])==MenuState.PROFILE_HAIR_EYEBROWS || int(panels[name])==MenuState.PROFILE_PET_WHISKERS) {
+                  // The native FaceModPanel explicitly uses equipped-part
+                  // selection for these states, never a preset index.
+                  presetQuery="not-applicable";
+               } else {
+               preset=ApexClone(CommunicationManager.CallGameService("GetSelectedPresetFromMenuState",panels[name],true));
                if(preset!=null) presetQuery="returned-value";
+               }
             } catch(presetError:Error) { presetQuery="failed"; }
             catalogs.push({panel:name,menu_state:panels[name],supported:items is Array,items:items is Array ? items : null,
                preset:preset,preset_query:presetQuery});
@@ -577,7 +585,7 @@
                   raw_json:null,error:"",name_error:""};
                var product:Object=null; var productTitle:LocKey=null;
                try {
-                  product=CommunicationManager.CallGameService("GetCatalogItem",catalogId) as Object;
+                  product=ApexClone(CommunicationManager.CallGameService("GetCatalogItem",catalogId)) as Object;
                   if(product!=null) {
                      annotation.query="returned-value";
                      // Serialize before localization and release all returned
@@ -613,7 +621,7 @@
          for(var outfitCategory:int=0;outfitCategory<=13;outfitCategory++) {
             var plannedData:* = null; var plannedQuery:String="returned-null"; var plannedError:String="";
             try {
-               plannedData=CommunicationManager.CallGameService("CasGetPlannedOutfits",outfitCategory);
+               plannedData=ApexClone(CommunicationManager.CallGameService("CasGetPlannedOutfits",outfitCategory));
                if(plannedData!=null) plannedQuery="returned-value";
             } catch(outfitError:Error) { plannedQuery="failed"; plannedError=outfitError.message; }
             plannedOutfits.push({category:outfitCategory,supported:plannedData!=null,data:plannedData,
@@ -621,8 +629,8 @@
          }
          var hairSwatches:* = null; var hairSelected:* = null; var hairQuery:String="returned-null";
          try {
-            hairSwatches=CommunicationManager.CallGameService("CasGetSwatchColorList",2);
-            hairSelected=CommunicationManager.CallGameService("CasGetSwatchColorSelected",2);
+            hairSwatches=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorList",2));
+            hairSelected=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",2));
             if(hairSwatches is Array) hairQuery="returned-value";
          } catch(swatchError:Error) { hairQuery="failed"; }
          // These are the inspected native navigation/configuration getters.
@@ -635,22 +643,422 @@
             var contextValue:* = null; var contextQuery:String="returned-null"; var contextError:String="";
             try {
                if(contextName=="forced_full_edit")
-                  contextValue=CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled",null,true);
-               else contextValue=CommunicationManager.CallGameService(contextGetters[contextName]);
+                  contextValue=ApexClone(CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled",null,true));
+               else contextValue=ApexClone(CommunicationManager.CallGameService(contextGetters[contextName]));
                if(contextValue!=null) contextQuery="returned-value";
             } catch(contextFailure:Error) { contextQuery="failed"; contextError=contextFailure.message; }
             nativeContext[contextName]={value:contextValue,query:contextQuery,error:contextError};
          }
-         return {protocol:1,scope:"native-cas-client",sim:CommunicationManager.CallGameService("CASGetSimInfo",null,true),
+         return {protocol:1,scope:"native-cas-client",sim:ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true)),
             menu_state:this.mCurrState,panel_visible:this.mCurrentPanel!=null && this.mCurrentPanel.visible,
-            outfit:CommunicationManager.CallGameService("CasGetCurrSimOutfitSlot"),
-            selected:CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:this.mCurrState}),
+            outfit:ApexClone(CommunicationManager.CallGameService("CasGetCurrSimOutfitSlot")),
+            selected:ApexClone(CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:this.mCurrState})),
             hair_color:hairSelected,hair_selected_swatch_id:hairSelected,hair_swatches:hairSwatches,
             hair_swatch_query:hairQuery,planned_outfits:plannedOutfits,planned_outfits_scope:"slot-metadata-only",
             native_context:nativeContext,catalogs:catalogs,catalog_metadata:catalogMetadata,
             owner_pair_observation:ApexOwnerObservation(),
             catalog_metadata_complete:catalogMetadataComplete,catalog_metadata_scope:"native-catalog-identities-only",
             catalog_metadata_query:includeCatalogMetadata ? "explicit-lookup" : "disabled-pending-native-contract-proof"};
+      }
+
+      private function ApexClone(value:*) : *
+      {
+         if(value==null || value is String || value is Number || value is Boolean) return value;
+         if(value is Array) {
+            var result:Array=[];
+            for each(var item:* in value) result.push(ApexClone(item));
+            return result;
+         }
+         var object:Object={};
+         for(var name:String in value) object[name]=ApexClone(value[name]);
+         // Sealed native filter records have non-enumerable public slots.
+         // Reflect this data class only; never walk arbitrary widget getters.
+         // Include public instance fields added by later patches.
+         if(value is CASCatalogFilter) {
+            var definition:XML=describeType(value);
+            for each(var slot:XML in definition.variable) {
+               name=String(slot.@name); object[name]=ApexClone(value[name]);
+            }
+            for each(var accessor:XML in definition.accessor) {
+               if(String(accessor.@access)!="writeonly") {
+                  name=String(accessor.@name); object[name]=ApexClone(value[name]);
+               }
+            }
+         }
+         return object;
+      }
+
+      private function ApexCatalog(state:int) : Array
+      {
+         if(this.mCurrState!=state || this.mCurrentPanel==null || !this.mCurrentPanel.visible)
+            throw new Error("Native catalog requires the exact visible requested panel");
+         var filter:Object=this.mCurrentPanel.mcFilterPane!=null ? this.mCurrentPanel.mcFilterPane.GetCatalogFilter() :
+            {tags:[],excludeTags:[],filterByGameplayUnlocks:false,filterLocked:false,
+             filterPurchasedProducts:false,filterModdedContent:false,packIds:[],body_type:0};
+         if(this.mCurrentPanel is FaceModPanel)
+            filter={tags:[],excludeTags:[],filterByGameplayUnlocks:false,filterLocked:false,
+               filterPurchasedProducts:false,filterModdedContent:false,packIds:[],body_type:0};
+         if(this.mCurrentPanel is BodyModPanel) filter.tags=[];
+         var bodyType:int=0;
+         if(MenuState.SupportsBodyTypeFilter(state) && this.mCurrentPanel is ClothingPanel)
+            bodyType=ClothingPanel(this.mCurrentPanel).mcBodyTypePanel.GetSelected();
+         if(MenuState.SupportsLayerList(state)) {
+            if(!(this.mCurrentPanel is ClothingPanel)) throw new Error("Native layered catalog panel is unavailable");
+            // Native base discovery has a body-type filter; selected-layer
+            // filtering belongs to the separate selected-item getter.
+         }
+         var rows:Array=CommunicationManager.CallGameService("GetCatalogBaseItems",{state:state,
+            tags:ApexClone(filter.tags),excludeTags:ApexClone(filter.excludeTags),
+            unlocks:Boolean(filter.filterByGameplayUnlocks),locked:Boolean(filter.filterLocked),
+            mtx:Boolean(filter.filterPurchasedProducts),mods:Boolean(filter.filterModdedContent),
+            packIds:ApexClone(filter.packIds),genusOverride:null,bodyType:bodyType}) as Array;
+         filter=null;
+         if(rows==null) throw new Error("Native catalog returned null; unsupported cannot count as empty");
+         return rows;
+      }
+
+      private function ApexControlExecute(operation:String,state:int,category:int,index:int,value:String,reply:Object,context:Object) : void
+      {
+         var data:Object=null; var rows:Array=null; var row:Object=null; var n:int=0;
+         var parts:Array=value.split(","); var layerId:int=0; var target:int=0;
+         if(operation=="voices" || operation=="voice-actor" || operation=="voice-pitch") {
+            data=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
+            if(!data || !(data.voiceActor is uint) || !(data.voicePitch is Number))
+               throw new Error("Native current voice is unavailable");
+            rows=ApexClone(CommunicationManager.CallGameService("GetVoicesDataForAgeSpecies",
+               {species:data.speciesType,age:data.age},true)) as Array;
+            if(rows==null || rows.length==0 || int(data.voiceActor)<1 || int(data.voiceActor)>rows.length)
+               throw new Error("Eligible native voice inventory is unavailable");
+            context.control={operation:operation,voices:rows};
+            if(operation=="voices") { data=null; rows=null; return; }
+            if(data.occultLayer!==0 || CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled",null,true)!==true)
+               throw new Error("Voice edits require the primary original Sim in full edit mode");
+            if(operation=="voice-actor") {
+               if(index<0 || index>=rows.length) throw new Error("Voice index is outside the eligible native inventory");
+               data=null; rows=null; reply.mutation_started=true;
+               CommunicationManager.CallGameService("SetSimVoiceActor",index); return;
+            }
+            var pitch:Number=Number(value); row=rows[int(data.voiceActor)-1];
+            if(!row || !isFinite(pitch) || !("minPitch" in row) || !("maxPitch" in row) ||
+               !isFinite(Number(row.minPitch)) || !isFinite(Number(row.maxPitch)) ||
+               pitch<Number(row.minPitch) || pitch>Number(row.maxPitch))
+               throw new Error("Voice pitch is outside the exact selected voice's native bounds");
+            data=null; rows=null; row=null; reply.mutation_started=true;
+            CommunicationManager.CallGameService("SetSimVoicePitch",{value:pitch,slider_mouse_up:true}); return;
+         }
+         if(operation=="walkstyles" || operation=="walkstyle") {
+            data=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
+            if(!data) throw new Error("Native walkstyle Sim context is unavailable");
+            rows=ApexClone(CommunicationManager.CallGameService("CasGetWalkCycleTraits",{simId:String(data.simId)},true)) as Array;
+            if(rows==null) throw new Error("Native walkstyle inventory is unavailable");
+            context.control={operation:operation,walkstyles:rows};
+            if(operation=="walkstyles") { data=null; rows=null; return; }
+            if(data.occultLayer!==0 || data.speciesType!=1 || data.isGhost===true || data.isRobot===true ||
+               CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled",null,true)!==true)
+               throw new Error("Walkstyle edits require an eligible primary human Sim in full edit mode");
+            var walkMatches:int=0;
+            for each(row in rows) if(row && String(row.id)==value) walkMatches++;
+            if(walkMatches!=1) throw new Error("Requested walkstyle lacks one exact eligible native trait");
+            context.walkstyleBefore=ApexClone(rows); data=null; rows=null; row=null; reply.mutation_started=true;
+            CommunicationManager.CallGameService("CasSetWalkCycleTrait",{traitID:value}); return;
+         }
+         if(operation=="detail-status" || operation=="detail-mode") {
+            if(!this.mcDetailedEditModePanel) throw new Error("Native detailed edit control is unavailable");
+            context.control={operation:operation,active:this.mcDetailedEditModePanel.IsActive()};
+            if(operation=="detail-status") return;
+            if(value!="0" && value!="1") throw new Error("Detailed edit mode requires an explicit desired state");
+            if(Boolean(context.control.active)!=(value=="1")) {
+               reply.mutation_started=true; this.mcDetailedEditModePanel.ToggleAdvancedMode();
+            }
+            return;
+         }
+         if(operation=="filters" || operation=="filter-clear") {
+            HandleContextMenuSetMenuState({menuState:state,skipAnim:true,setZoomState:true});
+            if(!this.mCurrentPanel || !this.mCurrentPanel.mcFilterPane)
+               throw new Error("Requested native panel has no catalog filter control");
+            if(operation=="filter-clear") this.mCurrentPanel.mcFilterPane.ClearSelections();
+            return;
+         }
+         if(operation=="hair-matching" || operation=="hair-match") {
+            var flags:* = CommunicationManager.CallGameService("CasGetHairMatchingFlags",null,true);
+            if(!(flags is int) || int(flags)<0 || int(flags)>63) throw new Error("Native hair matching flags are unavailable");
+            context.control={operation:operation,flags:int(flags)}; flags=null;
+            if(operation=="hair-matching") return;
+            if(!/^[0-9]+$/.test(value) || int(value)<0 || int(value)>63) throw new Error("Invalid native hair matching mask");
+            data=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
+            if(!data || data.speciesType!=1) throw new Error("Human hair matching flags require the human species context");
+            data=null; reply.mutation_started=true;
+            CommunicationManager.CallGameService("CasSetHairMatchingFlags",int(value),true); return;
+         }
+         if(operation=="modifiers" || operation=="color-sliders") {
+            HandleContextMenuSetMenuState({menuState:state,skipAnim:true,setZoomState:true});
+            if(index<-1 || category<0 || category>=127 || (index==-1)!=(category==0)) throw new Error("Invalid exact modifier layer");
+            if(MenuState.SupportsLayerList(state)!=(index>=0)) throw new Error("Layered modifiers require an explicit native layer");
+            rows=CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:state}) as Array;
+            matches=0;
+            if(rows) for each(row in rows) if(row && String(row.dataID)==String(parts[0])) { data=ApexClone(row); matches++; }
+            rows=null; row=null;
+            if(matches!=1) throw new Error("Native modifiers lack one exact equipped identity");
+            if(index>=0) {
+               var modifierProduct:Object=CommunicationManager.CallGameService("GetCatalogItem",String(parts[0]));
+               if(!modifierProduct || !("body_type" in modifierProduct)) throw new Error("Layered modifier body type is unavailable");
+               var modifierBody:int=int(modifierProduct.body_type); modifierProduct=null;
+               var modifierLayers:Array=CASAPI.GetBodyTypeLayers(modifierBody);
+               if(modifierLayers==null || index>=modifierLayers.length || modifierLayers[index].layerId!=category ||
+                  String(modifierLayers[index].partKey)!=String(parts[0])) throw new Error("Equipped modifier layer identity differs");
+               modifierLayers=null;
+            }
+            context.control={operation:operation,selected:ApexClone(data)};
+            if(operation=="modifiers") { data=null; return; }
+            if(parts.length!=5) throw new Error("Color sliders require all four values");
+            var names:Array=["hue","opacity","saturation","value"];
+            var colorPayload:Object={data_id:String(parts[0]),slider_mouse_up:true,layer_index:index,layer_id:category,menu_state:state};
+            for(n=0;n<names.length;n++) {
+               var field:String=String(names[n]); var number:Number=Number(parts[n+1]);
+               if(!isFinite(number) || !(field+"_range_min" in data) || !(field+"_range_max" in data) ||
+                  !isFinite(Number(data[field+"_range_min"])) || !isFinite(Number(data[field+"_range_max"])) ||
+                  number<Number(data[field+"_range_min"]) || number>Number(data[field+"_range_max"]))
+                  throw new Error("Color slider is outside the exact native part's returned range");
+               colorPayload[field+"_range_modifier"]=number;
+            }
+            context.beforeModifiers=ApexClone(data); data=null; reply.mutation_started=true;
+            CommunicationManager.CallGameService("SetCatalogSlotSelected",colorPayload); return;
+         }
+         if(operation=="swatches" || operation=="swatch") {
+            if(state<0 || state>16 || state==5) throw new Error("Native palette requires its supported typed color context");
+            rows=CommunicationManager.CallGameService("CasGetSwatchColorList",state) as Array;
+            if(rows==null) throw new Error("Native palette is unavailable");
+            if(operation=="swatches") {
+               if(category<0 || index<1 || index>32) throw new Error("Invalid native palette page");
+               context.control={operation:operation,offset:category,limit:index,total:rows.length,
+                  items:ApexClone(rows.slice(category,category+index)),
+                  selected:ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",state))};
+               rows=null; return;
+            }
+            var matches:int=0;
+            for each(row in rows) if(row && String(row.dataID)==value) { data=row; matches++; }
+            if(matches!=1 || !("color" in data)) throw new Error("Native palette lacks one exact requested swatch");
+            var modifier:Number=("value_range_modifier" in data ? Number(data.value_range_modifier) : 0);
+            if(!isFinite(modifier)) throw new Error("Native palette modifier is not finite");
+            var fur:Array=null;
+            if(state==6) {
+               fur=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",state)) as Array;
+               if(fur==null || index<0 || index>=fur.length) throw new Error("Native fur palette slot does not exist");
+               fur[index]=value;
+            } else if(index!=0) throw new Error("Only fur palettes have indexed colors");
+            var swatchPayload:Object={dataId:value,swatchType:state,colorId:ApexClone(data.color),
+               furColors:fur,value_range_modifier:modifier};
+            data=null; rows=null; row=null;
+            reply.mutation_started=true;
+            CommunicationManager.CallGameService("CasSetSwatchColorSelected",swatchPayload);
+            return;
+         }
+         if(operation=="physique") {
+            if(state!=0 && state!=1) throw new Error("Unknown native physique slider");
+            var newValue:Number=Number(value);
+            data=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
+            if(!data || !(data.physiqueValues is Array) || data.physiqueValues.length<=state ||
+               !isFinite(newValue) || newValue<0 || newValue>1 || !isFinite(Number(data.physiqueValues[state])))
+               throw new Error("Native physique values are unavailable or outside the slider range");
+            var physiquePayload:Object={type:state,value:newValue,slider_mouse_up:true,slider_start_value:Number(data.physiqueValues[state])};
+            data=null; reply.mutation_started=true;
+            CommunicationManager.CallGameService("SetSimPhysiqueValue",physiquePayload);
+            return;
+         }
+         if(operation=="body-types" || operation=="body-type") {
+            HandleContextMenuSetMenuState({menuState:state,skipAnim:true,setZoomState:true});
+            context.control={operation:operation,body_types:ApexBodyTypes(operation=="body-type" ? category : 0),
+               body_type:ClothingPanel(this.mCurrentPanel).mcBodyTypePanel.GetSelected()};
+            return;
+         }
+         if(operation!="catalog" && operation!="variants" && operation!="preset" && operation!="select-layer" &&
+            operation!="remove" && operation!="layers" && operation!="layer-add" && operation!="layer-remove" && operation!="layer-move")
+            throw new Error("Unsupported typed native CAS control");
+         HandleContextMenuSetMenuState({menuState:state,skipAnim:true,setZoomState:true});
+         rows=ApexCatalog(state);
+         if(operation=="catalog") {
+            if(category<0 || index<1 || index>32) throw new Error("Invalid native catalog page");
+            context.control={operation:operation,offset:category,limit:index,total:rows.length,
+               items:ApexClone(rows.slice(category,category+index))};
+            rows=null; return;
+         }
+         if(operation=="preset") {
+            if(state==MenuState.PROFILE_HAIR_EYEBROWS || state==MenuState.PROFILE_PET_WHISKERS)
+               throw new Error("This native face panel uses equipped parts; use exact part selection");
+            if(!(this.mCurrentPanel is FaceModPanel) && !(this.mCurrentPanel is BodyModPanel) && !(this.mCurrentPanel is GenericCatalogPanel))
+               throw new Error("Requested panel does not use the native preset contract");
+            matches=0;
+            for(n=0;n<rows.length;n++) if(rows[n] && String(rows[n].data_id)==value) { matches++; context.preset_index=n; }
+            if(matches!=1) throw new Error("Native filtered preset catalog lacks one exact requested item");
+            context.preset_id=value; rows=null;
+            reply.mutation_started=true;
+            CommunicationManager.CallGameService("SetCatalogSlotSelected",value);
+            return;
+         }
+         if(operation=="layers" || operation=="layer-add" || operation=="layer-remove" || operation=="layer-move" || operation=="select-layer") {
+            if(!(this.mCurrentPanel is ClothingPanel) || !MenuState.SupportsLayerList(state))
+               throw new Error("Requested panel has no native tattoo layer list");
+            var bodyPresent:Boolean=false;
+            for each(row in rows) if(row && int(row.body_type)==category) bodyPresent=true;
+            if(!bodyPresent) throw new Error("Requested body type is absent from the native tattoo catalog");
+            rows=null; row=null;
+            var nativeLayers:Array=CASAPI.GetBodyTypeLayers(category);
+            if(nativeLayers==null) throw new Error("Native body-type layer array is unavailable");
+            context.before=ApexClone(nativeLayers); nativeLayers=null;
+            if(operation=="layers") return;
+            if(operation=="layer-add") {
+               var used:Object={}; var ordinaryCount:int=0;
+               for each(row in context.before) {
+                  used[String(row.layerId)]=true;
+                  if(int(row.layerId)!=127) ordinaryCount++;
+               }
+               // Five is the installed native layer component's capacity.
+               if(ordinaryCount>=5) throw new Error("Native tattoo layer capacity is reached");
+               layerId=1;
+               while(used[String(layerId)] && layerId<127) layerId++;
+               if(layerId>=127) throw new Error("No native tattoo layer identity is available");
+               row=null; reply.mutation_started=true;
+               CASAPI.AddEmptyLayer(category,context.before.length,layerId);
+               return;
+            }
+            layerId=int(operation=="select-layer" ? parts[1] : parts[0]);
+            if(index<0 || index>=context.before.length || int(context.before[index].layerId)!=layerId || layerId==127)
+               throw new Error("Native tattoo layer identity changed or names the protected medical layer");
+            if(operation=="layer-remove") {
+               reply.mutation_started=true; CASAPI.RemoveBodyTypeLayer(category,index); return;
+            }
+            if(operation=="layer-move") {
+               target=int(parts[1]);
+               if(target<0 || target>=context.before.length || int(context.before[target].layerId)==127)
+                  throw new Error("Native tattoo target layer does not exist or is medical");
+               reply.mutation_started=true; CASAPI.MoveBodyTypeLayers(category,index,target); return;
+            }
+            value=String(parts[0]);
+         }
+         data=CommunicationManager.CallGameService("GetCatalogItem",value);
+         if(data==null || !("body_type" in data) || int(data.body_type)<=0)
+            throw new Error("Native product has no exact body identity");
+         if(operation=="variants") {
+            context.control={operation:operation,data_id:value,
+               family:ApexClone(CommunicationManager.CallGameService("GetCatalogColorFamilies",{base:String(data.data_id),simId:"0",targetSimId:"0"}))};
+            data=null; return;
+         }
+         if(operation=="remove") {
+            if(MenuState.SupportsLayerList(state)) throw new Error("Use the typed layer removal contract for tattoos");
+            rows=CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:state}) as Array;
+            matches=0;
+            for each(row in rows) if(row && String(row.dataID)==value) matches++;
+            if(matches!=1) throw new Error("Only one exact currently equipped item may be removed");
+            var removePayload:Object={body_type:int(data.body_type),layer_index:MenuState.GetRemoveBodyTypeFixedLayerIndex(state,int(data.body_type))};
+            context.removed_data_id=value;
+            data=null; rows=null; row=null; reply.mutation_started=true;
+            CommunicationManager.CallGameService("ClearSelectedBodyType",removePayload); return;
+         }
+         if(operation!="select-layer" || int(data.body_type)!=category) throw new Error("Native tattoo item belongs to a different body type");
+         rows=ApexCatalog(state); bodyPresent=false;
+         for each(row in rows) if(row && String(row.data_id)==String(data.data_id) && int(row.body_type)==category) bodyPresent=true;
+         if(!bodyPresent) throw new Error("Native tattoo product is absent from the requested filtered catalog");
+         var colors:Object=CommunicationManager.CallGameService("GetCatalogColorFamilies",{base:String(data.data_id),simId:"0",targetSimId:"0"});
+         var color:Object=null; matches=0;
+         if(colors && colors.mItems is Array) for each(row in colors.mItems)
+            if(row && String(row.dataID)==value) { color=row; matches++; }
+         if(matches!=1) throw new Error("Native tattoo selection requires one exact returned variant");
+         var payload:Object={data_id:value,layer_index:index,layer_id:layerId,slider_mouse_up:true,
+            hue_range_modifier:("hue_range_modifier" in color ? Number(color.hue_range_modifier) : 0),
+            opacity_range_modifier:("opacity_range_modifier" in color ? Number(color.opacity_range_modifier) : 1),
+            saturation_range_modifier:("saturation_range_modifier" in color ? Number(color.saturation_range_modifier) : 0),
+            value_range_modifier:("value_range_modifier" in color ? Number(color.value_range_modifier) : 0)};
+         if(!isFinite(payload.hue_range_modifier) || !isFinite(payload.opacity_range_modifier) ||
+            !isFinite(payload.saturation_range_modifier) || !isFinite(payload.value_range_modifier))
+            throw new Error("Native tattoo color modifier is not finite");
+         data=null; rows=null; row=null; colors=null; color=null; reply.mutation_started=true;
+         CommunicationManager.CallGameService("SetCatalogSlotSelected",payload);
+      }
+
+      private function ApexControlResult(operation:String,state:int,category:int,index:int,value:String,context:Object,client:Object) : Object
+      {
+         if(operation=="voices" || operation=="voice-actor" || operation=="voice-pitch") return context.control;
+         if(operation=="walkstyles") return context.control;
+         if(operation=="walkstyle") {
+            var walkstyles:Array=ApexClone(CommunicationManager.CallGameService("CasGetWalkCycleTraits",{simId:String(client.sim.simId)},true)) as Array;
+            if(walkstyles==null) throw new Error("Native walkstyle readback is unavailable");
+            return {operation:operation,walkstyles:walkstyles,before:context.walkstyleBefore};
+         }
+         if(operation=="detail-status" || operation=="detail-mode")
+            return {operation:operation,active:this.mcDetailedEditModePanel.IsActive()};
+         if(operation=="filters" || operation=="filter-clear") {
+            if(!this.mCurrentPanel || !this.mCurrentPanel.mcFilterPane)
+               throw new Error("Native catalog filter pane disappeared before readback");
+            return {operation:operation,filters:ApexClone(this.mCurrentPanel.mcFilterPane.GetCatalogFilter()),
+               selected_bubble_empty:Boolean(this.mCurrentPanel.mcFilterPane.mcFilterBubble.txtTitle.visible)};
+         }
+         if(operation=="catalog" || operation=="variants" || operation=="swatches") return context.control;
+         if(operation=="body-types" || operation=="body-type") {
+            if(!(this.mCurrentPanel is ClothingPanel) ||
+               ClothingPanel(this.mCurrentPanel).mcBodyTypePanel.GetSelected()!=context.control.body_type)
+               throw new Error("Native body region changed before next-tick readback");
+            return context.control;
+         }
+         var result:Object={operation:operation};
+         if(operation=="hair-matching") return context.control;
+         if(operation=="hair-match") {
+            var flags:* = CommunicationManager.CallGameService("CasGetHairMatchingFlags",null,true);
+            if(!(flags is int) || int(flags)!=int(value)) throw new Error("Native hair matching flags did not retain the requested mask");
+            result.flags=int(flags); flags=null; return result;
+         }
+         if(operation=="modifiers") return context.control;
+         if(operation=="color-sliders") {
+            var parts:Array=value.split(","); var count:int=0; var selected:Object=null;
+            if(client.selected is Array) for each(var modified:Object in client.selected)
+               if(modified && String(modified.dataID)==String(parts[0])) { selected=ApexClone(modified); count++; }
+            modified=null;
+            if(count!=1) throw new Error("Native color slider equipped identity did not read back");
+            result.selected=selected; result.before=context.beforeModifiers; return result;
+         }
+         if(operation=="preset") {
+            var preset:Object=CommunicationManager.CallGameService("GetSelectedPresetFromMenuState",state,true);
+            if(preset==null || !(preset.index is int) || int(preset.index)!=int(context.preset_index))
+               throw new Error("Native preset did not read back the exact requested catalog index");
+            var presetIndex:int=int(preset.index);
+            result.selected_data_id=value; result.preset=ApexClone(preset); result.preset_query="returned-value";
+            preset=null;
+            var current:Array=ApexCatalog(state);
+            if(presetIndex<0 || presetIndex>=current.length || String(current[presetIndex].data_id)!=value)
+               throw new Error("Native preset catalog changed before selection readback");
+            current=null; preset=null;
+         } else if(operation=="swatch") {
+            result.selected=ApexClone(CommunicationManager.CallGameService(state==0 ? "CasGetSwatchColorSelectedWithModifier" : "CasGetSwatchColorSelected",state));
+         } else if(operation=="physique") {
+            if(!(client.sim.physiqueValues is Array) || client.sim.physiqueValues.length<=state ||
+               Math.abs(Number(client.sim.physiqueValues[state])-Number(value))>0.000001)
+               throw new Error("Native physique slider did not read back the requested value");
+            this.mcBodyModSliderPanel.HandleCASPhysiqueValues(client.sim.physiqueValues);
+         } else if(operation=="remove") result.removed_data_id=context.removed_data_id;
+         else {
+            result.body_type=category; result.before=context.before;
+            result.layers=ApexClone(CASAPI.GetBodyTypeLayers(category));
+            ClothingPanel(this.mCurrentPanel).mcLayerComponent.Refresh(category);
+         }
+         return result;
+      }
+
+      private function ApexBodyTypes(target:int) : Array
+      {
+         if(!(this.mCurrentPanel is ClothingPanel) || !MenuState.SupportsBodyTypeFilter(this.mCurrState))
+            throw new Error("Native panel has no body-region selector");
+         var panel:CASBodyTypePanel=ClothingPanel(this.mCurrentPanel).mcBodyTypePanel;
+         var first:int=panel.GetSelected(); var current:int=first;
+         var types:Array=[]; var seen:Object={};
+         do {
+            if(current<=0 || seen[String(current)]) throw new Error("Native body-region selector repeated an ambiguous identity");
+            seen[String(current)]=true; types.push(current);
+            panel.OnTabRight(); current=panel.GetSelected();
+         } while(current!=first);
+         if(target!=0) {
+            if(!seen[String(target)]) throw new Error("Requested body region is unavailable for this native occult");
+            while(panel.GetSelected()!=target) panel.OnTabRight();
+         }
+         return types;
       }
 
       private function ApexExecute(message:Object=null) : void
@@ -668,7 +1076,7 @@
          // Claim before the first native call. A socket reset must never turn
          // an executed mutation into a fresh request eligible for replay.
          apexLastId=id; apexLastReply=""; apexClaimNonce=apexNonce;
-         var reply:Object={ok:false,protocol:1,scope:"native-cas-client",cas_request_id:id};
+         var reply:Object={ok:false,protocol:1,scope:"native-cas-client",cas_request_id:id,mutation_started:false};
          var operation:String=fields[2]; reply.operation=operation;
          if(operation=="accept") {
             // Even a first-getter/preflight failure must be a typed terminal
@@ -732,13 +1140,11 @@
                   CommunicationManager.SendUIMessage("CASRefreshActiveCatalog");
                }
             } else if(operation=="select") {
-               // Presets, skin tones, featured looks and layered products have
-               // different native contracts. Do not guess their write payload.
-               if(state!=MenuState.CLOTHING_HAIR && state!=MenuState.CLOTHING_TOPS && state!=MenuState.CLOTHING_BOTTOMS &&
-                  state!=MenuState.CLOTHING_FULLBODY && state!=MenuState.CLOTHING_SHOES && state!=MenuState.CLOTHING_ACCESSORIES_EARRINGS)
-                  throw new Error("Native selection for this panel requires its typed preset/layer contract; no item changed");
                if(MenuState.SupportsLayerList(state)) throw new Error("Layered selection requires an explicit layer; no item changed");
                HandleContextMenuSetMenuState({menuState:state,skipAnim:true,setZoomState:true});
+               if(!(this.mCurrentPanel is ClothingPanel) && !((this.mCurrentPanel is FaceModPanel) &&
+                  (state==MenuState.PROFILE_HAIR_EYEBROWS || state==MenuState.PROFILE_PET_WHISKERS)) || state==MenuState.CLOTHING_LOOKS)
+                  throw new Error("Use the native preset, swatch or featured-look contract for this panel");
                var product:Object=CommunicationManager.CallGameService("GetCatalogItem",value);
                if(!product) {
                   var products:Array=CommunicationManager.CallGameService("GetCatalogVariantItems",value) as Array;
@@ -751,9 +1157,17 @@
                   (state==MenuState.CLOTHING_TOPS ? CASBodyType.UPPERBODY :
                   (state==MenuState.CLOTHING_BOTTOMS ? CASBodyType.LOWERBODY :
                   (state==MenuState.CLOTHING_FULLBODY ? CASBodyType.FULLBODY :
-                   (state==MenuState.CLOTHING_ACCESSORIES_EARRINGS ? CASBodyType.EARRINGS : CASBodyType.SHOES))));
+                   (state==MenuState.CLOTHING_ACCESSORIES_EARRINGS ? CASBodyType.EARRINGS :
+                    (state==MenuState.CLOTHING_SHOES ? CASBodyType.SHOES : int(product.body_type))))));
                if(!("body_type" in product) || int(product.body_type)!=expectedBodyType)
                   throw new Error("Native catalog item's body type differs from the requested panel; no item changed");
+               if(expectedBodyType<=0) throw new Error("Native catalog item has no typed body identity");
+               var available:Array=ApexCatalog(state);
+               var belongs:Boolean=false;
+               for each(var availableProduct:Object in available)
+                  if(availableProduct && String(availableProduct.data_id)==String(product.data_id) &&
+                     int(availableProduct.body_type)==int(product.body_type)) belongs=true;
+               if(!belongs) throw new Error("Exact native product is absent from the requested filtered panel; no item changed");
                var family:Object=CommunicationManager.CallGameService("GetCatalogColorFamilies",
                   {base:String(product.data_id),simId:"0",targetSimId:"0"});
                reply.color_family_json=ApexEncode(family);
@@ -775,14 +1189,26 @@
                   throw new Error("Native catalog modifiers are not finite; no item changed");
                // Native getter records are not retained across an editor write.
                // Evidence is detached as JSON text; the write payload is owned.
-               product=null; products=null; variantProduct=null;
+               var secondMedical:Object=MenuState.GetBodyTypeFixedLayerIndexAndId(state,int(product.body_type),exactModifiers);
+               if(state==MenuState.CLOTHING_BODY_WINGS)
+                  exactModifiers={data_id:String(product.data_id),color_data_id:value};
+               // FaceModPanel's native catalog click passes a STRING, unlike
+               // ClothingPanel's modifier object. Its color is a separate
+               // palette operation after the selected part has settled.
+               var facePart:Boolean=state==MenuState.PROFILE_HAIR_EYEBROWS || state==MenuState.PROFILE_PET_WHISKERS;
+               var faceBase:String=String(product.data_id);
+               product=null; products=null; variantProduct=null; available=null; availableProduct=null;
                family=null; exactVariant=null; variant=null;
                reply.mutation_started=true;
-               CommunicationManager.CallGameService("SetCatalogSlotSelected",exactModifiers);
+               CommunicationManager.CallGameService("SetCatalogSlotSelected",facePart ? faceBase : exactModifiers);
+               if(secondMedical!=null) CommunicationManager.CallGameService("SetCatalogSlotSelected",secondMedical);
                // Defer fresh swatch discovery until the next native UI tick.
                // Native product/color callers do not send a global catalog
                // refresh; duplicating that event can reenter native UI updates.
-               if(state==MenuState.CLOTHING_HAIR) apexPendingPhase=2;
+               if(state==MenuState.CLOTHING_HAIR || state==MenuState.PROFILE_HAIR_EYEBROWS) {
+                  apexPendingContext.palette_type=state==MenuState.CLOTHING_HAIR ? 2 : 3;
+                  apexPendingPhase=2;
+               }
             } else if(operation=="hair-swatch") {
                var swatches:Array=CommunicationManager.CallGameService("CasGetSwatchColorList",2) as Array;
                if(!swatches) throw new Error("Native hair swatches are unavailable; no color changed");
@@ -820,7 +1246,7 @@
                CommunicationManager.CallGameService(operation=="undo" ? "CasNavigationUndo" : "CasNavigationRedo",null,true);
                if(SystemUtils.UsingController)
                   CommunicationManager.SendUIMessage(operation=="undo" ? "CASPostPerformUndo" : "CASPostPerformRedo");
-            } else if(operation!="status") throw new Error("Unsupported semantic CAS operation");
+            } else if(operation!="status") ApexControlExecute(operation,state,category,index,value,reply,apexPendingContext);
          } catch(error:Error) {
             reply.ok=false; reply.message=error.message;
             if(String(fields[2])=="accept") {
@@ -850,7 +1276,7 @@
             if(!selectedSimMatches) throw new Error("CAS selected Sim changed before native readback");
             if(!("message" in reply) && apexPendingPhase==2) {
                // Item selection settles before querying that hairstyle's swatches.
-               var freshHairSwatches:Array=CommunicationManager.CallGameService("CasGetSwatchColorList",2) as Array;
+               var freshHairSwatches:Array=CommunicationManager.CallGameService("CasGetSwatchColorList",int(context.palette_type)) as Array;
                if(!freshHairSwatches) throw new Error("Native hair swatches are unavailable after item selection");
                var exactHairSwatch:Object=null; var hairMatches:int=0;
                for each(var hairSwatch:Object in freshHairSwatches)
@@ -859,7 +1285,7 @@
                   throw new Error("Requested hair swatch is unavailable/ambiguous after native item selection");
                var hairValue:Number=("value_range_modifier" in exactHairSwatch ? Number(exactHairSwatch.value_range_modifier) : 0);
                if(!isFinite(hairValue)) throw new Error("Native hair swatch modifier is not finite");
-               var hairPayload:Object={dataId:String(exactHairSwatch.dataID),swatchType:2,
+               var hairPayload:Object={dataId:String(exactHairSwatch.dataID),swatchType:int(context.palette_type),
                   colorId:exactHairSwatch.color,furColors:null,value_range_modifier:hairValue};
                exactHairSwatch=null; freshHairSwatches=null; hairSwatch=null;
                // Advance before calling native code: even a nested callback
@@ -885,16 +1311,25 @@
             }
             reply.client=ApexSnapshot();
             if(!("message" in reply)) {
+               if(operation=="catalog" || operation=="variants" || operation=="preset" || operation=="select-layer" ||
+                  operation=="remove" || operation=="layers" || operation=="layer-add" || operation=="layer-remove" ||
+                  operation=="layer-move" || operation=="swatches" || operation=="swatch" || operation=="physique" ||
+                  operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
+                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" ||
+                  operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
+                  operation=="walkstyles" || operation=="walkstyle" || operation=="detail-status" ||
+                  operation=="detail-mode" || operation=="filters" || operation=="filter-clear")
+                  reply.client.control=ApexControlResult(operation,state,category,index,value,context,reply.client);
                if(operation=="accept") {
                   if(!(reply.client.sim.occultLayer is int) || int(reply.client.sim.occultLayer)!=0)
                      throw new Error("Alternate or untyped CAS layers lack a verified original owner mapping; no intent prepared");
                   var casContext:Object=reply.client.native_context;
                   if(!casContext || !casContext.edit_mode || casContext.edit_mode.query!="returned-value" ||
-                     !(casContext.edit_mode.value is int) || int(casContext.edit_mode.value)!=7 ||
+                     !(casContext.edit_mode.value is int) || (int(casContext.edit_mode.value)!=0 && int(casContext.edit_mode.value)!=7) ||
                      !casContext.new_family || casContext.new_family.query!="returned-value" || casContext.new_family.value!==false ||
                      !casContext.entered_from_play_area || casContext.entered_from_play_area.query!="returned-value" ||
                      !casContext.entered_from_play_area.value || casContext.entered_from_play_area.value.result!==true)
-                     throw new Error("CAS accept requires exact single-Sim mode7, an existing family and entry from Live mode");
+                     throw new Error("CAS accept requires existing-household mode0 or single-Sim mode7, an existing family and entry from Live mode");
                   if(!(reply.client.sim.householdId is String) || !/^[1-9][0-9]{0,19}$/.test(reply.client.sim.householdId))
                      throw new Error("Native CAS accept lacks an exact household identity; no intent prepared");
                   if(String(reply.client.sim.householdId)!=value)
@@ -1026,7 +1461,7 @@
             var fromLive:Boolean=playArea!=null && playArea.result===true; playArea=null;
             if(observedId!=simId || expectedHousehold=="" || preparedHousehold!=expectedHousehold || observedHousehold!=expectedHousehold ||
                !(observedLayer is int) || int(observedLayer)!=0 ||
-               !(editMode is int) || int(editMode)!=7 || newFamily!==false || !fromLive)
+               !(editMode is int) || (int(editMode)!=0 && int(editMode)!=7) || newFamily!==false || !fromLive)
                throw new Error("Native CAS accept preconditions changed after intent acknowledgement; no commit submitted");
             // The native class already imports this external class. Use its
             // imported QName; FFDec treats a fully qualified dotted expression

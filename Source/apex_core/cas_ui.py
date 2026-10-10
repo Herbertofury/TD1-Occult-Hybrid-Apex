@@ -13,6 +13,7 @@ import threading
 import time
 import uuid
 from .cas_panels import PANELS, ALIASES
+from . import cas_controls
 
 _RECORDS = OrderedDict()
 _LOCK = threading.RLock()
@@ -279,11 +280,11 @@ def form_selection_binding(client, sim_id, request, resulting=False):
     if (not isinstance(context, dict) or any(not isinstance(context.get(name), dict) or
             context[name].get('query') != 'returned-value' for name in
             ('edit_mode', 'new_family', 'entered_from_play_area')) or
-            type(context['edit_mode'].get('value')) is not int or context['edit_mode']['value'] != 7 or
+            type(context['edit_mode'].get('value')) is not int or context['edit_mode']['value'] not in (0, 7) or
             context['new_family'].get('value') is not False or
             not isinstance(context['entered_from_play_area'].get('value'), dict) or
             context['entered_from_play_area']['value'].get('result') is not True):
-        raise ValueError('CAS form selection requires mode 7, an existing family and explicit entry from Live.')
+        raise ValueError('CAS form selection requires existing-household mode 0 or single-Sim mode 7, an existing family and explicit entry from Live.')
     selector = observation.get('selector_feed')
     if (observation.get('selector_query') != 'returned-value' or not isinstance(selector, dict) or
             type(selector.get('protocol')) is not int or selector['protocol'] != 1 or
@@ -506,13 +507,13 @@ def validate_client(client, sim_id, request):
         if type(supported) is not bool or (supported and (not isinstance(items, list) or len(items) > 1024 or any(not isinstance(item, dict) for item in items))) or (not supported and items is not None):
             raise ValueError('CAS inventory must distinguish unknown panels from empty panels.')
         preset_query, preset = catalog.get('preset_query'), catalog.get('preset')
-        if preset_query not in ('returned-value', 'returned-null', 'failed') or (
+        if preset_query not in ('returned-value', 'returned-null', 'failed', 'not-applicable') or (
                 (preset_query == 'returned-value' and not isinstance(preset, dict)) or
                 (preset_query != 'returned-value' and preset is not None)):
             raise ValueError('CAS preset query must distinguish a returned record from null or failed discovery.')
     validate_catalog_metadata(client)
     operation = request['operation']
-    if operation in ('panel', 'select') and (type(client.get('menu_state')) is not int or client['menu_state'] != panel(request['panel']) or client.get('panel_visible') is not True):
+    if operation in ({'panel', 'select'} | cas_controls.PANEL_OPERATIONS) and (type(client.get('menu_state')) is not int or client['menu_state'] != panel(request['panel']) or client.get('panel_visible') is not True):
         raise ValueError('Native panel visibility/state did not match the request.')
     if operation == 'outfit':
         slot = client.get('outfit')
@@ -531,6 +532,8 @@ def validate_client(client, sim_id, request):
         raise ValueError('Native selected item did not match the request.')
     if operation == 'form-select':
         form_selection_binding(client, sim_id, request, resulting=True)
+    if operation in cas_controls.OPERATIONS:
+        cas_controls.validate(client, request)
     if operation == 'accept':
         validate_accept_context(client)
         if client['sim']['householdId'] != request.get('household_id'):
@@ -606,9 +609,9 @@ def validate_accept_context(client):
     mode = context['edit_mode'].get('value')
     family = context['new_family'].get('value')
     area = context['entered_from_play_area'].get('value')
-    if (type(mode) is not int or mode != 7 or family is not False or
+    if (type(mode) is not int or mode not in (0, 7) or family is not False or
             not isinstance(area, dict) or area.get('result') is not True):
-        raise ValueError('CAS accept requires mode 7, an existing family, and explicit entry from Live.')
+        raise ValueError('CAS accept requires existing-household mode 0 or single-Sim mode 7, an existing family, and explicit entry from Live.')
     sim = client.get('sim')
     if not isinstance(sim, dict) or type(sim.get('occultLayer')) is not int or sim['occultLayer'] != 0:
         raise ValueError('CAS accept requires exact primary occult layer 0.')
@@ -629,6 +632,13 @@ def envelope(sim_id, request):
         raise ValueError('Choose an explicit CAS Sim identity.')
     if not isinstance(request, dict): raise ValueError('Use a typed CAS request.')
     op = request.get('operation')
+    if op in cas_controls.OPERATIONS:
+        state, category, index, value = cas_controls.wire(request, panel)
+        request_id = uuid.uuid4().hex
+        wire = '|'.join(map(str, (request_id, sim_id, op, state, category, index, value)))
+        if len(wire) > 512 or any(not 32 <= ord(c) <= 126 for c in wire):
+            raise ValueError('CAS envelope exceeds its printable transport bound.')
+        return request_id, wire
     allowed = {'status': {'operation'}, 'panel': {'operation', 'panel'},
         'outfit': {'operation', 'category', 'index'},
         'outfit-add': {'operation', 'category'}, 'hair-swatch': {'operation', 'data_id'},
@@ -637,9 +647,10 @@ def envelope(sim_id, request):
         'form-select': {'operation', 'household_id', 'expected_layer', 'form_flags', 'native_session'}}
     if op not in allowed or set(request) != allowed[op]: raise ValueError('Unsupported or incomplete CAS request.')
     state = panel(request['panel']) if 'panel' in request else 0
-    if op == 'select' and state not in {PANELS[name] for name in (
-            'clothing_hair', 'clothing_tops', 'clothing_bottoms', 'clothing_fullbody', 'clothing_shoes', 'clothing_accessories_earrings')}:
-        raise ValueError('Native selection for this panel requires its typed preset/layer contract; no request sent.')
+    if op == 'select':
+        name = ALIASES.get(request['panel'], request['panel'])
+        if (name.startswith('profile_') and name not in cas_controls.PART_PROFILE_PANELS or name in ('clothing_looks', 'clothing_head_tattoos', 'clothing_body_tattoos')):
+            raise ValueError('Use the typed preset, swatch or select-layer command for this panel.')
     if op == 'form-select':
         _owner_id(sim_id)
         _owner_id(request['household_id'])
@@ -731,6 +742,26 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
 
 
 def receive(request_id, payload, backend=None):
+    """Retain every rejected native success while keeping its claim blocked."""
+    try:
+        return _receive(request_id, payload, backend)
+    except (ValueError, KeyError, TypeError) as error:
+        if isinstance(payload, str) and len(payload.encode('utf-8')) <= 131072:
+            try:
+                data = json.loads(payload)
+            except (ValueError, TypeError):
+                data = None
+            if (isinstance(data, dict) and type(data.get('protocol')) is int and data['protocol'] == 1 and
+                    data.get('cas_request_id') == request_id and data.get('ok') is True):
+                with _LOCK:
+                    row = _RECORDS.get(request_id)
+                    if row and row['state'] == 'pending' and row['request']['operation'] != 'accept':
+                        row['rejected_acknowledgement'] = copy.deepcopy(data)
+                        row['acknowledgement_validation_error'] = str(error)
+        raise
+
+
+def _receive(request_id, payload, backend=None):
     if not isinstance(payload, str) or len(payload.encode('utf-8')) > 131072:
         raise ValueError('CAS client response exceeds its UTF-8 byte bound.')
     data = json.loads(payload)
@@ -817,7 +848,14 @@ def result(request_id):
     with _LOCK:
         row = _RECORDS.get(request_id)
         if row is None: return {'ok': False, 'outcome': 'unknown', 'cas_request_id': request_id}
-        if row['state'] == 'pending': return {'ok': False, 'outcome': 'pending-client', 'cas_request_id': request_id}
+        if row['state'] == 'pending':
+            if 'rejected_acknowledgement' in row:
+                return {'ok': False, 'outcome': 'invalid-native-acknowledgement', 'cas_request_id': request_id,
+                        'cas_request_state': 'pending', 'ui_transition_verified': False, 'input_submitted': False,
+                        'message': row['acknowledgement_validation_error'],
+                        'native_acknowledgement': copy.deepcopy(row['rejected_acknowledgement']),
+                        'mutation_started': row['rejected_acknowledgement'].get('mutation_started') is True}
+            return {'ok': False, 'outcome': 'pending-client', 'cas_request_id': request_id}
         if row['state'] == 'superseded-read':
             return {'ok': False, 'outcome': 'superseded-read', 'cas_request_id': request_id,
                     'ui_transition_verified': False, 'input_submitted': False}
@@ -936,7 +974,14 @@ def observe_return(request_id, snapshot, phase, household_id, minimum_ticks):
 
 def dispatch(action, sim_id, value, backend=None):
     if action == 'cas_ui_result': return result(value)
-    if action == 'cas_ui_panels': return {'ok': True, 'panels': sorted(PANELS), 'aliases': dict(ALIASES)}
+    if action == 'cas_ui_panels':
+        return {'ok': True, 'panels': sorted(PANELS), 'aliases': dict(ALIASES),
+                'typed_controls': {name: sorted(fields) for name, fields in cas_controls.SCHEMAS.items()},
+                'swatch_types': {'skin': 0, 'eyes': 1, 'hair': 2, 'eyebrows': 3,
+                    'facial_hair': 4, 'fur': 6, 'secondary_eyes': 7, 'nose': 8,
+                    'arm_hair': 9, 'leg_hair': 10, 'front_hair': 11, 'back_hair': 12,
+                    'mane': 13, 'forelock': 14, 'horse_feather': 15, 'horse_tail': 16},
+                'native_refusal_is_success': False, 'catalog_pagination_discards_items': False}
     if action == 'cas_ui_diagnostics': return diagnostics()
     if action == 'cas_ui_socket_ack':
         # Internal socket callbacks carry typed values through the owner queue,

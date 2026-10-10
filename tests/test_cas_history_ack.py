@@ -30,6 +30,17 @@ class CasHistoryAckTests(unittest.TestCase):
                  'history_before_json': json.dumps(before)}
         return rid, json.dumps(reply)
 
+    def assert_rejected_history(self, rid, payload):
+        result = cas_ui.result(rid)
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['outcome'], 'invalid-native-acknowledgement')
+        self.assertEqual(result['cas_request_state'], 'pending')
+        self.assertEqual(result['native_acknowledgement'], json.loads(payload))
+        self.assertNotIn('history_data_change_verified', result)
+        # A rejected reply is observable; it still cannot authorize a repeat.
+        with self.assertRaises(ValueError):
+            cas_ui.submit('12', {'operation': 'undo'}, send=lambda _: None)
+
     def test_navigation_only_changes_cannot_prove_history(self):
         before, after = client(), client()
         after.update(menu_state=42, panel_visible=True, outfit={'outfit_type': 1, 'outfit_index': 0},
@@ -38,7 +49,7 @@ class CasHistoryAckTests(unittest.TestCase):
         rid, payload = self.submit(before, after)
         with self.assertRaisesRegex(ValueError, 'only navigation'):
             cas_ui.receive(rid, payload)
-        self.assertEqual(cas_ui.result(rid)['outcome'], 'pending-client')
+        self.assert_rejected_history(rid, payload)
 
     def test_exact_swatch_change_verified_and_duplicate_ack_idempotent(self):
         before, after = client(), client()
@@ -91,8 +102,9 @@ class CasHistoryAckTests(unittest.TestCase):
                     if mode == 'wrong-sim': old['sim']['simId'] = '13'
                     else: old.pop('catalogs')
                     reply['history_before_json'] = json.dumps(old)
-                with self.assertRaises(ValueError): cas_ui.receive(rid, json.dumps(reply))
-                self.assertEqual(cas_ui.result(rid)['outcome'], 'pending-client')
+                rejected_payload = json.dumps(reply)
+                with self.assertRaises(ValueError): cas_ui.receive(rid, rejected_payload)
+                self.assert_rejected_history(rid, rejected_payload)
 
 
 if __name__ == '__main__':

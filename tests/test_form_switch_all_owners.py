@@ -294,15 +294,17 @@ class FormSwitchAllOwnerTests(unittest.TestCase):
         self.assert_retained()
         self.assertEqual(self.operation_calls, 1)
 
-    def test_full_history_refuses_before_native_or_file_write(self):
+    def test_history_beyond_old_cutoff_retains_every_row_and_allows_next_switch(self):
         data = form_bank.load(self.path)
         data['records'][self.key]['switch_history'] = [{'retained': i} for i in range(32)]
         form_bank.save(self.path, data)
-        before = self.path.read_bytes()
-        with self.assertRaisesRegex(ValueError, 'history full'):
-            self.invoke(lambda: self.fail('Full recovery history must not mutate.'))
-        self.assertEqual(self.path.read_bytes(), before)
-        self.assertEqual(self.operation_calls, 0)
+        self.invoke()
+        from apex_core.bank_history import resolve
+        rows = self.record()['switch_history']
+        self.assertEqual([resolve(self.path, row) for row in rows[:-1]],
+                         [{'retained': i} for i in range(32)])
+        self.assertEqual(len(rows), 33)
+        self.assertEqual(self.operation_calls, 1)
 
     def test_no_prior_bank_uses_only_current_native_owners_and_latest_live(self):
         data = form_bank.load(self.path)

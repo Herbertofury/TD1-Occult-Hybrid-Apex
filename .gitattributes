@@ -3,6 +3,7 @@ Source/td1_occult_hybrid_apex.py -text whitespace=cr-at-eol
 # Recovery epoch pins bind these exact source bytes, including newlines.
 Source/apex_core/overlay_loader.py -text whitespace=cr-at-eol
 Source/apex_core/test_driver.py -text whitespace=cr-at-eol
+Source/apex_core/cas_panels.py -text whitespace=cr-at-eol
 # The CAS bytecode manifests also pin their exact compiler input bytes.
 Source/CASUi/semantic_methods.as -text whitespace=cr-at-eol
 tools/CasBytecodePatch.java -text whitespace=cr-at-eol

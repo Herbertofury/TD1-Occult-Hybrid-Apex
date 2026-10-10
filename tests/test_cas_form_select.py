@@ -96,6 +96,17 @@ class CasFormSelectTests(unittest.TestCase):
         cas_ui.poll_client(self.peer, clock=lambda: self.now)
         cas_ui.receive_socket(self.peer, rid, json.dumps(value), clock=lambda: self.now, backend=self.backend)
 
+    def test_household_editor_navigation_keeps_same_id_pair_and_never_authorizes_alt_accept(self):
+        self.observe(0)
+        rid = self.submit(request(0, 64))
+        value = self.receipt(rid, 1, 0)
+        value['client']['native_context']['edit_mode']['value'] = 0
+        self.acknowledge(rid, value)
+        result = cas_ui.result(rid)
+        self.assertTrue(result['selection_only_verified'])
+        self.assertFalse(result['alternate_accept_authorized'])
+        self.assertEqual(result['client']['sim']['occultLayer'], 1)
+
     def test_observed_same_id_pair_selects_both_directions_without_claiming_mapping(self):
         for before, after in ((0, 1), (1, 0)):
             self.setUp(); self.observe(before)
@@ -283,7 +294,10 @@ class CasFormSelectTests(unittest.TestCase):
             self.setUp(); self.observe(); rid = self.submit()
             value = self.receipt(rid, 1, 0); mutate(value)
             with self.subTest(mutate=mutate), self.assertRaises(ValueError): self.acknowledge(rid, value)
-            self.assertEqual(cas_ui.result(rid)['outcome'], 'pending-client')
+            result=cas_ui.result(rid)
+            self.assertEqual(result['outcome'], 'invalid-native-acknowledgement')
+            self.assertEqual(result['native_acknowledgement'], value)
+            self.assertEqual(result['cas_request_state'], 'pending')
             with self.assertRaisesRegex(ValueError, 'unresolved'): self.submit()
 
     def test_partial_native_write_failure_retains_exclusive_unresolved_claim(self):
@@ -307,12 +321,53 @@ class CasFormSelectTests(unittest.TestCase):
         calls = []
         def transport(state, action, sim_id=None, **kwargs):
             calls.append((action, kwargs))
-            return {'cas_request_id': rid} if action == 'cas_ui_request' else {'ok': True, 'outcome': 'form-selected'}
+            if action == 'cas_ui_request':
+                return {'cas_request_id': rid}
+            if len(calls) == 2:
+                return {'ok': True, 'client': client(1), 'cas_room': {'native_session': 1}}
+            return {'ok': True, 'outcome': 'form-selected'}
         self.assertTrue(cas_client.execute(args, transport)['ok'])
-        self.assertEqual(json.loads(calls[0][1]['value']), request(1, 1))
+        self.assertEqual(json.loads(calls[0][1]['value']), {'operation': 'status'})
+        self.assertEqual(json.loads(calls[2][1]['value']), request(1, 1))
         args.native_session = None; calls.clear()
         with self.assertRaises(ValueError): cas_client.execute(args, transport)
         self.assertEqual(calls, [])
+
+    def test_cli_fresh_preflight_preserves_exact_session_layer_and_household(self):
+        args = apex_cli.parser().parse_args(['cas', 'form-select', '--state', 'state.json', '--sim-id', SIM,
+            '--household-id', HH, '--expected-layer', '1', '--form', '1', '--native-session', '1'])
+        args.seconds = 10
+        for field in ('session', 'layer', 'household', 'sim'):
+            with self.subTest(field=field):
+                calls = []
+                observed = {'ok': True, 'client': client(1), 'cas_room': {'native_session': 1}}
+                if field == 'session': observed['cas_room']['native_session'] = 2
+                elif field == 'layer': observed['client']['sim']['occultLayer'] = 0
+                elif field == 'household': observed['client']['sim']['householdId'] = '13'
+                else: observed['client']['sim']['simId'] = '13'
+                def transport(state, action, sim_id=None, **kwargs):
+                    calls.append((action, kwargs))
+                    return {'cas_request_id': 'a'*32} if action == 'cas_ui_request' else observed
+                with self.assertRaises(ValueError):
+                    cas_client.execute(args, transport)
+                self.assertEqual(len(calls), 2)
+                self.assertEqual(json.loads(calls[0][1]['value']), {'operation': 'status'})
+
+    def test_cli_rejected_preflight_never_submits_form_selection(self):
+        args = apex_cli.parser().parse_args(['cas', 'form-select', '--state', 'state.json', '--sim-id', SIM,
+            '--household-id', HH, '--expected-layer', '1', '--form', '1', '--native-session', '1'])
+        args.seconds = 10
+        calls = []
+        rejected = {'ok': False, 'outcome': 'invalid-native-acknowledgement',
+                    'native_acknowledgement': {'future': {'retain': True}}}
+        def transport(state, action, sim_id=None, **kwargs):
+            calls.append((action, kwargs))
+            return {'cas_request_id': 'a'*32} if action == 'cas_ui_request' else rejected
+        result = cas_client.execute(args, transport)
+        self.assertFalse(result['form_selection_submitted'])
+        self.assertFalse(result['form_selection_preflight_verified'])
+        self.assertEqual(result['native_acknowledgement'], rejected['native_acknowledgement'])
+        self.assertEqual(len(calls), 2)
 
     def test_earrings_exact_item_selection_preserves_untyped_skin_and_preset_refusals(self):
         _, wire = cas_ui.envelope(SIM, {'operation': 'select', 'panel': 'clothing_accessories_earrings', 'data_id': '123'})

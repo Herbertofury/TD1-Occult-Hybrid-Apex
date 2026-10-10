@@ -232,7 +232,7 @@ class TestDriverTests(unittest.TestCase):
             calls.append(value)
             return int(value, 0)  # Actual game helper contract which failed live.
         modules = {'server_commands': Obj(),
-            'server_commands.cas_commands': Obj(modify_in_cas=lambda *_a, **_k: True),
+            'server_commands.cas_commands': Obj(modify_in_cas_with_household_id=lambda *_a, **_k: True, modify_in_cas=lambda *_a, **_k: True),
             'server_commands.argument_helpers': Obj(OptionalTargetParam=target)}
         with patch.object(test_driver, 'guard', return_value=None), patch.object(test_driver, 'snapshot', return_value={}), \
                 patch.object(cas_bank_transaction, 'begin', return_value={'ok': True, 'lane': '1'}), patch.dict(sys.modules, modules):
@@ -263,13 +263,13 @@ class TestDriverTests(unittest.TestCase):
             services=Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987))))
         calls = []
         modules = {'server_commands': Obj(),
-            'server_commands.cas_commands': Obj(modify_in_cas=lambda target, **kwargs: calls.append(('cas', target, kwargs)) or True),
+            'server_commands.cas_commands': Obj(modify_in_cas_with_household_id=lambda target, **kwargs: calls.append(('household-cas', target, kwargs)) or True, modify_in_cas=lambda *_a, **_k: calls.append(('wrong-single-sim-entry',))),
             'server_commands.argument_helpers': Obj(OptionalTargetParam=lambda text: text),
             'sims4.commands': Obj(client_cheat=lambda *args: calls.append(('cheat',) + args))}
         with patch.object(test_driver, 'guard', return_value='full'), patch.object(test_driver, 'snapshot', side_effect=lambda *_a: calls.append(('snapshot-after-checkpoint',)) or {}), \
                 patch.object(cas_bank_transaction, 'begin', side_effect=lambda *_a: calls.append(('checkpoint',)) or {'ok': True, 'lane': '1'}), patch.dict(sys.modules, modules):
             self.assertTrue(test_driver.dispatch(fake, 'test_cas', '123', '{}')['ok'])
-        self.assertEqual(calls, [('checkpoint',), ('snapshot-after-checkpoint',), ('cheat', 'cas.fulleditmode', 987), ('cas', '123', {'_connection': 987})])
+        self.assertEqual(calls, [('checkpoint',), ('snapshot-after-checkpoint',), ('cheat', 'cas.fulleditmode', 987), ('household-cas', '123', {'_connection': 987})])
         calls.clear()
         with patch.object(test_driver, 'guard', return_value='unsupported'), patch.dict(sys.modules, modules):
             with self.assertRaisesRegex(ValueError, 'CAS mode'):
@@ -282,7 +282,7 @@ class TestDriverTests(unittest.TestCase):
             services=Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987))))
         entry, cheat = Mock(return_value=True), Mock()
         modules = {'server_commands': Obj(),
-            'server_commands.cas_commands': Obj(modify_in_cas=entry),
+            'server_commands.cas_commands': Obj(modify_in_cas_with_household_id=lambda *_a, **_k: True, modify_in_cas=entry),
             'server_commands.argument_helpers': Obj(OptionalTargetParam=lambda text: text),
             'sims4.commands': Obj(client_cheat=cheat)}
         for options in ({'side_effect': ValueError('CAS transaction retained')},
@@ -301,7 +301,7 @@ class TestDriverTests(unittest.TestCase):
             services=Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987))))
         saved = []
         modules = {'server_commands': Obj(),
-            'server_commands.cas_commands': Obj(modify_in_cas=lambda *_a, **_k: False),
+            'server_commands.cas_commands': Obj(modify_in_cas_with_household_id=lambda *_a, **_k: True, modify_in_cas=lambda *_a, **_k: False),
             'server_commands.argument_helpers': Obj(OptionalTargetParam=lambda text: text)}
         with patch.object(test_driver, 'guard', return_value=None), patch.object(test_driver, 'snapshot', return_value={}), \
                 patch.object(cas_bank_transaction, 'begin', side_effect=lambda *_a: saved.append('originals') or {'ok': True, 'lane': '32'}), \

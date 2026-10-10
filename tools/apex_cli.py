@@ -294,7 +294,10 @@ def parser():
     game.add_argument('--ensure-witch-owner', action='store_true',
                       help='Allow native-human to construct a missing tuned Witch owner without random generation')
     cas = commands.add_parser('cas', help='Semantic native CAS controls; no mouse input')
-    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'undo', 'redo', 'result', 'diagnostics', 'return'))
+    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
+        'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
+        'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
+        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear'))
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
     cas.add_argument('--household-id', help='Exact existing household identity required for semantic CAS return')
@@ -307,6 +310,22 @@ def parser():
     cas.add_argument('--category', type=int)
     cas.add_argument('--index', type=int, help='Zero-based existing outfit number')
     cas.add_argument('--data-id', help='Exact decimal native CAS catalog data identity')
+    cas.add_argument('--offset', type=int, default=0, help='Catalog page offset; every page remains accessible')
+    cas.add_argument('--limit', type=int, default=8, help='Items per transport packet, 1-32')
+    cas.add_argument('--body-type', type=int, help='Exact body type returned by the native catalog')
+    cas.add_argument('--layer-index', type=int, default=-1, help='Exact native layer index; -1 for ordinary color modifiers')
+    cas.add_argument('--layer-id', type=int, default=0, help='Exact native layer identity; 0 for ordinary modifiers, medical 127 protected')
+    for name in ('hue', 'opacity', 'saturation', 'brightness'):
+        cas.add_argument('--' + name, type=float, help='Finite value within this equipped part\'s returned native range')
+    cas.add_argument('--flags', type=int, help='Exact native human hair matching bitmask, 0-63')
+    cas.add_argument('--actor-index', type=int, help='Zero-based index in the complete eligible native voice inventory')
+    cas.add_argument('--enabled', action=argparse.BooleanOptionalAction, default=None,
+                     help='Explicit desired detailed edit mode state; use --no-enabled to leave it')
+    cas.add_argument('--target-index', type=int, help='Destination index for a layer move')
+    cas.add_argument('--swatch-type', type=int, help='Native palette type from cas panels')
+    cas.add_argument('--color-index', type=int, default=0, help='Existing fur palette slot')
+    cas.add_argument('--physique-type', type=int, choices=(0, 1), help='0 weight, 1 muscle')
+    cas.add_argument('--value', type=float, help='Finite slider value; voice uses its returned min/max, physique uses 0-1')
     cas.add_argument('--request-id')
     cas.add_argument('--seconds', type=float, help='Wait limit; defaults to 60 seconds for return and 10 for other CAS operations')
     cas.add_argument('--output', type=Path)
@@ -362,6 +381,15 @@ def parser():
     crash.add_argument('--entry-proof', required=True, type=Path)
     crash.add_argument('--expected-proof-sha256', required=True)
     crash.add_argument('--output', required=True, type=Path)
+    journal_archive = commands.add_parser('cas-journal-archive', help='Preserve a closed disposable raw-observed capacity failure without replay or save writes')
+    journal_archive.add_argument('--state', required=True, type=Path)
+    journal_archive.add_argument('--failed-return-proof', required=True, type=Path)
+    journal_archive.add_argument('--expected-proof-sha256', required=True)
+    journal_archive.add_argument('--closure-proof', required=True, type=Path)
+    journal_archive.add_argument('--closure-proof-sha256', required=True)
+    journal_archive.add_argument('--slot-id', required=True, type=int)
+    journal_archive.add_argument('--expected-save-sha256', required=True)
+    journal_archive.add_argument('--output', required=True, type=Path)
     crash_archive = commands.add_parser('cas-crash-archive', help='Archive only never-observed CAS metadata while the crashed disposable game is closed')
     crash_archive.add_argument('--state', required=True, type=Path)
     crash_archive.add_argument('--crash-proof', required=True, type=Path)
@@ -393,6 +421,13 @@ def parser():
     abandon.add_argument('--seconds', type=float, default=30)
     abandon.add_argument('--allow-auto-save-slot-metadata-only', action='store_true',
                          help='Allow only the native autosave sentinel when archiving metadata; proves no loaded disk slot')
+    workbench = commands.add_parser('cas-workbench', help='Discover every native CAS panel and optionally exercise exact returned items without clicks')
+    workbench.add_argument('--state', required=True, type=Path)
+    workbench.add_argument('--sim-id', required=True)
+    workbench.add_argument('--output', required=True, type=Path)
+    workbench.add_argument('--panel', dest='panels', action='append', help='Omit to visit the complete installed panel registry')
+    workbench.add_argument('--edit', action='store_true', help='Exercise different exact returned native items; separate Live retention testing is required')
+    workbench.add_argument('--step-seconds', type=float, default=12)
     catalog = commands.add_parser('cas-catalog-audit', help='Audit native CAS panel navigation and retain complete returned catalogs')
     catalog.add_argument('--state', required=True, type=Path)
     catalog.add_argument('--sim-id', required=True)
@@ -425,6 +460,10 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'cas-journal-archive':
+        from cas_journal_archive import archive
+        return archive(args.state, args.failed_return_proof, args.expected_proof_sha256,
+            args.closure_proof, args.closure_proof_sha256, args.slot_id, args.expected_save_sha256, args.output)
     if args.command == 'cas-captured-archive':
         from cas_crash_archive import archive
         return archive(args.state, args.entry_proof, args.expected_proof_sha256,
@@ -534,6 +573,10 @@ def execute(args):
                        args.household_id, args.save_guid, seconds=args.seconds,
                        settle_ticks=args.settle_ticks, transport=get,
                        save_proof=args.save_proof, expected_save_proof_sha256=args.expected_save_proof_sha256)
+    if args.command == 'cas-workbench':
+        from cas_workbench import run
+        return run(args.state, args.output, verified_identity(args.state), owned_request, args.sim_id,
+                   edit=args.edit, panels=args.panels, step_seconds=args.step_seconds)
     if args.command == 'cas-catalog-audit':
         from cas_catalog_audit import run
         return run(args.state, args.output, verified_identity(args.state), owned_request,

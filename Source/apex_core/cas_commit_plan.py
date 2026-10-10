@@ -32,14 +32,20 @@ def _json(value):
                          allow_nan=False, separators=(',', ':')).encode('ascii')
     except (TypeError, ValueError, RecursionError) as error:
         raise ValueError('CAS record must contain bounded JSON values: ' + str(error))
-    if len(raw) > MAX_DOCUMENT_BYTES:
-        raise ValueError('CAS record exceeds its preservation bound.')
     return raw
 
 
 def digest(value):
     """Hash complete typed fields, including the original unnormalized bytes."""
-    return hashlib.sha256(_json(value)).hexdigest()
+    result = hashlib.sha256()
+    try:
+        encoder = json.JSONEncoder(sort_keys=True, ensure_ascii=True,
+            allow_nan=False, separators=(',', ':'))
+        for chunk in encoder.iterencode(value):
+            result.update(chunk.encode('ascii'))
+    except (TypeError, ValueError, RecursionError) as error:
+        raise ValueError('CAS record must contain typed JSON values: ' + str(error))
+    return result.hexdigest()
 
 
 def _hash(value):

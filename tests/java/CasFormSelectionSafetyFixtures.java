@@ -30,6 +30,7 @@ public class CasFormSelectionSafetyFixtures {
         CasBytecodePatch.verifyQueuedHandshake(abc,instance);
         CasBytecodePatch.verifyFormSelection(abc,instance);
         CasBytecodePatch.verifyExactItemSelection(abc,instance);
+        CasBytecodePatch.verifyTypedControls(abc,instance);
     }
     public static void main(String[] args) throws Exception {
         String kind=args[0]; ABC abc=CasBytecodePatch.load(args[1]);
@@ -42,6 +43,16 @@ public class CasFormSelectionSafetyFixtures {
         checks(abc);
         switch(kind) {
             case "actual-constructor-timer-path": break;
+            case "native-snapshot-detached": break;
+            case "native-snapshot-borrowed": {
+                var snapshot=CasBytecodePatch.ownedBody(abc,instance,"ApexSnapshot").getCode().code;
+                boolean changed=false;
+                for(var instruction:snapshot) if(CasBytecodePatch.property(abc,instruction,0x46,"ApexClone")) {
+                    instruction.operands[0]=member(abc,"ApexEncode");changed=true;break;
+                }
+                if(!changed) throw new AssertionError("Missing detached native snapshot fixture.");
+                break;
+            }
             case "connect-native-getter":
                 for(var instruction:connect.getCode().code) if(CasBytecodePatch.property(abc,instruction,0x46,"split")) {
                     instruction.operands[0]=member(abc,"CallGameService"); break;
@@ -101,10 +112,11 @@ public class CasFormSelectionSafetyFixtures {
             }
             default:throw new AssertionError("Unknown fixture "+kind);
         }
-        for(MethodBody body:List.of(execute,helper,connect,tick,readback)) body.setModified();
+        for(MethodBody body:List.of(execute,helper,connect,tick,readback,
+            CasBytecodePatch.ownedBody(abc,instance,"ApexSnapshot"))) body.setModified();
         ByteArrayOutputStream bytes=new ByteArrayOutputStream();abc.saveToStream(bytes);
         ABC saved=new ABC(new ABCInputStream(new MemoryInputStream(bytes.toByteArray())),abc.getSwf(),null);
-        boolean positive=kind.equals("actual-constructor-timer-path");
+        boolean positive=kind.equals("actual-constructor-timer-path") || kind.equals("native-snapshot-detached");
         try { checks(saved); if(!positive) throw new AssertionError("Unsafe serialized fixture was accepted: "+kind); }
         catch(IllegalArgumentException expected) { if(positive) throw expected; }
         System.out.println("PASS "+kind);

@@ -18,8 +18,8 @@ MAX_JOURNAL = 64 * 1024 * 1024
 
 
 def fingerprint(raw):
-    if not isinstance(raw, bytes) or len(raw) > MAX_STATE:
-        raise ValueError('Appearance snapshot is not bounded bytes.')
+    if not isinstance(raw, bytes):
+        raise ValueError('Appearance snapshot must retain its original bytes.')
     return hashlib.sha256(raw).hexdigest()
 
 
@@ -40,8 +40,6 @@ class ChangeJournal:
         self.capture_record = capture_record
         self.data = {'schema': 1, 'lane': self.lane, 'cursor': None, 'nodes': [], 'operations': [], 'pending': None}
         if os.path.exists(path):
-            if os.path.getsize(path) > MAX_JOURNAL:
-                raise ValueError('Journal exceeds its read bound.')
             with open(path, 'r', encoding='utf-8') as stream:
                 self.data = json.load(stream)
             if self.data.get('schema') != 1 or self.data.get('lane') != self.lane:
@@ -90,8 +88,6 @@ class ChangeJournal:
 
     def _save(self):
         raw = json.dumps(self.data, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
-        if len(raw) > MAX_JOURNAL:
-            raise ValueError('History is full; archive it explicitly before accepting another mutation.')
         folder = os.path.dirname(os.path.abspath(self.path))
         if 'the sims 4 do not fucking touch!!!' in [part.casefold() for part in os.path.normpath(folder).split(os.sep)]:
             raise ValueError('Protected original is read-only.')

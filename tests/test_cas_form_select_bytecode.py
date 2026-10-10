@@ -9,7 +9,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 JAR = ROOT / '.work/research/ffdec/ffdec.jar'
 COMPILED = ROOT / '.work/research/apex-cas-compiled.swf'
-CASES = ('actual-constructor-timer-path', 'connect-native-getter', 'connect-native-helper',
+CASES = ('actual-constructor-timer-path', 'native-snapshot-detached', 'native-snapshot-borrowed', 'connect-native-getter', 'connect-native-helper',
     'connect-transport-send', 'connect-event-owner', 'constructor-connect-event',
     'constructor-connect-callback', 'handshake-native-getter', 'handshake-consume-once',
     'handshake-exact-sim-payload', 'selector-service-contract', 'selector-helper-native-write',

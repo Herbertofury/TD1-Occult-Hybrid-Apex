@@ -28,7 +28,8 @@ SELECTOR_PIN = '420eb0f8417bfc6935ffb4126086f19b72f2cae98a853d34abf6d59a94d454f1
 CLEANUP_KEY = (0x62ECC59A, 0, 0x3FFE72432A703655)
 CLEANUP_PIN = 'e79b3b65c8b6234c54d4a76f4c7a671f46ece7ddb9f6940bc5db312850fdef91'
 PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.java',
-                  'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java')
+                  'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
+                  'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py')
 
 
 def source_pins(root=ROOT):
@@ -52,6 +53,37 @@ def verify_source_pins(info, root=ROOT):
             info['source_pins'] != source_pins(root)):
         raise ValueError('CAS bridge source pins differ from the current semantic methods or bytecode patcher.')
     return True
+
+
+def verify_control_dispatch(methods):
+    """Every advertised typed control must reach its next-tick readback.
+
+    Missing result dispatch was observed in v21: native success was rejected
+    by Python and left the query pending. Check the complete public registry,
+    rather than a smaller hand-maintained list of the controls being tested.
+    """
+    sys.path.insert(0, str(ROOT / 'Source'))
+    from apex_core import cas_controls
+    readback = methods.split('private function ApexReadback()', 1)[1].split('private function ApexComplete()', 1)[0]
+    dispatch = readback.split('reply.client=ApexSnapshot();', 1)[1].split('reply.client.control=ApexControlResult', 1)[0]
+    routed = set(re.findall(r'operation=="([a-z-]+)"', dispatch))
+    if routed != set(cas_controls.OPERATIONS):
+        raise ValueError('Native typed CAS result dispatch differs from the complete public control registry: ' +
+                         ', '.join(sorted(routed ^ set(cas_controls.OPERATIONS))))
+    execution = methods.split('private function ApexControlExecute(', 1)[1].split('private function ApexControlResult(', 1)[0]
+    implemented = set(re.findall(r'operation(?:==|!=)"([a-z-]+)"', execution))
+    if implemented != set(cas_controls.OPERATIONS):
+        raise ValueError('Native typed CAS execution differs from the complete public control registry.')
+    return sorted(routed)
+
+
+def verify_snapshot_ownership(methods):
+    """Do not retain borrowed native getter records across snapshot calls."""
+    snapshot = methods.split('private function ApexSnapshot(', 1)[1].split('private function ApexClone(', 1)[0]
+    calls = list(re.finditer(r'CommunicationManager\.CallGameService\(', snapshot))
+    if not calls or any(not snapshot[:call.start()].endswith('ApexClone(') for call in calls):
+        raise ValueError('Native CAS inventory retains a getter result without immediate detachment.')
+    return len(calls)
 
 
 def unpack(raw):
@@ -112,6 +144,8 @@ def inject(source, methods):
     if source.count(anchor) != 1 or 'ApexInitialize' in source:
         raise ValueError('Installed CAS initializer does not match the inspected contract.')
     source = source.replace(anchor, anchor + '\n         ApexInitialize();')
+    # Resolve external QNames at compilation, avoiding dotted runtime lookups.
+    source = source.replace('   import ', '   import flash.utils.describeType;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
     if end < 0: raise ValueError('CAS class end is missing.')
@@ -141,6 +175,9 @@ def run(args):
 
 def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_decompiled=None, cleanup_library=None):
     expected_sources = source_pins()
+    semantic = (ROOT / 'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')
+    control_dispatch = verify_control_dispatch(semantic)
+    detached_snapshot_getters = verify_snapshot_ownership(semantic)
     original = Path(input_swf).read_bytes()
     if hashlib.sha256(original).hexdigest() != PIN:
         raise ValueError("Installed CAS resource differs from the inspected 1.128.90 build.")
@@ -155,7 +192,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         raise ValueError('Installed cleanup library differs from the inspected native widget contract.')
     patched = work / 'ApexCASCustomizerMain.as'
     patched.write_text(inject(Path(decompiled).read_text(encoding='utf-8'),
-        (ROOT / 'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')), encoding='utf-8')
+        semantic), encoding='utf-8')
     compiled = work / 'apex-cas-compiled.swf'
     run([ffdec, '-importAssets', 'yes,local', '-replace', input_swf, compiled, CLASS, patched])
     # The general AS compiler changes native methods' lexical scope. It is
@@ -188,6 +225,8 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     Path(output).write_bytes(dbpf_build.build({KEY: payload, SELECTOR_KEY: selector_payload}))
     info = {'schema': 1, 'artifact': Path(output).name, 'scope': 'native-CAS-semantic-bridge',
         'source_pins': expected_sources,
+        'typed_control_dispatch_verified': control_dispatch,
+        'detached_snapshot_getters': detached_snapshot_getters,
         'target_game': '1.128.90.1030', 'base_resource_sha256': hashlib.sha256(original).hexdigest(),
         'patched_resource_sha256': hashlib.sha256(payload).hexdigest(),
         'sha256': hashlib.sha256(Path(output).read_bytes()).hexdigest(),

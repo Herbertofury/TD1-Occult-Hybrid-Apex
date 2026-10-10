@@ -111,7 +111,8 @@ public class CasBytecodePatch {
             "Owned deferred CAS readback methods are missing.");
         for(String event:List.of("ApexSocketData","ApexSocketConnect","ApexSocketFailure"))
             require(Collections.disjoint(calls.get(event), Set.of("ApexExecute", "ApexReadback", "ApexSnapshot", "ApexComplete", "ApexAccept",
-                "ApexFormSelectionContext", "CallGameService", "CallUIService", "SendUIMessage")), "Socket callback executes native CAS work.");
+                "ApexFormSelectionContext", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes",
+                "CallGameService", "CallUIService", "SendUIMessage")), "Socket callback executes native CAS work.");
         require(calls.get("ApexSocketConnect").equals(Set.of("split")), "CAS CONNECT callback must queue only.");
         require(calls.get("ApexTick").containsAll(Set.of("CallGameService","ApexSocketSend","connect","addEventListener")),
             "Queued CAS handshake lacks the actual native Timer/Socket constructor path.");
@@ -485,6 +486,44 @@ public class CasBytecodePatch {
         require(earrings && expectedBody, "CAS Earrings selection lacks its exact native BodyType refusal.");
         require(exactSwatch, "CAS item selection lacks its exact one-swatch ambiguity refusal.");
     }
+    static void verifyTypedControls(ABC abc, InstanceInfo instance) {
+        // Execute: four palette calls, two physique calls, preset write,
+        // one product lookup, two family queries, equipped query, clear and
+        // layered write. Result: preset query and palette query on next tick.
+        Map<String,Integer> counts=Map.of("ApexCatalog",1,"ApexControlExecute",28,"ApexControlResult",4);
+        var snapshot=ownedBody(abc,instance,"ApexSnapshot").getCode().code;
+        int detached=0;
+        for(int i=0;i<snapshot.size();i++) if(property(abc,snapshot.get(i),0x46,"CallGameService")) {
+            int next=i+1;
+            while(next<snapshot.size() && (opcode(snapshot.get(next),0x80) || opcode(snapshot.get(next),0x82))) next++;
+            require(next<snapshot.size() && property(abc,snapshot.get(next),0x46,"ApexClone") &&
+                snapshot.get(next).operands[1]==1, "Native CAS inventory retains a borrowed getter record.");
+            detached++;
+        }
+        require(detached>0, "Native CAS detached inventory has no verified native getters.");
+        for(var entry:counts.entrySet()) {
+            var body=ownedBody(abc,instance,entry.getKey());
+            int calls=0;
+            for(var op:body.getCode().code)
+                if(property(abc,op,0x46,"CallGameService") || property(abc,op,0x4f,"CallGameService")) calls++;
+            require(calls==entry.getValue(), "Typed CAS native service call inventory changed: "+entry.getKey()+" "+calls);
+            require(Collections.disjoint(propertyCalls(abc,body), Set.of("CallUIService","PostServerCommand","connect","SaveAndExitCAS")),
+                "Typed CAS control reaches an unrelated transport or native accept path.");
+        }
+        require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,"ApexClone")),
+            Set.of("CallGameService","CallUIService","SendUIMessage")), "Detached native data copier performs native work.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexBodyTypes")).containsAll(Set.of("GetSelected","OnTabRight")) &&
+            Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,"ApexBodyTypes")),Set.of("CallGameService","CallUIService","SetCatalogSlotSelected")),
+            "Body-region navigation does not use the inspected native selector.");
+        for(String target:List.of("ApexControlExecute","ApexControlResult","ApexBodyTypes")) {
+            Set<String> callers=new HashSet<>();
+            for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex") &&
+                propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains(target)) callers.add(name(abc,trait));
+            require(callers.equals(Set.of(target.equals("ApexControlExecute") ? "ApexExecute" :
+                target.equals("ApexControlResult") ? "ApexReadback" : "ApexControlExecute")),
+                "Typed CAS control is called outside its owned Timer phase: "+target);
+        }
+    }
     static void verifyFormSelection(ABC abc, InstanceInfo instance) {
         String helper="ApexFormSelectionContext";
         MethodBody body=ownedBody(abc,instance,helper);
@@ -588,7 +627,8 @@ public class CasBytecodePatch {
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
-            "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext");
+            "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext",
+            "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
         for (Trait trait : newClass.instance_traits.traits) {
@@ -614,6 +654,7 @@ public class CasBytecodePatch {
         verifyFormSelection(compiled, newClass);
         verifyQueuedHandshake(compiled, newClass);
         verifyExactItemSelection(compiled, newClass);
+        verifyTypedControls(compiled, newClass);
         verifyAcceptLinkage(compiled, newClass);
         verifyAcceptHouseholdBinding(compiled, newClass);
         verifyAcceptPrimaryLayerOnly(compiled, newClass);
@@ -712,6 +753,7 @@ public class CasBytecodePatch {
         verifyTimerPipeline(serialized, serialized.instance_info.get(oi));
         verifyQueuedHandshake(serialized, serialized.instance_info.get(oi));
         verifyExactItemSelection(serialized, serialized.instance_info.get(oi));
+        verifyTypedControls(serialized, serialized.instance_info.get(oi));
         for (MethodBody body : original.bodies) if (body != nativeInit && body != nativeUnload)
             require(Arrays.equals(nativeCode.get(body.method_info), serialized.findBody(body.method_info).getCodeBytes()),
                 "Serialized unowned native method bytecode changed.");

@@ -55,6 +55,18 @@ class CasAcceptTests(unittest.TestCase):
         self.assertFalse(result['ui_transition_verified'])
         return rid, data
 
+    def test_existing_household_default_editor_accepts_exact_primary_context(self):
+        value = native_client()
+        value['native_context']['edit_mode']['value'] = 0
+        cas_ui.validate_accept_context(value)
+        value['native_context']['new_family']['value'] = True
+        with self.assertRaises(ValueError):
+            cas_ui.validate_accept_context(value)
+        value['native_context']['new_family']['value'] = False
+        value['sim']['occultLayer'] = 1
+        with self.assertRaisesRegex(ValueError, 'primary'):
+            cas_ui.validate_accept_context(value)
+
     def test_accept_requires_current_peer_and_no_generic_ui_fallback(self):
         cas_ui.detach_client(self.peer)
         with self.assertRaisesRegex(ValueError, 'fresh exact-Sim'):
@@ -82,7 +94,7 @@ class CasAcceptTests(unittest.TestCase):
             cas_ui.receive_socket(self.peer, rid, json.dumps(changed))
 
     def test_exact_native_mode_and_object_result_guard_refuses_coercion(self):
-        for name, value in (('edit_mode', True), ('edit_mode', 0), ('new_family', 0),
+        for name, value in (('edit_mode', True), ('edit_mode', 4), ('new_family', 0),
                             ('new_family', True), ('entered_from_play_area', True),
                             ('entered_from_play_area', {'result': 1}), ('entered_from_play_area', {})):
             client = native_client()
@@ -173,7 +185,7 @@ class CasAcceptTests(unittest.TestCase):
                         {'operation': 'accept', 'household_id': '0'},
                         {'operation': 'accept', 'household_id': '09'},
                         {'operation': 'accept', 'household_id': str(1 << 64)},
-                        {'operation': 'accept', 'household_id': '９'}):
+                        {'operation': 'accept', 'household_id': 'ï¼™'}):
             with self.subTest(request=request), self.assertRaises(ValueError):
                 cas_ui.submit(SIM, request, send=lambda _: self.fail('invalid request delivered'))
         self.assertFalse(cas_ui._RECORDS)

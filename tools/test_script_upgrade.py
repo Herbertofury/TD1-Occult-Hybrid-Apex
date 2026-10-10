@@ -101,12 +101,15 @@ def certified_row(profile, token, expected, evidence=None):
     current_hash = seal._hash(bank)
     changed = current_hash != row['bank_record_sha256']
     leaf = bank.get('failed_history', [None])[-1] if bank.get('failed_history') else None
+    if leaf is not None:
+        from apex_core.bank_history import resolve
+        leaf = resolve(data_dir / 'form_bank.json', leaf)
     authority = {'bank_record_sha256': row['bank_record_sha256'], 'current_bank_record_sha256': current_hash,
         'failed_history_leaf_sha256': seal._hash(leaf) if changed and isinstance(leaf, dict) else None,
         'metadata_archive_proof': evidence}
     if changed and evidence is None:
         raise ValueError('The certified bank changed; newer edits were preserved. Use exact metadata-archive evidence only for unchanged appearances.')
-    seal.upgrade_bank_authority(bank, row, authority)
+    seal.upgrade_bank_authority(bank, row, authority, data_dir / 'form_bank.json')
     if test_driver._save_file_evidence(profile, target['slot_id'])['sha256'] != row['file_sha256']:
         raise ValueError('The certified save changed; newer saves were preserved.')
     return data_dir, path, key, row, authority

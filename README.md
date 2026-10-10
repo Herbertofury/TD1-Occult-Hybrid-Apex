@@ -6,7 +6,30 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Latest development checkpoint - V19 installed; native reload passed:**
+**Latest development checkpoint — V24 household CAS:**
+The full CLI entry now uses the game's existing-household editor, fixing the
+single-Sim entry path that hid personality and the Sim selector despite
+full-edit being enabled. The CAS copier preserves sealed native filter fields.
+The CLI supports a default 77-panel workbench and 27 typed native operations,
+with full raw responses and unknown fields retained. V24 passes 1,546 Python
+checks, four native checks, compiled Python 3.7 imports and independent Rust
+verification of all 206 resources. Generation 60 installs fourteen matching
+artifacts with saves and sidecars unchanged; native household-CAS retesting
+is continuing.
+
+V23's actual Fairy alternate hair, eyebrow, skin-detail and nose edits survived
+explicit Fairy-only reconciliation and unpaused away/back switching. A controlled
+save/seal passed, and reopened native appearances match all seven owners.
+Actual Alien → Vampire → Alien Live transitions also pass after unpausing at
+every step. New Alien/Vampire household-CAS edits, full MCCC/manual parity,
+universal cross-occult catalog availability and the all-occult custom room
+remain separate unfinished work. All seven authorized Crilender inputs are
+verified in the installed 39-resource unlock package. The original profile
+remains read/copy only. See the [CLI guide](docs/CAS_CLI_CONTROLS.md),
+[candidate status](docs/CANDIDATE_INSTALL_AND_TEST.md) and
+[native test ledger](Reports/ALTERNATE_CAS_2026-10-08.md).
+
+**Historical V19 checkpoint - native reload passed:**
 The candidate retains independent hybrid appearances through native transitions
 and initialization, clears stale deferred transformations, and keeps immutable
 incoming records until native initialization finishes. Early readback failures

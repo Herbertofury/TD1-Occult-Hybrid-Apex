@@ -1,0 +1,326 @@
+{
+  "authorized_ui_crosscheck": {
+    "cas_ui_swfs": [
+      "b8f8aaefdbc34ca6bcb5f03f0c2b78fdc8fd3b8c91a3fe93ca4dff325d72bca2",
+      "4a6226855c2be71b84f2468f914d84931dbdbf37a6554b24afd97ab98bb5cf42"
+    ],
+    "neutral_values": {
+      "brightness": 0,
+      "hue": 0,
+      "opacity": 1,
+      "saturation": 0
+    },
+    "range_owner": "selected effective CASP"
+  },
+  "casp_supported_versions": [
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52
+  ],
+  "channels_lsb_to_msb": [
+    "brightness",
+    "saturation",
+    "hue",
+    "opacity"
+  ],
+  "ea_resource_bytes_published": false,
+  "game_runtime_verified": false,
+  "implementation": "independent-format-reader-and-signed-Q14-codec",
+  "independent_csharp_oracle": {
+    "comparison": "version/body type and bit-identical float32 slider minimum/maximum/increment",
+    "current_game_resource_matches": 32,
+    "original_writer_version_matches": 9,
+    "resources": [
+      {
+        "body_type": 7,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "670344afb95710fca3fadce405d9ad4abf04e1a668fcedaaab417fa67491d3bb",
+        "tgi": "034AEECB:00000000:0000000000010972"
+      },
+      {
+        "body_type": 7,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "d10a937e5a5dfe662a3ac45a335e6f7c7e9abc211c5a0b7d89598a2bc32577f1",
+        "tgi": "034AEECB:00000000:000000000001F6CB"
+      },
+      {
+        "body_type": 2,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "c339da96d669638cf56b34a31286a61b9159f3a3c5028d3631a852ebd2ffa0cc",
+        "tgi": "034AEECB:00000000:000000000002189B"
+      },
+      {
+        "body_type": 2,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "0695b9a82b631264fa6e410d31b75cb0e8d8d5077bf54f04184a0d008de5f4c6",
+        "tgi": "034AEECB:00000000:000000000006F413"
+      },
+      {
+        "body_type": 2,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "03c0ad223e687fcd7f37ce9e20d90b22996d2a73413ec0ce1d64e13d95088fce",
+        "tgi": "034AEECB:00000000:00000000000069AB"
+      },
+      {
+        "body_type": 12,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "44b4e1db8220883fd3eed143807a5939923242bf28f2b4485ce142e3e7e2f0c7",
+        "tgi": "034AEECB:00000000:00000000000088E4"
+      },
+      {
+        "body_type": 24,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "2f1d5a7fae290c594a9d35a821f1c50fa2aaba1fd2028eb3754bfd7f3bceb950",
+        "tgi": "034AEECB:00000000:000000000000E276"
+      },
+      {
+        "body_type": 6,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "59d2575e9787ac11147446f6d620885ab05ae9b4f8e41ff214e2e35d09f4d272",
+        "tgi": "034AEECB:00000000:0000000000009FD8"
+      },
+      {
+        "body_type": 2,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "99506a8ac884d8ac7fd4ed18661dc02e101752c21a7dd13be905dc34c7a2fb24",
+        "tgi": "034AEECB:00000000:000000000000B796"
+      },
+      {
+        "body_type": 7,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "028ff3aab2fa41c9c34b3fa9d2f55af1355e6b00f10a7bfd2b56a8056508c80f",
+        "tgi": "034AEECB:00000000:0000000000042214"
+      },
+      {
+        "body_type": 7,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "7b46699bc767dbf175e553e309780b879a54ed7fd3f18bc89666af42747e13d7",
+        "tgi": "034AEECB:00000000:0000000000009FBF"
+      },
+      {
+        "body_type": 1,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "ae7e583d2a6b6565251dd1dc30705b1ca5a62a3be7f38f9721be635d13db8717",
+        "tgi": "034AEECB:00000000:0000000000023F99"
+      },
+      {
+        "body_type": 7,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "e5b7bf7c748bd10b144ef437cd8fe40a4a374ee33cfa1ef0f72439f422b1cb1b",
+        "tgi": "034AEECB:00000000:000000000007EA42"
+      },
+      {
+        "body_type": 10,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "b2e68b3eea75a6b4a1d608e569187df6db0f7629f12b65e59e517a5f159cb982",
+        "tgi": "034AEECB:00000000:0000000000006170"
+      },
+      {
+        "body_type": 5,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "b5e4e4c9c3da50c7b32b83e16081d2bf50d674a49fc70f002ece2f407ddad314",
+        "tgi": "034AEECB:00000000:0000000000008358"
+      },
+      {
+        "body_type": 31,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "da6073d155a3de67df6f80413da6dba486bd7452a7da8d5b636fe09aad5a247f",
+        "tgi": "034AEECB:00000000:000000000003CC7C"
+      },
+      {
+        "body_type": 7,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "abf2b95aef1789a7ec070ccd9618feb06bd20a464edaedcd0c4afbc6278dd861",
+        "tgi": "034AEECB:00000000:000000000001F5AE"
+      },
+      {
+        "body_type": 8,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "7e5670a23b1ba4490da3cfaca9386ebd49772166f7e9e2a6f7e47203a8e7594d",
+        "tgi": "034AEECB:00000000:000000000006D42A"
+      },
+      {
+        "body_type": 7,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "83725a705bd953e02f045bb1e93a3bd27903f81106c4c5d498064ebc0da37ff0",
+        "tgi": "034AEECB:00000000:000000000004A4B5"
+      },
+      {
+        "body_type": 1,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "17c11483a88661824692347acf6a6f2398150a3b4738f8d7567a21d988d3d972",
+        "tgi": "034AEECB:00000000:000000000006E310"
+      },
+      {
+        "body_type": 73,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "a2a063209d3e2d52f5ca4536ce8eafd3e17045c6b5020631e6d0b7e6a1fcc9ba",
+        "tgi": "034AEECB:00000000:000000000006875F"
+      },
+      {
+        "body_type": 52,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "564851a12357dc4b0ee136be5b87a46fce05d091a757ed2b6bbb9ec674ec0b62",
+        "tgi": "034AEECB:00000000:000000000000E17D"
+      },
+      {
+        "body_type": 5,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "8d1354dd7d5067dfd8924d04b9ae00bdfd5a2efeaf5ea8b0bbb41adb34704ebe",
+        "tgi": "034AEECB:00000000:0000000000064052"
+      },
+      {
+        "body_type": 5,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "0811026e6933b9e01dec2242f786556a23619adff7e4283b092eacfccf0646e8",
+        "tgi": "034AEECB:00000000:00000000000108C1"
+      },
+      {
+        "body_type": 2,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "24f174205d56a25f6d7f844f08bb4e83aeef48cf7232efc3009d0dcaae9413a0",
+        "tgi": "034AEECB:00000000:000000000003B3CB"
+      },
+      {
+        "body_type": 2,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "c35d4029846b2d9d7dd5601129b2df7fb70058174b5f266f87d69f26829fb86f",
+        "tgi": "034AEECB:00000000:000000000002EE78"
+      },
+      {
+        "body_type": 6,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "cec13c54a5d165ba62ed8ab367dbb95409435dbcfa74cac46f0813c911ea0ed8",
+        "tgi": "034AEECB:00000000:000000000006B80F"
+      },
+      {
+        "body_type": 2,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "832ecff3e49f424f9a8376e5d1d90b4476701d1a4341357ec9ac8d3f76d16aa6",
+        "tgi": "034AEECB:00000000:000000000004ADA5"
+      },
+      {
+        "body_type": 5,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "0cc016cec950e40f5125090e1c092678a0f9b31fb349d9276854ca0314192bf5",
+        "tgi": "034AEECB:00000000:000000000004BE13"
+      },
+      {
+        "body_type": 2,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "da1c854ec0d1091c0e1b3552015dec07ac90bb6d70ac9ff6ca5ef41096789543",
+        "tgi": "034AEECB:00000000:0000000000043EAF"
+      },
+      {
+        "body_type": 2,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "2960e60b73df64d80bd9e861de4498a8074e5d0e6111bcc119f36197692177f1",
+        "tgi": "034AEECB:00000000:000000000000C639"
+      },
+      {
+        "body_type": 2,
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "505aca826a63577c525404d19788d33a31267f2847da86ef7161eead91e7ce96",
+        "tgi": "034AEECB:00000000:000000000000B6B6"
+      }
+    ],
+    "written_versions": [
+      {
+        "casp_version": 44,
+        "matched_original_csharp": true,
+        "resource_sha256": "5bcfc755fc717b54679efc378743095ccb604788a2e98e30d213336397945d68"
+      },
+      {
+        "casp_version": 45,
+        "matched_original_csharp": true,
+        "resource_sha256": "46fe028007f30abbe9181ca8c353fd922f62c10819804ae633d720f088ce1e99"
+      },
+      {
+        "casp_version": 46,
+        "matched_original_csharp": true,
+        "resource_sha256": "b3b3fd7be2507430a4fda27b6408a0d5fee9e09cd94d5252fb812cfb57c2cdf5"
+      },
+      {
+        "casp_version": 47,
+        "matched_original_csharp": true,
+        "resource_sha256": "2c08fb3e7a0d05f3099f5ddfa398a68231c29d8deacd2e392957018205d3095a"
+      },
+      {
+        "casp_version": 48,
+        "matched_original_csharp": true,
+        "resource_sha256": "61b813df56c6fd93526c72a0c1e4a33e3b4dfb9dd041eb53887b6a8bdba74471"
+      },
+      {
+        "casp_version": 49,
+        "matched_original_csharp": true,
+        "resource_sha256": "b9a0ee3f0002702c16209779ee2343466d186243041abbce9b4afa4e8a9eae4d"
+      },
+      {
+        "casp_version": 50,
+        "matched_original_csharp": true,
+        "resource_sha256": "1f236deddb444a2826742372af4cc2e5b8bd6b813c470f2ed498c312a76d8ea5"
+      },
+      {
+        "casp_version": 51,
+        "matched_original_csharp": true,
+        "resource_sha256": "f607973c59cba7f98836895d0eb1a65641c79b56e005e122779927294a6ec09c"
+      },
+      {
+        "casp_version": 52,
+        "matched_original_csharp": true,
+        "resource_sha256": "d7d2abff96f0defa8a79e949922474c6cf67ba1188cbc9d194c838c61016cb89"
+      }
+    ]
+  },
+  "lane_bits": 16,
+  "neutral_hex": "4000000000000000",
+  "scale": 16384,
+  "schema": 1,
+  "signed": true,
+  "texture_conversion_verified": false,
+  "third_party_oracle_distributed": false,
+  "upstream": {
+    "casp_source_sha256": "a21d4fd9521c62fcf4a7e41297a00b411dff6de0415a01f37ad83ce9d8db59fb",
+    "color_source_sha256": "a8b8044ad5d1f768f57019e7073f5a09e479683fc06d7ad91c2b313d14f9ca3d",
+    "commit": "862a32949e5156b371e2d2f83de4e37e0bb1afcc",
+    "repository": "https://github.com/CmarNYC-Tools/TS4SimRipper"
+  }
+}

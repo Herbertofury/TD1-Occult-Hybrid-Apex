@@ -1,0 +1,32 @@
+Python 3.7 syntax parse: OK
+TD1_OccultHybridApex.ts4script entries: td1_occult_hybrid_apex.py
+Script source length inside ts4script: 88687
+DLL file type: /mnt/data/apex_v3/TD1 Occult Hybrid Apex/Native/TD1OccultNativeBridge.dll: PE32+ executable for MS Windows 6.00 (DLL), x86-64, 3 sections
+Native export count: 21
+export: 1   0x1360  TD1OccultChooseNext
+export: 2   0x1150  TD1OccultChooseSafeForm
+export: 3   0x14e0  TD1OccultClampCurrent
+export: 4   0x1660  TD1OccultCommandHash
+export: 5   0x11f0  TD1OccultFnv1a64
+export: 6   0x1310  TD1OccultIsPowerOfTwo
+export: 7   0x1110  TD1OccultLowestBit
+export: 8   0x1010  TD1OccultMaskAdd
+export: 9   0x12a0  TD1OccultMaskCount
+export: 10   0x15b0  TD1OccultMaskExtra
+export: 11   0x1060  TD1OccultMaskHas
+export: 12   0x1580  TD1OccultMaskMissing
+export: 13   0x1280  TD1OccultMaskNormalizeSupported
+export: 14   0x1030  TD1OccultMaskRemove
+export: 15   0x10b0  TD1OccultMaskToggle
+export: 16   0x1000  TD1OccultNativeVersion
+export: 17   0x15e0  TD1OccultNeedsRepair
+export: 18   0x10d0  TD1OccultNormalizeCurrent
+export: 19   0x1550  TD1OccultRepairMask
+export: 20   0x11d0  TD1OccultSimIdLooksValid
+export: 21   0x13f0  TD1OccultStateScore
+Supplied Bin python37_x64.dll: present
+Supplied Bin _socket_x64.pyd: present
+Supplied Bin _ctypes_x64.pyd: present
+Supplied Bin select_x64.pyd: present
+Supplied Bin Python/generated.zip: present
+Supplied Bin TS4_x64.exe: present

@@ -582,6 +582,53 @@ Required workflows:
 
 # Completion standard
 
+## Owner addition: full catalog columns and an independent Sim preview
+
+The Live workspace must expose the complete current CAS surface in F11, with
+an adjustable, virtualized column grid for EA and custom content. Browsing is
+independent of the currently equipped wardrobe. Category/subcategory, swatch,
+pack, creator/package, availability and name-mode filters use exact resource
+identity; unknown future body types remain discoverable. Empty categories may
+be hidden by preference. Skin details, jewelry, eyebrows, tattoos and presets
+have the same search/select/history flow as clothing and hair. Per-form,
+outfit-category and outfit-number selection stays explicit and independent.
+
+The preview is a separately rendered copy of the selected appearance snapshot,
+including exact equipped parts, morphs, skin/occult details, layers and colors.
+It stays visible when the Live Sim moves, and supports orbit, zoom, pan,
+pose/animation selection, lighting and before/after comparison. Preview camera
+and pose controls change this rendered copy only. Rendering an inactive form
+must not activate that form or introduce a persisted household Sim. Selection
+and every edit are available through the CLI as well as the panel.
+
+The actual mesh/material pipeline must honor missing resources and renderer
+limitations explicitly. Preview state is labeled as staged or verified applied
+state, and stale appearance snapshots are refreshed before Apply. Item apply,
+full appearance edits, and Undo/Redo retain the shared canonical journal and
+all independent native owner checks. Native ticks and save/reload are separate
+acceptance steps; a rendered preview alone does not prove game persistence.
+
+The first implemented slice is `tools/live_cas_catalog.py`: a worker-side,
+content-bound SQLite/FTS5 catalog with stable paging, exact full TGI and package
+provenance, localized/package/internal-name modes and fresh selection checks.
+It scans a package's selected metadata in one verified stream instead of
+rehashing it for each swatch. Its public CLI operates without CAS or game input.
+The actual five private CC copies yield 62 parts in .049 seconds, with queries
+around 2 ms. This is a small-sample measurement; a large library benchmark,
+F11 grid integration, compatibility/equip and 3D preview remain open.
+
+Primary source research, checked October 10, 2026:
+
+- [Maintained SimRipper mesh preview](https://github.com/CmarNYC-Tools/TS4SimRipper/blob/main/src/MorphPreview.xaml.cs) contains actual GEOM-to-mesh, texture/material, camera and rotation code. Its repository is GPL-3.0. It is a concrete reference for appearance assembly; its renderer has not been embedded or runtime-certified in Apex.
+- [SimRipper performance fork](https://github.com/technificentConsulting/TS4-SimRipper) contains GEOM, rig, morph and preview sources under GPL-3.0; compare verified behavior before adopting changes.
+- [sims-package2glb](https://github.com/infinition/sims-package2glb) contains Rust/glTF conversion source; its [license text](https://github.com/infinition/sims-package2glb/blob/main/LICENSE) is MIT despite GitHub's API reporting `NOASSERTION`. Its object/package converter is a candidate component, with complete Sim morphs, skin composition and rig posing still requiring independent work.
+- [Blender GEOM importer](https://github.com/blancodagoat/blender-sims4-geom) contains mesh/morph/package parsers and a nested license file; the root API license is absent. Inspect that exact license before porting implementation.
+- [Sims4Viewer](https://github.com/zsofts/Sims4Viewer) describes a similar viewer, but the inspected tree contains only six documentation/icon/license files and no renderer implementation. Its feature claims provide no reusable renderer source or runtime proof.
+
+The exact research tree identities are retained in private receipt
+`a10c4fca535b7dcd4189aa3facb28ee073bd4c5bbf958e148770b0c5e19e0728`.
+No implementation from these repositories was imported in this slice.
+
 Apex Live CAS Studio is complete only when:
 
 - the major CAS-editable surfaces can be controlled from Live Mode without opening CAS;

@@ -15,7 +15,7 @@ from test_game_discard import live
 class PostEntryCrashTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(); self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
+        self.root = Path(temporary.name).resolve()
         self.profile = self.root / 'profile'; self.original = self.root / 'protected'
         self.profile.mkdir(); self.original.mkdir()
         self.identity = dict(pid=8, test_token='b' * 32, script_sha256='c' * 64, profile=str(self.profile))

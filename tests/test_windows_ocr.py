@@ -146,6 +146,29 @@ class LauncherTests(unittest.TestCase):
         with patch.object(windows_ocr.subprocess, 'run', return_value=result), self.assertRaisesRegex(ValueError, 'decoder refused'):
             windows_ocr.recognize(self.image)
 
+    def test_empty_scaled_inventory_uses_independent_native_size_read_of_same_frame(self):
+        empty = observation(); empty['lines'] = []
+        native = observation(scale=1); native['preprocessing']['requested_scale'] = 1
+        replies = [SimpleNamespace(returncode=0, stdout=json.dumps(row), stderr='') for row in (empty, native)]
+        with patch.object(windows_ocr.subprocess, 'run', side_effect=replies) as run:
+            observed = windows_ocr.recognize(self.image)
+        self.assertEqual([json.loads(call.kwargs['input'])['scale'] for call in run.call_args_list], [2, 1])
+        self.assertTrue(observed['scaling_fallback']['accepted'])
+        self.assertEqual(observed['raw_observation']['lines'], [])
+        self.assertEqual(observed['lines'][0]['words'][0]['x'], 200)
+        self.assertEqual(self.image.read_bytes(), b'bounded capture fixture')
+
+    def test_capture_change_during_native_size_read_blocks_geometry(self):
+        empty = observation(); empty['lines'] = []
+        native = observation(scale=1); native['preprocessing']['requested_scale'] = 1
+        replies = iter((empty, native))
+        def reply(*_args, **_kwargs):
+            row = next(replies)
+            if row is native: self.image.write_bytes(b'changed native frame')
+            return SimpleNamespace(returncode=0, stdout=json.dumps(row), stderr='')
+        with patch.object(windows_ocr.subprocess, 'run', side_effect=reply), self.assertRaisesRegex(ValueError, 'changed'):
+            windows_ocr.recognize(self.image)
+
 
 @unittest.skipUnless(os.name == 'nt', 'Windows native OCR launcher')
 class ContrastTests(unittest.TestCase):

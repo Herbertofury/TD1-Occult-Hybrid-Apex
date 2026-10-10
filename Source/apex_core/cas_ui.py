@@ -330,8 +330,11 @@ def form_selection_binding(client, sim_id, request, resulting=False):
     base, alternate = pair['base'], pair['alternate']
     pair_kinds = {base['occult_type'], alternate['occult_type']}
     nonhuman = pair_kinds - {1}
+    layer_selection = request['operation'] == 'layer-select'
+    kinds_supported = (pair_kinds.issubset({1, 2, 4, 8, 16, 32, 64}) if layer_selection else
+                       len(pair_kinds) == 2 and 1 in pair_kinds and nonhuman.issubset({2, 4, 8, 16, 32, 64}))
     if (original_indexes != [index] or base['sim_id'] != sim_id or alternate['sim_id'] != sim_id or
-            len(pair_kinds) != 2 or 1 not in pair_kinds or not nonhuman.issubset({2, 4, 8, 16, 32, 64}) or
+            not kinds_supported or
             base['all_occult_types'] != alternate['all_occult_types'] or base['all_occult_types'] < 0 or
             any(not base['all_occult_types'] & kind for kind in pair_kinds)):
         raise ValueError('CAS form selection requires one observed same-original-ID base/alternate pair; wrapper ownership is unproved.')
@@ -339,8 +342,9 @@ def form_selection_binding(client, sim_id, request, resulting=False):
     if (chosen['selected'] is not True or pair['alternate' if expected_layer == 0 else 'base']['selected'] is not False or
             any(chosen[field] != selected[field] for field in ('occult_type', 'all_occult_types', 'occult_layer'))):
         raise ValueError('CAS form selection fresh native selection does not match its retained pair.')
-    targets = [layer for layer, side in ((0, 'base'), (1, 'alternate'))
-               if pair[side]['occult_type'] == request['form_flags']]
+    targets = ([request['target_layer']] if layer_selection else
+               [layer for layer, side in ((0, 'base'), (1, 'alternate'))
+                if pair[side]['occult_type'] == request['form_flags']])
     if len(targets) != 1:
         raise ValueError('Requested form is not the actual observed base/alternate; no selection authorized.')
     target_layer = targets[0]
@@ -348,7 +352,7 @@ def form_selection_binding(client, sim_id, request, resulting=False):
         raise ValueError('CAS form selection did not reach the actual observed target layer.')
     return {'native_session': observation['session'], 'sim_id': sim_id, 'household_id': selected['household_id'],
             'selected_index': index, 'selected_layer': expected_layer, 'target_layer': target_layer,
-            'form_flags': request['form_flags'], 'feed_sequence': raw['sequence'],
+            'form_flags': pair['base' if target_layer == 0 else 'alternate']['occult_type'], 'feed_sequence': raw['sequence'],
             'pair': projections[index]}
 
 def attach_client(sim_id, clock=time.monotonic):
@@ -530,7 +534,7 @@ def validate_client(client, sim_id, request):
         raise ValueError('Native hair swatch did not match the exact selected identity.')
     if operation == 'select' and not any(isinstance(item, dict) and str(item.get('dataID')) == request['data_id'] for item in client.get('selected') or []):
         raise ValueError('Native selected item did not match the request.')
-    if operation == 'form-select':
+    if operation in ('form-select', 'layer-select'):
         form_selection_binding(client, sim_id, request, resulting=True)
     if operation in cas_controls.OPERATIONS:
         cas_controls.validate(client, request)
@@ -644,22 +648,24 @@ def envelope(sim_id, request):
         'outfit-add': {'operation', 'category'}, 'hair-swatch': {'operation', 'data_id'},
         'select': {'operation', 'panel', 'data_id'}, 'undo': {'operation'}, 'redo': {'operation'},
         'accept': {'operation', 'household_id'},
-        'form-select': {'operation', 'household_id', 'expected_layer', 'form_flags', 'native_session'}}
+        'form-select': {'operation', 'household_id', 'expected_layer', 'form_flags', 'native_session'},
+        'layer-select': {'operation', 'household_id', 'expected_layer', 'target_layer', 'native_session'}}
     if op not in allowed or set(request) != allowed[op]: raise ValueError('Unsupported or incomplete CAS request.')
     state = panel(request['panel']) if 'panel' in request else 0
     if op == 'select':
         name = ALIASES.get(request['panel'], request['panel'])
         if (name.startswith('profile_') and name not in cas_controls.PART_PROFILE_PANELS or name in ('clothing_looks', 'clothing_head_tattoos', 'clothing_body_tattoos')):
             raise ValueError('Use the typed preset, swatch or select-layer command for this panel.')
-    if op == 'form-select':
+    if op in ('form-select', 'layer-select'):
         _owner_id(sim_id)
         _owner_id(request['household_id'])
         if (type(request['expected_layer']) is not int or request['expected_layer'] not in (0, 1) or
-                type(request['form_flags']) is not int or request['form_flags'] not in (1, 2, 4, 8, 16, 32, 64) or
+                (op == 'form-select' and (type(request['form_flags']) is not int or request['form_flags'] not in (1, 2, 4, 8, 16, 32, 64))) or
+                (op == 'layer-select' and (type(request['target_layer']) is not int or request['target_layer'] not in (0, 1))) or
                 type(request['native_session']) is not int or not 0 < request['native_session'] < 2**31):
             raise ValueError('CAS form selection requires an exact current layer, requested form and native session.')
         request_id = uuid.uuid4().hex
-        wire = '|'.join(map(str, (request_id, sim_id, op, request['form_flags'],
+        wire = '|'.join(map(str, (request_id, sim_id, op, request['target_layer'] if op == 'layer-select' else request['form_flags'],
                                  request['expected_layer'], request['native_session'], request['household_id'])))
         return request_id, wire
     category, index = request.get('category', 0), request.get('index', 0)
@@ -686,7 +692,7 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
     with _LOCK:
         socket_ready = send is None and any(peer['sim_id'] == sim_id and clock() - peer['observed_at'] <= 3 for peer in _PEERS.values())
     form_select_context = None
-    if request['operation'] == 'form-select':
+    if request['operation'] in ('form-select', 'layer-select'):
         if not socket_ready:
             raise ValueError('CAS form selection requires a fresh exact-Sim socket peer; no request sent.')
         with _LOCK:
@@ -814,7 +820,7 @@ def _receive(request_id, payload, backend=None):
                 validate_client(before, row['sim_id'], {'operation': 'status'})
                 if history_state(before) == history_state(client):
                     raise ValueError('Native history changed only navigation/metadata; no Sim or equipped data change verified.')
-            if row['request']['operation'] == 'form-select':
+            if row['request']['operation'] in ('form-select', 'layer-select'):
                 stored = row['form_select_context']
                 if _form_select_original(backend, row['sim_id'], row['request']['household_id']) != stored['original']:
                     raise ValueError('CAS form selection original capture changed before readback.')
@@ -838,7 +844,7 @@ def _receive(request_id, payload, backend=None):
                 row['cas_room'] = inventory(baseline, client)
             except (ValueError, KeyError, TypeError, AttributeError) as error:
                 row['cas_room'] = {'schema': 1, 'available': False, 'error': str(error)[:256]}
-        unresolved_selection = (row['request']['operation'] == 'form-select' and not data.get('ok') and
+        unresolved_selection = (row['request']['operation'] in ('form-select', 'layer-select') and not data.get('ok') and
                                 data.get('mutation_started') is True)
         row.update(state='completed' if data.get('ok') else 'form-select-unresolved' if unresolved_selection else 'failed',
                    result=copy.deepcopy(data))
@@ -884,8 +890,8 @@ def result(request_id):
             response['cas_room'] = copy.deepcopy(row['cas_room'])
         if 'owner_pair_diagnostic' in row:
             response['owner_pair_diagnostic'] = copy.deepcopy(row['owner_pair_diagnostic'])
-        if row['request']['operation'] == 'form-select':
-            response.update(outcome='form-selected' if row['state'] == 'completed' else row['state'],
+        if row['request']['operation'] in ('form-select', 'layer-select'):
+            response.update(outcome=('layer-selected' if row['request']['operation'] == 'layer-select' else 'form-selected') if row['state'] == 'completed' else row['state'],
                             selection_only_verified=row['state'] == 'completed', mapping_verified=False,
                             alternate_accept_authorized=False, appearance_persistence_verified=False)
         if row['request']['operation'] in ('undo', 'redo'):

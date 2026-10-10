@@ -128,6 +128,30 @@ class FormBankTests(unittest.TestCase):
         self.assertEqual(resends, [])
         self.assertEqual(appearance.packed(self.backend, self.sim), live_before)
 
+    def test_genetics_only_repair_does_not_rebuild_matching_outfits_or_strip_tail(self):
+        desired=self.complete_human_appearance()
+        self.human.genetic_data=b'unaccepted CAS genetics'
+        original_blob=self.human.blob
+        def restore(target,fields):
+            self.assertEqual(set(fields),{'genetic_data'})
+            if '__outfits__' in fields:target.blob=outfit(0,999)
+            target.genetic_data=fields['genetic_data']
+        self.backend._restore_siminfo_payload=restore
+        form_bank.restore(self.backend,self.sim,'1',desired)
+        self.assertEqual(self.human.blob,original_blob)
+        self.assertEqual(appearance.packed(self.backend,self.human),desired)
+
+    def test_native_setter_removing_unrelated_genetics_still_fails_complete_readback(self):
+        desired=self.complete_human_appearance()
+        self.human.voice_pitch=0.5
+        def restore(target,fields):
+            self.assertEqual(set(fields),{'voice_pitch'})
+            target.voice_pitch=fields['voice_pitch']
+            target.genetic_data=b'native setter filtered independent tail'
+        self.backend._restore_siminfo_payload=restore
+        with self.assertRaisesRegex(ValueError,'Lane 1; fields: genetic_data'):
+            form_bank.restore(self.backend,self.sim,'1',desired)
+
     def test_changed_stored_form_requires_exact_readback_before_live_write(self):
         desired = self.complete_human_appearance()
         self.human.skin_tone -= 1

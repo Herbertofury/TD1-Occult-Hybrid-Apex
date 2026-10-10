@@ -34,6 +34,17 @@ class CasRoomTests(unittest.TestCase):
         self.assertEqual(len(r['rows']),8)
         self.assertFalse(r['alternate_accept_authorized'])
 
+    def test_vampire_primary_and_dark_share_kind_without_becoming_human_or_hiding_forms(self):
+        for layer in (0,1):
+            r=cas_room.inventory(self.baseline(),client(layer,base_form=4,alternate_form=4))
+            self.assertEqual([x['form_flags'] for x in r['rows']],[1,2,4,8,16,32,64,128])
+            self.assertEqual([x['form_flags'] for x in r['native_layers']],[4,4])
+            self.assertEqual([x['layer'] for x in r['native_layers'] if x['selected']],[layer])
+            v=next(x for x in r['rows'] if x['form_flags']==4)
+            self.assertIsNone(v['native_layer'])
+            self.assertFalse(v['navigation_supported'])
+            self.assertFalse(r['mapping_verified'])
+
     def test_observed_creature_base_disguise_order_is_not_assumed_human_base(self):
         c=client()
         c['sim'].update(occultType=2,allOccultTypes=3)

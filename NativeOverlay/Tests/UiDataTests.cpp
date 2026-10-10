@@ -211,6 +211,21 @@ int main() {
     check(!CasRoomDocument(invalidRoom,roomClient,roomSim),"CAS workspace selection cannot select two forms");
     invalidRoom=room;invalidRoom["rows"][2]["visible"]=false;
     check(!CasRoomDocument(invalidRoom,roomClient,roomSim),"CAS workspace cannot silently hide retained forms");
+    auto vampireRoom=room, vampireClient=roomClient;
+    vampireClient["sim"].update(Json{{"occultType",4},{"occultLayer",1}});
+    vampireRoom.update(Json{{"selected_form",4},{"selected_layer",1},{"native_layer_selection_only",true}});
+    vampireRoom["native_layers"]=Json::array();
+    for(int layer=0;layer<2;++layer) vampireRoom["native_layers"].push_back({{"layer",layer},{"form_flags",4},
+        {"sim_id",roomSim},{"label",layer==0 ? "Primary layer" : "Dark form"},
+        {"selected",layer==1},{"navigation_supported",true}});
+    for(auto& row:vampireRoom["rows"]) {
+        row["selected"]=row["form_flags"]==4;row["navigation_supported"]=false;row["native_layer"]=nullptr;
+    }
+    check(CasRoomDocument(vampireRoom,vampireClient,roomSim),"Native Vampire kind on both layers stays distinct without Human mapping");
+    auto invalidVampire=vampireRoom;invalidVampire["native_layers"][0]["sim_id"]="13";
+    check(!CasRoomDocument(invalidVampire,vampireClient,roomSim),"Native layer cannot select a foreign Sim");
+    invalidVampire=vampireRoom;invalidVampire["native_layers"][0]["selected"]=true;
+    check(!CasRoomDocument(invalidVampire,vampireClient,roomSim),"Native layer cannot select both layers");
     auto namedCas = cas;
     namedCas["catalog_metadata_complete"] = true;
     namedCas["catalog_metadata_scope"] = "native-catalog-identities-only";

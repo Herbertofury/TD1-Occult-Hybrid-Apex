@@ -390,7 +390,46 @@ def native_form_snapshot(backend, sim, sim_id, argument):
         raise ValueError('Native wrapper has no exact Sim identity.')
     from .form_appearance import evidence
     result['appearance'] = evidence(backend, target, export=True)
+    # Read-only native setter diagnostics. Method names are discovery evidence,
+    # never callable CLI targets or inferred write/compatibility authority.
+    native_base = getattr(target, '_base', None)
+    native_context = {}
+    for name in ('current_occult_types', 'occult_types', 'flags', 'gender', 'age', 'species'):
+        try:
+            value = getattr(native_base, name)
+            if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value < 1 << 64:
+                raise ValueError('Native owner context is not a bounded integer.')
+            native_context[name] = {'query': 'returned-value', 'value': str(int(value))}
+        except Exception as error:
+            native_context[name] = {'query': 'failed', 'error': str(error)[:1024]}
+    try:
+        traits = native_base.base_trait_ids
+        if (not isinstance(traits, (tuple, list)) or len(traits) > 1024 or
+                any(type(value) is not int or not 0 < value < 1 << 64 for value in traits)):
+            raise ValueError('Native owner trait IDs have an unexpected type or bound.')
+        native_context['base_trait_ids'] = {'query': 'returned-value', 'values': [str(value) for value in traits]}
+    except Exception as error:
+        native_context['base_trait_ids'] = {'query': 'failed', 'error': str(error)[:1024]}
+    result['native_owner_context'] = native_context
+    result['native_owner_context_write_authority'] = False
+    try:
+        appearance_flags = target.flags
+        if type(appearance_flags) is not int or not 0 <= appearance_flags < 1 << 64:
+            raise ValueError('Native appearance flags getter has an unexpected type.')
+        result['native_appearance_flags'] = {'query': 'returned-value', 'value': str(appearance_flags)}
+    except Exception as error:
+        result['native_appearance_flags'] = {'query': 'failed', 'error': str(error)[:1024]}
+    try:
+        names = [name for name in dir(native_base) if any(term in name.lower() for term in ('genetic', 'part', 'outfit'))]
+        if len(names) > 128 or any(not isinstance(name, str) or len(name) > 128 for name in names):
+            raise ValueError('Native appearance capability inventory exceeds its bound.')
+        result['native_appearance_capability_names'] = {'query': 'returned-value', 'names': names,
+                                                      'write_authority': False}
+    except Exception as error:
+        result['native_appearance_capability_names'] = {'query': 'failed', 'error': str(error)[:1024],
+                                                      'write_authority': False}
     result['last_restore_diagnostics'] = getattr(backend, '_APEX_APPEARANCE_RESTORE_DIAGNOSTICS', {}).get(str(target.id))
+    result['native_context_write_diagnostic'] = getattr(backend, '_APEX_NATIVE_OCCULT_WRITE_DIAGNOSTICS', {}).get(str(target.id))
     result['last_serializer_failure'] = getattr(tracker, '_apex_serialization_appearance_failure', None)
     if current == flags:
         result['active_live_appearance'] = evidence(backend, sim, export=True)

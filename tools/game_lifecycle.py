@@ -3,6 +3,7 @@ import json
 import math
 from pathlib import Path
 import re
+import sys
 import time
 
 import game_capture
@@ -412,7 +413,12 @@ def shutdown_cas_state(diagnostic):
         if (not isinstance(sim, str) or re.fullmatch(r'[1-9][0-9]{0,19}', sim) is None or
                 not 0 < int(sim) < 1 << 64 or not age_valid(peer.get('age_seconds'))):
             return unknown
-    operations = {'status', 'panel', 'select', 'hair-swatch', 'outfit', 'outfit-add', 'undo', 'redo', 'accept', 'form-select'}
+    # The same public typed registry supplies request validation and shutdown.
+    # Completed catalog/filter/preset reads must not look like an unknown CAS
+    # protocol; pending writes still block the normal quit path below.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
+    from apex_core import cas_controls
+    operations = {'status', 'panel', 'select', 'hair-swatch', 'outfit', 'outfit-add', 'undo', 'redo', 'accept', 'form-select', 'layer-select'} | set(cas_controls.OPERATIONS)
     blocked, ids = [], set()
     for row in rows:
         if not isinstance(row, dict):

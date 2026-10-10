@@ -11,7 +11,7 @@ import build_candidate
 class CandidateEpochTests(unittest.TestCase):
     def test_prior_epoch_is_refused_before_any_build_or_artifact_change(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); output = root/'dist'/'candidate'; output.mkdir(parents=True)
+            root = Path(folder).resolve(); output = root/'dist'/'candidate'; output.mkdir(parents=True)
             prior = output/build_candidate.candidate_filename(None)
             prior.write_bytes(b'immutable prior bundle')
             with patch.object(build_candidate, 'ROOT', root), patch.object(build_candidate, 'build_packages') as build:

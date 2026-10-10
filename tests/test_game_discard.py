@@ -37,7 +37,7 @@ class DiscardTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.profile, self.original = self.root / 'The Sims 4', self.root / 'protected'
         self.profile.mkdir(); self.original.mkdir()
         self.identity = {'pid': 8, 'test_token': 'b' * 32, 'script_sha256': 'c' * 64,

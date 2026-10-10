@@ -1,5 +1,18 @@
 # Native CAS CLI controls
 
+V27 adds `cas layer-select --target-layer 0` (Primary) and `--target-layer 1`
+(Alternate/Dark). Supply the exact currently observed `--expected-layer`,
+`--native-session`, `--household-id` and original `--sim-id` from a fresh
+`cas status`. This navigation supports Vampire pairs in which both native
+records report type 4. It does not relabel Primary as Human or authorize
+alternate-layer acceptance. F11 exposes the same explicit native layer buttons.
+The existing `form-select --form` remains restricted to an unambiguous native
+pair; neither operation can select an arbitrary retained occult in one visit.
+Generation 62 verifies actual Dark -> Primary, Primary -> Dark and edited
+Dark -> Primary through this semantic command, without mouse input. Eleven
+Dark edits have native readback, but their subsequent reconciliation fails on
+another form's lost Mermaid genetics; navigation success is not retention.
+
 The development CLI uses native CAS methods and a later native UI tick for readback. It does not click catalog tiles or run arbitrary game services. All commands require the marked disposable profile and an explicit existing Sim ID. A failed or unresolved command is not a successful edit. Poll its returned request ID; do not repeat a mutation.
 
 The v23 candidate adds 27 typed operations to the earlier controls and five previously missing Vampire detail panels. The panel inventory contains 77 native menu states. Eyebrows and whiskers use the native face panel's string part selector; eyebrows then use a separate next-tick palette operation. They do not use the preset-index or clothing modifier-object setter. Every advertised typed control must have both execution and result dispatch before the package builder accepts it. Opening a panel and capturing every selected field are distinct from proving an edit persisted through CAS, Live, switching and disk reload. The complete per-form test matrix is still open.
@@ -72,3 +85,51 @@ Native `CASCatalogFilter` slots are copied through data-class-only reflection,
 retaining public fields and readable accessors rather than returning an empty
 object for a sealed native record. Full native retesting remains separate from
 passing the 1,546 frozen fixture checks and four native targets.
+
+Actual existing-household mode 0 now has native proof for eleven Alien creature
+panels, original-Sim Live return, explicit Alien-only decisions and unpaused
+Alien → Vampire → Alien retention. Empty body skin details and failed tattoo
+queries remain explicit. V25's accept path adds the native pending-name and
+family validation required by this editor before the single SaveAndExitCAS;
+name warnings refuse rather than selecting a dialog answer implicitly. The
+earlier failed semantic request and separate successful native confirmation
+remain distinct evidence. The host normal-quit guard now recognizes every
+public typed control, while active peers and unresolved requests still block.
+
+Cold `game load` can use the fixed native input route before the first household
+has created TimeService. This narrow admission requires the exact installed
+process/profile/script, a never-ticked bridge with no retained/pending queue
+entries, and a complete fresh Home or uniquely indexed normal-load menu.
+It provides no Sim-mutation or Live-completion authority. Normal Source CAS,
+identity and clock verification remain mandatory once a household is loaded.
+Native pre-input pointer refusals remain failed observations; they are not
+silently treated as completed clicks.
+
+For a cold start with an uninitialized hidden F11 renderer, the public native
+CLI can initialize its frames before `game load`. First verify `bridge` and
+`request overlay_status`; start only on the exact “F11 sidecar has not been
+started” response. Then focus, show, observe status 3 with submitted frames,
+and hide before capturing the ordinary menu:
+
+```powershell
+python tools/apex_cli.py request overlay_start --state .work/reusable-profile-session.json
+python tools/apex_cli.py game focus --state .work/reusable-profile-session.json
+python tools/apex_cli.py request overlay_show --state .work/reusable-profile-session.json
+python tools/apex_cli.py request overlay_status --state .work/reusable-profile-session.json
+python tools/apex_cli.py request overlay_hide --state .work/reusable-profile-session.json
+```
+
+Generation 67 verifies this sequence through the public CLI, with matching
+native DLL, actual frame submission and `sim_data_read=false`. These are native
+frame controls, not household readiness or headless-engine proof. Retain every
+request UUID; an unresolved start/show/hide is not permission to replay it.
+
+At the observed 2560×1385 Home viewport, native OCR can omit Marketplace while
+returning exact Home, Resume Game, Load Game, New Game and Gallery labels.
+The load gate admits that missing-label case only with both independent exact
+Home/Resume headers and all three gameplay controls; duplicates, partial menus
+and known blocking dialogs still refuse. The target uses fresh measured Load
+Game bounds, and the requested save still needs its indexed name/hash/GUID,
+unique normal-row Play and exact original-Sim Live readback. A completed Play
+which opens the neighborhood map remains unresolved for Live. This rule is
+covered by the 14 load tests and does not infer successful game input from OCR.

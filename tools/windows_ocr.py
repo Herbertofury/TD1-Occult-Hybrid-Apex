@@ -91,6 +91,21 @@ def recognize(path, scale=2):
     if not 0 < len(source) <= 32 * 1024 * 1024:
         raise ValueError('Capture changed outside the bounded image size.')
     primary = _native_observation(path, scale)
+    if scale == 2 and not primary['lines']:
+        # Native two-times OCR can return an empty inventory for the actual
+        # apartment picker. Read the identical complete frame at native size;
+        # never infer text, crop a target or repeat game input for an OCR miss.
+        remaining = 35 - (time.monotonic() - started)
+        if remaining <= 0 or path.read_bytes() != source:
+            raise ValueError('Capture/deadline changed before native-size OCR fallback.')
+        unscaled = _native_observation(path, 1, timeout=remaining)
+        if ((unscaled['width'], unscaled['height']) != (primary['width'], primary['height']) or
+                path.read_bytes() != source):
+            raise ValueError('Capture/viewport changed during native-size OCR.')
+        if unscaled['lines']:
+            return dict(unscaled, raw_observation=primary, scaling_fallback={
+                'attempted': True, 'accepted': True, 'scale': 1,
+                'source_sha256': hashlib.sha256(source).hexdigest()})
     if not _contrast_candidate(primary):
         return primary
     if path.read_bytes() != source:

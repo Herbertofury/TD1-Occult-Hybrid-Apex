@@ -7,7 +7,7 @@ import time
 import game_capture
 import game_lifecycle
 import reusable_profile
-from game_load import normalized
+from game_load import normalized, menu_target
 from game_save import _save_live_context
 from source_manifest import sha256, write_json
 from windows_ocr import recognize
@@ -118,9 +118,11 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
         live_guard(); submit(target(observed, 'confirmation'), 'confirmation')
         for attempt in range(6):
             pause(.5); _, observed = frame('home-' + str(attempt))
-            labels = [normalized(row['text']) for row in observed['lines']]
-            if all(labels.count(label) == 1 for label in ('home', 'marketplace', 'load game', 'new game', 'gallery')):
-                bound(); proof['home_menu_verified'] = True; proof['ok'] = True; break
+            try:
+                menu_target(observed, 'home', '')
+            except ValueError:
+                continue
+            bound(); proof['home_menu_verified'] = True; proof['ok'] = True; break
         if proof['ok'] is not True:
             raise ValueError('Native Home menu was not verified after the single unsaved exit.')
     except (OSError, ValueError, RuntimeError) as error:

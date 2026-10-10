@@ -127,6 +127,50 @@ class CasFormSelectTests(unittest.TestCase):
         self.acknowledge(rid, value)
         self.assertFalse(cas_ui.result(rid)['form_selection']['selection_changed'])
 
+    def test_actual_vampire_kind_on_both_layers_can_navigate_by_layer_without_human_guess(self):
+        for before, after in ((0, 1), (1, 0)):
+            self.setUp()
+            self.tracker.forms = {4: Obj(id=int(SIM)+4)}
+            cas_ui.capture_original_owner(self.backend, self.sim)
+            self.observe(before, base_form=4, alternate_form=4)
+            value = {'operation':'layer-select','household_id':HH,'expected_layer':before,
+                     'target_layer':after,'native_session':1}
+            rid = self.submit(value)
+            wire = cas_ui.poll_client(self.peer, clock=lambda:self.now)
+            self.assertEqual(wire.split('|')[1:], [SIM,'layer-select',str(after),str(before),'1',HH])
+            self.acknowledge(rid,self.receipt(rid,after,before,base_form=4,alternate_form=4))
+            result=cas_ui.result(rid)
+            self.assertEqual(result['outcome'],'layer-selected')
+            self.assertTrue(result['selection_only_verified'])
+            self.assertEqual(result['form_selection']['form_flags'],4)
+            self.assertFalse(result['mapping_verified'])
+            self.assertFalse(result['alternate_accept_authorized'])
+            self.assertFalse(result['appearance_persistence_verified'])
+            self.assertFalse(result['cas_room']['rows'][0]['navigation_supported'])
+
+    def test_layer_navigation_refuses_stale_or_foreign_pair_and_untyped_target(self):
+        value={'operation':'layer-select','household_id':HH,'expected_layer':1,'target_layer':0,'native_session':1}
+        for mutate in (lambda c:c['owner_pair_observation'].update(session=2),
+                       lambda c:c['owner_pair_observation']['selector_feed']['retained']['pairs'][0]['base'].update(sim_id='13'),
+                       lambda c:c['owner_pair_observation']['selector_feed']['raw_feed'].update(delivered=False),
+                       lambda c:c['sim'].update(occultLayer=0)):
+            c=client(1,base_form=4,alternate_form=4);mutate(c)
+            with self.assertRaises(ValueError):cas_ui.form_selection_binding(c,SIM,value)
+        for target in (True,-1,2,None):
+            with self.assertRaises(ValueError):cas_ui.envelope(SIM,dict(value,target_layer=target))
+        with self.assertRaises(ValueError):
+            cas_ui.form_selection_binding(client(1,base_form=4,alternate_form=4),SIM,request(1,4))
+
+    def test_layer_selection_failed_after_native_write_cannot_be_replayed(self):
+        self.tracker.forms={4:Obj(id=int(SIM)+4)}
+        cas_ui.capture_original_owner(self.backend,self.sim)
+        self.observe(1,base_form=4,alternate_form=4)
+        rid=self.submit({'operation':'layer-select','household_id':HH,'expected_layer':1,'target_layer':0,'native_session':1})
+        self.acknowledge(rid,{'protocol':1,'ok':False,'cas_request_id':rid,'mutation_started':True})
+        self.assertEqual(cas_ui.result(rid)['outcome'],'form-select-unresolved')
+        with self.assertRaisesRegex(ValueError,'unresolved'):
+            cas_ui.submit(SIM,{'operation':'status'},clock=lambda:self.now)
+
     def test_creature_base_human_disguise_uses_observed_layer_in_both_directions(self):
         for before, after in ((0, 1), (1, 0)):
             self.setUp()
@@ -341,7 +385,7 @@ class CasFormSelectTests(unittest.TestCase):
             with self.subTest(field=field):
                 calls = []
                 observed = {'ok': True, 'client': client(1), 'cas_room': {'native_session': 1}}
-                if field == 'session': observed['cas_room']['native_session'] = 2
+                if field == 'session': observed['client']['owner_pair_observation']['session'] = 2
                 elif field == 'layer': observed['client']['sim']['occultLayer'] = 0
                 elif field == 'household': observed['client']['sim']['householdId'] = '13'
                 else: observed['client']['sim']['simId'] = '13'

@@ -39,7 +39,20 @@ def menu_target(observation, phase, slot_name):
     if any(label in labels for label in forbidden):
         raise ValueError('Another native dialog blocks load; no input submitted.')
     if phase == 'home':
-        if (any(labels.count(label) != 1 for label in ('home', 'marketplace', 'load game', 'new game', 'gallery')) or
+        # The current WinRT/font observation merges the Resume plumbob into
+        # "IRESUME GAME" and can omit the selected Home tab. Require the full
+        # four-control Home surface and one exact known header spelling.
+        resume_count = sum(labels.count(label) for label in ('resume game', 'iresume game'))
+        header = labels.count('home') == 1 or resume_count == 1
+        # At the observed 2560x1385 viewport, OCR returns both exact Home and
+        # Resume labels plus every gameplay control but misses Marketplace.
+        # Require both independent headers in that specific missing-label case;
+        # a lone Load Game or partial Home surface still cannot authorize input.
+        marketplace = labels.count('marketplace')
+        marketplace_verified = marketplace == 1 or (marketplace == 0 and
+            labels.count('home') == 1 and resume_count == 1)
+        if (not header or not marketplace_verified or
+                any(labels.count(label) != 1 for label in ('load game', 'new game', 'gallery')) or
                 any(label in labels for label in ('autosave', 'play'))):
             raise ValueError('Complete native Home menu is not recognized.')
         label = 'load game'
@@ -100,6 +113,28 @@ def measured_target(observation, label):
             'width': observation['width'], 'height': observation['height']}
 
 
+def cold_menu_guard(identity, observed, phase, slot_name):
+    """Admit only a measured cold Home/indexed-load menu, never a CAS view.
+
+    Before the first household loads there is no TimeService/game-thread CAS
+    dispatcher. The fixed native input route is independent of that dispatcher.
+    An empty cold bridge plus the complete freshly captured ordinary menu is
+    required; this exception cannot finish a load or authorize Sim mutations.
+    """
+    queue = identity.get('queue') if isinstance(identity, dict) else None
+    if (not isinstance(identity, dict) or identity.get('native_cli_available') is not True or
+            identity.get('core_tick_ready') is not False or identity.get('alarm_ready') is not False or
+            type(identity.get('core_ticks')) is not int or identity['core_ticks'] != 0 or
+            not isinstance(queue, dict) or queue.get('closed') is not False or
+            any(type(queue.get(name)) is not int or queue[name] != 0 for name in ('pending', 'retained')) or
+            phase not in ('home', 'play')):
+        raise ValueError('Native cold-menu admission requires an empty never-ticked bridge and a measured ordinary menu.')
+    menu_target(observed, phase, slot_name)
+    return {'safe': True, 'outcome': 'measured-cold-native-menu', 'phase': phase,
+            'game_thread_unavailable': True, 'sim_mutation_authorized': False,
+            'live_completion_established': False}
+
+
 def observe(state, output, identity, request, sim_id, household_id, save_guid,
             slot_id, slot_name, expected_save_sha256, seconds=60, capture=game_capture.capture,
             ocr=recognize, identity_provider=None, alive=cas_transition.process_alive,
@@ -148,10 +183,14 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
                 current.get('test_token') != journal['token'] or current.get('script_sha256') != expected_script or
                 not alive(identity['pid'])):
             raise ValueError('The exact game process/profile/source changed; no further input submitted.')
+        return current
     def call(action, value=None):
         bound()
         return record(action, request(state, action, sim_id=sim_id, value=envelope(value), seconds=2))
-    def idle():
+    def idle(observed=None, phase=None):
+        current = bound()
+        if current.get('core_tick_ready') is False:
+            return record('cold-native-menu-admission', cold_menu_guard(current, observed, phase, slot_name))
         guard = game_lifecycle.shutdown_cas_state(call('cas_ui_diagnostics'))
         if guard.get('safe') is not True:
             raise ValueError('Active or unknown CAS ownership blocks load.')
@@ -169,7 +208,9 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
             raise ValueError('Native loaded clock is untyped.')
         return snapshot
     try:
-        bound(); idle()
+        current = bound()
+        if current.get('core_tick_ready') is not False:
+            idle()
         game_capture.prepare_window(state, request, proof.setdefault('renderer', {}),
                                     lambda: write_json(output, proof), identity, identity_provider)
         hidden = call('overlay_hide')
@@ -183,7 +224,9 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
             for phase in ('home', 'play'):
                 if phase == 'play' and proof.get('play_input_accepted') is True:
                     break
-                idle(); bound()
+                current = bound()
+                if current.get('core_tick_ready') is not False:
+                    idle()
                 image = output.with_name(output.stem + '-' + phase + '.bmp')
                 frame = record('capture-' + phase, capture(state, image, request))
                 if frame.get('ok') is not True:
@@ -203,7 +246,7 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
                     raise ValueError('Load OCR/capture viewport changed; no input submitted.')
                 submitted_phase = 'play' if phase == 'home' and proof['initial_surface'] == 'native-load-menu' else phase
                 record('recognize-' + submitted_phase, {'observation': observed, 'target': selected})
-                bound()
+                idle(observed, submitted_phase); bound()
                 record('input-' + submitted_phase + '-intent', {'submission_attempted': True})
                 result = call('test_input', selected)
                 if result.get('ok') is not True:

@@ -72,16 +72,31 @@ def play_target(image, observation, household_name, expected_caption=CAPTION):
             box = _bounds(row, width, height)
             if box[2] < width * .55 and box[1] > height * .6:
                 names.append(box)
+    name_source = 'native-household-detail'
     if len(names) != 1:
-        raise ValueError('Exact indexed household name is absent or ambiguous in its detail panel.')
+        # The editable household-name textbox may not enter WinRT's OCR
+        # output. The actual selected apartment's hover card repeats that
+        # name above its portrait and Lot Traits. This is a separate native
+        # name readback, not an invented textbox value or inferred text.
+        cards = [_bounds(row, width, height) for row in lines
+                 if normalized(row['text']) == normalized(household_name) and
+                 width * .45 <= _bounds(row, width, height)[0] < width * .85 and
+                 height * .2 <= _bounds(row, width, height)[1] < height * .55]
+        if names or len(cards) != 1 or labels.count('lot traits:') != 1:
+            raise ValueError('Exact indexed household name is absent or ambiguous in its detail panel.')
+        names = cards
+        name_source = 'native-selected-apartment-card'
     funds = []
     for row in lines:
         match = re.fullmatch(r'funds\s*:\s*[$§s]?\s*([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)', normalized(row['text']))
         if not match:
             continue
         box = _bounds(row, width, height)
-        if (box[2] < width * .55 and names[0][3] <= box[1] <= names[0][3] + height * .08 and
-                abs((box[0] + box[2] - names[0][0] - names[0][2]) / 2) <= width * .08):
+        lower_detail = (box[2] < width * .55 and names[0][3] <= box[1] <= names[0][3] + height * .08 and
+                        abs((box[0] + box[2] - names[0][0] - names[0][2]) / 2) <= width * .08)
+        card_detail = (name_source == 'native-selected-apartment-card' and
+                       box[2] < width * .55 and height * .7 < box[1] < height * .9)
+        if lower_detail or card_detail:
             funds.append((box, int(match[1].replace(',', ''))))
     if len(funds) != 1 or not 0 <= funds[0][1] <= 0x7fffffff:
         raise ValueError('Selected household Funds panel is absent or ambiguous.')
@@ -154,7 +169,7 @@ def play_target(image, observation, household_name, expected_caption=CAPTION):
         triangles.append({'command': 1, 'x': chosen[0], 'y': chosen[1], 'width': width, 'height': height,
             'bounds': [left, top, right + 1, bottom + 1], 'component_area': len(points),
             'bounds_convention': 'left-top-inclusive-right-bottom-exclusive',
-            'household_name': household_name, 'funds': funds[0][1],
+            'household_name': household_name, 'household_name_source': name_source, 'funds': funds[0][1],
             'description_bounds': descriptions[0], 'caption': expected_caption})
     if len(triangles) != 1:
         raise ValueError('Native filled Play triangle and white circle are absent or ambiguous.')

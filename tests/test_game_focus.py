@@ -4,7 +4,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
-from game_focus import input_result, validate
+from game_focus import input_result, native_refused_before_input, validate
 
 
 class GameFocusLeaseTests(unittest.TestCase):
@@ -168,3 +168,31 @@ class GameInputResultTests(unittest.TestCase):
         self.assertIsNone(projected['input_submitted'])
         self.assertEqual(projected['outcome'], 'unresolved')
         self.assertFalse(projected['native_acknowledgment']['input_submitted'])
+
+    def test_bound_version_two_cursor_refusal_preserves_no_click_authority(self):
+        native = {'ok': False, 'request_id': 'f' * 32, 'request_state': 'completed',
+                  'native_code': 0, 'input_version': 2, 'input_state': -7,
+                  'input_submitted': False}
+        self.assertTrue(native_refused_before_input(native, 'f' * 32))
+        projected = self.project({'ok': False, 'worker_receipt_verified': True,
+            'host_binding_verified': True, 'worker': {'input_sent': None, 'native_input': native}})
+        self.assertFalse(projected['input_submitted'])
+        self.assertEqual(projected['outcome'], 'refused-before-input')
+        self.assertEqual(projected['native_acknowledgment'], native)
+
+    def test_cursor_refusal_with_partial_stale_or_unbound_ack_cannot_authorize_retry(self):
+        original = {'ok': False, 'request_id': 'f' * 32, 'request_state': 'completed',
+                    'native_code': 0, 'input_version': 2, 'input_state': -7,
+                    'input_submitted': False}
+        for field, value in (('request_id', 'e' * 32), ('request_state', 'pending'),
+                             ('input_state', -5), ('input_state', 3), ('input_version', 1),
+                             ('input_version', True), ('input_submitted', True)):
+            native = dict(original, **{field: value})
+            with self.subTest(field=field, value=value):
+                self.assertFalse(native_refused_before_input(native, 'f' * 32))
+                projected = self.project({'ok': False, 'worker_receipt_verified': True,
+                    'host_binding_verified': True, 'worker': {'input_sent': None, 'native_input': native}})
+                self.assertIsNone(projected['input_submitted'])
+        projected = self.project({'ok': False, 'worker_receipt_verified': True,
+            'host_binding_verified': False, 'worker': {'input_sent': None, 'native_input': original}})
+        self.assertIsNone(projected['input_submitted'])

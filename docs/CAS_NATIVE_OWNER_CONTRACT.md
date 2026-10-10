@@ -1,5 +1,90 @@
 # Native CAS owner contract and alternate-form release blocker
 
+## V33 actual existing-kind reconciliation
+
+Actual generation 68 passes ten confirmed Vampire Dark edits across eleven requested panels in full household CAS, semantic Primary selection, original-Sim Live return and explicit Vampire-only reconciliation. Every other changed form restores exactly, including Mermaid's complete tail genetics. All seven stored/distinct active appearances and memberships survive unpaused Vampire → Alien → Vampire → Alien switches. Controlled normal Slot02 save/seal and normal unsaved closure pass; cold reload is independently checked. Full universal catalogs, same-visit all-occult room, every-panel/manual/MCCC coverage, palettes/texture conversion and Tray parity remain open. The original profile is read/copy only; no finished release or rewritten headless game is claimed.
+
+The complete native commit receipt is
+`8bfea32fc9970ad49c510ae6e2beeed9430d925c927a465e4fd22be90264b255`.
+This actual success establishes the scoped reconciliation and switches, not a
+general mechanism explaining the native filtering in earlier failures.
+
+## Earlier hypothesis and V32 evidence
+
+Actual generation 67 verifies V32 Human restoration. Mermaid's temporary
+availability 12 is admitted on only its existing owner, its current kind stays
+8, the appearance payload is called once, and the preceding complete context
+is restored exactly. Complete genetics validation still fails: the setter
+already returns the shorter tail-less bytes immediately, with no exception,
+before any resend. Context checks do not establish appearance retention.
+
+V33 tests the existing kind alone when absent from the preceding mask, avoiding
+an unrelated current form in the temporary context. It keeps an already-present
+kind and Human context unchanged, retains exact admission/restoration guards,
+and still requires complete appearance readback after restoration. Eighteen
+fixtures pass, including an exclusive-kind filtering fixture; that synthetic
+case is a test hypothesis, not a claim of the game's filtering mechanism.
+Actual post-Dark reconciliation and switching remain separate release gates.
+
+## V32 Human appearance context
+
+Generation 66 V31 identifies the exact failing admission: adding Human bit 1
+to Vampire availability 4 does not read back; the Human owner remains at 4.
+All other native availability and every current kind remain unchanged. The
+diagnostic confirms no appearance payload call occurred, and exact context
+restoration completed. It does not establish shared-mask behavior or refusal
+of a non-Human mask.
+
+Human is an existing appearance owner, not an additional occult capability.
+V32 retains the preceding native context for Human restoration, performs the
+appearance payload once, and requires complete context and appearance readback.
+Changed non-Human appearances retain the bounded temporary-kind admission and
+restoration guards. Seventeen native-context fixtures pass. Actual Mermaid-tail
+restoration and post-Dark-edit retention still need native runtime proof.
+
+## V31 shared native appearance write context
+
+Actual generation 64 Vampire switching narrows availability before CAS entry:
+the fresh checkpoint already reports 4 for all eight native owners, even
+though all seven distinct stored wrappers and all six occult memberships remain.
+Restoring that captured value leaves Mermaid genetics assignment filtered.
+V29 therefore reproduces the missing 20-byte tail entry; it is not a fix.
+
+Generation 65 V30 stopped at its temporary-context admission guard before
+appearance reconciliation could complete. The failure retains the original
+transaction and exact returned edits; normal unsaved closure leaves all saves
+unchanged. Selected-row-only availability was too narrow a setter contract.
+
+V31 admits either an exact selected-owner availability change or an exact
+complete shared availability change across every existing native owner. The
+temporary mask adds only the selected existing owner's actual current-kind bit.
+Every stored and active current kind must remain unchanged. Partial propagation
+fails before the payload call. The receiver checks complete context after the
+one payload call, restores the exact preceding context in `finally`, and then
+requires complete appearance readback. Diagnostics retain the admission,
+payload and restoration observations separately. No form or trait is created,
+no Human pair is guessed, and no appearance comparison is loosened.
+
+The matching build passes 1,585 frozen Python tests and four native targets;
+actual Mermaid-tail and post-Dark-edit retention remain separate runtime gates.
+
+## V29 native availability checkpoint
+
+The receiver captures distinct existing native bases before CAS and binds their
+exact availability/current masks into the immutable transaction envelope.
+Appearance reconciliation restores captured availability after durable write
+intent and before appearance setters. It preserves every stored current kind,
+the returned active selection and existing owner identities. Each setter is
+followed by independent complete context readback; cross-owner changes fail.
+The durable restore receipt is checked again before/after metadata commit and
+inside the historical completion validator. Interrupted or changed transactions
+cannot replay these masks or unlock the mutation gate.
+
+Availability is not the union of stored forms or trait membership. Existing
+six-occult native data can report 65, so the receiver never synthesizes 127.
+This is a concrete candidate fix with fixture coverage, not yet an actual-game
+Mermaid-tail or post-Dark-edit retention pass.
+
 Contract and Source implementation status, 2026-10-09. This document summarizes inspected contracts and retained test receipts; it does not reproduce private game source. The owned semantic accept guard requires an exact native integer `occultLayer == 0` in host preflight, the owner-validated intent ACK, and the fresh native commit preflight. Missing, untyped or nonzero layers are refused. This guard does not intercept the game's own manual checkmark. Alternate-form acceptance remains a release blocker until the original owner mapping and retained-Sim return are proved.
 
 ## Current generation 56 V19 - observed native pair layers
@@ -659,6 +744,24 @@ runtime remain unproved. No runtime release gate closes from these Source
 changes or offline fixtures alone.
 
 ## What the current native UI establishes
+
+Generation 61 full household Vampire CAS returned two native rows for the
+same original Sim: Primary layer 0 and Dark layer 1 both reported type/mask 4.
+A Human/non-Human uniqueness test cannot navigate this actual pair. V27 adds
+an explicitly requested native layer, bound to the current original owner,
+household, complete paired feed, current layer and native session. It preserves
+both raw kinds and validates the selected layer on the next native tick.
+Primary-only acceptance remains a separate guard. This is navigation evidence,
+not proof of a Human appearance mapping or seven forms in one native visit.
+
+Generation 61 reconciliation failed because Mermaid genetics lacked a tail
+part after Vampire CAS. V27 restores only differing appearance fields to avoid
+unnecessary outfit rebuilding, but still compares every captured field and
+complete normalized outfit bytes. The failed Mermaid tail existed before CAS
+and was already absent in the raw return and pre-write state; selective writes
+alone have not yet been established as its fix. No normalization rule was added
+to hide that loss. The full failed bank and returned edits were preserved before
+normal unsaved exit and metadata archival.
 
 - `CASGetSimInfo` returns the selected native Sim record. Its `simId` and `householdId` are strings; `occultType`, `allOccultTypes` and `occultLayer` describe native CAS context. A selected ID plus household membership does not establish its original base owner or durable Apex bank lane.
 - The native selector receives `CASRefreshSimIcons` as `SkewerData`: parallel `sim_data[i]` and `sim_occult_data[i]` arrays pair the base and alternate rows at the same household index. `selected_sim` and `selected_layer` identify the selected row and layer. Each row has its own string `simId`; no separate household ID or original-owner ID is defined in this row type.

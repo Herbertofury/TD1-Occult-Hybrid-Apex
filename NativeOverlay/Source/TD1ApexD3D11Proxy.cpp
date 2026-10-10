@@ -2258,6 +2258,22 @@ static void DrawNativeCas(const std::string& reply, ULONGLONG replyMs, bool hist
     ImGui::Combo("Category order", &g_casCatalogSort, "Category name\0Equipped first\0Native menu state\0");
     const bool nativeActionPending = g_casSubmissionBusy.load() || g_ownerBlocked.load() || g_casPendingId[0] || g_casRefreshClock.unresolved;
     if (ui::CasRoomDocument(g_casRoomData,g_casClientData,sim)) {
+        if (g_casRoomData.contains("native_layers")) {
+            ImGui::SeparatorText("Native CAS layers");
+            for (const auto& layer:g_casRoomData["native_layers"]) {
+                if (layer["layer"]==1) ImGui::SameLine();
+                const bool chosen=layer["selected"]==true;
+                ImGui::PushID(1000+layer["layer"].get<int>());
+                ImGui::BeginDisabled(nativeActionPending || snapshotAge>2.5 || chosen);
+                if (ImGui::Button(ui::Scalar(layer,"label").c_str(),ImVec2(150,32)))
+                    QueueCasAction({{"operation","layer-select"},{"household_id",ui::Scalar(g_casRoomData,"household_id")},
+                        {"target_layer",layer["layer"]},{"expected_layer",g_casRoomData["selected_layer"]},
+                        {"native_session",g_casRoomData["native_session"]}});
+                ImGui::EndDisabled();
+                ImGui::PopID();
+            }
+            ImGui::TextDisabled("Native primary/alternate navigation. Each retained occult keeps its own appearance.");
+        }
         ImGui::SeparatorText("Apex CAS workspace / retained forms");
         int column=0;
         for (const auto& row:g_casRoomData["rows"]) {

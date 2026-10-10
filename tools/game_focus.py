@@ -140,7 +140,7 @@ def worker(path, expected_hash):
             result['native_input'] = native
             result['ok'] = native.get('ok') is True and native.get('input_state') == 4
             if result['ok']: result['input_sent'] = True
-            elif native.get('input_submitted') is False and native.get('native_code') in (-1, -2, -3, -4) and native.get('input_state') == 0:
+            elif native_refused_before_input(native, request['input']['request_id']):
                 result['input_sent'] = False
     except (OSError, ValueError, RuntimeError) as error:
         result['message'] = str(error)
@@ -261,6 +261,25 @@ def native_input_once(state, value, request_id):
     return input_result(result, request_id, output, digest(output))
 
 
+def native_refused_before_input(native, request_id):
+    """An exact terminal ACK can prove refusal before button/key-down.
+
+    State -7 is the version-2 cursor check, before SendInput(down). A move
+    occurred, but no click. Partial input, stale ACKs and lost responses keep
+    their uncertainty; they never grant permission to retry a button press.
+    """
+    if (not isinstance(native, dict) or native.get('request_id') != request_id or
+            native.get('request_state') != 'completed' or native.get('ok') is not False or
+            native.get('input_submitted') is not False):
+        return False
+    initial_refusal = (type(native.get('native_code')) is int and native['native_code'] in (-1, -2, -3, -4)
+                       and type(native.get('input_state')) is int and native['input_state'] == 0)
+    cursor_refusal = (type(native.get('input_version')) is int and native['input_version'] == 2 and
+                      type(native.get('native_code')) is int and native['native_code'] == 0 and
+                      type(native.get('input_state')) is int and native['input_state'] == -7)
+    return initial_refusal or cursor_refusal
+
+
 def input_result(result, request_id, output, proof_sha256):
     """Retain native ACKs while keeping host binding and submission separate."""
     worker = result.get('worker', {}) if result.get('worker_receipt_verified') is True else {}
@@ -276,7 +295,9 @@ def input_result(result, request_id, output, proof_sha256):
     # the fixed worker's positive pre-input result or Windows' rejected launch
     # permits a caller to conclude that nothing was submitted.
     sent = worker.get('input_sent')
-    if sent is False or result.get('helper_launch_refused') is True:
+    native_refusal = (result.get('host_binding_verified') is True and
+                      native_refused_before_input(native, request_id))
+    if sent is False or result.get('helper_launch_refused') is True or native_refusal:
         submitted, outcome = False, 'refused-before-input'
     else:
         submitted = True if sent is True else None

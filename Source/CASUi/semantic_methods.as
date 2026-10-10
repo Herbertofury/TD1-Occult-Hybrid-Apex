@@ -361,7 +361,7 @@
 
 
       private function ApexFormSelectionContext(simId:String, householdId:String, expectedLayer:int,
-         formFlags:int, nativeSession:int) : Object
+         formFlags:int, nativeSession:int, requestedLayer:int=-1) : Object
       {
          // A same-ID paired feed permits navigation only. It never proves the
          // native wrapper relationship and cannot authorize alternate acceptance.
@@ -431,28 +431,34 @@
             }
             pair=retained.pairs[selectedIndex];
             var nonhumanKind:int=pair.base.occult_type==1 ? int(pair.alternate.occult_type) : int(pair.base.occult_type);
-            if(matches!=1 || (pair.base.occult_type!=1 && pair.alternate.occult_type!=1) ||
-               pair.base.occult_type==pair.alternate.occult_type ||
-               (nonhumanKind!=2 && nonhumanKind!=4 && nonhumanKind!=8 &&
-                nonhumanKind!=16 && nonhumanKind!=32 && nonhumanKind!=64) ||
+            var explicitLayer:Boolean=requestedLayer==0 || requestedLayer==1;
+            var baseKind:int=int(pair.base.occult_type); var alternateKind:int=int(pair.alternate.occult_type);
+            var baseKnown:Boolean=baseKind==1 || baseKind==2 || baseKind==4 || baseKind==8 || baseKind==16 || baseKind==32 || baseKind==64;
+            var alternateKnown:Boolean=alternateKind==1 || alternateKind==2 || alternateKind==4 || alternateKind==8 || alternateKind==16 || alternateKind==32 || alternateKind==64;
+            var supportedPair:Boolean=explicitLayer ? baseKnown && alternateKnown :
+               (pair.base.occult_type==1 || pair.alternate.occult_type==1) &&
+               pair.base.occult_type!=pair.alternate.occult_type && baseKnown && alternateKnown;
+            if(matches!=1 || !supportedPair ||
                pair.base.all_occult_types!=pair.alternate.all_occult_types || pair.base.all_occult_types<0 ||
-               (pair.base.all_occult_types & 1)==0 || (pair.base.all_occult_types & nonhumanKind)==0)
-               throw new Error("CAS form selection lacks the observed Human/alternate form context");
+               (pair.base.all_occult_types & pair.base.occult_type)==0 ||
+               (pair.base.all_occult_types & pair.alternate.occult_type)==0)
+               throw new Error("CAS form selection lacks the exact observed native layer context");
             var current:Object=expectedLayer==0 ? pair.base : pair.alternate;
             var other:Object=expectedLayer==0 ? pair.alternate : pair.base;
             if(current.selected!==true || other.selected!==false || current.occult_type!=selected.occult_type ||
                current.all_occult_types!=selected.all_occult_types || current.occult_layer!=selected.occult_layer)
                throw new Error("CAS form selection fresh selected context differs from retained selection");
-            var targetLayer:int=pair.base.occult_type==formFlags ? 0 : pair.alternate.occult_type==formFlags ? 1 : -1;
+            var targetLayer:int=explicitLayer ? requestedLayer :
+               pair.base.occult_type==formFlags ? 0 : pair.alternate.occult_type==formFlags ? 1 : -1;
             if(targetLayer<0) throw new Error("Requested form is absent from the actual base/alternate pair");
             var target:Object=targetLayer==0 ? pair.base : pair.alternate;
-            if(target.occult_type!=formFlags) throw new Error("Requested form is absent from the actual base/alternate pair");
+            if(!explicitLayer && target.occult_type!=formFlags) throw new Error("Requested form is absent from the actual base/alternate pair");
             native=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
             fresh=ApexOwnerSimRow(native); native=null;
             if(fresh==null || ApexEncode(fresh)!=ApexEncode(selected))
                throw new Error("CAS form selection selected context changed during preflight");
             return {native_session:nativeSession,sim_id:simId,household_id:householdId,selected_index:selectedIndex,
-               selected_layer:expectedLayer,target_layer:targetLayer,form_flags:formFlags,feed_sequence:int(raw.sequence),
+               selected_layer:expectedLayer,target_layer:targetLayer,form_flags:int(target.occult_type),feed_sequence:int(raw.sequence),
                pair_json:ApexEncode(projection)};
          } finally { native=null; selector=null; fresh=null; }
       }
@@ -1093,12 +1099,13 @@
             native=null;
             var state:int=int(fields[3]);
             var category:int=int(fields[4]); var index:int=int(fields[5]); var value:String=fields[6];
-            if(operation=="form-select") {
-               if(!/^(1|2|4|8|16|32|64)$/.test(String(fields[3])) ||
+            if(operation=="form-select" || operation=="layer-select") {
+               if(!(operation=="layer-select" ? /^[01]$/.test(String(fields[3])) : /^(1|2|4|8|16|32|64)$/.test(String(fields[3]))) ||
                   !/^[01]$/.test(String(fields[4])) || !/^[1-9][0-9]{0,9}$/.test(String(fields[5])) ||
                   String(index)!=String(fields[5]) || !/^[1-9][0-9]{0,19}$/.test(value))
                   throw new Error("CAS form selection requires exact form/current-layer/session/household fields");
-               var selectionBefore:Object=ApexFormSelectionContext(String(fields[1]),value,category,state,index);
+               var selectionBefore:Object=ApexFormSelectionContext(String(fields[1]),value,category,state,index,
+                  operation=="layer-select" ? state : -1);
                apexPendingContext.selection_before=selectionBefore;
                if(selectionBefore.selected_layer!=selectionBefore.target_layer) {
                   // Claim/phase are consumed before either native write. The
@@ -1336,11 +1343,11 @@
                      throw new Error("Native CAS accept household differs from its bound original request; no intent prepared");
                   context.household_id=value;
                }
-               if(operation=="form-select") {
+               if(operation=="form-select" || operation=="layer-select") {
                   var beforeSelection:Object=context.selection_before;
                   if(beforeSelection==null) throw new Error("CAS form selection has no retained original intent");
                   var afterSelection:Object=ApexFormSelectionContext(String(fields[1]),value,
-                     int(beforeSelection.target_layer),state,index);
+                     int(beforeSelection.target_layer),state,index,operation=="layer-select" ? state : -1);
                   if(afterSelection.native_session!=beforeSelection.native_session || afterSelection.sim_id!=beforeSelection.sim_id ||
                      afterSelection.household_id!=beforeSelection.household_id || afterSelection.selected_index!=beforeSelection.selected_index ||
                      afterSelection.form_flags!=beforeSelection.form_flags || afterSelection.target_layer!=beforeSelection.target_layer ||
@@ -1348,7 +1355,7 @@
                      throw new Error("CAS form selection pair/session changed before next-tick readback");
                   reply.form_selection={native_session:int(afterSelection.native_session),sim_id:String(afterSelection.sim_id),
                      household_id:String(afterSelection.household_id),selected_index:int(afterSelection.selected_index),
-                     expected_layer:category,target_layer:int(afterSelection.target_layer),form_flags:state,
+                     expected_layer:category,target_layer:int(afterSelection.target_layer),form_flags:int(afterSelection.form_flags),
                      selection_changed:category!=int(afterSelection.target_layer),selection_verified:true,
                      mapping_verified:false,alternate_accept_authorized:false};
                }
@@ -1475,6 +1482,42 @@
             // disconnect cannot turn this accepted intent into another commit.
             apexPendingFields=null; apexPendingReply=null; apexPendingContext=null;
             apexPendingPhase=7; apexReadbackTick=-1; apexClaimNonce="";
+            // Existing-household CAS follows Navigation.OnPlayButtonClicked,
+            // not the single-Sim shortcut. Apply its pending name fields and
+            // validate the family before SaveAndExitCAS. Consume the intent
+            // first: an uncertain finalization must never be replayed.
+            if(int(editMode)==0) {
+               reply.household_finalization_attempted=true;
+               var geneticsVisible:* = CommunicationManager.CallUIService("IsWidgetVisible","CASGeneticsPane");
+               if(geneticsVisible!==false)
+                  throw new Error("Native genetics panel is active or unverified; household commit not submitted");
+               var namesApplied:* = CommunicationManager.CallUIService("CasApplyNameFields",false);
+               if(namesApplied!==true)
+                  throw new Error("Native household name finalization refused or is unverified; commit not submitted");
+               var householdData:Object=CommunicationManager.CallGameService("CasGetHouseholdExchangeData",{bValidateExistingSimTraits:false});
+               if(householdData==null)
+                  throw new Error("Native household validation refused; commit not submitted");
+               var validatedHousehold:ExchangeData=new ExchangeData(householdData);
+               householdData=null;
+               var hasAdult:Boolean=validatedHousehold.HouseholdContainsAdults();
+               validatedHousehold=null;
+               if(!hasAdult)
+                  throw new Error("Native household has no teen or adult; commit not submitted");
+               var profanity:Object=CommunicationManager.CallGameService("CASCheckProfanityOnSimNames",null);
+               if(profanity!=null && profanity.simId && String(profanity.simId)!="0")
+                  throw new Error("Native name warning requires an explicit user decision; commit not submitted");
+               profanity=null;
+               // Finalization may refresh the selection; preserve the exact
+               // original Sim and creature layer before the one native save.
+               var finalizedSim:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
+               var finalizedLayer:* = finalizedSim ? finalizedSim.occultLayer : null;
+               var finalizedMatches:Boolean=finalizedSim!=null && String(finalizedSim.simId)==simId &&
+                  String(finalizedSim.householdId)==expectedHousehold;
+               finalizedSim=null;
+               if(!(finalizedLayer is int) || int(finalizedLayer)!=0 || !finalizedMatches)
+                  throw new Error("Native household finalization changed the bound Sim/form; commit not submitted");
+               reply.household_finalization_verified=true;
+            }
             reply.commit_attempted=true;
             var accepted:* = CommunicationManager.CallGameService("SaveAndExitCAS",{bValidateExistingSimTraits:false});
             if(accepted===true) {

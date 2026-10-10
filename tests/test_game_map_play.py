@@ -61,6 +61,25 @@ class MapPlayImageTests(unittest.TestCase):
         self.assertTrue(1142 <= result['x'] <= 1193)
         self.assertTrue(1232 <= result['y'] <= 1288)
 
+    def test_selected_apartment_card_name_requires_full_lower_household_and_play_panel(self):
+        image, observed = screen(); play_icon(image)
+        name = observed['lines'][1]
+        name['words'][0].update(x=738, y=399)
+        observed['lines'].append({'text': 'Lot Traits:', 'words': [{'text': 'Lot Traits:',
+            'x': 721, 'y': 563, 'width': 60, 'height': 12}]})
+        result = game_map_play.play_target(image, observed, 'Sim')
+        self.assertEqual(result['household_name_source'], 'native-selected-apartment-card')
+        self.assertEqual(result['funds'], 2025)
+        for change in ('no-card-anchor', 'wrong-name', 'duplicate-name', 'no-funds', 'no-description'):
+            altered = copy.deepcopy(observed); pixels = image.copy()
+            if change == 'no-card-anchor': altered['lines'].pop()
+            elif change == 'wrong-name': altered['lines'][1]['text'] = 'Other'
+            elif change == 'duplicate-name': altered['lines'].append(copy.deepcopy(altered['lines'][1]))
+            elif change == 'no-funds': altered['lines'].pop(2)
+            else: pixels, _ = screen(description=False); play_icon(pixels)
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                game_map_play.play_target(pixels, altered, 'Sim')
+
     def test_exact_household_and_complete_detail_labels_required(self):
         for missing in ('Sim', 'Funds: $2,025', 'Bright Cliff Apartments'):
             image, observed = screen(); play_icon(image)

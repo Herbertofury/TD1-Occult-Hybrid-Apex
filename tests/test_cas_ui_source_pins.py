@@ -48,6 +48,22 @@ class SourcePinsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'source pins differ'):
             cas_ui_build.verify_source_pins(info, self.root)
 
+    def test_household_names_and_validation_cannot_be_skipped_or_follow_the_native_save(self):
+        methods = (Path(__file__).resolve().parents[1] / 'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')
+        self.assertTrue(cas_ui_build.verify_household_acceptance(methods))
+        names = 'CallUIService("CasApplyNameFields",false)'
+        with self.assertRaisesRegex(ValueError, 'incomplete'):
+            cas_ui_build.verify_household_acceptance(methods.replace(names, 'CallUIService("SkippedNames",false)'))
+        save = 'CallGameService("SaveAndExitCAS",{bValidateExistingSimTraits:false})'
+        swapped = methods.replace(names, '__SWAP__').replace(save, names).replace('__SWAP__', save)
+        with self.assertRaisesRegex(ValueError, 'precede'):
+            cas_ui_build.verify_household_acceptance(swapped)
+
+    def test_household_native_class_is_imported_as_a_compiler_qname(self):
+        native = '   import olympus.io.CommunicationManager;\n   class Fixture {\n      AddMessageListener("CASContextMenuSetMenuState",this.HandleContextMenuSetMenuState);\n   }'
+        patched = cas_ui_build.inject(native, 'private function Owned() : void {}')
+        self.assertIn('import gamedata.Exchange.ExchangeData;', patched)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -280,7 +280,7 @@ class EaUpdateTests(unittest.TestCase):
 
     def test_fixed_profile_binding_reads_protected_original_without_writes(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             profile = root / 'The Sims 4'; profile.mkdir()
             (profile / 'Mods').mkdir()
             original = root / update.test_profile.PROTECTED_NAME; original.mkdir()

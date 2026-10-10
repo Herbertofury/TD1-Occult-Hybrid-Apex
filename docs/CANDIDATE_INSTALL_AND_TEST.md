@@ -4,7 +4,264 @@ This is a concrete development build for owner testing, not a completed release
 or a claim of current-game parity. Target game: PC 1.128.90.1030. Full accepted
 scope and remaining work stay in `docs/CODEX_MASTER_EXECUTION.md`.
 
-## Current build V24 — existing-household full CAS
+## Current build V33 — existing-kind appearance context
+
+Epoch `2026-10-10-native-existing-kind-appearance-context-v33` tests only an
+existing non-Human owner's current kind when its preceding availability mask
+excludes that kind. Contexts already containing the kind and Human contexts
+remain unchanged. Every preceding mask/current kind must read back exactly
+after the single payload call, before complete appearance validation. No trait,
+form or native owner is created. Actual generation 68 passes the previously
+failing post-Vampire-Dark reconciliation, including Mermaid's complete tail
+genetics. This measures one case; no general native filtering explanation is
+claimed. Eighteen context fixtures and actual receipts are retained.
+
+| V33 artifact | SHA-256 |
+| --- | --- |
+| Bundle | `a91c87b2a4942679dddf2c0fb5bcc8d031fcd2edeb805e642f6959e57ff7a750` |
+| Script | `f893aae9658838d17199a4f6641a20c55c9e3851b270597cc07cb0ff6f93ca70` |
+| Native DLL | `e57d901d8c04e6aeba6f4a3119edfb4a84f6e713d8430cbb36e83be920955529` |
+| CAS bridge | `e6b18ef60676b8b59782fd7e9eb18d4ed26e64733eee96b74db5b893e390d93a` |
+
+All 71 compiled Python 3.7 modules import, and Foundry independently verifies
+all 206 package resources. The frozen suite passes 1,588 Python tests and four
+native targets with source unchanged
+(`3598cea9c419d52830a9f8f2d54a53feec4f25dc394627c53e0666fc03586cec`).
+Generation 68 installs fourteen exact artifacts while preserving all save and
+sidecar bytes (`3a9b45148aa0e94d89342452073dc07e58cecd3e2f207def2f4048404ab76c18`).
+Actual full-household Vampire Dark edits, Primary selection, original-Sim
+return, all-owner reconciliation and unpaused away/back switches pass. Normal
+Slot02 save/seal and same-script cold reload pass, with all seven stored/distinct
+active appearances exact before/after 982 actual ticks and unchanged bank/save.
+Automatic post-reload bank authorization is unresolved: its guard refuses the
+first switch and exact sealed-load handoff before appearance writes. Every
+form/category and manual/MCCC parity remain separate gates.
+
+## Historical build V32 — Human appearance context
+
+Epoch `2026-10-10-native-human-appearance-context-v32` keeps the preceding
+context for Human appearance writes. Actual V31 native admission leaves Human
+availability at 4 when offered 5; its payload was never attempted. V32 avoids
+that invented Human capability and still requires complete context/appearance
+readback. Non-Human temporary masks remain separately guarded and unproved.
+
+| V32 artifact | SHA-256 |
+| --- | --- |
+| Bundle | `126fd29d6dca9d2b7e332896e767329fb198e0d8ec56f874725447f048a893a8` |
+| Script | `ae0992fef4e482cefda06c02b66045b958ddbaa73a176b1bc9d9481c86587cbc` |
+| Native DLL | `e57d901d8c04e6aeba6f4a3119edfb4a84f6e713d8430cbb36e83be920955529` |
+| CAS bridge | `e6b18ef60676b8b59782fd7e9eb18d4ed26e64733eee96b74db5b893e390d93a` |
+
+All 71 compiled Python 3.7 modules import, and the Rust reader verifies 206
+resources. Seventeen native-context fixtures pass. The frozen suite passes
+1,586 Python tests and four native targets with source unchanged
+(`da7da4dd9fc2a887c7a07f7948438e99e120c3bd6b21e1373dc5e825050ee16c`).
+Generation 67 installs fourteen matching artifacts with all saves and sidecars
+unchanged (`eb4e6f7fb38a2ec524900b0c8b7156104d990398d27bbbe27abb64e997253a3a`).
+Actual alternate-form retention is a separate gate.
+
+The subsequent wider-viewport host load correction passes all 14 load tests.
+The complete unchanged-source rerun passes 1,587 Python tests and four native
+targets (`085a0bacb7b81752dcbe4cbfc0a4a66b92fb581e0468c9b53c4150e8a67a1114`).
+It adds no new mod-script or native-DLL bytes to this V32 bundle. Native runtime
+receipts and failures remain separate in the alternate-form ledger.
+
+## Historical build V31 — shared native appearance context
+
+Epoch `2026-10-10-shared-native-appearance-context-v31` admits only an exact
+selected-owner or complete shared availability change during one native
+appearance write. Every current kind remains unchanged; partial propagation
+fails. It restores the preceding context before complete appearance readback
+and retains separate admission, payload and restoration diagnostics. No form,
+trait, owner identity or appearance comparison is synthesized or discarded.
+
+| V31 artifact | SHA-256 |
+| --- | --- |
+| Bundle | `4bd7fef413e14dbcb794eb33b73f4a27df7668e889987eec44336a5b008af806` |
+| Script | `791ec8e7ec68907c249c0ebaaa2aee1e541cdae3f411b32a0901b15272277992` |
+| Native DLL | `e57d901d8c04e6aeba6f4a3119edfb4a84f6e713d8430cbb36e83be920955529` |
+| CAS bridge | `e6b18ef60676b8b59782fd7e9eb18d4ed26e64733eee96b74db5b893e390d93a` |
+
+All 71 compiled Python 3.7 modules import; the Rust reader verifies 206
+resources. Sixteen native-context fixtures include complete shared admission,
+partial propagation, changed current kinds and payload failures. The frozen
+suite passes 1,585 Python tests and four native targets with source unchanged
+(`93272003bc6a788e4e44a64cdb2de1b4362758c0ff39cf1b4654ff572eed7f5f`).
+Generation 66 installs fourteen matching artifacts with all disposable saves
+and sidecars unchanged
+(`e4b1e158ad900619077a35fb6ccdbd9ee77d9f8feca2478bcb92686d917cfc23`).
+Generation 66 confirms ten full-CAS Dark edits, Primary navigation and
+original-Sim Live return after simulation progress. Reconciliation fails Human
+temporary-context admission before an appearance payload call; normal unsaved
+closure and archival preserve all saves/backups and complete returned edits.
+See the [exact alternate ledger](../Reports/ALTERNATE_CAS_2026-10-08.md).
+
+## Historical build V30 — temporary native appearance context
+
+Epoch `2026-10-10-native-appearance-write-context-v30` adds only an existing
+owner's actual current-kind bit during its native appearance write. It restores
+that owner's exact preceding availability before complete appearance readback
+and checks every other native owner/current kind before and after the call.
+This addresses the case where availability was already narrowed before CAS
+checkpoint capture; it does not create forms, change traits or merge payloads.
+Temporary-context setter failures and partial native writes retain the existing
+transaction gate. Actual Mermaid tail retention remains a runtime test gate.
+
+| V30 artifact | SHA-256 |
+| --- | --- |
+| Bundle | `1d8062584d4d1a5f38e55b70f7fd4e8b4fb6d39f0b7c5760dd09922254b80093` |
+| Script | `186ef02cd6fef36019f7a28e51e34afacd16704adbff6fb0a84f82e604b1c32b` |
+| Native DLL | `e57d901d8c04e6aeba6f4a3119edfb4a84f6e713d8430cbb36e83be920955529` |
+| CAS bridge | `e6b18ef60676b8b59782fd7e9eb18d4ed26e64733eee96b74db5b893e390d93a` |
+
+All 71 compiled Python 3.7 modules import; the Rust reader verifies 206
+resources. Thirteen native-context receiver fixtures and 49 form-bank checks
+pass. The matching frozen full suite passes 1,582 Python tests and four native
+targets with source unchanged
+(`6466e7013bcbcab57e46f2fd2ed963cb53c29c8a2b3616914e0dc1ba7129829e`).
+Generation 65 installs all fourteen matching artifacts, with every disposable
+save and sidecar unchanged
+(`581ed0ccf20221ef5e900589196c2134a8a68a88529860378ae517153721202d`).
+Generation 65 confirms ten actual full-CAS Vampire Dark edits and semantic
+Dark → Primary navigation, but reconciliation fails temporary native context
+admission (`14499d06a0503e562d963cdf0770068f602616290992f42b6e64a03336d95e11`).
+The completed normal unsaved exit preserves all saves/backups
+(`5fdecde6e8be01698146e1d79dfb111027fdebc0b4749404782b8a2f869890a4`);
+closed metadata archival retains the complete failure and every bank lane
+(`6f1168fec7c6f723a4071c6b08a15d97e9026e2ba99305a79e711ab730f3fc79`).
+V30 did not establish Dark-edit retention.
+
+## Historical build V29 — captured native occult context
+
+Epoch `2026-10-10-native-occult-context-retention-v29` captures the actual
+availability mask of every distinct existing native owner before CAS. After
+explicit per-form decisions, the receiver restores those captured masks before
+appearance setters, checks every owner after each setter, and verifies them
+again around the bank commit. It preserves the returned active form and stored
+current kinds. It does not infer availability from traits or invent mask 127:
+the disposable all-six hybrid actually reports mask 65.
+
+| V29 artifact | SHA-256 |
+| --- | --- |
+| Bundle | `c5001f62db74a77c56f14de64b1c4854004d4f750a71a619ac8df49cc30cdc24` |
+| Script | `77733daaa21a056666011bcb684bb68cb5d07c338586a38c4d55b2586c7ccf8b` |
+| Native DLL | `e57d901d8c04e6aeba6f4a3119edfb4a84f6e713d8430cbb36e83be920955529` |
+| CAS bridge | `e6b18ef60676b8b59782fd7e9eb18d4ed26e64733eee96b74db5b893e390d93a` |
+| Hybrid package | `db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2` |
+| CAS unlocks package | `b6e59c33b783530ba6d771fc98e69d21b719d95e48d9329f59ce5f2f4379c6e5` |
+
+The frozen build passes 1,577 Python tests and four native targets, with
+source unchanged (`891e5b2e9ffeae9661dd5272d4f4cd8bf976157c9c8703c2ffe6aef741c193e7`).
+All 71 compiled Python 3.7 modules import; the independent Rust reader checks
+206 resources. Generation 64 installs fourteen matching artifacts and leaves
+every disposable save/sidecar unchanged
+(`eecba23c86913e8c7b9e0a11b50cc2e1cdc14f28a36bb5835a60a58d43c93b9b`).
+A later host-only cold Home/load guard is covered by a second frozen receipt:
+1,578 Python tests and four native targets, source unchanged
+(`a313caaf4faf33920ba7ed1d7124fd4ff247a2cddd5d9d10f07c8bf2a100bb12`).
+
+Actual Alien creature full household CAS, one new hair edit, return and explicit
+Alien-only commit pass. Alien → Vampire → Alien then preserves all seven stored
+appearances and the distinct active form through 1,572/1,502 unpaused ticks.
+The next eyebrow selection failed exact native readback and stopped the panel
+sequence; twelve-panel coverage is not claimed. Ten Vampire Dark edits and
+semantic Dark → Primary selection pass; CAS/Live reconciliation reproduces
+the missing Mermaid tail. Captured and returned native masks are already 4,
+so no context restoration occurred. The bank commit is blocked; normal unsaved
+exit verifies all saves/backups unchanged and retains the complete failed
+transaction. See the [alternate ledger](../Reports/ALTERNATE_CAS_2026-10-08.md).
+
+## Historical build V28 — native owner diagnostics
+
+Epoch `2026-10-10-native-owner-context-diagnostics-v28` reads each stored
+owner's native current/available occult masks, flags, age, gender, species and
+base trait IDs separately from the live Sim's membership. Failed getters are
+retained individually; these diagnostics provide no mutation or replay authority.
+The host also preserves an exact authenticated version-2 pointer refusal before
+button-down. Partial input, stale responses and missing receipts remain unresolved.
+
+| V28 artifact | SHA-256 |
+| --- | --- |
+| Bundle | `d097974f03369e6a7182fdbd843184946504994039d6dbdfef03a91d94eb2e5c` |
+| Script | `1ea22139fcf566aa0fff61b7b9958f1687b4607446c7ab46ece74844e864c5af` |
+| Native DLL | `e57d901d8c04e6aeba6f4a3119edfb4a84f6e713d8430cbb36e83be920955529` |
+| CAS bridge | `e6b18ef60676b8b59782fd7e9eb18d4ed26e64733eee96b74db5b893e390d93a` |
+
+Portable compiled Python 3.7 import and 206 independent Rust resource checks
+pass. Frozen full-suite and matching installation/runtime proof are separate
+gates. V28 is a diagnostic candidate, not the Mermaid tail fix.
+
+## Historical V27 — actual native Primary/Dark navigation
+
+Epoch `2026-10-10-native-cas-layer-navigation-v27` adds explicit native layer
+selection to CLI/F11 when Vampire Primary and Dark both report kind 4. Native
+Dark → Primary, Primary → Dark, and edited Dark → Primary all pass in actual
+existing-household full CAS, on the original Sim. Their receipts retain exact
+session, household, paired feed and next-tick selected layer; no mouse input
+or Human mapping is claimed. Eleven Dark edits have native readback; their
+CAS/Live reconciliation fails exact Mermaid genetics readback. Originals and
+returned edits were retained, followed by normal unsaved CLI exit with all
+saves/backups unchanged. Subsequent Vampire persistence remains unproved.
+
+The frozen source passes **1,559 Python tests and four native targets**:
+`dcff88b3559b112ede1159830ae95da0a33a5c7a74da45fd7e64f60bfa5b6309`.
+Compiled Python 3.7 import, native production loader and 206 independent Rust
+resource checks pass. Generation 62 installs fourteen matching artifacts,
+with all disposable saves and sidecars unchanged at installation:
+`a50ce61dfd41f1104f6244ebc0aaf388541837deed6f2b94fef06bf5d016f6fb`.
+Later host-only Home/apartment OCR fixes have separate focused checks; they
+are not covered by this earlier immutable full-suite receipt.
+
+| V27 artifact | SHA-256 |
+| --- | --- |
+| Bundle | `b5e235e874768cce64ecda782082185c5d02b5a07982e3ae9db92224796472da` |
+| Script | `2a0627dad035c178d1536d3682b15e4d7460e9f5361cbd563b4349373cc5ff32` |
+| Native DLL | `e57d901d8c04e6aeba6f4a3119edfb4a84f6e713d8430cbb36e83be920955529` |
+| CAS bridge | `e6b18ef60676b8b59782fd7e9eb18d4ed26e64733eee96b74db5b893e390d93a` |
+
+The exact indexed normal Slot02 was loaded through Home, Ondarion and the
+original apartment unit. Native Live reports slot **2**, original Sim/household
+and save GUID. All seven stored appearances and the active Alien match the
+saved baseline before/after **1,551 unpaused TimeService ticks**, with bank and
+normal save unchanged. An early native load warning remains retained.
+Alien → Vampire → Alien then preserves all seven owners and membership after
+**1,666/1,603 ticks**. These transitions precede the new Dark edits.
+
+Generation 61's previous Dark edits failed Mermaid genetics reconciliation;
+its unsaved case and complete returned state are archived. V27 avoids
+unnecessary writes to matching appearance fields but still requires exact
+genetics and complete normalized outfit readback. It is not yet established
+as that defect's fix. Universal cross-occult catalog items, same-visit seven
+forms, every-panel/trait/voice edits and MCCC/manual parity remain open.
+
+## Historical build V25 — native household finalization
+
+Epoch `2026-10-10-household-cas-native-finalization-v25` applies the game's
+pending name fields, validates the household and checks native name warnings
+before its one SaveAndExitCAS. It consumes its intent before finalization and
+rechecks the exact original Sim, household and primary form afterward.
+Warnings or uncertain finalization refuse the commit. The native bytecode,
+compiled Python 3.7 imports and 206 independent Rust resource checks pass;
+the full suite and matching native runtime retest remain separate gates.
+
+| V25 artifact | SHA-256 |
+| --- | --- |
+| Bundle | `d4155969843cc4be37710734bcca56b27863d69fbdf30016a6d707a0036aab1e` |
+| Script | `9591ef87b99e9715cb1ab60a7445a9e8c8eeecdeb4fe01d2f3bb5232c4670346` |
+| Native DLL | `9712945c05ab848d272534e736bd5419539b2536cc82f97fb151e290c4e41e89` |
+| CAS bridge | `00499d65c6db7fb290fa5043129e400cc02040cbd4535451b27f88c022d26f91` |
+
+Generation 60 full existing-household CAS reports mode 0 and actual Alien
+layer 0. Eleven exact edits passed; body skin details were empty and tattoo
+region/layer queries failed explicitly. The native confirmation returned the
+original Sim, raw data changed only Alien, and explicit Alien-only acceptance
+verified all seven forms. Alien → Vampire → Alien then passed after
+1,498/1,532 ticks, with membership unchanged. Controlled normal Slot02 save
+SHA-256 is `35f6ce8e4c876ce484722a5aab5de92f301840c6f7259c9e97f1ae00c7df9f26`.
+The failed semantic acceptance and native load genetics warning remain retained.
+This is scoped edit retention, not all-panel, MCCC or cold-reload parity.
+
+## Historical V24 — existing-household full CAS
 
 Epoch `2026-10-09-household-full-cas-sealed-filters-v24` retains the complete
 original Sim/household checkpoint and calls the native household CAS route.

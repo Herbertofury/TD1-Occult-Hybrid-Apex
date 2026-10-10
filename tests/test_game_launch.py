@@ -94,6 +94,26 @@ class LaunchPlanTests(unittest.TestCase):
         self.assertTrue(result['process_started'])
         self.assertEqual(result['pid'], 12)
 
+    def test_rotated_client_play_record_keeps_exact_identity_and_watches_current_log(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve(); self.fixture(root)
+            logs = root / 'EA Desktop/Logs'; logs.mkdir(parents=True)
+            current, backup = logs / 'EADesktop.log', logs / 'EADesktop.bak'
+            executable = root / 'Game/Bin/TS4_Launcher_x64.exe'
+            success = 'Successful launch. IDs: offerKey.offerId=[OFB-EAST:fixture], slug=[the-sims-4]\n'
+            request = 'Processing launch request: offerId[OFB-EAST:fixture] contentId[1011164] exe[' + str(executable) + '] requestSource[Client]\n'
+            with patch.dict(game_launch.os.environ, {'PROGRAMDATA': str(root)}):
+                for split in (False, True):
+                    backup.write_text(success if split else success + request)
+                    current.write_text(request if split else 'new rotated log\n')
+                    identity = game_launch.account_launch_identity(root)
+                    self.assertEqual(identity['content_id'], '1011164')
+                    self.assertEqual(identity['log'], str(current))
+                    self.assertEqual(identity['record_log'], str(current if split else backup))
+                backup.write_text(success); current.write_text(request.replace('requestSource[Client]', 'requestSource[RTP]'))
+                with self.assertRaisesRegex(ValueError, 'No verified'):
+                    game_launch.account_launch_identity(root)
+
     def test_delayed_start_at_52_seconds_is_observed_without_new_handoff(self):
         clock = [0.0]; probes = []
         executable = Path('Game/Bin/TS4_x64.exe').resolve()

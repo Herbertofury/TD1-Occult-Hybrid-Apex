@@ -14,8 +14,9 @@ use the persistent gate. An editor that ignores the lease
 can still replace the file during the final check/replace interval; this is not
 an atomic filesystem CAS against uncooperating external writers.
 
-No game hook/router is registered here. Membership, traits, form generation,
-old-process recovery and save-file writes are outside this receiver's scope.
+No game hook/router is registered here. Only fresh captured native availability
+may be restored; traits, form generation, old-process recovery and save-file
+writes are outside this receiver's scope.
 """
 import copy
 import hashlib
@@ -251,6 +252,17 @@ def _token(value):
             all(character in '0123456789abcdef' for character in value))
 
 
+def _native_context_envelope(transaction, envelope):
+    if 'native_occult_context' in transaction or 'native_occult_context_sha256' in transaction:
+        from .native_occult_context import validate
+        context = validate(transaction.get('native_occult_context'))
+        context_hash = transaction.get('native_occult_context_sha256')
+        if not primitive._hash(context_hash) or primitive.digest(context) != context_hash:
+            raise ValueError('Native availability checkpoint changed; no restoration authority.')
+        envelope['native_occult_context_sha256'] = context_hash
+    return envelope
+
+
 def _completed(transaction):
     """Validate a complete OWNED historical receipt before opening the gate.
 
@@ -281,7 +293,7 @@ def _completed(transaction):
                     'checkpoint_sha256': transaction['checkpoint_sha256'],
                     'record_guard_sha256': transaction['record_guard_sha256'],
                     'hair_checkpoint_sha256': transaction['hair_checkpoint_sha256']}
-        if primitive.digest(envelope) != transaction['transaction_sha256']:
+        if primitive.digest(_native_context_envelope(transaction, envelope)) != transaction['transaction_sha256']:
             return False
         journal, ack = transaction.get('journal'), transaction.get('metadata_commit')
         if (not isinstance(journal, dict) or type(journal.get('schema')) is not int or journal['schema'] != 1 or journal.get('identity') != identity or
@@ -369,6 +381,7 @@ def _completed(transaction):
                 ack.get('native_verified_receipt_sha256') != primitive.digest(final)):
             return False
         desired_hashes = {lane: appearance.fingerprint(fields)['appearance_sha256'] for lane, fields in plan['desired'].items()}
+        _verify_context_final(transaction, final, plan['active_lane'])
         return (final['stored'] == desired_hashes and
                 final.get('active_appearance_sha256') == desired_hashes[plan['active_lane']])
     except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
@@ -442,7 +455,7 @@ def _selected(backend, sim, token=None, allow_consumed=False):
                 'identity': identity, 'checkpoint_sha256': transaction['checkpoint_sha256'],
                 'record_guard_sha256': transaction['record_guard_sha256'],
                 'hair_checkpoint_sha256': transaction['hair_checkpoint_sha256']}
-    if primitive.digest(envelope) != transaction['transaction_sha256']:
+    if primitive.digest(_native_context_envelope(transaction, envelope)) != transaction['transaction_sha256']:
         raise ValueError('CAS transaction envelope changed; no request authorized.')
     if 'metadata_guard_sha256' in transaction:
         ack = transaction.get('metadata_commit')
@@ -487,6 +500,23 @@ def _write_journal(backend, sim, token, document, expected_previous_sha256):
     return {'durable': True, 'sha256': expected_document_hash}
 
 
+def _verify_context_final(transaction, final, active_lane, backend=None, sim=None):
+    checkpoint = transaction.get('native_occult_context')
+    if checkpoint is None:
+        if 'native_occult_context' in final or 'native_occult_restore' in transaction:
+            raise ValueError('Uncaptured native availability cannot establish completion.')
+        return
+    from .native_occult_context import read, verify, verify_receipt
+    restored = verify_receipt(checkpoint, transaction.get('native_occult_restore'), active_lane)
+    expected = {'checkpoint_sha256': transaction['native_occult_context_sha256'],
+                'restore_receipt_sha256': primitive.digest(restored),
+                'observed': restored['after'], 'verified': True}
+    if final.get('native_occult_context') != expected:
+        raise ValueError('Final native availability lacks the captured, durable restore receipt.')
+    if backend is not None:
+        verify(checkpoint, read(backend, sim), active_lane)
+
+
 def _commit_metadata(backend, sim, token, receipt):
     def update(data, record, identity):
         _path, _key, selected_record, transaction = _selected(backend, sim, token)
@@ -502,6 +532,7 @@ def _commit_metadata(backend, sim, token, receipt):
                 receipt['final_native_appearance'].get('verified') is not True or
                 receipt['active_lane'] != journal['plan']['active_lane']):
             raise ValueError('No complete verified native-owner receipt for the bank commit.')
+        _verify_context_final(transaction, receipt['final_native_appearance'], receipt['active_lane'], backend, sim)
         history = record.setdefault('history', [])
         if not isinstance(history, list):
             raise ValueError('CAS history must retain its typed index.')
@@ -537,6 +568,7 @@ def _commit_metadata(backend, sim, token, receipt):
     ack = transaction.get('metadata_commit')
     if not isinstance(ack, dict) or ack.get('plan_sha256') != receipt['plan_sha256'] or ack.get('committed') is not True:
         raise ValueError('Atomic bank commit lacks exact persisted acknowledgment.')
+    _verify_context_final(transaction, receipt['final_native_appearance'], receipt['active_lane'], backend, sim)
     return {'committed': True, 'plan_sha256': receipt['plan_sha256']}
 
 
@@ -545,7 +577,14 @@ class _HairTransaction(primitive.CasCommitTransaction):
 
     def __init__(self, *args, **kwargs):
         self.hair_checkpoint = kwargs.pop('hair_checkpoint')
+        self.native_context_final = kwargs.pop('native_context_final', None)
         super(_HairTransaction, self).__init__(*args, **kwargs)
+
+    def _verify_desired(self):
+        final = super(_HairTransaction, self)._verify_desired()
+        if self.native_context_final is not None:
+            final['native_occult_context'] = self.native_context_final(self.plan['active_lane'])
+        return final
 
     def prepare(self, expected_pending_sha256, expected_raw_return_sha256,
                 dispositions, hair_targets=None):
@@ -680,11 +719,41 @@ def _instance(backend, sim, allow_primary_recreation=False):
     def read_journal():
         _p, _k, _selected_record, selected_transaction = _selected(backend, sim, token, allow_consumed=True)
         return copy.deepcopy(selected_transaction.get('journal'))
+    context_receipt = None
+    def restore_lane(lane, fields):
+        nonlocal context_receipt
+        _p, _k, _r, current_transaction = _selected(backend, sim, token)
+        context = current_transaction.get('native_occult_context')
+        if context is not None and context_receipt is None:
+            journal = current_transaction.get('journal')
+            if (not isinstance(journal, dict) or journal.get('state') != 'applying' or
+                    journal.get('native_write_possible') is not True or journal.get('bank_commit_attempted') is not False):
+                raise ValueError('Native availability restore requires durable explicit native-write intent.')
+            from .native_occult_context import restore
+            context_receipt = restore(backend, sim, context)
+            def retain_context(data_now, selected, fresh_identity):
+                _path, _key, own_record, own_transaction = _selected(backend, sim, token)
+                if (selected != own_record or own_transaction.get('native_occult_restore') is not None or
+                        own_transaction.get('native_occult_context') != context or
+                        own_transaction['journal'].get('state') != 'applying'):
+                    raise ValueError('Native availability restore receipt changed before durable acknowledgment.')
+                selected['cas_transaction']['native_occult_restore'] = copy.deepcopy(context_receipt)
+            _mutate(backend, sim, retain_context)
+        form_bank.restore(backend, sim, lane, fields)
+    def verify_context(active_lane):
+        _p, _k, _r, current_transaction = _selected(backend, sim, token)
+        from .native_occult_context import read, verify, verify_receipt
+        context = current_transaction['native_occult_context']
+        restored = verify_receipt(context, current_transaction.get('native_occult_restore'), active_lane)
+        observed = verify(context, read(backend, sim), active_lane)
+        return {'checkpoint_sha256': current_transaction['native_occult_context_sha256'],
+                'restore_receipt_sha256': primitive.digest(restored), 'observed': observed, 'verified': True}
     instance = _HairTransaction(backend, sim, read_pending, lambda: _identity(backend, sim),
         read_journal, lambda document, previous: _write_journal(backend, sim, token, document, previous),
-        lambda lane, fields: form_bank.restore(backend, sim, lane, fields),
+        restore_lane,
         lambda receipt: _commit_metadata(backend, sim, token, receipt),
-        hair_checkpoint=copy.deepcopy(transaction['hair_checkpoint']))
+        hair_checkpoint=copy.deepcopy(transaction['hair_checkpoint']),
+        native_context_final=verify_context if 'native_occult_context' in transaction else None)
     captured['receiver_bound'] = True
     _ACTIVE[cache_key] = instance
     return instance
@@ -705,6 +774,8 @@ def begin(backend, sim, snapshot_reader=None):
                 not isinstance(record.get('cas_transaction_history', []), list)):
             raise ValueError('CAS history must retain its typed index.')
         raw_checkpoint = primitive.checkpoint(backend, sim, lambda: _identity(backend, sim))
+        from .native_occult_context import capture
+        native_context = capture(backend, sim)
         policy = record.get('hair_policy', {})
         if not isinstance(policy, dict) or type(policy.get('enabled', False)) is not bool:
             raise ValueError('Hair policy is malformed; no checkpoint written.')
@@ -735,6 +806,10 @@ def begin(backend, sim, snapshot_reader=None):
                        'prior_hair_policy': copy.deepcopy(record.get('hair_policy')),
                        'phase': 'captured', 'journal': None,
                        'full_native_original_appended': False}
+        if native_context is not None:
+            transaction['native_occult_context'] = native_context
+            transaction['native_occult_context_sha256'] = primitive.digest(native_context)
+            transaction['transaction_sha256'] = primitive.digest(_native_context_envelope(transaction, envelope))
         record['pending'] = raw_checkpoint
         record['cas_transaction'] = transaction
         if len(_CAPTURED) >= 256:
@@ -899,6 +974,7 @@ def status(backend, sim):
                   'legacy_pending_not_converted': pending is not None and
                     (not isinstance(pending, dict) or pending.get('schema') != 2),
                   'save_reload_verified': False, 'membership_or_traits_modified': False,
+                  'native_availability_restore_requires_fresh_checkpoint': True,
                   'automatic_intent_classification_supported': False,
                   'hair_isolation_requires_explicit_targets': True,
                   'added_removed_reordered_hair_wardrobe_acceptance_supported': False}
@@ -921,6 +997,9 @@ def status(backend, sim):
                 native_write_possible=journal.get('native_write_possible', False),
                 native_write_attempted=journal.get('native_write_attempted', False),
                 bank_commit_outcome=journal.get('bank_commit_outcome'))
+            result.update(native_availability_captured='native_occult_context' in transaction,
+                          native_availability_restore_verified=isinstance(transaction.get('native_occult_restore'), dict) and
+                            transaction['native_occult_restore'].get('verified') is True)
         result.update(_change_evidence(transaction))
         return result
 

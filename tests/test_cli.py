@@ -12,7 +12,7 @@ class CliTests(unittest.TestCase):
     def test_studio_open_and_failed_preview_output_are_durable(self):
         import tempfile
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); state = root/'session.json'
+            root = Path(folder).resolve(); state = root/'session.json'
             for operation, value in (('open-parts', {'ok': True, 'selected_tab': 'parts'}),
                                      ('part-preview', {'ok': False, 'message': 'Stale appearance'})):
                 output = root/(operation + '.json')
@@ -28,7 +28,7 @@ class CliTests(unittest.TestCase):
     def test_studio_output_validation_precedes_appearance_mutation(self):
         import tempfile
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); state = root/'session.json'; output = root/'proof.json'; output.write_bytes(b'prior')
+            root = Path(folder).resolve(); state = root/'session.json'; output = root/'proof.json'; output.write_bytes(b'prior')
             for target in (output, root/'original'/'no-write.json'):
                 args = apex_cli.parser().parse_args(['studio', 'apply', '--state', str(state),
                     '--sim-id', '7', '--value', 'pending-token', '--output', str(target)])
@@ -56,7 +56,7 @@ class CliTests(unittest.TestCase):
     def test_snapshot_output_is_written_and_failure_receipt_is_retained(self):
         import tempfile
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); state = root/'session.json'; output = root/'proof.json'
+            root = Path(folder).resolve(); state = root/'session.json'; output = root/'proof.json'
             args = apex_cli.parser().parse_args(['game', 'snapshot', '--state', str(state), '--sim-id', '7', '--output', str(output)])
             value = {'ok': False, 'request_id': 'a'*32, 'message': 'Readonly snapshot failed'}
             with patch.object(apex_cli, 'require_isolated'), \
@@ -69,7 +69,7 @@ class CliTests(unittest.TestCase):
     def test_direct_input_output_refuses_existing_file_before_submission(self):
         import tempfile
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); state = root/'session.json'; output = root/'proof.json'; output.write_bytes(b'prior')
+            root = Path(folder).resolve(); state = root/'session.json'; output = root/'proof.json'; output.write_bytes(b'prior')
             args = apex_cli.parser().parse_args(['game', 'click', '--state', str(state), '--x', '3', '--y', '4',
                 '--width', '100', '--height', '100', '--output', str(output)])
             with patch.object(apex_cli, 'require_isolated'), \
@@ -81,7 +81,7 @@ class CliTests(unittest.TestCase):
     def test_profile_output_cannot_write_or_submit_native_command(self):
         import tempfile
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); state = root/'session.json'; original = root/'original'; original.mkdir()
+            root = Path(folder).resolve(); state = root/'session.json'; original = root/'original'; original.mkdir()
             args = apex_cli.parser().parse_args(['game', 'play', '--state', str(state), '--output', str(original/'untouched.json')])
             with patch.object(apex_cli, 'require_isolated'), \
                     patch.object(apex_cli.reusable_profile, 'load', return_value=(state, {'token': 'b'*32}, root/'test', original)), \

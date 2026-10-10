@@ -630,3 +630,435 @@ Independent installed resource audit SHA-256:
 `aa53564a249bd31ab487ed26dc4dc557b755751c3018ed24ffd6859564111e0a`.
 This proves import and installation, not universal cross-occult CASP availability.
 Category unlocking and item compatibility are distinct remaining runtime checks.
+
+## Generation 60 — actual Alien creature full household edits
+
+Native existing-household CAS reports mode 0, forced full edit true, existing
+family false and entry from Live, for the exact original Sim/household.
+The renderer shows voice/personality controls and traits. The actual native
+Alien layer 0 is blue after the skin-tone edit; this is not a Human substitute.
+Alien/disguise navigation and the complete ten-field sealed catalog filter
+both acknowledge. Entry receipt:
+`083cc460605fb2cc576227c163630cb9aea088fe816625ef890485e517114092`.
+
+The twelve-panel workbench records eleven acknowledged native edits: hair,
+eyebrows, head skin detail, earrings, necklace, rings, nose/eyes/mouth presets,
+skin tone and lip makeup. Body skin details returned no eligible item.
+Complete JSON and adjacent raw-response JSONL remain private and hash bound:
+`68f3b768579c59bde5258b08bc36fcb1174360269ab321ec3a3c8f5c6ed0497a`.
+Tattoo body-region discovery failed with native error 1009; tattoo layer query
+returned an unavailable array. Those failures are retained and tattoo edits
+are not claimed.
+
+The first semantic SaveAndExitCAS returned false:
+`2b5b09d0041492ab5e3468ee64eea132861488233f613a413e90e38c171ccba0`.
+The native household workflow applies name fields and validates the family
+before that service; Apex had used the single-Sim shortcut. A separate CLI
+game-owned native confirmation completed the return, without replaying the
+failed semantic request. Source observed the exact original Sim/household/GUID
+in Live, unpaused through 1,512 ticks and paused. Raw capture changed only
+Alien, including outfits, facial attributes, genetics and skin tone. Explicit
+Alien-only acceptance verified all seven stored owners and distinct active
+Alien. The native load genetics warning stays retained, not silently cleared.
+Complete return/commit proof:
+`edbf9a41412f67a6258d4318d8a4aff1a6038237bfd3fae32a2e98e3da352a88`.
+
+| Edited actual transition | Simulation ticks | Immutable proof SHA-256 |
+| --- | ---: | --- |
+| Alien → Vampire | 1,498 | `6da7c3e9c1ada6e72868ecc2083554f43741b55cf88223ce35ac10beb08c9e4e` |
+| Vampire → Alien | 1,532 | `c23a054b7a86315f78367da4db588d58f1fab2acb4097863b94fefd1e02fd445` |
+
+Both verify all seven stored appearance hashes, the distinct active owner,
+unchanged membership and final Pause. Controlled normal Slot02 save and
+matching seal passed: save hash
+`35f6ce8e4c876ce484722a5aab5de92f301840c6f7259c9e97f1ae00c7df9f26`,
+save receipt `69ecd9b6edd4c0c50735962758f032fa340fe077ccd8ba20a8d84a0f6b50b611`.
+Cold reload and Vampire Dark Form edits remain separate tests.
+
+Shutdown initially refused because its operation allowlist lacked the newer
+typed CAS controls. The host now uses the complete public registry while
+retaining all pending/unknown/active-peer refusals. The following native quit
+confirmation input did not complete; its receipt remains unresolved. Later
+read-only observation proves the process absent and all twenty save/backup
+files unchanged, without claiming a normal-exit native acknowledgment:
+`ce7490084d09092442cfeee51804d1a93662268c355412fb7304b0316a0753f1`.
+
+V25 `2026-10-10-household-cas-native-finalization-v25` consumes the intent
+before household finalization, follows the installed native name/family/name
+warning validation and rechecks the typed original primary layer before its
+one commit. Source/serialized bytecode checks, actual Python 3.7 imports and
+206 independent Rust resource checks pass. Matching runtime proof remains
+required. Windows CI fixture roots now resolve the runner's short-path alias
+before mocking the production loader's already-canonical profile paths.
+
+
+## Generation 61 — actual Vampire Dark edit case and retained failure
+
+The saved generation 60 Alien creature edits match all seven native stored
+owners and the distinct active Alien before and after actual unpaused
+TimeService progress. The observed native slot is autosave, so this does not
+close the exact normal Slot02 reload gate. Original Sim, household and save GUID
+remain unchanged; no bank restore or save was requested by the comparison.
+Receipt: `owner-qol-v31-gen61-alien-eleven-edits-fresh-process-and-unpause.json`,
+SHA-256 `8164b8708187a1a1dcc359141dbd142c18ce329165da3eac07d935071fadf1e5`.
+
+Actual Alien 2 → Vampire 4 → Alien 2 transitions pass with all seven stored
+appearances, distinct active appearance and membership unchanged after
+1,470/1,535 unpaused TimeService ticks. These precede the new Vampire edits;
+they do not certify retention of the later failed Dark edit case.
+Receipts SHA-256 `93d15e71e3e256bcb69dd5a0fd24f5b745794dae1de7f69df42582e77df7dacc`
+and `a5670d617de2f9a7b0b08cfba3797ac822950d0b3933e595ed66807929dc9f61`.
+
+Existing-household full CAS mode 0, original Sim and actual Vampire type 4 /
+Dark layer 1 were verified. Eleven native edits were confirmed: hair 272383,
+eyebrows 320731, head skin detail 36931, earrings 110006, necklace 134839,
+rings 417397, nose preset 315104, eye preset 262395, mouth preset 32197,
+skin tone 21829 and lip makeup 226722. Body skin details returned zero items;
+that panel is empty evidence, not an edit. Every complete native response is
+retained. Receipt `owner-qol-v31-gen61-vampire-dark-twelve-panels.json`, SHA-256
+`58ed55f846fa856a221e69446f25a7689fdc372a5066bb99767418930f6db289`.
+
+Both native Primary and Dark rows report kind/mask 4. The old semantic form
+selector rejected this ambiguous kind pair before selection. One measured
+native lower-thumbnail selection verified Primary layer 0, still Vampire 4.
+No Human appearance edit is claimed. The typed return then observed the
+original Sim in Live but missed its final native ACK/raw-observer deadline.
+The original observer UUID was polled and completed; it was not resubmitted.
+
+The raw return changed Human, Vampire, Mermaid, Werewolf and Fairy; Alien and
+Witch remained exact. An explicit plan accepted Vampire 4 only and restored
+other changed owners. Commit failed on Mermaid genetics readback before bank
+commit. Originals contained tail body type 61 / part 221829; raw return and
+pre-write genetics lacked its 20-byte entry. The same tail still appeared in
+outfits. Complete genetics assignment did not reinstate it. This remains a
+real defect; no fingerprint rule drops this part or counts the failure as
+successful retention. Failed receipt SHA-256:
+`bc913029400d5c3eeef326b0f4bc4338be9d560654495d3e215741257015c93d`.
+
+The complete bank and returned edits were copied, followed by normal unsaved
+CLI exit. All twenty save/backups stayed exact. Exit receipt SHA-256:
+`6647701658947fe773708b8524463bc079dd056a311f15bf87389d32e144bcc8`.
+The closed-session archive validates this failed UUID, exact exit, bank and
+normal save hash; it changes only active journal metadata. Full originals,
+raw return, plan and partial-write evidence remain in content-addressed history
+and the external whole-bank backup. Archive receipt SHA-256:
+`e50770d56e764d3d383f2202bea1deea6e7141310a171df323c5ad4ed6754e22`.
+This authorizes neither replay nor save/reload retention claims.
+
+V27 introduces explicit Primary/Dark native navigation and avoids rebuilding
+already matching outfit fields during restoration. Its complete appearance
+check still includes all original genetics and outfits. Actual runtime proof
+is required; it is not established as the Mermaid tail fix yet. Every-panel,
+MCCC/manual paths, universal cross-occult items and same-visit all-occult CAS
+remain unfinished.
+
+## Generation 62 — native Vampire layer navigation and reproduced tail loss
+
+The indexed normal Slot02 was loaded through the native Home and original
+apartment unit. Native Live reports slot 2 and the original Sim, household
+and save GUID. All seven stored appearances and distinct active Alien match
+the saved baseline before/after 1,551 TimeService ticks, with bank and normal
+save unchanged. Receipt: `13093f1781cbb0febe152113d1b0f6e9f259793236fe0bb3a0a1d472a7ed8b10`.
+This was an indexed load in a fresh process that had previously autoloaded;
+it is not proof of a direct cold normal-slot first load.
+
+Actual Alien -> Vampire -> Alien preserves all seven stored owners, distinct
+active appearances and membership after 1,666 / 1,603 unpaused ticks, ending
+paused. Receipts: `6e22c08e660c7ef8cf1567538c02f80f10b3cffa7e382d8f13858bc5012637ee`
+and `cc852e826bd003259c7a62df21469ab38b4f1087e1fab5fdc728531a439d8ec7`.
+These passing transitions precede the new Dark edits below.
+
+Both actual native Vampire layers report kind 4. Semantic CLI Dark -> Primary,
+Primary -> Dark and edited Dark -> Primary pass next-tick native readback,
+without mouse input. Receipts: `3804bfe83308b8ce14ec7665a4f0250741278b5d4855f65bbd13ffce7019e21d`,
+`f060ce85acd1e0d4a17bce0cbf9a09ea16b0b348b5c1941c37487665188bc3c8`
+and `67c0fe04eb08c7604bdd548eb6c6c2b697f7b848bfa203ce13dd7414ff1365d8`.
+Neither Primary kind 4 nor a shared original ID establishes a Human appearance.
+
+Eleven actual Dark-layer edits pass native readback in full household CAS:
+hair, eyebrows, head skin detail, earrings, necklace, rings, nose/eyes/mouth
+presets, skin tone and lip makeup. Body skin details returned an empty catalog.
+Workbench receipt: `815877561e23050099631c765fe91525fed823aebd7b8011ac07f7e99810bc7d`.
+The original CAS return request was submitted once. The original Source
+observer completed after actual unpause, but the 60-second whole-operation
+deadline expired during later status verification. Original failed receipt:
+`33ecf03cbd619356cbccaf6d7bec87f0bba0cd575cc7bbcb5e6aa27a52234e85`.
+Fresh read-only status confirmed the same observed transaction and raw hash;
+neither acceptance nor the observer was resubmitted.
+
+An explicit plan accepts only Vampire 4 and restores changed Human, Mermaid,
+Werewolf and Fairy owners. Plan receipt: `32994a4c6e8ab9de283130dd992bd87ab2d13655085ecf3474c9421f1ce78ff3`.
+Its one commit fails exact Mermaid genetic-data readback, retaining originals,
+raw return, intended plan and partial-write evidence. Commit receipt:
+`dfc8866e563d82806e6a2341eeff00fcb5bd700db31256eb1969ed5d74b38b92`.
+The missing tail is already absent before restoration. Selective changed-field
+restoration did not fix the defect. Native assignment reports no exception
+but returns the same incomplete 1,838-byte genetics. Read-only diagnostic:
+`ff9f8b0869f3de5edf57d1c26a747030b0bf49f934b14607d97136db36020325`.
+No comparison normalization was broadened to hide the loss.
+
+Normal unsaved CLI exit succeeds and verifies all saves/backups unchanged:
+`5064c3f22ce07c06432ac879689996be8349ca1a6dbe8078a4090109a2e59011`.
+The first menu input positively refused before button-down because its native
+cursor did not match; its failed original receipt remains unchanged. Host
+projection now preserves exact authenticated version-2 cursor-refusal evidence
+without permitting partial/lost/stale input replay. Complete closed-session
+metadata archival preserves every bank lane and returned edit:
+`5b1e4db68e243228a9cdb93e48cf23b8376179dd8673a7bde88beb99a0bc1723`.
+Saving the failed session and further form switches were blocked. Post-edit
+Vampire retention, same-visit seven-form navigation, all-panel edits,
+universal items, native voice/traits edits and manual/MCCC parity remain open.
+
+## Generation 64 — fresh Alien retention and captured-mask failure
+
+V29 installs fourteen matching artifacts with every disposable save and
+sidecar unchanged. A fresh cold Home/load run selects the indexed normal
+Slot02. Its first Play pointer is refused before button-down; a fresh measured
+public CLI Play succeeds. Native Live reports slot 2, original Sim/household
+and GUID. Before CAS, all seven distinct stored wrappers remain, with native
+availability 65 and each wrapper's own current kind. Early native warnings,
+pointer refusals and menu attempts remain retained; no unsupported headless
+engine or automatic EA permission-click success is inferred.
+
+Actual Alien creature existing-household full CAS mode 0 / layer 0 is verified
+on the original Sim. A new hair selection passes; the next eyebrow item fails
+exact native selection readback, stopping the requested twelve-panel run.
+CAS return preserves the original Sim and changes only lane 2. Explicit
+Alien-only acceptance verifies all seven stored appearances and the distinct
+active owner: `a84ceb36b98a093e9d4b5d50f841b9ae0beb3bec534a21a30dc9ea78f931ff15`.
+Alien → Vampire → Alien then retains all seven owners and membership through
+1,572 / 1,502 actual unpaused ticks:
+`96bf1bd566300924c34be12a90d2ae743b0a5b690aa8b21ac475ed783b8526e5`
+and `cc650b85ff6423f7bb630b50741c047b421a9a0ad3e706deafde7c9655edd979`.
+No save/reload of these new edits is claimed.
+
+Actual Vampire kind 4 / Dark layer 1 then receives ten confirmed native edits:
+hair, head skin detail, earrings, necklace, rings, nose/eyes/mouth presets,
+skin tone and lip makeup. Body skin details return no different item; eyebrows
+are excluded because of the separate exact-selection failure. Workbench:
+`278aaa47137ee93a6a7d47fc227a6f800f735455bec1fdb4fb529df73d04a336`.
+Semantic Dark → Primary succeeds:
+`a97c1442918dde871ff824b48f326cedff1d9f7c206083796708f8746fa8e8c4`.
+One CAS return completes original-Sim Live/clock observation and final Pause,
+requiring explicit decisions:
+`0ac8b57b2d9cf146d9d8844f627b199eed278fc44ab92530a8c14c846443d34b`.
+
+Vampire-only reconciliation still fails Mermaid genetics before bank commit:
+`0eb893aa215e3d124072d60ffdaa41ea2c401fb19ffa83c3bba239632f57cc95`.
+The fresh transaction captured availability 4 for every owner before Dark CAS;
+restoring captured masks thus makes no native change. Read-only diagnostics:
+`5a83f6237c35eeecdb11f18dadd30e2a2db763ed230fbbf9e6a78a5fbb9eb3f1`.
+Normal unsaved CLI exit verifies all saves/backups unchanged:
+`3e79d27ae1af57454c2c75ab5ac5ad258a91b9e0730404d615a9f0d401740c46`.
+Closed metadata archival retains the complete originals, raw return, explicit
+plan and partial-write evidence without native replay or bank-lane changes:
+`45d357e4111287a17bcc685af0262af39e37fc6aa5a26b7ed5da60ce24b48585`.
+
+V30 adds a temporary, selected-existing-owner appearance write context to test
+whether native filtering can be avoided while returning the exact preceding
+availability. Its fixture/build checks and actual runtime proof remain
+separate. Full every-panel, MCCC/manual, same-visit all-form CAS and universal
+cross-occult catalog coverage remain open.
+
+## Generation 65 — temporary-context admission failure
+
+V30 installs fourteen matching artifacts with every disposable save and sidecar
+unchanged. Correct-account EA launch, indexed normal Slot02 Play, measured
+occupied-apartment selection and original-Sim Live identity complete. Native
+viewport mismatch refusals remain recorded separately from completed input.
+The zero-change fresh native baseline accepts no older appearance payload and
+does not claim a CAS visit.
+
+Actual Vampire kind 4 / Dark layer 1 receives ten confirmed full-household CAS
+edits: hair, head skin detail, earrings, necklace, rings, nose/eyes/mouth
+presets, skin tone and lip makeup. Body details have no different item.
+Workbench: `494dd71cf54810a8c86cf540fdf939b49c7bb042ef8a8c3d4d51096e3808d46b`.
+Semantic Dark → Primary selection succeeds:
+`56494bf7b6613e4d031469a3ef090872ca0b5d4947231ef5f74a8cae52309a6c`.
+One CAS return observes the original Sim, Live simulation progress and final
+Pause, requiring explicit per-form decisions:
+`f87f952096e0896279eaad97e875c85e6a9ecbfe0d3277d2c3aec91e58758689`.
+
+Vampire-only reconciliation fails its temporary native context admission:
+`14499d06a0503e562d963cdf0770068f602616290992f42b6e64a03336d95e11`.
+The exact retained message is “Appearance write changed native context on
+another owner or current kind.” V30 did not retain the intermediate observed
+context, so this alone cannot establish the propagation mechanism. Read-only
+post-failure diagnostics retain all seven existing native owners, their current
+kinds and availability 4:
+`63718be87e5d8974a72eab96a72a7cc08ad45a8558ff32393d198c0846dc5dbf`.
+Mermaid genetics remain 1,838 bytes versus the captured 1,858-byte original.
+No successful Dark reconciliation, saving or further switches are claimed.
+
+Normal unsaved CLI exit verifies all twenty saves/backups unchanged:
+`5fdecde6e8be01698146e1d79dfb111027fdebc0b4749404782b8a2f869890a4`.
+Closed metadata archival preserves the complete originals, raw return, explicit
+plan, failure and bank lanes:
+`6f1168fec7c6f723a4071c6b08a15d97e9026e2ba99305a79e711ab730f3fc79`.
+V31 adds exact complete-shared availability admission and stage diagnostics;
+actual runtime retention is still required independently of its fixture pass.
+
+## Generation 66 — exact Human availability admission diagnosis
+
+V31 installs fourteen matching artifacts with all saves and sidecars unchanged:
+`e4b1e158ad900619077a35fb6ccdbd9ee77d9f8feca2478bcb92686d917cfc23`.
+Correct-account CLI launch starts Sims. Initial cold capture cannot initialize
+the hidden F11 renderer through household diagnostics; one native frame
+initialization completes without Sim reads or game input. Indexed normal Slot02
+Play then completes, followed by measured occupied-apartment navigation and
+original-Sim Live identity. That cold preparation limitation remains distinct
+from actual CAS proof.
+
+Fresh native all-owner baseline adoption has no inferred changes or old payload
+replay. Alien → Vampire retains all owners and membership through 1,521 actual
+unpaused ticks: `4acf12f1ef626a95064d8acfd32efdf9a94634b94ebee44b900adfc5348f693d`.
+Full household CAS confirms original kind 4 / Dark layer 1. Ten native edits
+acknowledge across hair, head skin detail, jewelry, facial presets, skin tone
+and lip makeup; body skin details have no different item:
+`aaa7ef7f691d4a46c746bceb6db234a3cc90844b562035b20f2a768f28433e0a`.
+Semantic Dark → Primary passes:
+`f53a2251bc333c9ffd813f60378c87457cd435e6d8e0aa905e8b7631c79f23bb`.
+One return retains the original Sim, actual clock progress and final Pause:
+`c2eb9b318dbe4335699ad98fbe770e35790819a2b0dd1efa1d9e7993b6d95c18`.
+
+Vampire-only reconciliation fails before the Human appearance payload call:
+`7587707847aacebfda20346ca7aca318821204ee8b7f75d82b5f8f31ec59edb3`.
+The exact admission difference is Human availability expected 5, observed 4;
+every current kind and other availability stays exact. Stage diagnostics show
+`payload_attempted=false`, `payload_completed=false`, and restoration to the
+complete preceding context:
+`3c073aaa239c77f7d86bb32a022c1a14d51c33f11c75fe1450fc9e8a7d844dcd`.
+This does not establish how non-Human temporary masks behave. V32 omits the
+invented Human capability bit while retaining complete appearance readback.
+Non-Human filtering remains a separate actual-game test.
+
+Normal unsaved closure verifies every disposable save and backup unchanged:
+`c3149c8c5f635f9a0c84c46999434ccb08cf947780a7920dffc9604f40238b0c`.
+Closed metadata archival retains the complete failed transaction and bank lanes:
+`4451fc57ad8c19509d417e7697c8fd7c6618b306ee2df91bd3ca9a183c99c4ed`.
+No post-Dark retention or save/reload pass is claimed.
+
+## Generation 67 — Human restoration passes, Mermaid assignment still filters
+
+V32 installs fourteen exact artifacts with all saves/sidecars unchanged. The
+first map-only run closes before an apartment input reaches the game; closure
+cause is unknown, with no current crash report. Closed-run checks verify no CAS
+visit and unchanged save/sidecar inventories:
+`357bd7acdc212b614b8f8ea12b696ab7730f065951202624ebb8370f29931661`.
+The second runtime uses the same single disposable profile and verified account
+identity. Public native start/focus/show/status/hide initializes the matching
+F11 renderer without Sim reads. Wide Home OCR omits Marketplace; the early load
+refusals submit no input. A measured Load Game click and indexed normal Slot02
+Play complete, followed by measured occupied-apartment navigation and exact
+original-Sim Live slot/GUID/household/persistence checks:
+`7db29b049d7b44bb911a35f3a508f02dfd3660aa9d99c21b907150774c5aee70`.
+
+Fresh zero-change native baseline commits all seven owners:
+`3241701624bf288479134879da079bbb5c9970500653629d636a4436cc68772a`.
+Alien → Vampire retains all seven appearances, distinct active owner and
+membership through 1,537 actual unpaused ticks:
+`dbd8cd8504c11ed029d9c4710d42b2595a5ef135061d7439ac38e9531e2818de`.
+Full household CAS confirms original kind 4 / Dark layer 1:
+`cd5b12cdc928821be6310b025ccce3865359321261bc1c6956781ea1b4043b2d`.
+Ten edits across hair, head skin detail, jewelry, presets, skin tone and makeup
+acknowledge; body skin details have no different native item:
+`6be892115217d5b2d5040912f5ba4a503b4b6d5036436a1b182e6158edcc1709`.
+Semantic Dark → Primary passes:
+`d95d7449d90d6d0f451736562209f8b997380ae6648386263ed477175ba3ea4d`.
+One CAS return verifies original-Sim Live identity, clock progress and final
+Pause, retaining raw edits for explicit decisions:
+`2eef9c6421bd00dd9fbf5eb29b130c8d35ca02dd9e2d7da72f718c96f97996f2`.
+
+The Vampire-only plan restores every other changed lane. Human restoration now
+passes with no invented capability bit. Reconciliation fails Mermaid genetics
+before bank commit:
+`417ad91d2403bc59bf4264c559222fcee1704a20e33b0c22204c659ea410fbab`.
+Read-only diagnostics retain admission, payload and restoration observations:
+`0d004af96e5f9b53ef5eeb2e0aee81b2ad772b11598b81e3fddd4caf9bf76351`.
+Mermaid availability 12 reads back exactly on only that owner while its current
+kind remains 8. The payload is called once; all context checks pass, including
+restoration to the preceding complete availability 4. Genetics are already
+1,838 bytes immediately after assignment and unchanged through each resend,
+with no assignment exception. This separates native context success from
+appearance failure; it does not prove a native filtering cause or authorize
+discarding the tail comparison.
+
+Normal unsaved CLI closure preserves all twenty saves/backups:
+`24e291649cc071f61ec7d5599d6b0788fcb154978667a7cf2ac0c3f88c46c35b`.
+Complete closed metadata archival retains originals, returned edits, explicit
+plan, partial writes and every bank lane without native replay:
+`4b2dd973930a3365952d5efd06463a442ca26fe380cce115abc74f71ac30148f`.
+V33 tests the existing owner's kind alone when absent from its preceding
+context. Post-Dark switching and controlled save/reload remain unproved.
+
+
+## Generation 68 — actual Vampire Dark reconciliation and all-owner switches
+
+Actual generation 68 passes ten confirmed Vampire Dark edits across eleven requested panels in full household CAS, semantic Primary selection, original-Sim Live return and explicit Vampire-only reconciliation. Every other changed form restores exactly, including Mermaid's complete tail genetics. All seven stored/distinct active appearances and memberships survive unpaused Vampire → Alien → Vampire → Alien switches. Controlled normal Slot02 save/seal and normal unsaved closure pass; cold reload is independently checked. Full universal catalogs, same-visit all-occult room, every-panel/manual/MCCC coverage, palettes/texture conversion and Tray parity remain open. The original profile is read/copy only; no finished release or rewritten headless game is claimed.
+
+The full existing-household editor confirms actual kind 4 / Dark layer 1 /
+session 1. Ten edits acknowledge across hair, head skin detail, earrings,
+necklace, rings, nose/eyes/mouth presets, skin tone and lip makeup; body skin
+details have no different native item. Raw return changes owners 1/4/8/32/64.
+Only Vampire is explicitly accepted; all other changed owners restore from
+this runtime's originals. Complete Mermaid tail genetics and every other
+appearance field pass, with no normalization or comparison removed.
+
+| Scoped receipt | SHA-256 |
+| --- | --- |
+| Original normal Slot02 and all-form snapshot | `170df7b57e971d6c46581a05eac3d5fef1b6a42edb1ab1e6ca032f1846212954` |
+| Fresh zero-change native baseline | `88c3c944eaf6bc69cf26068206dff4c863c60fc5dc76ca065ee82799778faf20` |
+| Alien → Vampire, 1,557 ticks | `5208c43418b308efdff410b10d1d6f8e6a2688c3512391fc2c6d4b3a3f890eb2` |
+| Actual Vampire Dark full-CAS status | `06b399e1879f1ca698120b6ac90c32570463add48bf97076232d25a91398cef4` |
+| Eleven panels, ten confirmed native edits | `067088eb7966268962e2932655c79ec0ec41d8312302e8e20b107e37ee216453` |
+| Semantic Dark → Primary selection | `57f5592c042c733109ad3809d5ce7091859d1904d3603a555b5a976fc33bc53a` |
+| Raw Live return, explicit decisions required | `d4b24765521f435e65ab2940b8c7fe0361e35e0eecccba0615d5445e44babb0a` |
+| Explicit Vampire-only plan | `3412340366b2a4f78dc967eff57d231f4d8dbc8d92d0407bd850df9ea6f62f8b` |
+| All-owner native reconciliation and bank commit | `8bfea32fc9970ad49c510ae6e2beeed9430d925c927a465e4fd22be90264b255` |
+| Complete seven-owner/distinct active readback | `8e447214853310457463adb2c1360dc01064562fbd3a42fe094b5d95a02ed80e` |
+| Vampire → Alien, 2,012 ticks | `6d3fede7e7668885e2adfaa372f821babd3a097b5cdada71dbf51d0b11cf790b` |
+| Alien → Vampire, 1,601 ticks | `321236168f2e0f95360fabe78060ec96adae7f0d947cbbb7f589610ce08f0750` |
+| Vampire → Alien, 1,708 ticks | `2b800103cb2e85492f036893b126f0ec5debc37e889f04017ff9450f246b4987` |
+| Controlled normal Slot02 save/seal | `ccf8f72d1d0dbc6b77a007b37f352584d90b11b955255eaae05e53b828d5dc16` |
+| Normal unsaved exit, all saves/backups unchanged | `457c5f808994bf0ea6c98231cf98b7b1cdac40bad52110b62cf201a448ced1b6` |
+
+Saved file: `b632c0111479a185f5343839f8bd595bccf7976fa19af6cdeb2a5cc745c67ebc`.
+Appearance seal: `c2b148a505bdc4d776547ef129b2dfa2710b2e42db5482e879ec24aaf37c6b83`.
+Earlier failed transactions remain retained. Cold reload and broader runtime
+coverage are separately checked; no complete release gate is closed here.
+
+
+### Generation 68 cold reload — seven-owner persistence, certification handoff still open
+
+The same script cold launch observes new PID 38704. Public native controls
+initialize F11, exact indexed normal Slot02 Play reaches the neighborhood, and
+fresh captured occupied-apartment/household Play reaches original Live.
+An initial missing required file-hash argument rejects before any game input;
+the corrected indexed command submits once, with no unresolved Play replay.
+The map requires separate measured household navigation and is not Live proof.
+
+The public `cas-reload` observer binds the exact earlier controlled save and
+normal unsaved exit. All seven stored forms and the distinct active Alien match
+the complete certified bank before and after 982 actual simulation ticks:
+`c5ddb613498e8883d8040ab243a474b2d64e47528582afc434cc066ad7460cb6`.
+`save_reload_verified`, both appearance phases, ten original-Sim persistence
+checks, actual clock progress, final Pause, unchanged bank/save and unchanged
+certified reference pass. The observer submits no appearance repair, bank write,
+save, CAS entry or pointer input; raw native gameplay data is retained but not
+all gameplay fields are compared.
+
+The first new Live switch refuses before appearance writes because the bank is
+from the prior PID and lacks a consumed certification receipt:
+`55a43c34a97d1c7bd3cec669add0edda305e95efd4b7f2b69ec50d9034961e26`.
+The exact sealed-load handoff then refuses because raw native load-boundary
+owners changed after loading; the complete compared appearance fingerprints
+still passed the preceding reload test. No cause for that raw difference is
+inferred, and its guard is not weakened:
+`9627dd4a3415b0ad1fee638fe7df39312c07863a04c9568f9844e8cf1b03b6e4`.
+Automatic no-repair authorization after a verified reload is a remaining QOL
+issue. A fresh zero-change current-native adoption is checked separately; it
+is not certified-seal reconciliation or another CAS visit.
+
+Read-only verification matches all 369 protected original saves against their
+retained reference, with zero writes:
+`e9aea53a39f373822167bb369282b0663f37c3d5dab425ac446d6ffede9c7b4b`.

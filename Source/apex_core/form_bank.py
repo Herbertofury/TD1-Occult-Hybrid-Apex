@@ -42,18 +42,32 @@ def restore(backend, sim, lane, fields):
     target = backend._ensure_human_form(sim.occult_tracker) if int(lane) == 1 else backend._ensure_form(sim.occult_tracker, kind, generate_new=False)
     if target is None:
         raise ValueError('Required form missing; no replacement generated.')
-    expected = appearance.fingerprint(fields)['appearance_sha256']
+    expected_fields = appearance.fingerprint(fields)
+    expected = expected_fields['appearance_sha256']
+    def restore_changed(owner):
+        observed = appearance.evidence(backend, owner)
+        changed = {name: value for name, value in fields.items()
+                   if observed['field_sha256'].get(name) != expected_fields['field_sha256'][name]}
+        # Rebuilding matching outfits can filter unrelated genetic CAS parts.
+        # Restore only fields which actually differ; complete readback still
+        # checks every original field, including any setter side effects.
+        from .native_occult_context import appearance_write
+        appearance_write(backend, sim, owner,
+            lambda: backend._restore_siminfo_payload(owner, appearance.payload(changed)))
     # Native outfit loading and visual resends are unnecessary when every
     # appearance field and normalized outfit byte already matches the bank.
     if appearance.evidence(backend, target)['appearance_sha256'] != expected:
-        backend._restore_siminfo_payload(target, appearance.payload(fields))
+        restore_changed(target)
         if appearance.evidence(backend, target)['appearance_sha256'] != expected:
-            raise ValueError('Stored form failed exact appearance readback.')
+            observed = appearance.evidence(backend, target)
+            changed = sorted(name for name in expected_fields['field_sha256']
+                             if observed['field_sha256'].get(name) != expected_fields['field_sha256'][name])
+            raise ValueError('Stored form failed exact appearance readback. Lane ' + lane + '; fields: ' + ', '.join(changed))
     if backend._get_current_flags(sim) == int(lane):
         # The active Sim and stored wrapper can diverge independently. Inspect
         # the Sim after any wrapper write rather than inferring its state.
         if appearance.evidence(backend, sim)['appearance_sha256'] != expected:
-            backend._restore_siminfo_payload(sim, appearance.payload(fields))
+            restore_changed(sim)
             backend._resend_all_visuals(sim)
             if appearance.evidence(backend, sim)['appearance_sha256'] != expected:
                 raise ValueError('Live form failed exact appearance readback.')
@@ -739,7 +753,9 @@ def switch(backend, sim, target, operation):
             _switch_check_identity(backend, sim, tracker, owners, owner_ids, location, manager)
             expected_hash = appearance.fingerprint(fields)['appearance_sha256']
             if appearance.evidence(backend, owner)['appearance_sha256'] != expected_hash:
-                backend._restore_siminfo_payload(owner, appearance.payload(fields))
+                from .native_occult_context import appearance_write
+                appearance_write(backend, sim, owner,
+                    lambda: backend._restore_siminfo_payload(owner, appearance.payload(fields)))
                 if active:
                     backend._resend_all_visuals(sim)
                 if appearance.evidence(backend, owner)['appearance_sha256'] != expected_hash:

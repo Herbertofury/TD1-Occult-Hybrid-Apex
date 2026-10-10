@@ -6,7 +6,85 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Latest development checkpoint — V24 household CAS:**
+**Latest development checkpoint — V33 existing-kind appearance context:**
+Actual generation 68 passes ten confirmed Vampire Dark edits across eleven requested panels in full household CAS, semantic Primary selection, original-Sim Live return and explicit Vampire-only reconciliation. Every other changed form restores exactly, including Mermaid's complete tail genetics. All seven stored/distinct active appearances and memberships survive unpaused Vampire → Alien → Vampire → Alien switches. Controlled normal Slot02 save/seal and normal unsaved closure pass; same-script cold reload verifies all seven stored/distinct active appearances before/after 982 actual ticks without repair or save/bank changes. Automatic post-reload bank authorization remains open: its guard refuses a switch and the exact sealed-load handoff before any appearance write. Full universal catalogs, same-visit all-occult room, every-panel/manual/MCCC coverage, palettes/texture conversion and Tray parity remain open. The original profile is read/copy only; no finished release or rewritten headless game is claimed.
+The frozen suite passes 1,588 Python tests and four native targets, with 18
+context fixtures, 71 compiled Python 3.7 imports and 206 independent Rust
+resource checks. See the alternate-form ledger for exact scoped receipts.
+
+**Historical V32 Human appearance context:**
+Actual V31 stage diagnostics show that adding a Human capability bit to
+Vampire availability does not read back. V32 keeps the original context for
+Human appearance restoration and retains complete native checks; non-Human
+temporary contexts remain separately guarded. The matching compiled candidate
+passes 1,587 frozen Python tests, four native targets, 71 compiled imports and
+206 independent Rust resource checks. Generation 67 installs fourteen matching
+artifacts with all saves and sidecars unchanged. Actual Mermaid-tail and
+post-Dark-edit retention are still required.
+
+The current host CLI also recognizes the observed wider Home layout when OCR
+misses Marketplace, requiring both exact Home/Resume headers and all gameplay
+controls. Exact indexed save and original-Sim Live checks remain mandatory.
+
+**Historical V31 shared native appearance write context:**
+Live Vampire switching already narrows native availability before a CAS
+checkpoint. V29's captured-mask restoration reproduced the Mermaid tail loss.
+V30 stopped at its temporary-context guard. V31 accounts for an exact complete
+shared availability change while preserving every native current kind. It
+restores the exact original context before complete appearance readback and
+retains admission/payload/restoration diagnostics. Partial propagation fails.
+The candidate passes 1,585 frozen Python tests, four native targets, compiled
+Python 3.7 imports and independent Rust resource checks. Generation 66 installs
+fourteen matching artifacts with every disposable save and sidecar unchanged.
+Actual Dark reconciliation fails Human temporary-context admission before its
+appearance payload call. The complete diagnostic and edits are retained;
+normal unsaved closure leaves every save/backup unchanged. No successful Dark
+retention is claimed for V31.
+
+**Historical V29 native occult context retention:**
+The receiver captures each existing owner's native availability mask before
+CAS, binds it to the transaction hash, and restores that exact context before
+appearance setters. Stored current kinds remain distinct and the explicitly
+returned active kind stays selected. Durable restore receipts and final native
+context checks prevent a narrowed mask from silently passing reconciliation.
+Native availability is separate from trait membership; no mask is synthesized
+from stored form keys. The candidate passes 1,577 Python tests, four native
+targets, compiled Python 3.7 import and 206 independent Rust resource checks.
+Actual Alien hair retention passes through Alien → Vampire → Alien after
+unpausing. Ten actual Vampire Dark edits and semantic Primary navigation pass,
+but Mermaid genetic tail reconciliation still fails. The complete transaction
+was retained and the game closed normally without saving; all saves/backups
+remain unchanged. Captured masks were already 4, so V29 did not restore a mask.
+
+**Historical V28 native owner diagnostics:**
+The CLI and F11 can explicitly select Primary or Dark in the observed Vampire
+CAS pair, including the case where both native layers report Vampire type 4.
+All seven retained forms remain listed; ambiguous native layers are not labeled
+Human. Complete appearance readback remains required after reconciliation.
+Generation 61 reproduced eleven actual Vampire Dark Form edits in full
+household CAS. Its return changed other owners, and reconciliation failed on a
+missing Mermaid genetic tail entry. That session was closed without saving;
+the complete failed transaction and edits were archived. This is an unresolved
+retention defect, not a passing Vampire edit case. Generation 62 verifies actual
+semantic Primary/Dark navigation and eleven native Dark edits; reconciliation
+reproduces the missing Mermaid tail and blocks saving. V28 adds separate native
+owner masks/traits diagnostics to investigate the setter rejection. The CLI
+now retains authenticated pre-click refusals without confusing them with lost
+or partial input. No successful Vampire edit retention is claimed.
+Crilender category resources are present, but universal cross-occult item
+availability and the complete all-occult room remain unfinished.
+
+**Historical V25 household CAS finalization:**
+Full household CAS now shows the native personality/trait and voice controls.
+Eleven actual Alien-creature edits across hair, eyebrows, skin details, jewelry,
+facial presets, skin tone and makeup survived Alien → Vampire → Alien after
+unpausing, with the six other forms unchanged. A controlled disposable save
+and seal passed. The first semantic household exit was rejected; the native
+confirmation completed the case. V25 adds the missing native household name
+and family validation ahead of its single commit, plus a shutdown guard that
+recognizes every typed CAS control. Its native runtime retest is pending.
+
+**Historical V24 household CAS build:**
 The full CLI entry now uses the game's existing-household editor, fixing the
 single-Sim entry path that hid personality and the Sim selector despite
 full-edit being enabled. The CAS copier preserves sealed native filter fields.
@@ -21,7 +99,7 @@ V23's actual Fairy alternate hair, eyebrow, skin-detail and nose edits survived
 explicit Fairy-only reconciliation and unpaused away/back switching. A controlled
 save/seal passed, and reopened native appearances match all seven owners.
 Actual Alien → Vampire → Alien Live transitions also pass after unpausing at
-every step. New Alien/Vampire household-CAS edits, full MCCC/manual parity,
+every step. New Vampire household-CAS edits, full MCCC/manual parity,
 universal cross-occult catalog availability and the all-occult custom room
 remain separate unfinished work. All seven authorized Crilender inputs are
 verified in the installed 39-resource unlock package. The original profile

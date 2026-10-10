@@ -18,7 +18,7 @@ class CCAddonTests(unittest.TestCase):
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
-        self.root = Path(temp.name)
+        self.root = Path(temp.name).resolve()
         self.original = self.root / profiles.PROTECTED_NAME
         (self.original / 'saves').mkdir(parents=True)
         (self.original / 'saves' / 'precious.save').write_bytes(b'protected fixture')

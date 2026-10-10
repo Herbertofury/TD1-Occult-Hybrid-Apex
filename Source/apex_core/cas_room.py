@@ -58,7 +58,7 @@ def inventory(baseline, client):
     pair, original = pairs[index], original_pairs[index]
     if pair.get('index') != index or original.get('index') != index:
         raise ValueError('CAS room selected pair index changed.')
-    available = {}
+    available, native_layers = {}, []
     for side, side_layer in (('base', 0), ('alternate', 1)):
         row, before = pair.get(side), original.get(side)
         if (not isinstance(row, dict) or not isinstance(before, dict) or
@@ -69,9 +69,16 @@ def inventory(baseline, client):
                 type(row['occult_type']) is not int or row['occult_type'] not in owners or
                 type(row['all_occult_types']) is not int or row['all_occult_types'] < 0 or
                 type(row['selected']) is not bool or row['selected'] != (layer == side_layer) or
-                type(before['selected']) is not bool or row['occult_type'] in available):
+                type(before['selected']) is not bool):
             raise ValueError('CAS room pair identity, selected layer or captured form changed.')
-        available[row['occult_type']] = side_layer
+        # Vampire primary and dark layers can both be type 4 with mask 4.
+        # Preserve those actual types; never invent a Human owner mapping.
+        available[row['occult_type']] = None if row['occult_type'] in available else side_layer
+        native_layers.append({'layer': side_layer, 'form_flags': row['occult_type'],
+            'sim_id': row['sim_id'], 'selected': layer == side_layer,
+            'label': ('Dark form' if side_layer == 1 and row['occult_type'] == 4 else
+                      'Primary layer' if side_layer == 0 else 'Alternate layer'),
+            'navigation_supported': row['occult_type'] in NAMES})
     selected = pair['base' if layer == 0 else 'alternate']
     if (type(native.get('occultLayer')) is not int or native['occultLayer'] != layer or
             type(native.get('occultType')) is not int or native['occultType'] != selected['occult_type'] or
@@ -94,5 +101,6 @@ def inventory(baseline, client):
         'household_id': baseline['household_id'], 'save_guid': baseline['save_guid'],
         'native_session': obs['session'], 'selected_layer': layer, 'selected_form': native['occultType'],
         'rows': rows, 'all_captured_forms_visible': True, 'all_forms_editable_this_visit': False,
+        'native_layers': native_layers, 'native_layer_selection_only': True,
         'membership_modified': False, 'mapping_verified': False, 'alternate_accept_authorized': False,
         'appearance_persistence_verified': False})

@@ -294,7 +294,7 @@ def parser():
     game.add_argument('--ensure-witch-owner', action='store_true',
                       help='Allow native-human to construct a missing tuned Witch owner without random generation')
     cas = commands.add_parser('cas', help='Semantic native CAS controls; no mouse input')
-    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
+    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
         'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear'))
@@ -305,6 +305,7 @@ def parser():
     cas.add_argument('--form', dest='form_flags', type=int, choices=(1, 2, 4, 8, 16, 32, 64),
                      help='Exact form actually present in the observed native base/alternate pair')
     cas.add_argument('--expected-layer', type=int, choices=(0, 1), help='Exact currently observed native CAS layer')
+    cas.add_argument('--target-layer', type=int, choices=(0, 1), help='Explicit native primary/alternate layer; supports Vampire pairs with the same occult type')
     cas.add_argument('--native-session', type=int, help='Exact owner observation session from a fresh CAS status')
     cas.add_argument('--panel')
     cas.add_argument('--category', type=int)
@@ -381,6 +382,16 @@ def parser():
     crash.add_argument('--entry-proof', required=True, type=Path)
     crash.add_argument('--expected-proof-sha256', required=True)
     crash.add_argument('--output', required=True, type=Path)
+    failed_archive = commands.add_parser('cas-failed-commit-archive', help='Preserve a closed disposable native-readback failure after normal unsaved exit; no replay or save writes')
+    failed_archive.add_argument('--state', required=True, type=Path)
+    failed_archive.add_argument('--commit-proof', required=True, type=Path)
+    failed_archive.add_argument('--expected-proof-sha256', required=True)
+    failed_archive.add_argument('--unsaved-exit-proof', required=True, type=Path)
+    failed_archive.add_argument('--expected-unsaved-exit-proof-sha256', required=True)
+    failed_archive.add_argument('--expected-bank-sha256', required=True)
+    failed_archive.add_argument('--slot-id', required=True, type=int)
+    failed_archive.add_argument('--expected-save-sha256', required=True)
+    failed_archive.add_argument('--output', required=True, type=Path)
     journal_archive = commands.add_parser('cas-journal-archive', help='Preserve a closed disposable raw-observed capacity failure without replay or save writes')
     journal_archive.add_argument('--state', required=True, type=Path)
     journal_archive.add_argument('--failed-return-proof', required=True, type=Path)
@@ -460,6 +471,11 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'cas-failed-commit-archive':
+        from cas_failed_commit_archive import archive
+        return archive(args.state, args.commit_proof, args.expected_proof_sha256,
+            args.unsaved_exit_proof, args.expected_unsaved_exit_proof_sha256, args.expected_bank_sha256,
+            args.slot_id, args.expected_save_sha256, args.output)
     if args.command == 'cas-journal-archive':
         from cas_journal_archive import archive
         return archive(args.state, args.failed_return_proof, args.expected_proof_sha256,

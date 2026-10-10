@@ -15,7 +15,7 @@ class CasBankCliTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.state = self.root / 'state.json'
         self.active, self.original = self.root / 'test', self.root / 'original'
         self.original.mkdir()

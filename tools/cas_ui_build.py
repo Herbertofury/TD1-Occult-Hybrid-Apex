@@ -86,6 +86,32 @@ def verify_snapshot_ownership(methods):
     return len(calls)
 
 
+def verify_household_acceptance(methods):
+    """Keep the inspected household validation ahead of its single native save.
+
+    A single-Sim shortcut returned false in actual household CAS. The native
+    name application can have side effects, so the intent is consumed first.
+    """
+    body = methods.split('private function ApexAccept()', 1)[1]
+    steps = ('apexPendingFields=null; apexPendingReply=null; apexPendingContext=null;',
+             'if(int(editMode)==0)',
+             'CallUIService("IsWidgetVisible","CASGeneticsPane")',
+             'CallUIService("CasApplyNameFields",false)',
+             'CallGameService("CasGetHouseholdExchangeData",{bValidateExistingSimTraits:false})',
+             'validatedHousehold.HouseholdContainsAdults()',
+             'CallGameService("CASCheckProfanityOnSimNames",null)',
+             'reply.household_finalization_verified=true;',
+             'reply.commit_attempted=true;',
+             'CallGameService("SaveAndExitCAS",{bValidateExistingSimTraits:false})')
+    try:
+        positions = [body.index(step) for step in steps]
+    except ValueError as error:
+        raise ValueError('Native household CAS finalization contract is incomplete.') from error
+    if positions != sorted(positions) or body.count('CallGameService("SaveAndExitCAS",') != 1:
+        raise ValueError('Native household CAS finalization must precede one consumed commit.')
+    return True
+
+
 def unpack(raw):
     if raw[:3] not in (b'FWS', b'CWS', b'GFX', b'CFX') or len(raw) < 12:
         raise ValueError('Unsupported SWF header.')
@@ -145,7 +171,7 @@ def inject(source, methods):
         raise ValueError('Installed CAS initializer does not match the inspected contract.')
     source = source.replace(anchor, anchor + '\n         ApexInitialize();')
     # Resolve external QNames at compilation, avoiding dotted runtime lookups.
-    source = source.replace('   import ', '   import flash.utils.describeType;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import ', 1)
+    source = source.replace('   import ', '   import flash.utils.describeType;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
     if end < 0: raise ValueError('CAS class end is missing.')
@@ -178,6 +204,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     semantic = (ROOT / 'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')
     control_dispatch = verify_control_dispatch(semantic)
     detached_snapshot_getters = verify_snapshot_ownership(semantic)
+    household_acceptance = verify_household_acceptance(semantic)
     original = Path(input_swf).read_bytes()
     if hashlib.sha256(original).hexdigest() != PIN:
         raise ValueError("Installed CAS resource differs from the inspected 1.128.90 build.")
@@ -227,6 +254,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'source_pins': expected_sources,
         'typed_control_dispatch_verified': control_dispatch,
         'detached_snapshot_getters': detached_snapshot_getters,
+        'household_acceptance_contract_verified': household_acceptance,
         'target_game': '1.128.90.1030', 'base_resource_sha256': hashlib.sha256(original).hexdigest(),
         'patched_resource_sha256': hashlib.sha256(payload).hexdigest(),
         'sha256': hashlib.sha256(Path(output).read_bytes()).hexdigest(),

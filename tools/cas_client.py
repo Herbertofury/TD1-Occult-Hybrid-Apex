@@ -40,11 +40,16 @@ def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
                          expected_layer=getattr(args, 'expected_layer', None),
                          form_flags=getattr(args, 'form_flags', None),
                          native_session=getattr(args, 'native_session', None))
+        if args.operation == 'layer-select':
+            value.update(household_id=getattr(args, 'household_id', None),
+                         expected_layer=getattr(args, 'expected_layer', None),
+                         target_layer=getattr(args, 'target_layer', None),
+                         native_session=getattr(args, 'native_session', None))
         # Validate before any transport, using the same production contract.
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
         from apex_core.cas_ui import envelope
         envelope(args.sim_id, value)
-        if args.operation == 'form-select':
+        if args.operation in ('form-select', 'layer-select'):
             # Keep the caller's exact session/layer capability. Refresh only its
             # native observation, so operator/CLI latency cannot expire the
             # five-second Source acknowledgement before the navigation request.
@@ -57,13 +62,13 @@ def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
             from apex_core.cas_ui import validate_client
             validate_client(preflight.get('client'), args.sim_id, {'operation': 'status'})
             selected = preflight['client']['sim']
-            room = preflight.get('cas_room')
+            observation = preflight['client'].get('owner_pair_observation')
             if (selected.get('householdId') != value['household_id'] or
                     type(selected.get('occultLayer')) is not int or
                     selected['occultLayer'] != value['expected_layer'] or
-                    not isinstance(room, dict) or
-                    type(room.get('native_session')) is not int or
-                    room['native_session'] != value['native_session']):
+                    not isinstance(observation, dict) or
+                    type(observation.get('session')) is not int or
+                    observation['session'] != value['native_session']):
                 raise ValueError('Fresh native CAS context differs from the requested session/layer/household; no form selection sent.')
         submitted = request(args.state, 'cas_ui_request', args.sim_id, value=json.dumps(value))
         request_id = submitted.get('cas_request_id')

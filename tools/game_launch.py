@@ -21,12 +21,22 @@ import windows_process
 
 def account_launch_identity(game_root, log=None):
     """Read a successful local account's Play record; never guess edition IDs."""
+    explicit_log = log is not None
     log = test_profile.unlinked(log or Path(os.environ.get('PROGRAMDATA', r'C:\ProgramData')) / 'EA Desktop' / 'Logs' / 'EADesktop.log')
-    if not log.is_file():
+    # EA rotates this exact file at 4 MiB. A new empty/current log must not
+    # discard the account's verified Client Play identity. Keep the bounded
+    # backup/current stream in chronological order, including rotation seams.
+    logs = [log] if explicit_log else [test_profile.unlinked(log.with_suffix('.bak')), log]
+    lines, sources = [], []
+    for source in logs:
+        if not source.is_file():
+            continue
+        with source.open('rb') as stream:
+            stream.seek(max(0, source.stat().st_size - 2 * 1024 * 1024))
+            current = stream.read().decode('utf-8', 'replace').splitlines()
+        lines.extend(current); sources.extend([source] * len(current))
+    if not lines:
         raise ValueError('No local EA launch history; use EA Play once to establish this account\'s launch identity.')
-    with log.open('rb') as stream:
-        stream.seek(max(0, log.stat().st_size - 2 * 1024 * 1024))
-        lines = stream.read().decode('utf-8', 'replace').splitlines()
     executable = str(Path(game_root).resolve() / 'Game' / 'Bin' / 'TS4_Launcher_x64.exe')
     for index in range(len(lines) - 1, -1, -1):
         line = lines[index]
@@ -40,7 +50,8 @@ def account_launch_identity(game_root, log=None):
             continue
         return {'offer_id': match[1], 'content_id': match[2], 'executable': executable,
                 'evidence': 'Successful EA Client Play request for this exact installation',
-                'log': str(log), 'record_sha256': __import__('hashlib').sha256(line.encode('utf-8')).hexdigest()}
+                'log': str(log), 'record_log': str(sources[index]),
+                'record_sha256': __import__('hashlib').sha256(line.encode('utf-8')).hexdigest()}
     raise ValueError('No verified successful EA Client Play record for this Sims installation; no launch ID will be guessed.')
 
 

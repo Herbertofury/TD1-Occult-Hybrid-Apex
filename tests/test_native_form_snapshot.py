@@ -62,6 +62,17 @@ class NativeFormSnapshotTests(unittest.TestCase):
         self.assertTrue(all(row['query'] == 'returned-value' and row['has_occult'] is True for row in result['native_membership']))
         self.assertEqual(self.tracker.has_occult_type.call_count, 6)
 
+    def test_native_appearance_bit_flags_do_not_replace_occult_owner_identity(self):
+        self.forms[1].flags = 1598
+        result = self.run_read()
+        self.assertEqual(result['form_flags'], 1)
+        self.assertEqual(result['native_appearance_flags'], {'query': 'returned-value', 'value': '1598'})
+        self.assertIsNotNone(result['active_live_appearance'])
+        self.forms[16].flags = 1
+        inactive = self.run_read(self.argument(flags=16))
+        self.assertEqual(inactive['form_flags'], 16)
+        self.assertIsNone(inactive['active_live_appearance'])
+
     def test_missing_inactive_native_form_is_explicit_and_not_created(self):
         self.forms.pop(16)
         result = self.run_read(self.argument(flags=16))
@@ -70,6 +81,29 @@ class NativeFormSnapshotTests(unittest.TestCase):
         self.assertIsNone(result['appearance'])
         self.assertIsNone(result['native_wrapper_id'])
         self.assertFalse(result['form_created'])
+
+    def test_native_base_masks_and_traits_are_read_separately_from_live_membership(self):
+        native = Obj(current_occult_types=4, occult_types=4, flags=1598, gender=2, age=32,
+                     species=1, base_trait_ids=[123, 456])
+        self.forms[8]._base = native
+        result = self.run_read(self.argument(flags=8))
+        context = result['native_owner_context']
+        self.assertEqual(context['current_occult_types']['value'], '4')
+        self.assertEqual(context['occult_types']['value'], '4')
+        self.assertEqual(context['base_trait_ids']['values'], ['123', '456'])
+        self.assertEqual(result['form_flags'], 8)
+        self.assertFalse(result['native_owner_context_write_authority'])
+        self.assertEqual(native.current_occult_types, 4)
+        self.assertTrue(all(row['has_occult'] for row in result['native_membership']))
+
+    def test_bad_native_base_context_is_reported_without_guessing_or_partial_traits(self):
+        self.forms[8]._base = Obj(current_occult_types=True, occult_types='8', flags=-1,
+                                  base_trait_ids=[1, True])
+        context = self.run_read(self.argument(flags=8))['native_owner_context']
+        for field in ('current_occult_types', 'occult_types', 'flags', 'base_trait_ids', 'gender'):
+            self.assertEqual(context[field]['query'], 'failed')
+            self.assertNotIn('value', context[field])
+            self.assertNotIn('values', context[field])
 
     def test_missing_stored_active_wrapper_reports_live_only_without_claiming_stored_presence(self):
         self.forms.pop(1)

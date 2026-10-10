@@ -26,10 +26,39 @@ def load_screen(name):
 
 
 class LoadMenuTests(unittest.TestCase):
+    def test_cold_menu_requires_complete_surface_empty_queue_and_no_game_thread(self):
+        identity = {'native_cli_available': True, 'core_tick_ready': False, 'alarm_ready': False,
+                    'core_ticks': 0, 'queue': {'closed': False, 'pending': 0, 'retained': 0}}
+        home = screen(['HOME','MARKETPLACE','LOAD GAME','NEW GAME','GALLERY'])
+        self.assertFalse(game_load.cold_menu_guard(identity, home, 'home', 'My test')['sim_mutation_authorized'])
+        self.assertTrue(game_load.cold_menu_guard(identity, load_screen('My test'), 'play', 'My test')['safe'])
+        for name, value in (('core_tick_ready',True),('alarm_ready',True),('core_ticks',1),('core_ticks',False),
+                            ('native_cli_available',False)):
+            changed = dict(identity, **{name:value})
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                game_load.cold_menu_guard(changed,home,'home','My test')
+        for name, value in (('closed',True),('pending',1),('retained',1),('pending',False)):
+            changed = dict(identity, queue=dict(identity['queue'], **{name:value}))
+            with self.subTest(queue=name), self.assertRaises(ValueError):
+                game_load.cold_menu_guard(changed,home,'home','My test')
+        for observation, phase in ((screen(['LOAD GAME']),'home'),(home,'live'),
+                (load_screen('Different save'),'play'),(screen(['CAS','HAIR','TRAITS']),'home')):
+            with self.subTest(phase=phase), self.assertRaises(ValueError):
+                game_load.cold_menu_guard(identity,observation,phase,'My test')
+
     def test_complete_home_required_and_modal_never_dismissed(self):
         home = ['HOME', 'MARKETPLACE', 'LOAD GAME', 'NEW GAME', 'GALLERY']
         self.assertEqual(game_load.menu_target(screen(home), 'home', 'My test')['command'], 1)
         for labels in (['Load Game'], home + ['BUY NOW'], home + ['LOAD GAME']):
+            with self.subTest(labels=labels), self.assertRaises(ValueError):
+                game_load.menu_target(screen(labels), 'home', 'My test')
+
+    def test_observed_resume_plumbob_alias_requires_all_home_controls(self):
+        controls = ['MARKETPLACE', 'LOAD GAME', 'NEW GAME', 'GALLERY']
+        for header in ('RESUME GAME', 'IRESUME GAME'):
+            self.assertEqual(game_load.menu_target(screen([header] + controls), 'home', 'My test')['command'], 1)
+        for labels in (controls, ['IRESUME GAME'] + controls[:-1], ['IRESUME GAME'] * 2 + controls,
+                       ['IRESUME GAME'] + controls + ['BUY NOW'], ['IRE5UME GAME'] + controls):
             with self.subTest(labels=labels), self.assertRaises(ValueError):
                 game_load.menu_target(screen(labels), 'home', 'My test')
 
@@ -40,6 +69,19 @@ class LoadMenuTests(unittest.TestCase):
                        ['LOAD GAME', 'My test', 'LOAD']):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 game_load.menu_target(screen(values), 'play', 'My test')
+
+    def test_observed_wide_home_can_omit_marketplace_only_with_both_exact_headers(self):
+        observed = screen(['HOME', 'RESUME GAME', 'LOAD GAME', 'NEW GAME', 'GALLERY', 'PLAY SCENARIO'])
+        observed.update(width=2560, height=1385)
+        self.assertEqual(game_load.menu_target(observed, 'home', 'My test')['y'], 182)
+        for labels in (['HOME', 'LOAD GAME', 'NEW GAME', 'GALLERY'],
+                       ['RESUME GAME', 'LOAD GAME', 'NEW GAME', 'GALLERY'],
+                       ['HOME', 'RESUME GAME', 'LOAD GAME', 'GALLERY'],
+                       ['HOME', 'RESUME GAME', 'RESUME GAME', 'LOAD GAME', 'NEW GAME', 'GALLERY'],
+                       ['HOME', 'RESUME GAME', 'LOAD GAME', 'NEW GAME', 'GALLERY', 'MARKETPLACE', 'MARKETPLACE'],
+                       ['HOME', 'RESUME GAME', 'LOAD GAME', 'NEW GAME', 'GALLERY', 'BUY NOW']):
+            with self.subTest(labels=labels), self.assertRaises(ValueError):
+                game_load.menu_target(screen(labels), 'home', 'My test')
 
     def test_unmeasured_nonfinite_or_outside_target_refused(self):
         for bounds in ({'x': float('nan')}, {'x': -1}, {'width': 2000}, {'height': True}):

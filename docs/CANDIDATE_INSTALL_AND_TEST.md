@@ -4,7 +4,55 @@ This is a concrete development build for owner testing, not a completed release
 or a claim of current-game parity. Target game: PC 1.128.90.1030. Full accepted
 scope and remaining work stay in `docs/CODEX_MASTER_EXECUTION.md`.
 
-## Current build V33 — existing-kind appearance context
+## Current build V36 — native CC groups and live colors
+
+Epoch `2026-10-10-cc-resource-groups-v36` resolves the unique actual CASP key
+from the installed resource index, retaining CC groups and refusing ambiguous
+identities. Resource bytes and hashes are read fresh. Atomic live part edits
+retain full appearance history, native readback and rollback. F11 defaults to
+applying a wheel/slider gesture when released. The host `test live-color`
+exercises exact four-channel changes after native ticks, every untargeted
+field/unknown outfit byte, independent native owners, stale-state refusal and
+Undo/Redo. Numeric success is separate from visible rendering proof.
+
+Actual generation 73 verifies both four-channel CC changes after native ticks,
+inactive Alien edits with Vampire Live unchanged, visible Alien → Vampire →
+Alien retention, F11 hue/opacity releases and exact Undo restoration. The same
+session is left open/paused with original colors restored. Exact receipts are
+in `Reports/LIVE_COLOR_2026-10-10.md`.
+
+The current repository host CLI also adds `live-cas-catalog build/query/resolve`
+for explicit package sources. This host-only catalog change requires no game
+reload and does not alter the V36 game artifacts below. Its all-content F11
+grid and independent 3D Sim preview remain unfinished.
+
+| V36 artifact | SHA-256 |
+| --- | --- |
+| Bundle | `789c3f1624e94e0f4988b0c99db491dc4d0da5c0a49c3b8d2ccdb34bec3c6093` |
+| Script | `feda3a7ec16bcf7a17a92a646ccfb6f301155c89562706ccbaae8de2c7a89c0d` |
+| Native DLL | `8482d95758f1dc8e6b432c2373729db540324fed570a96404187cecc3237fb84` |
+| CAS bridge | `e6b18ef60676b8b59782fd7e9eb18d4ed26e64733eee96b74db5b893e390d93a` |
+
+All 72 compiled Python 3.7 modules import; independent Rust inspection verifies
+206 package resources. Final unchanged-source verification passes 1,609 Python
+tests and four native targets
+(`baabb9130a02d31286c51592e2635350e7551dd0fd0a1ad6deb9929ab4264e98`).
+Generation 73 installs sixteen verified artifacts,
+including the same five explicitly copied test CC packages, with all twenty
+save/backup files and retained sidecars unchanged across installation
+(`e79c1917bb762fd94b49aea24afeb2f320a9811f0f8d17309b0872f4e5251116`).
+The owner saved/exited for this specific resource-lookup fix and reopened the
+same household. Actual process 26404 matches the exact installed script.
+See [the color ledger](../Reports/LIVE_COLOR_2026-10-10.md) for the fresh-native
+baseline, corrected resource inspection, numerical tests and visible captures.
+
+The script also adds bounded startup listener recovery for Windows 10013/10048;
+explicit shutdown cancels it. Native `game click --background` leaves foreground
+and the OS cursor alone, with a queue-acceptance-only receipt. No successful
+game command is replayed. Full manual/MCCC/every-panel coverage, the all-occult
+room, automatic sealed-reload authorization and a headless engine remain open.
+
+## Historical build V33 — existing-kind appearance context
 
 Epoch `2026-10-10-native-existing-kind-appearance-context-v33` tests only an
 existing non-Human owner's current kind when its preceding availability mask

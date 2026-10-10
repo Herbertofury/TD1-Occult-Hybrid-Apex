@@ -133,3 +133,58 @@ Game bounds, and the requested save still needs its indexed name/hash/GUID,
 unique normal-row Play and exact original-Sim Live readback. A completed Play
 which opens the neighborhood map remains unresolved for Live. This rule is
 covered by the 14 load tests and does not infer successful game input from OCR.
+
+## Focus-free live part colors
+
+Inspect the actual equipped row first. `studio color-live` accepts the same
+exact target/lane/part/color/appearance/resource hash envelope as `color-edit`,
+then commits it atomically on the owner thread. It keeps the inactive form
+inactive and never changes game focus or clock speed. F11's “Apply live when
+released” submits one such transaction at the end of a wheel/slider gesture.
+
+For repeatable numerical testing, put explicit numeric channels in a JSON file,
+then use the exact form and target returned by `studio status`:
+
+```powershell
+python tools/apex_cli.py test live-color --state .work/reusable-profile-session.json --sim-id 285159751289798669 --form 2 --target 9:29:9 --edits-file edits.json --seconds 120 --output new-color-proof.json
+```
+
+This command checks accepted Q14 values after actual simulation ticks, untouched
+fields/unknown outfit bytes and other forms, stale-state refusal, Undo/Redo and
+final restoration. It refuses existing evidence files and retained previews.
+The current Live Sim and its native stored wrapper are independent owners.
+An active edit changes Live plus the independent bank; normal form switching
+synchronizes its native stored wrapper. An inactive edit changes only its
+exact stored owner/bank, leaving the distinct Live appearance unchanged. The
+regression reads both owners and never substitutes one snapshot for another.
+A failed or unresolved edit remains recorded under its original UUID; no blind
+mutation or restoration replay runs. Visible rendering requires separate image
+inspection. V35's first CC probe failed resource lookup before a color write;
+see [the actual color ledger](../Reports/LIVE_COLOR_2026-10-10.md).
+
+`game click --background` addresses the verified game window with mouse
+messages and leaves the foreground/OS cursor alone. It requires freshly
+observed client width/height and coordinates. Its receipt proves message-queue
+acceptance only; verify the resulting UI separately. Semantic CAS controls
+remain the preferred path and need no clicks.
+
+## Catalog browsing outside CAS
+
+The host catalog browses every CASP in explicitly listed packages, including
+items never equipped on a Sim. Provide a JSON array of `{"path": "...package",
+"origin": "mod"}` or `"ea"` records. It writes only a new external index and
+does not contact the game:
+
+```powershell
+python tools/apex_cli.py live-cas-catalog build --input sources.json --index .work/live-cas-catalog/library.sqlite
+python tools/apex_cli.py live-cas-catalog query --index .work/live-cas-catalog/library.sqlite --expected-index-sha256 HASH_FROM_BUILD --query "lipstick" --body-type 29 --origin mod --name-mode preferred --limit 60
+python tools/apex_cli.py live-cas-catalog resolve --index .work/live-cas-catalog/library.sqlite --expected-index-sha256 HASH_FROM_BUILD --part-id ID_FROM_QUERY
+```
+
+`next_offset` pages the immutable snapshot. Names can use `preferred`, `package`
+or `code` mode. Duplicate containers and resource groups remain distinct;
+unclassified resources remain visible. Selection rechecks exact package and
+CASP bytes and returns provenance suitable for the existing resource broker.
+An index is a catalog of container candidates: effective game load order,
+Sim compatibility, successful equip and F11 grid/3D rendering remain separate
+work. Existing snapshots are preserved; use a new filename when rebuilding.

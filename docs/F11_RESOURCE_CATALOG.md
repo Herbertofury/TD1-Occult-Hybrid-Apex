@@ -275,3 +275,36 @@ opened, before confirmation input. The saved crash proof reports native category
 `0x14112c645`, unchanged save/backup bytes and causality_verified:false. The
 successful entry/raw-feed observation remains separate from that failed exit;
 no alternate acceptance, return or persistence is proven.
+
+## October 10: searchable unequipped catalog foundation
+
+`tools/live_cas_catalog.py` indexes every CASP in an explicit package-source
+list, independently of the currently equipped Sim inventory. The reusable
+`live-cas-catalog build/query/resolve` CLI returns immutable FTS5 pages with
+exact full TGI, package/resource hashes, original filename, internal name,
+package-localized title when unique, BodyType and unparsed-resource reasons.
+Duplicate containers/groups are distinct candidates; a candidate row does not
+identify effective game load order or prove compatibility/equipment.
+
+Metadata is collected in one content-verified bounded stream per package,
+outside the game thread. Completed indices publish atomically without replacing
+an existing snapshot. Selection rereads exact source/package/CASP bytes;
+changed CC refuses instead of trusting a cached filename or timestamp.
+Unclassified future resources remain visible. This index currently contains
+CASP resources; presets and other non-CASP metadata still need separate
+discovery adapters rather than being silently omitted from the full product.
+
+Actual final-code proof reads only the same five disposable CC copies: all 62
+CASPs index in .049 seconds, name/category queries take .002021–.002553 seconds,
+and exact selected provenance resolves with no game commands or focus handoff.
+All five package hashes stay unchanged. Receipt
+`868619976ebcc2473f433b8ee8c770a683eaa86a9646ffc6e54bc8accadaf907`.
+Six fixtures cover 1,057 parts with disjoint complete pages, duplicate TGIs and
+groups, unknown BodyType 4095, malformed metadata, read-only name filters,
+snapshot hash mismatch, stale source refusal and batched content verification.
+
+F11's adjustable catalog columns, grid thumbnail paging, universal compatible
+item Apply, complete non-CASP category discovery and independent 3D preview
+remain T225/T226/T227. Existing equipped-item images/package broker stay a
+separate path; this host catalog does not claim to have rendered those new
+columns or a rotatable Sim in the running V36 DLL.

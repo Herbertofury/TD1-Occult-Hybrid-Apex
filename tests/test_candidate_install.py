@@ -136,6 +136,28 @@ class CandidateTests(unittest.TestCase):
             installer.install(self.state, self.bundle, guard=lambda: None)
         self.assertEqual(test_profile.inventory(self.profile), before); self.assert_preserved()
 
+    def test_color_cc_recipe_survives_update_and_refuses_a_changed_identity(self):
+        import test_cc_addons
+        name = next(iter(test_cc_addons.COLOR_ASSETS))
+        cc = self.profile/'Mods'/'ApexTest'/name
+        cc.write_bytes(b'DBPF color CC fixture')
+        digest = sha256(cc)
+        journal = json.loads(self.state.read_bytes())
+        journal['artifacts'].append({'name': name, 'sha256': digest, 'source': str(cc),
+                                    'test_addon': test_cc_addons.COLOR_ADDON})
+        write_json(self.state, journal)
+        with patch.dict(test_cc_addons.COLOR_ASSETS, {name: digest}):
+            result = installer.install(self.state, self.bundle, guard=lambda: None)
+        self.assertTrue(result['ready_to_launch'])
+        self.assertEqual(cc.read_bytes(), b'DBPF color CC fixture')
+        before = test_profile.inventory(self.profile)
+        # The fixture's real bytes do not match the production recipe: refusal
+        # must happen before replacing either the candidate or the test CC.
+        with self.assertRaisesRegex(ValueError, 'CC add-on recipe'):
+            installer.install(self.state, self.bundle, guard=lambda: None)
+        self.assertEqual(test_profile.inventory(self.profile), before)
+        self.assert_preserved()
+
 
 if __name__ == '__main__':
     unittest.main()

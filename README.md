@@ -6,7 +6,34 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Latest development checkpoint — V33 existing-kind appearance context:**
+**Latest development checkpoint — V36 CC resource groups and live colors:**
+Compatible CC now resolves its actual native resource group instead of a
+constructed group-zero key. `studio color-live` commits one exact part edit
+on the game thread with durable Undo/Redo; F11 applies a wheel/slider gesture
+when released. The public `test live-color` needs no input or focus handoff.
+Actual V36 lipstick testing passes four-channel Q14 readback after unpausing,
+untouched fields/unknown outfit bytes, other owners, stale-edit refusal and
+Undo/Redo with exact original-state restoration. Native stored forms and the
+distinct active Live appearance are checked independently. The close-up
+confirms visible lipstick/blush changes and retention through Alien → Vampire
+→ Alien. Actual F11 hue/opacity releases also pass after native ticks, with
+two Undo operations restoring every original appearance. See the
+[actual color ledger](Reports/LIVE_COLOR_2026-10-10.md) for current CC, occult
+retention and visible-rendering receipts. The session stays open in the one
+disposable profile; the owner's original remains read/copy only.
+Final unchanged-source verification passes 1,609 Python tests and four native
+targets; all 72 compiled Python 3.7 modules import and 206 package resources
+pass independent Rust inspection.
+
+**Live CAS catalog foundation:** `live-cas-catalog build/query/resolve`
+searches every CASP in explicit source packages, including unequipped CC,
+with exact provenance, category filters, name modes and pagination. The five
+private test packages yield 62 parts in .049 seconds with queries around 2 ms.
+F11's full column browser and independent rotatable/poseable Sim preview are
+accepted scope and remain unfinished; see
+[Live CAS Studio](docs/APEX_LIVE_CAS_STUDIO.md).
+
+**Historical V33 existing-kind appearance context:**
 Actual generation 68 passes ten confirmed Vampire Dark edits across eleven requested panels in full household CAS, semantic Primary selection, original-Sim Live return and explicit Vampire-only reconciliation. Every other changed form restores exactly, including Mermaid's complete tail genetics. All seven stored/distinct active appearances and memberships survive unpaused Vampire → Alien → Vampire → Alien switches. Controlled normal Slot02 save/seal and normal unsaved closure pass; same-script cold reload verifies all seven stored/distinct active appearances before/after 982 actual ticks without repair or save/bank changes. Automatic post-reload bank authorization remains open: its guard refuses a switch and the exact sealed-load handoff before any appearance write. Full universal catalogs, same-visit all-occult room, every-panel/manual/MCCC coverage, palettes/texture conversion and Tray parity remain open. The original profile is read/copy only; no finished release or rewritten headless game is claimed.
 The frozen suite passes 1,588 Python tests and four native targets, with 18
 context fixtures, 71 compiled Python 3.7 imports and 206 independent Rust

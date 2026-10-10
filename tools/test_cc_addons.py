@@ -23,6 +23,15 @@ ASSETS = {
     '(FUKKIE) woji earrings.package': '43591eeb23ee267a1c3ffd5da71fc40e20f4482e7f496a0bbf4673ebb5764238',
 }
 
+# Independently copied from the owner's read-only library after bounded CASP
+# inspection. Both packages contain enabled four-channel controls and LRLE
+# textures. This recipe identifies test inputs; it does not certify rendering.
+COLOR_ADDON = 'live-color-compatible-cc'
+COLOR_ASSETS = {
+    '[Magic Hand] Lipstick N91.package': '4e5d1113e2bdcafb330776fc40e15315aa1a3e759d27cb7d1779110a7d2570be',
+    'Simbience_Hello Sunshine! Swirl Blush.package': 'eeee18ae983e0f8f7cf71e1a44ca5c34e8b54c76a197578424cd0d8ba5f33c6f',
+}
+
 
 def asset_rows():
     cache = test_profile.unlinked(catalog.CACHE_ROOT)

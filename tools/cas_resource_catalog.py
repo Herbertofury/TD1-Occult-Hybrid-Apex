@@ -156,18 +156,57 @@ class Package:
         if (len(raw) != stored or signature(self.path) != self.before or
                 observed_sha256 != self.source_sha256):
             raise ValueError('Package changed during resource read.')
-        if compression == 0x5a42:
-            decoder = zlib.decompressobj()
-            raw = decoder.decompress(raw, size + 1)
-            if decoder.unused_data or decoder.unconsumed_tail or not decoder.eof:
-                raise ValueError('Invalid/bounded zlib resource.')
-        elif compression in (0xffff, 0xfffe) and raw[:2] in (b'\x10\xfb', b'\x50\xfb', b'\x90\xfb', b'\xd0\xfb'):
-            raw = refpack(raw, size)
-        elif compression not in (0, 0xffff):
-            raise ValueError('Unsupported compression {:04X}.'.format(compression))
-        if len(raw) != size:
-            raise ValueError('Resource decoded-size mismatch.')
-        return raw
+        return decode_resource(raw, size, compression)
+
+    def read_many(self, items, max_total=64 * 1024 * 1024):
+        """Verify one complete package stream for a bounded metadata batch.
+
+        This keeps catalog indexing off the game thread and avoids rehashing a
+        large package once per swatch. Size/timestamps alone never certify bytes.
+        """
+        items = tuple(items)
+        if len(set(items)) != len(items) or type(max_total) is not int or not 0 < max_total <= 64 * 1024 * 1024:
+            raise ValueError('Duplicate resources or invalid metadata batch bound.')
+        extents = sorted((self.entries[item][0], self.entries[item][1], item) for item in items)
+        if (signature(self.path) != self.before or
+                sum(max(self.entries[item][1:3]) for item in items) > max_total or
+                any(max(self.entries[item][1:3]) > MAX_RESOURCE for item in items)):
+            raise ValueError('Package changed or metadata batch exceeds its bound.')
+        buffers = {item: bytearray() for item in items}
+        position, first, hashed = 0, 0, hashlib.sha256()
+        with self.path.open('rb') as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b''):
+                hashed.update(block)
+                while first < len(extents) and extents[first][0] + extents[first][1] <= position:
+                    first += 1
+                for index in range(first, len(extents)):
+                    offset, length, item = extents[index]
+                    if offset >= position + len(block):
+                        break
+                    begin, end = max(0, offset - position), min(len(block), offset + length - position)
+                    if begin < end:
+                        buffers[item].extend(block[begin:end])
+                position += len(block)
+        if signature(self.path) != self.before or hashed.hexdigest() != self.source_sha256:
+            raise ValueError('Package changed during content-bound metadata read.')
+        if any(len(buffers[item]) != self.entries[item][1] for item in items):
+            raise ValueError('Truncated metadata batch.')
+        return {item: decode_resource(bytes(buffers[item]), *self.entries[item][2:]) for item in items}
+
+
+def decode_resource(raw, size, compression):
+    if compression == 0x5a42:
+        decoder = zlib.decompressobj()
+        raw = decoder.decompress(raw, size + 1)
+        if decoder.unused_data or decoder.unconsumed_tail or not decoder.eof:
+            raise ValueError('Invalid/bounded zlib resource.')
+    elif compression in (0xffff, 0xfffe) and raw[:2] in (b'\x10\xfb', b'\x50\xfb', b'\x90\xfb', b'\xd0\xfb'):
+        raw = refpack(raw, size)
+    elif compression not in (0, 0xffff):
+        raise ValueError('Unsupported compression {:04X}.'.format(compression))
+    if len(raw) != size:
+        raise ValueError('Resource decoded-size mismatch.')
+    return raw
 
 
 class Reader:

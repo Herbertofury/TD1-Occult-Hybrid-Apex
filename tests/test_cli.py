@@ -9,6 +9,39 @@ import apex_cli
 
 
 class CliTests(unittest.TestCase):
+    def test_background_click_does_not_focus_and_lost_receipt_never_replays(self):
+        import game_window, game_focus
+        identity = {'pid': 42, 'native_cli_available': True}
+        value = json.dumps({'test_token': 'a'*32, 'value':
+            {'command': 4, 'x': 3, 'y': 4, 'width': 100, 'height': 100}})
+        calls = []
+        def lost(path, query):
+            calls.append((path, query))
+            raise OSError('Response lost after window message submission')
+        with patch.object(apex_cli, 'verified_identity', return_value=identity), \
+                patch.object(apex_cli.reusable_profile, 'load', return_value=(None, {'token': 'a'*32}, None, None)), \
+                patch.object(game_window, 'focus', side_effect=AssertionError('foreground changed')), \
+                patch.object(game_focus, 'requires_elevated_input', side_effect=AssertionError('foreground helper used')):
+            result = apex_cli.owned_request('state', 'test_input', value=value, transport=lost)
+        self.assertEqual(result['outcome'], 'unresolved')
+        self.assertIsNone(result['input_submitted'])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], '/api/native')
+
+    def test_public_background_click_emits_fixed_command_and_rejects_background_keys(self):
+        with patch.object(apex_cli, 'require_isolated'), \
+                patch.object(apex_cli.reusable_profile, 'load', return_value=(None, {'token': 'a'*32}, None, None)), \
+                patch.object(apex_cli, 'owned_request', return_value={'ok': True}) as request:
+            args = apex_cli.parser().parse_args(['game', 'click', '--state', 'state.json',
+                '--background', '--x', '3', '--y', '4', '--width', '100', '--height', '100'])
+            self.assertTrue(apex_cli.execute(args)['ok'])
+            self.assertEqual(json.loads(request.call_args.kwargs['value'])['value']['command'], 4)
+            request.reset_mock()
+            args = apex_cli.parser().parse_args(['game', 'key', '--state', 'state.json',
+                '--background', '--key', 'ESC', '--width', '100', '--height', '100'])
+            with self.assertRaises(ValueError):
+                apex_cli.execute(args)
+            request.assert_not_called()
     def test_studio_open_and_failed_preview_output_are_durable(self):
         import tempfile
         with tempfile.TemporaryDirectory() as folder:

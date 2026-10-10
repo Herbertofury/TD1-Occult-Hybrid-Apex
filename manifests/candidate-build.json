@@ -1,12 +1,12 @@
 {
-  "build_epoch": "2026-10-10-native-existing-kind-appearance-context-v33",
+  "build_epoch": "2026-10-10-cc-resource-groups-v36",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-10-native-existing-kind-appearance-context-v33.zip",
-    "bytes": 2852916,
+    "artifact": "Apex_Development_Candidate_2026-10-10-cc-resource-groups-v36.zip",
+    "bytes": 2857617,
     "members": 28,
-    "sha256": "a91c87b2a4942679dddf2c0fb5bcc8d031fcd2edeb805e642f6959e57ff7a750"
+    "sha256": "789c3f1624e94e0f4988b0c99db491dc4d0da5c0a49c3b8d2ccdb34bec3c6093"
   },
-  "compiled_script_modules": 71,
+  "compiled_script_modules": 72,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -51,9 +51,9 @@
       "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 45162,
+      "bytes": 45491,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "49576329dbbaf539fcf4fadd8d42d9c52593fe87c222c0a342cb6b68a35e11fc"
+      "sha256": "942d1eda7ef2405f2d2bc59be9ab3584199a2cb60b35b9e99dcd6a8db42c7db6"
     },
     {
       "bytes": 1506,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 666096,
+      "bytes": 670523,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "f893aae9658838d17199a4f6641a20c55c9e3851b270597cc07cb0ff6f93ca70"
+      "sha256": "feda3a7ec16bcf7a17a92a646ccfb6f301155c89562706ccbaae8de2c7a89c0d"
     },
     {
-      "bytes": 1442304,
+      "bytes": 1442816,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "e57d901d8c04e6aeba6f4a3119edfb4a84f6e713d8430cbb36e83be920955529"
+      "sha256": "8482d95758f1dc8e6b432c2373729db540324fed570a96404187cecc3237fb84"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "d03f2b6d700bd97787927d24b6388aa31c946b36e8615b065da5f1381a4f46af"
+      "sha256": "b0eb700f68000e20b102863814b1e12bd43b58e8bfe1588f19a4d3eb30b105c9"
     },
     {
       "bytes": 424,
@@ -136,9 +136,9 @@
       "sha256": "cc95624a1ac3fdec67ec00cfb2f4fa00ec72ab280011267e2bfd8e2d47ab39a4"
     },
     {
-      "bytes": 131855,
+      "bytes": 133166,
       "file": "README.md",
-      "sha256": "cc7fbdfa69c54c63cfbeef0bff35563ebd8ab7293d72723e387369fde7fff2ca"
+      "sha256": "e0a36b3b7ea77a5c70749276cf0b47ca698c70e80bce461de0a3b3a7acd6bb9c"
     },
     {
       "bytes": 7419,

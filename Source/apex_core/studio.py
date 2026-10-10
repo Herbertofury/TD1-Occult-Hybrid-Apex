@@ -574,7 +574,9 @@ def dispatch(backend, action, sim_id, value):
             'resource_tgi': metadata['resource_tgi'], 'resource_key_query': metadata['resource_key_query'],
             'casp_version': metadata['version'], 'part_name': metadata['part_name'], 'channels': channels}
         return _response(journal, 'Read effective CASP slider bounds and exact Q14 values.', color_editor=editor)
-    if action == 'studio_color_edit':
+    if action in ('studio_color_edit', 'studio_color_live'):
+        if action == 'studio_color_live' and journal.data['pending']:
+            raise ValueError('Resolve the existing preview before applying a live color edit.')
         if not isinstance(value, str) or len(value) > 2048:
             raise ValueError('Numeric color request exceeds its bound.')
         request = json.loads(value)
@@ -595,8 +597,31 @@ def dispatch(backend, action, sim_id, value):
         write_rows(outfit, rows)
         after = _state(backend, sim, message.SerializeToString())
         if row['color_shift'] == old:
-            return _response(journal, 'The requested values already match this exact Q14 color.')
+            return _response(journal, 'The requested values already match this exact Q14 color.',
+                             live_color_applied=False)
         token = journal.prepare('Edit part color: ' + ', '.join(sorted(request['edits'])), before, after)
+        if action == 'studio_color_live':
+            # One owner-thread transaction, with the same durable history,
+            # stale-state refusal and exact rollback as Preview + Apply.
+            # Never send game input, activate a form or change clock speed.
+            journal.apply(token, read, write)
+            current = read()
+            current_message = _message(backend, sim)
+            _, _, current_rows, current_index, _, _ = _target(backend, sim, request['target'])
+            accepted = current_rows[current_index]['color_shift']
+            editor = dict(target=request['target'], cas_part_id=str(row['id']),
+                color_hex='{:016X}'.format(accepted), appearance_sha256=fingerprint(current),
+                resource_sha256=metadata['resource_sha256'], resource_tgi=metadata['resource_tgi'],
+                resource_key_query=metadata['resource_key_query'], casp_version=metadata['version'],
+                part_name=metadata['part_name'], channels={name: dict(bounds, value=color_shift.decode(accepted)[name])
+                    for name, bounds in metadata['ranges'].items()})
+            return _response(journal, 'Live part color applied and read back. Unpause to check the rendered result.',
+                live_color_applied=True, rendered_result_verified=False, color_editor=editor,
+                appearance_sha256=fingerprint(current), outfit_inventory=_outfit_inventory(backend, current_message),
+                form_inventory=_form_inventory(backend, primary),
+                current_outfit_index=_current_outfit(primary, _outfit_inventory(backend, current_message)) if not journal.inactive else None,
+                current_form_flags=backend._get_current_flags(primary), inspected_form_flags=flags,
+                appearance_source=journal.appearance_source)
         return _response(journal, 'Numeric color preview prepared. Apply explicitly to change this form.',
             preview_id=token, preview_diff='{}: {:016X} -> {:016X}; quantized values {}'.format(
                 metadata['part_name'], old, row['color_shift'], color_shift.decode(row['color_shift'])))

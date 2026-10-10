@@ -71,13 +71,16 @@ def install(state, bundle, experimental_ui=False, optional=False, guard=test_pro
     bundle, digest, manifest, payloads = read_bundle(bundle)
     # Exact separately installed test recipes survive a candidate replacement.
     # Their removal remains an explicit add-on operation.
-    from test_cc_addons import ADDON as CC_ADDON, ASSETS as CC_ASSETS
+    from test_cc_addons import (ADDON as CC_ADDON, ASSETS as CC_ASSETS,
+                               COLOR_ADDON, COLOR_ASSETS)
+    cc_recipes = {CC_ADDON: CC_ASSETS, COLOR_ADDON: COLOR_ASSETS}
     addons = []
     for row in data['artifacts']:
         if row.get('test_addon') == 'mccc-2026.5.0':
             addons.append(row)
-        elif row.get('test_addon') == CC_ADDON:
-            if row.get('name') not in CC_ASSETS or row.get('sha256') != CC_ASSETS[row['name']]:
+        elif row.get('test_addon') in cc_recipes:
+            recipe = cc_recipes[row['test_addon']]
+            if row.get('name') not in recipe or row.get('sha256') != recipe[row['name']]:
                 raise ValueError('The retained CC add-on recipe differs; no candidate replacement.')
             addons.append(row)
     selected = {name[5:]: raw for name, raw in payloads.items() if name.startswith('Mods/Apex/')}

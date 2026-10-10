@@ -85,6 +85,9 @@ NATIVE_DLL = 'TD1OccultNativeBridge.dll'
 _SERVER_SOCKET = None
 _SERVER_THREAD = None
 _SERVER_RUNNING = False
+_SERVER_START_ERROR = None
+from apex_core.bridge_startup import StartupRetry
+_SERVER_START_RETRY = StartupRetry()
 _LOCK = threading.RLock()
 _HISTORY = []
 _LOG_SEQ = 0
@@ -4230,6 +4233,8 @@ def _apex_install_core_tick():
             if threading.current_thread().ident == _APEX_GAME_THREAD_IDENT:
                 _APEX_CORE_TICK_READY = True
                 _APEX_CORE_TICKS += 1
+                if _SERVER_START_RETRY.take_due(time.monotonic()):
+                    start_server()
                 if _APEX_COMMANDS.pending:
                     _APEX_COMMANDS.drain(_execute_owned_command, max_commands=4, budget_seconds=0.02)
             return result
@@ -4616,7 +4621,7 @@ def _server_loop():
 
 
 def start_server():
-    global _SERVER_SOCKET, _SERVER_THREAD, _SERVER_RUNNING
+    global _SERVER_SOCKET, _SERVER_THREAD, _SERVER_RUNNING, _SERVER_START_ERROR
     _load_native()
     with _LOCK:
         if _SERVER_RUNNING:
@@ -4631,12 +4636,15 @@ def start_server():
             _SERVER_THREAD = threading.Thread(target=_server_loop, name='TD1OccultApexHTTP')
             _SERVER_THREAD.daemon = True
             _SERVER_THREAD.start()
+            _SERVER_START_ERROR = None
+            _SERVER_START_RETRY.cancel()
             # The game-thread queue is armed lazily on the first panel command,
             # so simply loading the mod does not create recurring simulation work.
             msg = '{} running at http://{}:{}/'.format(SERVER_NAME, HOST, PORT)
             _log(msg)
             return True, msg
         except Exception as exc:
+            _SERVER_START_ERROR = getattr(exc, 'winerror', None) or getattr(exc, 'errno', None)
             try:
                 if _SERVER_SOCKET is not None:
                     _SERVER_SOCKET.close()
@@ -4652,6 +4660,7 @@ def start_server():
 def stop_server():
     global _SERVER_SOCKET, _SERVER_THREAD, _SERVER_RUNNING
     with _LOCK:
+        _SERVER_START_RETRY.cancel()
         if not _SERVER_RUNNING:
             return True, '{} is not running.'.format(SERVER_NAME)
         _SERVER_RUNNING = False
@@ -8445,7 +8454,7 @@ def run_action(action, sim_id=None, occult=None, value=None):
             return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
     if action in ('studio_status', 'studio_items', 'studio_history', 'studio_record', 'studio_checkpoint', 'studio_recover',
                   'studio_color_copy', 'studio_color_preview', 'studio_cancel',
-                  'studio_color_inspect', 'studio_color_edit', 'studio_part_inspect', 'studio_part_preview',
+                  'studio_color_inspect', 'studio_color_edit', 'studio_color_live', 'studio_part_inspect', 'studio_part_preview',
                   'studio_undo', 'studio_redo', 'studio_jump', 'studio_apply',
                   'studio_hair_enable', 'studio_hair_disable', 'studio_hair_status', 'studio_outfit_duplicate'):
         from apex_core.studio import dispatch
@@ -8673,4 +8682,6 @@ if services is not None:
     except Exception as exc:
         _log('Native CAS transport unavailable: {}'.format(exc))
 
-    start_server()
+    _apex_initial_server_ok, _apex_initial_server_message = start_server()
+    if not _apex_initial_server_ok:
+        _SERVER_START_RETRY.arm(time.monotonic(), _SERVER_START_ERROR)

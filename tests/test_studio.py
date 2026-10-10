@@ -485,3 +485,38 @@ class StudioTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'appearance changed'):
             self.request('studio_color_edit', json.dumps(request))
         self.assertEqual(self.sim.raw, before)
+
+    def test_live_color_commits_all_channels_once_and_undo_restores_other_fields(self):
+        before = self.sim.raw
+        request = self.numeric_request(dict(hue=0.25, saturation=0.25, brightness=0.125, opacity=0.5))
+        reply = self.request('studio_color_live', json.dumps(request))
+        self.assertTrue(reply['live_color_applied'])
+        self.assertFalse(reply['rendered_result_verified'])
+        self.assertIsNone(reply['pending_preview'])
+        self.assertEqual(reply['color_editor']['color_hex'], '2000100010000800')
+        self.assertEqual(reply['color_editor']['appearance_sha256'], reply['appearance_sha256'])
+        after, old = Message(self.sim.raw), Message(before)
+        self.assertEqual(after.outfits[1], old.outfits[1])
+        self.assertEqual(after.outfits[0].part_shifts.color_shift[1], old.outfits[0].part_shifts.color_shift[1])
+        self.assertEqual(after.outfits[0].parts.ids, old.outfits[0].parts.ids)
+        self.assertEqual(self.sim.physique, 'original shape')
+        with self.assertRaisesRegex(ValueError, 'appearance changed'):
+            self.request('studio_color_live', json.dumps(request))
+        undo = self.request('studio_undo')
+        self.request('studio_apply', undo['preview_id'])
+        self.assertEqual(self.sim.raw, before)
+
+    def test_live_color_refuses_pending_preview_and_rolls_back_bank_failure(self):
+        from unittest.mock import patch
+        before = self.sim.raw
+        request = self.numeric_request({'hue': 0.25})
+        preview = self.request('studio_color_edit', json.dumps(request))
+        with self.assertRaisesRegex(ValueError, 'existing preview'):
+            self.request('studio_color_live', json.dumps(request))
+        self.assertEqual(self.sim.raw, before)
+        self.request('studio_cancel', preview['preview_id'])
+        with patch.object(studio.form_bank, 'update', side_effect=OSError('disk full')):
+            with self.assertRaisesRegex(OSError, 'disk full'):
+                self.request('studio_color_live', json.dumps(request))
+        self.assertEqual(self.sim.raw, before)
+        self.assertIsNone(self.request('studio_status')['pending_preview'])

@@ -74,7 +74,16 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
             value = json.dumps({'test_token': journal['token'], 'value': None})
         request_id = uuid.uuid4().hex
         query = {'action': action, 'value': value, 'request_id': request_id}
+        background_click = False
         if action == 'test_input':
+            try:
+                argument = json.loads(value)['value']
+                background_click = (isinstance(argument, dict) and
+                    set(argument) == {'command', 'x', 'y', 'width', 'height'} and
+                    type(argument.get('command')) is int and argument['command'] == 4)
+            except (ValueError, TypeError, KeyError):
+                pass
+        if action == 'test_input' and not background_click:
             from game_focus import requires_elevated_input, native_input_once
             if requires_elevated_input(identity['pid']):
                 return native_input_once(state, value, request_id)
@@ -268,6 +277,8 @@ def parser():
     game.add_argument('--with-overlay', action='store_true')
     game.add_argument('--elevate-once', action='store_true', help='One normal Windows elevation for authenticated game focus only')
     game.add_argument('--key', choices=('F11', 'ESC', 'ENTER', 'TAB', 'SPACE'))
+    game.add_argument('--background', action='store_true',
+                      help='Window-addressed click: leaves foreground and OS cursor alone; verify the resulting UI separately')
     game.add_argument('--x', type=int)
     game.add_argument('--y', type=int)
     game.add_argument('--width', type=int)
@@ -447,8 +458,20 @@ def parser():
     catalog.add_argument('--seconds', type=float, default=120)
     catalog.add_argument('--step-seconds', type=float, default=5)
     catalog.add_argument('--step-budget', type=int, default=20)
+    library = commands.add_parser('live-cas-catalog', help='Search all CASPs in explicit source packages without a CAS room or game input')
+    library.add_argument('operation', choices=('build', 'query', 'resolve'))
+    library.add_argument('--index', required=True, type=Path)
+    library.add_argument('--input', type=Path, help='JSON array of exact path/origin package sources')
+    library.add_argument('--expected-index-sha256')
+    library.add_argument('--query', default='')
+    library.add_argument('--body-type', type=int)
+    library.add_argument('--origin', choices=('mod', 'ea'))
+    library.add_argument('--name-mode', choices=('preferred', 'package', 'code'), default='preferred')
+    library.add_argument('--offset', type=int, default=0)
+    library.add_argument('--limit', type=int, default=60)
+    library.add_argument('--part-id')
     studio = commands.add_parser('studio', help='Live/stored-form CAS History and appearance editing on the real game thread')
-    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'part-inspect', 'part-preview', 'outfit-duplicate', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
+    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'color-live', 'part-inspect', 'part-preview', 'outfit-duplicate', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
     studio.add_argument('--state', required=True, type=Path)
     studio.add_argument('--sim-id')
     studio.add_argument('--form', type=int, help='Explicit existing native/bank form owner; editing does not activate it')
@@ -460,17 +483,34 @@ def parser():
     studio.add_argument('--catalog-manifest-sha256')
     studio.add_argument('--jobs', type=int, default=4, help='Inventory read-only page concurrency, one through four')
     test = commands.add_parser('test', help='Run actual gameplay suites, unpause to settle, record proof and leave paused')
-    test.add_argument('suite', choices=('color-cycle', 'hybrid-cycle'))
+    test.add_argument('suite', choices=('color-cycle', 'live-color', 'hybrid-cycle'))
     test.add_argument('--state', required=True, type=Path)
     test.add_argument('--sim-id', required=True)
     test.add_argument('--output', required=True, type=Path)
     test.add_argument('--target', default='0:HAIR')
     test.add_argument('--occult', action='append', choices=('VAMPIRE', 'WITCH', 'WEREWOLF', 'ALIEN', 'MERMAID', 'FAIRY'))
     test.add_argument('--settle-seconds', type=float, default=3)
+    test.add_argument('--form', type=int, choices=(1, 2, 4, 8, 16, 32, 64),
+                      help='Explicit existing native owner for the focus-free live-color regression')
+    test.add_argument('--edits-file', type=Path, help='Bounded JSON map of numeric channel values for live-color')
+    test.add_argument('--settle-ticks', type=int, default=30)
+    test.add_argument('--seconds', type=float, default=60)
     return parser
 
 
 def execute(args):
+    if args.command == 'live-cas-catalog':
+        from live_cas_catalog import build, query, resolve
+        if args.operation == 'build':
+            if args.input is None or args.input.stat().st_size > 32 * 1024 * 1024:
+                raise ValueError('Provide a bounded explicit package-source JSON array.')
+            return build(json.loads(args.input.read_text(encoding='utf-8')), args.index)
+        if args.expected_index_sha256 is None:
+            raise ValueError('Use the exact SHA256 returned by catalog build.')
+        if args.operation == 'resolve':
+            return resolve(args.index, args.expected_index_sha256, args.part_id)
+        return query(args.index, args.expected_index_sha256, args.query, args.body_type,
+                     args.origin, args.name_mode, args.offset, args.limit)
     if args.command == 'cas-failed-commit-archive':
         from cas_failed_commit_archive import archive
         return archive(args.state, args.commit_proof, args.expected_proof_sha256,
@@ -599,6 +639,16 @@ def execute(args):
                    args.sim_id, seconds=args.seconds, step_seconds=args.step_seconds,
                    panels=args.panels, step_budget=args.step_budget, transport=get)
     if args.command == 'test':
+        if args.suite == 'live-color':
+            if args.form is None or args.edits_file is None:
+                raise ValueError('Live-color testing requires an explicit --form and --edits-file.')
+            raw = args.edits_file.read_bytes()
+            if len(raw) > 2048:
+                raise ValueError('Color test values exceed their bound.')
+            from live_color_probe import run
+            return run(args.state, args.sim_id, args.form, args.target, json.loads(raw),
+                       args.output, owned_request, verified_identity,
+                       settle_ticks=args.settle_ticks, seconds=args.seconds)
         from runtime_tests import RuntimeTest
         return RuntimeTest(args.state, args.sim_id, args.output, owned_request).run(
             args.suite, args.target, tuple(args.occult or ('VAMPIRE', 'WITCH')), args.settle_seconds)
@@ -794,6 +844,8 @@ def execute(args):
             write_json(direct_output, result)
             return dict(result, proof=str(direct_output), proof_sha256=sha256(direct_output))
         if args.operation in ('key', 'click', 'move'):
+            if args.background and args.operation != 'click':
+                raise ValueError('Background input currently supports window-addressed clicks only.')
             if args.width is None or args.height is None or not 1 <= args.width <= 8192 or not 1 <= args.height <= 8192:
                 raise ValueError('Supply the observed client viewport width/height.')
             if args.operation == 'key':
@@ -804,7 +856,7 @@ def execute(args):
                 x, y = args.x, args.y
                 if x is None or y is None or not 0 <= x < args.width or not 0 <= y < args.height:
                     raise ValueError('Click must be inside the observed game viewport.')
-            argument = {'command': 2 if args.operation == 'key' else 3 if args.operation == 'move' else 1, 'x': x, 'y': y,
+            argument = {'command': 4 if args.background else 2 if args.operation == 'key' else 3 if args.operation == 'move' else 1, 'x': x, 'y': y,
                         'width': args.width, 'height': args.height}
             return receipt(owned_request(args.state, 'test_input', value=json.dumps({'test_token': data['token'], 'value': argument})))
         value = json.dumps({'test_token': data['token'], 'value': args.value})

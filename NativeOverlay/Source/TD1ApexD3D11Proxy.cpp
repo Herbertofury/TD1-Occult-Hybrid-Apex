@@ -143,6 +143,7 @@ static char g_partSearch[160] = "";
 static int g_partReplacementIndex = 0;
 static int g_studioFormIndex = 0;
 static bool g_showEmptySlots = true;
+static bool g_livePartColor = true;
 static int g_equippedSort = 0;
 static int g_itemNameMode = 0;
 static int g_casGroupIndex = 0;
@@ -1662,6 +1663,12 @@ static void DrawNumericColor(const std::string& target) {
         }
     }
     ImGui::SeparatorText("Part color / HSB shifts");
+    const bool pending = !ui::Scalar(g_studioData, "pending_preview").empty();
+    ImGui::BeginDisabled(pending);
+    ImGui::Checkbox("Apply live when released", &g_livePartColor);
+    ImGui::EndDisabled();
+    bool released = false;
+    ImGui::BeginDisabled(pending || g_ownerBlocked.load() || g_ownerSubmissionBusy.load() || g_ownerNativeDeliveryBusy.load());
     if (g_itemNameMode == 2) ImGui::TextUnformatted(ui::Scalar(editor, "part_name").c_str());
     color::Bounds bounds[4]; bool editable[4]{}; double lows[4]{}, highs[4]{};
     float wheel[4]{0.5f, 0.5f, 0.5f, 1.0f};
@@ -1684,6 +1691,7 @@ static void DrawNumericColor(const std::string& target) {
             }
         }
     }
+    released = ImGui::IsItemDeactivatedAfterEdit();
     ImGui::EndDisabled();
     ImGui::TextWrapped("The wheel selects hue, saturation and brightness shifts within this part's ranges. Its colors are a control guide; the texture determines the final appearance.");
     const char* labels[]{"Hue shift", "Saturation shift", "Brightness shift", "Opacity"};
@@ -1701,11 +1709,13 @@ static void DrawNumericColor(const std::string& target) {
                 g_colorValues[index] = static_cast<float>(value); g_colorChanged[index] = true;
             }
         }
+        released = ImGui::IsItemDeactivatedAfterEdit() || released;
         ImGui::SameLine();
         if (ImGui::SmallButton("Reset")) {
             double value; int32_t lane;
             if (color::Quantize(bounds[index], index == 3 ? 1.0 : 0.0, value, lane)) {
                 g_colorValues[index] = static_cast<float>(value); g_colorChanged[index] = true;
+                released = true;
             }
         }
         ImGui::EndDisabled();
@@ -1722,14 +1732,16 @@ static void DrawNumericColor(const std::string& target) {
     ImGui::TextDisabled("Q14 resolution: 1 / 16384 (%.8f)", 1.0 / color::kQ14Scale);
     if (validPreview) ImGui::TextDisabled("Draft packed shift: %s", rawPreview.c_str());
     ImGui::BeginDisabled(!validPreview);
-    if (ImGui::Button("Prepare part color preview")) {
+    const bool clicked = ImGui::Button(g_livePartColor ? "Apply part color now" : "Prepare part color preview");
+    if (validPreview && (clicked || (g_livePartColor && released))) {
         const ui::Json request = {{"target", target}, {"lane", ui::Scalar(g_studioData, "history_lane")},
             {"cas_part_id", editor["cas_part_id"]}, {"color_hex", editor["color_hex"]},
             {"appearance_sha256", editor["appearance_sha256"]}, {"resource_sha256", editor["resource_sha256"]}, {"edits", edits}};
-        const auto payload = request.dump(); QueueStudioAction("studio_color_edit", nullptr, payload.c_str());
+        const auto payload = request.dump(); QueueStudioAction(g_livePartColor ? "studio_color_live" : "studio_color_edit", nullptr, payload.c_str());
     }
     ImGui::EndDisabled();
-    ImGui::TextWrapped("Only edited channels change. Preview reports the quantized result; Apply commits it. Skin specularity uses the brightness shift for gloss in the baseline CAS UI.");
+    ImGui::TextWrapped("Live mode commits one undoable change when you release the wheel or slider. Unpause to let the game update visuals. Disable live mode to use Preview and Apply. Only edited channels change; the texture determines compatibility.");
+    ImGui::EndDisabled();
 }
 
 static std::string OutfitCategory(const ui::Json& outfit) {
@@ -3005,14 +3017,26 @@ extern "C" __declspec(dllexport) int WINAPI ApexGameInput(int command, int x, in
     RECT rect{};
     if (!td1::g_hooked.load() || !hwnd || !IsWindow(hwnd) || !IsWindowVisible(hwnd)) return -1;
     GetWindowThreadProcessId(hwnd, &owner);
-    if (owner != GetCurrentProcessId() || GetAncestor(GetForegroundWindow(), GA_ROOT) != GetAncestor(hwnd, GA_ROOT)) return -2;
+    if (owner != GetCurrentProcessId()) return -2;
+    if (command != 4 && GetAncestor(GetForegroundWindow(), GA_ROOT) != GetAncestor(hwnd, GA_ROOT)) return -2;
     if (!GetClientRect(hwnd, &rect) || rect.right != width || rect.bottom != height) return -3;
     if (command == 2) {
         if (x != VK_F11 && x != VK_ESCAPE && x != VK_RETURN && x != VK_TAB && x != VK_SPACE) return -4;
-    } else if ((command != 1 && command != 3) || x < 0 || y < 0 || x >= width || y >= height) return -4;
+    } else if ((command != 1 && command != 3 && command != 4) || x < 0 || y < 0 || x >= width || y >= height) return -4;
     bool idle = false;
     if (!td1::g_inputBusy.compare_exchange_strong(idle, true)) return -6;
     td1::g_inputState = 1; td1::g_cursorX = -1; td1::g_cursorY = -1;
+    if (command == 4) {
+        // Address the verified game's event queue only. No SetForegroundWindow,
+        // physical cursor movement or SendInput; acceptance is not UI proof.
+        const LPARAM position = MAKELPARAM(x, y);
+        const bool moved = PostMessageW(hwnd, WM_MOUSEMOVE, 0, position) != 0;
+        const bool down = moved && PostMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, position) != 0;
+        const bool up = down && PostMessageW(hwnd, WM_LBUTTONUP, 0, position) != 0;
+        td1::g_inputState = moved && down && up ? 4 : -5;
+        td1::g_inputBusy = false;
+        return 0;
+    }
     // Move is delivered on a game-owned worker, then allowed to traverse the
     // real event/render loop BEFORE down. Same-batch move/down used stale CAS
     // hit-testing. Every click checks the exact physical cursor and ownership.

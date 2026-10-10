@@ -8,6 +8,48 @@ import math
 import struct
 
 MAX_CASP = 1024 * 1024
+MAX_CASP_KEYS = 250000
+_INDEX_OWNER = None
+_KEY_INDEX = None
+
+
+def _key_values(key, resource_type, instance=None):
+    values = (getattr(key, 'type', None), getattr(key, 'group', None), getattr(key, 'instance', None))
+    if (any(type(value) is not int for value in values) or
+            values[0] != resource_type or not 0 <= values[1] <= 0xffffffff or
+            not 0 < values[2] <= 0xffffffffffffffff or
+            instance is not None and values[2] != instance):
+        raise ValueError('The native CASP resource key has an invalid type/group/instance identity.')
+    return values
+
+
+def _effective_key(resources, part_id):
+    """Resolve the actual group from the game's resource manager, not a default.
+
+    get_resource_key(integer, type) constructs a group-zero key. CC frequently
+    uses other groups. The loaded resource index is fixed for this game session;
+    build its bounded identity map once, while reading effective bytes fresh on
+    every inspection. Conflicting groups for one part remain ambiguous.
+    """
+    global _INDEX_OWNER, _KEY_INDEX
+    constructed = resources.get_resource_key(part_id, resources.Types.CASPART)
+    _key_values(constructed, resources.Types.CASPART, part_id)
+    enumerate_keys = getattr(resources, 'list', None)
+    if not callable(enumerate_keys):
+        # Older integrations without an index can only load their exact key.
+        return constructed
+    if _INDEX_OWNER is not resources or _KEY_INDEX is None:
+        index = {}
+        for count, key in enumerate(enumerate_keys(type=resources.Types.CASPART)):
+            if count >= MAX_CASP_KEYS:
+                raise ValueError('Native CASP resource index exceeds its inspection bound.')
+            values = _key_values(key, resources.Types.CASPART)
+            index.setdefault(values[2], {})[values] = key
+        _INDEX_OWNER, _KEY_INDEX = resources, index
+    matches = _KEY_INDEX.get(part_id, {})
+    if len(matches) != 1:
+        raise ValueError('Native CAS part resource is missing or has ambiguous resource groups.')
+    return next(iter(matches.values()))
 
 
 class Reader:
@@ -99,13 +141,8 @@ def effective_metadata(backend, part_id):
         raw = provider(part_id)
     else:
         from sims4 import resources
-        key = resources.get_resource_key(part_id, resources.Types.CASPART)
-        values = (getattr(key, 'type', None), getattr(key, 'group', None), getattr(key, 'instance', None))
-        if (any(type(value) is not int for value in values) or
-                not 0 <= values[0] <= 0xffffffff or not 0 <= values[1] <= 0xffffffff or
-                not 0 < values[2] <= 0xffffffffffffffff or
-                values[0] != resources.Types.CASPART or values[2] != part_id):
-            raise ValueError('The native CASP resource key has an invalid type/group/instance identity.')
+        key = _effective_key(resources, part_id)
+        values = _key_values(key, resources.Types.CASPART, part_id)
         resource_tgi = '{:08X}:{:08X}:{:016X}'.format(*values)
         value = resources.ResourceLoader(key).load_raw(silent_fail=True)
         if value is None:

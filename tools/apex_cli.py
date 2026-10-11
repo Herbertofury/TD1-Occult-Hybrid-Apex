@@ -479,11 +479,13 @@ def parser():
     library.add_argument('--name-mode', choices=('preferred', 'package', 'code'), default='preferred')
     library.add_argument('--author', default='', help='Exact creator filename tag; inferred CC tags are unverified')
     library.add_argument('--sort', choices=('name', 'package', 'creator', 'id'), default='name')
+    library.add_argument('--grouped', action='store_true', help='One CAS item card per native swatch family (schema 3 index)')
     library.add_argument('--offset', type=int, default=0)
     library.add_argument('--limit', type=int, default=60)
     library.add_argument('--part-id')
+    library.add_argument('--tray-root', type=Path, help='Explicit read-only Tray folder for the F11 gallery')
     studio = commands.add_parser('studio', help='Live/stored-form CAS History and appearance editing on the real game thread')
-    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'preview-snapshot', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'color-live', 'part-inspect', 'part-preview', 'catalog-preview', 'catalog-live', 'shape-inspect', 'shape-preview', 'shape-live', 'outfit-duplicate', 'open-library', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
+    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'preview-snapshot', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'color-live', 'part-inspect', 'part-preview', 'catalog-preview', 'catalog-live', 'shape-inspect', 'shape-preview', 'shape-live', 'outfit-duplicate', 'copy-appearance', 'paste-preview', 'paste-live', 'werewolf-ea-preview', 'clipboard-export', 'open-library', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
     studio.add_argument('--state', required=True, type=Path)
     studio.add_argument('--sim-id')
     studio.add_argument('--form', type=int, help='Explicit existing native/bank form owner; editing does not activate it')
@@ -495,7 +497,7 @@ def parser():
     studio.add_argument('--catalog-manifest-sha256')
     studio.add_argument('--jobs', type=int, default=4, help='Inventory read-only page concurrency, one through four')
     preview = commands.add_parser('preview', help='Memory-only independent F11 3D Sim and animation controls without game input')
-    preview.add_argument('operation', choices=('start', 'health', 'render', 'status', 'view', 'mode', 'workspace', 'clear'))
+    preview.add_argument('operation', choices=('start', 'health', 'render', 'status', 'view', 'mode', 'workspace', 'clear', 'library-select', 'thumbnail', 'gallery-query', 'gallery-select', 'gallery-view'))
     preview.add_argument('--apply-mode', choices=('live', 'preview'), help='F11 edit policy; selecting a mode does not change the Sim')
     preview.add_argument('--state', required=True, type=Path)
     preview.add_argument('--game-root', type=Path, default=Path(r'C:\Games\The Sims 4'))
@@ -506,6 +508,23 @@ def parser():
     preview.add_argument('--scene-id', help='Exact scene identity for stale-safe camera/animation controls')
     preview.add_argument('--values', type=Path, help='JSON camera/animation values, or workspace layout/columns/tab/catalog query')
     preview.add_argument('--output', type=Path, help='New external JSON proof; no assets are exported')
+    tray = commands.add_parser('tray', help='Exact native Tray groups, represented appearances and cross-form selective paste')
+    tray.add_argument('operation', choices=('list', 'inspect', 'export', 'import', 'clipboard', 'paste', 'preview'))
+    tray.add_argument('--folder', type=Path)
+    tray.add_argument('--household', type=Path)
+    tray.add_argument('--expected-sha256')
+    tray.add_argument('--item', help='Exact native .trayitem filename')
+    tray.add_argument('--archive', type=Path)
+    tray.add_argument('--inspection', type=Path)
+    tray.add_argument('--state', type=Path)
+    tray.add_argument('--source-sim-id')
+    tray.add_argument('--form', type=int, choices=(1,2,4,8,16,32,64))
+    tray.add_argument('--target-sim-id')
+    tray.add_argument('--target-form', type=int, choices=(1,2,4,8,16,32,64))
+    tray.add_argument('--selection', type=Path, help='Explicit fields/outfits/source_outfit/target_outfit/body_types JSON')
+    tray.add_argument('--outfit-index', type=int, help='Exact existing source Tray outfit for independent preview')
+    tray.add_argument('--apply-immediately', action='store_true', help='Paste commits immediately; default is reviewable try-on')
+    tray.add_argument('--output', type=Path)
     test = commands.add_parser('test', help='Run actual gameplay suites, unpause to settle, record proof and leave paused')
     test.add_argument('suite', choices=('color-cycle', 'live-color', 'hybrid-cycle'))
     test.add_argument('--state', required=True, type=Path)
@@ -523,6 +542,9 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'tray':
+        from tray_cli import execute as tray_execute
+        return tray_execute(args)
     if args.command == 'preview':
         from preview_cli import execute as preview_execute
         return preview_execute(args)
@@ -536,11 +558,11 @@ def execute(args):
             raise ValueError('Use the exact SHA256 returned by catalog build.')
         if args.operation == 'serve':
             from live_cas_browser import serve
-            return serve(args.index, args.expected_index_sha256)
+            return serve(args.index, args.expected_index_sha256, args.tray_root)
         if args.operation == 'resolve':
             return resolve(args.index, args.expected_index_sha256, args.part_id)
         return query(args.index, args.expected_index_sha256, args.query, args.body_type,
-                     args.origin, args.name_mode, args.offset, args.limit, author=args.author, sort=args.sort)
+            args.origin, args.name_mode, args.offset, args.limit, author=args.author, sort=args.sort, grouped=args.grouped)
     if args.command == 'cas-failed-commit-archive':
         from cas_failed_commit_archive import archive
         return archive(args.state, args.commit_proof, args.expected_proof_sha256,
@@ -734,7 +756,7 @@ def execute(args):
                 'value': {'sim_id': args.sim_id, 'tab': args.operation[5:].replace('-', '_')}})))
         value = args.value
         if args.value_file:
-            if value is not None or args.value_file.stat().st_size > 2048:
+            if value is not None or args.value_file.stat().st_size > (8192 if args.operation in ('paste-preview', 'paste-live') else 2048):
                 raise ValueError('Supply one bounded Studio value or value file.')
             value = args.value_file.read_text(encoding='utf-8')
         if args.form is not None:

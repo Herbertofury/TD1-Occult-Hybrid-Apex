@@ -38,7 +38,10 @@ internal static class ApexWorker {
                 try {
                     if (line.Length > 16 * 1024 * 1024) throw new InvalidDataException("Preview request too large.");
                     using var json = JsonDocument.Parse(line);
-                    response=JsonSerializer.Serialize(engine.ApexAssemble(json.RootElement));
+                    response=JsonSerializer.Serialize(json.RootElement.TryGetProperty("operation",out var operation)
+                        ? operation.GetString()=="tray-inspect" ? ApexTray.Inspect(json.RootElement)
+                        : operation.GetString()=="thumbnail-outfit" ? engine.ApexThumbnailOutfit(json.RootElement)
+                        : throw new InvalidDataException("Unknown worker operation.") : engine.ApexAssemble(json.RootElement));
                 } catch (Exception e) { response=JsonSerializer.Serialize(new {ok=false,error=e.ToString()}); }
                 finally {
                     engine.ApexReleaseImages();
@@ -94,6 +97,40 @@ public partial class Form1 {
         if (outfit.parts.ids.Length > 4096)
             throw new InvalidDataException("Selected preview outfit exceeds its part bound.");
     }
+    internal static void ApexThumbnailPart(Save.OutfitData outfit,uint body,ulong part,uint layer) {
+        var ids=outfit.parts?.ids;var bodies=outfit.body_types_list?.body_types;
+        if(ids==null||bodies==null||ids.Length!=bodies.Length||ids.Length>4096)throw new InvalidDataException("Ambiguous thumbnail outfit rows.");
+        var shifts=outfit.part_shifts?.color_shift??Array.Empty<ulong>();
+        var objects=outfit.object_ids?.object_id??Array.Empty<ulong>();var layers=outfit.layer_ids?.layer_id??Array.Empty<uint>();
+        if(new[]{shifts.Length,objects.Length,layers.Length}.Any(n=>n!=0&&n!=ids.Length))throw new InvalidDataException("Thumbnail outfit arrays differ.");
+        var kept=Enumerable.Range(0,ids.Length).Where(i=>bodies[i]!=body).ToList();
+        outfit.parts.ids=kept.Select(i=>ids[i]).Append(part).ToArray();
+        outfit.body_types_list.body_types=kept.Select(i=>bodies[i]).Append(body).ToArray();
+        outfit.part_shifts=new Save.ColorShiftList{color_shift=kept.Select(i=>shifts.Length==0?4611686018427387904ul:shifts[i]).Append(4611686018427387904ul).ToArray()};
+        outfit.object_ids=new Save.ObjectIdsList{object_id=kept.Select(i=>objects.Length==0?0ul:objects[i]).Append(0ul).ToArray()};
+        outfit.layer_ids=new Save.LayerIdsList{layer_id=kept.Select(i=>layers.Length==0?0u:layers[i]).Append(layer).ToArray()};
+    }
+    public object ApexThumbnailOutfit(JsonElement request) {
+        if(request.EnumerateObject().Count()!=7)throw new InvalidDataException("Exact thumbnail outfit request required.");
+        var pieces=request.GetProperty("resource_tgi").GetString().Split(':');
+        if(pieces.Length!=3)throw new InvalidDataException("Exact thumbnail CASP key required.");
+        var tgi=new TGI(Convert.ToUInt32(pieces[0],16),Convert.ToUInt32(pieces[1],16),Convert.ToUInt64(pieces[2],16));
+        // The upstream loader indexes CASPs with group zero, matching outfit
+        // instance references. Resolve that map key, then bind the candidate
+        // to its full original group and byte hash in the selected package.
+        if(tgi.Type!=0x034AEECB||!GameTGIs.TryGetValue(new TGI(tgi.Type,0,tgi.Instance),out var source))throw new InvalidDataException("Thumbnail CASP absent from loaded package map.");
+        var package=gamePackages[source];var entry=package.Find(r=>r.ResourceType==tgi.Type&&r.ResourceGroup==tgi.Group&&r.Instance==tgi.Instance);
+        if(entry==null)throw new InvalidDataException("Thumbnail CASP source is absent.");
+        using var input=package.GetResource(entry);using var raw=new MemoryStream();input.CopyTo(raw);
+        var bytes=raw.ToArray();if(bytes.Length>1024*1024||Hash(bytes)!=request.GetProperty("resource_sha256").GetString())throw new InvalidDataException("Thumbnail effective CASP differs from catalog candidate.");
+        using var reader=new BinaryReader(new MemoryStream(bytes));var casp=new CASP(reader);uint body=request.GetProperty("body_type").GetUInt32();
+        if((uint)casp.BodyType!=body)throw new InvalidDataException("Thumbnail body type differs.");
+        var outfits=Parse<Save.OutfitList>(Convert.FromBase64String(request.GetProperty("outfits_base64").GetString()));
+        int n=request.GetProperty("outfit_index").GetInt32();if(n<0||n>=outfits.outfits.Count||outfits.outfits[n].outfit_id.ToString()!=request.GetProperty("outfit_id").GetString())throw new InvalidDataException("Thumbnail base outfit absent or changed.");
+        ApexThumbnailPart(outfits.outfits[n],body,tgi.Instance,checked((uint)casp.SortLayer));
+        using var output=new MemoryStream();Serializer.Serialize(output,outfits);
+        return new{ok=true,outfits_base64=Convert.ToBase64String(output.ToArray()),resource_tgi=request.GetProperty("resource_tgi").GetString(),resource_sha256=Hash(bytes),body_type=body,disk_assets_written=false};
+    }
     public object ApexAssemble(JsonElement request) {
         if(request.TryGetProperty("output",out _))throw new InvalidDataException("Preview assembly is memory-only; disk exports belong to the explicit debug CLI.");
         ApexReleaseImages();
@@ -132,15 +169,18 @@ public partial class Form1 {
             sim.parts_custom_tattoos.Add(new Save.SimPartCustomTattooData{body_type=body,texture_id=texture});
         }
         uint form = request.GetProperty("form").GetUInt32();
+        uint visualForm = request.TryGetProperty("visual_form",out var visual) ? visual.GetUInt32() : form;
+        if (visualForm != form && !(form == 32 && visualForm == 1))
+            throw new InvalidDataException("Visual appearance policy differs from the selected owner.");
         sim.attributes ??= new Save.PersistableSimInfoAttributes();
         // Upstream composites painted textures through its tattoo tracker.
         // Supply only this selected form's mapping, never another form's.
         sim.attributes.tattoo_tracker=new Save.PersistableTattooTracker();
         foreach(var tattoo in sim.parts_custom_tattoos)if(tattoo.texture_id!=0)
-            sim.attributes.tattoo_tracker.body_type_tattoo_data.Add(new Save.TattooData{body_type=tattoo.body_type,body_part_custom_texture=tattoo.texture_id,occult_type=form});
-        sim.attributes.occult_tracker = new Save.PersistableOccultTracker { occult_types=form, current_occult_types=form };
-        if (form != 1) sim.attributes.occult_tracker.occult_sim_infos.Add(new Save.PersistableOccultTracker.OccultSimData {
-            occult_type=form, physique=sim.physique, facial_attributes=sim.facial_attr,
+            sim.attributes.tattoo_tracker.body_type_tattoo_data.Add(new Save.TattooData{body_type=tattoo.body_type,body_part_custom_texture=tattoo.texture_id,occult_type=visualForm});
+        sim.attributes.occult_tracker = new Save.PersistableOccultTracker { occult_types=visualForm, current_occult_types=visualForm };
+        if (visualForm != 1) sim.attributes.occult_tracker.occult_sim_infos.Add(new Save.PersistableOccultTracker.OccultSimData {
+            occult_type=visualForm, physique=sim.physique, facial_attributes=sim.facial_attr,
             outfits=outfits, skin_tone=sim.skin_tone, skin_tone_val_shift=sim.skin_tone_val_shift, genetic_data=sim.genetic_data });
         worldNames = new Dictionary<ulong,string>();
         sims_listBox.SelectedIndexChanged -= sims_listBox_SelectedIndexChanged;

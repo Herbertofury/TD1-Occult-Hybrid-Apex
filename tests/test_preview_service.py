@@ -64,8 +64,28 @@ class PreviewServiceTests(unittest.TestCase):
         self.assertEqual(broker.prepare(request())['request_id'], ident)
         self.assertEqual(worker.calls, 1)
         self.assertEqual(broker.asset(ready['scene_id'], 'body.png'), b'encoded bounded texture')
-        self.assertEqual(broker.bytes, sum(len(v) for v in broker.scenes[ready['scene_id']]['assets'].values()))
+        self.assertEqual(broker.bytes, sum(len(v) for v in broker.scenes[ready['scene_id']]['assets'].values())+len(canonical(request())))
         self.assertLessEqual(broker.bytes, broker.budget)
+
+    def test_thumbnail_is_detached_and_pins_actual_effective_casp(self):
+        worker=FakeWorker(); original=worker.assemble
+        def assemble(value):
+            if value.get('operation')=='thumbnail-outfit':
+                return dict(ok=True,disk_assets_written=False,outfits_base64='EgE=',
+                    **{k:value[k] for k in ('resource_tgi','resource_sha256','body_type')})
+            return original(value)
+        worker.assemble=assemble;broker=Broker(worker)
+        base=self.await_job(broker,broker.prepare(request())['request_id'])
+        before=copy.deepcopy(broker.scenes[base['scene_id']]['snapshot'])
+        value=dict(base_scene_id=base['scene_id'],resource_tgi='034AEECB:80000000:0000000000000001',resource_sha256='a'*64,body_type=2)
+        job=broker.thumbnail_prepare(value);ready=self.await_job(broker,job['request_id'])
+        self.assertTrue(ready['ok']);self.assertFalse(job['game_appearance_written'])
+        projected=broker.scenes[ready['scene_id']]['snapshot']
+        self.assertEqual(projected['fields']['__outfits__']['kind'],'protobuf')
+        self.assertEqual(before,request());self.assertNotEqual(projected['render_sha256'],before['render_sha256'])
+        self.assertEqual(projected['native_sim'],before['native_sim'])
+        with self.assertRaises(KeyError):broker.thumbnail_prepare(dict(value,base_scene_id='0'*64))
+        with self.assertRaises(ValueError):broker.thumbnail_prepare(dict(value,body_type=True))
 
     def test_corrupt_asset_is_not_cached_or_replayed(self):
         worker = FakeWorker(); original = worker.assemble

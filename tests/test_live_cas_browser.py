@@ -74,6 +74,19 @@ class BrowserTests(unittest.TestCase):
         self.browser.favorite(dict(selected, enabled=False))
         self.assertEqual(self.browser.query(dict(self.query, view='favorites'))['total'], 0)
 
+    def test_separate_ea_thumbnail_package_is_resolved_in_place(self):
+        self.package('EA thumbnails.package',{(resources.CAS_THUMB,0x102,91):picture()},'ea')
+        path=self.cache/'thumbnail-providers.sqlite';built=catalog.build(self.sources,path)
+        other=browser.Browser(path,built['index_sha256'],self.resource_root/'other-browser');self.addCleanup(other.index.close)
+        page=other.query(dict(self.query,author='',sort='name',grouped=True))
+        ids=[r['part_id'] for r in page['items']]
+        before={p['path']:Path(p['path']).read_bytes() for p in self.sources}
+        images=other.images(dict(part_ids=ids,index_sha256=built['index_sha256'],gender='male'))
+        self.assertEqual(images['items'][0]['resource']['thumbnail']['status'],'resolved')
+        self.assertEqual({p:Path(p).read_bytes() for p in before},before)
+        selected=other.inspect(dict(part_id=ids[0],index_sha256=built['index_sha256']))
+        self.assertEqual(selected['swatches']['total'],1)
+
     def test_source_change_refuses_lazy_assets_and_snapshot_identity_is_required(self):
         item = self.browser.query(self.query)['items'][0]
         selected = dict(part_id=item['part_id'], index_sha256=self.hash)

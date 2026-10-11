@@ -4,11 +4,24 @@
 #include "ApexLiveCatalog.h"
 #include "ApexPointerGate.h"
 #include "ApexGameWindow.h"
+#include "ApexTrayView.h"
+#include "ApexTrayGallery.h"
 
 int main(int argc, char** argv) {
     using namespace td1; using resource::Json;
     unsigned checks = 0, failed = 0;
     auto check = [&](bool pass, const char* label) { ++checks; if (!pass) { ++failed; std::cerr << label << '\n'; } };
+    check(tray::Base64("f")=="Zg=="&&tray::Base64("fo")=="Zm8="&&tray::Base64("foo")=="Zm9v"&&tray::Base64(std::string("\xff\x00",2))=="/wA=","bounded clipboard chunks preserve all raw bytes");
+    check(tray::DestinationSim({{"history_lane","123:2:285159751289798669:8:runtime-77"}})=="285159751289798669","Tray viewer retains destination Sim independently of source");
+    Json trayRequest={{"ok",true},{"sim_id","42"},{"form",2},{"native_sha256",std::string(64,'a')},{"appearance_sha256",std::string(64,'b')},{"render_sha256",std::string(64,'b')},
+        {"runtime_pid",77},{"save_guid","123"},{"preview_id",nullptr},{"save_file_written",false},{"history_written",false},{"fields",Json::object()},{"native_sim","AQ=="},
+        {"appearance_source","tray:"+std::string(64,'c')},{"lane","123:0:42:2:tray-"+std::string(64,'c')+":runtime-77"}};
+    Json trayRows=Json::array({{{"name","Alien source"},{"request",trayRequest},{"outfits",Json::array({{{"index",0},{"category",0},{"number",1},{"outfit_id","0"}}})}}});
+    check(tray::Forms(trayRows,77,"123"),"exact Tray source may use a different Sim/form from destination");
+    auto wrongTray=trayRows;wrongTray[0]["request"]["runtime_pid"]=78;check(!tray::Forms(wrongTray,77,"123"),"stale runtime Tray view refused");
+    wrongTray=trayRows;wrongTray.push_back(wrongTray[0]);check(!tray::Forms(wrongTray,77,"123"),"duplicate Tray form refused");
+    wrongTray=trayRows;wrongTray[0]["request"]["sim_id"]="43";check(!tray::Forms(wrongTray,77,"123"),"Tray source lane cannot borrow another Sim");
+    check(tray::Request(trayRows,0,0)["outfit_id"]=="0","existing source outfit chosen without activating destination");
     check(library::Workspace({{"layout","catalog"},{"columns",6},{"sidebar",false},{"tab","library"},{"preview_share",.3},{"gender","female"}}),"typed workspace layout and columns accepted");
     for(const auto& bad:std::vector<Json>{{{"columns",1}},{{"columns",true}},{{"preview_share",.9}},{{"layout","unknown"}},{{"sidebar",1}},{{"tab","camera"}},{{"gender","unclassified"}},{{"click",true}},Json::object()})
         check(!library::Workspace(bad),"unknown, untyped or out-of-range workspace option rejected");
@@ -30,6 +43,7 @@ int main(int argc, char** argv) {
         const auto probe = ui::ParseObject(raw);
         check(raw.size() <= 1024 * 1024 && probe.contains("query") && probe.contains("page") && library::Page(probe["page"], probe["query"]), "actual host catalog page accepted by native validator");
         check(probe.contains("selection") && probe.contains("inspection") && library::Inspection(probe["inspection"], probe["selection"]), "actual selected CC resource accepted by native validator");
+        if(probe.contains("gallery_query"))check(probe.contains("gallery_page")&&tray::Page(probe["gallery_page"],probe["gallery_query"]),"actual native Tray gallery page accepted by renderer validator");
     }
     PointerGate gate{20,30,200,300};
     check(gate.Owns(40,50,1,0,false), "first down within rendered overlay is owned without preceding hover frame");
@@ -51,6 +65,31 @@ int main(int argc, char** argv) {
         {"categories",Json::array({{{"body_type",4095},{"count",1}}})},{"total",1},{"offset",0},{"next_offset",nullptr},
         {"snapshot",{{"parts",1},{"complete",true}}}};
     check(library::Page(page,query), "future body type and exact page accepted");
+    auto grouped=query;grouped["author"]="";grouped["sort"]="name";grouped["grouped"]=true;
+    check(library::Query(grouped),"native CAS family page accepted");grouped["grouped"]="yes";check(!library::Query(grouped),"untyped grouping refused");
+    auto swatch=item;swatch["family_id"]=std::string(64,'e');swatch["variant_key"]=std::string(64,'f');
+    swatch["metadata"]={{"swatch_order",2},{"swatch_colors_argb",Json::array({0xff123456ULL,0xffabcdefULL})}};
+    Json swatches={{"available",true},{"family_id",swatch["family_id"]},{"items",Json::array({swatch})},{"total",1},{"offset",0},{"next_offset",nullptr}};
+    check(library::Swatches(swatches,swatch),"actual ARGB swatch colors remain bound to a precise CASP variant");
+    auto badSwatches=swatches;badSwatches["items"][0]["metadata"]["swatch_colors_argb"][0]=true;check(!library::Swatches(badSwatches,swatch),"boolean swatch colors refused");
+    badSwatches=swatches;badSwatches["items"].push_back(swatch);check(!library::Swatches(badSwatches,swatch),"duplicate swatch variant refused");
+    auto familyPage=page;familyPage["items"][0]=swatch;
+    Json variant=swatch;variant["part_id"]=std::string(64,'1');variant["variant_key"]=std::string(64,'2');
+    auto familySwatches=swatches;familySwatches["items"].push_back(variant);familySwatches["total"]=2;
+    Json familyInspection={{"index_sha256",page["index_sha256"]},{"item",swatch},{"swatches",familySwatches}};
+    Json choice={{"index_sha256",page["index_sha256"]},{"part_id",variant["part_id"]}};
+    check(library::VisibleSelection(familyPage,familyInspection,choice),"typed CLI can select a nonrepresentative swatch in the visible family");
+    auto staleFamily=familyPage;staleFamily["index_sha256"]=std::string(64,'3');check(!library::VisibleSelection(staleFamily,familyInspection,choice),"CLI swatch cannot borrow another index");
+    staleFamily=familyPage;staleFamily["items"][0]["family_id"]=std::string(64,'4');check(!library::VisibleSelection(staleFamily,familyInspection,choice),"CLI swatch cannot escape currently visible families");
+    Json trayQuery={{"text","family"},{"kind","household"},{"offset",0},{"limit",60}};
+    check(tray::Query(trayQuery),"typed Gallery search accepted");auto wrongGallery=trayQuery;wrongGallery["path"]="C:/original";check(!tray::Query(wrongGallery),"gallery query cannot carry host paths");
+    Json galleryPage={{"ok",true},{"library_sha256",std::string(64,'a')},{"query",trayQuery},{"game_contacted",false},{"source_files_written",false},
+        {"items",Json::array({{{"item_id",std::string(64,'b')},{"name","Household"},{"creator",""},{"description",""},{"sim_count",1},{"image_count",2},{"kind","household"}}})},{"total",1},{"offset",0},{"next_offset",nullptr}};
+    check(tray::Page(galleryPage,trayQuery),"native household with absent creator and empty description remains browsable");
+    auto badGallery=galleryPage;badGallery["items"][0]["description"]=false;check(!tray::Page(badGallery,trayQuery),"untyped native gallery text refused");
+    badGallery=galleryPage;badGallery["items"][0].erase("name");check(!tray::Page(badGallery,trayQuery),"missing native gallery text refused");
+    check(tray::Decode64("Zg==")=="f","canonical gallery image bytes decoded");
+    try{tray::Decode64("Zg====");check(false,"noncanonical image padding accepted");}catch(...){check(true,"noncanonical image padding refused");}
     auto badPage=page; badPage["items"][0]["package_path"]="C:/original"; check(!library::Page(badPage,query), "native page rejects host paths");
     badPage=page; badPage["items"].push_back(item); check(!library::Page(badPage,query), "duplicate item identity rejected");
     badPage=page; badPage["query"]["text"]="stale"; check(!library::Page(badPage,query), "stale query response rejected");

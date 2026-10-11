@@ -660,3 +660,26 @@ Exact scope and retained failures:
 - [x] Actual V50 compatible CC lipstick hue Apply retains its exact Q14 value after unpause; Undo restores all seven stored/distinct active appearances. Visible Live close-up/shader equivalence remains a separate check.
 - [ ] Fresh full CAS/manual/MCCC alternate edits, every-category isolation and same-script controlled save/reload acceptance.
 - [ ] Full EA shader/material equality, all presets/voice/traits, effective catalog deduplication/swatches, portable helper installation and thousand-Sim acceptance. The full custom room and G009 completion gates remain open.
+
+### October 11 Werewolf styles and native Tray transfer leaves
+
+Scoped evidence and retained failures:
+[`Reports/WEREWOLF_TRAY_TRANSFER_2026-10-11.md`](../Reports/WEREWOLF_TRAY_TRANSFER_2026-10-11.md).
+
+- [x] New occult generation retains the EA alternate appearance and restores only generator side effects on existing owners. Explicit EA Werewolf default try-on retains/restores every original owner before returning detached fields.
+- [x] Actual V51 EA Werewolf Apply affects only the inactive Werewolf; its independent preview has the EA wolf head/body. After unpause, Undo restores all captured stored/active appearances. Human/CC style toggles retain separate looks and actual inactive toggle/preview/off preserves every other owner and membership.
+- [x] Bounded immutable clipboards and selective cross-form paste preserve destination outfit IDs/categories, unselected rows and their parallel arrays. Retain V51's rejected category-order paste as a complete rollback failure; do not mark that probe successful.
+- [x] Actual V54 Alien → Human and Vampire → Mermaid skin-tone/forehead-detail paste changes only the selected destination fields after unpause; Undo restores the complete Sim. Detached generated EA outfit IDs render before Apply and preparation/render/Cancel leave all owners unchanged.
+- [x] Read-only native Tray v1/v2 projection retains exact source bytes and reports represented/shared fields. Actual independent Tray Human/Vampire source switching preserves the destination Sim. Complete five-file native Tray exchange verifies hashes and identical import skips every existing file without overwriting it.
+- [ ] Fresh corrected displayed-Tray clipboard copy and cross-form full-wardrobe/tattoo Apply/unpause/Undo, actual Live Human/CC Werewolf visual/powers, full CAS/MCCC and controlled save/reload remain separate acceptance leaves.
+- [ ] Current-Live-Sim creation of a new native Library/Tray item, full MCCC/Tray parity and universal room/CC/shader/thousand-Sim acceptance remain open. T215/T219/T221/T222/T224/G009 are not closed by these scoped leaves.
+
+### October 11 CAS swatches and native Tray gallery
+
+- [x] Bounded native OutfitID family grouping, exact ARGB swatches/order, duplicate-container collapse and distinct conflicting variants. Flat CLI resource pages remain available. The full read-only installed index has 539,005 container CASPs, 195,895 distinct variants and 54,334 fitting/source-scoped families across 5,004 packages, with no source errors.
+- [x] Host/native typed swatch pages, a color picker bound to the exact resource, thumbnail-provider lookup in separate EA packages, and native Tray name/creator/portrait browsing with source-Sim/form selection.
+- [x] Actual host CC lipstick family and swatches, native resource protocol validation and test-household Tray portrait/projection leave the complete disposable Sim unchanged. Runtime receipt: `35cb832d3f773bcfe930f584e64c5984a7d080d8b50efe14ccd18492e98a26f9`.
+- [x] V55 displayed-Tray clipboard copy succeeds without Sim writes (`cb115d543bec2fefe74bfbe527cd7529ade7525ca6c3b9c10350b4fa5a6ebde8`). One-outfit Vampire → Mermaid and tattoo-category Vampire → Human Apply/unpause/Undo preserve other owners and restore the complete baseline (`b0f8d6e4b5f929a168875263c8fed97958fdfcf6912a4eb16bdfe97cf0c46e6d`).
+- [x] Fresh V58 F11 item-family selection and non-default swatch retain exact CASP/hash/ARGB colors; the 30-color CC lipstick is one card. Its absent image renders at 256×256 in a detached GPU scene. Native Tray portrait, household selection and represented Vampire 3D source view all succeed with the destination separate and every captured stored/active appearance unchanged (`fb6c8344dc2949d309b8eb16968bb47cf5beec212ab7ba8b84210c7ee21c9c92`).
+- [ ] Universal thumbnail fitting/material coverage and full Gallery/Tray Importer parity remain open. The scoped real-image proof does not certify every item or lot/room reconstruction.
+- [ ] Full-appearance/all-wardrobe Tray paste remains rejected and fully rolled back (`164c32b6a6c282afaab6e8e61e15d649e315dc6d52992217c18a9c2da69238e8`). The binary32 voice projection is corrected; the outfit readback mismatch remains acceptance work. Existing broad occult/CAS/MCCC/save-reload gates stay open.

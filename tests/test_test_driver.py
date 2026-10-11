@@ -122,7 +122,22 @@ class TestDriverTests(unittest.TestCase):
              patch.object(backend, '_ensure_form', return_value=new_form), patch.object(backend, '_recalc'), \
              patch.object(backend, '_set_tracker_form_available'):
             backend._add_occult(sim, 4, add_traits=False, add_memory=False)
-        restore.assert_called_once_with(new_form, {'look': 'current'})
+        restore.assert_not_called()
+    def test_native_new_werewolf_pelt_sharing_is_restored_only_on_existing_human(self):
+        human, new_form = Obj(id=1,pelt_layers=b'human'), Obj(id=2,pelt_layers=b'wolf')
+        tracker = Obj(get_occult_sim_info=lambda kind: human if kind == 1 else None)
+        sim = Obj(id=3,occult_tracker=tracker,occult_types=1,current_occult_types=1)
+        def generate(*args,**kwargs): human.pelt_layers=b'wolf';return new_form
+        def restore(owner,fields):
+            for name,value in fields.items(): setattr(owner,name,value)
+        with patch.object(backend,'OccultType',Obj(HUMAN=1)),patch.object(backend,'_snapshot_siminfo_payload',side_effect=lambda owner: {'pelt_layers':owner.pelt_layers} if owner is human else {}), \
+             patch.object(backend,'_has_occult',side_effect=[False,True]),patch.object(backend,'_apply_gameplay_loots',return_value=(False,[])), \
+             patch.object(backend,'_restore_siminfo_payload',side_effect=restore) as writes,patch.object(backend,'_ensure_human_form',return_value=human), \
+             patch.object(backend,'_ensure_form',side_effect=generate),patch.object(backend,'_recalc'),patch.object(backend,'_set_tracker_form_available'):
+            backend._add_occult(sim,32,add_traits=False,add_memory=False)
+        writes.assert_called_once_with(human,{'pelt_layers':b'human'})
+        self.assertEqual(new_form.pelt_layers,b'wolf')
+        self.assertEqual(human.pelt_layers,b'human')
     def test_readding_existing_occult_preserves_independent_human_and_occult_edits(self):
         human, vampire = Obj(id=1), Obj(id=2)
         tracker = Obj(get_occult_sim_info=lambda kind: {1: human, 4: vampire}.get(kind))

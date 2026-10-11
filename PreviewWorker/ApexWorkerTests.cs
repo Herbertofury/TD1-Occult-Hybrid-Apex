@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using ProtoBuf;
 using Save=EA.Sims4.Persistence;
 
 namespace TS4SimRipper {
@@ -50,7 +51,32 @@ internal static class ApexWorkerTests {
                 try{Form1.ApexRequirePreviewOutfit(outfit);throw new Exception("Missing outfit parts accepted.");}
                 catch(InvalidDataException error){if(!error.Message.Contains("no equipped CAS parts"))throw;}
             }
-            Console.WriteLine(JsonSerializer.Serialize(new{ok=true,modern_deformer_scenarios=8,aged_face_override=true,aged_body_override=true,empty_outfit_refused=true,native_face_data_unchanged=true,game_contacted=false}));return 0;
+            var traySim=new Save.SimData{sim_id=123,first_name="Tray",last_name="Fixture",physique="0.1,0.2",skin_tone=42,voice_pitch=-.14f,skin_tone_val_shift=.18f,
+                attributes=new Save.PersistableSimInfoAttributes{occult_tracker=new Save.PersistableOccultTracker{current_occult_types=1}}};
+            traySim.attributes.occult_tracker.occult_sim_infos.Add(new Save.PersistableOccultTracker.OccultSimData{occult_type=2,physique="Alien shape",skin_tone=77});
+            using var trayBytes=new MemoryStream();Serializer.Serialize(trayBytes,traySim);
+            using var trayRequest=JsonDocument.Parse(JsonSerializer.Serialize(new{sims=new[]{Convert.ToBase64String(trayBytes.ToArray())}}));
+            using var trayResult=JsonDocument.Parse(JsonSerializer.Serialize(ApexTray.Inspect(trayRequest.RootElement)));
+            var trayForms=trayResult.RootElement.GetProperty("sims")[0].GetProperty("forms");
+            if(trayForms.GetArrayLength()!=2||trayForms[0].GetProperty("form").GetUInt32()!=2||
+                trayForms[0].GetProperty("fields").GetProperty("skin_tone").GetProperty("value").GetUInt64()!=77||
+                trayForms[1].GetProperty("fields").GetProperty("skin_tone").GetProperty("value").GetUInt64()!=42)
+                throw new Exception("Tray stored/base appearance ownership differs.");
+            var trayBase=trayForms[1].GetProperty("fields");
+            if(trayBase.GetProperty("voice_pitch").GetProperty("value").GetDouble()!=(double)traySim.voice_pitch||
+                trayBase.GetProperty("skin_tone_val_shift").GetProperty("value").GetDouble()!=(double)traySim.skin_tone_val_shift)
+                throw new Exception("Tray binary32 values lost exact Python/native readback precision.");
+            var thumbnailOutfit=new Save.OutfitData{outfit_id=789,category=5,parts=new EA.Sims4.IdList{ids=new ulong[]{10,20,30}},
+                body_types_list=new Save.BodyTypesList{body_types=new uint[]{2,7,2}},part_shifts=new Save.ColorShiftList{color_shift=new ulong[]{11,22,33}},
+                object_ids=new Save.ObjectIdsList{object_id=new ulong[]{44,55,66}},layer_ids=new Save.LayerIdsList{layer_id=new uint[]{1,2,3}}};
+            Form1.ApexThumbnailPart(thumbnailOutfit,2,99,8);
+            if(thumbnailOutfit.outfit_id!=789||thumbnailOutfit.category!=5||thumbnailOutfit.parts.ids.Length!=2||
+                thumbnailOutfit.parts.ids[0]!=20||thumbnailOutfit.parts.ids[1]!=99||thumbnailOutfit.part_shifts.color_shift[0]!=22||
+                thumbnailOutfit.object_ids.object_id[0]!=55||thumbnailOutfit.layer_ids.layer_id[0]!=2||thumbnailOutfit.layer_ids.layer_id[1]!=8)
+                throw new Exception("Detached thumbnail replacement lost an unrelated layer or outfit identity.");
+            thumbnailOutfit.object_ids.object_id=new ulong[]{1};
+            try{Form1.ApexThumbnailPart(thumbnailOutfit,2,100,8);throw new Exception("Misaligned thumbnail arrays accepted.");}catch(InvalidDataException){}
+            Console.WriteLine(JsonSerializer.Serialize(new{ok=true,modern_deformer_scenarios=8,aged_face_override=true,aged_body_override=true,empty_outfit_refused=true,native_face_data_unchanged=true,tray_native_float_precision=true,thumbnail_parallel_rows=true,game_contacted=false}));return 0;
         }catch(Exception error){Console.Error.WriteLine(error);return 1;}
     }
 }

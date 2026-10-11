@@ -123,6 +123,7 @@ inline bool StudioDocument(const Json& object) {
         return true;
     };
     if (object.contains("outfit_inventory") && !inventory(object["outfit_inventory"])) return false;
+    if (object.contains("preview_outfit_inventory") && !object["preview_outfit_inventory"].is_null() && !inventory(object["preview_outfit_inventory"])) return false;
     if (object.contains("form_inventory")) {
         const auto& forms = object["form_inventory"];
         if (!forms.is_array() || forms.size() > 128) return false;

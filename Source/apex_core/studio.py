@@ -9,7 +9,7 @@ import json
 import os
 import copy
 import re
-from . import cas_catalog, color_shift, outfit_snapshot, form_appearance as appearance, form_bank, sim_record, outfit_hair, morph_controls
+from . import cas_catalog, color_shift, outfit_snapshot, form_appearance as appearance, form_bank, sim_record, outfit_hair, morph_controls, human_werewolf
 from .change_journal import ChangeJournal, fingerprint, decoded
 from .dresser_parts import DresserParts, NEUTRAL_SHIFT, read_rows, write_rows, uint
 
@@ -282,12 +282,17 @@ def _response(journal, message, **extras):
               'appearance_sha256': fingerprint(journal.appearance_reader()),
               'history_scope': 'Complete native Sim records tracked, including runtime-discovered schemas and unknown wire fields. Undo restores readable appearance fields/outfits; gameplay records are retained as evidence.',
               'legacy_outfit_history_retained': getattr(journal, 'legacy_available', False),
-              'pending_preview': (pending or {}).get('id'), 'save_reload_verified': False}
+              'pending_preview': (pending or {}).get('id'), 'preview_outfit_inventory': None, 'save_reload_verified': False}
     if observations:
         result['latest_native_observation'] = {'sha256': observations[-1]['sim_record']['sha256'], 'time': observations[-1]['time']}
         previous = observations[-2]['sim_record'] if len(observations) > 1 else journal.data['nodes'][0].get('sim_record')
         if previous: result['latest_native_observation']['delta'] = sim_record.delta(previous, observations[-1]['sim_record'])
     if pending:
+        # A whole-appearance try-on may contain new native outfit IDs. Expose
+        # its detached wardrobe explicitly; accepted/equipped data stays real.
+        class PreviewOwner: pass
+        owner = PreviewOwner(); owner._studio_fields = _fields(decoded(pending['after']))
+        result['preview_outfit_inventory'] = _outfit_inventory(journal.backend, _message(journal.backend, owner))
         result['preview_delta'] = _delta(decoded(pending['before']), decoded(pending['after']))
         if '__outfits__' in result['preview_delta']['changed_fields']:
             result['preview_delta'].update(_part_delta(journal.backend, decoded(pending['before']), decoded(pending['after'])))
@@ -411,10 +416,36 @@ def dispatch(backend, action, sim_id, value):
             if type(envelope['form']) is not int or not 0 < envelope['form'] < 1 << 32:
                 raise ValueError('Invalid explicit form owner.')
             form, value = envelope['form'], envelope['value']
-    sim, before, journal, lane = _context(backend, sim_id, form, history=action not in ('studio_items', 'studio_preview_snapshot'))
+    sim, before, journal, lane = _context(backend, sim_id, form,
+        # Begin/chunks are transport-only. Finish returns a Studio document,
+        # including the real destination history; it needs the full context.
+        history=action not in ('studio_items', 'studio_preview_snapshot') and
+            (not action.startswith('studio_clipboard_') or action == 'studio_clipboard_finish'))
     primary, flags = journal.primary_sim, journal.form_flags
+    journal.appearance_reader = lambda: _state(backend, sim)
     if action == 'studio_items':
         return _items_response(backend, sim, before, journal, lane, value)
+    if action == 'studio_copy_appearance':
+        from . import appearance_transfer
+        clip = appearance_transfer.capture(_fields(before), dict(kind='sim', sim_id=str(backend._sim_id(primary)), form=flags,
+            label='Sim {} / form {}'.format(backend._sim_id(primary), flags)))
+        return _response(journal, 'Appearance copied without changing any Sim or form.',
+            appearance_clipboard={name: clip[name] for name in ('id', 'sha256', 'source')},
+            clipboard_fields=sorted(clip['fields']), clipboard_outfits=_outfit_inventory(backend, _message(backend, sim)))
+    if action.startswith('studio_clipboard_'):
+        from . import appearance_transfer
+        if not isinstance(value, str) or len(value) > 8192: raise ValueError('Bounded clipboard operation required.')
+        request = json.loads(value)
+        if action == 'studio_clipboard_export':
+            if not isinstance(request, dict) or set(request) != {'id', 'sha256'}: raise ValueError('Exact clipboard identity required.')
+            return dict(appearance_transfer.get(request['id'], request['sha256']), ok=True)
+        operation = action[len('studio_clipboard_'):]
+        result = appearance_transfer.upload(operation, request)
+        if operation == 'finish':
+            return _response(journal, 'Imported appearance retained in the clipboard; no Sim changed.',
+                appearance_clipboard={name: result[name] for name in ('id', 'sha256', 'source')}, clipboard_fields=sorted(result['fields']),
+                clipboard_outfits=_outfit_inventory(backend, appearance_transfer._parse(backend, result['fields'])))
+        return dict(result, ok=True, sim_appearance_written=False)
     if action == 'studio_preview_snapshot':
         if not isinstance(value, str) or len(value) > 2048:
             raise ValueError('A bounded exact preview owner is required.')
@@ -448,7 +479,9 @@ def dispatch(backend, action, sim_id, value):
         record = sim_record.restore(_capture_native_record(backend, primary))
         if any(_state(backend, owner) != raw for owner, raw in originals) or _state(backend, sim) != before:
             raise ValueError('Native metadata serialization changed an appearance; preview refused.')
+        from .human_werewolf import preview_form
         return dict(request, ok=True, sim_id=str(backend._sim_id(primary)), form=flags,
+                    visual_form=preview_form(backend, primary, flags),
                     preview_id=preview_id, render_sha256=fingerprint(render_state), fields=render_fields,
                     native_sim=record['native_base64'], native_sha256=record['native_sha256'],
                     appearance_source=journal.appearance_source, save_guid=str(backend.services.get_persistence_service().get_save_slot_proto_guid()),
@@ -520,6 +553,33 @@ def dispatch(backend, action, sim_id, value):
             if fingerprint(read()) != fingerprint(_state_from_fields(backend, prior)):
                 raise ValueError('Appearance rollback differs; retain the recovery journal.')
             raise
+    if action == 'studio_werewolf_ea_preview':
+        from . import werewolf_defaults
+        if flags != 32 or human_werewolf.preview_form(backend, primary, flags) != 32:
+            raise ValueError('Select the EA Werewolf appearance owner/style before preparing EA defaults.')
+        if journal.data['pending']: raise ValueError('Apply or Cancel the pending preview first.')
+        generated = werewolf_defaults.prepare(backend, primary)
+        if set(generated) != set(_fields(before)): raise ValueError('EA generated appearance field set differs.')
+        after = _state_from_fields(backend, generated)
+        token = journal.prepare('EA default Werewolf / retained previous look', before, after)
+        return _response(journal, 'EA-generated Werewolf try-on prepared. Apply replaces only this appearance; Undo retains the previous look.', preview_id=token)
+    if action in ('studio_paste_preview', 'studio_paste_live'):
+        from . import appearance_transfer
+        if journal.data['pending']: raise ValueError('Apply or Cancel the pending preview before pasting.')
+        if not isinstance(value, str) or len(value) > 8192: raise ValueError('Bounded selective appearance paste required.')
+        request = json.loads(value)
+        if not isinstance(request, dict) or set(request) != {'clipboard_id', 'clipboard_sha256', 'selection', 'lane', 'appearance_sha256'}:
+            raise ValueError('Paste clipboard/target identity fields differ.')
+        if request['lane'] != lane or request['appearance_sha256'] != fingerprint(before):
+            raise ValueError('Paste destination changed; inspect again.')
+        clip = appearance_transfer.get(request['clipboard_id'], request['clipboard_sha256'])
+        after = _state_from_fields(backend, appearance_transfer.merge(backend, _fields(before), clip['fields'], request['selection']))
+        if after == before: return _response(journal, 'Selected appearance fields already match; no Sim changed.')
+        token = journal.prepare('Paste appearance / {} form {} → form {}'.format(clip['source']['kind'], clip['source']['form'], flags), before, after)
+        if action == 'studio_paste_live':
+            journal.apply(token, read, write)
+            return _response(journal, 'Selected appearance fields pasted and read back; unpause to verify the visible result.', live_paste_applied=True)
+        return _response(journal, 'Selective appearance try-on prepared; Apply keeps it, Cancel discards it.', preview_id=token)
     if action == 'studio_shape_inspect':
         return _response(journal, 'Observed face/body slider values read without changing any form.',
                          shape_editor=morph_controls.inspect(_fields(before)))
@@ -560,6 +620,8 @@ def dispatch(backend, action, sim_id, value):
             readable_appearance_fields=sorted(_fields(before)),
             current_form_flags=backend._get_current_flags(primary), inspected_form_flags=flags, stored_form_edit_supported=True,
             appearance_source=journal.appearance_source,
+            werewolf_appearance_style=('human_cc' if human_werewolf.preview_form(backend, primary, flags) == 1 else 'ea') if flags == 32 else None,
+            visual_form=human_werewolf.preview_form(backend, primary, flags),
             hair_policy=outfit_hair.status(backend, primary),
             form_inventory=_form_inventory(backend, primary) if hasattr(primary, 'occult_tracker') else [],
             category_catalog=_category_catalog(backend),

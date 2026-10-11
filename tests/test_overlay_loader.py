@@ -116,9 +116,12 @@ class OverlayLoaderTests(unittest.TestCase):
             self.assertFalse(reply['game_appearance_written'])
             self.assertEqual(calls, [('ApexSimPreviewControl',
                                      {'operation': 'mode', 'apply_mode': 'preview'})])
+            for operation in ('tray','tray-copy','library-select', 'thumbnail','gallery-query','gallery-select','gallery-view'):
+                self.assertTrue(loader.sim_preview(self.module,'unused',{'operation':operation})['ok'])
+                self.assertEqual(calls[-1],('ApexSimPreviewControl',{'operation':operation}))
             with self.assertRaisesRegex(ValueError, 'typed independent preview'):
                 loader.sim_preview(self.module, 'unused', {'operation': 'arbitrary'})
-            self.assertEqual(len(calls), 1)
+            self.assertEqual(len(calls), 8)
 
     def test_optional_metrics_preserve_hwnd_bits_without_input_or_old_export_requirement(self):
         class Integer:

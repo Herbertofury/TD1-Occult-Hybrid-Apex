@@ -64,6 +64,14 @@ def main():
             assert text.count(needle) == 1
             text = text.replace(needle,needle+'\n            if(this.version==9)return ApexModernMorph();')
         if path.name == 'Form1.cs':
+            # Resolve the selected occult before applying the Werewolf breast
+            # policy; the previous request's form must not leak into this one.
+            needle='            if (currentOccult == SimOccult.Werewolf) canHaveBreasts = false;'
+            assert text.count(needle)==1
+            text=text.replace(needle,'')
+            needle='            DisplaySim(sim, currentOccult);'
+            assert text.count(needle)==1
+            text=text.replace(needle,'            if (currentOccult == SimOccult.Werewolf) canHaveBreasts = false;\n'+needle)
             needle='morphs.face_modifiers != null ? morphs.face_modifiers : new List<EA.Sims4.Persistence.BlobSimFacialCustomizationData.Modifier>()'
             assert text.count(needle)==2
             text=text.replace(needle,'ApexEffectiveFaceModifiers(morphs)')

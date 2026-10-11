@@ -52,6 +52,36 @@ class LiveCatalogTests(unittest.TestCase):
         self.assertEqual(len(seen), 1057)
         self.assertEqual(path.read_bytes(), original)
 
+    def test_native_families_swatches_duplicates_and_conflicting_resource_bytes(self):
+        entries = {(resources.CASP, 8, 91): casp(body=29, outfit_id=77, swatch_order=2, colors=(0xFF112233,)),
+                   (resources.CASP, 8, 92): casp(body=29, outfit_id=77, swatch_order=1, colors=(0xFFABCDEF,))}
+        self.package('EA colors.package', entries, 'ea')
+        self.package('EA duplicate.package', entries, 'ea')
+        self.package('EA override.package', {(resources.CASP, 8, 91): casp(body=29, outfit_id=77, swatch_order=3, colors=(0xFF998877,))}, 'ea')
+        built = self.build(); index = catalog.PinnedIndex(self.index, built['index_sha256']); self.addCleanup(index.close)
+        page = index.query(grouped=True)
+        self.assertEqual((page['total'], page['items'][0]['swatch_count'], page['items'][0]['container_count']), (1, 3, 5))
+        self.assertEqual(index.query()['total'], 5)
+        swatches = index.swatches(page['items'][0]['part_id'], limit=2)
+        self.assertEqual(swatches['total'], 3)
+        self.assertEqual([r['metadata']['swatch_colors_argb'] for r in swatches['items']], [[0xFFABCDEF], [0xFF112233]])
+        self.assertEqual([r['container_count'] for r in swatches['items']], [2, 2])
+        last = index.swatches(page['items'][0]['part_id'], offset=swatches['next_offset'], limit=2)
+        self.assertEqual(last['items'][0]['metadata']['swatch_colors_argb'], [0xFF998877])
+        self.assertIsNone(last['next_offset'])
+        self.assertFalse(last['items'][0]['effective_load_source_verified'])
+
+    def test_zero_ids_and_fitting_or_creator_collisions_do_not_merge_unrelated_items(self):
+        self.package('[Author] Colors.package', {(resources.CASP, 8, 1): casp(outfit_id=9),
+            (resources.CASP, 8, 2): casp(outfit_id=9), (resources.CASP, 8, 3): casp(outfit_id=9, age_gender=4),
+            (resources.CASP, 8, 4): casp(outfit_id=9, body=35), (resources.CASP, 8, 5): casp(), (resources.CASP, 8, 6): casp()})
+        self.package('[Other] Colors.package', {(resources.CASP, 8, 7): casp(outfit_id=9)})
+        built = self.build(); index = catalog.PinnedIndex(self.index, built['index_sha256']); self.addCleanup(index.close)
+        self.assertEqual(index.query(grouped=True)['total'], 6)
+        self.assertEqual(index.query(grouped=True, author='Author')['total'], 5)
+        self.assertEqual(index.query(grouped=True, body_type=35)['total'], 1)
+        with self.assertRaises(ValueError): index.query(grouped='yes')
+
     def test_every_group_duplicate_container_unknown_body_and_unparsed_row_retained(self):
         same = (resources.CASP, 0x80000000, 77)
         self.package('Alien nails.package', {same: casp(body=4095), (resources.CASP, 0, 77): casp(body=7)})

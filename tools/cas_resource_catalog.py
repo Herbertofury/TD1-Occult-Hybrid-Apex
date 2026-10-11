@@ -303,7 +303,9 @@ def casp_metadata(raw):
     if length > 4096 or length % 2:
         raise ValueError('Invalid CASP name length.')
     name = r.take(length).decode('utf-16-be')
-    r.take(16)
+    sort_priority, swatch_order = r.value('f'), r.value('H')
+    outfit_id = r.value('I')
+    r.take(6)  # aural material and the two flag bytes
     if version >= 50:
         r.take(2)
     r.take(r.count(512) * 8 if version >= 51 else 16)
@@ -317,7 +319,7 @@ def casp_metadata(raw):
     age_gender, species = r.value('I'), r.value('I')
     pack = r.value('h')
     r.take(10)
-    r.take(r.value('B') * 4)
+    colors = [r.value('I') for _ in range(r.value('B'))]
     r.take(1)
     thumb_index = r.value('B')
     count = raw[table]
@@ -331,7 +333,8 @@ def casp_metadata(raw):
         raise ValueError('CASP thumbnail reference index is invalid.')
     return {'version': version, 'internal_name': name or None, 'title_key': title,
             'description_key': description, 'body_type': body, 'age_gender': age_gender,
-            'species': species, 'pack_id': pack,
+            'species': species, 'pack_id': pack, 'outfit_id': outfit_id,
+            'swatch_order': swatch_order, 'swatch_colors_argb': colors,
             'variant_thumbnail_tgi': refs[thumb_index] if thumb_index < count else None}
 
 

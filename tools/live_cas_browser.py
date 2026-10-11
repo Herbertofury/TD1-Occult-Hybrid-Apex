@@ -17,7 +17,7 @@ MAX_BODY = 2048
 
 
 class Browser:
-    def __init__(self, index, expected, cache=resources.CACHE_ROOT / 'live-browser'):
+    def __init__(self, index, expected, cache=resources.CACHE_ROOT / 'live-browser', tray_root=None):
         self.index = PinnedIndex(index, expected)
         self.cache = Path(cache).absolute()
         resources.no_redirected_ancestors(self.cache)
@@ -29,6 +29,8 @@ class Browser:
         self.lock = threading.RLock()
         self.assets = {}
         self.asset_sources = {}
+        self.tray_root = tray_root
+        self.gallery = None
         self.favorites = set()
         self.recent = []
         self.preferences = self.cache / ('preferences-' + self.index.expected + '.json')
@@ -61,7 +63,7 @@ class Browser:
 
     def query(self, request):
         fields = {'text', 'body_type', 'origin', 'name_mode', 'offset', 'limit', 'view'}
-        if (not isinstance(request, dict) or set(request) not in (fields, fields | {'author', 'sort'}) or
+        if (not isinstance(request, dict) or set(request) not in (fields, fields | {'author', 'sort'}, fields | {'author', 'sort', 'grouped'}) or
                 request['view'] not in ('all', 'favorites', 'recent')):
             raise ValueError('Catalog query fields differ.')
         with self.lock:
@@ -69,7 +71,7 @@ class Browser:
                    list(self.recent) if request['view'] == 'recent' else None)
             result = self.index.query(text=request['text'], body_type=request['body_type'], origin=request['origin'],
                 name_mode=request['name_mode'], offset=request['offset'], limit=request['limit'], part_ids=ids,
-                author=request.get('author', ''), sort=request.get('sort', 'name'))
+                author=request.get('author', ''), sort=request.get('sort', 'name'), grouped=request.get('grouped', False))
             # Native pages do not disclose host paths or carry arbitrary SQL.
             for row in result['items']:
                 row.pop('package_path')
@@ -79,8 +81,18 @@ class Browser:
                 raise ValueError('Catalog page exceeds its transport bound; request fewer items.')
             return result
 
+    def tray(self, operation, request):
+        if self.tray_root is None: raise ValueError('Start the browser with its explicit read-only --tray-root.')
+        from tray_browser import Gallery
+        with self.lock:
+            if operation=='query':
+                self.gallery=Gallery(self.tray_root)
+                return self.gallery.query(request)
+            if self.gallery is None: raise ValueError('Query the Tray gallery before selecting an item.')
+            return self.gallery.image(request) if operation=='image' else self.gallery.inspect(request)
+
     def inspect(self, request):
-        if (not isinstance(request, dict) or set(request) != {'part_id', 'index_sha256'} or
+        if (not isinstance(request, dict) or set(request) not in ({'part_id', 'index_sha256'}, {'part_id', 'index_sha256', 'swatch_offset'}) or
                 request['index_sha256'] != self.index.expected):
             raise ValueError('Selection must use this exact index snapshot.')
         with self.lock:
@@ -101,8 +113,9 @@ class Browser:
             ident = selected['item']['part_id']
             self.recent = [ident] + [old for old in self.recent if old != ident][:199]
             self._save()
-            item = dict(selected['item']); item.pop('package_path')
+            item = dict(selected['item']); item.pop('package_path'); item['favorite']=ident in self.favorites
             return {'ok': True, 'index_sha256': self.index.expected, 'item': item, 'resource': row,
+                    'swatches': self.index.swatches(item['part_id'], request.get('swatch_offset', 0)),
                     'request': selected['request'], 'game_contacted': False,
                     'effective_load_source_verified': False, 'equip_verified': False}
 
@@ -125,7 +138,8 @@ class Browser:
                 ident = resources.digest((item['resource_tgi'] + '\n' + item['resource_sha256']).encode('ascii'))
                 selected[ident] = dict(resource_tgi=item['resource_tgi'], effective_resource_sha256=item['resource_sha256'],
                                       body_type=item['body_type'], gender=request['gender'])
-            prepared = resources.prepare(list(sources.values()), list(selected.values()), self.cache,
+            providers=self.index.thumbnail_sources(list(items.values()),request['gender'])
+            prepared = resources.prepare(list(sources.values()) + [p for p in providers if p['path'] not in sources], list(selected.values()), self.cache,
                                           locale=page['snapshot']['locale'], copy_packages=False)
             broker = resources.Broker(prepared['manifest'], prepared['manifest_sha256'])
             rows = {row['resource_id']: dict(row, broker_port=PORT) for row in prepared['catalog']['items']}
@@ -227,6 +241,8 @@ def handler(browser):
                     result = browser.images(request)
                 elif self.path == '/v1/catalog/favorite':
                     result = browser.favorite(request)
+                elif self.path in ('/v1/tray/query','/v1/tray/image','/v1/tray/inspect'):
+                    result = browser.tray(self.path.rsplit('/',1)[1], request)
                 elif self.path == '/v1/open' and isinstance(request, dict) and set(request) == {'resource_id', 'cache_proof'}:
                     result = browser.open(request['resource_id'], request['cache_proof'])
                 else:
@@ -237,8 +253,8 @@ def handler(browser):
     return Handler
 
 
-def serve(index, expected):
-    browser = Browser(index, expected)
+def serve(index, expected, tray_root=None):
+    browser = Browser(index, expected, tray_root=tray_root)
     try:
         with LoopbackHTTPServer(('127.0.0.1', PORT), handler(browser)) as server:
             server.daemon_threads = True
@@ -253,5 +269,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--index', required=True)
     parser.add_argument('--expected-index-sha256', required=True)
+    parser.add_argument('--tray-root', type=Path)
     options = parser.parse_args()
-    serve(options.index, options.expected_index_sha256)
+    serve(options.index, options.expected_index_sha256, options.tray_root)

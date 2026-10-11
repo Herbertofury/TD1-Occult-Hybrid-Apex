@@ -4,6 +4,7 @@ One persistent no-window assembler reuses the installed DBPF indexes. No saves
 are opened. No Sim meshes, textures, or package copies are written to disk.
 """
 import argparse
+import copy
 import os
 import base64
 from collections import OrderedDict
@@ -33,7 +34,7 @@ def snapshot(request):
                 'lane', 'appearance_sha256', 'outfit_index', 'outfit_id',
                 'appearance_source', 'save_guid', 'runtime_pid', 'save_file_written', 'history_written',
                 'render_sha256', 'preview_id'}
-    if not isinstance(request, dict) or set(request) != required or request['ok'] is not True:
+    if not isinstance(request, dict) or set(request) not in (required, required | {'visual_form'}) or request['ok'] is not True:
         raise ValueError('Exact owner-thread preview snapshot required.')
     for field in ('sim_id', 'outfit_id', 'save_guid'):
         expression = r'(?:0|[1-9][0-9]{0,19})' if field == 'outfit_id' else r'[1-9][0-9]{0,19}'
@@ -44,6 +45,9 @@ def snapshot(request):
             type(request['outfit_index']) is not int or not 0 <= request['outfit_index'] < 1024 or
             request['save_file_written'] is not False or request['history_written'] is not False):
         raise ValueError('Invalid preview owner or writable snapshot.')
+    visual = request.get('visual_form', request['form'])
+    if type(visual) is not int or visual not in ((1, 32) if request['form'] == 32 else (request['form'],)):
+        raise ValueError('Visual appearance policy differs from the selected form.')
     if not isinstance(request['lane'], str) or len(request['lane']) > 200 or not request['lane'].startswith(request['save_guid'] + ':'):
         raise ValueError('Save lane identity differs.')
     sha(request['appearance_sha256']); sha(request['native_sha256']); sha(request['render_sha256'])
@@ -172,14 +176,14 @@ class Broker:
                 assets[name] = base64.b64decode(value, validate=True)
                 if digest(assets[name]) != expected[name]: raise ValueError('Scene asset hash differs.')
             assets['scene.json'] = manifest
-            size = sum(map(len, assets.values()))
+            size = sum(map(len, assets.values())) + len(canonical(request))
             if size > MAX_SCENE: raise ValueError('Scene exceeds the cache budget.')
             with self.lock:
                 if ident in self.scenes:
                     self.bytes -= self.scenes.pop(ident)['bytes']
                 while self.scenes and self.bytes + size > self.budget:
                     _old, old = self.scenes.popitem(last=False); self.bytes -= old['bytes']
-                self.scenes[ident] = {'assets': assets, 'bytes': size}; self.bytes += size
+                self.scenes[ident] = {'assets': assets, 'bytes': size, 'snapshot': copy.deepcopy(request)}; self.bytes += size
                 self.jobs[key] = {'ok': True, 'state': 'ready', 'scene_id': ident,
                     'sim_id': request['sim_id'], 'form': request['form'], 'outfit_id': request['outfit_id'], 'outfit_index': request['outfit_index'],
                     'appearance_sha256': request['appearance_sha256'], 'lane': request['lane'],
@@ -197,6 +201,35 @@ class Broker:
             if result.get('state') == 'ready' and result['scene_id'] not in self.scenes:
                 return {'ok': False, 'state': 'evicted', 'reason': 'Memory cache evicted this scene; inspect the current owner again.'}
             return dict(result, request_id=key)
+
+    def thumbnail_prepare(self, value):
+        from cas_resource_catalog import key as resource_key, CASP
+        if not isinstance(value,dict) or set(value)!={'base_scene_id','resource_tgi','resource_sha256','body_type'}:
+            raise ValueError('Exact rendered thumbnail base and CASP candidate required.')
+        sha(value['base_scene_id']); sha(value['resource_sha256'])
+        if resource_key(value['resource_tgi'])[0]!=CASP or type(value['body_type'])is not int or not 0<=value['body_type']<=0xffffffff:
+            raise ValueError('Exact thumbnail CASP body type required.')
+        with self.lock:
+            if self.active: raise ValueError('Wait for the current independent scene assembly.')
+            request=copy.deepcopy(self.scenes[value['base_scene_id']]['snapshot'])
+            self.active=True
+        try:
+            result=self.worker.assemble(dict(operation='thumbnail-outfit',resource_tgi=value['resource_tgi'],
+                resource_sha256=value['resource_sha256'],body_type=value['body_type'],
+                outfits_base64=request['fields']['__outfits__']['value'],outfit_index=request['outfit_index'],outfit_id=request['outfit_id']))
+            if any(result.get(k)!=value[k] for k in ('resource_tgi','resource_sha256','body_type')):
+                raise ValueError('Thumbnail resource projection differs.')
+            raw=base64.b64decode(result['outfits_base64'],validate=True)
+            if not 0<len(raw)<=8*1024*1024: raise ValueError('Thumbnail outfit exceeds bound.')
+            request['fields']['__outfits__']=dict(request['fields']['__outfits__'],value=result['outfits_base64'])
+            request['render_sha256']=request['appearance_sha256']=digest(canonical(request['fields']))
+            request['preview_id']=None
+            request['appearance_source']='thumbnail:'+value['resource_tgi']+':'+value['resource_sha256']
+        finally:
+            with self.lock: self.active=False
+        # This is a detached memory scene. It never enters the Source journal,
+        # changes an outfit on a real Sim, or replaces the visible F11 renderer.
+        return dict(self.prepare(request),thumbnail_request=value,game_appearance_written=False)
 
     def asset(self, ident, name):
         with self.lock:
@@ -220,13 +253,19 @@ def handler(broker):
             self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(raw)
         def do_POST(self):
             try:
-                if not self.allowed() or self.path != '/v1/preview/prepare' or self.headers.get('Content-Type') != 'application/json' or self.headers.get('Transfer-Encoding'):
+                if not self.allowed() or self.path not in ('/v1/preview/prepare', '/v1/tray/inspect', '/v1/thumbnail/prepare') or self.headers.get('Content-Type') != 'application/json' or self.headers.get('Transfer-Encoding'):
                     raise ValueError('Bounded loopback preview protocol required.')
                 size = int(self.headers.get('Content-Length', '0'))
                 if not 0 < size <= MAX_REQUEST: raise ValueError('Preview request exceeds bound.')
                 raw = self.rfile.read(size)
                 if len(raw) != size: raise ValueError('Truncated preview request.')
-                self.reply(200, broker.prepare(json.loads(raw)))
+                value = json.loads(raw)
+                if self.path == '/v1/tray/inspect':
+                    if not isinstance(value, dict) or set(value) != {'sims'} or not isinstance(value['sims'], list) or not 0 < len(value['sims']) <= 128:
+                        raise ValueError('One bounded explicit Tray Sim payload list required.')
+                    self.reply(200, broker.worker.assemble(dict(value, operation='tray-inspect')))
+                elif self.path=='/v1/thumbnail/prepare': self.reply(200,broker.thumbnail_prepare(value))
+                else: self.reply(200, broker.prepare(value))
             except (KeyError, ValueError, TypeError, OSError) as e: self.reply(409, {'ok': False, 'reason': str(e)})
         def do_GET(self):
             try:

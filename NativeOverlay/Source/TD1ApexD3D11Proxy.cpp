@@ -37,6 +37,7 @@
 #include <ctime>
 #include <cctype>
 #include <map>
+#include <set>
 #include <memory>
 
 #include "ApexUiData.h"
@@ -46,6 +47,8 @@
 #include "ApexPointerGate.h"
 #include "ApexGameWindow.h"
 #include "ApexStudioItems.h"
+#include "ApexTrayView.h"
+#include "ApexTrayGallery.h"
 #include "ApexPartColorControls.h"
 #include "ApexOwnerCommand.h"
 #include "ApexCasBank.h"
@@ -114,6 +117,7 @@ struct QueuedCommand { std::string path; uint64_t generation; bool automaticCasR
     bool automaticCasReconcile = false; std::string casRequestId;
     bool automaticStudioItems = false;
     bool simPreview = false;
+    bool trayClipboard = false;
     int resourceOperation = 0; ui::Json resourceRow = ui::Json::object(); uint64_t resourceSelection = 0;
     bool ownerObservation = false; std::string ownerRequestId;
     std::string casBankAction; };
@@ -130,6 +134,11 @@ static bool g_simPreviewKeepCamera = true;
 static bool g_simPreviewAutomatic = true;
 static bool g_simPreviewFocusRequested = false;
 static std::string g_simPreviewAttemptedContext;
+static std::atomic<bool> g_thumbnailBusy{false};
+static bool g_generateMissingThumbnails=true;
+static std::set<std::string> g_thumbnailAttempted;
+static std::shared_ptr<td1::preview::Scene> g_thumbnailScene;
+static ui::Json g_thumbnailBinding=ui::Json::object(),g_thumbnailReceipt=ui::Json::object();
 static ui::OwnerObservation g_ownerObservation; // worker/render, g_dataMutex
 static QueuedCommand g_ownerOriginalCommand;
 static std::atomic<bool> g_ownerBlocked{false};
@@ -168,6 +177,28 @@ static int g_casGroupIndex = 0;
 static int g_studioOutfitIndex = 0;
 static int g_studioPartIndex = 0;
 static ui::Json g_studioData = ui::Json::object();
+static ui::Json g_appearanceClipboard = ui::Json::object(), g_clipboardFields = ui::Json::array(), g_clipboardOutfits = ui::Json::array();
+static bool g_trayPreviewActive = false;
+static ui::Json g_trayPreviewForms = ui::Json::array();
+static int g_trayPreviewFormIndex = 0, g_trayPreviewOutfitIndex = 0;
+static std::atomic<bool> g_trayClipboardBusy{false};
+static ui::Json g_trayClipboardResult = ui::Json::object();
+static ui::Json g_galleryPage=ui::Json::object(),g_galleryInspection=ui::Json::object();
+static std::string g_galleryStatus="Browse native Tray households, lots and rooms.";
+static char g_gallerySearch[201]="";
+static int g_galleryKind=0,g_gallerySimIndex=0;
+static size_t g_galleryOffset=0;
+static std::atomic<bool> g_galleryBusy{false},g_galleryImageBusy{false};
+static std::atomic<uint64_t> g_gallerySerial{0};
+static bool g_galleryQueryNeeded=true;
+static std::string g_gallerySelected,g_galleryImageContext;
+static std::set<std::string> g_galleryImageAttempted;
+static std::map<std::string,resource::Pixels> g_galleryPixels;
+static std::map<std::string,Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> g_galleryTextures;
+static std::map<std::string,ImVec2> g_gallerySizes;
+static std::set<std::string> g_pasteFields;
+static std::set<int> g_pasteBodies;
+static int g_pasteScope = 1, g_pasteSourceOutfit = 0;
 static std::string g_studioLastReply;
 static bool g_nativeCasView = false;
 static ui::Json g_casClientData = ui::Json::object();
@@ -534,19 +565,21 @@ static std::string ResourceKey(const ui::Json& row) {
 
 static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) {
     body.clear();
-    if (operation < 1 || operation > 7) return false;
+    if (operation < 1 || operation > 10) return false;
     if (operation > 1 && operation < 4 && !resource::CatalogIdentities({{"schema", 1}, {"items", ui::Json::array({row})}})) return false;
     if (operation == 4 && !library::Query(row) || operation == 5 && !library::Selection(row) ||
         operation == 6 && !library::Selection(row, true) || operation == 7 && !library::ImagesRequest(row)) return false;
+    if(operation==8&&!tray::Query(row)||operation==9&&!tray::Selection(row)||operation==10&&!tray::Selection(row,true))return false;
     if (!g_wsStarted) {
         WSADATA wsa{};
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return false;
         g_wsStarted = true;
     }
-    const size_t bound = operation == 2 ? 8 * 1024 * 1024 : 512 * 1024;
+    const size_t bound = operation == 2 || operation==9 || operation==10 ? 8 * 1024 * 1024 : 512 * 1024;
     const std::string path = operation == 1 ? "/v1/resources" : operation == 2 ?
         "/v1/resources/" + ui::Scalar(row, "resource_id") + "/thumbnail" : operation == 3 ? "/v1/open" :
-        operation == 4 ? "/v1/catalog/query" : operation == 5 ? "/v1/catalog/inspect" : operation==7 ? "/v1/catalog/images" : "/v1/catalog/favorite";
+        operation == 4 ? "/v1/catalog/query" : operation == 5 ? "/v1/catalog/inspect" : operation==7 ? "/v1/catalog/images" :
+        operation==8?"/v1/tray/query":operation==9?"/v1/tray/inspect":operation==10?"/v1/tray/image":"/v1/catalog/favorite";
     const std::string payload = operation == 3 ? ui::Json({{"resource_id", row["resource_id"]},
         {"cache_proof", row["cache_proof"]}}).dump() : operation >= 4 ? row.dump() : "";
     const unsigned port = operation >= 4 || row.value("broker_port", ui::Json()) == 8023 ? 8023 : 8022;
@@ -617,6 +650,9 @@ static void RunSimPreview(const QueuedCommand& command) {
         if(command.resourceRow.contains("job")){
             request=command.resourceRow.at("job");
             if(!PreviewHttp("/v1/preview/status/"+ui::Scalar(request,"request_id"),raw))throw std::runtime_error("Prepared preview job unavailable.");
+        }else if(command.resourceRow.contains("tray_request")){
+            request=command.resourceRow.at("tray_request");
+            if(!PreviewHttp("/v1/preview/prepare",raw,request.dump()))throw std::runtime_error("Tray appearance assembly was not accepted.");
         }else{
             if(g_ownerBlocked||g_ownerNativeDeliveryBusy||g_casSubmissionBusy||g_casBankBusy)throw std::runtime_error("Resolve the current appearance operation before previewing.");
             {
@@ -628,6 +664,7 @@ static void RunSimPreview(const QueuedCommand& command) {
             }
             auto snapshot=ui::ParseObject(raw);if(!snapshot.value("ok",false))throw std::runtime_error("Appearance snapshot refused: "+ui::Scalar(snapshot,"message"));
             for(const auto* name:{"ok","sim_id","form","fields","native_sim","native_sha256","lane","appearance_sha256","outfit_index","outfit_id","appearance_source","save_guid","runtime_pid","save_file_written","history_written","preview_id","render_sha256"})request[name]=snapshot.at(name);
+            if(snapshot.contains("visual_form"))request["visual_form"]=snapshot.at("visual_form");
             if(!current())return;
             if(!PreviewHttp("/v1/preview/prepare",raw,request.dump()))throw std::runtime_error("Preview assembly was not accepted.");
         }
@@ -648,6 +685,38 @@ static void RunSimPreview(const QueuedCommand& command) {
     }catch(const std::exception& e){message(e.what());}
 }
 
+static void RunTrayClipboard(const QueuedCommand& command) {
+    struct Finish{~Finish(){g_trayClipboardBusy=false;g_ownerSubmissionBusy=false;}} finish;
+    g_ownerSubmissionBusy=true;
+    auto current=[&](){std::lock_guard<std::mutex> lock(g_dataMutex);return command.generation==g_selectionGeneration&&command.sim==g_selectedSim;};
+    std::string raw;
+    try {
+        if(!current()||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_casSubmissionBusy||g_casBankBusy)throw std::runtime_error("Resolve the current owner before copying the displayed Tray form.");
+        const auto& r=command.resourceRow.at("tray_request");
+        const std::string payload=ui::Json{{"fields",r.at("fields")},{"source",{{"kind","tray"},{"sim_id",r.at("sim_id")},{"form",r.at("form")},{"label",command.resourceRow.at("label")}}}}.dump(-1,' ',true);
+        if(payload.empty()||payload.size()>8*1024*1024)throw std::runtime_error("Tray clipboard exceeds its bound.");
+        auto call=[&](const std::string& action,const ui::Json& value){
+            if(!current())throw std::runtime_error("Destination changed during copy; no command was replayed.");
+            const ui::Json envelope={{"form",command.resourceRow.at("target_form")},{"value",value.dump()}};
+            QueuedCommand owned=command;owned.path="/api/command?action="+action+"&sim_id="+UrlEncode(command.sim)+"&value="+UrlEncode(envelope.dump());
+            if(!HttpOwnedCommand(owned.path,raw))throw std::runtime_error("Tray clipboard owner was not acknowledged.");
+            RetainCommandOwner(owned,raw);const auto reply=ui::ParseObject(raw);
+            if(!reply.value("ok",false))throw std::runtime_error("Tray clipboard copy: "+ui::Scalar(reply,"message"));return reply;
+        };
+        const auto begin=call("studio_clipboard_begin",{{"bytes",payload.size()},{"sha256",resource::HashBytes(payload)}});
+        const auto upload=ui::Scalar(begin,"upload_id");if(!resource::Hex(upload,32))throw std::runtime_error("Exact clipboard upload identity missing.");
+        unsigned index=0;for(size_t offset=0;offset<payload.size();offset+=3072)call("studio_clipboard_chunk",{{"upload_id",upload},{"index",index++},{"data",tray::Base64(payload.substr(offset,3072))}});
+        call("studio_clipboard_finish",{{"upload_id",upload}});
+    }catch(const std::exception& e){if(!ui::OwnerCommandUnresolved(ui::ParseObject(raw)))raw=ui::Json{{"ok",false},{"message",e.what()}}.dump();}
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    if(command.generation==g_selectionGeneration){
+        g_commandReply=raw;g_commandReplyMs=GetTickCount64();
+        const auto result=ui::ParseObject(raw);
+        g_trayClipboardResult={{"ok",result.value("ok",false)},{"message",ui::Scalar(result,"message")},
+            {"request_id",ui::Scalar(result,"request_id")},{"request_state",ui::Scalar(result,"request_state")}};
+    }
+}
+
 static bool QueueResource(int operation, const ui::Json& row = ui::Json::object()) {
     if (operation < 1 || operation > 3 || (operation != 1 &&
         !resource::Catalog({{"schema", 1}, {"items", ui::Json::array({row})}}))) return false;
@@ -665,10 +734,10 @@ static bool QueueResource(int operation, const ui::Json& row = ui::Json::object(
     return true;
 }
 
-static bool QueueLibrary(int operation, const ui::Json& request) {
+static bool QueueLibrary(int operation, const ui::Json& request,bool dataLocked=false) {
     if ((operation == 4 && !library::Query(request)) || (operation == 5 && !library::Selection(request)) ||
         (operation == 6 && !library::Selection(request, true)) || operation < 4 || operation > 6) return false;
-    std::lock_guard<std::mutex> lock(g_dataMutex);
+    std::unique_lock<std::mutex> lock(g_dataMutex,std::defer_lock);if(!dataLocked)lock.lock();
     if (g_libraryBusy.load() || g_commands.size() >= 48) return false;
     QueuedCommand command{"", g_selectionGeneration};
     command.resourceOperation = operation; command.resourceRow = request;
@@ -677,8 +746,72 @@ static bool QueueLibrary(int operation, const ui::Json& request) {
     return true;
 }
 
+static bool QueueGallery(int operation,const ui::Json& request,bool dataLocked=false) {
+    if(operation<8||operation>10||operation==8&&!tray::Query(request)||operation==9&&!tray::Selection(request)||operation==10&&!tray::Selection(request,true))return false;
+    std::unique_lock<std::mutex> lock(g_dataMutex,std::defer_lock);if(!dataLocked)lock.lock();
+    auto& busy=operation==10?g_galleryImageBusy:g_galleryBusy;
+    if(busy||g_commands.size()>=48)return false;
+    QueuedCommand command{"",g_selectionGeneration};command.resourceOperation=operation;command.resourceRow=request;
+    command.resourceSelection=operation==10?g_gallerySerial.load():++g_gallerySerial;
+    busy=true;g_commands.push_back(std::move(command));return true;
+}
+
+static bool QueueThumbnail(const ui::Json& item,bool dataLocked=false) {
+    if(g_thumbnailBusy||g_simPreviewBusy||g_simPreview.scene.id.empty()||g_trayPreviewActive||!resource::Hash(item,"part_id")||
+       !resource::Hash(item,"resource_sha256")||!resource::Tgi(ui::Scalar(item,"resource_tgi"))||!item.contains("body_type")||!ui::CasInt(item["body_type"],0,0xffffffffLL))return false;
+    std::unique_lock<std::mutex> lock(g_dataMutex,std::defer_lock);if(!dataLocked)lock.lock();if(g_commands.size()>=48||g_thumbnailScene)return false;
+    QueuedCommand command{"",g_selectionGeneration};command.resourceOperation=11;command.resourceSelection=g_libraryImageSerial.load();
+    command.resourceRow={{"part_id",item["part_id"]},{"base_scene_id",g_simPreview.scene.id},{"resource_tgi",item["resource_tgi"]},{"resource_sha256",item["resource_sha256"]},{"body_type",item["body_type"]}};
+    g_thumbnailAttempted.insert(ui::Scalar(item,"part_id"));g_commands.push_back(std::move(command));g_thumbnailBusy=true;return true;
+}
+
 static void RunResourceCommand(const QueuedCommand& command) {
     const int operation = command.resourceOperation;
+    if(operation==11) {
+        struct Finish{~Finish(){g_thumbnailBusy=false;}} finish;
+        const auto current=[&](){return command.generation==g_selectionGeneration&&command.resourceSelection==g_libraryImageSerial.load();};
+        std::string raw,reason;ui::Json result;
+        try{
+            if(!current())return;auto request=command.resourceRow;request.erase("part_id");
+            if(!PreviewHttp("/v1/thumbnail/prepare",raw,request.dump()))throw std::runtime_error("Detached thumbnail preparation was refused.");
+            result=ui::ParseObject(raw);if(!result.value("ok",false)||result.value("thumbnail_request",ui::Json())!=request)throw std::runtime_error("Thumbnail candidate identity differs: "+ui::Scalar(result,"reason"));
+            const auto id=ui::Scalar(result,"request_id");if(!resource::Hex(id,64))throw std::runtime_error("Thumbnail job identity missing.");
+            const auto deadline=GetTickCount64()+90000;
+            while(result.value("state",std::string())=="assembling"){
+                if(g_done||!current())return;if(GetTickCount64()>deadline)throw std::runtime_error("Thumbnail assembly deadline exceeded.");
+                Sleep(150);if(!PreviewHttp("/v1/preview/status/"+id,raw))throw std::runtime_error("Thumbnail job status unavailable.");result=ui::ParseObject(raw);}
+            if(!result.value("ok",false)||result.value("state",std::string())!="ready")throw std::runtime_error("Thumbnail assembly: "+ui::Scalar(result,"reason"));
+            const auto sceneId=ui::Scalar(result,"scene_id");if(!resource::Hex(sceneId,64)||!PreviewHttp("/v1/scenes/"+sceneId+"/scene.json",raw)||resource::HashBytes(raw)!=sceneId)throw std::runtime_error("Thumbnail scene hash differs.");
+            auto scene=std::make_shared<td1::preview::Scene>(td1::preview::Decode(ui::ParseObject(raw),[&](const std::string& name,const std::string&,size_t bound){std::string bytes;if(!PreviewHttp("/v1/scenes/"+sceneId+"/"+name,bytes,"",bound))throw std::runtime_error("Thumbnail asset unavailable.");return bytes;},sceneId));
+            std::lock_guard<std::mutex> lock(g_dataMutex);if(current()){g_thumbnailScene=std::move(scene);g_thumbnailBinding=command.resourceRow;g_thumbnailReceipt={{"ok",true},{"state","staged"},{"part_id",command.resourceRow["part_id"]},{"scene_id",sceneId},{"game_appearance_written",false}};}
+        }catch(const std::exception& e){std::lock_guard<std::mutex> lock(g_dataMutex);if(current()){
+            g_libraryImageErrors[ui::Scalar(command.resourceRow,"part_id")]=e.what();g_thumbnailReceipt={{"ok",false},{"state","failed"},{"reason",e.what()},{"part_id",command.resourceRow["part_id"]}};}}
+        return;
+    }
+    if(operation>=8&&operation<=10) {
+        struct Finish{bool image;~Finish(){if(image)g_galleryImageBusy=false;else g_galleryBusy=false;}} finish{operation==10};
+        std::string raw;const bool received=ResourceHttp(operation,command.resourceRow,raw);auto result=ui::ParseObject(raw);
+        bool valid=received&&result.value("ok",false);
+        resource::Pixels pixels;std::string reason;
+        try{
+            if(operation==8)valid=valid&&tray::Page(result,command.resourceRow);
+            else {
+                valid=valid&&result.value("item_id",ui::Json())==command.resourceRow["item_id"]&&result.value("library_sha256",ui::Json())==command.resourceRow["library_sha256"]&&
+                    result.value("game_contacted",ui::Json())==false&&result.value("source_files_written",ui::Json(false))==false;
+                if(operation==10&&valid){valid=result.value("image_index",ui::Json())==command.resourceRow["image_index"];
+                    const auto png=tray::Decode64(ui::Scalar(result,"png_base64"));
+                    valid=valid&&resource::DecodeThumbnail(png,{{"thumbnail",{{"status","resolved"},{"sha256",result.at("sha256")},{"width",result.at("width")},{"height",result.at("height")}}}},pixels,reason);}
+                if(operation==9&&valid){const auto& context=command.resourceRow.at("context");const auto lane=ui::Scalar(context,"history_lane");
+                    valid=result.contains("preview_sims")&&result["preview_sims"].is_array()&&!result["preview_sims"].empty()&&result["preview_sims"].size()<=128;
+                    if(valid)for(const auto& sim:result["preview_sims"])if(!tray::Forms(sim.at("forms"),GetCurrentProcessId(),lane.substr(0,lane.find(':'))))valid=false;}
+            }
+        }catch(const std::exception& e){valid=false;reason=e.what();}
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if(command.generation==g_selectionGeneration&&command.resourceSelection==g_gallerySerial.load()) {
+            if(valid){if(operation==8)g_galleryPage=std::move(result);else if(operation==9)g_galleryInspection=std::move(result);else g_galleryPixels[ui::Scalar(command.resourceRow,"item_id")]=std::move(pixels);}
+            g_galleryStatus=valid?(operation==9?"Household source ready / choose a Sim and form":"Native Tray gallery ready"):"Tray browser: "+(reason.empty()?ui::Scalar(result,"reason"):reason);
+        }return;
+    }
     if(operation==7) {
         struct Finish {~Finish(){g_libraryImagesBusy=false;}} finish;
         ui::Json page;{std::lock_guard<std::mutex> lock(g_dataMutex);page=g_libraryPage;}
@@ -962,6 +1095,7 @@ static void WorkerLoop() {
         }
         if (command.resourceOperation) { RunResourceCommand(command); continue; }
         if (command.simPreview) { RunSimPreview(command); continue; }
+        if (command.trayClipboard) { RunTrayClipboard(command); continue; }
         if (!command.path.empty()) {
             if (command.ownerObservation) {
                 if (!BeginOwnerObservation(command)) continue;
@@ -1164,12 +1298,30 @@ static void CleanupLibraryImages() {
     for(auto& item:g_libraryImageTextures)if(item.second)item.second->Release();
     g_libraryImageTextures.clear();g_libraryImageSizes.clear();g_libraryImageAttempted.clear();g_libraryImageContext.clear();
     ++g_libraryImageSerial;
-    std::lock_guard<std::mutex> lock(g_dataMutex);g_libraryImagePixels.clear();g_libraryImageErrors.clear();
+    std::lock_guard<std::mutex> lock(g_dataMutex);g_libraryImagePixels.clear();g_libraryImageErrors.clear();g_thumbnailScene.reset();g_thumbnailBinding=ui::Json::object();
 }
 
 static void SynchronizeLibraryImages(const ui::Json& page) {
     const auto context=ui::Scalar(page,"index_sha256")+page.value("query",ui::Json()).dump()+std::to_string(g_libraryImageGender);
-    if(context!=g_libraryImageContext){CleanupLibraryImages();g_libraryImageContext=context;}
+    if(context!=g_libraryImageContext){CleanupLibraryImages();g_thumbnailAttempted.clear();g_libraryImageContext=context;}
+    std::shared_ptr<td1::preview::Scene> thumbnail;ui::Json binding;
+    {std::lock_guard<std::mutex> lock(g_dataMutex);thumbnail.swap(g_thumbnailScene);binding=g_thumbnailBinding;}
+    if(thumbnail){try{
+        td1::preview::Renderer renderer;renderer.Load(g_device,std::move(*thumbnail));
+        const auto body=binding.at("body_type").get<int>();
+        try{renderer.Preset(renderer.view,"selected",body);}catch(...){renderer.Preset(renderer.view,"face");}
+        renderer.view.playing=false;renderer.Render(g_context,256,256,0);
+        D3D11_TEXTURE2D_DESC d{};renderer.Target()->GetDesc(&d);d.Usage=D3D11_USAGE_STAGING;d.BindFlags=0;d.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> staging;td1::preview::Check(g_device->CreateTexture2D(&d,nullptr,&staging),"Thumbnail readback allocation failed.");
+        g_context->CopyResource(staging.Get(),renderer.Target());D3D11_MAPPED_SUBRESOURCE map{};
+        td1::preview::Check(g_context->Map(staging.Get(),0,D3D11_MAP_READ,0,&map),"Thumbnail GPU readback failed.");
+        resource::Pixels pixels;pixels.width=pixels.height=256;pixels.rgba.resize(256*256*4);
+        for(size_t y=0;y<256;++y)std::memcpy(pixels.rgba.data()+y*256*4,static_cast<const unsigned char*>(map.pData)+y*map.RowPitch,256*4);
+        g_context->Unmap(staging.Get(),0);
+        const auto hash=resource::HashBytes(std::string(reinterpret_cast<const char*>(pixels.rgba.data()),pixels.rgba.size()));
+        std::lock_guard<std::mutex> lock(g_dataMutex);g_libraryImagePixels[ui::Scalar(binding,"part_id")]=std::move(pixels);
+        g_thumbnailReceipt["state"]="ready";g_thumbnailReceipt["rgba_sha256"]=hash;g_thumbnailReceipt["width"]=256;g_thumbnailReceipt["height"]=256;g_thumbnailReceipt["disk_assets_written"]=false;
+    }catch(const std::exception& e){std::lock_guard<std::mutex> lock(g_dataMutex);g_thumbnailReceipt={{"ok",false},{"state","failed"},{"reason",e.what()}};}}
     std::map<std::string,resource::Pixels> received;
     {std::lock_guard<std::mutex> lock(g_dataMutex);received.swap(g_libraryImagePixels);}
     for(auto& entry:received) {
@@ -1811,6 +1963,14 @@ static void UpdateStudioData(const std::string& reply) {
     g_studioLastReply = reply;
     const auto& parsed = ui::ReadObject(reply);
     if (!ui::StudioDocument(parsed)) return;
+    if(!ui::Scalar(parsed,"pending_preview").empty())g_trayPreviewActive=false;
+    if(parsed.contains("appearance_clipboard")){
+        const auto& clip=parsed["appearance_clipboard"];
+        if(resource::Hex(ui::Scalar(clip,"id"),32)&&resource::Hash(clip,"sha256")){
+            g_appearanceClipboard=clip;g_clipboardFields=parsed.value("clipboard_fields",ui::Json::array());
+            g_clipboardOutfits=parsed.value("clipboard_outfits",ui::Json::array());g_pasteSourceOutfit=0;
+        }
+    }
     if (ui::StudioMetadataChanged(parsed, g_studioData))
         g_resourceInspections.clear();
     if (ui::Scalar(parsed, "history_lane") != ui::Scalar(g_studioData, "history_lane")) {
@@ -1970,6 +2130,11 @@ static const ui::Json& ViewedStudioOutfits() {
     static const auto empty = ui::Json::array();
     const auto outfits = g_studioData.find("outfit_inventory");
     return outfits == g_studioData.end() ? empty : *outfits;
+}
+static const ui::Json& ViewedPreviewOutfits() {
+    const auto pending=g_studioData.find("preview_outfit_inventory");
+    if(!ui::Scalar(g_studioData,"pending_preview").empty()&&pending!=g_studioData.end()&&pending->is_array())return *pending;
+    return ViewedStudioOutfits();
 }
 static bool ViewedFormActive() {
     const auto forms = g_studioData.find("form_inventory");
@@ -2290,7 +2455,7 @@ static ui::Json CurrentLibraryQuery() {
         {"name_mode",std::array<const char*,3>{"preferred","package","code"}[std::clamp(g_itemNameMode,0,2)]},
         {"offset",g_libraryOffset},{"limit",60},
         {"view",std::array<const char*,3>{"all","favorites","recent"}[std::clamp(g_libraryView,0,2)]},
-        {"author",g_libraryAuthor},{"sort",std::array<const char*,4>{"name","package","creator","id"}[std::clamp(g_librarySort,0,3)]}};
+        {"author",g_libraryAuthor},{"sort",std::array<const char*,4>{"name","package","creator","id"}[std::clamp(g_librarySort,0,3)]},{"grouped",true}};
 }
 
 static void DrawLiveLibrary() {
@@ -2350,7 +2515,7 @@ static void DrawLiveLibrary() {
     if (ImGui::SmallButton("Refresh library")) g_libraryQueryNeeded = true;
     ImGui::EndDisabled(); ImGui::SameLine(); ImGui::TextWrapped("%s", status.c_str());
     if (page.empty() || page.value("query", ui::Json()) != query) { ImGui::TextDisabled("%s", g_libraryBusy.load() ? "Loading this catalog page..." : "No current page. Run live-cas-catalog serve with the verified index SHA256."); return; }
-    ImGui::TextDisabled("%s matches / %s indexed parts", ui::Scalar(page, "total").c_str(), ui::Scalar(page["snapshot"], "parts").c_str());
+    ImGui::TextDisabled("%s CAS items / %s indexed resource candidates", ui::Scalar(page, "total").c_str(), ui::Scalar(page["snapshot"], "parts").c_str());
     if (!page["snapshot"].value("complete", false)) ImGui::TextWrapped("Some packages could not be indexed. Source errors remain visible in the CLI snapshot.");
     ImGui::BeginDisabled(g_libraryBusy.load() || g_libraryOffset == 0);
     if (ImGui::SmallButton("Previous page")) { g_libraryOffset = g_libraryOffset >= 60 ? g_libraryOffset - 60 : 0; g_libraryQueryNeeded = true; }
@@ -2360,6 +2525,7 @@ static void DrawLiveLibrary() {
     ImGui::EndDisabled();
     SynchronizeLibraryImages(page);
     ImGui::Checkbox("Actual CAS thumbnails",&g_libraryShowImages);ImGui::SameLine();
+    ImGui::Checkbox("Render missing images",&g_generateMissingThumbnails);ImGui::SameLine();
     ImGui::SetNextItemWidth(125);ImGui::Combo("##thumbnail-gender",&g_libraryImageGender,"Male preview\0Female preview\0");
     ImGui::SameLine();if(ImGui::SmallButton("Refresh images"))CleanupLibraryImages();
     ImGui::BeginChild("library-grid", ImVec2(0, std::clamp(ImGui::GetContentRegionAvail().y-235,160.f,600.f)), true);
@@ -2391,11 +2557,16 @@ static void DrawLiveLibrary() {
                     draw->AddText(ImVec2(at.x+4,at.y+imageHeight/2),IM_COL32(125,145,155,255),label);
                 }
                 if(available&&!g_libraryImageAttempted.count(id)&&wanted.size()<24)wanted.push_back(id);
+                if(available&&g_generateMissingThumbnails&&g_libraryImageAttempted.count(id)&&!g_thumbnailAttempted.count(id)&&found==g_libraryImageTextures.end()) {
+                    bool missing=false;{std::lock_guard<std::mutex> lock(g_dataMutex);missing=g_libraryImageErrors.count(id)!=0;}
+                    if(missing)QueueThumbnail(item);
+                }
             }
             const ImVec4 clip(at.x + 5, at.y + imageHeight+4, at.x + cardWidth - 5, at.y + cardHeight-20);
             const auto name = ui::Scalar(item, "name"); const auto display = name.empty() ? ui::Scalar(item, "package_name") : name;
             draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + 5, at.y + imageHeight+4), available ? IM_COL32(222, 232, 239, 255) : IM_COL32(127, 139, 152, 255), display.c_str(), nullptr, cardWidth - 10, &clip);
-            const auto footer = item["favorite"] == true ? "Favorite" : item["body_type"].is_null() ? "Unclassified" : categoryName(item["body_type"].get<int64_t>());
+            const auto footer = (item["favorite"] == true ? std::string("Favorite") : item["body_type"].is_null() ? std::string("Unclassified") : categoryName(item["body_type"].get<int64_t>()))+
+                (item.contains("swatch_count")?" / "+ui::Scalar(item,"swatch_count")+" swatches":"");
             const ImVec4 footerClip(at.x + 5, at.y + cardHeight-19, at.x + cardWidth - 5, at.y + cardHeight);
             draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + 5, at.y + cardHeight-18), IM_COL32(94, 195, 177, 255), footer.c_str(), nullptr, 0, &footerClip);
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
@@ -2419,7 +2590,36 @@ static void DrawLiveLibrary() {
     const auto& item = inspection["item"]; const auto& row = inspection["resource"];
     const auto name = resource::Name(row, static_cast<resource::NameMode>(std::clamp(g_itemNameMode, 0, 2)));
     ImGui::SeparatorText(name.text.empty() ? "Selected item" : name.text.c_str());
-    bool favorite = false;
+    if(inspection.contains("swatches")&&library::Swatches(inspection["swatches"],item)) {
+        const auto& swatches=inspection["swatches"];
+        ImGui::TextDisabled("%s swatches / choose a color variant",ui::Scalar(swatches,"total").c_str());
+        ImGui::BeginChild("catalog-swatches",ImVec2(0,80),true);
+        int n=0;const float width=std::max(1.f,ImGui::GetContentRegionAvail().x);
+        for(const auto& variant:swatches["items"]) {
+            const auto id=ui::Scalar(variant,"part_id");const auto& colors=variant["metadata"]["swatch_colors_argb"];
+            if(n++&&ImGui::GetCursorPosX()+28<width)ImGui::SameLine();ImGui::PushID(id.c_str());
+            const auto at=ImGui::GetCursorScreenPos();
+            ImGui::BeginDisabled(g_libraryBusy.load());
+            if(ImGui::Selectable("##swatch",id==g_librarySelected,0,ImVec2(24,24))) {
+                g_librarySelected=id;++g_resourceSelectionSerial;g_resourceRequestedImage.clear();
+                QueueLibrary(5,{{"part_id",id},{"index_sha256",page["index_sha256"]}});
+            }
+            ImGui::EndDisabled();
+            auto* draw=ImGui::GetWindowDrawList();
+            if(colors.empty())draw->AddText(ImVec2(at.x+6,at.y+3),IM_COL32(190,205,220,255),"?");
+            else for(size_t c=0;c<colors.size();++c){const auto argb=colors[c].get<uint32_t>();
+                const auto rgba=IM_COL32((argb>>16)&255,(argb>>8)&255,argb&255,(argb>>24)&255);
+                draw->AddRectFilled(ImVec2(at.x+2+20.f*c/colors.size(),at.y+2),ImVec2(at.x+2+20.f*(c+1)/colors.size(),at.y+22),rgba);}
+            if(ImGui::IsItemHovered())ImGui::SetTooltip("%s\n%s\nSwatch %s / %s source candidates",ui::Scalar(variant,"preferred_name").c_str(),ui::Scalar(variant,"package_name").c_str(),ui::Scalar(variant["metadata"],"swatch_order").c_str(),ui::Scalar(variant,"container_count").c_str());
+            ImGui::PopID();
+        }
+        ImGui::EndChild();
+        ImGui::BeginDisabled(g_libraryBusy.load());
+        if(swatches["offset"]>0&&ImGui::SmallButton("Previous swatches"))QueueLibrary(5,{{"part_id",g_librarySelected},{"index_sha256",page["index_sha256"]},{"swatch_offset",std::max(0,swatches["offset"].get<int>()-120)}});
+        if(!swatches["next_offset"].is_null()){ImGui::SameLine();if(ImGui::SmallButton("More swatches"))QueueLibrary(5,{{"part_id",g_librarySelected},{"index_sha256",page["index_sha256"]},{"swatch_offset",swatches["next_offset"]}});}
+        ImGui::EndDisabled();
+    }
+    bool favorite = item.value("favorite",false);
     for (const auto& candidate : items) if (candidate["part_id"] == g_librarySelected) favorite = candidate["favorite"].get<bool>();
     ImGui::BeginDisabled(g_libraryBusy.load());
     if (ImGui::Checkbox("Favorite##selected-catalog", &favorite)) {
@@ -2433,7 +2633,14 @@ static void DrawLiveLibrary() {
         { std::lock_guard<std::mutex> lock(g_dataMutex); if (g_resourceImageKey == key) { width = g_resourcePixels.width; height = g_resourcePixels.height; } }
         if (ResourceTexture(key)) { const float scale = std::min(1.f, 128.f / static_cast<float>(std::max(width, height))); ImGui::Image(reinterpret_cast<ImTextureID>(g_resourceTexture), ImVec2(width * scale, height * scale)); }
         else ImGui::TextDisabled("Loading verified thumbnail...");
-    } else ImGui::TextWrapped("Thumbnail unavailable: %s", ui::Scalar(row["thumbnail"], "reason").c_str());
+    } else {
+        const auto found=g_libraryImageTextures.find(g_librarySelected);
+        if(found!=g_libraryImageTextures.end()){ImGui::Image(reinterpret_cast<ImTextureID>(found->second),ImVec2(128,128));ImGui::TextDisabled("Rendered actual item / preview Sim");}
+        else ImGui::TextWrapped("Thumbnail unavailable: %s", ui::Scalar(row["thumbnail"], "reason").c_str());
+        ImGui::BeginDisabled(g_thumbnailBusy||g_simPreviewBusy||g_simPreview.scene.id.empty()||g_trayPreviewActive);
+        if(ImGui::Button("Render this item's thumbnail"))QueueThumbnail(item);
+        ImGui::EndDisabled();
+    }
     ImGui::BeginDisabled(row["studio_open"]["status"] != "ready" || g_resourceOpenBusy.load());
     if (ImGui::Button("Open package copy in Sims 4 Studio##library")) QueueResource(3, row);
     ImGui::EndDisabled();
@@ -2832,14 +3039,36 @@ static void DrawNativeCas(const std::string& reply, ULONGLONG replyMs, bool hist
 }
 
 static std::string SimPreviewContext() {
-    const auto& outfits=ViewedStudioOutfits();
+    const auto& outfits=ViewedPreviewOutfits();
     const auto forms=g_studioData.find("form_inventory");
     if(forms==g_studioData.end()||forms->empty()||g_studioFormIndex<0||g_studioFormIndex>=int(forms->size())||
        (*forms)[size_t(g_studioFormIndex)]["flags"]!=g_studioData.value("inspected_form_flags",ui::Json()))return {};
     if(outfits.empty()||g_studioOutfitIndex<0||g_studioOutfitIndex>=int(outfits.size()))return {};
-    return ui::Scalar(g_studioData,"history_lane")+":"+ui::Scalar(g_studioData,"appearance_sha256")+":"+
+    auto context=ui::Scalar(g_studioData,"history_lane")+":"+ui::Scalar(g_studioData,"appearance_sha256")+":"+
         ui::Scalar(g_studioData,"inspected_form_flags")+":"+ui::Scalar(outfits[size_t(g_studioOutfitIndex)],"outfit_id")+":"+
-        ui::Scalar(outfits[size_t(g_studioOutfitIndex)],"index")+":"+ui::Scalar(g_studioData,"pending_preview");
+        ui::Scalar(outfits[size_t(g_studioOutfitIndex)],"index")+":"+ui::Scalar(g_studioData,"pending_preview")+":"+ui::Scalar(g_studioData,"visual_form");
+    if(g_trayPreviewActive){try{const auto r=tray::Request(g_trayPreviewForms,g_trayPreviewFormIndex,g_trayPreviewOutfitIndex);
+        context+=":tray:"+ui::Scalar(r,"sim_id")+":"+ui::Scalar(r,"form")+":"+ui::Scalar(r,"render_sha256")+":"+ui::Scalar(r,"outfit_id")+":"+ui::Scalar(r,"outfit_index");}catch(...){return {};}}
+    return context;
+}
+
+static bool QueueTrayPreview(bool dataLocked=false) {
+    const auto context=SimPreviewContext();if(context.empty())return false;
+    const auto r=tray::Request(g_trayPreviewForms,g_trayPreviewFormIndex,g_trayPreviewOutfitIndex);
+    std::unique_lock<std::mutex> lock(g_dataMutex,std::defer_lock);if(!dataLocked)lock.lock();if(g_simPreviewBusy||g_commands.size()>=48||context!=g_simPreviewContext)return false;
+    QueuedCommand command{"",g_selectionGeneration};command.sim=g_selectedSim;command.simPreview=true;
+    command.resourceRow={{"context",context},{"tray_request",r}};g_commands.push_back(std::move(command));
+    g_simPreviewBusy=true;g_simPreviewAttemptedContext=context;g_simPreviewStatus="Assembling the exact Tray form in memory...";return true;
+}
+
+static bool QueueTrayClipboard() {
+    if(!g_trayPreviewActive||g_trayClipboardBusy||g_ownerBlocked||g_ownerSubmissionBusy||g_simPreviewBusy)return false;
+    const auto r=tray::Request(g_trayPreviewForms,g_trayPreviewFormIndex,g_trayPreviewOutfitIndex);
+    auto label=ui::Scalar(g_trayPreviewForms[size_t(g_trayPreviewFormIndex)],"name")+" / Tray / "+tray::FormName(r["form"].get<unsigned>());
+    if(label.size()>256)label=ui::Scalar(r,"sim_id")+" / Tray / "+tray::FormName(r["form"].get<unsigned>());
+    std::lock_guard<std::mutex> lock(g_dataMutex);if(g_commands.size()>=48)return false;
+    QueuedCommand command{"",g_selectionGeneration};command.sim=g_selectedSim;command.trayClipboard=true;
+    command.resourceRow={{"tray_request",r},{"label",label},{"target_form",g_studioData.at("inspected_form_flags")}};g_commands.push_back(std::move(command));g_trayClipboardResult=ui::Json::object();g_trayClipboardBusy=true;return true;
 }
 
 // Process a completed scene even when its compact tab is not selected. GPU
@@ -2857,18 +3086,33 @@ static void SynchronizeSimPreview() {
 }
 
 static void DrawIndependentSimPreview() {
-    const auto& outfits=ViewedStudioOutfits();
+    const auto& outfits=ViewedPreviewOutfits();
     const auto form=ui::Scalar(g_studioData,"inspected_form_flags");
     const auto lane=ui::Scalar(g_studioData,"history_lane"),appearance=ui::Scalar(g_studioData,"appearance_sha256");
     const auto context=SimPreviewContext();
     std::string status;
     {std::lock_guard<std::mutex> lock(g_dataMutex);status=g_simPreviewStatus;}
     ImGui::TextColored(ImVec4(.45f,.95f,.85f,1),"SIM / INDEPENDENT 3D");
-    const bool blocked=g_simPreviewBusy||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy;
+    const bool blocked=g_simPreviewBusy||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy||g_trayClipboardBusy;
+    if(g_trayPreviewActive){
+        ImGui::TextWrapped("TRAY SOURCE: %s. Destination stays the Sim / form selected above.",ui::Scalar(g_trayPreviewForms[size_t(g_trayPreviewFormIndex)],"name").c_str());
+        ImGui::BeginDisabled(blocked);
+        if(ImGui::Button("Return to destination")){g_trayPreviewActive=false;g_simPreviewAttemptedContext.clear();}
+        if(g_trayPreviewActive){
+            for(size_t i=0;i<g_trayPreviewForms.size();++i){if(i)ImGui::SameLine();const auto label=tray::FormName(g_trayPreviewForms[i]["request"]["form"].get<unsigned>())+"##tray-form"+std::to_string(i);
+                if(ImGui::Button(label.c_str())){g_trayPreviewFormIndex=int(i);g_trayPreviewOutfitIndex=0;}}
+            const auto& sourceOutfits=g_trayPreviewForms[size_t(g_trayPreviewFormIndex)]["outfits"];
+            const auto outfitLabel="Category "+ui::Scalar(sourceOutfits[size_t(g_trayPreviewOutfitIndex)],"category")+" / "+ui::Scalar(sourceOutfits[size_t(g_trayPreviewOutfitIndex)],"number");
+            if(ImGui::BeginCombo("Tray source outfit",outfitLabel.c_str())){for(size_t i=0;i<sourceOutfits.size();++i){const auto text="Category "+ui::Scalar(sourceOutfits[i],"category")+" / "+ui::Scalar(sourceOutfits[i],"number")+"##tray-outfit"+std::to_string(i);
+                if(ImGui::Selectable(text.c_str(),int(i)==g_trayPreviewOutfitIndex))g_trayPreviewOutfitIndex=int(i);}ImGui::EndCombo();}
+            if(ImGui::Button("Copy displayed Tray form"))QueueTrayClipboard();
+        }ImGui::EndDisabled();
+    }
     ImGui::BeginDisabled(context.empty()||blocked);
     const bool refresh=ImGui::Button("Refresh 3D preview");
     ImGui::EndDisabled();ImGui::SameLine();ImGui::Checkbox("Auto",&g_simPreviewAutomatic);
     if(!context.empty()&&!blocked&&(refresh||(context!=g_simPreviewAttemptedContext&&g_simPreviewAutomatic))){
+        if(g_trayPreviewActive)QueueTrayPreview();else{
         const auto& outfit=outfits[size_t(g_studioOutfitIndex)];
         ui::Json value={{"lane",lane},{"appearance_sha256",appearance},{"outfit_index",outfit["index"]},{"outfit_id",outfit["outfit_id"]}};
         const auto pending=ui::Scalar(g_studioData,"pending_preview");if(!pending.empty())value["preview_id"]=pending;
@@ -2876,6 +3120,7 @@ static void DrawIndependentSimPreview() {
         std::lock_guard<std::mutex> lock(g_dataMutex);
         if(g_commands.size()<48){QueuedCommand command{"/api/command?action=studio_preview_snapshot&sim_id="+UrlEncode(g_selectedSim)+"&value="+UrlEncode(envelope.dump()),g_selectionGeneration};
             command.sim=g_selectedSim;command.simPreview=true;command.resourceRow={{"context",context}};g_commands.push_back(std::move(command));g_simPreviewBusy=true;g_simPreviewAttemptedContext=context;g_simPreviewStatus="Reading the exact selected appearance...";}
+        }
     }
     if(!g_simPreview.Texture()&&g_simPreview.scene.id.empty()){ImGui::TextWrapped("%s",status.c_str());return;}
     auto& view=g_simPreview.view;
@@ -2996,6 +3241,116 @@ static void DrawAppearanceSliders() {
     ImGui::EndDisabled();
 }
 
+static void DrawAppearanceTransfer() {
+    if(!ImGui::CollapsingHeader("Copy / paste appearance · any Sim / any form"))return;
+    const bool pending=!ui::Scalar(g_studioData,"pending_preview").empty();
+    ImGui::BeginDisabled(g_ownerBlocked||g_ownerSubmissionBusy||g_casSubmissionBusy||g_simPreviewBusy);
+    if(ImGui::Button("Copy this form appearance"))QueueStudioAction("studio_copy_appearance");
+    ImGui::EndDisabled();
+    if(g_appearanceClipboard.empty()){ImGui::TextDisabled("Copy a form, or import a Tray appearance through the CLI.");return;}
+    const auto& source=g_appearanceClipboard.at("source");
+    ImGui::TextWrapped("Source: %s / form %s. Paste affects only the selected destination form.",ui::Scalar(source,"label").c_str(),ui::Scalar(source,"form").c_str());
+    static int preset=1;const char* presets[]={"Whole appearance","One outfit","Skin details","Tattoos","Choose fields / categories"};
+    if(ImGui::Combo("Paste selection",&preset,presets,5)){
+        g_pasteFields.clear();g_pasteBodies.clear();g_pasteScope=preset==0?2:1;
+        if(preset==0)for(const auto& name:g_clipboardFields)if(name!="__outfits__")g_pasteFields.insert(name.get<std::string>());
+        if(preset==2){g_pasteFields={"skin_tone","skin_tone_val_shift"};}
+        if(preset==3){g_pasteFields={"parts_custom_tattoos"};}
+        if(preset==2||preset==3)for(const auto& row:g_studioData.value("category_catalog",ui::Json::array())){
+            const auto key=ui::Scalar(row,"key");if(key.find(preset==2?"SKINDETAIL":"TATTOO")!=std::string::npos)g_pasteBodies.insert(row["body_type"].get<int>());
+        }
+    }
+    const char* scopes[]={"No outfit parts","One numbered outfit","All source outfits / preserve destination extras"};
+    ImGui::Combo("Outfit scope",&g_pasteScope,scopes,3);if(g_pasteScope!=1)g_pasteBodies.clear();
+    if(g_pasteScope==1&&!g_clipboardOutfits.empty()){
+        g_pasteSourceOutfit=std::clamp(g_pasteSourceOutfit,0,int(g_clipboardOutfits.size())-1);
+        const auto& selected=g_clipboardOutfits[size_t(g_pasteSourceOutfit)];
+        const auto label=ui::Scalar(selected,"category_name")+" "+ui::Scalar(selected,"number");
+        if(ImGui::BeginCombo("Source outfit",label.c_str())){for(size_t i=0;i<g_clipboardOutfits.size();i++){
+            const auto& row=g_clipboardOutfits[i];const auto text=ui::Scalar(row,"category_name")+" "+ui::Scalar(row,"number")+"##"+std::to_string(i);
+            if(ImGui::Selectable(text.c_str(),int(i)==g_pasteSourceOutfit))g_pasteSourceOutfit=int(i);
+        }ImGui::EndCombo();}
+        ImGui::TextDisabled("Destination: the form/outfit selected above. Empty selected source categories remove only those slots.");
+    }
+    if(ImGui::TreeNode("Choose captured appearance fields")){
+        for(const auto& field:g_clipboardFields){const auto name=field.get<std::string>();if(name=="__outfits__")continue;
+            bool selected=g_pasteFields.count(name)>0;auto label=name;std::replace(label.begin(),label.end(),'_',' ');
+            if(ImGui::Checkbox(label.c_str(),&selected)){if(selected)g_pasteFields.insert(name);else g_pasteFields.erase(name);}
+        }ImGui::TreePop();
+    }
+    if(g_pasteScope==1&&ImGui::TreeNode("Choose any CAS categories · empty selection means whole outfit")){
+        for(const auto& row:g_studioData.value("category_catalog",ui::Json::array())){
+            const int body=row["body_type"].get<int>();bool selected=g_pasteBodies.count(body)>0;
+            const auto label=ui::Scalar(row,"label")+"##paste-body-"+std::to_string(body);
+            if(ImGui::Checkbox(label.c_str(),&selected)){if(selected)g_pasteBodies.insert(body);else g_pasteBodies.erase(body);}
+        }ImGui::TreePop();
+    }
+    ImGui::BeginDisabled(pending||g_ownerBlocked||g_ownerSubmissionBusy||g_casSubmissionBusy||g_simPreviewBusy||(g_pasteScope==0&&g_pasteFields.empty()));
+    if(ImGui::Button(g_livePartColor?"Paste selected fields now":"Try on selected fields")){
+        ui::Json selection={{"fields",g_pasteFields},{"outfits",g_pasteScope==0?"none":g_pasteScope==1?"one":"all"},
+            {"source_outfit",g_pasteSourceOutfit},{"target_outfit",g_studioOutfitIndex},{"body_types",g_pasteBodies}};
+        ui::Json request={{"clipboard_id",g_appearanceClipboard["id"]},{"clipboard_sha256",g_appearanceClipboard["sha256"]},
+            {"selection",selection},{"lane",g_studioData["history_lane"]},{"appearance_sha256",g_studioData["appearance_sha256"]}};
+        const auto raw=request.dump();QueueStudioAction(g_livePartColor?"studio_paste_live":"studio_paste_preview",nullptr,raw.c_str());
+    }
+    ImGui::EndDisabled();
+    ImGui::TextDisabled("Identity, household, traits, occult powers and progression are preserved. Journal Apply / Discard / Undo retain the destination preimage.");
+}
+
+static void DrawTrayGallery() {
+    ui::Json page,inspection;std::string status;
+    {std::lock_guard<std::mutex> lock(g_dataMutex);page=g_galleryPage;inspection=g_galleryInspection;status=g_galleryStatus;}
+    ImGui::SetNextItemWidth(-1);
+    if(ImGui::InputTextWithHint("##tray-search","Search household / lot / room names and creators",g_gallerySearch,sizeof(g_gallerySearch),ImGuiInputTextFlags_EnterReturnsTrue)||ImGui::IsItemDeactivatedAfterEdit()){g_galleryOffset=0;g_galleryQueryNeeded=true;}
+    ImGui::SetNextItemWidth(150);if(ImGui::Combo("Type##tray",&g_galleryKind,"All items\0Households\0Lots\0Rooms\0")){g_galleryOffset=0;g_galleryQueryNeeded=true;}
+    ImGui::SameLine();if(ImGui::SmallButton("Refresh Tray"))g_galleryQueryNeeded=true;
+    const ui::Json query={{"text",g_gallerySearch},{"kind",std::array<const char*,4>{"all","household","lot","room"}[std::clamp(g_galleryKind,0,3)]},{"offset",g_galleryOffset},{"limit",60}};
+    if(g_galleryQueryNeeded&&!g_galleryBusy&&QueueGallery(8,query))g_galleryQueryNeeded=false;
+    ImGui::TextWrapped("%s",status.c_str());
+    if(!tray::Page(page,query)){ImGui::TextDisabled("Start live-cas-catalog serve with --tray-root pointing to your Tray library.");return;}
+    ImGui::TextDisabled("%s native library items / files read in place",ui::Scalar(page,"total").c_str());
+    ImGui::BeginDisabled(g_galleryBusy);
+    if(g_galleryOffset&&ImGui::SmallButton("Previous##tray")){g_galleryOffset=g_galleryOffset>=60?g_galleryOffset-60:0;g_galleryQueryNeeded=true;}
+    if(!page["next_offset"].is_null()){ImGui::SameLine();if(ImGui::SmallButton("Next##tray")){g_galleryOffset=page["next_offset"].get<size_t>();g_galleryQueryNeeded=true;}}
+    ImGui::EndDisabled();
+    const auto context=ui::Scalar(page,"library_sha256")+query.dump();
+    if(context!=g_galleryImageContext){g_galleryTextures.clear();g_gallerySizes.clear();g_galleryImageAttempted.clear();g_galleryImageContext=context;}
+    std::map<std::string,resource::Pixels> pixels;{std::lock_guard<std::mutex> lock(g_dataMutex);pixels.swap(g_galleryPixels);}
+    for(const auto& entry:pixels){const auto& p=entry.second;if(!g_device||!p.width||p.rgba.size()!=size_t(p.width)*p.height*4||g_galleryTextures.size()>=60)continue;
+        D3D11_TEXTURE2D_DESC d{};d.Width=p.width;d.Height=p.height;d.MipLevels=d.ArraySize=d.SampleDesc.Count=1;d.Format=DXGI_FORMAT_R8G8B8A8_UNORM;d.Usage=D3D11_USAGE_IMMUTABLE;d.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+        D3D11_SUBRESOURCE_DATA data{p.rgba.data(),p.width*4,0};Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> view;
+        if(SUCCEEDED(g_device->CreateTexture2D(&d,&data,&texture))&&SUCCEEDED(g_device->CreateShaderResourceView(texture.Get(),nullptr,&view))){g_galleryTextures[entry.first]=view;g_gallerySizes[entry.first]=ImVec2(float(p.width),float(p.height));}}
+    ImGui::BeginChild("tray-gallery-cards",ImVec2(0,260),true);
+    const float width=std::max(70.f,(ImGui::GetContentRegionAvail().x-16)/3),height=width*.67f+60;
+    ImGuiListClipper clipper;clipper.Begin(int((page["items"].size()+2)/3),height+ImGui::GetStyle().ItemSpacing.y);
+    while(clipper.Step())for(int line=clipper.DisplayStart;line<clipper.DisplayEnd;++line)for(int column=0;column<3;++column){const auto n=size_t(line*3+column);if(n>=page["items"].size())break;
+        if(column)ImGui::SameLine();const auto& item=page["items"][n];const auto id=ui::Scalar(item,"item_id");ImGui::PushID(id.c_str());const auto at=ImGui::GetCursorScreenPos();
+        ImGui::BeginDisabled(g_galleryBusy||item["status"]!="ready"||item["kind"]!="household"||!ui::Scalar(g_studioData,"pending_preview").empty());
+        if(ImGui::Selectable("##tray-card",id==g_gallerySelected,0,ImVec2(width,height))){
+            g_gallerySelected=id;g_gallerySimIndex=0;
+            QueueGallery(9,{{"item_id",id},{"library_sha256",page["library_sha256"]},{"context",{{"runtime_pid",GetCurrentProcessId()},{"history_lane",g_studioData["history_lane"]}}}});}
+        ImGui::EndDisabled();auto* draw=ImGui::GetWindowDrawList();const auto found=g_galleryTextures.find(id);
+        if(found!=g_galleryTextures.end()){const auto size=g_gallerySizes.at(id);const float scale=std::min((width-8)/size.x,(height-60)/size.y);draw->AddImage(reinterpret_cast<ImTextureID>(found->second.Get()),ImVec2(at.x+4,at.y+4),ImVec2(at.x+4+size.x*scale,at.y+4+size.y*scale));}
+        else draw->AddText(ImVec2(at.x+6,at.y+15),IM_COL32(135,157,180,255),"Native Tray portrait");
+        const auto label=ui::Scalar(item,"name"),creator=ui::Scalar(item,"creator");draw->PushClipRect(at,ImVec2(at.x+width,at.y+height),true);draw->AddText(ImVec2(at.x+5,at.y+height-52),IM_COL32(225,236,246,255),label.c_str());
+        draw->AddText(ImVec2(at.x+5,at.y+height-31),IM_COL32(135,174,195,255),(creator+" / "+ui::Scalar(item,"kind")).c_str());draw->PopClipRect();
+        if(ImGui::IsItemHovered())ImGui::SetTooltip("%s\n%s\n%s files / %s Sims\n%s",label.c_str(),creator.c_str(),ui::Scalar(item,"file_count").c_str(),ui::Scalar(item,"sim_count").c_str(),ui::Scalar(item,"description").c_str());
+        if(item["image_count"]>0&&!g_galleryImageAttempted.count(id)&&!g_galleryImageBusy&&!g_galleryBusy&&QueueGallery(10,{{"item_id",id},{"library_sha256",page["library_sha256"]},{"image_index",0}}))g_galleryImageAttempted.insert(id);
+        ImGui::PopID();}
+    ImGui::EndChild();
+    if(inspection.value("item_id",ui::Json())!=g_gallerySelected||inspection.value("library_sha256",ui::Json())!=page["library_sha256"]||!inspection.contains("preview_sims"))return;
+    const auto& sims=inspection["preview_sims"];g_gallerySimIndex=std::clamp(g_gallerySimIndex,0,int(sims.size())-1);
+    if(ImGui::BeginCombo("Source Sim",ui::Scalar(sims[size_t(g_gallerySimIndex)],"name").c_str())){for(size_t i=0;i<sims.size();++i)if(ImGui::Selectable((ui::Scalar(sims[i],"name")+"##"+ui::Scalar(sims[i],"sim_id")).c_str(),i==size_t(g_gallerySimIndex)))g_gallerySimIndex=int(i);ImGui::EndCombo();}
+    const auto& sim=sims[size_t(g_gallerySimIndex)];
+    ImGui::BeginDisabled(g_simPreviewBusy||g_ownerBlocked||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy||!ui::Scalar(g_studioData,"pending_preview").empty());
+    if(ImGui::Button("View this Tray Sim in 3D")){const auto lane=ui::Scalar(g_studioData,"history_lane");
+        if(tray::Forms(sim["forms"],GetCurrentProcessId(),lane.substr(0,lane.find(':')))){
+            g_previewId[0]=0;g_trayPreviewForms=sim["forms"];g_trayPreviewFormIndex=g_trayPreviewOutfitIndex=0;g_trayPreviewActive=true;g_trayClipboardResult=ui::Json::object();
+            g_simPreviewAutomatic=true;g_simPreviewFocusRequested=true;g_simPreviewContext=SimPreviewContext();g_simPreviewAttemptedContext.clear();QueueTrayPreview();}}
+    ImGui::EndDisabled();
+    ImGui::TextWrapped("Preview switches only the library source. Copy displayed form, then choose the destination occult and selected paste fields below. Native group import/export is available through the Tray CLI.");
+}
+
 static void DrawStudioTab(const std::string& reply, ULONGLONG replyMs, bool history) {
     ImGui::BeginDisabled(g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() || g_ownerSubmissionBusy.load() || g_casSubmissionBusy.load() || g_casPendingId[0] || g_casBankBusy.load());
     bool requestedNativeView = g_nativeCasView;
@@ -3068,10 +3423,23 @@ static void DrawStudioTab(const std::string& reply, ULONGLONG replyMs, bool hist
         if (ImGui::BeginTabItem("EA + CC library", nullptr, (g_libraryFocusRequested||g_workspaceFocusRequested==1) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)) {
             g_libraryFocusRequested = false;if(g_workspaceFocusRequested==1)g_workspaceFocusRequested=-1; DrawLiveLibrary(); ImGui::EndTabItem();
         }
+        if(ImGui::BeginTabItem("Tray gallery",nullptr,g_workspaceFocusRequested==3?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None)){if(g_workspaceFocusRequested==3)g_workspaceFocusRequested=-1;DrawTrayGallery();ImGui::EndTabItem();}
         if(ImGui::BeginTabItem("Face / body sliders",nullptr,g_workspaceFocusRequested==2?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None)){if(g_workspaceFocusRequested==2)g_workspaceFocusRequested=-1;DrawAppearanceSliders();ImGui::EndTabItem();}
         ImGui::EndTabBar();
     }
     const auto forms = g_studioData.find("form_inventory");
+    if(!history){
+        if(ui::Scalar(g_studioData,"inspected_form_flags")=="32"&&ImGui::CollapsingHeader("Werewolf appearance · EA or Human / CC")){
+            bool human=g_studioData.value("werewolf_appearance_style",std::string("ea"))=="human_cc";
+            ImGui::BeginDisabled(!ui::Scalar(g_studioData,"pending_preview").empty()||g_ownerBlocked||g_ownerSubmissionBusy||g_casSubmissionBusy||g_simPreviewBusy);
+            if(ImGui::Checkbox("Human / personal CC look",&human)){QueueAction(human?"werewolf_human_on":"werewolf_human_off");QueueStudioAction("studio_status");}
+            ImGui::BeginDisabled(human);
+            if(ImGui::Button("Try EA-generated Werewolf defaults"))QueueStudioAction("studio_werewolf_ea_preview");
+            ImGui::EndDisabled();ImGui::EndDisabled();
+            ImGui::TextWrapped("Both looks retain their own edits. EA defaults are a try-on with Apply / Discard / Undo. Werewolf membership and progression stay intact.");
+        }
+        DrawAppearanceTransfer();
+    }
     if (forms != g_studioData.end() && !forms->empty() && ImGui::CollapsingHeader("All captured appearance fields / preset results")) {
         const auto& form = (*forms)[static_cast<size_t>(g_studioFormIndex)];
         for (const auto& field : form["appearance_fields"]) {
@@ -3633,7 +4001,36 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
     try{
         if(!raw||strnlen_s(raw,ui::kMaxOwnerJsonBytes+1)>ui::kMaxOwnerJsonBytes)throw std::runtime_error("Bounded preview control required.");
         const auto request=ui::ParseObject(raw);const auto operation=ui::Scalar(request,"operation");
-        if(operation=="load"){
+        if(operation=="tray"){
+            if(request.size()!=5||!g_hooked||g_simPreviewBusy||g_trayClipboardBusy||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy||g_casPendingId[0]||g_commands.size()>=48)throw std::runtime_error("Resolve the current owner before previewing a Tray source.");
+            const auto& selection=request.at("selection");
+            if(!ui::StudioDocument(selection)||!ui::Scalar(selection,"pending_preview").empty()||selection.at("runtime_pid")!=GetCurrentProcessId())throw std::runtime_error("Fresh idle destination selection required.");
+            const auto lane=ui::Scalar(selection,"history_lane"),guid=lane.substr(0,lane.find(':'));
+            const auto sim=tray::DestinationSim(selection);
+            if(!ui::ExactUint64Identity(ui::Json(sim))||!tray::Forms(request.at("forms"),GetCurrentProcessId(),guid)||!ui::CasInt(request.at("form"),1,64)||!ui::CasInt(request.at("outfit_index"),0,1023))throw std::runtime_error("Exact represented Tray source and destination required.");
+            int formIndex=-1,targetIndex=-1;const auto& rows=request.at("forms");
+            for(size_t i=0;i<rows.size();++i)if(rows[i]["request"]["form"]==request["form"])formIndex=int(i);
+            const int outfitIndex=request["outfit_index"].get<int>();const auto source=tray::Request(rows,formIndex,outfitIndex);
+            const auto& targetForms=selection["form_inventory"];
+            for(size_t i=0;i<targetForms.size();++i)if(targetForms[i]["flags"]==selection["inspected_form_flags"])targetIndex=int(i);
+            if(targetIndex<0||targetForms[size_t(targetIndex)]["outfit_inventory"].empty())throw std::runtime_error("Destination appearance owner has no outfit.");
+            g_selectedSim=sim;++g_selectionGeneration;g_studioData=selection;g_studioFormIndex=targetIndex;g_studioOutfitIndex=0;g_studioPartIndex=0;
+            g_trayPreviewForms=rows;g_trayPreviewFormIndex=formIndex;g_trayPreviewOutfitIndex=outfitIndex;g_trayPreviewActive=true;
+            g_previewId[0]=0;
+            g_trayClipboardResult=ui::Json::object();
+            g_studioLastReply.clear();g_commandReply="{}";g_commandReplyMs=0;g_nativeCasView=false;g_activeTab=12;g_visible=true;g_simPreviewAutomatic=true;
+            g_simPreviewContext=SimPreviewContext();g_simPreviewAttemptedContext=g_simPreviewContext;
+            if(!g_simPreview.scene.id.empty()){g_simPreviewSavedView=g_simPreview.view;g_simPreviewSavedSim=g_simPreview.scene.sim;}
+            g_simPreview.Reset();g_simPreviewScene.reset();g_simPreviewFocusRequested=true;
+            QueuedCommand command{"",g_selectionGeneration};command.sim=sim;command.simPreview=true;command.resourceRow={{"context",g_simPreviewContext},{"tray_request",source}};
+            g_commands.push_back(std::move(command));g_simPreviewBusy=true;g_simPreviewStatus="Loading the selected Tray form without importing a Sim...";
+        }else if(operation=="tray-copy"){
+            if(request.size()!=3||!g_trayPreviewActive||g_simPreviewBusy||g_trayClipboardBusy||g_ownerSubmissionBusy||g_ownerBlocked||g_casSubmissionBusy||g_casBankBusy||g_commands.size()>=48)throw std::runtime_error("Resolve the current preview/owner before copying its exact Tray form.");
+            const auto r=tray::Request(g_trayPreviewForms,g_trayPreviewFormIndex,g_trayPreviewOutfitIndex);
+            if(request.at("form")!=r.at("form")||request.at("native_sha256")!=r.at("native_sha256"))throw std::runtime_error("Displayed Tray form differs from copy intent.");
+            QueuedCommand command{"",g_selectionGeneration};command.sim=g_selectedSim;command.trayClipboard=true;command.resourceRow={{"tray_request",r},{"label",ui::Scalar(r,"sim_id")+" / Tray / "+tray::FormName(r["form"].get<unsigned>())},{"target_form",g_studioData.at("inspected_form_flags")}};
+            g_commands.push_back(std::move(command));g_trayClipboardResult=ui::Json::object();g_trayClipboardBusy=true;
+        }else if(operation=="load"){
             if(request.size()!=4||g_simPreviewBusy||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy||g_casPendingId[0])throw std::runtime_error("Another owner operation is unresolved or preview fields differ.");
             const auto& job=request.at("job");const auto& selection=request.at("selection");
             if(!g_hooked||!job.value("ok",false)||ui::Scalar(job,"state")!="ready"||!resource::Hex(ui::Scalar(job,"request_id"),64)||
@@ -3646,12 +4043,14 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
             if(lane.find(":"+sim+":"+ui::Scalar(job,"form")+":")==std::string::npos)throw std::runtime_error("Preview lane belongs to another Sim.");
             int formIndex=-1,outfitIndex=-1;const auto& forms=selection.at("form_inventory");
             for(size_t i=0;i<forms.size();i++)if(forms[i].at("flags")==job.at("form")){
-                formIndex=int(i);const auto& outfits=forms[i].at("outfit_inventory");
+                formIndex=int(i);const auto& outfits=!ui::Scalar(selection,"pending_preview").empty()&&selection.contains("preview_outfit_inventory")&&selection["preview_outfit_inventory"].is_array()?selection.at("preview_outfit_inventory"):forms[i].at("outfit_inventory");
                 for(size_t k=0;k<outfits.size();k++)if(outfits[k].at("outfit_id")==job.at("outfit_id")&&outfits[k].at("index")==job.at("outfit_index"))outfitIndex=int(k);
             }
             if(formIndex<0||outfitIndex<0||g_commands.size()>=48)throw std::runtime_error("Exact preview form/outfit is unavailable.");
             if(!request.at("automatic").is_boolean())throw std::runtime_error("Boolean automatic preview flag required.");
+            g_trayPreviewActive=false;
             g_selectedSim=sim;++g_selectionGeneration;g_studioData=selection;g_studioFormIndex=formIndex;g_studioOutfitIndex=outfitIndex;g_studioPartIndex=0;
+            strncpy_s(g_previewId,ui::Scalar(selection,"pending_preview").c_str(),_TRUNCATE);
             g_studioLastReply.clear();g_commandReply="{}";g_commandReplyMs=0;g_nativeCasView=false;g_activeTab=12;g_visible=true;
             g_simPreviewContext=SimPreviewContext();g_simPreviewAttemptedContext=g_simPreviewContext;g_simPreviewAutomatic=request.at("automatic").get<bool>();
             if(!g_simPreview.scene.id.empty()){g_simPreviewSavedView=g_simPreview.view;g_simPreviewSavedSim=g_simPreview.scene.sim;}
@@ -3661,6 +4060,31 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
         }else if(operation=="mode"){
             if(request.size()!=2||!request.contains("apply_mode")||(request["apply_mode"]!="live"&&request["apply_mode"]!="preview")||g_previewId[0])throw std::runtime_error("Resolve the current try-on before selecting a typed apply mode.");
             g_livePartColor=request["apply_mode"]=="live";
+        }else if(operation=="library-select"){
+            auto selection=request;selection.erase("operation");
+            if(g_libraryPage.value("query",ui::Json())!=CurrentLibraryQuery()||!library::VisibleSelection(g_libraryPage,g_libraryInspection,selection)||!QueueLibrary(5,selection,true))throw std::runtime_error("Select an exact visible item or its currently inspected swatch; wait for the current library request.");
+            g_workspaceFocusRequested=1;g_activeTab=12;g_visible=true;
+        }else if(operation=="thumbnail"){
+            if(request.size()!=3||!resource::Hash(request,"part_id")||request.value("index_sha256",ui::Json())!=g_libraryPage.value("index_sha256",ui::Json()))throw std::runtime_error("Exact current catalog thumbnail selection required.");
+            ui::Json item;if(g_libraryInspection.value("index_sha256",ui::Json())==request["index_sha256"]&&g_libraryInspection.contains("item")&&g_libraryInspection["item"].value("part_id",ui::Json())==request["part_id"])item=g_libraryInspection["item"];
+            else if(g_libraryPage.contains("items"))for(const auto& row:g_libraryPage["items"])if(row["part_id"]==request["part_id"])item=row;
+            if(item.empty()||!QueueThumbnail(item,true))throw std::runtime_error("Thumbnail is unresolved or its exact candidate is unavailable.");
+            g_workspaceFocusRequested=1;g_activeTab=12;g_visible=true;
+        }else if(operation=="gallery-query"){
+            if(request.size()!=2||!request.contains("query")||!tray::Query(request["query"]))throw std::runtime_error("Typed Tray gallery page required.");
+            const auto& q=request["query"];strcpy_s(g_gallerySearch,sizeof(g_gallerySearch),q["text"].get<std::string>().c_str());g_galleryOffset=q["offset"].get<size_t>();g_galleryKind=q["kind"]=="household"?1:q["kind"]=="lot"?2:q["kind"]=="room"?3:0;
+            if(q["limit"]!=60||!QueueGallery(8,q,true))throw std::runtime_error("Gallery query is busy or page size differs.");g_galleryQueryNeeded=false;g_workspaceFocusRequested=3;
+            g_activeTab=12;g_visible=true;
+        }else if(operation=="gallery-select"){
+            auto selection=request;selection.erase("operation");if(!tray::Selection(selection)||selection.size()!=2||selection.value("library_sha256",ui::Json())!=g_galleryPage.value("library_sha256",ui::Json())||!ui::StudioDocument(g_studioData)||!ui::Scalar(g_studioData,"pending_preview").empty())throw std::runtime_error("Exact current Tray item and idle destination required.");
+            bool present=false;for(const auto& item:g_galleryPage["items"])if(item["item_id"]==selection["item_id"]&&item["kind"]=="household"&&item["status"]=="ready")present=true;
+            selection["context"]={{"runtime_pid",GetCurrentProcessId()},{"history_lane",g_studioData["history_lane"]}};
+            if(!present||!QueueGallery(9,selection,true))throw std::runtime_error("Household source absent or gallery busy.");g_gallerySelected=ui::Scalar(selection,"item_id");g_gallerySimIndex=0;
+        }else if(operation=="gallery-view"){
+            if(request.size()!=2||!ui::ExactUint64Identity(request.at("sim_id"))||g_galleryBusy||g_simPreviewBusy||g_ownerBlocked||g_ownerSubmissionBusy||g_casBankBusy||!ui::Scalar(g_studioData,"pending_preview").empty()||g_galleryInspection.value("item_id",ui::Json())!=g_gallerySelected)throw std::runtime_error("Exact ready Tray source Sim and idle destination required.");
+            ui::Json forms;for(const auto& sim:g_galleryInspection.at("preview_sims"))if(sim["sim_id"]==request["sim_id"])forms=sim["forms"];
+            const auto lane=ui::Scalar(g_studioData,"history_lane");if(!tray::Forms(forms,GetCurrentProcessId(),lane.substr(0,lane.find(':'))))throw std::runtime_error("Represented Tray forms differ.");
+            g_previewId[0]=0;g_trayPreviewForms=forms;g_trayPreviewFormIndex=g_trayPreviewOutfitIndex=0;g_trayPreviewActive=true;g_simPreviewAutomatic=true;g_simPreviewFocusRequested=true;g_simPreviewContext=SimPreviewContext();g_simPreviewAttemptedContext.clear();if(!QueueTrayPreview(true))throw std::runtime_error("Tray preview was not queued.");
         }else if(operation=="workspace"){
             if(request.size()!=2||!request.contains("values")||!library::Workspace(request["values"]))throw std::runtime_error("Typed layout, columns and catalog filters required.");
             const auto& values=request["values"];
@@ -3673,6 +4097,7 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
             if(values.contains("columns"))g_libraryColumns=values["columns"].get<int>();
             if(values.contains("sidebar"))g_studioEquippedSidebar=values["sidebar"].get<bool>();
             if(values.contains("thumbnails"))g_libraryShowImages=values["thumbnails"].get<bool>();
+            if(values.contains("generate_thumbnails"))g_generateMissingThumbnails=values["generate_thumbnails"].get<bool>();
             if(values.contains("gender"))g_libraryImageGender=values["gender"]=="male"?0:1;
             if(values.contains("query")) {
                 const auto& q=values["query"];const auto text=q["text"].get<std::string>();strcpy_s(g_librarySearch,sizeof(g_librarySearch),text.c_str());
@@ -3684,14 +4109,14 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
                 const auto sort=q.value("sort",std::string("name"));g_librarySort=sort=="name"?0:sort=="package"?1:sort=="creator"?2:3;
                 g_libraryQueryNeeded=true;
             }
-            if(values.contains("tab")){g_workspaceFocusRequested=values["tab"]=="equipped"?0:values["tab"]=="library"?1:2;g_libraryFocusRequested=false;}
+            if(values.contains("tab")){g_workspaceFocusRequested=values["tab"]=="equipped"?0:values["tab"]=="library"?1:values["tab"]=="tray"?3:2;g_libraryFocusRequested=false;}
             g_activeTab=12;g_visible=true;
         }else if(operation=="view"){
             if(request.size()!=3||ui::Scalar(request,"scene_id")!=g_simPreview.scene.id||g_simPreview.scene.id.empty()||g_simPreviewBusy)throw std::runtime_error("Exact loaded preview scene required.");
             g_simPreview.Control(request.at("values"));
         }else if(operation=="clear"){
             if(request.size()!=1||g_simPreviewBusy)throw std::runtime_error("Preview is still assembling.");
-            g_simPreview.Reset();g_simPreviewScene.reset();g_simPreviewSavedSim.clear();g_simPreviewAutomatic=false;g_simPreviewStatus="Preview released.";
+            g_trayPreviewActive=false;g_trayPreviewForms=ui::Json::array();g_simPreview.Reset();g_simPreviewScene.reset();g_simPreviewSavedSim.clear();g_simPreviewAutomatic=false;g_simPreviewStatus="Preview released.";
         }else if(operation!="status"||request.size()!=1)throw std::runtime_error("Unknown typed preview operation.");
         const auto& v=g_simPreview.view;
         reply=ui::Json({{"ok",true},{"busy",g_simPreviewBusy.load()},{"staged",bool(g_simPreviewScene)},
@@ -3699,6 +4124,14 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
             {"scene_id",g_simPreview.scene.id},{"sim_id",g_simPreview.scene.sim},{"form",g_simPreview.scene.form},{"outfit_id",g_simPreview.scene.outfit},{"outfit_index",g_simPreview.scene.outfitIndex},
             {"frames",g_simPreview.frames},{"meshes",g_simPreview.scene.meshes.size()},{"clips",g_simPreview.scene.clips.size()},
             {"status",g_simPreviewStatus},{"warnings",g_simPreview.scene.warnings},{"apply_mode",g_livePartColor?"live":"preview"},{"foreground_required",false},{"game_appearance_written",false},
+            {"tray_source",g_trayPreviewActive},{"destination_sim_id",g_selectedSim},{"clipboard_busy",g_trayClipboardBusy.load()},{"appearance_clipboard",g_appearanceClipboard},
+            {"clipboard_result",g_trayClipboardResult},
+            {"thumbnail",g_thumbnailReceipt},{"thumbnail_busy",g_thumbnailBusy.load()},
+            {"library_selection",{{"busy",g_libraryBusy.load()},{"part_id",g_libraryInspection.value("item",ui::Json::object()).value("part_id",ui::Json())},{"index_sha256",g_libraryInspection.value("index_sha256",ui::Json())},
+                {"resource_tgi",g_libraryInspection.value("item",ui::Json::object()).value("resource_tgi",ui::Json())},{"resource_sha256",g_libraryInspection.value("item",ui::Json::object()).value("resource_sha256",ui::Json())},
+                {"swatch_count",g_libraryInspection.value("swatches",ui::Json::object()).value("total",ui::Json())},{"swatch_offset",g_libraryInspection.value("swatches",ui::Json::object()).value("offset",ui::Json())},
+                {"swatch_colors_argb",g_libraryInspection.value("item",ui::Json::object()).value("metadata",ui::Json::object()).value("swatch_colors_argb",ui::Json::array())}}},
+            {"gallery",{{"busy",g_galleryBusy.load()},{"ready",!g_galleryPage.empty()},{"library_sha256",g_galleryPage.value("library_sha256",ui::Json())},{"total",g_galleryPage.value("total",ui::Json())},{"selected_item",g_gallerySelected},{"source_ready",g_galleryInspection.value("item_id",ui::Json())==g_gallerySelected},{"source_sim_count",g_galleryInspection.value("preview_sims",ui::Json::array()).size()},{"image_count",g_galleryTextures.size()},{"status",g_galleryStatus}}},
             {"workspace",{{"layout",std::array<const char*,4>{"balanced","character","catalog","custom"}[std::clamp(g_studioLayout,0,3)]},{"preview_share",g_studioPreviewShare},{"columns",g_libraryColumns},{"sidebar",g_studioEquippedSidebar},{"thumbnails",g_libraryShowImages},{"gender",g_libraryImageGender==0?"male":"female"},{"query",CurrentLibraryQuery()},
                 {"catalog_ready",!g_libraryPage.empty()&&g_libraryPage.value("query",ui::Json())==CurrentLibraryQuery()}, {"catalog_total",g_libraryPage.value("total",ui::Json())},{"catalog_index_sha256",g_libraryPage.value("index_sha256",ui::Json())},{"thumbnail_ready_count",g_libraryImageTextures.size()},{"catalog_status",g_libraryStatus}}},
             {"view",{{"yaw",v.yaw},{"pitch",v.pitch},{"distance",v.distance},{"height",v.height},{"pan",v.pan},{"pan_depth",v.panDepth},{"roll",v.roll},{"fov",v.fov},{"ortho_scale",v.orthoScale},{"projection",v.orthographic?"orthographic":"perspective"},{"controls",v.blenderControls?"blender":"simple"},{"time",v.time},

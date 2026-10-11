@@ -1,12 +1,12 @@
 {
-  "build_epoch": "2026-10-11-live-appearance-room-v50",
+  "build_epoch": "2026-10-11-cas-swatches-tray-v58",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-11-live-appearance-room-v50.zip",
-    "bytes": 2983816,
+    "artifact": "Apex_Development_Candidate_2026-10-11-cas-swatches-tray-v58.zip",
+    "bytes": 3065805,
     "members": 28,
-    "sha256": "d4b55017b185c8b449d1f78ef363fb82564551ca6512443d5bbaf7cc66c6817f"
+    "sha256": "6f1e639cbc8637299e32f090f5e2739ba217ca443dcd22cf8864de6bc59256a2"
   },
-  "compiled_script_modules": 74,
+  "compiled_script_modules": 76,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -51,9 +51,9 @@
       "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 46143,
+      "bytes": 46818,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "2cd9e50f085a488144382f71798ab5e3d434527950e13411cc73c69f00450283"
+      "sha256": "c1e53d5f5c32e3788679838e5a816e850b71db04873d4d721675f3e9272028a4"
     },
     {
       "bytes": 1506,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 687455,
+      "bytes": 704822,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "ce8684c5bda2ce0965a7745724b170530797a940cc748b0dbbdf26e159cff0cd"
+      "sha256": "584496ddf339128f6a37004d58896184d9f9dbf2dc4be45a49d8af9c9abae4f2"
     },
     {
-      "bytes": 1667584,
+      "bytes": 1818112,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "bf6af9df1d284e6f7e6d7a171887afcd5dd1c1c36944c4b9a1b3763d7f133fc7"
+      "sha256": "e27a5e6f961d45f3d6280f740dea04626ac7fe939ba94dd26ac904cc373de6aa"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "497d0990693f59e96c4e56a18120ecaee2873b4c24eeab89401010f6c462de11"
+      "sha256": "373f677d58bbae796affb84658880841cb57bf2bbf60adbd1fb0fac346b6b491"
     },
     {
       "bytes": 424,

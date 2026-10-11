@@ -32,3 +32,10 @@ catalog/preview services from the repository. The mod candidate ZIP alone
 does not contain a portable auto-starting helper installation. Complete EA
 shader/material matching, all poses, swatch families and full CAS parity
 remain open; a successfully rendered scene does not establish those claims.
+
+`ApexTray.cs` projects the exact native Sim bytes from a validated household
+Tray envelope through the same pinned protobuf schemas. It reports represented
+appearance owners and fields shared by the native Tray schema. Inspection does
+not contact the game, create a Sim or extract assets. Source form/outfit preview
+is independent of the selected Live destination; see
+[`docs/APPEARANCE_TRANSFER.md`](../docs/APPEARANCE_TRANSFER.md).

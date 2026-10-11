@@ -8,8 +8,9 @@
   "adapters": {
     "ApexClip.cs": "e67676466cd1fdaa4af073c1148efe21ddd2f089a4ffe03be0b035fc39ca74c4",
     "ApexDmap.cs": "66f14cad319fb916cea24ea656656d2d5443127bdfe2d1b58a54d0af187df230",
-    "ApexWorker.cs": "debba18963bbd60c5434b34724b8af19e1f075579573d9ba03110ee1e29417fb",
-    "ApexWorkerTests.cs": "4839e74ea825b6bfd5b79c32195d8849e2ea2be9a4ddc52776b7646cb6ed12fe"
+    "ApexTray.cs": "2ca222fd0804dee954236cef662ab4b6220179523d83faaad43d1f75c0f86cdf",
+    "ApexWorker.cs": "bad58b9e528a5786f5f6cedaaa645fbd81857cd687eadfd6b7f351d31bd71d13",
+    "ApexWorkerTests.cs": "481214145912df986cc37d151ab1d909064fed8db190ea7418d792de6802a8da"
   },
-  "recipe_sha256": "7f3d2ceaea8d276ebd9d1ced1c01b6658c483624743f9cce4d87f9db89a576ec"
+  "recipe_sha256": "e056c6ddb652749838360b2b2136f07b68350d266653955eab3f1d70f5106a7b"
 }

@@ -80,7 +80,10 @@ def render(args):
     selection = owned_request(args.state, 'studio_status', args.sim_id, value=wrap(None))
     if not selection.get('ok') or selection.get('runtime_pid') != identity['pid'] or selection.get('inspected_form_flags') != args.form:
         raise ValueError('Fresh selected appearance inventory was refused.')
-    outfits = selection['outfit_inventory']
+    if args.preview_id is not None and args.preview_id != selection.get('pending_preview'):
+        raise ValueError('Prepared appearance identity differs; no preview requested.')
+    outfits = selection.get('preview_outfit_inventory') if args.preview_id is not None else selection['outfit_inventory']
+    if outfits is None: outfits=selection['outfit_inventory']
     if not 0 <= args.outfit_index < len(outfits): raise ValueError('Exact existing outfit index required.')
     outfit = outfits[args.outfit_index]
     value = dict(lane=selection['history_lane'], appearance_sha256=selection['appearance_sha256'],
@@ -93,7 +96,9 @@ def render(args):
     fields = ('ok', 'sim_id', 'form', 'fields', 'native_sim', 'native_sha256', 'lane', 'appearance_sha256',
               'outfit_index', 'outfit_id', 'appearance_source', 'save_guid', 'runtime_pid', 'save_file_written',
               'history_written', 'render_sha256', 'preview_id')
-    job = http('/v1/preview/prepare', {name: snapshot[name] for name in fields})
+    payload = {name: snapshot[name] for name in fields}
+    if 'visual_form' in snapshot: payload['visual_form'] = snapshot['visual_form']
+    job = http('/v1/preview/prepare', payload)
     request_id = job['request_id']; deadline = time.monotonic() + 95
     while job['state'] == 'assembling':
         if time.monotonic() > deadline: raise ValueError('Exact preview job exceeded deadline; no replay submitted: ' + request_id)
@@ -120,6 +125,13 @@ def render(args):
         raise ValueError('Rendered native preview owner differs.')
     if reply.get('outfit_id') != snapshot['outfit_id'] or ('outfit_index' in reply and reply['outfit_index'] != snapshot['outfit_index']):
         raise ValueError('Rendered native preview outfit differs.')
+    # Loading a new owner invalidates an in-flight read-only library page.
+    # Re-arm its exact filters once; rendering must not strand the selected
+    # library with an abandoned earlier-generation query. No item is applied.
+    workspace=reply.get('workspace',{})
+    if isinstance(workspace.get('query'),dict) and workspace.get('catalog_ready') is False:
+        refreshed=native(args.state,dict(operation='workspace',values=dict(query=workspace['query'])))
+        if not refreshed.get('ok'): raise ValueError(refreshed.get('reason','Read-only library refresh was refused.'))
     return dict(ok=True, job=job, native=reply, headless_asset_assembly=True,
                 headless_game_runtime=False, game_appearance_written=False, disk_assets_written=False)
 
@@ -129,7 +141,10 @@ def verify_selection(before, current, snapshot):
     keys = ('runtime_pid', 'history_lane', 'appearance_sha256', 'inspected_form_flags', 'pending_preview')
     if not current.get('ok') or any(current.get(key) != before.get(key) for key in keys):
         raise ValueError('Appearance or prepared preview changed while assembling; no stale scene displayed.')
-    outfits = current.get('outfit_inventory', [])
+    if snapshot.get('preview_id') is not None and snapshot['preview_id'] != current.get('pending_preview'):
+        raise ValueError('Prepared appearance identity changed; no stale scene displayed.')
+    outfits = current.get('preview_outfit_inventory') if snapshot.get('preview_id') is not None else current.get('outfit_inventory', [])
+    if outfits is None: outfits=current.get('outfit_inventory', [])
     index = snapshot['outfit_index']
     if not 0 <= index < len(outfits) or outfits[index].get('outfit_id') != snapshot['outfit_id']:
         raise ValueError('Selected outfit changed while assembling; no stale scene displayed.')
@@ -148,6 +163,11 @@ def execute(args):
     elif args.operation == 'mode':
         if args.apply_mode is None: raise ValueError('Select --apply-mode live or preview explicitly.')
         result = native(args.state, dict(operation='mode', apply_mode=args.apply_mode))
+    elif args.operation in ('library-select', 'thumbnail','gallery-query','gallery-select','gallery-view'):
+        if args.values is None or args.values.stat().st_size>4096: raise ValueError('Provide bounded explicit thumbnail/gallery JSON values.')
+        value=json.loads(args.values.read_text(encoding='utf-8'))
+        if not isinstance(value,dict) or 'operation' in value: raise ValueError('Named typed operation and JSON values required.')
+        result=native(args.state,dict(value,operation=args.operation))
     elif args.operation == 'workspace':
         if args.values is None or args.values.stat().st_size > 4096: raise ValueError('Provide bounded JSON workspace values.')
         result = native(args.state, dict(operation='workspace', values=json.loads(args.values.read_text(encoding='utf-8'))))

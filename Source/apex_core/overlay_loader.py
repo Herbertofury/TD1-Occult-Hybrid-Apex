@@ -312,7 +312,7 @@ def studio_ui(module_file, dll_path, argument):
 
 @serialized
 def sim_preview(module_file, dll_path, argument):
-    if not _CALLS or not isinstance(argument, dict) or argument.get('operation') not in ('status', 'load', 'view', 'mode', 'workspace', 'clear'):
+    if not _CALLS or not isinstance(argument, dict) or argument.get('operation') not in ('status', 'load', 'view', 'mode', 'workspace', 'clear', 'tray', 'tray-copy', 'library-select', 'thumbnail', 'gallery-query', 'gallery-select', 'gallery-view'):
         raise ValueError('Use the typed independent preview contract.')
     raw = __import__('json').dumps(argument, ensure_ascii=True, allow_nan=False, separators=(',', ':')).encode('utf-8')
     if len(raw) > 4 * 1024 * 1024:

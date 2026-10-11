@@ -2932,6 +2932,7 @@ def _add_occult(sim_info, occult_type, generate=True, add_traits=True, add_memor
     old_current = _get_current_flags(sim_info)
     base_payload = _snapshot_siminfo_payload(sim_info)
     existing_human = tracker.get_occult_sim_info(OccultType.HUMAN)
+    human_before = _snapshot_siminfo_payload(existing_human) if existing_human is not None else {}
     existing_form = tracker.get_occult_sim_info(occult_type)
     if use_gameplay_loot:
         loot_ok, loot_messages = _apply_gameplay_loots(sim_info, occult_type, operation='add')
@@ -2957,9 +2958,21 @@ def _add_occult(sim_info, occult_type, generate=True, add_traits=True, add_memor
         _restore_siminfo_payload(human_form, base_payload)
     if generate:
         form = _ensure_form(tracker, occult_type, generate_new=True)
-        if existing_form is None and form is not None and base_payload:
-            _restore_siminfo_payload(form, base_payload)
+        # Native generation supplies this occult's head, body, morphs and
+        # painted coat. Copying the Human payload here erased that result
+        # (notably replacing the Werewolf head with a Human head). Human/CC
+        # looks are explicit appearance transfers, never an add-occult default.
         changed.append('form {}'.format('ok' if form is not None else 'missing'))
+    if existing_human is not None and human_before:
+        # The native Werewolf/Fairy generator shares its new painted coat with
+        # Human. Keep the new occult default while restoring only differences
+        # on the pre-existing Human owner, without reloading unchanged outfits.
+        human_after = _snapshot_siminfo_payload(existing_human)
+        human_restore = {name: row for name, row in human_before.items() if human_after.get(name) != row}
+        if human_restore:
+            _restore_siminfo_payload(existing_human, human_restore)
+            if _snapshot_siminfo_payload(existing_human) != human_before:
+                raise ValueError('Native occult generation changed the existing Human appearance; originals retained for recovery.')
     if add_traits:
         for trait in _tuning_traits(occult_type):
             if _add_trait(sim_info, trait):
@@ -8463,7 +8476,9 @@ def run_action(action, sim_id=None, occult=None, value=None):
                   'studio_color_copy', 'studio_color_preview', 'studio_cancel',
                   'studio_color_inspect', 'studio_color_edit', 'studio_color_live', 'studio_part_inspect', 'studio_part_preview', 'studio_catalog_preview', 'studio_catalog_live', 'studio_shape_inspect', 'studio_shape_preview', 'studio_shape_live',
                   'studio_undo', 'studio_redo', 'studio_jump', 'studio_apply',
-                  'studio_hair_enable', 'studio_hair_disable', 'studio_hair_status', 'studio_outfit_duplicate'):
+                  'studio_hair_enable', 'studio_hair_disable', 'studio_hair_status', 'studio_outfit_duplicate',
+                  'studio_copy_appearance', 'studio_paste_preview', 'studio_paste_live', 'studio_werewolf_ea_preview',
+                  'studio_clipboard_begin', 'studio_clipboard_chunk', 'studio_clipboard_finish', 'studio_clipboard_export'):
         from apex_core.studio import dispatch
         import sys
         try:

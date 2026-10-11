@@ -69,13 +69,26 @@ class HumanWerewolfTests(unittest.TestCase):
         self.assertEqual(self.sim.physique, 'Wolf')
         self.assertIn('99:3', human_werewolf.load(human_werewolf.storage(self.backend))['retired'])
 
-    def test_later_cas_edit_is_never_overwritten_by_reenable_or_disable(self):
+    def test_each_style_retains_later_edits_across_repeated_toggles(self):
         human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_on')
         self.wolf.skin_tone_val_shift = 0.7
         self.assertTrue(human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_on')['ok'])
-        with self.assertRaisesRegex(ValueError, 'newer edits'):
-            human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_off')
+        self.sim.skin_tone_val_shift = 0.7
+        human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_off')
+        self.assertEqual(self.wolf.skin_tone_val_shift, 0.4)
+        self.wolf.skin_tone_val_shift = self.sim.skin_tone_val_shift = 0.9
+        human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_on')
         self.assertEqual(self.wolf.skin_tone_val_shift, 0.7)
+        human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_off')
+        self.assertEqual(self.wolf.skin_tone_val_shift, 0.9)
+        self.assertEqual((self.sim.fury, self.sim.perks, self.sim.current_occult_types), (75, (7, 9), 32))
+
+    def test_preview_uses_human_visual_policy_without_changing_gameplay_form(self):
+        self.assertEqual(human_werewolf.preview_form(self.backend, self.sim, 32), 32)
+        human_werewolf.dispatch(self.backend, self.sim, 'werewolf_human_on')
+        self.assertEqual(human_werewolf.preview_form(self.backend, self.sim, 32), 1)
+        self.assertEqual(human_werewolf.preview_form(self.backend, self.sim, 4), 4)
+        self.assertEqual(self.sim.current_occult_types, 32)
 
     def test_failed_readback_has_durable_recovery_and_restores_before_state(self):
         original = self.backend._restore_siminfo_payload

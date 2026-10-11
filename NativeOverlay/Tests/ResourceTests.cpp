@@ -1,10 +1,58 @@
 #include <iostream>
+#include <fstream>
 #include "ApexResourceImage.h"
+#include "ApexLiveCatalog.h"
+#include "ApexPointerGate.h"
+#include "ApexGameWindow.h"
 
-int main() {
+int main(int argc, char** argv) {
     using namespace td1; using resource::Json;
     unsigned checks = 0, failed = 0;
     auto check = [&](bool pass, const char* label) { ++checks; if (!pass) { ++failed; std::cerr << label << '\n'; } };
+    check(GameCanvas(42,42,true,false,true,1278,1376,L"Canvas-0123"), "actual owned visible Canvas needs no foreground condition");
+    check(!GameCanvas(43,42,true,false,true,1278,1376,L"Canvas-0123"), "another process cannot supply a renderer window");
+    check(!GameCanvas(42,42,false,false,true,1278,1376,L"Canvas-0123"), "hidden helper window is rejected");
+    check(!GameCanvas(42,42,true,true,true,1278,1376,L"Canvas-0123"), "minimized window is rejected");
+    check(!GameCanvas(42,42,true,false,false,1278,1376,L"Canvas-0123"), "child Canvas is rejected");
+    check(!GameCanvas(42,42,true,false,true,0,1376,L"Canvas-0123"), "empty client is rejected");
+    check(!GameCanvas(42,42,true,false,true,1278,1376,L"ApexHelper"), "visible auxiliary window is rejected");
+    check(!GameCanvas(0,0,true,false,true,1278,1376,L"Canvas-0123"), "missing process owner is rejected");
+    check(UniqueGameCanvas(true,1) && !UniqueGameCanvas(true,0) && !UniqueGameCanvas(true,2) && !UniqueGameCanvas(false,1), "exactly one owned Canvas must match the candidate");
+    check(CaptureReady(true,2,false,false), "plain game backbuffer does not require a visible F11 frame");
+    check(!CaptureReady(true,2,true,true) && !CaptureReady(true,3,true,false), "overlay image requires initialized and visible F11");
+    check(CaptureReady(true,3,true,true) && !CaptureReady(false,3,false,false) && !CaptureReady(true,1,false,false), "unattached game capture is rejected");
+    if (argc == 2) {
+        std::ifstream stream(argv[1], std::ios::binary);
+        const std::string raw((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+        const auto probe = ui::ParseObject(raw);
+        check(raw.size() <= 1024 * 1024 && probe.contains("query") && probe.contains("page") && library::Page(probe["page"], probe["query"]), "actual host catalog page accepted by native validator");
+        check(probe.contains("selection") && probe.contains("inspection") && library::Inspection(probe["inspection"], probe["selection"]), "actual selected CC resource accepted by native validator");
+    }
+    PointerGate gate{20,30,200,300};
+    check(gate.Owns(40,50,1,0,false), "first down within rendered overlay is owned without preceding hover frame");
+    check(gate.Owns(400,500,0,1,false) && gate.held == 0, "release outside overlay still owns the captured gesture");
+    check(!gate.Owns(400,500,1,0,false) && gate.held == 0, "outside gesture belongs to game when UI does not request it");
+    check(gate.Owns(-1,-1,0,0,true), "popup ownership still follows ImGui capture");
+    const Json query = {{"text","brows"},{"body_type",nullptr},{"origin",nullptr},{"name_mode","preferred"},
+        {"offset",0},{"limit",60},{"view","all"}};
+    check(library::Query(query), "typed library request permits all categories");
+    for (const auto& field : {"text","body_type","origin","name_mode","offset","limit","view"}) {
+        auto bad = query; bad.erase(field); check(!library::Query(bad), "incomplete library request rejected");
+    }
+    auto badQuery = query; badQuery["path"] = "C:/anything"; check(!library::Query(badQuery), "library request cannot carry arbitrary paths");
+    badQuery = query; badQuery["limit"] = 241; check(!library::Query(badQuery), "oversized page rejected");
+    Json item = {{"part_id",std::string(64,'a')},{"resource_sha256",std::string(64,'b')},{"package_sha256",std::string(64,'c')},
+        {"resource_tgi","034AEECB:80000000:0000000000000001"},{"package_name","Actual_CC.package"},
+        {"body_type",4095},{"favorite",false},{"name","Actual CC"},{"status","indexed"},{"origin","mod"}};
+    Json page = {{"ok",true},{"index_sha256",std::string(64,'d')},{"query",query},{"items",Json::array({item})},
+        {"categories",Json::array({{{"body_type",4095},{"count",1}}})},{"total",1},{"offset",0},{"next_offset",nullptr},
+        {"snapshot",{{"parts",1},{"complete",true}}}};
+    check(library::Page(page,query), "future body type and exact page accepted");
+    auto badPage=page; badPage["items"][0]["package_path"]="C:/original"; check(!library::Page(badPage,query), "native page rejects host paths");
+    badPage=page; badPage["items"].push_back(item); check(!library::Page(badPage,query), "duplicate item identity rejected");
+    badPage=page; badPage["query"]["text"]="stale"; check(!library::Page(badPage,query), "stale query response rejected");
+    badPage=page; badPage.erase("snapshot"); check(!library::Page(badPage,query), "missing snapshot cannot reach renderer");
+    badPage=page; badPage["next_offset"]=0; check(!library::Page(badPage,query), "pager cannot loop the same offset");
     const unsigned char png[] = {137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,13,73,68,65,84,120,156,99,16,84,50,254,15,0,2,20,1,102,4,224,222,127,0,0,0,0,73,69,78,68,174,66,96,130};
     const std::string bytes(reinterpret_cast<const char*>(png), sizeof(png));
     const std::string tgi = "034AEECB:00000002:00000000000003E7", effective(64, 'b'), appearance(64, 'a');

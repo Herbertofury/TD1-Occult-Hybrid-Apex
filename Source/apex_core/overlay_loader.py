@@ -291,7 +291,7 @@ def studio_ui(module_file, dll_path, argument):
     if not _CALLS or not isinstance(argument, dict) or set(argument) != {'sim_id', 'tab'}:
         raise ValueError('Use the fixed Studio UI selection contract.')
     sim_id, tab = argument['sim_id'], argument['tab']
-    if not isinstance(sim_id, str) or not sim_id.isdigit() or not 0 < int(sim_id) < 1 << 64 or tab not in ('history', 'parts', 'cas_history', 'cas_parts'):
+    if not isinstance(sim_id, str) or not sim_id.isdigit() or not 0 < int(sim_id) < 1 << 64 or tab not in ('history', 'parts', 'cas_history', 'cas_parts', 'library'):
         raise ValueError('Invalid Studio Sim or tab.')
     path, info = sidecar_paths(module_file)
     if info['sha256'] != _LOADED_SHA or str(path) != _LOADED_PATH:
@@ -305,6 +305,6 @@ def studio_ui(module_file, dll_path, argument):
         _argtypes_ = (UInt64, Integer)
     class Library: _handle = _HANDLE
     result = StudioCall(('ApexOverlayStudio', Library()))(int(sim_id),
-        {'history': 11, 'parts': 12, 'cas_history': 13, 'cas_parts': 14}[tab])
+        {'history': 11, 'parts': 12, 'cas_history': 13, 'cas_parts': 14, 'library': 15}[tab])
     code = int(getattr(result, 'value', result))
     return dict(status(), ok=code == 0, studio_ui_requested=code == 0, selected_sim=sim_id, selected_tab=tab)

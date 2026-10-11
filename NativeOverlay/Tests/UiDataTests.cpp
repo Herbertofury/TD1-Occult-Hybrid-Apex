@@ -291,7 +291,8 @@ int main() {
     check(CasDocument(nextCas, "18446744073709551615") && RefreshCasSelection(nextCas, "mapped_panel_2", preset, true).empty(), "CAS failed preset query retained as unresolved and clears old inspected preset");
     check(StudioOverlayTab(11) == 11 && StudioOverlayTab(12) == 12, "sidecar legacy Live/bank history and equipped tabs preserved");
     check(StudioOverlayTab(13) == 11 && StudioOverlayTab(14) == 12, "sidecar native CAS view requests map to existing rendered history/equipped tabs");
-    check(StudioOverlayTab(2) == -1 && StudioOverlayTab(3) == -1 && StudioOverlayTab(15) == -1, "sidecar rejects undocumented tab identities");
+    check(StudioOverlayTab(15) == 12, "sidecar library request selects Live equipment workspace");
+    check(StudioOverlayTab(2) == -1 && StudioOverlayTab(3) == -1 && StudioOverlayTab(16) == -1, "sidecar rejects undocumented tab identities");
     check(static_cast<uint32_t>(MetricHandleBits(0xF1234567ULL)) == 0xF1234567U, "native HWND diagnostic preserves high-bit int32 identity");
     check(static_cast<uint32_t>(MetricHandleBits(0xFFFFFFFFF1234567ULL)) == 0xF1234567U && MetricHandleBits(0) == 0, "native HWND diagnostic normalizes sign-extended handles and null");
     auto boundedCas = cas; boundedCas["futureRawField"] = "";

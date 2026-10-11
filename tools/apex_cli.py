@@ -278,7 +278,7 @@ def parser():
     game.add_argument('--elevate-once', action='store_true', help='One normal Windows elevation for authenticated game focus only')
     game.add_argument('--key', choices=('F11', 'ESC', 'ENTER', 'TAB', 'SPACE'))
     game.add_argument('--background', action='store_true',
-                      help='Window-addressed click: leaves foreground and OS cursor alone; verify the resulting UI separately')
+                      help='Capture, Resume, normal exit and clicks without foreground handoffs or OS cursor movement')
     game.add_argument('--x', type=int)
     game.add_argument('--y', type=int)
     game.add_argument('--width', type=int)
@@ -459,7 +459,7 @@ def parser():
     catalog.add_argument('--step-seconds', type=float, default=5)
     catalog.add_argument('--step-budget', type=int, default=20)
     library = commands.add_parser('live-cas-catalog', help='Search all CASPs in explicit source packages without a CAS room or game input')
-    library.add_argument('operation', choices=('build', 'query', 'resolve'))
+    library.add_argument('operation', choices=('build', 'query', 'resolve', 'serve'))
     library.add_argument('--index', required=True, type=Path)
     library.add_argument('--input', type=Path, help='JSON array of exact path/origin package sources')
     library.add_argument('--expected-index-sha256')
@@ -471,7 +471,7 @@ def parser():
     library.add_argument('--limit', type=int, default=60)
     library.add_argument('--part-id')
     studio = commands.add_parser('studio', help='Live/stored-form CAS History and appearance editing on the real game thread')
-    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'color-live', 'part-inspect', 'part-preview', 'outfit-duplicate', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
+    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'color-live', 'part-inspect', 'part-preview', 'catalog-preview', 'outfit-duplicate', 'open-library', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
     studio.add_argument('--state', required=True, type=Path)
     studio.add_argument('--sim-id')
     studio.add_argument('--form', type=int, help='Explicit existing native/bank form owner; editing does not activate it')
@@ -507,6 +507,9 @@ def execute(args):
             return build(json.loads(args.input.read_text(encoding='utf-8')), args.index)
         if args.expected_index_sha256 is None:
             raise ValueError('Use the exact SHA256 returned by catalog build.')
+        if args.operation == 'serve':
+            from live_cas_browser import serve
+            return serve(args.index, args.expected_index_sha256)
         if args.operation == 'resolve':
             return resolve(args.index, args.expected_index_sha256, args.part_id)
         return query(args.index, args.expected_index_sha256, args.query, args.body_type,
@@ -696,7 +699,7 @@ def execute(args):
             write_json(output, result)
             return dict(result, proof=str(output), proof_sha256=sha256(output))
 
-        if args.operation in ('open-history', 'open-parts', 'open-cas-history', 'open-cas-parts'):
+        if args.operation in ('open-library', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts'):
             if not args.sim_id:
                 raise ValueError('An explicit Sim ID is required for Studio UI selection.')
             _, data, _, _ = reusable_profile.load(args.state)
@@ -797,14 +800,30 @@ def execute(args):
             if args.output is None:
                 raise ValueError('A new external JSON proof filename is required for Resume.')
             from game_lifecycle import resume
-            return resume(args.state, args.output, verified_identity(args.state), owned_request,
+            options = {}
+            request = owned_request
+            if args.background:
+                from game_lifecycle import background_request
+                from game_capture import capture
+                from functools import partial
+                request = background_request(owned_request)
+                options = dict(background=True, capture=partial(capture, background=True))
+            return resume(args.state, args.output, verified_identity(args.state), request,
                           sim_id=args.sim_id, seconds=args.seconds,
-                          household_id=args.household_id, save_guid=args.save_guid)
+                          household_id=args.household_id, save_guid=args.save_guid, **options)
         if args.operation == 'shutdown':
             if args.output is None:
                 raise ValueError('A new external JSON proof filename is required for normal Save and Exit.')
             from game_lifecycle import shutdown
-            return shutdown(args.state, args.output, verified_identity(args.state), owned_request)
+            options = {}
+            request = owned_request
+            if args.background:
+                from game_lifecycle import background_request
+                from game_capture import capture
+                from functools import partial
+                request = background_request(owned_request)
+                options = dict(capture=partial(capture, background=True))
+            return shutdown(args.state, args.output, verified_identity(args.state), request, **options)
         if args.operation == 'main-menu':
             if args.output is None or not all((args.sim_id, args.household_id, args.save_guid)):
                 raise ValueError('Unsaved main-menu exit requires a new external proof and exact native identities.')
@@ -815,9 +834,17 @@ def execute(args):
             if args.output is None or not all((args.sim_id, args.household_id, args.save_guid)):
                 raise ValueError('Unsaved normal exit requires a new external proof and exact Sim/household/save GUID.')
             from game_lifecycle import shutdown
-            return shutdown(args.state, args.output, verified_identity(args.state), owned_request,
+            options = {}
+            request = owned_request
+            if args.background:
+                from game_lifecycle import background_request
+                from game_capture import capture
+                from functools import partial
+                request = background_request(owned_request)
+                options = dict(capture=partial(capture, background=True))
+            return shutdown(args.state, args.output, verified_identity(args.state), request,
                             save=False, sim_id=args.sim_id, household_id=args.household_id,
-                            save_guid=args.save_guid)
+                            save_guid=args.save_guid, **options)
         if args.operation == 'focus':
             if args.elevate_once:
                 if args.output is None:
@@ -831,7 +858,7 @@ def execute(args):
             if args.output is None:
                 raise ValueError('An external proof image filename is required.')
             from game_capture import capture
-            return capture(args.state, args.output, owned_request, overlay=args.with_overlay)
+            return capture(args.state, args.output, owned_request, overlay=args.with_overlay, background=args.background)
         direct_output = None
         if args.output is not None and args.operation not in ('all-data', 'save'):
             direct_output = reusable_profile.writable(args.output)

@@ -1,5 +1,21 @@
 # Native CAS CLI controls
 
+V40 makes plain `game capture --background` independent of F11 initialization,
+visibility and gameplay/CAS diagnostics. It reads the selected native game's
+backbuffer with scoped device/context ownership. Actual cold startup succeeds
+with F11 hidden and zero UI frames; the public background Resume subsequently
+verifies the exact disposable household in paused Live mode. Overlay-inclusive
+capture still requires the real UI renderer and its CAS visibility guard.
+
+V39 adds `--background` to public `game capture`, `game resume`, `game shutdown`
+and `game exit`, in addition to clicks. Renderer attachment observes the unique
+visible Sims Canvas owned by the verified process. These routes never request
+foreground ownership or a focus fallback; lifecycle buttons use the existing
+window-message click protocol. Captures and normal lifecycle proof remain
+required, and unavailable/ambiguous windows stop the operation. A new DLL
+requires normal game closure before installation; cached older DLLs retain
+their previous foreground selector.
+
 V27 adds `cas layer-select --target-layer 0` (Primary) and `--target-layer 1`
 (Alternate/Dark). Supply the exact currently observed `--expected-layer`,
 `--native-session`, `--household-id` and original `--sim-id` from a fresh
@@ -188,3 +204,31 @@ CASP bytes and returns provenance suitable for the existing resource broker.
 An index is a catalog of container candidates: effective game load order,
 Sim compatibility, successful equip and F11 grid/3D rendering remain separate
 work. Existing snapshots are preserved; use a new filename when rebuilding.
+
+The V38 candidate adds a loopback catalog service and F11 library workspace:
+
+```powershell
+python tools/apex_cli.py live-cas-catalog serve --index .work/live-cas-catalog/library.sqlite --expected-index-sha256 HASH_FROM_BUILD
+python tools/apex_cli.py studio open-library --state .work/reusable-profile-session.json --sim-id EXACT_SIM_ID
+python tools/apex_cli.py studio catalog-preview --state .work/reusable-profile-session.json --sim-id EXACT_SIM_ID --form EXACT_FORM --value-file selection.json
+python tools/apex_cli.py studio apply --state .work/reusable-profile-session.json --sim-id EXACT_SIM_ID --form EXACT_FORM --value PREVIEW_ID
+```
+
+`selection.json` has exactly `outfit_index` (integer), `outfit_id` (decimal
+string), `part_index` (integer, or null for an empty category), `body_type`
+(integer), `cas_part_id` (decimal uint64 string), `resource_tgi`,
+`resource_sha256`, `lane`, and `appearance_sha256`. Outfit/owner fields come
+from a fresh `studio status`; resource fields come from exact catalog resolve.
+An explicit form need not be active. The loaded CASP must match the full TGI,
+hash and body type, and support the Sim's age/species. Dynamic object-backed
+attachments, restricted-frame fitting and layered append still need their
+own native contracts. Failures occur before a preview changes the Sim.
+
+The service binds `127.0.0.1:8023` and provides bounded typed JSON routes for
+query, inspection and favorites. Windows keeps the immutable index open with
+a lease that denies writing/replacement. The selected source package is
+rehash-verified; browsing never calls the game. Search, all discovered
+categories, name modes, two to eight columns, 60-item pages, favorites and
+recently inspected items are available in F11. Selected items use the existing
+verified thumbnail/package-copy broker. Grid thumbnails, swatch families,
+presets and the independent 3D Sim renderer remain separate work.

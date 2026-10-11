@@ -11,7 +11,7 @@ import copy
 import re
 from . import cas_catalog, color_shift, outfit_snapshot, form_appearance as appearance, form_bank, sim_record, outfit_hair
 from .change_journal import ChangeJournal, fingerprint, decoded
-from .dresser_parts import DresserParts, read_rows, write_rows, uint
+from .dresser_parts import DresserParts, NEUTRAL_SHIFT, read_rows, write_rows, uint
 
 _COLOR_CLIPBOARD = None
 _ITEM_SHA = re.compile(r'[0-9a-f]{64}\Z')
@@ -559,6 +559,84 @@ def dispatch(backend, action, sim_id, value):
         return _response(journal, 'Equipped-part replacement preview prepared.', preview_id=token,
             preview_diff='{}: {:016X} -> {:016X}; destination references/layers preserved'.format(
                 request['target'], old_id, source['id']))
+    if action == 'studio_catalog_preview':
+        if not isinstance(value, str) or len(value) > 2048:
+            raise ValueError('Catalog selection exceeds its bound.')
+        request = json.loads(value)
+        expected = {'outfit_index', 'outfit_id', 'part_index', 'body_type', 'cas_part_id',
+                    'resource_tgi', 'resource_sha256', 'lane', 'appearance_sha256'}
+        if not isinstance(request, dict) or set(request) != expected:
+            raise ValueError('Catalog selection fields differ.')
+        if request['lane'] != lane or request['appearance_sha256'] != fingerprint(before):
+            raise ValueError('Sim/form/save or appearance changed; inspect again.')
+        if (not isinstance(request['cas_part_id'], str) or not request['cas_part_id'].isdigit() or
+                not _ITEM_SHA.fullmatch(str(request['resource_sha256']))):
+            raise ValueError('Use an exact CASP instance/hash.')
+        part_id = uint(int(request['cas_part_id']), 64)
+        match = _ITEM_TGI.fullmatch(str(request['resource_tgi']))
+        if not part_id or match is None or int(match.group(1), 16) != part_id:
+            raise ValueError('Catalog CASP instance and resource TGI differ.')
+        message = _message(backend, sim)
+        number, index, body = request['outfit_index'], request['part_index'], request['body_type']
+        if type(number) is not int or not 0 <= number < len(message.outfits) or type(body) is not int:
+            raise ValueError('Select an exact existing outfit and body type.')
+        resolved, _, reason = backend._v8_resolve_body_type(str(body))
+        if resolved != body:
+            raise ValueError(reason or 'The runtime has not classified this body type.')
+        outfit = message.outfits[number]
+        if request['outfit_id'] != str(outfit.outfit_id):
+            raise ValueError('Outfit identity changed.')
+        rows = read_rows(outfit)
+        if index is None:
+            if any(row['body_type'] == body for row in rows):
+                raise ValueError('Select the existing equipped row; layered append is not inferred.')
+        elif type(index) is not int or not 0 <= index < len(rows) or rows[index]['body_type'] != body:
+            raise ValueError('Equipped row changed; choose the exact layer again.')
+        metadata = cas_catalog.effective_metadata(backend, part_id)
+        if (metadata['resource_tgi'] != request['resource_tgi'] or
+                metadata['resource_sha256'] != request['resource_sha256'] or metadata['body_type'] != body):
+            raise ValueError('The loaded effective CASP differs from the catalog selection.')
+        age, species, gender = int(primary.age), int(primary.species), int(primary.gender)
+        if (age not in (1, 2, 4, 8, 16, 32, 64, 128) or species != metadata['species'] or
+                not age & metadata['age_gender']):
+            raise ValueError('This CASP does not support the selected Sim age/species.')
+        if metadata['parameter_flags'] & 128 and not gender & metadata['age_gender']:
+            raise ValueError('This effective CASP restricts the selected gender.')
+        if metadata['parameter_flags2'] & 1:
+            # Cross-frame mesh conversion requires a native fitting contract;
+            # no global modifier, outfit generator or guessed morph is used.
+            raise ValueError('Restricted-frame fitting needs a verified native fitting contract.')
+        if index is not None and rows[index]['id'] == part_id:
+            return _response(journal, 'This exact catalog part is already equipped; its color and layer are retained.',
+                             effective_resource_verified=True, catalog_part_id=str(part_id))
+        if index is None:
+            row = {'id': part_id, 'body_type': body,
+                   'layer_id': metadata['layer_id'] if rows and rows[0]['layer_id'] is not None else None,
+                   'color_shift': NEUTRAL_SHIFT if rows and rows[0]['color_shift'] is not None else None,
+                   'object_id': 0 if rows and rows[0]['object_id'] is not None else None}
+            if rows and rows[0]['layer_id'] is not None and row['layer_id'] is None:
+                # Pre-v50 CASP has no layer field. Layer zero is the exact
+                # baseline Dresser default only for an empty category.
+                row['layer_id'] = 0
+            rows.append(row)
+        else:
+            row = rows[index]
+            if row['object_id'] not in (None, 0):
+                raise ValueError('Object-backed CASP replacement needs a native attachment contract.')
+            row['id'] = part_id
+            if row['color_shift'] is not None:
+                row['color_shift'] = NEUTRAL_SHIFT
+            if row['layer_id'] is not None and metadata['layer_id'] is not None:
+                row['layer_id'] = metadata['layer_id']
+        write_rows(outfit, rows)
+        after = _state(backend, sim, message.SerializeToString())
+        if fingerprint(before) == fingerprint(after):
+            return _response(journal, 'This exact catalog part already matches; nothing changed.')
+        form_bank.assert_idle(backend, primary)
+        token = journal.prepare('Select catalog part: ' + metadata['part_name'], before, after)
+        return _response(journal, 'Catalog item preview prepared from verified loaded CASP bytes. Apply explicitly.',
+                         preview_id=token, effective_resource_verified=True, catalog_part_id=str(part_id),
+                         preview_diff='{} / outfit {} / BodyType {}: {:016X}'.format(flags, number, body, part_id))
     if action == 'studio_color_inspect':
         _, _, rows, index, _, body = _target(backend, sim, value)
         row = rows[index]

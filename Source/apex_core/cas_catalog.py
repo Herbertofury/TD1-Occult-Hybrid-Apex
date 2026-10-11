@@ -97,9 +97,11 @@ def slider_metadata(raw):
     if reader.value('i') != 0:
         raise ValueError('Unexpected CASP preset data; no slider write is permitted.')
     name = reader.string()
-    reader.take(4 + 2 + 4 + 4 + 2)  # sort/swatch/outfit/material/parameter flags
+    reader.take(4 + 2 + 4 + 4)  # sort/swatch/outfit/material
+    parameter_flags, parameter_flags2 = reader.value('B'), reader.value('B')
+    layer_id = None
     if version >= 50:
-        reader.take(2)  # layer ID
+        layer_id = reader.value('H')
     if version >= 51:
         reader.take(reader.count(512) * 8)
     else:
@@ -108,7 +110,9 @@ def slider_metadata(raw):
     reader.take(reader.count(4096) * 6)  # uint16 tag type + uint32 tag value
     reader.take(16 + 1)  # price/title/description/v43 field + texture space
     body_type = reader.value('I')
-    reader.take(4 + 4 + 4 + 12)  # subtype/age-gender/species/pack fields
+    reader.take(4)  # subtype
+    age_gender, species = reader.value('I'), reader.value('I')
+    reader.take(12)  # pack fields
     reader.take(reader.value('B') * 4)  # swatch colors
     reader.take(2 + 8)  # buff/swatch keys + voice hash
     if reader.value('B'):
@@ -129,7 +133,9 @@ def slider_metadata(raw):
         # Inspection preserves genuine metadata. Editing rejects values outside
         # Q14 separately; neither parser nor renderer silently clamps the Sim.
     return {'version': version, 'body_type': body_type, 'part_name': name,
-            'resource_sha256': hashlib.sha256(raw).hexdigest(), 'ranges': settings}
+            'resource_sha256': hashlib.sha256(raw).hexdigest(), 'ranges': settings,
+            'age_gender': age_gender, 'species': species, 'layer_id': layer_id,
+            'parameter_flags': parameter_flags, 'parameter_flags2': parameter_flags2}
 
 
 def effective_metadata(backend, part_id):

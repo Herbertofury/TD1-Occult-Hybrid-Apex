@@ -2,20 +2,20 @@
 import struct
 
 
-def casp(version=52, body=7, step=0.05):
+def casp(version=52, body=7, step=0.05, age_gender=0, species=1, layer=17, flags=0, flags2=0):
     name = 'Apex test part'.encode('utf-16-be')
     raw = bytearray(struct.pack('<IIi', version, 0, 0))
     raw += bytes([len(name)]) + name
-    raw += struct.pack('<fHIIBB', 0, 0, 0, 0, 0, 0)
+    raw += struct.pack('<fHIIBB', 0, 0, 0, 0, flags, flags2)
     if version >= 50:
-        raw += struct.pack('<H', 17)
+        raw += struct.pack('<H', layer)
     if version >= 51:
         raw += struct.pack('<iQQ', 2, 123, 456)
     else:
         raw += struct.pack('<QQ', 123, 456)
     raw += struct.pack('<Q', 0)
     raw += struct.pack('<iHIHI', 2, 10, 123, 20, 456)
-    raw += struct.pack('<IIIIBIIII', 0, 0, 0, 0, 0, body, 0, 0, 1)
+    raw += struct.pack('<IIIIBIIII', 0, 0, 0, 0, 0, body, 0, age_gender, species)
     raw += bytes(12)
     raw += bytes([2]) + struct.pack('<II', 0xFF00FF00, 0xFF112233)
     raw += struct.pack('<BBQBIII', 0, 0, 0, 1, 0, 0, 0)

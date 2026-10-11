@@ -1,6 +1,14 @@
 # Apex Live CAS Studio — Full CAS-Grade Editing Outside CAS
 
-Last reconciled: 2026-10-06
+Last reconciled: 2026-10-10
+
+The V38 catalog-selection game leaf now verifies exact CC replacement,
+unpaused Alien → Vampire → Alien isolation and Undo restoring all original
+appearances without taking focus. V40 verifies cold capture with F11 hidden
+and public background Resume into the exact test household. The library uses
+the foreground-independent renderer and public background lifecycle routes.
+Cold-load owner-bank recovery and remaining image/swatch/fitting/3D work are tracked in
+`Reports/LIVE_CAS_LIBRARY_2026-10-10.md`; this is not full Live/CAS parity.
 Current public MCCC baseline verified for research: MC Command Center 2026.5.0, compatible with Sims 4 PC 1.128.90.1030.
 
 ## Objective
@@ -616,6 +624,26 @@ rehashing it for each swatch. Its public CLI operates without CAS or game input.
 The actual five private CC copies yield 62 parts in .049 seconds, with queries
 around 2 ms. This is a small-sample measurement; a large library benchmark,
 F11 grid integration, compatibility/equip and 3D preview remain open.
+
+V38 advances the library into the native workspace: two to eight virtualized
+columns, search, all discovered categories, origin/name modes, paging,
+persistent favorites and recent inspections. The loopback worker retains an
+immutable Windows index lease and verifies source bytes when selecting.
+Actual private lipstick HTTP paging takes .037 seconds and asset inspection
+.084 seconds; the native schema/identity validator accepts both. The existing
+thumbnail and Studio-copy broker handles selected assets; this CC sample has
+no verified thumbnail and remains explicitly unresolved.
+
+`studio catalog-preview` adds or replaces an exact outfit row after matching
+the loaded CASP's full TGI/hash/body type and age/species support. Apply,
+Undo/Redo and inactive-form edits use the same complete appearance journal.
+Reselecting an equipped item preserves its exact colors and layer. Dynamic
+attachments, restricted-frame fitting and layered append are explicitly
+unfinished implementation contracts, not claims of an engine limitation.
+Current fixtures exercise those refusals and preserve other owners/outfits.
+The WARP renderer test now exercises the actual library grid in a hidden
+window. Exact-candidate game rendering/equip, every CAS control, grid images,
+swatch groups, presets and independent 3D appearance assembly remain open.
 
 Primary source research, checked October 10, 2026:
 

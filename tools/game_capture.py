@@ -30,7 +30,7 @@ def renderer_status(value):
 
 
 def prepare_window(state, request, evidence, record, identity=None, identity_provider=None,
-                   focus=None, monotonic=time.monotonic, pause=time.sleep):
+                   focus=None, monotonic=time.monotonic, pause=time.sleep, background=False):
     """Start once only on exact not-started evidence; focus and observe selection.
 
     Native status 1 remains transitional. No capture, visibility change or input
@@ -38,7 +38,7 @@ def prepare_window(state, request, evidence, record, identity=None, identity_pro
     one authenticated focus-only helper; a lost start/focus is never repeated.
     """
     evidence.update(start_attempted=False, focus_attempted=False, focus_fallback_attempted=False,
-                    game_window_verified=False, steps=[])
+                    game_window_verified=False, background=background, steps=[])
     def call(action):
         row = {'action': action, 'state': 'attempted'}
         evidence['steps'].append(row); record()
@@ -93,6 +93,22 @@ def prepare_window(state, request, evidence, record, identity=None, identity_pro
         current = _renderer_status(call('overlay_status'), 1)
     if current.get('dll_sha256') != expected_dll:
         raise ValueError('Started sidecar identity differs from the disposable artifact.')
+    if background:
+        # The native selector verifies one process-owned visible Sims Canvas.
+        # Observe its normal Present; never invoke a foreground fallback.
+        deadline = monotonic() + 3
+        while current['native_status'] < 2:
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                raise TimeoutError('The process-owned Sims renderer did not attach in the background; no focus or input submitted.')
+            pause(min(.1, remaining))
+            current = _renderer_status(call('overlay_status'), 1)
+            if monotonic() >= deadline:
+                raise TimeoutError('Background renderer observation arrived after its deadline; no focus or input submitted.')
+            if current.get('dll_sha256') != expected_dll or bound(identity_provider(state)) != binding:
+                raise ValueError('Background renderer process/script/DLL identity changed; no focus or input submitted.')
+        evidence['game_window_verified'] = True; record()
+        return renderer_status(current)
     if bound(identity_provider(state)) != binding:
         raise ValueError('Renderer bootstrap bridge changed before focus; no focus submitted.')
     def exact_window(value):
@@ -163,10 +179,11 @@ def prepare_window(state, request, evidence, record, identity=None, identity_pro
 
 class RendererPreparation:
     """Borrow visibility once only when typed CAS diagnostics allow it."""
-    def __init__(self, state, request, evidence, record, monotonic, pause, identity=None, identity_provider=None, focus=None):
+    def __init__(self, state, request, evidence, record, monotonic, pause, identity=None, identity_provider=None, focus=None, background=False):
         self.state, self.request, self.evidence, self.record = state, request, evidence, record
         self.monotonic, self.pause = monotonic, pause
         self.identity, self.identity_provider, self.focus = identity, identity_provider, focus
+        self.background = background
         evidence.update(initial_visibility=None, show_attempted=False, hide_attempted=False,
                         ready_verified=False, original_visibility_verified=False, steps=[])
 
@@ -214,9 +231,16 @@ class RendererPreparation:
         bootstrap = {}
         self.evidence['bootstrap'] = bootstrap; self.record()
         current = prepare_window(self.state, self.request, bootstrap, self.record, self.identity,
-                                 self.identity_provider, self.focus, self.monotonic, self.pause)
+                                 self.identity_provider, self.focus, self.monotonic, self.pause, background=self.background)
         self.evidence['initial_visibility'] = current['visible']
         self.record()
+        if self.background and not overlay:
+            # A selected DXGI chain is enough for a plain backbuffer copy.
+            # No F11 visibility loan, renderer frame or CAS exposure is needed.
+            self.evidence.update(ready_verified=True, original_visibility_verified=True,
+                                 plain_backbuffer_only=True)
+            self.record()
+            return
         ready = lambda status: status['renderer_initialized'] and status['frame_submission_verified']
         if not current['visible'] and (not ready(current) or overlay):
             self.cas_idle()
@@ -247,7 +271,7 @@ class RendererPreparation:
 
 
 def capture(state, output, request, monotonic=time.monotonic, pause=time.sleep, overlay=False,
-            identity=None, identity_provider=None, focus=None):
+            identity=None, identity_provider=None, focus=None, background=False):
     _, journal, profile, original = reusable_profile.load(state)
     output = reusable_profile.writable(output)
     if any(output == root or root in output.parents for root in (profile, original)):
@@ -261,7 +285,7 @@ def capture(state, output, request, monotonic=time.monotonic, pause=time.sleep, 
              'renderer_preparation': preparation, 'capture_attempted': False, 'capture_submitted': False, 'outcome': 'unresolved',
              'test_token': journal['token'], 'inputs': journal['artifacts']}
     record = lambda: write_json(output.with_suffix('.json'), proof)
-    prepared = RendererPreparation(state, request, preparation, record, monotonic, pause, identity, identity_provider, focus)
+    prepared = RendererPreparation(state, request, preparation, record, monotonic, pause, identity, identity_provider, focus, background)
     record()
     try:
         prepared.prepare(overlay)

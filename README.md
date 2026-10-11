@@ -6,7 +6,37 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Latest development checkpoint — V36 CC resource groups and live colors:**
+**Latest development checkpoint — V40 Live CAS library and background CLI:**
+F11 now includes a searchable EA/CC library with adjustable columns,
+category/origin/name filters, paging, favorites and recent inspections.
+The catalog service runs outside the game. Exact catalog selections can
+prepare replacements or empty-category insertions through form-specific
+appearance history; stale resources/owners and unsupported fitting or
+attachments refuse before mutation. `studio open-library` and
+`studio catalog-preview` expose the same workflow through the CLI.
+V39 selects the unique process-owned Sims Canvas without requiring desktop
+foreground ownership. `game capture/resume/shutdown/exit --background`
+observe the renderer and use window-addressed clicks without focus fallbacks.
+V40 captures directly from the game's backbuffer while F11 remains hidden,
+including before its UI renderer initializes. Actual cold startup capture and
+background Resume reach the exact disposable Live household without a focus
+request. Final unchanged-source checks pass 1,632 Python tests and four native targets.
+The candidate
+contains 72 Python 3.7 modules and 206 independently Rust-verified resources.
+Actual V38 game testing verifies a different CC lipstick's loaded resource,
+preview without mutation, exact Apply scope, stale-preview refusal and
+unpaused Alien → Vampire → Alien retention. Undo restores all seven stored
+owners and the distinct Live Sim with desktop focus unchanged. V40 retains
+the identical script and packages. Actual V40 full household CAS also verifies
+distinct Alien-creature/disguise edits in skin details, earrings, lipstick,
+eyebrows and clothing, explicit two-owner commit and unpaused Vampire/Alien/
+disguise retention. The exact eyebrow-variant command remains failed because
+CAS substitutes a verified color-family variant. Cold-load bank authorization,
+every-category/all-form CAS and disk persistence remain separate acceptance work.
+See the
+[library implementation ledger](Reports/LIVE_CAS_LIBRARY_2026-10-10.md).
+
+**Latest verified game behavior — V36 CC resource groups and live colors:**
 Compatible CC now resolves its actual native resource group instead of a
 constructed group-zero key. `studio color-live` commits one exact part edit
 on the game thread with durable Undo/Redo; F11 applies a wheel/slider gesture
@@ -19,7 +49,7 @@ confirms visible lipstick/blush changes and retention through Alien → Vampire
 → Alien. Actual F11 hue/opacity releases also pass after native ticks, with
 two Undo operations restoring every original appearance. See the
 [actual color ledger](Reports/LIVE_COLOR_2026-10-10.md) for current CC, occult
-retention and visible-rendering receipts. The session stays open in the one
+retention and visible-rendering receipts. Tests use the one existing
 disposable profile; the owner's original remains read/copy only.
 Final unchanged-source verification passes 1,609 Python tests and four native
 targets; all 72 compiled Python 3.7 modules import and 206 package resources
@@ -29,8 +59,9 @@ pass independent Rust inspection.
 searches every CASP in explicit source packages, including unequipped CC,
 with exact provenance, category filters, name modes and pagination. The five
 private test packages yield 62 parts in .049 seconds with queries around 2 ms.
-F11's full column browser and independent rotatable/poseable Sim preview are
-accepted scope and remain unfinished; see
+V39 implements the F11 column browser. Complete image/swatch/preset and fitting
+coverage, broader game acceptance and the independent rotatable/poseable Sim preview
+remain unfinished; see
 [Live CAS Studio](docs/APEX_LIVE_CAS_STUDIO.md).
 
 **Historical V33 existing-kind appearance context:**

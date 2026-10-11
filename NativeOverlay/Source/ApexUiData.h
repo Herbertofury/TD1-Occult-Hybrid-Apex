@@ -24,6 +24,7 @@ inline int32_t MetricHandleBits(uint64_t value) {
 }
 
 inline int StudioOverlayTab(int request) {
+    if (request == 15) return 12; // Live EA/CC library within the equipped workspace.
     // Public sidecar API: 11/12 remain the accepted Live/bank views; 13/14
     // explicitly request native CAS client history/equipped views.
     if (request == 11 || request == 13) return 11;

@@ -10,6 +10,7 @@ import re
 import sqlite3
 import tempfile
 import time
+import threading
 
 from cas_resource_catalog import (CASP, STBL, CACHE_ROOT, Package, canonical,
                                   casp_metadata, digest, file_hash, key,
@@ -98,6 +99,8 @@ def build(sources, index, locale=0):
     for source in sources:
         if not isinstance(source, dict) or set(source) != {'path', 'origin'} or source['origin'] not in ('mod', 'ea'):
             raise ValueError('Every source needs exactly path and mod/ea origin.')
+        if not isinstance(source['path'], str) or not source['path']:
+            raise ValueError('Source path must be a nonempty string.')
         path = Path(source['path']).resolve(strict=True)
         if not path.is_file() or path.suffix.lower() != '.package':
             raise ValueError('Source must be an existing package file.')
@@ -153,7 +156,8 @@ def build(sources, index, locale=0):
         temporary.unlink(missing_ok=True)
 
 
-def query(index, expected, text='', body_type=None, origin=None, name_mode='preferred', offset=0, limit=60):
+def _query(connection, expected, text='', body_type=None, origin=None, name_mode='preferred', offset=0, limit=60,
+           part_ids=None):
     if (not isinstance(text, str) or len(text) > 200 or name_mode not in ('preferred', 'package', 'code') or
             origin not in (None, 'mod', 'ea') or type(offset) is not int or not 0 <= offset <= MAX_PARTS or
             type(limit) is not int or not 1 <= limit <= 240 or
@@ -170,22 +174,96 @@ def query(index, expected, text='', body_type=None, origin=None, name_mode='pref
         if value is not None:
             clauses.append(column + '=?')
             parameters.append(value)
+    if part_ids is not None:
+        if not isinstance(part_ids, list) or len(part_ids) > 10000:
+            raise ValueError('Invalid saved item list.')
+        for ident in part_ids:
+            sha(ident)
+        clauses.append('part_id IN (SELECT value FROM json_each(?))')
+        parameters.append(json.dumps(part_ids))
     where = (' WHERE ' + ' AND '.join(clauses)) if clauses else ''
     started = time.perf_counter()
+    snapshot = json.loads(connection.execute('SELECT value FROM snapshot').fetchone()[0])
+    total = connection.execute('SELECT count(*) FROM parts' + where, parameters).fetchone()[0]
+    rows = [json.loads(row[0]) for row in connection.execute(
+        'SELECT row_json FROM parts' + where + ' ORDER BY part_id LIMIT ? OFFSET ?', parameters + [limit, offset])]
+    for row in rows:
+        row['name'] = row[{'preferred': 'preferred_name', 'package': 'package_name', 'code': 'code_name'}[name_mode]]
+    return {'ok': True, 'index_sha256': expected, 'snapshot': snapshot, 'total': total,
+            'offset': offset, 'next_offset': offset + len(rows) if offset + len(rows) < total else None,
+            'items': rows, 'elapsed_seconds': round(time.perf_counter() - started, 6),
+            'game_contacted': False}
+
+
+def query(index, expected, text='', body_type=None, origin=None, name_mode='preferred', offset=0, limit=60):
     connection = _connect(index, expected)
     try:
-        snapshot = json.loads(connection.execute('SELECT value FROM snapshot').fetchone()[0])
-        total = connection.execute('SELECT count(*) FROM parts' + where, parameters).fetchone()[0]
-        rows = [json.loads(row[0]) for row in connection.execute(
-            'SELECT row_json FROM parts' + where + ' ORDER BY part_id LIMIT ? OFFSET ?', parameters + [limit, offset])]
-        for row in rows:
-            row['name'] = row[{'preferred': 'preferred_name', 'package': 'package_name', 'code': 'code_name'}[name_mode]]
-        return {'ok': True, 'index_sha256': expected, 'snapshot': snapshot, 'total': total,
-                'offset': offset, 'next_offset': offset + len(rows) if offset + len(rows) < total else None,
-                'items': rows, 'elapsed_seconds': round(time.perf_counter() - started, 6),
-                'game_contacted': False}
+        return _query(connection, expected, text, body_type, origin, name_mode, offset, limit)
     finally:
         connection.close()
+
+
+class PinnedIndex:
+    """One startup hash scan; immutable SQLite pages never touch the game.
+
+    The open read-only connection is serialized across HTTP workers. A changed
+    path identity refuses every later page. Selection rehashes source packages.
+    """
+    def __init__(self, index, expected):
+        self.path, self.expected = index_path(index), sha(expected)
+        self.handle = None
+        if os.name == 'nt':
+            import ctypes
+            from ctypes import wintypes
+            self.kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+            create = self.kernel.CreateFileW
+            create.argtypes = (wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                               wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE)
+            create.restype = wintypes.HANDLE
+            # Allow other readers, deny writes and replacement for the lifetime
+            # of this browser. SQLite still opens a read-only handle normally.
+            self.handle = create(str(self.path), 0x80000000, 1, None, 3, 0x80, None)
+            if self.handle == ctypes.c_void_p(-1).value:
+                self.handle = None
+                raise OSError(ctypes.get_last_error(), 'Cannot retain a read-only catalog lease.')
+        self.before = signature(self.path)
+        try:
+            connection = _connect(self.path, self.expected)
+            connection.close()
+            if signature(self.path) != self.before:
+                raise ValueError('Index changed while opening browser.')
+            self.connection = sqlite3.connect(self.path.as_uri() + '?mode=ro&immutable=1', uri=True,
+                                             check_same_thread=False)
+            self.connection.execute('PRAGMA query_only=ON')
+            self.lock = threading.RLock()
+            self.facets = [{'body_type': body, 'count': count} for body, count in self.connection.execute(
+                'SELECT body_type,count(*) FROM parts GROUP BY body_type ORDER BY body_type')]
+        except Exception:
+            self._release()
+            raise
+
+    def _release(self):
+        if self.handle is not None:
+            import ctypes
+            self.kernel.CloseHandle.argtypes = (ctypes.c_void_p,)
+            self.kernel.CloseHandle(self.handle)
+            self.handle = None
+
+    def __del__(self):
+        if getattr(self, 'handle', None) is not None:
+            self._release()
+
+    def query(self, **filters):
+        with self.lock:
+            if (signature(self.path) != self.before or
+                    os.name != 'nt' and file_hash(self.path) != self.expected):
+                raise ValueError('Index path changed; restart with a verified snapshot.')
+            return dict(_query(self.connection, self.expected, **filters), categories=self.facets)
+
+    def close(self):
+        with self.lock:
+            self.connection.close()
+            self._release()
 
 
 def resolve(index, expected, part_id):

@@ -4,7 +4,79 @@ This is a concrete development build for owner testing, not a completed release
 or a claim of current-game parity. Target game: PC 1.128.90.1030. Full accepted
 scope and remaining work stay in `docs/CODEX_MASTER_EXECUTION.md`.
 
-## Current build V36 — native CC groups and live colors
+## Current build V40 — Hidden background capture and Live CAS library
+
+Epoch `2026-10-10-background-backbuffer-v40` removes plain capture's dependency
+on ImGui initialization or showing F11. The selected owned swap chain supplies
+its own scoped device/context; overlay-inclusive capture still requires real
+visible overlay frames. A native WARP test reads back actual red pixels with
+the global UI device/context absent and F11 hidden.
+
+Bundle SHA256: `63700138b99cb73561fce07a50bebb952606c450cd734cff5876d3aa6272fe43`.
+Script: `595a1453593bcd6ee8fe678b5dbe47e8dca77914de9d132de4fbd68fb1473c42`.
+DLL: `6ead4cd974af50c0d30d19611ab018223a05d69cb7e72e2696a446acc074a855`.
+Final unchanged-source checks pass 1,632 Python tests and four native targets.
+The same profile advances to generation 76 with all sixteen artifacts and
+every save/sidecar hash retained. Actual process 35784 captures the cold game
+while F11 is hidden, native status is 2 and rendered UI frames are zero. The
+public background Resume then recognizes Home, submits one window-addressed
+click and verifies the exact original test Sim/household/save GUID in paused
+Live mode. This does not certify save/reload appearance retention.
+
+The F11 library requires the host catalog service and an explicit immutable
+index. Build/query/serve it with `tools/apex_cli.py live-cas-catalog`; the
+catalog service listens on loopback port 8023. Automatic companion-service
+startup and a complete installed-content index remain integration work.
+The current owner test service has five private CC copies and 62 indexed CASPs.
+
+## V39 — Live CAS library and background attachment
+
+Epoch `2026-10-10-background-live-cas-library-v39` retains the exact V38
+script/packages and corrects the native renderer's foreground startup gate.
+Selection requires one visible, non-minimized, top-level Canvas owned by the
+current Sims process. Auxiliary, ambiguous and foreign windows are refused.
+The public capture/Resume/normal-exit background routes never request focus;
+lifecycle clicks use the existing window-message protocol.
+
+Bundle SHA256: `46d595836cc9b5402e9794cc9c4af73f4f27ecc9d020a13472a765aaa4dab2e2`.
+Script: `595a1453593bcd6ee8fe678b5dbe47e8dca77914de9d132de4fbd68fb1473c42`.
+DLL: `36696629dd39ce58379c23171dff1cced15a1c1c67acd05491f9e9cc9e50d56e`.
+Candidate import/resource verification and final unchanged-source 1,629
+Python/four native checks pass. The guarded generation-75 install retains all
+saves/sidecars. Exact V39 startup acceptance is recorded separately in the
+library ledger.
+
+## V38 — Live CAS library and actual CC selection
+
+Epoch `2026-10-10-live-cas-library-v38` adds the bounded loopback catalog service,
+F11 columns/search/category/name filters, persistent favorites/recent items,
+selected asset inspection, direct CLI library opening and guarded journaled
+catalog replacement/empty-category insertion. Final unchanged-source checks
+pass 1,621 Python tests and four native targets. The actual 30-lipstick service
+page and selected package pass native validators. Actual process 38320 also
+passes CC selection, unpaused Alien → Vampire → Alien and complete original
+appearance restoration; proof `9f6ee2e055b1c72580baa6d0e8a9d28710a8983cef9d494bcf04f58feb3dd231`.
+Full images/swatches/presets/fitting and the independent 3D Sim
+renderer remain unfinished.
+
+Bundle SHA256: `5095553461c8a533360e8c09068486528fcf9c1dea2891eba169b445c377dd7e`.
+Script: `595a1453593bcd6ee8fe678b5dbe47e8dca77914de9d132de4fbd68fb1473c42`.
+DLL: `72094f4a96fa9f13254783fa48a91d79eb2821c89553194a65b4d56f3c7c8ee1`.
+All 72 Python 3.7 imports and 206 independent Rust resource checks pass.
+
+The background native CLI completed normal Exit Game without saving. All
+disposable save/backup hashes remain unchanged, with no force termination or
+foreground handoff call. Windows' foreground HWND differs after normal exit;
+this is not a claim that desktop activation remained unchanged. The guarded
+V38 installation advances the same disposable profile to generation 74 with
+sixteen artifacts; all saves and retained sidecars stay exact. Protected
+original writes remain prohibited. Exact install proof:
+`8c6bfd836f060a761456cbd8140ba28e45729b902431910c0ecb7b07f1cc422d`.
+The correct account-specific launcher starts process 31944 with the exact new
+script/DLL. The later normal account launch starts process 38320, where the
+complete CC selection/switch/Undo leaf passes without input, focus or saves.
+
+## Historical V36 — native CC groups and live colors
 
 Epoch `2026-10-10-cc-resource-groups-v36` resolves the unique actual CASP key
 from the installed resource index, retaining CC groups and refusing ambiguous

@@ -40,6 +40,9 @@
 
 #include "ApexUiData.h"
 #include "ApexResourceImage.h"
+#include "ApexLiveCatalog.h"
+#include "ApexPointerGate.h"
+#include "ApexGameWindow.h"
 #include "ApexStudioItems.h"
 #include "ApexPartColorControls.h"
 #include "ApexOwnerCommand.h"
@@ -90,6 +93,7 @@ static IDXGISwapChain* g_swapChain = nullptr; // identity only; owned by the cal
 static std::recursive_mutex g_renderMutex;
 static std::mutex g_hookMutex;
 static ToggleInput g_toggleInput;
+static PointerGate g_pointerGate; // g_renderMutex
 static std::atomic<int> g_loaderStatus{0}; // 0 not started, 1 hooked, negative error
 #ifdef APEX_NATIVE_SMOKE
 static unsigned g_presentCount = 0;
@@ -212,6 +216,18 @@ static ui::Json g_studioItemRequest = ui::Json::object(), g_studioItemRows = ui:
 static std::atomic<bool> g_studioItemsBusy{false};
 static std::string g_studioItemsReply, g_studioItemsContext, g_studioItemsMessage;
 static uint64_t g_studioItemsReceipt = 0, g_studioItemsSeen = 0;
+static std::atomic<bool> g_libraryBusy{false};
+static std::atomic<uint64_t> g_librarySerial{0};
+static ui::Json g_libraryPage = ui::Json::object(), g_libraryInspection = ui::Json::object(); // g_dataMutex
+static std::string g_libraryStatus = "Start the Live CAS catalog CLI service to browse installed parts.";
+static char g_librarySearch[201] = "";
+static int g_libraryColumns = 4, g_libraryOrigin = 0, g_libraryView = 0;
+static int64_t g_libraryBody = -1;
+static size_t g_libraryOffset = 0;
+static bool g_libraryQueryNeeded = true;
+static bool g_libraryFocusRequested = false;
+static std::string g_libraryQueryKey, g_librarySelected;
+static int g_libraryTargetRow = 0;
 static size_t g_studioItemsCursor = 0;
 static ULONGLONG g_studioItemsNextMs = 0;
 static bool g_studioItemsComplete = false;
@@ -488,8 +504,10 @@ static std::string ResourceKey(const ui::Json& row) {
 
 static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) {
     body.clear();
-    if (operation < 1 || operation > 3) return false;
-    if (operation != 1 && !resource::CatalogIdentities({{"schema", 1}, {"items", ui::Json::array({row})}})) return false;
+    if (operation < 1 || operation > 6) return false;
+    if (operation > 1 && operation < 4 && !resource::CatalogIdentities({{"schema", 1}, {"items", ui::Json::array({row})}})) return false;
+    if (operation == 4 && !library::Query(row) || operation == 5 && !library::Selection(row) ||
+        operation == 6 && !library::Selection(row, true)) return false;
     if (!g_wsStarted) {
         WSADATA wsa{};
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return false;
@@ -497,16 +515,18 @@ static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) 
     }
     const size_t bound = operation == 2 ? 8 * 1024 * 1024 : 512 * 1024;
     const std::string path = operation == 1 ? "/v1/resources" : operation == 2 ?
-        "/v1/resources/" + ui::Scalar(row, "resource_id") + "/thumbnail" : "/v1/open";
+        "/v1/resources/" + ui::Scalar(row, "resource_id") + "/thumbnail" : operation == 3 ? "/v1/open" :
+        operation == 4 ? "/v1/catalog/query" : operation == 5 ? "/v1/catalog/inspect" : "/v1/catalog/favorite";
     const std::string payload = operation == 3 ? ui::Json({{"resource_id", row["resource_id"]},
-        {"cache_proof", row["cache_proof"]}}).dump() : "";
-    std::string request = std::string(operation == 3 ? "POST " : "GET ") + path +
-        " HTTP/1.1\r\nHost: 127.0.0.1:8022\r\nConnection: close\r\nCache-Control: no-store\r\n";
-    if (operation == 3) request += "Content-Type: application/json\r\nContent-Length: " + std::to_string(payload.size()) + "\r\n";
+        {"cache_proof", row["cache_proof"]}}).dump() : operation >= 4 ? row.dump() : "";
+    const unsigned port = operation >= 4 || row.value("broker_port", ui::Json()) == 8023 ? 8023 : 8022;
+    std::string request = std::string(operation >= 3 ? "POST " : "GET ") + path +
+        " HTTP/1.1\r\nHost: 127.0.0.1:" + std::to_string(port) + "\r\nConnection: close\r\nCache-Control: no-store\r\n";
+    if (operation >= 3) request += "Content-Type: application/json\r\nContent-Length: " + std::to_string(payload.size()) + "\r\n";
     request += "\r\n" + payload;
     SOCKET socketHandle = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socketHandle == INVALID_SOCKET) return false;
-    sockaddr_in address{}; address.sin_family = AF_INET; address.sin_port = htons(8022);
+    sockaddr_in address{}; address.sin_family = AF_INET; address.sin_port = htons(static_cast<u_short>(port));
     inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);
     DWORD timeout = 12000;
     setsockopt(socketHandle, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
@@ -556,8 +576,40 @@ static bool QueueResource(int operation, const ui::Json& row = ui::Json::object(
     return true;
 }
 
+static bool QueueLibrary(int operation, const ui::Json& request) {
+    if ((operation == 4 && !library::Query(request)) || (operation == 5 && !library::Selection(request)) ||
+        (operation == 6 && !library::Selection(request, true)) || operation < 4 || operation > 6) return false;
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    if (g_libraryBusy.load() || g_commands.size() >= 48) return false;
+    QueuedCommand command{"", g_selectionGeneration};
+    command.resourceOperation = operation; command.resourceRow = request;
+    command.resourceSelection = ++g_librarySerial;
+    g_libraryBusy = true; g_commands.push_back(std::move(command));
+    return true;
+}
+
 static void RunResourceCommand(const QueuedCommand& command) {
     const int operation = command.resourceOperation;
+    if (operation >= 4) {
+        bool current;
+        { std::lock_guard<std::mutex> lock(g_dataMutex); current = command.generation == g_selectionGeneration && command.resourceSelection == g_librarySerial.load(); }
+        std::string body;
+        const bool received = current && ResourceHttp(operation, command.resourceRow, body);
+        const auto value = ui::ParseObject(body);
+        const bool valid = received && (operation == 4 ? library::Page(value, command.resourceRow) :
+            operation == 5 ? library::Inspection(value, command.resourceRow) :
+            value.value("ok", ui::Json(false)) == true && value.value("part_id", ui::Json()) == command.resourceRow["part_id"] &&
+            value.value("index_sha256", ui::Json()) == command.resourceRow["index_sha256"] && value.value("enabled", ui::Json()) == command.resourceRow["enabled"]);
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if (command.generation == g_selectionGeneration && command.resourceSelection == g_librarySerial.load()) {
+            if (valid && operation == 4) g_libraryPage = value;
+            if (valid && operation == 5) g_libraryInspection = value;
+            g_libraryStatus = valid ? (operation == 5 ? "Selected package and CASP bytes verified. Compatibility is checked in the game before preview." : "Catalog page received. Browsing has not changed the Sim.") :
+                "Catalog unavailable or request refused. " + ui::Scalar(value, "reason");
+        }
+        g_libraryBusy = false;
+        return;
+    }
     bool current;
     {
         std::lock_guard<std::mutex> lock(g_dataMutex);
@@ -1039,7 +1091,13 @@ static std::string ScreenshotFolder() {
     return dir;
 }
 
+#ifdef APEX_NATIVE_SMOKE
+static std::string g_smokeCapturePath;
+#endif
 static std::string TimestampName(const char* mode) {
+#ifdef APEX_NATIVE_SMOKE
+    if (!g_smokeCapturePath.empty()) return g_smokeCapturePath;
+#endif
     std::time_t t = std::time(nullptr);
     std::tm tm{};
     localtime_s(&tm, &t);
@@ -1050,7 +1108,15 @@ static std::string TimestampName(const char* mode) {
 }
 
 static bool SaveBackbufferBmp(IDXGISwapChain* sc, int mode) {
-    if (!sc || !g_device || !g_context) return false;
+    // Plain capture belongs to DXGI, not F11 initialization or visibility.
+    // Keep these references local so a cold Home/CAS capture installs no UI.
+    struct CaptureDevice {
+        ID3D11Device* device = nullptr; ID3D11DeviceContext* context = nullptr;
+        ~CaptureDevice() { if (context) context->Release(); if (device) device->Release(); }
+    } capture;
+    if (!sc || FAILED(sc->GetDevice(__uuidof(ID3D11Device), reinterpret_cast<void**>(&capture.device))) || !capture.device) return false;
+    capture.device->GetImmediateContext(&capture.context);
+    if (!capture.context) return false;
     ID3D11Texture2D* backBuffer = nullptr;
     if (FAILED(sc->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer))) || !backBuffer) return false;
     D3D11_TEXTURE2D_DESC desc{};
@@ -1070,8 +1136,8 @@ static bool SaveBackbufferBmp(IDXGISwapChain* sc, int mode) {
         readableDesc.BindFlags = 0;
         readableDesc.CPUAccessFlags = 0;
         readableDesc.MiscFlags = 0;
-        if (SUCCEEDED(g_device->CreateTexture2D(&readableDesc, nullptr, &resolveTex)) && resolveTex) {
-            g_context->ResolveSubresource(resolveTex, 0, backBuffer, 0, desc.Format);
+        if (SUCCEEDED(capture.device->CreateTexture2D(&readableDesc, nullptr, &resolveTex)) && resolveTex) {
+            capture.context->ResolveSubresource(resolveTex, 0, backBuffer, 0, desc.Format);
             sourceTex = resolveTex;
         }
     }
@@ -1081,10 +1147,10 @@ static bool SaveBackbufferBmp(IDXGISwapChain* sc, int mode) {
     staging.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
     staging.Usage = D3D11_USAGE_STAGING;
     ID3D11Texture2D* copyTex = nullptr;
-    if (FAILED(g_device->CreateTexture2D(&staging, nullptr, &copyTex)) || !copyTex) { if (resolveTex) resolveTex->Release(); backBuffer->Release(); return false; }
-    g_context->CopyResource(copyTex, sourceTex);
+    if (FAILED(capture.device->CreateTexture2D(&staging, nullptr, &copyTex)) || !copyTex) { if (resolveTex) resolveTex->Release(); backBuffer->Release(); return false; }
+    capture.context->CopyResource(copyTex, sourceTex);
     D3D11_MAPPED_SUBRESOURCE mapped{};
-    if (FAILED(g_context->Map(copyTex, 0, D3D11_MAP_READ, 0, &mapped))) { copyTex->Release(); if (resolveTex) resolveTex->Release(); backBuffer->Release(); return false; }
+    if (FAILED(capture.context->Map(copyTex, 0, D3D11_MAP_READ, 0, &mapped))) { copyTex->Release(); if (resolveTex) resolveTex->Release(); backBuffer->Release(); return false; }
 
     int w = static_cast<int>(readableDesc.Width);
     int h = static_cast<int>(readableDesc.Height);
@@ -1099,7 +1165,7 @@ static bool SaveBackbufferBmp(IDXGISwapChain* sc, int mode) {
     uint32_t fileSize = 14 + 40 + pixelDataSize;
     std::string path = TimestampName(modeName);
     std::ofstream f(path, std::ios::binary);
-    if (!f) { g_context->Unmap(copyTex, 0); copyTex->Release(); if (resolveTex) resolveTex->Release(); backBuffer->Release(); return false; }
+    if (!f) { capture.context->Unmap(copyTex, 0); copyTex->Release(); if (resolveTex) resolveTex->Release(); backBuffer->Release(); return false; }
     f.put('B'); f.put('M'); WriteLE32(f, fileSize); WriteLE16(f, 0); WriteLE16(f, 0); WriteLE32(f, 54);
     WriteLE32(f, 40); WriteLE32(f, static_cast<uint32_t>(cw)); WriteLE32(f, static_cast<uint32_t>(-ch)); WriteLE16(f, 1); WriteLE16(f, 24); WriteLE32(f, 0); WriteLE32(f, pixelDataSize); WriteLE32(f, 2835); WriteLE32(f, 2835); WriteLE32(f, 0); WriteLE32(f, 0);
     std::vector<unsigned char> row(static_cast<size_t>(rowBytes), 0);
@@ -1119,7 +1185,7 @@ static bool SaveBackbufferBmp(IDXGISwapChain* sc, int mode) {
     }
     f.flush();
     const bool written = f.good();
-    g_context->Unmap(copyTex, 0);
+    capture.context->Unmap(copyTex, 0);
     copyTex->Release();
     if (resolveTex) resolveTex->Release();
     backBuffer->Release();
@@ -1148,7 +1214,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         ImGuiIO& io = ImGui::GetIO();
         const bool mouse = (msg >= WM_MOUSEFIRST && msg <= WM_MOUSELAST);
         const bool key = (msg >= WM_KEYFIRST && msg <= WM_KEYLAST);
-        if ((mouse && io.WantCaptureMouse) || (key && io.WantCaptureKeyboard)) return TRUE;
+        if (mouse) {
+            POINT point{static_cast<short>(LOWORD(lParam)), static_cast<short>(HIWORD(lParam))};
+            if (msg == WM_MOUSEWHEEL || msg == WM_MOUSEHWHEEL) ScreenToClient(hwnd, &point);
+            const uint32_t down = msg == WM_LBUTTONDOWN || msg == WM_LBUTTONDBLCLK ? 1 : msg == WM_RBUTTONDOWN || msg == WM_RBUTTONDBLCLK ? 2 : msg == WM_MBUTTONDOWN || msg == WM_MBUTTONDBLCLK ? 4 : msg == WM_XBUTTONDOWN || msg == WM_XBUTTONDBLCLK ? 8 : 0;
+            const uint32_t up = msg == WM_LBUTTONUP ? 1 : msg == WM_RBUTTONUP ? 2 : msg == WM_MBUTTONUP ? 4 : msg == WM_XBUTTONUP ? 8 : 0;
+            if (g_pointerGate.Owns(point.x, point.y, down, up, io.WantCaptureMouse)) return TRUE;
+        }
+        if (key && io.WantCaptureKeyboard) return TRUE;
+    } else {
+        g_pointerGate.held = 0;
     }
     }
     return g_oldWndProc ? CallWindowProcW(g_oldWndProc, hwnd, msg, wParam, lParam) : DefWindowProcW(hwnd, msg, wParam, lParam);
@@ -2060,6 +2135,142 @@ static void DrawStudioParts() {
     if (supported) DrawNumericColor(target);
 }
 
+static void DrawLiveLibrary() {
+    static const char* modes[] = {"Friendly / CC filename", "Package filename", "Internal code"};
+    static const char* origins[] = {"All EA + CC", "Custom content", "EA content"};
+    static const char* views[] = {"All items", "Favorites", "Recently inspected"};
+    static const char* modeValues[] = {"preferred", "package", "code"};
+    static const char* viewValues[] = {"all", "favorites", "recent"};
+    ui::Json page, inspection; std::string status;
+    { std::lock_guard<std::mutex> lock(g_dataMutex); page = g_libraryPage; inspection = g_libraryInspection; status = g_libraryStatus; }
+    auto categoryName = [](int64_t body) {
+        if (g_studioData.contains("category_catalog")) for (const auto& c : g_studioData["category_catalog"])
+            if (c.contains("value") && c["value"] == body) return ui::Scalar(c, "label");
+        for (const auto& c : kCasBodyTypes) if (c.fallbackValue == body) return std::string(c.label);
+        return std::string("BodyType ") + std::to_string(body);
+    };
+    ImGui::TextColored(ImVec4(.35f, .88f, .77f, 1), "LIVE CAS LIBRARY");
+    ImGui::TextDisabled("Every indexed part / independent form and outfit / no CAS room");
+    ImGui::SetNextItemWidth(-1);
+    if (ImGui::InputTextWithHint("##library-search", "Search CC names, filenames or internal codes", g_librarySearch, sizeof(g_librarySearch), ImGuiInputTextFlags_EnterReturnsTrue) || ImGui::IsItemDeactivatedAfterEdit()) {
+        g_libraryOffset = 0; g_libraryQueryNeeded = true;
+    }
+    ImGui::SetNextItemWidth(190);
+    if (ImGui::Combo("##library-names", &g_itemNameMode, modes, 3)) { g_libraryOffset = 0; g_libraryQueryNeeded = true; }
+    ImGui::SameLine(); ImGui::SetNextItemWidth(130);
+    if (ImGui::Combo("##library-origin", &g_libraryOrigin, origins, 3)) { g_libraryOffset = 0; g_libraryQueryNeeded = true; }
+    ImGui::SameLine(); ImGui::SetNextItemWidth(160);
+    if (ImGui::Combo("##library-view", &g_libraryView, views, 3)) { g_libraryOffset = 0; g_libraryQueryNeeded = true; }
+    ImGui::SetNextItemWidth(270);
+    if (ImGui::BeginCombo("Category##library", g_libraryBody < 0 ? "All categories, including empty slots" : categoryName(g_libraryBody).c_str())) {
+        if (ImGui::Selectable("All categories", g_libraryBody < 0)) { g_libraryBody = -1; g_libraryOffset = 0; g_libraryQueryNeeded = true; }
+        if (page.contains("categories")) for (const auto& c : page["categories"]) {
+            if (c["body_type"].is_null()) continue;
+            const auto body = c["body_type"].get<int64_t>();
+            const auto label = categoryName(body) + " (" + ui::Scalar(c, "count") + ")##" + std::to_string(body);
+            if (ImGui::Selectable(label.c_str(), g_libraryBody == body)) { g_libraryBody = body; g_libraryOffset = 0; g_libraryQueryNeeded = true; }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::SameLine(); ImGui::SetNextItemWidth(120); ImGui::SliderInt("Columns", &g_libraryColumns, 2, 8);
+    const ui::Json query = {{"text", g_librarySearch}, {"body_type", g_libraryBody < 0 ? ui::Json() : ui::Json(g_libraryBody)},
+        {"origin", g_libraryOrigin == 0 ? ui::Json() : ui::Json(g_libraryOrigin == 1 ? "mod" : "ea")},
+        {"name_mode", modeValues[std::clamp(g_itemNameMode, 0, 2)]}, {"offset", g_libraryOffset}, {"limit", 60},
+        {"view", viewValues[std::clamp(g_libraryView, 0, 2)]}};
+    const auto queryKey = query.dump();
+    if (g_libraryQueryNeeded && !g_libraryBusy.load() && QueueLibrary(4, query)) {
+        g_libraryQueryKey = queryKey; g_libraryQueryNeeded = false;
+    }
+    ImGui::BeginDisabled(g_libraryBusy.load());
+    if (ImGui::SmallButton("Refresh library")) g_libraryQueryNeeded = true;
+    ImGui::EndDisabled(); ImGui::SameLine(); ImGui::TextWrapped("%s", status.c_str());
+    if (page.empty() || page.value("query", ui::Json()) != query) { ImGui::TextDisabled("%s", g_libraryBusy.load() ? "Loading this catalog page..." : "No current page. Run live-cas-catalog serve with the verified index SHA256."); return; }
+    ImGui::TextDisabled("%s matches / %s indexed parts", ui::Scalar(page, "total").c_str(), ui::Scalar(page["snapshot"], "parts").c_str());
+    if (!page["snapshot"].value("complete", false)) ImGui::TextWrapped("Some packages could not be indexed. Source errors remain visible in the CLI snapshot.");
+    ImGui::BeginDisabled(g_libraryBusy.load() || g_libraryOffset == 0);
+    if (ImGui::SmallButton("Previous page")) { g_libraryOffset = g_libraryOffset >= 60 ? g_libraryOffset - 60 : 0; g_libraryQueryNeeded = true; }
+    ImGui::EndDisabled(); ImGui::SameLine();
+    ImGui::BeginDisabled(g_libraryBusy.load() || page["next_offset"].is_null());
+    if (ImGui::SmallButton("Next page")) { g_libraryOffset = page["next_offset"].get<size_t>(); g_libraryQueryNeeded = true; }
+    ImGui::EndDisabled();
+    ImGui::BeginChild("library-grid", ImVec2(0, 230), true);
+    const int columns = std::clamp(g_libraryColumns, 2, 8);
+    const float cardWidth = std::max(40.f, (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * (columns - 1)) / columns);
+    const auto& items = page["items"];
+    ImGuiListClipper clipper; clipper.Begin(static_cast<int>((items.size() + columns - 1) / columns), 90.f + ImGui::GetStyle().ItemSpacing.y);
+    while (clipper.Step()) for (int line = clipper.DisplayStart; line < clipper.DisplayEnd; ++line) {
+        for (int column = 0; column < columns; ++column) {
+            const size_t n = static_cast<size_t>(line * columns + column); if (n >= items.size()) break;
+            if (column) ImGui::SameLine(); const auto& item = items[n]; const auto id = ui::Scalar(item, "part_id");
+            ImGui::PushID(id.c_str()); const auto at = ImGui::GetCursorScreenPos();
+            const bool available = item["status"] == "indexed";
+            ImGui::BeginDisabled(!available || g_libraryBusy.load());
+            if (ImGui::Selectable("##library-card", id == g_librarySelected, 0, ImVec2(cardWidth, 90))) {
+                g_librarySelected = id; g_libraryTargetRow = 0; ++g_resourceSelectionSerial; g_resourceRequestedImage.clear();
+                QueueLibrary(5, {{"part_id", id}, {"index_sha256", page["index_sha256"]}});
+            }
+            ImGui::EndDisabled();
+            auto* draw = ImGui::GetWindowDrawList(); const ImVec4 clip(at.x + 5, at.y + 4, at.x + cardWidth - 5, at.y + 66);
+            const auto name = ui::Scalar(item, "name"); const auto display = name.empty() ? ui::Scalar(item, "package_name") : name;
+            draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + 5, at.y + 4), available ? IM_COL32(222, 232, 239, 255) : IM_COL32(127, 139, 152, 255), display.c_str(), nullptr, cardWidth - 10, &clip);
+            const auto footer = item["favorite"] == true ? "Favorite" : item["body_type"].is_null() ? "Unclassified" : categoryName(item["body_type"].get<int64_t>());
+            const ImVec4 footerClip(at.x + 5, at.y + 68, at.x + cardWidth - 5, at.y + 89);
+            draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + 5, at.y + 70), IM_COL32(94, 195, 177, 255), footer.c_str(), nullptr, 0, &footerClip);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s\nPackage: %s\nCode: %s\n%s\n%s", ui::Scalar(item, "preferred_name").c_str(), ui::Scalar(item, "package_name").c_str(), ui::Scalar(item, "code_name").c_str(), ui::Scalar(item, "resource_tgi").c_str(), available ? "Select to verify package bytes and inspect assets." : ui::Scalar(item, "reason").c_str());
+            ImGui::PopID();
+        }
+    }
+    ImGui::EndChild();
+    const ui::Json selection = {{"part_id", g_librarySelected}, {"index_sha256", page["index_sha256"]}};
+    if (!library::Inspection(inspection, selection)) { ImGui::TextDisabled("Select an item to inspect its actual resource and compatibility."); return; }
+    const auto& item = inspection["item"]; const auto& row = inspection["resource"];
+    const auto name = resource::Name(row, static_cast<resource::NameMode>(std::clamp(g_itemNameMode, 0, 2)));
+    ImGui::SeparatorText(name.text.empty() ? "Selected item" : name.text.c_str());
+    bool favorite = false;
+    for (const auto& candidate : items) if (candidate["part_id"] == g_librarySelected) favorite = candidate["favorite"].get<bool>();
+    ImGui::BeginDisabled(g_libraryBusy.load());
+    if (ImGui::Checkbox("Favorite##selected-catalog", &favorite)) {
+        QueueLibrary(6, {{"part_id", g_librarySelected}, {"index_sha256", page["index_sha256"]}, {"enabled", favorite}}); g_libraryQueryNeeded = true;
+    }
+    ImGui::EndDisabled();
+    const auto key = ResourceKey(row);
+    if (row["thumbnail"]["status"] == "resolved") {
+        if (g_resourceRequestedImage != key && !g_resourceImageBusy.load() && QueueResource(2, row)) g_resourceRequestedImage = key;
+        unsigned width = 0, height = 0;
+        { std::lock_guard<std::mutex> lock(g_dataMutex); if (g_resourceImageKey == key) { width = g_resourcePixels.width; height = g_resourcePixels.height; } }
+        if (ResourceTexture(key)) { const float scale = std::min(1.f, 128.f / static_cast<float>(std::max(width, height))); ImGui::Image(reinterpret_cast<ImTextureID>(g_resourceTexture), ImVec2(width * scale, height * scale)); }
+        else ImGui::TextDisabled("Loading verified thumbnail...");
+    } else ImGui::TextWrapped("Thumbnail unavailable: %s", ui::Scalar(row["thumbnail"], "reason").c_str());
+    ImGui::BeginDisabled(row["studio_open"]["status"] != "ready" || g_resourceOpenBusy.load());
+    if (ImGui::Button("Open package copy in Sims 4 Studio##library")) QueueResource(3, row);
+    ImGui::EndDisabled();
+    const auto& outfits = ViewedStudioOutfits();
+    if (outfits.empty() || !g_studioData.contains("history_lane") || !g_studioData.contains("appearance_sha256")) return;
+    const auto& outfit = outfits[static_cast<size_t>(std::clamp(g_studioOutfitIndex, 0, static_cast<int>(outfits.size()) - 1))];
+    std::vector<ui::Json> targets;
+    for (const auto& part : outfit["parts"]) if (part["body_type"] == item["body_type"]) targets.push_back(part);
+    ui::Json partIndex;
+    if (!targets.empty()) {
+        g_libraryTargetRow = std::clamp(g_libraryTargetRow, 0, static_cast<int>(targets.size()) - 1);
+        if (ImGui::BeginCombo("Replace exact layer", ui::Scalar(targets[static_cast<size_t>(g_libraryTargetRow)], "target").c_str())) {
+            for (size_t n = 0; n < targets.size(); ++n) if (ImGui::Selectable(ui::Scalar(targets[n], "target").c_str(), n == static_cast<size_t>(g_libraryTargetRow))) g_libraryTargetRow = static_cast<int>(n);
+            ImGui::EndCombo();
+        }
+        partIndex = targets[static_cast<size_t>(g_libraryTargetRow)]["index"];
+    } else ImGui::TextDisabled("Add to this empty category / selected form and outfit only.");
+    ImGui::TextWrapped("Preview checks loaded CASP identity, age/species and fitting restrictions. Apply commits through full appearance history; other forms and outfits are retained.");
+    ImGui::BeginDisabled(g_libraryBusy.load() || g_ownerBlocked.load() || g_ownerSubmissionBusy.load() || g_ownerNativeDeliveryBusy.load() || g_casBankBusy.load() || g_studioData.value("pending_preview", ui::Json()) != nullptr);
+    if (ImGui::Button("Preview selected item on this form / outfit")) {
+        const auto tgi = ui::Scalar(item, "resource_tgi");
+        const auto id = std::to_string(std::stoull(tgi.substr(18), nullptr, 16));
+        const ui::Json request = {{"outfit_index", outfit["index"]}, {"outfit_id", outfit["outfit_id"]}, {"part_index", partIndex},
+            {"body_type", item["body_type"]}, {"cas_part_id", id}, {"resource_tgi", item["resource_tgi"]},
+            {"resource_sha256", item["resource_sha256"]}, {"lane", g_studioData["history_lane"]}, {"appearance_sha256", g_studioData["appearance_sha256"]}};
+        const auto raw = request.dump(); QueueStudioAction("studio_catalog_preview", nullptr, raw.c_str());
+    }
+    ImGui::EndDisabled();
+}
+
 static void DrawStudioTimeline() {
     ImGui::SetNextItemWidth(-1); ImGui::InputTextWithHint("##history-search", "Search checkpoints and operations", g_historySearch, sizeof(g_historySearch));
     const auto found = g_studioData.find("history_nodes");
@@ -2479,7 +2690,13 @@ static void DrawStudioTab(const std::string& reply, ULONGLONG replyMs, bool hist
         ImGui::EndDisabled();
         if (g_studioData.value("legacy_outfit_history_retained", false)) ImGui::TextDisabled("Earlier outfit-only history retained separately.");
         ImGui::TextWrapped("Full native Sim records and their runtime schemas are retained at checkpoints. Undo restores captured appearance; gameplay records remain available for inspection.");
-    } else DrawStudioParts();
+    } else if (ImGui::BeginTabBar("live-cas-workspace")) {
+        if (ImGui::BeginTabItem("Equipped / colors")) { DrawStudioParts(); ImGui::EndTabItem(); }
+        if (ImGui::BeginTabItem("EA + CC library", nullptr, g_libraryFocusRequested ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)) {
+            g_libraryFocusRequested = false; DrawLiveLibrary(); ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
     const auto forms = g_studioData.find("form_inventory");
     if (forms != g_studioData.end() && !forms->empty() && ImGui::CollapsingHeader("All captured appearance fields / preset results")) {
         const auto& form = (*forms)[static_cast<size_t>(g_studioFormIndex)];
@@ -2566,6 +2783,9 @@ static void DrawOverlay() {
     ImGui::SetNextWindowSize(ImVec2(std::max(400.0f, std::min(1180.0f, display.x - 40)), std::max(400.0f, std::min(920.0f, display.y - 60))), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(20, 30), ImGuiCond_FirstUseEver);
     ImGui::Begin("APEX / Occult Hybrid Studio", nullptr, ImGuiWindowFlags_NoCollapse);
+    const auto windowPos = ImGui::GetWindowPos(), windowSize = ImGui::GetWindowSize();
+    g_pointerGate.left = static_cast<int>(windowPos.x); g_pointerGate.top = static_cast<int>(windowPos.y);
+    g_pointerGate.right = static_cast<int>(windowPos.x + windowSize.x); g_pointerGate.bottom = static_cast<int>(windowPos.y + windowSize.y);
     std::string status, json, sim, reply;
     ULONGLONG replyMs = 0;
     std::vector<std::string> logs;
@@ -2690,6 +2910,21 @@ static void ResetRenderer() {
     g_toggleInput = ToggleInput(); g_loaderStatus = 1;
 }
 
+static bool IsGameCanvas(HWND window) {
+    DWORD process = 0; RECT client{}; wchar_t windowClass[256]{};
+    if (!IsWindow(window) || !GetClientRect(window, &client) ||
+        !GetClassNameW(window, windowClass, 256)) return false;
+    GetWindowThreadProcessId(window, &process);
+    return GameCanvas(process, GetCurrentProcessId(), IsWindowVisible(window) != 0,
+        IsIconic(window) != 0, GetAncestor(window, GA_ROOT) == window,
+        client.right - client.left, client.bottom - client.top, windowClass);
+}
+
+static BOOL CALLBACK CountGameCanvas(HWND window, LPARAM result) {
+    if (IsGameCanvas(window)) ++*reinterpret_cast<unsigned*>(result);
+    return TRUE;
+}
+
 static bool SelectSwapChain(IDXGISwapChain* sc) {
     if (g_swapChain && !IsWindow(g_hwnd)) ResetRenderer();
     if (g_swapChain) return sc == g_swapChain;
@@ -2701,8 +2936,10 @@ static bool SelectSwapChain(IDXGISwapChain* sc) {
     if (process != GetCurrentProcessId() || !GetClientRect(desc.OutputWindow, &client) ||
         client.right <= client.left || client.bottom <= client.top) return false;
 #ifndef APEX_NATIVE_SMOKE
-    if (!IsWindowVisible(desc.OutputWindow) || GetAncestor(GetForegroundWindow(), GA_ROOT) !=
-        GetAncestor(desc.OutputWindow, GA_ROOT)) return false;
+    unsigned matchingWindows = 0;
+    if (!IsGameCanvas(desc.OutputWindow) || !EnumWindows(CountGameCanvas,
+        reinterpret_cast<LPARAM>(&matchingWindows)) ||
+        !UniqueGameCanvas(true, matchingWindows)) return false;
 #endif
     // Discover the actual window before the first keypress. The previous code
     // checked a null handle, then initialized it only after a successful toggle.
@@ -2736,7 +2973,7 @@ static void RenderOverlayFrame(IDXGISwapChain* sc) {
         g_visible = !g_visible.load();
         ++g_toggleEvents;
     }
-    const int capture = g_loaderStatus.load() >= 3 ? g_captureRequest.exchange(0) : 0;
+    const int capture = g_loaderStatus.load() >= 2 ? g_captureRequest.exchange(0) : 0;
     if (capture && capture != 4) SaveBackbufferBmp(sc, capture);
     if (g_visible.load()) {
         InitImGui(sc);
@@ -2927,7 +3164,7 @@ extern "C" __declspec(dllexport) int WINAPI ApexOverlayVisible() { return td1::g
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayToggleEvents() { return td1::g_toggleEvents.load(); }
 extern "C" __declspec(dllexport) int WINAPI ApexCaptureCompleted() { return td1::g_captureCompleted.load(); }
 extern "C" __declspec(dllexport) int WINAPI ApexCaptureFull() {
-    if (!td1::g_hooked.load() || td1::g_loaderStatus.load() < 3) return -1;
+    if (!td1::CaptureReady(td1::g_hooked.load(), td1::g_loaderStatus.load(), false, td1::g_visible.load())) return -1;
     int idle = 0;
     return td1::g_captureRequest.compare_exchange_strong(idle, 3) ? 0 : -2;
 }
@@ -2977,7 +3214,7 @@ extern "C" __declspec(dllexport) int WINAPI ApexGameInputMetric(int index) {
     }
 }
 extern "C" __declspec(dllexport) int WINAPI ApexCaptureOverlay() {
-    if (!td1::g_visible.load() || td1::g_loaderStatus.load() < 3) return -1;
+    if (!td1::CaptureReady(td1::g_hooked.load(), td1::g_loaderStatus.load(), true, td1::g_visible.load())) return -1;
     int idle = 0;
     return td1::g_captureRequest.compare_exchange_strong(idle, 4) ? 0 : -2;
 }
@@ -3003,6 +3240,7 @@ extern "C" __declspec(dllexport) int WINAPI ApexOverlayStudio(unsigned long long
         td1::g_historyId[0] = '\0'; td1::g_previewId[0] = '\0';
     }
     td1::g_activeTab = activeTab; td1::g_visible = true; td1::g_nativeCasView = nativeCas;
+    td1::g_libraryFocusRequested = tab == 15;
     td1::g_nativeCasPaneVisible = nativeCas; td1::g_nativeCasPaneMs = GetTickCount64();
     if (nativeCas) {
         if (!td1::QueueCasAction({{"operation", "status"}})) return -3;
@@ -3215,6 +3453,10 @@ extern "C" int ApexRunNativeSmoke() {
     if (!LoadRealD3D11()) return 10;
     HWND window = CreateDummyWindow();
     if (!window) return 11;
+    // A 64-pixel helper clips the workspace before nested tab content can be
+    // laid out. Exercise the actual workstation at a realistic hidden-window
+    // client size; this never activates or displays the helper window.
+    if (!SetWindowPos(window, nullptr, 0, 0, 1280, 1024, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE)) return 56;
     DXGI_SWAP_CHAIN_DESC desc{};
     desc.BufferCount = 1; desc.BufferDesc.Width = desc.BufferDesc.Height = 64;
     desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -3224,6 +3466,28 @@ extern "C" int ApexRunNativeSmoke() {
     HRESULT hr = g_realCreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0,
         nullptr, 0, D3D11_SDK_VERSION, &desc, &swap, &device, nullptr, &context);
     if (FAILED(hr)) return 12;
+    // Capture the actual WARP chain before ImGui/device globals exist. The
+    // temporary output is independent of every Sims profile and deleted here.
+    char temporary[MAX_PATH]{}, captureFile[MAX_PATH]{};
+    if (!swap || !device || !context || !GetTempPathA(MAX_PATH, temporary) ||
+        !GetTempFileNameA(temporary, "APX", 0, captureFile)) return 60;
+    const bool previousVisibility = g_visible.exchange(false);
+    g_smokeCapturePath = captureFile;
+    ID3D11Texture2D* plainBuffer = nullptr; ID3D11RenderTargetView* plainView = nullptr;
+    const float plainColor[] = {1.0f,0.0f,0.0f,1.0f};
+    bool plainReady = SUCCEEDED(swap->GetBuffer(0,__uuidof(ID3D11Texture2D),reinterpret_cast<void**>(&plainBuffer))) &&
+        plainBuffer && SUCCEEDED(device->CreateRenderTargetView(plainBuffer,nullptr,&plainView)) && plainView;
+    if (plainReady) context->ClearRenderTargetView(plainView,plainColor);
+    const bool copied = plainReady && SaveBackbufferBmp(swap,3);
+    if (plainView) plainView->Release(); if (plainBuffer) plainBuffer->Release();
+    std::ifstream plainFile(captureFile,std::ios::binary);
+    const std::string plain((std::istreambuf_iterator<char>(plainFile)),std::istreambuf_iterator<char>());
+    plainFile.close(); DeleteFileA(captureFile); g_smokeCapturePath.clear();
+    if (!copied || plain.size()!=54+64*64*3 || plain.substr(0,2)!="BM" ||
+        static_cast<unsigned char>(plain[54])!=0 || static_cast<unsigned char>(plain[55])!=0 ||
+        static_cast<unsigned char>(plain[56])!=255 || g_device || g_context ||
+        ImGui::GetCurrentContext() || g_renderedFrames.load()!=0 || g_visible.load()) return 61;
+    g_captureCompleted=0; g_visible=previousVisibility;
     if (!HookSwapChain(swap)) return 13;
     D3D11_TEXTURE2D_DESC texture{};
     texture.Width = texture.Height = 64; texture.MipLevels = texture.ArraySize = 1;
@@ -3300,6 +3564,30 @@ extern "C" int ApexRunNativeSmoke() {
     const bool exactThumbnail = !std::memcmp(mappedThumbnail.pData, expectedThumbnail, sizeof(expectedThumbnail));
     g_context->Unmap(thumbnailReadback, 0); thumbnailReadback->Release();
     if (!exactThumbnail || ResourceTexture("foreign-resource")) return 34;
+    // Render the new virtualized library using synthetic protocol data. No
+    // HTTP, native CAS input, desktop activation or household is involved.
+    g_libraryBusy=true;
+    const ui::Json libraryQuery={{"text",""},{"body_type",nullptr},{"origin",nullptr},{"name_mode","preferred"},
+        {"offset",0},{"limit",60},{"view","all"}};
+    ui::Json libraryItems=ui::Json::array();
+    for (int i=0;i<60;++i) {
+        std::ostringstream identity; identity << std::hex << std::setw(64) << std::setfill('0') << i+1;
+        libraryItems.push_back({{"part_id",identity.str()},{"resource_sha256",std::string(64,'b')},{"package_sha256",std::string(64,'c')},
+            {"resource_tgi","034AEECB:80000000:0000000000000001"},{"package_name","Synthetic CC.package"},
+            {"preferred_name","Synthetic CC"},{"code_name","synthetic_code"},{"body_type",35},{"favorite",false},
+            {"name","Synthetic catalog item " + std::to_string(i)},{"status","indexed"},{"origin","mod"}});
+    }
+    g_libraryPage={{"ok",true},{"index_sha256",std::string(64,'d')},{"query",libraryQuery},{"items",libraryItems},
+        {"categories",ui::Json::array({{{"body_type",35},{"count",60}}})},{"total",60},{"offset",0},{"next_offset",nullptr},
+        {"snapshot",{{"parts",60},{"complete",true}}}};
+    if (!library::Page(g_libraryPage,libraryQuery)) return 54;
+    const auto queuedBeforeLibrary=g_commands.size();
+    ImGui_ImplDX11_NewFrame(); ImGui_ImplWin32_NewFrame(); ImGui::NewFrame();
+    ImGui::SetNextWindowSize(ImVec2(700,800),ImGuiCond_Always);
+    ImGui::Begin("Live catalog render smoke"); DrawLiveLibrary(); ImGui::End(); ImGui::Render();
+    if (!ImGui::GetDrawData() || ImGui::GetDrawData()->TotalVtxCount <= 0 || g_commands.size()!=queuedBeforeLibrary) return 55;
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    g_libraryBusy=false; g_libraryPage=ui::Json::object();
     // Query real native window metrics without activating it or submitting
     // input. This exercises the diagnostic export against the selected WARP
     // swapchain and catches pointer/sign truncation or stale-window reads.

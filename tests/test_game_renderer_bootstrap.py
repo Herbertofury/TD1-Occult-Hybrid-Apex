@@ -76,7 +76,7 @@ class RendererBootstrapTests(unittest.TestCase):
         if isinstance(self.fallback_result, Exception): raise self.fallback_result
         return copy.deepcopy(self.fallback_result)
 
-    def run_bootstrap(self, expected=None, default_focus=False):
+    def run_bootstrap(self, expected=None, default_focus=False, background=False):
         journal = {'token': TOKEN, 'artifacts': [
             {'name': 'ApexOccultHybrid.ts4script', 'sha256': SCRIPT},
             {'name': 'ApexOverlay.dll', 'sha256': DLL}]}
@@ -86,7 +86,30 @@ class RendererBootstrapTests(unittest.TestCase):
             return game_capture.prepare_window('state', self.call, self.evidence,
                 lambda: self.records.append(copy.deepcopy(self.evidence)), identity=expected,
                 identity_provider=self.bridge, focus=None if default_focus else self.focus, monotonic=lambda: self.clock,
-                pause=lambda seconds: setattr(self, 'clock', self.clock + seconds))
+                pause=lambda seconds: setattr(self, 'clock', self.clock + seconds), background=background)
+
+    def test_background_start_observes_canvas_without_foreground_fallback(self):
+        self.values = [{'ok': False, 'message': 'F11 sidecar has not been started.'}, status(), status(2)]
+        self.focused = AssertionError('Must never request focus.')
+        result = self.run_bootstrap(expected=identity(), default_focus=True, background=True)
+        self.assertEqual(result['native_status'], 2)
+        self.assertEqual(self.calls, ['overlay_status','overlay_start','overlay_status','overlay_status'])
+        self.assertFalse(self.evidence['focus_attempted'])
+        self.assertFalse(self.evidence['focus_fallback_attempted'])
+
+    def test_background_timeout_never_falls_back_to_focus_or_replays_start(self):
+        self.values = [status()]
+        with self.assertRaises(TimeoutError): self.run_bootstrap(background=True)
+        self.assertFalse(any(action != 'overlay_status' for action in self.calls))
+        self.assertFalse(self.evidence['focus_attempted'])
+
+    def test_background_identity_drift_refuses_without_input(self):
+        for change in ({'pid':43},{'script_sha256':'f'*64},{'test_token':'f'*32}):
+            with self.subTest(change=change):
+                self.setUp();self.identities=[identity(),identity(**change)]
+                with self.assertRaises(ValueError): self.run_bootstrap(background=True)
+                self.assertNotIn('focus',self.calls)
+                self.assertNotIn('overlay_start',self.calls)
 
     def test_exact_not_started_starts_once_then_focuses_and_observes_actual_window(self):
         self.values = [{'ok': False, 'message': 'F11 sidecar has not been started.'}, status(), status(), status(2)]

@@ -81,19 +81,42 @@ class CaptureTests(unittest.TestCase):
                         capture_completed_verified=False, request_id='b' * 32, request_state='completed')
         self.fail('Unexpected game action: ' + action)
 
-    def run_capture(self, overlay=False):
+    def run_capture(self, overlay=False, background=False):
         original = {str(path.relative_to(self.original)): path.read_bytes()
                     for path in self.original.rglob('*') if path.is_file()}
         with patch.object(game_capture.reusable_profile, 'load', return_value=(None,
                 {'token': 'c' * 32, 'artifacts': []}, self.profile, self.original)):
             result = game_capture.capture('state', self.output, self.request, overlay=overlay,
-                monotonic=lambda: self.clock, pause=lambda duration: setattr(self, 'clock', self.clock + duration))
+                monotonic=lambda: self.clock, pause=lambda duration: setattr(self, 'clock', self.clock + duration), background=background)
         proof = json.loads(self.output.with_suffix('.json').read_text(encoding='utf-8'))
         self.assertEqual(result, proof)
         self.assertEqual(original, {str(path.relative_to(self.original)): path.read_bytes()
                                    for path in self.original.rglob('*') if path.is_file()})
         self.assertEqual((self.profile / 'saves/Slot_00000002.save').read_bytes(), b'disposable save unchanged')
         return result
+
+    def test_background_plain_copy_needs_no_f11_frame_or_visibility_loan(self):
+        self.diag = {'ok':False,'error':'Gameplay/CAS services unavailable at Home.'}
+        result = self.run_capture(background=True)
+        self.assertTrue(result['ok'])
+        self.assertFalse(self.initialized)
+        self.assertFalse(self.visible)
+        self.assertEqual(self.rendered,0)
+        self.assertTrue(result['renderer_preparation']['plain_backbuffer_only'])
+        self.assertFalse(any(action in ('cas_ui_diagnostics','overlay_show','overlay_hide') for action,_ in self.calls))
+
+    def test_background_plain_copy_does_not_expose_an_active_hidden_cas_view(self):
+        self.diag['native_peers']=[{'sim_id':'4','age_seconds':1}]
+        self.assertTrue(self.run_capture(background=True)['ok'])
+        self.assertFalse(self.visible)
+        self.assertFalse(any(action in ('cas_ui_diagnostics','overlay_show') for action,_ in self.calls))
+
+    def test_background_overlay_image_still_requires_safe_visibility_and_a_real_frame(self):
+        self.diag={'ok':False}
+        result=self.run_capture(background=True,overlay=True)
+        self.assertFalse(result['ok'])
+        self.assertFalse(result['capture_submitted'])
+        self.assertFalse(any(action in ('overlay_show','test_capture') for action,_ in self.calls))
 
     def test_hidden_ready_renderer_captures_without_any_visibility_or_cas_request(self):
         self.initialized, self.rendered = True, 1

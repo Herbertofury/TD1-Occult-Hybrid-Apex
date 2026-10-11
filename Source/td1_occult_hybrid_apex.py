@@ -8454,7 +8454,7 @@ def run_action(action, sim_id=None, occult=None, value=None):
             return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
     if action in ('studio_status', 'studio_items', 'studio_history', 'studio_record', 'studio_checkpoint', 'studio_recover',
                   'studio_color_copy', 'studio_color_preview', 'studio_cancel',
-                  'studio_color_inspect', 'studio_color_edit', 'studio_color_live', 'studio_part_inspect', 'studio_part_preview',
+                  'studio_color_inspect', 'studio_color_edit', 'studio_color_live', 'studio_part_inspect', 'studio_part_preview', 'studio_catalog_preview',
                   'studio_undo', 'studio_redo', 'studio_jump', 'studio_apply',
                   'studio_hair_enable', 'studio_hair_disable', 'studio_hair_status', 'studio_outfit_duplicate'):
         from apex_core.studio import dispatch

@@ -9,6 +9,35 @@ import apex_cli
 
 
 class CliTests(unittest.TestCase):
+    def test_background_lifecycle_routes_use_background_capture_and_pointer_adapter(self):
+        import game_lifecycle,game_capture
+        for operation in ('resume','shutdown','exit'):
+            with self.subTest(operation=operation), patch.object(apex_cli,'require_isolated'), \
+                    patch.object(apex_cli,'verified_identity',return_value={'pid':42}), \
+                    patch.object(apex_cli,'owned_request',return_value={'ok':True}) as transport, \
+                    patch.object(game_lifecycle,'resume',return_value={'ok':True}) as resume, \
+                    patch.object(game_lifecycle,'shutdown',return_value={'ok':True}) as shutdown:
+                args=apex_cli.parser().parse_args(['game',operation,'--state','state.json','--background',
+                    '--sim-id','12','--household-id','13','--save-guid','14','--output','proof.json'])
+                self.assertTrue(apex_cli.execute(args)['ok'])
+                selected=resume if operation=='resume' else shutdown
+                self.assertEqual(selected.call_args.kwargs['capture'].func,game_capture.capture)
+                self.assertTrue(selected.call_args.kwargs['capture'].keywords['background'])
+                if operation=='resume':self.assertTrue(selected.call_args.kwargs['background'])
+                request=selected.call_args.args[3]
+                request('state','test_input',value=json.dumps({'test_token':'a'*32,'value':
+                    {'command':1,'x':3,'y':4,'width':100,'height':100}}))
+                self.assertEqual(json.loads(transport.call_args.kwargs['value'])['value']['command'],4)
+
+    def test_public_background_capture_forwards_policy(self):
+        import game_capture
+        with patch.object(apex_cli,'require_isolated'), \
+                patch.object(apex_cli.reusable_profile,'load',return_value=(None,{},None,None)), \
+                patch.object(game_capture,'capture',return_value={'ok':True}) as capture:
+            args=apex_cli.parser().parse_args(['game','capture','--state','state.json','--background','--output','frame.bmp'])
+            self.assertTrue(apex_cli.execute(args)['ok'])
+            self.assertTrue(capture.call_args.kwargs['background'])
+
     def test_background_click_does_not_focus_and_lost_receipt_never_replays(self):
         import game_window, game_focus
         identity = {'pid': 42, 'native_cli_available': True}

@@ -14,6 +14,28 @@ from source_manifest import sha256, write_json
 from windows_ocr import recognize
 
 
+def background_request(request):
+    """Convert only lifecycle's typed pointer clicks to window messages."""
+    def submit(state, action, **kwargs):
+        if action == 'test_input':
+            raw = kwargs.get('value')
+            if not isinstance(raw, str) or len(raw) > 2048:
+                raise ValueError('Background lifecycle input needs a bounded typed envelope.')
+            envelope = json.loads(raw)
+            value = envelope.get('value') if isinstance(envelope, dict) else None
+            if (not isinstance(value, dict) or set(value) != {'command','x','y','width','height'} or
+                    type(value['command']) is not int or value['command'] != 1):
+                raise ValueError('Background lifecycle supports the recognized pointer click only.')
+            if (any(type(value[key]) is not int for key in ('x','y','width','height')) or
+                    not 1 <= value['width'] <= 8192 or not 1 <= value['height'] <= 8192 or
+                    not 0 <= value['x'] < value['width'] or not 0 <= value['y'] < value['height']):
+                raise ValueError('Background lifecycle pointer is outside the observed viewport.')
+            value['command'] = 4
+            kwargs['value'] = json.dumps(envelope)
+        return request(state, action, **kwargs)
+    return submit
+
+
 def button(observation, phase):
     lines = observation.get('lines', [])
     normalized = lambda text: ' '.join(str(text).split()).casefold()
@@ -78,7 +100,7 @@ def loaded_household(snapshot, prior_saves, sim_id=None):
 def resume(state, output, identity, request, sim_id=None, seconds=60,
            capture=game_capture.capture, ocr=recognize,
            processes=game_launch.running_game_processes, monotonic=time.monotonic, pause=time.sleep,
-           household_id=None, save_guid=None, identity_provider=None, focus=None):
+           household_id=None, save_guid=None, identity_provider=None, focus=None, background=False):
     """Recognize Resume once, then observe a saved household through the owned bridge."""
     _, journal, profile, original = reusable_profile.load(state)
     if sim_id is not None:
@@ -270,7 +292,7 @@ def resume(state, output, identity, request, sim_id=None, seconds=60,
         bootstrap = {}
         proof['renderer_bootstrap'] = bootstrap; write_json(output, proof)
         game_capture.prepare_window(state, request, bootstrap, lambda: write_json(output, proof),
-            identity=identity, identity_provider=identity_provider, focus=focus, monotonic=monotonic, pause=pause)
+            identity=identity, identity_provider=identity_provider, focus=focus, monotonic=monotonic, pause=pause, background=background)
         loaded = recheck_existing_live('post-renderer-existing-live')
         if loaded is not None:
             return loaded

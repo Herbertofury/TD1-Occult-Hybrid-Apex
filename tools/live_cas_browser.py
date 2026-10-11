@@ -1,0 +1,202 @@
+"""Loopback Live CAS pages and lazily verified item assets. No game commands."""
+import argparse
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+import json
+import os
+from pathlib import Path
+import re
+import threading
+import tempfile
+
+import cas_resource_catalog as resources
+from live_cas_catalog import PinnedIndex, resolve
+
+PORT = 8023
+MAX_BODY = 2048
+
+
+class Browser:
+    def __init__(self, index, expected, cache=resources.CACHE_ROOT / 'live-browser'):
+        self.index = PinnedIndex(index, expected)
+        self.cache = Path(cache).absolute()
+        resources.no_redirected_ancestors(self.cache)
+        root = resources.CACHE_ROOT.resolve()
+        if root not in self.cache.resolve().parents:
+            self.index.close()
+            raise ValueError('Browser assets must stay in the external CAS resource cache.')
+        resources.ensure_directory(self.cache, '')
+        self.lock = threading.RLock()
+        self.assets = {}
+        self.favorites = set()
+        self.recent = []
+        self.preferences = self.cache / ('preferences-' + self.index.expected + '.json')
+        if self.preferences.exists():
+            if self.preferences.stat().st_size > 1024 * 1024:
+                raise ValueError('Saved browser preferences exceed their bound.')
+            data = json.loads(self.preferences.read_bytes())
+            if set(data) != {'favorites', 'recent'}:
+                raise ValueError('Saved browser preference fields differ.')
+            for field in data.values():
+                if not isinstance(field, list) or len(field) > 10000:
+                    raise ValueError('Saved item list exceeds its bound.')
+                for ident in field:
+                    resources.sha(ident)
+            self.favorites, self.recent = set(data['favorites']), data['recent'][:200]
+
+    def _save(self):
+        resources.no_redirected_ancestors(self.preferences)
+        raw = resources.canonical({'favorites': sorted(self.favorites), 'recent': self.recent})
+        # Exclusive creation prevents a pre-existing link from redirecting a
+        # temporary write. Replace only this broker's private preference entry.
+        fd, name = tempfile.mkstemp(prefix='preferences-', suffix='.tmp', dir=self.cache)
+        temporary = Path(name)
+        try:
+            with os.fdopen(fd, 'wb') as stream:
+                stream.write(raw)
+            os.replace(temporary, self.preferences)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def query(self, request):
+        if (not isinstance(request, dict) or set(request) != {'text', 'body_type', 'origin', 'name_mode',
+                                                           'offset', 'limit', 'view'} or
+                request['view'] not in ('all', 'favorites', 'recent')):
+            raise ValueError('Catalog query fields differ.')
+        with self.lock:
+            ids = (sorted(self.favorites) if request['view'] == 'favorites' else
+                   list(self.recent) if request['view'] == 'recent' else None)
+            result = self.index.query(text=request['text'], body_type=request['body_type'], origin=request['origin'],
+                name_mode=request['name_mode'], offset=request['offset'], limit=request['limit'], part_ids=ids)
+            # Native pages do not disclose host paths or carry arbitrary SQL.
+            for row in result['items']:
+                row.pop('package_path')
+                row['favorite'] = row['part_id'] in self.favorites
+            result['query'] = request
+            if len(resources.canonical(result)) > resources.MAX_RESPONSE:
+                raise ValueError('Catalog page exceeds its transport bound; request fewer items.')
+            return result
+
+    def inspect(self, request):
+        if (not isinstance(request, dict) or set(request) != {'part_id', 'index_sha256'} or
+                request['index_sha256'] != self.index.expected):
+            raise ValueError('Selection must use this exact index snapshot.')
+        with self.lock:
+            selected = resolve(self.index.path, self.index.expected, resources.sha(request['part_id']))
+            prepared = resources.prepare([selected['source']], [selected['request']], self.cache,
+                                          locale=self.index.query(limit=1)['snapshot']['locale'])
+            broker = resources.Broker(prepared['manifest'], prepared['manifest_sha256'])
+            row = dict(prepared['catalog']['items'][0], broker_port=PORT)
+            if row['status'] != 'resolved':
+                raise ValueError(row.get('reason') or 'Selected package assets could not be verified.')
+            self.assets[row['resource_id']] = broker
+            if len(self.assets) > 1024:
+                # Old native rows become unavailable rather than silently rebinding.
+                del self.assets[next(iter(self.assets))]
+            ident = selected['item']['part_id']
+            self.recent = [ident] + [old for old in self.recent if old != ident][:199]
+            self._save()
+            item = dict(selected['item']); item.pop('package_path')
+            return {'ok': True, 'index_sha256': self.index.expected, 'item': item, 'resource': row,
+                    'request': selected['request'], 'game_contacted': False,
+                    'effective_load_source_verified': False, 'equip_verified': False}
+
+    def favorite(self, request):
+        if (not isinstance(request, dict) or set(request) != {'part_id', 'index_sha256', 'enabled'} or
+                request['index_sha256'] != self.index.expected or type(request['enabled']) is not bool):
+            raise ValueError('Favorite must use this exact item snapshot and a boolean.')
+        ident = resources.sha(request['part_id'])
+        with self.lock:
+            if not self.index.query(part_ids=[ident], limit=1)['items']:
+                raise ValueError('Favorite item is absent from this snapshot.')
+            if request['enabled']:
+                if ident not in self.favorites and len(self.favorites) >= 10000:
+                    raise ValueError('Favorite bound reached.')
+                self.favorites.add(ident)
+            else:
+                self.favorites.discard(ident)
+            self._save()
+            return dict(request, ok=True, game_contacted=False)
+
+    def thumbnail(self, ident):
+        with self.lock:
+            return self.assets[resources.sha(ident)].thumbnail(ident)
+
+    def open(self, ident, proof):
+        with self.lock:
+            return self.assets[resources.sha(ident)].open(ident, proof)
+
+
+def handler(browser):
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def allowed(self):
+            port = self.server.server_port
+            hosts = ('127.0.0.1:' + str(port), 'localhost:' + str(port))
+            return self.headers.get('Host') in hosts and self.headers.get('Origin') in (
+                None, 'http://' + hosts[0], 'http://' + hosts[1])
+
+        def reply(self, status, value, kind='application/json'):
+            raw = value if isinstance(value, bytes) else resources.canonical(value)
+            self.send_response(status)
+            self.send_header('Content-Type', kind)
+            self.send_header('Content-Length', str(len(raw)))
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            self.end_headers()
+            self.wfile.write(raw)
+
+        def do_GET(self):
+            try:
+                if not self.allowed():
+                    raise ValueError('Loopback origin required.')
+                match = re.fullmatch(r'/v1/resources/([0-9a-f]{64})/thumbnail', self.path)
+                if match is None:
+                    raise ValueError('Unknown typed route.')
+                self.reply(200, browser.thumbnail(match.group(1)), 'image/png')
+            except (KeyError, ValueError, OSError) as error:
+                self.reply(409, {'ok': False, 'reason': str(error)})
+
+        def do_POST(self):
+            try:
+                if not self.allowed() or self.headers.get('Content-Type') != 'application/json' or self.headers.get('Transfer-Encoding'):
+                    raise ValueError('Loopback bounded JSON required.')
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 0 < length <= MAX_BODY:
+                    raise ValueError('Invalid request length.')
+                request = json.loads(self.rfile.read(length))
+                if self.path == '/v1/catalog/query':
+                    result = browser.query(request)
+                elif self.path == '/v1/catalog/inspect':
+                    result = browser.inspect(request)
+                elif self.path == '/v1/catalog/favorite':
+                    result = browser.favorite(request)
+                elif self.path == '/v1/open' and isinstance(request, dict) and set(request) == {'resource_id', 'cache_proof'}:
+                    result = browser.open(request['resource_id'], request['cache_proof'])
+                else:
+                    raise ValueError('Unknown typed route or fields.')
+                self.reply(200, result)
+            except (KeyError, TypeError, ValueError, OSError) as error:
+                self.reply(409, {'ok': False, 'reason': str(error)})
+    return Handler
+
+
+def serve(index, expected):
+    browser = Browser(index, expected)
+    try:
+        with ThreadingHTTPServer(('127.0.0.1', PORT), handler(browser)) as server:
+            server.daemon_threads = True
+            print(json.dumps({'ok': True, 'endpoint': 'http://127.0.0.1:' + str(PORT),
+                              'index_sha256': expected, 'game_contacted': False}), flush=True)
+            server.serve_forever(poll_interval=0.25)
+    finally:
+        browser.index.close()
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--index', required=True)
+    parser.add_argument('--expected-index-sha256', required=True)
+    options = parser.parse_args()
+    serve(options.index, options.expected_index_sha256)

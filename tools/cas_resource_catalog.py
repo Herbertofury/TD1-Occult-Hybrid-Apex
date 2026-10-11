@@ -108,8 +108,15 @@ class Package:
                 raise ValueError('Not a DBPF package.')
             header = struct.unpack('<24I', raw)
             count, start, length = header[9], header[16] or header[10], header[11]
-            if header[1] != 2 or header[2] not in (0, 1) or not 0 < count <= 1000000:
+            if header[1] != 2 or header[2] not in (0, 1) or not 0 <= count <= 1000000:
                 raise ValueError('Unsupported DBPF version/count.')
+            if count == 0:
+                if start or length or self.before[2] != 96:
+                    raise ValueError('Invalid empty DBPF package extent.')
+                self.source_sha256, hashed_header, _ = _hashed_extent(self.path, 0, 0)
+                if hashed_header != raw or signature(self.path) != self.before:
+                    raise ValueError('Empty package changed during indexing.')
+                return
             if start < 96 or length > 36 * count + 16 or start + length > self.before[2]:
                 raise ValueError('Invalid DBPF index extent.')
             stream.seek(start)
@@ -436,6 +443,15 @@ def no_redirected_ancestors(path):
 
 def copy_package(package, root):
     directory = ensure_directory(root, 'packages')
+    relative = 'packages/' + package.source_sha256 + '.package'
+    target = Path(root) / relative
+    if target.exists():
+        if (file_hash(safe_cache_file(root, relative)) != package.source_sha256 or
+                signature(package.path) != package.before or file_hash(package.path) != package.source_sha256):
+            raise ValueError('Existing package cache or source identity differs.')
+        # One verified Studio copy per package hash, shared by every item and
+        # Sim. Browsing another swatch must not rewrite a temporary full copy.
+        return relative, package.source_sha256
     with tempfile.NamedTemporaryFile(dir=directory, delete=False) as output:
         temp = Path(output.name)
         h = hashlib.sha256()
@@ -467,9 +483,9 @@ def studio_executable():
     return STUDIO
 
 
-def prepare(sources, requests, cache_dir, locale=0):
+def prepare(sources, requests, cache_dir, locale=0, *, copy_packages=True):
     """Trusted CLI preparation; HTTP clients cannot supply source paths or keys."""
-    if (type(locale) is not int or not 0 <= locale <= 255 or
+    if (type(copy_packages) is not bool or type(locale) is not int or not 0 <= locale <= 255 or
             not isinstance(requests, list) or len(requests) > MAX_ROWS or
             not isinstance(sources, list) or len(sources) > 10000):
         raise ValueError('Invalid locale/catalog bound.')
@@ -484,13 +500,23 @@ def prepare(sources, requests, cache_dir, locale=0):
     ensure_directory(cache, '')
     cache = cache.resolve()
     packages = [Package(source['path'], source['origin']) for source in sources]
+    for source, package in zip(sources, packages):
+        if 'expected_sha256' in source and sha(source['expected_sha256']) != package.source_sha256:
+            raise ValueError('Package changed since indexing; rebuild before inspecting images.')
+    # One content-bound stream per package, rather than rehashing a large
+    # game package separately for every swatch, string table and thumbnail.
+    requested = {key(request['resource_tgi']) for request in requests}
+    thumbnails = {(CAS_THUMB, group, item[2]) for item in requested for group in (2, 0x102)}
+    package_resources = {package.path: package.read_many([item for item in package.entries
+        if item in requested or item in thumbnails or item[0] == STBL and item[2] >> 56 == locale])
+        for package in packages}
     names, name_errors = {}, []
     for package in packages:
         for item in package.entries:
             if item[0] != STBL or item[2] >> 56 != locale:
                 continue
             try:
-                data = package.read(item)
+                data = package_resources[package.path][item]
                 for ident, value in stbl_strings(data).items():
                     names.setdefault(ident, []).append((value, tgi(item), digest(data)))
             except (ValueError, UnicodeError) as error:
@@ -523,7 +549,7 @@ def prepare(sources, requests, cache_dir, locale=0):
             if package.origin == 'thumbnail-cache' or item not in package.entries:
                 continue
             try:
-                data = package.read(item)
+                data = package_resources[package.path][item]
                 if digest(data) == expected:
                     matching.append((package, data))
             except ValueError as error:
@@ -540,10 +566,12 @@ def prepare(sources, requests, cache_dir, locale=0):
                 meta = casp_metadata(data)
                 if 'body_type' in request and request['body_type'] != meta['body_type']:
                     raise ValueError('Equipped body type disagrees with the CASP metadata.')
-                if package.path not in copied:
-                    copied[package.path] = copy_package(package, cache)
-                relative, package_hash = copied[package.path]
-                record['package_file'] = relative
+                package_hash = package.source_sha256
+                if copy_packages:
+                    if package.path not in copied:
+                        copied[package.path] = copy_package(package, cache)
+                    relative, package_hash = copied[package.path]
+                    record['package_file'] = relative
                 row.update(status='resolved', body_type=meta['body_type'], metadata=meta)
                 row['provenance'] = {'origin': package.origin, 'package_sha256': package_hash,
                                      'resource_sha256': expected, 'package_filename': package.path.name,
@@ -574,7 +602,7 @@ def prepare(sources, requests, cache_dir, locale=0):
                     for thumb_key in thumb_keys:
                         if thumb_key in provider.entries:
                             try:
-                                raw = provider.read(thumb_key)
+                                raw = package_resources[provider.path][thumb_key]
                                 pixels, width, height = thumbnail_png(raw)
                                 candidates.append((pixels, width, height, tgi(thumb_key), digest(raw)))
                             except (ValueError, OSError) as error:
@@ -659,6 +687,8 @@ class Broker:
         row = record['row']
         if sha(proof) != row['cache_proof'] or row['status'] != 'resolved' or row['studio_open']['status'] != 'ready':
             raise ValueError('Studio open requires this resolved, pinned cache proof.')
+        if not record['package_file']:
+            raise ValueError('This read-in-place catalog must prepare a verified package copy on explicit Studio open.')
         manifest = safe_cache_file(self.cache, self.manifest.name)
         if manifest.stat().st_size > 2 * MAX_RESPONSE or file_hash(manifest) != self.manifest_hash:
             raise ValueError('Pinned catalog manifest changed before open.')

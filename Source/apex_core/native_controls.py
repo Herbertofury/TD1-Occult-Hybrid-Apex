@@ -6,7 +6,7 @@ Request identities deduplicate commands after response loss.
 from collections import OrderedDict
 import threading
 
-ACTIONS = frozenset(('test_input', 'test_capture', 'test_studio_ui', 'overlay_start', 'overlay_status', 'overlay_show', 'overlay_hide'))
+ACTIONS = frozenset(('test_input', 'test_capture', 'test_studio_ui', 'test_preview', 'overlay_start', 'overlay_status', 'overlay_show', 'overlay_hide'))
 _LOCK = threading.RLock()
 _RESULTS = OrderedDict()
 
@@ -15,7 +15,7 @@ def dispatch(backend, action, value, request_id):
     if action not in ACTIONS or not isinstance(request_id, str) or len(request_id) != 32 or any(c not in '0123456789abcdef' for c in request_id):
         raise ValueError('Unsupported native control or request identity.')
     from .test_driver import guard
-    argument = guard(backend, value)
+    argument = guard(backend, value, limit=4 * 1024 * 1024) if action == 'test_preview' else guard(backend, value)
     signature = (action, value)
     with _LOCK:
         prior = _RESULTS.get(request_id)
@@ -35,6 +35,8 @@ def dispatch(backend, action, value, request_id):
             result = overlay_loader.capture(overlay=argument == 'overlay')
         elif action == 'test_studio_ui':
             result = overlay_loader.studio_ui(backend.__file__, paths.DLL_PATH, argument)
+        elif action == 'test_preview':
+            result = overlay_loader.sim_preview(backend.__file__, paths.DLL_PATH, argument)
         else:
             result = overlay_loader.input_event(backend.__file__, paths.DLL_PATH, argument)
         result = dict(result, request_id=request_id, request_state='completed',

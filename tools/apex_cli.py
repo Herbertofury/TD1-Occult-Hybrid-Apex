@@ -68,7 +68,7 @@ def verified_identity(state, transport=get):
 def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=30, transport=get, submission_observer=None):
     identity = verified_identity(state, transport)
     if identity.get('native_cli_available') and action in (
-            'test_capture', 'test_input', 'test_studio_ui', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start'):
+            'test_capture', 'test_input', 'test_studio_ui', 'test_preview', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start'):
         _path, journal, _profile, _original = reusable_profile.load(state)
         if value is None:
             value = json.dumps({'test_token': journal['token'], 'value': None})
@@ -99,6 +99,16 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
                 raise ValueError('Game identity changed after focus; no native input submitted.')
         if submission_observer is not None:
             submission_observer(action, request_id)
+        if action == 'test_preview':
+            raw = json.dumps(query, ensure_ascii=True, allow_nan=False, separators=(',', ':')).encode('utf-8')
+            if len(raw) > 4 * 1024 * 1024: raise ValueError('Native preview request exceeds bound.')
+            request = urllib.request.Request('http://127.0.0.1:8017/api/native', data=raw,
+                                             headers={'Content-Type': 'application/json'}, method='POST')
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), LocalRedirectGuard())
+            with opener.open(request, timeout=12) as response:
+                reply = response.read(32769)
+                if len(reply) > 32768: raise ValueError('Native preview response exceeds bound.')
+                return json.loads(reply)
         try:
             result = transport('/api/native', query)
         except (OSError, urllib.error.URLError) as error:
@@ -467,11 +477,13 @@ def parser():
     library.add_argument('--body-type', type=int)
     library.add_argument('--origin', choices=('mod', 'ea'))
     library.add_argument('--name-mode', choices=('preferred', 'package', 'code'), default='preferred')
+    library.add_argument('--author', default='', help='Exact creator filename tag; inferred CC tags are unverified')
+    library.add_argument('--sort', choices=('name', 'package', 'creator', 'id'), default='name')
     library.add_argument('--offset', type=int, default=0)
     library.add_argument('--limit', type=int, default=60)
     library.add_argument('--part-id')
     studio = commands.add_parser('studio', help='Live/stored-form CAS History and appearance editing on the real game thread')
-    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'color-live', 'part-inspect', 'part-preview', 'catalog-preview', 'outfit-duplicate', 'open-library', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
+    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'preview-snapshot', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'color-live', 'part-inspect', 'part-preview', 'catalog-preview', 'catalog-live', 'shape-inspect', 'shape-preview', 'shape-live', 'outfit-duplicate', 'open-library', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
     studio.add_argument('--state', required=True, type=Path)
     studio.add_argument('--sim-id')
     studio.add_argument('--form', type=int, help='Explicit existing native/bank form owner; editing does not activate it')
@@ -482,6 +494,18 @@ def parser():
     studio.add_argument('--catalog-manifest', type=Path, help='Exact external CAS resource cache manifest for verified names/images/package provenance')
     studio.add_argument('--catalog-manifest-sha256')
     studio.add_argument('--jobs', type=int, default=4, help='Inventory read-only page concurrency, one through four')
+    preview = commands.add_parser('preview', help='Memory-only independent F11 3D Sim and animation controls without game input')
+    preview.add_argument('operation', choices=('start', 'health', 'render', 'status', 'view', 'mode', 'workspace', 'clear'))
+    preview.add_argument('--apply-mode', choices=('live', 'preview'), help='F11 edit policy; selecting a mode does not change the Sim')
+    preview.add_argument('--state', required=True, type=Path)
+    preview.add_argument('--game-root', type=Path, default=Path(r'C:\Games\The Sims 4'))
+    preview.add_argument('--sim-id')
+    preview.add_argument('--form', type=int, choices=(1, 2, 4, 8, 16, 32, 64))
+    preview.add_argument('--outfit-index', type=int)
+    preview.add_argument('--preview-id', help='Exact prepared CC/color try-on; does not apply it')
+    preview.add_argument('--scene-id', help='Exact scene identity for stale-safe camera/animation controls')
+    preview.add_argument('--values', type=Path, help='JSON camera/animation values, or workspace layout/columns/tab/catalog query')
+    preview.add_argument('--output', type=Path, help='New external JSON proof; no assets are exported')
     test = commands.add_parser('test', help='Run actual gameplay suites, unpause to settle, record proof and leave paused')
     test.add_argument('suite', choices=('color-cycle', 'live-color', 'hybrid-cycle'))
     test.add_argument('--state', required=True, type=Path)
@@ -499,6 +523,9 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'preview':
+        from preview_cli import execute as preview_execute
+        return preview_execute(args)
     if args.command == 'live-cas-catalog':
         from live_cas_catalog import build, query, resolve
         if args.operation == 'build':
@@ -513,7 +540,7 @@ def execute(args):
         if args.operation == 'resolve':
             return resolve(args.index, args.expected_index_sha256, args.part_id)
         return query(args.index, args.expected_index_sha256, args.query, args.body_type,
-                     args.origin, args.name_mode, args.offset, args.limit)
+                     args.origin, args.name_mode, args.offset, args.limit, author=args.author, sort=args.sort)
     if args.command == 'cas-failed-commit-archive':
         from cas_failed_commit_archive import archive
         return archive(args.state, args.commit_proof, args.expected_proof_sha256,

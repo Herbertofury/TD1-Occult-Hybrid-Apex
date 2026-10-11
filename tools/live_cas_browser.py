@@ -1,6 +1,7 @@
 """Loopback Live CAS pages and lazily verified item assets. No game commands."""
 import argparse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from loopback_server import LoopbackHTTPServer
 import json
 import os
 from pathlib import Path
@@ -27,6 +28,7 @@ class Browser:
         resources.ensure_directory(self.cache, '')
         self.lock = threading.RLock()
         self.assets = {}
+        self.asset_sources = {}
         self.favorites = set()
         self.recent = []
         self.preferences = self.cache / ('preferences-' + self.index.expected + '.json')
@@ -58,15 +60,16 @@ class Browser:
             temporary.unlink(missing_ok=True)
 
     def query(self, request):
-        if (not isinstance(request, dict) or set(request) != {'text', 'body_type', 'origin', 'name_mode',
-                                                           'offset', 'limit', 'view'} or
+        fields = {'text', 'body_type', 'origin', 'name_mode', 'offset', 'limit', 'view'}
+        if (not isinstance(request, dict) or set(request) not in (fields, fields | {'author', 'sort'}) or
                 request['view'] not in ('all', 'favorites', 'recent')):
             raise ValueError('Catalog query fields differ.')
         with self.lock:
             ids = (sorted(self.favorites) if request['view'] == 'favorites' else
                    list(self.recent) if request['view'] == 'recent' else None)
             result = self.index.query(text=request['text'], body_type=request['body_type'], origin=request['origin'],
-                name_mode=request['name_mode'], offset=request['offset'], limit=request['limit'], part_ids=ids)
+                name_mode=request['name_mode'], offset=request['offset'], limit=request['limit'], part_ids=ids,
+                author=request.get('author', ''), sort=request.get('sort', 'name'))
             # Native pages do not disclose host paths or carry arbitrary SQL.
             for row in result['items']:
                 row.pop('package_path')
@@ -83,15 +86,18 @@ class Browser:
         with self.lock:
             selected = resolve(self.index.path, self.index.expected, resources.sha(request['part_id']))
             prepared = resources.prepare([selected['source']], [selected['request']], self.cache,
-                                          locale=self.index.query(limit=1)['snapshot']['locale'])
+                                          locale=self.index.query(limit=1)['snapshot']['locale'], copy_packages=False)
             broker = resources.Broker(prepared['manifest'], prepared['manifest_sha256'])
             row = dict(prepared['catalog']['items'][0], broker_port=PORT)
             if row['status'] != 'resolved':
                 raise ValueError(row.get('reason') or 'Selected package assets could not be verified.')
             self.assets[row['resource_id']] = broker
+            self.asset_sources[row['resource_id']] = selected['item']['part_id']
             if len(self.assets) > 1024:
                 # Old native rows become unavailable rather than silently rebinding.
-                del self.assets[next(iter(self.assets))]
+                oldest = next(iter(self.assets))
+                del self.assets[oldest]
+                del self.asset_sources[oldest]
             ident = selected['item']['part_id']
             self.recent = [ident] + [old for old in self.recent if old != ident][:199]
             self._save()
@@ -99,6 +105,40 @@ class Browser:
             return {'ok': True, 'index_sha256': self.index.expected, 'item': item, 'resource': row,
                     'request': selected['request'], 'game_contacted': False,
                     'effective_load_source_verified': False, 'equip_verified': False}
+
+    def images(self, request):
+        if (not isinstance(request, dict) or set(request) != {'part_ids', 'index_sha256', 'gender'} or
+                request['index_sha256'] != self.index.expected or request['gender'] not in ('male', 'female') or
+                not isinstance(request['part_ids'], list) or not 0 < len(request['part_ids']) <= 24 or
+                len(set(request['part_ids'])) != len(request['part_ids'])):
+            raise ValueError('Images require one bounded exact catalog selection and explicit thumbnail gender.')
+        ids = [resources.sha(ident) for ident in request['part_ids']]
+        with self.lock:
+            page = self.index.query(part_ids=ids, limit=len(ids))
+            items = {row['part_id']: row for row in page['items']}
+            if set(items) != set(ids) or any(row['status'] != 'indexed' for row in items.values()):
+                raise ValueError('Image item is absent or unclassified in this pinned index.')
+            sources, selected = {}, {}
+            for item in items.values():
+                sources[item['package_path']] = dict(path=item['package_path'], origin=item['origin'],
+                                                     expected_sha256=item['package_sha256'])
+                ident = resources.digest((item['resource_tgi'] + '\n' + item['resource_sha256']).encode('ascii'))
+                selected[ident] = dict(resource_tgi=item['resource_tgi'], effective_resource_sha256=item['resource_sha256'],
+                                      body_type=item['body_type'], gender=request['gender'])
+            prepared = resources.prepare(list(sources.values()), list(selected.values()), self.cache,
+                                          locale=page['snapshot']['locale'], copy_packages=False)
+            broker = resources.Broker(prepared['manifest'], prepared['manifest_sha256'])
+            rows = {row['resource_id']: dict(row, broker_port=PORT) for row in prepared['catalog']['items']}
+            result = []
+            for part_id in ids:
+                item = items[part_id]
+                ident = resources.digest((item['resource_tgi'] + '\n' + item['resource_sha256']).encode('ascii'))
+                self.assets[ident] = broker; self.asset_sources[ident] = part_id
+                result.append(dict(part_id=part_id, resource=rows[ident]))
+            while len(self.assets) > 1024:
+                oldest = next(iter(self.assets)); del self.assets[oldest]; del self.asset_sources[oldest]
+            return dict(ok=True, index_sha256=self.index.expected, gender=request['gender'], part_ids=ids,
+                        items=result, game_contacted=False)
 
     def favorite(self, request):
         if (not isinstance(request, dict) or set(request) != {'part_id', 'index_sha256', 'enabled'} or
@@ -123,7 +163,20 @@ class Browser:
 
     def open(self, ident, proof):
         with self.lock:
-            return self.assets[resources.sha(ident)].open(ident, proof)
+            ident = resources.sha(ident)
+            row = self.assets[ident].records[ident]['row']
+            if (resources.sha(proof) != row['cache_proof'] or row['status'] != 'resolved' or
+                    row['studio_open']['status'] != 'ready'):
+                raise ValueError('Studio open requires the exact inspected item proof.')
+            # Browsing and thumbnails never copy whole EA/CC packages. Only
+            # an explicit open revalidates its source and creates the sealed
+            # copy, followed by Studio's independent editable copy.
+            selected = resolve(self.index.path, self.index.expected, self.asset_sources[ident])
+            prepared = resources.prepare([selected['source']], [selected['request']], self.cache,
+                                          locale=self.index.query(limit=1)['snapshot']['locale'])
+            broker = resources.Broker(prepared['manifest'], prepared['manifest_sha256'])
+            fresh = broker.records[ident]['row']
+            return broker.open(ident, fresh['cache_proof'])
 
 
 def handler(browser):
@@ -170,6 +223,8 @@ def handler(browser):
                     result = browser.query(request)
                 elif self.path == '/v1/catalog/inspect':
                     result = browser.inspect(request)
+                elif self.path == '/v1/catalog/images':
+                    result = browser.images(request)
                 elif self.path == '/v1/catalog/favorite':
                     result = browser.favorite(request)
                 elif self.path == '/v1/open' and isinstance(request, dict) and set(request) == {'resource_id', 'cache_proof'}:
@@ -185,7 +240,7 @@ def handler(browser):
 def serve(index, expected):
     browser = Browser(index, expected)
     try:
-        with ThreadingHTTPServer(('127.0.0.1', PORT), handler(browser)) as server:
+        with LoopbackHTTPServer(('127.0.0.1', PORT), handler(browser)) as server:
             server.daemon_threads = True
             print(json.dumps({'ok': True, 'endpoint': 'http://127.0.0.1:' + str(PORT),
                               'index_sha256': expected, 'game_contacted': False}), flush=True)

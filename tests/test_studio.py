@@ -79,6 +79,91 @@ class StudioTests(unittest.TestCase):
     def request(self, action, value=None):
         return studio.dispatch(self.backend, action, self.sim.id, value)
 
+    def test_live_body_write_does_not_reload_matching_outfits_or_other_appearance_fields(self):
+        self.sim.physique = '0.002,0.000,0.000,'
+        initial = self.sim.raw
+        status = self.request('studio_shape_inspect')
+        row = next(r for r in status['shape_editor'] if r['field'] == 'physique' and r['index'] == 1)
+        request = {k: row[k] for k in ('field', 'group', 'index', 'key')}
+        request.update(before=row['value'], value=.12, lane=status['history_lane'], appearance_sha256=status['appearance_sha256'])
+        prior = self.backend._restore_siminfo_payload
+        writes = []
+        def restore(owner, fields):
+            writes.append(set(fields))
+            return prior(owner, fields)
+        self.backend._restore_siminfo_payload = restore
+        reply = self.request('studio_shape_live', json.dumps(request))
+        self.assertTrue(reply['live_shape_applied'])
+        self.assertEqual(writes, [{'physique'}])
+        self.assertEqual(self.sim.raw, initial)
+        self.assertEqual(self.sim.skin_tone, 41)
+        self.assertEqual(self.sim.physique, '0.002,0.120,0.000,')
+
+    def test_visual_resend_side_effect_is_rolled_back_before_accepting_body_edit(self):
+        self.sim.physique = '0.002,0.000,0.000,'
+        status = self.request('studio_shape_inspect')
+        row = next(r for r in status['shape_editor'] if r['field'] == 'physique' and r['index'] == 1)
+        request = {k: row[k] for k in ('field', 'group', 'index', 'key')}
+        request.update(before=row['value'], value=.12, lane=status['history_lane'], appearance_sha256=status['appearance_sha256'])
+        self.backend._resend_all_visuals = lambda owner: setattr(owner, 'skin_tone', 900)
+        with self.assertRaisesRegex(ValueError, 'Visual resend changed'):
+            self.request('studio_shape_live', json.dumps(request))
+        self.assertEqual(self.sim.physique, '0.002,0.000,0.000,')
+        self.assertEqual(self.sim.skin_tone, 41)
+
+    def test_live_edit_and_undo_update_distinct_stored_form_without_overwriting_unrelated_fields(self):
+        self.sim.physique = '0.002,0.000,0.000,'
+        stored = Obj(id=5678, physique=self.sim.physique, skin_tone=900, raw=self.sim.raw)
+        other = Obj(id=5679, physique='0.002,0.800,0.000,', skin_tone=901, raw=self.sim.raw)
+        self.backend._form_map = lambda _: {32: stored, 4: other}
+        status = self.request('studio_shape_inspect')
+        row = next(r for r in status['shape_editor'] if r['field'] == 'physique' and r['index'] == 1)
+        request = {k: row[k] for k in ('field', 'group', 'index', 'key')}
+        request.update(before=row['value'], value=.12, lane=status['history_lane'], appearance_sha256=status['appearance_sha256'])
+        self.request('studio_shape_live', json.dumps(request))
+        self.assertEqual(self.sim.physique, '0.002,0.120,0.000,')
+        self.assertEqual(stored.physique, self.sim.physique)
+        self.assertEqual(stored.skin_tone, 900)
+        self.assertEqual(other.physique, '0.002,0.800,0.000,')
+        self.request('studio_apply', self.request('studio_undo')['preview_id'])
+        self.assertEqual(self.sim.physique, '0.002,0.000,0.000,')
+        self.assertEqual(stored.physique, self.sim.physique)
+        self.assertEqual(stored.skin_tone, 900)
+        self.assertEqual(other.skin_tone, 901)
+
+    def test_failed_companion_write_rolls_back_live_and_stored_without_accepting_history(self):
+        self.sim.physique = '0.002,0.000,0.000,'
+        stored = Obj(id=5678, physique=self.sim.physique, skin_tone=900, raw=self.sim.raw)
+        self.backend._form_map = lambda _: {32: stored}
+        status = self.request('studio_shape_inspect')
+        row = next(r for r in status['shape_editor'] if r['field'] == 'physique' and r['index'] == 1)
+        request = {k: row[k] for k in ('field', 'group', 'index', 'key')}
+        request.update(before=row['value'], value=.12, lane=status['history_lane'], appearance_sha256=status['appearance_sha256'])
+        prior = self.backend._restore_siminfo_payload
+        def restore(owner, fields):
+            prior(owner, fields)
+            if owner is stored and fields.get('physique') == '0.002,0.120,0.000,': owner.skin_tone = 901
+        self.backend._restore_siminfo_payload = restore
+        with self.assertRaisesRegex(ValueError, 'Stored current-form appearance'):
+            self.request('studio_shape_live', json.dumps(request))
+        self.assertEqual(self.sim.physique, '0.002,0.000,0.000,')
+        self.assertEqual(stored.physique, self.sim.physique)
+        self.assertEqual(stored.skin_tone, 900)
+
+    def test_visual_resend_companion_side_effect_rolls_back_both_owners(self):
+        self.sim.physique = '0.002,0.000,0.000,'
+        stored = Obj(id=5678, physique=self.sim.physique, skin_tone=900, raw=self.sim.raw)
+        self.backend._form_map = lambda _: {32: stored}
+        status = self.request('studio_shape_inspect')
+        row = next(r for r in status['shape_editor'] if r['field'] == 'physique' and r['index'] == 1)
+        request = {k: row[k] for k in ('field', 'group', 'index', 'key')}
+        request.update(before=row['value'], value=.12, lane=status['history_lane'], appearance_sha256=status['appearance_sha256'])
+        self.backend._resend_all_visuals = lambda owner: setattr(stored, 'skin_tone', 901)
+        with self.assertRaisesRegex(ValueError, 'Stored current-form appearance'):
+            self.request('studio_shape_live', json.dumps(request))
+        self.assertEqual(stored.skin_tone, 900)
+        self.assertEqual(stored.physique, self.sim.physique)
+
     def stored_request(self, action, value=None, form=4):
         return self.request(action, json.dumps({'form': form, 'value': value}))
 

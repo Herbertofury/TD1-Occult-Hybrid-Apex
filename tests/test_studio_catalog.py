@@ -56,6 +56,21 @@ class CatalogMutationTests(unittest.TestCase):
         redo = self.request('studio_redo'); self.request('studio_apply', redo['preview_id'])
         self.assertEqual(self.sim.raw, applied)
 
+    def test_live_selection_commits_once_without_pending_preview_and_can_undo(self):
+        original=self.sim.raw
+        result=self.request('studio_catalog_live',json.dumps(self.selection()))
+        self.assertTrue(result['live_catalog_applied']);self.assertIsNone(result['pending_preview'])
+        self.assertEqual(Message(self.sim.raw).outfits[0].parts.ids,[10000,888])
+        undo=self.request('studio_undo');self.request('studio_apply',undo['preview_id'])
+        self.assertEqual(self.sim.raw,original)
+
+    def test_live_selection_refuses_an_unresolved_try_on_without_writing(self):
+        original=self.sim.raw;request=self.selection();pending=self.preview(request)
+        with self.assertRaisesRegex(ValueError,'existing preview'):
+            self.request('studio_catalog_live',json.dumps(request))
+        self.assertEqual(self.sim.raw,original)
+        self.assertEqual(self.request('studio_status')['pending_preview'],pending['preview_id'])
+
     def test_empty_category_add_preserves_all_existing_rows_and_arrays(self):
         original = self.sim.raw
         self.raw = casp(body=35, age_gender=32 | 0x3000, layer=23)

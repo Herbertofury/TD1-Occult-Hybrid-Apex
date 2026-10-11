@@ -68,6 +68,21 @@ class JournalTests(unittest.TestCase):
         self.assertEqual(self.current, before)
         self.assertEqual(self.journal.data['operations'][-1]['kind'], 'failed-rolled-back')
 
+    def test_native_record_side_effect_cannot_claim_success_after_readback(self):
+        before = self.current
+        token = self.journal.prepare('Edit', before, b'after')
+        node_count = len(self.journal.data['nodes'])
+        def capture():
+            self.current = b'native serializer fitness projection'
+            return {'native': 'complete record'}
+        self.journal.capture_record = capture
+        with self.assertRaisesRegex(ValueError, 'history capture changed'):
+            self.journal.apply(token, self.read, self.write)
+        self.assertEqual(self.current, before)
+        self.assertEqual(len(self.journal.data['nodes']), node_count)
+        self.assertEqual(self.journal.data['operations'][-1]['kind'], 'failed-rolled-back')
+        self.assertFalse(any(row.get('readback_verified') for row in self.journal.data['operations']))
+
     def test_interrupted_applied_transaction_recovers_without_rewriting(self):
         self.journal.prepare('Edit', self.current, b'after')
         self.current = b'after'

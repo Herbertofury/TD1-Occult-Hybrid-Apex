@@ -19,6 +19,11 @@ from windows_ocr import recognize
 from game_launch import process_image
 
 
+class WindowPlacement(ctypes.Structure):
+    _fields_ = [('length', W.UINT), ('flags', W.UINT), ('show', W.UINT),
+                ('minimum', W.POINT), ('maximum', W.POINT), ('normal', W.RECT)]
+
+
 def dialog_button(observation):
     if (not isinstance(observation, dict) or observation.get('ok') is not True or
             type(observation.get('width')) is not int or type(observation.get('height')) is not int or
@@ -75,6 +80,9 @@ class NativeEA:
             'EnumWindows': ([ctypes.WINFUNCTYPE(W.BOOL, W.HWND, W.LPARAM), W.LPARAM], W.BOOL),
             'GetWindowThreadProcessId': ([W.HWND, ctypes.POINTER(W.DWORD)], W.DWORD),
             'IsWindowVisible': ([W.HWND], W.BOOL), 'GetClientRect': ([W.HWND, ctypes.POINTER(W.RECT)], W.BOOL),
+            'IsIconic': ([W.HWND], W.BOOL),
+            'GetWindowPlacement': ([W.HWND, ctypes.POINTER(WindowPlacement)], W.BOOL),
+            'ShowWindowAsync': ([W.HWND, ctypes.c_int], W.BOOL),
             'GetClassNameW': ([W.HWND, W.LPWSTR, ctypes.c_int], ctypes.c_int),
             'GetWindowTextW': ([W.HWND, W.LPWSTR, ctypes.c_int], ctypes.c_int),
             'GetForegroundWindow': ([], W.HWND), 'SetForegroundWindow': ([W.HWND], W.BOOL),
@@ -116,6 +124,60 @@ class NativeEA:
         if not self.user.EnumWindows(visit, 0):
             raise OSError('EA window enumeration failed.')
         return rows
+
+    def minimized_identity(self, hwnd):
+        """Read a bounded, same-process EA modal's restored placement.
+
+        This is only a candidate for restoration, never proof of permission.
+        Actual wording and the measured OK button still require fresh pixels.
+        """
+        pid = self.owner(hwnd)
+        name, title = ctypes.create_unicode_buffer(256), ctypes.create_unicode_buffer(256)
+        self.user.GetClassNameW(hwnd, name, len(name))
+        self.user.GetWindowTextW(hwnd, title, len(title))
+        if (pid not in self.pids or not self.user.IsWindowVisible(hwnd) or
+                not self.user.IsIconic(hwnd) or not name.value.startswith('Qt') or title.value != 'EA'):
+            raise ValueError('Window is not a verified minimized EA surface.')
+        place = WindowPlacement()
+        place.length = ctypes.sizeof(place)
+        if not self.user.GetWindowPlacement(hwnd, ctypes.byref(place)) or place.show != 2:
+            raise ValueError('EA minimized placement is unavailable or changed.')
+        rect = place.normal
+        if not 200 <= rect.right - rect.left <= 1000 or not 150 <= rect.bottom - rect.top <= 600:
+            raise ValueError('Minimized EA window is outside the bounded modal placement.')
+        return {'pid': pid, 'hwnd': int(hwnd), 'class': name.value,
+                'normal': [rect.left, rect.top, rect.right, rect.bottom]}
+
+    def minimized_windows(self):
+        rows = []
+        callback = self.user.EnumWindows.argtypes[0]
+        @callback
+        def visit(hwnd, _value):
+            try: rows.append(self.minimized_identity(hwnd))
+            except ValueError: pass
+            return True
+        if not self.user.EnumWindows(visit, 0):
+            raise OSError('EA minimized window enumeration failed.')
+        return rows
+
+    def restore_minimized(self, row, deadline, clock=time.time, pause=time.sleep):
+        if clock() >= deadline or self.minimized_identity(row['hwnd']) != row:
+            raise ValueError('Minimized EA window changed or restoration expired.')
+        # SW_SHOWNOACTIVATE restores the recent size without activating the
+        # window. This does not acknowledge EA or touch the Windows UAC desktop.
+        # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
+        if not self.user.ShowWindowAsync(row['hwnd'], 4):
+            raise OSError('Windows refused the exact EA window restoration.')
+        until = min(deadline, clock() + 2)
+        while clock() < until:
+            try:
+                restored = self.identity(row['hwnd'])
+                if not self.user.IsIconic(row['hwnd']):
+                    return restored
+            except ValueError:
+                pass
+            pause(min(0.05, max(0, until - clock())))
+        raise ValueError('EA window did not restore within the recognition lease.')
 
     def capture(self, row, output):
         if self.identity(row['hwnd']) != row:

@@ -42,6 +42,14 @@ class BrowserTests(unittest.TestCase):
         self.assertFalse(page['game_contacted'])
         self.assertEqual(page['items'][0]['name'], self.source.name)
 
+    def test_creator_sort_request_is_typed_and_does_not_touch_the_game(self):
+        page=self.browser.query(dict(self.query,author='',sort='package'))
+        self.assertEqual(page['query']['sort'],'package')
+        self.assertFalse(page['items'][0]['creator_verified'])
+        self.assertEqual(page['items'][0]['creator_hint'],'')
+        for values in (dict(author=''),dict(author='',sort='bad'),dict(author=[],sort='name')):
+            with self.assertRaises(ValueError):self.browser.query(dict(self.query,**values))
+
     def test_lazy_thumbnail_exact_source_and_persistent_favorites(self):
         original = self.source.read_bytes()
         item = self.browser.query(self.query)['items'][0]
@@ -76,6 +84,49 @@ class BrowserTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'changed since indexing'):
             self.browser.inspect(selected)
         self.assertEqual(self.browser.recent, [])
+
+    def test_browsing_images_reads_in_place_and_only_explicit_studio_open_copies(self):
+        selected = dict(part_id=self.browser.query(self.query)['items'][0]['part_id'], index_sha256=self.hash)
+        studio = self.root / 'Studio.exe'
+        studio.write_bytes(b'fixture executable')
+        with patch.object(resources, 'studio_executable', return_value=studio), \
+             patch.object(resources, 'copy_package', wraps=resources.copy_package) as copy, \
+             patch.object(resources.subprocess, 'Popen') as launch:
+            inspected = self.browser.inspect(selected)
+            row = inspected['resource']
+            self.browser.thumbnail(row['resource_id'])
+            copy.assert_not_called()
+            self.assertEqual(list(self.browser.cache.rglob('*.package')), [])
+            self.assertTrue(self.browser.open(row['resource_id'], row['cache_proof'])['ok'])
+            copy.assert_called_once()
+            launch.assert_called_once()
+            self.assertNotEqual(Path(launch.call_args.args[0][1]), self.source)
+
+    def test_actual_column_images_preserve_names_paths_recent_items_and_source_packages(self):
+        part = self.browser.query(self.query)['items'][0]['part_id']
+        request = dict(part_ids=[part], index_sha256=self.hash, gender='female')
+        original = self.source.read_bytes()
+        with patch.object(resources, 'copy_package', side_effect=AssertionError('Whole-package copy during browsing')):
+            images = self.browser.images(request)
+        self.assertEqual(images['part_ids'], [part]); self.assertEqual(images['gender'], 'female')
+        row = images['items'][0]['resource']
+        self.assertTrue(self.browser.thumbnail(row['resource_id']).startswith(b'\x89PNG'))
+        self.assertFalse(images['game_contacted']); self.assertEqual(self.browser.recent, [])
+        self.assertEqual(self.source.read_bytes(), original)
+        self.assertNotIn('package_path', json.dumps(images)); self.assertEqual(list(self.browser.cache.rglob('*.package')), [])
+        for edits in (dict(gender='auto'), dict(part_ids=[part,part]), dict(part_ids=['0'*64]),
+                      dict(index_sha256='0'*64), dict(path=str(self.source))):
+            with self.subTest(edits=edits), self.assertRaises(ValueError):
+                self.browser.images(dict(request, **edits))
+
+    def test_explicit_studio_open_rejects_source_drift_after_read_in_place_inspection(self):
+        selected = dict(part_id=self.browser.query(self.query)['items'][0]['part_id'], index_sha256=self.hash)
+        with patch.object(resources, 'studio_executable', return_value=self.root / 'Studio.exe'):
+            row = self.browser.inspect(selected)['resource']
+        raw = bytearray(self.source.read_bytes()); raw[-1] ^= 1; self.source.write_bytes(raw)
+        with patch.object(resources.subprocess, 'Popen') as launch, self.assertRaisesRegex(ValueError, 'changed since indexing'):
+            self.browser.open(row['resource_id'], row['cache_proof'])
+        launch.assert_not_called()
 
     def test_immutable_browser_cannot_be_changed_with_preserved_times(self):
         if os.name == 'nt':

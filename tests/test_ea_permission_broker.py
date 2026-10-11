@@ -11,9 +11,46 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 import ea_permission_broker as broker
+import ea_native_permission as native_module
 
 
 class PermissionBrokerTests(unittest.TestCase):
+    def test_minimized_restore_requires_fresh_launch_ownership_and_still_exact_dialog_pixels(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target, _helper, _request, _probe = self.fixture(root)
+            context = {'fixture': 'current account launch'}
+            before = {'pid': 123, 'hwnd': 99, 'class': 'Qt5152QWindowOwnDCIcon', 'normal': [4162, 552, 4797, 839]}
+            window = {'pid': 123, 'hwnd': 99, 'class': before['class'], 'width': 635, 'height': 287}
+            for variant in ('correct', 'expired-context', 'wrong-wording', 'ambiguous-minimized'):
+                native = Mock()
+                native.minimized_windows.return_value = [before, dict(before, hwnd=100)] if variant == 'ambiguous-minimized' else [before]
+                native.restore_minimized.return_value = window
+                native.windows.return_value = [window]
+                native.capture.return_value = 'a' * 64
+                validation = Mock(side_effect=ValueError('changed launch ownership') if variant == 'expired-context' else None)
+                point = Mock(side_effect=ValueError('wrong permission wording') if variant == 'wrong-wording' else None, return_value=(468, 206))
+                with patch.object(broker, 'process_identity', return_value=target), \
+                     patch.object(broker, 'validate_launch_context', validation), \
+                     patch.object(native_module, 'NativeEA', return_value=native), \
+                     patch.object(native_module, 'recognize', return_value={'exact': True}), \
+                     patch.object(native_module, 'dialog_button', point):
+                    if variant in ('expired-context', 'ambiguous-minimized'):
+                        with self.assertRaises(ValueError):
+                            broker.acknowledge_exact(target, root, 110, context, clock=lambda: 100)
+                        native.restore_minimized.assert_not_called()
+                    else:
+                        result = broker.acknowledge_exact(target, root, 110, context, clock=lambda: 100)
+                        native.restore_minimized.assert_called_once_with(before, 110, clock=unittest.mock.ANY)
+                        self.assertEqual(result['acknowledged'], variant == 'correct')
+                        self.assertFalse(result['restored_windows'][0]['activated'])
+                        if variant == 'correct':
+                            self.assertEqual(point.call_count, 2)
+                            self.assertEqual(validation.call_count, 3)
+                            native.click.assert_called_once_with(window, (468, 206))
+                        else: native.click.assert_not_called()
+                    if variant != 'correct': native.click.assert_not_called()
+
     def fixture(self, root):
         target = {'pid': 123, 'image': str(root / 'EADesktop.exe'), 'creation_time': 123456,
                   'session_id': 1, 'elevated': True, 'ui_access': False, 'integrity': 12288}

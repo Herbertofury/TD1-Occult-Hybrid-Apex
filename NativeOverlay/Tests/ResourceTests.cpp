@@ -9,6 +9,9 @@ int main(int argc, char** argv) {
     using namespace td1; using resource::Json;
     unsigned checks = 0, failed = 0;
     auto check = [&](bool pass, const char* label) { ++checks; if (!pass) { ++failed; std::cerr << label << '\n'; } };
+    check(library::Workspace({{"layout","catalog"},{"columns",6},{"sidebar",false},{"tab","library"},{"preview_share",.3},{"gender","female"}}),"typed workspace layout and columns accepted");
+    for(const auto& bad:std::vector<Json>{{{"columns",1}},{{"columns",true}},{{"preview_share",.9}},{{"layout","unknown"}},{{"sidebar",1}},{{"tab","camera"}},{{"gender","unclassified"}},{{"click",true}},Json::object()})
+        check(!library::Workspace(bad),"unknown, untyped or out-of-range workspace option rejected");
     check(GameCanvas(42,42,true,false,true,1278,1376,L"Canvas-0123"), "actual owned visible Canvas needs no foreground condition");
     check(!GameCanvas(43,42,true,false,true,1278,1376,L"Canvas-0123"), "another process cannot supply a renderer window");
     check(!GameCanvas(42,42,false,false,true,1278,1376,L"Canvas-0123"), "hidden helper window is rejected");
@@ -63,6 +66,22 @@ int main(int argc, char** argv) {
         {"thumbnail", {{"status", "resolved"}, {"url", ""}, {"sha256", resource::HashBytes(bytes)}, {"width", 1}, {"height", 1}, {"reason", nullptr}}},
         {"studio_open", {{"status", "ready"}, {"selection", "containing-package"}, {"resource_selection_supported", false}, {"reason", nullptr}}}};
     row["thumbnail"]["url"] = "/v1/resources/" + ui::Scalar(row, "resource_id") + "/thumbnail";
+    auto imageRow=row;imageRow["broker_port"]=8023;
+    auto imagePage=page;imagePage["items"][0]["resource_tgi"]=tgi;
+    imagePage["items"][0]["body_type"]=row["body_type"];
+    imagePage["items"][0]["package_sha256"]=row["provenance"]["package_sha256"];
+    Json imageRequest={{"part_ids",Json::array({item["part_id"]})},{"index_sha256",page["index_sha256"]},{"gender","female"}};
+    Json imageReply={{"ok",true},{"part_ids",imageRequest["part_ids"]},{"index_sha256",imageRequest["index_sha256"]},
+        {"gender","female"},{"items",Json::array({{{"part_id",item["part_id"]},{"resource",imageRow}}})}};
+    check(library::ImagesPage(imageReply,imageRequest,imagePage),"column image binds exact page item, package, CASP bytes and thumbnail gender");
+    auto badImages=imageReply;badImages["gender"]="male";
+    check(!library::ImagesPage(badImages,imageRequest,imagePage),"wrong gender thumbnail rejected");
+    badImages=imageReply;badImages["items"][0]["resource"]["provenance"]["package_sha256"]=std::string(64,'a');
+    check(!library::ImagesPage(badImages,imageRequest,imagePage),"another package cannot supply a column image");
+    auto badImageRequest=imageRequest;badImageRequest["part_ids"].push_back(item["part_id"]);
+    check(!library::ImagesRequest(badImageRequest),"duplicate image request rejected");
+    badImageRequest=imageRequest;badImageRequest["path"]="C:/arbitrary";
+    check(!library::ImagesRequest(badImageRequest),"column image request cannot provide host paths");
     Json catalog = {{"schema", 1}, {"items", Json::array({row})}};
     Json part = {{"cas_part_hex", "00000000000003E7"}, {"cas_part_id", "999"}, {"target", "0:7:0"}, {"body_type", 7}};
     Json editor = {{"target", "0:7:0"}, {"cas_part_id", "999"}, {"body_type", 7},

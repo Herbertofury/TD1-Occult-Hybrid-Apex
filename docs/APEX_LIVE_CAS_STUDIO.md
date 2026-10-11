@@ -1,13 +1,19 @@
 # Apex Live CAS Studio — Full CAS-Grade Editing Outside CAS
 
-Last reconciled: 2026-10-10
+Last reconciled: 2026-10-11
 
 The V38 catalog-selection game leaf now verifies exact CC replacement,
 unpaused Alien → Vampire → Alien isolation and Undo restoring all original
 appearances without taking focus. V40 verifies cold capture with F11 hidden
 and public background Resume into the exact test household. The library uses
 the foreground-independent renderer and public background lifecycle routes.
-Cold-load owner-bank recovery and remaining image/swatch/fitting/3D work are tracked in
+The October 11 candidate adds an independent native 3D appearance viewport,
+camera/layout controls, bounded actual thumbnail columns, immediate/try-on
+mode and face/body controls. It fixes serializer-induced shape reset and
+current-form stored-owner synchronization on Apply/Undo. See
+`Reports/LIVE_APPEARANCE_ROOM_2026-10-11.md` for build checks, actual runtime
+leaves, retained failures and remaining shader/catalog/persistence work.
+Cold-load owner-bank recovery also remains tracked in
 `Reports/LIVE_CAS_LIBRARY_2026-10-10.md`; this is not full Live/CAS parity.
 Current public MCCC baseline verified for research: MC Command Center 2026.5.0, compatible with Sims 4 PC 1.128.90.1030.
 
@@ -647,7 +653,7 @@ swatch groups, presets and independent 3D appearance assembly remain open.
 
 Primary source research, checked October 10, 2026:
 
-- [Maintained SimRipper mesh preview](https://github.com/CmarNYC-Tools/TS4SimRipper/blob/main/src/MorphPreview.xaml.cs) contains actual GEOM-to-mesh, texture/material, camera and rotation code. Its repository is GPL-3.0. It is a concrete reference for appearance assembly; its renderer has not been embedded or runtime-certified in Apex.
+- [Maintained SimRipper mesh preview](https://github.com/CmarNYC-Tools/TS4SimRipper/blob/862a32949e5156b371e2d2f83de4e37e0bb1afcc/src/MorphPreview.xaml.cs) contains actual GEOM-to-mesh, texture/material, camera and rotation code. Its repository is GPL-3.0. October 11 uses its pinned assembly source in a separate no-window worker with complete corresponding source; Apex supplies its own D3D11 viewport. This does not establish full EA material matching.
 - [SimRipper performance fork](https://github.com/technificentConsulting/TS4-SimRipper) contains GEOM, rig, morph and preview sources under GPL-3.0; compare verified behavior before adopting changes.
 - [sims-package2glb](https://github.com/infinition/sims-package2glb) contains Rust/glTF conversion source; its [license text](https://github.com/infinition/sims-package2glb/blob/main/LICENSE) is MIT despite GitHub's API reporting `NOASSERTION`. Its object/package converter is a candidate component, with complete Sim morphs, skin composition and rig posing still requiring independent work.
 - [Blender GEOM importer](https://github.com/blancodagoat/blender-sims4-geom) contains mesh/morph/package parsers and a nested license file; the root API license is absent. Inspect that exact license before porting implementation.

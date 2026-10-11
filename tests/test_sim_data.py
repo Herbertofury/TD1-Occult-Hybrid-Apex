@@ -9,6 +9,95 @@ from apex_core.sim_data import catalog, snapshot
 
 
 class SimDataTests(unittest.TestCase):
+    def test_variadic_injection_wrapper_accepts_history_read_and_delegates_other_calls(self):
+        message, _ = self.fixture()
+        calls = []
+        def injected(function):
+            def wrapper(*args, **kwargs):
+                calls.append(('wrapper', args[0].id, kwargs))
+                return function(*args, **kwargs)
+            return wrapper
+        class Sim:
+            id = 7
+            physique = 'edited Alien shape'
+            @injected
+            def _set_fit_fat(self, reason=None):
+                calls.append(('native', self.id, reason))
+                self.physique = 'shared fitness projection'
+            def save_sim(self, **kwargs):
+                self._set_fit_fat()
+                return message
+        sim = Sim()
+        backend = Obj(services=Obj(get_persistence_service=lambda: Obj(get_save_slot_proto_guid=lambda: 99)))
+        snapshot(backend, sim)
+        self.assertEqual(sim.physique, 'edited Alien shape')
+        self.assertEqual(calls, [])
+        sim._set_fit_fat(reason='ordinary native operation')
+        self.assertEqual(calls, [('wrapper', 7, {'reason': 'ordinary native operation'}),
+                                 ('native', 7, 'ordinary native operation')])
+        self.assertEqual(sim.physique, 'shared fitness projection')
+
+    def test_wrapped_required_argument_still_refuses_before_serialization(self):
+        import functools
+        def injected(function):
+            @functools.wraps(function)
+            def wrapper(*args, **kwargs): return function(*args, **kwargs)
+            return wrapper
+        class Sim:
+            id = 7
+            @injected
+            def _set_fit_fat(self, required): pass
+            def save_sim(self, **kwargs): self.fail = True
+        sim = Sim()
+        with self.assertRaisesRegex(ValueError, 'signature changed'): snapshot(Obj(), sim)
+        self.assertFalse(hasattr(sim, 'fail'))
+
+    def test_history_serializer_preserves_edited_physique_but_normal_saves_and_other_sims_recalculate(self):
+        message, _ = self.fixture()
+        calls = []
+        class Sim:
+            id = 7
+            physique = 'edited Alien shape'
+            def _set_fit_fat(self):
+                calls.append(self.id)
+                self.physique = 'shared fitness projection'
+            def save_sim(self, **kwargs):
+                self._set_fit_fat()
+                other._set_fit_fat()
+                return message
+        sim, other = Sim(), Sim(); other.id = 8
+        backend = Obj(services=Obj(get_persistence_service=lambda: Obj(get_save_slot_proto_guid=lambda: 99)))
+        snapshot(backend, sim)
+        self.assertEqual(sim.physique, 'edited Alien shape')
+        self.assertEqual(other.physique, 'shared fitness projection')
+        self.assertEqual(calls, [8])
+        sim.save_sim()
+        self.assertEqual(sim.physique, 'shared fitness projection')
+        self.assertEqual(calls, [8, 7, 8])
+
+    def test_failed_snapshot_releases_physique_read_scope(self):
+        class Sim:
+            id = 7
+            count = 0
+            def _set_fit_fat(self): self.count += 1
+            def save_sim(self, **kwargs):
+                self._set_fit_fat()
+                raise ValueError('native serialization failed')
+        sim = Sim()
+        with self.assertRaisesRegex(ValueError, 'native serialization failed'): snapshot(Obj(), sim)
+        self.assertEqual(sim.count, 0)
+        sim._set_fit_fat()
+        self.assertEqual(sim.count, 1)
+
+    def test_changed_native_physique_signature_refuses_before_serializer(self):
+        class Sim:
+            id = 7
+            def _set_fit_fat(self, required): pass
+            def save_sim(self, **kwargs): self.fail = True
+        sim = Sim()
+        with self.assertRaisesRegex(ValueError, 'signature changed'): snapshot(Obj(), sim)
+        self.assertFalse(hasattr(sim, 'fail'))
+
     def fixture(self):
         fields = [Obj(name='id', number=1, type=4, label=1, message_type=None, enum_type=None),
                   Obj(name='apparently_irrelevant', number=2, type=8, label=1, message_type=None, enum_type=None),

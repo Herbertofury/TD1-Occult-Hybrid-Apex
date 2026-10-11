@@ -93,6 +93,21 @@ class LiveCatalogTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             catalog.query(self.index, built['index_sha256'], text='*')
 
+    def test_creator_tags_sort_and_filters_keep_inference_explicit(self):
+        self.package('[Zeta] Eyes.package',{(resources.CASP,8,1):casp(body=29)})
+        self.package('[Alpha] Lips.package',{(resources.CASP,8,2):casp(body=29)})
+        self.package('Anonymous Skin.package',{(resources.CASP,8,3):casp(body=35)})
+        built=self.build();index=catalog.PinnedIndex(self.index,built['index_sha256']);self.addCleanup(index.close)
+        rows=index.query(sort='creator')['items']
+        self.assertEqual([row['creator_hint'] for row in rows],['','Alpha','Zeta'])
+        self.assertFalse(rows[1]['creator_verified']);self.assertIn('unverified',rows[1]['creator_source'])
+        page=index.query(author='alpha',body_type=29);self.assertEqual(page['total'],1)
+        self.assertEqual(page['items'][0]['package_name'],'[Alpha] Lips.package')
+        self.assertEqual(page['creators'],[dict(name='Alpha',count=1),dict(name='Zeta',count=1)])
+        self.assertEqual(index.query(author='missing')['total'],0)
+        for filters in (dict(author=2),dict(author='x'*81),dict(sort='SQL')):
+            with self.assertRaises(ValueError):index.query(**filters)
+
     def test_changed_source_same_times_never_resolves_cached_selection(self):
         path = self.package('Freckles.package', {(resources.CASP, 8, 9): casp(body=35)})
         built = self.build()

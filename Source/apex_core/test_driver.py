@@ -40,8 +40,8 @@ def runtime_identity(module_file):
     return result
 
 
-def guard(backend, value):
-    if not isinstance(value, str) or len(value) > 4096:
+def guard(backend, value, limit=4096):
+    if limit not in (4096, 4 * 1024 * 1024) or not isinstance(value, str) or len(value) > limit:
         raise ValueError('A bounded typed test request is required.')
     payload = json.loads(value)
     identity = runtime_identity(backend.__file__)

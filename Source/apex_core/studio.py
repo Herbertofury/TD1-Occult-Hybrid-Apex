@@ -9,7 +9,7 @@ import json
 import os
 import copy
 import re
-from . import cas_catalog, color_shift, outfit_snapshot, form_appearance as appearance, form_bank, sim_record, outfit_hair
+from . import cas_catalog, color_shift, outfit_snapshot, form_appearance as appearance, form_bank, sim_record, outfit_hair, morph_controls
 from .change_journal import ChangeJournal, fingerprint, decoded
 from .dresser_parts import DresserParts, NEUTRAL_SHIFT, read_rows, write_rows, uint
 
@@ -411,10 +411,48 @@ def dispatch(backend, action, sim_id, value):
             if type(envelope['form']) is not int or not 0 < envelope['form'] < 1 << 32:
                 raise ValueError('Invalid explicit form owner.')
             form, value = envelope['form'], envelope['value']
-    sim, before, journal, lane = _context(backend, sim_id, form, history=action != 'studio_items')
+    sim, before, journal, lane = _context(backend, sim_id, form, history=action not in ('studio_items', 'studio_preview_snapshot'))
     primary, flags = journal.primary_sim, journal.form_flags
     if action == 'studio_items':
         return _items_response(backend, sim, before, journal, lane, value)
+    if action == 'studio_preview_snapshot':
+        if not isinstance(value, str) or len(value) > 2048:
+            raise ValueError('A bounded exact preview owner is required.')
+        request = json.loads(value)
+        expected = {'lane', 'appearance_sha256', 'outfit_index', 'outfit_id'}
+        if not isinstance(request, dict) or set(request) not in (expected, expected | {'preview_id'}):
+            raise ValueError('Preview snapshot fields differ.')
+        if request['lane'] != lane or request['appearance_sha256'] != fingerprint(before):
+            raise ValueError('Preview appearance owner changed; inspect again.')
+        render_state, preview_id = before, request.get('preview_id')
+        if preview_id is not None:
+            if not isinstance(preview_id, str) or not re.fullmatch(r'[0-9a-f]{32}', preview_id):
+                raise ValueError('An exact prepared preview identity is required.')
+            filename = hashlib.sha256(lane.encode('ascii')).hexdigest() + '.json'
+            retained = ChangeJournal(os.path.join(backend._data_directory(), 'CASHistory', filename), lane)
+            pending = retained.data['pending']
+            if (not pending or pending['id'] != preview_id or pending['stage'] != 'prepared' or
+                    pending['before_sha256'] != fingerprint(before)):
+                raise ValueError('Prepared preview changed; no appearance was applied.')
+            render_state = decoded(pending['after'])
+        render_fields = _fields(render_state)
+        class PreviewOwner: pass
+        preview_owner = PreviewOwner(); preview_owner._studio_fields = render_fields
+        message = _message(backend, preview_owner)
+        index = request['outfit_index']
+        if type(index) is not int or not 0 <= index < len(message.outfits) or str(message.outfits[index].outfit_id) != request['outfit_id']:
+            raise ValueError('Preview outfit identity changed; inspect again.')
+        form_bank.assert_idle(backend, primary)
+        owners = list(backend._form_map(primary.occult_tracker).values()) + [primary]
+        originals = [(owner, _state(backend, owner)) for owner in owners]
+        record = sim_record.restore(_capture_native_record(backend, primary))
+        if any(_state(backend, owner) != raw for owner, raw in originals) or _state(backend, sim) != before:
+            raise ValueError('Native metadata serialization changed an appearance; preview refused.')
+        return dict(request, ok=True, sim_id=str(backend._sim_id(primary)), form=flags,
+                    preview_id=preview_id, render_sha256=fingerprint(render_state), fields=render_fields,
+                    native_sim=record['native_base64'], native_sha256=record['native_sha256'],
+                    appearance_source=journal.appearance_source, save_guid=str(backend.services.get_persistence_service().get_save_slot_proto_guid()),
+                    runtime_pid=os.getpid(), save_file_written=False, history_written=False)
     read = lambda: _state(backend, sim)
     journal.appearance_reader = read
     def write(raw):
@@ -428,22 +466,83 @@ def dispatch(backend, action, sim_id, value):
         restore = getattr(backend, '_studio_restore_appearance', backend._restore_siminfo_payload)
         native = journal.native_target if journal.inactive else sim
         native_prior = appearance.packed(backend, native) if native is not None else None
+        # A Live Sim and its stored current-form wrapper are distinct owners.
+        # Keep this edit/Undo's requested fields on both; otherwise a later
+        # switch can resurrect the stored pre-Undo shape or CAS part. Preserve
+        # every unrelated field on the wrapper, including existing differences.
+        companion = None if journal.inactive else backend._form_map(primary.occult_tracker).get(backend._coerce_flags(flags))
+        if companion is native: companion = None
+        companion_prior = appearance.packed(backend, companion) if companion is not None else None
+        edited = {name: row for name, row in desired.items() if prior.get(name) != row}
+        companion_desired = dict(companion_prior, **edited) if companion_prior is not None else None
+        def check_companion(expected):
+            if companion is None: return
+            if backend._form_map(primary.occult_tracker).get(backend._coerce_flags(flags)) is not companion:
+                raise ValueError('Stored current-form owner changed during appearance Apply; retain recovery.')
+            if fingerprint(_state_from_fields(backend, appearance.packed(backend, companion))) != fingerprint(_state_from_fields(backend, expected)):
+                raise ValueError('Stored current-form appearance rejected the accepted edit.')
         try:
             if native is not None:
-                restore(native, appearance.payload(desired))
-                if fingerprint(_state_from_fields(backend, appearance.packed(backend, native))) != fingerprint(raw):
-                    raise ValueError('Appearance owner rejected the accepted state.')
+                # Rebuilding identical outfits can rewrite unrelated genetics.
+                # Apply only the requested differences, then verify ALL fields.
+                changed = {name: row for name, row in desired.items() if native_prior.get(name) != row}
+                if changed: restore(native, appearance.payload(changed))
+                observed = _state_from_fields(backend, appearance.packed(backend, native))
+                if fingerprint(observed) != fingerprint(raw):
+                    raise ValueError('Appearance owner rejected the accepted state. Changed fields: ' +
+                                     ', '.join(_delta(raw, observed)['changed_fields']))
+            if companion is not None:
+                changed = {name: row for name, row in companion_desired.items() if companion_prior.get(name) != row}
+                if changed: restore(companion, appearance.payload(changed))
+                check_companion(companion_desired)
             if journal.inactive: sim._studio_fields = copy.deepcopy(desired)
             elif fingerprint(read()) != fingerprint(raw):
                 raise ValueError('Live appearance owner rejected the accepted state.')
+            if not journal.inactive:
+                backend._resend_all_visuals(sim)
+                if fingerprint(read()) != fingerprint(raw):
+                    raise ValueError('Visual resend changed the accepted appearance.')
+            check_companion(companion_desired)
             form_bank.update(backend, primary, flags, _packed(backend, sim), create=True)
         except Exception:
-            if native is not None: restore(native, appearance.payload(native_prior))
+            if companion is not None:
+                if backend._form_map(primary.occult_tracker).get(backend._coerce_flags(flags)) is not companion:
+                    raise ValueError('Stored current-form identity changed; no removed owner rollback attempted.')
+                failed = appearance.packed(backend, companion)
+                rollback = {name: row for name, row in companion_prior.items() if failed.get(name) != row}
+                if rollback: restore(companion, appearance.payload(rollback))
+                check_companion(companion_prior)
+            if native is not None:
+                failed = appearance.packed(backend, native)
+                rollback = {name: row for name, row in native_prior.items() if failed.get(name) != row}
+                if rollback: restore(native, appearance.payload(rollback))
             if journal.inactive: sim._studio_fields = copy.deepcopy(prior)
             if fingerprint(read()) != fingerprint(_state_from_fields(backend, prior)):
                 raise ValueError('Appearance rollback differs; retain the recovery journal.')
             raise
-        if not journal.inactive: backend._resend_all_visuals(sim)
+    if action == 'studio_shape_inspect':
+        return _response(journal, 'Observed face/body slider values read without changing any form.',
+                         shape_editor=morph_controls.inspect(_fields(before)))
+    if action in ('studio_shape_preview', 'studio_shape_live'):
+        if journal.data['pending']: raise ValueError('Apply or Cancel the pending preview before another slider edit.')
+        if not isinstance(value, str) or len(value) > 2048: raise ValueError('Bounded appearance slider request required.')
+        request = json.loads(value)
+        if not isinstance(request, dict) or set(request) != {'field','group','index','key','before','value','lane','appearance_sha256'}:
+            raise ValueError('Appearance slider request fields differ.')
+        if request['lane'] != lane or request['appearance_sha256'] != fingerprint(before):
+            raise ValueError('Sim/form/save or appearance changed; inspect again.')
+        controls = {name: request[name] for name in ('field','group','index','key','before','value')}
+        after = _state_from_fields(backend, morph_controls.replace(_fields(before), controls))
+        if after == before: return _response(journal, 'The exact appearance slider already matches.')
+        form_bank.assert_idle(backend, primary)
+        token = journal.prepare('Edit {} slider / group {} / row {}'.format(request['field'],request['group'],request['index']), before, after)
+        if action == 'studio_shape_live':
+            journal.apply(token, read, write)
+            return _response(journal, 'Live appearance slider applied and read back. Unpause to check the rendered result.',
+                live_shape_applied=True, rendered_result_verified=False,
+                shape_editor=morph_controls.inspect(_fields(read())),form_inventory=_form_inventory(backend, primary),
+                outfit_inventory=_outfit_inventory(backend, _message(backend, sim)))
+        return _response(journal, 'Appearance slider try-on prepared. Apply keeps this form edit; Cancel discards it.',preview_id=token)
     if action in ('studio_status', 'studio_history'):
         if not journal.data['pending']:
             journal.observe(before, 'Observed Sim state / external CAS')
@@ -559,7 +658,9 @@ def dispatch(backend, action, sim_id, value):
         return _response(journal, 'Equipped-part replacement preview prepared.', preview_id=token,
             preview_diff='{}: {:016X} -> {:016X}; destination references/layers preserved'.format(
                 request['target'], old_id, source['id']))
-    if action == 'studio_catalog_preview':
+    if action in ('studio_catalog_preview', 'studio_catalog_live'):
+        if action == 'studio_catalog_live' and journal.data['pending']:
+            raise ValueError('Resolve the existing preview before applying a live catalog edit.')
         if not isinstance(value, str) or len(value) > 2048:
             raise ValueError('Catalog selection exceeds its bound.')
         request = json.loads(value)
@@ -634,6 +735,17 @@ def dispatch(backend, action, sim_id, value):
             return _response(journal, 'This exact catalog part already matches; nothing changed.')
         form_bank.assert_idle(backend, primary)
         token = journal.prepare('Select catalog part: ' + metadata['part_name'], before, after)
+        if action == 'studio_catalog_live':
+            journal.apply(token, read, write)
+            current = read()
+            inventory = _outfit_inventory(backend, _message(backend, sim))
+            return _response(journal, 'Live catalog item applied and read back. Unpause to check the rendered result.',
+                live_catalog_applied=True, rendered_result_verified=False, effective_resource_verified=True,
+                catalog_part_id=str(part_id), appearance_sha256=fingerprint(current), outfit_inventory=inventory,
+                form_inventory=_form_inventory(backend, primary),
+                current_outfit_index=_current_outfit(primary, inventory) if not journal.inactive else None,
+                current_form_flags=backend._get_current_flags(primary), inspected_form_flags=flags,
+                appearance_source=journal.appearance_source)
         return _response(journal, 'Catalog item preview prepared from verified loaded CASP bytes. Apply explicitly.',
                          preview_id=token, effective_resource_verified=True, catalog_part_id=str(part_id),
                          preview_diff='{} / outfit {} / BodyType {}: {:016X}'.format(flags, number, body, part_id))

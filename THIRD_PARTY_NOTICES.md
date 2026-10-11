@@ -57,7 +57,18 @@ Crilender is credited for the actual v1.9h main, Archetypes, Fairy, Gloves Below
 
 The mod-folder F11 sidecar uses Tsuda Kageyu's [MinHook v1.3.4](https://github.com/TsudaKageyu/minhook/releases/tag/v1.3.4), pinned at `c3fcafdc10146beb5919319d0683e44e3c30d537`. The x64 source is vendored unchanged. Its complete BSD notice and Vyacheslav Patkov HDE notices are preserved in `NativeOverlay/third_party/minhook/LICENSE.txt` and distributed in the candidate's `Licenses` directory.
 
-CAS color packing and CASP field layouts were researched against the maintained [CmarNYC-Tools/TS4SimRipper](https://github.com/CmarNYC-Tools/TS4SimRipper) and [CmarNYC CAS Tools](https://github.com/Oops19/cmarNYC_CASTools) repositories. The format reader/codec in `apex_core` is an independent implementation of those data-format facts. No GPL parser source, tool binary or private EA resource/code is bundled. SimRipper's original C# parser was compiled privately as an independent comparison oracle; hashes and matching fields are recorded in `manifests/cas-color-format.json`. JPEXS FFDec 26.3.0 was used privately to inspect the authorized UI and is not distributed.
+CAS color packing and CASP field layouts were researched against the maintained [CmarNYC-Tools/TS4SimRipper](https://github.com/CmarNYC-Tools/TS4SimRipper) and [CmarNYC CAS Tools](https://github.com/Oops19/cmarNYC_CASTools) repositories. The format reader/codec in `apex_core` is an independent implementation of those data-format facts. That Python codec does not bundle GPL parser source, a tool binary or private EA resource/code. SimRipper's original C# parser was compiled privately as an independent comparison oracle; hashes and matching fields are recorded in `manifests/cas-color-format.json`. JPEXS FFDec 26.3.0 was used privately to inspect the authorized UI and is not distributed.
+
+### Independent appearance preview worker
+
+The separate F11 appearance assembler uses GPL-3.0 SimRipper source pinned at
+`862a32949e5156b371e2d2f83de4e37e0bb1afcc`. `PreviewWorker/LICENSE` preserves
+the full license. `tools/build_preview_worker.py` records the exact upstream
+source/dependency hashes and the Apex adapter/recipe hashes. Its output includes
+the complete corresponding upstream source archive, every Apex adapter and the
+build recipe, plus the upstream license. Distribute those with the helper.
+See `PreviewWorker/README.md` for the build and current scope. Installed game
+resources and private CC are runtime inputs and are not published in this repo.
 
 The overlay uses Niels Lohmann's MIT-licensed [JSON for Modern C++ v3.12.0](https://github.com/nlohmann/json/releases/tag/v3.12.0) for typed transport data, Unicode labels and exact integer identities. The vendored single header matches the official release SHA-256 `aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63`. Its complete `LICENSE.MIT` is shipped alongside the ImGui license. Native protocol fixtures cover the production reader; this dependency does not establish game-hook compatibility.
 

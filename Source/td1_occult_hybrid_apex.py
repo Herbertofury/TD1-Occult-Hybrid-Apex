@@ -4513,6 +4513,13 @@ def _handle_http_client(conn):
         data = conn.recv(16384)
         if not data:
             return
+        if data.startswith(b'POST '):
+            from apex_core.native_http import read
+            from apex_core.native_controls import dispatch
+            import sys
+            request = read(conn, data)
+            conn.sendall(_http_payload(dispatch(sys.modules[__name__], **request)))
+            return
         line = data.split(b'\r\n', 1)[0].decode('utf-8', 'ignore')
         parts = line.split()
         method = parts[0] if len(parts) > 0 else 'GET'
@@ -8452,9 +8459,9 @@ def run_action(action, sim_id=None, occult=None, value=None):
                 lambda: _APEX_PRE_OWNER_RUN_ACTION(action, sim_id=sim_id, occult=occult, value=value))
         except Exception as exc:
             return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
-    if action in ('studio_status', 'studio_items', 'studio_history', 'studio_record', 'studio_checkpoint', 'studio_recover',
+    if action in ('studio_status', 'studio_items', 'studio_preview_snapshot', 'studio_history', 'studio_record', 'studio_checkpoint', 'studio_recover',
                   'studio_color_copy', 'studio_color_preview', 'studio_cancel',
-                  'studio_color_inspect', 'studio_color_edit', 'studio_color_live', 'studio_part_inspect', 'studio_part_preview', 'studio_catalog_preview',
+                  'studio_color_inspect', 'studio_color_edit', 'studio_color_live', 'studio_part_inspect', 'studio_part_preview', 'studio_catalog_preview', 'studio_catalog_live', 'studio_shape_inspect', 'studio_shape_preview', 'studio_shape_live',
                   'studio_undo', 'studio_redo', 'studio_jump', 'studio_apply',
                   'studio_hair_enable', 'studio_hair_disable', 'studio_hair_status', 'studio_outfit_duplicate'):
         from apex_core.studio import dispatch

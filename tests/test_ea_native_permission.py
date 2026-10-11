@@ -3,9 +3,12 @@ from copy import deepcopy
 from pathlib import Path
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock
+import ctypes
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
-from ea_native_permission import dialog_button
+from ea_native_permission import dialog_button, NativeEA
 
 
 def retained_modal():
@@ -20,6 +23,54 @@ def retained_modal():
 
 
 class PermissionRecognitionTests(unittest.TestCase):
+    def minimized_native(self):
+        native = NativeEA.__new__(NativeEA)
+        native.pids = {123}
+        native.owner = Mock(return_value=123)
+        def text(_hwnd, target, _length): target.value = 'EA'; return 2
+        def kind(_hwnd, target, _length): target.value = 'Qt5152QWindowOwnDCIcon'; return 24
+        def placement(_hwnd, target):
+            place = target._obj
+            self.assertEqual(place.length, ctypes.sizeof(place))
+            place.show = 2
+            place.normal.left, place.normal.top = 4162, 552
+            place.normal.right, place.normal.bottom = 4797, 839
+            return True
+        native.user = SimpleNamespace(GetWindowTextW=Mock(side_effect=text),
+            GetClassNameW=Mock(side_effect=kind), GetWindowPlacement=Mock(side_effect=placement),
+            IsWindowVisible=Mock(return_value=True), IsIconic=Mock(return_value=True),
+            ShowWindowAsync=Mock(return_value=True))
+        return native
+
+    def test_minimized_modal_restores_without_activation_then_requires_normal_identity(self):
+        native = self.minimized_native()
+        before = native.minimized_identity(99)
+        restored = {'pid': 123, 'hwnd': 99, 'class': before['class'], 'width': 635, 'height': 287}
+        native.identity = Mock(return_value=restored)
+        native.user.IsIconic.side_effect = [True, False]
+        result = native.restore_minimized(before, 110, clock=lambda: 100)
+        self.assertEqual(result, restored)
+        native.user.ShowWindowAsync.assert_called_once_with(99, 4)
+        self.assertEqual(before['normal'], [4162, 552, 4797, 839])
+
+    def test_minimized_wrong_owner_changed_or_expired_window_never_restores(self):
+        for variant in ('owner', 'hidden', 'not-minimized', 'wrong-title', 'main-size', 'changed', 'expired'):
+            native = self.minimized_native()
+            before = native.minimized_identity(99)
+            if variant == 'owner': native.owner.return_value = 124
+            elif variant == 'hidden': native.user.IsWindowVisible.return_value = False
+            elif variant == 'not-minimized': native.user.IsIconic.return_value = False
+            elif variant == 'wrong-title': native.user.GetWindowTextW.side_effect = lambda _h, b, _l: setattr(b, 'value', 'Other app')
+            elif variant == 'main-size':
+                def large(_hwnd, target):
+                    target._obj.show = 2; target._obj.normal.right = 1280; target._obj.normal.bottom = 1392
+                    return True
+                native.user.GetWindowPlacement.side_effect = large
+            elif variant == 'changed': before['normal'][0] += 1
+            with self.subTest(variant=variant), self.assertRaises(ValueError):
+                native.restore_minimized(before, 100 if variant == 'expired' else 110, clock=lambda: 100)
+            native.user.ShowWindowAsync.assert_not_called()
+
     def test_retained_zero_k_ocr_variant_resolves_only_measured_ok_word_center(self):
         # ea-broker-1791451035412101700.bmp: exact modal wording; OCR emits 0K.
         value = retained_modal()

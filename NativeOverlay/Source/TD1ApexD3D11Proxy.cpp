@@ -37,9 +37,11 @@
 #include <ctime>
 #include <cctype>
 #include <map>
+#include <memory>
 
 #include "ApexUiData.h"
 #include "ApexResourceImage.h"
+#include "ApexSimPreview.h"
 #include "ApexLiveCatalog.h"
 #include "ApexPointerGate.h"
 #include "ApexGameWindow.h"
@@ -111,11 +113,23 @@ static std::string g_selectedSim;
 struct QueuedCommand { std::string path; uint64_t generation; bool automaticCasRefresh = false; std::string sim;
     bool automaticCasReconcile = false; std::string casRequestId;
     bool automaticStudioItems = false;
+    bool simPreview = false;
     int resourceOperation = 0; ui::Json resourceRow = ui::Json::object(); uint64_t resourceSelection = 0;
     bool ownerObservation = false; std::string ownerRequestId;
     std::string casBankAction; };
 static std::deque<QueuedCommand> g_commands;
+static bool RetainCommandOwner(const QueuedCommand&,const std::string&);
 static uint64_t g_selectionGeneration = 0;
+static std::atomic<bool> g_simPreviewBusy{false};
+static std::shared_ptr<td1::preview::Scene> g_simPreviewScene;
+static std::string g_simPreviewContext, g_simPreviewStatus;
+static td1::preview::Renderer g_simPreview;
+static td1::preview::View g_simPreviewSavedView;
+static std::string g_simPreviewSavedSim;
+static bool g_simPreviewKeepCamera = true;
+static bool g_simPreviewAutomatic = true;
+static bool g_simPreviewFocusRequested = false;
+static std::string g_simPreviewAttemptedContext;
 static ui::OwnerObservation g_ownerObservation; // worker/render, g_dataMutex
 static QueuedCommand g_ownerOriginalCommand;
 static std::atomic<bool> g_ownerBlocked{false};
@@ -147,7 +161,7 @@ static char g_partSearch[160] = "";
 static int g_partReplacementIndex = 0;
 static int g_studioFormIndex = 0;
 static bool g_showEmptySlots = true;
-static bool g_livePartColor = true;
+static bool g_livePartColor = false;
 static int g_equippedSort = 0;
 static int g_itemNameMode = 0;
 static int g_casGroupIndex = 0;
@@ -220,14 +234,30 @@ static std::atomic<bool> g_libraryBusy{false};
 static std::atomic<uint64_t> g_librarySerial{0};
 static ui::Json g_libraryPage = ui::Json::object(), g_libraryInspection = ui::Json::object(); // g_dataMutex
 static std::string g_libraryStatus = "Start the Live CAS catalog CLI service to browse installed parts.";
-static char g_librarySearch[201] = "";
+static char g_librarySearch[801] = "";
+static std::string g_libraryAuthor;
+static int g_librarySort = 0;
+static bool g_studioEquippedSidebar = false;
 static int g_libraryColumns = 4, g_libraryOrigin = 0, g_libraryView = 0;
 static int64_t g_libraryBody = -1;
 static size_t g_libraryOffset = 0;
 static bool g_libraryQueryNeeded = true;
-static bool g_libraryFocusRequested = false;
+static bool g_libraryFocusRequested = true;
 static std::string g_libraryQueryKey, g_librarySelected;
 static int g_libraryTargetRow = 0;
+static bool g_libraryShowImages = true;
+static int g_libraryImageGender = 1;
+static std::atomic<bool> g_libraryImagesBusy{false};
+static std::atomic<uint64_t> g_libraryImageSerial{0};
+static std::map<std::string,resource::Pixels> g_libraryImagePixels; // worker receipt, g_dataMutex
+static std::map<std::string,std::string> g_libraryImageErrors; // worker receipt, g_dataMutex
+static std::map<std::string,ID3D11ShaderResourceView*> g_libraryImageTextures; // render thread
+static std::map<std::string,ImVec2> g_libraryImageSizes;
+static std::set<std::string> g_libraryImageAttempted;
+static std::string g_libraryImageContext;
+static float g_studioPreviewShare = .38f;
+static int g_studioLayout = 0;
+static int g_workspaceFocusRequested = -1;
 static size_t g_studioItemsCursor = 0;
 static ULONGLONG g_studioItemsNextMs = 0;
 static bool g_studioItemsComplete = false;
@@ -504,10 +534,10 @@ static std::string ResourceKey(const ui::Json& row) {
 
 static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) {
     body.clear();
-    if (operation < 1 || operation > 6) return false;
+    if (operation < 1 || operation > 7) return false;
     if (operation > 1 && operation < 4 && !resource::CatalogIdentities({{"schema", 1}, {"items", ui::Json::array({row})}})) return false;
     if (operation == 4 && !library::Query(row) || operation == 5 && !library::Selection(row) ||
-        operation == 6 && !library::Selection(row, true)) return false;
+        operation == 6 && !library::Selection(row, true) || operation == 7 && !library::ImagesRequest(row)) return false;
     if (!g_wsStarted) {
         WSADATA wsa{};
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return false;
@@ -516,7 +546,7 @@ static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) 
     const size_t bound = operation == 2 ? 8 * 1024 * 1024 : 512 * 1024;
     const std::string path = operation == 1 ? "/v1/resources" : operation == 2 ?
         "/v1/resources/" + ui::Scalar(row, "resource_id") + "/thumbnail" : operation == 3 ? "/v1/open" :
-        operation == 4 ? "/v1/catalog/query" : operation == 5 ? "/v1/catalog/inspect" : "/v1/catalog/favorite";
+        operation == 4 ? "/v1/catalog/query" : operation == 5 ? "/v1/catalog/inspect" : operation==7 ? "/v1/catalog/images" : "/v1/catalog/favorite";
     const std::string payload = operation == 3 ? ui::Json({{"resource_id", row["resource_id"]},
         {"cache_proof", row["cache_proof"]}}).dump() : operation >= 4 ? row.dump() : "";
     const unsigned port = operation >= 4 || row.value("broker_port", ui::Json()) == 8023 ? 8023 : 8022;
@@ -559,6 +589,65 @@ static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) 
     return resource::HttpBody(raw, bound, body);
 }
 
+static bool PreviewHttp(const std::string& path, std::string& body, const std::string& payload = "", size_t bound = 8*1024*1024) {
+    if (path.rfind("/v1/",0)!=0 || path.find_first_of("\r\n ")!=std::string::npos || payload.size()>12*1024*1024) return false;
+    if(!g_wsStarted){WSADATA data{};if(WSAStartup(MAKEWORD(2,2),&data))return false;g_wsStarted=true;}
+    SOCKET s=socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);if(s==INVALID_SOCKET)return false;
+    sockaddr_in address{};address.sin_family=AF_INET;address.sin_port=htons(8024);inet_pton(AF_INET,"127.0.0.1",&address.sin_addr);
+    DWORD timeout=5000;setsockopt(s,SOL_SOCKET,SO_SNDTIMEO,reinterpret_cast<const char*>(&timeout),sizeof(timeout));
+    if(connect(s,reinterpret_cast<sockaddr*>(&address),sizeof(address))==SOCKET_ERROR){closesocket(s);return false;}
+    std::string request=std::string(payload.empty()?"GET ":"POST ")+path+" HTTP/1.1\r\nHost: 127.0.0.1:8024\r\nConnection: close\r\n";
+    if(!payload.empty())request+="Content-Type: application/json\r\nContent-Length: "+std::to_string(payload.size())+"\r\n";
+    request+="\r\n"+payload;size_t sent=0;const auto deadline=GetTickCount64()+5000;
+    while(sent<request.size()){const int n=send(s,request.data()+sent,static_cast<int>(request.size()-sent),0);if(n<=0||GetTickCount64()>=deadline){closesocket(s);return false;}sent+=n;}
+    std::string raw;char bytes[16384];
+    for(;;){const auto now=GetTickCount64();if(now>=deadline){closesocket(s);return false;}timeout=static_cast<DWORD>(deadline-now);setsockopt(s,SOL_SOCKET,SO_RCVTIMEO,reinterpret_cast<const char*>(&timeout),sizeof(timeout));
+        const int n=recv(s,bytes,sizeof(bytes),0);if(n<0){closesocket(s);return false;}if(!n)break;raw.append(bytes,n);if(raw.size()>bound+16384){closesocket(s);return false;}}
+    closesocket(s);return resource::HttpBody(raw,bound,body);
+}
+
+static void RunSimPreview(const QueuedCommand& command) {
+    struct Finish{~Finish(){g_simPreviewBusy=false;}} finish;
+    auto current=[&](){std::lock_guard<std::mutex> lock(g_dataMutex);return command.generation==g_selectionGeneration&&command.resourceRow.value("context",std::string())==g_simPreviewContext;};
+    auto message=[&](const std::string& text){std::lock_guard<std::mutex> lock(g_dataMutex);if(command.generation==g_selectionGeneration)g_simPreviewStatus=text;};
+    try {
+        if(!current())return;
+        std::string raw;if(!PreviewHttp("/v1/preview/health",raw))throw std::runtime_error("The preview helper is unavailable. Start the Apex preview service.");
+        ui::Json request=ui::Json::object();
+        if(command.resourceRow.contains("job")){
+            request=command.resourceRow.at("job");
+            if(!PreviewHttp("/v1/preview/status/"+ui::Scalar(request,"request_id"),raw))throw std::runtime_error("Prepared preview job unavailable.");
+        }else{
+            if(g_ownerBlocked||g_ownerNativeDeliveryBusy||g_casSubmissionBusy||g_casBankBusy)throw std::runtime_error("Resolve the current appearance operation before previewing.");
+            {
+                g_ownerSubmissionBusy=true;
+                struct OwnerGuard{~OwnerGuard(){g_ownerSubmissionBusy=false;}} owner;
+                const bool acknowledged=HttpOwnedCommand(command.path,raw);
+                RetainCommandOwner(command,raw);
+                if(!acknowledged)throw std::runtime_error("The exact appearance snapshot was not acknowledged; no request replayed.");
+            }
+            auto snapshot=ui::ParseObject(raw);if(!snapshot.value("ok",false))throw std::runtime_error("Appearance snapshot refused: "+ui::Scalar(snapshot,"message"));
+            for(const auto* name:{"ok","sim_id","form","fields","native_sim","native_sha256","lane","appearance_sha256","outfit_index","outfit_id","appearance_source","save_guid","runtime_pid","save_file_written","history_written","preview_id","render_sha256"})request[name]=snapshot.at(name);
+            if(!current())return;
+            if(!PreviewHttp("/v1/preview/prepare",raw,request.dump()))throw std::runtime_error("Preview assembly was not accepted.");
+        }
+        auto status=ui::ParseObject(raw);const auto id=ui::Scalar(status,"request_id");if(!resource::Hex(id,64))throw std::runtime_error("Preview job identity is absent.");
+        message("Assembling this form and outfit in memory...");const auto deadline=GetTickCount64()+90000;
+        while(status.value("state",std::string())=="assembling"){
+            if(g_done||!current())return;if(GetTickCount64()>deadline)throw std::runtime_error("Preview assembly deadline exceeded; no request replayed.");
+            Sleep(150);if(!PreviewHttp("/v1/preview/status/"+id,raw))throw std::runtime_error("Preview job status unavailable.");status=ui::ParseObject(raw);
+        }
+        if(!status.value("ok",false)||status.value("state",std::string())!="ready")throw std::runtime_error("Preview assembly refused: "+ui::Scalar(status,"reason"));
+        for(const auto* name:{"sim_id","form","outfit_id","outfit_index","runtime_pid","appearance_sha256","lane","render_sha256","preview_id"})if(status.at(name)!=request.at(name))throw std::runtime_error("Completed preview belongs to a different owner.");
+        const auto sceneId=ui::Scalar(status,"scene_id");if(!resource::Hex(sceneId,64)||!PreviewHttp("/v1/scenes/"+sceneId+"/scene.json",raw)||resource::HashBytes(raw)!=sceneId)throw std::runtime_error("Preview manifest hash differs.");
+        const auto manifest=ui::ParseObject(raw);
+        auto scene=std::make_shared<td1::preview::Scene>(td1::preview::Decode(manifest,[&](const std::string& name,const std::string&,size_t bound){
+            std::string asset;if(!PreviewHttp("/v1/scenes/"+sceneId+"/"+name,asset,"",bound))throw std::runtime_error("Preview asset unavailable.");return asset;},sceneId));
+        if(!current())return;
+        {std::lock_guard<std::mutex> lock(g_dataMutex);g_simPreviewScene=std::move(scene);g_simPreviewStatus="Ready / independent 3D preview / package resources read in place";}
+    }catch(const std::exception& e){message(e.what());}
+}
+
 static bool QueueResource(int operation, const ui::Json& row = ui::Json::object()) {
     if (operation < 1 || operation > 3 || (operation != 1 &&
         !resource::Catalog({{"schema", 1}, {"items", ui::Json::array({row})}}))) return false;
@@ -590,6 +679,24 @@ static bool QueueLibrary(int operation, const ui::Json& request) {
 
 static void RunResourceCommand(const QueuedCommand& command) {
     const int operation = command.resourceOperation;
+    if(operation==7) {
+        struct Finish {~Finish(){g_libraryImagesBusy=false;}} finish;
+        ui::Json page;{std::lock_guard<std::mutex> lock(g_dataMutex);page=g_libraryPage;}
+        const auto current=[&](){return command.generation==g_selectionGeneration&&command.resourceSelection==g_libraryImageSerial.load();};
+        if(!current())return;
+        std::string raw;const bool received=ResourceHttp(7,command.resourceRow,raw);
+        const auto result=ui::ParseObject(raw);
+        const bool valid=received&&library::ImagesPage(result,command.resourceRow,page);
+        std::map<std::string,resource::Pixels> decoded;std::map<std::string,std::string> errors;
+        if(valid)for(const auto& item:result["items"]) {
+            const auto id=ui::Scalar(item,"part_id");const auto& row=item["resource"];std::string reason;resource::Pixels pixels;
+            if(row["thumbnail"]["status"]!="resolved")errors[id]=ui::Scalar(row["thumbnail"],"reason");
+            else if(current()&&ResourceHttp(2,row,raw)&&resource::DecodeThumbnail(raw,row,pixels,reason))decoded[id]=std::move(pixels);
+            else errors[id]=reason.empty()?"Image verification or transport failed.":reason;
+        }else for(const auto& id:command.resourceRow["part_ids"])errors[id.get<std::string>()]="Images unavailable: "+ui::Scalar(result,"reason");
+        if(current()){std::lock_guard<std::mutex> lock(g_dataMutex);g_libraryImagePixels=std::move(decoded);g_libraryImageErrors=std::move(errors);}
+        return;
+    }
     if (operation >= 4) {
         bool current;
         { std::lock_guard<std::mutex> lock(g_dataMutex); current = command.generation == g_selectionGeneration && command.resourceSelection == g_librarySerial.load(); }
@@ -854,6 +961,7 @@ static void WorkerLoop() {
             if (!g_commands.empty()) { command = g_commands.front(); g_commands.pop_front(); }
         }
         if (command.resourceOperation) { RunResourceCommand(command); continue; }
+        if (command.simPreview) { RunSimPreview(command); continue; }
         if (!command.path.empty()) {
             if (command.ownerObservation) {
                 if (!BeginOwnerObservation(command)) continue;
@@ -1050,6 +1158,34 @@ static void CleanupRenderTarget() {
 static void CleanupResourceTexture() {
     if (g_resourceTexture) { g_resourceTexture->Release(); g_resourceTexture = nullptr; }
     g_resourceTextureKey.clear(); g_resourceTextureReceipt = 0;
+}
+
+static void CleanupLibraryImages() {
+    for(auto& item:g_libraryImageTextures)if(item.second)item.second->Release();
+    g_libraryImageTextures.clear();g_libraryImageSizes.clear();g_libraryImageAttempted.clear();g_libraryImageContext.clear();
+    ++g_libraryImageSerial;
+    std::lock_guard<std::mutex> lock(g_dataMutex);g_libraryImagePixels.clear();g_libraryImageErrors.clear();
+}
+
+static void SynchronizeLibraryImages(const ui::Json& page) {
+    const auto context=ui::Scalar(page,"index_sha256")+page.value("query",ui::Json()).dump()+std::to_string(g_libraryImageGender);
+    if(context!=g_libraryImageContext){CleanupLibraryImages();g_libraryImageContext=context;}
+    std::map<std::string,resource::Pixels> received;
+    {std::lock_guard<std::mutex> lock(g_dataMutex);received.swap(g_libraryImagePixels);}
+    for(auto& entry:received) {
+        const auto& pixels=entry.second;
+        if(!g_device||!pixels.width||!pixels.height||pixels.width>512||pixels.height>512||
+           pixels.rgba.size()!=size_t(pixels.width)*pixels.height*4||g_libraryImageTextures.size()>=60)continue;
+        D3D11_TEXTURE2D_DESC description{};description.Width=pixels.width;description.Height=pixels.height;
+        description.MipLevels=description.ArraySize=description.SampleDesc.Count=1;description.Format=DXGI_FORMAT_R8G8B8A8_UNORM;
+        description.Usage=D3D11_USAGE_IMMUTABLE;description.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+        D3D11_SUBRESOURCE_DATA data{};data.pSysMem=pixels.rgba.data();data.SysMemPitch=pixels.width*4;
+        ID3D11Texture2D* texture=nullptr;ID3D11ShaderResourceView* view=nullptr;
+        if(SUCCEEDED(g_device->CreateTexture2D(&description,&data,&texture))&&texture) {
+            const auto result=g_device->CreateShaderResourceView(texture,nullptr,&view);texture->Release();
+            if(SUCCEEDED(result)&&view){g_libraryImageTextures[entry.first]=view;g_libraryImageSizes[entry.first]=ImVec2(float(pixels.width),float(pixels.height));}
+        }
+    }
 }
 
 static bool ResourceTexture(const std::string& key) {
@@ -1261,6 +1397,7 @@ static void InitImGui(IDXGISwapChain* sc) {
         if (ImGui::GetIO().BackendPlatformUserData) ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
         CleanupResourceTexture();
+        CleanupLibraryImages();
         if (g_context) { g_context->Release(); g_context = nullptr; }
         g_device->Release(); g_device = nullptr;
         return;
@@ -1740,7 +1877,7 @@ static void DrawNumericColor(const std::string& target) {
     ImGui::SeparatorText("Part color / HSB shifts");
     const bool pending = !ui::Scalar(g_studioData, "pending_preview").empty();
     ImGui::BeginDisabled(pending);
-    ImGui::Checkbox("Apply live when released", &g_livePartColor);
+    ImGui::Checkbox("Apply edits immediately", &g_livePartColor);
     ImGui::EndDisabled();
     bool released = false;
     ImGui::BeginDisabled(pending || g_ownerBlocked.load() || g_ownerSubmissionBusy.load() || g_ownerNativeDeliveryBusy.load());
@@ -2093,6 +2230,18 @@ static void DrawEquippedList() {
 }
 
 static void DrawStudioParts() {
+    const auto& outfits=ViewedStudioOutfits();
+    if(!outfits.empty()) {
+        const auto& parts=outfits[size_t(std::clamp(g_studioOutfitIndex,0,int(outfits.size())-1))]["parts"];
+        const auto* current=SelectedStudioPart();
+        ImGui::SetNextItemWidth(-1);
+        if(ImGui::BeginCombo("Equipped item",current?ui::Scalar(*current,"label").c_str():"No equipped items")) {
+            for(size_t i=0;i<parts.size();++i)if(ImGui::Selectable((ui::Scalar(parts[i],"label")+" / layer "+ui::Scalar(parts[i],"layer_id")+"##"+std::to_string(i)).c_str(),g_studioPartIndex==int(i))) {
+                g_studioPartIndex=int(i);const auto target=ui::Scalar(parts[i],"target");QueueStudioAction("studio_part_inspect",nullptr,target.c_str());
+            }
+            ImGui::EndCombo();
+        }
+    }
     const auto* selected = SelectedStudioPart();
     if (!selected) { ImGui::TextWrapped("Choose an equipped part on the left."); return; }
     const auto& part = *selected;
@@ -2135,6 +2284,15 @@ static void DrawStudioParts() {
     if (supported) DrawNumericColor(target);
 }
 
+static ui::Json CurrentLibraryQuery() {
+    return {{"text",g_librarySearch},{"body_type",g_libraryBody<0?ui::Json():ui::Json(g_libraryBody)},
+        {"origin",g_libraryOrigin==0?ui::Json():ui::Json(g_libraryOrigin==1?"mod":"ea")},
+        {"name_mode",std::array<const char*,3>{"preferred","package","code"}[std::clamp(g_itemNameMode,0,2)]},
+        {"offset",g_libraryOffset},{"limit",60},
+        {"view",std::array<const char*,3>{"all","favorites","recent"}[std::clamp(g_libraryView,0,2)]},
+        {"author",g_libraryAuthor},{"sort",std::array<const char*,4>{"name","package","creator","id"}[std::clamp(g_librarySort,0,3)]}};
+}
+
 static void DrawLiveLibrary() {
     static const char* modes[] = {"Friendly / CC filename", "Package filename", "Internal code"};
     static const char* origins[] = {"All EA + CC", "Custom content", "EA content"};
@@ -2155,13 +2313,23 @@ static void DrawLiveLibrary() {
     if (ImGui::InputTextWithHint("##library-search", "Search CC names, filenames or internal codes", g_librarySearch, sizeof(g_librarySearch), ImGuiInputTextFlags_EnterReturnsTrue) || ImGui::IsItemDeactivatedAfterEdit()) {
         g_libraryOffset = 0; g_libraryQueryNeeded = true;
     }
-    ImGui::SetNextItemWidth(190);
+    ImGui::SetNextItemWidth(220);
+    if(ImGui::BeginCombo("Creator / filename tag",g_libraryAuthor.empty()?"All creators":g_libraryAuthor.c_str())) {
+        if(ImGui::Selectable("All creators",g_libraryAuthor.empty())){g_libraryAuthor.clear();g_libraryOffset=0;g_libraryQueryNeeded=true;}
+        if(page.contains("creators"))for(const auto& creator:page["creators"]){const auto label=ui::Scalar(creator,"name");if(ImGui::Selectable(label.c_str(),label==g_libraryAuthor)){g_libraryAuthor=label;g_libraryOffset=0;g_libraryQueryNeeded=true;}}
+        ImGui::EndCombo();
+    }
+    if(ImGui::IsItemHovered())ImGui::SetTooltip("CC creator tags are inferred from package filenames; authorship is not verified.");
+    ImGui::SetNextItemWidth(160);
+    if(ImGui::Combo("Sort",&g_librarySort,"Item name\0Package name\0Creator tag\0Resource identity\0")){g_libraryOffset=0;g_libraryQueryNeeded=true;}
+    const float filterWidth=std::max(90.f,(ImGui::GetContentRegionAvail().x-ImGui::GetStyle().ItemSpacing.x*2)/3);
+    ImGui::SetNextItemWidth(filterWidth);
     if (ImGui::Combo("##library-names", &g_itemNameMode, modes, 3)) { g_libraryOffset = 0; g_libraryQueryNeeded = true; }
-    ImGui::SameLine(); ImGui::SetNextItemWidth(130);
+    ImGui::SameLine(); ImGui::SetNextItemWidth(filterWidth);
     if (ImGui::Combo("##library-origin", &g_libraryOrigin, origins, 3)) { g_libraryOffset = 0; g_libraryQueryNeeded = true; }
-    ImGui::SameLine(); ImGui::SetNextItemWidth(160);
+    ImGui::SameLine(); ImGui::SetNextItemWidth(filterWidth);
     if (ImGui::Combo("##library-view", &g_libraryView, views, 3)) { g_libraryOffset = 0; g_libraryQueryNeeded = true; }
-    ImGui::SetNextItemWidth(270);
+    ImGui::SetNextItemWidth(-1);
     if (ImGui::BeginCombo("Category##library", g_libraryBody < 0 ? "All categories, including empty slots" : categoryName(g_libraryBody).c_str())) {
         if (ImGui::Selectable("All categories", g_libraryBody < 0)) { g_libraryBody = -1; g_libraryOffset = 0; g_libraryQueryNeeded = true; }
         if (page.contains("categories")) for (const auto& c : page["categories"]) {
@@ -2172,11 +2340,8 @@ static void DrawLiveLibrary() {
         }
         ImGui::EndCombo();
     }
-    ImGui::SameLine(); ImGui::SetNextItemWidth(120); ImGui::SliderInt("Columns", &g_libraryColumns, 2, 8);
-    const ui::Json query = {{"text", g_librarySearch}, {"body_type", g_libraryBody < 0 ? ui::Json() : ui::Json(g_libraryBody)},
-        {"origin", g_libraryOrigin == 0 ? ui::Json() : ui::Json(g_libraryOrigin == 1 ? "mod" : "ea")},
-        {"name_mode", modeValues[std::clamp(g_itemNameMode, 0, 2)]}, {"offset", g_libraryOffset}, {"limit", 60},
-        {"view", viewValues[std::clamp(g_libraryView, 0, 2)]}};
+    ImGui::SetNextItemWidth(120); ImGui::SliderInt("Columns", &g_libraryColumns, 2, 8);
+    const auto query = CurrentLibraryQuery();
     const auto queryKey = query.dump();
     if (g_libraryQueryNeeded && !g_libraryBusy.load() && QueueLibrary(4, query)) {
         g_libraryQueryKey = queryKey; g_libraryQueryNeeded = false;
@@ -2193,11 +2358,16 @@ static void DrawLiveLibrary() {
     ImGui::BeginDisabled(g_libraryBusy.load() || page["next_offset"].is_null());
     if (ImGui::SmallButton("Next page")) { g_libraryOffset = page["next_offset"].get<size_t>(); g_libraryQueryNeeded = true; }
     ImGui::EndDisabled();
-    ImGui::BeginChild("library-grid", ImVec2(0, 230), true);
+    SynchronizeLibraryImages(page);
+    ImGui::Checkbox("Actual CAS thumbnails",&g_libraryShowImages);ImGui::SameLine();
+    ImGui::SetNextItemWidth(125);ImGui::Combo("##thumbnail-gender",&g_libraryImageGender,"Male preview\0Female preview\0");
+    ImGui::SameLine();if(ImGui::SmallButton("Refresh images"))CleanupLibraryImages();
+    ImGui::BeginChild("library-grid", ImVec2(0, std::clamp(ImGui::GetContentRegionAvail().y-235,160.f,600.f)), true);
     const int columns = std::clamp(g_libraryColumns, 2, 8);
     const float cardWidth = std::max(40.f, (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * (columns - 1)) / columns);
-    const auto& items = page["items"];
-    ImGuiListClipper clipper; clipper.Begin(static_cast<int>((items.size() + columns - 1) / columns), 90.f + ImGui::GetStyle().ItemSpacing.y);
+    const float imageHeight=g_libraryShowImages?std::clamp(cardWidth,48.f,128.f):0.f,cardHeight=imageHeight+64.f;
+    const auto& items = page["items"];ui::Json wanted=ui::Json::array();
+    ImGuiListClipper clipper; clipper.Begin(static_cast<int>((items.size() + columns - 1) / columns), cardHeight + ImGui::GetStyle().ItemSpacing.y);
     while (clipper.Step()) for (int line = clipper.DisplayStart; line < clipper.DisplayEnd; ++line) {
         for (int column = 0; column < columns; ++column) {
             const size_t n = static_cast<size_t>(line * columns + column); if (n >= items.size()) break;
@@ -2205,22 +2375,45 @@ static void DrawLiveLibrary() {
             ImGui::PushID(id.c_str()); const auto at = ImGui::GetCursorScreenPos();
             const bool available = item["status"] == "indexed";
             ImGui::BeginDisabled(!available || g_libraryBusy.load());
-            if (ImGui::Selectable("##library-card", id == g_librarySelected, 0, ImVec2(cardWidth, 90))) {
+            if (ImGui::Selectable("##library-card", id == g_librarySelected, 0, ImVec2(cardWidth, cardHeight))) {
                 g_librarySelected = id; g_libraryTargetRow = 0; ++g_resourceSelectionSerial; g_resourceRequestedImage.clear();
                 QueueLibrary(5, {{"part_id", id}, {"index_sha256", page["index_sha256"]}});
             }
-            ImGui::EndDisabled();
-            auto* draw = ImGui::GetWindowDrawList(); const ImVec4 clip(at.x + 5, at.y + 4, at.x + cardWidth - 5, at.y + 66);
+            ImGui::EndDisabled();auto* draw=ImGui::GetWindowDrawList();
+            if(g_libraryShowImages) {
+                const auto found=g_libraryImageTextures.find(id);
+                if(found!=g_libraryImageTextures.end()) {
+                    const auto size=g_libraryImageSizes.at(id);const float scale=std::min((cardWidth-8)/size.x,(imageHeight-4)/size.y);
+                    const ImVec2 min(at.x+(cardWidth-size.x*scale)/2,at.y+2),max(min.x+size.x*scale,min.y+size.y*scale);
+                    draw->AddImage(reinterpret_cast<ImTextureID>(found->second),min,max);
+                }else {
+                    const char* label=g_libraryImageAttempted.count(id)?"No image / inspect":"Loading image";
+                    draw->AddText(ImVec2(at.x+4,at.y+imageHeight/2),IM_COL32(125,145,155,255),label);
+                }
+                if(available&&!g_libraryImageAttempted.count(id)&&wanted.size()<24)wanted.push_back(id);
+            }
+            const ImVec4 clip(at.x + 5, at.y + imageHeight+4, at.x + cardWidth - 5, at.y + cardHeight-20);
             const auto name = ui::Scalar(item, "name"); const auto display = name.empty() ? ui::Scalar(item, "package_name") : name;
-            draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + 5, at.y + 4), available ? IM_COL32(222, 232, 239, 255) : IM_COL32(127, 139, 152, 255), display.c_str(), nullptr, cardWidth - 10, &clip);
+            draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + 5, at.y + imageHeight+4), available ? IM_COL32(222, 232, 239, 255) : IM_COL32(127, 139, 152, 255), display.c_str(), nullptr, cardWidth - 10, &clip);
             const auto footer = item["favorite"] == true ? "Favorite" : item["body_type"].is_null() ? "Unclassified" : categoryName(item["body_type"].get<int64_t>());
-            const ImVec4 footerClip(at.x + 5, at.y + 68, at.x + cardWidth - 5, at.y + 89);
-            draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + 5, at.y + 70), IM_COL32(94, 195, 177, 255), footer.c_str(), nullptr, 0, &footerClip);
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s\nPackage: %s\nCode: %s\n%s\n%s", ui::Scalar(item, "preferred_name").c_str(), ui::Scalar(item, "package_name").c_str(), ui::Scalar(item, "code_name").c_str(), ui::Scalar(item, "resource_tgi").c_str(), available ? "Select to verify package bytes and inspect assets." : ui::Scalar(item, "reason").c_str());
+            const ImVec4 footerClip(at.x + 5, at.y + cardHeight-19, at.x + cardWidth - 5, at.y + cardHeight);
+            draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + 5, at.y + cardHeight-18), IM_COL32(94, 195, 177, 255), footer.c_str(), nullptr, 0, &footerClip);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+                std::string imageReason;{std::lock_guard<std::mutex> lock(g_dataMutex);const auto found=g_libraryImageErrors.find(id);if(found!=g_libraryImageErrors.end())imageReason=found->second;}
+                ImGui::SetTooltip("%s\nPackage: %s\nCode: %s\n%s\n%s\n%s", ui::Scalar(item, "preferred_name").c_str(), ui::Scalar(item, "package_name").c_str(), ui::Scalar(item, "code_name").c_str(), ui::Scalar(item, "resource_tgi").c_str(), available ? "Select to inspect and try on this actual item." : ui::Scalar(item, "reason").c_str(),imageReason.c_str());
+            }
             ImGui::PopID();
         }
     }
     ImGui::EndChild();
+    if(!wanted.empty()&&!g_libraryImagesBusy&&!g_libraryBusy) {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if(g_commands.size()<48) {
+            QueuedCommand command{"",g_selectionGeneration};command.resourceOperation=7;command.resourceSelection=g_libraryImageSerial.load();
+            command.resourceRow={{"part_ids",wanted},{"index_sha256",page["index_sha256"]},{"gender",g_libraryImageGender?"female":"male"}};
+            if(library::ImagesRequest(command.resourceRow)){for(const auto& id:wanted)g_libraryImageAttempted.insert(id.get<std::string>());g_libraryImagesBusy=true;g_commands.push_back(std::move(command));}
+        }
+    }
     const ui::Json selection = {{"part_id", g_librarySelected}, {"index_sha256", page["index_sha256"]}};
     if (!library::Inspection(inspection, selection)) { ImGui::TextDisabled("Select an item to inspect its actual resource and compatibility."); return; }
     const auto& item = inspection["item"]; const auto& row = inspection["resource"];
@@ -2260,13 +2453,13 @@ static void DrawLiveLibrary() {
     } else ImGui::TextDisabled("Add to this empty category / selected form and outfit only.");
     ImGui::TextWrapped("Preview checks loaded CASP identity, age/species and fitting restrictions. Apply commits through full appearance history; other forms and outfits are retained.");
     ImGui::BeginDisabled(g_libraryBusy.load() || g_ownerBlocked.load() || g_ownerSubmissionBusy.load() || g_ownerNativeDeliveryBusy.load() || g_casBankBusy.load() || g_studioData.value("pending_preview", ui::Json()) != nullptr);
-    if (ImGui::Button("Preview selected item on this form / outfit")) {
+    if (ImGui::Button(g_livePartColor?"Apply selected item to this form / outfit":"Try on selected item / Preview")) {
         const auto tgi = ui::Scalar(item, "resource_tgi");
         const auto id = std::to_string(std::stoull(tgi.substr(18), nullptr, 16));
         const ui::Json request = {{"outfit_index", outfit["index"]}, {"outfit_id", outfit["outfit_id"]}, {"part_index", partIndex},
             {"body_type", item["body_type"]}, {"cas_part_id", id}, {"resource_tgi", item["resource_tgi"]},
             {"resource_sha256", item["resource_sha256"]}, {"lane", g_studioData["history_lane"]}, {"appearance_sha256", g_studioData["appearance_sha256"]}};
-        const auto raw = request.dump(); QueueStudioAction("studio_catalog_preview", nullptr, raw.c_str());
+        const auto raw = request.dump(); QueueStudioAction(g_livePartColor?"studio_catalog_live":"studio_catalog_preview", nullptr, raw.c_str());
     }
     ImGui::EndDisabled();
 }
@@ -2638,6 +2831,171 @@ static void DrawNativeCas(const std::string& reply, ULONGLONG replyMs, bool hist
     ImGui::EndChild();
 }
 
+static std::string SimPreviewContext() {
+    const auto& outfits=ViewedStudioOutfits();
+    const auto forms=g_studioData.find("form_inventory");
+    if(forms==g_studioData.end()||forms->empty()||g_studioFormIndex<0||g_studioFormIndex>=int(forms->size())||
+       (*forms)[size_t(g_studioFormIndex)]["flags"]!=g_studioData.value("inspected_form_flags",ui::Json()))return {};
+    if(outfits.empty()||g_studioOutfitIndex<0||g_studioOutfitIndex>=int(outfits.size()))return {};
+    return ui::Scalar(g_studioData,"history_lane")+":"+ui::Scalar(g_studioData,"appearance_sha256")+":"+
+        ui::Scalar(g_studioData,"inspected_form_flags")+":"+ui::Scalar(outfits[size_t(g_studioOutfitIndex)],"outfit_id")+":"+
+        ui::Scalar(outfits[size_t(g_studioOutfitIndex)],"index")+":"+ui::Scalar(g_studioData,"pending_preview");
+}
+
+// Process a completed scene even when its compact tab is not selected. GPU
+// ownership stays on the game's render thread; the worker never touches D3D.
+static void SynchronizeSimPreview() {
+    const auto context=SimPreviewContext();
+    std::shared_ptr<td1::preview::Scene> incoming;
+    std::string status;bool changed=false;
+    {std::lock_guard<std::mutex> lock(g_dataMutex);changed=context!=g_simPreviewContext;if(changed){g_simPreviewContext=context;g_simPreviewScene.reset();g_simPreviewStatus="Select a form and outfit, then refresh its 3D preview.";}incoming=g_simPreviewScene;status=g_simPreviewStatus;}
+    if(changed){if(!g_simPreview.scene.id.empty()){g_simPreviewSavedView=g_simPreview.view;g_simPreviewSavedSim=g_simPreview.scene.sim;}g_simPreview.Reset();}
+    if(incoming&&g_simPreview.scene.id!=incoming->id){try{const auto sim=incoming->sim;g_simPreview.Load(g_device,std::move(*incoming));
+        if(g_simPreviewKeepCamera&&g_simPreviewSavedSim==sim){g_simPreview.view=g_simPreviewSavedView;auto& v=g_simPreview.view;v.clip=std::clamp(v.clip,-1,int(g_simPreview.scene.clips.size())-1);v.time=v.clip<0?0:std::clamp(v.time,0.f,g_simPreview.scene.clips[size_t(v.clip)].duration);}}
+        catch(const std::exception& e){status=e.what();}
+        std::lock_guard<std::mutex> lock(g_dataMutex);g_simPreviewScene.reset();g_simPreviewStatus=status;}
+}
+
+static void DrawIndependentSimPreview() {
+    const auto& outfits=ViewedStudioOutfits();
+    const auto form=ui::Scalar(g_studioData,"inspected_form_flags");
+    const auto lane=ui::Scalar(g_studioData,"history_lane"),appearance=ui::Scalar(g_studioData,"appearance_sha256");
+    const auto context=SimPreviewContext();
+    std::string status;
+    {std::lock_guard<std::mutex> lock(g_dataMutex);status=g_simPreviewStatus;}
+    ImGui::TextColored(ImVec4(.45f,.95f,.85f,1),"SIM / INDEPENDENT 3D");
+    const bool blocked=g_simPreviewBusy||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy;
+    ImGui::BeginDisabled(context.empty()||blocked);
+    const bool refresh=ImGui::Button("Refresh 3D preview");
+    ImGui::EndDisabled();ImGui::SameLine();ImGui::Checkbox("Auto",&g_simPreviewAutomatic);
+    if(!context.empty()&&!blocked&&(refresh||(context!=g_simPreviewAttemptedContext&&g_simPreviewAutomatic))){
+        const auto& outfit=outfits[size_t(g_studioOutfitIndex)];
+        ui::Json value={{"lane",lane},{"appearance_sha256",appearance},{"outfit_index",outfit["index"]},{"outfit_id",outfit["outfit_id"]}};
+        const auto pending=ui::Scalar(g_studioData,"pending_preview");if(!pending.empty())value["preview_id"]=pending;
+        const ui::Json envelope={{"form",std::stoul(form)},{"value",value.dump()}};
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if(g_commands.size()<48){QueuedCommand command{"/api/command?action=studio_preview_snapshot&sim_id="+UrlEncode(g_selectedSim)+"&value="+UrlEncode(envelope.dump()),g_selectionGeneration};
+            command.sim=g_selectedSim;command.simPreview=true;command.resourceRow={{"context",context}};g_commands.push_back(std::move(command));g_simPreviewBusy=true;g_simPreviewAttemptedContext=context;g_simPreviewStatus="Reading the exact selected appearance...";}
+    }
+    if(!g_simPreview.Texture()&&g_simPreview.scene.id.empty()){ImGui::TextWrapped("%s",status.c_str());return;}
+    auto& view=g_simPreview.view;
+    if(ImGui::Button("Face"))g_simPreview.Preset(view,"face");
+    ImGui::SameLine();if(ImGui::Button("Body"))g_simPreview.Preset(view,"body");
+    const auto* selected=SelectedStudioPart();
+    ImGui::SameLine();ImGui::BeginDisabled(!selected);
+    if(ImGui::Button("Frame item")){try{g_simPreview.Preset(view,"selected",(*selected)["body_type"].get<int>());}catch(const std::exception& e){g_status=e.what();}}
+    ImGui::EndDisabled();
+    int projection=view.orthographic?1:0;ImGui::SetNextItemWidth(135);
+    if(ImGui::Combo("##projection",&projection,"Perspective\0Orthographic\0"))view.orthographic=projection==1;
+    ImGui::SameLine();int controls=view.blenderControls?0:1;ImGui::SetNextItemWidth(135);
+    if(ImGui::Combo("##camera-controls",&controls,"Blender controls\0Simple controls\0"))view.blenderControls=controls==0;
+    if(ImGui::CollapsingHeader("Camera / pose / lighting")) {
+      static const char* presets[]={"front","back","left","right","top","reset"};
+      for(int i=0;i<6;++i){if(i%3)ImGui::SameLine();if(ImGui::Button(presets[i]))g_simPreview.Preset(view,presets[i]);}
+      ImGui::Checkbox("Turntable",&view.autoRotate);
+      ImGui::Checkbox("Keep camera across outfits / forms",&g_simPreviewKeepCamera);
+      ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Lens / field of view",&view.fov,10,90,"%.0f degrees");
+      ImGui::SetNextItemWidth(-1);ImGui::SliderAngle("Camera roll",&view.roll,-180,180);
+      if(!g_simPreview.scene.clips.empty()){
+        std::string name=view.clip>=0&&view.clip<int(g_simPreview.scene.clips.size())?g_simPreview.scene.clips[size_t(view.clip)].name:"Bind pose";
+        ImGui::SetNextItemWidth(-1);if(ImGui::BeginCombo("##preview-pose",name.c_str())){if(ImGui::Selectable("Bind pose",view.clip<0)){view.clip=-1;view.time=0;}
+            for(size_t i=0;i<g_simPreview.scene.clips.size();i++)if(ImGui::Selectable(g_simPreview.scene.clips[i].name.c_str(),view.clip==int(i))){view.clip=int(i);view.time=0;}ImGui::EndCombo();}
+        if(view.clip>=0){ImGui::Checkbox("Play animation",&view.playing);ImGui::SameLine();ImGui::SetNextItemWidth(100);ImGui::SliderFloat("Speed",&view.speed,.1f,2.f,"%.1fx");
+            ImGui::SetNextItemWidth(-1);if(ImGui::SliderFloat("##preview-time",&view.time,0,g_simPreview.scene.clips[size_t(view.clip)].duration,"%.2fs"))view.playing=false;}
+      }
+      ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("Light",&view.exposure,.5f,1.8f);
+    }
+    const float width=std::clamp(ImGui::GetContentRegionAvail().x,64.f,1024.f),height=std::clamp(ImGui::GetContentRegionAvail().y-65,120.f,1024.f);
+    try {g_simPreview.Render(g_context,unsigned(width),unsigned(height),ImGui::GetIO().DeltaTime);
+        ImGui::Image(reinterpret_cast<ImTextureID>(g_simPreview.Texture()),ImVec2(width,height));
+        if(ImGui::IsItemHovered()){auto& io=ImGui::GetIO();
+            float zoom=io.MouseWheel;
+            const bool middle=ImGui::IsMouseDragging(ImGuiMouseButton_Middle);
+            if(view.blenderControls&&middle&&io.KeyCtrl)zoom-=io.MouseDelta.y*.05f;
+            view.distance=std::clamp(view.distance*std::exp(-zoom*.12f),.1f,30.f);view.orthoScale=std::clamp(view.orthoScale*std::exp(-zoom*.12f),.05f,30.f);
+            if(view.blenderControls?middle&&!io.KeyShift&&!io.KeyCtrl:ImGui::IsMouseDragging(ImGuiMouseButton_Left)){view.yaw-=io.MouseDelta.x*.008f;view.pitch=std::clamp(view.pitch+io.MouseDelta.y*.008f,-1.55f,1.55f);view.autoRotate=false;}
+            if(view.blenderControls?middle&&io.KeyShift&&!io.KeyCtrl:ImGui::IsMouseDragging(ImGuiMouseButton_Right)){
+                const float scale=(view.orthographic?view.orthoScale:2*view.distance*std::tan(DirectX::XMConvertToRadians(view.fov)*.5f))/height;
+                g_simPreview.Pan(-io.MouseDelta.x*scale,io.MouseDelta.y*scale);
+            }}
+    }catch(const std::exception& e){ImGui::TextWrapped("%s",e.what());}
+    ImGui::TextDisabled("%s",view.blenderControls?"MMB orbit | Shift+MMB pan | Ctrl+MMB / wheel zoom":"Left-drag orbit | right-drag pan | wheel zoom");
+    ImGui::TextDisabled("Form %u / outfit %s",g_simPreview.scene.form,g_simPreview.scene.outfit.c_str());
+    if(!ui::Scalar(g_studioData,"pending_preview").empty())ImGui::TextColored(ImVec4(.95f,.8f,.3f,1),"TRY-ON / Apply to keep, Cancel to discard");
+    if(!g_simPreview.scene.warnings.empty()&&ImGui::CollapsingHeader("Preview resource issues"))ImGui::TextWrapped("%s",g_simPreview.scene.warnings.c_str());
+}
+
+static void DrawStudioFormStrip() {
+    const auto forms=g_studioData.find("form_inventory");if(forms==g_studioData.end()||forms->empty())return;
+    ImGui::SeparatorText("APPEARANCE OWNERS / each form keeps its own edits");
+    ImGui::BeginDisabled(g_simPreviewBusy||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy||g_previewId[0]);
+    float remaining=ImGui::GetContentRegionAvail().x;
+    for(size_t i=0;i<forms->size();++i){const auto& form=(*forms)[i];const auto label=ui::Scalar(form,"name")+(form.value("current",false)?" / LIVE":"");
+        const float width=ImGui::CalcTextSize(label.c_str()).x+ImGui::GetStyle().FramePadding.x*2;
+        if(i&&remaining>width+ImGui::GetStyle().ItemSpacing.x){ImGui::SameLine();remaining-=ImGui::GetStyle().ItemSpacing.x;}
+        else remaining=ImGui::GetContentRegionAvail().x;
+        const bool selected=int(i)==g_studioFormIndex;
+        ImGui::PushID(int(i));if(selected)ImGui::PushStyleColor(ImGuiCol_Button,ImVec4(.14f,.42f,.39f,1));
+        if(ImGui::Button(label.c_str())){g_studioFormIndex=int(i);g_studioOutfitIndex=0;g_studioPartIndex=0;QueueStudioAction("studio_status");}
+        if(selected)ImGui::PopStyleColor();
+        if(ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))ImGui::SetTooltip("Inspect and edit this stored appearance. The Live Sim does not transform.\nApply or Cancel a pending try-on before choosing another owner.");
+        ImGui::PopID();remaining-=width;
+    }
+    ImGui::EndDisabled();
+    const auto& outfits=ViewedStudioOutfits();if(outfits.empty())return;
+    g_studioOutfitIndex=std::clamp(g_studioOutfitIndex,0,int(outfits.size())-1);
+    ImGui::BeginDisabled(g_previewId[0]||g_simPreviewBusy);
+    ImGui::SetNextItemWidth(240);const auto& outfit=outfits[size_t(g_studioOutfitIndex)];
+    if(ImGui::BeginCombo("Outfit / exact owner",(OutfitCategory(outfit)+" "+ui::Scalar(outfit,"number")).c_str())) {
+        for(size_t i=0;i<outfits.size();++i)if(ImGui::Selectable((OutfitCategory(outfits[i])+" "+ui::Scalar(outfits[i],"number")+"##"+std::to_string(i)).c_str(),g_studioOutfitIndex==int(i))){g_studioOutfitIndex=int(i);g_studioPartIndex=0;}
+        ImGui::EndCombo();
+    }
+    ImGui::EndDisabled();
+    ImGui::BeginDisabled(g_previewId[0]);
+    ImGui::Checkbox("Apply edits immediately",&g_livePartColor);ImGui::EndDisabled();
+    ImGui::SameLine();ImGui::TextDisabled("%s",g_livePartColor?"Undoable on release / unpause for Live visuals":"Try-on only / Apply keeps changes");
+    if(g_previewId[0]) {
+        ImGui::TextColored(ImVec4(.95f,.8f,.3f,1),"Uncommitted try-on / selected form and outfit");
+        if(ImGui::Button("Apply this try-on",ImVec2(155,30)))QueueStudioAction("studio_apply",nullptr,g_previewId);
+        ImGui::SameLine();if(ImGui::Button("Discard this try-on",ImVec2(155,30)))QueueStudioAction("studio_cancel",nullptr,g_previewId);
+    }
+}
+
+static void DrawAppearanceSliders() {
+    ImGui::TextWrapped("Face and body controls belong to the selected appearance owner. Preset sculpt bytes and other modifier groups are retained.");
+    if(ImGui::Button("Read this form's sliders"))QueueStudioAction("studio_shape_inspect");
+    const auto editor=g_studioData.find("shape_editor");if(editor==g_studioData.end()||!editor->is_array()){ImGui::TextDisabled("Inspect to read every existing face/body modifier and physique component.");return;}
+    static std::string context;static std::map<std::string,float> values;
+    const auto current=ui::Scalar(g_studioData,"history_lane")+":"+ui::Scalar(g_studioData,"appearance_sha256")+":"+editor->dump();
+    if(context!=current){context=current;values.clear();}
+    static char search[201]="";static float low=-1,high=1;
+    ImGui::SetNextItemWidth(-1);ImGui::InputTextWithHint("##shape-search","Filter region, package or modifier key",search,sizeof(search));
+    if(ImGui::CollapsingHeader("Slider display range")){ImGui::SetNextItemWidth(110);ImGui::InputFloat("Low",&low);ImGui::SetNextItemWidth(110);ImGui::InputFloat("High",&high);ImGui::TextWrapped("Display range controls this editor; it is not a verified native or CC limit. Existing values are never clamped.");}
+    ImGui::BeginDisabled(g_previewId[0]||g_ownerBlocked||g_ownerSubmissionBusy||g_ownerNativeDeliveryBusy||g_casBankBusy||!std::isfinite(low)||!std::isfinite(high)||low>=high);
+    for(const auto& row:*editor) {
+        if(!row.is_object()||!row.contains("value")||!row["value"].is_number())continue;
+        auto label=ui::Scalar(row,"label");std::string package;
+        if(ui::Scalar(row,"field")=="facial_attributes")for(const auto& metadata:g_simPreview.scene.modifiers)
+            if(metadata["group"]==row["group"]&&metadata["index"]==row["index"]&&metadata["key"]==row["key"]){label=ui::Scalar(metadata,"label");package=ui::Scalar(metadata,"package");break;}
+        if(!TextContainsNoCase(label.c_str(),search)&&!TextContainsNoCase(package.c_str(),search))continue;
+        const auto key=ui::Scalar(row,"field")+":"+ui::Scalar(row,"group")+":"+ui::Scalar(row,"index")+":"+ui::Scalar(row,"key");
+        const auto inserted=values.emplace(key,row["value"].get<float>());auto& value=inserted.first->second;
+        ImGui::PushID(key.c_str());ImGui::TextWrapped("%s",label.c_str());
+        if(!package.empty())ImGui::TextDisabled("Source package: %s",package.c_str());
+        ImGui::TextDisabled("%s / group %s / row %s",ui::Scalar(row,"field").c_str(),ui::Scalar(row,"group").c_str(),ui::Scalar(row,"index").c_str());
+        ImGui::SetNextItemWidth(-1);ImGui::SliderFloat("##amount",&value,std::min(low,row["value"].get<float>()),std::max(high,row["value"].get<float>()),"%.6f");
+        const bool released=ImGui::IsItemDeactivatedAfterEdit();
+        ImGui::SetNextItemWidth(150);ImGui::InputFloat("Exact value",&value,0,0,"%.9g");
+        const bool typed=ImGui::IsItemDeactivatedAfterEdit();
+        if(std::isfinite(value)&&value!=row["value"].get<float>()&&((g_livePartColor&&(released||typed))||ImGui::Button("Try on slider change"))) {
+            ui::Json request={{"field",row["field"]},{"group",row["group"]},{"index",row["index"]},{"key",row["key"]},{"before",row["value"]},{"value",value},{"lane",g_studioData["history_lane"]},{"appearance_sha256",g_studioData["appearance_sha256"]}};
+            const auto raw=request.dump();QueueStudioAction(g_livePartColor?"studio_shape_live":"studio_shape_preview",nullptr,raw.c_str());
+        }
+        ImGui::Separator();ImGui::PopID();
+    }
+    ImGui::EndDisabled();
+}
+
 static void DrawStudioTab(const std::string& reply, ULONGLONG replyMs, bool history) {
     ImGui::BeginDisabled(g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() || g_ownerSubmissionBusy.load() || g_casSubmissionBusy.load() || g_casPendingId[0] || g_casBankBusy.load());
     bool requestedNativeView = g_nativeCasView;
@@ -2650,24 +3008,37 @@ static void DrawStudioTab(const std::string& reply, ULONGLONG replyMs, bool hist
     ImGui::EndDisabled();
     if (g_nativeCasView) { DrawNativeCas(reply, replyMs, history); return; }
     UpdateStudioData(reply);
+    SynchronizeSimPreview();
     ImGui::TextColored(ImVec4(0.35f, 0.88f, 0.77f, 1), history ? "CAS HISTORY" : "EQUIPPED PART INSPECTOR");
     ImGui::TextDisabled("Current form / exact targets / retained branches");
     if (g_studioData.value("history_runtime_only", ui::Json(false)) == true)
         ImGui::TextDisabled("Session history: this view is tied to the current game session.");
     if (ImGui::Button("Inspect / refresh", ImVec2(160, 0))) { g_studioItemsContext.clear(); QueueStudioAction("studio_status"); }
     ImGui::SameLine(); ImGui::TextDisabled("%u checkpoints", static_cast<unsigned>(g_studioData.value("history_nodes", ui::Json::array()).size()));
-    ImGui::BeginChild("studio-equipped", ImVec2(270, 0), true); DrawEquippedList(); ImGui::EndChild(); ImGui::SameLine();
+    if(!history){
+        ImGui::SetNextItemWidth(150);
+        if(ImGui::Combo("Layout",&g_studioLayout,"Balanced\0Character\0Catalog\0Custom\0")) {
+            if(g_studioLayout<3){g_studioPreviewShare=g_studioLayout==1?.55f:g_studioLayout==2?.30f:.38f;g_libraryColumns=g_studioLayout==2?6:g_studioLayout==1?3:4;g_studioEquippedSidebar=false;}
+        }
+        ImGui::SameLine();ImGui::SetNextItemWidth(140);if(ImGui::SliderFloat("3D width",&g_studioPreviewShare,.25f,.65f,"%.2f"))g_studioLayout=3;
+        DrawStudioFormStrip();ImGui::Checkbox("Equipped sidebar",&g_studioEquippedSidebar);
+    }
+    if(history||g_studioEquippedSidebar){ImGui::BeginChild("studio-equipped", ImVec2(history?270:230, 0), true); DrawEquippedList(); ImGui::EndChild(); ImGui::SameLine();}
+    const float roomWidth=ImGui::GetContentRegionAvail().x;
+    const bool previewColumn=!history&&roomWidth>=570;
+    if(previewColumn){g_simPreviewFocusRequested=false;ImGui::BeginChild("independent-sim-preview",ImVec2(std::clamp(roomWidth*g_studioPreviewShare,230.f,std::max(230.f,roomWidth-290.f)),0),true);DrawIndependentSimPreview();ImGui::EndChild();ImGui::SameLine();}
     ImGui::BeginChild("studio-workspace", ImVec2(0, 0), true);
-    if (ImGui::CollapsingHeader("CAS form acceptance / review",ImGuiTreeNodeFlags_DefaultOpen)) DrawCasBankTransaction();
+    if (ImGui::CollapsingHeader("CAS form acceptance / review",history?ImGuiTreeNodeFlags_DefaultOpen:ImGuiTreeNodeFlags_None)) DrawCasBankTransaction();
     const auto& viewedOutfits = ViewedStudioOutfits();
-    if (!viewedOutfits.empty() && ImGui::Button("Duplicate selected outfit / preview")) {
+    const bool wardrobeOpen=ImGui::CollapsingHeader("Wardrobe / independent hair");
+    if (wardrobeOpen && !viewedOutfits.empty() && ImGui::Button("Duplicate selected outfit / preview")) {
         const auto& outfit = viewedOutfits[static_cast<size_t>(g_studioOutfitIndex)];
         const ui::Json request = {{"source", outfit["index"]}, {"category", outfit["category"]},
             {"lane", ui::Scalar(g_studioData, "history_lane")}, {"appearance_sha256", ui::Scalar(g_studioData, "appearance_sha256")}};
         const auto value = request.dump(); QueueStudioAction("studio_outfit_duplicate", nullptr, value.c_str());
     }
     const auto hairPolicy = g_studioData.find("hair_policy");
-    if (hairPolicy != g_studioData.end()) {
+    if (wardrobeOpen && hairPolicy != g_studioData.end()) {
         bool enabled = (*hairPolicy)["enabled"].get<bool>();
         if (ImGui::Checkbox("Keep hairstyles / colors independent per outfit", &enabled))
             QueueStudioAction(enabled ? "studio_hair_enable" : "studio_hair_disable");
@@ -2691,10 +3062,13 @@ static void DrawStudioTab(const std::string& reply, ULONGLONG replyMs, bool hist
         if (g_studioData.value("legacy_outfit_history_retained", false)) ImGui::TextDisabled("Earlier outfit-only history retained separately.");
         ImGui::TextWrapped("Full native Sim records and their runtime schemas are retained at checkpoints. Undo restores captured appearance; gameplay records remain available for inspection.");
     } else if (ImGui::BeginTabBar("live-cas-workspace")) {
-        if (ImGui::BeginTabItem("Equipped / colors")) { DrawStudioParts(); ImGui::EndTabItem(); }
-        if (ImGui::BeginTabItem("EA + CC library", nullptr, g_libraryFocusRequested ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)) {
-            g_libraryFocusRequested = false; DrawLiveLibrary(); ImGui::EndTabItem();
+        if (ImGui::BeginTabItem("Equipped / colors",nullptr,g_workspaceFocusRequested==0?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None)) {if(g_workspaceFocusRequested==0)g_workspaceFocusRequested=-1; DrawStudioParts(); ImGui::EndTabItem(); }
+        if(!previewColumn&&ImGui::BeginTabItem("3D Sim",nullptr,g_simPreviewFocusRequested?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None)){
+            g_simPreviewFocusRequested=false;DrawIndependentSimPreview();ImGui::EndTabItem();}
+        if (ImGui::BeginTabItem("EA + CC library", nullptr, (g_libraryFocusRequested||g_workspaceFocusRequested==1) ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)) {
+            g_libraryFocusRequested = false;if(g_workspaceFocusRequested==1)g_workspaceFocusRequested=-1; DrawLiveLibrary(); ImGui::EndTabItem();
         }
+        if(ImGui::BeginTabItem("Face / body sliders",nullptr,g_workspaceFocusRequested==2?ImGuiTabItemFlags_SetSelected:ImGuiTabItemFlags_None)){if(g_workspaceFocusRequested==2)g_workspaceFocusRequested=-1;DrawAppearanceSliders();ImGui::EndTabItem();}
         ImGui::EndTabBar();
     }
     const auto forms = g_studioData.find("form_inventory");
@@ -2898,6 +3272,8 @@ static void ResetRenderer() {
     g_nativeCasPaneVisible = false;
     CleanupRenderTarget();
     CleanupResourceTexture();
+    CleanupLibraryImages();
+    g_simPreview.Reset();
     if (g_hwnd && IsWindow(g_hwnd) && g_oldWndProc &&
         reinterpret_cast<WNDPROC>(GetWindowLongPtrW(g_hwnd, GWLP_WNDPROC)) == WndProc)
         SetWindowLongPtrW(g_hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldWndProc));
@@ -3247,6 +3623,90 @@ extern "C" __declspec(dllexport) int WINAPI ApexOverlayStudio(unsigned long long
     } else td1::QueueAction("studio_status"); // The canonical game owner supplies accepted Live/bank data.
     return 0;
 }
+// Pure preview controls: no OS input, foreground changes or game appearance
+// writes. Loading accepts an exact completed broker job and its owner view.
+extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const char* raw) {
+    static std::string reply;
+    std::lock_guard<std::recursive_mutex> renderLock(td1::g_renderMutex);
+    std::lock_guard<std::mutex> data(td1::g_dataMutex);
+    using namespace td1;
+    try{
+        if(!raw||strnlen_s(raw,ui::kMaxOwnerJsonBytes+1)>ui::kMaxOwnerJsonBytes)throw std::runtime_error("Bounded preview control required.");
+        const auto request=ui::ParseObject(raw);const auto operation=ui::Scalar(request,"operation");
+        if(operation=="load"){
+            if(request.size()!=4||g_simPreviewBusy||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy||g_casPendingId[0])throw std::runtime_error("Another owner operation is unresolved or preview fields differ.");
+            const auto& job=request.at("job");const auto& selection=request.at("selection");
+            if(!g_hooked||!job.value("ok",false)||ui::Scalar(job,"state")!="ready"||!resource::Hex(ui::Scalar(job,"request_id"),64)||
+               !resource::Hex(ui::Scalar(job,"scene_id"),64)||!ui::ExactUint64Identity(job.at("sim_id"))||
+               !(job.at("outfit_id")=="0"||ui::ExactUint64Identity(job.at("outfit_id")))||!ui::CasInt(job.at("outfit_index"),0,1023)||!ui::StudioDocument(selection)||
+               job.at("runtime_pid")!=GetCurrentProcessId()||job.at("appearance_sha256")!=selection.at("appearance_sha256")||
+               job.at("form")!=selection.at("inspected_form_flags")||job.at("lane")!=selection.at("history_lane")||
+               job.at("preview_id")!=selection.at("pending_preview"))throw std::runtime_error("Preview selection differs from its completed owner job.");
+            const auto sim=ui::Scalar(job,"sim_id");const auto lane=ui::Scalar(job,"lane");
+            if(lane.find(":"+sim+":"+ui::Scalar(job,"form")+":")==std::string::npos)throw std::runtime_error("Preview lane belongs to another Sim.");
+            int formIndex=-1,outfitIndex=-1;const auto& forms=selection.at("form_inventory");
+            for(size_t i=0;i<forms.size();i++)if(forms[i].at("flags")==job.at("form")){
+                formIndex=int(i);const auto& outfits=forms[i].at("outfit_inventory");
+                for(size_t k=0;k<outfits.size();k++)if(outfits[k].at("outfit_id")==job.at("outfit_id")&&outfits[k].at("index")==job.at("outfit_index"))outfitIndex=int(k);
+            }
+            if(formIndex<0||outfitIndex<0||g_commands.size()>=48)throw std::runtime_error("Exact preview form/outfit is unavailable.");
+            if(!request.at("automatic").is_boolean())throw std::runtime_error("Boolean automatic preview flag required.");
+            g_selectedSim=sim;++g_selectionGeneration;g_studioData=selection;g_studioFormIndex=formIndex;g_studioOutfitIndex=outfitIndex;g_studioPartIndex=0;
+            g_studioLastReply.clear();g_commandReply="{}";g_commandReplyMs=0;g_nativeCasView=false;g_activeTab=12;g_visible=true;
+            g_simPreviewContext=SimPreviewContext();g_simPreviewAttemptedContext=g_simPreviewContext;g_simPreviewAutomatic=request.at("automatic").get<bool>();
+            if(!g_simPreview.scene.id.empty()){g_simPreviewSavedView=g_simPreview.view;g_simPreviewSavedSim=g_simPreview.scene.sim;}
+            g_simPreview.Reset();g_simPreviewScene.reset();g_simPreviewFocusRequested=true;
+            QueuedCommand command{"",g_selectionGeneration};command.sim=sim;command.simPreview=true;command.resourceRow={{"context",g_simPreviewContext},{"job",job}};
+            g_commands.push_back(std::move(command));g_simPreviewBusy=true;g_simPreviewStatus="Loading the exact memory-only preview...";
+        }else if(operation=="mode"){
+            if(request.size()!=2||!request.contains("apply_mode")||(request["apply_mode"]!="live"&&request["apply_mode"]!="preview")||g_previewId[0])throw std::runtime_error("Resolve the current try-on before selecting a typed apply mode.");
+            g_livePartColor=request["apply_mode"]=="live";
+        }else if(operation=="workspace"){
+            if(request.size()!=2||!request.contains("values")||!library::Workspace(request["values"]))throw std::runtime_error("Typed layout, columns and catalog filters required.");
+            const auto& values=request["values"];
+            if(values.contains("layout")) {
+                const auto layout=values["layout"];
+                g_studioLayout=layout=="balanced"?0:layout=="character"?1:layout=="catalog"?2:3;
+                if(g_studioLayout<3){g_studioPreviewShare=g_studioLayout==1?.55f:g_studioLayout==2?.30f:.38f;g_libraryColumns=g_studioLayout==2?6:g_studioLayout==1?3:4;g_studioEquippedSidebar=false;}
+            }
+            if(values.contains("preview_share")){g_studioPreviewShare=values["preview_share"].get<float>();g_studioLayout=3;}
+            if(values.contains("columns"))g_libraryColumns=values["columns"].get<int>();
+            if(values.contains("sidebar"))g_studioEquippedSidebar=values["sidebar"].get<bool>();
+            if(values.contains("thumbnails"))g_libraryShowImages=values["thumbnails"].get<bool>();
+            if(values.contains("gender"))g_libraryImageGender=values["gender"]=="male"?0:1;
+            if(values.contains("query")) {
+                const auto& q=values["query"];const auto text=q["text"].get<std::string>();strcpy_s(g_librarySearch,sizeof(g_librarySearch),text.c_str());
+                g_libraryBody=q["body_type"].is_null()?-1:q["body_type"].get<int64_t>();
+                g_libraryOrigin=q["origin"].is_null()?0:q["origin"]=="mod"?1:2;
+                g_itemNameMode=q["name_mode"]=="preferred"?0:q["name_mode"]=="package"?1:2;
+                g_libraryView=q["view"]=="all"?0:q["view"]=="favorites"?1:2;
+                g_libraryOffset=q["offset"].get<size_t>();g_libraryAuthor=q.value("author",std::string());
+                const auto sort=q.value("sort",std::string("name"));g_librarySort=sort=="name"?0:sort=="package"?1:sort=="creator"?2:3;
+                g_libraryQueryNeeded=true;
+            }
+            if(values.contains("tab")){g_workspaceFocusRequested=values["tab"]=="equipped"?0:values["tab"]=="library"?1:2;g_libraryFocusRequested=false;}
+            g_activeTab=12;g_visible=true;
+        }else if(operation=="view"){
+            if(request.size()!=3||ui::Scalar(request,"scene_id")!=g_simPreview.scene.id||g_simPreview.scene.id.empty()||g_simPreviewBusy)throw std::runtime_error("Exact loaded preview scene required.");
+            g_simPreview.Control(request.at("values"));
+        }else if(operation=="clear"){
+            if(request.size()!=1||g_simPreviewBusy)throw std::runtime_error("Preview is still assembling.");
+            g_simPreview.Reset();g_simPreviewScene.reset();g_simPreviewSavedSim.clear();g_simPreviewAutomatic=false;g_simPreviewStatus="Preview released.";
+        }else if(operation!="status"||request.size()!=1)throw std::runtime_error("Unknown typed preview operation.");
+        const auto& v=g_simPreview.view;
+        reply=ui::Json({{"ok",true},{"busy",g_simPreviewBusy.load()},{"staged",bool(g_simPreviewScene)},
+            {"ready",!g_simPreview.scene.id.empty()&&g_simPreview.frames>0},
+            {"scene_id",g_simPreview.scene.id},{"sim_id",g_simPreview.scene.sim},{"form",g_simPreview.scene.form},{"outfit_id",g_simPreview.scene.outfit},{"outfit_index",g_simPreview.scene.outfitIndex},
+            {"frames",g_simPreview.frames},{"meshes",g_simPreview.scene.meshes.size()},{"clips",g_simPreview.scene.clips.size()},
+            {"status",g_simPreviewStatus},{"warnings",g_simPreview.scene.warnings},{"apply_mode",g_livePartColor?"live":"preview"},{"foreground_required",false},{"game_appearance_written",false},
+            {"workspace",{{"layout",std::array<const char*,4>{"balanced","character","catalog","custom"}[std::clamp(g_studioLayout,0,3)]},{"preview_share",g_studioPreviewShare},{"columns",g_libraryColumns},{"sidebar",g_studioEquippedSidebar},{"thumbnails",g_libraryShowImages},{"gender",g_libraryImageGender==0?"male":"female"},{"query",CurrentLibraryQuery()},
+                {"catalog_ready",!g_libraryPage.empty()&&g_libraryPage.value("query",ui::Json())==CurrentLibraryQuery()}, {"catalog_total",g_libraryPage.value("total",ui::Json())},{"catalog_index_sha256",g_libraryPage.value("index_sha256",ui::Json())},{"thumbnail_ready_count",g_libraryImageTextures.size()},{"catalog_status",g_libraryStatus}}},
+            {"view",{{"yaw",v.yaw},{"pitch",v.pitch},{"distance",v.distance},{"height",v.height},{"pan",v.pan},{"pan_depth",v.panDepth},{"roll",v.roll},{"fov",v.fov},{"ortho_scale",v.orthoScale},{"projection",v.orthographic?"orthographic":"perspective"},{"controls",v.blenderControls?"blender":"simple"},{"time",v.time},
+              {"clip",v.clip},{"speed",v.speed},{"exposure",v.exposure},{"playing",v.playing},{"turntable",v.autoRotate},{"body_type",v.body}}}}).dump();
+    }catch(const std::exception& e){reply=ui::Json({{"ok",false},{"reason",e.what()},{"foreground_required",false},{"game_appearance_written",false}}).dump();}
+    return reply.c_str();
+}
+
 extern "C" __declspec(dllexport) int WINAPI ApexGameInput(int command, int x, int y, int width, int height) {
     std::lock_guard<std::recursive_mutex> renderLock(td1::g_renderMutex);
     ApexInputDpi dpi;
@@ -3568,7 +4028,7 @@ extern "C" int ApexRunNativeSmoke() {
     // HTTP, native CAS input, desktop activation or household is involved.
     g_libraryBusy=true;
     const ui::Json libraryQuery={{"text",""},{"body_type",nullptr},{"origin",nullptr},{"name_mode","preferred"},
-        {"offset",0},{"limit",60},{"view","all"}};
+        {"offset",0},{"limit",60},{"view","all"},{"author",""},{"sort","name"}};
     ui::Json libraryItems=ui::Json::array();
     for (int i=0;i<60;++i) {
         std::ostringstream identity; identity << std::hex << std::setw(64) << std::setfill('0') << i+1;
@@ -3581,13 +4041,29 @@ extern "C" int ApexRunNativeSmoke() {
         {"categories",ui::Json::array({{{"body_type",35},{"count",60}}})},{"total",60},{"offset",0},{"next_offset",nullptr},
         {"snapshot",{{"parts",60},{"complete",true}}}};
     if (!library::Page(g_libraryPage,libraryQuery)) return 54;
+    SynchronizeLibraryImages(g_libraryPage);
+    const auto columnId=ui::Scalar(libraryItems[0],"part_id");
+    {std::lock_guard<std::mutex> lock(g_dataMutex);g_libraryImagePixels[columnId]=g_resourcePixels;}
+    SynchronizeLibraryImages(g_libraryPage);
+    if(g_libraryImageTextures.count(columnId)!=1||g_libraryImageSizes.at(columnId).x!=1)return 56;
+    ID3D11Resource* columnResource=nullptr;g_libraryImageTextures.at(columnId)->GetResource(&columnResource);
+    ID3D11Texture2D* columnTexture=nullptr;
+    if(!columnResource||FAILED(columnResource->QueryInterface(__uuidof(ID3D11Texture2D),reinterpret_cast<void**>(&columnTexture))))return 57;
+    columnResource->Release();D3D11_TEXTURE2D_DESC columnDescription{};columnTexture->GetDesc(&columnDescription);
+    columnDescription.Usage=D3D11_USAGE_STAGING;columnDescription.BindFlags=0;columnDescription.CPUAccessFlags=D3D11_CPU_ACCESS_READ;
+    ID3D11Texture2D* columnReadback=nullptr;
+    if(FAILED(g_device->CreateTexture2D(&columnDescription,nullptr,&columnReadback)))return 58;
+    g_context->CopyResource(columnReadback,columnTexture);columnTexture->Release();D3D11_MAPPED_SUBRESOURCE columnPixels{};
+    if(FAILED(g_context->Map(columnReadback,0,D3D11_MAP_READ,0,&columnPixels)))return 59;
+    const bool exactColumnPixels=!std::memcmp(columnPixels.pData,expectedThumbnail,sizeof(expectedThumbnail));
+    g_context->Unmap(columnReadback,0);columnReadback->Release();if(!exactColumnPixels)return 61;
     const auto queuedBeforeLibrary=g_commands.size();
     ImGui_ImplDX11_NewFrame(); ImGui_ImplWin32_NewFrame(); ImGui::NewFrame();
     ImGui::SetNextWindowSize(ImVec2(700,800),ImGuiCond_Always);
     ImGui::Begin("Live catalog render smoke"); DrawLiveLibrary(); ImGui::End(); ImGui::Render();
     if (!ImGui::GetDrawData() || ImGui::GetDrawData()->TotalVtxCount <= 0 || g_commands.size()!=queuedBeforeLibrary) return 55;
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-    g_libraryBusy=false; g_libraryPage=ui::Json::object();
+    g_libraryBusy=false; g_libraryPage=ui::Json::object();CleanupLibraryImages();
     // Query real native window metrics without activating it or submitting
     // input. This exercises the diagnostic export against the selected WARP
     // swapchain and catches pointer/sign truncation or stale-window reads.

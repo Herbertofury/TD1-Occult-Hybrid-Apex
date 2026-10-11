@@ -18,7 +18,7 @@ from cas_resource_catalog import (CASP, STBL, CACHE_ROOT, Package, canonical,
                                   stbl_strings, tgi)
 
 INDEX_ROOT = CACHE_ROOT.parent / 'live-cas-catalog'
-SCHEMA = 1
+SCHEMA = 2
 MAX_SOURCES = 100000
 MAX_PARTS = 2000000
 
@@ -41,13 +41,27 @@ def _connect(index, expected):
     connection = sqlite3.connect(path.as_uri() + '?mode=ro&immutable=1', uri=True)
     connection.row_factory = sqlite3.Row
     try:
-        if connection.execute('PRAGMA user_version').fetchone()[0] != SCHEMA:
+        if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, SCHEMA):
             raise ValueError('Unsupported Live CAS catalog schema.')
         connection.execute('PRAGMA query_only=ON')
+        connection.create_function('creator_hint', 3, creator_hint, deterministic=True)
         return connection
     except Exception:
         connection.close()
         raise
+
+
+def creator_hint(package_name, code_name, origin):
+    """Filename tags are useful filters, not proof of authorship."""
+    if origin == 'ea':
+        return 'EA'
+    match = re.match(r'^\s*\[([^\]\r\n]{1,80})\]', package_name or '')
+    if match:
+        return match.group(1).strip()
+    # Only an explicit filename prefix is inferred. Never attribute a whole
+    # untagged item title or a game's age/gender code to a creator.
+    match = re.match(r'^([\w .-]{2,80})_', package_name or '')
+    return match.group(1).strip() if match else ''
 
 
 def _package_rows(package, locale):
@@ -85,6 +99,9 @@ def _package_rows(package, locale):
                 row.update(preferred_name=row['code_name'], name_status='casp-internal-name')
         except (ValueError, UnicodeError) as error:
             row['reason'] = str(error)
+        row['creator_hint'] = creator_hint(row['package_name'], row['code_name'], row['origin'])
+        row['creator_source'] = 'EA resource' if row['origin'] == 'ea' else 'filename tag / unverified'
+        row['creator_verified'] = row['origin'] == 'ea'
         yield row
 
 
@@ -116,7 +133,7 @@ def build(sources, index, locale=0):
     started, count, errors, signatures = time.perf_counter(), 0, [], []
     try:
         connection.executescript('''
-            PRAGMA user_version=1;
+            PRAGMA user_version=2;
             CREATE TABLE parts(part_id TEXT PRIMARY KEY, body_type INTEGER,
                 origin TEXT, status TEXT, row_json TEXT NOT NULL);
             CREATE INDEX parts_filter ON parts(body_type, origin, status, part_id);
@@ -157,11 +174,12 @@ def build(sources, index, locale=0):
 
 
 def _query(connection, expected, text='', body_type=None, origin=None, name_mode='preferred', offset=0, limit=60,
-           part_ids=None):
+           part_ids=None, author='', sort='name'):
     if (not isinstance(text, str) or len(text) > 200 or name_mode not in ('preferred', 'package', 'code') or
             origin not in (None, 'mod', 'ea') or type(offset) is not int or not 0 <= offset <= MAX_PARTS or
             type(limit) is not int or not 1 <= limit <= 240 or
-            (body_type is not None and (type(body_type) is not int or not 0 <= body_type <= 0xffffffff))):
+            (body_type is not None and (type(body_type) is not int or not 0 <= body_type <= 0xffffffff)) or
+            not isinstance(author, str) or len(author) > 80 or sort not in ('name', 'package', 'creator', 'id')):
         raise ValueError('Invalid catalog filter/page.')
     tokens = re.findall(r'\w+', text, flags=re.UNICODE)
     if len(tokens) > 16 or (text.strip() and not tokens):
@@ -174,6 +192,10 @@ def _query(connection, expected, text='', body_type=None, origin=None, name_mode
         if value is not None:
             clauses.append(column + '=?')
             parameters.append(value)
+    creator = "coalesce(json_extract(row_json,'$.creator_hint'),creator_hint(json_extract(row_json,'$.package_name'),json_extract(row_json,'$.code_name'),origin))"
+    if author:
+        clauses.append(creator + '=? COLLATE NOCASE')
+        parameters.append(author)
     if part_ids is not None:
         if not isinstance(part_ids, list) or len(part_ids) > 10000:
             raise ValueError('Invalid saved item list.')
@@ -185,20 +207,28 @@ def _query(connection, expected, text='', body_type=None, origin=None, name_mode
     started = time.perf_counter()
     snapshot = json.loads(connection.execute('SELECT value FROM snapshot').fetchone()[0])
     total = connection.execute('SELECT count(*) FROM parts' + where, parameters).fetchone()[0]
+    name_column = {'preferred': 'preferred_name', 'package': 'package_name', 'code': 'code_name'}[name_mode]
+    ordering = {'id': 'part_id', 'name': "json_extract(row_json,'$." + name_column + "') COLLATE NOCASE,part_id",
+                'package': "json_extract(row_json,'$.package_name') COLLATE NOCASE,part_id",
+                'creator': creator + " COLLATE NOCASE,json_extract(row_json,'$.preferred_name') COLLATE NOCASE,part_id"}[sort]
     rows = [json.loads(row[0]) for row in connection.execute(
-        'SELECT row_json FROM parts' + where + ' ORDER BY part_id LIMIT ? OFFSET ?', parameters + [limit, offset])]
+        'SELECT row_json FROM parts' + where + ' ORDER BY ' + ordering + ' LIMIT ? OFFSET ?', parameters + [limit, offset])]
     for row in rows:
         row['name'] = row[{'preferred': 'preferred_name', 'package': 'package_name', 'code': 'code_name'}[name_mode]]
+        row.setdefault('creator_hint', creator_hint(row['package_name'], row['code_name'], row['origin']))
+        row.setdefault('creator_source', 'EA resource' if row['origin'] == 'ea' else 'filename tag / unverified')
+        row.setdefault('creator_verified', row['origin'] == 'ea')
     return {'ok': True, 'index_sha256': expected, 'snapshot': snapshot, 'total': total,
             'offset': offset, 'next_offset': offset + len(rows) if offset + len(rows) < total else None,
             'items': rows, 'elapsed_seconds': round(time.perf_counter() - started, 6),
             'game_contacted': False}
 
 
-def query(index, expected, text='', body_type=None, origin=None, name_mode='preferred', offset=0, limit=60):
+def query(index, expected, text='', body_type=None, origin=None, name_mode='preferred', offset=0, limit=60,
+          author='', sort='name'):
     connection = _connect(index, expected)
     try:
-        return _query(connection, expected, text, body_type, origin, name_mode, offset, limit)
+        return _query(connection, expected, text, body_type, origin, name_mode, offset, limit, author=author, sort=sort)
     finally:
         connection.close()
 
@@ -235,9 +265,14 @@ class PinnedIndex:
             self.connection = sqlite3.connect(self.path.as_uri() + '?mode=ro&immutable=1', uri=True,
                                              check_same_thread=False)
             self.connection.execute('PRAGMA query_only=ON')
+            self.connection.create_function('creator_hint', 3, creator_hint, deterministic=True)
             self.lock = threading.RLock()
             self.facets = [{'body_type': body, 'count': count} for body, count in self.connection.execute(
                 'SELECT body_type,count(*) FROM parts GROUP BY body_type ORDER BY body_type')]
+            self.creators = [{'name': name, 'count': count} for name, count in self.connection.execute(
+                "SELECT coalesce(json_extract(row_json,'$.creator_hint'),creator_hint(json_extract(row_json,'$.package_name'),json_extract(row_json,'$.code_name'),origin)) AS creator,count(*) FROM parts GROUP BY creator ORDER BY creator COLLATE NOCASE LIMIT 1025") if name]
+            self.creators_truncated = len(self.creators) > 1024
+            self.creators = self.creators[:1024]
         except Exception:
             self._release()
             raise
@@ -258,7 +293,8 @@ class PinnedIndex:
             if (signature(self.path) != self.before or
                     os.name != 'nt' and file_hash(self.path) != self.expected):
                 raise ValueError('Index path changed; restart with a verified snapshot.')
-            return dict(_query(self.connection, self.expected, **filters), categories=self.facets)
+            return dict(_query(self.connection, self.expected, **filters), categories=self.facets,
+                        creators=self.creators, creator_facets_truncated=self.creators_truncated)
 
     def close(self):
         with self.lock:

@@ -643,3 +643,20 @@ Command details and actual readback requirements: [CAS CLI controls](CAS_CLI_CON
 - [x] V33 same-script certified normal Slot02 cold reload verifies all seven stored/distinct active appearances before/after 982 actual simulation ticks, original Sim/household/GUID and ten persistence checks. Save/bank/reference remain unchanged; the observer issues no appearance repair (`c5ddb613498e8883d8040ab243a474b2d64e47528582afc434cc066ad7460cb6`).
 - [ ] Automatic no-repair current-bank authorization after certified reload. The first switch refuses the prior-PID bank; the exact sealed-load handoff refuses a raw load-boundary change. Preserve both guard receipts and diagnose the raw difference without weakening appearance or identity checks.
 - [x] After explicit zero-change current-native metadata adoption, eight post-reload switches (Alien → Vampire → Alien → Mermaid → Werewolf → Fairy → Spellcaster → Human → Alien) preserve all seven stored/distinct active appearances and membership after actual unpaused ticks. Final normal unsaved CLI closure leaves every save/backup unchanged. This does not close automatic certification handoff, manual/MCCC or every-category gates.
+
+### October 11 independent appearance-room leaves
+
+Exact scope and retained failures:
+[`Reports/LIVE_APPEARANCE_ROOM_2026-10-11.md`](../Reports/LIVE_APPEARANCE_ROOM_2026-10-11.md).
+
+- [x] Independent actual D3D11 mesh/texture/rig preview, memory-only in-place resource assembly, camera/animation controls and stored-form/outfit selection without activating that form.
+- [x] Adjustable room layouts and two to eight virtualized columns; strict CLI workspace controls for layout, columns, tabs, filters and thumbnail gender without OS mouse input.
+- [x] Exact thumbnail provenance/decode/GPU-upload fixtures, content-addressed image cache and exclusive Windows loopback listeners. Complete actual EA thumbnail providers and swatch families remain open.
+- [x] V50 frozen 1,688 Python/five native checks, 74 Python 3.7 modules and 206 independently Rust-verified package resources. History reads preserve edited physique through MCCC wrappers; normal save/other-Sim behavior remains native.
+- [x] Actual V49 try-on/Discard leaves the complete Sim unchanged; Live physique Apply retains the edited Alien through unpaused Alien → Vampire → Alien while all other stored appearances remain exact. Its stored-Alien Undo failure remains failed.
+- [x] V50 synchronizes the requested Live edit/Undo fields with the existing stored current-form wrapper, verifies both after visual resend and rolls both back on rejection in distinct-owner fixtures.
+- [x] CLI acknowledgements of the verified EA permission dialog and normal unsaved game closure; disposable save/backup hashes remain unchanged. A minimized verified dialog is restored and freshly rechecked before acknowledgement.
+- [x] Actual V50 try-on/Discard, immediate shape Apply, unpaused Alien → Vampire → Alien and Undo restore all seven stored/distinct active appearances exactly. Inactive Werewolf shape edit/Undo preserves active Alien and all six other stored forms; the actual CC thumbnail GPU-column/layout check also leaves the Sim unchanged. Exact receipt hashes are in the appearance-room ledger.
+- [x] Actual V50 compatible CC lipstick hue Apply retains its exact Q14 value after unpause; Undo restores all seven stored/distinct active appearances. Visible Live close-up/shader equivalence remains a separate check.
+- [ ] Fresh full CAS/manual/MCCC alternate edits, every-category isolation and same-script controlled save/reload acceptance.
+- [ ] Full EA shader/material equality, all presets/voice/traits, effective catalog deduplication/swatches, portable helper installation and thousand-Sim acceptance. The full custom room and G009 completion gates remain open.

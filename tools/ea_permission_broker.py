@@ -411,6 +411,20 @@ def acknowledge_exact(target, work, deadline, launch_context=None, clock=time.ti
             if receipt.get('acknowledged') is True:
                 return receipt
     native = native_module.NativeEA([target['pid']])
+    restored = []
+    # A minimized Qt dialog exposes a 160x28 client, so the ordinary captured
+    # viewport cannot recognize it. Restore only a bounded same-PID modal after
+    # revalidating the current account-specific launch; pixels still decide OK.
+    if launch_context is not None:
+        minimized = native.minimized_windows()
+        if len(minimized) > 1:
+            raise ValueError('Multiple minimized EA modal candidates; no window restored.')
+        for candidate in minimized:
+            if clock() >= deadline or process_identity(target['pid']) != target:
+                raise ValueError('EA restoration expired or its process changed.')
+            validate_launch_context(launch_context, clock(), target)
+            fresh_window = native.restore_minimized(candidate, deadline, clock=clock)
+            restored.append({'before': candidate, 'after': fresh_window, 'activated': False})
     windows = native.windows()
     if len(windows) > 4:
         raise ValueError('EA window inventory exceeds the one-shot recognition bound.')
@@ -428,7 +442,7 @@ def acknowledge_exact(target, work, deadline, launch_context=None, clock=time.ti
             continue
         matched.append((row, point, image_hash))
     if len(matched) != 1:
-        return {'ok': False, 'acknowledged': False, 'attempts': attempts,
+        return {'ok': False, 'acknowledged': False, 'attempts': attempts, 'restored_windows': restored,
                 'message': 'One exact EA permission dialog was not recognized; no input sent.'}
     row, point, image_hash = matched[0]
     if clock() >= deadline or process_identity(target['pid']) != target:
@@ -440,6 +454,7 @@ def acknowledge_exact(target, work, deadline, launch_context=None, clock=time.ti
     validate_launch_context(launch_context, clock(), target)
     native.click(row, point)
     return {'ok': True, 'acknowledged': True, 'window': row, 'point': point,
+            'restored_windows': restored,
             'capture_sha256': image_hash, 'fresh_capture_sha256': fresh_hash,
             'message': 'Delivered OK to the exact EA permission dialog; game readiness is unverified.'}
 

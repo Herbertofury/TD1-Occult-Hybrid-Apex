@@ -308,3 +308,27 @@ def studio_ui(module_file, dll_path, argument):
         {'history': 11, 'parts': 12, 'cas_history': 13, 'cas_parts': 14, 'library': 15}[tab])
     code = int(getattr(result, 'value', result))
     return dict(status(), ok=code == 0, studio_ui_requested=code == 0, selected_sim=sim_id, selected_tab=tab)
+
+
+@serialized
+def sim_preview(module_file, dll_path, argument):
+    if not _CALLS or not isinstance(argument, dict) or argument.get('operation') not in ('status', 'load', 'view', 'mode', 'workspace', 'clear'):
+        raise ValueError('Use the typed independent preview contract.')
+    raw = __import__('json').dumps(argument, ensure_ascii=True, allow_nan=False, separators=(',', ':')).encode('utf-8')
+    if len(raw) > 4 * 1024 * 1024:
+        raise ValueError('Preview control exceeds its bound.')
+    path, info = sidecar_paths(module_file)
+    if info['sha256'] != _LOADED_SHA or str(path) != _LOADED_PATH:
+        raise ValueError('The native build changed while the game runs.')
+    native = _game_ctypes(dll_path)
+    class String(native._SimpleCData): _type_ = 'z'
+    class PreviewCall(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL
+        _restype_ = String
+        _argtypes_ = (String,)
+    class Library: _handle = _HANDLE
+    result = PreviewCall(('ApexSimPreviewControl', Library()))(raw)
+    reply = getattr(result, 'value', result)
+    if not isinstance(reply, bytes) or len(reply) > 32768:
+        raise ValueError('Native preview returned invalid bounded JSON.')
+    return __import__('json').loads(reply.decode('utf-8'))

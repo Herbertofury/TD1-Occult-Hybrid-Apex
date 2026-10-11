@@ -91,6 +91,35 @@ class OverlayLoaderTests(unittest.TestCase):
                     loader.input_event(self.module, 'unused', value)
             native.assert_not_called()
 
+    def test_preview_apply_mode_reaches_the_same_pinned_native_sidecar(self):
+        calls = []
+        class Function:
+            def __init__(self, symbol):
+                self.symbol = symbol
+            def __call__(self, raw):
+                calls.append((self.symbol[0], json.loads(raw)))
+                return json.dumps({'ok': True, 'apply_mode': 'preview',
+                                   'game_appearance_written': False}).encode('utf-8')
+        class Native:
+            _SimpleCData = object
+            CFuncPtr = Function
+            FUNCFLAG_STDCALL = 0
+        info = json.loads(self.manifest.read_text())
+        with patch.object(loader, '_CALLS', object()), \
+             patch.object(loader, '_HANDLE', object()), \
+             patch.object(loader, '_LOADED_SHA', info['sha256']), \
+             patch.object(loader, '_LOADED_PATH', str(self.dll)), \
+             patch.object(loader, '_game_ctypes', return_value=Native):
+            reply = loader.sim_preview(self.module, 'unused',
+                                       {'operation': 'mode', 'apply_mode': 'preview'})
+            self.assertTrue(reply['ok'])
+            self.assertFalse(reply['game_appearance_written'])
+            self.assertEqual(calls, [('ApexSimPreviewControl',
+                                     {'operation': 'mode', 'apply_mode': 'preview'})])
+            with self.assertRaisesRegex(ValueError, 'typed independent preview'):
+                loader.sim_preview(self.module, 'unused', {'operation': 'arbitrary'})
+            self.assertEqual(len(calls), 1)
+
     def test_optional_metrics_preserve_hwnd_bits_without_input_or_old_export_requirement(self):
         class Integer:
             _type_ = 'i'

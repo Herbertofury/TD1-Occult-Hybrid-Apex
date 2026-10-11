@@ -178,6 +178,11 @@ def launch(game_root, state, execute=False, headless=False, observe_seconds=60, 
         raise ValueError('A headless Sims 4 runtime is not implemented. Use the real-game bridge for CLI testing.')
     plan = launch_plan(game_root, state, offer_id)
     if execute:
+        import launch_preferences
+        remembered_permission = launch_preferences.enabled(state,plan['account_launch_identity'])
+        elevate_permission_once = elevate_permission_once or remembered_permission
+        plan['permission_strategy'] = 'remembered-normal-uac-one-shot' if remembered_permission else (
+            'explicit-normal-uac-one-shot' if elevate_permission_once else 'normal-access')
         test_profile.require_closed()
         # Recheck immediately before handoff so no launch can use a restored/live profile.
         if not test_profile.status(state)['ready_to_launch']:

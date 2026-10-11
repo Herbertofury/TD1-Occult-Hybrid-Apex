@@ -8,6 +8,39 @@ import base64
 import hashlib
 import json
 import math
+import threading
+import inspect
+
+_APPEARANCE_READS = threading.local()
+
+
+def _install_physique_read_guard(sim):
+    """Suppress only the current serializer's observed fit/fat recalculation.
+
+    Installed SimInfo._save_sim_base calls _set_fit_fat before serializing the
+    active appearance. A history/preview read must preserve the actual edited
+    form rather than replacing its physique with shared gameplay statistics.
+    Normal saves and every other Sim/thread retain the native method.
+    """
+    cls = type(sim)
+    original = getattr(cls, '_set_fit_fat', None)
+    if original is None: return False
+    if getattr(original, '_apex_read_only_physique_guard', False): return True
+    # MCCC wraps this method with a variadic injection function. Validate the
+    # actual invocation used by the inspected serializer, rather than rejecting
+    # a wrapper merely because it has *args/**kwargs. Binding performs no call.
+    try:
+        inspect.signature(original).bind(sim)
+    except (TypeError, ValueError):
+        raise ValueError('Native physique serializer signature changed; appearance read refused.')
+    def guarded(self, *args, **kwargs):
+        if not args and not kwargs and any(owner is self for owner in getattr(_APPEARANCE_READS, 'owners', ())):
+            return None
+        return original(self, *args, **kwargs)
+    guarded._apex_read_only_physique_guard = True
+    guarded._apex_original = original
+    cls._set_fit_fat = guarded
+    return True
 
 TYPE_NAMES = {1: 'double', 2: 'float', 3: 'int64', 4: 'uint64', 5: 'int32', 6: 'fixed64',
               7: 'fixed32', 8: 'bool', 9: 'string', 10: 'group', 11: 'message', 12: 'bytes',
@@ -100,7 +133,14 @@ def snapshot(backend, sim):
     # Inspected exact 1.128.90 save_sim/_save_sim_base contracts. The real game's
     # full serializer refreshes its in-memory persistence record; it does not
     # write a save file or load/reconstruct an instanced Sim.
-    message = sim.save_sim(for_cloning=False, full_service=True)
+    _install_physique_read_guard(sim)
+    prior = getattr(_APPEARANCE_READS, 'owners', ())
+    if len(prior) >= 32: raise ValueError('Nested native appearance reads exceed their bound.')
+    _APPEARANCE_READS.owners = prior + (sim,)
+    try:
+        message = sim.save_sim(for_cloning=False, full_service=True)
+    finally:
+        _APPEARANCE_READS.owners = prior
     result = catalog(message)
     result.update({'sim_id': str(sim.id), 'save_guid': str(backend.services.get_persistence_service().get_save_slot_proto_guid()),
                    'native_serializer_called': True, 'save_file_written': False})

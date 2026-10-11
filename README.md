@@ -59,9 +59,15 @@ pass independent Rust inspection.
 searches every CASP in explicit source packages, including unequipped CC,
 with exact provenance, category filters, name modes and pagination. The five
 private test packages yield 62 parts in .049 seconds with queries around 2 ms.
-V39 implements the F11 column browser. Complete image/swatch/preset and fitting
-coverage, broader game acceptance and the independent rotatable/poseable Sim preview
-remain unfinished; see
+The October 11 V50 candidate adds a real independent D3D11 Sim preview,
+Blender-style/perspective/orthographic camera controls, adjustable room layouts,
+two to eight actual thumbnail columns, typed CLI workspace controls and
+try-on/immediate shape editing. Frozen checks pass 1,688 Python tests and five
+native targets; 74 Python 3.7 modules and 206 Rust-verified package resources
+build successfully. Actual runtime successes and failures are recorded in
+[the appearance-room ledger](Reports/LIVE_APPEARANCE_ROOM_2026-10-11.md).
+Complete EA shader/material, image/swatch/preset and fitting coverage, portable
+helper installation and broader game persistence acceptance remain unfinished; see
 [Live CAS Studio](docs/APEX_LIVE_CAS_STUDIO.md).
 
 **Historical V33 existing-kind appearance context:**

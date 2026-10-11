@@ -158,13 +158,15 @@ class ChangeJournal:
             raise
         return pending['id']
 
-    def _finish(self, pending, recovered=False):
+    def _finish(self, pending, recovered=False, read=None):
+        operation_record = self.capture_record() if self.capture_record else None
+        if read is not None and fingerprint(read()) != pending['after_sha256']:
+            raise ValueError('Native history capture changed the accepted appearance.')
         if pending['restore_node']:
             self.data['cursor'] = pending['restore_node']
             node_id = pending['restore_node']
         else:
-            node_id = self._append(pending['label'], decoded(pending['after']), pending['parent'])['id']
-        operation_record = self.capture_record() if self.capture_record else None
+            node_id = self._append(pending['label'], decoded(pending['after']), pending['parent'], operation_record)['id']
         self.data['operations'].append({'id': pending['id'], 'kind': pending['label'], 'node': node_id,
             'sim_record': operation_record,
             'from': pending['parent'], 'time': time.time(), 'readback_verified': True, 'recovered': recovered,
@@ -188,6 +190,7 @@ class ChangeJournal:
             write(decoded(pending['after']))
             if fingerprint(read()) != pending['after_sha256']:
                 raise ValueError('Appearance readback differs from the accepted preview.')
+            return self._finish(pending, read=read)
         except Exception:
             if fingerprint(read()) != pending['before_sha256']:
                 write(decoded(pending['before']))
@@ -199,7 +202,6 @@ class ChangeJournal:
             self.data['pending'] = None
             self._save()
             raise
-        return self._finish(pending)
 
     def cancel(self, identity):
         pending = self.data['pending']

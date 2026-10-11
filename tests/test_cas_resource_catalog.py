@@ -330,6 +330,16 @@ class CatalogTests(unittest.TestCase):
                 catalog.copy_package(package, self.cache)
         self.assertFalse(any((self.cache / 'packages').iterdir()))
 
+    def test_existing_content_copy_is_reused_without_temporary_write_but_source_is_rechecked(self):
+        original=self.package('part.package',{PART:part()});package=catalog.Package(original,'mod')
+        first=catalog.copy_package(package,self.cache)
+        with patch.object(catalog.tempfile,'NamedTemporaryFile',side_effect=AssertionError('duplicate temporary copy')):
+            self.assertEqual(catalog.copy_package(package,self.cache),first)
+            changed=bytearray(original.read_bytes());changed[-1]^=1
+            self.rewrite_with_original_times(original,bytes(changed))
+            with patch.object(catalog,'signature',return_value=package.before),self.assertRaisesRegex(ValueError,'source identity'):
+                catalog.copy_package(package,self.cache)
+
     def test_same_size_sealed_cache_rewrite_refuses_before_copy_or_studio_launch(self):
         raw = part(body=35)
         original = self.package('part.package', {PART: raw})
@@ -423,6 +433,18 @@ class CatalogTests(unittest.TestCase):
         struct.pack_into('<I', index, 4 + 16, 97)
         path.write_bytes(header + index + raw[96:index_offset])
         with self.assertRaisesRegex(ValueError, 'extent'):
+            catalog.Package(path, 'ea')
+
+    def test_ea_header_only_empty_packages_are_valid_and_have_no_resources(self):
+        header = bytearray(96); header[:4] = b'DBPF'
+        struct.pack_into('<II', header, 4, 2, 1)
+        path = self.root / 'ea-header-only.package'; path.write_bytes(header)
+        package = catalog.Package(path, 'ea')
+        self.assertEqual(package.entries, {})
+        self.assertEqual(package.read_many([]), {})
+        self.assertEqual(package.source_sha256, catalog.digest(bytes(header)))
+        path.write_bytes(header + b'unexplained')
+        with self.assertRaisesRegex(ValueError, 'empty DBPF package extent'):
             catalog.Package(path, 'ea')
 
     def test_ea_zero_extent_empty_resources_do_not_block_unrelated_casp(self):

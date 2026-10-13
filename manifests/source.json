@@ -311,12 +311,6 @@
       "sha256": "4228bcd8e93a430f15351b9964831ffbf91b6ca5e5bad3617fc5106229bdb49f"
     },
     {
-      "bytes": 10053,
-      "mode": "100644",
-      "path": "tests/test_reusable_profile.py",
-      "sha256": "42b91a7e5763943888f27299ee96345ca960397cc1d194ce278b6a65dac55095"
-    },
-    {
       "bytes": 1820,
       "mode": "100644",
       "path": "NativeOverlay/third_party/minhook/src/buffer.h",
@@ -1013,12 +1007,6 @@
       "sha256": "396c0f8ad3aebcb4029c24eb595b07d2703998b726255995e34361226e511769"
     },
     {
-      "bytes": 4526,
-      "mode": "100644",
-      "path": "tests/test_switch_archive.py",
-      "sha256": "2fbafa789989067bc6b0e1a1b85ee70db61fa89535df9b8f7d9686fd0f5ec575"
-    },
-    {
       "bytes": 1659,
       "mode": "100644",
       "path": "Reports/Glorious-UI-V4-Performance-Design.txt",
@@ -1059,6 +1047,12 @@
       "mode": "100644",
       "path": "tools/reusable_profile.py",
       "sha256": "40119cc1e4ff4980804d2550ce54c72c9cfa5a77b50a677c9bf5d58e79e4e507"
+    },
+    {
+      "bytes": 4536,
+      "mode": "100644",
+      "path": "tests/test_switch_archive.py",
+      "sha256": "0f09d8e1ccb7159b1703d259cc9ab48b000ebc18972cf10cac703106119daa4c"
     },
     {
       "bytes": 3778,
@@ -2061,6 +2055,12 @@
       "mode": "100644",
       "path": "tools/build_script.py",
       "sha256": "bdde2d9f2a60fed08faff73fe4c7c33f3a451fbbed1fde2d198097423d0e8afd"
+    },
+    {
+      "bytes": 10063,
+      "mode": "100644",
+      "path": "tests/test_reusable_profile.py",
+      "sha256": "34e904bcdf35c59998b6fef3f94730d59ad0197fd277a31906dc526b55839058"
     },
     {
       "bytes": 3491,

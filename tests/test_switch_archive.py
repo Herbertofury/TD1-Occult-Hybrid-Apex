@@ -34,7 +34,7 @@ class SwitchArchiveTests(unittest.TestCase):
 
     def test_closed_archive_preserves_every_byte_without_certifying_or_replaying_bank(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root=Path(temporary);active=root/'active';original=root/'original';active.mkdir();original.mkdir()
+            root=Path(temporary).resolve();active=root/'active';original=root/'original';active.mkdir();original.mkdir()
             saves=active/'saves';saves.mkdir();save=saves/'Slot_00000002.save';save.write_bytes(b'native save')
             bank=active/'form_bank.json';bank.write_text(json.dumps(dict(schema=1,records={'88:11':self.record},future_bank_field='keep')))
             raw=bank.read_bytes();save_sha=hashlib.sha256(save.read_bytes()).hexdigest();bank_sha=hashlib.sha256(raw).hexdigest()

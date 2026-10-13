@@ -14,6 +14,7 @@ from source_manifest import sha256, write_json
 import test_profile as legacy
 
 PROTECTED_NAME = legacy.PROTECTED_NAME
+PROTECTED_NAMES = legacy.PROTECTED_NAMES
 
 # Bundle files have fixed mod-relative locations. Legacy package-only journals
 # remain readable; a journal cannot authorize a write outside these locations.
@@ -74,7 +75,7 @@ def serialized(function):
 
 def writable(path):
     path = legacy.unlinked(path)
-    if any(part.casefold() == PROTECTED_NAME.casefold() for part in path.parts):
+    if any(part.casefold() in {name.casefold() for name in PROTECTED_NAMES} for part in path.parts):
         raise ValueError('The protected original is strictly read-only; no writes or renames are allowed.')
     return path
 
@@ -89,7 +90,7 @@ def load(state):
         raise ValueError('Invalid disposable profile identity.')
     profile = writable(data['profile'])
     original = legacy.unlinked(data['protected_original'])
-    if profile.name != 'The Sims 4' or original.name != PROTECTED_NAME or original.parent != profile.parent:
+    if profile.name != 'The Sims 4' or original.name not in PROTECTED_NAMES or original.parent != profile.parent:
         raise ValueError('Reusable test/original paths do not match the owner\'s protected sibling layout.')
     if state == profile or profile in state.parents or original == state or original in state.parents:
         raise ValueError('Journal must stay outside both profiles.')
@@ -170,7 +171,7 @@ def adopt(previous_state, profile, state, protected_original, artifacts=None, gu
     empty_profile = profile.is_dir() and not any(profile.iterdir())
     if profile.name != 'The Sims 4' or (profile.exists() and not empty_profile) or state.exists():
         raise ValueError('Adoption requires an unoccupied game profile path and a new external journal.')
-    if original.name != PROTECTED_NAME or original.parent != profile.parent or not original.is_dir():
+    if original.name not in PROTECTED_NAMES or original.parent != profile.parent or not original.is_dir():
         raise ValueError('Expected the owner\'s protected original sibling, which will remain read-only.')
     if profile in state.parents or original in state.parents:
         raise ValueError('Journal must be outside both profiles.')

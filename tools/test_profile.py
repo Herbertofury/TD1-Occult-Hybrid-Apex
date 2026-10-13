@@ -17,10 +17,11 @@ from source_manifest import sha256, write_json
 MARKER = '.apex-disposable-profile.json'
 LOCK = '.apex-profile-session.lock'
 PROTECTED_NAME = 'The Sims 4 DO NOT FUCKING TOUCH!!!'
+PROTECTED_NAMES = frozenset((PROTECTED_NAME, 'The Sims 4 DO NOT TOUCH'))
 
 
 def refuse_protected_layout(profile):
-    if (Path(profile).parent / PROTECTED_NAME).exists():
+    if any((Path(profile).parent / name).exists() for name in PROTECTED_NAMES):
         raise ValueError('The owner protected the original. Legacy profile swaps are disabled; use the reusable test profile.')
 
 

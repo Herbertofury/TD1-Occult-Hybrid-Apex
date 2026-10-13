@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-11-cas-swatches-tray-v58'
+UPGRADE_EPOCH = '2026-10-13-multi-hybrid-tray-v85'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'd35c17df330472f9500be6c832273daed57ddaa1ce4e9fb3bf833a006932fc71'
+UPGRADE_SELF_BODY_SHA = 'be7bf24ce9742a9cd2e73dc17a41e644be28b15074b5486bce0f66929ac1bf8a'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': '3ef3a75d6f6c7e366de550148d5a62f1269016ae0c5810c2dc1ad6cd25e7c660',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -47,24 +47,27 @@ UPGRADE_MODULE_PINS = {
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
     'apex_core/form_bank.py': '9f5ca22186122ab6982c88ed0252a3b2048757cf1cc411555a639ef5d71d4434',
     'apex_core/genetics_snapshot.py': '8fefbe2898884cfbc8aab7675d3ff169f376848175d9f0ee7277e2d75bc73640',
+    'apex_core/growth_parts.py': 'efca6b2b2cacf2c18171e87779b95cd3be9766809068583fd1547b5f7bd32db2',
+    'apex_core/household_io.py': '13e4b8e86ef6587d8e9319e48551637664813acda4c9bf34878d130ecc3df667',
     'apex_core/human_werewolf.py': '9bafd4df1783f6a3c526242b9a40c42033e3dad4d2f8029e0046633b2f4a363e',
-    'apex_core/hybrid_persistence.py': 'd63b42795401435cb37ec37f8de9f898a664b203797ed63b6df9d0c186a20379',
+    'apex_core/hybrid_persistence.py': 'de8e8d36b2584e11685dab7660704fdd1b7fa2f31b623e443f02cabe419fadd3',
     'apex_core/legacy_phone_guard.py': '097e88240ed8828101de5389c8f966a76e2c393b821f0580808735b663b600cd',
     'apex_core/morph_controls.py': '89776fc18343ae8d1213e545e3d3322068aad1914b3185b4fea532ef44d83ee5',
     'apex_core/native_controls.py': '543faade8715a27dd5bd7edc9dda25112a92d374879adf4fe943016e240abfbb',
     'apex_core/native_form_select.py': '5c3c9b28d82df3e6515169f3bb653f94ed9c9505d7745673514d85ed79744c44',
     'apex_core/native_http.py': 'dfad235fba919f8aa3a1abfdcb6ba02eddae9f9181fbd1780d8f26bef515f046',
     'apex_core/native_occult_context.py': '4b1fb7278a8719ff58c5b2b1a97aaa89a9e5e953915a31ab212206a67928b186',
+    'apex_core/occult_add_guard.py': '3e4630c36c705afdf9f5cbd3f256be85ec7efa0a3a8d94b8394474fb360c982c',
     'apex_core/outfit_hair.py': '530fb5e8f5e80137b3607e55a796a6423648f0ff25b6780f3430b8361d2f61d8',
     'apex_core/outfit_snapshot.py': '76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56',
     'apex_core/overlay_loader.py': 'd2a802a45dbff9c83254d48b0cbc7d60ef3d41037cb6e436514c0980639728fb',
     'apex_core/phone_cas.py': 'd36633ac04f225e57e060239b5bd27d358707b876ee10bcef734f1e928bca3c6',
     'apex_core/phone_interactions.py': '033c9b9f788adb075f7519ec8ff90994d22fbeb0861aa22eba216cefec0aae0d',
     'apex_core/sim_data.py': 'a6da5ec691f8c5736df215a25d3de23a89ba064db7ba651f18d54f0567510abb',
-    'apex_core/studio.py': '103ff1dd7d87606bc41908cac9d1a60a3f74c9d93908334fedf37e2a50a1bc3c',
-    'apex_core/test_driver.py': '4d2168108cf95d7469676ff0d5166b768830c51278212fdc08dc01901e0d0df0',
+    'apex_core/studio.py': '99e9c3b16b767b0a3776cf847d35dc72d697208e0305bc2a85fb0899fed81281',
+    'apex_core/test_driver.py': '6a82fdb305aea5cab7bae5daa812912e71636128920b00e7d6f9d30d69a1ea7f',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
-    'td1_occult_hybrid_apex.py': '9c944873aa1dead8052fd78b3eb12a9c067bfdb741f37b092577779029b163a6',
+    'td1_occult_hybrid_apex.py': 'fe5361518e0415543a3076b2b8b63c9dd5060ca9807b5790a901ace76eb30644',
 }
 _SEAL_FIELDS = ('intent_id', 'identity', 'contract_sha256', 'target',
                 'bank_record_sha256', 'appearances', 'file_sha256')

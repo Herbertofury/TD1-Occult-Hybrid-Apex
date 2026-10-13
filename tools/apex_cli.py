@@ -279,7 +279,7 @@ def parser():
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
     game = commands.add_parser('game', help='Real in-game test controls; requires the marked disposable profile')
-    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown', 'exit', 'resume', 'load', 'map-select', 'map-play', 'live-observe', 'main-menu', 'native-human'))
+    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown', 'exit', 'resume', 'load', 'map-select', 'map-play', 'live-observe', 'main-menu', 'native-human', 'growth-probe'))
     game.add_argument('--state', required=True, type=Path)
     game.add_argument('--sim-id')
     game.add_argument('--value')
@@ -484,6 +484,18 @@ def parser():
     library.add_argument('--limit', type=int, default=60)
     library.add_argument('--part-id')
     library.add_argument('--tray-root', type=Path, help='Explicit read-only Tray folder for the F11 gallery')
+    switch_archive = commands.add_parser('switch-archive-unsaved',help='Archive a failed switch after exact unsaved closure; no native replay')
+    switch_archive.add_argument('--state',required=True,type=Path)
+    switch_archive.add_argument('--bank',required=True,type=Path)
+    switch_archive.add_argument('--expected-bank-sha256',required=True)
+    switch_archive.add_argument('--closure-proof',required=True,type=Path)
+    switch_archive.add_argument('--closure-sha256',required=True)
+    switch_archive.add_argument('--sim-id',required=True)
+    switch_archive.add_argument('--household-id',required=True)
+    switch_archive.add_argument('--save-guid',required=True)
+    switch_archive.add_argument('--slot-id',required=True,type=int)
+    switch_archive.add_argument('--expected-save-sha256',required=True)
+    switch_archive.add_argument('--output',required=True,type=Path)
     studio = commands.add_parser('studio', help='Live/stored-form CAS History and appearance editing on the real game thread')
     studio.add_argument('operation', choices=('status', 'items', 'inventory', 'preview-snapshot', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'color-live', 'part-inspect', 'part-preview', 'catalog-preview', 'catalog-live', 'shape-inspect', 'shape-preview', 'shape-live', 'outfit-duplicate', 'copy-appearance', 'paste-preview', 'paste-live', 'werewolf-ea-preview', 'clipboard-export', 'open-library', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
     studio.add_argument('--state', required=True, type=Path)
@@ -508,6 +520,17 @@ def parser():
     preview.add_argument('--scene-id', help='Exact scene identity for stale-safe camera/animation controls')
     preview.add_argument('--values', type=Path, help='JSON camera/animation values, or workspace layout/columns/tab/catalog query')
     preview.add_argument('--output', type=Path, help='New external JSON proof; no assets are exported')
+    household = commands.add_parser('household',help='Typed native multi-Sim household and disposable Tray round trips')
+    household.add_argument('operation',choices=('capabilities','records','export-records','export-tray','load-tray','recover-import','finish-import'))
+    household.add_argument('--state',required=True,type=Path)
+    household.add_argument('--sim-id',required=True)
+    household.add_argument('--values',required=True,type=Path)
+    household.add_argument('--template',type=Path)
+    household.add_argument('--name')
+    household.add_argument('--archive',type=Path,help='New external review ZIP; unverified generated entries are never installed into Tray')
+    household.add_argument('--source-file',type=Path,help='Exact external native household record file, read only')
+    household.add_argument('--output',type=Path)
+    household.add_argument('--settle-seconds',type=float,default=3,help='Simulation time for queued native spawns; leaves the disposable game paused')
     tray = commands.add_parser('tray', help='Exact native Tray groups, represented appearances and cross-form selective paste')
     tray.add_argument('operation', choices=('list', 'inspect', 'export', 'import', 'clipboard', 'paste', 'preview'))
     tray.add_argument('--folder', type=Path)
@@ -542,6 +565,13 @@ def parser():
 
 
 def execute(args):
+    if args.command=='switch-archive-unsaved':
+        from switch_archive import archive
+        return archive(args.state,args.bank,args.expected_bank_sha256,args.closure_proof,args.closure_sha256,
+            args.sim_id,args.household_id,args.save_guid,args.slot_id,args.expected_save_sha256,args.output)
+    if args.command=='household':
+        from household_cli import execute as household_execute
+        return household_execute(args)
     if args.command == 'tray':
         from tray_cli import execute as tray_execute
         return tray_execute(args)
@@ -819,6 +849,19 @@ def execute(args):
                            args.sim_id, args.household_id, args.save_guid, args.slot_id,
                            args.slot_name, args.expected_save_sha256, seconds=args.seconds,
                            identity_provider=verified_identity)
+        if args.operation == 'growth-probe':
+            if not all((args.sim_id, args.household_id, args.save_guid)) or args.value not in ('1','2','4','8','16','32','64'):
+                raise ValueError('Native detached growth preparation requires exact Sim/household/save and one stored form value.')
+            _, session, active, original = reusable_profile.load(args.state)
+            output = reusable_profile.writable(args.output) if args.output else None
+            if output is not None and (output.exists() or output.suffix.lower() != '.json' or
+                    any(output == p or p in output.parents for p in (active, original))):
+                raise ValueError('Use one new external growth-probe receipt.')
+            result = owned_request(args.state, 'test_growth_probe', args.sim_id, value=json.dumps({
+                'test_token': session['token'], 'value': dict(household_id=args.household_id,
+                    save_guid=args.save_guid, form_flags=int(args.value))}))
+            if output is not None:write_json(output,result)
+            return result
         if args.operation == 'native-human':
             if not all((args.sim_id, args.household_id, args.save_guid)) or args.expected_current_form is None or args.value is not None:
                 raise ValueError('Native Human selection requires exact Sim/household/save GUID and observed current form.')

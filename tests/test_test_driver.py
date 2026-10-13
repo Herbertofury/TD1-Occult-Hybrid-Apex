@@ -121,7 +121,7 @@ class TestDriverTests(unittest.TestCase):
              patch.object(backend, '_restore_siminfo_payload') as restore, patch.object(backend, '_ensure_human_form', return_value=human), \
              patch.object(backend, '_ensure_form', return_value=new_form), patch.object(backend, '_recalc'), \
              patch.object(backend, '_set_tracker_form_available'):
-            backend._add_occult(sim, 4, add_traits=False, add_memory=False)
+            backend._add_occult_native(sim, 4, add_traits=False, add_memory=False)
         restore.assert_not_called()
     def test_native_new_werewolf_pelt_sharing_is_restored_only_on_existing_human(self):
         human, new_form = Obj(id=1,pelt_layers=b'human'), Obj(id=2,pelt_layers=b'wolf')
@@ -134,7 +134,7 @@ class TestDriverTests(unittest.TestCase):
              patch.object(backend,'_has_occult',side_effect=[False,True]),patch.object(backend,'_apply_gameplay_loots',return_value=(False,[])), \
              patch.object(backend,'_restore_siminfo_payload',side_effect=restore) as writes,patch.object(backend,'_ensure_human_form',return_value=human), \
              patch.object(backend,'_ensure_form',side_effect=generate),patch.object(backend,'_recalc'),patch.object(backend,'_set_tracker_form_available'):
-            backend._add_occult(sim,32,add_traits=False,add_memory=False)
+            backend._add_occult_native(sim,32,add_traits=False,add_memory=False)
         writes.assert_called_once_with(human,{'pelt_layers':b'human'})
         self.assertEqual(new_form.pelt_layers,b'wolf')
         self.assertEqual(human.pelt_layers,b'human')

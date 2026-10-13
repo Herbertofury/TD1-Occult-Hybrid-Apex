@@ -429,6 +429,8 @@ def native_form_snapshot(backend, sim, sim_id, argument):
         result['native_appearance_capability_names'] = {'query': 'failed', 'error': str(error)[:1024],
                                                       'write_authority': False}
     result['last_restore_diagnostics'] = getattr(backend, '_APEX_APPEARANCE_RESTORE_DIAGNOSTICS', {}).get(str(target.id))
+    result['growth_restore_diagnostics'] = copy.deepcopy(getattr(backend, '_APEX_GROWTH_RESTORE_DIAGNOSTICS', {}).get(str(target.id)))
+    result['active_growth_restore_diagnostics'] = copy.deepcopy(getattr(backend, '_APEX_GROWTH_RESTORE_DIAGNOSTICS', {}).get(str(sim.id)))
     result['native_context_write_diagnostic'] = getattr(backend, '_APEX_NATIVE_OCCULT_WRITE_DIAGNOSTICS', {}).get(str(target.id))
     result['last_serializer_failure'] = getattr(tracker, '_apex_serialization_appearance_failure', None)
     if current == flags:
@@ -595,6 +597,9 @@ def dispatch(backend, action, sim_id, value):
         return native_identity_inventory(backend, sim_id, argument)
     if action == 'test_form_snapshot':
         return native_form_snapshot(backend, sim, sim_id, argument)
+    if action == 'test_growth_probe':
+        from .growth_parts import prepare
+        return prepare(backend, sim, argument)
     if action == 'test_native_form_select':
         from .native_form_select import select
         return select(backend, sim, sim_id, argument)
@@ -675,6 +680,13 @@ def dispatch(backend, action, sim_id, value):
                        'message': ('Created Sim identity and household membership verified in the native save buffers; disk save/reload is still required.'
                                    if verified else 'One test Sim was observed, but native persistence postconditions failed; retain its ID and do not repeat creation blindly.')})
         return result
+    if action in ('test_household_capabilities','test_household_records','test_household_import','test_household_recover_import','test_household_finish_import'):
+        from . import household_io
+        if action=='test_household_capabilities':return household_io.capabilities(backend,argument)
+        if action=='test_household_records':return household_io.records(backend,argument)
+        if action=='test_household_recover_import':return household_io.recover_import(backend,argument)
+        if action=='test_household_finish_import':return household_io.finish_import(backend,argument)
+        return household_io.import_tray(backend,argument,runtime_identity(backend.__file__)['profile'])
     if action == 'test_cas':
         if sim is None or sim.get_sim_instance() is None:
             raise ValueError('CAS entry requires an instanced selected Sim.')

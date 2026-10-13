@@ -1,5 +1,6 @@
 """Build one reviewable Apex candidate bundle, never deploy or launch it."""
 import argparse
+import ast
 import hashlib
 import io
 import json
@@ -27,6 +28,43 @@ def candidate_filename(epoch):
     return 'Apex_Development_Candidate_' + epoch + '.zip'
 
 
+def verify_recovery_source(source, epoch):
+    """Read literal declarations without importing or executing mod code."""
+    source = Path(source).resolve(strict=True)
+    path = source / 'apex_core/form_bank_seal.py'
+    raw = path.read_bytes()
+    names = {'UPGRADE_EPOCH', 'UPGRADE_SELF_BODY_SHA', 'UPGRADE_MODULE_PINS'}
+    declarations = {}
+    for node in ast.parse(raw).body:
+        if isinstance(node, ast.Assign):
+            selected = [t.id for t in node.targets if isinstance(t, ast.Name) and t.id in names]
+            for name in selected:
+                if name in declarations:raise ValueError('Ambiguous recovery source declarations.')
+                declarations[name] = ast.literal_eval(node.value)
+    if set(declarations) != names or declarations['UPGRADE_EPOCH'] != epoch:
+        raise ValueError('Candidate epoch differs from its recovery source; freeze source before building.')
+    self_hash = declarations['UPGRADE_SELF_BODY_SHA']
+    matches = list(re.finditer(rb"(?m)^UPGRADE_SELF_BODY_SHA = '[0-9a-f]{64}'(?=\r?$)",raw))
+    if not isinstance(self_hash,str) or not re.fullmatch(r'[0-9a-f]{64}',self_hash) or len(matches)!=1:
+        raise ValueError('Recovery source self-pin is not one exact literal SHA-256.')
+    match = matches[0]
+    normalized = raw[:match.start()] + b"UPGRADE_SELF_BODY_SHA = '<pinned>'" + raw[match.end():]
+    if digest(normalized) != self_hash:
+        raise ValueError('Recovery source self-pin is stale; no candidate built.')
+    pins = declarations['UPGRADE_MODULE_PINS']
+    if not isinstance(pins,dict) or not 1 <= len(pins) <= 128:
+        raise ValueError('Recovery module pins are missing or unbounded.')
+    for name, expected in pins.items():
+        if (not isinstance(name,str) or not (name == 'td1_occult_hybrid_apex.py' or
+                re.fullmatch(r'apex_core/[a-z_]+\.py',name)) or
+                not isinstance(expected,str) or not re.fullmatch(r'[0-9a-f]{64}',expected)):
+            raise ValueError('Recovery module pin path/hash is invalid.')
+        target = source / name
+        if target.resolve(strict=True) != target or target.stat().st_size > 8*1024*1024 or digest(target.read_bytes()) != expected:
+            raise ValueError('Recovery module pin is stale: ' + name)
+    return dict(epoch=epoch,self_body_sha256=self_hash,module_pins=dict(pins))
+
+
 def build(output, foundry=None, cas_ui_package=None, epoch=None):
     output = Path(output).resolve()
     if ROOT not in output.parents or '.work' in output.parts or output.name != 'candidate':
@@ -34,6 +72,7 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
     filename = candidate_filename(epoch)
     if (output / filename).exists() or (output / (filename + '.sha256.json')).exists():
         raise ValueError('This candidate epoch already exists; retain its immutable artifacts and use a new explicit --epoch.')
+    recovery = verify_recovery_source(ROOT/'Source',epoch if epoch is not None else '2026-10-07')
     baseline = ROOT / '.work' / 'baselines'
     packages = build_packages(baseline, output)
     if cas_ui_package is not None:
@@ -84,6 +123,8 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
         packages.append(ui_info)
     script = build_script(ROOT / 'Source', output / 'ApexOccultHybrid.ts4script',
         hybrid_baseline=baseline / 'LordPercivalXII.Occult.Hybrid.Unlocker.Stabilizer.Version.1.13.7.zip')
+    if verify_recovery_source(ROOT/'Source',recovery['epoch']) != recovery:
+        raise ValueError('Recovery source changed while building; no candidate bundled.')
     mccc = verify_mccc()
     payloads = {}
     evidence = []

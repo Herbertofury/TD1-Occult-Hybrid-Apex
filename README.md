@@ -6,7 +6,25 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Latest development checkpoint — V40 Live CAS library and background CLI:**
+**Current development checkpoint — October 13 multi-hybrid preservation:**
+The household CLI reconstructs two imported hybrid Sims beside the existing
+disposable Sim, completes native spawns after unpause and verifies represented
+stored appearances plus native persistence-buffer membership. Adding an occult
+preserves every existing appearance owner. Generated, unverified Gallery
+metadata is blocked from the game's Tray after reproducing startup crashes.
+Imported Human → Alien still needs complete runtime acceptance: distinct current
+body-hair records must survive alongside outfits and all other fields. Complete
+failure preimages and native observations are retained; rejection never becomes
+permission to replay or save. V85 passes 1,787 frozen unit checks. Real-game
+genetics/body-hair restoration now preserves the original CC eyelashes and every
+other appearance field, but the imported Sim still returns to Human before
+switch acceptance. All seven stored appearances remain exact; the selected
+active form is not yet stable. The CLI reports that failure without saving or
+replaying it. Full CAS/MCCC/every-panel acceptance, all-field household
+archives and saved cold reload remain open. See the
+[multi-hybrid investigation](Reports/MULTI_HYBRID_CRASH_2026-10-12.md).
+
+**Historical V40 Live CAS library and background CLI:**
 F11 now includes a searchable EA/CC library with adjustable columns,
 category/origin/name filters, paging, favorites and recent inspections.
 The catalog service runs outside the game. Exact catalog selections can
@@ -36,7 +54,7 @@ every-category/all-form CAS and disk persistence remain separate acceptance work
 See the
 [library implementation ledger](Reports/LIVE_CAS_LIBRARY_2026-10-10.md).
 
-**Latest verified game behavior — V36 CC resource groups and live colors:**
+**Historical V36 CC resource groups and live colors:**
 Compatible CC now resolves its actual native resource group instead of a
 constructed group-zero key. `studio color-live` commits one exact part edit
 on the game thread with durable Undo/Redo; F11 applies a wheel/slider gesture

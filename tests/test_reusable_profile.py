@@ -77,6 +77,24 @@ class ReusableTests(unittest.TestCase):
             legacy.restore(self.state, self.guard)
         self.assert_original_untouched()
 
+    def test_owner_renamed_original_remains_read_only_and_disables_legacy_swaps(self):
+        self.adopt()
+        renamed = self.original.with_name('The Sims 4 DO NOT TOUCH')
+        self.original.rename(renamed)
+        for path in (renamed, renamed/'saves'/'precious.save'):
+            with self.assertRaises(ValueError):
+                reusable.writable(path)
+        with self.assertRaises(ValueError):
+            legacy.activate(self.profile,self.state,[self.artifact],self.guard)
+        # A missing old location cannot silently select another sibling.
+        with self.assertRaisesRegex(ValueError,'location changed'):
+            reusable.load(self.state)
+        journal=json.loads(self.state.read_text(encoding='utf-8'))
+        journal['protected_original']=str(renamed)
+        write_json(self.state,journal)
+        self.assertEqual(reusable.load(self.state)[3],renamed)
+        self.assertEqual(legacy.inventory(renamed),self.original_inventory)
+
     def test_adoption_reuses_empty_path_but_refuses_any_unknown_content(self):
         self.profile.mkdir()
         unknown = self.profile / 'owner.txt'

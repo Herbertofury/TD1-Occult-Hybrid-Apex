@@ -65,6 +65,35 @@ class NativeTransitionTests(unittest.TestCase):
             else:
                 setattr(owner, name, value)
 
+    def test_live_restore_side_effect_on_stored_genetics_is_repaired_after_live_without_outfit_rebuild(self):
+        stored=self.owners[2]
+        stored.genetic_data=b'exact independent alien genetics'
+        captured={k:(o,appearance.packed(self.backend,o)) for k,o in self.owners.items()}
+        active=(self.live,appearance.packed(self.backend,self.live))
+        self.live.physique='native merged wrong physique'
+        writes=[]
+        def restore(owner,values):
+            writes.append((owner,set(values)));self.restore(owner,values)
+            if owner is self.live:stored.genetic_data=b'filtered after active update'
+        self.backend._restore_siminfo_payload=restore
+        persistence._restore_transition_owners(self.backend,captured,active)
+        self.assertEqual(writes,[(self.live,{'physique'}),(stored,{'genetic_data'})])
+        self.assertEqual(stored.genetic_data,b'exact independent alien genetics')
+        self.assertEqual(appearance.packed(self.backend,self.live),active[1])
+
+    def test_one_failed_restoration_does_not_leave_other_owners_mutated(self):
+        captured={k:(o,appearance.packed(self.backend,o)) for k,o in self.owners.items()}
+        active=(self.live,appearance.packed(self.backend,self.live))
+        self.live.physique='native changed live';self.owners[2].physique='native changed alien'
+        self.owners[4].physique='native changed vampire'
+        def restore(owner,values):
+            if owner is self.owners[2]:raise ValueError('Native Alien getter rejected')
+            self.restore(owner,values)
+        self.backend._restore_siminfo_payload=restore
+        with self.assertRaisesRegex(ValueError,'preservation readback failed'):persistence._restore_transition_owners(self.backend,captured,active)
+        self.assertEqual(self.live.physique,appearance.decode(active[1]['physique']))
+        self.assertEqual(self.owners[4].physique,appearance.decode(captured[4][1]['physique']))
+
     def test_native_deferred_switch_keeps_every_independent_owner_and_latest_live_source(self):
         self.assertEqual(self.tracker._switch_to_occult_type_internal(2), 'native-result')
         for kind, owner in self.owners.items():

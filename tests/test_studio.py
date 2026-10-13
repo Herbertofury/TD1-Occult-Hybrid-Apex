@@ -99,6 +99,44 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(self.sim.skin_tone, 41)
         self.assertEqual(self.sim.physique, '0.002,0.120,0.000,')
 
+    def test_native_morph_skin_side_effect_is_restored_without_replaying_requested_edit(self):
+        self.sim.physique='0.002,0.000,0.000,'
+        self.sim.skin_tone=1
+        status=self.request('studio_shape_inspect')
+        row=next(r for r in status['shape_editor'] if r['field']=='physique' and r['index']==1)
+        request={k:row[k] for k in ('field','group','index','key')}
+        request.update(before=row['value'],value=.12,lane=status['history_lane'],appearance_sha256=status['appearance_sha256'])
+        prior=self.backend._restore_siminfo_payload;writes=[]
+        def native_restore(owner,fields):
+            writes.append(set(fields));prior(owner,fields)
+            if 'physique' in fields:owner.skin_tone=21829
+        self.backend._restore_siminfo_payload=native_restore
+        self.assertTrue(self.request('studio_shape_live',json.dumps(request))['live_shape_applied'])
+        self.assertEqual(writes,[{'physique'},{'skin_tone'}])
+        self.assertEqual(self.sim.physique,'0.002,0.120,0.000,');self.assertEqual(self.sim.skin_tone,1)
+
+    def test_rejected_native_readback_retains_exact_observed_state_before_verified_rollback(self):
+        from apex_core import form_appearance as appearance
+        self.sim.physique='0.002,0.000,0.000,'
+        before=appearance.packed(self.backend,self.sim)
+        status=self.request('studio_shape_inspect')
+        row=next(r for r in status['shape_editor'] if r['field']=='physique' and r['index']==1)
+        request={k:row[k] for k in ('field','group','index','key')}
+        request.update(before=row['value'],value=.12,lane=status['history_lane'],appearance_sha256=status['appearance_sha256'])
+        restore=self.backend._restore_siminfo_payload
+        def alter(owner,fields):
+            restore(owner,fields)
+            if owner.physique=='0.002,0.120,0.000,':owner.skin_tone=999
+        self.backend._restore_siminfo_payload=alter
+        with self.assertRaisesRegex(ValueError,'Appearance owner rejected'):
+            self.request('studio_shape_live',json.dumps(request))
+        self.assertEqual(appearance.packed(self.backend,self.sim),before)
+        records=list((Path(self.temp.name)/'CASHistory').glob('rejected-*.json'));self.assertEqual(len(records),1)
+        proof=json.loads(records[0].read_text())
+        self.assertEqual(proof['original'],before);self.assertEqual(proof['observed']['skin_tone']['value'],999)
+        self.assertEqual(proof['expected']['skin_tone']['value'],41)
+        self.assertEqual(proof['changed_fields'],['skin_tone'])
+
     def test_visual_resend_side_effect_is_rolled_back_before_accepting_body_edit(self):
         self.sim.physique = '0.002,0.000,0.000,'
         status = self.request('studio_shape_inspect')
@@ -142,7 +180,7 @@ class StudioTests(unittest.TestCase):
         prior = self.backend._restore_siminfo_payload
         def restore(owner, fields):
             prior(owner, fields)
-            if owner is stored and fields.get('physique') == '0.002,0.120,0.000,': owner.skin_tone = 901
+            if owner is stored and owner.physique == '0.002,0.120,0.000,': owner.skin_tone = 901
         self.backend._restore_siminfo_payload = restore
         with self.assertRaisesRegex(ValueError, 'Stored current-form appearance'):
             self.request('studio_shape_live', json.dumps(request))
@@ -200,6 +238,29 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(self.vampire.raw, changed)
         self.assertEqual((self.sim.raw, self.sim.physique, self.sim.skin_tone, self.sim.flags), active)
         self.assertEqual(self.sim.progression, 77)
+
+    def test_inactive_outfit_apply_and_undo_use_target_native_kind_and_restore_original_masks(self):
+        self.stored_form()
+        self.sim._base=Obj(occult_types=32,current_occult_types=32)
+        current=Obj(id=987,physique=self.sim.physique,skin_tone=self.sim.skin_tone,raw=self.sim.raw,
+            _base=Obj(occult_types=32,current_occult_types=32))
+        self.vampire._base=Obj(occult_types=32,current_occult_types=4)
+        self.backend._form_map=lambda _:{32:current,4:self.vampire}
+        status=self.stored_request('studio_status');original=self.vampire.raw;active=self.sim.raw
+        restore=self.backend._restore_siminfo_payload;masks=[]
+        def filtered(owner,fields):
+            masks.append(owner._base.occult_types)
+            if owner is self.vampire and '__outfits__' in fields and not owner._base.occult_types&4:return
+            restore(owner,fields)
+        self.backend._restore_siminfo_payload=filtered
+        pending=self.stored_preview(status)
+        self.stored_request('studio_apply',pending['preview_id'])
+        self.assertNotEqual(self.vampire.raw,original)
+        self.assertEqual(self.sim.raw,active);self.assertEqual(current.raw,active)
+        self.assertEqual([self.sim._base.occult_types,current._base.occult_types,self.vampire._base.occult_types],[32,32,32])
+        self.stored_request('studio_apply',self.stored_request('studio_undo')['preview_id'])
+        self.assertEqual(self.vampire.raw,original);self.assertEqual(masks,[4,4])
+        self.assertEqual(self.vampire._base.occult_types,32)
 
     def test_bank_only_form_retains_direct_edit_without_generating_or_activating_native_form(self):
         from apex_core import form_bank, form_appearance

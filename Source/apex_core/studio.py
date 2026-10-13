@@ -496,7 +496,13 @@ def dispatch(backend, action, sim_id, value):
         # out of a restore. Every captured field must have a matching owner.
         if set(desired) != set(prior):
             raise ValueError('Native appearance field set changed; capture a new checkpoint.')
-        restore = getattr(backend, '_studio_restore_appearance', backend._restore_siminfo_payload)
+        restore_raw = getattr(backend, '_studio_restore_appearance', backend._restore_siminfo_payload)
+        def restore(owner,values):
+            # The primary's Live mask may exclude this stored Mermaid/Alien
+            # kind. Use the existing, verified per-owner native context while
+            # setters filter outfits; restore the exact mask before readback.
+            from .native_occult_context import appearance_write
+            return appearance_write(backend,primary,owner,lambda:restore_raw(owner,values))
         native = journal.native_target if journal.inactive else sim
         native_prior = appearance.packed(backend, native) if native is not None else None
         # A Live Sim and its stored current-form wrapper are distinct owners.
@@ -506,8 +512,22 @@ def dispatch(backend, action, sim_id, value):
         companion = None if journal.inactive else backend._form_map(primary.occult_tracker).get(backend._coerce_flags(flags))
         if companion is native: companion = None
         companion_prior = appearance.packed(backend, companion) if companion is not None else None
-        edited = {name: row for name, row in desired.items() if prior.get(name) != row}
+        prior_hashes=appearance.fingerprint(prior)['field_sha256']
+        desired_hashes=appearance.fingerprint(desired)['field_sha256']
+        edited = {name: row for name, row in desired.items() if prior_hashes.get(name)!=desired_hashes[name]}
         companion_desired = dict(companion_prior, **edited) if companion_prior is not None else None
+        def restore_edit(owner,expected,changes):
+            if not changes:return
+            restore(owner,appearance.payload(changes))
+            # Native morph/outfit setters may reset an unrelated skin/coat or
+            # genetics field. Restore only those unrequested side effects;
+            # never replay a rejected requested edit or accept omitted data.
+            observed=appearance.packed(backend,owner)
+            observed_hashes=appearance.fingerprint(observed)['field_sha256']
+            expected_hashes=appearance.fingerprint(expected)['field_sha256']
+            side_effects={name:row for name,row in expected.items()
+                          if name not in changes and observed_hashes.get(name)!=expected_hashes[name]}
+            if side_effects:restore(owner,appearance.payload(side_effects))
         def check_companion(expected):
             if companion is None: return
             if backend._form_map(primary.occult_tracker).get(backend._coerce_flags(flags)) is not companion:
@@ -518,15 +538,30 @@ def dispatch(backend, action, sim_id, value):
             if native is not None:
                 # Rebuilding identical outfits can rewrite unrelated genetics.
                 # Apply only the requested differences, then verify ALL fields.
-                changed = {name: row for name, row in desired.items() if native_prior.get(name) != row}
-                if changed: restore(native, appearance.payload(changed))
+                native_hashes=appearance.fingerprint(native_prior)['field_sha256']
+                changed = {name: row for name, row in desired.items() if native_hashes.get(name)!=desired_hashes[name]}
+                restore_edit(native,desired,changed)
                 observed = _state_from_fields(backend, appearance.packed(backend, native))
                 if fingerprint(observed) != fingerprint(raw):
+                    # Retain the rejected native bytes before rollback erases
+                    # them. Exact row/unknown-field differences can then be
+                    # diagnosed without replaying the destructive attempt.
+                    from pathlib import Path
+                    from .occult_add_guard import publish
+                    from .overlay_loader import _unlinked
+                    diagnostic = _unlinked(Path(backend._data_directory()) / 'CASHistory' /
+                        ('rejected-' + hashlib.sha256(lane.encode('ascii')).hexdigest() + '.json'))
+                    publish(diagnostic, dict(schema=1, lane=lane, sim_id=str(backend._sim_id(primary)), form=flags,
+                        stage='rejected-before-rollback', original=native_prior, expected=desired,
+                        observed=appearance.packed(backend, native), changed_fields=_delta(raw, observed)['changed_fields'],
+                        assignment_diagnostics=getattr(backend,'_APEX_APPEARANCE_RESTORE_DIAGNOSTICS',{}).get(str(getattr(native,'id','unknown')))))
                     raise ValueError('Appearance owner rejected the accepted state. Changed fields: ' +
                                      ', '.join(_delta(raw, observed)['changed_fields']))
             if companion is not None:
-                changed = {name: row for name, row in companion_desired.items() if companion_prior.get(name) != row}
-                if changed: restore(companion, appearance.payload(changed))
+                companion_before=appearance.fingerprint(companion_prior)['field_sha256']
+                companion_after=appearance.fingerprint(companion_desired)['field_sha256']
+                changed = {name: row for name, row in companion_desired.items() if companion_before.get(name)!=companion_after[name]}
+                restore_edit(companion,companion_desired,changed)
                 check_companion(companion_desired)
             if journal.inactive: sim._studio_fields = copy.deepcopy(desired)
             elif fingerprint(read()) != fingerprint(raw):

@@ -2256,6 +2256,15 @@ def _snapshot_siminfo_payload(sim_info):
             data['__outfits__'] = _copy_value(sim_info.save_outfits())
     except Exception:
         pass
+    if '__outfits__' not in data:
+        # Stored occult wrappers have neither OutfitTrackerMixin serializer
+        # method. Retain their complete C++ outfit payload too.
+        try:
+            raw = _v8_read_outfit_blob(sim_info)
+            if isinstance(raw, bytes) and raw:
+                data['__outfits__'] = ('protobuf', raw)
+        except Exception:
+            pass
     return data
 
 
@@ -2263,7 +2272,7 @@ def _restore_siminfo_payload(sim_info, data):
     if sim_info is None or not data:
         return False
     restored = False
-    genetics_diagnostic = {'stages': [], 'assignment_error': None}
+    genetics_diagnostic = {'stages': [], 'assignment_error': None, 'outfit_assignment_error': None}
     def observe_genetics(stage):
         if 'genetic_data' not in data:
             return
@@ -2303,16 +2312,23 @@ def _restore_siminfo_payload(sim_info, data):
         restore_attribute(attr, value)
     try:
         outfits = data.get('__outfits__')
-        if outfits is not None and hasattr(sim_info, 'load_outfits'):
+        if outfits is not None:
             if isinstance(outfits, tuple) and len(outfits) == 2 and outfits[0] == 'protobuf':
                 from protocolbuffers import Outfits_pb2
                 message = Outfits_pb2.OutfitList()
                 message.ParseFromString(outfits[1])
                 outfits = message
-            sim_info.load_outfits(outfits)
+            loader = getattr(sim_info, 'load_outfits', None)
+            if callable(loader):
+                loader(outfits)
+            else:
+                # Stored occult owners are SimInfoBaseWrapper objects. The
+                # installed wrapper has no OutfitTrackerMixin loader; the
+                # native mixin loader assigns this same C++ blob.
+                sim_info._base.outfits = outfits.SerializeToString()
             restored = True
-    except Exception:
-        pass
+    except Exception as error:
+        genetics_diagnostic['outfit_assignment_error'] = str(error)[:2048]
     # Native outfit loading can rebuild the GeneticData CAS-parts lane. Restore
     # exact captured genetics last, including fields not represented in the
     # loaded outfits. Callers still require complete appearance readback.
@@ -2326,7 +2342,7 @@ def _restore_siminfo_payload(sim_info, data):
         except Exception:
             pass
         observe_genetics('after-' + call)
-    if 'genetic_data' in data:
+    if 'genetic_data' in data or '__outfits__' in data:
         cache = globals().setdefault('_APEX_APPEARANCE_RESTORE_DIAGNOSTICS', {})
         if len(cache) >= 64:
             cache.clear()
@@ -2923,9 +2939,22 @@ def _switch_to(tracker, occult_type):
 
 
 def _add_occult(sim_info, occult_type, generate=True, add_traits=True, add_memory=True, use_gameplay_loot=True):
-    tracker = sim_info.occult_tracker
-    if _has_occult(tracker, occult_type):
+    if _has_occult(sim_info.occult_tracker, occult_type):
         return ['already present; existing forms and progression retained']
+    from apex_core.occult_add_guard import Preservation
+    import sys
+    preservation = Preservation(sys.modules[__name__], sim_info, occult_type)
+    try:
+        result = _add_occult_native(sim_info, occult_type, generate, add_traits, add_memory, use_gameplay_loot)
+    except Exception:
+        preservation.restore(preservation.flags[0], accepted=False)
+        raise
+    preservation.restore(_mask_add(preservation.flags[0], _int_value(occult_type)), accepted=True)
+    return result
+
+
+def _add_occult_native(sim_info, occult_type, generate=True, add_traits=True, add_memory=True, use_gameplay_loot=True):
+    tracker = sim_info.occult_tracker
     changed = []
     value = _int_value(occult_type)
     old_flags = _get_occult_flags(sim_info)
@@ -2971,8 +3000,10 @@ def _add_occult(sim_info, occult_type, generate=True, add_traits=True, add_memor
         human_restore = {name: row for name, row in human_before.items() if human_after.get(name) != row}
         if human_restore:
             _restore_siminfo_payload(existing_human, human_restore)
-            if _snapshot_siminfo_payload(existing_human) != human_before:
-                raise ValueError('Native occult generation changed the existing Human appearance; originals retained for recovery.')
+        # The outer preservation guard verifies Human and every other owner
+        # after pack initialization, traits and recalc. Native category order
+        # and duplicated growth parts are verified through their full native
+        # appearance projection there, with original raw bytes retained.
     if add_traits:
         for trait in _tuning_traits(occult_type):
             if _add_trait(sim_info, trait):
@@ -4044,8 +4075,8 @@ def run_action(action, sim_id=None, occult=None, value=None):
             _recalc(sim_info)
             return {'ok': True, 'message': 'Removed all non-human occults from {}'.format(_sim_label(sim_info)), 'details': removed}
         if action == 'human':
-            _switch_human(tracker)
-            _recalc(sim_info)
+            if not _switch_human(tracker):
+                return {'ok': False, 'message': 'Native Human selection did not complete; originals retained.'}
             return {'ok': True, 'message': 'Switched {} to HUMAN'.format(_sim_label(sim_info))}
         if occult_type is None or occult_type == OccultType.HUMAN:
             return {'ok': False, 'message': 'Action {} needs a non-human occult name or value.'.format(action)}
@@ -4085,9 +4116,15 @@ def run_action(action, sim_id=None, occult=None, value=None):
             return {'ok': True, 'message': 'Gameplay-removed {} from {}'.format(name, _sim_label(sim_info)), 'details': changes}
         if action == 'switch':
             _add_occult(sim_info, occult_type, generate=True, add_traits=True, add_memory=True)
-            _switch_to(tracker, occult_type)
+            if not _switch_to(tracker, occult_type):
+                return {'ok': False, 'message': 'Native {} selection did not complete; originals retained.'.format(name)}
             _set_tracker_form_available(tracker, True)
-            _recalc(sim_info)
+            # The inspected native public switch updates its own occult
+            # traits. Legacy recalc also calls exit_invalid_forms and resets
+            # valid multi-occult selections to Human after exact preservation.
+            # Explicit selection is not a membership/cleanup operation.
+            if _get_current_flags(sim_info) != _int_value(occult_type):
+                return {'ok': False, 'message': 'Selected native {} form changed; originals retained.'.format(name)}
             return {'ok': True, 'message': 'Switched {} to {}'.format(_sim_label(sim_info), name)}
         if action == 'generate_form':
             form = _ensure_form(tracker, occult_type, generate_new=True)

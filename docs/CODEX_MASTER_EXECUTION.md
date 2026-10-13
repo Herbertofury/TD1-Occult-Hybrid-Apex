@@ -1,14 +1,16 @@
 # Apex Occult Hybrid — Codex Master Execution Contract
 
-Last reconciled: 2026-10-10
+Last reconciled: 2026-10-13
 Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance retained
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
-Current checkpoint: V36, generation 73. Actual Alien full-CAS CC edits remain present after the owner save/reload. Native CC resource groups resolve correctly. Four-channel Live colors, inactive Alien edits while Vampire is active, actual F11 hue/opacity gestures, unpaused Alien → Vampire → Alien retention and exact Undo restoration pass with independent stored/Live owner checks. The game remains open/paused; the protected original stays read/copy only. A new host catalog indexes all 62 parts in the five disposable CC packages with fast name/category queries. Full F11 catalog columns, independent 3D Sim preview, complete Live CAS/manual/MCCC/every-panel coverage, automatic sealed-reload bank authorization, palettes/texture conversion and Tray parity remain open. No finished release or rewritten headless game is claimed. See `Reports/LIVE_COLOR_2026-10-10.md` for exact current receipts and the V33 historical sections for earlier CAS/reload proof.
+Current checkpoint: V85 development candidate, 1,787 frozen tests passing. Complete represented-field import/spawn of two hybrid Sims is repeatedly verified after unpause with the existing member unchanged. Real Live genetics/body-hair repair now preserves original CC eyelashes and every unselected appearance/context. The outer imported Human → Alien switch still returns to Human; all seven stored appearances remain exact. V85 removes legacy selection cleanup and reports native failure honestly. The native public trait-refresh boundary requires tracing; no full switch acceptance is claimed. Generated experimental Tray metadata is quarantined and blocked, and later complete-import sessions exit normally with all twenty saves/backups unchanged. Both owner-selected original folder names remain read/copy only. Full CAS/MCCC/every-panel coverage, Human from Spellcaster, whole-wardrobe paste, all-field archives/save/reload, universal materials/content, palettes/texture conversion and production parity remain open. Accelerator integration and DLL nonregression work are added without claiming current FPS gains. See Reports/MULTI_HYBRID_CRASH_2026-10-12.md and docs/APEX_ACCELERATOR_INTEGRATION.md.
 
 ## Objective
 
 Finish Apex Occult Hybrid as a fully standalone, safe, polished, observable hybrid-occult system that independently matches the useful behavior of current hybrid solutions, fixes the known failure modes, and materially improves usability, recovery, diagnostics, patch resilience and CAS integration while preserving all still-valid Apex V9.5 work.
+
+Owner addition, October 13: qualify DLL overhead and integrate proven loading/frame-time improvements with TS4 Accelerator. Keep separate optional component ownership initially and preserve content, visuals, simulation and compatibility. Exact source lineage, matched game measurements and nonregression gates are recorded in `docs/APEX_ACCELERATOR_INTEGRATION.md`; no current FPS gain is claimed.
 
 ## Context
 
@@ -683,3 +685,22 @@ Scoped evidence and retained failures:
 - [x] Fresh V58 F11 item-family selection and non-default swatch retain exact CASP/hash/ARGB colors; the 30-color CC lipstick is one card. Its absent image renders at 256×256 in a detached GPU scene. Native Tray portrait, household selection and represented Vampire 3D source view all succeed with the destination separate and every captured stored/active appearance unchanged (`fb6c8344dc2949d309b8eb16968bb47cf5beec212ab7ba8b84210c7ee21c9c92`).
 - [ ] Universal thumbnail fitting/material coverage and full Gallery/Tray Importer parity remain open. The scoped real-image proof does not certify every item or lot/room reconstruction.
 - [ ] Full-appearance/all-wardrobe Tray paste remains rejected and fully rolled back (`164c32b6a6c282afaab6e8e61e15d649e315dc6d52992217c18a9c2da69238e8`). The binary32 voice projection is corrected; the outfit readback mismatch remains acceptance work. Existing broad occult/CAS/MCCC/save-reload gates stay open.
+
+### October 12 multi-hybrid creation and crash isolation
+
+- [x] Preserve every existing stored and active appearance during native occult additions, including wrapper identity, physical flags and membership. Actual twelve additions give three Sims seven stored owners each; no original Sim is removed.
+- [x] Verify fourteen distinct stored-form physique edits across two new Sims after unpause. Retain the legitimate current-Human wardrobe synchronization separately from cross-form changes.
+- [x] Verify actual Alien → Vampire → Alien and Mermaid/Werewolf/Fairy/Spellcaster switches against all seven stored owners after simulation progression. Human from Spellcaster remains a failed separate leaf.
+- [x] Archive/quarantine only the two generated test Tray files after exact-byte backup. Retain both native startup dumps and confirm the same build reaches Live with the original five disposable Tray files.
+- [x] Prevent unverified generated Gallery entries from being staged into active Tray. Add external native-record archives, exact external source readers, partial-import journals and guarded recovery without removing existing Sims.
+- [x] Archive a failed native switch after exact unsaved closed-runtime/unchanged-save evidence, preserving all preimages without certifying CAS or replaying old bank appearances.
+- [x] V71/V75 load two native-record hybrid clones once, complete asynchronous spawns after actual simulation, restore exact captured startup availability and verify all represented stored fields plus ten persistence-buffer checks on both Sims. The existing household member remains unchanged; no disk save occurs.
+- [x] Retain fourteen distinct physique values across the two imported Sims. Preserve the failed imported Human → Alien transition and its complete originals. Identify four distinct body-hair deletions without weakening genetics equality.
+- [ ] Accept native multi-hybrid household reconstruction and its full stored-field save/cold-reload round trip. Native stored schemas omit some pelt/custom texture fields; complete appearance sidecars and real acceptance are required.
+- [x] Verify detached native CASP preparation with complete genetics and every real owner/context unchanged. V76 actual runtime proof passes; V80 uses a complete existing same-kind source. Unknown bytes, distinct current/preferred growth swatches and every other appearance field retain identity.
+- [x] Reject stale candidate recovery epoch/self/module pins before package writes; the packaging check imports no mod code. V81's invalid stale-pin candidate is retained as failure evidence and receives no household acceptance claim.
+- [x] Preserve read-only guards for both owner-selected original folder names; an absent location cannot silently select another sibling. Update only the external test journal after the owner's explicit rename confirmation.
+- [x] Verify real V84/V85 complete body-hair/genetics restoration with original CC outfit bytes, every unselected owner and native context unchanged. Retain detached full-appearance proof and reject unknown/other-field changes. This closes the isolated repair leaf, not the outer form switch.
+- [ ] Complete imported Human → Alien selection and Alien → Vampire → Alien after distinct CAS edits. V85 still returns to Human before acceptance while all seven stored appearances remain exact. Trace the native public trait refresh and callbacks; preserve the failed UUID and fresh native preimages.
+- [ ] Fix Human selection from Spellcaster and whole-wardrobe Mermaid paste. Preserve their failed UUIDs, native bytes and verified rollback; do not relabel them passing tests.
+- [x] Repeat normal unsaved shutdown after successful complete V71/V75 imports; no new crash and all twenty save/backup hashes unchanged. Earlier partial-load shutdown crashes remain retained; the overall crash gate stays open.

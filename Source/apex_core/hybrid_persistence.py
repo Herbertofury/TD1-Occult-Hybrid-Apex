@@ -395,7 +395,8 @@ def install_transition_guard(tracker):
                     int(sim.current_occult_types) != int(target)):
                 raise ValueError('Native hybrid transition changed ownership or did not reach its target.')
             ownership_verified = True
-            _restore_owners(backend, wanted, desired_active)
+            if loading:_restore_owners(backend,wanted,desired_active)
+            else:_restore_transition_owners(backend,wanted,desired_active)
             resend = getattr(backend, '_resend_all_visuals', None)
             if callable(resend):
                 resend(sim)
@@ -579,6 +580,74 @@ def _restore_owners(backend, captured, active):
                 backend._restore_siminfo_payload(owner, appearance.payload(fields))
             except Exception as error:
                 detail['restore_error'] = str(error)[:2048]
+        try:
+            restored = appearance.evidence(backend, owner)
+            detail['after_restoration'] = restored
+            detail['changed_fields'] = [name for name in sorted(set(expected['field_sha256']) | set(restored['field_sha256']))
+                                       if expected['field_sha256'].get(name) != restored['field_sha256'].get(name)]
+            if 'restore_error' not in detail and restored['appearance_sha256'] == expected['appearance_sha256']:
+                continue
+        except Exception as error:
+            detail['restored_read_error'] = str(error)[:2048]
+        failed.append(detail)
+        # An independently failed owner must not leave the remaining captured
+        # owners/active appearance in the native serializer's mutated state.
+    if failed:
+        raise _AppearancePreservationError(failed)
+
+def _restore_transition_owners(backend, captured, active):
+    if backend is None:
+        return
+    from . import form_appearance as appearance
+    failed = []
+    rows = [(None, active[0], active[1])]
+    rows.extend((kind, owner, fields) for kind, (owner, fields) in captured.items())
+    # Native active setters can affect a linked stored owner. Restore Live
+    # first, then stored owners, and inspect the complete set after all writes.
+    # Never rebuild matching wardrobes just to repair one genetics/voice field.
+    attempts={id(owner):0 for _kind,owner,_fields in rows}
+    errors={}
+    serialized={}
+    for _kind,owner,_fields in rows:
+        try:serialized[id(owner)]=appearance.evidence(backend,owner)
+        except Exception as error:serialized[id(owner)]={'read_error':str(error)[:2048]}
+    for _ in range(2):
+        for _kind,owner,fields in rows:
+            if id(owner) in errors:continue  # A rejected setter is never replayed.
+            try:
+                expected=appearance.fingerprint(fields)['field_sha256']
+                observed=appearance.evidence(backend,owner)['field_sha256']
+                changed={name:row for name,row in fields.items() if observed.get(name)!=expected[name]}
+                if not changed:continue
+                attempts[id(owner)]+=1
+                def apply():
+                    result = backend._restore_siminfo_payload(owner,appearance.payload(changed))
+                    if callable(getattr(backend,'_form_map',None)) and hasattr(owner,'_base'):
+                        from .growth_parts import restore
+                        restore(backend,active[0],owner,fields)
+                    return result
+                if callable(getattr(backend,'_form_map',None)):
+                    from .native_occult_context import appearance_write
+                    appearance_write(backend,active[0],owner,apply)
+                else:apply()  # Synthetic fixtures have no native owner context.
+                if appearance.evidence(backend,owner)['appearance_sha256']!=appearance.fingerprint(fields)['appearance_sha256']:
+                    errors[id(owner)]='Native owner rejected exact restoration; original bytes retained.'
+            except Exception as error:errors[id(owner)]=str(error)[:2048]
+        try:
+            if all(appearance.evidence(backend,owner)==appearance.fingerprint(fields) for _kind,owner,fields in rows):break
+        except Exception:pass  # Inspect every owner independently below.
+    for kind, owner, fields in rows:
+        expected = appearance.fingerprint(fields)
+        detail = {'role': 'active-live' if kind is None else 'stored-form', 'form_flags': kind,
+                  'sim_id': str(getattr(owner, 'id', ''))[:20], 'expected': expected,
+                  'restore_attempted': bool(attempts[id(owner)])}
+        detail['after_serialization']=serialized[id(owner)]
+        if id(owner) in errors:detail['restore_error']=errors[id(owner)]
+        try:
+            observed = appearance.evidence(backend, owner)
+        except Exception as error:
+            observed = None
+            detail['serialized_read_error'] = str(error)[:2048]
         try:
             restored = appearance.evidence(backend, owner)
             detail['after_restoration'] = restored

@@ -41,6 +41,21 @@ Complete existing Tray groups can already be imported/exported through the Tray
 CLI. Lot/room 3D reconstruction, current-Live-Sim creation of a new native Tray
 item, dependency collection and full Gallery/Tray Importer parity remain open.
 
+The development `household` CLI additionally reads complete native Sim records
+and exact external household binaries in the marked disposable profile. Use
+`export-records` for an external review ZIP. These files are not a native Gallery
+item: generated metadata/portraits are unverified and `export-tray` deliberately
+refuses to stage them into the game's Tray. `load-tray --source-file` verifies the
+exact source hash/roster and allocates new identities; existing Sims stay intact.
+Failed imports retain allocated IDs and block replay. `recover-import` requires
+those IDs to be absent after an unchanged unsaved reload before retiring its
+journal. Successful all-field household loading/save/reload remains an acceptance
+gate; see `Reports/MULTI_HYBRID_CRASH_2026-10-12.md`.
+
+`switch-archive-unsaved` can archive a failed switch after verified unsaved
+closure with exact bank/closure/save hashes. It preserves the entire bank preimage
+and immutable switch history. It never restores appearances or certifies CAS.
+
 Focus-free F11 commands are available through `preview library-select`, `preview thumbnail`,
 `preview gallery-query`, `preview gallery-select` and `preview gallery-view`,
 with `--values` pointing to bounded typed JSON. Thumbnail values use exact

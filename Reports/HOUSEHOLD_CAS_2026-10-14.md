@@ -156,3 +156,44 @@ Hosted CI found that the newer MSVC rejects C++17 experimental coroutine headers
 used by WinRT. Only `ApexPermissionCapture` now requires C++20; the overlay remains
 C++17. The helper rebuild and its invalid-owner CTest pass locally. Exact-head CI
 will be rerun after the compiler fix is committed.
+
+## V113 Vampire dark-form CAS / Alien independence
+
+All five actual Vampire owners complete 20 acknowledged edits across 21 requested
+panels each in the full existing-household editor. Every member is verified as
+native occult type 4, layer 1. This includes the original member, not only its
+companions. Proof: `.work/member-v113-five-vampire-cas-edits.json`.
+
+The entry observer times out after native submission, but a later read verifies
+the original editor and inventory without entry/input replay. The new read-only
+follow-up command is verified in the actual game; proof SHA-256:
+`c07c7759d3fbcb08783d634a9411b1e62bd748abc0b9bf79e70b692e47c6c93d`.
+
+The raw Live return catches native bleed into Human outfits/genetics and some
+Mermaid/Werewolf/Fairy genetic data and Werewolf skin tone. Alien owners remain
+exact before repair. Explicit five-member commits keep only Vampire lane 4 and
+restore every unrelated changed owner. All five commits verify, and the all-40
+comparison confirms that only Vampire 4 and its active copy change. All Alien
+owners and the other 30 stored/active owners remain exact. Commit proof SHA-256:
+`f3d831a16a3dee09020f4a942a3502578a7fbd4b6cd74590e7e50d82229b6bbf`.
+
+The return helper first refuses acceptance from dark layer 1. Semantic navigation
+to primary layer 0 then permits one native acceptance. A subsequent read is
+cancelled before execution at the zone boundary. Its existing acceptance UUID
+is completed through the native return observer with 604 positive simulation
+ticks; acceptance is never replayed. The host CLI now normalizes an exact paired
+alternate layer before acceptance and reobserves a certified cancelled read once.
+All 61 return tests pass, including refusal without a session and cancellation
+certificate validation.
+
+The Vampire checkpoint saves normally and its form seal verifies. Slot 2 now has
+SHA-256 `6356887cfd243865905d19c1a725ab4bb93cd24cfe240a34503964fee8f0104b`.
+Both exact-head hosted CI runs pass for c773170. Cold reload, MCCC/Tray and the
+other broad production gates remain separate.
+
+Read-only analysis also identifies the previous selective-paste refusal exactly:
+GeneticData field 3 is `voice_pitch` in the installed Outfits descriptor. The old
+clipboard expected .5600000024 there while retaining the destination's precise
+.5571260452 voice scalar. The native setter retains .5571260452 in the genetic
+mirror as well. Other genetic wire fields match. A selective-paste consistency
+fix is still needed; this refusal is not a successful recovery claim.

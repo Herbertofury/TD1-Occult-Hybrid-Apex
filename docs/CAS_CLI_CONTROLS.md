@@ -9,6 +9,12 @@ native peer and complete typed inventory are then required. The original timeout
 proof remains immutable. A follow-up inventory read does not prove edits or save
 retention.
 
+`cas return` now navigates an exactly bound alternate layer back to primary layer
+0 before its single native acceptance. That navigation has its own retained UUID
+and must complete before acceptance is attempted. A live snapshot explicitly
+cancelled before execution at the zone boundary can be reobserved once; acceptance
+and gameplay mutations are never repeated because of a lost or cancelled read.
+
 V110 adds `cas member-select` for the full existing-household editor. Supply the
 currently selected Sim, destination Sim, household, current layer and native
 session from `cas status`. The command uses the installed `CASSelectSim` handler

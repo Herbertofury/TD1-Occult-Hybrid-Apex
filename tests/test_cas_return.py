@@ -981,7 +981,7 @@ class CasReturnTests(unittest.TestCase):
         self.assertFalse(result['accept_submitted'])
         self.assertIn('Requested household differs', proof['error'])
 
-    def test_alternate_occult_layer_preflight_refuses_before_accept_submission(self):
+    def test_alternate_occult_layer_without_session_refuses_before_navigation_or_accept(self):
         def handler(action, value):
             if action == 'cas_ui_result':
                 client = native_client()
@@ -996,11 +996,37 @@ class CasReturnTests(unittest.TestCase):
         self.assertFalse(result['ok'])
         self.assertFalse(result['accept_submitted'])
         self.assertFalse(proof['accept_submission_attempted'])
-        self.assertIn('primary occult layer 0', proof['error'])
+        self.assertIn('lacks its native session', proof['error'])
         operations = [json.loads(value)['operation'] for action, value in self.calls if action == 'cas_ui_request']
         self.assertEqual(operations, ['status'])
         self.assertIsNone(self.accept_id)
         self.assertFalse(any(action == 'test_play' for action, _ in self.calls))
+
+    def test_certified_cancelled_live_read_is_reobserved_without_accept_replay(self):
+        cancelled = []
+        def handler(action, value):
+            if action == 'test_snapshot' and self.speed == 1 and not cancelled:
+                rid = self.transport_calls[-1][1]['request_id']
+                cancelled.append(rid)
+                return {'ok': False, 'request_state': 'cancelled', 'request_id': rid,
+                        'message': cas_return.ZONE_CANCELLED_BEFORE_EXECUTION}
+        self.handler = handler
+        result, proof = self.run_observer()
+        self.assertTrue(result['ok'])
+        self.assertEqual(len(cancelled), 1)
+        self.assertEqual(sum(s['action'] == 'reobserve-cancelled-live-snapshot' for s in proof['steps']), 1)
+        self.assertEqual([json.loads(value)['operation'] for action, value in self.calls
+                          if action == 'cas_ui_request'], ['status', 'accept'])
+        self.assertEqual(sum(action == 'test_play' for action, _ in self.calls), 1)
+
+    def test_cancelled_snapshot_requires_exact_preexecution_certificate(self):
+        good = {'ok': False, 'request_state': 'cancelled', 'request_id': 'a' * 32,
+                'message': cas_return.ZONE_CANCELLED_BEFORE_EXECUTION}
+        self.assertTrue(cas_return.cancelled_snapshot(good))
+        for changed in ({'ok': True}, {'request_state': 'failed'}, {'request_id': 'bad'},
+                        {'message': 'unknown outcome'}, {'extra': True}):
+            with self.subTest(changed=changed):
+                self.assertFalse(cas_return.cancelled_snapshot(dict(good, **changed)))
 
     def test_layer_change_after_preflight_refuses_owner_ack_before_commit_is_armed(self):
         def handler(action, value):

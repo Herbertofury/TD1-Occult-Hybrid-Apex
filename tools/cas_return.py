@@ -32,6 +32,13 @@ def hash_id(value):
     return isinstance(value, str) and len(value) == 64 and all(char in '0123456789abcdef' for char in value)
 
 
+def cancelled_snapshot(result):
+    return (isinstance(result, dict) and
+            set(result) == {'ok', 'request_state', 'message', 'request_id'} and
+            result.get('ok') is False and result.get('request_state') == 'cancelled' and
+            result.get('message') == ZONE_CANCELLED_BEFORE_EXECUTION and uuid_id(result.get('request_id')))
+
+
 def native_live_context(snapshot, sim_id, household_id):
     """Exact native presence, including historical identity evidence only.
 
@@ -253,6 +260,13 @@ def _observe(state, output, identity, request, sim_id, household_id, seconds=60,
                                   transport=pinned_transport, monotonic=monotonic,
                                   pause=lambda value: pause(min(value, remaining())))
             record('observe-owner:' + action, result)
+        if action == 'test_snapshot' and cancelled_snapshot(result):
+            # A read cancelled before execution may be reobserved once against
+            # the new zone. It never repeats acceptance, Play or a mutation.
+            remaining(); running(); pinned_transport('/api/bridge')
+            result = request(state, 'test_snapshot', sim_id=sim_id, value=value,
+                             seconds=min(2, remaining()), transport=pinned_transport)
+            record('reobserve-cancelled-live-snapshot', result)
         return result
 
     def wait():
@@ -502,9 +516,36 @@ def _observe(state, output, identity, request, sim_id, household_id, seconds=60,
         if preflight.get('ok') is not True or preflight.get('ui_transition_verified') is not True:
             raise RuntimeError('Complete native preflight was not acknowledged; no accept intent submitted.')
         validate_client(preflight.get('client'), sim_id, {'operation': 'status'})
-        validate_accept_context(preflight['client'])
         if preflight['client']['sim']['householdId'] != household_id:
             raise ValueError('Requested household differs from native CAS; no accept intent submitted.')
+        if preflight['client']['sim'].get('occultLayer') == 1:
+            native = preflight['client']
+            session = native.get('owner_pair_observation', {}).get('session')
+            if type(session) is not int or session <= 0:
+                raise ValueError('Alternate-layer return lacks its native session; no layer or accept submitted.')
+            navigation = {'operation': 'layer-select', 'household_id': household_id,
+                          'expected_layer': 1, 'target_layer': 0, 'native_session': session}
+            from apex_core.cas_ui import envelope
+            envelope(sim_id, navigation)
+            selected = call('cas_ui_request', json.dumps(navigation))
+            selected_id = selected.get('cas_request_id')
+            proof['primary_layer_navigation'] = {'cas_request_id': selected_id, 'request': navigation}
+            save()
+            if not uuid_id(selected_id):
+                raise RuntimeError('Primary-layer navigation UUID was not observed; no accept submitted.')
+            while True:
+                remaining(reserve=True)
+                selected = call('cas_ui_result', selected_id)
+                if selected.get('cas_request_id') != selected_id:
+                    raise ValueError('Primary-layer reply has a different UUID; no accept submitted.')
+                if selected.get('outcome') != 'pending-client': break
+                wait()
+            proof['primary_layer_navigation']['result'] = selected; save()
+            if selected.get('ok') is not True or selected.get('ui_transition_verified') is not True:
+                raise RuntimeError('Primary-layer navigation remains unresolved; no accept submitted or layer replayed.')
+            validate_client(selected.get('client'), sim_id, {'operation': 'status'})
+            preflight = selected
+        validate_accept_context(preflight['client'])
         proof['preflight'] = preflight
         save()
         proof['accept_submission_attempted'] = True

@@ -56,8 +56,16 @@ foreach ($eaProcess in $eaProcesses) {
 
 
 def acknowledge(work=None):
-    result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', SCRIPT],
-        capture_output=True, text=True, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
+    try:
+        result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', SCRIPT],
+            capture_output=True, text=True, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
+    except subprocess.TimeoutExpired:
+        # Invoke may have run before the accessibility provider stopped
+        # responding. Observe game start; never replay consent through another
+        # mechanism merely because the UIA observer timed out.
+        return {'ok': False, 'acknowledged': False, 'acknowledgement_unresolved': True,
+                'retry_safe': False, 'windows_uac_approved': False,
+                'message': 'EA accessibility observation timed out; consent outcome is unknown. Observe the existing launch without replay.'}
     if result.returncode:
         response = {'ok': False, 'acknowledged': False, 'message': 'EA accessibility consent could not be invoked at this process integrity; owner acknowledgement is required.',
                     'windows_uac_approved': False}

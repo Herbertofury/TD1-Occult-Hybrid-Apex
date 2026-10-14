@@ -13,6 +13,7 @@ import apex_cli
 import cas_transition
 import reusable_profile
 from source_manifest import sha256, write_json
+from cli_identity_cache import scoped as save_identity_session
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
 from apex_core.test_driver import _save_target, _save_file_evidence, _save_live_context
@@ -22,6 +23,7 @@ def uuid_id(value):
     return isinstance(value, str) and len(value) == 32 and all(char in '0123456789abcdef' for char in value)
 
 
+@save_identity_session
 def observe(state, output, identity, request, sim_id, slot_id, slot_name, expected_save_sha256,
             save_guid, household_id, seconds=60, transport=None,
             alive=cas_transition.process_alive, monotonic=time.monotonic, pause=time.sleep):

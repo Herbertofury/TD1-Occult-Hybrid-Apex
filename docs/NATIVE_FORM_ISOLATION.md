@@ -28,3 +28,11 @@ or production-save acceptance claim follows from this one method patch.
 
 The private bytecode inspection is read-only and is not shipped. The game
 installation and executable are not rewritten on disk.
+
+After a reload, an existing historical bank may lack a current-runtime seal
+for a companion. V115 still checkpoints every distinct existing native owner
+before switching and verifies them all afterward. The historical bank is kept
+as evidence; it never supplies appearance writes for this fresh switch. Missing
+native owners, unresolved operations and changed identities continue to refuse
+mutation. This avoids requiring a manual recovery transaction for an otherwise
+valid loaded member without disabling the permanent preservation layer.

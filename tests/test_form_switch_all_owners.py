@@ -255,13 +255,18 @@ class FormSwitchAllOwnerTests(unittest.TestCase):
         self.assertEqual(self.path.read_bytes(), before)
         self.assertEqual(self.operation_calls, 0)
 
-    def test_stale_bank_refuses_before_native_or_file_write(self):
-        before = self.path.read_bytes()
+    def test_stale_bank_is_history_while_guard_preserves_every_fresh_native_owner(self):
+        before = self.record()['bank']
         with patch.object(form_bank, 'current_runtime_authorized', return_value=False):
-            with self.assertRaisesRegex(ValueError, 'uncertified'):
-                self.invoke(lambda: self.fail('Old bank cannot replay.'))
-        self.assertEqual(self.path.read_bytes(), before)
-        self.assertEqual(self.operation_calls, 0)
+            result=self.invoke()
+        self.assertTrue(result['ok'])
+        self.assert_all()
+        self.assertEqual(self.operation_calls, 1)
+        history=self.record()['switch_history'][-1]
+        self.assertEqual(history['previous_bank'],before)
+        self.assertTrue(history['fresh_native_recheckpoint'])
+        self.assertFalse(history['prior_bank_authorized'])
+        self.assertFalse(history['old_bank_restored'])
 
     def test_armed_checkpoint_failure_never_calls_native_and_retains_full_originals(self):
         real_save = form_bank.save

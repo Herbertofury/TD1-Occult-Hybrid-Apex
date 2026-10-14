@@ -11,9 +11,11 @@ V113 completed actual Alien edits on the four companions and 100 acknowledged
 Vampire dark-form full-CAS edits across all five members. Alien appearances
 survived Vampire editing, normal save and cold reload; all 40 appearance owners
 remained exact after 8,655 additional simulation ticks. Reversible autonomy and
-occult safety controls also passed actual-game tests. V114 adds a direct patch
-to prevent native cross-form physique/hidden-outfit merging; its runtime
-qualification is tracked separately. Ordinary phone/MCCC CAS, remaining forms
+occult safety controls also passed actual-game tests. V114 directly prevents
+native cross-form physique/hidden-outfit merging. All five members completed
+35 actual Live switches across all seven stored forms, preserving all 40 owners
+through 92,258 simulation ticks and a normal save. Permanent protection remains
+enabled alongside that patch. Ordinary phone/MCCC CAS, remaining form-specific edits
 and broader production-save qualification remain open.
 See [current household evidence](Reports/HOUSEHOLD_CAS_2026-10-14.md) and
 [autonomy and safety controls](docs/OCCULT_SAFETY_CONTROLS.md).

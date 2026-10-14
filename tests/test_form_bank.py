@@ -305,7 +305,7 @@ class FormBankTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Pending'):
             form_bank.switch(self.backend, self.sim, 4, lambda: self.fail('must not mutate'))
 
-    def test_switch_restores_current_accepted_bytes_but_uncertified_restart_refuses_replay(self):
+    def test_restart_switch_uses_fresh_native_owners_and_never_replays_uncertified_bank(self):
         self.begin()
         self.sim.physique = 'Accepted new Human'
         form_bank.finish(self.backend, self.sim)
@@ -322,10 +322,49 @@ class FormBankTests(unittest.TestCase):
             self.sim.current_occult_types = 1
             return {'ok': True}
         before = appearance.packed(self.backend, self.sim)
-        with patch('apex_core.form_bank_seal.current_runtime_bank_verified', return_value=False), self.assertRaisesRegex(ValueError, 'uncertified'):
-            form_bank.switch(self.backend, self.sim, 1, lambda: self.fail('uncertified native switch must not run'))
-        self.assertEqual(appearance.packed(self.backend, self.sim), before)
-        self.assertEqual(self.record(), data['records'][key])
+        with patch('apex_core.form_bank_seal.current_runtime_bank_verified', return_value=False):
+            result=form_bank.switch(self.backend, self.sim, 1, human_switch)
+        self.assertTrue(result['ok'])
+        self.assertEqual(self.sim.physique, 'Accepted new Human')
+        self.assertEqual(appearance.packed(self.backend, self.vampire), before)
+        history=self.record()['switch_history'][-1]
+        self.assertTrue(history['fresh_native_recheckpoint'])
+        self.assertFalse(history['prior_bank_authorized'])
+        self.assertFalse(history['old_bank_restored'])
+        self.assertEqual(history['previous_bank'],data['records'][key]['bank'])
+
+    def test_uncertified_restart_still_blocks_an_owner_missing_from_native_data(self):
+        self.begin();form_bank.finish(self.backend,self.sim)
+        path,key=form_bank.context(self.backend,self.sim)
+        data=form_bank.load(path);data['records'][key]['runtime_pid']=-1
+        data['records'][key]['bank']['8']=appearance.packed(self.backend,self.vampire)
+        form_bank.save(path,data)
+        with patch('apex_core.form_bank_seal.current_runtime_bank_verified',return_value=False):
+            with self.assertRaisesRegex(ValueError,'absent native owner'):
+                form_bank.switch(self.backend,self.sim,4,lambda:self.fail('Missing owner must block native switching'))
+        self.assertIsNone(self.record().get('switch_pending'))
+
+    def test_failed_restart_switch_retains_fresh_preimages_and_blocks_further_mutations(self):
+        self.begin();form_bank.finish(self.backend,self.sim)
+        path,key=form_bank.context(self.backend,self.sim)
+        data=form_bank.load(path);data['records'][key]['runtime_pid']=-1
+        form_bank.save(path,data)
+        self.sim.physique='Newer unsaved native edit'
+        before=appearance.packed(self.backend,self.sim)
+        calls=[]
+        def failed():
+            calls.append(1);self.sim.physique='Partial native result'
+            raise RuntimeError('Native switch failed')
+        with patch('apex_core.form_bank_seal.current_runtime_bank_verified',return_value=False):
+            with self.assertRaisesRegex(RuntimeError,'Native switch failed'):
+                form_bank.switch(self.backend,self.sim,4,failed)
+        pending=self.record()['switch_pending']
+        self.assertEqual(pending['active_original'],before)
+        self.assertTrue(pending['fresh_native_recheckpoint'])
+        self.assertFalse(pending['old_bank_restored'])
+        self.assertEqual(calls,[1])
+        with self.assertRaisesRegex(ValueError,'Pending'):
+            form_bank.switch(self.backend,self.sim,4,lambda:self.fail('Unresolved native action cannot replay'))
 
     def test_fresh_cas_checkpoint_replaces_lane_map_and_retains_prior_missing_owner_as_history(self):
         self.begin(); form_bank.finish(self.backend, self.sim)

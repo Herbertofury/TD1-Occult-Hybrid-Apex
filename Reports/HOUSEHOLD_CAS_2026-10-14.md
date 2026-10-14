@@ -228,3 +228,87 @@ artifact/journal. Twenty capture tests and seven inventory-lease tests pass; an
 actual background capture also completes without a foreground handoff. Broader
 ordinary phone/MCCC entry, all-panel/preset/slider coverage, special forms and
 Tray qualification remain open; the protected original has not been deployed to.
+
+## V114 — prevent native cross-form writes; keep permanent protection
+
+The mod now patches the game's `OccultTracker._copy_shared_attributes` method.
+For distinct existing hybrid owners, the native gender-option trait-ID update
+still runs, while the physique assignment and merged hidden-outfit generation
+never execute. New-form initialization and ordinary single-occult pairs keep
+their native behavior. The patch performs no bank read or appearance restore.
+The existing transition/save/transaction preservation checks remain enabled
+alongside it as a permanent independent layer. See
+[native patch scope](../docs/NATIVE_FORM_ISOLATION.md).
+
+Candidate `2026-10-14-native-form-isolation-v114` has 87 compiled Python 3.7
+modules, seven packages and 207 resources. Bundle SHA-256:
+`70a0e44f00f3d430752545aac330d1c5f608e6ed1f5680ee335d11d85646a2c2`.
+The DLL and native CAS UI resources are unchanged from the qualified V113 build.
+
+The initial switch correctly refused the prior script's uncertified bank before
+native switching. Its UUID/refusal are retained. All five members then completed
+fresh current-native checkpoint transactions with no accepted edits, no CAS
+entry and no save submission. Every appearance stayed exact. The old bank is
+retained externally and in transaction history; no old appearance was replayed.
+Fresh-checkpoint proof SHA-256:
+`b3db945a768b28da03c2d403c2996301853cd8cb910f9f1ba6423cc2956c8228`.
+
+Actual game PID 5304 then completed **35 verified Live transitions**: each of
+the five members started as Alien and switched through Mermaid, Spellcaster,
+Werewolf, Fairy, Human, Vampire and back to Alien. Every step advanced the real
+simulation clock before comparison: 92,258 total ticks, 1,019–4,465 per step.
+Every step verified all 40 active/stored appearance owners against the retained
+Alien and Vampire CAS edits. Both the native prevention receipt (count increased,
+destructive copy skipped, no appearance restoration by that patch) and the
+permanent transition retention receipt verified at every step. This is one
+seven-form cycle per member, not every possible ordered pair or new CAS editing
+of each form. Matrix proof SHA-256:
+`d5f0faff7d1c8c5cb0e54cf25dd76f828e3237c5323da5bfbdf83ebc7df38871`.
+
+All five remained alive/not dying, with effective autonomy zero and native death
+prevention active. The existing normal slot 2 was saved once and its bank seal
+verified. Saved file SHA-256:
+`a88be10462524793df3c8ac79a0a2bee339488093b4ac52e67b5c30663079ae9`.
+An independent after-save comparison verified all 40 owners with no differences;
+proof SHA-256:
+`33d757dd8c338505f48a2b52e489464b742e059bf2623c5aad053e92edbd9d10`.
+V114 cold-load validation is tracked separately and is not inferred from saving.
+
+The complete local suite passed **1,972 tests** after updating the obsolete
+expectation that an unavailable recovery backend should permit the destructive
+shared copy. Eight direct prevention tests and 25 transition tests pass. A
+Windows CI timestamp-coalescing failure prompted USN-based file versions with a
+content-hash fallback; eight lease regressions pass, including rapid same-size
+rewrites with restored modification time. Both CI workflows at `a3f4229` pass.
+The later save batch lease passes its 26 existing save workflow tests.
+
+Ordinary phone/MCCC CAS, remaining form-specific CAS edits, all-panel coverage,
+special-state forms and full production-save qualification remain open. The
+protected original is still read/copy only and has not received this candidate.
+
+### V114 cold reload and the remaining member-switch blocker
+
+The normal unsaved exit preserved every disposable save/backup file. Fresh
+process 81132 loaded the exact V114 save through the CLI. The original member's
+certified reload reconciliation passed before and after positive simulation
+progression and returned paused. An independent comparison then verified all
+40 household owners with no differences; proof SHA-256:
+`f4a92b8cb5186aff948df29597ca69718ffdf03b82be99074f0f2c071f1dd990`.
+
+The next companion switch exposed a separate product blocker: the save seal
+certifies the selected member, so an unsealed companion's prior-runtime bank
+refused an otherwise valid native switch before execution. Refusal proof:
+`71e60add0f8805d3104029c6dd0a9e53b1dbedb926c9722d545729b3aace5b2e`.
+No appearance loss occurred, but this prevents normal household use after load.
+
+V115 removes reliance on that historical bank for a fresh native switch.
+Every existing stored owner and the distinct active Sim are checkpointed before
+the single native operation, with the previous bank retained as evidence.
+Only the fresh native owners supply restoration data. Missing native owners,
+changed identities, pending transactions and failed native operations still
+block further mutations. The permanent all-owner preservation checks remain.
+Both 28-test form-bank and 28-test all-owner switch suites pass, including the
+restart case, missing-owner refusal and retained partial-failure originals.
+Candidate SHA-256:
+`73d38ce07720d70da2f2e9b3660ec0eea88a88f7371278b57384c6f9dc830023`.
+Actual V115 cold-member switching is still being qualified.

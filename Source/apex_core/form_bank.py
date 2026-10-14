@@ -647,8 +647,8 @@ def switch(backend, sim, target, operation):
     record = data['records'].get(key)
     if record and (record.get('pending') or record.get('switch_pending')):
         raise ValueError('Unresolved native transaction retained; switching is blocked.')
-    if record and record.get('bank') and not current_runtime_authorized(backend, sim, record):
-        raise ValueError('Prior-runtime bank is uncertified; no old appearance replay authorized.')
+    prior_bank_authorized = (not record or not record.get('bank') or
+                             current_runtime_authorized(backend, sim, record))
     prior_history = record.get('switch_history', []) if record else []
     if not isinstance(prior_history, list):
         raise ValueError('Switch recovery history must retain its typed index.')
@@ -691,6 +691,9 @@ def switch(backend, sim, target, operation):
                'previous_bank': previous_bank,
                'prior_hair_policy': prior_hair_policy,
                'appearance_authority': 'fresh-native-before-switch',
+               'prior_bank_authorized': prior_bank_authorized,
+               'fresh_native_recheckpoint': not prior_bank_authorized,
+               'old_bank_restored': False,
                'native_vs_bank_differences': native_vs_bank,
                'active_source_vs_bank_differences': active_vs_bank,
                'desired_stored': expected,

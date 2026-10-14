@@ -1,10 +1,10 @@
 {
-  "build_epoch": "2026-10-14-native-form-isolation-v114",
+  "build_epoch": "2026-10-14-native-restart-switch-v115",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-14-native-form-isolation-v114.zip",
-    "bytes": 3215142,
+    "artifact": "Apex_Development_Candidate_2026-10-14-native-restart-switch-v115.zip",
+    "bytes": 3215180,
     "members": 28,
-    "sha256": "70a0e44f00f3d430752545aac330d1c5f608e6ed1f5680ee335d11d85646a2c2"
+    "sha256": "73d38ce07720d70da2f2e9b3660ec0eea88a88f7371278b57384c6f9dc830023"
   },
   "compiled_script_modules": 87,
   "deployed": false,
@@ -53,7 +53,7 @@
     {
       "bytes": 50524,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "73a37252671148aea9aae0937f3945b47bb7ef395154ce78776f952e3e646f3f"
+      "sha256": "67e8318c621cc8ced075157d6b93bfb40e6b920bc400e2c1d1603f4bb1115836"
     },
     {
       "bytes": 1506,
@@ -101,9 +101,9 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 807976,
+      "bytes": 808017,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "012dc39dda5f27d6d7419a06eaf1e0d25218018cff9784551c875b4a71dc9eec"
+      "sha256": "af37a5ba39d7374ccedefa7ede93025a94105dde9c3c75e569ea2fe7a87f3c0c"
     },
     {
       "bytes": 1846272,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "84fca623c752e57a79391f4fadd08c7bd8aa424e77b7b89a2393c94e73098e2b"
+      "sha256": "d757f4487be64cdd4ad6393a7ac48b003414e8f9287360b164cfe916d5635994"
     },
     {
       "bytes": 424,

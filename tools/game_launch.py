@@ -211,7 +211,8 @@ def launch(game_root, state, execute=False, headless=False, observe_seconds=60, 
         import ea_permission
         time.sleep(1)
         plan['ea_permission'] = ea_permission.acknowledge(Path(state).resolve().parent)
-        if elevate_permission_once and not plan['ea_permission'].get('acknowledged'):
+        if (elevate_permission_once and not plan['ea_permission'].get('acknowledged') and
+                not plan['ea_permission'].get('acknowledgement_unresolved')):
             import ea_permission_broker
             try:
                 if not test_profile.status(state)['ready_to_launch']:

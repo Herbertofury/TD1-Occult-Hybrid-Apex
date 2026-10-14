@@ -198,6 +198,12 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
         hair_installed = getattr(sim.occult_tracker, '_apex_body_hair_refresh_install', None)
         if type(hair_installed) is bool:
             result['native_body_hair_refresh_installed'] = hair_installed
+        physique_installed = getattr(sim.occult_tracker, '_apex_hybrid_physique_serializer_installed', None)
+        if type(physique_installed) is bool:
+            result['native_hybrid_physique_serializer_installed'] = physique_installed
+        physique_saved = getattr(sim, '_apex_hybrid_physique_serialization', None)
+        if isinstance(physique_saved, dict):
+            result['native_hybrid_physique_serialization'] = copy.deepcopy(physique_saved)
         if isinstance(hair_refresh, tuple):
             result['native_body_hair_refresh_retention'] = copy.deepcopy(list(hair_refresh))
         hair_dispatch = getattr(sim.occult_tracker, '_apex_body_hair_load_dispatch', None)

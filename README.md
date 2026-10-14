@@ -27,10 +27,15 @@ match every returned appearance field. V98 preserves a new Live color edit made
 before the first unpause through **2,360 simulation ticks**, then verifies Undo
 restores every household appearance. Per-slot request generations distinguish
 old load requests from later genuine growth/shaving at the same level.
-The frozen suite passes **1,857 tests**.
-The previous cycle passed 25 targeted transitions before an unselected Alien
-changed to Human. Its failed evidence remains retained; the complete household
-switch and CAS edit gates remain open.
+V99 also prevents normal saves from recalculating an initialized hybrid's
+active CAS body from shared fitness stats. The corrected save and cold restart
+preserve all 35 stored and five active appearances after 2,359 actual ticks.
+Genuine gameplay fitness updates stay
+native. The frozen suite passes **1,862 tests**.
+The complete five-member run passes **45 targeted transitions**, with all
+companions checked after each unpause and two completely retained companion
+form changes recorded. The earlier failures remain retained. Every-category/
+every-member full CAS and MCCC editing and full Tray production gates remain open.
 
 `household-stress` adds complete-roster capture/compare/cycle checks and an
 explicit **5,390-cell** CAS edit matrix. New fields, changed companions and

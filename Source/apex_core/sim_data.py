@@ -20,7 +20,8 @@ def _install_physique_read_guard(sim):
     Installed SimInfo._save_sim_base calls _set_fit_fat before serializing the
     active appearance. A history/preview read must preserve the actual edited
     form rather than replacing its physique with shared gameplay statistics.
-    Normal saves and every other Sim/thread retain the native method.
+    Initialized hybrids use the same exact-owner scope around normal native
+    serialization below. Gameplay updates and other Sims/threads stay native.
     """
     cls = type(sim)
     original = getattr(cls, '_set_fit_fat', None)
@@ -40,6 +41,55 @@ def _install_physique_read_guard(sim):
     guarded._apex_read_only_physique_guard = True
     guarded._apex_original = original
     cls._set_fit_fat = guarded
+    return True
+
+
+def install_hybrid_serializer(sim):
+    """Serialize the actual edited hybrid physique, without a stat refresh.
+
+    Installed save_sim -> _save_sim_base invokes _set_fit_fat immediately
+    before writing root SimData. That recalculation changes the active form
+    after the occult serializer has already retained its independent owner.
+    Suppress only this exact owner's call inside the real save_sim invocation.
+    No historical appearance is replayed and no gameplay statistic is changed.
+    """
+    cls = type(sim)
+    original = getattr(cls, 'save_sim', None)
+    if not callable(original):
+        return False
+    if getattr(original, '_apex_hybrid_physique_serializer_guard', False):
+        return True
+    try:
+        inspect.signature(original).bind(sim, for_cloning=False, full_service=True)
+    except (TypeError, ValueError):
+        return False
+
+    def guarded(self, *args, **kwargs):
+        tracker = getattr(self, 'occult_tracker', None)
+        forms = getattr(tracker, '_sim_info_map', None)
+        current = getattr(self, 'current_occult_types', None)
+        primary = getattr(self, '_base', None)
+        if (not isinstance(forms, dict) or len(forms) < 3 or current not in forms or
+                getattr(tracker, '_sim_info', None) is not self or primary is None or
+                any(owner is self or getattr(owner, '_base', None) is primary for owner in forms.values())):
+            return original(self, *args, **kwargs)
+        if not _install_physique_read_guard(self):
+            return original(self, *args, **kwargs)
+        prior = getattr(_APPEARANCE_READS, 'owners', ())
+        if len(prior) >= 32:
+            raise ValueError('Nested native hybrid serialization exceeds its bound.')
+        _APPEARANCE_READS.owners = prior + (self,)
+        try:
+            result = original(self, *args, **kwargs)  # One actual native serialization.
+            self._apex_hybrid_physique_serialization = {
+                'verified_native_scope': True, 'fitness_stats_written': False,
+                'historical_appearance_replayed': False, 'form_flags': int(current)}
+            return result
+        finally:
+            _APPEARANCE_READS.owners = prior
+    guarded._apex_hybrid_physique_serializer_guard = True
+    guarded._apex_original = original
+    cls.save_sim = guarded
     return True
 
 TYPE_NAMES = {1: 'double', 2: 'float', 3: 'int64', 4: 'uint64', 5: 'int32', 6: 'fixed64',

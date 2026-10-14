@@ -371,6 +371,8 @@ def install_transition_guard(tracker):
         tracker._apex_body_hair_refresh_install = install_hair_refresh()
     except ImportError:
         tracker._apex_body_hair_refresh_install = False  # No installed game class in offline fixtures.
+    from .sim_data import install_hybrid_serializer
+    tracker._apex_hybrid_physique_serializer_installed = install_hybrid_serializer(getattr(tracker, 'sim_info', None))
     cls = type(tracker)
     original = getattr(cls, '_switch_to_occult_type_internal', None)
     if not callable(original):

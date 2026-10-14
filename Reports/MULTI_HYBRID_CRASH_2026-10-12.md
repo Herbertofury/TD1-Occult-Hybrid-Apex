@@ -121,7 +121,69 @@ and the unchanged native DLL. The protected original remains read/copy only.
 This is still a development candidate; full CAS/MCCC/Tray production gates
 remain open.
 
-## October 13: native transition repair and full CAS continuation
+## V98 complete switch run and V99 normal-save repair
+
+The final V98 repeated run completes **all 45 targeted transitions**, nine
+per member, including Alien → Vampire → Alien and Mermaid/Werewolf/Fairy/
+Spellcaster/Human/Alien on each. Every step checks all five members after
+**1,465–2,478 actual simulation ticks**. Two observed unselected transitions
+retain their fresh departing edits, exact prior target and every other stored
+field. One bounded native empty outfit initialization is recorded. None of
+these observations counts as an actual CAS edit. Complete proof SHA-256:
+`5aadb96c224094967087ed6907795d05a17a074edccd88aca05286e4ec16fdea`.
+
+The subsequent controlled V98 normal save succeeds and produces Slot02
+SHA-256 `bca9825bd9609efec1fd72c7b09343c79d35fb3914e047eeb68fc7aca4ba5c3a`.
+The post-save whole-household comparison then **fails** because the original
+and one fresh companion's active `physique` changed. Every stored form and
+other appearance field remains intact. Native `SimInfo.save_sim` calls
+`_save_sim_base`, which invokes `_set_fit_fat` after the occult serializer has
+already preserved the stored owners. The active body is recalculated from
+shared fitness statistics, even when its independently edited CAS physique
+is different. The file-write/seal success is not appearance-retention proof.
+
+V99 scopes the existing exact-owner physique suppression around the actual
+native `save_sim` for initialized hybrids with distinct existing form owners.
+The original serializer runs once, retains all other data and leaves the
+scope on every exit. Genuine gameplay fit/fat calls, other Sims, ordinary
+pairs and unproved/aliased owners retain native behavior. Five regressions
+cover saved/runtime physique, gameplay and another owner, exceptions,
+single-pair/alias refusal and cloning/idempotence.
+
+On actual V99 cold load of that saved household, all 35 stored and five active
+appearances match the complete pre-save baseline, before/after **2,324 real
+simulation ticks**. Both changed active bodies are restored from their
+immutable stored owners. The serializer guard is installed on all five.
+Settled proof SHA-256:
+`9a1c9676170d21bae20c8c03855447b0322c2e574122b14c3fd452311097ba5c`.
+The corrected V99 normal save now also passes the complete whole-household
+comparison, including every active physique. Exact fresh Native checkpoints
+refresh all five banks without changing any appearance. Normal Slot02 becomes
+SHA-256 `13d2217c48a47c513cdc7754c160f86619d7c432a49f8ded0274f2c2b0f455db`.
+Post-save retention proof SHA-256:
+`242db5840b6450a026cdb8c82046b52d685ea4a44d17d44f294e522922206f5d`.
+The baseline SHA-256 for the corrected save/cold check is
+`85798f61ebd209dfe91a6e7990721669635f549d46c76de4389927e750a26eb8`.
+Cold restart of this exact corrected save now also passes all 35 stored plus
+five active owners before and after **2,359 actual simulation ticks**. Initial
+proof SHA-256:
+`61f0be8bc524fadfb7d89ea0039d8ffa6de21182711a686ec3b59afb39e6e4ae`.
+Settled proof SHA-256:
+`3feba5bf05a2c6df2a8e8a24dfd970d956a781b2a215b8bd2418a3186c1b025d`.
+The exit command loses its final native input acknowledgement while the
+process shuts down. Its unresolved receipt is retained without a repeated
+click. A separate read-only closure observation proves the process is absent
+and every save/backup remains unchanged before the one subsequent launch.
+No successful button acknowledgement is invented from process absence.
+
+Frozen V99 source/tool suite: **1,862 tests pass in 268.429 seconds**.
+Candidate ZIP SHA-256:
+`37a4a99487bf904481f98e54a8ccb367782ae855e43e787a5ee44e84662c4d0a`.
+Protected originals remain read/copy only. The V98 intentional normal save
+changed only the disposable Slot02 and its native backup family; its later
+normal unsaved closure preserved those files exactly.
+
+## Earlier October 13 findings
 
 V86 tracing identified the actual nested selection failure: native trait refresh
 removes another occult's current-form trait, whose legacy removal callback asks

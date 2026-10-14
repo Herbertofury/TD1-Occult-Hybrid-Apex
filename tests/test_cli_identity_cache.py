@@ -37,6 +37,14 @@ class IdentityBatchTests(unittest.TestCase):
             self.part.write_bytes(b'other');os.utime(self.part,ns=(before.st_atime_ns,before.st_mtime_ns))
             with self.assertRaises(ValueError):cache.validate(self.state,self.full)
         self.assertEqual(self.calls,1)
+    def test_rapid_large_file_rewrites_with_restored_mtime_always_invalidate(self):
+        self.part.write_bytes(b'a' * (128 * 1024))
+        for index in range(8):
+            with self.subTest(index=index),cache.session(self.state):
+                cache.validate(self.state,self.full);before=self.part.stat()
+                self.part.write_bytes(bytes([index+1]) * before.st_size)
+                os.utime(self.part,ns=(before.st_atime_ns,before.st_mtime_ns))
+                with self.assertRaises(ValueError):cache.validate(self.state,self.full)
     def test_added_unknown_mod_and_removed_mod_are_both_rejected(self):
         for action in ('add','remove'):
             with self.subTest(action=action),cache.session(self.state):

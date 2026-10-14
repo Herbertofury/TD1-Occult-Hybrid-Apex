@@ -5,12 +5,6 @@
   "source_encoding": "canonical-git-index-blobs",
   "source_files": [
     {
-      "bytes": 3511,
-      "mode": "100644",
-      "path": "tests/test_cli_identity_cache.py",
-      "sha256": "547f914a6fa77f0e7aaf7f4aad5b866a8dc0ac4207f87223329aa07f74ca061c"
-    },
-    {
       "bytes": 4370,
       "mode": "100644",
       "path": "PreviewWorker/ApexClip.cs",
@@ -81,6 +75,12 @@
       "mode": "100644",
       "path": "tests/test_cas_controls.py",
       "sha256": "24570e8d65228afbf405d178a2b44386e33e89f2d5c80ba46824e5c9fc738c76"
+    },
+    {
+      "bytes": 5540,
+      "mode": "100644",
+      "path": "tools/cli_identity_cache.py",
+      "sha256": "1f63f812a35bb5093ff2039547a7ab7b163078204bc2467d59ebc46ab21d7356"
     },
     {
       "bytes": 7400,
@@ -477,12 +477,6 @@
       "mode": "100644",
       "path": "tools/cas_hair_audit.py",
       "sha256": "bf4e5ad559d04901678a37c2fb066eda9495af97c334fcd0e7606d540a25998a"
-    },
-    {
-      "bytes": 4468,
-      "mode": "100644",
-      "path": "tools/cli_identity_cache.py",
-      "sha256": "9bed48a1dc40dd411743ae00fb5e8f769aba2c6f1a1aa7d73304ebf110c2af19"
     },
     {
       "bytes": 24629,
@@ -1407,6 +1401,12 @@
       "mode": "100644",
       "path": "tools/game_map_play.py",
       "sha256": "c9b9b39eaf111c96fb6e3f18c7dbdb02a3a06559625d466a41e2f4cd0db62e81"
+    },
+    {
+      "bytes": 4064,
+      "mode": "100644",
+      "path": "tests/test_cli_identity_cache.py",
+      "sha256": "732b6951a9df924bb6544d2eb02a2b94ff119e83d5f7a9560313e32c5f0a0421"
     },
     {
       "bytes": 6914,

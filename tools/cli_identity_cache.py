@@ -22,8 +22,9 @@ def scoped(function):
 
 
 def change_time(path, data):
-    # Windows st_ctime is creation time. NTFS ChangeTime also detects a same-
-    # size edit whose writer restores LastWriteTime; no file bytes are read.
+    # Windows st_ctime is creation time. ChangeTime can coalesce fast writes;
+    # pair it with the file USN. A filesystem without that contract must hash
+    # the content, never silently trust a restored LastWriteTime.
     if os.name != 'nt': return data.st_ctime_ns
     import ctypes
     from ctypes import wintypes as W
@@ -35,6 +36,9 @@ def change_time(path, data):
     kernel.CreateFileW.restype=W.HANDLE
     kernel.GetFileInformationByHandleEx.argtypes=[W.HANDLE,ctypes.c_int,W.LPVOID,W.DWORD]
     kernel.GetFileInformationByHandleEx.restype=W.BOOL
+    kernel.DeviceIoControl.argtypes=[W.HANDLE,W.DWORD,W.LPVOID,W.DWORD,W.LPVOID,W.DWORD,
+                                    ctypes.POINTER(W.DWORD),W.LPVOID]
+    kernel.DeviceIoControl.restype=W.BOOL
     kernel.CloseHandle.argtypes=[W.HANDLE];kernel.CloseHandle.restype=W.BOOL
     handle=kernel.CreateFileW(str(path),0x80,7,None,3,0x02200000,None)
     if handle==W.HANDLE(-1).value:raise ctypes.WinError(ctypes.get_last_error())
@@ -42,7 +46,20 @@ def change_time(path, data):
         basic=Basic()
         if not kernel.GetFileInformationByHandleEx(handle,0,ctypes.byref(basic),ctypes.sizeof(basic)):
             raise ctypes.WinError(ctypes.get_last_error())
-        return basic.changed
+        if getattr(data,'st_file_attributes',0)&0x10:
+            return (basic.changed, 'directory')
+        versions=(W.WORD*2)(2,2)
+        record=ctypes.create_string_buffer(4096)
+        returned=W.DWORD()
+        if kernel.DeviceIoControl(handle,0x000900EB,ctypes.byref(versions),ctypes.sizeof(versions),
+                                  record,ctypes.sizeof(record),ctypes.byref(returned),None):
+            raw=record.raw[:returned.value]
+            if (len(raw)>=60 and int.from_bytes(raw[:4],'little')==len(raw) and
+                    int.from_bytes(raw[4:6],'little')==2):
+                usn=int.from_bytes(raw[24:32],'little',signed=True)
+                if usn>0:
+                    return (basic.changed, 'usn-v2', usn)
+        return (basic.changed,'content-sha256',hashlib.sha256(path.read_bytes()).hexdigest())
     finally:kernel.CloseHandle(handle)
 
 

@@ -398,7 +398,7 @@
                throw new Error("CAS form selection requires a complete bounded raw/retained pair");
             var selectedIndex:int=int(retained.selected_index);
             if(!(retained.selected_index is int) || selectedIndex<0 || selectedIndex>=retained.pairs.length ||
-               !(raw.selected_index is int) || raw.selected_index!=selectedIndex ||
+               !(raw.selected_index is int) || raw.selected_index<0 || raw.selected_index>=raw.pairs.length ||
                !(raw.selected_layer is int) || (raw.selected_layer!=0 && raw.selected_layer!=1) ||
                !(retained.selected_layer is int) || retained.selected_layer!=expectedLayer || retained.selected_sim_id!=simId)
                throw new Error("CAS form selection cannot choose another native Sim/index");

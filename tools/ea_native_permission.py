@@ -214,10 +214,6 @@ class NativeEA:
         hwnd = row['hwnd']
         if self.identity(hwnd) != row:
             raise ValueError('EA window changed before acknowledgement.')
-        self.user.SetForegroundWindow(hwnd)
-        time.sleep(0.1)
-        if self.user.GetForegroundWindow() != hwnd:
-            raise ValueError('Windows refused foreground ownership; EA acknowledgement not sent.')
         x, y = point
         if not 0 < x < row['width'] or not 0 < y < row['height']:
             raise ValueError('EA acknowledgement outside the recognized window.')
@@ -229,7 +225,8 @@ class NativeEA:
             time.sleep(0.1)
         finally:
             # Always release the same button on the same EA window.
-            self.user.SendMessageTimeoutW(hwnd, 0x202, 0, packed, 2, 1000, ctypes.byref(result))
+            if not self.user.SendMessageTimeoutW(hwnd, 0x202, 0, packed, 2, 1000, ctypes.byref(result)):
+                raise OSError('EA mouse release could not be delivered; acknowledgement remains unverified.')
 
 
 def acknowledge(work):

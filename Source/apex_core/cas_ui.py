@@ -306,8 +306,13 @@ def form_selection_binding(client, sim_id, request, resulting=False):
             raw['alternate_row_count'] != len(pairs)):
         raise ValueError('CAS form selection requires exact bounded parallel rows.')
     index = retained.get('selected_index')
-    if (type(index) is not int or not 0 <= index < len(pairs) or raw.get('selected_index') != index or
-            type(raw.get('selected_index')) is not int or type(raw.get('selected_layer')) is not int or
+    # The raw delivery proves pair identities. Native CAS can subsequently
+    # select another household member without rebroadcasting that inventory.
+    # Bind current selection to the retained selector and fresh native Sim;
+    # the initial feed's selection must be typed/in-range, not identical.
+    if (type(index) is not int or not 0 <= index < len(pairs) or
+            type(raw.get('selected_index')) is not int or not 0 <= raw['selected_index'] < len(raw_pairs) or
+            type(raw.get('selected_layer')) is not int or
             raw['selected_layer'] not in (0, 1) or type(retained.get('selected_layer')) is not int or
             retained['selected_layer'] != expected_layer or retained.get('selected_sim_id') != sim_id):
         raise ValueError('CAS form selection retained index/current layer differs; no other Sim may be selected.')

@@ -1,9 +1,10 @@
 # Multi-hybrid preservation and crash investigation
 
 Development checkpoint, not a completed release. The protected original profile
-remains read/copy only. One disposable profile is reused. Normal Slot02 and
-its backups remain unchanged in the current V86–V90 work. V88 CAS entry
-changed the six disposable autosave-family files; this is recorded explicitly.
+remains read/copy only. One disposable profile is reused. V90 intentionally saved the disposable normal Slot02 after the explicit Alien-only
+commit and verified its stable file hash and complete appearance seal. The
+protected original was untouched. Earlier V88 CAS entry changed the six
+disposable autosave-family files; these writes are recorded explicitly.
 
 ## October 13: native transition repair and full CAS continuation
 
@@ -61,7 +62,49 @@ with all twenty save/backup files unchanged during closure and no new crash.
 V90 CLI launch also handles the observed EA permission dialog, loads the exact
 household without taking focus and opens verified full CAS. The actual failed
 eyebrow swatch becomes terminal `failed`; a subsequent fresh CAS status succeeds.
-Same-visit disguise edits and native semantic return are the next runtime gates.
+V90 then completes semantic native CAS acceptance and matching original-Sim
+Live return without human input, verifies 865 simulation ticks and pauses. Its
+original bank-observation UUID finishes after the return tool's sixty-second
+deadline, recording Alien as the sole changed lane. The same UUID is polled;
+the observation and acceptance are never resubmitted. Explicit Alien-only
+reconciliation and controlled normal Slot02 save/seal both pass.
+
+Same-script cold startup loads that exact normal slot. All seven stored owners,
+the distinct active original Sim and six memberships match the seal before and
+after 1,789 actual simulation ticks. No appearance repair, bank update, save or
+input is submitted by that verifier. The full household comparison separately
+fails for the two imported companions: each stored Alien genetics value changes
+to its distinct active genetics, and each active outfit blob changes. Complete
+field-level differences are retained. The original's certified pass does not
+certify those companions or full-household persistence.
+
+V91 fixes household navigation's use of the initial raw selection index. Raw
+delivery continues to prove exact pair identities/positions, while the retained
+selector and fresh native selected Sim bind the current index, household and
+layer. An initial different member cannot replace that current binding. Thirty
+navigation and sixty-nine retained-bytecode tests pass; the frozen full suite
+passes 1,814 tests. Same-visit disguise runtime acceptance remains a separate
+test.
+
+That actual V91 test then passes twelve distinct selections in one full-CAS
+visit: skin detail, earrings, lipstick, top, hair and shoes separately on Alien
+primary and Human disguise. Each disguise item differs from its Alien counterpart.
+Returning to primary verifies all six Alien selections still equipped. Semantic
+native acceptance returns the original Sim to Live, advances actual simulation
+and pauses. Raw return changes only Human and Alien; explicit acceptance of both
+lanes commits with all native owners verified. Vampire → Alien → Human → Alien
+then passes complete stored/existing active-field comparisons after at least
+2,200 actual ticks per step, with both companions unchanged. A controlled existing
+normal Slot02 save and matching seal pass. This is twelve tested selections,
+not every panel or a saved cold-reload claim for those new edits. The final
+unchanged-source/tool suite passes 1,817 tests.
+
+One later EA launch fails before input when Windows refuses foreground ownership.
+The CLI removes this needless precondition and sends the recognized button's
+messages directly to the same verified window, without moving the cursor or
+requesting focus. Changed window, failed down/release and duplicate input cases
+are checked. Twenty-nine permission-handler checks pass, and actual account-bound
+launch subsequently acknowledges EA consent and starts the expected Sims process.
 
 Private receipts include `multi-v88-imported-continuation.json`,
 `multi-v88-cycle-timeline-audit.json`, `multi-v88-cas-crash-analysis.json`,
@@ -70,7 +113,7 @@ Private receipts include `multi-v88-imported-continuation.json`,
 `multi-v90-resume.json`, `multi-v90-full-cas-entry.json`,
 `multi-v90-eyebrow-exact-swatch.json` and
 `multi-v90-after-failed-swatch-fresh-status.json`. They contain private Sim/vendor
-data and remain outside Git. The V89 frozen full suite passes 1,805 tests; later
+data and remain outside Git. The V90 frozen full suite passes 1,812 tests; later
 targeted Source and CLI checks do not substitute for runtime or exact-head CI.
 
 ## Changes

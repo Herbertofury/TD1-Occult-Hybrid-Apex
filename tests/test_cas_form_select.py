@@ -309,6 +309,32 @@ class CasFormSelectTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError): self.submit(value)
         self.assertEqual(len(cas_ui._RECORDS), 1)
 
+    def test_initial_feed_selection_can_differ_from_current_owned_household_member(self):
+        value = client(base_form=2, alternate_form=1)
+        observation = value['owner_pair_observation']
+        selector = observation['selector_feed']
+        for name in ('raw_feed', 'retained'):
+            extra = copy.deepcopy(selector[name]['pairs'][0])
+            extra['index'] = 1
+            for side in ('base', 'alternate'):
+                extra[side].update(index=1, sim_id='13', selected=False)
+            selector[name]['pairs'].append(extra)
+        selector['raw_feed'].update(selected_index=1, base_row_count=2, alternate_row_count=2)
+        requested = {'operation': 'layer-select', 'household_id': HH, 'expected_layer': 0,
+                     'target_layer': 1, 'native_session': 1}
+        bound = cas_ui.form_selection_binding(value, SIM, requested)
+        self.assertEqual(bound['selected_index'], 0)
+        self.assertEqual(bound['target_layer'], 1)
+        # The current member still cannot be replaced by the initial selection.
+        selector['retained']['selected_index'] = 1
+        with self.assertRaises(ValueError): cas_ui.form_selection_binding(value, SIM, requested)
+
+    def test_initial_feed_selection_still_requires_typed_in_range_identity(self):
+        for index in (-1, 1, True, '0'):
+            value = client(); value['owner_pair_observation']['selector_feed']['raw_feed']['selected_index'] = index
+            with self.subTest(index=index), self.assertRaises(ValueError):
+                cas_ui.form_selection_binding(value, SIM, request())
+
     def test_feed_reset_foreign_or_distinct_wrapper_id_cannot_authorize_navigation(self):
         mutations = [lambda o: o['selector_feed']['raw_feed'].update(delivered=False),
                      lambda o: o['selector_feed'].update(service_registered=False),

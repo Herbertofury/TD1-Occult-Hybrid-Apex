@@ -355,6 +355,8 @@ def _remember_load_owners(tracker, records):
     _apply_load_extras(backend, tracker, records, expected)
     tracker._apex_native_load_records = records
     tracker._apex_native_load_owners = (tracker._sim_info_map, active[0], expected)
+    from .body_hair_initialization import checkpoint_load
+    checkpoint_load(tracker)
 
 
 def install_transition_guard(tracker):
@@ -364,6 +366,11 @@ def install_transition_guard(tracker):
     explicit selections. No bank is read and a missing target is never
     reconstructed. Native traits, outfit selection and gameplay still run.
     """
+    try:
+        from .body_hair_initialization import install as install_hair_refresh
+        tracker._apex_body_hair_refresh_install = install_hair_refresh()
+    except ImportError:
+        tracker._apex_body_hair_refresh_install = False  # No installed game class in offline fixtures.
     cls = type(tracker)
     original = getattr(cls, '_switch_to_occult_type_internal', None)
     if not callable(original):
@@ -471,6 +478,8 @@ def install_transition_guard(tracker):
                     # loading. Recheck the same immutable incoming cores; this
                     # is a read-only authority refresh, not a setter replay.
                     _apply_load_extras(backend, self, getattr(self, '_apex_native_load_records', {}), captured)
+                    from .body_hair_initialization import checkpoint_load
+                    checkpoint_load(self)
                     if any(owner is active[0] or getattr(owner, '_base', owner) is getattr(active[0], '_base', active[0])
                            for owner, _fields in captured.values()):
                         raise ValueError('Loaded native appearance owner is aliased.')

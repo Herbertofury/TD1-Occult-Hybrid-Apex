@@ -6,6 +6,121 @@ commit and verified its stable file hash and complete appearance seal. The
 protected original was untouched. Earlier V88 CAS entry changed the six
 disposable autosave-family files; these writes are recorded explicitly.
 
+## October 14: queued body-hair initialization, V95–V97
+
+The two fresh companions' V94 active genetic deltas add four body-hair parts,
+using different variants from the preferred growth list. Their face/body
+genetics, preferred list and every stored form remain intact. The indexed
+normal save's root genetics exactly match both original active and stored
+Alien records, ruling out the proposed root serializer mismatch for this
+failure. V95's refresh guard fails to install because its signature check
+incorrectly treats EA's required `stat_cache` argument as optional. V96 fixes
+that signature and verifies installation on all five trackers, but reproduces
+the same changes after 2,443 actual ticks. Neither is a successful repair.
+
+V97 binds the exact body-hair requests already queued during native loading
+to their original native tracker, Sim, form map, current kind and immutable
+incoming appearance owners. The first dispatch consumes that capability.
+Only unchanged matching queued entries are removed, and only if the complete
+current appearance still matches the loaded source. Changed requests, other
+body types, newly edited appearances and later growth/shaving stay native.
+The original dispatch runs once with the remaining requests; no save file,
+previous bank or reconstructed Sim supplies appearance authority. The bounded
+runtime receipt records before/after field hashes and the exact suppressed
+initial requests. The module runs at lifecycle/growth boundaries, with no
+new render/frame polling or performance-gain claim.
+
+Actual V97 results on the reused five-member household:
+
+- Both cold-load comparisons pass all **35 stored plus five active owners**,
+  including all twelve currently readable appearance/outfit fields per owner.
+- Native time advances **2,336 ticks** between the paused captures.
+- Native dispatch receipts retain unchanged full appearance hashes and skip
+  the four queued initial body-hair slots; unrelated requests remain native.
+- Initial proof SHA-256:
+  `6c2312a8529742bb11a918937e068db403ddb8f1779e5fcbac9c4fa7329dd55b`.
+- Settled proof SHA-256:
+  `eca38a4204d49f695d040b9208d0acafef180866502a385f3d60630d28ae3a09`.
+
+The first V97 switch attempt stops before native mutation because its old
+test bank is uncertified for this runtime. Twenty successful fresh Live
+checkpoint/observe/prepare/commit commands refresh all five banks from the
+current native owners, retaining every appearance unchanged. They are not
+CAS entry/edit proof. Their complete receipt SHA-256 is
+`5aea0048e15b5cfa4f197a6fbe4c6bcc70893c3e578c654b4b324b6be6b61e4a`.
+The earlier
+25-step run and failed unselected Alien-to-Human transition remain retained.
+All-category/all-member CAS and full production acceptance remain open.
+
+V95 and V96 normal CLI unsaved exits preserve every disposable save/backup,
+without a new native crash. V96 and V97 launches acknowledge the exact EA
+permission window through the saved background broker. The launcher now
+waits on an unterminated live log append; completed malformed or competing
+requests still fail exact validation. The earlier V95 refused handoff and
+delayed actual start are retained, rather than issuing duplicate launches.
+Two V95 pack announcement cards were dismissed through recognized game-window
+Close controls without foreground/cursor changes; their recognition helper
+remains private test tooling, not a shipped general-purpose dismissal feature.
+
+Final frozen V97 source/tool suite: **1,854 tests pass in 322.029 seconds**.
+Candidate ZIP SHA-256:
+`3787d65daa8432b16b4074ee508b7e077667359c1550898fea79fae87e33591a`.
+The build verifies 85 Python 3.7 modules, seven packages/206 resources, and the
+unchanged native DLL. This remains a development candidate pending the open
+production workflow gates.
+
+The next V97 whole-roster run passes six targeted transitions, then fails
+strictly on the original Spellcaster's active outfit at step seven. Its
+incoming Everyday row has ID zero and no `parts` field. Native progression
+fills that empty placeholder and appends category-5/category-9 rows. All
+existing non-ID row bytes, root unknown bytes, genetics, other appearance
+fields, stored owners and companions remain intact. The failed strict receipt
+stays unchanged. `household-stress` now classifies this exact empty native
+initialization separately: a positive-ID or part-containing original cannot
+qualify; all existing metadata/unknown bytes must remain exact, and additions
+are limited to the inspected OutfitData generation fields. It never counts
+such generation as an actual CAS edit. The rerun remains a separate proof.
+
+## V98: edits before the first unpause
+
+V97's conservative whole-appearance match would leave an old queued load
+update native when a fresh edit had already changed the appearance. V98 adds
+per-slot native request generations. An exact original native owner and
+unchanged pre-readiness request generation authorize skipping only that
+old initialization request. A later request remains native even at the same
+numeric level. A newer appearance is never replaced with the loaded snapshot.
+This capability is consumed before the single native dispatch and never
+reconstructed from a historical bank.
+
+In the actual five-Sim game, the CLI changes the original Alien's equipped
+lipstick hue while the newly loaded household remains paused, before any
+simulation progression. It then advances **2,360 simulation ticks**, verifies
+the hue remains **0.1500244140625** (the requested 0.15 encoded in Q14), and
+checks every returned field on all 35 stored and five active owners against
+the fresh edited state. There are no differences. The dispatch receipt
+explicitly reports `load_appearance_verified: false`, exact native ownership
+and unchanged fresh appearance after skipping the old queued slots. Undo
+then restores the entire original household appearance inventory exactly.
+Receipt SHA-256:
+`e3f2a8f98ecfe7a18d16271818332220309d78d9caf2cf2ba2502752e69a2594`.
+
+The V97 generation-aware switch run passes 19 targeted transitions and stops
+on an unselected companion changing Alien to Mermaid during simulation. A
+separate complete comparison proves departing Alien edits were retained,
+the active Mermaid matches its prior stored owner, and every other returned
+field/form stays exact. Its original failed receipt remains immutable.
+The CLI now classifies only such completely verified companion transitions;
+it does not claim their trigger or tolerate changed/missing source/target
+fields. Unknown/composite forms and merged/lost edits still fail.
+
+Frozen V98 source/tool suite: **1,857 tests pass in 258.933 seconds**.
+Candidate ZIP SHA-256:
+`44c9702143c4b057a321df466d9e221739fe74900d3ad47c92b43d6429d3a817`.
+The build retains 85 compiled Python 3.7 modules, seven packages/206 resources
+and the unchanged native DLL. The protected original remains read/copy only.
+This is still a development candidate; full CAS/MCCC/Tray production gates
+remain open.
+
 ## October 13: native transition repair and full CAS continuation
 
 V86 tracing identified the actual nested selection failure: native trait refresh

@@ -6,7 +6,7 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Current development checkpoint — October 13 multi-hybrid preservation:**
+**Current development checkpoint — October 14 multi-hybrid preservation:**
 The disposable household contains five Sims with all six actual occult
 memberships and seven appearance owners each. V91 verifies twelve distinct
 full-CAS Alien/Human disguise edits and the original Sim's saved cold reload.
@@ -19,10 +19,18 @@ carrier for fields absent from the native occult schema. V94 reads that carrier
 from the indexed save only when the incoming native core and identities match,
 because EA strips its unknown data from the loaded buffer. All 35 stored owners
 now pass the real cold-load comparison before/after unpause, including every
-Werewolf pelt. Two companions' active appearance still changes during initial
-simulation. The latest cycle passes 25 targeted transitions while checking all
-five members, then stops on an unselected Alien's transition to Human. The
-whole-household gate remains open. The frozen suite passes **1,840 tests**.
+Werewolf pelt. V97 also preserves all five active appearances after cold load
+and **2,336 real simulation ticks**. It prevents exact queued native-load
+body-hair updates from replacing the restored CAS choices, while preserving
+later growth, shaving and fresh edits. All 35 stored and five active owners
+match every returned appearance field. V98 preserves a new Live color edit made
+before the first unpause through **2,360 simulation ticks**, then verifies Undo
+restores every household appearance. Per-slot request generations distinguish
+old load requests from later genuine growth/shaving at the same level.
+The frozen suite passes **1,857 tests**.
+The previous cycle passed 25 targeted transitions before an unselected Alien
+changed to Human. Its failed evidence remains retained; the complete household
+switch and CAS edit gates remain open.
 
 `household-stress` adds complete-roster capture/compare/cycle checks and an
 explicit **5,390-cell** CAS edit matrix. New fields, changed companions and

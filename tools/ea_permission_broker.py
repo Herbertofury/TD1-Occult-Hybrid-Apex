@@ -193,6 +193,11 @@ def processing_record(log, offset=None):
     with log.open('rb') as stream:
         stream.seek(offset if offset is not None else max(0, size - 2 * 1024 * 1024))
         text = stream.read(2 * 1024 * 1024 + 1).decode('utf-8', 'replace')
+    if text and not text.endswith('\n'):
+        # The live logger can expose an unfinished Issuing/serialization line.
+        # Its later completed record is still subject to every exact check;
+        # a partial tail authorizes neither input nor fallback to old history.
+        raise LaunchRecordPending('Fresh EA launch log has an unfinished append; observe the same handoff again.')
     raw_lines = text.splitlines()
     starts = [i for i, line in enumerate(raw_lines) if 'Handling game launch request' in line]
     legacy_starts = [i for i, line in enumerate(raw_lines) if 'Processing launch request:' in line]

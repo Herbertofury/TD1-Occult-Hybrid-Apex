@@ -194,6 +194,15 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
         retention = getattr(sim.occult_tracker, '_apex_native_transition_retention', None)
         if isinstance(retention, dict):
             result['native_transition_retention'] = copy.deepcopy(retention)
+        hair_refresh = getattr(sim.occult_tracker, '_apex_body_hair_refresh_retention', None)
+        hair_installed = getattr(sim.occult_tracker, '_apex_body_hair_refresh_install', None)
+        if type(hair_installed) is bool:
+            result['native_body_hair_refresh_installed'] = hair_installed
+        if isinstance(hair_refresh, tuple):
+            result['native_body_hair_refresh_retention'] = copy.deepcopy(list(hair_refresh))
+        hair_dispatch = getattr(sim.occult_tracker, '_apex_body_hair_load_dispatch', None)
+        if isinstance(hair_dispatch, dict):
+            result['native_body_hair_load_dispatch'] = copy.deepcopy(hair_dispatch)
         load_appearance = getattr(sim.occult_tracker, '_apex_native_load_appearance_retention', None)
         if isinstance(load_appearance, dict):
             result['native_load_appearance_retention'] = copy.deepcopy(load_appearance)

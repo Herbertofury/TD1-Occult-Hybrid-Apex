@@ -75,22 +75,24 @@ def validate(snapshot, sid, ids, household, guid):
             raise ValueError('Every native returned field and its complete payload must be retained.')
 
 
+def _outfit_rows(payload):
+    raw = appearance.decode(payload['typed_payload']['__outfits__'])[1]
+    offset, rows, other = 0, {}, []
+    while offset < len(raw):
+        start = offset
+        number, kind, offset, value = outfit_wire.field(raw, offset)
+        if number == 1:
+            if kind != 2:
+                raise ValueError('Outfit row wire differs.')
+            rows.setdefault(outfit_wire.category(value), []).append(value)
+        else:
+            other.append(raw[start:offset])
+    return rows, other
+
+
 def appended_outfits(before, after):
     """Allow only exact existing rows plus bounded native append-only rows."""
-    def parse(payload):
-        raw = appearance.decode(payload['typed_payload']['__outfits__'])[1]
-        offset, rows, other = 0, {}, []
-        while offset < len(raw):
-            start = offset
-            number, kind, offset, value = outfit_wire.field(raw, offset)
-            if number == 1:
-                if kind != 2:
-                    raise ValueError('Outfit row wire differs.')
-                rows.setdefault(outfit_wire.category(value), []).append(value)
-            else:
-                other.append(raw[start:offset])
-        return rows, other
-    a, old_other = parse(before); b, new_other = parse(after)
+    a, old_other = _outfit_rows(before); b, new_other = _outfit_rows(after)
     if old_other != new_other or any(b.get(category, [])[:len(rows)] != rows for category, rows in a.items()):
         raise ValueError('Existing outfit/index or unknown root bytes changed.')
     added = [{'category': category, 'index': i, 'sha256': hashlib.sha256(raw).hexdigest(), 'bytes': len(raw)}
@@ -98,6 +100,60 @@ def appended_outfits(before, after):
     if not 0 < len(added) <= 32:
         raise ValueError('Outfit delta is not a bounded nonempty native append.')
     return added
+
+
+def initialized_empty_outfits(before, after):
+    """Recognize EA filling a zero-ID, part-free placeholder, never an edit."""
+    def fields(raw):
+        offset, rows = 0, []
+        while offset < len(raw):
+            start = offset
+            n, wire, offset, value = outfit_wire.field(raw, offset)
+            rows.append((n, wire, value, raw[start:offset]))
+        return rows
+    a, old_other = _outfit_rows(before); b, new_other = _outfit_rows(after)
+    if old_other != new_other:
+        raise ValueError('Unknown outfit root bytes changed.')
+    generated, initialized = [], 0
+    for category, old_rows in a.items():
+        new_rows = b.get(category, [])
+        if len(new_rows) < len(old_rows):
+            raise ValueError('An existing outfit index was removed.')
+        for index, old in enumerate(old_rows):
+            new = new_rows[index]
+            if old == new:
+                continue
+            x, y = fields(old), fields(new)
+            uid_before = [r for r in x if r[0] == 1]
+            uid_after = [r for r in y if r[0] == 1]
+            parts_before = [r for r in x if r[0] == 5]
+            parts_after = [r for r in y if r[0] == 5]
+            if (len(uid_before) != 1 or uid_before[0][1:3] != (0, 0) or
+                    len(uid_after) != 1 or uid_after[0][1] != 0 or not 0 < uid_after[0][2] < 1 << 64 or
+                    any(r[1] != 2 or r[2] != b'' for r in parts_before) or len(parts_before) > 1 or
+                    len(parts_after) != 1 or parts_after[0][1] != 2 or not parts_after[0][2]):
+                raise ValueError('Existing outfit is not an empty native zero-ID placeholder.')
+            # Preserve every other existing field's complete bytes and order.
+            # Only the inspected OutfitData generation fields may be added.
+            old_numbers = {r[0] for r in x}
+            existing_x = [r[3] for r in x if r[0] not in (1, 5)]
+            existing_y = [r[3] for r in y if r[0] in old_numbers and r[0] not in (1, 5)]
+            added = [r for r in y if r[0] not in old_numbers]
+            if (existing_x != existing_y or
+                    len({r[0] for r in added}) != len(added) or
+                    any(n not in (5, 6, 7, 12, 14, 15) or wire != (0 if n == 6 else 2)
+                        for n, wire, _v, _raw in added)):
+                raise ValueError('Generation replaced existing metadata or added unknown fields.')
+            generated.append({'category': category, 'index': index, 'kind': 'initialized-empty-native-outfit',
+                'before_sha256': hashlib.sha256(old).hexdigest(), 'after_sha256': hashlib.sha256(new).hexdigest(),
+                'native_outfit_id': str(uid_after[0][2]), 'existing_fields_and_unknown_bytes_preserved': True})
+            initialized += 1
+    generated.extend({'category': c, 'index': i, 'kind': 'appended-native-outfit',
+                      'sha256': hashlib.sha256(raw).hexdigest(), 'bytes': len(raw)}
+                     for c, rows in b.items() for i, raw in enumerate(rows) if i >= len(a.get(c, [])))
+    if not initialized or len(generated) > 32:
+        raise ValueError('No bounded native placeholder initialization was proved.')
+    return generated
 
 
 def differences(left, right, include_active=True, native_appends=None):
@@ -118,8 +174,11 @@ def differences(left, right, include_active=True, native_appends=None):
                 try:
                     added = appended_outfits(a[lane], b[lane])
                 except ValueError:
-                    pass  # Preserve a destructive/unknown delta as a failure.
-                else:
+                    try:
+                        added = initialized_empty_outfits(a[lane], b[lane])
+                    except ValueError:
+                        added = None  # Destructive/unknown changes remain failures.
+                if added is not None:
                     native_appends.append({'sim_id': sid, 'lane': lane, 'rows': added})
                     changed = {}
             if changed:
@@ -129,6 +188,36 @@ def differences(left, right, include_active=True, native_appends=None):
                 result.append({'sim_id': sid, 'context': name,
                                'before': left[sid]['sim'][name], 'after': right[sid]['sim'][name]})
     return result
+
+
+def retained_companion_transitions(before, after, selected):
+    """Accept only complete observed source/target retention, never a waiver."""
+    expected, transitions = copy.deepcopy(before), []
+    for sid in before:
+        if sid == selected or sid not in after:
+            continue
+        source = before[sid]['sim']['current_form']
+        target = after[sid]['sim']['current_form']
+        if source == target:
+            continue
+        if source not in FORMS or target not in FORMS:
+            raise ValueError('Unselected Sim changed to an unknown/composite form.')
+        row = copy.deepcopy(before[sid])
+        for owner in row['sim']['form_appearances']:
+            if owner['flags'] == source:
+                owner['appearance'] = copy.deepcopy(before[sid]['sim']['full_appearance'])
+        row['sim']['current_form'] = target
+        row['sim']['full_appearance'] = copy.deepcopy(owners(before[sid])[str(target)])
+        generated = []
+        changed = differences({sid: row}, {sid: after[sid]}, native_appends=generated)
+        if changed:
+            raise ValueError('Unselected form transition lost source edits, target identity or another owner.')
+        expected[sid] = row
+        transitions.append({'sim_id': sid, 'source_form': source, 'target_form': target,
+            'complete_source_target_retention_verified': True, 'all_other_stored_fields_verified': True,
+            'native_generated_outfits': generated, 'cli_switch_submitted_for_this_sim': False,
+            'transition_trigger_proved': False})
+    return expected, transitions
 
 
 def run(args, request=None, identity_provider=None, pause=time.sleep):
@@ -208,6 +297,7 @@ def run(args, request=None, identity_provider=None, pause=time.sleep):
                     # The departing form owns its fresh active edits. Every
                     # other stored owner and every unselected Sim stay exact.
                     expected = copy.deepcopy(before)
+                    expected, step['unselected_retained_transitions'] = retained_companion_transitions(before, after, sid)
                     departing = before[sid]['sim']['current_form']
                     for row in expected[sid]['sim']['form_appearances']:
                         if row['flags'] == departing:

@@ -191,6 +191,24 @@ class PermissionPipelineTests(unittest.TestCase):
             with self.subTest(new=new):
                 self.reject([self.lines[0].replace(old, new)] + self.lines[1:])
 
+    def test_partial_append_remains_pending_and_completed_invalid_line_still_refuses(self):
+        prefix = '\n'.join(self.lines[:2]) + '\n'
+        partial = self.lines[2][:-3]
+        self.log.write_text(prefix + partial, encoding='utf-8')
+        with self.assertRaises(broker.LaunchRecordPending):
+            broker.processing_record(self.log, 0)
+        completed = self.parse(self.lines)
+        self.assertEqual(completed['content_id'], '1015806')
+        bad = self.lines[2].replace('content[1015806]', 'content[1019999]')
+        self.log.write_text(prefix + bad, encoding='utf-8')
+        with self.assertRaises(broker.LaunchRecordPending):
+            broker.processing_record(self.log, 0)
+        with self.log.open('a', encoding='utf-8') as stream:
+            stream.write('\n')
+        with self.assertRaises(ValueError) as failure:
+            broker.processing_record(self.log, 0)
+        self.assertNotIsInstance(failure.exception, broker.LaunchRecordPending)
+
     def test_all_record_headers_require_one_exact_positive_pid_tid(self):
         for index in range(4):
             for old, new in (('PID:  6012', 'PID:  6013'), ('TID: 46420', 'TID: 46421'),

@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 import household_stress as stress
-from test_outfit_snapshot import outfit
+from test_outfit_snapshot import outfit, varint
 from apex_core.form_appearance import encode
 
 
@@ -21,6 +21,44 @@ def sample(ids=('1', '2')):
 
 
 class HouseholdStressTests(unittest.TestCase):
+    def test_companion_transition_must_retain_latest_source_and_exact_target_and_every_other_field(self):
+        before = sample(); after = copy.deepcopy(before)
+        sim = after['2']['sim']; sim['current_form'] = 8
+        for row in sim['form_appearances']:
+            if row['flags'] == 2: row['appearance'] = copy.deepcopy(before['2']['sim']['full_appearance'])
+        sim['full_appearance'] = copy.deepcopy(stress.owners(before['2'])['8'])
+        expected, retained = stress.retained_companion_transitions(before, after, '1')
+        self.assertEqual(stress.differences(expected, after), [])
+        self.assertTrue(retained[0]['complete_source_target_retention_verified'])
+        for location in ('source', 'target', 'another'):
+            broken = copy.deepcopy(after)
+            row = broken['2']['sim']['full_appearance'] if location == 'target' else next(
+                r['appearance'] for r in broken['2']['sim']['form_appearances']
+                if r['flags'] == (2 if location == 'source' else 4))
+            row['field_sha256']['future_new_cas_field'] = 'lost'
+            with self.subTest(location=location), self.assertRaises(ValueError):
+                stress.retained_companion_transitions(before, broken, '1')
+
+    def test_only_part_free_zero_id_native_placeholder_can_initialize(self):
+        metadata = b'\x48\x01\x6a\x00\xa3\x01\x08\x07\xa4\x01'
+        def row(uid, parts=b'', extra=b''):
+            raw = b'\x08' + varint(uid) + b'\x10\x00' + parts + metadata + extra
+            return b'\x0a' + varint(len(raw)) + raw
+        def payload(raw):
+            return {'typed_payload': {'__outfits__': encode(('protobuf', raw))}}
+        before = payload(row(0) + b'\x10\x03')
+        after = payload(row(999, b'\x2a\x03\x08\x91\x01') + outfit(5, 44) + b'\x10\x03')
+        generated = stress.initialized_empty_outfits(before, after)
+        self.assertEqual(generated[0]['native_outfit_id'], '999')
+        self.assertEqual(generated[1]['category'], 5)
+        for old, new in ((row(4), row(999, b'\x2a\x03\x08\x91\x01')),
+                         (row(0, b'\x2a\x03\x08\x91\x01'), row(999, b'\x2a\x03\x08\x92\x01')),
+                         (row(0), row(999, b'\x2a\x03\x08\x91\x01', b'\xb8\x01\x01')),
+                         (row(0), row(999, b'\x2a\x03\x08\x91\x01').replace(b'\x48\x01', b'\x48\x00')),
+                         (row(0), row(999))):
+            with self.subTest(old=old, new=new), self.assertRaises(ValueError):
+                stress.initialized_empty_outfits(payload(old), payload(new))
+
     def test_only_bounded_appends_preserve_existing_outfit_and_unknown_bytes(self):
         a = {'typed_payload': {'__outfits__': encode(('protobuf', outfit(0, 1) + b'\x10\x03'))}}
         b = {'typed_payload': {'__outfits__': encode(('protobuf', outfit(0, 1) + outfit(7, 2) + b'\x10\x03'))}}

@@ -748,7 +748,7 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
 
 
 def receive(request_id, payload, backend=None):
-    """Retain every rejected native success while keeping its claim blocked."""
+    """Retain rejected successes; only complete target mismatches can finish failed."""
     try:
         return _receive(request_id, payload, backend)
     except (ValueError, KeyError, TypeError) as error:
@@ -764,6 +764,21 @@ def receive(request_id, payload, backend=None):
                     if row and row['state'] == 'pending' and row['request']['operation'] != 'accept':
                         row['rejected_acknowledgement'] = copy.deepcopy(data)
                         row['acknowledgement_validation_error'] = str(error)
+                        # A typed, same-Sim, complete swatch readback is a known
+                        # failed postcondition, not a lost response. Keep its
+                        # exact packet and failure; never resend or claim success.
+                        # Malformed replies, history and ownership transitions
+                        # remain unresolved and cannot unlock later mutations.
+                        if (isinstance(error, cas_controls.PostconditionMismatch) and
+                                row['request']['operation'] == 'swatch'):
+                            validate_client(data.get('client'), row['sim_id'], {'operation': 'status'})
+                            row.update(state='failed', result={
+                                'ok': False, 'outcome': 'native-postcondition-failed',
+                                'cas_request_id': request_id, 'message': str(error),
+                                'native_acknowledgement': copy.deepcopy(data),
+                                'native_acknowledgement_sha256': _baseline_hash(data),
+                                'mutation_started': data.get('mutation_started') is True,
+                                'retry_submitted': False, 'postcondition_verified': False})
         raise
 
 
@@ -776,6 +791,11 @@ def _receive(request_id, payload, backend=None):
     with _LOCK:
         row = _RECORDS.get(request_id)
         if row is None: raise ValueError('Unsolicited CAS client response.')
+        if (row['state'] == 'failed' and isinstance(row.get('result'), dict) and
+                row['result'].get('outcome') == 'native-postcondition-failed'):
+            if row['rejected_acknowledgement'] != data:
+                raise ValueError('CAS failed postcondition acknowledgement changed.')
+            return
         if row['request']['operation'] == 'accept':
             if row['result'] == data or row.get('accept_intent') == data:
                 return  # A duplicate same-nonce intent cannot submit again.

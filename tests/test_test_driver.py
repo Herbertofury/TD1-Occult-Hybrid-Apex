@@ -239,6 +239,8 @@ class TestDriverTests(unittest.TestCase):
         persistence.get_household_proto_buff.assert_not_called()
 
     def test_cas_uses_actual_string_target_contract_not_integer(self):
+        from apex_core import cas_entry_context
+        self.enterContext(patch.object(cas_entry_context, 'prepare', return_value={'ok': True, 'prepared_members': []}))
         sim = Obj(id=(1 << 63) + 7, get_sim_instance=lambda: object())
         fake = Obj(_get_sim_info_by_id=lambda _: sim,
             services=Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=5))))
@@ -273,6 +275,8 @@ class TestDriverTests(unittest.TestCase):
         self.assertEqual(sim.load_outfits.call_args[0][0].raw, b'full native bytes\x00\xff')
 
     def test_full_cas_enables_native_full_edit_on_observed_client_before_entry(self):
+        from apex_core import cas_entry_context
+        self.enterContext(patch.object(cas_entry_context, 'prepare', return_value={'ok': True, 'prepared_members': []}))
         sim = Obj(id=123, get_sim_instance=lambda: object())
         fake = Obj(_get_sim_info_by_id=lambda _: sim,
             services=Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987))))
@@ -311,6 +315,8 @@ class TestDriverTests(unittest.TestCase):
         cheat.assert_not_called()
 
     def test_rejected_native_cas_entry_keeps_form_checkpoint_for_recovery(self):
+        from apex_core import cas_entry_context
+        self.enterContext(patch.object(cas_entry_context, 'prepare', return_value={'ok': True, 'prepared_members': []}))
         sim = Obj(id=123, get_sim_instance=lambda: object())
         fake = Obj(_get_sim_info_by_id=lambda _: sim,
             services=Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987))))

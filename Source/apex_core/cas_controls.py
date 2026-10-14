@@ -5,6 +5,11 @@ Native null, refusal and unresolved writes remain explicit outcomes.
 """
 import math
 
+
+class PostconditionMismatch(ValueError):
+    """A complete native readback differs from the requested target value."""
+
+
 READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'modifiers', 'hair-matching',
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
@@ -255,8 +260,11 @@ def validate(client, request):
             if not isinstance(selected, dict):
                 raise ValueError('Native skin tone did not return its complete modifier record.')
             selected = selected.get('dataID')
+        if (not isinstance(selected, str) or not selected.isascii() or not selected.isdecimal() or
+                str(int(selected)) != selected or not 0 < int(selected) < 2**64):
+            raise ValueError('Native swatch lacks a canonical selected identity.')
         if selected != request['data_id']:
-            raise ValueError('Native swatch did not read back its exact selected identity.')
+            raise PostconditionMismatch('Native swatch did not read back its exact selected identity.')
     if op == 'physique':
         values = client['sim'].get('physiqueValues')
         if (not isinstance(values, list) or len(values) <= request['physique_type'] or

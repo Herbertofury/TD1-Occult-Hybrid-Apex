@@ -182,6 +182,12 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
     if sim is None and isinstance(getattr(backend, '_apex_native_load_failure', None), dict):
         result['native_load_failure'] = copy.deepcopy(backend._apex_native_load_failure)
     elif sim is not None:
+        trace = getattr(sim.occult_tracker, '_apex_explicit_switch_trace', None)
+        if isinstance(trace, dict):
+            result['explicit_switch_trace'] = copy.deepcopy(trace)
+        cleanup = getattr(sim.occult_tracker, '_apex_foreign_current_trait_cleanup', None)
+        if isinstance(cleanup, dict):
+            result['foreign_current_trait_cleanup'] = copy.deepcopy(cleanup)
         projection = getattr(sim.occult_tracker, '_apex_native_witch_genetics_projection', None)
         if isinstance(projection, dict):
             result['native_genetics_projection'] = copy.deepcopy(projection)
@@ -708,10 +714,13 @@ def dispatch(backend, action, sim_id, value):
             client_cheat('cas.fulleditmode', client.id)
         # Single-Sim CAS hides personality and the selector even with full-edit.
         # Use the native existing-household entry with the same protected Sim.
+        from .cas_entry_context import prepare as prepare_cas_context
+        preparation = prepare_cas_context(backend, sim, argument == 'full')
         entry = modify_in_cas_with_household_id if argument == 'full' else modify_in_cas
         submitted = entry(OptionalTargetParam(str(sim.id)), _connection=client.id)
         return {'ok': bool(submitted), 'transition': 'cas-entry-submitted', 'before': before,
                 'form_checkpoint': protection,
+                'native_pair_preparation': preparation,
                 'original_owner': owner_observation,
                 'requested_editor': 'existing-household-full' if argument == 'full' else 'existing-single-sim',
                 'cas_visible_verified': False, 'message': 'CAS entry submitted to the real game client; UI completion must be observed separately.'}

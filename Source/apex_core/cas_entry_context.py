@@ -1,0 +1,107 @@
+"""Project an existing household into consistent native CAS appearance pairs.
+
+The legacy trait-based availability calculation can advertise Fairy while the
+active appearance is Alien. CAS requires the selected native kind in its pair.
+This preparation changes only native availability, preserving every existing
+appearance owner, trait and current kind. The selected CAS transaction already
+holds the exact original availability for its explicit return commit.
+"""
+import hashlib
+import json
+import os
+from pathlib import Path
+import uuid
+from . import form_appearance as appearance, native_occult_context as context
+from .occult_add_guard import publish
+from .overlay_loader import _unlinked
+
+
+def prepare(backend, selected, full_household):
+    if type(full_household) is not bool:
+        raise ValueError('CAS entry requires a typed household scope.')
+    household = backend.services.active_household()
+    if household is None or household.id != selected.household_id:
+        raise ValueError('CAS entry requires the exact loaded existing household.')
+    members = list(household.sim_info_gen()) if full_household else [selected]
+    if not 1 <= len(members) <= 8 or selected not in members or len({sim.id for sim in members}) != len(members):
+        raise ValueError('CAS household inventory is incomplete or ambiguous.')
+    rows = []
+    for sim in members:
+        if backend._get_sim_info_by_id(str(sim.id)) is not sim or sim.household_id != household.id:
+            raise ValueError('CAS household member is no longer the exact native manager owner.')
+        tracker = sim.occult_tracker
+        forms = backend._form_map(tracker)
+        current = backend._get_current_flags(sim)
+        # Ordinary single-form Sims keep native behavior.
+        if not isinstance(forms, dict) or len(forms) < 3:
+            continue
+        if current not in (1, 2, 4, 8, 16, 32, 64) or current not in forms or 1 not in forms:
+            raise ValueError('CAS pair requires existing Human and selected native appearance owners.')
+        if current != 1 and not tracker.has_occult_type(backend._coerce_flags(current)):
+            raise ValueError('CAS selected kind has no actual occult membership.')
+        before = context.capture(backend, sim)
+        if before is None:
+            raise ValueError('CAS pair preparation requires complete distinct native base owners.')
+        owners = dict(forms, active=sim)
+        packed = {str(kind): appearance.packed(backend, owner) for kind, owner in owners.items()}
+        traits = backend._disk_trait_snapshot(sim)
+        rows.append((sim, forms, dict(forms), owners, before, packed, traits, 1 | current))
+    if not rows:
+        return {'ok': True, 'prepared_members': [], 'native_availability_written': False}
+    path = _unlinked(Path(backend._data_directory()) / 'household_cas_entry.json')
+    if path.exists():
+        raw = path.read_bytes()
+        if len(raw) > 32 * 1024 * 1024:
+            raise ValueError('Prior CAS preparation exceeds its recovery bound.')
+        previous = json.loads(raw.decode('utf-8'))
+        if previous.get('stage') not in ('verified',):
+            raise ValueError('A prior CAS pair preparation is unresolved; no replay authorized.')
+        archive = _unlinked(path.with_name('household_cas_entry.' + hashlib.sha256(raw).hexdigest() + '.json'))
+        if archive.exists():
+            if archive.read_bytes() != raw:
+                raise ValueError('CAS preparation archive differs from its exact preimage.')
+        else:
+            with archive.open('xb') as stream:
+                stream.write(raw); stream.flush(); os.fsync(stream.fileno())
+    proof = {'schema': 1, 'id': uuid.uuid4().hex, 'stage': 'intent', 'runtime_pid': os.getpid(),
+             'household_id': str(household.id), 'selected_sim_id': str(selected.id),
+             'save_guid': str(backend.services.get_persistence_service().get_save_slot_proto_guid()),
+             'members': [{'sim_id': str(sim.id), 'before_context': before,
+                          'original_appearances': packed, 'original_traits': traits,
+                          'requested_available': pair, 'write_attempted': False}
+                         for sim, forms, identities, owners, before, packed, traits, pair in rows],
+             'current_kind_written': False, 'trait_written': False, 'appearance_written': False,
+             'forms_created': False, 'save_written': False, 'crash_fix_verified': False}
+    publish(path, proof)  # Every complete preimage precedes all native setters.
+    try:
+        for row, held in zip(proof['members'], rows):
+            sim, forms, identities, owners, before, packed, traits, pair = held
+            if before['active']['available'] != pair:
+                row['write_attempted'] = True; proof['stage'] = 'native-write-intent'; publish(path, proof)
+                backend._set_flags(sim, 'occult_types', pair)
+            after = context.read(backend, sim)
+            if (sim.occult_tracker._sim_info_map is not forms or set(forms) != set(identities) or
+                    any(forms[kind] is not owner for kind, owner in identities.items()) or set(after) != set(before) or
+                    any(after[kind]['current'] != before[kind]['current'] for kind in before)):
+                raise ValueError('CAS pair preparation changed native owner identities or current kind.')
+            available = after['active']['available']
+            # Native Vampire/Witch normalization may omit the Human bit.
+            # Admit only its existing current kind, never extra map-derived kinds.
+            current = before['active']['current']
+            if (available & current != current or available & ~pair or
+                    any(value['available'] != available for value in after.values())):
+                raise ValueError('Native CAS availability did not retain its selected existing kind and pair.')
+            if backend._disk_trait_snapshot(sim) != traits:
+                raise ValueError('CAS pair preparation changed occult/gameplay traits.')
+            if any(appearance.fingerprint(appearance.packed(backend, owner)) != appearance.fingerprint(packed[str(kind)])
+                   for kind, owner in owners.items()):
+                raise ValueError('CAS pair preparation changed a native appearance; originals retained.')
+            row.update(after_context=after, verified=True); proof['stage'] = 'verifying'; publish(path, proof)
+        proof['stage'] = 'verified'; publish(path, proof)
+    except Exception as error:
+        proof.update(stage='unresolved', error=str(error)[:2048], retry_safe=False); publish(path, proof)
+        raise
+    return {'ok': True, 'prepared_members': [{'sim_id': row['sim_id'], 'available': row['after_context']['active']['available'],
+                                            'current': row['after_context']['active']['current']} for row in proof['members']],
+            'native_availability_written': any(row['write_attempted'] for row in proof['members']),
+            'all_appearances_and_traits_unchanged': True, 'recovery_id': proof['id'], 'crash_fix_verified': False}

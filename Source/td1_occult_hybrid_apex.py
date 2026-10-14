@@ -2928,7 +2928,13 @@ def _switch_to(tracker, occult_type):
             not hasattr(tracker, '_pending_occult_type')):
         return False
     try:
-        tracker.switch_to_occult_type(occult_type)
+        from apex_core.test_driver import runtime_identity
+        if '__file__' in globals() and runtime_identity(__file__).get('test_token'):
+            from apex_core.switch_trace import Selection
+            with Selection(tracker, occult_type):
+                tracker.switch_to_occult_type(occult_type)
+        else:
+            tracker.switch_to_occult_type(occult_type)
         if _get_current_flags(tracker._sim_info) != _int_value(occult_type):
             return False
         tracker.set_pending_occult_type(None)

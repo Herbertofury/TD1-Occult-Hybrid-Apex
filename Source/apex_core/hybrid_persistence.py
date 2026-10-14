@@ -349,6 +349,8 @@ def install_transition_guard(tracker):
     original = getattr(cls, '_switch_to_occult_type_internal', None)
     if not callable(original):
         return False
+    from .foreign_current_trait import install as install_trait_cleanup
+    install_trait_cleanup(tracker)
     if getattr(original, '_apex_native_transition_guard', False):
         return True
 

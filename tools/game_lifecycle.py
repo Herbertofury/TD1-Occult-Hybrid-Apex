@@ -511,6 +511,24 @@ def shutdown(state, output, identity, request, capture=game_capture.capture, ocr
             diagnostic = {'ok': False, 'error': str(error)}
         record('cas-shutdown-preflight', diagnostic, require_ok=False)
         guard = shutdown_cas_state(diagnostic)
+        if (not save and guard.get('outcome') == 'cas-unresolved-refused' and
+                isinstance(diagnostic, dict) and diagnostic.get('native_peers') == []):
+            rows = diagnostic.get('requests', [])
+            eligible = [row for row in rows if isinstance(row, dict) and
+                        row.get('state') == 'pending' and row.get('operation') == 'swatch']
+            if eligible:
+                receipts = {row['cas_request_id']: record('retained-failed-swatch:' + row['cas_request_id'],
+                    request(state, 'cas_ui_result', sim_id=sim_id, value=row['cas_request_id']), require_ok=False)
+                    for row in eligible}
+                try:
+                    from cas_failed_readback import classify
+                    projected, evidence = classify(diagnostic, receipts, sim_id)
+                    reconciled = shutdown_cas_state(projected)
+                    if reconciled.get('safe') is True:
+                        guard = dict(reconciled, unsaved_closure_only=True)
+                        proof.setdefault('completed_failed_readbacks', []).append(evidence)
+                except (ValueError, TypeError, KeyError) as error:
+                    proof['failed_readback_classification_error'] = str(error)
         proof['cas_shutdown_guard'] = guard
         write_json(output, proof)
         if guard['safe'] is not True:

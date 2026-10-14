@@ -12,16 +12,23 @@ disposable Sim, completes native spawns after unpause and verifies represented
 stored appearances plus native persistence-buffer membership. Adding an occult
 preserves every existing appearance owner. Generated, unverified Gallery
 metadata is blocked from the game's Tray after reproducing startup crashes.
-Imported Human → Alien still needs complete runtime acceptance: distinct current
-body-hair records must survive alongside outfits and all other fields. Complete
-failure preimages and native observations are retained; rejection never becomes
-permission to replay or save. V85 passes 1,787 frozen unit checks. Real-game
-genetics/body-hair restoration now preserves the original CC eyelashes and every
-other appearance field, but the imported Sim still returns to Human before
-switch acceptance. All seven stored appearances remain exact; the selected
-active form is not yet stable. The CLI reports that failure without saving or
-replaying it. Full CAS/MCCC/every-panel acceptance, all-field household
-archives and saved cold reload remain open. See the
+Native tracing identified foreign current-trait cleanup forcing another active
+occult back to Human. The scoped guard retains normal trait removal/effects and
+suppresses only that unrelated nested Human switch. V88 passes eighteen actual
+unpaused transitions across two imported hybrids, including Human from
+Spellcaster. V89 accepts six distinct edits in verified full Alien CAS, commits
+only the Alien owner and passes eleven subsequent transitions while all seven
+stored owners and both other household Sims remain exact. Actual simulation
+progress is checked; generated extra outfits are retained explicitly rather
+than weakening existing-field comparisons. The V89 unchanged-source suite
+passes 1,805 tests. V90 adds complete failed-swatch acknowledgement handling;
+malformed replies and unresolved ownership transitions still block writes.
+The CLI also verifies normal unsaved closure through both menus without taking
+focus or requiring a person, retaining the old failed response unchanged.
+V88's earlier full-household CAS crash remains retained. CAS pair preparation
+preserves all original contexts, traits and appearances, but universal crash
+resolution, full CAS/MCCC/every-panel acceptance, all-field household archives
+and saved cold reload remain open. See the
 [multi-hybrid investigation](Reports/MULTI_HYBRID_CRASH_2026-10-12.md).
 
 **Historical V40 Live CAS library and background CLI:**

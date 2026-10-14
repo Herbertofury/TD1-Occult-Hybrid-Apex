@@ -642,6 +642,37 @@ class ShutdownGuardTests(unittest.TestCase):
         self.assertEqual(presses[-1]['y'], 500)  # Measured Exit Game, not Save and Exit at470.
         self.assertFalse(any(action in ('test_save', 'test_pause', 'test_play') for action, kwargs in self.calls))
 
+    def test_completed_failed_swatch_can_close_unsaved_with_source_receipt_unchanged(self):
+        native, options = self.unsaved_exit()
+        from test_cas_failed_readback import FailedReadbackClosureTests
+        fixture = FailedReadbackClosureTests(); fixture.setUp()
+        fixture.receipt['native_acknowledgement']['client']['sim']['simId'] = native['sim']['id']
+        self.diagnostic['requests'] = fixture.diagnostic['requests']
+        self.diagnostic['requests'][0]['age_seconds'] = 5
+        original_handler = self.handler
+        def handler(action, kwargs):
+            if action == 'cas_ui_result': return fixture.receipt
+            return original_handler(action, kwargs)
+        self.handler = handler
+        result, proof = self.run_shutdown(**options)
+        self.assertTrue(result['normal_exit_verified'])
+        self.assertTrue(result['save_files_unchanged_verified'])
+        self.assertEqual(self.diagnostic['requests'][0]['state'], 'pending')
+        self.assertEqual(proof['completed_failed_readbacks'][0][0]['source_receipt'], fixture.receipt)
+        self.assertFalse(proof['save_requested'])
+        self.assertFalse(any(action == 'cas_ui_request' for action, kwargs in self.calls))
+
+    def test_completed_failed_swatch_never_authorizes_save_and_exit(self):
+        from test_cas_failed_readback import FailedReadbackClosureTests
+        fixture = FailedReadbackClosureTests(); fixture.setUp()
+        self.diagnostic['requests'] = fixture.diagnostic['requests']
+        self.diagnostic['requests'][0]['age_seconds'] = 5
+        result, proof = self.run_shutdown(save=True)
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['outcome'], 'cas-unresolved-refused')
+        self.assertFalse(any(action in ('test_input', 'cas_ui_result', 'test_quit') for action, kwargs in self.calls))
+        self.assertNotIn('completed_failed_readbacks', proof)
+
     def test_unsaved_exit_changed_backup_or_save_never_claims_unchanged_completion(self):
         native, options = self.unsaved_exit()
         backup = self.profile / 'saves/Slot_00000002.save.ver0'; backup.write_bytes(b'before backup')

@@ -1,12 +1,12 @@
 {
-  "build_epoch": "2026-10-13-multi-hybrid-tray-v85",
+  "build_epoch": "2026-10-13-multi-hybrid-tray-v90",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-13-multi-hybrid-tray-v85.zip",
-    "bytes": 3107612,
+    "artifact": "Apex_Development_Candidate_2026-10-13-multi-hybrid-tray-v90.zip",
+    "bytes": 3123358,
     "members": 28,
-    "sha256": "500f5e382dbba07f18801dea6faebd4e2beba95f910efec9abac35985401937e"
+    "sha256": "8b2e894a2af2dfc5844f3b3b1f54d369cef0f8849940929cac277b33f7e2d776"
   },
-  "compiled_script_modules": 79,
+  "compiled_script_modules": 82,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -33,7 +33,7 @@
     {
       "bytes": 5721,
       "file": "Manifests/ApexCASBridge.package.manifest.json",
-      "sha256": "8badc66ea305fce665080a909d27e83451cf08fae4e9fdd851941e94ea425c60"
+      "sha256": "24f7b954665ee97cc144b44efde51e03e2d9d14ce4f31f7bb482c765da63fdd8"
     },
     {
       "bytes": 18738,
@@ -51,9 +51,9 @@
       "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 47805,
+      "bytes": 48808,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "6271f0245ef7775fba1afd13912e6de0a2243bb514476391a2af948f6249da35"
+      "sha256": "4a9a93cef8fe1e204d00d4c7e1cf5a64948de8a5f623cb67e65f320de4c66687"
     },
     {
       "bytes": 1506,
@@ -101,9 +101,9 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 746486,
+      "bytes": 762330,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "b242f35a79bc19b1c5a599cbd792c8b611e085013da3d138fa7a8658a40159f6"
+      "sha256": "21ab1d75586e35487ed0525477784b079eb7a5d9aecc16df66dde1552dfe7088"
     },
     {
       "bytes": 1818112,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "a97c36c6c628a51e3c65d864235dc20a1c85385b5d6255a3dcb6a6eed7aba9d1"
+      "sha256": "149ae584e3075b84b7bedadb2bffcd2863910dd1e8650526c98baeb707a68afc"
     },
     {
       "bytes": 424,

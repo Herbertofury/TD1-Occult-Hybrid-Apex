@@ -1,8 +1,77 @@
 # Multi-hybrid preservation and crash investigation
 
 Development checkpoint, not a completed release. The protected original profile
-remains read/copy only. One disposable profile is reused. No normal save or
-backup was written by this work.
+remains read/copy only. One disposable profile is reused. Normal Slot02 and
+its backups remain unchanged in the current V86–V90 work. V88 CAS entry
+changed the six disposable autosave-family files; this is recorded explicitly.
+
+## October 13: native transition repair and full CAS continuation
+
+V86 tracing identified the actual nested selection failure: native trait refresh
+removes another occult's current-form trait, whose legacy removal callback asks
+for Human even while Alien is active. `foreign_current_trait` runs native trait
+removal and effects once, suppressing only that unrelated nested Human request
+inside the exact same tracker/current/map scope. Explicit Human, current-kind
+trait removal, ordinary pairs and membership-trait removal keep native behavior.
+
+The first V86 profiler was too broad and delayed simulation by roughly 284
+seconds. Its failed request and eventual trace are retained. The owner ended
+that runtime. V87 replaces the profiler with bounded, temporary method-boundary
+wrappers only for explicit marked-profile switch diagnostics; no per-Python-call
+profiler or production frame-loop tracing remains.
+
+V88 records eighteen successful transitions across two imported hybrids:
+Alien → Vampire → Alien → Mermaid → Werewolf → Fairy → Spellcaster → Human →
+Alien on each. Native time advanced at least 2,141 ticks per step; all six occult
+memberships, seven stored appearances and every existing active field remained
+exact. Extra native bathing outfits generated after unpause are recorded as
+append-only additions. Existing outfit bytes and unknown root fields are still
+compared exactly. The earlier strict outfit-hash failure is not relabeled.
+
+The later V88 full-household CAS entry selected the first household Sim instead
+of the requested clone. Identity checks blocked edits. That session subsequently
+crashed with a null write at TS4 offset `0x112c371`. The exact dump/report and
+failed captured-only archival attempt remain retained; causality is unresolved.
+Six autosave-family files changed during CAS entry; normal Slot02 and its
+backups stayed unchanged.
+
+V89 prepares all three members' existing native availability pairs before full
+CAS. Each durable preimage includes every appearance/context and traits. It
+changes only availability, verifies current kind, traits and all thirteen
+appearance fields unchanged, and refuses uncertain replay. The selected CAS
+transaction captures its original context before this preparation. Complete
+unselected-member context restoration remains a separate pending gate.
+
+One V89 full household CAS pass then remains stable through six verified Alien
+edits: skin details, earrings, lipstick, top, hair and shoes. Exact eyebrow color
+requests fail native readback and are retained as failures. Actual Live return
+changes only Alien; explicit Alien-only commit verifies all native owners.
+Eleven subsequent transitions, including Alien → Vampire → Alien and every
+other kind, preserve all seven stored appearances and both household companions.
+Each step advances actual simulation by at least 508 ticks and ends paused.
+
+V90 retains complete mismatched swatch acknowledgements as terminal failures,
+with exact raw packets/hashes and no resend or success claim. Foreign,
+incomplete, history and unresolved ownership replies remain blocked. For the
+already-running V89 script, the CLI separately recognizes its complete failed
+readback only to permit normal unsaved closure after detached CAS and exact
+paused Live checks. Source records remain unchanged; this cannot unlock CAS or
+authorize a save. Both native exit menus complete through background CLI input,
+with all twenty save/backup files unchanged during closure and no new crash.
+V90 CLI launch also handles the observed EA permission dialog, loads the exact
+household without taking focus and opens verified full CAS. The actual failed
+eyebrow swatch becomes terminal `failed`; a subsequent fresh CAS status succeeds.
+Same-visit disguise edits and native semantic return are the next runtime gates.
+
+Private receipts include `multi-v88-imported-continuation.json`,
+`multi-v88-cycle-timeline-audit.json`, `multi-v88-cas-crash-analysis.json`,
+`multi-v88-crash-save-inventory.json`, `multi-v89-alien-explicit-cas-commit.json`,
+`multi-v89-edited-cycle-audit.json`, `multi-v89-retained-readback-unsaved-exit.json`,
+`multi-v90-resume.json`, `multi-v90-full-cas-entry.json`,
+`multi-v90-eyebrow-exact-swatch.json` and
+`multi-v90-after-failed-swatch-fresh-status.json`. They contain private Sim/vendor
+data and remain outside Git. The V89 frozen full suite passes 1,805 tests; later
+targeted Source and CLI checks do not substitute for runtime or exact-head CI.
 
 ## Changes
 

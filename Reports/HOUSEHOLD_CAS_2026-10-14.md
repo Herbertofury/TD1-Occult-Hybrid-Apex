@@ -127,3 +127,32 @@ and the failed test log are retained rather than replaced.
 
 Normal save/cold reload, full Tray qualification, R001–R010, MCCC, tattoo insertion
 and every-member/every-panel acceptance remain open.
+
+## V113 refreshed Alien checkpoint
+
+The four companions again complete 80 acknowledged edits across 21 requested
+panels each; four distinct lip products survive member revisits. After native
+Live return and explicit independent commits, all 40 owners verify. Only the
+four stored Alien owners and their active copies change, and only `__outfits__`
+and `genetic_data` change. Voice pitch is now exact, qualifying the programmatic
+range-refresh fix in the actual editor. The original Sim and other 32 owners
+remain exact. Commit proof SHA-256:
+`653a47b25e3608df053fa17aaf9dc65bae743f48387ab3c757ff9f8608d5058b`.
+
+A new save initially refuses the prior V110 `save-submitted` sidecar operation.
+The metadata archive command verifies its old PID absent, exact failed intent,
+normal unsaved closure, unchanged target bytes and a paused/idle current Live
+receiver. It takes the cooperative bank writer lease and retains the old record
+verbatim with an external original-sidecar backup. No appearance, form bank or
+save is altered. Six targeted archive tests pass. This archival does not label
+the previous submitted save as a rejected save.
+
+The new normal save then succeeds and its form seal verifies. Slot 2 now has
+SHA-256 `5e91107120d7bfaa7f313744cb6613827bcc18c884a2156136825360562bb74f`.
+Proof: `.work/member-v113-alien-normal-save-after-archive.json`. Cold reload and
+Vampire CAS qualification remain separate gates.
+
+Hosted CI found that the newer MSVC rejects C++17 experimental coroutine headers
+used by WinRT. Only `ApexPermissionCapture` now requires C++20; the overlay remains
+C++17. The helper rebuild and its invalid-owner CTest pass locally. Exact-head CI
+will be rerun after the compiler fix is committed.

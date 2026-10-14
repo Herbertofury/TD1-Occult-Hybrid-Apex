@@ -38,6 +38,7 @@ set_target_properties(TD1ApexD3D11Proxy PROPERTIES OUTPUT_NAME "d3d11")
 
 include(CTest)
 add_executable(ApexPermissionCapture Source/ApexPermissionCapture.cpp)
+target_compile_features(ApexPermissionCapture PRIVATE cxx_std_20)
 # Keep executable lookup away from the optional d3d11 proxy in Release.
 set_target_properties(ApexPermissionCapture PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/permission-capture/$<CONFIG>")

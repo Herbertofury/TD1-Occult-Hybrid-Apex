@@ -287,6 +287,14 @@ def parser():
                      'umbrella-on', 'umbrella-off', 'arm-test-safety', 'disarm-test-safety'))
     qol.add_argument('--state', required=True, type=Path)
     qol.add_argument('--sim-id')
+    save_archive = commands.add_parser('save-intent-archive', help='Retain an old save intent after verified normal unsaved closure')
+    save_archive.add_argument('--state', required=True, type=Path)
+    save_archive.add_argument('--sim-id', required=True)
+    save_archive.add_argument('--failure-proof', required=True, type=Path)
+    save_archive.add_argument('--failure-sha256', required=True)
+    save_archive.add_argument('--closure-proof', required=True, type=Path)
+    save_archive.add_argument('--closure-sha256', required=True)
+    save_archive.add_argument('--output', required=True, type=Path)
     poll = commands.add_parser('poll')
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
@@ -597,6 +605,11 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'save-intent-archive':
+        from save_intent_archive import archive as archive_save_intent
+        return archive_save_intent(args.state, args.failure_proof, args.failure_sha256,
+            args.closure_proof, args.closure_sha256, args.sim_id, args.output,
+            owned_request, verified_identity)
     if args.command == 'qol':
         if args.operation in ('arm-test-safety', 'disarm-test-safety'):
             _, journal, profile, _ = reusable_profile.load(args.state)

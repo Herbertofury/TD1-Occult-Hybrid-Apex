@@ -520,6 +520,16 @@ def parser():
     preview.add_argument('--scene-id', help='Exact scene identity for stale-safe camera/animation controls')
     preview.add_argument('--values', type=Path, help='JSON camera/animation values, or workspace layout/columns/tab/catalog query')
     preview.add_argument('--output', type=Path, help='New external JSON proof; no assets are exported')
+    stress = commands.add_parser('household-stress', help='Whole-roster native retention and complete CAS coverage gates')
+    stress.add_argument('operation', choices=('plan', 'capture', 'verify', 'cycle'))
+    stress.add_argument('--state', required=True, type=Path)
+    stress.add_argument('--sim-id', dest='sim_ids', action='append', required=True)
+    stress.add_argument('--household-id', required=True)
+    stress.add_argument('--save-guid', required=True)
+    stress.add_argument('--output', required=True, type=Path)
+    stress.add_argument('--baseline', type=Path)
+    stress.add_argument('--baseline-sha256')
+    stress.add_argument('--settle-seconds', type=float, default=2)
     household = commands.add_parser('household',help='Typed native multi-Sim household and disposable Tray round trips')
     household.add_argument('operation',choices=('capabilities','records','export-records','export-tray','load-tray','recover-import','finish-import'))
     household.add_argument('--state',required=True,type=Path)
@@ -565,6 +575,9 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'household-stress':
+        from household_stress import run
+        return run(args)
     if args.command=='switch-archive-unsaved':
         from switch_archive import archive
         return archive(args.state,args.bank,args.expected_bank_sha256,args.closure_proof,args.closure_sha256,

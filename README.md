@@ -7,28 +7,31 @@
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
 **Current development checkpoint — October 13 multi-hybrid preservation:**
-The household CLI reconstructs two imported hybrid Sims beside the existing
-disposable Sim, completes native spawns after unpause and verifies represented
-stored appearances plus native persistence-buffer membership. Adding an occult
-preserves every existing appearance owner. Generated, unverified Gallery
-metadata is blocked from the game's Tray after reproducing startup crashes.
-Native tracing identified foreign current-trait cleanup forcing another active
-occult back to Human. The scoped guard retains normal trait removal/effects and
-suppresses only that unrelated nested Human switch. V88 passes eighteen actual
-unpaused transitions across two imported hybrids, including Human from
-Spellcaster. V89 accepts six distinct edits in verified full Alien CAS, commits
-only the Alien owner and passes eleven subsequent transitions while all seven
-stored owners and both other household Sims remain exact. Actual simulation
-progress is checked; generated extra outfits are retained explicitly rather
-than weakening existing-field comparisons. The V89 unchanged-source suite
-passes 1,805 tests. V90 adds complete failed-swatch acknowledgement handling;
-malformed replies and unresolved ownership transitions still block writes.
-The CLI also verifies normal unsaved closure through both menus without taking
-focus or requiring a person, retaining the old failed response unchanged.
-V88's earlier full-household CAS crash remains retained. CAS pair preparation
-preserves all original contexts, traits and appearances, but universal crash
-resolution, full CAS/MCCC/every-panel acceptance, all-field household archives
-and saved cold reload remain open. See the
+The disposable household contains five Sims with all six actual occult
+memberships and seven appearance owners each. V91 verifies twelve distinct
+full-CAS Alien/Human disguise edits and the original Sim's saved cold reload.
+V92 fixes mutation of the retained stored-form load source and preserves every
+stored Alien genetic record across the five-member cold reload and 2,368 real
+simulation ticks. That whole-household test still fails on four imported
+Werewolf pelt records; two companions' active appearance differs before native
+initialization settles. V93 adds a bounded, checksummed per-form pelt/texture
+carrier for fields absent from the native occult schema. V94 reads that carrier
+from the indexed save only when the incoming native core and identities match,
+because EA strips its unknown data from the loaded buffer. All 35 stored owners
+now pass the real cold-load comparison before/after unpause, including every
+Werewolf pelt. Two companions' active appearance still changes during initial
+simulation. The latest cycle passes 25 targeted transitions while checking all
+five members, then stops on an unselected Alien's transition to Human. The
+whole-household gate remains open. The frozen suite passes **1,840 tests**.
+
+`household-stress` adds complete-roster capture/compare/cycle checks and an
+explicit **5,390-cell** CAS edit matrix. New fields, changed companions and
+missing owners are detected. Empty/unavailable categories cannot count as
+successful edits. All-member/every-category CAS, MCCC entry, household reentry,
+full Tray reload and production acceptance remain open. Background CLI launch,
+EA permission acknowledgement, Resume, CAS pair navigation/return and normal
+unsaved exit have real runtime proof. Retained failures and stale bank metadata
+do not authorize replay. The protected original remains read/copy only. See the
 [multi-hybrid investigation](Reports/MULTI_HYBRID_CRASH_2026-10-12.md).
 
 **Historical V40 Live CAS library and background CLI:**

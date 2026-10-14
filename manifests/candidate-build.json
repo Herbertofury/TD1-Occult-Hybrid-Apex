@@ -1,12 +1,12 @@
 {
-  "build_epoch": "2026-10-13-multi-hybrid-tray-v91",
+  "build_epoch": "2026-10-13-multi-hybrid-tray-v94",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-13-multi-hybrid-tray-v91.zip",
-    "bytes": 3123488,
+    "artifact": "Apex_Development_Candidate_2026-10-13-multi-hybrid-tray-v94.zip",
+    "bytes": 3137519,
     "members": 28,
-    "sha256": "60a5703f27e9fe26004a17118cb967fccfc051b60abd8a6f36ee8d8b46b55bf8"
+    "sha256": "ac82acb054dce0daab93c56d34eeb64819c94bb9e5f409f051b5690103d700f4"
   },
-  "compiled_script_modules": 82,
+  "compiled_script_modules": 84,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -51,9 +51,9 @@
       "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 48808,
+      "bytes": 49502,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "d974cd2707ebf679a908535c0a68dc15034305d7bf09f2d9ed20ce58949e5c16"
+      "sha256": "1828818d6f6f12980215b00ec20d7c49e23edaa9352434038ce37d40b00028c3"
     },
     {
       "bytes": 1506,
@@ -101,9 +101,9 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 762467,
+      "bytes": 776601,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "9e45d94dd60bfcf14f5e1a6336251314d69558f34896d071f9b88843ad578f71"
+      "sha256": "2b0b15130f125489d11c4a7ba2d45a02ab92c421141d60304d0172a76994458a"
     },
     {
       "bytes": 1818112,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "53f6df493983af9807285c20acf3f0b394626cb7d1db4703c508187e26a3b6af"
+      "sha256": "4b7714ede7ac64205f188fee458a6aa05100858c1590e7b8bbb7bde0d225ddf0"
     },
     {
       "bytes": 424,

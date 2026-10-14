@@ -275,7 +275,11 @@ class WitchPersistenceTests(unittest.TestCase):
         self.assertEqual((saved.current_occult_types, saved.pending_occult_type,
                           saved.occult_form_available), (1, 32, True))
         self.assertEqual([row.occult_type for row in saved.occult_sim_infos], [1, 16, 2, 4, 8, 32, 64])
-        self.assertEqual({row.occult_type: row.SerializeToString() for row in saved.occult_sim_infos}, expected)
+        from apex_core import occult_appearance_extension as extension
+        self.assertEqual({row.occult_type: extension._parts(row)[0] for row in saved.occult_sim_infos}, expected)
+        for row in saved.occult_sim_infos:
+            self.assertEqual(extension.read(row), {name: form_appearance.encode(getattr(owners[row.occult_type], name))
+                for name in ('pelt_layers', 'custom_texture')})
         self.assertIn(b'\xaa\x06\x04root', saved.SerializeToString())
         for row in saved.occult_sim_infos:
             self.assertIn(b'\xa2\x06\x03new', row.SerializeToString())

@@ -323,6 +323,23 @@ def _load_authority(tracker, captured, active):
     return expected
 
 
+def _apply_load_extras(backend, tracker, records, expected):
+    from .saved_occult_extras import read as read_extension
+    for key, record in records.items():
+        if key not in expected:
+            continue
+        try:
+            extras, receipt = read_extension(backend, tracker.sim_info, record)
+            expected[key][1].update(extras)
+            sources = getattr(tracker, '_apex_native_load_extension_sources', {})
+            sources[str(key)] = receipt
+            tracker._apex_native_load_extension_sources = sources
+        except (ValueError, TypeError, KeyError, UnicodeError, AttributeError, OSError, RuntimeError) as error:
+            # A refused optional extension must not discard the native Sim.
+            tracker._apex_native_load_extension_failure = {
+                'form_flags': key, 'error': str(error)[:2048], 'extension_applied': False}
+
+
 def _remember_load_owners(tracker, records):
     backend, captured, active = _capture_owners(tracker)
     if backend is None or not captured:
@@ -335,6 +352,8 @@ def _remember_load_owners(tracker, records):
         if int(record.occult_type) != key or not record.HasField('outfits'):
             raise ValueError('Immutable native load record identity/outfits are missing.')
         expected[key][1].update(_record_payload(record, expected[key][1]))
+    _apply_load_extras(backend, tracker, records, expected)
+    tracker._apex_native_load_records = records
     tracker._apex_native_load_owners = (tracker._sim_info_map, active[0], expected)
 
 
@@ -448,6 +467,10 @@ def install_transition_guard(tracker):
                 try:
                     backend, captured, active = _capture_owners(self)
                     captured = _load_authority(self, captured, active)
+                    # The exact slot may become available only after native
+                    # loading. Recheck the same immutable incoming cores; this
+                    # is a read-only authority refresh, not a setter replay.
+                    _apply_load_extras(backend, self, getattr(self, '_apex_native_load_records', {}), captured)
                     if any(owner is active[0] or getattr(owner, '_base', owner) is getattr(active[0], '_base', active[0])
                            for owner, _fields in captured.values()):
                         raise ValueError('Loaded native appearance owner is aliased.')
@@ -520,7 +543,8 @@ def _record_appearance(record, fields):
     for name, row in fields.items():
         target_name = 'outfits' if name == '__outfits__' else name
         descriptor = descriptors.get(target_name)
-        # Pelt/custom texture are absent from the inspected occult schema.
+        # Pelt/custom texture are carried separately below because EA's
+        # inspected occult schema cannot otherwise persist them per form.
         if descriptor is None:
             continue
         value = appearance.decode(row)
@@ -548,6 +572,8 @@ def _record_appearance(record, fields):
             setattr(record, target_name, value)
             if getattr(record, target_name) != value:
                 raise ValueError('Native appearance scalar failed exact readback.')
+    from .occult_appearance_extension import write as write_extension
+    write_extension(record, fields)
 
 
 class _AppearancePreservationError(ValueError):
@@ -901,7 +927,12 @@ def load_with_retention(original, tracker, data, occult_cache, occult_utils, occ
         if item is not None:
             form = tracker._generate_sim_info(item.occult_type, generate_new=False)
             if kind == tracker._sim_info.current_occult_types:
-                base_wrapper.copy_physical_attributes(item, tracker._sim_info._base)
+                # The native active branch writes proto <- main Sim. Keep
+                # its preparation separate from the immutable stored-form
+                # source used by _remember_load_owners after native load.
+                working = type(item)()
+                working.CopyFrom(item)
+                base_wrapper.copy_physical_attributes(working, tracker._sim_info._base)
             else:
                 form.load_outfits(item.outfits)
                 base_wrapper.copy_physical_attributes(form._base, item)

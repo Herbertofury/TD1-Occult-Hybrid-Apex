@@ -197,6 +197,10 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
         load_appearance = getattr(sim.occult_tracker, '_apex_native_load_appearance_retention', None)
         if isinstance(load_appearance, dict):
             result['native_load_appearance_retention'] = copy.deepcopy(load_appearance)
+        for name in ('extension_sources', 'extension_failure'):
+            detail = getattr(sim.occult_tracker, '_apex_native_load_' + name, None)
+            if isinstance(detail, dict):
+                result['native_load_' + name] = copy.deepcopy(detail)
         load_failure = getattr(sim.occult_tracker, '_apex_native_load_appearance_failure', None)
         if isinstance(load_failure, dict):
             result['native_load_appearance_failure'] = {name: copy.deepcopy(load_failure.get(name))

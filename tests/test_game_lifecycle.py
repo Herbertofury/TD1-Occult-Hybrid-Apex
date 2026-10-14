@@ -469,6 +469,17 @@ class LifecycleTests(unittest.TestCase):
                 self.assertFalse(result['ok'])
                 self.assertFalse(any(action == 'test_input' for action, _ in calls))
 
+    def test_resume_uses_complete_controls_when_ocr_misses_decorative_home_tab(self):
+        surface = self.resume_surface()
+        surface['lines'] = [row for row in surface['lines'] if row['text'] != 'HOME']
+        result, _proof, calls = self.run_resume(frames=[surface])
+        self.assertTrue(result['ok'])
+        self.assertEqual(sum(action == 'test_input' for action, _ in calls), 1)
+        for missing in ('MARKETPLACE', 'LOAD GAME', 'NEW GAME', 'GALLERY'):
+            incomplete = dict(surface, lines=[row for row in surface['lines'] if row['text'] != missing])
+            with self.subTest(missing=missing), self.assertRaises(ValueError):
+                game_lifecycle.button(incomplete, 'resume')
+
     def test_loaded_household_rejects_scratch_slot_unsaved_game_and_non_live_sim(self):
         good = self.loaded_snapshot()
         prior = {'Slot_00000002.save': {}}

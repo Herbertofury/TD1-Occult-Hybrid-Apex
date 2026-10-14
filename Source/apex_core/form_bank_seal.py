@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-13-multi-hybrid-tray-v91'
+UPGRADE_EPOCH = '2026-10-13-multi-hybrid-tray-v94'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'e3cbd79f5ced1568d45b6c5a40e51dbc958a0b69b59e33def16b1b6720ba459f'
+UPGRADE_SELF_BODY_SHA = 'be1343a0196f6b0cedf746470feb37c4257341caed69dbe1ea730a8ce7050522'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': '3ef3a75d6f6c7e366de550148d5a62f1269016ae0c5810c2dc1ad6cd25e7c660',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -52,7 +52,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/growth_parts.py': 'efca6b2b2cacf2c18171e87779b95cd3be9766809068583fd1547b5f7bd32db2',
     'apex_core/household_io.py': '13e4b8e86ef6587d8e9319e48551637664813acda4c9bf34878d130ecc3df667',
     'apex_core/human_werewolf.py': '9bafd4df1783f6a3c526242b9a40c42033e3dad4d2f8029e0046633b2f4a363e',
-    'apex_core/hybrid_persistence.py': '354f21064fb0ec66edc75bea5c7d5975b0dda8e39d789c4ddd5fb68815a0e73f',
+    'apex_core/hybrid_persistence.py': 'c4a8e40f49b7b3c411d5005de89bedd9cfb41b7c4123dc374f98b5a08af20b44',
     'apex_core/legacy_phone_guard.py': '097e88240ed8828101de5389c8f966a76e2c393b821f0580808735b663b600cd',
     'apex_core/morph_controls.py': '89776fc18343ae8d1213e545e3d3322068aad1914b3185b4fea532ef44d83ee5',
     'apex_core/native_controls.py': '543faade8715a27dd5bd7edc9dda25112a92d374879adf4fe943016e240abfbb',
@@ -60,15 +60,17 @@ UPGRADE_MODULE_PINS = {
     'apex_core/native_http.py': 'dfad235fba919f8aa3a1abfdcb6ba02eddae9f9181fbd1780d8f26bef515f046',
     'apex_core/native_occult_context.py': '4b1fb7278a8719ff58c5b2b1a97aaa89a9e5e953915a31ab212206a67928b186',
     'apex_core/occult_add_guard.py': '3e4630c36c705afdf9f5cbd3f256be85ec7efa0a3a8d94b8394474fb360c982c',
+    'apex_core/occult_appearance_extension.py': '1d908a080f608960fdb9394d954552fb9e2af24a87b60e6f623f690bb8cdbe08',
     'apex_core/outfit_hair.py': '530fb5e8f5e80137b3607e55a796a6423648f0ff25b6780f3430b8361d2f61d8',
     'apex_core/outfit_snapshot.py': '76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56',
     'apex_core/overlay_loader.py': 'd2a802a45dbff9c83254d48b0cbc7d60ef3d41037cb6e436514c0980639728fb',
     'apex_core/phone_cas.py': 'd36633ac04f225e57e060239b5bd27d358707b876ee10bcef734f1e928bca3c6',
     'apex_core/phone_interactions.py': '033c9b9f788adb075f7519ec8ff90994d22fbeb0861aa22eba216cefec0aae0d',
+    'apex_core/saved_occult_extras.py': '6b7f0c8c4ea258823d680f35764155bd2de02551a1fc876424888108c814fb0a',
     'apex_core/sim_data.py': 'a6da5ec691f8c5736df215a25d3de23a89ba064db7ba651f18d54f0567510abb',
     'apex_core/studio.py': '99e9c3b16b767b0a3776cf847d35dc72d697208e0305bc2a85fb0899fed81281',
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
-    'apex_core/test_driver.py': 'a3638a1cd6ce13a308c552c9e09d7083df8ad85085dae8d7ce9990235781fa9c',
+    'apex_core/test_driver.py': '506c23166444da0a3adec794d46bfad363adb49a8d31b002755541700c720443',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
     'td1_occult_hybrid_apex.py': '7b8ff5674f69a817bf32d8d135698a2305c54b658136ab3800ef95c76f3b69b3',
 }

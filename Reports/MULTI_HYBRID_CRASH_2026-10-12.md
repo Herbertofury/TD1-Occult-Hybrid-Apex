@@ -99,6 +99,14 @@ normal Slot02 save and matching seal pass. This is twelve tested selections,
 not every panel or a saved cold-reload claim for those new edits. The final
 unchanged-source/tool suite passes 1,817 tests.
 
+The V91 paired-edit same-script cold verifier subsequently passes all seven
+stored appearances, distinct active appearance and six memberships before and
+after actual simulation progression, with the saved file/bank/reference unchanged
+and no appearance repair. Native restore and imported-household acceptance remain
+separate. Receipts: `multi-v91-paired-explicit-commit.json`,
+`multi-v91-paired-edit-cycle.json`, `multi-v91-paired-existing-slot-save.json`
+and `multi-v91-paired-cold-certified-readback.json`.
+
 One later EA launch fails before input when Windows refuses foreground ownership.
 The CLI removes this needless precondition and sends the recognized button's
 messages directly to the same verified window, without moving the cursor or
@@ -319,3 +327,109 @@ Full CAS/MCCC/every-panel acceptance, every pairwise form switch, native Library
 creation, full Tray parity, all-field household round trips, controlled save and
 cold reload, universal content/material/thumbnail coverage and the broader
 production gate remain open. A rewritten headless Sims engine is not delivered.
+# Five-member household stress work, October 13, V92–V93
+
+V94's actual cold load matches every readable field on all **35 stored owners
+and five active appearances** before simulation progression. All 35 indexed
+extension source receipts match the exact saved core and file; no extension
+refusals are reported. After actual unpause, all 35 stored owners, including
+every Werewolf pelt, still match. Two fresh companions' active genetics/outfits
+change during initialization. The complete active-owner gate remains failed.
+
+The repeatable whole-roster cycle then passes **25 targeted transitions**:
+nine on the original, nine on the first imported Sim and seven on the second.
+Each step checks all five members after real simulation progression. The first
+strict run stops after two successes because two companions append a new
+category-5 outfit. A separate byte-level classification proves all existing
+rows/indexes and unknown root bytes stay exact. The tool now records only such
+bounded active append-only deltas as native generation; destructive changes,
+new non-outfit fields and stored-owner changes still fail. The corrected run
+stops at step 26 when an unselected fresh companion switches Alien to Human
+during Live play. Its original receipt, complete before/after records and
+differences remain failed evidence. No full 45-step/all-category/all-member
+acceptance is claimed. The final frozen code/tool suite passes **1,840 tests**.
+
+V93's actual controlled save succeeds, seals and produces normal Slot02 SHA-256
+`79121bd10b1e0fff3174135fc815f8e7a05cfd75b75a18dbae05ec7740182906`.
+Read-only extraction of the indexed kind-13 resource proves that all five
+Werewolf carrier records contain the exact pre-save pelt bytes. Nevertheless,
+initial/settled cold comparison fails on four companions' pelts and the two
+fresh companions' active genetics/outfits. A separate read of EA's existing
+loaded save buffer, with no native Sim serialization, contains **zero** carrier
+markers. Its Werewolf cell has exactly the same declared core as the indexed
+disk record. EA's loaded-buffer path strips the unknown carrier data; proto2
+preservation alone does not establish that whole engine path.
+
+V94 adds a read-only indexed-save fallback bound to the actual native slot,
+GUID, Sim, household, form and complete extension-stripped incoming cell bytes.
+A changed incoming core, ambiguous owner, unsupported slot or changed file
+cannot authorize older extras. It verifies the indexed resource identity,
+bounded RefPack/zlib decompression and unchanged source file. One memory cache
+avoids decoding the save for each member. Runtime receipts expose both source
+authority and refused extensions. This fallback independently recovers the
+exact pelt from the real V93 saved/loaded companion-cell fixture. Seven new
+tests cover stripped carriers, stale cores, identity mismatches, fresh Tray
+allocations, unknown slots, future groups and RefPack overlap/bounds. V94's
+unchanged-source suite passes **1,839 tests**. Actual V94 load acceptance remains
+separate until the household comparison completes.
+
+Before the V94 test launch, the exact closed marked profile's old test bank and
+seal files are retained byte-for-byte outside the profile, with hashes and a
+durable receipt. Only these two mod metadata files receive fresh empty stores;
+the saved household, all save files, other mod data and protected original are
+unchanged. This does not resolve old failed intents or certify prior edits.
+It permits the new test run to create banks from the actual saved native owners
+instead of replaying unsupported records from earlier development runtimes.
+
+The marked reusable profile now contains five existing hybrid Sims. Each has
+six actual occult memberships and seven stored appearance owners. The owner
+requires every member, every occult, every native CAS category, single-member
+and whole-household edits, repeated form changes, household reentry and Tray
+reload. `household-stress plan` records **5,390 initially untested cells**:
+five members × seven forms × 77 native panels × two edit scopes. Empty and
+unsupported categories must remain visible in the evidence and cannot count as
+successful edits. Additional controls and lifecycle gates remain separate.
+
+V92 fixes a concrete authority defect: active-form preparation copied the main
+Sim's physical data into the cloned incoming stored-form record, then reused
+that modified clone as immutable load authority. Preparation now uses another
+working copy. Two regression tests cover active preparation and a native loader
+that changes its own input. The corrected frozen suite passes 1,820 tests.
+
+The five-member V92 controlled normal Slot02 save completes, with SHA-256
+`207fac28cfe2017a3a7a61f3857d43500357294fb2b2e74921b2ee9d9cf50e10`.
+Two fresh imported Sims acquired different active/stored Alien genetics after
+full-household CAS without intentional edits. The real cold reload preserves
+**every stored Alien genetic record** before and after 2,368 simulation ticks.
+The whole-household test nevertheless fails: four companions' stored Werewolf
+pelt layers differ after reload, and the two fresh companions' distinct active
+genetics/outfits differ initially. Those active differences disappear after
+simulation initialization. This is not a full household stability pass.
+
+Runtime descriptor discovery finds pelt_layers/custom_texture on native SimData
+but neither on PersistableOccultTracker.OccultSimData. V93 introduces a bounded,
+inert, checksummed proto2 unknown-field carrier for those two per-form values.
+It validates the exact occult kind and readable types, refuses native/foreign
+field-number collisions, duplicates and damaged metadata, and preserves every
+unrelated wire byte including unknown groups. Optional damaged load metadata is
+reported rather than allowing that failure to discard the Sim. Native core
+appearance fields retain their existing serialization. [Proto2 preserves unknown
+fields during binary parse/serialization](https://protobuf.dev/programming-guides/proto2/);
+whether EA's complete disk-save path retains this carrier requires the actual
+V93 round trip and is not inferred from the protocol documentation.
+
+V93's frozen suite passes **1,832 tests**. Seven new real-protobuf extension
+tests cover parse/copy/replacement, future fields/groups, corruption, collisions
+and wrong owner kinds. Five household stress tests require the whole roster,
+actual six memberships, every owner/payload, new-field changes and both edit
+scopes. The CLI checks every companion after a targeted switch and actual
+unpause, records request identities before submission, and stops on unresolved
+operations. Its first V93 cycle refuses before native mutation because the
+original Sim's bank belongs to an uncertified prior runtime; that failure is
+retained. Refreshing a live snapshot transaction is separate from CAS edits and
+must not be reported as in-game CAS editing proof.
+
+All closures in this work use the background CLI's normal unsaved exit and
+verify unchanged save/backup files during each closure. The controlled normal
+test save changes above are deliberate. The protected original is read/copy
+only. The V93 candidate and runtime gates remain development work.

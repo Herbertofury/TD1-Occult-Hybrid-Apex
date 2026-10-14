@@ -179,12 +179,6 @@
       "sha256": "171144388eaa3d485ab2014d3570e015a1b95e56f1169cfc792a2f741dafcbdb"
     },
     {
-      "bytes": 78300,
-      "mode": "100644",
-      "path": "tools/apex_cli.py",
-      "sha256": "30532630c7c113f3e975f801ac0fa8a63cee6425d29bd3caf5edac180e508c9e"
-    },
-    {
       "bytes": 2640,
       "mode": "100644",
       "path": "Reports/Glory-Build-V4.1-UI-Performance-Validation.txt",
@@ -407,6 +401,12 @@
       "sha256": "4c006d807a02fa8d0593ddfc9eb0a14390cd6343c432ee0f4ffd8cad16b7e9e3"
     },
     {
+      "bytes": 24570,
+      "mode": "100644",
+      "path": "docs/CAS_CLI_CONTROLS.md",
+      "sha256": "535dcc5225098bdea1101a19191b8f7f4ec52d4fe377fa1e31be3955ee81f6ab"
+    },
+    {
       "bytes": 6465,
       "mode": "100644",
       "path": "tests/test_profile_isolation.py",
@@ -459,6 +459,12 @@
       "mode": "100644",
       "path": "tests/test_cas_return.py",
       "sha256": "920cd3ada856a8b64696b02a35ce73369e90bf54d583a7226e92e8ea8b366f8c"
+    },
+    {
+      "bytes": 2417,
+      "mode": "100644",
+      "path": "docs/SPECIAL_FORM_PRESERVATION.md",
+      "sha256": "42cbd82f4b716ab7ba33b2fccff9b030ddab85c7e8446b62aa3f2f592da6a1a1"
     },
     {
       "bytes": 4327,
@@ -1445,6 +1451,12 @@
       "sha256": "4522e532fa7f1a3d5872fc1081714fb0cea2ae60b718e0db0386666a169c6627"
     },
     {
+      "bytes": 79042,
+      "mode": "100644",
+      "path": "tools/apex_cli.py",
+      "sha256": "759994194934d7b2a71337cc5bd6bf8ae0e525f99eb2a39370b3e02aad9d5c61"
+    },
+    {
       "bytes": 4373,
       "mode": "100644",
       "path": "Source/apex_core/werewolf_defaults.py",
@@ -1911,6 +1923,12 @@
       "mode": "100644",
       "path": "tests/test_windows_ocr.py",
       "sha256": "8b6675e390440d79812ac56cf2f19e4443c5474e518c299f8775f82e41372257"
+    },
+    {
+      "bytes": 1953,
+      "mode": "100644",
+      "path": "tests/test_cas_entry_observe.py",
+      "sha256": "02ed9a9d4d6ba5848b1b66014a2f427dc90b7d09c079ad01d85ee8f4c4a14c2e"
     },
     {
       "bytes": 2609,
@@ -2411,12 +2429,6 @@
       "sha256": "5b149697532ee7f04cd94a8caf4b196afbbe7de1e9777ff71cefde83c10b5b5a"
     },
     {
-      "bytes": 24009,
-      "mode": "100644",
-      "path": "docs/CAS_CLI_CONTROLS.md",
-      "sha256": "7738bd241f4cc3e63149f06f13db2786605027dd268400d30087f4210ed9e86b"
-    },
-    {
       "bytes": 21122,
       "mode": "100644",
       "path": "tools/cas_catalog_audit.py",
@@ -2619,6 +2631,12 @@
       "mode": "100644",
       "path": "tools/game_lifecycle.py",
       "sha256": "9faac0f088cdca2475e21f89d91cebd2a288f5eeba8740ee411e8022be770baf"
+    },
+    {
+      "bytes": 3825,
+      "mode": "100644",
+      "path": "tools/cas_entry_observe.py",
+      "sha256": "c06c5fbaf0728174872413621fdd59a508b33b4030db99447eece7deeeaa6e41"
     },
     {
       "bytes": 35149,

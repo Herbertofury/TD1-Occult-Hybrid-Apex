@@ -295,6 +295,12 @@ def parser():
     save_archive.add_argument('--closure-proof', required=True, type=Path)
     save_archive.add_argument('--closure-sha256', required=True)
     save_archive.add_argument('--output', required=True, type=Path)
+    entry_observe = commands.add_parser('cas-entry-observe', help='Verify an already accepted CAS entry without submitting it again')
+    entry_observe.add_argument('--state', required=True, type=Path)
+    entry_observe.add_argument('--sim-id', required=True)
+    entry_observe.add_argument('--entry-proof', required=True, type=Path)
+    entry_observe.add_argument('--entry-sha256', required=True)
+    entry_observe.add_argument('--output', required=True, type=Path)
     poll = commands.add_parser('poll')
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
@@ -605,6 +611,10 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'cas-entry-observe':
+        from cas_entry_observe import observe as observe_accepted_entry
+        return observe_accepted_entry(args.state, args.entry_proof, args.entry_sha256,
+            args.sim_id, args.output, owned_request, verified_identity)
     if args.command == 'save-intent-archive':
         from save_intent_archive import archive as archive_save_intent
         return archive_save_intent(args.state, args.failure_proof, args.failure_sha256,

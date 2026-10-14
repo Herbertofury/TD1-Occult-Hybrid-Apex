@@ -1,5 +1,14 @@
 # Native CAS CLI controls
 
+An accepted editor entry can take longer to load than its observation window.
+Use `cas-entry-observe --state STATE --sim-id SIM_ID --entry-proof ENTRY_JSON
+--entry-sha256 SHA256 --output NEW_JSON` to inspect that same accepted entry
+without submitting another entry or selecting a different Sim. The original
+PID, token, script, selected Sim and crash evidence must still match; a fresh
+native peer and complete typed inventory are then required. The original timeout
+proof remains immutable. A follow-up inventory read does not prove edits or save
+retention.
+
 V110 adds `cas member-select` for the full existing-household editor. Supply the
 currently selected Sim, destination Sim, household, current layer and native
 session from `cas status`. The command uses the installed `CASSelectSim` handler

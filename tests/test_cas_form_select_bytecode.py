@@ -16,7 +16,8 @@ CASES = ('actual-constructor-timer-path', 'native-snapshot-detached', 'native-sn
     'selection-current-index', 'selection-write-order', 'selection-typed-boolean',
     'selection-next-tick-readback', 'earrings-wrong-bodytype', 'ambiguous-swatch-count',
     'body-region-native-write', 'body-region-unbound-definition',
-    'layer-null-unsafe-service', 'layer-helper-socket-phase')
+    'layer-null-unsafe-service', 'layer-helper-socket-phase', 'member-service-name',
+    'member-destination-index', 'member-preflight-service', 'member-readback-missing')
 
 
 class FormSelectBytecodeSafetyTests(unittest.TestCase):

@@ -2,6 +2,7 @@
 #include <fstream>
 #include "ApexResourceImage.h"
 #include "ApexLiveCatalog.h"
+#include "ApexSliderLibrary.h"
 #include "ApexPointerGate.h"
 #include "ApexGameWindow.h"
 #include "ApexTrayView.h"
@@ -11,6 +12,24 @@ int main(int argc, char** argv) {
     using namespace td1; using resource::Json;
     unsigned checks = 0, failed = 0;
     auto check = [&](bool pass, const char* label) { ++checks; if (!pass) { ++failed; std::cerr << label << '\n'; } };
+    Json sliderQuery={{"search",""},{"kind","modifier"},{"offset",0},{"limit",25},{"conflicts_only",false}};
+    check(sliders::Query(sliderQuery),"bounded slider resource query accepted");
+    auto badSliderQuery=sliderQuery;badSliderQuery["limit"]=101;
+    check(!sliders::Query(badSliderQuery),"unbounded slider page refused");
+    Json sliderRow={{"resource_tgi","C5F6763E:00000000:FFFFFFFFFFFFFFFF"},{"instance","18446744073709551615"},
+        {"kind","modifier"},{"effective_load_source_verified",false},{"providers",Json::array({{{"package_name","CC.package"},
+        {"resource_sha256",std::string(64,'a')},{"package_sha256",std::string(64,'b')}}})}};
+    Json sliderPage={{"ok",true},{"catalog_sha256",std::string(64,'c')},{"offset",0},{"limit",25},{"total",1},
+        {"items",Json::array({sliderRow})},{"game_contacted",false},{"source_files_written",false},{"effective_load_source_verified",false}};
+    check(sliders::Page(sliderPage,sliderQuery),"full uint64 slider key preserved");
+    auto badSliderPage=sliderPage;badSliderPage["effective_load_source_verified"]=true;
+    check(!sliders::Page(badSliderPage,sliderQuery),"unproved effective package winner rejected");
+    badSliderPage=sliderPage;badSliderPage["items"][0]["instance"]=18446744073709551615ull;
+    check(!sliders::Page(badSliderPage,sliderQuery),"lossy numeric uint64 slider identity rejected");
+    badSliderPage=sliderPage;badSliderPage["items"].push_back(sliderRow);
+    check(!sliders::Page(badSliderPage,sliderQuery),"duplicate modifier rows rejected");
+    auto zeroSliderPage=sliderPage;zeroSliderPage["items"][0]["resource_tgi"]="C5F6763E:00000000:0000000000000000";zeroSliderPage["items"][0]["instance"]="0";
+    check(sliders::Page(zeroSliderPage,sliderQuery),"zero modifier sentinel stays visible for diagnosis");
     check(tray::Base64("f")=="Zg=="&&tray::Base64("fo")=="Zm8="&&tray::Base64("foo")=="Zm9v"&&tray::Base64(std::string("\xff\x00",2))=="/wA=","bounded clipboard chunks preserve all raw bytes");
     check(tray::DestinationSim({{"history_lane","123:2:285159751289798669:8:runtime-77"}})=="285159751289798669","Tray viewer retains destination Sim independently of source");
     Json trayRequest={{"ok",true},{"sim_id","42"},{"form",2},{"native_sha256",std::string(64,'a')},{"appearance_sha256",std::string(64,'b')},{"render_sha256",std::string(64,'b')},

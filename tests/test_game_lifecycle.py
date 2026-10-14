@@ -752,6 +752,15 @@ class ShutdownGuardTests(unittest.TestCase):
         diagnostic['requests'][0]['operation'] = 'form-select-all'
         self.assertEqual(game_lifecycle.shutdown_cas_state(diagnostic)['outcome'], 'cas-state-unknown')
 
+    def test_member_navigation_permits_only_completed_or_failed_shutdown(self):
+        for state in ('completed', 'failed', 'pending', 'running', 'unknown'):
+            with self.subTest(state=state):
+                diagnostic = live_cas_diagnostics()
+                diagnostic['requests'] = [{'cas_request_id': 'b' * 32, 'state': state,
+                                           'operation': 'member-select', 'age_seconds': 1}]
+                self.assertEqual(game_lifecycle.shutdown_cas_state(diagnostic)['safe'],
+                                 state in ('completed', 'failed'))
+
     def test_every_public_typed_cas_control_allows_only_terminal_shutdown(self):
         from apex_core import cas_controls
         for operation in sorted(cas_controls.OPERATIONS):

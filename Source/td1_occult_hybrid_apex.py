@@ -8436,6 +8436,13 @@ def run_action(action, sim_id=None, occult=None, value=None):
             return dispatch(action, sim_id, value, backend=sys.modules[__name__])
         except Exception as exc:
             return {'ok': False, 'message': str(exc), 'ui_transition_verified': False}
+    if str(action).startswith('qol_'):
+        from apex_core.gameplay_qol import dispatch
+        import sys
+        try:
+            return dispatch(sys.modules[__name__], _get_sim_info_by_id(sim_id), action, value)
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'appearance_modified': False}
     if action == 'bridge_status':
         return {'ok': True, 'message': 'Game-thread bridge ready', 'queue': _APEX_COMMANDS.metrics(),
                 'build_version': _BUILD_VERSION, 'alarm_ready': _ALARM_READY}
@@ -8517,7 +8524,7 @@ def run_action(action, sim_id=None, occult=None, value=None):
             return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
     if action in ('studio_status', 'studio_items', 'studio_preview_snapshot', 'studio_history', 'studio_record', 'studio_checkpoint', 'studio_recover',
                   'studio_color_copy', 'studio_color_preview', 'studio_cancel',
-                  'studio_color_inspect', 'studio_color_edit', 'studio_color_live', 'studio_part_inspect', 'studio_part_preview', 'studio_catalog_preview', 'studio_catalog_live', 'studio_shape_inspect', 'studio_shape_preview', 'studio_shape_live',
+                  'studio_color_inspect', 'studio_color_edit', 'studio_color_live', 'studio_part_inspect', 'studio_part_preview', 'studio_catalog_preview', 'studio_catalog_live', 'studio_shape_inspect', 'studio_shape_preview', 'studio_shape_live', 'studio_shape_add_preview', 'studio_shape_add_live',
                   'studio_undo', 'studio_redo', 'studio_jump', 'studio_apply',
                   'studio_hair_enable', 'studio_hair_disable', 'studio_hair_status', 'studio_outfit_duplicate',
                   'studio_copy_appearance', 'studio_paste_preview', 'studio_paste_live', 'studio_werewolf_ea_preview',
@@ -8664,6 +8671,9 @@ def _apex_install_zone_signal():
             result = previous(zone_instance, *args, **kwargs)
             try:
                 _apex_zone_queue_ready(zone_instance)
+                from apex_core.gameplay_qol import initialize
+                import sys
+                initialize(sys.modules[__name__])
             except Exception as exc:
                 _log('Zone queue readiness failed safely: {}'.format(exc))
             return result

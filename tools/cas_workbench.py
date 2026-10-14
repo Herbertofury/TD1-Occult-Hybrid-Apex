@@ -118,6 +118,12 @@ def edit_tattoo_regions(control, panel, item, record):
 
 
 def run(state, output, identity, request, sim_id, edit=False, panels=None, step_seconds=12):
+    from cli_identity_cache import session
+    with session(state):
+        return _run(state, output, identity, request, sim_id, edit, panels, step_seconds)
+
+
+def _run(state, output, identity, request, sim_id, edit=False, panels=None, step_seconds=12):
     if not decimal_id(sim_id) or type(edit) is not bool:
         raise ValueError('Use an explicit existing Sim identity and typed edit option.')
     if type(step_seconds) not in (int, float) or not math.isfinite(step_seconds) or not 0 < step_seconds <= 60:

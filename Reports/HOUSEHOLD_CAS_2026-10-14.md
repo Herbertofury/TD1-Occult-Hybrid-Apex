@@ -1,0 +1,129 @@
+# Household CAS validation, October 14
+
+The production gate remains open. V113 is installed only in the one reusable
+disposable profile. The protected original is read/copy only. The normal test
+save still has SHA-256
+`4cddc75fd958c2b154cf50d5cc49c1f2209ef77467d002a0b1797cc4bf9294a3`.
+
+## Implemented corrections
+
+- Semantic household member selection verifies the actual destination, session,
+  complete roster and native form. The installed selector performs its ordinary
+  selection path. Four serialized bytecode mutation fixtures reject incorrect
+  services, destination indexes, preflight getters and missing readback.
+- All hybrid companions have original navigation captures before full-CAS
+  projection. V109 captured their appearance checkpoints but could not navigate
+  to them after Live producers unloaded; the missing capability was refused
+  before a native selection or edit. V110 records all four companion identities.
+- A command batch hashes its full disposable Mod inventory once and verifies
+  metadata between requests. The former repeated 1.1 GB hashes expired the
+  three-second native status receipt before navigation. The measured metadata
+  pass takes 0.230 seconds for 933 rows. Tests include same-size edits with a
+  restored modification time, unknown files, removals, journal changes and a
+  file changed during initial hashing.
+- The permission capture executable has its own output directory. The old
+  optional D3D11 proxy beside the executable caused Windows' entry-point error.
+  The corrected helper passes the invalid-owner refusal check. The V110 EA
+  permission handler delivered the recognized OK once; this receipt alone
+  does not prove a successful household load or a genuinely headless runtime.
+
+## Retained crash evidence
+
+V109 entered full household CAS and completed status observations, but both
+member-navigation attempts refused before any member selection or appearance
+edit. The process then crashed in native code at `TS4_x64.exe+0x1112328`, reading
+an invalid address. Offline minidump analysis retains the registers and captured
+instructions. The fault does not identify a bridge, CC or native-game cause.
+
+Crash receipt SHA-256:
+`43c8e95eabe3f8d03cd0e28045c340d3653336319ed7a23844ede1bc6039b427`.
+All five never-observed entry captures were archived together, with their raw
+originals and existing bank lanes retained. No appearance or save was replayed.
+The archive verifies the normal save's hash. This is recovery evidence, not a
+successful CAS return or resolved crash.
+
+## Current candidate
+
+V110 candidate ZIP SHA-256:
+`5144720a31974feb4d138243cc072050d241cb054c417d726873803e0d308610`.
+The build verifies 85 Python 3.7 bytecode modules, seven DBPF packages and 206
+resources, including independent Rust verification. The frozen suite passes
+1,930 tests. Full existing-household CAS entry verifies in 22.258 seconds.
+
+All four other members complete 20 acknowledged Alien edits across 21 requested
+panels each in one full household visit. Distinct lip products 88148, 88059,
+88104 and 88127 survive member switching and revisiting in CAS. One unavailable
+panel remains explicit. A filtered sibling swatch refuses before mutation; the
+marker test uses different exact eligible products rather than treating that
+refusal as a successful swatch edit.
+
+All five independent commits pass with Alien-only acceptance on the four edited
+members. Commit proof SHA-256:
+`c4438787f4437ba7911665517899643fb662e3023a19422f5008b160c81a1ec3`.
+The all-40 comparison changes only the four stored Alien owners and their active
+appearances. The other 32 records remain exact. All four Alien → Vampire → Alien
+round trips pass with actual simulation ticks and no appearance drift: 2859/2543,
+1440/2459, 2548/2674 and 2545/2448 ticks respectively.
+
+The comparison also catches unrequested voice-pitch rounding inside those four
+accepted Alien owners: .5571260452 becomes .5600000024 and .7773332596 becomes
+.7799999714. This is a real preservation defect, not dismissed as byte noise.
+The native voice range refresh calls SetCurrentValue with notification enabled,
+causing the unchanged value to emit its .01 snap value. V111 changes only that
+programmatic refresh to suppress notification; the user voice handler and every
+other native method remain byte-identical. Serialized mutation/build checks pass.
+Actual unrounded-pitch CAS and persistence qualification is still required.
+
+All four edited members also completed Alien → Mermaid → Werewolf → Fairy →
+Spellcaster → Human → Alien: 24 additional actual transitions, with positive
+simulation ticks and no appearance drift in those immediate comparisons.
+`.work/member-v110-four-other-occult-cycles.json` retains the full observations.
+Together with the Vampire round trips, this is 32 actual transitions following
+80 CAS edits. This is still not a save/reload acceptance result.
+
+The subsequent normal-save request did not complete: the native client displayed
+the dying-Sim restriction. Two companions' complete native save-model reads
+recorded death state; a later appearance read also detected changed active voice
+effects. The failed save UUID and all original/edited form checkpoints remain
+retained. No forced save or repeated save request was submitted.
+
+The CLI shutdown initially refused its own completed `member-select` history;
+that operation is now recognized, while pending/running/unknown member selections
+still refuse shutdown. The corrected CLI completed native Exit Game without saving,
+verified all test saves/backups unchanged and observed no new crash. Proof:
+`.work/member-v110-safety-restart-normal-exit-r2.json`. Bank checkpoint SHA-256:
+`fa31153529432d6c03ca8a5882b7fc68129f8b1a5b00d404292bcec29961ce9a`.
+
+V113 adds F11/CLI reversible autonomy pause, session death prevention, per-Sim
+vampire sunlight and automatic umbrella controls, plus explicit next-load safety
+for the marked test profile. Thirteen targeted safety tests and sixty lifecycle
+tests pass. The native UI includes the earlier programmatic voice-refresh fix.
+Candidate SHA-256:
+`8824004c510b091e1bdf790e796d49cf26b5122452961867d3934a8d0c27812e`.
+Actual game proof `.work/qol-v113-actual-game-validation.json` now verifies startup
+autonomy disabled for all five instanced members, exact restoration of inherited
+autonomy and prior death-enable settings, per-Sim sunlight/umbrella on/off readback,
+no dying/dead members and all 40 appearance owners unchanged after 2,917 normal
+simulation ticks. Proof SHA-256:
+`47666e41469a238bb5889481a1f0a8398584c1bcd8be8815b0f6c8d3cc7b113c`.
+The frozen V113 suite passes 1,950 tests and all six native CTests pass. Two new
+CLI owner-routing/closed-profile tests also pass with the 49-test CLI suite.
+
+The launch uses account content code 1015806. Its elevated permission broker
+acknowledged the exact EA OK dialog; the game then started as PID 44144. Native
+Resume was submitted once and loading outlasted its observation deadline; a
+subsequent read-only check confirmed the intended five-member household loaded.
+
+Normal unsaved reload correctly discards V110's unsaved CAS edits. Their retained
+checkpoint remains available. A selective clipboard attempt to recover outfits
+and genetic data refused a native genetic-data readback mismatch and restored
+its previous preview state; no accepted recovery or persistence claim is made.
+The original 80-edit evidence and this refusal remain retained. The current
+V113 full-CAS pass is re-establishing the Alien edits through the native editor
+before the requested Vampire CAS retention test.
+The first V112 complete test run exposed a host CLI import-shadowing error; it
+was corrected and all 47 CLI tests pass before V113 validation. Failed proofs
+and the failed test log are retained rather than replaced.
+
+Normal save/cold reload, full Tray qualification, R001–R010, MCCC, tattoo insertion
+and every-member/every-panel acceptance remain open.

@@ -446,7 +446,7 @@ def shutdown_cas_state(diagnostic):
     # protocol; pending writes still block the normal quit path below.
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
     from apex_core import cas_controls
-    operations = {'status', 'panel', 'select', 'hair-swatch', 'outfit', 'outfit-add', 'undo', 'redo', 'accept', 'form-select', 'layer-select'} | set(cas_controls.OPERATIONS)
+    operations = {'status', 'panel', 'select', 'hair-swatch', 'outfit', 'outfit-add', 'undo', 'redo', 'accept', 'form-select', 'layer-select', 'member-select'} | set(cas_controls.OPERATIONS)
     blocked, ids = [], set()
     for row in rows:
         if not isinstance(row, dict):

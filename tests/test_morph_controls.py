@@ -4,6 +4,8 @@ from pathlib import Path
 import struct
 import sys
 import unittest
+import hashlib
+from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Source'))
 from apex_core import morph_controls as morph, form_appearance as appearance
@@ -19,6 +21,87 @@ def group(number, payload):
 
 
 class MorphTests(unittest.TestCase):
+    def test_base_body_edit_updates_only_same_genetic_key_preventing_native_aged_relocation(self):
+        fields=self.fields()
+        base=group(2,modifier(999,.75))+group(3,modifier(123,.5))+group(5,modifier(999,.2))+b'\xba\x06\x03new'
+        gene=group(1,base)+b'\x12\x03fat'+b'\x42\x03ccx'
+        fields['genetic_data']=appearance.encode(gene)
+        after=morph.replace(fields,self.request(fields,group=3,before=.5))
+        chunks=morph.chunks(appearance.decode(after['genetic_data']))
+        self.assertEqual([c[3] for c in chunks if c[0]!=1],[b'\x12\x03fat',b'\x42\x03ccx'])
+        rows=morph.inspect(dict(facial_attributes=appearance.encode(chunks[0][2])))
+        self.assertEqual([r['value'] for r in rows],[.75,.625,struct.unpack('<f',struct.pack('<f',.2))[0]])
+        self.assertEqual([r['group'] for r in rows],[2,3,5])
+        self.assertTrue(chunks[0][2].endswith(b'\xba\x06\x03new'))
+    def test_aged_modifier_edit_keeps_genetic_base_byte_exact(self):
+        fields=self.fields();fields['genetic_data']=appearance.encode(group(1,group(2,modifier(123,.25))))
+        after=morph.replace(fields,self.request(fields,group=4,before=.75))
+        self.assertEqual(after['genetic_data'],fields['genetic_data'])
+    def test_new_base_modifier_is_added_to_same_owner_genetic_blob_without_copying_unrelated_sculpts(self):
+        fields=self.fields();fields['genetic_data']=appearance.encode(b'\x42\x03ccx')
+        after=morph.add(fields,3,'999',.375)
+        raw=appearance.decode(after['genetic_data']);self.assertTrue(raw.startswith(b'\x42\x03ccx'))
+        child=[c[2] for c in morph.chunks(raw) if c[0]==1][0]
+        rows=morph.inspect(dict(facial_attributes=appearance.encode(child)))
+        self.assertEqual([(r['group'],r['key'],r['value']) for r in rows],[(3,'999',.375)])
+    def test_duplicate_genetic_key_refuses_before_altering_either_packet(self):
+        fields=self.fields();fields['genetic_data']=appearance.encode(group(1,group(3,modifier(123,.5))+group(3,modifier(123,.6))))
+        before=copy.deepcopy(fields)
+        with self.assertRaisesRegex(ValueError,'Duplicate genetic'):morph.replace(fields,self.request(fields,group=3,before=.5))
+        self.assertEqual(fields,before)
+    def test_native_index_zero_sentinel_does_not_block_valid_resource_lookup(self):
+        from types import SimpleNamespace as Obj
+        zero=Obj(type=0xC5F6763E,group=0,instance=0)
+        valid=Obj(type=0xC5F6763E,group=0,instance=123)
+        loaded=[]
+        def loader(key):
+            loaded.append(key);return Obj(load_raw=lambda silent_fail:b'effective')
+        resources=Obj(list=lambda type:[zero,valid],ResourceLoader=loader)
+        package=Obj(resources=resources)
+        with patch.dict(sys.modules,{'sims4':package,'sims4.resources':resources}):
+            result=morph.effective_modifier(Obj(),'C5F6763E:00000000:000000000000007B',hashlib.sha256(b'effective').hexdigest())
+        self.assertEqual(result,'123');self.assertEqual(loaded,[valid])
+    def test_new_zero_modifier_preserves_unknown_fields_and_all_existing_groups(self):
+        fields=self.fields();before=appearance.decode(fields['facial_attributes'])
+        after=morph.add(fields,3,str(2**64-1),.625)
+        prior = [row[3] for row in morph.chunks(before)]
+        actual = [row[3] for row in morph.chunks(appearance.decode(after['facial_attributes']))]
+        self.assertEqual([row for row in actual if row in prior], prior)
+        self.assertEqual(after['physique'],fields['physique'])
+        self.assertEqual([r for r in morph.inspect(after) if r['key']==str(2**64-1)][0]['value'],.625)
+    def test_new_body_modifier_precedes_aged_groups_in_face_and_genetic_packets(self):
+        raw = group(2,modifier(12,.1))+group(3,modifier(13,.2))+group(5,modifier(15,.3))+b'\x42\x03ccx'
+        fields = {'facial_attributes': appearance.encode(raw), 'genetic_data': appearance.encode(group(1,raw))}
+        after = morph.add(fields,3,'99',.375)
+        facial = appearance.decode(after['facial_attributes'])
+        genetic = morph.chunks(appearance.decode(after['genetic_data']))[0][2]
+        self.assertEqual(facial,genetic)
+        self.assertEqual([n for n,k,p,c in morph.chunks(facial)],[2,3,3,5,8])
+    def test_modifier_addition_refuses_existing_group_key_but_keeps_other_group_independent(self):
+        fields=self.fields()
+        with self.assertRaises(ValueError):morph.add(fields,2,'123',.5)
+        self.assertEqual(len(morph.inspect(morph.add(fields,3,'456',.5))),len(morph.inspect(fields))+1)
+        for group,key,value in ((True,'999',.5),(6,'999',.5),(2,'0',.5),(2,str(2**64),.5),(2,'999',float('nan')),(2,'999',1e100)):
+            with self.assertRaises(ValueError):morph.add(fields,group,key,value)
+    def test_effective_definition_hash_is_required_and_losing_override_is_not_added(self):
+        from types import SimpleNamespace
+        backend=SimpleNamespace(_studio_modifier_resource=lambda tgi:b'loaded definition')
+        tgi='C5F6763E:00000000:000000000000007B'
+        self.assertEqual(morph.effective_modifier(backend,tgi,hashlib.sha256(b'loaded definition').hexdigest()),'123')
+        with self.assertRaisesRegex(ValueError,'another definition'):morph.effective_modifier(backend,tgi,'0'*64)
+    def test_resource_verified_add_preview_live_and_undo_retain_the_original_full_packet(self):
+        fixture=fixtures.StudioTests('runTest');fixture.setUp();self.addCleanup(fixture.doCleanups)
+        fixture.sim.physique='0.1,0.2,0.3,'
+        fixture.sim.facial_attributes=appearance.decode(self.fields()['facial_attributes'])
+        before=fixture.sim.facial_attributes;fixture.backend._studio_modifier_resource=lambda tgi:b'modifier'
+        status=fixture.request('studio_shape_inspect')
+        request=dict(group=3,value=.625,resource_tgi='C5F6763E:00000000:00000000000003E7',
+                     resource_sha256=hashlib.sha256(b'modifier').hexdigest(),lane=status['history_lane'],appearance_sha256=status['appearance_sha256'])
+        draft=fixture.request('studio_shape_add_preview',json.dumps(request));self.assertEqual(before,fixture.sim.facial_attributes)
+        fixture.request('studio_cancel',draft['preview_id'])
+        result=fixture.request('studio_shape_add_live',json.dumps(request));self.assertTrue(result['live_shape_applied'])
+        undo=fixture.request('studio_undo');fixture.request('studio_apply',undo['preview_id'])
+        self.assertEqual(before,fixture.sim.facial_attributes)
     def fields(self):
         raw=b'\x0a\x03abc'+group(2,modifier())+group(3,modifier(123,.5))+group(4,modifier(123,.75))+group(5,modifier(456,0))+b'\xba\x06\x03new'
         return dict(facial_attributes=appearance.encode(raw),physique=appearance.encode('0.1,0.2,0.30,0,0,0,0,0,0'),

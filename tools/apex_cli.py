@@ -41,10 +41,13 @@ def get(path, query=None, timeout=12):
 
 
 def require_isolated(state):
-    result = test_profile.status(state)
-    if not result['ready_to_launch']:
-        raise ValueError('The session is not an exact isolated Apex profile; refusing game commands.')
-    return result
+    def full_check():
+        result = test_profile.status(state)
+        if not result['ready_to_launch']:
+            raise ValueError('The session is not an exact isolated Apex profile; refusing game commands.')
+        return result
+    from cli_identity_cache import validate
+    return validate(state, full_check)
 
 
 def verified_identity(state, transport=get):
@@ -253,6 +256,9 @@ def parser():
     addon.add_argument('operation', choices=('install', 'remove'))
     addon.add_argument('--state', required=True, type=Path)
     addon.add_argument('--archive', type=Path)
+    sliders = profile_commands.add_parser('sliders-presets', help='Read/copy owner slider and preset packages into this test profile')
+    sliders.add_argument('--state', required=True, type=Path)
+    sliders.add_argument('--install', action='store_true')
     autostart = profile_commands.add_parser('overlay-autostart', help='Toggle automatic native overlay load with the game closed')
     autostart.add_argument('operation', choices=('on', 'off'))
     autostart.add_argument('--state', required=True, type=Path)
@@ -275,6 +281,12 @@ def parser():
     request.add_argument('--sim-id')
     request.add_argument('--occult')
     request.add_argument('--value')
+    qol = commands.add_parser('qol', help='Game-thread autonomy and occult safety readback; no screen input')
+    qol.add_argument('operation', choices=('status', 'autonomy-pause', 'autonomy-resume',
+                     'death-prevent', 'death-restore', 'sunlight-on', 'sunlight-off',
+                     'umbrella-on', 'umbrella-off', 'arm-test-safety', 'disarm-test-safety'))
+    qol.add_argument('--state', required=True, type=Path)
+    qol.add_argument('--sim-id')
     poll = commands.add_parser('poll')
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
@@ -315,12 +327,13 @@ def parser():
     game.add_argument('--ensure-witch-owner', action='store_true',
                       help='Allow native-human to construct a missing tuned Witch owner without random generation')
     cas = commands.add_parser('cas', help='Semantic native CAS controls; no mouse input')
-    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
+    cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
         'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear'))
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
+    cas.add_argument('--target-sim-id', help='Existing household member identity for semantic member-select')
     cas.add_argument('--household-id', help='Exact existing household identity required for semantic CAS return')
     cas.add_argument('--settle-ticks', type=int, default=30, help='Native simulation timeline ticks required before leaving Live paused')
     cas.add_argument('--form', dest='form_flags', type=int, choices=(1, 2, 4, 8, 16, 32, 64),
@@ -504,7 +517,7 @@ def parser():
     switch_archive.add_argument('--expected-save-sha256',required=True)
     switch_archive.add_argument('--output',required=True,type=Path)
     studio = commands.add_parser('studio', help='Live/stored-form CAS History and appearance editing on the real game thread')
-    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'preview-snapshot', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'color-live', 'part-inspect', 'part-preview', 'catalog-preview', 'catalog-live', 'shape-inspect', 'shape-preview', 'shape-live', 'outfit-duplicate', 'copy-appearance', 'paste-preview', 'paste-live', 'werewolf-ea-preview', 'clipboard-export', 'open-library', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
+    studio.add_argument('operation', choices=('status', 'items', 'inventory', 'preview-snapshot', 'history', 'record', 'checkpoint', 'recover', 'color-copy', 'color-preview', 'color-inspect', 'color-edit', 'color-live', 'part-inspect', 'part-preview', 'catalog-preview', 'catalog-live', 'shape-inspect', 'shape-preview', 'shape-live', 'shape-add-preview', 'shape-add-live', 'outfit-duplicate', 'copy-appearance', 'paste-preview', 'paste-live', 'werewolf-ea-preview', 'clipboard-export', 'open-library', 'open-history', 'open-parts', 'open-cas-history', 'open-cas-parts', 'cancel', 'undo', 'redo', 'jump', 'apply', 'hair-enable', 'hair-disable', 'hair-status'))
     studio.add_argument('--state', required=True, type=Path)
     studio.add_argument('--sim-id')
     studio.add_argument('--form', type=int, help='Explicit existing native/bank form owner; editing does not activate it')
@@ -516,9 +529,11 @@ def parser():
     studio.add_argument('--catalog-manifest-sha256')
     studio.add_argument('--jobs', type=int, default=4, help='Inventory read-only page concurrency, one through four')
     preview = commands.add_parser('preview', help='Memory-only independent F11 3D Sim and animation controls without game input')
-    preview.add_argument('operation', choices=('start', 'health', 'render', 'status', 'view', 'mode', 'workspace', 'clear', 'library-select', 'thumbnail', 'gallery-query', 'gallery-select', 'gallery-view'))
+    preview.add_argument('operation', choices=('start', 'health', 'sliders', 'render', 'status', 'view', 'mode', 'workspace', 'clear', 'library-select', 'thumbnail', 'gallery-query', 'gallery-select', 'gallery-view'))
     preview.add_argument('--apply-mode', choices=('live', 'preview'), help='F11 edit policy; selecting a mode does not change the Sim')
     preview.add_argument('--state', required=True, type=Path)
+    preview.add_argument('--slider-catalog', type=Path, help='External read-only slider/preset resource catalog')
+    preview.add_argument('--slider-catalog-sha256')
     preview.add_argument('--game-root', type=Path, default=Path(r'C:\Games\The Sims 4'))
     preview.add_argument('--sim-id')
     preview.add_argument('--form', type=int, choices=(1, 2, 4, 8, 16, 32, 64))
@@ -582,6 +597,20 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'qol':
+        if args.operation in ('arm-test-safety', 'disarm-test-safety'):
+            _, journal, profile, _ = reusable_profile.load(args.state)
+            from test_profile import require_closed as qol_require_closed
+            qol_require_closed()
+            marker_path = reusable_profile.writable(profile / '.apex-disposable-profile.json')
+            marker = json.loads(marker_path.read_text(encoding='utf-8'))
+            if marker.get('token') != journal['token'] or marker.get('disposable') is not True:
+                raise ValueError('Disposable profile identity changed.')
+            marker['validation_safety'] = args.operation == 'arm-test-safety'
+            write_json(marker_path, marker)
+            return {'ok': True, 'validation_safety': marker['validation_safety'],
+                    'normal_save_modified': False, 'scope': 'one-marked-test-profile-next-load'}
+        return owned_request(args.state, 'qol_' + args.operation.replace('-', '_'), args.sim_id)
     if args.command == 'household-stress':
         from household_stress import run
         return run(args)
@@ -655,6 +684,9 @@ def execute(args):
         return game_launch.launch(args.game_root, args.state, args.execute, args.headless, offer_id=args.offer_id,
                                  elevate_permission_once=args.elevate_permission_once)
     if args.command == 'profile':
+        if args.profile_command == 'sliders-presets':
+            import owner_slider_addons
+            return (owner_slider_addons.install if args.install else owner_slider_addons.plan)(args.state)
         if args.profile_command == 'overlay-autostart':
             from overlay_configuration import configure
             return configure(args.state, args.operation == 'on')
@@ -1041,7 +1073,9 @@ def main(argv=None):
     args = parser().parse_args(argv)
     try:
         result = execute(args)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+        # JSON escapes preserve Unicode filenames on legacy Windows consoles.
+        # Encoding a successful mutation receipt must never fail afterwards.
+        print(json.dumps(result, indent=2, ensure_ascii=True))
         return 0 if result.get('ok') else 1
     except (OSError, ValueError, RuntimeError, zipfile.BadZipFile, urllib.error.URLError) as error:
         print(json.dumps({'ok': False, 'error': str(error)}), file=sys.stderr)

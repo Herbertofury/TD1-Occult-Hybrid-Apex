@@ -44,6 +44,7 @@
 #include "ApexResourceImage.h"
 #include "ApexSimPreview.h"
 #include "ApexLiveCatalog.h"
+#include "ApexSliderLibrary.h"
 #include "ApexPointerGate.h"
 #include "ApexGameWindow.h"
 #include "ApexStudioItems.h"
@@ -111,6 +112,7 @@ static std::mutex g_dataMutex;
 static std::string g_json = "{\"message\":\"Waiting for TD1 Apex Python server...\"}";
 static std::string g_status = "Not connected";
 static std::string g_commandReply = "{}";
+static ui::Json g_qolReceipt = ui::Json::object(); // worker/readback, g_dataMutex
 static ULONGLONG g_commandReplyMs = 0;
 static std::string g_selectedSim;
 struct QueuedCommand { std::string path; uint64_t generation; bool automaticCasRefresh = false; std::string sim;
@@ -125,6 +127,9 @@ static std::deque<QueuedCommand> g_commands;
 static bool RetainCommandOwner(const QueuedCommand&,const std::string&);
 static uint64_t g_selectionGeneration = 0;
 static std::atomic<bool> g_simPreviewBusy{false};
+static std::atomic<bool> g_sliderLibraryBusy{false};
+static ui::Json g_sliderLibraryPage=ui::Json::object();
+static std::string g_sliderLibraryStatus;
 static std::shared_ptr<td1::preview::Scene> g_simPreviewScene;
 static std::string g_simPreviewContext, g_simPreviewStatus;
 static td1::preview::Renderer g_simPreview;
@@ -767,6 +772,21 @@ static bool QueueThumbnail(const ui::Json& item,bool dataLocked=false) {
 
 static void RunResourceCommand(const QueuedCommand& command) {
     const int operation = command.resourceOperation;
+    if(operation==12) {
+        struct Finish{~Finish(){g_sliderLibraryBusy=false;}} finish;
+        std::string raw;ui::Json page;bool valid=false;
+        try {
+            if(!td1::sliders::Query(command.resourceRow))throw std::runtime_error("Invalid slider library query.");
+            if(!PreviewHttp("/v1/sliders/query",raw,command.resourceRow.dump(),8*1024*1024))throw std::runtime_error("Slider catalog broker unavailable.");
+            page=ui::ParseObject(raw);valid=td1::sliders::Page(page,command.resourceRow);
+            if(!valid)throw std::runtime_error("Slider catalog response differs from the requested page.");
+        } catch(const std::exception& e) {
+            std::lock_guard<std::mutex> lock(g_dataMutex);
+            if(command.generation==g_selectionGeneration)g_sliderLibraryStatus=e.what();return;
+        }
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if(command.generation==g_selectionGeneration){g_sliderLibraryPage=std::move(page);g_sliderLibraryStatus="Package definitions read / native load source checked on Apply";}return;
+    }
     if(operation==11) {
         struct Finish{~Finish(){g_thumbnailBusy=false;}} finish;
         const auto current=[&](){return command.generation==g_selectionGeneration&&command.resourceSelection==g_libraryImageSerial.load();};
@@ -894,6 +914,9 @@ static std::vector<std::string> ExtractHistory(const std::string& json) {
 static void PublishCommandReply(const std::string& body, ULONGLONG receivedMs) {
     g_json = body; g_commandReply = body; g_commandReplyMs = receivedMs;
     const auto receipt = ui::ParseObject(body);
+    if (receipt.contains("qol") && receipt["qol"].is_object() &&
+        receipt["qol"].contains("schema") && receipt["qol"]["schema"].is_number_integer() &&
+        receipt["qol"]["schema"].get<int>() == 1) g_qolReceipt = receipt["qol"];
     if (receipt.contains("cas_request_id") && ui::CasRequestIdentity(receipt["cas_request_id"])) {
         g_ownerNativeDeliveryBusy = true; g_ownerDeliveredNativeReply = body;
     }
@@ -1630,7 +1653,44 @@ static void DrawLogDock(const std::vector<std::string>& logs) {
     ImGui::EndChild();
 }
 
+static void DrawQuickAutonomy() {
+    ui::Json state;
+    { std::lock_guard<std::mutex> lock(g_dataMutex); state = g_qolReceipt; }
+    if (!state.contains("autonomy") || !state["autonomy"].is_object()) {
+        if (ImGui::SmallButton("Pause autonomy")) QueueAction("qol_autonomy_pause");
+        ImGui::SameLine(); if (ImGui::SmallButton("Read safety")) QueueAction("qol_status");
+        return;
+    }
+    bool paused = state["autonomy"].value("paused_by_apex", false);
+    if (ImGui::Checkbox("Pause autonomy", &paused))
+        QueueAction(paused ? "qol_autonomy_pause" : "qol_autonomy_resume");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Stops new autonomous choices for the world this session. Resume restores the exact previous setting. Running actions continue; simulation stays independent.");
+    ImGui::SameLine(); if (ImGui::SmallButton("Refresh safety")) QueueAction("qol_status");
+}
+
+static void DrawOccultSafety() {
+    ui::Json state;
+    { std::lock_guard<std::mutex> lock(g_dataMutex); state = g_qolReceipt; }
+    if (!state.contains("autonomy")) return;
+    ImGui::SeparatorText("Occult safety");
+    bool prevent = state.value("death", ui::Json::object()).value("prevented_by_apex", false);
+    if (ImGui::Checkbox("Prevent deaths (world, this session)", &prevent))
+        QueueAction(prevent ? "qol_death_prevent" : "qol_death_restore");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Uses the game's death toggle and restores its prior setting. Does not revive a Sim already dying.");
+    if (state.value("sim_id", std::string()) == g_selectedSim) {
+        bool sun = state.value("sunlight_blocked", false), umbrella = state.value("automatic_umbrellas_blocked", false);
+        if (ImGui::Checkbox("Disable vampire sunlight burning for this Sim", &sun)) QueueAction(sun ? "qol_sunlight_on" : "qol_sunlight_off");
+        if (ImGui::Checkbox("Disable automatic umbrellas for this Sim", &umbrella)) QueueAction(umbrella ? "qol_umbrella_on" : "qol_umbrella_off");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Prevents automatic umbrella opening; native put-away events remain available. This preference and sunlight protection are saved separately per Sim and save.");
+    } else ImGui::TextDisabled("Refresh safety for the selected Sim to change its protection.");
+    if (state.contains("household_safety") && state["household_safety"].is_array())
+        for (const auto& member : state["household_safety"])
+            if (member.value("is_dying", ui::Json()) == true || member.value("is_dead", ui::Json()) == true)
+                ImGui::TextColored(ImVec4(1,0.45f,0.35f,1), "Sim %s: %s", ui::Scalar(member,"sim_id").c_str(), member.value("is_dying",ui::Json())==true?"dying; saving may be blocked":"dead");
+}
+
 static void DrawApexTab() {
+    DrawOccultSafety();
     ImGui::TextWrapped("Core commands. Apex stays timerless unless you deliberately enable a feature; commands run once through the Sims Python queue.");
     ImGui::Columns(3, nullptr, false);
     ActionButton("Repair Active", "repair"); ActionButton("Deep Repair", "deep_repair"); ActionButton("Normalize", "normalize"); ActionButton("Recalculate", "recalc");
@@ -3208,6 +3268,53 @@ static void DrawStudioFormStrip() {
 
 static void DrawAppearanceSliders() {
     ImGui::TextWrapped("Face and body controls belong to the selected appearance owner. Preset sculpt bytes and other modifier groups are retained.");
+    if(ImGui::CollapsingHeader("All EA / CC modifiers · package conflicts and duplicate definitions")) {
+        static char librarySearch[201]="";static bool conflictsOnly=false;static int kind=0,offset=0,group=0;
+        const char* kinds[]={"modifier","hotspot","preset","sculpt","all"};
+        ImGui::SetNextItemWidth(-1);ImGui::InputTextWithHint("##slider-library-search","Package name, region, modifier key or hotspot",librarySearch,sizeof(librarySearch));
+        ImGui::Combo("Resource type",&kind,kinds,5);ImGui::Checkbox("Conflicts / identical CC definitions only",&conflictsOnly);
+        const auto query=[&](int next){
+            if(g_sliderLibraryBusy)return;offset=std::max(0,next);g_sliderLibraryBusy=true;
+            QueuedCommand command{"",g_selectionGeneration};command.resourceOperation=12;
+            command.resourceRow={{"search",librarySearch},{"offset",offset},{"limit",25},{"kind",kinds[kind]},{"conflicts_only",conflictsOnly}};
+            g_commands.push_back(std::move(command));g_sliderLibraryStatus="Reading immutable slider catalog...";
+        };
+        ImGui::BeginDisabled(g_sliderLibraryBusy);if(ImGui::Button("Search definitions"))query(0);
+        ImGui::SameLine();if(ImGui::Button("Previous definitions"))query(std::max(0,offset-25));
+        ImGui::SameLine();if(ImGui::Button("Next definitions"))query(offset+25);ImGui::EndDisabled();
+        ImGui::TextWrapped("%s",g_sliderLibraryStatus.c_str());
+        ImGui::TextWrapped("Distinct modifier IDs can be edited independently even if a CAS hotspot hides their gesture. Competing bytes at the same modifier ID share one native control. Identical resource bytes are duplicate definitions, not proof a whole package is redundant.");
+        const char* groups[]={"Face","Body","Aged face","Aged body"};ImGui::Combo("New modifier storage group",&group,groups,4);
+        if(g_sliderLibraryPage.contains("items"))for(const auto& row:g_sliderLibraryPage["items"]) {
+            const auto tgi=ui::Scalar(row,"resource_tgi");ImGui::PushID(tgi.c_str());
+            const auto conflict=ui::Scalar(row,"conflict");
+            const bool collision=conflict=="conflicting-mod-definitions";
+            ImGui::TextColored(collision?ImVec4(1,.45f,.25f,1):ImVec4(.65f,.85f,1,1),"%s / %s",ui::Scalar(row,"kind").c_str(),tgi.c_str());
+            ImGui::TextWrapped("%s",conflict.c_str());
+            if(row.value("unusable_zero_identifier",false))ImGui::TextColored(ImVec4(1,.45f,.25f,1),"Unusable ID zero / cannot be stored on a Sim");
+            if(row.contains("hotspot_bindings"))ImGui::TextDisabled("%zu hotspot direction bindings",row["hotspot_bindings"].size());
+            bool stored=false;const auto currentRows=g_studioData.find("shape_editor");
+            if(currentRows!=g_studioData.end()&&currentRows->is_array())for(const auto& item:*currentRows)
+                if(item.value("key",ui::Json())==row["instance"]&&item.value("group",ui::Json())==group+2)stored=true;
+            static std::map<std::string,float> initialValues;auto& initial=initialValues[tgi+":"+std::to_string(group)];
+            if(row["kind"]=="modifier"){ImGui::SetNextItemWidth(130);ImGui::InputFloat("Initial amount",&initial,0,0,"%.6f");}
+            size_t ordinal=0;
+            for(const auto& provider:row["providers"]) {
+                ImGui::PushID(static_cast<int>(ordinal++));ImGui::TextWrapped("%s · %s",ui::Scalar(provider,"package_name").c_str(),ui::Scalar(provider,"origin").c_str());
+                if(ImGui::IsItemHovered())ImGui::SetTooltip("Resource SHA256: %s",ui::Scalar(provider,"resource_sha256").c_str());
+                if(row["kind"]=="modifier") {
+                    ImGui::BeginDisabled(row["instance"]=="0"||stored||!g_studioData.contains("appearance_sha256")||!g_studioData.contains("history_lane")||!std::isfinite(initial)||g_previewId[0]||g_ownerBlocked||g_ownerSubmissionBusy||g_ownerNativeDeliveryBusy||g_casBankBusy||g_simPreviewBusy);
+                    if(ImGui::Button(stored?"Stored: edit value below":"Try this modifier definition")) {
+                        ui::Json request={{"group",group+2},{"value",initial},{"resource_tgi",tgi},{"resource_sha256",provider["resource_sha256"]},
+                            {"lane",g_studioData["history_lane"]},{"appearance_sha256",g_studioData["appearance_sha256"]}};
+                        const auto raw=request.dump();QueueStudioAction(g_livePartColor?"studio_shape_add_live":"studio_shape_add_preview",nullptr,raw.c_str());
+                    }ImGui::EndDisabled();
+                }
+                ImGui::PopID();
+            }
+            ImGui::Separator();ImGui::PopID();
+        }
+    }
     if(ImGui::Button("Read this form's sliders"))QueueStudioAction("studio_shape_inspect");
     const auto editor=g_studioData.find("shape_editor");if(editor==g_studioData.end()||!editor->is_array()){ImGui::TextDisabled("Inspect to read every existing face/body modifier and physique component.");return;}
     static std::string context;static std::map<std::string,float> values;
@@ -3597,6 +3704,7 @@ static void DrawOverlay() {
     }
     ImGui::Separator();
 
+    DrawQuickAutonomy();
     const char* tabs[] = {"Apex", "Forms", "Saved Forms", "Drift Guard", "Reference Shots", "CAS Tools", "CAS Categories", "MCCC Shield", "Raw Flags", "Sims/API", "Log", "CAS History", "Equipped CAS"};
     ImGui::BeginChild("navigation", ImVec2(160, 0), true);
     for (int i = 0; i < IM_ARRAYSIZE(tabs); ++i) {

@@ -29,6 +29,7 @@ public class CasFormSelectionSafetyFixtures {
         CasBytecodePatch.verifyTimerPipeline(abc,instance);
         CasBytecodePatch.verifyQueuedHandshake(abc,instance);
         CasBytecodePatch.verifyFormSelection(abc,instance);
+        CasBytecodePatch.verifyMemberSelection(abc,instance);
         CasBytecodePatch.verifyExactItemSelection(abc,instance);
         CasBytecodePatch.verifyTypedControls(abc,instance);
     }
@@ -42,8 +43,20 @@ public class CasFormSelectionSafetyFixtures {
         MethodBody readback=CasBytecodePatch.ownedBody(abc,instance,"ApexReadback");
         MethodBody region=CasBytecodePatch.ownedBody(abc,instance,"ApexBodyTypes");
         MethodBody layers=CasBytecodePatch.ownedBody(abc,instance,"ApexNativeLayers");
+        MethodBody memberHelper=CasBytecodePatch.ownedBody(abc,instance,"ApexMemberSelectionContext");
         checks(abc);
         switch(kind) {
+            case "member-service-name":
+                literal(abc,execute,"CASSelectSim").operands[0]=abc.constants.getStringId("CasRemoveSim",true);break;
+            case "member-destination-index":
+                property(abc,execute,"target_index").operands[0]=member(abc,"source_index");break;
+            case "member-preflight-service":
+                literal(abc,memberHelper,"ApexReadOwnerPairFeed").operands[0]=abc.constants.getStringId("CasRemoveSim",true);break;
+            case "member-readback-missing":
+                for(var instruction:readback.getCode().code) if(CasBytecodePatch.property(abc,instruction,0x46,"ApexMemberSelectionContext")) {
+                    instruction.operands[0]=member(abc,"ApexOwnerSimRow");break;
+                }
+                break;
             case "actual-constructor-timer-path": break;
             case "native-snapshot-detached": break;
             case "body-region-native-write":
@@ -132,7 +145,7 @@ public class CasFormSelectionSafetyFixtures {
             }
             default:throw new AssertionError("Unknown fixture "+kind);
         }
-        for(MethodBody body:List.of(execute,helper,connect,tick,readback,region,layers,
+        for(MethodBody body:List.of(execute,helper,connect,tick,readback,region,layers,memberHelper,
             CasBytecodePatch.ownedBody(abc,instance,"ApexSnapshot"))) body.setModified();
         ByteArrayOutputStream bytes=new ByteArrayOutputStream();abc.saveToStream(bytes);
         ABC saved=new ABC(new ABCInputStream(new MemoryInputStream(bytes.toByteArray())),abc.getSwf(),null);

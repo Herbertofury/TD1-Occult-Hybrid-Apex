@@ -37,7 +37,16 @@ apex_overlay_target(TD1ApexD3D11Proxy)
 set_target_properties(TD1ApexD3D11Proxy PROPERTIES OUTPUT_NAME "d3d11")
 
 include(CTest)
+add_executable(ApexPermissionCapture Source/ApexPermissionCapture.cpp)
+# Keep executable lookup away from the optional d3d11 proxy in Release.
+set_target_properties(ApexPermissionCapture PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/permission-capture/$<CONFIG>")
+target_compile_definitions(ApexPermissionCapture PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_compile_options(ApexPermissionCapture PRIVATE /W4 /permissive- /EHsc /utf-8)
+target_link_libraries(ApexPermissionCapture PRIVATE windowsapp d3d11 dxgi dwmapi user32)
 if(BUILD_TESTING)
+    add_test(NAME native-ea-capture-empty-owner COMMAND ApexPermissionCapture 0 0 200 150 unused-invalid-ea.bmp)
+    set_tests_properties(native-ea-capture-empty-owner PROPERTIES WILL_FAIL TRUE TIMEOUT 10)
     add_executable(ApexSimPreviewTests Tests/SimPreviewTests.cpp)
     target_include_directories(ApexSimPreviewTests PRIVATE Source third_party)
     target_compile_definitions(ApexSimPreviewTests PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)

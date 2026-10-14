@@ -9,6 +9,23 @@ import apex_cli
 
 
 class CliTests(unittest.TestCase):
+    def test_qol_controls_use_the_same_game_thread_owner_without_input(self):
+        for operation in ('status', 'autonomy-pause', 'autonomy-resume', 'death-prevent',
+                          'death-restore', 'sunlight-on', 'sunlight-off', 'umbrella-on', 'umbrella-off'):
+            with self.subTest(operation=operation), patch.object(apex_cli, 'owned_request', return_value={'ok': True}) as request:
+                args = apex_cli.parser().parse_args(['qol', operation, '--state', 'state.json', '--sim-id', '12'])
+                self.assertTrue(apex_cli.execute(args)['ok'])
+                request.assert_called_once_with(Path('state.json'), 'qol_' + operation.replace('-', '_'), '12')
+
+    def test_qol_startup_safety_refuses_a_running_game_before_writing_marker(self):
+        with patch.object(apex_cli.reusable_profile, 'load', return_value=(None, {'token': 'a' * 32}, Path('profile'), None)), \
+                patch.object(apex_cli.test_profile, 'require_closed', side_effect=RuntimeError('still running')), \
+                patch.object(apex_cli.reusable_profile, 'writable') as write:
+            args = apex_cli.parser().parse_args(['qol', 'arm-test-safety', '--state', 'state.json'])
+            with self.assertRaisesRegex(RuntimeError, 'still running'):
+                apex_cli.execute(args)
+            write.assert_not_called()
+
     def test_background_lifecycle_routes_use_background_capture_and_pointer_adapter(self):
         import game_lifecycle,game_capture
         for operation in ('resume','shutdown','exit'):

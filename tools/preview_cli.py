@@ -32,22 +32,30 @@ def http(path, value=None):
         return json.loads(raw)
 
 
-def start(state, game):
+def start(state, game, slider_catalog=None, slider_catalog_sha256=None):
     from apex_cli import require_isolated
     require_isolated(state)
     _, _, active, _ = reusable_profile.load(state)
     mods = active / 'Mods'
     game = Path(game).resolve(strict=True)
+    if bool(slider_catalog) != bool(slider_catalog_sha256):
+        raise ValueError('Slider catalog path and SHA256 must be provided together.')
+    if slider_catalog is not None:
+        from slider_catalog import Catalog
+        Catalog(slider_catalog, slider_catalog_sha256)
     try: health = http('/v1/preview/health')
     except OSError: health = None
     if health is not None:
         if health.get('game_root') != str(game) or health.get('mods_root') != str(mods):
             raise ValueError('A different preview profile owns the helper; no second helper started.')
+        if slider_catalog is not None and health.get('slider_catalog_sha256') != slider_catalog_sha256:
+            raise ValueError('The running preview helper has another slider catalog; stop that idle helper before replacing it.')
         return dict(health, reused=True)
     log = ROOT / '.work' / 'preview-service.log'
     with log.open('ab') as stream:
-        process = subprocess.Popen([sys.executable, '-B', str(ROOT / 'tools' / 'sim_preview_service.py'),
-            '--game-root', str(game), '--mods-root', str(mods)], stdin=subprocess.DEVNULL,
+        command=[sys.executable, '-B', str(ROOT / 'tools' / 'sim_preview_service.py'), '--game-root', str(game), '--mods-root', str(mods)]
+        if slider_catalog is not None:command+=['--slider-catalog',str(slider_catalog),'--slider-catalog-sha256',slider_catalog_sha256]
+        process = subprocess.Popen(command, stdin=subprocess.DEVNULL,
             stdout=stream, stderr=stream, cwd=ROOT,
             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     deadline = time.monotonic() + 55
@@ -157,9 +165,13 @@ def execute(args):
         output = reusable_profile.writable(args.output)
         if output.exists() or output.suffix.lower() != '.json' or any(output == root or root in output.parents for root in (active, original)):
             raise ValueError('Preview evidence needs one new external JSON filename.')
-    if args.operation == 'start': result = start(args.state, args.game_root)
+    if args.operation == 'start': result = start(args.state, args.game_root, getattr(args,'slider_catalog',None), getattr(args,'slider_catalog_sha256',None))
     elif args.operation == 'render': result = render(args)
     elif args.operation == 'health': result = http('/v1/preview/health')
+    elif args.operation == 'sliders':
+        if args.values is None or args.values.stat().st_size > 4096:
+            raise ValueError('Provide one bounded slider catalog query JSON file.')
+        result = http('/v1/sliders/query', json.loads(args.values.read_text(encoding='utf-8')))
     elif args.operation == 'mode':
         if args.apply_mode is None: raise ValueError('Select --apply-mode live or preview explicitly.')
         result = native(args.state, dict(operation='mode', apply_mode=args.apply_mode))

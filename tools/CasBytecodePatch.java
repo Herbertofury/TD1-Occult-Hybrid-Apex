@@ -112,7 +112,7 @@ public class CasBytecodePatch {
         for(String event:List.of("ApexSocketData","ApexSocketConnect","ApexSocketFailure"))
             require(Collections.disjoint(calls.get(event), Set.of("ApexExecute", "ApexReadback", "ApexSnapshot", "ApexComplete", "ApexAccept",
                 "ApexFormSelectionContext", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers",
-                "CallGameService", "CallUIService", "SendUIMessage")), "Socket callback executes native CAS work.");
+                "CallGameService", "CallUIService", "SendUIMessage", "SendMessage", "ApexMemberSelectionContext")), "Socket callback executes native CAS work.");
         require(calls.get("ApexSocketConnect").equals(Set.of("split")), "CAS CONNECT callback must queue only.");
         require(calls.get("ApexTick").containsAll(Set.of("CallGameService","ApexSocketSend","connect","addEventListener")),
             "Queued CAS handshake lacks the actual native Timer/Socket constructor path.");
@@ -586,7 +586,7 @@ public class CasBytecodePatch {
         Set<String> callers=new HashSet<>();
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex") &&
                 propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains(helper)) callers.add(name(abc,trait));
-        require(callers.equals(Set.of("ApexExecute","ApexReadback")), "CAS form selection helper is called outside owned Timer command phases.");
+        require(callers.equals(Set.of("ApexExecute","ApexReadback","ApexMemberSelectionContext")), "CAS form selection helper is called outside owned Timer command phases.");
         var execute=ownedBody(abc,instance,"ApexExecute").getCode().code;
         int indexSlot=-1, flagSlot=-1;
         for(int i=0;i+5<execute.size();i++) {
@@ -618,6 +618,38 @@ public class CasBytecodePatch {
         }
         require(writes.equals(List.of("CasSelectSim","CasSelectOccultForm")), "CAS form selection native write order/inventory differs.");
 
+    }
+    static void verifyMemberSelection(ABC abc, InstanceInfo instance) {
+        MethodBody helper=ownedBody(abc,instance,"ApexMemberSelectionContext");
+        require(Set.of("ApexFormSelectionContext","CallUIService","push","test","ApexEncode").containsAll(propertyCalls(abc,helper)),
+            "Member navigation preflight invokes an unreviewed member.");
+        var inspection=helper.getCode().code;
+        int reads=0;
+        for(int i=0;i<inspection.size();i++) if(property(abc,inspection.get(i),0x46,"CallUIService")) {
+            require(i>=2 && inspection.get(i).operands[1]==2 && opcode(inspection.get(i-1),0x20) &&
+                opcode(inspection.get(i-2),0x2c) && "ApexReadOwnerPairFeed".equals(
+                    abc.constants.getString(inspection.get(i-2).operands[0])),
+                "Member navigation uses an unreviewed selector service.");
+            reads++;
+        }
+        require(reads==1,"Member navigation lacks its bounded retained selector read.");
+        for(String phase:List.of("ApexExecute","ApexReadback"))
+            require(propertyCalls(abc,ownedBody(abc,instance,phase)).contains("ApexMemberSelectionContext"),
+                "Member navigation lacks fresh next-tick destination validation.");
+        var code=ownedBody(abc,instance,"ApexExecute").getCode().code;
+        int calls=0, indexSlot=-1;
+        for(int i=0;i+3<code.size();i++) if(property(abc,code.get(i),0x66,"target_index") &&
+                opcode(code.get(i+1),0x73) && opcode(code.get(i+2),0x73) && opcode(code.get(i+3),0x6d))
+            indexSlot=code.get(i+3).operands[0];
+        require(indexSlot>0,"Member navigation lacks its typed validated target index.");
+        for(int i=0;i<code.size();i++) if(property(abc,code.get(i),0x4f,"SendMessage") || property(abc,code.get(i),0x46,"SendMessage")) {
+            require(i>=4 && code.get(i).operands[1]==2 && opcode(code.get(i-3),0x2c) &&
+                "CASSelectSim".equals(abc.constants.getString(code.get(i-3).operands[0])) &&
+                property(abc,code.get(i-4),0x60,"CommunicationManager") && slotLoad(code,i-2,indexSlot),
+                "Member navigation must dispatch only the installed CASSelectSim handler.");
+            calls++;
+        }
+        require(calls==1,"Member navigation requires exactly one native selector dispatch.");
     }
     static void verifyCatalogMetadataDisabled(ABC abc, InstanceInfo instance) {
         MethodInfo method=abc.method_info.get(ownedBody(abc,instance,"ApexSnapshot").method_info);
@@ -656,7 +688,7 @@ public class CasBytecodePatch {
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
-            "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext",
+            "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
@@ -681,6 +713,7 @@ public class CasBytecodePatch {
         verifyTimerPipeline(compiled, newClass);
         verifyOwnerObservation(compiled, newClass);
         verifyFormSelection(compiled, newClass);
+        verifyMemberSelection(compiled,newClass);
         verifyQueuedHandshake(compiled, newClass);
         verifyExactItemSelection(compiled, newClass);
         verifyTypedControls(compiled, newClass);

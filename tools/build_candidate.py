@@ -118,8 +118,15 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
             raise ValueError('CAS bridge package does not match its build evidence.')
         if set(tgi(key) for key in read(ui_path.read_bytes())) != {
                 '62ECC59A:00000000:DF09D526F4C77B95',
-                '62ECC59A:00000000:26DF5B0A7B97963E'}:
-            raise ValueError('CAS bridge must contain exactly the two verified native UI resources.')
+                '62ECC59A:00000000:26DF5B0A7B97963E',
+                '62ECC59A:00000000:E36BA403351FFE60'}:
+            raise ValueError('CAS bridge must contain exactly the three verified native UI resources.')
+        voice = ui_info.get('voice_native_bytecode_contract', {})
+        if (voice.get('ok') is not True or voice.get('unrelated_native_methods_preserved') is not True or
+                voice.get('user_voice_handler_preserved') is not True or
+                voice.get('base_method_sha256') != 'ee8407e704f69ad134e98afc0e701cd402de990996fd0ab85643cb61d2cff015' or
+                voice.get('patched_method_sha256') != '3a1300de02412b157086aa3a8240b30d7a9f1319dfe1f7bb5dbb641d6a41c0b2'):
+            raise ValueError('CAS voice refresh lacks its exact silent setter and preserved user handler evidence.')
         packages.append(ui_info)
     script = build_script(ROOT / 'Source', output / 'ApexOccultHybrid.ts4script',
         hybrid_baseline=baseline / 'LordPercivalXII.Occult.Hybrid.Unlocker.Stabilizer.Version.1.13.7.zip')

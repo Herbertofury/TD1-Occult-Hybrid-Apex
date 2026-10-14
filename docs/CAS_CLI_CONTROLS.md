@@ -1,5 +1,31 @@
 # Native CAS CLI controls
 
+V110 adds `cas member-select` for the full existing-household editor. Supply the
+currently selected Sim, destination Sim, household, current layer and native
+session from `cas status`. The command uses the installed `CASSelectSim` handler
+and verifies the destination on a later UI tick. It preserves the complete
+observed household roster and requires original producer captures for both
+members. It does not create Sims or certify appearance persistence.
+
+```powershell
+python tools/apex_cli.py cas status --state .work/reusable-profile-session.json --sim-id SOURCE_SIM --output .work/source-status.json
+python tools/apex_cli.py cas member-select --state .work/reusable-profile-session.json --sim-id SOURCE_SIM --target-sim-id TARGET_SIM --household-id HOUSEHOLD --expected-layer 0 --native-session SESSION --output .work/member-selection.json
+```
+
+Full-CAS entry now captures each hybrid companion's navigation identity while
+its Live producer is available, alongside its independent form checkpoint.
+Incomplete identities block entry. Native acknowledgements identify the actual
+selected Sim; a successful request for another Sim is never inferred from an
+input or requested ID. The subsequent workbench must run against that returned
+destination. Use explicit per-member/per-form decisions when returning to Live.
+
+CAS status, submission and result polling share one bounded CLI inventory
+lease. The batch first verifies all installed artifact hashes. Each subsequent
+request checks the journal and every Mod file's identity, size, write time and
+NTFS ChangeTime; any change stops the batch. This avoids hashing the 1.1 GB
+slider/preset setup between a fresh status receipt and its three-second
+navigation deadline. Separate commands start new full verifications.
+
 V40 makes plain `game capture --background` independent of F11 initialization,
 visibility and gameplay/CAS diagnostics. It reads the selected native game's
 backbuffer with scoped device/context ownership. Actual cold startup succeeds

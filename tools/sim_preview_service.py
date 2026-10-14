@@ -128,13 +128,19 @@ class Worker:
 
 
 class Broker:
-    def __init__(self, worker, budget=MEMORY_BUDGET):
+    def __init__(self, worker, budget=MEMORY_BUDGET, slider_catalog=None):
         if type(budget) is not int or not MAX_SCENE <= budget <= MEMORY_BUDGET:
             raise ValueError('Preview memory budget must be between 64 and 128 MiB.')
         self.worker, self.budget = worker, budget
         self.lock = threading.RLock()
         self.jobs = OrderedDict(); self.scenes = OrderedDict(); self.bytes = 0
         self.active = False
+        self.slider_catalog = slider_catalog
+
+    def sliders(self, request):
+        if self.slider_catalog is None:
+            raise ValueError('Start the preview broker with an exact slider catalog and SHA256.')
+        return self.slider_catalog.query(request)
 
     def prepare(self, request):
         key = snapshot(request)
@@ -253,14 +259,15 @@ def handler(broker):
             self.send_header('Cache-Control', 'no-store'); self.end_headers(); self.wfile.write(raw)
         def do_POST(self):
             try:
-                if not self.allowed() or self.path not in ('/v1/preview/prepare', '/v1/tray/inspect', '/v1/thumbnail/prepare') or self.headers.get('Content-Type') != 'application/json' or self.headers.get('Transfer-Encoding'):
+                if not self.allowed() or self.path not in ('/v1/preview/prepare', '/v1/tray/inspect', '/v1/thumbnail/prepare', '/v1/sliders/query') or self.headers.get('Content-Type') != 'application/json' or self.headers.get('Transfer-Encoding'):
                     raise ValueError('Bounded loopback preview protocol required.')
                 size = int(self.headers.get('Content-Length', '0'))
                 if not 0 < size <= MAX_REQUEST: raise ValueError('Preview request exceeds bound.')
                 raw = self.rfile.read(size)
                 if len(raw) != size: raise ValueError('Truncated preview request.')
                 value = json.loads(raw)
-                if self.path == '/v1/tray/inspect':
+                if self.path == '/v1/sliders/query': self.reply(200, broker.sliders(value))
+                elif self.path == '/v1/tray/inspect':
                     if not isinstance(value, dict) or set(value) != {'sims'} or not isinstance(value['sims'], list) or not 0 < len(value['sims']) <= 128:
                         raise ValueError('One bounded explicit Tray Sim payload list required.')
                     self.reply(200, broker.worker.assemble(dict(value, operation='tray-inspect')))
@@ -276,7 +283,8 @@ def handler(broker):
                 elif asset: self.reply(200, broker.asset(*asset.groups()))
                 elif self.path == '/v1/preview/health':
                     with broker.lock: self.reply(200, dict(ok=True, scenes=len(broker.scenes), bytes=broker.bytes, budget=broker.budget,
-                        active=broker.active, disk_assets_written=False, game_root=broker.worker.game, mods_root=broker.worker.mods))
+                        active=broker.active, disk_assets_written=False, game_root=broker.worker.game, mods_root=broker.worker.mods,
+                        slider_catalog_sha256=broker.slider_catalog.expected if broker.slider_catalog is not None else None))
                 else: raise ValueError('Unknown typed preview route.')
             except (KeyError, ValueError, TypeError, OSError) as e: self.reply(409, {'ok': False, 'reason': str(e)})
     return Handler
@@ -286,10 +294,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--game-root', required=True, type=Path)
     parser.add_argument('--mods-root', required=True, type=Path)
+    parser.add_argument('--slider-catalog', type=Path)
+    parser.add_argument('--slider-catalog-sha256')
     args = parser.parse_args()
+    if bool(args.slider_catalog) != bool(args.slider_catalog_sha256):
+        parser.error('Slider catalog path and SHA256 must be provided together.')
+    catalog = None
+    if args.slider_catalog:
+        from slider_catalog import Catalog
+        catalog = Catalog(args.slider_catalog, args.slider_catalog_sha256)
     worker = Worker(args.game_root, args.mods_root)
     try:
-        with LoopbackHTTPServer(('127.0.0.1', PORT), handler(Broker(worker))) as server:
+        with LoopbackHTTPServer(('127.0.0.1', PORT), handler(Broker(worker, slider_catalog=catalog))) as server:
             server.daemon_threads = True
             print(json.dumps(dict(ok=True, endpoint='http://127.0.0.1:'+str(PORT), disk_assets_written=False)), flush=True)
             server.serve_forever()

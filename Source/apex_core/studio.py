@@ -618,6 +618,24 @@ def dispatch(backend, action, sim_id, value):
     if action == 'studio_shape_inspect':
         return _response(journal, 'Observed face/body slider values read without changing any form.',
                          shape_editor=morph_controls.inspect(_fields(before)))
+    if action in ('studio_shape_add_preview', 'studio_shape_add_live'):
+        if journal.data['pending']: raise ValueError('Apply or Cancel the pending preview before adding a modifier.')
+        if not isinstance(value, str) or len(value) > 2048: raise ValueError('Bounded new modifier request required.')
+        request = json.loads(value)
+        if not isinstance(request, dict) or set(request) != {'group','value','resource_tgi','resource_sha256','lane','appearance_sha256'}:
+            raise ValueError('New modifier request identity fields differ.')
+        if request['lane'] != lane or request['appearance_sha256'] != fingerprint(before):
+            raise ValueError('Sim/form/save or appearance changed; inspect again.')
+        key = morph_controls.effective_modifier(backend, request['resource_tgi'], request['resource_sha256'])
+        after = _state_from_fields(backend, morph_controls.add(_fields(before), request['group'], key, request['value']))
+        form_bank.assert_idle(backend, primary)
+        token = journal.prepare('Add modifier {} / group {}'.format(key, request['group']), before, after)
+        if action == 'studio_shape_add_live':
+            journal.apply(token, read, write)
+            return _response(journal, 'Resource-verified modifier applied to this form. Unpause to inspect rendering.',
+                             live_shape_applied=True, rendered_result_verified=False,
+                             shape_editor=morph_controls.inspect(_fields(read())))
+        return _response(journal, 'Resource-verified modifier try-on prepared.', preview_id=token)
     if action in ('studio_shape_preview', 'studio_shape_live'):
         if journal.data['pending']: raise ValueError('Apply or Cancel the pending preview before another slider edit.')
         if not isinstance(value, str) or len(value) > 2048: raise ValueError('Bounded appearance slider request required.')

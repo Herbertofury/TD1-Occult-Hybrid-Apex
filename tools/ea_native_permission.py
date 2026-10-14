@@ -24,6 +24,31 @@ class WindowPlacement(ctypes.Structure):
                 ('minimum', W.POINT), ('maximum', W.POINT), ('normal', W.RECT)]
 
 
+def blank_rgb(raw):
+    """PrintWindow may report success while Qt returns a uniform blank surface."""
+    return bool(raw) and len(raw) % 4 == 0 and all(len(set(raw[offset::4])) == 1 for offset in (0,1,2))
+
+
+def graphics_capture(row, output):
+    """Capture the bound EA window even behind another app, without input."""
+    helper = Path(__file__).resolve().parents[1] / 'NativeOverlay' / 'build' / 'permission-capture' / 'Release' / 'ApexPermissionCapture.exe'
+    helper = unlinked(helper); output = writable(output)
+    if not helper.is_file() or output.exists():
+        raise ValueError('Build the native EA capture helper and use a fresh external output.')
+    reply = subprocess.run([str(helper),str(row['hwnd']),str(row['pid']),str(row['width']),str(row['height']),str(output)],
+        capture_output=True,text=True,encoding='utf-8',timeout=8,creationflags=subprocess.CREATE_NO_WINDOW)
+    if reply.returncode or not output.is_file():
+        raise ValueError('Windows Graphics Capture refused this EA window: '+reply.stderr[-1000:])
+    receipt=json.loads(reply.stdout)
+    if (receipt.get('ok') is not True or receipt.get('foreground_changed') is not False or receipt.get('input_sent') is not False or
+            receipt.get('client_width')!=row['width'] or receipt.get('client_height')!=row['height']):
+        raise ValueError('EA graphics capture receipt differs from the bound window.')
+    raw=output.read_bytes();width,height=row['width'],row['height']
+    if len(raw)!=54+width*height*4 or raw[:2]!=b'BM' or struct.unpack_from('<ii',raw,18)!=(width,-height) or blank_rgb(raw[54:]):
+        raise ValueError('EA graphics capture has invalid or blank client pixels.')
+    return hashlib.sha256(raw).hexdigest()
+
+
 def dialog_button(observation):
     if (not isinstance(observation, dict) or observation.get('ok') is not True or
             type(observation.get('width')) is not int or type(observation.get('height')) is not int or
@@ -86,6 +111,8 @@ class NativeEA:
             'GetClassNameW': ([W.HWND, W.LPWSTR, ctypes.c_int], ctypes.c_int),
             'GetWindowTextW': ([W.HWND, W.LPWSTR, ctypes.c_int], ctypes.c_int),
             'GetForegroundWindow': ([], W.HWND), 'SetForegroundWindow': ([W.HWND], W.BOOL),
+            'ClientToScreen': ([W.HWND, ctypes.POINTER(W.POINT)], W.BOOL),
+            'WindowFromPoint': ([W.POINT], W.HWND), 'GetAncestor': ([W.HWND, W.UINT], W.HWND),
             'GetDC': ([W.HWND], W.HDC), 'ReleaseDC': ([W.HWND, W.HDC], ctypes.c_int),
             'PrintWindow': ([W.HWND, W.HDC, W.UINT], W.BOOL),
             'SendMessageTimeoutW': ([W.HWND, W.UINT, W.WPARAM, W.LPARAM, W.UINT, W.UINT, ctypes.POINTER(ctypes.c_size_t)], W.LPARAM)}
@@ -95,6 +122,7 @@ class NativeEA:
             ('CreateCompatibleDC', [W.HDC], W.HDC), ('CreateCompatibleBitmap', [W.HDC, ctypes.c_int, ctypes.c_int], W.HBITMAP),
             ('SelectObject', [W.HDC, W.HANDLE], W.HANDLE), ('DeleteObject', [W.HANDLE], W.BOOL),
             ('DeleteDC', [W.HDC], W.BOOL),
+            ('BitBlt', [W.HDC,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int,W.HDC,ctypes.c_int,ctypes.c_int,W.DWORD],W.BOOL),
             ('GetDIBits', [W.HDC, W.HBITMAP, W.UINT, W.UINT, ctypes.c_void_p, ctypes.c_void_p, W.UINT], ctypes.c_int)):
             func = getattr(self.gdi, name); func.argtypes = args; func.restype = result
 
@@ -193,14 +221,19 @@ class NativeEA:
             raise OSError('EA capture resources unavailable.')
         prior = self.gdi.SelectObject(memory, bitmap)
         try:
-            if not self.user.PrintWindow(hwnd, memory, 3):  # CLIENTONLY | RENDERFULLCONTENT
-                raise OSError(ctypes.get_last_error(), 'EA client capture refused.')
+            printed = self.user.PrintWindow(hwnd, memory, 3)  # CLIENTONLY | RENDERFULLCONTENT
             self.gdi.SelectObject(memory, prior); prior = None
             header = struct.pack('<IiiHHIIiiII', 40, width, -height, 1, 32, 0, width * height * 4, 0, 0, 0, 0)
             info = ctypes.create_string_buffer(header)
             pixels = ctypes.create_string_buffer(width * height * 4)
             if self.gdi.GetDIBits(memory, bitmap, 0, height, pixels, info, 0) != height:
                 raise OSError('EA client pixel readback failed.')
+            if not printed or blank_rgb(pixels.raw):
+                # WGC captures the selected window's compositor surface rather
+                # than desktop pixels, so other apps may cover it.
+                digest=graphics_capture(row,output)
+                if self.identity(hwnd)!=row:raise ValueError('EA identity changed after graphics capture.')
+                return digest
             raw = struct.pack('<2sIHHI', b'BM', 54 + len(pixels.raw), 0, 0, 54) + header + pixels.raw
             output = writable(output)
             if output.exists(): raise ValueError('Capture evidence already exists.')
@@ -209,6 +242,19 @@ class NativeEA:
         finally:
             if prior: self.gdi.SelectObject(memory, prior)
             self.gdi.DeleteObject(bitmap); self.gdi.DeleteDC(memory); self.user.ReleaseDC(hwnd, dc)
+
+    def visible_client(self, row):
+        if self.identity(row['hwnd']) != row: raise ValueError('EA visible client identity changed.')
+        if self.user.GetForegroundWindow() != row['hwnd']:
+            raise ValueError('EA permission client is behind another app; no focus will be taken.')
+        for x in (1,row['width']//2,row['width']-2):
+            for y in (1,row['height']//2,row['height']-2):
+                point=W.POINT(x,y)
+                if not self.user.ClientToScreen(row['hwnd'],ctypes.byref(point)):
+                    raise ValueError('EA client visibility is unavailable.')
+                hit=self.user.WindowFromPoint(point)
+                if not hit or self.user.GetAncestor(hit,2)!=row['hwnd']:
+                    raise ValueError('EA permission client is obscured; no focus will be taken.')
 
     def click(self, row, point):
         hwnd = row['hwnd']

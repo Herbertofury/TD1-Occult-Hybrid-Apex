@@ -38,6 +38,7 @@ SOURCE_FILES = (
     'ea_permission_broker.py', 'ea_permission.py', 'ea_native_permission.py',
     'windows_ocr.py', 'windows_ocr.ps1', 'reusable_profile.py', 'test_profile.py',
     'game_launch.py', 'windows_process.py', 'source_manifest.py',
+    '../NativeOverlay/Source/ApexPermissionCapture.cpp',
 )
 MAX_BYTES = 65536
 LEASE_SECONDS = 90
@@ -54,7 +55,10 @@ def _digest(path):
 
 
 def source_identity():
-    return {name: _digest(TOOLS / name) for name in SOURCE_FILES}
+    result = {name: _digest(TOOLS / name) for name in SOURCE_FILES}
+    native = '../NativeOverlay/build/permission-capture/Release/ApexPermissionCapture.exe'
+    if (TOOLS / native).is_file(): result[native] = _digest(TOOLS / native)
+    return result
 
 
 def _integer(value, minimum=0):

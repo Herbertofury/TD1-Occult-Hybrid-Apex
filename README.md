@@ -7,6 +7,14 @@
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
 **Current development checkpoint — October 14 multi-hybrid preservation:**
+Latest: V113 adds reversible F11/CLI autonomy pause and occult safety controls.
+Actual five-member tests verify those controls and all 40 appearances across
+2,917 simulation ticks; 1,950 frozen tests and six native checks pass.
+Full Vampire CAS / Alien retention and production save qualification remain open.
+See [current household evidence](Reports/HOUSEHOLD_CAS_2026-10-14.md) and
+[autonomy and safety controls](docs/OCCULT_SAFETY_CONTROLS.md).
+
+Earlier checkpoints:
 The disposable household contains five Sims with all six actual occult
 memberships and seven appearance owners each. V91 verifies twelve distinct
 full-CAS Alien/Human disguise edits and the original Sim's saved cold reload.

@@ -26,6 +26,7 @@ def checkpoint_members(backend, selected, selected_checkpoint):
     independently decided appearance owners.
     """
     from . import cas_bank_transaction as bank
+    from . import cas_ui
     if not isinstance(selected_checkpoint, dict) or selected_checkpoint.get('ok') is not True:
         raise ValueError('Selected CAS member has no acknowledged raw checkpoint.')
     household = backend.services.active_household()
@@ -49,7 +50,13 @@ def checkpoint_members(backend, selected, selected_checkpoint):
         result = bank.begin(backend, sim)
         if not isinstance(result, dict) or result.get('ok') is not True:
             raise ValueError('Companion raw CAS checkpoint was not acknowledged; entry blocked.')
-        rows.append({'sim_id': str(sim.id), 'form_checkpoint': result})
+        # CAS disposes the Live producers. Capture each companion's actual
+        # navigation identity here, alongside its raw form checkpoint, while
+        # the manager/tracker/wrappers are still readable and before projection.
+        owner = cas_ui.capture_original_owner(backend, sim)
+        if owner.get('original_owner', {}).get('complete') is not True:
+            raise ValueError('Companion original CAS navigation identity is incomplete; entry blocked.')
+        rows.append({'sim_id': str(sim.id), 'form_checkpoint': result, 'owner_observation': owner})
     return {'ok': True, 'household_id': str(household.id),
             'roster_sim_ids': [str(sim.id) for sim in members], 'members': rows,
             'native_appearance_written': False, 'native_availability_written': False,

@@ -137,7 +137,9 @@
                apexSocket.connect("127.0.0.1",8021);
                return;
             }
-            if(apexBoundSim!="" && apexBoundSim!=simId) {
+            if(apexBoundSim!="" && apexBoundSim!=simId && !(apexPendingFields!=null &&
+               String(apexPendingFields[2])=="member-select" && apexPendingPhase==1 &&
+               apexPendingContext.target_sim_id==simId && apexClaimNonce==apexNonce)) {
                ApexResetSocket(); return;
             }
             if(apexHelloPending) {
@@ -461,6 +463,37 @@
                selected_layer:expectedLayer,target_layer:targetLayer,form_flags:int(target.occult_type),feed_sequence:int(raw.sequence),
                pair_json:ApexEncode(projection)};
          } finally { native=null; selector=null; fresh=null; }
+      }
+
+      private function ApexMemberSelectionContext(currentId:String, targetId:String, householdId:String,
+         expectedLayer:int, nativeSession:int) : Object
+      {
+         // Reuse the complete fresh source-pair validator. Member navigation
+         // is separate from appearance acceptance and never creates a Sim.
+         var source:Object=ApexFormSelectionContext(currentId,householdId,expectedLayer,1,nativeSession,expectedLayer);
+         var selector:Object=CommunicationManager.CallUIService("ApexReadOwnerPairFeed",null);
+         var pairs:Array=selector.retained.pairs as Array;
+         var roster:Array=[]; var targetIndex:int=-1; var targetKind:int=-1;
+         for(var i:int=0;i<pairs.length;i++) {
+            var pair:Object=pairs[i];
+            if(pair.base.sim_id!=pair.alternate.sim_id) throw new Error("Member selection refuses guessed wrapper IDs");
+            var copied:Object={index:i};
+            for each(var side:String in ["base","alternate"]) {
+               var row:Object=pair[side];
+               copied[side]={sim_id:String(row.sim_id),index:int(row.index),occult_type:int(row.occult_type),
+                  all_occult_types:int(row.all_occult_types),occult_layer:int(row.occult_layer)};
+            }
+            roster.push(copied);
+            if(pair.base.sim_id==targetId) {
+               if(targetIndex!=-1) throw new Error("Member selection target is ambiguous");
+               targetIndex=i; targetKind=int(pair.base.occult_type);
+            }
+         }
+         selector=null; pairs=null;
+         if(targetIndex<0) throw new Error("Member selection target is absent from the observed household");
+         return {native_session:nativeSession,household_id:householdId,source_sim_id:currentId,target_sim_id:targetId,
+            source_index:int(source.selected_index),target_index:targetIndex,target_form_flags:targetKind,
+            roster_json:ApexEncode(roster)};
       }
 
       private function ApexOwnerHouseholdProbe(raw:Object) : Object
@@ -1137,7 +1170,23 @@
             native=null;
             var state:int=int(fields[3]);
             var category:int=int(fields[4]); var index:int=int(fields[5]); var value:String=fields[6];
-            if(operation=="form-select" || operation=="layer-select") {
+            if(operation=="member-select") {
+               var memberParts:Array=value.split(":");
+               if(state!=0 || !/^[01]$/.test(String(fields[4])) || index<=0 || String(index)!=String(fields[5]) ||
+                  memberParts.length!=2 || !/^[1-9][0-9]{0,19}$/.test(String(memberParts[0])) ||
+                  !/^[1-9][0-9]{0,19}$/.test(String(memberParts[1])))
+                  throw new Error("Member selection requires exact source layer/session/household/target");
+               var memberBefore:Object=ApexMemberSelectionContext(String(fields[1]),String(memberParts[1]),String(memberParts[0]),category,index);
+               apexPendingContext.member_before=memberBefore;
+               apexPendingContext.target_sim_id=String(memberBefore.target_sim_id);
+               if(String(fields[1])!=String(memberBefore.target_sim_id)) {
+                  var memberIndex:int=int(memberBefore.target_index);
+                  reply.mutation_started=true;
+                  // The installed selector's ordinary SelectSim handler keeps
+                  // its native selected index/layer and displayed UI in sync.
+                  CommunicationManager.SendMessage("CASSelectSim",memberIndex);
+               } else if(category!=0) throw new Error("Same-member navigation cannot silently reset an alternate layer");
+            } else if(operation=="form-select" || operation=="layer-select") {
                if(!(operation=="layer-select" ? /^[01]$/.test(String(fields[3])) : /^(1|2|4|8|16|32|64)$/.test(String(fields[3]))) ||
                   !/^[01]$/.test(String(fields[4])) || !/^[1-9][0-9]{0,9}$/.test(String(fields[5])) ||
                   String(index)!=String(fields[5]) || !/^[1-9][0-9]{0,19}$/.test(value))
@@ -1316,7 +1365,7 @@
          var selectedSimMatches:Boolean=false; var writeStarted:Boolean=false;
          try {
             var native:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
-            selectedSimMatches=native && String(native.simId)==String(fields[1]);
+            selectedSimMatches=native && String(native.simId)==(operation=="member-select" ? String(context.target_sim_id) : String(fields[1]));
             native=null;
             if(!selectedSimMatches) throw new Error("CAS selected Sim changed before native readback");
             if(!("message" in reply) && apexPendingPhase==2) {
@@ -1380,6 +1429,20 @@
                   if(String(reply.client.sim.householdId)!=value)
                      throw new Error("Native CAS accept household differs from its bound original request; no intent prepared");
                   context.household_id=value;
+               }
+               if(operation=="member-select") {
+                  var memberOriginal:Object=context.member_before;
+                  var memberAfter:Object=ApexMemberSelectionContext(String(context.target_sim_id),String(context.target_sim_id),
+                     String(memberOriginal.household_id),0,index);
+                  if(memberAfter.native_session!=memberOriginal.native_session || memberAfter.household_id!=memberOriginal.household_id ||
+                     memberAfter.target_index!=memberOriginal.target_index || memberAfter.target_form_flags!=memberOriginal.target_form_flags ||
+                     memberAfter.roster_json!=memberOriginal.roster_json || String(reply.client.sim.simId)!=String(context.target_sim_id))
+                     throw new Error("Member selection changed household identity, roster or destination form");
+                  reply.member_selection={native_session:index,household_id:String(memberAfter.household_id),
+                     source_sim_id:String(fields[1]),target_sim_id:String(memberAfter.target_sim_id),
+                     source_index:int(memberOriginal.source_index),target_index:int(memberAfter.target_index),
+                     target_form_flags:int(memberAfter.target_form_flags),selection_verified:true,
+                     appearance_persistence_verified:false};
                }
                if(operation=="form-select" || operation=="layer-select") {
                   var beforeSelection:Object=context.selection_before;

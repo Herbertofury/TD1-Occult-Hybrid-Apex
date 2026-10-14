@@ -360,6 +360,34 @@ def form_selection_binding(client, sim_id, request, resulting=False):
             'form_flags': pair['base' if target_layer == 0 else 'alternate']['occult_type'], 'feed_sequence': raw['sequence'],
             'pair': projections[index]}
 
+def member_selection_binding(client, sim_id, request, resulting=False):
+    target = request['target_sim_id']
+    selected_id = target if resulting else sim_id
+    layer = 0 if resulting else request['expected_layer']
+    context = form_selection_binding(client, selected_id, dict(operation='layer-select',
+        household_id=request['household_id'], expected_layer=layer, target_layer=layer,
+        native_session=request['native_session']))
+    pairs = client['owner_pair_observation']['selector_feed']['retained']['pairs']
+    roster, target_rows = [], []
+    for index, pair in enumerate(pairs):
+        if pair['base']['sim_id'] != pair['alternate']['sim_id']:
+            raise ValueError('Member selection refuses guessed wrapper IDs.')
+        copied = {'index': index}
+        for side in ('base', 'alternate'):
+            copied[side] = {key: value for key, value in pair[side].items() if key != 'selected'}
+        roster.append(copied)
+        if pair['base']['sim_id'] == target: target_rows.append(index)
+    if len(target_rows) != 1:
+        raise ValueError('Member selection target is absent or ambiguous in this household.')
+    if client['native_context']['edit_mode']['value'] != 0:
+        raise ValueError('Member selection requires the full existing-household CAS editor.')
+    if resulting and context['selected_index'] != target_rows[0]:
+        raise ValueError('Member selection did not reach its exact destination index.')
+    return dict(native_session=context['native_session'],household_id=request['household_id'],
+        source_sim_id=sim_id,target_sim_id=target,source_index=context['selected_index'],
+        target_index=target_rows[0],target_form_flags=roster[target_rows[0]]['base']['occult_type'],roster=roster)
+
+
 def attach_client(sim_id, clock=time.monotonic):
     global _READY
     if not isinstance(sim_id, str) or not sim_id.isdigit() or not 0 < int(sim_id) < 2 ** 64:
@@ -496,6 +524,7 @@ def history_state(client):
 
 
 def validate_client(client, sim_id, request):
+    if request['operation'] == 'member-select': sim_id = request['target_sim_id']
     if not isinstance(client, dict) or client.get('scope') != 'native-cas-client' or not isinstance(client.get('sim'), dict) or str(client['sim'].get('simId')) != sim_id:
         raise ValueError('CAS response belongs to another selected Sim.')
     slot = client.get('outfit')
@@ -654,13 +683,22 @@ def envelope(sim_id, request):
         'select': {'operation', 'panel', 'data_id'}, 'undo': {'operation'}, 'redo': {'operation'},
         'accept': {'operation', 'household_id'},
         'form-select': {'operation', 'household_id', 'expected_layer', 'form_flags', 'native_session'},
-        'layer-select': {'operation', 'household_id', 'expected_layer', 'target_layer', 'native_session'}}
+        'layer-select': {'operation', 'household_id', 'expected_layer', 'target_layer', 'native_session'},
+        'member-select': {'operation','household_id','expected_layer','native_session','target_sim_id'}}
     if op not in allowed or set(request) != allowed[op]: raise ValueError('Unsupported or incomplete CAS request.')
     state = panel(request['panel']) if 'panel' in request else 0
     if op == 'select':
         name = ALIASES.get(request['panel'], request['panel'])
         if (name.startswith('profile_') and name not in cas_controls.PART_PROFILE_PANELS or name in ('clothing_looks', 'clothing_head_tattoos', 'clothing_body_tattoos')):
             raise ValueError('Use the typed preset, swatch or select-layer command for this panel.')
+    if op == 'member-select':
+        _owner_id(request['household_id']); _owner_id(request['target_sim_id'])
+        if (type(request['expected_layer']) is not int or request['expected_layer'] not in (0,1) or
+                type(request['native_session']) is not int or not 0 < request['native_session'] < 2**31):
+            raise ValueError('Member selection requires an exact source layer and native session.')
+        request_id = uuid.uuid4().hex
+        return request_id, '|'.join(map(str,(request_id,sim_id,op,0,request['expected_layer'],
+            request['native_session'],request['household_id']+':'+request['target_sim_id'])))
     if op in ('form-select', 'layer-select'):
         _owner_id(sim_id)
         _owner_id(request['household_id'])
@@ -697,7 +735,7 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
     with _LOCK:
         socket_ready = send is None and any(peer['sim_id'] == sim_id and clock() - peer['observed_at'] <= 3 for peer in _PEERS.values())
     form_select_context = None
-    if request['operation'] in ('form-select', 'layer-select'):
+    if request['operation'] in ('form-select', 'layer-select', 'member-select'):
         if not socket_ready:
             raise ValueError('CAS form selection requires a fresh exact-Sim socket peer; no request sent.')
         with _LOCK:
@@ -710,8 +748,13 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
                           0 <= clock() - row['acknowledged_at'] <= 3 and row['result'].get('ok')), None)
             if prior is None:
                 raise ValueError('CAS form selection requires a fresh owned native acknowledgement; request status first.')
-            form_select_context = {'original': original,
-                                   'before': form_selection_binding(prior['result'].get('client'), sim_id, request)}
+            if request['operation'] == 'member-select':
+                target_original = _form_select_original(backend, request['target_sim_id'], request['household_id'])
+                form_select_context = {'original':original,'target_original':target_original,
+                    'before':member_selection_binding(prior['result'].get('client'),sim_id,request)}
+            else:
+                form_select_context = {'original': original,
+                    'before': form_selection_binding(prior['result'].get('client'), sim_id, request)}
     if request['operation'] == 'accept' and not socket_ready:
         raise ValueError('CAS accept requires a fresh exact-Sim socket peer; no request sent.')
     if send is None and not socket_ready:
@@ -845,6 +888,20 @@ def _receive(request_id, payload, backend=None):
                 validate_client(before, row['sim_id'], {'operation': 'status'})
                 if history_state(before) == history_state(client):
                     raise ValueError('Native history changed only navigation/metadata; no Sim or equipped data change verified.')
+            if row['request']['operation'] == 'member-select':
+                stored = row['form_select_context']; request = row['request']; before = stored['before']
+                if (_form_select_original(backend,row['sim_id'],request['household_id']) != stored['original'] or
+                        _form_select_original(backend,request['target_sim_id'],request['household_id']) != stored['target_original']):
+                    raise ValueError('Member selection original captures changed before readback.')
+                after = member_selection_binding(client,row['sim_id'],request,resulting=True)
+                if any(after[key] != before[key] for key in ('native_session','household_id','target_sim_id','target_index','target_form_flags','roster')):
+                    raise ValueError('Member selection changed the session, household roster or destination form.')
+                expected = {key:before[key] for key in ('native_session','household_id','source_sim_id','target_sim_id','source_index','target_index','target_form_flags')}
+                receipt = data.get('member_selection')
+                if (not isinstance(receipt,dict) or receipt.get('selection_verified') is not True or
+                        receipt.get('appearance_persistence_verified') is not False or
+                        any(type(receipt.get(key)) is not type(value) or receipt.get(key)!=value for key,value in expected.items())):
+                    raise ValueError('Member selection lacks its exact typed postcondition receipt.')
             if row['request']['operation'] in ('form-select', 'layer-select'):
                 stored = row['form_select_context']
                 if _form_select_original(backend, row['sim_id'], row['request']['household_id']) != stored['original']:
@@ -869,7 +926,7 @@ def _receive(request_id, payload, backend=None):
                 row['cas_room'] = inventory(baseline, client)
             except (ValueError, KeyError, TypeError, AttributeError) as error:
                 row['cas_room'] = {'schema': 1, 'available': False, 'error': str(error)[:256]}
-        unresolved_selection = (row['request']['operation'] in ('form-select', 'layer-select') and not data.get('ok') and
+        unresolved_selection = (row['request']['operation'] in ('form-select', 'layer-select', 'member-select') and not data.get('ok') and
                                 data.get('mutation_started') is True)
         row.update(state='completed' if data.get('ok') else 'form-select-unresolved' if unresolved_selection else 'failed',
                    result=copy.deepcopy(data))
@@ -915,6 +972,9 @@ def result(request_id):
             response['cas_room'] = copy.deepcopy(row['cas_room'])
         if 'owner_pair_diagnostic' in row:
             response['owner_pair_diagnostic'] = copy.deepcopy(row['owner_pair_diagnostic'])
+        if row['request']['operation'] == 'member-select':
+            response.update(outcome='member-selected' if row['state']=='completed' else row['state'],
+                selection_only_verified=row['state']=='completed',appearance_persistence_verified=False)
         if row['request']['operation'] in ('form-select', 'layer-select'):
             response.update(outcome=('layer-selected' if row['request']['operation'] == 'layer-select' else 'form-selected') if row['state'] == 'completed' else row['state'],
                             selection_only_verified=row['state'] == 'completed', mapping_verified=False,

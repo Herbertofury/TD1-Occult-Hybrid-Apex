@@ -1,5 +1,6 @@
 """Semantic CAS CLI with separate native acknowledgements and no pointer input."""
 import json
+import math
 from pathlib import Path
 import sys
 import time
@@ -9,6 +10,12 @@ from source_manifest import sha256, write_json
 
 
 def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
+    from cli_identity_cache import session
+    with session(args.state):
+        return _execute(args, request, monotonic, pause)
+
+
+def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
     preflight = None
     if args.operation == 'panels': return request(args.state, 'cas_ui_panels')
     if args.operation == 'diagnostics': return request(args.state, 'cas_ui_diagnostics')
@@ -40,6 +47,9 @@ def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
                          expected_layer=getattr(args, 'expected_layer', None),
                          form_flags=getattr(args, 'form_flags', None),
                          native_session=getattr(args, 'native_session', None))
+        if args.operation == 'member-select':
+            value.update(household_id=getattr(args,'household_id',None),expected_layer=getattr(args,'expected_layer',None),
+                native_session=getattr(args,'native_session',None),target_sim_id=getattr(args,'target_sim_id',None))
         if args.operation == 'layer-select':
             value.update(household_id=getattr(args, 'household_id', None),
                          expected_layer=getattr(args, 'expected_layer', None),
@@ -49,7 +59,7 @@ def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
         from apex_core.cas_ui import envelope
         envelope(args.sim_id, value)
-        if args.operation in ('form-select', 'layer-select'):
+        if args.operation in ('form-select', 'layer-select', 'member-select'):
             # Keep the caller's exact session/layer capability. Refresh only its
             # native observation, so operator/CLI latency cannot expire the
             # five-second Source acknowledgement before the navigation request.
@@ -86,6 +96,41 @@ def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
         result = {'ok': False, 'outcome': 'unresolved', 'cas_request_id': request_id,
                   'ui_transition_verified': False, 'input_submitted': False,
                   'message': 'Native CAS acknowledgement was not observed; poll this ID rather than repeating.'}
+    if result.get('ok') is True and isinstance(result.get('member_selection'), dict):
+        # The mutation ACK belongs to the old peer. The UI reconnects on its
+        # next Timer tick; a fast following command otherwise finds neither
+        # the destination socket nor an active gameplay distributor client.
+        # Never repeat selection. Await the destination, then verify its fresh
+        # status against this already completed native receipt.
+        receipt = result['member_selection']
+        target = receipt['target_sim_id']
+        rebound = None
+        while monotonic() < deadline:
+            peers = request(args.state, 'cas_ui_diagnostics').get('native_peers', [])
+            ready = any(isinstance(peer, dict) and peer.get('sim_id') == target and
+                type(peer.get('age_seconds')) in (int, float) and math.isfinite(peer['age_seconds']) and
+                0 <= peer['age_seconds'] <= 3 for peer in peers)
+            if ready:
+                remaining = deadline - monotonic()
+                if remaining <= 0: break
+                rebound = execute(SimpleNamespace(operation='status', state=args.state, sim_id=target,
+                    seconds=min(60, remaining), output=None), request, monotonic=monotonic, pause=pause)
+                break
+            pause(.15)
+        if rebound is not None and rebound.get('ok') is True:
+            selected = rebound['client']['sim']
+            observation = rebound['client'].get('owner_pair_observation', {})
+            if (selected.get('simId') != target or selected.get('householdId') != receipt['household_id'] or
+                    type(selected.get('occultLayer')) is not int or selected['occultLayer'] != 0 or
+                    type(selected.get('occultType')) is not int or selected['occultType'] != receipt['target_form_flags'] or
+                    observation.get('session') != receipt['native_session']):
+                raise ValueError('CAS destination changed during peer handoff; selection must not be replayed.')
+            result = dict(result, peer_rebound_verified=True, next_native_commands_ready=True,
+                          destination_status=rebound)
+        else:
+            result = dict(result, ok=False, outcome='member-selected-peer-unresolved',
+                peer_rebound_verified=False, next_native_commands_ready=False, destination_status=rebound,
+                message='Member selection completed; destination peer is unresolved. Retain this UUID and do not repeat selection.')
     if preflight is not None:
         result = dict(result, form_selection_preflight=preflight,
                       form_selection_preflight_verified=True)

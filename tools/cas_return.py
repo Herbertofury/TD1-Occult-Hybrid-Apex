@@ -59,6 +59,14 @@ def live_snapshot(snapshot, sim_id, household_id):
 
 def observe(state, output, identity, request, sim_id, household_id, seconds=60, settle_ticks=30,
             transport=None, alive=cas_transition.process_alive, monotonic=time.monotonic, pause=time.sleep):
+    from cli_identity_cache import session
+    with session(state):
+        return _observe(state, output, identity, request, sim_id, household_id, seconds, settle_ticks,
+                        transport, alive, monotonic, pause)
+
+
+def _observe(state, output, identity, request, sim_id, household_id, seconds=60, settle_ticks=30,
+             transport=None, alive=cas_transition.process_alive, monotonic=time.monotonic, pause=time.sleep):
     started = monotonic()
     if (type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 120 or
             type(settle_ticks) is not int or not 1 <= settle_ticks <= 6000 or

@@ -78,6 +78,12 @@ def install(state, bundle, experimental_ui=False, optional=False, guard=test_pro
     for row in data['artifacts']:
         if row.get('test_addon') == 'mccc-2026.5.0':
             addons.append(row)
+        elif row.get('test_addon') == 'owner-sliders-presets-v1':
+            if ('relative' in row or Path(row['name']).suffix.lower() != '.package' or
+                    not row.get('original_relative', '').startswith('Mods/Sliders And Presets/')):
+                raise ValueError('The retained owner slider/preset recipe differs.')
+            # status above has verified every retained target against its hash.
+            addons.append(row)
         elif row.get('test_addon') in cc_recipes:
             recipe = cc_recipes[row['test_addon']]
             if row.get('name') not in recipe or row.get('sha256') != recipe[row['name']]:

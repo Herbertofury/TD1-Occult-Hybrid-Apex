@@ -8,7 +8,7 @@ from unittest.mock import Mock
 import ctypes
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
-from ea_native_permission import dialog_button, NativeEA
+from ea_native_permission import dialog_button, NativeEA, blank_rgb
 
 
 def retained_modal():
@@ -23,6 +23,23 @@ def retained_modal():
 
 
 class PermissionRecognitionTests(unittest.TestCase):
+    def test_blank_qt_bitmap_ignores_alpha_but_never_accepts_nonuniform_rgb(self):
+        self.assertTrue(blank_rgb(b'\0\0\0\0'+b'\0\0\0\xff'))
+        self.assertTrue(blank_rgb(b'\x20\x30\x40\xff'*16))
+        self.assertFalse(blank_rgb(b'\0\0\0\xff'+b'\0\x01\0\xff'))
+        self.assertFalse(blank_rgb(b''));self.assertFalse(blank_rgb(b'bad'))
+    def test_visible_client_fallback_refuses_occlusion_and_never_activates_a_window(self):
+        native=NativeEA.__new__(NativeEA);row=dict(hwnd=42,width=635,height=287)
+        native.identity=lambda hwnd:dict(row)
+        native.user=Mock();native.user.ClientToScreen.return_value=True
+        native.user.GetForegroundWindow.return_value=42
+        native.user.WindowFromPoint.return_value=99;native.user.GetAncestor.return_value=99
+        with self.assertRaisesRegex(ValueError,'obscured'):native.visible_client(row)
+        native.user.GetAncestor.return_value=42;native.visible_client(row)
+        native.user.SetForegroundWindow.assert_not_called()
+        native.user.ShowWindowAsync.assert_not_called()
+        native.user.GetForegroundWindow.return_value=99
+        with self.assertRaisesRegex(ValueError,'behind another app'):native.visible_client(row)
     def minimized_native(self):
         native = NativeEA.__new__(NativeEA)
         native.pids = {123}

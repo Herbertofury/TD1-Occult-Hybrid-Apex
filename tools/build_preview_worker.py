@@ -95,6 +95,13 @@ def main():
             # custom resources even though no package is exported.
             text = re.sub(r'pack\.AddResource\([^;]+;', '/* No troubleshooting resource copies. */', text)
         if path.name == 'GameFileHandler.cs':
+            # A real owner slider bundle includes a SMOD with instance zero.
+            # FetchGameSMOD treats zero as a sentinel and returns null; the
+            # upstream startup inventory then dereferences it. This entry
+            # cannot identify a Sim modifier and must not abort all previews.
+            needle = 'SMOD smod = FetchGameSMOD(kv.Key, ref errorMsg);'
+            assert text.count(needle) == 1
+            text = text.replace(needle, 'if (kv.Key.Instance == 0) continue;\n                ' + needle)
             needle = 'new Predicate<IResourceIndexEntry>(r => r.ResourceType == (uint)ResourceTypes.Sculpt),'
             assert needle in text
             text = text.replace(needle, 'new Predicate<IResourceIndexEntry>(r => r.ResourceType == 0x6B20C4F3),\n                ' + needle)

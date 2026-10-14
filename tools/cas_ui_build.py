@@ -27,9 +27,12 @@ SELECTOR_CLASS = 'widgets.CAS.SimSelector.CASSimSelectorMain'
 SELECTOR_PIN = '420eb0f8417bfc6935ffb4126086f19b72f2cae98a853d34abf6d59a94d454f1'
 CLEANUP_KEY = (0x62ECC59A, 0, 0x3FFE72432A703655)
 CLEANUP_PIN = 'e79b3b65c8b6234c54d4a76f4c7a671f46ece7ddb9f6940bc5db312850fdef91'
+VOICE_KEY = (0x62ECC59A, 0, 0xE36BA403351FFE60)
+VOICE_PIN = 'd0f81a01e1ef4039dc8fb4b5d39dac680ea45e512a8102e243e59a99d3362764'
 PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.java',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
-                  'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py')
+                  'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py',
+                  'tools/CasVoiceBytecodePatch.java')
 
 
 def source_pins(root=ROOT):
@@ -199,7 +202,7 @@ def run(args):
     return proc
 
 
-def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_decompiled=None, cleanup_library=None):
+def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_decompiled=None, cleanup_library=None, voice_swf=None):
     expected_sources = source_pins()
     semantic = (ROOT / 'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')
     control_dispatch = verify_control_dispatch(semantic)
@@ -246,10 +249,23 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     selector_tag = next(t[3] for t in tags(unpack(original_selector)[1]) if t[0] == 82)
     selector_boundary = selector_tag.index(b'\0', 4) + 1
     selector_payload = replace_payload(original_selector, selector_tag[:selector_boundary] + selector_retained.read_bytes())
+    voice_swf = Path(voice_swf or work / 'cas-hair-casagegenderpane-current.swf')
+    original_voice = voice_swf.read_bytes()
+    if hashlib.sha256(original_voice).hexdigest() != VOICE_PIN:
+        raise ValueError('Voice widget differs from the inspected 1.128.90 build.')
+    run(['javac', '-cp', Path(ffdec).parent / 'ffdec.jar', '-d', java_classes,
+         ROOT / 'tools/CasBytecodePatch.java', ROOT / 'tools/CasVoiceBytecodePatch.java'])
+    voice_retained = work / 'apex-cas-voice-retained.abc'
+    voice_verification = run(['java', '-cp', str(Path(ffdec).parent / 'ffdec.jar') + os.pathsep + str(java_classes),
+        'CasVoiceBytecodePatch', voice_swf, cleanup_library, voice_retained])
+    voice_contract = json.loads(voice_verification.stdout)
+    voice_tag = next(t[3] for t in tags(unpack(original_voice)[1]) if t[0] == 82)
+    voice_boundary = voice_tag.index(b'\0', 4) + 1
+    voice_payload = replace_payload(original_voice, voice_tag[:voice_boundary] + voice_retained.read_bytes())
     if source_pins() != expected_sources:
         raise ValueError('CAS bridge source changed during compilation; no package was written.')
     Path(output).parent.mkdir(parents=True, exist_ok=True)
-    Path(output).write_bytes(dbpf_build.build({KEY: payload, SELECTOR_KEY: selector_payload}))
+    Path(output).write_bytes(dbpf_build.build({KEY: payload, SELECTOR_KEY: selector_payload, VOICE_KEY: voice_payload}))
     info = {'schema': 1, 'artifact': Path(output).name, 'scope': 'native-CAS-semantic-bridge',
         'source_pins': expected_sources,
         'typed_control_dispatch_verified': control_dispatch,
@@ -260,11 +276,13 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'sha256': hashlib.sha256(Path(output).read_bytes()).hexdigest(),
         'runtime_verified': False, 'non_script_tags_preserved': True, 'native_bytecode_contract': contract,
         'selector_native_bytecode_contract': selector_contract,
-        'base_resources': {dbpf_build.tgi(KEY): PIN, dbpf_build.tgi(SELECTOR_KEY): SELECTOR_PIN},
+        'voice_native_bytecode_contract': voice_contract,
+        'base_resources': {dbpf_build.tgi(KEY): PIN, dbpf_build.tgi(SELECTOR_KEY): SELECTOR_PIN, dbpf_build.tgi(VOICE_KEY): VOICE_PIN},
         'unmodified_dependency_resources': {dbpf_build.tgi(CLEANUP_KEY): CLEANUP_PIN},
         'patched_resources': {dbpf_build.tgi(KEY): hashlib.sha256(payload).hexdigest(),
-                              dbpf_build.tgi(SELECTOR_KEY): hashlib.sha256(selector_payload).hexdigest()},
-        'resources': [dbpf_build.tgi(KEY), dbpf_build.tgi(SELECTOR_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
+                              dbpf_build.tgi(SELECTOR_KEY): hashlib.sha256(selector_payload).hexdigest(),
+                              dbpf_build.tgi(VOICE_KEY): hashlib.sha256(voice_payload).hexdigest()},
+        'resources': [dbpf_build.tgi(KEY), dbpf_build.tgi(SELECTOR_KEY), dbpf_build.tgi(VOICE_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
         'socket_protocol': {'host': '127.0.0.1', 'port': 8021, 'length_digits': 8,
             'encoding': 'utf-8', 'maximum_frame_bytes': 131072, 'poll_interval_ms': 500}}
     write_json(Path(str(output) + '.manifest.json'), info)
@@ -280,5 +298,6 @@ if __name__ == '__main__':
     p.add_argument('--selector-swf', type=Path)
     p.add_argument('--selector-decompiled', type=Path)
     p.add_argument('--cleanup-library', type=Path)
+    p.add_argument('--voice-swf', type=Path)
     a = p.parse_args()
-    print(json.dumps(build(a.input_swf, a.decompiled, a.ffdec, a.output, a.selector_swf, a.selector_decompiled, a.cleanup_library), indent=2))
+    print(json.dumps(build(a.input_swf, a.decompiled, a.ffdec, a.output, a.selector_swf, a.selector_decompiled, a.cleanup_library, a.voice_swf), indent=2))

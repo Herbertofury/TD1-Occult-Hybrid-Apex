@@ -73,6 +73,12 @@ def entry_receipt(document):
 
 
 def run(args, identity, request):
+    from cli_identity_cache import session
+    with session(args.state):
+        return _run(args, identity, request)
+
+
+def _run(args, identity, request):
     journal_path, journal, profile, original = reusable_profile.load(args.state)
     entry = read_entry(args.entry_proof, args.entry_sha256, profile, original)
     scope, members = entry_receipt(entry)

@@ -21,7 +21,7 @@ class CasEntryContextTests(unittest.TestCase):
             sim.household_id = 55; sim.current_occult_types = current; sim.occult_types = 65
             forms = {kind: Owner(identity + kind, 'form-' + str(kind), identity + kind) for kind in (1, 2, 4, 8, 16, 32, 64)}
             for kind, owner in forms.items(): owner.current_occult_types = kind; owner.occult_types = 65
-            sim.occult_tracker = Obj(_sim_info_map=forms, has_occult_type=lambda kind: True)
+            sim.occult_tracker = Obj(sim_info=sim,_sim_info_map=forms, has_occult_type=lambda kind: True)
             self.sims.append(sim)
         self.household = Obj(id=55, sim_info_gen=lambda: iter(self.sims)); self.writes = []
         self.backend = Obj(_data_directory=lambda: str(self.path), _form_map=lambda tracker: tracker._sim_info_map,
@@ -98,6 +98,17 @@ class CasEntryContextTests(unittest.TestCase):
         self.assertEqual([row['sim_id'] for row in proof['members']], ['100', '200'])
         self.assertEqual(self.writes, [])
         self.assertTrue(proof['return_requires_independent_member_decisions'])
+        owner = proof['members'][1]['owner_observation']['original_owner']
+        self.assertTrue(owner['complete']);self.assertEqual(owner['original_sim_id'],'200')
+        self.assertEqual(owner['household_id'],'55')
+        self.assertEqual(len(owner['wrappers']),7)
+    def test_foreign_companion_navigation_blocks_entry_and_retains_checkpoint(self):
+        from apex_core import cas_bank_transaction as bank
+        sim=self.sims[1];sim.occult_tracker.sim_info=self.sims[0]
+        with patch.object(bank,'assert_idle'),patch.object(bank,'begin',return_value={'ok':True}) as begin:
+            with self.assertRaisesRegex(ValueError,'navigation identity is incomplete'):
+                entry.checkpoint_members(self.backend,self.sims[0],{'ok':True})
+        begin.assert_called_once();self.assertEqual(self.writes,[])
 
     def test_unresolved_companion_blocks_all_new_companion_checkpoints(self):
         from apex_core import cas_bank_transaction as bank

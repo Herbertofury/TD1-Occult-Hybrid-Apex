@@ -246,11 +246,15 @@ class NativeTransitionTests(unittest.TestCase):
         self.assertEqual(self.live.voice_effect, 888)
         self.backend._restore_siminfo_payload.assert_not_called()
 
-    def test_unavailable_backend_keeps_original_native_call(self):
+    def test_unavailable_recovery_backend_keeps_native_switch_and_prevents_shared_merge(self):
         with patch.object(persistence, '_appearance_backend', return_value=None):
             self.tracker._switch_to_occult_type_internal(2)
         self.assertEqual(self.native_calls, [2])
-        self.assertEqual(len(self.shared_calls), 1)
+        self.assertEqual(self.shared_calls, [])
+        self.assertEqual(len(self.trait_calls), 1)
+        self.assertEqual(appearance.packed(self.backend, self.owners[2]), self.before[2])
+        self.backend._restore_siminfo_payload.assert_not_called()
+        self.assertFalse(self.tracker._apex_native_form_isolation_receipt['appearance_restore_performed'])
 
     def test_native_exception_is_not_replayed_and_preserves_original_diagnostic(self):
         self.tracker._copy_shared_attributes = Mock(side_effect=RuntimeError('native failed'))

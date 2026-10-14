@@ -1,12 +1,12 @@
 {
-  "build_epoch": "2026-10-14-household-safety-v113",
+  "build_epoch": "2026-10-14-native-form-isolation-v114",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-14-household-safety-v113.zip",
-    "bytes": 3211482,
+    "artifact": "Apex_Development_Candidate_2026-10-14-native-form-isolation-v114.zip",
+    "bytes": 3215142,
     "members": 28,
-    "sha256": "8824004c510b091e1bdf790e796d49cf26b5122452961867d3934a8d0c27812e"
+    "sha256": "70a0e44f00f3d430752545aac330d1c5f608e6ed1f5680ee335d11d85646a2c2"
   },
-  "compiled_script_modules": 86,
+  "compiled_script_modules": 87,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -51,9 +51,9 @@
       "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 50181,
+      "bytes": 50524,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "81bbf707cf73b0014243dedbe3e6bb14d9309732bf51b4c8fc49d811b2724912"
+      "sha256": "73a37252671148aea9aae0937f3945b47bb7ef395154ce78776f952e3e646f3f"
     },
     {
       "bytes": 1506,
@@ -101,9 +101,9 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 804367,
+      "bytes": 807976,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "7c1a700317315924b0bb0c9060317eb12ea8495669521869eb40537e2be4f1bf"
+      "sha256": "012dc39dda5f27d6d7419a06eaf1e0d25218018cff9784551c875b4a71dc9eec"
     },
     {
       "bytes": 1846272,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "ad9fce872b1a92eab3c02c0a2e53a5e6457a92d6a35cc6e8a6be5a6941bdb9eb"
+      "sha256": "84fca623c752e57a79391f4fadd08c7bd8aa424e77b7b89a2393c94e73098e2b"
     },
     {
       "bytes": 424,

@@ -12,6 +12,7 @@ import cas_transition
 import reusable_profile
 from source_manifest import sha256, write_json
 from windows_ocr import recognize
+from cli_identity_cache import scoped as lifecycle_identity_session
 
 
 def background_request(request):
@@ -103,6 +104,7 @@ def loaded_household(snapshot, prior_saves, sim_id=None):
         return False
 
 
+@lifecycle_identity_session
 def resume(state, output, identity, request, sim_id=None, seconds=60,
            capture=game_capture.capture, ocr=recognize,
            processes=game_launch.running_game_processes, monotonic=time.monotonic, pause=time.sleep,
@@ -480,6 +482,7 @@ def shutdown_cas_state(diagnostic):
     return {'safe': True, 'outcome': 'cas-idle-verified', 'blocking_native_requests': []}
 
 
+@lifecycle_identity_session
 def shutdown(state, output, identity, request, capture=game_capture.capture, ocr=recognize,
              processes=game_launch.running_game_processes, monotonic=time.monotonic, pause=time.sleep,
              save=True, sim_id=None, household_id=None, save_guid=None):

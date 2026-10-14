@@ -191,6 +191,9 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
         projection = getattr(sim.occult_tracker, '_apex_native_witch_genetics_projection', None)
         if isinstance(projection, dict):
             result['native_genetics_projection'] = copy.deepcopy(projection)
+        isolation = getattr(sim.occult_tracker, '_apex_native_form_isolation_receipt', None)
+        if isinstance(isolation, dict):
+            result['native_form_isolation'] = copy.deepcopy(isolation)
         retention = getattr(sim.occult_tracker, '_apex_native_transition_retention', None)
         if isinstance(retention, dict):
             result['native_transition_retention'] = copy.deepcopy(retention)

@@ -282,6 +282,8 @@ def install_shared_guard(tracker):
     appearance populate the serialization records without mutating its owners.
     All calls outside the exact tracker/thread serialization scope stay native.
     """
+    from . import native_form_isolation
+    native_form_isolation.install(tracker)
     cls = type(tracker)
     original = getattr(cls, '_copy_shared_attributes', None)
     if not callable(original):
@@ -299,6 +301,9 @@ def install_shared_guard(tracker):
             row = captured.get(int(destination_kind))
             if row is None or row[0] is not destination or active[0] is not source:
                 raise ValueError('Native serialization shared-attribute owner differs; appearance not guessed.')
+            if (native_form_isolation.installed(original) and
+                    native_form_isolation.matches(self, destination, destination_kind, source, source_kind)):
+                return original(self, destination, destination_kind, source, source_kind)
             copy_traits(destination, source)
             return None
         return original(self, destination, destination_kind, source, source_kind)
@@ -366,6 +371,8 @@ def install_transition_guard(tracker):
     explicit selections. No bank is read and a missing target is never
     reconstructed. Native traits, outfit selection and gameplay still run.
     """
+    from .native_form_isolation import install as install_native_isolation
+    tracker._apex_native_form_isolation_installed = install_native_isolation(tracker)
     try:
         from .body_hair_initialization import install as install_hair_refresh
         tracker._apex_body_hair_refresh_install = install_hair_refresh()

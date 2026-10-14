@@ -6,6 +6,69 @@ commit and verified its stable file hash and complete appearance seal. The
 protected original was untouched. Earlier V88 CAS entry changed the six
 disposable autosave-family files; these writes are recorded explicitly.
 
+## October 14: independent household CAS protection, V100–V102
+
+Full household entry previously projected every member's native availability
+but checkpointed only the selected Sim. `checkpoint_members` now checks the
+complete existing roster, preflights every hybrid companion, and captures each
+through the existing raw receiver before any projection. `cas-household-commit`
+binds the exact retained entry/PID/profile/candidate and per-member pending
+hashes, observes everyone before plans, keeps only named Sim/form edits, and
+restores other changed owners plus every captured availability context. It
+reuses the selected member's already-observed journal without replay. Dynamic
+core-tick/queue counters cannot be mistaken for a changed runtime identity.
+
+V100's native full-household editor reports mode 0 and actual Alien type 2.
+Fourteen panels acknowledge exact edits: nose, eyes, mouth, ears, skin tone,
+hair, fullbody clothing, head skin details, eyelashes, lips, earrings,
+necklaces, rings and eyebrows. The body skin-detail catalog has no different
+eligible item; it does not count as edited. Only the Alien stored and active
+records change (outfits, facial attributes, genetics, skin tone). Other owners
+and companions remain exact. All five independent context/appearance commits
+verify. Alien → Vampire → Alien advances 2,420/2,416 real simulation ticks with
+no unintended household delta. The controlled normal save produces SHA-256
+`4cddc75fd958c2b154cf50d5cc49c1f2209ef77467d002a0b1797cc4bf9294a3`.
+V101 cold load retains all 40 appearance owners before and after 2,343 ticks.
+The first Resume observer times out after accepted input; fresh native reads
+prove the loaded household without another Resume input.
+
+V101's region traversal calls a controller-only highlight method which is
+absent on PC. V102 uses the public native selection grid and the exact imported
+TattooBodyData definitions/filter, checks native selected-index/type agreement,
+and emits the normal native region-change event. V101's intermediate reflective
+lookup fails with Error 1069 (unbound `flash` scope); that failed query remains
+evidence. The bytecode verifier now requires the exact imported class/data
+access and limits region/layer native services to reviewed literal getters.
+The native GUI treats null layer storage as an empty region; the bridge admits
+that only with two exact false native part/paint predicates. Unknown/occupied
+storage stays rejected. The workbench visits every actual returned tattoo
+region and uses exact ordinary layer IDs while preserving medical layer 127.
+An empty catalog/family cannot create a blank layer.
+
+The V101 default-region edit acknowledges body type 45, layer index 0/id 1,
+EA part 399362. Native SaveAndExitCAS then returns false. One semantic Undo
+removes the selected part; a second removes the empty layer. The corrected
+acceptance returns to Live with no changed stored lanes; every member's
+context commit verifies. The normal saved file remains unchanged throughout
+this rejected/undone pass. Tattoo acceptance/retention is **not** certified;
+the native rejection's cause is not inferred from acknowledgement alone.
+V102 passes **1,882 frozen tests in 324.233 seconds** and is a development
+candidate, SHA-256 `2b469d8d7858f8af6709bf7a62059e1609f8d75f15587a374fcb47a5ba1f8e5f`.
+
+Private complete evidence remains outside Git:
+
+- `multi-v100-full-cas-entry.json`: `c67e5117d45c3b474aeb47d43e7666ed09b64ad922495c9cb639cf9c122704c7`.
+- `multi-v100-alien-household-commit.json`: `c0478085dc8c96e9812dab0bc83ed87ee300175ee7954696ad3f238c5817d29b`.
+- `multi-v100-full-cas-alien-to-vampire.json`: `1c266bed462f66e92c9496cdf02345af24f970356e3f4bef93c38d0cafa2783f`.
+- `multi-v100-full-cas-vampire-back-to-alien.json`: `113a9fe230d1631748735558aa4cefd8c27171db8d5a344429a3cb3877eb69c7`.
+- `multi-v101-alien-cas-cold-settled.json`: `d04aa5466b36645db5b98117e4db30ef86f2c7127fb631330e0cf30c0c7cdc8d`.
+- `multi-v101-alien-default-body-tattoo-edit.json`: `a7056a35b374565f6c943c843946b092b5e1aef1305b2d72696bfbc15be61093`.
+- `multi-v101-alien-tattoo-cas-return.json`: `a17daa4f256f35ac7e949fd5f58242f13ada98565a5d3d3795c282501def3cf3`.
+
+All-member/all-panel edits, several edited members in one visit, ordinary
+phone/MCCC entry and complete native Tray round trips remain open. No
+production readiness or performance increase is claimed.
+
 ## October 14: queued body-hair initialization, V95–V97
 
 The two fresh companions' V94 active genetic deltas add four body-hair parts,

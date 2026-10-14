@@ -62,6 +62,59 @@ def context(client, sim_id):
     return result
 
 
+def edit_tattoo_regions(control, panel, item, record):
+    """Exercise each actual eligible tattoo region through native layer IDs."""
+    regions = control('body-types', panel=panel)['client']['control']['body_types']
+    item['tattoo_regions'] = []
+    for body in regions:
+        row = {'body_type': body, 'edit_verified_in_cas': False, 'outcome': 'not-observed'}
+        item['tattoo_regions'].append(row); record()
+        control('body-type', panel=panel, body_type=body)
+        data = control('catalog', panel=panel, offset=0, limit=8)['client']['control']
+        if not data['items']:
+            if data['total'] != 0:
+                raise ValueError('Tattoo catalog omitted its advertised first page.')
+            row['outcome'] = 'no-eligible-native-item'; record(); continue
+        held = control('layers', panel=panel, body_type=body)['client']['control']
+        ordinary = [(index, layer) for index, layer in enumerate(held['layers']) if layer['layerId'] != 127]
+        needs_layer = not ordinary
+        index, layer = ordinary[-1] if ordinary else (None, {'partKey': '0'})
+        chosen = None; offset = 0
+        while chosen is None:
+            for product in data['items']:
+                if product['body_type'] != body:
+                    raise ValueError('Tattoo native region catalog contains a different body type.')
+                family = control('variants', panel=panel, data_id=product['data_id'])['client']['control']['family']
+                if not isinstance(family.get('mItems'), list):
+                    raise ValueError('Native tattoo variant family is incomplete.')
+                chosen = next((variant['dataID'] for variant in family['mItems']
+                               if isinstance(variant, dict) and decimal_id(variant.get('dataID')) and
+                               variant['dataID'] != layer.get('partKey')), None)
+                if chosen is not None: break
+            if chosen is not None or offset + len(data['items']) >= data['total']: break
+            offset += len(data['items'])
+            if not data['items']: raise ValueError('Tattoo catalog stopped before its complete native total.')
+            data = control('catalog', panel=panel, offset=offset, limit=8)['client']['control']
+        if chosen is None:
+            row['outcome'] = 'no-different-native-variant'; record(); continue
+        if needs_layer:
+            # Add only after finding an exact eligible variant, retaining all
+            # native medical layers and unknown fields in the receiver.
+            held = control('layer-add', panel=panel, body_type=body)['client']['control']
+            ordinary = [(index, layer) for index, layer in enumerate(held['layers']) if layer['layerId'] != 127]
+            if not ordinary:
+                raise ValueError('Native layer addition did not expose an exact ordinary layer; no repeat.')
+            index, layer = ordinary[-1]
+        applied = control('select-layer', panel=panel, body_type=body, layer_index=index,
+                          layer_id=layer['layerId'], data_id=chosen)
+        row.update(edit_verified_in_cas=True, outcome='native-layer-edit-acknowledged',
+                   layer_index=index, layer_id=layer['layerId'], selected_data_id=chosen,
+                   cas_request_id=applied['cas_request_id']); record()
+    item.update(edit_verified_in_cas=any(row['edit_verified_in_cas'] for row in item['tattoo_regions']),
+                outcome='native-tattoo-regions-observed')
+    record()
+
+
 def run(state, output, identity, request, sim_id, edit=False, panels=None, step_seconds=12):
     if not decimal_id(sim_id) or type(edit) is not bool:
         raise ValueError('Use an explicit existing Sim identity and typed edit option.')
@@ -165,7 +218,7 @@ def run(state, output, identity, request, sim_id, edit=False, panels=None, step_
             if name == 'clothing_looks':
                 item['outcome'] = 'featured-look-edit-contract-pending'; record(); continue
             if name in ('clothing_head_tattoos', 'clothing_body_tattoos'):
-                item['outcome'] = 'use-explicit-region-and-layer-controls'; record(); continue
+                edit_tattoo_regions(control, name, item, record); continue
             rows, offset = data['items'], 0
             equipped = {str(row.get('dataID')) for row in client.get('selected') or []}
             preset = next(row for row in client['catalogs'] if row['panel'] == name)['preset']

@@ -725,6 +725,10 @@ def dispatch(backend, action, sim_id, value):
         protection = cas_bank_transaction.begin(backend, sim)
         if not isinstance(protection, dict) or protection.get('ok') is not True:
             raise ValueError('Complete CAS form checkpoint was not acknowledged; no entry submitted.')
+        household_protection = None
+        if argument == 'full':
+            from .cas_entry_context import checkpoint_members
+            household_protection = checkpoint_members(backend, sim, protection)
         before = snapshot(backend, sim)
         from .cas_ui import capture_original_owner
         owner_observation = capture_original_owner(backend, sim)
@@ -739,6 +743,7 @@ def dispatch(backend, action, sim_id, value):
         submitted = entry(OptionalTargetParam(str(sim.id)), _connection=client.id)
         return {'ok': bool(submitted), 'transition': 'cas-entry-submitted', 'before': before,
                 'form_checkpoint': protection,
+                'household_form_checkpoints': household_protection,
                 'native_pair_preparation': preparation,
                 'original_owner': owner_observation,
                 'requested_editor': 'existing-household-full' if argument == 'full' else 'existing-single-sim',

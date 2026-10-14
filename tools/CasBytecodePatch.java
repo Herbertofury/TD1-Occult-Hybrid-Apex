@@ -111,7 +111,7 @@ public class CasBytecodePatch {
             "Owned deferred CAS readback methods are missing.");
         for(String event:List.of("ApexSocketData","ApexSocketConnect","ApexSocketFailure"))
             require(Collections.disjoint(calls.get(event), Set.of("ApexExecute", "ApexReadback", "ApexSnapshot", "ApexComplete", "ApexAccept",
-                "ApexFormSelectionContext", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes",
+                "ApexFormSelectionContext", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers",
                 "CallGameService", "CallUIService", "SendUIMessage")), "Socket callback executes native CAS work.");
         require(calls.get("ApexSocketConnect").equals(Set.of("split")), "CAS CONNECT callback must queue only.");
         require(calls.get("ApexTick").containsAll(Set.of("CallGameService","ApexSocketSend","connect","addEventListener")),
@@ -490,7 +490,8 @@ public class CasBytecodePatch {
         // Execute: four palette calls, two physique calls, preset write,
         // one product lookup, two family queries, equipped query, clear and
         // layered write. Result: preset query and palette query on next tick.
-        Map<String,Integer> counts=Map.of("ApexCatalog",1,"ApexControlExecute",28,"ApexControlResult",4);
+        Map<String,Integer> counts=Map.of("ApexCatalog",1,"ApexControlExecute",28,"ApexControlResult",4,
+            "ApexBodyTypes",1,"ApexNativeLayers",2);
         var snapshot=ownedBody(abc,instance,"ApexSnapshot").getCode().code;
         int detached=0;
         for(int i=0;i<snapshot.size();i++) if(property(abc,snapshot.get(i),0x46,"CallGameService")) {
@@ -512,9 +513,19 @@ public class CasBytecodePatch {
         }
         require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,"ApexClone")),
             Set.of("CallGameService","CallUIService","SendUIMessage")), "Detached native data copier performs native work.");
-        require(propertyCalls(abc,ownedBody(abc,instance,"ApexBodyTypes")).containsAll(Set.of("GetSelected","OnTabRight")) &&
-            Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,"ApexBodyTypes")),Set.of("CallGameService","CallUIService","SetCatalogSlotSelected")),
-            "Body-region navigation does not use the inspected native selector.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexBodyTypes")).containsAll(
+            Set.of("GetSelected","GetSelectedIndices","SetSelection","dispatchEvent")) &&
+            Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,"ApexBodyTypes")),
+                Set.of("OnTabRight","OnTabLeft","HighlightSelectedItem","CallUIService","SetCatalogSlotSelected")),
+            "Body-region navigation does not use the inspected PC selection grid.");
+        var regionCode=ownedBody(abc,instance,"ApexBodyTypes").getCode().code;
+        int regionDefinitions=0;
+        for(int i=0;i+1<regionCode.size();i++) if(property(abc,regionCode.get(i),0x60,"TattooBodyData") &&
+                property(abc,regionCode.get(i+1),0x66,"DATA")) regionDefinitions++;
+        require(regionDefinitions==1,"Native tattoo definitions lack their exact imported class/data access.");
+        verifyLiteralServices(abc,ownedBody(abc,instance,"ApexBodyTypes"),Map.of("CASGetSimInfo",3));
+        verifyLiteralServices(abc,ownedBody(abc,instance,"ApexNativeLayers"),
+            Map.of("CasHasPartOrTattooPaintLayer",2,"CasGetPartTattooPaintLayerPresent",2));
         for(String target:List.of("ApexControlExecute","ApexControlResult","ApexBodyTypes")) {
             Set<String> callers=new HashSet<>();
             for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex") &&
@@ -523,6 +534,24 @@ public class CasBytecodePatch {
                 target.equals("ApexControlResult") ? "ApexReadback" : "ApexControlExecute")),
                 "Typed CAS control is called outside its owned Timer phase: "+target);
         }
+        Set<String> layerCallers=new HashSet<>();
+        for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex") &&
+            propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains("ApexNativeLayers")) layerCallers.add(name(abc,trait));
+        require(layerCallers.equals(Set.of("ApexControlExecute","ApexControlResult")),
+            "Native layer inspection is called outside its exact owned control phases.");
+    }
+    static void verifyLiteralServices(ABC abc,MethodBody body,Map<String,Integer> expected) {
+        Set<String> observed=new HashSet<>();
+        var code=body.getCode().code;
+        for(int i=0;i<code.size();i++) if(property(abc,code.get(i),0x46,"CallGameService") ||
+                property(abc,code.get(i),0x4f,"CallGameService")) {
+            int argc=code.get(i).operands[1]; int literal=i-argc;
+            require(literal>=0 && opcode(code.get(literal),0x2c),"Native region/layer service name is not a literal getter.");
+            String service=abc.constants.getString(code.get(literal).operands[0]);
+            require(expected.containsKey(service) && expected.get(service)==argc && observed.add(service),
+                "Native region/layer inspection reaches an unreviewed or duplicate service: "+service);
+        }
+        require(observed.equals(expected.keySet()),"Native region/layer inspection lacks its exact getter inventory.");
     }
     static void verifyFormSelection(ABC abc, InstanceInfo instance) {
         String helper="ApexFormSelectionContext";
@@ -628,7 +657,7 @@ public class CasBytecodePatch {
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext",
-            "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes");
+            "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
         for (Trait trait : newClass.instance_traits.traits) {

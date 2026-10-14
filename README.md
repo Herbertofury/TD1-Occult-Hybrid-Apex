@@ -31,7 +31,14 @@ V99 also prevents normal saves from recalculating an initialized hybrid's
 active CAS body from shared fitness stats. The corrected save and cold restart
 preserve all 35 stored and five active appearances after 2,359 actual ticks.
 Genuine gameplay fitness updates stay
-native. The frozen suite passes **1,862 tests**.
+native. V100 additionally captures all five hybrid members before full household
+CAS and restores each member's independent native availability context.
+Fourteen actual Alien panel edits, including eyebrows, presets, skin details,
+makeup and jewelry, survive full-CAS return, Alien → Vampire → Alien, normal save
+and V101 cold load after **2,343 actual ticks**, with all 40 appearance owners
+checked. The current V102 frozen suite passes **1,882 tests**. Tattoo layer
+application is acknowledged but its native acceptance fails; semantic Undo
+restores the original. V102's region-definition fix still needs runtime proof.
 The complete five-member run passes **45 targeted transitions**, with all
 companions checked after each unpause and two completely retained companion
 form changes recorded. The earlier failures remain retained. Every-category/

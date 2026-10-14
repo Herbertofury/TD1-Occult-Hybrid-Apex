@@ -277,6 +277,7 @@ class TestDriverTests(unittest.TestCase):
     def test_full_cas_enables_native_full_edit_on_observed_client_before_entry(self):
         from apex_core import cas_entry_context
         self.enterContext(patch.object(cas_entry_context, 'prepare', return_value={'ok': True, 'prepared_members': []}))
+        self.enterContext(patch.object(cas_entry_context, 'checkpoint_members', return_value={'ok': True, 'members': []}))
         sim = Obj(id=123, get_sim_instance=lambda: object())
         fake = Obj(_get_sim_info_by_id=lambda _: sim,
             services=Obj(client_manager=lambda: Obj(get_first_client=lambda: Obj(id=987))))

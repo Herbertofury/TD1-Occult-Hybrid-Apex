@@ -14,7 +14,8 @@ CASES = ('actual-constructor-timer-path', 'native-snapshot-detached', 'native-sn
     'constructor-connect-callback', 'handshake-native-getter', 'handshake-consume-once',
     'handshake-exact-sim-payload', 'selector-service-contract', 'selector-helper-native-write',
     'selection-current-index', 'selection-write-order', 'selection-typed-boolean',
-    'selection-next-tick-readback', 'earrings-wrong-bodytype', 'ambiguous-swatch-count')
+    'selection-next-tick-readback', 'earrings-wrong-bodytype', 'ambiguous-swatch-count',
+    'body-region-native-write', 'body-region-unbound-definition', 'layer-null-unsafe-service', 'layer-helper-socket-phase')
 
 
 class FormSelectBytecodeSafetyTests(unittest.TestCase):

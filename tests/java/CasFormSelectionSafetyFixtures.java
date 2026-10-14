@@ -40,10 +40,30 @@ public class CasFormSelectionSafetyFixtures {
         MethodBody connect=CasBytecodePatch.ownedBody(abc,instance,"ApexSocketConnect");
         MethodBody tick=CasBytecodePatch.ownedBody(abc,instance,"ApexTick");
         MethodBody readback=CasBytecodePatch.ownedBody(abc,instance,"ApexReadback");
+        MethodBody region=CasBytecodePatch.ownedBody(abc,instance,"ApexBodyTypes");
+        MethodBody layers=CasBytecodePatch.ownedBody(abc,instance,"ApexNativeLayers");
         checks(abc);
         switch(kind) {
             case "actual-constructor-timer-path": break;
             case "native-snapshot-detached": break;
+            case "body-region-native-write":
+                for(var instruction:region.getCode().code) if(CasBytecodePatch.property(abc,instruction,0x46,"SetSelection")) {
+                    instruction.operands[0]=member(abc,"CallGameService");break;
+                }
+                break;
+            case "body-region-unbound-definition":
+                for(var instruction:region.getCode().code) if(CasBytecodePatch.property(abc,instruction,0x60,"TattooBodyData")) {
+                    instruction.operands[0]=member(abc,"MenuState");break;
+                }
+                break;
+            case "layer-null-unsafe-service":
+                literal(abc,layers,"CasHasPartOrTattooPaintLayer").operands[0]=abc.constants.getStringId("CasSetSwatchColorSelected",true);
+                break;
+            case "layer-helper-socket-phase":
+                for(var instruction:connect.getCode().code) if(CasBytecodePatch.property(abc,instruction,0x46,"split")) {
+                    instruction.operands[0]=member(abc,"ApexNativeLayers");break;
+                }
+                break;
             case "native-snapshot-borrowed": {
                 var snapshot=CasBytecodePatch.ownedBody(abc,instance,"ApexSnapshot").getCode().code;
                 boolean changed=false;
@@ -112,7 +132,7 @@ public class CasFormSelectionSafetyFixtures {
             }
             default:throw new AssertionError("Unknown fixture "+kind);
         }
-        for(MethodBody body:List.of(execute,helper,connect,tick,readback,
+        for(MethodBody body:List.of(execute,helper,connect,tick,readback,region,layers,
             CasBytecodePatch.ownedBody(abc,instance,"ApexSnapshot"))) body.setModified();
         ByteArrayOutputStream bytes=new ByteArrayOutputStream();abc.saveToStream(bytes);
         ABC saved=new ABC(new ABCInputStream(new MemoryInputStream(bytes.toByteArray())),abc.getSwf(),null);

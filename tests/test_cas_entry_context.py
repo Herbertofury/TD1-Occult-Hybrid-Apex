@@ -5,6 +5,7 @@ import sys
 import tempfile
 from types import SimpleNamespace as Obj
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
 from apex_core import cas_entry_context as entry, form_appearance as appearance
@@ -86,6 +87,42 @@ class CasEntryContextTests(unittest.TestCase):
         self.backend._set_flags = bad
         with self.assertRaisesRegex(ValueError, 'current kind'): entry.prepare(self.backend, self.sims[0], True)
         self.assertEqual(len(self.writes), 1)
+
+    def test_every_hybrid_companion_checkpoint_precedes_any_projection(self):
+        from apex_core import cas_bank_transaction as bank
+        events = []
+        with patch.object(bank, 'assert_idle', side_effect=lambda _b, sim: events.append(('idle', sim.id))), \
+                patch.object(bank, 'begin', side_effect=lambda _b, sim: events.append(('begin', sim.id)) or {'ok': True, 'lane': '4'}):
+            proof = entry.checkpoint_members(self.backend, self.sims[0], {'ok': True, 'lane': '2'})
+        self.assertEqual(events, [('idle', 200), ('begin', 200)])
+        self.assertEqual([row['sim_id'] for row in proof['members']], ['100', '200'])
+        self.assertEqual(self.writes, [])
+        self.assertTrue(proof['return_requires_independent_member_decisions'])
+
+    def test_unresolved_companion_blocks_all_new_companion_checkpoints(self):
+        from apex_core import cas_bank_transaction as bank
+        with patch.object(bank, 'assert_idle', side_effect=ValueError('unresolved companion')), \
+                patch.object(bank, 'begin') as begin:
+            with self.assertRaisesRegex(ValueError, 'unresolved'):
+                entry.checkpoint_members(self.backend, self.sims[0], {'ok': True})
+        begin.assert_not_called(); self.assertEqual(self.writes, [])
+
+    def test_foreign_manager_companion_blocks_checkpoint_before_bank_writes(self):
+        from apex_core import cas_bank_transaction as bank
+        self.backend._get_sim_info_by_id = lambda sid: self.sims[0]
+        with patch.object(bank, 'begin') as begin:
+            with self.assertRaisesRegex(ValueError, 'manager owner'):
+                entry.checkpoint_members(self.backend, self.sims[0], {'ok': True})
+        begin.assert_not_called(); self.assertEqual(self.writes, [])
+
+    def test_unacknowledged_companion_keeps_selected_originals_and_blocks_entry(self):
+        from apex_core import cas_bank_transaction as bank
+        selected = {'ok': True, 'checkpoint_sha256': 'a' * 64}
+        with patch.object(bank, 'assert_idle'), patch.object(bank, 'begin', return_value={'ok': False}):
+            with self.assertRaisesRegex(ValueError, 'entry blocked'):
+                entry.checkpoint_members(self.backend, self.sims[0], selected)
+        self.assertEqual(selected, {'ok': True, 'checkpoint_sha256': 'a' * 64})
+        self.assertEqual(self.writes, [])
 
 
 if __name__ == '__main__': unittest.main()

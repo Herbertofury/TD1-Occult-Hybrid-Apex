@@ -908,8 +908,7 @@
             for each(row in rows) if(row && int(row.body_type)==category) bodyPresent=true;
             if(!bodyPresent) throw new Error("Requested body type is absent from the native tattoo catalog");
             rows=null; row=null;
-            var nativeLayers:Array=CASAPI.GetBodyTypeLayers(category);
-            if(nativeLayers==null) throw new Error("Native body-type layer array is unavailable");
+            var nativeLayers:Array=ApexNativeLayers(category);
             context.before=ApexClone(nativeLayers); nativeLayers=null;
             if(operation=="layers") return;
             if(operation=="layer-add") {
@@ -1042,10 +1041,24 @@
          } else if(operation=="remove") result.removed_data_id=context.removed_data_id;
          else {
             result.body_type=category; result.before=context.before;
-            result.layers=ApexClone(CASAPI.GetBodyTypeLayers(category));
+            result.layers=ApexClone(ApexNativeLayers(category));
             ClothingPanel(this.mCurrentPanel).mcLayerComponent.Refresh(category);
          }
          return result;
+      }
+
+      private function ApexNativeLayers(bodyType:int) : Array
+      {
+         var layers:Array=CASAPI.GetBodyTypeLayers(bodyType);
+         if(layers!=null) return layers;
+         // The installed CASLayerComponent displays its fake empty layer for
+         // null native storage. Require both exact native empty predicates
+         // before exposing an empty list; painted/unknown storage stays blocked.
+         var occupied:* = CommunicationManager.CallGameService("CasHasPartOrTattooPaintLayer",bodyType);
+         var painted:* = CommunicationManager.CallGameService("CasGetPartTattooPaintLayerPresent",bodyType);
+         if(!(occupied is Boolean) || occupied!==false || !(painted is Boolean) || painted!==false)
+            throw new Error("Native body-type layers are unavailable or contain unrepresented paint");
+         return [];
       }
 
       private function ApexBodyTypes(target:int) : Array
@@ -1053,16 +1066,37 @@
          if(!(this.mCurrentPanel is ClothingPanel) || !MenuState.SupportsBodyTypeFilter(this.mCurrState))
             throw new Error("Native panel has no body-region selector");
          var panel:CASBodyTypePanel=ClothingPanel(this.mCurrentPanel).mcBodyTypePanel;
-         var first:int=panel.GetSelected(); var current:int=first;
+         if(panel==null || panel.mcSelectionGrid==null) throw new Error("Native body-region grid is unavailable");
+         var sim:Object=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
+         if(sim==null || !(sim.occultType is int)) throw new Error("Native body-region occult context is unavailable");
+         var rows:Array=TattooBodyData.DATA as Array;
+         if(rows==null || rows.length==0 || rows.length>128) throw new Error("Native body-region definitions are unavailable");
          var types:Array=[]; var seen:Object={};
-         do {
-            if(current<=0 || seen[String(current)]) throw new Error("Native body-region selector repeated an ambiguous identity");
-            seen[String(current)]=true; types.push(current);
-            panel.OnTabRight(); current=panel.GetSelected();
-         } while(current!=first);
+         for each(var row:Object in rows) {
+            if(row==null || !(row.type is int) || int(row.type)<=0 || seen[String(row.type)])
+               throw new Error("Native body-region definition is ambiguous");
+            seen[String(row.type)]=true;
+            if("occults_blacklist" in row) {
+               if(!(row.occults_blacklist is Array)) throw new Error("Native body-region occult filter is unavailable");
+               if(row.occults_blacklist.indexOf(sim.occultType)!=-1) continue;
+            }
+            types.push(int(row.type));
+         }
+         var selected:Array=panel.mcSelectionGrid.GetSelectedIndices();
+         if(selected==null || selected.length!=1 || int(selected[0])<0 || int(selected[0])>=types.length ||
+            panel.GetSelected()!=int(types[int(selected[0])]))
+            throw new Error("Native body-region grid differs from its exact filtered definitions");
          if(target!=0) {
-            if(!seen[String(target)]) throw new Error("Requested body region is unavailable for this native occult");
-            while(panel.GetSelected()!=target) panel.OnTabRight();
+            var index:int=types.indexOf(target);
+            if(index<0) throw new Error("Requested body region is unavailable for this native occult");
+            // PC has no mGridInputAdapter. Its public selection grid emits the
+            // same typed selection event used by mouse selection, followed by
+            // the native region-change event, without controller navigation.
+            if(panel.GetSelected()!=target) {
+               if(!panel.mcSelectionGrid.SetSelection(index,true,true) || panel.GetSelected()!=target)
+                  throw new Error("Native body-region selection did not retain the exact requested type");
+               panel.dispatchEvent(new GenericEvent(GenericEvent.CHANGE));
+            }
          }
          return types;
       }

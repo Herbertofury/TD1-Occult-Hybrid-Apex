@@ -145,4 +145,52 @@ class CasWorkbenchTests(unittest.TestCase):
                           lambda *_args, **_kwargs:self.fail('No replay'), fixture.SIM)
 
 
+class TattooRegionTests(unittest.TestCase):
+    def setUp(self):
+        self.calls = []; self.item = {}; self.adds = 0
+    def control(self, operation, **args):
+        self.calls.append((operation, args)); body = args.get('body_type')
+        data = {'operation': operation}
+        if operation == 'body-types': data['body_types'] = [46, 47]
+        elif operation == 'catalog': data.update(total=1, items=[{'body_type': self.current, 'data_id': '100'}])
+        elif operation == 'body-type': self.current = body
+        elif operation == 'layers': data['layers'] = [{'layerId': 127, 'futureMedical': 'keep'}]
+        elif operation == 'layer-add':
+            self.adds += 1; data['layers'] = [{'layerId': 127, 'futureMedical': 'keep'}, {'layerId': 1, 'partKey': '0'}]
+        elif operation == 'variants': data['family'] = {'mItems': [{'dataID': '101'}]}
+        return {'ok': True, 'cas_request_id': 'a' * 32, 'client': {'control': data}}
+    def test_all_actual_regions_use_exact_ordinary_layer_and_preserve_medical_layer(self):
+        workbench.edit_tattoo_regions(self.control, 'clothing_body_tattoos', self.item, lambda: None)
+        self.assertEqual(self.adds, 2)
+        edits = [args for op, args in self.calls if op == 'select-layer']
+        self.assertEqual([row['body_type'] for row in edits], [46, 47])
+        self.assertTrue(all(row['layer_id'] == 1 and row['layer_index'] == 1 for row in edits))
+        self.assertTrue(self.item['edit_verified_in_cas'])
+    def test_uncertain_layer_addition_stops_before_selection_and_other_regions(self):
+        def control(op, **args):
+            if op == 'layer-add': raise RuntimeError('unresolved native UUID')
+            return self.control(op, **args)
+        with self.assertRaisesRegex(RuntimeError, 'unresolved'):
+            workbench.edit_tattoo_regions(control, 'clothing_body_tattoos', self.item, lambda: None)
+        self.assertFalse(any(op == 'select-layer' for op, args in self.calls))
+        self.assertEqual(len(self.item['tattoo_regions']), 1)
+    def test_empty_region_is_reported_without_layer_or_item_creation(self):
+        def control(op, **args):
+            result = self.control(op, **args)
+            if op == 'catalog': result['client']['control'].update(total=0, items=[])
+            return result
+        workbench.edit_tattoo_regions(control, 'clothing_body_tattoos', self.item, lambda: None)
+        self.assertFalse(self.item['edit_verified_in_cas']); self.assertEqual(self.adds, 0)
+        self.assertTrue(all(row['outcome'] == 'no-eligible-native-item' for row in self.item['tattoo_regions']))
+
+    def test_empty_variant_family_never_creates_a_blank_native_layer(self):
+        def control(op, **args):
+            result = self.control(op, **args)
+            if op == 'variants': result['client']['control']['family']['mItems'] = []
+            return result
+        workbench.edit_tattoo_regions(control, 'clothing_body_tattoos', self.item, lambda: None)
+        self.assertEqual(self.adds, 0)
+        self.assertTrue(all(row['outcome'] == 'no-different-native-variant' for row in self.item['tattoo_regions']))
+
+
 if __name__ == '__main__': unittest.main()

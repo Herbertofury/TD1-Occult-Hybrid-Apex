@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-14-multi-hybrid-tray-v99'
+UPGRADE_EPOCH = '2026-10-14-multi-hybrid-tray-v102'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '10f113671123b38e35839fcfe9554e3e30626772a53ce56d914c8cb1af7082d7'
+UPGRADE_SELF_BODY_SHA = 'c03286b21f4eb5a3d65c64346306a6999280a0fbe56803f5b7213df2fcdba5f6'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': '3ef3a75d6f6c7e366de550148d5a62f1269016ae0c5810c2dc1ad6cd25e7c660',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -41,7 +41,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '77a5eda1eb8f1b2706f7e76cfbd27a95597d4676e8a9833c4721d6737c08e00d',
     'apex_core/cas_controls.py': '839b69d87f9dc51f00218d061f13d57f7dc825c4ae9cc4a328fded53bcee6dee',
-    'apex_core/cas_entry_context.py': '4d878562ed6932fa16dbccf2f7c7f402a16c748102a71a4fced1d8478e1cc902',
+    'apex_core/cas_entry_context.py': 'c28da27174d0ca352715047f722d67c9567ddb6533c185212fbfbcf9e4155c0c',
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_ui.py': '2617cc644f3681ca641c897f491ea4581e9b227b762a3ce6c0034d5753987b6e',
@@ -71,7 +71,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/sim_data.py': 'dfc26d8d9a016b24d69187233ab089058fe72ef82abbac60a2d09710fe0e7266',
     'apex_core/studio.py': '99e9c3b16b767b0a3776cf847d35dc72d697208e0305bc2a85fb0899fed81281',
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
-    'apex_core/test_driver.py': '527d886bce7967db3d9a421a00782db1f24b082d4322bac75f6a45e9600ce3e6',
+    'apex_core/test_driver.py': 'aaccab4dcd7fb17a960e7b831af170f0441e660790c51c16e7a611257fed60ef',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
     'td1_occult_hybrid_apex.py': '7b8ff5674f69a817bf32d8d135698a2305c54b658136ab3800ef95c76f3b69b3',
 }

@@ -364,6 +364,13 @@ def parser():
     cas_bank.add_argument('--dispositions-sha256')
     cas_bank.add_argument('--hair-targets-file', type=Path)
     cas_bank.add_argument('--hair-targets-sha256')
+    household_cas = commands.add_parser('cas-household-commit', help='Commit each fresh household CAS checkpoint with explicit Sim/form edit intent')
+    household_cas.add_argument('--state', required=True, type=Path)
+    household_cas.add_argument('--entry-proof', required=True, type=Path)
+    household_cas.add_argument('--entry-sha256', required=True)
+    household_cas.add_argument('--accept', action='append', help='Keep a returned edit only for this exact SIM_ID:FORM; restore other changed forms')
+    household_cas.add_argument('--output', required=True, type=Path)
+    household_cas.add_argument('--seconds', type=float, default=60)
     cas_probe = commands.add_parser('cas-probe', help='Regression probe for already open native CAS; no entry or acceptance')
     cas_probe.add_argument('--state', required=True, type=Path)
     cas_probe.add_argument('--sim-id', required=True)
@@ -689,6 +696,9 @@ def execute(args):
     if args.command == 'cas-bank':
         from cas_bank_cli import run
         return run(args, owned_request)
+    if args.command == 'cas-household-commit':
+        from cas_household_commit import run
+        return run(args, verified_identity(args.state), owned_request)
     if args.command == 'game-discard':
         from game_discard import observe
         return observe(args.state, args.output, verified_identity(args.state), owned_request,

@@ -3,8 +3,8 @@
 The legacy trait-based availability calculation can advertise Fairy while the
 active appearance is Alien. CAS requires the selected native kind in its pair.
 This preparation changes only native availability, preserving every existing
-appearance owner, trait and current kind. The selected CAS transaction already
-holds the exact original availability for its explicit return commit.
+appearance owner, trait and current kind. Every hybrid member has its own raw
+CAS transaction before household projection, including unselected members.
 """
 import hashlib
 import json
@@ -14,6 +14,46 @@ import uuid
 from . import form_appearance as appearance, native_occult_context as context
 from .occult_add_guard import publish
 from .overlay_loader import _unlinked
+
+
+def checkpoint_members(backend, selected, selected_checkpoint):
+    """Checkpoint companions before any household availability projection.
+
+    Preflight the whole scope first. A partial disk/checkpoint failure retains
+    completed originals and prevents native CAS entry; it never replays them.
+    Each member later uses the existing explicit observe/prepare/commit API,
+    which restores that member's captured native availability as well as its
+    independently decided appearance owners.
+    """
+    from . import cas_bank_transaction as bank
+    if not isinstance(selected_checkpoint, dict) or selected_checkpoint.get('ok') is not True:
+        raise ValueError('Selected CAS member has no acknowledged raw checkpoint.')
+    household = backend.services.active_household()
+    if household is None or household.id != selected.household_id:
+        raise ValueError('CAS checkpoints require the exact loaded household.')
+    members = list(household.sim_info_gen())
+    if not 1 <= len(members) <= 8 or selected not in members or len({sim.id for sim in members}) != len(members):
+        raise ValueError('CAS checkpoint roster is incomplete or ambiguous.')
+    companions = []
+    for sim in members:
+        if backend._get_sim_info_by_id(str(sim.id)) is not sim or sim.household_id != household.id:
+            raise ValueError('CAS checkpoint member is no longer the native manager owner.')
+        forms = backend._form_map(sim.occult_tracker)
+        if sim is not selected and isinstance(forms, dict) and len(forms) >= 3:
+            if context.capture(backend, sim) is None:
+                raise ValueError('CAS companion lacks complete distinct native owners.')
+            bank.assert_idle(backend, sim)
+            companions.append(sim)
+    rows = [{'sim_id': str(selected.id), 'form_checkpoint': selected_checkpoint}]
+    for sim in companions:
+        result = bank.begin(backend, sim)
+        if not isinstance(result, dict) or result.get('ok') is not True:
+            raise ValueError('Companion raw CAS checkpoint was not acknowledged; entry blocked.')
+        rows.append({'sim_id': str(sim.id), 'form_checkpoint': result})
+    return {'ok': True, 'household_id': str(household.id),
+            'roster_sim_ids': [str(sim.id) for sim in members], 'members': rows,
+            'native_appearance_written': False, 'native_availability_written': False,
+            'return_requires_independent_member_decisions': True}
 
 
 def prepare(backend, selected, full_household):

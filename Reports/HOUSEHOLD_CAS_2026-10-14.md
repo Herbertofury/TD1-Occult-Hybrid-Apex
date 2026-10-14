@@ -312,3 +312,38 @@ restart case, missing-owner refusal and retained partial-failure originals.
 Candidate SHA-256:
 `73d38ce07720d70da2f2e9b3660ec0eea88a88f7371278b57384c6f9dc830023`.
 Actual V115 cold-member switching is still being qualified.
+
+### V115 cold-member switching and final saved state
+
+Fresh game PID 73176 loaded the retained normal save. **All five members passed
+actual Vampire → Alien round trips**, ten transitions and another 27,885 real
+simulation ticks. Every first switch verified a fresh current-native checkpoint
+with no prior-bank authority; every second switch verified current-runtime
+authority. Historical bank data was never restored. No manual CAS checkpoint
+transaction was used. Both native prevention and permanent preservation receipts
+verified, and all 40 household owners matched at every settled boundary.
+Proof SHA-256:
+`dd4f26d296c02fe06950e19ed63e25bfbf9be8b8fdacb3fc145475a2ec72128b`.
+
+The subsequent normal save and bank seal passed. File SHA-256:
+`df0c4fcb1d853f32356cbc3eb621d5e99552829191649417448a14d7292013a1`.
+An independent after-save check again verified all 40 appearances with no
+differences; proof SHA-256:
+`8cfe4bbab96cf9a3875d8d6cea36e4286ff7288ece7372265763412a8dada83e`.
+The game remains paused. All five Sims are alive/not dying, their effective
+autonomy is zero, and native session death prevention is active. The protected
+original remains untouched. This final V115 saved file has not itself undergone
+another cold restart; V115's cold-start/native-checkpoint path was tested against
+the preceding V114 normal saved file, whose 40 owners matched exactly.
+
+The complete V115 local suite passed **1,976 tests**. Both targeted 28-test
+form-bank/switch suites pass. The EA UIA timeout now produces an unresolved
+consent observation instead of aborting a successful launch or repeating consent;
+its timeout regression and nine launcher tests pass. The corrected launcher
+actually started PID 73176 and the CLI accepted Resume once. Load observation
+continued read-only after its first deadline; Resume was not repeated.
+
+These results qualify the direct native prevention and the five-member
+post-load switching fix. They do not close ordinary phone/MCCC CAS, remaining
+per-form CAS editing, special-state forms, every-panel coverage or the broader
+production-save acceptance gate.

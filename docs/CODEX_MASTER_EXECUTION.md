@@ -4,13 +4,15 @@ Last reconciled: 2026-10-14
 Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance retained
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
-Current checkpoint: V113 completed 80 companion Alien full-CAS edits and 100 Vampire dark-form full-CAS edits across all five members. Their independent edits survived normal save, cold reload and another 8,655 ticks. V114 directly prevents native cross-form physique/hidden-outfit merging while retaining permanent transition/save protection. All five members completed 35 Live switches across seven stored forms, with all 40 owners exact after 92,258 ticks and a normal saved/sealed file. The local 1,972-test suite passed; both CI workflows at a3f4229 passed. V114 cold reload is tracked separately. Ordinary phone/MCCC CAS, remaining form-specific CAS edits, special states, all-panel coverage and broader production gates remain open. See Reports/HOUSEHOLD_CAS_2026-10-14.md and docs/NATIVE_FORM_ISOLATION.md. The protected original remains read/copy only.
+Current checkpoint: V113 completed 80 companion Alien and 100 five-member Vampire dark-form full-CAS edits, retained through normal save/cold load. V114 directly prevents native cross-form physique/hidden-outfit merging while keeping permanent protection enabled. All five completed 35 Live switches across seven forms, with all 40 owners exact after 92,258 ticks, normal save and cold load. V115 fixes unsealed companion switching after reload using fresh native checkpoints: all five passed Vampire → Alien, another 27,885 ticks, normal save/seal and independent all-40 comparison without manual checkpointing. The full local suite passed 1,976 tests. Ordinary phone/MCCC CAS, remaining form-specific edits, special states, all-panel coverage and broader production gates remain open. See Reports/HOUSEHOLD_CAS_2026-10-14.md. The protected original remains read/copy only.
 
 ## Objective
 
 Owner household stress requirement, October 13:
 
 - [x] Keep one reusable disposable profile and verify its five-member roster, six actual occult memberships per member and seven appearance owners per member.
+- [x] V114 directly prevents native physique/hidden-outfit merging while permanent protection stays enabled; all five pass seven-form Live cycles, all-40 comparisons, normal save and cold reload.
+- [x] V115 fixes post-load companion switching through fresh native checkpoints, with all five Vampire → Alien round trips and final saved all-40 verification passing without manual checkpoint transactions.
 - [x] Add whole-roster CLI capture/compare/cycle checks. Preserve every returned readable field and full packet; detect changed companions and newly added fields. Record mutation UUIDs before submission and unpause before assessing actual simulation effects.
 - [x] Enumerate all 5,390 CAS coverage cells: every member × every appearance owner × 77 panels × single-member/whole-household edit scopes. All begin untested. Empty/unavailable panels remain explicit and cannot count as edited.
 - [x] Fix mutation of the immutable stored-form load source. V92 cold reload preserves all five stored Alien genetic records before/after 2,368 actual simulation ticks.

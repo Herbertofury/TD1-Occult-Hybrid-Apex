@@ -23,6 +23,12 @@
       "sha256": "778f289631c7cae7710f398f33b02abf2bb50f3735cb9590aa85791baa3f2c16"
     },
     {
+      "bytes": 174974,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "f53d1d41771efac682c23e43459fd780a6f57d782432fb661db7ba9617387a5a"
+    },
+    {
       "bytes": 7912,
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexPermissionCapture.cpp",
@@ -221,12 +227,6 @@
       "sha256": "61a5369a5e7a727632596f7bdb2b1b08a0fc3bacdb70935450105623010ae81e"
     },
     {
-      "bytes": 41998,
-      "mode": "100644",
-      "path": "README.md",
-      "sha256": "6167bf2eddbd6620584a12abd5fa48fa7defb6fdd3c90c095358000f4a97a699"
-    },
-    {
       "bytes": 59178,
       "mode": "100644",
       "path": "docs/CAS_NATIVE_OWNER_CONTRACT.md",
@@ -341,6 +341,12 @@
       "sha256": "15c4d8ecf3ee2960778fcbd4b91d4458e8ec9f67a60e0ea9dc055b6156321ac1"
     },
     {
+      "bytes": 42194,
+      "mode": "100644",
+      "path": "README.md",
+      "sha256": "c5dea3a82bb0f3a030da97e923549fd55f0adb6cc40d5fe1aaee5cb7de498aae"
+    },
+    {
       "bytes": 27274,
       "mode": "100644",
       "path": "tests/test_form_bank_seal.py",
@@ -411,12 +417,6 @@
       "mode": "100644",
       "path": "Source/CASUi/semantic_methods.as",
       "sha256": "79d10e672c87666366aa77ff0b972c218017e6fa6aaa6d1d3f94f2bb0da1fa1c"
-    },
-    {
-      "bytes": 19285,
-      "mode": "100644",
-      "path": "Reports/HOUSEHOLD_CAS_2026-10-14.md",
-      "sha256": "1186540765dd02a87decd57e80b44812a80bd061f86ab786a5e4cd7bbe41ba70"
     },
     {
       "bytes": 21578,
@@ -699,12 +699,6 @@
       "mode": "100644",
       "path": "Source/apex_core/saved_occult_extras.py",
       "sha256": "6b7f0c8c4ea258823d680f35764155bd2de02551a1fc876424888108c814fb0a"
-    },
-    {
-      "bytes": 174554,
-      "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "1bc4d70ea413f9e1a427187630f3c6d3b83f4e8d2fc345bbf78beecd9ec33932"
     },
     {
       "bytes": 5553,
@@ -1479,6 +1473,12 @@
       "mode": "100644",
       "path": "tools/CasVoiceBytecodePatch.java",
       "sha256": "f146b3774f23c222cc718d498c884bdc397075149792693147e0ab8ea79e3c9b"
+    },
+    {
+      "bytes": 21381,
+      "mode": "100644",
+      "path": "Reports/HOUSEHOLD_CAS_2026-10-14.md",
+      "sha256": "b395421e9ed061b12a610d6731e7e583a4ac42a736e755649d12de99879257ab"
     },
     {
       "bytes": 7843,

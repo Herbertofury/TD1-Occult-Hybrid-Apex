@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-14-multi-hybrid-tray-v102'
+UPGRADE_EPOCH = '2026-10-14-multi-hybrid-tray-v104'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'c03286b21f4eb5a3d65c64346306a6999280a0fbe56803f5b7213df2fcdba5f6'
+UPGRADE_SELF_BODY_SHA = 'b2eac594175f3b102dbdd633ddf020f6d2b93047a05ba1088a55b9a1c3cf9e13'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': '3ef3a75d6f6c7e366de550148d5a62f1269016ae0c5810c2dc1ad6cd25e7c660',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -48,7 +48,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
-    'apex_core/form_bank.py': '9f5ca22186122ab6982c88ed0252a3b2048757cf1cc411555a639ef5d71d4434',
+    'apex_core/form_bank.py': '4219b1e44d7ffeca2e8be07df2db641927c52932c4fe5df941cb564b1486e696',
     'apex_core/genetics_snapshot.py': '8fefbe2898884cfbc8aab7675d3ff169f376848175d9f0ee7277e2d75bc73640',
     'apex_core/growth_parts.py': 'efca6b2b2cacf2c18171e87779b95cd3be9766809068583fd1547b5f7bd32db2',
     'apex_core/household_io.py': '13e4b8e86ef6587d8e9319e48551637664813acda4c9bf34878d130ecc3df667',

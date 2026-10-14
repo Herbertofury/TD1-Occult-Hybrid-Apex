@@ -8,6 +8,50 @@ disposable autosave-family files; these writes are recorded explicitly.
 
 ## October 14: independent household CAS protection, V100–V102
 
+### V102–V104 runtime continuation
+
+V102's imported native definition works in-game: all eleven body-type regions
+45–54 and 113 are returned; selecting region 46 verifies its exact native
+readback. The same EA tattoo 399362, body type 45/layer 0/id 1, also fails native
+acceptance on the Human disguise. Two Undo operations permit corrected return;
+an explicitly restored Human lane and all five context commits return every
+appearance to the saved baseline. This does not establish an Alien-only cause.
+
+V103 tries EA's temporary first tattoo slot without AddEmptyLayer. The exact
+part/layer readback acknowledges, then the game crashes before the return
+command creates an acceptance request. Private minidump parsing records a
+native write access violation at `0x14112c713` to `0x34aeec0`. Captured code
+starts with `and qword ptr [rax], 0xf`; no native function name or causal
+interpretation is certified. The normal Slot02 remains SHA-256
+`4cddc75fd958c2b154cf50d5cc49c1f2209ef77467d002a0b1797cc4bf9294a3`.
+The failed prototype remains evidence; 1,884 passing unit tests do not make it
+runtime safe. The new serialized fixture initially modified the wrong method;
+that failed suite is retained separately from its corrected passing run.
+
+Closed crash archival now preflights every member's exact entry checkpoint and
+native availability extension before any write. It atomically archives all
+five never-observed receivers, preserves their complete originals/prior banks,
+and verifies every save/backup hash unchanged. It performs no appearance or
+save replay. V104 removes the crashing temporary-slot write and blocks first
+tattoo insertion before native mutation; existing-layer work remains separately
+unproven. Tattoo completion and full production readiness remain open.
+
+V104's frozen suite passes **1,888 tests in 272.073 seconds**. Its guarded
+cold load preserves all 40 saved appearance owners before and after **2,277
+actual simulation ticks**. In native full CAS, both first-part insertion and
+empty-layer creation return explicit refusals with `mutation_started: false`.
+The no-edit native acceptance is rejected; a separately recorded nose preset
+edit permits a transition, while the early Live observer lacks its complete
+instanced context. A later fresh native read confirms the exact household in
+paused Live without repeating acceptance. Independent explicit original-owner
+restoration is required for that diagnostic edit; this does not certify the
+earlier incomplete return observer or tattoo retention.
+
+Private crash evidence: `multi-v103-first-slot-native-crash.json`, SHA-256
+`49f8c3ed08d340350ff5fab03be994a323b5d75adced3a1b028fb0a942024f74`;
+preserved XML SHA-256
+`ede3813e68f90d5501d65596a31436d682ff9963e812c1106656791f48bfc4c4`.
+
 Full household entry previously projected every member's native availability
 but checkpointed only the selected Sim. `checkpoint_members` now checks the
 complete existing roster, preflights every hybrid companion, and captures each

@@ -192,5 +192,18 @@ class TattooRegionTests(unittest.TestCase):
         self.assertEqual(self.adds, 0)
         self.assertTrue(all(row['outcome'] == 'no-different-native-variant' for row in self.item['tattoo_regions']))
 
+    def test_empty_tattoo_storage_is_quarantined_without_any_native_mutation(self):
+        def control(op, **args):
+            result = self.control(op, **args)
+            if op == 'layers':
+                result['client']['control'].update(layers=[])
+            return result
+        workbench.edit_tattoo_regions(control, 'clothing_body_tattoos', self.item, lambda: None)
+        self.assertEqual(self.adds, 0)
+        edits = [args for op, args in self.calls if op == 'select-layer']
+        self.assertEqual(edits, [])
+        self.assertTrue(all(row['outcome']=='native-first-tattoo-insertion-quarantined'
+                            for row in self.item['tattoo_regions']))
+
 
 if __name__ == '__main__': unittest.main()

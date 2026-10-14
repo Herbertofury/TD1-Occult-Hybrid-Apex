@@ -43,4 +43,7 @@ active appearances. Save and cold-load checks remain separate. Empty or
 unavailable panels cannot count as successful edits. The fourteen Alien-panel
 V100 test certifies its tested subset; it does not complete the 5,390-cell
 household edit matrix. Tattoo acknowledgement currently has a retained native
-acceptance rejection and remains uncertified.
+acceptance rejection and remains uncertified. The direct first-slot prototype
+also has a retained native crash. The guarded candidate refuses first-tattoo
+insertion before any part/layer mutation; empty tattoo regions are reported
+as quarantined rather than counted as edited.

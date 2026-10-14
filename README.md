@@ -36,9 +36,14 @@ CAS and restores each member's independent native availability context.
 Fourteen actual Alien panel edits, including eyebrows, presets, skin details,
 makeup and jewelry, survive full-CAS return, Alien → Vampire → Alien, normal save
 and V101 cold load after **2,343 actual ticks**, with all 40 appearance owners
-checked. The current V102 frozen suite passes **1,882 tests**. Tattoo layer
-application is acknowledged but its native acceptance fails; semantic Undo
-restores the original. V102's region-definition fix still needs runtime proof.
+checked. V102 verifies all 11 native tattoo regions and region selection.
+Tattoo insertion fails native acceptance on both Alien and Human; Undo and
+explicit commits restore the saved baseline. V103's direct first-slot prototype
+crashes after acknowledgement, before an acceptance request. Its normal save
+remains unchanged and all five interrupted captures are preserved together.
+V104 blocks first-tattoo insertion before native mutation while investigation
+continues. The guarded build remains a development candidate; production
+acceptance is incomplete.
 The complete five-member run passes **45 targeted transitions**, with all
 companions checked after each unpause and two completely retained companion
 form changes recorded. The earlier failures remain retained. Every-category/

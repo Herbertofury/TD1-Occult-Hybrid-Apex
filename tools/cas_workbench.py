@@ -76,6 +76,8 @@ def edit_tattoo_regions(control, panel, item, record):
                 raise ValueError('Tattoo catalog omitted its advertised first page.')
             row['outcome'] = 'no-eligible-native-item'; record(); continue
         held = control('layers', panel=panel, body_type=body)['client']['control']
+        if held['layers']==[]:
+            row['outcome']='native-first-tattoo-insertion-quarantined';record();continue
         ordinary = [(index, layer) for index, layer in enumerate(held['layers']) if layer['layerId'] != 127]
         needs_layer = not ordinary
         index, layer = ordinary[-1] if ordinary else (None, {'partKey': '0'})

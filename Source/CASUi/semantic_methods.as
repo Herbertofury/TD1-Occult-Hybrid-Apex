@@ -912,6 +912,8 @@
             context.before=ApexClone(nativeLayers); nativeLayers=null;
             if(operation=="layers") return;
             if(operation=="layer-add") {
+               if(context.before.length==0)
+                  throw new Error("First-tattoo insertion is unavailable after failed native runtime validation; no layer added");
                var used:Object={}; var ordinaryCount:int=0;
                for each(row in context.before) {
                   used[String(row.layerId)]=true;
@@ -927,6 +929,8 @@
                return;
             }
             layerId=int(operation=="select-layer" ? parts[1] : parts[0]);
+            if(operation=="select-layer" && context.before.length==0)
+               throw new Error("First-tattoo insertion is unavailable after failed native runtime validation; no part changed");
             if(index<0 || index>=context.before.length || int(context.before[index].layerId)!=layerId || layerId==127)
                throw new Error("Native tattoo layer identity changed or names the protected medical layer");
             if(operation=="layer-remove") {

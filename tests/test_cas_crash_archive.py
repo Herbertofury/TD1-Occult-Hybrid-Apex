@@ -73,6 +73,66 @@ class ClosedCrashArchiveTests(SealFixture):
         self.assertEqual(self.slot.read_bytes(),saved); self.assertEqual(self.writes,[])
         self.assertFalse(result['loaded_file_verified']); self.assertFalse(result['save_reload_verified'])
 
+    def scoped_entry(self, additional=()):
+        row=self.entry['steps'][0]['result']
+        members=[{'sim_id':SIM,'form_checkpoint':row['form_checkpoint']}] + list(additional)
+        row['household_form_checkpoints']={'ok':True,'household_id':HH,
+            'roster_sim_ids':[item['sim_id'] for item in members],'members':members}
+        write_json(self.entry_path,self.entry)
+        self.proof['entry_proof_sha256']=sha256(self.entry_path);self.publish()
+
+    def test_scoped_entry_keeps_each_exact_capture_and_reports_its_member_ids(self):
+        self.scoped_entry()
+        result=self.invoke()
+        self.assertTrue(result['ok']);self.assertEqual(result['archived_member_sim_ids'],[SIM])
+        self.assertTrue(result['bank_lanes_unchanged']);self.assertEqual(self.writes,[])
+
+    def test_missing_companion_receiver_blocks_entire_scope_before_any_archive_write(self):
+        self.scoped_entry([{'sim_id':'200','form_checkpoint':dict(ok=True,native_appearance_written=False,
+            checkpoint_sha256='a'*64,expected_pending_sha256='b'*64)}])
+        before=self.bank_path.read_bytes()
+        with self.assertRaisesRegex(ValueError,'captured CAS metadata'):self.invoke()
+        self.assertEqual(self.bank_path.read_bytes(),before);self.assertFalse(self.output.exists())
+        self.assertFalse((self.root/'archive-bank-before.json').exists())
+
+    def test_foreign_household_scope_cannot_archive_selected_original(self):
+        self.scoped_entry()
+        self.entry['steps'][0]['result']['household_form_checkpoints']['household_id']='999'
+        write_json(self.entry_path,self.entry);self.proof['entry_proof_sha256']=sha256(self.entry_path);self.publish()
+        before=self.bank_path.read_bytes()
+        with self.assertRaisesRegex(ValueError,'household scope'):self.invoke()
+        self.assertEqual(self.bank_path.read_bytes(),before)
+
+    def native_context_entry(self):
+        data=json.loads(self.bank_path.read_text());record=data['records'][self.key]
+        transaction=record['cas_transaction'];pending=record['pending']
+        context={lane:{'available':65,'current':int(lane)} for lane in pending['original_owners']['stored']}
+        context['active']={'available':65,'current':int(pending['lane'])}
+        transaction['native_occult_context']=context
+        transaction['native_occult_context_sha256']=_hash(context)
+        envelope={name:transaction[name] for name in ('transaction_id','identity','checkpoint_sha256',
+            'record_guard_sha256','hair_checkpoint_sha256')}
+        transaction['transaction_sha256']=_hash(receiver._native_context_envelope(transaction,envelope))
+        write_json(self.bank_path,data)
+        self.entry['steps'][0]['result']['form_checkpoint']['expected_pending_sha256']=transaction['transaction_sha256']
+        write_json(self.entry_path,self.entry);self.proof['entry_proof_sha256']=sha256(self.entry_path);self.publish()
+        return data
+
+    def test_fresh_native_availability_extension_is_archived_without_restoration(self):
+        before=self.native_context_entry()
+        self.assertTrue(self.invoke()['ok'])
+        row=json.loads(self.bank_path.read_text())['records'][self.key]
+        self.assertEqual(row['failed_history'][-1]['cas_transaction']['native_occult_context'],
+                         before['records'][self.key]['cas_transaction']['native_occult_context'])
+        self.assertEqual(self.writes,[])
+
+    def test_changed_native_context_extension_hash_blocks_archival_before_any_write(self):
+        data=self.native_context_entry()
+        data['records'][self.key]['cas_transaction']['native_occult_context_sha256']='a'*64
+        write_json(self.bank_path,data);before=self.bank_path.read_bytes()
+        with self.assertRaisesRegex(ValueError,'context hash'):self.invoke()
+        self.assertEqual(self.bank_path.read_bytes(),before);self.assertFalse(self.output.exists())
+
     def test_running_game_refuses_before_read_or_write(self):
         self.guard.side_effect = RuntimeError('game running')
         before = self.bank_path.read_bytes()

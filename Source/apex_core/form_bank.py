@@ -256,6 +256,12 @@ def _captured_schema2_archive(record, argument, sim_id):
         'checkpoint_sha256', 'transaction_sha256', 'record_guard_sha256',
         'hair_checkpoint', 'hair_checkpoint_sha256', 'prior_bank', 'prior_hair_policy',
         'phase', 'journal', 'full_native_original_appended'}
+    if isinstance(transaction, dict) and ({'native_occult_context','native_occult_context_sha256'} & set(transaction)):
+        from .native_occult_context import validate
+        validate(transaction.get('native_occult_context'))
+        if transaction.get('native_occult_context_sha256') != primitive.digest(transaction['native_occult_context']):
+            raise ValueError('Captured native availability context hash changed; originals retained.')
+        transaction_keys |= {'native_occult_context','native_occult_context_sha256'}
     old_identity = {'runtime_pid': argument['prior_pid'], 'sim_id': sim_id,
                     'household_id': argument['household_id'], 'save_guid': argument['save_guid']}
     if (not isinstance(pending, dict) or set(pending) != checkpoint_keys or
@@ -281,6 +287,7 @@ def _captured_schema2_archive(record, argument, sim_id):
         raise ValueError('Only exact never-observed schema2 CAS originals may be archived; journal retained.')
     envelope = {name: transaction[name] for name in ('transaction_id', 'identity',
         'checkpoint_sha256', 'record_guard_sha256', 'hair_checkpoint_sha256')}
+    envelope = receiver._native_context_envelope(transaction, envelope)
     if transaction.get('transaction_sha256') != primitive.digest(envelope):
         raise ValueError('Captured CAS transaction envelope changed; no metadata archived.')
     raw = pending['original_owners']

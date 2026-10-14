@@ -4,10 +4,21 @@ import hashlib
 import os
 from pathlib import Path
 import threading
+from functools import wraps
 
 import reusable_profile
 
 _LOCAL = threading.local()
+
+
+def scoped(function):
+    """Keep one capture's status/poll calls inside its verified batch lease."""
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        state = args[0] if args else kwargs['state']
+        with session(state):
+            return function(*args, **kwargs)
+    return wrapped
 
 
 def change_time(path, data):
@@ -41,8 +52,12 @@ def stamp(state):
         data = path.lstat()
         if path.is_symlink() or getattr(data, 'st_file_attributes', 0) & 0x400:
             raise ValueError('A profile lease cannot follow links or reparse points.')
+        # Coarse/coalesced ctime on non-NTFS CI filesystems cannot certify a
+        # same-size edit followed by utime. Keep the fast ChangeTime lease on
+        # Windows; verify file content on platforms without that contract.
+        content = hashlib.sha256(path.read_bytes()).hexdigest() if os.name != 'nt' and path.is_file() else None
         return (data.st_dev, data.st_ino, data.st_size, data.st_mtime_ns, data.st_ctime_ns,
-                getattr(data, 'st_file_attributes', 0),change_time(path,data))
+                getattr(data, 'st_file_attributes', 0),change_time(path,data),content)
     rows = [('journal',identity(state),hashlib.sha256(state.read_bytes()).hexdigest()),
             ('profile',str(profile),identity(profile)),('original-path',str(original)),('token',journal['token'])]
     mods = profile / 'Mods'

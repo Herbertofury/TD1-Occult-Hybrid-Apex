@@ -270,6 +270,10 @@ class RendererPreparation:
         self.record()
 
 
+from cli_identity_cache import scoped as capture_identity_session
+
+
+@capture_identity_session
 def capture(state, output, request, monotonic=time.monotonic, pause=time.sleep, overlay=False,
             identity=None, identity_provider=None, focus=None, background=False):
     _, journal, profile, original = reusable_profile.load(state)

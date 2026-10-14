@@ -197,3 +197,34 @@ clipboard expected .5600000024 there while retaining the destination's precise
 .5571260452 voice scalar. The native setter retains .5571260452 in the genetic
 mirror as well. Other genetic wire fields match. A selective-paste consistency
 fix is still needed; this refusal is not a successful recovery claim.
+
+## Combined Alien/Vampire save and fresh-process result
+
+All five Vampire → Alien transitions pass with 2,406 / 2,609 / 2,587 / 2,649 /
+2,686 normal simulation ticks and no appearance drift. The independent all-40
+comparison retains both sets of edits; proof SHA-256:
+`3eda92870249c45e7e583c23af9e9c6a18986bfd8b513cad5935b689a6af1840`.
+
+The combined checkpoint saves normally and its seal verifies. Slot 2 SHA-256 is
+`b22b88e8a7f2bebda308e65e23413f87024502712e195419fc2d4afc07b9ed87`.
+Normal unsaved Exit Game then verifies every disposable save/backup unchanged,
+with no new crash. The verified account launcher and EA permission broker start
+fresh PID 34992. The first Resume observation sends no input before its capture
+deadline; after renderer readiness is observed, one new Resume is accepted and
+the intended household loads. No accepted Resume or game entry is replayed.
+
+All 40 fresh native owners match before unpause. Certified reload reconciliation
+passes, records positive native timeline progression, and returns paused. The
+settled clock is 8,655 ticks beyond its initial baseline. A second independent
+all-40 comparison still has no differences; proof SHA-256:
+`638d2f35fccca51e90fe40bf27a45dc7aa9b9015ee4ca4a0298cab06e32d64b4`.
+All five household members remain alive and not dying, with effective autonomy
+disabled. These results qualify this specific CLI full-household Alien → Vampire
+dark-form CAS → Alien → normal-save/cold-load sequence.
+
+The CLI capture poll now shares a bounded inventory lease, avoiding repeated
+whole-library hashing inside one capture while still invalidating any changed
+artifact/journal. Twenty capture tests and seven inventory-lease tests pass; an
+actual background capture also completes without a foreground handoff. Broader
+ordinary phone/MCCC entry, all-panel/preset/slider coverage, special forms and
+Tray qualification remain open; the protected original has not been deployed to.

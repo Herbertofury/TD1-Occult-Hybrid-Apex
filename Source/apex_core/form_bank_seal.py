@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-15-installed-art-game-path-v131'
+UPGRADE_EPOCH = '2026-10-15-compact-occult-buttons-v132'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '0a4282e28837a42f0b9b2227508a18390215060af2900d2c37f4a390ef5e9b70'
+UPGRADE_SELF_BODY_SHA = 'ffe370d6506c78ec67dc0b9e650a7362136210cc9f7cc877128ec594b45c07eb'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',

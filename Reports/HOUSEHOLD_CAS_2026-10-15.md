@@ -303,7 +303,65 @@ Tray/Gallery gate. Nothing has been published to the online Gallery.
 - [x] Build matched V131, with the same tested native DLL: ZIP SHA-256
   `4c185a0044cbc7a99f1f3e306593b8fe3c302fecbdb491703384b93362a77d91`;
   91 Python 3.7 modules, seven packages, 207 Rust-verified resources.
-- [ ] Finish V131's fresh full suite, cold save comparison and F11 artwork proof.
+- [x] Complete V131's fresh full suite: all 2,204 tests pass in 925.235 seconds.
+  Both hosted Windows checks pass for `178f5c8` (38786235529, 38786226955).
+- [x] Verify the normally saved household after restart: all 40 appearances
+  match before and after 3,755 actual simulation ticks. The game is paused
+  afterwards. Cold comparison SHA-256
+  `bec993c21c3ed5dccc7ad3f75abbe1d7a3e38bb141b2927a1fd494ecb7a8fba1`;
+  settled comparison SHA-256
+  `9a2c9c9ef86edb9d79ba3e4aa67bcc0c3527f40afaecdfd3abdfff3de2321b63`.
+  The settle helper's second snapshot filename collides with its first. Its
+  already-acknowledged Play/Pause requests are not replayed; a fresh read-only
+  all-household comparison supplies the completion evidence.
+- [x] Resolve all six installed icon images through the actual game worker,
+  with exact source-container/index/resource provenance and matching hashes.
+  Completed catalog SHA-256
+  `7543c9fa484b8c6c47e0725ea03f7ae07279d5500cf3de89e61452cc5f2b17f2`.
+  Native backbuffer inspection confirms all six icons on the actual F11 form
+  controls; image SHA-256
+  `3a8692d99bf3308b8543ec319ea57dbb899098bc1a6bde9f347b5f5c7d6ba0b3`.
+  The worker initially reports loading; completion is separately read back.
+- [x] Observe V131's elevated one-shot helper acknowledge the exact current EA
+  game-permission dialog, followed by the game process starting. Post-consent
+  process observation takes 2.695 seconds. No Windows UAC approval is automated.
+  The Resume helper separately refuses a cancelled preflight before input;
+  later Live readback is not credited as an autonomous Resume success.
+
+## V132 compact controls and remaining special states
+
+- [x] Replace space-padded labels with measured icon-plus-text layout: four
+  pixels between image and text, natural width for form tabs, and the pair
+  centered together for full-width buttons. Preserve disabled tint, clipping,
+  click/hover identity and hidden ImGui ID suffixes. All six native CTests pass.
+- [x] Build matched V132: ZIP SHA-256
+  `8b3e98176271beea3028227e232806fce0188ad4425659a5f5b4ae3d230b66a7`;
+  91 Python 3.7 modules, seven packages, 207 Rust-verified resources. The running
+  V131 session keeps its cached DLL; V132 is staged for a subsequent restart.
+  All 26 upgrade/migration checks pass with the new immutable epoch.
+- [x] Inspect the actual installed `OccultType` bytecode: Human plus the six
+  main occults only. Existing PlantSim/Robot/Servo/Ghost/Skeleton/Scarecrow cards
+  do not establish alternate native ownership or working hybrid support.
+- [x] Identify the controllable doll as Adventure Awaits' Imaginary Friend,
+  confirmed in EA's feature guide and the installed imaginary-friend service,
+  situation, component and loot modules. Do not invent an extra native enum bit.
+- [ ] Implement actual special-state icons and add/remove/switch adapters for
+  PlantSim, Robot, Servo, Ghost, Skeleton, Scarecrow and Imaginary Friend.
+- [ ] Extend independent appearance ownership, full CAS/Live/F11 editing and
+  per-state history without overwriting any native occult owner. Preserve the
+  game's state-specific trackers, doll/situation identities and unknown fields.
+- [ ] Qualify each state through real transitions, member/household CAS edits,
+  normal save/cold reload, native Library export/import and missing-pack handling.
+- [x] Research existing parsers rather than recreating combined tuning. Inspect
+  [S4TK's corrected binary templates](https://github.com/sims4toolkit/binary-templates)
+  and a pinned [Python DATA decoder](https://github.com/gbataglini/sims4-workspace/blob/a53bd7ffbba066b48157e432c15a0aaa519bccba/util/datamining/binary_tuning.py).
+  The latter's repository license grants MIT terms; it remains a private research
+  tool, not a shipped dependency. Decode selected installed combined tunings in
+  memory and retain only 204 relevant records from seven hashed containers.
+  Proof SHA-256 `150177cf8360494807798bd553cff7e57e5c2b4bd3a8246bb25bbd64f3dbf952`.
+  Identify the actual PlantSim, Scarecrow, Servo and Skeleton traits and the
+  skeleton buff's outfit generator. Shared references must be resolved before
+  interpreting icons or effects. Unresolved references cannot count as absent.
 - [x] Extend the fresh EA launch-record wait to 30 seconds after the observed
   14.864-second handoff, preserving the original log offset and request time.
   Recognize the minimized main EA window as a capture candidate, without

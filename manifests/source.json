@@ -905,6 +905,12 @@
       "sha256": "66d833600ff46b6f855486bf9ab0e7cf168fb0668f8d3d48037a22f1364b5b3a"
     },
     {
+      "bytes": 46636,
+      "mode": "100644",
+      "path": "README.md",
+      "sha256": "f0b21d2b0368a79d6b4d830f41b37fba59fb359efe55e67272c12148ab96b755"
+    },
+    {
       "bytes": 17217,
       "mode": "100644",
       "path": "Source/apex_core/overlay_loader.py",
@@ -1257,12 +1263,6 @@
       "mode": "100644",
       "path": "Source/apex_core/outfit_snapshot.py",
       "sha256": "76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56"
-    },
-    {
-      "bytes": 54072,
-      "mode": "100644",
-      "path": "Source/apex_core/form_bank_seal.py",
-      "sha256": "8f9ccbbbac7319cfe56599b99a74110a94d60729af838878d24b18af0950ead8"
     },
     {
       "bytes": 11151,
@@ -1655,12 +1655,6 @@
       "sha256": "c098670f5b92c89097034442120aaf79ee0aff1d9247af8128399714af608b07"
     },
     {
-      "bytes": 46333,
-      "mode": "100644",
-      "path": "README.md",
-      "sha256": "2b2494f81197526c23a012f4c6783f1520d72e97d14bbe70a98466d39babc4f1"
-    },
-    {
       "bytes": 7797,
       "mode": "100644",
       "path": "tools/runtime_tests.py",
@@ -1811,12 +1805,6 @@
       "sha256": "c0b4986f6a624074261988f5c13e49145b7fce3d3463498623a5df9e9a17e47f"
     },
     {
-      "bytes": 22402,
-      "mode": "100644",
-      "path": "Reports/HOUSEHOLD_CAS_2026-10-15.md",
-      "sha256": "b49a0582a2d15223eb82cab22f31ef283cc71e52daef5594dbf1a6f152b2b2d7"
-    },
-    {
       "bytes": 2786,
       "mode": "100644",
       "path": "Reports/Apex-V9-Brutal-QA-Research-Validation.md",
@@ -1833,6 +1821,12 @@
       "mode": "100644",
       "path": "tools/launch_compatibility.py",
       "sha256": "bf46af2b7217a3666e716c4d0701e17ae98c9f4be4913acc91915a377acdb514"
+    },
+    {
+      "bytes": 177267,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "d25524fd0d0b3450c29a10c50507b2d4c20edded748fd9e845137a44752941dc"
     },
     {
       "bytes": 8034,
@@ -1911,12 +1905,6 @@
       "mode": "100644",
       "path": "tests/test_game_launch.py",
       "sha256": "3d82a1b41bab1da5a51ed9a01922430620775b7fe1de2ee66aa465df1564aeed"
-    },
-    {
-      "bytes": 176964,
-      "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "089b14473d12b977bf6838860b547e3bba7907c23fff66f52ca41f5d7974c6c1"
     },
     {
       "bytes": 7284,
@@ -2225,6 +2213,12 @@
       "sha256": "ef38217b42b8001d1e44a05772b59647fe236caeb5a7e1dfbeadb34d8ecb17c1"
     },
     {
+      "bytes": 54071,
+      "mode": "100644",
+      "path": "Source/apex_core/form_bank_seal.py",
+      "sha256": "2b1124600fcefd224630c27702d793cfac88a9c9781e09dac70ebec20b18bc99"
+    },
+    {
       "bytes": 4570,
       "mode": "100644",
       "path": "NativeOverlay/CMakeLists.txt",
@@ -2291,12 +2285,6 @@
       "sha256": "ba9d2783c8c355cbfd47fad519b1f405ee4beb3f6c7555ab16d6aeb7a0f59828"
     },
     {
-      "bytes": 343785,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "d7e75be51dca345adeeb1ae7b75b99e27866798d39dc76099ad840ef67871119"
-    },
-    {
       "bytes": 4937,
       "mode": "100644",
       "path": "tests/test_backend_owner.py",
@@ -2325,6 +2313,12 @@
       "mode": "100644",
       "path": "Source/apex_core/cas_ui.py",
       "sha256": "7d58800dc776b70f35c9a8d48b23e16ae7ac2b868eb2ae9c80599ae5e7a8d95a"
+    },
+    {
+      "bytes": 344745,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "01ad4fad7f0061d73791cd74939af28e3302ba4b6ec36e4b1a0ca6613269ae7f"
     },
     {
       "bytes": 588,
@@ -2565,6 +2559,12 @@
       "mode": "100644",
       "path": "tests/test_cas_failed_postcondition.py",
       "sha256": "4d5e3ef2b4b087683c8e28eba7bc1b9b893e1b79997b603a65d4064fb73ec3be"
+    },
+    {
+      "bytes": 26543,
+      "mode": "100644",
+      "path": "Reports/HOUSEHOLD_CAS_2026-10-15.md",
+      "sha256": "d2d90c2fe13d15a9a703d1a7b85eacb45f74b40f3f1fb69f1a748c18aa249971"
     },
     {
       "bytes": 8612,

@@ -1018,11 +1018,29 @@ static void QueueAction(const char* action, const char* occult = nullptr, const 
 static bool OccultButton(const char* label,const char* occult,const ImVec2& size=ImVec2(0,0)) {
     const auto icon=g_occultIconTextures.find(occult&&std::strcmp(occult,"SPELLCASTER")==0?"WITCH":occult?occult:"");
     if(icon==g_occultIconTextures.end())return ImGui::Button(label,size);
-    const auto height=ImGui::GetFrameHeight();
-    const bool clicked=ImGui::Button((std::string("      ")+label).c_str(),size);
-    const auto pos=ImGui::GetItemRectMin();const auto side=height-4;
-    ImGui::GetWindowDrawList()->AddImage(reinterpret_cast<ImTextureID>(icon->second),
-        ImVec2(pos.x+2,pos.y+2),ImVec2(pos.x+2+side,pos.y+2+side));
+    const auto& style=ImGui::GetStyle();
+    const auto text=ImGui::CalcTextSize(label,nullptr,true);
+    const float side=ImGui::GetFrameHeight()-4.0f;
+    const float gap=4.0f;
+    const float contentWidth=side+gap+text.x;
+    const ImVec2 requested(size.x==0?contentWidth+style.FramePadding.x*2:size.x,
+                           size.y==0?ImGui::GetFrameHeight():size.y);
+    ImGui::PushID(label);
+    const bool clicked=ImGui::Button("##occult-icon-button",requested);
+    ImGui::PopID();
+    const auto pos=ImGui::GetItemRectMin(),end=ImGui::GetItemRectMax();
+    // Center the icon and label together, including on full-width actions.
+    // Space characters cannot reserve a consistent image-sized prefix.
+    const float x=pos.x+std::max(style.FramePadding.x,(end.x-pos.x-contentWidth)*0.5f);
+    const float centerY=(pos.y+end.y)*0.5f;
+    const char* textEnd=std::strstr(label,"##");
+    auto* draw=ImGui::GetWindowDrawList();
+    draw->PushClipRect(pos,end,true);
+    draw->AddImage(reinterpret_cast<ImTextureID>(icon->second),
+        ImVec2(x,centerY-side*0.5f),ImVec2(x+side,centerY+side*0.5f),
+        ImVec2(0,0),ImVec2(1,1),ImGui::GetColorU32(ImVec4(1,1,1,1)));
+    draw->AddText(ImVec2(x+side+gap,centerY-text.y*0.5f),ImGui::GetColorU32(ImGuiCol_Text),label,textEnd);
+    draw->PopClipRect();
     return clicked;
 }
 

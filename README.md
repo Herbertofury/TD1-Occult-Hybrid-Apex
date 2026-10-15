@@ -28,16 +28,20 @@ commits; these changes still require runtime qualification. Semantic Fairy
 wing selection is quarantined after a mismatched native color result and a
 later native crash of unproven cause.
 
-V129 passes 2,195 tests; both hosted Windows checks pass for `df6399c`.
+V131 passes 2,204 tests; both hosted Windows checks pass for `178f5c8`.
 All six native CTests pass. The explicit manual-save load retains all 40
 appearances. The actual DayWalkers-style exposure hook is verified on all five
 Sims: four would be exposed by EA's predicate but remain protected by Apex.
 Phone controls use installed occult icon keys. F11's Python image reads return
 no bytes, so V130/V131 add bounded background reads of the exact installed client
 textures, with no artwork export or per-frame I/O. All six match independently
-decoded installed images. V130's runtime check caught a wrong game-module import;
-V131 corrects it against the working native loader. Actual F11 rendering remains
-pending. V130's normal Save and Exit also verifies a native test-save write.
+decoded installed images. V131 verifies all six through the actual game worker
+and F11 backbuffer. Normal Save and Exit, restart and 3,755 actual simulation
+ticks retain all 40 appearances exactly. The EA permission helper also completes
+an actual authenticated acknowledgement. V132 compacts icon/text spacing and
+passes all six native CTests; its DLL loads on a subsequent restart.
+PlantSim/Robot/Servo/Ghost/Skeleton/Scarecrow/Imaginary Friend hybrid ownership
+and complete switching remain open; their menu cards are not acceptance proof.
 This candidate remains disposable-only. Production
 acceptance, full native Tray/Gallery reload, complete CAS/special-state coverage
 and preview fidelity remain open, as do all seven GitHub issues. The protected

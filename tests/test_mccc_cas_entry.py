@@ -96,10 +96,12 @@ class McccCallbackEntryTests(unittest.TestCase):
         self.backend.__file__ = 'synthetic backend fixture'
         identity = {'profile': str(self.profile), 'test_token': 'a' * 32}
         with patch.object(test_driver, 'guard', return_value='mccc-full'), \
-                patch.object(test_driver, 'runtime_identity', return_value=identity):
+                patch.object(test_driver, 'runtime_identity', return_value=identity), \
+                patch.object(test_driver, 'snapshot', return_value={'paused_native_before_fixture': True}):
             result = test_driver.dispatch(self.backend, 'test_cas', '10', '{}')
         self.assertTrue(result['mccc_callback']['actual_callback_invoked'])
         self.assertEqual(len(result['household_form_checkpoints']['members']), 5)
+        self.assertEqual(result['before'], {'paused_native_before_fixture': True})
 
     def test_driver_requires_marked_disposable_identity_before_callback(self):
         self.backend.__file__ = 'synthetic backend fixture'

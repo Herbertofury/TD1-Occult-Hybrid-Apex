@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from game_main_menu import target
@@ -8,6 +9,19 @@ from test_game_load import screen
 
 
 class MainMenuTargetTests(unittest.TestCase):
+    def test_background_cli_main_menu_routes_window_addressed_clicks_and_native_capture(self):
+        import apex_cli
+        args = apex_cli.parser().parse_args(['game', 'main-menu', '--state', 'state.json', '--background',
+            '--sim-id', '11', '--household-id', '22', '--save-guid', '33', '--output', 'proof.json'])
+        with patch.object(apex_cli, 'require_isolated'), patch.object(apex_cli, 'verified_identity', return_value={'pid': 77}), \
+                patch('game_main_menu.observe', return_value={'ok': True}) as observe, \
+                patch.object(apex_cli, 'owned_request', return_value={'ok': True}) as owner:
+            apex_cli.execute(args)
+            call = observe.call_args
+            self.assertTrue(call.kwargs['capture'].keywords['background'])
+            call.args[3](Path('state.json'), 'test_input', value='{"value":{"command":1,"x":2,"y":3,"width":640,"height":480}}')
+            self.assertIn('"command": 4', owner.call_args.kwargs['value'])
+
     def test_live_menu_exit_target_is_unsaved_main_menu_only(self):
         menu = ['MENU', 'Save', 'Save As...', 'Exit to Main Menu', 'Exit Game']
         value = target(screen(menu), 'menu')
@@ -15,6 +29,14 @@ class MainMenuTargetTests(unittest.TestCase):
         for labels in (['Exit to Main Menu'], menu + ['SAVE GAME?'], menu + ['Exit to Main Menu']):
             with self.subTest(labels=labels), self.assertRaises(ValueError):
                 target(screen(labels), 'menu')
+
+    def test_disabled_save_as_ocr_requires_the_complete_alternate_menu_context(self):
+        labels = ['MENU', 'Save', 'Download Manager', 'Game Options', 'Technical Support', 'Lessons',
+                  'Release Notes', 'Credits', 'Achievements', 'Manage Worlds', 'Exit Game', 'Exit to Main Menu']
+        self.assertIsInstance(target(screen(labels), 'menu')['y'], int)
+        for index in range(2, 11):
+            with self.subTest(index=index), self.assertRaises(ValueError):
+                target(screen(labels[:index] + labels[index + 1:]), 'menu')
 
     def test_confirmation_requires_complete_main_menu_question(self):
         labels = ['SAVE GAME?', 'Are you sure you want to exit to the main menu?',

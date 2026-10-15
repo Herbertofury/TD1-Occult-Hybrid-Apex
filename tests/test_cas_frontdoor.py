@@ -18,6 +18,10 @@ class NativeEntryTests(unittest.TestCase):
         self.game = fixture.CasBankReceiverTests(); self.game.setUp()
         self.addCleanup(self.game.doCleanups)
         self.backend, self.sim = self.game.backend, self.game.sim
+        # These receiver fixtures do not supply the real persistence service;
+        # its independent native admission contract has dedicated tests.
+        from apex_core import cas_save_boundary
+        self.save_boundary = self.enterContext(patch.object(cas_save_boundary, 'require_installed', return_value=True))
         self.sim.get_sim_instance = lambda: object()
         self.other = copy.deepcopy(self.sim); self.other.id = 11
         self.other.occult_tracker.forms = copy.deepcopy(self.game.forms)
@@ -131,6 +135,14 @@ class NativeEntryTests(unittest.TestCase):
         self.backend.services.current_zone = lambda: self.fail('non-CAS command read Live state')
         self.assertEqual(self.commands.client_cheat('cas.fulleditmode', 50), 'native-result')
         self.prepare.assert_not_called(); self.assertFalse(bank.status(self.backend, self.sim)['blocked'])
+
+    def test_unsupported_save_boundary_refuses_before_any_checkpoint_or_native_cas_submission(self):
+        self.save_boundary.side_effect = ValueError('native save admission contract changed')
+        with self.assertRaisesRegex(ValueError, 'save admission contract changed'):
+            self.commands.client_cheat('sims.exit2caswithhouseholdid 10 20', 50)
+        self.assertEqual(self.calls, [])
+        self.prepare.assert_not_called()
+        self.assertTrue(all(not bank.status(self.backend, member)['blocked'] for member in self.members))
 
     def test_unknown_modes_and_noncanonical_identities_never_reach_native(self):
         for command in ('sims.exit2cas 010 20', 'sims.exit2cas -1 20', 'sims.exit2cas 10 20 extra',

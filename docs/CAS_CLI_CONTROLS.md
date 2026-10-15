@@ -307,6 +307,22 @@ observed client width/height and coordinates. Its receipt proves message-queue
 acceptance only; verify the resulting UI separately. Semantic CAS controls
 remain the preferred path and need no clicks.
 
+## Retained CAS requests and wing observations
+
+Public semantic CAS commands with `--output` reserve both a new result file
+and an adjacent `.intent.json` before transport. Each submitted owner UUID is
+flushed before dispatch. Missing or mismatched owner/CAS UUIDs and non-boolean
+`ok` values are rejected with the original raw reply retained. An unknown
+submission is observed under its existing UUID; it is never replayed. Existing
+files, linked destinations, either profile and the profile journal are refused.
+
+The V123 UI bridge adds read-only `client.wing_observation` while the actual
+Wings panel is open. It retains detached base-query values, element types,
+color-query value/type and getter errors. `qualified_success` remains false:
+these observations explain a failed selection predicate and do not certify
+that a requested wing base/color was applied. The compound mutation predicate
+still requires exact base and color readback.
+
 ## Catalog browsing outside CAS
 
 The host catalog browses every CASP in explicitly listed packages, including
@@ -355,3 +371,30 @@ categories, name modes, two to eight columns, 60-item pages, favorites and
 recently inspected items are available in F11. Selected items use the existing
 verified thumbnail/package-copy broker. Grid thumbnails, swatch families,
 presets and the independent 3D Sim renderer remain separate work.
+
+
+## October 15: reviewed household, native save admission and Library candidates
+
+`python tools/cas_review_cli.py --help` exposes the actual F11 review model
+through the existing Source queue. Each action binds the preceding view hash;
+choices never bypass the phone actor's real tick/Pause proof. Mutation UUIDs
+are durably recorded before submission. Poll a timed-out UUID without replay.
+Native queued refresh cancellation remains unresolved; direct Source adapter
+success is not end-to-end native F11 UI certification.
+
+`python tools/tray_complete_appearance.py --help` creates a new **external**
+candidate from an authentic native Library group, fresh reviewed canonical
+records, a current native descriptor catalog and an explicit complete identity
+bijection. It copies active appearances and complete occult/trait trackers,
+including unknown nested fields, retaining native identities, other trackers,
+household fields, metadata, images and the opaque native footer. It neither
+installs files nor claims native Gallery acceptance. Native loading and every
+imported alternate must still be tested. The unmodified native export currently
+loses visible-owner Apex metadata and changes some companion Human data.
+
+The retained account launch fallback uses the actual hashed successful launch
+receipt only while executable and installer identities match. Fresh successful
+EA Client Play evidence takes precedence. It never guesses an account edition.
+Semantic wing selection is quarantined before any request is created; read-only
+wing observation remains available. `game main-menu --background` routes menu
+clicks to the game window and opens its menu through the observed game client.

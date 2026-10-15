@@ -757,6 +757,8 @@ def envelope(sim_id, request):
 
 
 def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
+    if request.get('operation') == 'select' and request.get('panel') == 'clothing_body_wings':
+        raise ValueError('Native wing selection is quarantined after failed exact color readback and a crash trial; no request sent.')
     request_id, wire = envelope(sim_id, request)
     with _LOCK:
         socket_ready = send is None and any(peer['sim_id'] == sim_id and clock() - peer['observed_at'] <= 3 for peer in _PEERS.values())

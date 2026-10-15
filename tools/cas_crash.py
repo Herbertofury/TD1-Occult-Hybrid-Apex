@@ -58,7 +58,7 @@ def entry_receipt(entry):
     return completed
 
 
-def entry_context(entry, identity, sim_id, household_id, save_guid, slot_id):
+def entry_context(entry, identity, sim_id, household_id, save_guid, slot_id, supplemental_before=None):
     if (not isinstance(entry, dict) or entry.get('schema') != 1 or
             entry.get('operation') != 'observe-native-cas-entry' or
             entry.get('ok') is not True or entry.get('outcome') != 'inventory' or
@@ -68,7 +68,16 @@ def entry_context(entry, identity, sim_id, household_id, save_guid, slot_id):
             any(entry['identity'].get(field) != identity.get(field)
                 for field in ('pid', 'test_token', 'script_sha256', 'profile'))):
         raise ValueError('Post-entry crash requires the exact completed native CAS entry.')
-    before = entry_receipt(entry).get('before')
+    receipt = entry_receipt(entry)
+    before = receipt.get('before')
+    if supplemental_before is not None:
+        callback, frontdoor = receipt.get('mccc_callback', {}), receipt.get('native_frontdoor', {})
+        if (before is not None or callback.get('actual_callback_invoked') is not True or
+                callback.get('method') != 'SimMenuNavigation._modify_household_in_cas' or
+                frontdoor.get('stage') != 'native-command-returned' or frontdoor.get('full_household') is not True or
+                frontdoor.get('sim_id') != sim_id or frontdoor.get('household_id') != household_id):
+            raise ValueError('Supplemental native context is only supported for the exact older MCCC callback receipt.')
+        before = supplemental_before
     # Preserve the original receipt without pretending its old clock producer
     # can establish fresh simulation progress or a successful CAS return.
     if (not native_live_context(before, sim_id, household_id) or before.get('save_guid') != save_guid or

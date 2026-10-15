@@ -16,7 +16,8 @@ from source_manifest import sha256, write_json
 
 
 @reusable_profile.serialized
-def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sha256, output, entry_only=False):
+def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sha256, output, entry_only=False,
+            before_proof=None, expected_before_sha256=None):
     reusable_profile.legacy.require_closed()
     journal_path, journal, profile, original = reusable_profile.load(state)
     path, proof = cas_crash.external_json(crash_proof, profile, original, expected_proof_sha256)
@@ -28,11 +29,23 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         raise ValueError('Exact closed crashed disposable runtime and normal disk slot required.')
     if type(entry_only) is not bool:
         raise ValueError('Closed captured archival must use an explicit typed scope.')
+    supplemental = None
+    if before_proof is not None or expected_before_sha256 is not None:
+        if not entry_only or before_proof is None or expected_before_sha256 is None:
+            raise ValueError('A separate native before packet is only supported by closed captured archival.')
+        before_path, supplemental = cas_crash.external_json(before_proof, profile, original, expected_before_sha256)
+        if (supplemental.get('ok') is not True or supplemental.get('save_submitted') is not False or
+                not isinstance(supplemental.get('snapshots'), dict) or
+                any(supplemental.get('identity', {}).get(field) != identity.get(field)
+                    for field in ('pid', 'test_token', 'script_sha256', 'profile'))):
+            raise ValueError('Supplemental native before packet belongs to another runtime or lacks full snapshots.')
     if entry_only:
         entry = proof
-        before = cas_crash.entry_receipt(entry).get('before', {})
+        before = (supplemental['snapshots'].get(entry.get('requested_sim_id'), {}) if supplemental is not None
+                  else cas_crash.entry_receipt(entry).get('before', {}))
         cas_crash.entry_context(entry, identity, entry.get('requested_sim_id'), before.get('household_id'),
-            before.get('save_guid'), before.get('save_slot'))
+            before.get('save_guid'), before.get('save_slot'),
+            supplemental_before=before if supplemental is not None else None)
         proof = dict(identity=identity, sim_id=entry['requested_sim_id'], household_id=before['household_id'],
             save_guid=before['save_guid'], slot_id=before['save_slot'])
     else:
@@ -63,6 +76,8 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         scoped, checkpoints = entry_receipt(entry)
         if scoped['household_id'] != proof['household_id'] or checkpoints.get(proof['sim_id']) != checkpoint:
             raise ValueError('Crash household scope differs from its selected checkpoint/household.')
+    if supplemental is not None and set(supplemental['snapshots']) != set(checkpoints):
+        raise ValueError('Supplemental native before packet omits or adds a captured member.')
     held = {}
     # Validate every exact entry member before preparing any metadata change.
     # Observed/planned receivers cannot be relabelled as never-observed.
@@ -72,6 +87,9 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         if not isinstance(record, dict) or record.get('switch_pending'):
             raise ValueError('No exact captured CAS metadata, or another transition is unresolved.')
         pending, transaction = record.get('pending'), record.get('cas_transaction')
+        if isinstance(transaction, dict) and 'native_entry_intent' in transaction:
+            if transaction['native_entry_intent'] != cas_crash.entry_receipt(entry).get('native_frontdoor', {}).get('id'):
+                raise ValueError('Captured native entry intent differs from the exact submitted frontdoor.')
         argument = dict(prior_pid=identity['pid'], household_id=proof['household_id'],
             save_guid=proof['save_guid'], expected_cas_transaction_sha256=_hash(transaction))
         form_bank._captured_schema2_archive(record, argument, sid)
@@ -79,6 +97,18 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
                 captured.get('checkpoint_sha256') != _hash(pending) or
                 captured.get('expected_pending_sha256') != transaction['transaction_sha256']):
             raise ValueError('Crash entry does not bind this exact never-observed checkpoint.')
+        if supplemental is not None:
+            from household_stress import owners
+            before = supplemental['snapshots'][sid]
+            if (not cas_crash.native_live_context(before, sid, proof['household_id']) or
+                    before.get('save_guid') != proof['save_guid'] or before.get('clock_speed') != 0):
+                raise ValueError('A captured companion lacks exact paused native before context.')
+            observed = owners(before)
+            held_owners = pending['original_owners']
+            if (set(observed) != set(held_owners['stored']) | {'active'} or
+                    observed['active']['typed_payload'] != held_owners['active']['fields'] or
+                    any(observed[lane]['typed_payload'] != fields for lane, fields in held_owners['stored'].items())):
+                raise ValueError('Supplemental native appearances differ from the exact fresh entry originals.')
         held[key] = (record, pending, transaction)
     bank_bytes = bank.read_bytes()
     before_saves = all_save_files(profile)
@@ -92,6 +122,10 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         disk_slot_id=slot_id, expected_save_sha256=expected_save_sha256,
         native_slot_at_entry=proof['slot_id'], metadata_write_submitted=False,
         appearance_mutated=False, save_written=False, loaded_file_verified=False, save_reload_verified=False)
+    if supplemental is not None:
+        receipt.update(supplemental_native_before_proof=str(before_path),
+            supplemental_native_before_sha256=expected_before_sha256,
+            supplemental_appearances_equal_entry_originals=True)
     with backup.open('xb') as stream:
         stream.write(bank_bytes)
     write_json(output, receipt)
@@ -107,7 +141,7 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         record['cas_transaction'] = None
     reusable_profile.legacy.require_closed()
     if (sha256(path) != expected_proof_sha256 or all_save_files(profile) != before_saves or
-            bank.read_bytes() != bank_bytes):
+            bank.read_bytes() != bank_bytes or supplemental is not None and sha256(before_path) != expected_before_sha256):
         raise ValueError('Crash, saves or bank changed before archival; no bank write.')
     receipt['metadata_write_submitted'] = True
     write_json(output, receipt)

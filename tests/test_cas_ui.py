@@ -106,6 +106,16 @@ class CasUiTests(unittest.TestCase):
         self.assertEqual(wire.split('|')[-1],'18446744073709551614,18446744073709551615')
         self.assertEqual(wire.split('|')[3],str(cas_ui.PANELS['clothing_body_wings']))
 
+    def test_unqualified_wing_write_is_quarantined_before_transport_or_request_record(self):
+        from unittest.mock import Mock
+        send = Mock()
+        before = copy.deepcopy(cas_ui._RECORDS)
+        with self.assertRaisesRegex(ValueError, 'quarantined'):
+            cas_ui.submit('12', {'operation':'select', 'panel':'clothing_body_wings',
+                'base_data_id':'466503', 'data_id':'466504'}, send=send)
+        send.assert_not_called()
+        self.assertEqual(cas_ui._RECORDS, before)
+
     def test_wing_binding_refuses_other_panels_noncanonical_ids_and_extra_fields(self):
         request={'operation':'select','panel':'clothing_body_wings','base_data_id':'466503','data_id':'466504'}
         for change in ({'panel':'clothing_hair'},{'base_data_id':466503},{'base_data_id':'0466503'},

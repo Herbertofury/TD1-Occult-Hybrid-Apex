@@ -137,7 +137,9 @@ inline bool BankHairTargetsValid(const CasBankView& state, bool requireComplete=
             if (requireComplete && accepted && changed) return false;
             continue;
         }
-        if (!accepted || !state.hairTargets[lane].is_array() || state.hairTargets[lane].empty() || state.hairTargets[lane].size()>1024) return false;
+        // An explicitly present empty list means keep none of the returned
+        // hairstyles. Absence still means the user has not made that choice.
+        if (!accepted || !state.hairTargets[lane].is_array() || state.hairTargets[lane].size()>1024) return false;
         visited.insert(lane); std::set<std::pair<uint32_t,uint32_t>> slots;
         for (const auto& target:state.hairTargets[lane]) {
             if (!target.is_object() || target.size()!=3 || !BankOutfitNumber(target.value("category",Json(nullptr)),1ULL<<32) ||
@@ -203,6 +205,18 @@ inline bool BankSetHairTarget(CasBankView& current, const CasBankView& rendered,
         if (target["category"]!=outfit["category"] || target["ordinal"]!=outfit["ordinal"]) targets.push_back(target);
     if (selected) targets.push_back({{"category",outfit["category"]},{"ordinal",outfit["ordinal"]},{"outfit_id",outfit["outfit_id"]}});
     if (targets.empty()) proposed.hairTargets.erase(lane); else proposed.hairTargets[lane]=targets;
+    if (!BankHairTargetsValid(proposed,false)) return false;
+    current.hairTargets=std::move(proposed.hairTargets); return true;
+}
+inline bool BankSetHairNone(CasBankView& current, const CasBankView& rendered, const std::string& lane) {
+    if (!BankChoiceCurrent(current,rendered) || !current.hairEnabled || !BankHairInventory(current) ||
+        current.hairInventoryHash!=rendered.hairInventoryHash || current.hairInventory!=rendered.hairInventory ||
+        !current.choices.count(lane) || current.choices.at(lane)!="accept-returned") return false;
+    bool offered=false;
+    for (const auto& form:current.hairInventory["forms"])
+        if (form["lane"]==lane && form["wardrobe_unchanged"]==true) offered=true;
+    if (!offered) return false;
+    auto proposed=current; proposed.hairTargets[lane]=Json::array();
     if (!BankHairTargetsValid(proposed,false)) return false;
     current.hairTargets=std::move(proposed.hairTargets); return true;
 }

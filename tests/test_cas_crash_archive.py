@@ -180,3 +180,44 @@ class ClosedCrashArchiveTests(SealFixture):
                 cas_crash_archive.archive(self.root/'state.json',self.entry_path,sha256(self.entry_path),
                     2,self.target['expected_save_sha256'],self.output,entry_only=True)
             self.assertEqual(self.bank_path.read_bytes(),before);self.assertFalse(self.output.exists())
+
+    def mccc_before(self):
+        self.scoped_entry()
+        result = self.entry['steps'][0]['result']
+        before = result.pop('before')
+        pending = self.original['records'][self.key]['pending']['original_owners']
+        before['sim']['form_appearances'] = [dict(flags=int(lane), appearance={'typed_payload': fields})
+            for lane, fields in pending['stored'].items()]
+        before['sim']['full_appearance'] = {'typed_payload': pending['active']['fields']}
+        result['mccc_callback'] = dict(actual_callback_invoked=True, method='SimMenuNavigation._modify_household_in_cas')
+        result['native_frontdoor'] = dict(stage='native-command-returned', full_household=True, sim_id=SIM, household_id=HH)
+        write_json(self.entry_path, self.entry)
+        packet = dict(ok=True, save_submitted=False, identity=self.old, snapshots={SIM: before})
+        path = self.root / 'native-before.json'; write_json(path, packet)
+        return path, packet
+
+    def test_older_mccc_entry_can_archive_only_with_exact_same_runtime_native_originals(self):
+        path, _packet = self.mccc_before()
+        result = cas_crash_archive.archive(self.root/'state.json', self.entry_path, sha256(self.entry_path),
+            2, self.target['expected_save_sha256'], self.output, entry_only=True,
+            before_proof=path, expected_before_sha256=sha256(path))
+        self.assertTrue(result['ok'])
+        self.assertTrue(result['supplemental_appearances_equal_entry_originals'])
+        self.assertFalse(result['normal_exit_verified'])
+        self.assertFalse(result['save_written'])
+
+    def test_supplemental_changed_appearance_runtime_or_roster_cannot_archive(self):
+        path, packet = self.mccc_before()
+        held = self.bank_path.read_bytes()
+        for mutation in ('runtime', 'roster', 'appearance'):
+            changed = copy.deepcopy(packet)
+            if mutation == 'runtime': changed['identity']['pid'] += 1
+            elif mutation == 'roster': changed['snapshots']['999'] = copy.deepcopy(changed['snapshots'][SIM])
+            else: changed['snapshots'][SIM]['sim']['full_appearance']['typed_payload'] = {}
+            write_json(path, changed)
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                cas_crash_archive.archive(self.root/'state.json', self.entry_path, sha256(self.entry_path),
+                    2, self.target['expected_save_sha256'], self.output, entry_only=True,
+                    before_proof=path, expected_before_sha256=sha256(path))
+            self.assertEqual(self.bank_path.read_bytes(), held)
+            self.assertFalse(self.output.exists())

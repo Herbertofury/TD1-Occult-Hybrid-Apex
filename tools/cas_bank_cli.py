@@ -62,7 +62,7 @@ def _hair_targets(value, accepted):
     if not isinstance(value, dict) or set(value) - accepted:
         raise ValueError('Hair intent must belong to an explicitly accepted form.')
     for lane, targets in value.items():
-        if not isinstance(targets, list) or not 0 < len(targets) <= 1024:
+        if not isinstance(targets, list) or len(targets) > 1024:
             raise ValueError('Hair intent needs bounded outfit targets.')
         seen = set()
         for row in targets:

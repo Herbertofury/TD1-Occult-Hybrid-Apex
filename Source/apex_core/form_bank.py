@@ -262,6 +262,10 @@ def _captured_schema2_archive(record, argument, sim_id):
         if transaction.get('native_occult_context_sha256') != primitive.digest(transaction['native_occult_context']):
             raise ValueError('Captured native availability context hash changed; originals retained.')
         transaction_keys |= {'native_occult_context','native_occult_context_sha256'}
+    if isinstance(transaction, dict) and 'native_entry_intent' in transaction:
+        if not receiver._token(transaction['native_entry_intent']):
+            raise ValueError('Captured native entry intent is malformed; originals retained.')
+        transaction_keys.add('native_entry_intent')
     old_identity = {'runtime_pid': argument['prior_pid'], 'sim_id': sim_id,
                     'household_id': argument['household_id'], 'save_guid': argument['save_guid']}
     if (not isinstance(pending, dict) or set(pending) != checkpoint_keys or

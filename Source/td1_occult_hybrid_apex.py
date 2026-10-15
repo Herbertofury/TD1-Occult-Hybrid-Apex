@@ -8584,6 +8584,13 @@ def _setup_alarm():
         _ALARM_HANDLE = alarms.add_alarm_real_time(_ALARM_OWNER,
             clock.interval_in_real_seconds(_ACTION_QUEUE_INTERVAL_SECONDS), _process_pending, repeating=True)
         _ALARM_READY = _ALARM_HANDLE is not None
+        if _ALARM_READY and not globals().get('_APEX_CAS_SAVE_BOUNDARY_READY'):
+            try:
+                from apex_core import cas_save_boundary
+                import sys
+                globals()['_APEX_CAS_SAVE_BOUNDARY_READY'] = cas_save_boundary.install(sys.modules[__name__])
+            except Exception as save_guard_error:
+                _log('Native CAS save admission unavailable; protected CAS entry will refuse: {}'.format(save_guard_error))
         if _ALARM_READY and not globals().get('_APEX_CAS_FRONTDOOR_READY'):
             try:
                 from apex_core import cas_frontdoor

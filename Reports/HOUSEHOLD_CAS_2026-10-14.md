@@ -1,9 +1,9 @@
 # Household CAS validation, October 14
 
-The production gate remains open. V120 is installed only in the one reusable
+The production gate remains open. Candidates are installed only in the one reusable
 disposable profile. The protected original is read/copy only. The latest normal
 test save has SHA-256
-`271b92ca82ec38795bc0dc7102cac8a48f521c40f34bb55036ae0fd46006a9eb`.
+`b70dac1ca7c255241d602409bf83f9bf2e3c9da7b0f86365658a5da7a090f56b`.
 Earlier save identities below refer to their named historical checkpoints.
 
 ## Implemented corrections
@@ -656,6 +656,65 @@ before any input, first on changed autosaves and then on that native slot
 representation. Both refusals remain retained. The compatibility path keeps
 the changed-autosave evidence; it never substitutes an unchanged-save claim.
 
+During the next marker observation the native frame already showed paused
+Live mode. The map command refused before sending a marker input. A fresh
+native status independently verified Slot 2, GUID `1841692672`, household
+`285159751289798668`, zone `285159751312710719` and the original Sim. That
+observation does not certify who completed the map-to-Live navigation.
+
+The V122 cold comparison then verified **all 40 owners exactly match the
+normal mixed-save checkpoint**, proof `native-cas-v122-cold-mixed-household-all40.json`,
+SHA-256 `4baf055940182d049799ba8a6458a1ad2727e97e5bd8c76452c95cacccde7df9`.
+They remained exact after **2,803 actual simulation ticks** and final Pause:
+`native-cas-v122-cold-mixed-unpaused-all40.json`, SHA-256
+`d5964ba877bd6f038695fd08809b834087ec65a8c66cc3580b111d87e59c39d1`.
+No new save was submitted. The installed MCCC callback test follows this
+qualified cold checkpoint.
+
+## Actual installed MCCC callback and copied CC preset
+
+V122 invokes the real installed `SimMenuNavigation._modify_household_in_cas`
+callback once, verifies durable ordinary-frontdoor captures for all five Sims,
+and opens actual native full CAS with complete inventory in **55.782 seconds**.
+Entry proof SHA-256
+`05ccd8df3ae7df270472d2251866267408e092a0d185c81bde297b425cba07cb`.
+This qualifies the installed callback path; its visible dialog constructor and
+other MCCC menu routes were not exercised.
+
+The CLI selects companion `349336084686110947`'s actual Mermaid alternate
+(`occultType=8`, layer 1), discovers N28 in its eligible native catalog and
+submits that preset once. The exact-index postcondition fails, retaining
+CAS UUID `7c76009345e549798036df660d4b5e3f`; a later read-only status still
+returns index -1/preset ID 0. No EA preset subsequently overwrites the trial.
+
+The same visit selects `450667075246031054`'s actual Fairy alternate (64,
+layer 1). The wing base changes from 469668 to 466503, but the requested
+466504 color does not satisfy the compound verification. This stays failed,
+UUID `e22ce3782f084eb6910a3d9fe8f6cc4a`, and is designated for restoration.
+The returned packet lacks raw base/color query values, so it cannot identify
+which exact postcondition failed. Read-only observation instrumentation is
+being added without weakening the predicate.
+
+The one native return completes **345 simulation ticks** and final Pause,
+retaining raw edits for explicit decisions. Its proof SHA-256 is
+`b2d57d51b01a923727883612f52f4d61f6be81822c95cd20547c99f5f2412c51`.
+The raw Mermaid journal, copied read-only before any commit, has SHA-256
+`0c990250395585c2eb2efadc48e5fedc73d10a74edb12aa0a8b6e02fa20cccec`.
+It contains the newly added exact N28 sculpt `10585118475185364722`; the
+footprint assessment SHA-256 is
+`647fe05529d024d98ca995de1b4452535586adc4c73724bbb54b93735a188d50`.
+
+Independent comparison against actual current and legacy EA definitions shows
+that the removed sculpt and all five removed face modifiers are **nose region
+1**, as is N28's added sculpt. The other four sculpt IDs/order, retained face
+modifiers, all body/aged-body modifiers and unknown facial wire chunks stay
+exact. Genetic data changes only the same embedded facial base. Every other
+readable selected Mermaid field remains exact. Review proof SHA-256:
+`059cb58e5073b89674077ce28cdabd089e8f57af4e34c45e4d47ac92258447ab`.
+This establishes a nose-region-only raw change; rendering, native selection
+readback, effective loaded resource precedence and save/reload remain separate
+gates. Native raw Human/Spellcaster outfit changes are not accepted.
+
 The newly edited Werewolf passed Werewolf → Alien → Werewolf with **5,649
 actual ticks**. The Fairy passed Fairy → Vampire → Fairy with **5,576 ticks**.
 All 40 owners matched before/after every switch. The mixed household then
@@ -664,5 +723,38 @@ SHA-256 `b340fb99db4a80b1391d39e371edbf920d8d7d846e048463bbc921031be5f590`.
 An independent after-save comparison retained every owner exactly:
 `native-cas-v120-after-mixed-save-all40.json`, SHA-256
 `ab1e792fcc5a6692ab798a9575e8c397a3e25b6c4c4cf4a733bcd04502494f5a`.
-The latest save contains the accepted Alien, Vampire, Mermaid, Werewolf and
-Fairy edits. Cold reload of this specific mixed checkpoint remains pending.
+That historical save contains the accepted Alien, Vampire, Mermaid, Werewolf
+and Fairy edits. Its later V122 cold comparison is recorded above.
+
+## Accepted MCCC preset, form cycles and normal save
+
+The explicit five-member return commit accepts only companion
+`349336084686110947`'s Mermaid lane 8. All other returned changes, including
+the unverified Fairy wing trial, are restored. Commit proof SHA-256:
+`ee252f20ab69d55e7f6b74aa27e0115f019d101727d9beee21b5367b133b85a0`.
+The independent 40-owner comparison permits only that Mermaid's facial and
+genetic fields and its corresponding active appearance to differ; the other
+38 owners remain exact. Proof SHA-256:
+`08c5c6bcec375f0d38551f369621ec782b4f27b5a90710d0989f8a9364807e99`.
+
+The actual Mermaid then switches to Vampire and back to Mermaid, advancing
+2,989 and 3,187 simulation ticks respectively. All 40 owners remain exact
+against the accepted baseline after both switches. Proof SHA-256 values:
+`afc8680c0b1a7b7cad77d4935738341861f6b0ff3df929dad84129ef0de8356f`
+and `d3683e966f1d8a72a67b33c5e5f7ff26a16ecc9c62ab9fbd4cc7f7c06e4615cc`.
+
+A normal Slot 2 save verifies its file rewrite and form-bank seal, yielding
+the latest `b70dac...90f56b` checkpoint named at the top. Save proof SHA-256:
+`c28213506d1421b1945f17711f68300b2f7a940960214968b5537ffa65232e53`.
+An independent after-save comparison again finds all 40 owners exact:
+`4d5dcf56dc3e4dce662f838b220e358e69d91994f4966a4ea245e92ffca3afca`.
+This specific checkpoint still requires a cold reload.
+
+V123 is an immutable observation candidate, SHA-256
+`daa4ce5e08b4f18c5b3791c83147b12e3ec32788742438c3b9b28d350065c4dd`.
+It adds detached, typed native wing getter observations without relaxing the
+compound selection predicate. Its 30 serialized fixtures and six source-pin
+checks pass; independent Rust decoding verifies all 207 package resources.
+Runtime wing qualification remains pending. The host CAS evidence wrapper
+also reserves a durable UUID sidecar before transport and rejects missing
+identities and non-boolean success values; its 21 focused tests pass.

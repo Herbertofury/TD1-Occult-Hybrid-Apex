@@ -651,6 +651,11 @@ def dispatch(backend, action, sim_id, value):
         return abandon_unsaved(backend, sim, argument)
     if action in ('test_status', 'test_snapshot'):
         return snapshot(backend, sim, export_outfits=argument == 'outfits', export_forms=argument == 'forms')
+    if action == 'test_cas_save_admission':
+        if not isinstance(argument, dict) or set(argument) != {'exercise_locked_generator'} or type(argument['exercise_locked_generator']) is not bool:
+            raise ValueError('Use one explicit save-admission observation mode.')
+        from .cas_save_boundary import probe
+        return probe(backend, argument['exercise_locked_generator'])
     if action == 'test_outfit':
         request = json.loads(argument) if isinstance(argument, str) else argument
         if not isinstance(request, dict) or set(request) != {'category', 'index'} or any(type(request[key]) is not int or not 0 <= request[key] < 1024 for key in request):
@@ -720,12 +725,19 @@ def dispatch(backend, action, sim_id, value):
             raise ValueError('CAS entry requires an instanced selected Sim.')
         if argument not in (None, 'full', 'native-full', 'mccc-full'):
             raise ValueError('CAS mode must be default, full, native-full or mccc-full.')
+        # Verify disk-save admission before checkpoints or native availability
+        # projection, including the explicitly prepared CLI route.
+        from .cas_save_boundary import require_installed
+        require_installed(backend)
         if argument == 'mccc-full':
             from .cas_frontdoor import mccc_full_entry
             identity = runtime_identity(backend.__file__)
             if not identity.get('profile') or not identity.get('test_token'):
                 raise ValueError('MCCC callback qualification requires the marked disposable profile.')
-            return mccc_full_entry(backend, sim, client, identity['profile'])
+            before = snapshot(backend, sim)
+            result = mccc_full_entry(backend, sim, client, identity['profile'])
+            result['before'] = before
+            return result
         from server_commands.cas_commands import modify_in_cas, modify_in_cas_with_household_id
         from server_commands.argument_helpers import OptionalTargetParam
         if argument == 'native-full':

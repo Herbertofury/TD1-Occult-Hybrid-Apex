@@ -250,6 +250,8 @@ def before_entry(backend, parsed, connection):
     sim, hybrids = _live(backend, parsed, connection)
     if not hybrids:
         return None
+    from .cas_save_boundary import require_installed
+    require_installed(backend)
     capability = getattr(_LOCAL, 'prepared', None)
     projected = capability is not None
     if projected and (capability['backend'] is not backend or capability['sim'] is not sim or

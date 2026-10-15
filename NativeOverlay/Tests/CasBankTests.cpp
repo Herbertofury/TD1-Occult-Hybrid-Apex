@@ -1,4 +1,5 @@
 #include "ApexCasBank.h"
+#include "ApexCasReviewControl.h"
 #include <iostream>
 
 using namespace td1::ui;
@@ -225,5 +226,40 @@ int main() {
     hairAck["hair_targets"]=Json::object();
     check(!BankApply(badHairAck,badHairAck.sim,4,"cas_bank_prepare",Owner(hairAck)) && !BankCanCommit(badHairAck),
         "mismatched hair target acknowledgement cannot claim preparation success");
+    auto none=HairObserved(); const auto noneBefore=none;
+    check(BankSetHairNone(none,none,"1") && none.hairTargets==Json{{"1",Json::array()}} && BankCanPrepare(none),
+        "explicit keep-none allows other returned edits while restoring every original hairstyle");
+    check(BankRequest(none,"cas_bank_prepare",argument) && argument["hair_targets"]["1"].empty(),
+        "keep-none remains an explicit empty lane intent in the Source request");
+    check(!BankSetHairNone(none,noneBefore,"32"),"restore-original lane cannot acquire keep-none hair intent");
+    std::string queued;
+    auto control=HairObserved();
+    Json choose={{"operation","cas-review"},{"action","choice"},{"expected",BankControlView(control)},
+                 {"lane","1"},{"choice","restore-original"}};
+    check(BankControlIntent(control,choose,queued) && queued.empty() && control.choices.at("1")=="restore-original",
+        "typed review changes the actual F11 choice model without queueing appearance work");
+    const auto changedControl=BankControlView(control);
+    check(!BankControlIntent(control,choose,queued) && BankControlView(control)==changedControl,
+        "old complete view cannot replay a decision after local intent changes");
+    control=HairObserved();
+    Json keepNone={{"operation","cas-review"},{"action","hair-none"},{"expected",BankControlView(control)},{"lane","1"}};
+    check(BankControlIntent(control,keepNone,queued) && control.hairTargets.contains("1") && control.hairTargets["1"].empty(),
+        "typed keep-none uses the same F11 checkbox model and explicit empty set");
+    Json prepareControl={{"operation","cas-review"},{"action","prepare"},{"expected",BankControlView(control)}};
+    check(BankControlIntent(control,prepareControl,queued) && queued=="cas_bank_prepare",
+        "typed prepare returns the existing once-only F11 Source queue action");
+    const auto untouched=BankControlView(control);
+    for (const auto* field:{"generation","pending_sha256","raw_return_sha256","review_nonce","hair_inventory_sha256","choices"}) {
+        auto staleControl=prepareControl; staleControl["expected"][field]=nullptr;
+        check(!BankControlIntent(control,staleControl,queued) && BankControlView(control)==untouched,
+            "foreign generation, owner, nonce, inventory or local choices refuse without partial intent");
+    }
+    Json roster={{"ok",true},{"request_id",std::string(32,'a')},{"request_state","completed"},
+                 {"sims",Json::array({Json{{"id",control.sim}}})}};
+    check(BankControlRoster(roster,control.sim),"exact uint64 Source roster permits offered review member");
+    roster["sims"].push_back(roster["sims"][0]);
+    check(!BankControlRoster(roster,control.sim),"duplicate roster cannot select a review member");
+    roster["sims"]=Json::array({Json{{"id",control.sim}}}); roster["ok"]=1;
+    check(!BankControlRoster(roster,control.sim),"numeric success cannot authorize a native review selection");
     std::cout<<checks<<" checks, "<<failed<<" failures\n"; return failed?1:0;
 }

@@ -1,7 +1,10 @@
 """Semantic CAS CLI with separate native acknowledgements and no pointer input."""
+import copy
 import json
 import math
+import os
 from pathlib import Path
+import re
 import sys
 import time
 from types import SimpleNamespace
@@ -9,10 +12,148 @@ from types import SimpleNamespace
 from source_manifest import sha256, write_json
 
 
+class IntentEvidence:
+    """Retain exact owner UUIDs before dispatch, independently of the final ACK."""
+    def __init__(self, args):
+        import reusable_profile
+        self.profile_module = reusable_profile
+        journal, _data, test, original = reusable_profile.load(args.state)
+        raw = Path(args.output).absolute()
+        raw_intent = raw.with_suffix('.intent.json')
+        if raw.is_symlink() or raw_intent.is_symlink():
+            raise ValueError('CAS evidence paths must not be linked.')
+        self.output = reusable_profile.writable(raw)
+        self.intent = reusable_profile.writable(raw_intent)
+        if (self.output.suffix.lower() != '.json' or not self.output.parent.is_dir() or
+                self.output == self.intent or any(path.exists() or path == journal or
+                any(path == root or root in path.parents for root in (test, original))
+                for path in (self.output, self.intent))):
+            raise ValueError('Use new external CAS output and intent JSON filenames outside both profiles and the journal.')
+        arguments = {name: str(value) if isinstance(value, Path) else value
+                     for name, value in vars(args).items()}
+        self.proof = {'schema': 1, 'operation': 'semantic-cas-cli-intent',
+            'requested_operation': args.operation, 'sim_id': getattr(args, 'sim_id', None),
+            'intended_request': arguments, 'stage': 'intent-recorded', 'owner_requests': [],
+            'no_request_replay': True, 'automatic_replay_allowed': False}
+        self.hashes = {}
+        # Exclusive creation reserves both names. No transport runs until both
+        # records are flushed; subsequent intent updates use atomic replace.
+        self._create(self.output, {'ok': False, 'outcome': 'intent-recorded', 'intent_file': str(self.intent)})
+        self._create(self.intent, self.proof)
+
+    @staticmethod
+    def _encoded(value):
+        raw = (json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False) + '\n').encode('utf-8')
+        if len(raw) > 48 * 1024 * 1024:
+            raise ValueError('CAS retained intent exceeds its complete-evidence bound.')
+        return raw
+
+    def _create(self, path, value):
+        raw = self._encoded(value)
+        with path.open('xb') as stream:
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+        self.hashes[path] = sha256(path)
+
+    def _write(self, path, value):
+        self._encoded(value)
+        if (self.profile_module.writable(path) != path or not path.is_file() or
+                sha256(path) != self.hashes[path]):
+            raise ValueError('CAS retained evidence changed; no foreign file will be overwritten.')
+        write_json(path, value)
+        self.hashes[path] = sha256(path)
+
+    def record(self):
+        self._write(self.intent, self.proof)
+
+    def wrap(self, request):
+        def retained(state, action, *values, **options):
+            observer = options.pop('submission_observer', None)
+            row = {'action': action, 'request_id': None, 'stage': 'awaiting-owner-uuid',
+                   'intended_request': {'positional': list(values),
+                       **{key: options[key] for key in ('sim_id', 'occult', 'value', 'seconds') if key in options}}}
+            self.proof['owner_requests'].append(row)
+            self.proof['stage'] = 'owner-request-preflight'
+            self.record()
+            def submitting(observed_action, request_id):
+                if (observed_action != action or not isinstance(request_id, str) or
+                        re.fullmatch('[0-9a-f]{32}', request_id) is None or row['request_id'] is not None or
+                        any(other is not row and other['request_id'] == request_id
+                            for other in self.proof['owner_requests'])):
+                    raise ValueError('Owner submission callback has a foreign, duplicate or invalid action/UUID; no dispatch authorized.')
+                row.update(request_id=request_id, stage='owner-submission-intent')
+                self.proof['stage'] = 'owner-submission-intent'
+                self.record()
+                if observer is not None:
+                    observer(observed_action, request_id)
+            try:
+                result = request(state, action, *values, **options, submission_observer=submitting)
+                if row['request_id'] is None:
+                    raise ValueError('Owner transport omitted its pre-dispatch UUID callback; no replay is permitted.')
+                row['result'] = result
+                if not isinstance(result, dict):
+                    raise ValueError('Owner transport returned an untyped result; retain the original UUID.')
+                if 'ok' in result and type(result['ok']) is not bool:
+                    raise ValueError('Owner acknowledgement has an untyped ok value; retain the original UUID without replay.')
+                row['owner_ack_identity_verified'] = result.get('request_id') == row['request_id']
+                if ((result.get('ok') is True and not row['owner_ack_identity_verified']) or
+                        result.get('request_id') is not None and not row['owner_ack_identity_verified']):
+                    raise ValueError('Owner acknowledgement has a missing or foreign UUID; retain the original UUID without replay.')
+                if action == 'cas_ui_result':
+                    row['cas_ack_identity_verified'] = result.get('cas_request_id') == options.get('value')
+                    if ((result.get('ok') is True and not row['cas_ack_identity_verified']) or
+                            result.get('cas_request_id') is not None and not row['cas_ack_identity_verified']):
+                        raise ValueError('CAS result has a missing or foreign request UUID; retain the original request without replay.')
+                row['stage'] = 'owner-response-retained'
+                self.proof['stage'] = 'owner-response-retained'
+                self.record()
+                return result
+            except BaseException as error:
+                row.update(stage='owner-request-unresolved', error=str(error), error_type=type(error).__name__)
+                self.proof['stage'] = 'owner-request-unresolved'
+                try:
+                    self.record()
+                except Exception:
+                    # The prior flushed UUID is already durable. Do not replay
+                    # a request or overwrite a changed file to repair evidence.
+                    pass
+                raise
+        return retained
+
+    def finish(self, result):
+        if not isinstance(result, dict):
+            raise ValueError('CAS operation returned no typed retained result.')
+        self.proof.update(stage='result-retained', result=result)
+        self.record()
+        final = dict(result, intent_file=str(self.intent), intent_sha256=self.hashes[self.intent])
+        self._write(self.output, final)
+        return dict(final, output=str(self.output), proof_sha256=self.hashes[self.output])
+
+    def fail(self, error):
+        self.proof.update(stage='execution-stopped', error=str(error), error_type=type(error).__name__)
+        self.record()
+        self._write(self.output, {'ok': False, 'outcome': 'unresolved', 'message': str(error),
+            'intent_file': str(self.intent), 'intent_sha256': self.hashes[self.intent],
+            'owner_requests': self.proof['owner_requests'], 'automatic_replay_allowed': False})
+
+
 def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
     from cli_identity_cache import session
     with session(args.state):
-        return _execute(args, request, monotonic, pause)
+        if getattr(args, 'output', None) is None:
+            return _execute(args, request, monotonic, pause)
+        evidence = IntentEvidence(args)
+        internal = copy.copy(args)
+        internal.output = None
+        try:
+            return evidence.finish(_execute(internal, evidence.wrap(request), monotonic, pause))
+        except BaseException as error:
+            try:
+                evidence.fail(error)
+            except Exception:
+                pass  # Keep the last intact intent, including any submitted UUID.
+            raise
 
 
 def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):

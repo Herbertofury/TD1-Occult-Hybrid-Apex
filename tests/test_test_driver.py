@@ -11,6 +11,11 @@ from apex_core.command_queue import CommandQueue
 
 
 class TestDriverTests(unittest.TestCase):
+    def setUp(self):
+        # These transport fixtures omit the native persistence service. Its
+        # version-bound save admission is exercised in its own receiver suite.
+        self.enterContext(patch('apex_core.cas_save_boundary.require_installed', return_value=True))
+
     @staticmethod
     def timeline_fixture(timeline, game_ticks):
         class NativeTime:

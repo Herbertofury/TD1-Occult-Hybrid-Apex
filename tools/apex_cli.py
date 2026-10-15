@@ -109,8 +109,13 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
                                              headers={'Content-Type': 'application/json'}, method='POST')
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), LocalRedirectGuard())
             with opener.open(request, timeout=12) as response:
-                reply = response.read(32769)
-                if len(reply) > 32768: raise ValueError('Native preview response exceeds bound.')
+                try:
+                    review = json.loads(value).get('value', {}).get('operation') == 'cas-review'
+                except (ValueError, TypeError, AttributeError):
+                    review = False
+                limit = 4 * 1024 * 1024 if review else 32768
+                reply = response.read(limit + 1)
+                if len(reply) > limit: raise ValueError('Native preview response exceeds bound.')
                 return json.loads(reply)
         try:
             result = transport('/api/native', query)
@@ -198,6 +203,8 @@ def parser():
     launch.add_argument('--elevate-permission-once', action='store_true',
                         help='If exact EA consent is inaccessible, request normal UAC for one Sims-bound helper; approval remains manual')
     launch.add_argument('--headless', action='store_true', help='Fails explicitly until an actual headless runtime exists')
+    launch.add_argument('--verified-launch-proof', type=Path, help='Retain the exact earlier successful account launch before EA rotates its logs')
+    launch.add_argument('--expected-launch-proof-sha256')
     ea_update = commands.add_parser('ea-update', help='Inspect or once restart a verified pending EA client update')
     ea_update.add_argument('--state', required=True, type=Path)
     ea_update.add_argument('--work', type=Path, help='External evidence directory; defaults to the profile journal directory')
@@ -473,6 +480,8 @@ def parser():
     captured_archive.add_argument('--slot-id', required=True, type=int)
     captured_archive.add_argument('--expected-save-sha256', required=True)
     captured_archive.add_argument('--output', required=True, type=Path)
+    captured_archive.add_argument('--before-proof', type=Path, help='Exact earlier same-runtime native appearances for older MCCC receipts without before context')
+    captured_archive.add_argument('--expected-before-sha256')
     abandon = commands.add_parser('cas-abandon', help='Archive retained failed CAS metadata after a verified restart of the unchanged save')
     abandon.add_argument('--state', required=True, type=Path)
     abandon.add_argument('--sim-id', required=True)
@@ -680,7 +689,8 @@ def execute(args):
     if args.command == 'cas-captured-archive':
         from cas_crash_archive import archive
         return archive(args.state, args.entry_proof, args.expected_proof_sha256,
-            args.slot_id, args.expected_save_sha256, args.output, entry_only=True)
+            args.slot_id, args.expected_save_sha256, args.output, entry_only=True,
+            before_proof=args.before_proof, expected_before_sha256=args.expected_before_sha256)
     if args.command == 'cas-crash-archive':
         from cas_crash_archive import archive
         return archive(args.state, args.crash_proof, args.expected_proof_sha256,
@@ -707,8 +717,11 @@ def execute(args):
             raise ValueError('A recovery receipt is required for compatibility changes.')
         return launch_compatibility.configure(args.state, args.game_root, args.receipt, restore=args.operation == 'restore')
     if args.command == 'launch':
+        options = {}
+        if args.verified_launch_proof is not None or args.expected_launch_proof_sha256 is not None:
+            options.update(verified_launch_proof=args.verified_launch_proof, expected_launch_proof_sha256=args.expected_launch_proof_sha256)
         return game_launch.launch(args.game_root, args.state, args.execute, args.headless, offer_id=args.offer_id,
-                                 elevate_permission_once=args.elevate_permission_once)
+                                  elevate_permission_once=args.elevate_permission_once, **options)
     if args.command == 'profile':
         if args.profile_command == 'sliders-presets':
             import owner_slider_addons
@@ -1022,8 +1035,15 @@ def execute(args):
             if args.output is None or not all((args.sim_id, args.household_id, args.save_guid)):
                 raise ValueError('Unsaved main-menu exit requires a new external proof and exact native identities.')
             from game_main_menu import observe
-            return observe(args.state, args.output, verified_identity(args.state), owned_request,
-                           args.sim_id, args.household_id, args.save_guid)
+            request, options = owned_request, {}
+            if args.background:
+                from game_lifecycle import background_request
+                from game_capture import capture
+                from functools import partial
+                request = background_request(owned_request)
+                options = dict(capture=partial(capture, background=True))
+            return observe(args.state, args.output, verified_identity(args.state), request,
+                           args.sim_id, args.household_id, args.save_guid, **options)
         if args.operation == 'exit':
             if args.output is None or not all((args.sim_id, args.household_id, args.save_guid)):
                 raise ValueError('Unsaved normal exit requires a new external proof and exact Sim/household/save GUID.')

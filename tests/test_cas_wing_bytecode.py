@@ -16,7 +16,10 @@ CASES = (
     'wing-color-coerced-string', 'wing-base-count', 'wing-base-type',
     'wing-color-type', 'wing-base-intent', 'wing-color-intent',
     'wing-variant-source', 'wing-refusal-bypass', 'wing-refusal-throw',
-    'wing-color-ack', 'wing-native-write',
+    'wing-color-ack', 'wing-native-write', 'wing-observation-color-detachment',
+    'wing-observation-qualified', 'wing-observation-base-type', 'wing-observation-raw-color',
+    'wing-observation-bound', 'wing-observation-panel', 'wing-observation-publication',
+    'wing-observation-native-property', 'wing-observation-socket-caller',
 )
 
 

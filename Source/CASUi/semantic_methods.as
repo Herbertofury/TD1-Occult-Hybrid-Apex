@@ -756,6 +756,47 @@
          return rows;
       }
 
+      private function ApexWingObservation() : Object
+      {
+         // Evidence only. Keep the raw native return types even when a strict
+         // compound selection will refuse them. Never infer a color from its
+         // base or turn a diagnostic getter into a successful edit receipt.
+         var result:Object={protocol:1,scope:"native-wing-selection-read-only",qualified_success:false,
+            panel_state:this.mCurrState,body_type:CASBodyType.WINGS,base_native_flag:true,
+            base_arguments:null,color_argument:CASBodyType.WINGS,base_query:"not-queried",color_query:"not-queried",
+            selected_base_ids:null,selected_base_types:[],base_return_type:"undefined",base_is_array:false,
+            selected_color_id:null,selected_color_type:"undefined",base_error:"",color_error:""};
+         if(this.mCurrState!=MenuState.CLOTHING_BODY_WINGS || this.mCurrentPanel==null || !this.mCurrentPanel.visible) {
+            result.base_query="refused"; result.color_query="refused";
+            result.base_error="Exact visible native wing panel required";
+            result.color_error=result.base_error; return result;
+         }
+         var filter:Object=null; var baseArgs:Object=null; var baseRaw:* = null; var colorRaw:* = null;
+         try {
+            filter=this.mCurrentPanel.mcFilterPane!=null ? this.mCurrentPanel.mcFilterPane.GetCatalogFilter() :
+               {tags:[],excludeTags:[]};
+            baseArgs={state:this.mCurrState,tags:ApexClone(filter.tags),excludeTags:ApexClone(filter.excludeTags),bodyType:0,layer:-1};
+            filter=null; result.base_arguments=ApexClone(baseArgs);
+            baseRaw=ApexClone(CommunicationManager.CallGameService("GetCatalogBaseItemSelected",baseArgs,true));
+            result.base_return_type=typeof baseRaw; result.base_is_array=baseRaw is Array;
+            result.base_query=baseRaw===null ? "returned-null" : (typeof baseRaw=="undefined" ? "returned-undefined" : "returned-value");
+            if(baseRaw is Array && baseRaw.length>32) {
+               result.base_query="refused-bound"; result.base_error="Native wing base observation exceeds its bound";
+            } else {
+               result.selected_base_ids=baseRaw;
+               if(baseRaw is Array) for(var i:int=0;i<baseRaw.length;i++) result.selected_base_types.push(typeof baseRaw[i]);
+            }
+         } catch(baseError:Error) { result.base_query="failed"; result.base_error=baseError.message; }
+         finally { filter=null; baseArgs=null; baseRaw=null; }
+         try {
+            colorRaw=ApexClone(CommunicationManager.CallGameService("GetCatalogVariantItemSelected",CASBodyType.WINGS));
+            result.selected_color_id=colorRaw; result.selected_color_type=typeof colorRaw;
+            result.color_query=colorRaw===null ? "returned-null" : (typeof colorRaw=="undefined" ? "returned-undefined" : "returned-value");
+         } catch(colorError:Error) { result.color_query="failed"; result.color_error=colorError.message; }
+         finally { colorRaw=null; }
+         return result;
+      }
+
       private function ApexSelectEyebrowSwatch(value:String,rows:Array) : Object
       {
          // Mirror FaceModPanel/ColorSwatchPanel's actual palette selection.
@@ -1463,6 +1504,8 @@
             if(eyebrowProbe)
                reply.eyebrow_palette_before_snapshot=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",3));
             reply.client=ApexSnapshot();
+            if(this.mCurrState==MenuState.CLOTHING_BODY_WINGS)
+               reply.client.wing_observation=ApexWingObservation();
             if(eyebrowProbe)
                reply.eyebrow_palette_after_snapshot=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",3));
             if(!("message" in reply)) {
@@ -1537,15 +1580,12 @@
                   if(context.selection_base_id is String) {
                      if(state!=MenuState.CLOTHING_BODY_WINGS)
                         throw new Error("Compound wing readback requires the exact wing panel");
-                     var wingFilter:Object=this.mCurrentPanel.mcFilterPane!=null ? this.mCurrentPanel.mcFilterPane.GetCatalogFilter() :
-                        {tags:[],excludeTags:[]};
                      // Native CatalogDataFeed reads selected BASES separately
                      // from its color variation. Do not compare a base to a
                      // requested color or infer one from the other.
-                     var wingBases:Array=ApexClone(CommunicationManager.CallGameService("GetCatalogBaseItemSelected",
-                        {state:state,tags:ApexClone(wingFilter.tags),excludeTags:ApexClone(wingFilter.excludeTags),bodyType:0,layer:-1},true)) as Array;
-                     wingFilter=null;
-                     var wingColor:* = CommunicationManager.CallGameService("GetCatalogVariantItemSelected",CASBodyType.WINGS);
+                     var wingObserved:Object=reply.client.wing_observation;
+                     var wingBases:Array=wingObserved!=null ? wingObserved.selected_base_ids as Array : null;
+                     var wingColor:* = wingObserved!=null ? wingObserved.selected_color_id : null;
                      if(wingBases==null || wingBases.length!=1 || !(wingBases[0] is String) ||
                         String(wingBases[0])!=String(context.selection_base_id) || !(wingColor is String) || wingColor!==value)
                         throw new Error("Native wing base and color did not both read back exactly");

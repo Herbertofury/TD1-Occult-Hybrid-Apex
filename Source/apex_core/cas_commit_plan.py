@@ -265,8 +265,8 @@ def _hair_targets(value, accepted, originals, returned, known):
         _lane(lane, known)
         if not isinstance(lane, str) or lane not in accepted:
             raise ValueError('Hair intent cannot authorize an unaccepted CAS lane.')
-        if not isinstance(targets, list) or not 0 < len(targets) <= 1024:
-            raise ValueError('Hair intent requires a bounded nonempty outfit target list.')
+        if not isinstance(targets, list) or len(targets) > 1024:
+            raise ValueError('Hair intent requires a bounded outfit target list; an explicit empty list keeps no returned hair.')
         original_index, returned_index = _outfits(originals[lane]), _outfits(returned[lane])
         seen = set()
         for target in targets:

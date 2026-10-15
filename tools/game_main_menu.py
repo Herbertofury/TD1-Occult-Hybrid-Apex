@@ -18,8 +18,11 @@ def target(observation, phase):
     if observation.get('ok') is not True:
         raise ValueError('Fresh native menu observation is unavailable.')
     if phase == 'menu':
+        full_navigation = ('download manager', 'game options', 'technical support', 'lessons',
+                           'release notes', 'credits', 'achievements', 'manage worlds', 'exit game')
+        save_as = any(label in labels for label in ('save as', 'save as...', 'save as…'))
         if (labels.count('menu') != 1 or labels.count('save') != 1 or
-                not any(label in labels for label in ('save as', 'save as...', 'save as…')) or
+                not (save_as or all(labels.count(label) == 1 for label in full_navigation)) or
                 'save game?' in labels):
             raise ValueError('Complete native Live menu is not recognized.')
         label = 'exit to main menu'
@@ -106,11 +109,14 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
         if initial_confirmation:
             target(observed, 'confirmation')  # Complete normal confirmation, never a generic dialog.
         elif 'menu' not in labels:
-            # Only the exact paused Live HUD may receive one Escape.
+            # Ask the observed game client to open its ordinary menu. Escape
+            # would require foreground keyboard input even in background mode.
             if labels.count('paused') != 1 or any(label in labels for label in ('save game?', 'cancel', 'buy now')):
-                raise ValueError('Exact paused Live HUD is not recognized; no Escape input.')
+                raise ValueError('Exact paused Live HUD is not recognized; no menu request.')
             live_guard()
-            submit({'command': 2, 'x': 27, 'y': 0, 'width': captured['width'], 'height': captured['height']}, 'escape')
+            opened = call('test_quit')
+            if opened.get('ok') is not True or opened.get('transition') != 'quit-menu-requested':
+                raise ValueError('Game-owned menu request refused or unresolved; no replay.')
             _, observed = frame('menu')
         if not initial_confirmation:
             live_guard(); submit(target(observed, 'menu'), 'menu')

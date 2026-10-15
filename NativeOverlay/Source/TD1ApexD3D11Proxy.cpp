@@ -53,6 +53,7 @@
 #include "ApexPartColorControls.h"
 #include "ApexOwnerCommand.h"
 #include "ApexCasBank.h"
+#include "ApexCasReviewControl.h"
 #include "ApexCasRoom.h"
 #include "OverlayInput.h"
 #include "MinHook.h"
@@ -960,8 +961,7 @@ static std::string BuildCommandPath(const char* action, const char* occult = nul
 
 // Queue only typed review intent. Native owner reads and writes stay on the
 // authenticated game thread; the renderer receives canonical owner receipts.
-static bool QueueCasBankAction(const std::string& action) {
-    std::lock_guard<std::mutex> lock(g_dataMutex);
+static bool QueueCasBankActionLocked(const std::string& action) {
     if (g_done.load() || g_ownerBlocked.load() || g_ownerNativeDeliveryBusy.load() ||
         g_ownerSubmissionBusy.load() || g_casSubmissionBusy.load() || g_casBankBusy.load() ||
         g_casPendingId[0] || !g_commands.empty() || !ui::ExactUint64Identity(ui::Json(g_selectedSim))) {
@@ -981,6 +981,10 @@ static bool QueueCasBankAction(const std::string& action) {
     QueuedCommand command{path,g_selectionGeneration}; command.sim=g_selectedSim; command.casBankAction=action;
     ui::BankSubmitted(g_casBank,action); g_casBankBusy=true;
     g_commands.push_back(std::move(command)); return true;
+}
+static bool QueueCasBankAction(const std::string& action) {
+    std::lock_guard<std::mutex> lock(g_dataMutex);
+    return QueueCasBankActionLocked(action);
 }
 
 static void QueueAction(const char* action, const char* occult = nullptr, const char* value = nullptr) {
@@ -1812,6 +1816,15 @@ static void DrawCasBankTransaction() {
                             ImGui::TextWrapped("Check only the outfits whose returned hairstyle/color you want. Unchecked outfits keep their retained original hair; other accepted CAS edits are preserved.");
                             if ((*form)["wardrobe_unchanged"]!=true)
                                 ImGui::TextWrapped("Outfits were added, removed or reordered. Hair acceptance is unavailable for this wardrobe; its originals and returned edit remain retained.");
+                            ImGui::BeginDisabled(requestBlocked || decision!=1 || (*form)["wardrobe_unchanged"]!=true ||
+                                !ui::BankChoiceCurrent(state,state));
+                            if (ImGui::Button("Restore original hair for every outfit / keep none")) {
+                                std::lock_guard<std::mutex> lock(g_dataMutex);
+                                if (ui::BankSetHairNone(g_casBank,state,lane)) state.hairTargets=g_casBank.hairTargets;
+                            }
+                            ImGui::EndDisabled();
+                            if (state.hairTargets.contains(lane) && state.hairTargets[lane].empty())
+                                ImGui::TextDisabled("Explicit choice: keep no returned hairstyles; retain other accepted edits.");
                             const auto& outfits=(*form)["outfits"];
                             ImGui::Text("%u native outfits; no changes selected automatically",static_cast<unsigned>(outfits.size()));
                             if (ImGui::BeginChild("##hair-outfits",ImVec2(0,200),true)) {
@@ -4135,8 +4148,8 @@ extern "C" __declspec(dllexport) int WINAPI ApexOverlayStudio(unsigned long long
     } else td1::QueueAction("studio_status"); // The canonical game owner supplies accepted Live/bank data.
     return 0;
 }
-// Pure preview controls: no OS input, foreground changes or game appearance
-// writes. Loading accepts an exact completed broker job and its owner view.
+// Typed preview/review controls: no OS input or foreground changes. Review
+// actions use the same once-only Source queue as the F11 transaction drawer.
 extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const char* raw) {
     static std::string reply;
     std::lock_guard<std::recursive_mutex> renderLock(td1::g_renderMutex);
@@ -4145,7 +4158,49 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
     try{
         if(!raw||strnlen_s(raw,ui::kMaxOwnerJsonBytes+1)>ui::kMaxOwnerJsonBytes)throw std::runtime_error("Bounded preview control required.");
         const auto request=ui::ParseObject(raw);const auto operation=ui::Scalar(request,"operation");
-        if(operation=="tray"){
+        if(operation=="cas-review"){
+            const auto action=ui::Scalar(request,"action"); std::string queued;
+            if (action=="status") {
+                if (request.size()!=2) throw std::runtime_error("CAS review status accepts no intent fields.");
+                if (!ui::BankCurrent(g_casBank,g_selectedSim,g_selectionGeneration) && !g_casBankBusy &&
+                    !g_casBank.busy && !g_casBank.unresolved) {
+                    g_casBank={}; g_casBank.sim=g_selectedSim; g_casBank.generation=g_selectionGeneration;
+                }
+            } else {
+                if (!g_hooked || g_done || g_ownerBlocked || g_ownerNativeDeliveryBusy || g_ownerSubmissionBusy ||
+                    g_casSubmissionBusy || g_casBankBusy || g_casBank.busy || g_casBank.unresolved ||
+                    g_casPendingId[0] || g_casRefreshClock.unresolved || !g_commands.empty())
+                    throw std::runtime_error("Resolve the existing native owner before changing the CAS review model.");
+                if (action=="select") {
+                    const auto sim=ui::Scalar(request,"sim_id");
+                    if (request.size()!=5 || !ui::BankControlExpected(g_casBank,request.at("expected")) ||
+                        !ui::BankControlRoster(request.at("roster"),sim) ||
+                        (g_casBank.sim!=sim && (g_casBank.localPrepared ||
+                            (g_casBank.prepareAttempted && g_casBank.phase!="completed"))))
+                        throw std::runtime_error("Select requires the exact current view and a completed Source Sim roster; resolve any prepared plan first.");
+                    if (g_selectedSim!=sim || !ui::BankCurrent(g_casBank,g_selectedSim,g_selectionGeneration)) {
+                        g_selectedSim=sim; ++g_selectionGeneration;
+                        g_casBank={}; g_casBank.sim=sim; g_casBank.generation=g_selectionGeneration;
+                    }
+                    g_commandReply="{}"; g_commandReplyMs=0; g_studioLastReply.clear(); g_studioData=ui::Json::object();
+                    g_casClientData=ui::Json::object(); g_casSelectedItem=ui::Json::object();
+                    g_previewId[0]=0; g_historyId[0]=0; g_nativeCasView=false; g_activeTab=1; g_visible=true;
+                    queued="cas_bank_status";
+                } else {
+                    if (!ui::BankCurrent(g_casBank,g_selectedSim,g_selectionGeneration) ||
+                        !ui::BankControlIntent(g_casBank,request,queued))
+                        throw std::runtime_error("CAS review view, nonce, form decision or exact outfit target is stale or unavailable.");
+                }
+                if (!queued.empty() && !QueueCasBankActionLocked(queued))
+                    throw std::runtime_error("CAS review queue refused the action; inspect its retained model before another operation.");
+            }
+            reply=ui::Json{{"ok",true},{"operation","cas-review"},{"action",action},{"view",ui::BankControlView(g_casBank)},
+                {"queued_action",queued},{"source_receipt",g_casBank.lastReply},{"source_failure",g_casBank.lastFailure},
+                {"message",g_casBank.message},{"runtime_pid",GetCurrentProcessId()},{"foreground_required",false},
+                {"game_appearance_written",false},{"native_model_control",true},{"physical_imgui_click_proven",false},
+                {"automatic_replay_allowed",false}}.dump();
+            return reply.c_str();
+        } else if(operation=="tray"){
             if(request.size()!=5||!g_hooked||g_simPreviewBusy||g_trayClipboardBusy||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy||g_casPendingId[0]||g_commands.size()>=48)throw std::runtime_error("Resolve the current owner before previewing a Tray source.");
             const auto& selection=request.at("selection");
             if(!ui::StudioDocument(selection)||!ui::Scalar(selection,"pending_preview").empty()||selection.at("runtime_pid")!=GetCurrentProcessId())throw std::runtime_error("Fresh idle destination selection required.");

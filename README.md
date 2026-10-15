@@ -6,36 +6,78 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Current development checkpoint — October 14 multi-hybrid preservation:**
-V113 completed actual Alien edits on the four companions and 100 acknowledged
-Vampire dark-form full-CAS edits across all five members. Alien appearances
-survived Vampire editing, normal save and cold reload; all 40 appearance owners
-remained exact after 8,655 additional simulation ticks. Reversible autonomy and
-occult safety controls also passed actual-game tests. V114 directly prevents
-native cross-form physique/hidden-outfit merging. All five members completed
-35 actual Live switches across all seven stored forms, preserving all 40 owners
-through 92,258 simulation ticks and a normal save. Permanent protection remains
-enabled alongside that patch. V115 fixes companion switching after reload:
-all five passed Vampire → Alien without manual checkpointing, then a normal
-save and all-40 comparison. Ordinary Python-to-native CAS entry now captures
-every hybrid household member before entry. V118 additionally retains four
-companion Alien CAS edits through Alien → Vampire → Alien, 5,267 actual ticks
-and a normal save, with all 38 unselected owners unchanged. V120 verifies the
-current Mermaid eyebrow palette and fixes selective genetics/voice copying;
-the complete local suite passes **2,021 tests**. Its new color and selective
-paste behavior now passes actual-game copying and Undo on an inactive companion
-Vampire. A companion's actual Mermaid alternate also retains 12 acknowledged
-full-CAS controls through explicit household commit and Mermaid → Vampire →
-Mermaid, with all 38 unselected owners exact. A second full-household visit
-edits actual Werewolf and Fairy alternate forms on two different companions;
-their accepted edits survive four Live switches and 11,225 simulation ticks,
-with all 36 unselected owners exact. A verified normal save retains the mixed
-household. V122 adds exact outfit hair choices to phone/F11 review, compound
-Fairy wing base/color verification and a CLI route through the installed MCCC
-callback; their current-game qualification is pending. One copied CC nose
-preset fails native selection readback and remains open. Direct native UI entry,
-all MCCC routes, remaining form-specific edits and broader production-save
-qualification remain open.
+**Current development checkpoint — October 15:**
+V125 cold-loads the mixed five-hybrid save with all 35 stored and five active
+appearances exact. The actual installed MCCC full-CAS/Library visit captures
+every member. The phone/F11 Source review actors complete all five reviews
+after real normal simulation ticks; all 40 appearances return to the saved
+baseline exactly. The actual native EA save generator refuses serialization
+with unresolved companions, remains locked after the first commit and clears
+only after the final commit. Direct native copy prevention and permanent
+protection remain enabled together.
+
+Native Library export now has actual game-generated metadata and portraits
+for all five Sims. Inspection exposes lost visible-owner Apex metadata and
+unintended Human outfit/genetics changes. An external completion candidate
+retains canonical active appearances, complete occult/trait trackers and the
+game's other data, metadata and images. **Its native Library reload remains
+unverified.** Native F11 queued refresh can cancel before execution; completing
+the Source review actors does not certify that queued UI path. Semantic Fairy
+wing selection is quarantined after a mismatched native color result and a
+later native crash of unproven cause.
+
+The V125 full run executes 2,161 tests with one older MCCC fixture error; that
+fixture is corrected and its 12 focused tests pass. A new complete run is
+required. All six native CTests and 87 bank-model checks pass. The ten review
+CLI tests, 15 launch checks, 14 save-admission checks and five new Library
+completion checks pass. This candidate remains disposable-only. Production
+acceptance, full native Tray/Gallery reload, complete CAS/special-state coverage
+and preview fidelity remain open, as do all seven GitHub issues. The protected
+original is read/copy only.
+See [October 15 runtime evidence](Reports/HOUSEHOLD_CAS_2026-10-15.md).
+
+**October 14 preservation evidence (historical checkpoint):**
+Candidates remain confined to **the marked disposable profile**. V122 passes
+**2,089 local tests** in 847.523 seconds, all six native CTests, 57 focused
+host-map checks and four dispatch checks. Both hosted CI checks pass for source
+checkpoint `0bfb4eb`.
+
+The earlier mixed Slot 2 checkpoint passed an actual V122 cold load: all 35 stored
+and five active appearance owners match its accepted Alien, Vampire, Mermaid,
+Werewolf and Fairy edits. They remain exact after another **2,803 actual
+simulation ticks**. Cold proof SHA-256:
+`4baf055940182d049799ba8a6458a1ad2727e97e5bd8c76452c95cacccde7df9`;
+unpaused proof SHA-256:
+`d5964ba877bd6f038695fd08809b834087ec65a8c66cc3580b111d87e59c39d1`.
+Direct native copy prevention and permanent protection remain enabled together.
+Ordinary Python-to-native CAS entry checkpoints every hybrid household member.
+
+V120 previously retained 12 controls on an actual Mermaid alternate through
+Mermaid → Vampire → Mermaid and 5,777 ticks, with all 38 unselected owners exact.
+One later full-CAS visit retained six controls each on different companions'
+actual Werewolf and Fairy alternates; four Live switches and 11,225 ticks left
+all 36 unselected owners exact. Their verified mixed normal save is the same
+checkpoint cold-loaded above. Selective genetics/voice copying and Undo also
+pass actual-game checks on an inactive companion Vampire.
+
+The real installed MCCC callback now reaches full CAS and a five-member return
+commit. Only the selected Mermaid's independently verified N28 nose-region
+change is accepted; the other 38 owners remain exact. Mermaid → Vampire →
+Mermaid preserves all 40 owners through **6,176 ticks**, followed by normal
+save and another exact all-40 comparison. Latest save:
+`b70dac1ca7c255241d602409bf83f9bf2e3c9da7b0f86365658a5da7a090f56b`.
+Its cold reload remains pending. N28's native selected-index readback still
+fails; accepted nose data does not turn that failed predicate into a pass.
+
+V123 is built for disposable-only installation. It adds read-only wing getter
+evidence while retaining strict base/color checks; wing runtime qualification
+remains open. Production use also needs native Save admission protection for
+unreviewed CAS returns and actual normal phone/F11 review of every captured
+companion, including the new outfit-hair controls. Full Tray/gallery, preview
+fidelity and complete panel/special-state coverage remain broader requested
+work. All seven GitHub issues stay open. The map route's no-input refusal on an
+already-Live capture does not prove autonomous map loading. The protected
+original stays read/copy only.
 See [current household evidence](Reports/HOUSEHOLD_CAS_2026-10-14.md) and
 [autonomy and safety controls](docs/OCCULT_SAFETY_CONTROLS.md).
 See [native prevention patch](docs/NATIVE_FORM_ISOLATION.md) for its exact scope.

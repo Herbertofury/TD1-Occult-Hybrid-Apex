@@ -20,6 +20,7 @@ class PhoneCasTests(unittest.TestCase):
         self.game.setUp()
         self.addCleanup(self.game.doCleanups)
         self.backend, self.sim = self.game.backend, self.game.sim
+        self.enterContext(patch('apex_core.cas_save_boundary.require_installed', return_value=True))
         self.sim.get_sim_instance = lambda: object()
         self.ticks, self.wall_ticks, self.speed, self.time = 100, 1000, 0, 0
         self.zone = Obj(id=40, is_zone_running=True, is_in_build_buy=False)

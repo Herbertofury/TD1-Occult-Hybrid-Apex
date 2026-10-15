@@ -121,7 +121,7 @@ class PhoneCasHairTests(unittest.TestCase):
         invalids = [dict(self.argument(status, valid), hair_inventory_sha256='e' * 64),
             dict(self.argument(status, valid), review_nonce='f' * 32), self.argument(status, wrong_uid),
             self.argument(status, duplicate), self.argument(status, boolean), self.argument(status, external),
-            self.argument(status, {'1': valid['64']}), self.argument(status, {'64': []})]
+            self.argument(status, {'1': valid['64']})]
         for argument in invalids:
             with self.subTest(argument=argument), self.assertRaises(ValueError):
                 self.ui('prepare', argument)
@@ -129,6 +129,25 @@ class PhoneCasHairTests(unittest.TestCase):
             self.assertFalse(self.session.prepare_attempted)
         self.assertFalse(any(action == 'cas_bank_prepare' for action, _ in self.actions))
         self.assertEqual(self.game.native_writes, [])
+
+    def test_explicit_keep_none_restores_all_hair_but_keeps_other_returned_edits(self):
+        status = self.prepare_hair()
+        original_hair = copy.deepcopy(self.game.record()['cas_transaction']['hair_checkpoint']['forms']['64'])
+        returned = appearance.packed(self.backend, self.game.forms[64])
+        self.choose_form()
+        page = self.picker()
+        tag = next(tag for tag, _label, _icon in phone_cas.rows(self.backend, '10', page)
+                   if tag.startswith('cas:hair-none:'))
+        phone_cas.select(self.backend, '10', tag)
+        self.assertEqual(self.session.hair_targets, {'64': []})
+        self.assertTrue(self.session.prepare(self.session.nonce)['ok'])
+        self.assertTrue(self.session.commit(self.session.nonce)['ok'])
+        final = self.game.record()['bank']['64']
+        self.assertEqual(outfit_hair.capture(self.backend, final), original_hair)
+        for changed, accepted in zip(self.game.parse(appearance.decode(returned['__outfits__'])[1]).outfits,
+                                    self.game.parse(appearance.decode(final['__outfits__'])[1]).outfits):
+            self.assertEqual(read_rows(changed)[2], read_rows(accepted)[2])
+        self.assertEqual(self.game.record()['cas_transaction']['journal']['plan']['hair_targets'], {'64': []})
 
     def test_missing_target_does_not_consume_plan_and_phone_choice_then_succeeds(self):
         self.prepare_hair()

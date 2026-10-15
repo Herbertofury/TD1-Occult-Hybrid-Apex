@@ -138,7 +138,7 @@ def _preserved_targets(originals, preserve, lane):
             or not preserve['lane'].isdecimal() or not 0 < int(preserve['lane']) < 1 << 32
             or str(int(preserve['lane'])) != preserve['lane']
             or not isinstance(lane, str) or preserve['lane'] != lane
-            or not isinstance(preserve.get('targets'), list) or not 0 < len(preserve['targets']) <= 4096):
+            or not isinstance(preserve.get('targets'), list) or len(preserve['targets']) > 4096):
         raise ValueError('Multiple CAS hair targets require a typed set bound to the exact selected occult lane.')
     targets = {}
     for item in preserve['targets']:

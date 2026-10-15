@@ -312,7 +312,7 @@ def studio_ui(module_file, dll_path, argument):
 
 @serialized
 def sim_preview(module_file, dll_path, argument):
-    if not _CALLS or not isinstance(argument, dict) or argument.get('operation') not in ('status', 'load', 'view', 'mode', 'workspace', 'clear', 'tray', 'tray-copy', 'library-select', 'thumbnail', 'gallery-query', 'gallery-select', 'gallery-view'):
+    if not _CALLS or not isinstance(argument, dict) or argument.get('operation') not in ('status', 'load', 'view', 'mode', 'workspace', 'clear', 'tray', 'tray-copy', 'library-select', 'thumbnail', 'gallery-query', 'gallery-select', 'gallery-view', 'cas-review'):
         raise ValueError('Use the typed independent preview contract.')
     raw = __import__('json').dumps(argument, ensure_ascii=True, allow_nan=False, separators=(',', ':')).encode('utf-8')
     if len(raw) > 4 * 1024 * 1024:
@@ -329,6 +329,7 @@ def sim_preview(module_file, dll_path, argument):
     class Library: _handle = _HANDLE
     result = PreviewCall(('ApexSimPreviewControl', Library()))(raw)
     reply = getattr(result, 'value', result)
-    if not isinstance(reply, bytes) or len(reply) > 32768:
+    limit = 4 * 1024 * 1024 if argument.get('operation') == 'cas-review' else 32768
+    if not isinstance(reply, bytes) or len(reply) > limit:
         raise ValueError('Native preview returned invalid bounded JSON.')
     return __import__('json').loads(reply.decode('utf-8'))

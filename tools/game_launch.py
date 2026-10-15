@@ -55,7 +55,50 @@ def account_launch_identity(game_root, log=None):
     raise ValueError('No verified successful EA Client Play record for this Sims installation; no launch ID will be guessed.')
 
 
-def launch_plan(game_root, state, offer_id=None):
+def retained_account_identity(game_root, state, proof=None, expected_sha256=None):
+    """Keep a verified Client Play identity when EA rotates its bounded logs."""
+    from source_manifest import write_json
+    root = test_profile.unlinked(game_root)
+    cache = test_profile.unlinked(Path(state).resolve().parent / 'verified-ea-account-launch.json')
+    if proof is not None or expected_sha256 is not None:
+        if proof is None or not isinstance(expected_sha256, str) or re.fullmatch('[0-9a-f]{64}', expected_sha256) is None:
+            raise ValueError('A retained EA launch proof requires its exact SHA-256.')
+        source = test_profile.unlinked(proof)
+    else:
+        if not cache.is_file() or cache.stat().st_size > 4096:
+            raise ValueError('No retained verified EA Client Play identity is available.')
+        held = json.loads(cache.read_text(encoding='utf-8'))
+        if not isinstance(held, dict) or set(held) != {'schema', 'proof', 'sha256'} or held['schema'] != 1:
+            raise ValueError('Retained EA account evidence is malformed.')
+        source = test_profile.unlinked(held['proof']); expected_sha256 = held['sha256']
+    if not source.is_file() or not 0 < source.stat().st_size <= 12 * 1024 * 1024 or sha256(source) != expected_sha256:
+        raise ValueError('Retained EA launch evidence is absent or changed.')
+    prior = json.loads(source.read_text(encoding='utf-8-sig'))
+    account = prior.get('account_launch_identity', {})
+    observed = prior.get('observation', {})
+    launcher = root / 'Game' / 'Bin' / 'TS4_Launcher_x64.exe'
+    executable = root / 'Game' / 'Bin' / 'TS4_x64.exe'
+    installer = root / '__Installer' / 'installerdata.xml'
+    if (prior.get('ok') is not True or prior.get('launched') is not True or
+            prior.get('mode') != 'ea-client-handoff' or observed.get('process_started') is not True or
+            type(observed.get('pid')) is not int or observed['pid'] <= 0 or
+            os.path.normcase(observed.get('executable', '')) != os.path.normcase(str(executable)) or
+            account.get('evidence') != 'Successful EA Client Play request for this exact installation' or
+            not isinstance(account.get('offer_id'), str) or re.fullmatch('[A-Za-z0-9:_-]+', account['offer_id']) is None or
+            not isinstance(account.get('content_id'), str) or re.fullmatch('[0-9]{1,10}', account['content_id']) is None or
+            os.path.normcase(account.get('executable', '')) != os.path.normcase(str(launcher)) or
+            not isinstance(account.get('record_sha256'), str) or re.fullmatch('[0-9a-f]{64}', account['record_sha256']) is None or
+            prior.get('executable_sha256') != sha256(executable) or
+            prior.get('installer_manifest_sha256') != sha256(installer) or
+            prior.get('url') != 'origin2://game/launch?' + urllib.parse.urlencode({'offerIds': account['content_id'], 'autoDownload': '0'})):
+        raise ValueError('Retained launch does not prove this unchanged installation and its successful account Play identity.')
+    if proof is not None:
+        write_json(cache, {'schema': 1, 'proof': str(source), 'sha256': expected_sha256})
+    return dict(account, evidence='Retained verified EA Client Play identity after log rotation',
+                retained_proof=str(source), retained_proof_sha256=expected_sha256)
+
+
+def launch_plan(game_root, state, offer_id=None, verified_launch_proof=None, expected_launch_proof_sha256=None):
     isolation = test_profile.status(state)
     if not isolation['ready_to_launch']:
         raise ValueError('Launch requires an exact isolated test profile.')
@@ -78,7 +121,13 @@ def launch_plan(game_root, state, offer_id=None):
         raise ValueError('EA manifest content IDs are missing or unsafe; no launch URL will be guessed.')
     # This EA version's legacy offerIds URL parameter means CONTENT IDs.
     # Pick the single edition actually launched by the owner's EA account.
-    identity = account_launch_identity(root)
+    retained = None
+    if verified_launch_proof is not None or expected_launch_proof_sha256 is not None:
+        retained = retained_account_identity(root, state, verified_launch_proof, expected_launch_proof_sha256)
+    try:
+        identity = account_launch_identity(root)
+    except ValueError:
+        identity = retained if retained is not None else retained_account_identity(root, state)
     if offer_id is not None and offer_id != identity['offer_id']:
         raise ValueError('Requested storefront ID differs from this account\'s successful Play record.')
     if identity['content_id'] not in ids:
@@ -173,10 +222,14 @@ def observe_start(executable, prior_ids, seconds, probe=running_game_processes, 
         pause(min(1, remaining))
 
 
-def launch(game_root, state, execute=False, headless=False, observe_seconds=60, offer_id=None, elevate_permission_once=False):
+def launch(game_root, state, execute=False, headless=False, observe_seconds=60, offer_id=None, elevate_permission_once=False,
+           verified_launch_proof=None, expected_launch_proof_sha256=None):
     if headless:
         raise ValueError('A headless Sims 4 runtime is not implemented. Use the real-game bridge for CLI testing.')
-    plan = launch_plan(game_root, state, offer_id)
+    if verified_launch_proof is None and expected_launch_proof_sha256 is None:
+        plan = launch_plan(game_root, state, offer_id)
+    else:
+        plan = launch_plan(game_root, state, offer_id, verified_launch_proof, expected_launch_proof_sha256)
     if execute:
         import launch_preferences
         remembered_permission = launch_preferences.enabled(state,plan['account_launch_identity'])

@@ -1,10 +1,40 @@
 # Apex Occult Hybrid — Codex Master Execution Contract
 
-Last reconciled: 2026-10-14
+Last reconciled: 2026-10-15
 Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance retained
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
-Current checkpoint: direct native copy prevention and permanent protection remain enabled. After pack access was restored, V120 cold-loaded all 40 owners of the five-member hybrid household exactly and retained them after 2,581 actual simulation ticks. Selective genetics/voice paste and Undo passed. The actual Mermaid alternate accepted 12 native controls, including an available eyebrow palette ID and EA nose preset; Mermaid → Vampire → Mermaid retained every owner through 5,777 ticks. A later single full-CAS visit accepted six controls each on two different companions' actual Werewolf and Fairy alternates, preserving all 36 unselected owners. Werewolf → Alien → Werewolf and Fairy → Vampire → Fairy retained all 40 owners through another 11,225 ticks. The mixed household completed a verified normal save (`271b92ca82ec38795bc0dc7102cac8a48f521c40f34bb55036ae0fd46006a9eb`) and exact after-save comparison; cold reload of this specific mixed checkpoint remains pending. V122 development adds built phone/F11 explicit outfit-hair pickers and compound wing base/color verification; current-game qualification and the new MCCC entry mode remain pending. The V121 full suite passed 2,028 tests; newer focused hair checks do not establish a complete V122 run or runtime acceptance. Direct native UI routes, broader MCCC/Tray/panel/special-state coverage, the retained CC preset mismatch and production readiness remain open. All seven GitHub issues remain open. See Reports/HOUSEHOLD_CAS_2026-10-14.md. The protected original remains read/copy only.
+Current checkpoint:
+V125 cold-loads the mixed five-hybrid save with all 35 stored and five active
+appearances exact. The actual installed MCCC full-CAS/Library visit captures
+every member. The phone/F11 Source review actors complete all five reviews
+after real normal simulation ticks; all 40 appearances return to the saved
+baseline exactly. The actual native EA save generator refuses serialization
+with unresolved companions, remains locked after the first commit and clears
+only after the final commit. Direct native copy prevention and permanent
+protection remain enabled together.
+
+Native Library export now has actual game-generated metadata and portraits
+for all five Sims. Inspection exposes lost visible-owner Apex metadata and
+unintended Human outfit/genetics changes. An external completion candidate
+retains canonical active appearances, complete occult/trait trackers and the
+game's other data, metadata and images. **Its native Library reload remains
+unverified.** Native F11 queued refresh can cancel before execution; completing
+the Source review actors does not certify that queued UI path. Semantic Fairy
+wing selection is quarantined after a mismatched native color result and a
+later native crash of unproven cause.
+
+The V125 full run executes 2,161 tests with one older MCCC fixture error; that
+fixture is corrected and its 12 focused tests pass. A new complete run is
+required. All six native CTests and 87 bank-model checks pass. The ten review
+CLI tests, 15 launch checks, 14 save-admission checks and five new Library
+completion checks pass. This candidate remains disposable-only. Production
+acceptance, full native Tray/Gallery reload, complete CAS/special-state coverage
+and preview fidelity remain open, as do all seven GitHub issues. The protected
+original is read/copy only.
+See [October 15 runtime evidence](../Reports/HOUSEHOLD_CAS_2026-10-15.md).
+
+
 
 ## Objective
 

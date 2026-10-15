@@ -176,11 +176,13 @@ class PhoneCasSession:
         self.hair_targets, self.hair_inventory_hash = {}, None
         self.observe_attempted = self.prepare_attempted = self.commit_attempted = False
         self.probe = self.error = None
+        from .cas_save_boundary import require_installed
+        require_installed(self.backend)
         result = _call(self.backend, self.sim_id, 'cas_bank_begin')
         self._bind(dict(result, current_runtime=True))
         self.phase = 'captured'
         self.receipts.append({'operation': 'begin', 'nonce': self.nonce, 'receipt': result})
-        return {'ok': True, 'message': 'This Sim’s native originals are retained. Protected native CAS entry also captures hybrid household companions. After returning to Live, choose “After CAS: run, pause and review” for each edited member.'}
+        return {'ok': True, 'message': 'This Sim’s native originals are retained. Protected native CAS entry also captures hybrid household companions. After returning to Live, choose “After CAS: run, pause and review” for every captured household member, including members not edited.'}
 
     def _adopt_observation(self, status):
         self._bind(status)
@@ -428,6 +430,20 @@ class PhoneCasSession:
                 raise ValueError('Choose the specific outfits whose returned hair you edited before preparing; other outfits keep their original hair.')
         return targets
 
+    def choose_hair_none(self, nonce, lane, digest):
+        if nonce != self.nonce or self.phase != 'observed' or self.prepare_attempted:
+            raise ValueError('Outfit hair choice is stale or a plan has already been attempted.')
+        status = self.refresh()
+        if self.decisions.get(lane) != 'accept-returned':
+            raise ValueError('Choose Keep returned edit before restoring hair for all outfits.')
+        inventory, held_digest = self.hair_inventory(status)
+        if digest != held_digest or not any(row['lane'] == lane for row in inventory['forms']):
+            raise ValueError('Restore-all hair choice belongs to a stale or unknown form inventory.')
+        selected = copy.deepcopy(self.hair_targets)
+        selected[lane] = []  # Explicit decision; absence still requires review.
+        self.hair_targets = self.validated_hair_targets(selected, self.decisions, status, digest, require_complete=False)
+        return {'ok': True, 'page': 'cas_form:' + lane}
+
     def choose_hair(self, nonce, lane, digest, category, ordinal, outfit_id, keep):
         if nonce != self.nonce or self.phase != 'observed' or self.prepare_attempted:
             raise ValueError('Outfit hair choice is stale or a plan has already been attempted.')
@@ -643,6 +659,11 @@ def rows(backend, sim_id, page):
                         offset >= len(outfits) and offset != 0):
                     raise ValueError('Hair outfit page is unavailable.')
                 choices = [('cas:info', _name(lane) + ': check only outfits whose returned hair you want to keep. Unchecked outfits retain original hair.', 'MENU_UNKNOWN')]
+                if current.decisions.get(lane) == 'accept-returned' and form['wardrobe_unchanged'] and not current.prepare_attempted:
+                    choices.append(('cas:hair-none:{}:{}:{}'.format(current.nonce, lane, digest),
+                        'Restore original hair for every outfit / keep none of the returned hair', 'MENU_PLACEHOLDER'))
+                if lane in current.hair_targets and not current.hair_targets[lane]:
+                    choices.append(('cas:info', 'Explicit choice: restore original hair for all outfits; keep other accepted edits.', 'MENU_UNKNOWN'))
                 selected = {(item['category'], item['ordinal'], item['outfit_id']) for item in current.hair_targets.get(lane, [])}
                 for item in outfits[offset:offset + _HAIR_PAGE_SIZE]:
                     key = (item['category'], item['ordinal'], item['outfit_id'])
@@ -707,6 +728,8 @@ def select(backend, sim_id, tag, callback=None):
     if tag == 'cas:info':
         return {'ok': True, 'page': 'cas_review'}
     parts = tag.split(':')
+    if len(parts) == 5 and parts[:2] == ['cas', 'hair-none']:
+        return current.choose_hair_none(*parts[2:])
     if len(parts) == 6 and parts[:2] == ['cas', 'hair-page']:
         nonce, lane, digest, offset = parts[2:]
         if nonce != current.nonce or current.decisions.get(lane) != 'accept-returned':

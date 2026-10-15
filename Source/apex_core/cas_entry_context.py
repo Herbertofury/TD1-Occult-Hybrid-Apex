@@ -1,7 +1,9 @@
-"""Project an existing household into consistent native CAS appearance pairs.
+"""Expose every verified existing hybrid membership to native household CAS.
 
 The legacy trait-based availability calculation can advertise Fairy while the
-active appearance is Alien. CAS requires the selected native kind in its pair.
+active appearance is Alien. Native CAS must receive the selected kind AND
+every other actual membership, rather than Apex removing those memberships
+itself before the native room has opened.
 This preparation changes only native availability, preserving every existing
 appearance owner, trait and current kind. Every hybrid member has its own raw
 CAS transaction before household projection, including unselected members.
@@ -14,6 +16,7 @@ import uuid
 from . import form_appearance as appearance, native_occult_context as context
 from .occult_add_guard import publish
 from .overlay_loader import _unlinked
+from .hybrid_persistence import _export_memberships
 
 
 def checkpoint_members(backend, selected, selected_checkpoint):
@@ -92,7 +95,14 @@ def prepare(backend, selected, full_household):
         owners = dict(forms, active=sim)
         packed = {str(kind): appearance.packed(backend, owner) for kind, owner in owners.items()}
         traits = backend._disk_trait_snapshot(sim)
-        rows.append((sim, forms, dict(forms), owners, before, packed, traits, 1 | current))
+        available = _export_memberships(tracker, before['active']['available'] | current | 1)
+        # Actual membership and appearance storage are separate authorities.
+        # Never generate a missing owner just to advertise it to native CAS.
+        missing = [int(kind) for kind in tracker.OCCULT_DATA
+                   if available & int(kind) and int(kind) not in forms]
+        if missing:
+            raise ValueError('CAS membership has no captured native appearance owner; entry blocked.')
+        rows.append((sim, forms, dict(forms), owners, before, packed, traits, available))
     if not rows:
         return {'ok': True, 'prepared_members': [], 'native_availability_written': False}
     path = _unlinked(Path(backend._data_directory()) / 'household_cas_entry.json')
@@ -133,11 +143,13 @@ def prepare(backend, selected, full_household):
                 raise ValueError('CAS pair preparation changed native owner identities or current kind.')
             available = after['active']['available']
             # Native Vampire/Witch normalization may omit the Human bit.
-            # Admit only its existing current kind, never extra map-derived kinds.
+            # Every verified non-Human membership must survive the setter.
+            # A pair-only normalization must stop entry, never silently pass.
             current = before['active']['current']
             if (available & current != current or available & ~pair or
+                    available & ~1 != pair & ~1 or
                     any(value['available'] != available for value in after.values())):
-                raise ValueError('Native CAS availability did not retain its selected existing kind and pair.')
+                raise ValueError('Native CAS availability did not retain every verified existing membership.')
             if backend._disk_trait_snapshot(sim) != traits:
                 raise ValueError('CAS pair preparation changed occult/gameplay traits.')
             if any(appearance.fingerprint(appearance.packed(backend, owner)) != appearance.fingerprint(packed[str(kind)])
@@ -151,4 +163,5 @@ def prepare(backend, selected, full_household):
     return {'ok': True, 'prepared_members': [{'sim_id': row['sim_id'], 'available': row['after_context']['active']['available'],
                                             'current': row['after_context']['active']['current']} for row in proof['members']],
             'native_availability_written': any(row['write_attempted'] for row in proof['members']),
-            'all_appearances_and_traits_unchanged': True, 'recovery_id': proof['id'], 'crash_fix_verified': False}
+            'all_appearances_and_traits_unchanged': True, 'recovery_id': proof['id'], 'crash_fix_verified': False,
+            'complete_existing_membership_required': True}

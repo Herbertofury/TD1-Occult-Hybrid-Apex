@@ -169,6 +169,37 @@ class LauncherTests(unittest.TestCase):
         with patch.object(windows_ocr.subprocess, 'run', side_effect=reply), self.assertRaisesRegex(ValueError, 'changed'):
             windows_ocr.recognize(self.image)
 
+    def test_misread_home_load_uses_independent_exact_native_size_frame(self):
+        primary = home_observation()
+        primary['lines'][1]['text'] = 'Lv GAME'
+        primary['lines'][1]['words'][0]['text'] = 'Lv GAME'
+        primary['lines'][2]['text'] = "'NEW GAME"
+        native = home_observation()
+        native['preprocessing'].update(requested_scale=1, scale=1, ocr_width=1278, ocr_height=1376)
+        replies = [SimpleNamespace(returncode=0, stdout=json.dumps(row), stderr='') for row in (primary, native)]
+        with patch.object(windows_ocr.subprocess, 'run', side_effect=replies) as run:
+            observed = windows_ocr.recognize(self.image)
+        self.assertEqual([json.loads(call.kwargs['input'])['scale'] for call in run.call_args_list], [2, 1])
+        self.assertTrue(observed['scaling_fallback']['accepted'])
+        self.assertEqual(observed['raw_observation']['lines'][1]['text'], 'Lv GAME')
+        self.assertEqual(observed['lines'][1]['text'], 'LOAD GAME')
+        self.assertEqual(self.image.read_bytes(), b'bounded capture fixture')
+
+    def test_native_size_home_requires_unique_complete_controls_without_dialogs(self):
+        primary = home_observation(); primary['lines'][1]['text'] = 'Lv GAME'
+        for kind in ('still-misread', 'missing-gallery', 'duplicate-load', 'modal'):
+            native = home_observation()
+            native['preprocessing'].update(requested_scale=1, scale=1, ocr_width=1278, ocr_height=1376)
+            if kind == 'still-misread': native['lines'][1]['text'] = 'Lv GAME'
+            elif kind == 'missing-gallery': native['lines'].pop(3)
+            elif kind == 'duplicate-load': native['lines'].append(copy.deepcopy(native['lines'][1]))
+            else: native['lines'].append(dict(text='BUY NOW', words=[]))
+            replies = [SimpleNamespace(returncode=0, stdout=json.dumps(row), stderr='') for row in (primary, native)]
+            with self.subTest(kind=kind), patch.object(windows_ocr.subprocess, 'run', side_effect=replies):
+                observed = windows_ocr.recognize(self.image)
+            self.assertFalse(observed['scaling_fallback']['accepted'])
+            self.assertEqual(observed['lines'][1]['text'], 'Lv GAME')
+
 
 @unittest.skipUnless(os.name == 'nt', 'Windows native OCR launcher')
 class ContrastTests(unittest.TestCase):

@@ -852,6 +852,31 @@ def _native_pair_first(tracker, data):
     return view
 
 
+def _export_memberships(tracker, original_mask):
+    """Keep every actual membership, not the legacy one-occult CAS projection.
+
+    Retained wrappers alone never grant membership: removed occult appearances
+    can remain as memory. Query the actual tracker while its producer is live.
+    Older/unsupported tracker contracts retain their existing native mask.
+    """
+    result = int(original_mask)
+    query = getattr(tracker, 'has_occult_type', None)
+    if not callable(query):
+        return result
+    if len(tracker.OCCULT_DATA) > 32:
+        raise ValueError('Native membership tuning exceeds the bit-field contract.')
+    for kind in tracker.OCCULT_DATA:
+        value = int(kind)
+        if isinstance(kind, bool) or not 0 < value < 1 << 32 or value & (value - 1):
+            raise ValueError('Native membership tuning has an invalid flag identity.')
+        member = query(kind)
+        if type(member) is not bool:
+            raise ValueError('Native membership query did not return a typed decision.')
+        if member:
+            result |= value
+    return result
+
+
 def save_with_retention(original, tracker, occult_utils, *args, **kwargs):
     sim = tracker.sim_info
     membership, available = sim.occult_types, tracker._occult_form_available
@@ -867,6 +892,7 @@ def save_with_retention(original, tracker, occult_utils, *args, **kwargs):
     contexts.append(context)
     serializer_error = None
     try:
+        exported_membership = _export_memberships(tracker, membership)
         unknown = int(membership) & ~_known_mask(tracker)
         sim.occult_types = int(occult_utils.get_occult_types_for_save(tracker)) | unknown
         occult_utils.recalc_occult_form_availability(tracker, saving=True)
@@ -892,7 +918,16 @@ def save_with_retention(original, tracker, occult_utils, *args, **kwargs):
                 data.occult_sim_infos.add().CopyFrom(item)
                 present.add(key)
         data.occult_types = int(data.occult_types) | unknown
-        return _native_pair_first(tracker, data)
+        # Keep the existing active pair first for the native client, then
+        # publish ALL verified membership bits. The serializer's temporary
+        # one-occult projection must not become the exported hybrid identity.
+        data = _native_pair_first(tracker, data)
+        projected = int(data.occult_types)
+        data.occult_types = projected | exported_membership
+        tracker._apex_membership_export = {'projected_flags': projected,
+            'exported_flags': int(data.occult_types), 'original_live_flags': int(membership),
+            'live_flags_changed': False, 'appearance_generated': False}
+        return data
     except Exception as error:
         serializer_error = error
         raise

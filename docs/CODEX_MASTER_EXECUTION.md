@@ -5,6 +5,37 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V135 is installed in the reusable disposable profile. It removes Apex's own
+CAS-entry narrowing to Human plus the current occult. Entry now requires the
+complete tracker-verified membership set and a captured owner for every
+registered member. A native setter that reduces that set blocks entry and
+retains its complete originals. All 801 CAS tests and 26 upgrade/migration
+tests pass against the frozen current source; a separate Rust pass validates
+all seven package indexes and all 207 extracted resource payloads. V134's real
+CAS receipt still exposed only Human/Alien and is retained as a failed gate.
+After that unedited visit, all five commits and all 40 appearance comparisons
+pass; normal unsaved exit leaves every disposable save/backup unchanged.
+Actual V135 preparation retains all six non-Human bits on all five Sims, but
+the raw game-to-CAS packet still narrows each member to one pair before EA's
+ActionScript handler. The native-view probe refuses before any view mutation.
+Within-visit native switching/editing and additive membership remain open;
+the game-to-CAS narrowing now has a separate reproduced boundary.
+See [the native membership implementation and evidence](../Reports/NATIVE_CAS_HYBRID_MEMBERSHIP_2026-10-15.md).
+
+V134 exports every
+tracker-verified native occult membership instead of exposing the inherited
+Human-plus-one-occult projection. A typed `cas occult-view` command and F11
+buttons invoke the installed native `SetSimOccult` handler for an already-owned
+form. Fresh native acknowledgements must retain the complete membership mask;
+lost membership or a wrong selected form leaves the request unresolved.
+This is selection transport, not yet proof of within-visit hybrid editing.
+Native-CAS additive membership, independent appearance retention after that
+navigation and special-state gameplay remain acceptance gates. All 798 CAS
+tests, 51 form-bank tests, 25 native-retention tests, 28 life-state tests and
+six native CTests pass. The game launched with the CLI acknowledging EA's
+permission dialog. The exact existing manual test save cold-loads with all
+40 appearance owners unchanged. No production profile has been changed.
+
 V133 adds independent named life-state appearance variants, inactive Studio
 editing, explicit original binding/selection, accepted-CAS synchronization,
 F11 controls and a UUID-recording CLI. The native game enum remains unchanged.
@@ -12,7 +43,8 @@ Its 28 focused tests, existing 36 Studio tests, eight preview-service tests,
 six native CTests and separately staged worker self-tests pass. The broad
 V133 core run passes 2,232 tests in 938.254 seconds. Actual captured Alien
 appearance bytes also assemble through the staged named-owner worker without
-asset exports. It is built, not installed. Complete special
+asset exports. Its implementation is included in the installed V134 candidate;
+actual named-owner runtime qualification remains open. Complete special
 gameplay, within-visit native CAS hybrid selection/addition and cross-session
 variant/Tray persistence remain open. Fourteen current Gauntlet releases were
 downloaded and inspected; packages are not installed wholesale.

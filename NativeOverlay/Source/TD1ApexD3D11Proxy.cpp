@@ -128,6 +128,8 @@ struct QueuedCommand { std::string path; uint64_t generation; bool automaticCasR
     std::string casBankAction; };
 static std::deque<QueuedCommand> g_commands;
 static std::atomic<bool> g_occultIconsRequested{false};
+static std::string g_lifeStateReply; // g_dataMutex; retained across ordinary status refreshes
+static uint64_t g_lifeStateReplyGeneration=0;
 static std::atomic<ULONGLONG> g_occultIconsNextAttempt{0};
 static unsigned g_occultIconsReadAttempts = 0; // render thread; bounded read-only loading polls
 static std::map<std::string,resource::Pixels> g_occultIconPixels; // worker -> render, g_dataMutex
@@ -1318,6 +1320,9 @@ static void WorkerLoop() {
             RetainCommandOwner(command, body);
             std::lock_guard<std::mutex> lock(g_dataMutex);
             if (command.generation == g_selectionGeneration) {
+                if(command.path.find("action=lifestate_")!=std::string::npos){
+                    g_lifeStateReply=body;g_lifeStateReplyGeneration=command.generation;
+                }
                 if (!command.casBankAction.empty()) {
                     ui::BankApply(g_casBank,command.sim,command.generation,command.casBankAction,ui::ParseObject(body));
                     g_casBankBusy=g_casBank.busy;
@@ -3118,19 +3123,28 @@ static void DrawNativeCas(const std::string& reply, ULONGLONG replyMs, bool hist
             const bool chosen=row["selected"]==true;
             const bool available=row["navigation_supported"]==true;
             const auto form=row["form_flags"].get<int>();
+            const auto nativeMask=g_casClientData["sim"].value("allOccultTypes",0);
+            const bool existingView=form>1 && (nativeMask&form)==form;
             ImGui::PushID(form);
             if (chosen) ImGui::PushStyleColor(ImGuiCol_Button,ImVec4(0.36f,0.22f,0.54f,1.0f));
-            ImGui::BeginDisabled(nativeActionPending || snapshotAge>2.5 || !available);
-            if (ImGui::Button(ui::Scalar(row,"label").c_str(),ImVec2(125,32)) && !chosen)
-                QueueCasAction({{"operation","form-select"},{"household_id",ui::Scalar(g_casRoomData,"household_id")},
-                    {"form_flags",form},{"expected_layer",g_casRoomData["selected_layer"]},
-                    {"native_session",g_casRoomData["native_session"]}});
+            ImGui::BeginDisabled(nativeActionPending || snapshotAge>2.5 || (!available&&!existingView));
+            static const std::map<int,const char*> names={{2,"ALIEN"},{4,"VAMPIRE"},{8,"MERMAID"},{16,"WITCH"},{32,"WEREWOLF"},{64,"FAIRY"}};
+            const auto icon=names.find(form);
+            if (OccultButton(ui::Scalar(row,"label").c_str(),icon==names.end()?nullptr:icon->second,ImVec2(125,32)) && !chosen) {
+                if(available)QueueCasAction({{"operation","form-select"},{"household_id",ui::Scalar(g_casRoomData,"household_id")},
+                        {"form_flags",form},{"expected_layer",g_casRoomData["selected_layer"]},
+                        {"native_session",g_casRoomData["native_session"]}});
+                else QueueCasAction({{"operation","occult-view"},{"household_id",ui::Scalar(g_casRoomData,"household_id")},
+                        {"occult_type",form},{"expected_all_occults",nativeMask},{"expected_layer",g_casRoomData["selected_layer"]},
+                        {"native_session",g_casRoomData["native_session"]}});
+            }
             ImGui::EndDisabled();
             if (chosen) ImGui::PopStyleColor();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("%s\n%s",ui::Scalar(row,"label").c_str(),
                     available ? "Selects the observed native CAS layer. Edits are reviewed after returning to Live."
-                              : "Original form retained. Editing this form requires a separate CAS visit with the current native transport.");
+                              : existingView ? "Select this existing occult view; complete native membership is checked after selection."
+                                             : "Original form retained. Native CAS has not exposed its membership in this visit.");
             ImGui::PopID();
         }
         ImGui::TextDisabled("Every captured form remains listed. Changing selection never removes an occult.");
@@ -3431,6 +3445,13 @@ static void DrawLifeStateLooks() {
     static int state=7;static char label[129]="Alternate appearance";
     ImGui::TextWrapped("Keep separate complete looks for every life state. The name identifies an appearance; gameplay roles and memberships remain separate.");
     ImGui::TextDisabled("Development feature: cross-session reload and Tray import are not qualified yet.");
+    std::string retained;
+    {std::lock_guard<std::mutex> lock(g_dataMutex);if(g_lifeStateReplyGeneration==g_selectionGeneration)retained=g_lifeStateReply;}
+    if(!retained.empty()){
+        const auto result=ui::ParseObject(retained);const bool succeeded=result.value("ok",false);
+        auto message=ui::Scalar(result,"message");if(message.empty())message=succeeded?"Life-state appearance action completed.":"Life-state action is unresolved; inspect its retained result.";
+        ImGui::TextColored(succeeded?ImVec4(.4f,.85f,.65f,1):ImVec4(1,.55f,.3f,1),"%s",message.c_str());
+    }
     ImGui::SetNextItemWidth(180);ImGui::Combo("Life state##look",&state,names,IM_ARRAYSIZE(names));
     ImGui::SetNextItemWidth(-1);ImGui::InputText("Look name",label,sizeof(label));
     const auto current=g_studioData.value("current_form_flags",ui::Json());

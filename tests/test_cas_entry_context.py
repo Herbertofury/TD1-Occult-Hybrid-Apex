@@ -1,4 +1,4 @@
-"""CAS availability projection must preserve appearances, traits and identity."""
+"""All-member CAS availability must preserve appearances, traits and identity."""
 from pathlib import Path
 import json
 import sys
@@ -21,7 +21,8 @@ class CasEntryContextTests(unittest.TestCase):
             sim.household_id = 55; sim.current_occult_types = current; sim.occult_types = 65
             forms = {kind: Owner(identity + kind, 'form-' + str(kind), identity + kind) for kind in (1, 2, 4, 8, 16, 32, 64)}
             for kind, owner in forms.items(): owner.current_occult_types = kind; owner.occult_types = 65
-            sim.occult_tracker = Obj(sim_info=sim,_sim_info_map=forms, has_occult_type=lambda kind: True)
+            sim.occult_tracker = Obj(sim_info=sim,_sim_info_map=forms, has_occult_type=lambda kind: True,
+                                    OCCULT_DATA={kind: object() for kind in (2, 4, 8, 16, 32, 64)})
             self.sims.append(sim)
         self.household = Obj(id=55, sim_info_gen=lambda: iter(self.sims)); self.writes = []
         self.backend = Obj(_data_directory=lambda: str(self.path), _form_map=lambda tracker: tracker._sim_info_map,
@@ -46,17 +47,46 @@ class CasEntryContextTests(unittest.TestCase):
         value = 4 if value == 5 else value
         for owner in [sim] + list(sim.occult_tracker._sim_info_map.values()): owner.occult_types = value
 
-    def test_household_projects_existing_pairs_without_changing_traits_or_appearance(self):
+    def test_household_exposes_all_actual_memberships_without_changing_traits_or_appearance(self):
         proof = entry.prepare(self.backend, self.sims[1], True)
-        self.assertEqual(self.writes, [(100, 3), (200, 5)])
-        self.assertEqual(proof['prepared_members'], [{'sim_id': '100', 'available': 3, 'current': 2},
-                                                    {'sim_id': '200', 'available': 4, 'current': 4}])
+        self.assertEqual(self.writes, [(100, 127), (200, 127)])
+        self.assertEqual(proof['prepared_members'], [{'sim_id': '100', 'available': 127, 'current': 2},
+                                                    {'sim_id': '200', 'available': 127, 'current': 4}])
         self.assertTrue(proof['all_appearances_and_traits_unchanged'])
+        self.assertTrue(proof['complete_existing_membership_required'])
         self.assertFalse(proof['crash_fix_verified'])
 
     def test_single_selected_scope_does_not_change_other_household_member(self):
         entry.prepare(self.backend, self.sims[0], False)
-        self.assertEqual(self.writes, [(100, 3)]); self.assertEqual(self.sims[1].occult_types, 65)
+        self.assertEqual(self.writes, [(100, 127)]); self.assertEqual(self.sims[1].occult_types, 65)
+
+    def test_native_pair_only_normalization_blocks_entry_with_complete_originals(self):
+        def narrowed(sim, name, value):
+            self.set_flags(sim, name, value)
+            for owner in [sim] + list(sim.occult_tracker._sim_info_map.values()):
+                owner.occult_types = 1 | sim.current_occult_types
+        self.backend._set_flags = narrowed
+        with self.assertRaisesRegex(ValueError, 'every verified existing membership'):
+            entry.prepare(self.backend, self.sims[0], True)
+        self.assertEqual(self.writes, [(100, 127)])
+        proof = json.loads((self.path / 'household_cas_entry.json').read_text())
+        self.assertEqual(proof['stage'], 'unresolved')
+        self.assertEqual(proof['members'][0]['original_appearances'], self.before[100])
+        with self.assertRaisesRegex(ValueError, 'unresolved'):
+            entry.prepare(self.backend, self.sims[0], True)
+
+    def test_retained_removed_form_does_not_become_a_membership(self):
+        self.sims[0].occult_tracker.has_occult_type = lambda kind: kind in (2, 64)
+        proof = entry.prepare(self.backend, self.sims[0], False)
+        self.assertEqual(self.writes, [(100, 67)])
+        self.assertEqual(proof['prepared_members'][0]['available'], 67)
+
+    def test_missing_member_owner_blocks_whole_household_before_any_write(self):
+        del self.sims[1].occult_tracker._sim_info_map[8]
+        with self.assertRaisesRegex(ValueError, 'captured native appearance owner'):
+            entry.prepare(self.backend, self.sims[0], True)
+        self.assertEqual(self.writes, [])
+        self.assertFalse((self.path / 'household_cas_entry.json').exists())
 
     def test_membership_absence_refuses_before_any_write(self):
         self.sims[1].occult_tracker.has_occult_type = lambda kind: False

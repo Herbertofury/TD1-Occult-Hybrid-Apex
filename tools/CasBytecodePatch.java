@@ -490,7 +490,10 @@ public class CasBytecodePatch {
         // Execute: four palette calls, two physique calls, preset write,
         // one product lookup, two family queries, equipped query, clear and
         // layered write. Result: preset query and palette query on next tick.
-        Map<String,Integer> counts=Map.of("ApexCatalog",1,"ApexControlExecute",28,"ApexControlResult",4,
+        // The existing-member view adds five reviewed calls: current Sim,
+        // available occults, full-edit permission, edit mode and SetSimOccult.
+        // Its next-tick result adds one available-occults readback.
+        Map<String,Integer> counts=Map.of("ApexCatalog",1,"ApexControlExecute",33,"ApexControlResult",5,
             "ApexBodyTypes",1,"ApexNativeLayers",2);
         var snapshot=ownedBody(abc,instance,"ApexSnapshot").getCode().code;
         int detached=0;
@@ -539,6 +542,16 @@ public class CasBytecodePatch {
             propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains("ApexNativeLayers")) layerCallers.add(name(abc,trait));
         require(layerCallers.equals(Set.of("ApexControlExecute","ApexControlResult")),
             "Native layer inspection is called outside its exact owned control phases.");
+        int viewSetters=0;
+        var viewCode=ownedBody(abc,instance,"ApexControlExecute").getCode().code;
+        for(int i=0;i<viewCode.size();i++) if(stringLiteral(abc,viewCode.get(i),"SetSimOccult")) {
+            viewSetters++;
+            require(i+2<viewCode.size() && opcode(viewCode.get(i+1),0x62) && viewCode.get(i+1).operands[0]==4 &&
+                (property(abc,viewCode.get(i+2),0x46,"CallGameService") || property(abc,viewCode.get(i+2),0x4f,"CallGameService")) &&
+                viewCode.get(i+2).operands[1]==2,
+                "Occult view must call the literal native setter with its typed existing-kind index only.");
+        }
+        require(viewSetters==1,"Occult view native setter inventory changed.");
     }
     static void verifyLiteralServices(ABC abc,MethodBody body,Map<String,Integer> expected) {
         Set<String> observed=new HashSet<>();

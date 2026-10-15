@@ -763,6 +763,26 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
     with _LOCK:
         socket_ready = send is None and any(peer['sim_id'] == sim_id and clock() - peer['observed_at'] <= 3 for peer in _PEERS.values())
     form_select_context = None
+    occult_view_context = None
+    if request['operation'] == 'occult-view':
+        if not socket_ready:
+            raise ValueError('Occult view requires the exact fresh native CAS socket.')
+        with _LOCK:
+            original = _form_select_original(backend, sim_id, request['household_id'])
+            peers = {token for token, peer in _PEERS.items() if peer['sim_id'] == sim_id and 0 <= clock()-peer['observed_at'] <= 3}
+            prior = next((row for row in reversed(list(_RECORDS.values())) if row['state']=='completed' and
+                row.get('peer') in peers and row['sim_id']==sim_id and row.get('acknowledged_at') is not None and
+                0 <= clock()-row['acknowledged_at'] <= 3 and row['result'].get('ok')), None)
+            if prior is None:
+                raise ValueError('Inspect fresh owned CAS status before changing an occult view.')
+            before = prior['result']['client']
+            binding = form_selection_binding(before, sim_id, dict(operation='layer-select',
+                household_id=request['household_id'],native_session=request['native_session'],
+                expected_layer=request['expected_layer'],target_layer=request['expected_layer']))
+            if (before['sim']['allOccultTypes'] != request['expected_all_occults'] or
+                    request['occult_type'] not in {row['form_flags'] for row in original['wrappers']}):
+                raise ValueError('The requested view has no exact captured owner and complete native membership.')
+            occult_view_context = {'original': original, 'before': binding}
     if request['operation'] in ('form-select', 'layer-select', 'member-select'):
         if not socket_ready:
             raise ValueError('CAS form selection requires a fresh exact-Sim socket peer; no request sent.')
@@ -810,6 +830,8 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
                               'transport': 'loopback-socket' if socket_ready else 'game-ui-message', 'delivery': 'queued'}
         if form_select_context is not None:
             _RECORDS[request_id]['form_select_context'] = form_select_context
+        if occult_view_context is not None:
+            _RECORDS[request_id]['occult_view_context'] = occult_view_context
         while len(_RECORDS) > _CAPACITY: _RECORDS.popitem(last=False)
     try:
         if not socket_ready:
@@ -908,6 +930,11 @@ def _receive(request_id, payload, backend=None):
         if data.get('ok'):
             client = data.get('client')
             validate_client(client, row['sim_id'], row['request'])
+            if row['request']['operation'] == 'occult-view':
+                original = row['occult_view_context']['original']
+                if _form_select_original(backend, row['sim_id'], row['request']['household_id']) != original:
+                    raise ValueError('Original hybrid owner capture changed before occult view readback.')
+                row['occult_view_selection_verified'] = True
             if row['request']['operation'] in ('undo', 'redo'):
                 before_json = data.get('history_before_json')
                 if not isinstance(before_json, str) or not 0 < len(before_json.encode('utf-8')) <= 131072:
@@ -1003,6 +1030,10 @@ def result(request_id):
         if row['request']['operation'] == 'member-select':
             response.update(outcome='member-selected' if row['state']=='completed' else row['state'],
                 selection_only_verified=row['state']=='completed',appearance_persistence_verified=False)
+        if row['request']['operation'] == 'occult-view':
+            response.update(outcome='occult-view-selected' if row['state']=='completed' else row['state'],
+                selection_only_verified=row['state']=='completed' and row.get('occult_view_selection_verified') is True,
+                appearance_persistence_verified=False, mapping_verified=False)
         if row['request']['operation'] in ('form-select', 'layer-select'):
             response.update(outcome=('layer-selected' if row['request']['operation'] == 'layer-select' else 'form-selected') if row['state'] == 'completed' else row['state'],
                             selection_only_verified=row['state'] == 'completed', mapping_verified=False,

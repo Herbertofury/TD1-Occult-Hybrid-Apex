@@ -361,7 +361,7 @@ def parser():
     cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
-        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear'))
+        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view'))
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
     cas.add_argument('--target-sim-id', help='Existing household member identity for semantic member-select')
@@ -371,6 +371,8 @@ def parser():
                      help='Exact form actually present in the observed native base/alternate pair')
     cas.add_argument('--expected-layer', type=int, choices=(0, 1), help='Exact currently observed native CAS layer')
     cas.add_argument('--target-layer', type=int, choices=(0, 1), help='Explicit native primary/alternate layer; supports Vampire pairs with the same occult type')
+    cas.add_argument('--occult-type', type=int, help='Exact existing native membership for an occult-view request')
+    cas.add_argument('--expected-all-occults', type=int, help='Complete membership mask from the fresh native CAS status')
     cas.add_argument('--native-session', type=int, help='Exact owner observation session from a fresh CAS status')
     cas.add_argument('--panel')
     cas.add_argument('--category', type=int)

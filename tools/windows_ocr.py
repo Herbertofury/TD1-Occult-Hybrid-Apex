@@ -65,6 +65,20 @@ def _home_labels(observation):
     return [' '.join(line['text'].split()).casefold() for line in observation['lines']]
 
 
+def _home_scale_candidate(observation, require_load=False):
+    """Recognize a complete Home context; never infer its missing Load label."""
+    labels = _home_labels(observation)
+    load_count, new_count = labels.count('load game'), labels.count('new game')
+    controls = (load_count == new_count == 1 if require_load else
+                load_count <= 1 and new_count <= 1 and load_count + new_count < 2)
+    return (labels.count('home') <= 1 and
+            controls and all(labels.count(item) == 1 for item in ('marketplace', 'gallery')) and
+            sum(labels.count(item) for item in ('resume game', 'iresume game')) == 1 and
+            not any(item in labels for item in ('save game?', 'buy now', 'play', 'autosave',
+                'this game requires permissions', "you don't have access", 'you don’t have access',
+                'get missing packs?', 'get missing packs', 'cancel', 'reset current household')))
+
+
 def _contrast_candidate(observation):
     labels = _home_labels(observation)
     # A full native Home observation missing only its selected colored label
@@ -91,7 +105,8 @@ def recognize(path, scale=2):
     if not 0 < len(source) <= 32 * 1024 * 1024:
         raise ValueError('Capture changed outside the bounded image size.')
     primary = _native_observation(path, scale)
-    if scale == 2 and not primary['lines']:
+    missing_home_load = scale == 2 and _home_scale_candidate(primary)
+    if scale == 2 and (not primary['lines'] or missing_home_load):
         # Native two-times OCR can return an empty inventory for the actual
         # apartment picker. Read the identical complete frame at native size;
         # never infer text, crop a target or repeat game input for an OCR miss.
@@ -102,9 +117,16 @@ def recognize(path, scale=2):
         if ((unscaled['width'], unscaled['height']) != (primary['width'], primary['height']) or
                 path.read_bytes() != source):
             raise ValueError('Capture/viewport changed during native-size OCR.')
-        if unscaled['lines']:
+        accepted = bool(unscaled['lines']) and (
+            not missing_home_load or _home_scale_candidate(unscaled, require_load=True))
+        if accepted:
             return dict(unscaled, raw_observation=primary, scaling_fallback={
                 'attempted': True, 'accepted': True, 'scale': 1,
+                'reason': 'independent-complete-home-load-label' if missing_home_load else 'empty-two-times-inventory',
+                'source_sha256': hashlib.sha256(source).hexdigest()})
+        if missing_home_load:
+            return dict(primary, scaling_fallback={'attempted': True, 'accepted': False,
+                'scale': 1, 'reason': 'native-size-home-not-complete', 'observation': unscaled,
                 'source_sha256': hashlib.sha256(source).hexdigest()})
     if not _contrast_candidate(primary):
         return primary

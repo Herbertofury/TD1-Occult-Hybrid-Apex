@@ -1,10 +1,10 @@
 {
-  "build_epoch": "2026-10-15-independent-life-state-appearances-v133",
+  "build_epoch": "2026-10-15-all-membership-cas-entry-v135",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-15-independent-life-state-appearances-v133.zip",
-    "bytes": 3322365,
+    "artifact": "Apex_Development_Candidate_2026-10-15-all-membership-cas-entry-v135.zip",
+    "bytes": 3328485,
     "members": 28,
-    "sha256": "6da1228141e355a82043976e0b301a6e3c3e1e46a2c4cb8b8b6a5d6cbc8be857"
+    "sha256": "efab888c8b0b59dc22d974329e55d8c63004c8626389dabc2bcb0a4bc44ff5ee"
   },
   "compiled_script_modules": 93,
   "deployed": false,
@@ -31,9 +31,9 @@
       "sha256": "c0d068392ea65358b798b8c165103560f06e9e3b38c4ab4e2d8810a7b931af86"
     },
     {
-      "bytes": 6430,
+      "bytes": 6464,
       "file": "Manifests/ApexCASBridge.package.manifest.json",
-      "sha256": "4cbbdf248832ef037df0b8b4bf4241c1c76496665c373444a9f3c1ec92fe4e14"
+      "sha256": "40ddf7e2574dbcc4131695ba74102e724b53acef0c0fffa1491fab6eba4a3ca2"
     },
     {
       "bytes": 18738,
@@ -53,7 +53,7 @@
     {
       "bytes": 52517,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "27cd42448baf6314ab47bdeaa99938f69decc1ce5be46d388d295a088f4a6583"
+      "sha256": "80b434166b79ae82d05d1d7fab05f4df18dc2836565c59c38bef8306388a88f1"
     },
     {
       "bytes": 1506,
@@ -86,9 +86,9 @@
       "sha256": "eecf46ce7850a439dd8f7f78d7ca1bc2cbabe2a0a222225c210151a2ad3d955f"
     },
     {
-      "bytes": 233961,
+      "bytes": 234325,
       "file": "Mods/Apex/ApexCASBridge.package",
-      "sha256": "123f4a14f984542d43ee2113d7e351d6a673b209f436ec6317acf993e5615c47"
+      "sha256": "79bce4dadfb4ac3ea4ba0a8c92bc9322850fc1c4d6979282865b5ccf298a4639"
     },
     {
       "bytes": 16550,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 878728,
+      "bytes": 882514,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "fd67d2cef87d13aba1e3f8274a2f804f57b76f15d5508c83d2caab9269e47a44"
+      "sha256": "35791e62ba6bb1b9a07e0fe33d0cba72cb6de7d276de79be80ae878e50e8afc3"
     },
     {
-      "bytes": 1922560,
+      "bytes": 1926656,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "03ab30cb59a642dcbaf7490d16d0b30a8cb44d23d5008cb773a7ecd4dee6d064"
+      "sha256": "929fc06c0f0f9782f7ed74c49454aac75fe5da2ac64151c5f0614448f9180789"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "7a3c21a8f10d1119b1090a86f8fbde5f9b93dc625118adef41b1365a5563fed2"
+      "sha256": "bb18d435be40184835ea582a59fb997149025af926cdcd7ee70f3a04cf0a3e3e"
     },
     {
       "bytes": 424,
@@ -141,16 +141,15 @@
       "sha256": "7dfb1d70eae63e3b45f13d6e15aacaded655a85adb1bdda8bee2c57be5c3e7ca"
     },
     {
-      "bytes": 8111,
+      "bytes": 8734,
       "file": "THIRD_PARTY_NOTICES.md",
-      "sha256": "8d6d9e41a5d960cedecf5b41c3b9667a43dbd296256a75408224d3710561bac1"
+      "sha256": "cd222b4e75713ccbd532e72f2e30cc82e77f9bdfa303f02bf133488a93b50c1b"
     }
   ],
   "package_verification": [
     {
       "artifact": "ApexOccultHybrid.package",
-      "independent_resource_hashes_verified": 159,
-      "independent_rust_verified": true,
+      "independent_rust_verified": false,
       "namespace_modules_resolved": [
         "apex_core.phone_interactions",
         "apex_hybrid.CoreLib.TD1_OccultHybrid_MenuUI",
@@ -166,43 +165,37 @@
     },
     {
       "artifact": "ApexCASUnlocks.package",
-      "independent_resource_hashes_verified": 39,
-      "independent_rust_verified": true,
+      "independent_rust_verified": false,
       "namespace_modules_resolved": [],
       "resources": 39
     },
     {
       "artifact": "ApexColorStudio.package",
-      "independent_resource_hashes_verified": 2,
-      "independent_rust_verified": true,
+      "independent_rust_verified": false,
       "namespace_modules_resolved": [],
       "resources": 2
     },
     {
       "artifact": "Optional/ApexPlantSimPermanent.package",
-      "independent_resource_hashes_verified": 2,
-      "independent_rust_verified": true,
+      "independent_rust_verified": false,
       "namespace_modules_resolved": [],
       "resources": 2
     },
     {
       "artifact": "Optional/ApexPlantSimNoVampireThirst.package",
-      "independent_resource_hashes_verified": 1,
-      "independent_rust_verified": true,
+      "independent_rust_verified": false,
       "namespace_modules_resolved": [],
       "resources": 1
     },
     {
       "artifact": "Optional/ApexServoNoVampireThirst.package",
-      "independent_resource_hashes_verified": 1,
-      "independent_rust_verified": true,
+      "independent_rust_verified": false,
       "namespace_modules_resolved": [],
       "resources": 1
     },
     {
       "artifact": "ApexCASBridge.package",
-      "independent_resource_hashes_verified": 3,
-      "independent_rust_verified": true,
+      "independent_rust_verified": false,
       "namespace_modules_resolved": [],
       "resources": 3
     }

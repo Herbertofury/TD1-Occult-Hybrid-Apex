@@ -25,6 +25,37 @@ class Records(list):
 
 
 class PersistencePortTests(unittest.TestCase):
+    def test_serialized_hybrid_keeps_all_actual_memberships_even_when_live_mask_is_projected(self):
+        tracker=self.tracker()
+        tracker.OCCULT_DATA={kind:object() for kind in (2,4,8,16,32,64)}
+        tracker.sim_info.occult_types=65
+        tracker.sim_info.current_occult_types=2
+        tracker.has_occult_type=lambda kind: True
+        utils=Obj(get_occult_types_for_save=lambda _:3,recalc_occult_form_availability=lambda *a,**kw:None)
+        data=save_with_retention(lambda _:Obj(occult_types=3,occult_sim_infos=Records()),tracker,utils)
+        self.assertEqual(data.occult_types,127)
+        self.assertEqual(tracker.sim_info.occult_types,65)
+        self.assertEqual(tracker.sim_info.current_occult_types,2)
+        self.assertFalse(tracker._apex_membership_export['appearance_generated'])
+
+    def test_retained_form_does_not_readd_a_removed_membership(self):
+        tracker=self.tracker();tracker.OCCULT_DATA={4:object(),8:object()}
+        tracker.has_occult_type=lambda kind:kind==4
+        tracker._apex_unresolved_occult_records=(Record(8,b'removed appearance memory'),)
+        utils=Obj(get_occult_types_for_save=lambda _:5,recalc_occult_form_availability=lambda *a,**kw:None)
+        data=save_with_retention(lambda _:Obj(occult_types=5,occult_sim_infos=Records()),tracker,utils)
+        self.assertEqual(data.occult_types,133)
+        self.assertFalse(data.occult_types&8)
+        self.assertEqual(data.occult_sim_infos[0].raw,b'removed appearance memory')
+
+    def test_unknown_membership_decision_never_exports_a_guessed_identity(self):
+        tracker=self.tracker();tracker.has_occult_type=lambda kind:None
+        native=Mock()
+        with self.assertRaisesRegex(ValueError,'typed decision'):
+            save_with_retention(native,tracker,Obj())
+        native.assert_not_called()
+        self.assertEqual(tracker.sim_info.occult_types,133)
+
     def tracker(self):
         sim = Obj(occult_types=1|4|128, current_occult_types=1)
         return Obj(sim_info=sim, _sim_info=sim, _occult_form_available=False, OCCULT_DATA={4: object()})

@@ -1,6 +1,31 @@
 # Native CAS CLI controls
 
-The latest actual-game checkpoint is V120. Ordinary full CAS edited the actual
+V135 adds complete-membership entry preparation; V134 added typed native
+`occults` and `occult-view` controls. These extend the mod toward all owned
+occults in one native CAS visit. The actual V134 visit still reported only
+Human/Alien because Apex's entry preparation narrowed that mask. V135 removes
+that narrowing, with runtime qualification still pending. All 801 CAS tests
+and 26 source-upgrade tests pass against its frozen source. See the
+[current membership ledger](../Reports/NATIVE_CAS_HYBRID_MEMBERSHIP_2026-10-15.md)
+for actual native receipts and remaining release gates.
+
+`cas occults` returns the installed native room's available-occult inventory.
+`cas occult-view` requires a previously captured target owner, a fresh native
+status, the exact household, session and layer, and the complete observed
+membership mask. It invokes the existing native `SetSimOccult` once, then
+checks the selected occult and every original membership bit on a later UI
+tick. Human conversion, unowned kinds, stale contexts and lost memberships
+are refused. A failed postcondition retains the original UUID; do not replay
+it. A successful acknowledgement establishes selection only, never appearance
+persistence or a completed additive-membership feature.
+
+```powershell
+python tools/apex_cli.py cas occults --state STATE --sim-id SIM_ID --output NEW_OCCULTS_JSON
+python tools/apex_cli.py cas status --state STATE --sim-id SIM_ID --output NEW_STATUS_JSON
+python tools/apex_cli.py cas occult-view --state STATE --sim-id SIM_ID --household-id HOUSEHOLD_ID --native-session OBSERVED_SESSION --expected-layer OBSERVED_LAYER --expected-all-occults OBSERVED_MASK --occult-type OWNED_TARGET_FLAG --output NEW_VIEW_JSON
+```
+
+Earlier actual-game coverage includes V120. Ordinary full CAS edited the actual
 Mermaid alternate with 12 native controls, including its available eyebrow
 palette and an EA nose preset. Its Mermaid → Vampire → Mermaid round trip
 retained all 40 household owners through 5,777 simulation ticks. One later

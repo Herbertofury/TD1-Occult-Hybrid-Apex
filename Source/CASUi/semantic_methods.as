@@ -826,6 +826,31 @@
       {
          var data:Object=null; var rows:Array=null; var row:Object=null; var n:int=0;
          var parts:Array=value.split(","); var layerId:int=0; var target:int=0;
+         if(operation=="occults" || operation=="occult-view") {
+            data=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
+            if(!data || !(data.allOccultTypes is int) || !(data.occultType is int) || !(data.occultLayer is int))
+               throw new Error("Native occult view identity is unavailable");
+            var occultCatalog:Object=ApexClone(CommunicationManager.CallGameService("CasGetAvailableOccults",{simId:String(data.simId)}));
+            if(!occultCatalog || !(occultCatalog.avail_occult is Array))
+               throw new Error("Native occult catalog is unavailable");
+            context.control={operation:operation,occults:occultCatalog.avail_occult};
+            if(operation=="occults") { data=null;occultCatalog=null;return; }
+            if(state!=apexOwnerSession || parts.length!=2 || String(data.householdId)!=parts[0] ||
+               int(data.occultLayer)!=int(parts[1]) || int(data.allOccultTypes)!=category ||
+               index<2 || (index & (index-1))!=0 || (category & index)!=index ||
+               CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled",null,true)!==true)
+               throw new Error("Occult view requires the exact existing membership, session, household and full CAS editor");
+            var editMode:* = ApexClone(CommunicationManager.CallGameService("CasGetCASEditMode"));
+            if(!(editMode is int) || (int(editMode)!=0 && int(editMode)!=7))
+               throw new Error("Occult view requires an existing household CAS visit");
+            context.occultBefore={all_occult_types:int(data.allOccultTypes),occult_type:int(data.occultType),layer:int(data.occultLayer)};
+            if(int(data.occultType)==index) { data=null;occultCatalog=null;return; }
+            data=null;occultCatalog=null;reply.mutation_started=true;
+            // This is an existing-member view request, never Human conversion,
+            // removal or unchecked life-state creation. Python verifies that
+            // the complete native membership mask survived the native call.
+            CommunicationManager.CallGameService("SetSimOccult",index);return;
+         }
          if(operation=="voices" || operation=="voice-actor" || operation=="voice-pitch") {
             data=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
             if(!data || !(data.voiceActor is uint) || !(data.voicePitch is Number))
@@ -1091,6 +1116,11 @@
 
       private function ApexControlResult(operation:String,state:int,category:int,index:int,value:String,context:Object,client:Object) : Object
       {
+         if(operation=="occults" || operation=="occult-view") {
+            var occultCatalog:Object=ApexClone(CommunicationManager.CallGameService("CasGetAvailableOccults",{simId:String(client.sim.simId)}));
+            if(!occultCatalog || !(occultCatalog.avail_occult is Array))throw new Error("Native occult catalog readback is unavailable");
+            return {operation:operation,occults:occultCatalog.avail_occult,before:context.occultBefore};
+         }
          if(operation=="voices" || operation=="voice-actor" || operation=="voice-pitch") return context.control;
          if(operation=="walkstyles") return context.control;
          if(operation=="walkstyle") {
@@ -1515,7 +1545,7 @@
                   operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
                   operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" ||
                   operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
-                  operation=="walkstyles" || operation=="walkstyle" || operation=="detail-status" ||
+                  operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="detail-status" ||
                   operation=="detail-mode" || operation=="filters" || operation=="filter-clear")
                   reply.client.control=ApexControlResult(operation,state,category,index,value,context,reply.client);
                if(operation=="accept") {

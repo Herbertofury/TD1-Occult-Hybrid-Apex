@@ -134,12 +134,15 @@ def stored(backend, sim, identity):
     return copy.deepcopy(row)
 
 
-def by_handle(backend, sim, token):
+def by_handle(backend, sim, token, include_active=False):
     _, _, _, record = _context(backend, sim)
-    matches = [row for identity, row in document(record or {})['forms'].items() if handle(identity) == token]
+    data = document(record or {})
+    matches = [row for identity, row in data['forms'].items() if handle(identity) == token]
     if len(matches) != 1:
         raise ValueError('No unique existing independent appearance owns this Studio handle.')
-    return copy.deepcopy(matches[0])
+    row = copy.deepcopy(matches[0])
+    active = data['active'].get(str(row['base_form'])) == row['id'] and backend._get_current_flags(sim) == row['base_form']
+    return (row, active) if include_active else row
 
 
 def is_active(backend, sim, identity):
@@ -173,7 +176,7 @@ def select(backend, sim, argument):
     if (not isinstance(argument, dict) or set(argument) != {'id', 'expected_sha256'} or
             not isinstance(argument['id'], str)):
         raise ValueError('Select one existing life-state appearance and its inspected checksum.')
-    path, _, bank, record = _context(backend, sim)
+    path, key, bank, record = _context(backend, sim)
     data = document(record or {})
     row = data['forms'].get(argument['id'])
     if row is None or row['appearance_sha256'] != argument['expected_sha256']:
@@ -200,11 +203,16 @@ def select(backend, sim, argument):
         raise ValueError('Current native appearance changed; inspect it again before selection.')
     intent = {'id': uuid.uuid4().hex, 'state': 'applying', 'kind': 'lifestate-appearance',
               'originals': current, 'target': copy.deepcopy(selected),
+              'stored_originals': {str(kind): appearance.packed(backend, owner) for kind, owner in owners.items()},
+              'active_original': appearance.packed(backend, sim),
               'prior_active': copy.deepcopy(data['active']), 'runtime_pid': os.getpid()}
     record['switch_pending'] = intent
     form_bank.save(path, bank)
     try:
         form_bank.restore(backend, sim, str(base), selected['fields'])
+        lifestates.owner_thread(backend, sim)
+        if form_bank.context(backend, sim) != (path, key):
+            raise ValueError('Native appearance save context changed during selection.')
         fresh = backend._form_map(sim.occult_tracker)
         if set(fresh) != set(owners) or any(fresh[kind] is not owner for kind, owner in owners.items()):
             raise ValueError('Native appearance owner map changed during life-state selection.')

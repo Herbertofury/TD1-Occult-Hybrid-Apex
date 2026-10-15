@@ -10,16 +10,18 @@ class PostconditionMismatch(ValueError):
     """A complete native readback differs from the requested target value."""
 
 
-READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'modifiers', 'hair-matching',
+READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'modifiers', 'hair-matching', 'occults',
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
 PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'))
 SCHEMAS = {
+    'occults': {'operation'},
+    'occult-view': {'operation', 'occult_type', 'expected_all_occults', 'household_id', 'native_session', 'expected_layer'},
     'catalog': {'operation', 'panel', 'offset', 'limit'},
     'variants': {'operation', 'panel', 'data_id'},
     'preset': {'operation', 'panel', 'data_id'},
@@ -69,6 +71,18 @@ def wire(request, panel):
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
+    if op == 'occults':
+        return 0, 0, 0, ''
+    if op == 'occult-view':
+        target = integer(request['occult_type'], 2, 2**30, 'existing occult appearance')
+        if target & (target - 1):
+            raise ValueError('Choose one existing native occult appearance.')
+        mask = integer(request['expected_all_occults'], 1, 2**31-1, 'complete observed membership mask')
+        if mask & target != target:
+            raise ValueError('Native CAS has no observed membership for this view; this operation cannot add or replace a life state.')
+        session = integer(request['native_session'], 1, 2**31-1, 'current native session')
+        layer = integer(request['expected_layer'], 0, 1, 'currently observed layer')
+        return session, mask, target, identity(request['household_id']) + ',' + str(layer)
     if op == 'voice-actor':
         return 0, 0, integer(request['actor_index'], 0, 2**31-1, 'zero-based eligible voice index'), ''
     if op == 'voice-pitch':
@@ -131,6 +145,19 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
+    if op in ('occults', 'occult-view'):
+        rows = control.get('occults')
+        if (not isinstance(rows, list) or len(rows) > 32 or
+                any(not isinstance(row, dict) or type(row.get('occult_type')) is not int or
+                    not 0 < row['occult_type'] < 2**31 or row['occult_type'] & (row['occult_type']-1) for row in rows) or
+                len({row['occult_type'] for row in rows}) != len(rows)):
+            raise ValueError('The actual native occult catalog is unavailable or ambiguous.')
+        if op == 'occult-view':
+            native = client.get('sim', {})
+            if (native.get('allOccultTypes') != request['expected_all_occults'] or
+                    native.get('occultType') != request['occult_type'] or
+                    native.get('householdId') != request['household_id']):
+                raise PostconditionMismatch('Native CAS did not select the requested view with every previous occult membership intact.')
     if op in ('voices', 'voice-actor', 'voice-pitch'):
         rows = control.get('voices')
         actor, pitch = client['sim'].get('voiceActor'), client['sim'].get('voicePitch')

@@ -120,8 +120,8 @@ def _context(backend, sim_id, form=None, history=True):
     variant = None
     if flags >= 0x40000000:
         from . import lifestate_forms
-        variant = lifestate_forms.by_handle(backend, primary, flags)
-        if lifestate_forms.is_active(backend, primary, variant['id']):
+        variant, variant_active = lifestate_forms.by_handle(backend, primary, flags, include_active=True)
+        if variant_active:
             sim, inactive = primary, False
         else:
             class VariantOwner: pass
@@ -270,7 +270,8 @@ def _form_inventory(backend, sim):
                        'appearance_fields': [dict(name=name, kind=value['kind'], value=value['value']) for name,value in sorted(stored.items())]})
     if 'lifestate_forms' in record and form_bank.current_runtime_authorized(backend, sim, record):
         from . import lifestate_forms
-        for row in lifestate_forms.document(record)['forms'].values():
+        variants = lifestate_forms.document(record)
+        for row in variants['forms'].values():
             raw = _normalize(backend, appearance.decode(row['fields']['__outfits__'])[1])
             parser = getattr(backend, '_studio_parse_snapshot', None)
             if parser is not None: message = parser(raw)
@@ -280,7 +281,7 @@ def _form_inventory(backend, sim):
                 'source': 'Independent life-state appearance', 'native_flags': row['base_form'],
                 'lifestate': row['lifestate'], 'variant_id': row['id'],
                 'variant_sha256': row['appearance_sha256'],
-                'variant_bound': lifestate_forms.document(record)['active'].get(str(row['base_form'])) == row['id'],
+                'variant_bound': variants['active'].get(str(row['base_form'])) == row['id'],
                 'outfit_inventory': _outfit_inventory(backend, message),
                 'appearance_fields': [dict(name=name, kind=value['kind'], value=value['value'])
                                       for name, value in sorted(row['fields'].items())]})

@@ -205,10 +205,10 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
         from apex_core.cas_ui import envelope
         envelope(args.sim_id, value)
-        if args.operation in ('form-select', 'layer-select', 'member-select'):
+        if args.operation in ('form-select', 'layer-select', 'member-select', 'occult-view'):
             # Keep the caller's exact session/layer capability. Refresh only its
             # native observation, so operator/CLI latency cannot expire the
-            # five-second Source acknowledgement before the navigation request.
+            # three-second Source acknowledgement before the navigation request.
             preflight = execute(SimpleNamespace(operation='status', state=args.state,
                 sim_id=args.sim_id, seconds=args.seconds, output=None), request,
                 monotonic=monotonic, pause=pause)
@@ -226,6 +226,8 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
                     type(observation.get('session')) is not int or
                     observation['session'] != value['native_session']):
                 raise ValueError('Fresh native CAS context differs from the requested session/layer/household; no form selection sent.')
+            if args.operation == 'occult-view' and selected.get('allOccultTypes') != value['expected_all_occults']:
+                raise ValueError('Fresh native membership differs from the requested full mask; no occult view sent.')
         submitted = request(args.state, 'cas_ui_request', args.sim_id, value=json.dumps(value))
         request_id = submitted.get('cas_request_id')
         if not request_id:

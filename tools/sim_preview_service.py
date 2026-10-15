@@ -40,16 +40,23 @@ def snapshot(request):
         expression = r'(?:0|[1-9][0-9]{0,19})' if field == 'outfit_id' else r'[1-9][0-9]{0,19}'
         if not isinstance(request[field], str) or not re.fullmatch(expression, request[field]) or int(request[field]) >= 1 << 64:
             raise ValueError('Invalid preview ' + field + '.')
-    if (type(request['form']) is not int or request['form'] not in (1, 2, 4, 8, 16, 32, 64) or
+    native_forms = (1, 2, 4, 8, 16, 32, 64)
+    named = type(request['form']) is int and 0x40000000 <= request['form'] <= 0x7fffffff
+    if (type(request['form']) is not int or not (request['form'] in native_forms or named) or
             type(request['runtime_pid']) is not int or not 0 < request['runtime_pid'] < 1 << 32 or
             type(request['outfit_index']) is not int or not 0 <= request['outfit_index'] < 1024 or
             request['save_file_written'] is not False or request['history_written'] is not False):
         raise ValueError('Invalid preview owner or writable snapshot.')
     visual = request.get('visual_form', request['form'])
-    if type(visual) is not int or visual not in ((1, 32) if request['form'] == 32 else (request['form'],)):
+    allowed_visuals = native_forms if named else ((1, 32) if request['form'] == 32 else (request['form'],))
+    if type(visual) is not int or visual not in allowed_visuals:
         raise ValueError('Visual appearance policy differs from the selected form.')
     if not isinstance(request['lane'], str) or len(request['lane']) > 200 or not request['lane'].startswith(request['save_guid'] + ':'):
         raise ValueError('Save lane identity differs.')
+    if named and (len(request['lane'].split(':')) < 5 or
+            request['lane'].split(':')[2:4] != [request['sim_id'], str(request['form'])] or
+            not request['appearance_source'].startswith('Independent life-state appearance / ')):
+        raise ValueError('Named appearance preview does not match its exact owner lane.')
     sha(request['appearance_sha256']); sha(request['native_sha256']); sha(request['render_sha256'])
     if request['preview_id'] is not None and (not isinstance(request['preview_id'], str) or not re.fullmatch(r'[0-9a-f]{32}', request['preview_id'])):
         raise ValueError('Exact prepared preview identity required.')

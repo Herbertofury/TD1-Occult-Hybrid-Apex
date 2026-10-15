@@ -34,6 +34,19 @@ class FakeWorker:
 
 
 class PreviewServiceTests(unittest.TestCase):
+    def test_named_life_state_preview_keeps_its_handle_and_uses_a_native_visual_rig(self):
+        value=request();value.update(form=0x40001234,visual_form=32,
+            lane='456:2:123:1073746484:full-appearance-v1',
+            appearance_source='Independent life-state appearance / My Skeleton')
+        # Compute the lane from the actual handle, never copy the selected
+        # native rig into the ownership identity.
+        value['lane']='456:2:123:'+str(value['form'])+':full-appearance-v1'
+        identity=snapshot(value)
+        self.assertEqual(len(identity),64)
+        for change in (dict(visual_form=value['form']),dict(lane='456:2:123:32:full-appearance-v1'),
+                       dict(appearance_source='guessed native'),dict(visual_form=True)):
+            bad=copy.deepcopy(value);bad.update(change)
+            with self.assertRaises(ValueError):snapshot(bad)
     def test_native_zero_outfit_id_requires_exact_ordinal_and_remains_distinct(self):
         first=request();first['outfit_id']='0';snapshot(first)
         second=copy.deepcopy(first);second['outfit_index']=1

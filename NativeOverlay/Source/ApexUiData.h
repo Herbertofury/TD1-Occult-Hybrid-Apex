@@ -126,7 +126,7 @@ inline bool StudioDocument(const Json& object) {
     if (object.contains("preview_outfit_inventory") && !object["preview_outfit_inventory"].is_null() && !inventory(object["preview_outfit_inventory"])) return false;
     if (object.contains("form_inventory")) {
         const auto& forms = object["form_inventory"];
-        if (!forms.is_array() || forms.size() > 128) return false;
+        if (!forms.is_array() || forms.size() > 1056) return false;
         if (!object.contains("inspected_form_flags") || !object["inspected_form_flags"].is_number_unsigned()) return false;
         for (const auto& form : forms) {
             if (!form.is_object() || !form.contains("flags") || !form["flags"].is_number_unsigned() ||

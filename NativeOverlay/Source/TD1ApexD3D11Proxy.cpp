@@ -3424,6 +3424,43 @@ static void DrawStudioFormStrip() {
     }
 }
 
+static void DrawLifeStateLooks() {
+    if(!ImGui::CollapsingHeader("Independent life-state looks / alternate appearances"))return;
+    static const char* names[]={"HUMAN","ALIEN","VAMPIRE","MERMAID","WITCH","WEREWOLF","FAIRY",
+        "PLANTSIM","SERVO","GHOST","REAPER","SKELETON","SCARECROW","IMAGINARY_FRIEND"};
+    static int state=7;static char label[129]="Alternate appearance";
+    ImGui::TextWrapped("Keep separate complete looks for every life state. The name identifies an appearance; gameplay roles and memberships remain separate.");
+    ImGui::TextDisabled("Development feature: cross-session reload and Tray import are not qualified yet.");
+    ImGui::SetNextItemWidth(180);ImGui::Combo("Life state##look",&state,names,IM_ARRAYSIZE(names));
+    ImGui::SetNextItemWidth(-1);ImGui::InputText("Look name",label,sizeof(label));
+    const auto current=g_studioData.value("current_form_flags",ui::Json());
+    const bool busy=g_ownerBlocked||g_ownerSubmissionBusy||g_ownerNativeDeliveryBusy||g_casSubmissionBusy||g_casBankBusy||g_simPreviewBusy||g_previewId[0];
+    ImGui::BeginDisabled(busy||!current.is_number_unsigned()||!label[0]);
+    if(ImGui::Button("Keep current native look")){
+        GUID guid{};
+        if(SUCCEEDED(CoCreateGuid(&guid))){
+            const auto bytes=reinterpret_cast<const unsigned char*>(&guid);const char* hex="0123456789abcdef";std::string id="look_";
+            for(size_t i=0;i<sizeof(guid);++i){id.push_back(hex[bytes[i]>>4]);id.push_back(hex[bytes[i]&15]);}
+            const auto value=ui::Json{{"id",id},{"lifestate",names[state]},{"label",label},{"base_form",current}}.dump();
+            QueueAction("lifestate_form_capture",nullptr,value.c_str());QueueStudioAction("studio_status");
+        }
+    }
+    ImGui::EndDisabled();
+    const auto forms=g_studioData.find("form_inventory");
+    if(forms==g_studioData.end()||forms->empty()||g_studioFormIndex<0||g_studioFormIndex>=int(forms->size()))return;
+    const auto& selected=(*forms)[size_t(g_studioFormIndex)];
+    if(!selected.contains("variant_id")){
+        ImGui::TextWrapped("Choose a kept look in the appearance strip to edit it without activating it. Bind the original native look before the first switch.");return;
+    }
+    const auto value=ui::Json{{"id",selected["variant_id"]},{"expected_sha256",selected["variant_sha256"]}}.dump();
+    ImGui::BeginDisabled(busy);
+    if(ImGui::Button("Bind as original native look")){QueueAction("lifestate_form_bind",nullptr,value.c_str());QueueStudioAction("studio_status");}
+    ImGui::SameLine();
+    if(ImGui::Button("Use this look")){QueueAction("lifestate_form_select",nullptr,value.c_str());QueueStudioAction("studio_status");}
+    ImGui::EndDisabled();
+    ImGui::TextWrapped("Switching changes this existing native base appearance only. Other occult forms retain their own edits.");
+}
+
 static void DrawAppearanceSliders() {
     ImGui::TextWrapped("Face and body controls belong to the selected appearance owner. Preset sculpt bytes and other modifier groups are retained.");
     if(ImGui::CollapsingHeader("All EA / CC modifiers · package conflicts and duplicate definitions")) {
@@ -3694,6 +3731,7 @@ static void DrawStudioTab(const std::string& reply, ULONGLONG replyMs, bool hist
     }
     const auto forms = g_studioData.find("form_inventory");
     if(!history){
+        DrawLifeStateLooks();
         if(ui::Scalar(g_studioData,"inspected_form_flags")=="32"&&ImGui::CollapsingHeader("Werewolf appearance · EA or Human / CC")){
             bool human=g_studioData.value("werewolf_appearance_style",std::string("ea"))=="human_cc";
             ImGui::BeginDisabled(!ui::Scalar(g_studioData,"pending_preview").empty()||g_ownerBlocked||g_ownerSubmissionBusy||g_casSubmissionBusy||g_simPreviewBusy);

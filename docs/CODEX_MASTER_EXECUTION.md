@@ -5,6 +5,19 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V133 adds independent named life-state appearance variants, inactive Studio
+editing, explicit original binding/selection, accepted-CAS synchronization,
+F11 controls and a UUID-recording CLI. The native game enum remains unchanged.
+Its 28 focused tests, existing 36 Studio tests, eight preview-service tests,
+six native CTests and separately staged worker self-tests pass. The broad
+V133 core run passes 2,232 tests in 938.254 seconds. Actual captured Alien
+appearance bytes also assemble through the staged named-owner worker without
+asset exports. It is built, not installed. Complete special
+gameplay, within-visit native CAS hybrid selection/addition and cross-session
+variant/Tray persistence remain open. Fourteen current Gauntlet releases were
+downloaded and inspected; packages are not installed wholesale.
+See [life-state implementation and remaining gates](../Reports/LIFESTATE_FORMS_2026-10-15.md).
+
 V126 cold-loads the mixed five-hybrid save with all 35 stored and five active
 appearances exact. The actual installed MCCC full-CAS/Library visit captures
 every member. The phone/F11 Source review actors complete all five reviews

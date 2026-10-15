@@ -8429,6 +8429,14 @@ def run_action(action, sim_id=None, occult=None, value=None):
     action = (action or 'status').strip().lower()
     if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
         return {'ok': False, 'message': 'Sim inspection and mutation require the canonical Sims game-thread owner.'}
+    if action in ('lifestate_catalog', 'lifestate_form_list', 'lifestate_form_capture',
+                  'lifestate_form_bind', 'lifestate_form_select'):
+        from apex_core.lifestate_forms import dispatch
+        import sys
+        try:
+            return dispatch(sys.modules[__name__], _get_sim_info_by_id(sim_id), action, value)
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'save_reload_verified': False}
     if action == 'occult_icons':
         from apex_core.occult_icons import catalog
         import sys

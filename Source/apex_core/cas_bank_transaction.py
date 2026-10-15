@@ -545,6 +545,9 @@ def _commit_metadata(backend, sim, token, receipt):
             policy['forms'] = {lane: outfit_hair.capture(backend, fields)
                                for lane, fields in receipt['bank'].items()}
         record['bank'] = copy.deepcopy(receipt['bank'])
+        from .lifestate_forms import sync as sync_lifestate
+        for lane, fields in record['bank'].items():
+            sync_lifestate(record, lane, fields)
         if policy is not None:
             record['hair_policy'] = policy
         record['active_lane'] = receipt['active_lane']

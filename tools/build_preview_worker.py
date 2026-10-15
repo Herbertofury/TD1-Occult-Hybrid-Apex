@@ -34,6 +34,13 @@ def fetch(url, expected, path):
 
 def main():
     cache = ROOT / '.work' / 'preview-worker'
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, default=cache / 'bin',
+                        help='Build directory; use a new candidate directory while the installed worker is running')
+    args = parser.parse_args()
+    output = args.output.resolve()
+    if cache.resolve() not in output.parents:
+        raise ValueError('Preview build output must stay inside its private worker workspace.')
     cache.mkdir(parents=True, exist_ok=True)
     source_zip = fetch(*SOURCES, cache / 'source.zip')
     dependencies_zip = fetch(*DEPENDENCIES, cache / 'dependencies.zip')
@@ -115,7 +122,6 @@ def main():
                       '<TargetFramework>net8.0-windows</TargetFramework><StartupObject>TS4SimRipper.ApexWorker</StartupObject>')
     xml = xml.replace('<AssemblyName>TS4SimRipper</AssemblyName>', '<AssemblyName>ApexPreviewWorker</AssemblyName>')
     project.write_text(xml, encoding='utf-8')
-    output = cache / 'bin'
     subprocess.run(['dotnet', 'build', str(project), '-c', 'Release', '-o', str(output),
                     '-p:S4PI_LIB=' + str(deps), '--nologo'], cwd=ROOT, check=True)
     for path in deps.iterdir():

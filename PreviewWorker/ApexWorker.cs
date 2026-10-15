@@ -170,7 +170,10 @@ public partial class Form1 {
         }
         uint form = request.GetProperty("form").GetUInt32();
         uint visualForm = request.TryGetProperty("visual_form",out var visual) ? visual.GetUInt32() : form;
-        if (visualForm != form && !(form == 32 && visualForm == 1))
+        bool namedAppearance = form >= 0x40000000 && form <= 0x7fffffff;
+        bool nativeVisual = visualForm == 1 || visualForm == 2 || visualForm == 4 || visualForm == 8 ||
+            visualForm == 16 || visualForm == 32 || visualForm == 64;
+        if (!nativeVisual || (!namedAppearance && visualForm != form && !(form == 32 && visualForm == 1)))
             throw new InvalidDataException("Visual appearance policy differs from the selected owner.");
         sim.attributes ??= new Save.PersistableSimInfoAttributes();
         // Upstream composites painted textures through its tattoo tracker.

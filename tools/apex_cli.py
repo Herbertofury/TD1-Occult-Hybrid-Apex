@@ -288,6 +288,16 @@ def parser():
     request.add_argument('--sim-id')
     request.add_argument('--occult')
     request.add_argument('--value')
+    life = commands.add_parser('lifestate', help='Named independent life-state appearances; game-thread CLI, no screen input')
+    life.add_argument('operation', choices=('catalog','list','capture','bind','select'))
+    life.add_argument('--state', required=True, type=Path)
+    life.add_argument('--sim-id', required=True)
+    life.add_argument('--output', required=True, type=Path)
+    life.add_argument('--id')
+    life.add_argument('--lifestate')
+    life.add_argument('--label')
+    life.add_argument('--base-form', type=int, choices=(1,2,4,8,16,32,64))
+    life.add_argument('--expected-sha256')
     qol = commands.add_parser('qol', help='Game-thread autonomy and occult safety readback; no screen input')
     qol.add_argument('operation', choices=('status', 'autonomy-pause', 'autonomy-resume',
                      'death-prevent', 'death-restore', 'sunlight-on', 'sunlight-off',
@@ -562,7 +572,7 @@ def parser():
     preview.add_argument('--slider-catalog-sha256')
     preview.add_argument('--game-root', type=Path, default=Path(r'C:\Games\The Sims 4'))
     preview.add_argument('--sim-id')
-    preview.add_argument('--form', type=int, choices=(1, 2, 4, 8, 16, 32, 64))
+    preview.add_argument('--form', type=int, help='Exact observed Studio appearance owner, including named life-state handles')
     preview.add_argument('--outfit-index', type=int)
     preview.add_argument('--preview-id', help='Exact prepared CC/color try-on; does not apply it')
     preview.add_argument('--scene-id', help='Exact scene identity for stale-safe camera/animation controls')
@@ -623,6 +633,9 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'lifestate':
+        from lifestate_cli import run
+        return run(args, owned_request)
     if args.command == 'cas-entry-observe':
         from cas_entry_observe import observe as observe_accepted_entry
         return observe_accepted_entry(args.state, args.entry_proof, args.entry_sha256,

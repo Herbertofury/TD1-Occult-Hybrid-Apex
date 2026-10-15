@@ -117,7 +117,18 @@ def _context(backend, sim_id, form=None, history=True):
     inactive = flags != backend._get_current_flags(primary)
     native_target = None
     source = 'Current live form'
-    if inactive:
+    variant = None
+    if flags >= 0x40000000:
+        from . import lifestate_forms
+        variant = lifestate_forms.by_handle(backend, primary, flags)
+        if lifestate_forms.is_active(backend, primary, variant['id']):
+            sim, inactive = primary, False
+        else:
+            class VariantOwner: pass
+            sim = VariantOwner(); sim._studio_fields = copy.deepcopy(variant['fields'])
+            inactive = True
+        source = 'Independent life-state appearance / ' + variant['label']
+    elif inactive:
         path, key = form_bank.context(backend, primary)
         record = form_bank.load(path)['records'].get(key, {})
         stored = (record.get('bank', {}).get(str(flags))
@@ -151,6 +162,7 @@ def _context(backend, sim_id, form=None, history=True):
         journal = ReadContext()
     journal.backend = backend
     journal.primary_sim, journal.form_flags, journal.inactive, journal.native_target = primary, flags, inactive, native_target
+    journal.lifestate_variant = variant
     journal.appearance_source = source
     journal.stable_save_slot_verified = stable_slot
     journal.history_runtime_only = not stable_slot
@@ -256,7 +268,29 @@ def _form_inventory(backend, sim):
         result.append({'flags': kind, 'name': names.get(kind, 'Form {}'.format(kind)), 'current': kind == current,
                        'source': source, 'outfit_inventory': _outfit_inventory(backend, message),
                        'appearance_fields': [dict(name=name, kind=value['kind'], value=value['value']) for name,value in sorted(stored.items())]})
+    if 'lifestate_forms' in record and form_bank.current_runtime_authorized(backend, sim, record):
+        from . import lifestate_forms
+        for row in lifestate_forms.document(record)['forms'].values():
+            raw = _normalize(backend, appearance.decode(row['fields']['__outfits__'])[1])
+            parser = getattr(backend, '_studio_parse_snapshot', None)
+            if parser is not None: message = parser(raw)
+            else:
+                message = backend._V8_Outfits_pb2.OutfitList(); message.ParseFromString(raw)
+            result.append({'flags': lifestate_forms.handle(row['id']), 'name': row['label'], 'current': False,
+                'source': 'Independent life-state appearance', 'native_flags': row['base_form'],
+                'lifestate': row['lifestate'], 'variant_id': row['id'],
+                'variant_sha256': row['appearance_sha256'],
+                'variant_bound': lifestate_forms.document(record)['active'].get(str(row['base_form'])) == row['id'],
+                'outfit_inventory': _outfit_inventory(backend, message),
+                'appearance_fields': [dict(name=name, kind=value['kind'], value=value['value'])
+                                      for name, value in sorted(row['fields'].items())]})
     return result
+
+
+def _visual_form(backend, journal):
+    variant = journal.lifestate_variant
+    flags = variant['base_form'] if variant is not None else journal.form_flags
+    return human_werewolf.preview_form(backend, journal.primary_sim, flags)
 
 
 def _response(journal, message, **extras):
@@ -481,7 +515,7 @@ def dispatch(backend, action, sim_id, value):
             raise ValueError('Native metadata serialization changed an appearance; preview refused.')
         from .human_werewolf import preview_form
         return dict(request, ok=True, sim_id=str(backend._sim_id(primary)), form=flags,
-                    visual_form=preview_form(backend, primary, flags),
+                    visual_form=_visual_form(backend, journal),
                     preview_id=preview_id, render_sha256=fingerprint(render_state), fields=render_fields,
                     native_sim=record['native_base64'], native_sha256=record['native_sha256'],
                     appearance_source=journal.appearance_source, save_guid=str(backend.services.get_persistence_service().get_save_slot_proto_guid()),
@@ -496,6 +530,15 @@ def dispatch(backend, action, sim_id, value):
         # out of a restore. Every captured field must have a matching owner.
         if set(desired) != set(prior):
             raise ValueError('Native appearance field set changed; capture a new checkpoint.')
+        if journal.lifestate_variant is not None and journal.inactive:
+            from . import lifestate_forms
+            variant = journal.lifestate_variant
+            lifestate_forms.update(backend, primary, variant['id'], desired, variant['appearance_sha256'])
+            variant['fields'] = copy.deepcopy(desired)
+            variant['appearance_sha256'] = appearance.fingerprint(desired)['appearance_sha256']
+            sim._studio_fields = copy.deepcopy(desired)
+            return
+        native_flags = journal.lifestate_variant['base_form'] if journal.lifestate_variant is not None else flags
         restore_raw = getattr(backend, '_studio_restore_appearance', backend._restore_siminfo_payload)
         def restore(owner,values):
             # The primary's Live mask may exclude this stored Mermaid/Alien
@@ -509,7 +552,7 @@ def dispatch(backend, action, sim_id, value):
         # Keep this edit/Undo's requested fields on both; otherwise a later
         # switch can resurrect the stored pre-Undo shape or CAS part. Preserve
         # every unrelated field on the wrapper, including existing differences.
-        companion = None if journal.inactive else backend._form_map(primary.occult_tracker).get(backend._coerce_flags(flags))
+        companion = None if journal.inactive else backend._form_map(primary.occult_tracker).get(backend._coerce_flags(native_flags))
         if companion is native: companion = None
         companion_prior = appearance.packed(backend, companion) if companion is not None else None
         prior_hashes=appearance.fingerprint(prior)['field_sha256']
@@ -530,7 +573,7 @@ def dispatch(backend, action, sim_id, value):
             if side_effects:restore(owner,appearance.payload(side_effects))
         def check_companion(expected):
             if companion is None: return
-            if backend._form_map(primary.occult_tracker).get(backend._coerce_flags(flags)) is not companion:
+            if backend._form_map(primary.occult_tracker).get(backend._coerce_flags(native_flags)) is not companion:
                 raise ValueError('Stored current-form owner changed during appearance Apply; retain recovery.')
             if fingerprint(_state_from_fields(backend, appearance.packed(backend, companion))) != fingerprint(_state_from_fields(backend, expected)):
                 raise ValueError('Stored current-form appearance rejected the accepted edit.')
@@ -571,10 +614,10 @@ def dispatch(backend, action, sim_id, value):
                 if fingerprint(read()) != fingerprint(raw):
                     raise ValueError('Visual resend changed the accepted appearance.')
             check_companion(companion_desired)
-            form_bank.update(backend, primary, flags, _packed(backend, sim), create=True)
+            form_bank.update(backend, primary, native_flags, _packed(backend, sim), create=True)
         except Exception:
             if companion is not None:
-                if backend._form_map(primary.occult_tracker).get(backend._coerce_flags(flags)) is not companion:
+                if backend._form_map(primary.occult_tracker).get(backend._coerce_flags(native_flags)) is not companion:
                     raise ValueError('Stored current-form identity changed; no removed owner rollback attempted.')
                 failed = appearance.packed(backend, companion)
                 rollback = {name: row for name, row in companion_prior.items() if failed.get(name) != row}
@@ -674,7 +717,7 @@ def dispatch(backend, action, sim_id, value):
             current_form_flags=backend._get_current_flags(primary), inspected_form_flags=flags, stored_form_edit_supported=True,
             appearance_source=journal.appearance_source,
             werewolf_appearance_style=('human_cc' if human_werewolf.preview_form(backend, primary, flags) == 1 else 'ea') if flags == 32 else None,
-            visual_form=human_werewolf.preview_form(backend, primary, flags),
+            visual_form=_visual_form(backend, journal),
             hair_policy=outfit_hair.status(backend, primary),
             form_inventory=_form_inventory(backend, primary) if hasattr(primary, 'occult_tracker') else [],
             category_catalog=_category_catalog(backend),

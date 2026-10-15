@@ -23,6 +23,15 @@ Before shipping a rebuilt overlay, preserve the complete upstream license text f
 
 ## Optional interoperability
 
+Gauntlet101010's life-state, Reaper, career, walkstyle and convenience mods are
+additional owner-authorized research/porting baselines. The owner explicitly
+requested downloading and adapting relevant releases. The October 15 inventory
+records 14 archive hashes and their current CurseForge release links in
+`docs/GAUNTLET_BASELINES_2026-10-15.json`. Apex's life-state registry references
+their real native/custom tuning identities. The downloaded packages and shared
+Servo script are not bundled in V133; passive bytecode inspection does not
+constitute a completed runtime port. Preserve author credits for future reuse.
+
 Lot51 Core, XML Injector and other Sims utilities remain optional interoperability targets. MCCC's covered CAS/Dresser/shared material is now also an explicitly authorized implementation base. Only the documented Dresser helper port is included in this candidate; MCCC's unrelated gameplay automation is not bundled.
 
 

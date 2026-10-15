@@ -182,6 +182,8 @@ def update(backend, sim, lane, fields, create=False):
             record['hair_policy']['forms'] = {owner: outfit_hair.capture(backend, current)
                                             for owner, current in native.items()}
     record['bank'][str(int(lane))] = fields
+    from .lifestate_forms import sync as sync_lifestate
+    sync_lifestate(record, lane, fields)
     from . import outfit_hair
     outfit_hair.sync(backend, record, lane, fields)
     record['runtime_pid'] = os.getpid()
@@ -471,6 +473,9 @@ def finish(backend, sim):
         # evidence only. They cannot create/overwrite a missing native owner.
         record['bank'] = dict(pending['originals'])
         record['bank'][lane] = chosen
+        from .lifestate_forms import sync as sync_lifestate
+        for accepted_lane, accepted_fields in record['bank'].items():
+            sync_lifestate(record, accepted_lane, accepted_fields)
         outfit_hair.sync(backend, record, lane, chosen)
         record['active_lane'] = current
         record['runtime_pid'] = os.getpid()

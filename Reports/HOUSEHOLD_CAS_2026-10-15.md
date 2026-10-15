@@ -2,8 +2,11 @@
 
 Production acceptance remains open. All installations and runtime tests use
 the single marked disposable profile. The protected original is read/copy
-only. The latest normal Slot 2 save remains
+only. The earlier manual Slot 2 checkpoint is
 `b70dac1ca7c255241d602409bf83f9bf2e3c9da7b0f86365658a5da7a090f56b`.
+The later verified normal Save and Exit writes
+`a9bb149f09d34dcd4c31e246a6709800cc1ce6b967547377115cda96b35a7a60`;
+V131 cold-load and post-tick proof for that save are recorded below.
 
 - [x] Cold-load that exact mixed five-Sim checkpoint under V124. All 35 stored
   and five active appearance owners match, including the accepted Mermaid N28

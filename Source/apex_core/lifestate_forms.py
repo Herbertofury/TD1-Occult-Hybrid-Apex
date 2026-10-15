@@ -1,0 +1,272 @@
+"""Independent named appearance variants on existing native form owners.
+
+Variants contain complete appearance payloads, never whole-Sim replacement data.
+An explicit switch changes only its selected native appearance; it does not
+claim to grant an NPC role, career, ghost death state or Imaginary Friend link.
+All existing occult memberships and other native appearances remain intact.
+"""
+import copy
+import hashlib
+import os
+import re
+import uuid
+from . import form_appearance as appearance, form_bank, lifestates
+
+KEY = 'lifestate_forms'
+_ID = re.compile(r'[a-z][a-z0-9_]{0,63}\Z')
+MAX_FORMS = 1024
+
+
+def handle(identity):
+    """Studio-only numeric appearance handle; never a native occult bit mask."""
+    return 0x40000000 | (int(hashlib.sha256(identity.encode('ascii')).hexdigest()[:8], 16) & 0x3fffffff)
+
+
+def validate(document):
+    if (not isinstance(document, dict) or set(document) != {'schema', 'forms', 'active'} or
+            type(document['schema']) is not int or document['schema'] != 1 or
+            not isinstance(document['forms'], dict) or not isinstance(document['active'], dict) or
+            len(document['forms']) > MAX_FORMS):
+        raise ValueError('Invalid independent life-state appearance document.')
+    handles = set()
+    for identity, row in document['forms'].items():
+        if (not isinstance(identity, str) or not _ID.fullmatch(identity) or not isinstance(row, dict) or
+                set(row) != {'id', 'lifestate', 'label', 'base_form', 'fields', 'appearance_sha256'} or
+                row['id'] != identity or lifestates.name(row['lifestate']) != row['lifestate'] or
+                type(row['base_form']) is not int or row['base_form'] not in lifestates.NATIVE.values() or
+                not isinstance(row['label'], str) or not 0 < len(row['label'].strip()) <= 128 or
+                not isinstance(row['fields'], dict) or
+                '__outfits__' not in row['fields'] or
+                appearance.fingerprint(row['fields'])['appearance_sha256'] != row['appearance_sha256']):
+            raise ValueError('Life-state appearance identity, complete payload or checksum differs.')
+        token = handle(identity)
+        if token in handles:
+            raise ValueError('Independent Studio appearance handles collide; no owner guessed.')
+        handles.add(token)
+    for lane, identity in document['active'].items():
+        if (not isinstance(lane, str) or lane not in {str(i) for i in lifestates.NATIVE.values()} or
+                identity not in document['forms'] or str(document['forms'][identity]['base_form']) != lane):
+            raise ValueError('Active life-state appearance does not own its native lane.')
+    return document
+
+
+def document(record):
+    return validate(copy.deepcopy(record.get(KEY, {'schema': 1, 'forms': {}, 'active': {}})))
+
+
+def sync(record, lane, fields):
+    """Called by existing accepted appearance transactions, never a polling hook."""
+    if KEY not in record:
+        return
+    data = document(record)
+    identity = data['active'].get(str(lane))
+    if identity is not None:
+        data['forms'][identity]['fields'] = copy.deepcopy(fields)
+        data['forms'][identity]['appearance_sha256'] = appearance.fingerprint(fields)['appearance_sha256']
+        validate(data)
+        record[KEY] = data
+
+
+def _context(backend, sim):
+    lifestates.owner_thread(backend, sim)
+    form_bank.assert_idle(backend, sim)
+    path, key = form_bank.context(backend, sim)
+    bank = form_bank.load(path)
+    record = bank['records'].get(key)
+    if record is not None and not form_bank.current_runtime_authorized(backend, sim, record):
+        raise ValueError('Life-state forms require the current accepted native bank; no old sidecar replay.')
+    if record is not None and KEY in record and record.get('lifestate_runtime_pid') != os.getpid():
+        raise ValueError('Independent life-state reload is not yet qualified; prior appearances remain retained.')
+    return path, key, bank, record
+
+
+def _fields(backend, sim, base):
+    owners = backend._form_map(sim.occult_tracker)
+    owner = owners.get(backend._coerce_flags(base))
+    if owner is None:
+        raise ValueError('A life-state appearance requires an existing native base owner.')
+    if backend._get_current_flags(sim) == base:
+        owner = sim
+    return appearance.packed(backend, owner)
+
+
+def capture(backend, sim, argument):
+    if (not isinstance(argument, dict) or set(argument) != {'id', 'lifestate', 'label', 'base_form'} or
+            not isinstance(argument['id'], str) or not _ID.fullmatch(argument['id']) or
+            type(argument['base_form']) is not int or argument['base_form'] not in lifestates.NATIVE.values()):
+        raise ValueError('Use an explicit named appearance ID, life state, label and existing base form.')
+    state = lifestates.name(argument['lifestate'])
+    path, key, bank, record = _context(backend, sim)
+    data = document(record or {})
+    if argument['id'] in data['forms']:
+        raise ValueError('That independent appearance already exists; no user edit was replaced.')
+    if len(data['forms']) >= MAX_FORMS:
+        raise ValueError('Life-state appearance capacity reached; no prior form was discarded.')
+    fields = _fields(backend, sim, argument['base_form'])
+    data['forms'][argument['id']] = dict(argument, lifestate=state, fields=fields,
+        appearance_sha256=appearance.fingerprint(fields)['appearance_sha256'])
+    validate(data)
+    if record is None:
+        record = {'bank': form_bank.capture(backend, sim), 'history': [], 'runtime_pid': os.getpid()}
+        bank['records'][key] = record
+    record[KEY] = data
+    record['lifestate_runtime_pid'] = os.getpid()
+    form_bank.save(path, bank)
+    return {'ok': True, 'form': copy.deepcopy(data['forms'][argument['id']]),
+            'appearance_modified': False, 'gameplay_modified': False, 'save_reload_verified': False}
+
+
+def list_forms(backend, sim):
+    _, _, _, record = _context(backend, sim)
+    data = document(record or {})
+    return {'ok': True, 'forms': [dict(id=row['id'], label=row['label'], lifestate=row['lifestate'],
+        base_form=row['base_form'], appearance_sha256=row['appearance_sha256'],
+        active=data['active'].get(str(row['base_form'])) == row['id']) for row in data['forms'].values()],
+        'appearance_modified': False, 'gameplay_modified': False, 'save_reload_verified': False}
+
+
+def stored(backend, sim, identity):
+    _, _, _, record = _context(backend, sim)
+    data = document(record or {})
+    row = data['forms'].get(identity)
+    if row is None:
+        raise ValueError('No existing independent life-state appearance has that ID.')
+    return copy.deepcopy(row)
+
+
+def by_handle(backend, sim, token):
+    _, _, _, record = _context(backend, sim)
+    matches = [row for identity, row in document(record or {})['forms'].items() if handle(identity) == token]
+    if len(matches) != 1:
+        raise ValueError('No unique existing independent appearance owns this Studio handle.')
+    return copy.deepcopy(matches[0])
+
+
+def is_active(backend, sim, identity):
+    _, _, _, record = _context(backend, sim)
+    data = document(record or {})
+    row = data['forms'].get(identity)
+    return bool(row and data['active'].get(str(row['base_form'])) == identity and
+                backend._get_current_flags(sim) == row['base_form'])
+
+
+def update(backend, sim, identity, fields, expected):
+    """Studio edits an inactive variant without activating it or writing a Sim."""
+    path, _, bank, record = _context(backend, sim)
+    data = document(record or {})
+    row = data['forms'].get(identity)
+    if row is None or row['appearance_sha256'] != expected:
+        raise ValueError('Independent appearance changed after inspection; no edit accepted.')
+    if data['active'].get(str(row['base_form'])) == identity:
+        raise ValueError('Edit the active native appearance; its accepted changes synchronize this variant.')
+    if not isinstance(fields, dict) or set(fields) != set(row['fields']):
+        raise ValueError('Independent appearance edits must retain every captured field.')
+    row['fields'] = copy.deepcopy(fields)
+    row['appearance_sha256'] = appearance.fingerprint(fields)['appearance_sha256']
+    validate(data)
+    record[KEY] = data
+    form_bank.save(path, bank)
+
+
+def select(backend, sim, argument):
+    """Explicit appearance-only selection with durable originals and readback."""
+    if (not isinstance(argument, dict) or set(argument) != {'id', 'expected_sha256'} or
+            not isinstance(argument['id'], str)):
+        raise ValueError('Select one existing life-state appearance and its inspected checksum.')
+    path, _, bank, record = _context(backend, sim)
+    data = document(record or {})
+    row = data['forms'].get(argument['id'])
+    if row is None or row['appearance_sha256'] != argument['expected_sha256']:
+        raise ValueError('Selected appearance changed after inspection; no switch submitted.')
+    base = row['base_form']
+    if backend._get_current_flags(sim) != base:
+        raise ValueError('Select this appearance\'s native base form first; no other occult was converted.')
+    if str(base) not in data['active']:
+        raise ValueError('Capture and activate an original appearance first with lifestate_form_bind.')
+    owners = dict(backend._form_map(sim.occult_tracker))
+    membership = backend._get_occult_flags(sim)
+    traits = copy.deepcopy(backend._disk_trait_snapshot(sim))
+    native = owners.get(backend._coerce_flags(base))
+    if native is None:
+        raise ValueError('Selected native appearance owner disappeared.')
+    current = form_bank.capture(backend, sim)
+    sync(record, base, current[str(base)])
+    data = document(record)
+    selected = data['forms'][argument['id']]
+    if set(selected['fields']) != set(current[str(base)]):
+        raise ValueError('Native appearance fields changed; retain both looks and capture a new checkpoint.')
+    # Selecting the current variant retains later accepted CAS/Live edits.
+    if selected['appearance_sha256'] != argument['expected_sha256']:
+        raise ValueError('Current native appearance changed; inspect it again before selection.')
+    intent = {'id': uuid.uuid4().hex, 'state': 'applying', 'kind': 'lifestate-appearance',
+              'originals': current, 'target': copy.deepcopy(selected),
+              'prior_active': copy.deepcopy(data['active']), 'runtime_pid': os.getpid()}
+    record['switch_pending'] = intent
+    form_bank.save(path, bank)
+    try:
+        form_bank.restore(backend, sim, str(base), selected['fields'])
+        fresh = backend._form_map(sim.occult_tracker)
+        if set(fresh) != set(owners) or any(fresh[kind] is not owner for kind, owner in owners.items()):
+            raise ValueError('Native appearance owner map changed during life-state selection.')
+        if (backend._get_current_flags(sim) != base or backend._get_occult_flags(sim) != membership or
+                backend._disk_trait_snapshot(sim) != traits):
+            raise ValueError('Gameplay membership or traits changed during appearance selection.')
+        after = form_bank.capture(backend, sim)
+        for lane, fields in current.items():
+            expected = selected['fields'] if lane == str(base) else fields
+            if appearance.fingerprint(after[lane]) != appearance.fingerprint(expected):
+                raise ValueError('Life-state selection changed another native appearance.')
+        record[KEY] = data
+        record[KEY]['active'][str(base)] = selected['id']
+        record['bank'][str(base)] = copy.deepcopy(selected['fields'])
+        from . import outfit_hair
+        outfit_hair.sync(backend, record, base, selected['fields'])
+        intent.update(state='completed', after={lane: appearance.fingerprint(fields) for lane, fields in after.items()})
+        record.setdefault('lifestate_history', []).append(copy.deepcopy(intent))
+        record['switch_pending'] = None
+        form_bank.save(path, bank)
+    except Exception as error:
+        intent.update(state='recovery-required', error=str(error)[:2048], retry_safe=False)
+        record['switch_pending'] = intent
+        form_bank.save(path, bank)
+        raise
+    return {'ok': True, 'id': selected['id'], 'base_form': base, 'appearance_modified': True,
+            'gameplay_modified': False, 'other_native_forms_verified': True,
+            'save_reload_verified': False, 'unpaused_visual_verification_required': True}
+
+
+def bind(backend, sim, argument):
+    """Name the exact current original before first switching a native lane."""
+    if not isinstance(argument, dict) or set(argument) != {'id', 'expected_sha256'}:
+        raise ValueError('Bind one captured original appearance and its checksum.')
+    path, _, bank, record = _context(backend, sim)
+    data = document(record or {})
+    row = data['forms'].get(argument['id'])
+    if row is None or row['appearance_sha256'] != argument['expected_sha256']:
+        raise ValueError('Original life-state appearance changed after inspection.')
+    base = row['base_form']
+    if str(base) in data['active']:
+        raise ValueError('This lane already has an independent appearance owner.')
+    if backend._get_current_flags(sim) != base or appearance.evidence(backend, sim)['appearance_sha256'] != row['appearance_sha256']:
+        raise ValueError('Only the exact current appearance can be bound as original.')
+    data['active'][str(base)] = row['id']
+    record[KEY] = validate(data)
+    form_bank.save(path, bank)
+    return {'ok': True, 'appearance_modified': False, 'gameplay_modified': False, 'id': row['id']}
+
+
+def dispatch(backend, sim, action, value):
+    if action == 'lifestate_catalog':
+        if value not in (None, ''):
+            raise ValueError('The native life-state catalog takes no external payload.')
+        return lifestates.catalog(backend, sim)
+    if action == 'lifestate_form_list':
+        if value not in (None, ''):
+            raise ValueError('Life-state form inventory takes no external payload.')
+        return list_forms(backend, sim)
+    argument = backend._apex_cas_transaction_argument(value)
+    operation = {'lifestate_form_capture': capture, 'lifestate_form_bind': bind,
+                 'lifestate_form_select': select}.get(action)
+    if operation is None:
+        raise ValueError('Unknown independent life-state form operation.')
+    return operation(backend, sim, argument)

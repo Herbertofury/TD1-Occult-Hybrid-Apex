@@ -61,7 +61,7 @@ class PermissionLaunchTests(unittest.TestCase):
         self.assertEqual(context.call_args.args[1], result['handoff_evidence']['timestamp'])
         self.assertEqual(context.call_args.args[2], result['handoff_evidence']['ea_log_start_offset'])
         self.assertTrue(result['handoff_evidence']['utc'].endswith('Z'))
-        self.assertEqual(result['handoff_evidence']['permission_context_observation_seconds'], 10)
+        self.assertEqual(result['handoff_evidence']['permission_context_observation_seconds'], 30)
         self.assertTrue(result['ea_permission_broker']['acknowledged'])
         self.assertFalse(result['launched'])
         self.assertFalse(result['ok'])  # A permission receipt cannot prove game start.

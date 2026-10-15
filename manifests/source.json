@@ -11,12 +11,6 @@
       "sha256": "e67676466cd1fdaa4af073c1148efe21ddd2f089a4ffe03be0b035fc39ca74c4"
     },
     {
-      "bytes": 5909,
-      "mode": "100644",
-      "path": "tests/test_ea_permission_launch.py",
-      "sha256": "b9e3197946202882117d8a827798a012002320274896bfedb02fdb0b30a6929c"
-    },
-    {
       "bytes": 6747,
       "mode": "100644",
       "path": "tests/test_game_process_identity.py",
@@ -303,12 +297,6 @@
       "mode": "100644",
       "path": "wiki/Home.md",
       "sha256": "8bb453d00379fb29e7455e267af04dca41199c7e31131e3aeb84dfa0457c22f6"
-    },
-    {
-      "bytes": 20881,
-      "mode": "100644",
-      "path": "Reports/HOUSEHOLD_CAS_2026-10-15.md",
-      "sha256": "fb39d62fc5257d46beda2c352cf3cf32dc7fc0210b94a4fd2ef82edd5280aa6a"
     },
     {
       "bytes": 9750,
@@ -609,6 +597,12 @@
       "mode": "100644",
       "path": "wiki/Color-Studio.md",
       "sha256": "cff03f853e6bd868e7871ea297ebdc4848dd56f1a87a81bd7908fe9abe1fd79c"
+    },
+    {
+      "bytes": 8031,
+      "mode": "100644",
+      "path": "Source/apex_core/occult_icons.py",
+      "sha256": "8d2cf390a254bba09d98928da9863f3980782bc4429786c3b0f2781ae4e76589"
     },
     {
       "bytes": 16365,
@@ -1265,6 +1259,12 @@
       "sha256": "76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56"
     },
     {
+      "bytes": 54072,
+      "mode": "100644",
+      "path": "Source/apex_core/form_bank_seal.py",
+      "sha256": "8f9ccbbbac7319cfe56599b99a74110a94d60729af838878d24b18af0950ead8"
+    },
+    {
       "bytes": 11151,
       "mode": "100644",
       "path": "tests/test_live_cas_catalog.py",
@@ -1475,12 +1475,6 @@
       "sha256": "432723e7043a7c625fdfe205a5053f74bd63c4ef875331d9dc2b1188cc2b450b"
     },
     {
-      "bytes": 176789,
-      "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "5fefb317f8881f9a803b77fd840093c1b4fc65d8ecb184a4cafeedc0301534c7"
-    },
-    {
       "bytes": 5290,
       "mode": "100644",
       "path": "tools/CasAcceptHouseholdTests.java",
@@ -1539,6 +1533,12 @@
       "mode": "100644",
       "path": "NativeOverlay/third_party/minhook/src/hde/pstdint.h",
       "sha256": "604d1cdf45c5a95bc9cf1bbf39ca05ef83013541101d34971c5cd7577e3d5247"
+    },
+    {
+      "bytes": 7944,
+      "mode": "100644",
+      "path": "tests/test_occult_icons.py",
+      "sha256": "9f3157c3c58cb4aa26200e350ca8bf8cebeceb31ea04e0753e35f52ceaf4a021"
     },
     {
       "bytes": 2681,
@@ -1653,6 +1653,12 @@
       "mode": "100644",
       "path": "tools/cas_journal_archive.py",
       "sha256": "c098670f5b92c89097034442120aaf79ee0aff1d9247af8128399714af608b07"
+    },
+    {
+      "bytes": 46333,
+      "mode": "100644",
+      "path": "README.md",
+      "sha256": "2b2494f81197526c23a012f4c6783f1520d72e97d14bbe70a98466d39babc4f1"
     },
     {
       "bytes": 7797,
@@ -1805,6 +1811,12 @@
       "sha256": "c0b4986f6a624074261988f5c13e49145b7fce3d3463498623a5df9e9a17e47f"
     },
     {
+      "bytes": 22402,
+      "mode": "100644",
+      "path": "Reports/HOUSEHOLD_CAS_2026-10-15.md",
+      "sha256": "b49a0582a2d15223eb82cab22f31ef283cc71e52daef5594dbf1a6f152b2b2d7"
+    },
+    {
       "bytes": 2786,
       "mode": "100644",
       "path": "Reports/Apex-V9-Brutal-QA-Research-Validation.md",
@@ -1865,12 +1877,6 @@
       "sha256": "cee99103807cf48af036ce1f9185dc2f821069be551f33746469e17a8e6b59e7"
     },
     {
-      "bytes": 7866,
-      "mode": "100644",
-      "path": "tests/test_occult_icons.py",
-      "sha256": "a0495b69fff20e3036f05c08beb8202c7a9960269b61188d26ebe6ec641fdc08"
-    },
-    {
       "bytes": 29294,
       "mode": "100644",
       "path": "tests/test_form_bank.py",
@@ -1905,6 +1911,12 @@
       "mode": "100644",
       "path": "tests/test_game_launch.py",
       "sha256": "3d82a1b41bab1da5a51ed9a01922430620775b7fe1de2ee66aa465df1564aeed"
+    },
+    {
+      "bytes": 176964,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "089b14473d12b977bf6838860b547e3bba7907c23fff66f52ca41f5d7974c6c1"
     },
     {
       "bytes": 7284,
@@ -2067,6 +2079,12 @@
       "mode": "100644",
       "path": "tests/test_ea_background_permission.py",
       "sha256": "67d9a3d278c297dc4d29ba6c64d435ea1feef553b07d45365eafe300c5f717bf"
+    },
+    {
+      "bytes": 5909,
+      "mode": "100644",
+      "path": "tests/test_ea_permission_launch.py",
+      "sha256": "697726d96dc60c175d4a6ba03dd174b948eecbd4de391a6ac99cd0ca57ad0cdf"
     },
     {
       "bytes": 67324,
@@ -2393,12 +2411,6 @@
       "sha256": "2c6c07382551f880ba0bbec38da4af52440abf2f8ef060e2921d2fbba77fd50a"
     },
     {
-      "bytes": 8042,
-      "mode": "100644",
-      "path": "Source/apex_core/occult_icons.py",
-      "sha256": "120793c4b8edd6bada54f24df52ff79c4698de79571de0aa17d5ff27ba4b7642"
-    },
-    {
       "bytes": 52411,
       "mode": "100644",
       "path": "Source/apex_core/hybrid_persistence.py",
@@ -2489,12 +2501,6 @@
       "sha256": "5d40b478a4cd285f934ab0881b717b519951d2a0e17f8db045bda22fb340c641"
     },
     {
-      "bytes": 46158,
-      "mode": "100644",
-      "path": "README.md",
-      "sha256": "6ae0a1f1cfc30732334225bd3fe6654b0cafe078e044216263c1fba5614c0c6e"
-    },
-    {
       "bytes": 22747,
       "mode": "100644",
       "path": "tools/live_cas_catalog.py",
@@ -2565,12 +2571,6 @@
       "mode": "100644",
       "path": "tools/windows_ocr.py",
       "sha256": "aa9555ede7407f7d19794aac523edac6c01f2cf3dde3c1b6c738131a232be0c3"
-    },
-    {
-      "bytes": 54074,
-      "mode": "100644",
-      "path": "Source/apex_core/form_bank_seal.py",
-      "sha256": "e7f7b696823a1b9cc004cf38a1c0be0b1907aa1463bb6494ff8fbd0ce375f36c"
     },
     {
       "bytes": 11672,

@@ -282,7 +282,28 @@ Tray/Gallery gate. Nothing has been published to the online Gallery.
 - [x] Build immutable V130: ZIP SHA-256
   `d03a74e043303895e5c22d8870302d9893d7bcd7de58530f5e6bec1c720349c7`;
   91 Python 3.7 modules, seven packages, 207 independently Rust-verified resources.
-- [ ] Complete the fresh V130 full suite and actual F11 rendering qualification.
+- [x] Complete V130's full suite: 2,204 tests run; 2,203 pass and one launcher
+  fixture still expects the old ten-second wait. Correct its assertion to the
+  implemented thirty-second contract; all six permission-launch tests pass.
+  The failed run is retained, not relabeled as a clean suite.
+- [x] Load the exact manual b70 save under V130. Actual snapshots report slot 2;
+  all 40 appearances match. Proof SHA-256
+  `41bc9c88802d64fbe581cbfc932d18adfab58024fa952183eba454f67de0e22d`.
+  EA rotates only the disposable autosave family during map selection. The
+  strict old selection helper refuses that drift; no prerequisite is forged.
+  A separately recorded background input selects the visible five-Sim Play
+  button, followed by actual Live/slot/appearance readback.
+- [x] Retain V130's actual icon failure: `sims4.paths` does not exist. V131 uses
+  the same top-level `paths` module as the working native loader and tests its
+  actual import contract. No source is hot loaded into the running game.
+- [x] Complete autonomous normal Save and Exit on that exact disposable
+  household. Normal exit and changed-save write are verified, with the prior
+  b70 test save retained externally before the operation. New manual save
+  SHA-256 `a9bb149f09d34dcd4c31e246a6709800cc1ce6b967547377115cda96b35a7a60`.
+- [x] Build matched V131, with the same tested native DLL: ZIP SHA-256
+  `4c185a0044cbc7a99f1f3e306593b8fe3c302fecbdb491703384b93362a77d91`;
+  91 Python 3.7 modules, seven packages, 207 Rust-verified resources.
+- [ ] Finish V131's fresh full suite, cold save comparison and F11 artwork proof.
 - [x] Extend the fresh EA launch-record wait to 30 seconds after the observed
   14.864-second handoff, preserving the original log offset and request time.
   Recognize the minimized main EA window as a capture candidate, without

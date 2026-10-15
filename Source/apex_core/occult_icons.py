@@ -147,7 +147,7 @@ def catalog(backend):
         _CACHE = dict(schema=1, origin='installed-occult-trait-tuning', loading=bool(pending), items=rows)
         if pending:
             try:
-                from sims4 import paths
+                import paths
                 from .installed_icon_resources import game_root
                 root = game_root(paths.DLL_PATH)
                 worker = threading.Thread(target=_installed_worker, args=(root, tuple(pending), [dict(row) for row in rows]),

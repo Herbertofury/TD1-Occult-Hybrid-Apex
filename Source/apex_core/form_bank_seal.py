@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-15-installed-occult-textures-v130'
+UPGRADE_EPOCH = '2026-10-15-installed-art-game-path-v131'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'de5b59615b5cbf73ea068088ecf5ad3c2035b5b5525db8b1abdbd888363c88d0'
+UPGRADE_SELF_BODY_SHA = '0a4282e28837a42f0b9b2227508a18390215060af2900d2c37f4a390ef5e9b70'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -67,7 +67,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/native_occult_context.py': '4b1fb7278a8719ff58c5b2b1a97aaa89a9e5e953915a31ab212206a67928b186',
     'apex_core/occult_add_guard.py': '3e4630c36c705afdf9f5cbd3f256be85ec7efa0a3a8d94b8394474fb360c982c',
     'apex_core/occult_appearance_extension.py': '1d908a080f608960fdb9394d954552fb9e2af24a87b60e6f623f690bb8cdbe08',
-    'apex_core/occult_icons.py': '120793c4b8edd6bada54f24df52ff79c4698de79571de0aa17d5ff27ba4b7642',
+    'apex_core/occult_icons.py': '8d2cf390a254bba09d98928da9863f3980782bc4429786c3b0f2781ae4e76589',
     'apex_core/outfit_hair.py': '127059656a2dd5ea10d8998c7a5c0f6b8e5353b8d166c4c25cb60dfea8666910',
     'apex_core/outfit_snapshot.py': '76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56',
     'apex_core/overlay_loader.py': '0c59571c99da7a96bd86337590e7333085a2aef81e1308aec8c5d6d6cdd3b905',

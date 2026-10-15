@@ -95,7 +95,8 @@ class OccultIconTests(unittest.TestCase):
         loader = Mock(return_value=Obj(load_raw=lambda **kw: None))
         worker = Mock()
         resources = Obj(ResourceLoader=loader, Key=lambda t, i, g: Obj(type=t, instance=i, group=g))
-        with patch.dict(sys.modules, {'sims4': Obj(resources=resources, paths=Obj(DLL_PATH='actual path'))}), \
+        # The game exports paths as a top-level module, never sims4.paths.
+        with patch.dict(sys.modules, {'sims4': Obj(resources=resources), 'paths': Obj(DLL_PATH='actual path')}), \
              patch.object(installed, 'game_root', return_value=Path('installed game')), \
              patch.object(icons.threading, 'Thread', return_value=worker) as thread:
             first = icons.catalog(self.backend)

@@ -33,9 +33,11 @@ All six native CTests pass. The explicit manual-save load retains all 40
 appearances. The actual DayWalkers-style exposure hook is verified on all five
 Sims: four would be exposed by EA's predicate but remain protected by Apex.
 Phone controls use installed occult icon keys. F11's Python image reads return
-no bytes, so V130 adds bounded background reads of the exact installed client
+no bytes, so V130/V131 add bounded background reads of the exact installed client
 textures, with no artwork export or per-frame I/O. All six match independently
-decoded installed images; actual V130 F11 rendering remains pending.
+decoded installed images. V130's runtime check caught a wrong game-module import;
+V131 corrects it against the working native loader. Actual F11 rendering remains
+pending. V130's normal Save and Exit also verifies a native test-save write.
 This candidate remains disposable-only. Production
 acceptance, full native Tray/Gallery reload, complete CAS/special-state coverage
 and preview fidelity remain open, as do all seven GitHub issues. The protected

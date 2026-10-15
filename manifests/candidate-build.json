@@ -1,10 +1,10 @@
 {
-  "build_epoch": "2026-10-15-installed-occult-textures-v130",
+  "build_epoch": "2026-10-15-installed-art-game-path-v131",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-15-installed-occult-textures-v130.zip",
-    "bytes": 3302714,
+    "artifact": "Apex_Development_Candidate_2026-10-15-installed-art-game-path-v131.zip",
+    "bytes": 3302701,
     "members": 28,
-    "sha256": "d03a74e043303895e5c22d8870302d9893d7bcd7de58530f5e6bec1c720349c7"
+    "sha256": "4c185a0044cbc7a99f1f3e306593b8fe3c302fecbdb491703384b93362a77d91"
   },
   "compiled_script_modules": 91,
   "deployed": false,
@@ -53,7 +53,7 @@
     {
       "bytes": 51863,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "16c4be9045bb566d319e30dfdc054e1f7f23a52fa82a80f980842e2124e7648f"
+      "sha256": "e30ec3eb9dc65834bd91eedd689a7f2f3cb53b55aeba0082234446f0d7a0f23a"
     },
     {
       "bytes": 1506,
@@ -101,9 +101,9 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 862128,
+      "bytes": 862127,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "e6674758e91d96a0a69284ad16050f2ad4a42a9f78e1fdb28590ac8ae59d967c"
+      "sha256": "15a2b921b54f9b3ec49cf53aa93ab9008f88ac9dd8e6f5188aaed2f9953e445d"
     },
     {
       "bytes": 1916416,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "ce58f7422dbb52ebc267d52f80ea275f495fc61b429331c427a9dadc32373cef"
+      "sha256": "99823a0eb1ef7148b2084fd7833eadee9b426859bef01d5456415c5576b98062"
     },
     {
       "bytes": 424,

@@ -18,6 +18,9 @@ class IntentEvidence:
         import reusable_profile
         self.profile_module = reusable_profile
         journal, _data, test, original = reusable_profile.load(args.state)
+        # Windows may expose a TEMP/profile ancestor through an 8.3 alias.
+        # Compare canonical, link-checked roots with canonical output paths.
+        journal, test, original = (reusable_profile.legacy.unlinked(path) for path in (journal, test, original))
         raw = Path(args.output).absolute()
         raw_intent = raw.with_suffix('.intent.json')
         if raw.is_symlink() or raw_intent.is_symlink():

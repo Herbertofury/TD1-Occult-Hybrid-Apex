@@ -12,6 +12,23 @@ import td1_occult_hybrid_apex as backend
 
 
 class BackendOwnerTests(unittest.TestCase):
+    def test_review_http_never_waits_or_cancels_before_owner_and_retains_same_uuid(self):
+        from apex_core.command_queue import CommandQueue
+        queue = CommandQueue()
+        owner = 'a' * 32
+        with patch.object(backend, '_ALARM_READY', True), patch.object(backend, '_APEX_COMMANDS', queue), \
+                patch.object(queue, 'wait', side_effect=AssertionError('synchronous cancellation')):
+            first = backend._submit_action('cas_bank_ui_status', sim_id='11', request_id=owner)
+            self.assertEqual(first['request_state'], 'pending')
+            self.assertTrue(first['ok'])
+            self.assertEqual(len(queue.pending), 1)
+            queue.drain(lambda payload: {'ok': True, 'observed_sim': payload['sim_id']})
+            again = backend._submit_action('cas_bank_ui_status', sim_id='11', request_id=owner)
+            self.assertEqual(again['request_state'], 'completed')
+            self.assertEqual(again['observed_sim'], '11')
+            self.assertEqual(len(queue.records), 1)
+            self.assertEqual(len(queue.pending), 0)
+
     def test_external_import_does_not_start_server_or_touch_sims(self):
         self.assertFalse(backend._SERVER_RUNNING)
         self.assertFalse(backend._ALARM_READY)

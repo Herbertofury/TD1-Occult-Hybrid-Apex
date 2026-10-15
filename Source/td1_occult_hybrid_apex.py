@@ -8624,11 +8624,19 @@ def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.
         return {'ok': False, 'state': 'rejected', 'message':
                 'Game-thread bridge is not ready. Load a disposable household or run apex.bridge.start from the game console.',
                 'bootstrap_status': _APEX_BOOTSTRAP_STATUS}
+    review = safe_action in ('cas_bank_ui_status', 'cas_bank_ui_review', 'cas_bank_ui_prepare', 'cas_bank_ui_commit')
     row = _APEX_COMMANDS.submit({'action': safe_action, 'sim_id': sim_id, 'occult': occult, 'value': value},
-                                ttl=max(0.1, min(60.0, float(wait_seconds))), request_id=request_id)
+                                ttl=60.0 if review else max(0.1, min(60.0, float(wait_seconds))), request_id=request_id)
     if row['state'] == 'rejected':
         return row
     _log('QUEUED owned {} #{}'.format(safe_action, row['request_id']))
+    if review:
+        # Let the existing exact-UUID completion endpoint observe this request.
+        # A short synchronous HTTP wait must not cancel a valid UI review
+        # before the canonical thread gets its next turn.
+        result = dict(row.get('result') or {'ok': row['ok'], 'message': 'Review queued; observe this UUID without resubmission.'})
+        result.update(request_id=row['request_id'], request_state=row['state'])
+        return result
     status = _APEX_COMMANDS.wait(row['request_id'], max(0.0, float(wait_seconds)))
     result = dict(status.get('result') or {'ok': False, 'message': status.get('message', 'Command was not executed.')})
     result.update({'request_id': row['request_id'], 'request_state': status['state']})

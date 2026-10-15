@@ -56,7 +56,10 @@ fixtures are corrected and all 21 driver tests pass. V125's full run executes
 2,161 tests in 600.539 seconds with one MCCC fixture error: the fixture lacked
 the newly required real entry snapshot. That fixture is corrected and all 12
 focused MCCC tests pass. A new whole-suite run is still required. No failed
-run is relabelled successful.
+run is relabelled successful. The fresh V125 run then passes **2,176 tests in
+637.620 seconds**. Hosted checks expose two Windows 8.3-path fixture failures
+in the new durable-intent tests. V126 canonicalizes the loaded journal/profile
+roots and fixture temporary paths; all 22 intent tests now pass locally.
 
 - [x] Verify V125's cold all-40 baseline and native locked-save generator.
   Cold proof SHA-256 `b37e152bb3a0cf280d1e4eddf0e9bbbec814f625adca0da18acb70f8ea7b9a24`.
@@ -102,3 +105,50 @@ run is relabelled successful.
 The existing `household export-records` output is an external native-record
 candidate. It is not a game-generated Library item and cannot close the
 Tray/Gallery gate. Nothing has been published to the online Gallery.
+
+## Native Library crash and V126 corrections
+
+- [x] Open a separate unsaved new-game CAS destination, then the actual
+  Gallery browser. Selecting **My Library** is acknowledged by UUID
+  `62152d40550448dc9865942ede03de10`, but the game subsequently crashes before
+  any household item is selected or imported. The original native export is
+  still installed at that point; the completed candidate has not been staged.
+  Crash XML SHA-256 `649a020d86c405dd10d5b7ec43d509ef5b9f264f88c6548faa6fe8f1af55ced4`.
+  The dump reports a write to `0x141fd06a8` at `TS4_x64.exe+0x112c66a`.
+  This is close to V124's faulting function, but neither cause is established.
+  Normal save b70 remains unchanged; all originals and native export bytes
+  are retained. Crash receipt SHA-256
+  `eb9dfd23acaa5aa2c9e957501c0121a8fbfa700209dfbd2caf8e86930a7533fc`.
+- [x] Observe a separate visible save-state defect: although the native Python
+  predicates clear after all five commits, EA's menu still disables Save and
+  displays CANNOT SAVE on unsaved main-menu exit. The authorized unsaved exit
+  completes through its native confirmation without writing a save. This UI
+  state is not counted as ready merely because the backend predicate clears.
+- [x] Add V126's inspected native lock/unlock event notification after explicit
+  successful bank commits. Existing EA locks remain authoritative; notification
+  failure cannot invalidate the completed native appearance receipt or replay
+  it. Cache a validated bank by canonical path, save GUID and complete file
+  identity stamp, checking writer leases first. Repeated idle predicates no
+  longer parse the large bank; atomic replacement, capture or GUID changes
+  invalidate the cache. Eighteen save-admission fixtures pass.
+- [x] Queue Source phone/F11 review requests asynchronously with the same UUID
+  and a bounded owner deadline. The short synchronous HTTP wait can no longer
+  cancel these reviews before their game-thread turn. The native worker polls
+  that UUID for up to 180 seconds. Nine backend-owner tests and all six native
+  CTests pass; actual F11 retesting remains required.
+- [x] Build/install matching V126 in the marked disposable profile. ZIP SHA-256
+  `a3a2c595a07c690f48c2ee30e68ef4ef893d60c4f8691352fd7bcafe2bf48e73`.
+  A separate read-only Rust verification checks all seven packages and all 207
+  decoded resources without rebuilding/changing the immutable bundle. Proof
+  SHA-256 `0cba28f645af5a844e16c8975dd9c5eadf0ab5076d82c164fa352a8832b591a1`.
+- [x] While closed, stage only the corrected test item's householdbinary after
+  verifying every original and completed group hash and the retained original
+  nine-file ZIP. Metadata and all seven portrait files stay identical. Install
+  receipt SHA-256 `670649349e1b1bc6ded69d08f0c0742276ce8e98c0f500fe188ae84b95376902`.
+  The protected original and normal save are unchanged.
+- [x] Cold-load the same b70 save under V126: all 40 owners remain exact.
+  Proof SHA-256 `80d50fcf02ef04a8f2b607c1b5e78ca5a44b9f92415121b301a7436c1eadde15`.
+- [ ] Verify corrected Library listing, real whole-household import, every
+  imported alternate, fresh normal save and cold reload.
+- [ ] Verify V126's native F11 queue and visible Save state after all reviews.
+- [ ] Complete the fresh V126 full suite and hosted checks.

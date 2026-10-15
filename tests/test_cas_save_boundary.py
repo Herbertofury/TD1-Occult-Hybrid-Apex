@@ -28,6 +28,7 @@ def native_service_type():
             self.native_locked = False
             self.serializer_calls = []
             self.save_file_creations = []
+            self.ui_notifications = []
 
         def get_save_slot_proto_guid(self):
             return 30
@@ -37,6 +38,12 @@ def native_service_type():
 
         def get_save_lock_tooltip(self):
             return self.native_reason
+
+        def _send_lock_save_message(self, reason_provider):
+            self.ui_notifications.append(('locked', reason_provider()))
+
+        def _send_unlock_save_message(self):
+            self.ui_notifications.append(('unlocked', None))
 
         def _save_game_gen(self, timeline, save_game_data, check_cooldown):
             # Inspected EA generator checks this before any other save work.
@@ -83,6 +90,57 @@ class NativeSaveBoundaryTests(unittest.TestCase):
                 steps.append(next(generator))
         except StopIteration as ended:
             return ended.value, steps
+
+    def test_idle_getters_reuse_validated_bank_but_atomic_replacement_invalidates_cache(self):
+        import os
+        self.install()
+        with patch.object(gate.json, 'loads', wraps=json.loads) as parse:
+            for _ in range(10):
+                self.assertFalse(self.service.is_save_locked())
+                self.assertIsNone(self.service.get_save_lock_tooltip())
+            self.assertEqual(parse.call_count, 1)
+        before = self.game.path.stat()
+        temp = self.game.path.with_suffix('.replacement')
+        temp.write_bytes(self.game.path.read_bytes())
+        os.utime(temp, ns=(before.st_atime_ns, before.st_mtime_ns))
+        temp.replace(self.game.path)
+        with patch.object(gate.json, 'loads', wraps=json.loads) as parse:
+            self.assertFalse(self.service.is_save_locked())
+            self.assertEqual(parse.call_count, 1)
+
+    def test_cached_admission_is_not_mutable_by_consumer_and_new_capture_is_rechecked(self):
+        self.install()
+        self.game.begin()
+        result = gate.admission(self.backend)
+        self.assertEqual(result['pending_sim_ids'], ['10'])
+        result['pending_sim_ids'].append('999')
+        self.assertEqual(gate.admission(self.backend)['pending_sim_ids'], ['10'])
+        self.finish_unchanged()
+        self.assertFalse(gate.admission(self.backend)['locked'])
+
+    def test_native_ui_is_notified_after_commit_and_existing_native_locks_remain(self):
+        self.install()
+        self.game.begin()
+        self.assertTrue(gate.refresh_ui(self.backend)['native_save_ui_locked'])
+        self.assertEqual(self.service.ui_notifications[-1], ('locked', self.reason))
+        self.service.native_locked = True
+        self.service.native_reason = native_reason = object()
+        result = self.finish_unchanged()
+        self.assertTrue(result['save_ui_notification']['ok'])
+        self.assertTrue(result['save_ui_notification']['native_save_ui_locked'])
+        self.assertEqual(self.service.ui_notifications[-1], ('locked', native_reason))
+        self.assertTrue(self.service.native_locked)
+        self.service.native_locked = False; self.service.native_reason = None
+        self.assertFalse(gate.refresh_ui(self.backend)['native_save_ui_locked'])
+        self.assertEqual(self.service.ui_notifications[-1], ('unlocked', None))
+
+    def test_ui_delivery_failure_retains_successful_commit_without_native_replay(self):
+        self.install(); self.game.begin()
+        with patch.object(gate, 'refresh_ui', side_effect=RuntimeError('client unavailable')):
+            result = self.finish_unchanged()
+        self.assertTrue(result['bank_committed'])
+        self.assertFalse(result['save_ui_notification']['ok'])
+        self.assertFalse(result['save_ui_notification']['appearance_replay_allowed'])
 
     def assert_blocked_before_serialization(self, pending=None):
         self.assertTrue(self.service.is_save_locked())

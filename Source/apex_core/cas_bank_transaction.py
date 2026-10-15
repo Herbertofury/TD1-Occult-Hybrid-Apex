@@ -996,6 +996,15 @@ def commit(backend, sim, argument):
         instance = _instance(backend, sim)
         result = instance.commit(argument['expected_plan_sha256'])
         result.update(expected_pending_sha256=transaction['transaction_sha256'], replayed=False)
+        if getattr(backend, '_APEX_CAS_SAVE_BOUNDARY_READY', False):
+            from .cas_save_boundary import refresh_ui
+            try:
+                result['save_ui_notification'] = refresh_ui(backend)
+            except Exception as error:
+                # Native owners and the durable bank already committed. Keep
+                # that acknowledgement; report UI failure without a replay.
+                result['save_ui_notification'] = {'ok': False, 'message': str(error)[:2048],
+                                                   'appearance_replay_allowed': False}
         return result
 
 

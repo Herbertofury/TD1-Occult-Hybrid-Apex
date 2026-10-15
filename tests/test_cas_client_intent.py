@@ -18,7 +18,7 @@ class CasClientIntentTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.profile = self.root / 'The Sims 4'
         self.original = self.root / 'The Sims 4 DO NOT TOUCH'
         self.profile.mkdir()
@@ -228,6 +228,14 @@ class CasClientIntentTests(unittest.TestCase):
         self.assertEqual(self.calls, [])
         self.assertEqual(self.original_file.read_bytes(), b'never modify owner files')
         self.assertEqual(self.state.read_text(), 'retained session sentinel')
+
+    def test_noncanonical_loaded_profile_alias_cannot_bypass_output_containment(self):
+        self.load.return_value = (self.state, {}, self.profile / '..' / self.profile.name, self.original)
+        self.args.output = self.profile / 'proof.json'
+        with self.assertRaisesRegex(ValueError, 'new external'):
+            cas_client.execute(self.args, self.request)
+        self.assertEqual(self.calls, [])
+        self.assertFalse(self.args.output.exists())
 
     def test_linked_output_or_sidecar_refuses_even_when_link_target_does_not_exist(self):
         actual = Path.is_symlink

@@ -546,7 +546,8 @@ static bool HttpOwnedCommand(const std::string& path, std::string& body) {
         body=ui::Json{{"ok",false},{"state","rejected"},{"message","A caller-supplied owner identity is forbidden; no HTTP request was submitted."}}.dump();
         return true;
     }
-    const auto deadline=GetTickCount64()+15000;
+    const bool review=path.rfind("/api/command?action=cas_bank_ui_",0)==0;
+    const auto deadline=GetTickCount64()+(review?180000:15000);
     bool received=HttpGet(path+"&request_id="+id,body,deadline);
     auto submission=received ? ui::ReadOwnerSubmission(ui::ParseObject(body),id) : ui::OwnerReply::Pending;
     if(submission==ui::OwnerReply::Terminal || submission==ui::OwnerReply::Rejected) return true;

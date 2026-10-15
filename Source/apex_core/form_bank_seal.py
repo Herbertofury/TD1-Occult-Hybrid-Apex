@@ -29,22 +29,23 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-14-native-restart-switch-v115'
+UPGRADE_EPOCH = '2026-10-14-cas-failed-readback-v117'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'b0db6f9cf57175d30833a4250938a97b8fd5875075880515725c6382eb2dab5f'
+UPGRADE_SELF_BODY_SHA = '8f457f9c9cf5d3b5118d32e677d29f4299c86e2faffbad358efecb805be50b95'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': '3ef3a75d6f6c7e366de550148d5a62f1269016ae0c5810c2dc1ad6cd25e7c660',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
     'apex_core/body_hair_initialization.py': 'b90fd14e840ae90de087b647519ef39208e3488dc72b5ab41d4389855f7b0592',
     'apex_core/bridge_startup.py': '0aa605cb1671a198571381ee51aa729082630faffbac657529a2ada385a9bee2',
-    'apex_core/cas_bank_transaction.py': 'c280b7de5ebef550cb71588d2394cb5ede3a559a73895071c352655726f8f8ed',
+    'apex_core/cas_bank_transaction.py': 'ccd45cf958c3309c005f04e0cee0a36d8a6008f38ca72a592158ef8afdbea011',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '77a5eda1eb8f1b2706f7e76cfbd27a95597d4676e8a9833c4721d6737c08e00d',
     'apex_core/cas_controls.py': '839b69d87f9dc51f00218d061f13d57f7dc825c4ae9cc4a328fded53bcee6dee',
     'apex_core/cas_entry_context.py': '5ce53b1adddc0f0e3b014ab97c0d127901b8c9dce1ee72dc1798346fb87f880d',
+    'apex_core/cas_frontdoor.py': '4cba31dfeca81e5fdbe25105c6015b27294e525197cc3512517df74a216e64af',
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
-    'apex_core/cas_ui.py': '0feae140f8490fc2efd4e0649b132734a2e593bc9253809ca3a6c82c1960ac89',
+    'apex_core/cas_ui.py': '2388b3071074ff3e3bb785d29ae454c651ef33be67dbc2ab984adf3996c9d443',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
@@ -67,15 +68,15 @@ UPGRADE_MODULE_PINS = {
     'apex_core/outfit_hair.py': '530fb5e8f5e80137b3607e55a796a6423648f0ff25b6780f3430b8361d2f61d8',
     'apex_core/outfit_snapshot.py': '76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56',
     'apex_core/overlay_loader.py': 'd2a802a45dbff9c83254d48b0cbc7d60ef3d41037cb6e436514c0980639728fb',
-    'apex_core/phone_cas.py': 'd36633ac04f225e57e060239b5bd27d358707b876ee10bcef734f1e928bca3c6',
+    'apex_core/phone_cas.py': '19d0dc4527acea755d237664271ae4c417dd65e06d04b69ecc5049cec23f7bc2',
     'apex_core/phone_interactions.py': '033c9b9f788adb075f7519ec8ff90994d22fbeb0861aa22eba216cefec0aae0d',
     'apex_core/saved_occult_extras.py': '6b7f0c8c4ea258823d680f35764155bd2de02551a1fc876424888108c814fb0a',
     'apex_core/sim_data.py': 'dfc26d8d9a016b24d69187233ab089058fe72ef82abbac60a2d09710fe0e7266',
     'apex_core/studio.py': 'cfb52401325008e990e3391920bd37ec36b9acefb8e2068a22fdaacaba2edc92',
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
-    'apex_core/test_driver.py': '56f574e7842c45cb9e661a3830ac4e4a400990146072c3b93fab896228b453ad',
+    'apex_core/test_driver.py': '398baf71bd429344ee5c4ff79222710053a4ed36bebc9dd86f911784ba3eb77d',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
-    'td1_occult_hybrid_apex.py': 'b9e77593914913aa68345564b20efe71094ba5f662c26d8ad621308129a01c3b',
+    'td1_occult_hybrid_apex.py': 'c5f9672bf0128d75023e83b00f03ff60da4d8ad2007da3c314531a62e874ea56',
 }
 _SEAL_FIELDS = ('intent_id', 'identity', 'contract_sha256', 'target',
                 'bank_record_sha256', 'appearances', 'file_sha256')

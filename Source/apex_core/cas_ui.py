@@ -426,7 +426,17 @@ def receive_socket(token, request_id, payload, clock=time.monotonic, backend=Non
         if peer is None or row is None or row.get('peer') != token or peer['sim_id'] != row['sim_id']:
             raise ValueError('CAS acknowledgement does not match its claimed peer/Sim/request.')
         prior_state = row['state']
-        receive(request_id, payload, backend=backend)
+        try:
+            receive(request_id, payload, backend=backend)
+        except cas_controls.PostconditionMismatch:
+            # A complete, same-Sim swatch receipt is retained as a terminal
+            # failure by receive(). Consume its transport ACK without claiming
+            # its requested value succeeded. Dropping this socket strands CAS
+            # after an ordinary failed readback and loses diagnostic access.
+            if (row['state'] != 'failed' or not isinstance(row.get('result'), dict) or
+                    row['result'].get('outcome') != 'native-postcondition-failed' or
+                    row.get('rejected_acknowledgement') != json.loads(payload)):
+                raise
         if prior_state == 'pending' and row['state'] == 'completed':
             row['acknowledged_at'] = clock()
         # A complete validated ACK is fresh traffic from the exact claimed

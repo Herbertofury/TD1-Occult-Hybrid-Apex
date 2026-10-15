@@ -853,6 +853,46 @@ def begin(backend, sim, snapshot_reader=None):
                 'native_appearance_written': False, 'old_bank_restored': False}
 
 
+def fresh_entry_checkpoint(backend, sim, projected=False):
+    """Reuse only an untouched, receiver-owned pre-entry capture.
+
+    This is an internal game-thread capability, not a JSON operation. A prior
+    CAS return, edited Live owner or replaced native wrapper cannot authorize
+    another entry. CLI projection is allowed only in its synchronous scope.
+    """
+    with _LOCK:
+        path, key, record, transaction = _selected(backend, sim)
+        held = _CAPTURED.get(_cache_key(path, key, transaction['transaction_id']))
+        if (transaction.get('phase') != 'captured' or transaction.get('journal') is not None or
+                transaction.get('native_entry_intent') is not None or
+                not held or held.get('backend') is not backend or held.get('begin_sim') is not sim or
+                held.get('receiver_bound') is not False):
+            raise ValueError('Existing CAS capture is not an unused native entry capability.')
+        observed = primitive.read_owners(backend, sim, lambda: _identity(backend, sim))
+        if observed != record['pending']['original_owners']:
+            raise ValueError('Native appearances changed after CAS capture; originals retained and entry blocked.')
+        if not projected and 'native_occult_context' in transaction:
+            from .native_occult_context import capture
+            if capture(backend, sim) != transaction['native_occult_context']:
+                raise ValueError('Native context changed after CAS capture; entry blocked.')
+        return {'ok': True, 'expected_pending_sha256': transaction['transaction_sha256'],
+                'checkpoint_sha256': transaction['checkpoint_sha256'], 'reused_fresh_capture': True,
+                'native_appearance_written': False}
+
+
+def mark_entry_submitted(backend, sim, epoch, entry_id):
+    """Durably consume an unused entry capability before its native call."""
+    if not _token(entry_id):
+        raise ValueError('Native entry intent requires its receiver-owned identity.')
+    def update(data, record, identity):
+        _path, _key, held, transaction = _selected(backend, sim)
+        if (held != record or transaction['transaction_sha256'] != epoch or
+                transaction.get('native_entry_intent') is not None):
+            raise ValueError('CAS native entry was already attempted or its checkpoint changed.')
+        record['cas_transaction']['native_entry_intent'] = entry_id
+    _mutate(backend, sim, update)
+
+
 def _argument(backend, sim, argument, required, optional=()):
     if (not isinstance(argument, dict) or not set(required).issubset(argument) or
             set(argument) - set(required) - set(optional) or

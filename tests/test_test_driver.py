@@ -240,6 +240,7 @@ class TestDriverTests(unittest.TestCase):
 
     def test_cas_uses_actual_string_target_contract_not_integer(self):
         from apex_core import cas_entry_context
+        self.enterContext(patch.object(cas_entry_context, 'checkpoint_members', return_value={'ok': True, 'members': []}))
         self.enterContext(patch.object(cas_entry_context, 'prepare', return_value={'ok': True, 'prepared_members': []}))
         sim = Obj(id=(1 << 63) + 7, get_sim_instance=lambda: object())
         fake = Obj(_get_sim_info_by_id=lambda _: sim,
@@ -317,6 +318,7 @@ class TestDriverTests(unittest.TestCase):
 
     def test_rejected_native_cas_entry_keeps_form_checkpoint_for_recovery(self):
         from apex_core import cas_entry_context
+        self.enterContext(patch.object(cas_entry_context, 'checkpoint_members', return_value={'ok': True, 'members': []}))
         self.enterContext(patch.object(cas_entry_context, 'prepare', return_value={'ok': True, 'prepared_members': []}))
         sim = Obj(id=123, get_sim_instance=lambda: object())
         fake = Obj(_get_sim_info_by_id=lambda _: sim,

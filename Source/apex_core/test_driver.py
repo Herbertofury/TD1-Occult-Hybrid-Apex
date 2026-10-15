@@ -720,18 +720,37 @@ def dispatch(backend, action, sim_id, value):
             raise ValueError('CAS entry requires an instanced selected Sim.')
         from server_commands.cas_commands import modify_in_cas, modify_in_cas_with_household_id
         from server_commands.argument_helpers import OptionalTargetParam
-        if argument not in (None, 'full'):
+        if argument not in (None, 'full', 'native-full'):
             raise ValueError('CAS mode must be default or full.')
+        if argument == 'native-full':
+            # Exercise the ordinary game/MCCC command boundary, without the
+            # CLI's explicit checkpoint path or its prepared capability.
+            if not getattr(backend, '_APEX_CAS_FRONTDOOR_READY', False):
+                raise ValueError('Native CAS entry protection is not installed.')
+            if len(backend._form_map(sim.occult_tracker)) < 3:
+                raise ValueError('Ordinary-route qualification requires a selected hybrid Sim.')
+            from sims4.commands import client_cheat
+            client_cheat('cas.fulleditmode', client.id)
+            submitted = modify_in_cas_with_household_id(OptionalTargetParam(str(sim.id)), _connection=client.id)
+            receipt = backend._APEX_CAS_FRONTDOOR_RECEIPT
+            rows = [{'sim_id': row['sim_id'], 'form_checkpoint': row['checkpoint'],
+                     'owner_observation': row['owner_observation']} for row in receipt['members']]
+            selected = next(row for row in rows if row['sim_id'] == str(sim.id))
+            return {'ok': bool(submitted), 'transition': 'cas-entry-submitted',
+                    'form_checkpoint': selected['form_checkpoint'],
+                    'household_form_checkpoints': {'ok': True, 'members': rows,
+                        'household_id': receipt['household_id'], 'roster_sim_ids': receipt['roster_sim_ids']},
+                    'native_pair_preparation': receipt['preparation'],
+                    'original_owner': selected['owner_observation'], 'native_frontdoor': receipt,
+                    'requested_editor': 'existing-household-full', 'cas_visible_verified': False}
         # Keep every form before the native client can propagate CAS edits.
         # A retained/interrupted transaction is deliberately not replaced.
         from . import cas_bank_transaction
         protection = cas_bank_transaction.begin(backend, sim)
         if not isinstance(protection, dict) or protection.get('ok') is not True:
             raise ValueError('Complete CAS form checkpoint was not acknowledged; no entry submitted.')
-        household_protection = None
-        if argument == 'full':
-            from .cas_entry_context import checkpoint_members
-            household_protection = checkpoint_members(backend, sim, protection)
+        from .cas_entry_context import checkpoint_members
+        household_protection = checkpoint_members(backend, sim, protection)
         before = snapshot(backend, sim)
         from .cas_ui import capture_original_owner
         owner_observation = capture_original_owner(backend, sim)
@@ -743,7 +762,9 @@ def dispatch(backend, action, sim_id, value):
         from .cas_entry_context import prepare as prepare_cas_context
         preparation = prepare_cas_context(backend, sim, argument == 'full')
         entry = modify_in_cas_with_household_id if argument == 'full' else modify_in_cas
-        submitted = entry(OptionalTargetParam(str(sim.id)), _connection=client.id)
+        from .cas_frontdoor import prepared
+        with prepared(backend, sim, argument == 'full', preparation):
+            submitted = entry(OptionalTargetParam(str(sim.id)), _connection=client.id)
         return {'ok': bool(submitted), 'transition': 'cas-entry-submitted', 'before': before,
                 'form_checkpoint': protection,
                 'household_form_checkpoints': household_protection,

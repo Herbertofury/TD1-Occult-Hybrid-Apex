@@ -8584,6 +8584,13 @@ def _setup_alarm():
         _ALARM_HANDLE = alarms.add_alarm_real_time(_ALARM_OWNER,
             clock.interval_in_real_seconds(_ACTION_QUEUE_INTERVAL_SECONDS), _process_pending, repeating=True)
         _ALARM_READY = _ALARM_HANDLE is not None
+        if _ALARM_READY and not globals().get('_APEX_CAS_FRONTDOOR_READY'):
+            try:
+                from apex_core import cas_frontdoor
+                import sys
+                globals()['_APEX_CAS_FRONTDOOR_READY'] = cas_frontdoor.install(sys.modules[__name__])
+            except Exception as hook_error:
+                _log('Native CAS entry protection unavailable: {}'.format(hook_error))
         if _ALARM_READY and not globals().get('_APEX_HAIR_HOOK_READY'):
             try:
                 from apex_core import outfit_hair

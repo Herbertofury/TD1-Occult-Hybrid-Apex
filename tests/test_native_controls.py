@@ -32,3 +32,19 @@ class NativeControlTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Unsupported'):
                 native_controls.dispatch(self.backend, 'add_all', 'typed', 'c' * 32)
             start.assert_not_called()
+
+    def test_read_only_code_probe_works_before_live_and_deduplicates_its_exact_uuid(self):
+        with patch.object(test_driver,'guard',return_value=None),\
+                patch.dict(sys.modules,{'paths':Obj(DLL_PATH='game-dlls')}),\
+                patch.object(overlay_loader,'native_cas_probe',return_value={'ok':True,'read_only':True}) as probe:
+            first=native_controls.dispatch(self.backend,'test_native_cas_probe','typed','d'*32)
+            self.assertEqual(first,native_controls.dispatch(self.backend,'test_native_cas_probe','typed','d'*32))
+            probe.assert_called_once_with(self.backend.__file__,'game-dlls')
+            self.assertFalse(first['sim_data_read'])
+            self.backend.services.assert_not_called()
+        with patch.object(test_driver,'guard',return_value={'address':123}),\
+                patch.dict(sys.modules,{'paths':Obj(DLL_PATH='game-dlls')}),\
+                patch.object(overlay_loader,'native_cas_probe') as probe:
+            with self.assertRaisesRegex(ValueError,'no addresses'):
+                native_controls.dispatch(self.backend,'test_native_cas_probe','changed','e'*32)
+            probe.assert_not_called()

@@ -71,7 +71,7 @@ def verified_identity(state, transport=get):
 def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=30, transport=get, submission_observer=None):
     identity = verified_identity(state, transport)
     if identity.get('native_cli_available') and action in (
-            'test_capture', 'test_input', 'test_studio_ui', 'test_preview', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start'):
+            'test_capture', 'test_input', 'test_studio_ui', 'test_preview', 'test_native_cas_probe', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start'):
         _path, journal, _profile, _original = reusable_profile.load(state)
         if value is None:
             value = json.dumps({'test_token': journal['token'], 'value': None})
@@ -322,7 +322,7 @@ def parser():
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
     game = commands.add_parser('game', help='Real in-game test controls; requires the marked disposable profile')
-    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown', 'exit', 'resume', 'load', 'map-select', 'map-play', 'live-observe', 'main-menu', 'native-human', 'growth-probe'))
+    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown', 'exit', 'resume', 'load', 'map-select', 'map-play', 'live-observe', 'main-menu', 'native-human', 'growth-probe', 'native-cas-probe'))
     game.add_argument('--state', required=True, type=Path)
     game.add_argument('--sim-id')
     game.add_argument('--value')
@@ -923,6 +923,9 @@ def execute(args):
         return run(args.state, args.output, verified_identity(args.state), owned_request, args.sim_id,
                    seconds=args.seconds, step_seconds=args.step_seconds, transport=get)
     if args.command == 'game':
+        if args.operation == 'native-cas-probe':
+            from native_cas_probe_cli import run
+            return run(args.state,args.output,owned_request)
         if args.operation == 'live-observe':
             if args.output is None:
                 raise ValueError('Read-only paused Live observation needs one new external proof.')

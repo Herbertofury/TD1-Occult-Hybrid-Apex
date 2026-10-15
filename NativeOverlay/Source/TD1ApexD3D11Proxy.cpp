@@ -56,6 +56,7 @@
 #include "ApexCasBank.h"
 #include "ApexCasReviewControl.h"
 #include "ApexCasRoom.h"
+#include "ApexNativeCasProbeWin.h"
 #include "OverlayInput.h"
 #include "MinHook.h"
 #include "imgui.h"
@@ -4319,6 +4320,16 @@ extern "C" __declspec(dllexport) int WINAPI ApexOverlayStudio(unsigned long long
 }
 // Typed preview/review controls: no OS input or foreground changes. Review
 // actions use the same once-only Source queue as the F11 transaction drawer.
+extern "C" __declspec(dllexport) const char* WINAPI ApexNativeCasProbe() {
+    thread_local std::string reply;
+    try {reply=td1::nativecas::Inspect().dump();}
+    catch(const std::exception& error) {
+        reply=td1::ui::Json({{"ok",false},{"message",error.what()},{"read_only",true},
+            {"game_memory_written",false},{"game_files_written",false},{"native_patch_qualified",false}}).dump();
+    }
+    if(reply.size()>262144) reply=R"({"ok":false,"message":"Native diagnostic exceeds its bound.","read_only":true,"game_memory_written":false,"game_files_written":false,"native_patch_qualified":false})";
+    return reply.c_str();
+}
 extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const char* raw) {
     static std::string reply;
     std::lock_guard<std::recursive_mutex> renderLock(td1::g_renderMutex);

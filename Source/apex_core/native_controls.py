@@ -6,7 +6,7 @@ Request identities deduplicate commands after response loss.
 from collections import OrderedDict
 import threading
 
-ACTIONS = frozenset(('test_input', 'test_capture', 'test_studio_ui', 'test_preview', 'overlay_start', 'overlay_status', 'overlay_show', 'overlay_hide'))
+ACTIONS = frozenset(('test_input', 'test_capture', 'test_studio_ui', 'test_preview', 'test_native_cas_probe', 'overlay_start', 'overlay_status', 'overlay_show', 'overlay_hide'))
 _LOCK = threading.RLock()
 _RESULTS = OrderedDict()
 
@@ -37,6 +37,10 @@ def dispatch(backend, action, value, request_id):
             result = overlay_loader.studio_ui(backend.__file__, paths.DLL_PATH, argument)
         elif action == 'test_preview':
             result = overlay_loader.sim_preview(backend.__file__, paths.DLL_PATH, argument)
+        elif action == 'test_native_cas_probe':
+            if argument is not None:
+                raise ValueError('Native CAS inspection accepts no addresses or operations.')
+            result = overlay_loader.native_cas_probe(backend.__file__, paths.DLL_PATH)
         else:
             result = overlay_loader.input_event(backend.__file__, paths.DLL_PATH, argument)
         result = dict(result, request_id=request_id, request_state='completed',

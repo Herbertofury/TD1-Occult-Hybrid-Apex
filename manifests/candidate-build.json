@@ -1,10 +1,10 @@
 {
-  "build_epoch": "2026-10-15-all-membership-cas-entry-v135",
+  "build_epoch": "2026-10-15-native-cas-callback-contexts-v138",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-15-all-membership-cas-entry-v135.zip",
-    "bytes": 3328485,
+    "artifact": "Apex_Development_Candidate_2026-10-15-native-cas-callback-contexts-v138.zip",
+    "bytes": 3349018,
     "members": 28,
-    "sha256": "efab888c8b0b59dc22d974329e55d8c63004c8626389dabc2bcb0a4bc44ff5ee"
+    "sha256": "35e24498d79af357d6703728d881ce677359771587c049489b1a431fc07487ed"
   },
   "compiled_script_modules": 93,
   "deployed": false,
@@ -53,7 +53,7 @@
     {
       "bytes": 52517,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "80b434166b79ae82d05d1d7fab05f4df18dc2836565c59c38bef8306388a88f1"
+      "sha256": "d469516c9ff797b09b7db4aaaa63340df0e24238667e1caead4aa71b745a7f38"
     },
     {
       "bytes": 1506,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 882514,
+      "bytes": 884251,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "35791e62ba6bb1b9a07e0fe33d0cba72cb6de7d276de79be80ae878e50e8afc3"
+      "sha256": "7b0f9382d7fd4c61f4da1802a14fc825350398c926b781c76efa497feb17ff04"
     },
     {
-      "bytes": 1926656,
+      "bytes": 1968640,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "929fc06c0f0f9782f7ed74c49454aac75fe5da2ac64151c5f0614448f9180789"
+      "sha256": "7abb1e08780b76ad2e4d66fbedf37bf10e283618c31bb8b34516b9c2735360ae"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "bb18d435be40184835ea582a59fb997149025af926cdcd7ee70f3a04cf0a3e3e"
+      "sha256": "ee75984d8d49f12efda5dbd87e1ca94dc49dc38913e881f6a82f73ab17739ab4"
     },
     {
       "bytes": 424,
@@ -149,7 +149,8 @@
   "package_verification": [
     {
       "artifact": "ApexOccultHybrid.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 159,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [
         "apex_core.phone_interactions",
         "apex_hybrid.CoreLib.TD1_OccultHybrid_MenuUI",
@@ -165,37 +166,43 @@
     },
     {
       "artifact": "ApexCASUnlocks.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 39,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 39
     },
     {
       "artifact": "ApexColorStudio.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 2,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 2
     },
     {
       "artifact": "Optional/ApexPlantSimPermanent.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 2,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 2
     },
     {
       "artifact": "Optional/ApexPlantSimNoVampireThirst.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 1,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 1
     },
     {
       "artifact": "Optional/ApexServoNoVampireThirst.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 1,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 1
     },
     {
       "artifact": "ApexCASBridge.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 3,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 3
     }

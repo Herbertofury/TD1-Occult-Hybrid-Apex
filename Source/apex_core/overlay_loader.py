@@ -311,6 +311,44 @@ def studio_ui(module_file, dll_path, argument):
 
 
 @serialized
+def native_cas_probe(module_file, dll_path):
+    """Inspect fixed own-image CAS references; never accept memory addresses."""
+    if not _CALLS:
+        raise ValueError('The matching game-owned native sidecar is not loaded.')
+    path, info = sidecar_paths(module_file)
+    if info['sha256'] != _LOADED_SHA or str(path) != _LOADED_PATH:
+        raise ValueError('The native build changed while the game runs.')
+    native = _game_ctypes(dll_path)
+    class String(native._SimpleCData): _type_ = 'z'
+    class ProbeCall(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL
+        _restype_ = String
+        _argtypes_ = ()
+    class Library: _handle = _HANDLE
+    result = ProbeCall(('ApexNativeCasProbe', Library()))()
+    reply = getattr(result, 'value', result)
+    if not isinstance(reply, bytes) or len(reply) > 262144:
+        raise ValueError('Native CAS diagnostic returned invalid bounded JSON.')
+    value = json.loads(reply.decode('utf-8'))
+    if (not isinstance(value, dict) or type(value.get('ok')) is not bool or
+            value.get('read_only') is not True or value.get('game_memory_written') is not False or
+            value.get('game_files_written') is not False or value.get('native_patch_qualified') is not False):
+        raise ValueError('Native CAS diagnostic lacks its read-only contract.')
+    if value['ok']:
+        if (type(value.get('pid')) is not int or value['pid'] != os.getpid() or
+                value.get('exe_sha256') != '916b852b187b9c41b9c2d77af55e0d5ed6aaf06909661397d7aa98f2e4db78ab' or
+                value.get('own_process_only') is not True or value.get('memory_dump_written') is not False):
+            raise ValueError('Native CAS diagnostic does not identify this exact read-only game image.')
+        for name in ('disk_text_sha256', 'runtime_text_sha256'):
+            digest = value.get(name)
+            if not isinstance(digest, str) or len(digest) != 64 or any(c not in '0123456789abcdef' for c in digest):
+                raise ValueError('Native CAS diagnostic code fingerprints are incomplete.')
+        if value.get('runtime_text_matches_disk') is not (value['disk_text_sha256'] == value['runtime_text_sha256']):
+            raise ValueError('Native CAS diagnostic code fingerprint comparison is inconsistent.')
+    return value
+
+
+@serialized
 def sim_preview(module_file, dll_path, argument):
     if not _CALLS or not isinstance(argument, dict) or argument.get('operation') not in ('status', 'load', 'view', 'mode', 'workspace', 'clear', 'tray', 'tray-copy', 'library-select', 'thumbnail', 'gallery-query', 'gallery-select', 'gallery-view', 'cas-review'):
         raise ValueError('Use the typed independent preview contract.')

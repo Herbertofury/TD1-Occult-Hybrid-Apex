@@ -5,7 +5,18 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
-V135 is installed in the reusable disposable profile. It removes Apex's own
+V136/V137's explicit read-only diagnostic works in the actual main-menu process,
+finds seven live CAS service references and returns 17 bounded code regions;
+it requires no household or foreground handoff. The selector takes a Boolean
+primary/alternate choice, not an occult-kind argument. V138 adds bounded
+contexts for split handlers; this is inspection, not a qualified native patch.
+All seven native CTests pass. All
+40 appearances remain exact after V135's unedited full-CAS visit and all five
+commits. Native CAS still exposes one pair per member; whether that mask
+describes the editor view or persisted membership is under investigation.
+See [native-code inspection and remaining gates](../Reports/NATIVE_CAS_CODE_INSPECTION_2026-10-15.md).
+
+V135 removes Apex's own
 CAS-entry narrowing to Human plus the current occult. Entry now requires the
 complete tracker-verified membership set and a captured owner for every
 registered member. A native setter that reduces that set blocks entry and
@@ -19,7 +30,7 @@ Actual V135 preparation retains all six non-Human bits on all five Sims, but
 the raw game-to-CAS packet still narrows each member to one pair before EA's
 ActionScript handler. The native-view probe refuses before any view mutation.
 Within-visit native switching/editing and additive membership remain open;
-the game-to-CAS narrowing now has a separate reproduced boundary.
+the native editor's pair-shaped packet has a separately reproduced boundary.
 See [the native membership implementation and evidence](../Reports/NATIVE_CAS_HYBRID_MEMBERSHIP_2026-10-15.md).
 
 V134 exports every

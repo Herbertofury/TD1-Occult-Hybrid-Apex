@@ -601,6 +601,12 @@ def _submit_existing_save(backend, sim, client, argument):
 def dispatch(backend, action, sim_id, value):
     global _LAST_CLIENT_ID
     argument = guard(backend, value)
+    if action == 'test_native_cas_probe':
+        if argument is not None:
+            raise ValueError('Native CAS inspection accepts no addresses or operations.')
+        import paths
+        from .overlay_loader import native_cas_probe
+        return native_cas_probe(backend.__file__, paths.DLL_PATH)
     if action in ('test_capture', 'test_input'):
         from . import overlay_loader
         if action == 'test_capture':

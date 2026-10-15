@@ -83,8 +83,9 @@ not the intended product behavior. The permanent appearance guard remains on.
   `3`, `33`, `9`, `65`, `3`. The selected Alien reports mask `3`.
   Entry proof SHA-256:
   `f664975886e4ce1900c01bf17bdb74d20b73132aad781eb7a398dd5deafabb4b`.
-  **The game-to-CAS boundary still narrows membership.** V135 removes Apex's
-  own restriction but does not fix this second restriction.
+  **The raw native CAS view still exposes one pair.** V135 removes Apex's
+  own restriction but does not fix this presentation/selection limit. The
+  packet alone does not establish deletion of persistent membership.
 - [x] Run the separate native-view probe against that exact session. It records
   one read-only status and refuses to send any cross-occult setter because the
   full mask is absent. Probe SHA-256:
@@ -99,6 +100,8 @@ the currently displayed kind from complete membership; altering UI labels
 alone cannot repair the already narrowed raw native packet. External read-only
 process access is denied by Windows (error 5), so deeper runtime inspection
 requires an explicit read-only diagnostic inside the authorized game mod.
+The [subsequent native-code inspection](NATIVE_CAS_CODE_INSPECTION_2026-10-15.md)
+implements that diagnostic and finds the real live service references.
 
 ## Remaining runtime gates
 

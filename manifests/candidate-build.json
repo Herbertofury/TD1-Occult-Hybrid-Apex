@@ -1,12 +1,12 @@
 {
-  "build_epoch": "2026-10-15-native-review-queue-save-ui-v126",
+  "build_epoch": "2026-10-15-native-dst-occult-art-v128",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-15-native-review-queue-save-ui-v126.zip",
-    "bytes": 3280612,
+    "artifact": "Apex_Development_Candidate_2026-10-15-native-dst-occult-art-v128.zip",
+    "bytes": 3293899,
     "members": 28,
-    "sha256": "a3a2c595a07c690f48c2ee30e68ef4ef893d60c4f8691352fd7bcafe2bf48e73"
+    "sha256": "b126e96451f9506e1d069254858d9655836e8df598a79959d60c65c4af4a743b"
   },
-  "compiled_script_modules": 89,
+  "compiled_script_modules": 90,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -51,9 +51,9 @@
       "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 51189,
+      "bytes": 51514,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "beff53887e5b6833f45e290a5e7126f338f0147982b3b7152c34283bc47a2990"
+      "sha256": "0ab8db15ba1d027213307ce30b4c90b0370b478324c44010156fdccfb053982c"
     },
     {
       "bytes": 1506,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 847095,
+      "bytes": 853761,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "d25b31092657e019f3df57e33fff1a4807274ab81407af092fd04172aa08c91d"
+      "sha256": "07c3e76575a7589e6475d9a1d048832ddaa9f0f847a155e3d37522c4066f951a"
     },
     {
-      "bytes": 1901056,
+      "bytes": 1915392,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "ab6a2e4f68af69c210ea9f1cb457fcd4dd726340f0479467e572e03147674e6a"
+      "sha256": "2606469b8207dc838b2a8d8e32b9bb2cf3f6563d6bc630049d1cfd314daec9c7"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "a93a4fbcbbde09e71895575faef4aecd54d1fb38cdf8f086304e6ccb03d884b2"
+      "sha256": "868731a7cdc734fcc4016924805b9aec67ce3c8b4ebf688185011afecf422e7f"
     },
     {
       "bytes": 424,
@@ -149,7 +149,8 @@
   "package_verification": [
     {
       "artifact": "ApexOccultHybrid.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 159,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [
         "apex_core.phone_interactions",
         "apex_hybrid.CoreLib.TD1_OccultHybrid_MenuUI",
@@ -165,37 +166,43 @@
     },
     {
       "artifact": "ApexCASUnlocks.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 39,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 39
     },
     {
       "artifact": "ApexColorStudio.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 2,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 2
     },
     {
       "artifact": "Optional/ApexPlantSimPermanent.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 2,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 2
     },
     {
       "artifact": "Optional/ApexPlantSimNoVampireThirst.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 1,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 1
     },
     {
       "artifact": "Optional/ApexServoNoVampireThirst.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 1,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 1
     },
     {
       "artifact": "ApexCASBridge.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 3,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 3
     }

@@ -138,10 +138,30 @@ def _sun_buffs(backend, sim):
 
 
 def install(backend):
-    """Install two event-based, narrowly scoped delegating wrappers once."""
+    """Install event-based, narrowly scoped delegating wrappers once."""
     _load(backend)
     from traits.trait_tracker import TraitTracker
     from weather.weather_aware_component import WeatherAwareComponent
+    from time_service import TimeService
+    exposure_original = TimeService.is_in_sunlight
+    if not getattr(exposure_original, '_apex_sunlight_exposure_qol', False):
+        exposure_signature = inspect.signature(exposure_original)
+        if tuple(exposure_signature.parameters) != ('self', 'sim'):
+            raise ValueError('Native sunlight exposure signature changed; wrapper refused.')
+        vampire_traits = frozenset(backend._tuning_traits(backend.OccultType.VAMPIRE))
+        def exposure(self, sim):
+            info = getattr(sim, 'sim_info', None)
+            if info is not None and str(info.id) in _SUN:
+                # DayWalkers' inspected behavior uses this native exposure
+                # predicate. Scope it to explicit preferences and actual
+                # tuned vampire traits, including hybrids in other forms.
+                traits = info.get_traits()
+                if any(trait in vampire_traits for trait in traits):
+                    return False
+            return exposure_original(self, sim)
+        exposure._apex_sunlight_exposure_qol = True
+        exposure._apex_original = exposure_original
+        TimeService.is_in_sunlight = exposure
     original = TraitTracker._add_remove_day_night_buffs
     if not getattr(original, '_apex_sunlight_qol', False):
         inspect.signature(original).bind(None, (), True)
@@ -181,6 +201,26 @@ def install(backend):
         WeatherAwareComponent.provide_route_events = umbrella
 
 
+def _exposure_status(backend, sim):
+    """Explicit read proof; no timer or change to the sun, clock or Sim."""
+    query = getattr(backend.services, 'time_service', None)
+    instance = sim.get_sim_instance() if sim is not None else None
+    if not callable(query) or instance is None:
+        return {'query': 'unavailable'}
+    try:
+        time = query()
+        callback = type(time).is_in_sunlight
+        result = {'query': 'returned', 'apex_exposure_hook_installed':
+                  getattr(callback, '_apex_sunlight_exposure_qol', False),
+                  'effective_in_sunlight': callback(time, instance)}
+        previous = getattr(callback, '_apex_original', None)
+        if callable(previous):
+            result['previous_callback_in_sunlight'] = previous(time, instance)
+        return result
+    except (ValueError, AttributeError, TypeError) as error:
+        return {'query': 'failed', 'reason': str(error)}
+
+
 def status(backend, sim):
     _load(backend)
     members = backend.services.active_household()
@@ -196,6 +236,7 @@ def status(backend, sim):
     return {'schema': 1, 'sim_id': str(sim.id) if sim else None, 'save_guid': _SAVE,
             'autonomy': _autonomy(backend), 'death': _death(), 'household_safety': safety,
             'sunlight_blocked': bool(sim and str(sim.id) in _SUN),
+            'sunlight_exposure': _exposure_status(backend, sim),
             'automatic_umbrellas_blocked': bool(sim and str(sim.id) in _UMBRELLA),
             'appearance_modified': False}
 

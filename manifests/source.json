@@ -29,6 +29,12 @@
       "sha256": "778f289631c7cae7710f398f33b02abf2bb50f3735cb9590aa85791baa3f2c16"
     },
     {
+      "bytes": 176613,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "093df1520f13614e7efea9249038ba050210dd057b381d912cdb7f3f169d0a44"
+    },
+    {
       "bytes": 7912,
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexPermissionCapture.cpp",
@@ -185,10 +191,22 @@
       "sha256": "ff543c4c7648f677d541801bbda9061eb02ae1264557cb7609aea860379c22f9"
     },
     {
+      "bytes": 45982,
+      "mode": "100644",
+      "path": "README.md",
+      "sha256": "7654d3fbd31a1104931a585a97291839794bf96489c7afbc998de3d030872d29"
+    },
+    {
       "bytes": 11594,
       "mode": "100644",
       "path": "tools/slider_catalog.py",
       "sha256": "3f6d179230f227719e3d4a018c7cb3f6d076df161b9e1d94e6c28faca3b1da6e"
+    },
+    {
+      "bytes": 26336,
+      "mode": "100644",
+      "path": "NativeOverlay/Tests/ResourceTests.cpp",
+      "sha256": "5a005d81ce6d1c82460106f5ccb397535e973ad9034edff5b2c8af187ebdf180"
     },
     {
       "bytes": 1965,
@@ -269,16 +287,16 @@
       "sha256": "881b257a911bbfe2f5aa1c7c845ffc957212779d73a72e1c76b8b87826905823"
     },
     {
+      "bytes": 14421,
+      "mode": "100644",
+      "path": "Source/apex_core/gameplay_qol.py",
+      "sha256": "f58a7fd7dff9b9c532bcf08dcb1e500f5559bf8905861fd93053933ac9d95cb7"
+    },
+    {
       "bytes": 123684,
       "mode": "100644",
       "path": "Source/CASUi/semantic_methods.as",
       "sha256": "b5fbe10068d4e41bd41cdf4bd66f6c7491839769010f45fac2be5dec12861905"
-    },
-    {
-      "bytes": 418785,
-      "mode": "100644",
-      "path": "Source/td1_occult_hybrid_apex.py",
-      "sha256": "f81c5999c263a0ed41aa5c4e16b14d35d7f3c69618e845863f8fee5e2ddfb88c"
     },
     {
       "bytes": 11479,
@@ -345,6 +363,12 @@
       "mode": "100644",
       "path": "tests/test_cas_household_commit.py",
       "sha256": "33e4903819559e67d27b4f94326928d9f886e6a08fe78037af57759438c90063"
+    },
+    {
+      "bytes": 13307,
+      "mode": "100644",
+      "path": "tests/test_cas_transaction_routes.py",
+      "sha256": "2d96665196fcf38be7b8296c2a27b0520e1eebc8f2d09ae949c97123b07aedca"
     },
     {
       "bytes": 473,
@@ -425,6 +449,12 @@
       "sha256": "d9e64b5f17bad8f98353d27146923b828927aadf82a039b365e960be352dd1f0"
     },
     {
+      "bytes": 5297,
+      "mode": "100644",
+      "path": "tests/test_occult_icons.py",
+      "sha256": "52daafdcacd178e0aea274824e0726cd8dc51e4eadf586501fa01709f34d35ef"
+    },
+    {
       "bytes": 6465,
       "mode": "100644",
       "path": "tests/test_profile_isolation.py",
@@ -453,6 +483,12 @@
       "mode": "100644",
       "path": "tests/test_native_witch_persistence.py",
       "sha256": "91bdc50c578d8b6da32c232873e429a95a12125b9e265927ef269637acd2cc8c"
+    },
+    {
+      "bytes": 11478,
+      "mode": "100644",
+      "path": "tests/test_gameplay_qol.py",
+      "sha256": "15f4eb28a078540b2afe4b08786ecc2fcb0a62bb7cad044f08ba31f094a682b9"
     },
     {
       "bytes": 21988,
@@ -527,6 +563,12 @@
       "sha256": "69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b"
     },
     {
+      "bytes": 5301,
+      "mode": "100644",
+      "path": "Source/apex_core/occult_icons.py",
+      "sha256": "3257b5678a71f06123540f9760862782dbb9980479d08dcbabaabe53982c6883"
+    },
+    {
       "bytes": 965376,
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/imgui.cpp",
@@ -561,6 +603,12 @@
       "mode": "100644",
       "path": "tools/test_addons.py",
       "sha256": "af195671c78f38d72ee10d83cb6693660f80fba8298e1ea6b11f649452c13904"
+    },
+    {
+      "bytes": 7698,
+      "mode": "100644",
+      "path": "tests/test_phone_menu.py",
+      "sha256": "1f8b17e938ca89f648b129bc96e9609ffae593ef1b0c96b95f37bfa3c2f4bcee"
     },
     {
       "bytes": 29418,
@@ -671,12 +719,6 @@
       "sha256": "4e9a3bdeec72eaa1796c21f11f89b624fda97b743242500745b5b9cb31666e7b"
     },
     {
-      "bytes": 337633,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "e42e8af867d2007bc6a7d1e51dd553af4c0bc8211c33cc99321e7249cb7580f1"
-    },
-    {
       "bytes": 5310,
       "mode": "100644",
       "path": "Source/apex_core/genetics_snapshot.py",
@@ -699,6 +741,12 @@
       "mode": "100644",
       "path": "tests/test_foreign_current_trait.py",
       "sha256": "5db99f6342137d051a5a055c4e31c60d8147ee9eed0e2f9584bf33b429524b4f"
+    },
+    {
+      "bytes": 53957,
+      "mode": "100644",
+      "path": "Source/apex_core/form_bank_seal.py",
+      "sha256": "ac6ab2060b65d014efbc8b47c676228a6d9dc1ed07cd9701ecdf5ae6cc6bf4d4"
     },
     {
       "bytes": 3672,
@@ -1127,6 +1175,12 @@
       "sha256": "edcce4c81985d7dd5b73feae96d6498c8f749b1bca4c3d2d9926ea9a17a84755"
     },
     {
+      "bytes": 17152,
+      "mode": "100644",
+      "path": "Reports/HOUSEHOLD_CAS_2026-10-15.md",
+      "sha256": "ca5790f4f0b0721bec38862ef69e2ed644603af92968e12ffc942105e457d507"
+    },
+    {
       "bytes": 17485,
       "mode": "100644",
       "path": "tools/cas_workbench.py",
@@ -1403,18 +1457,6 @@
       "sha256": "b9f4f0fa9c4a924d4e8be81260b6f3544b8e3bdd612a43ff278357e0ecc06235"
     },
     {
-      "bytes": 12749,
-      "mode": "100644",
-      "path": "tests/test_cas_transaction_routes.py",
-      "sha256": "e03fa2d71efc5509ef5c34e6007272b81c98aa074e3cbd39013eb4ad75796cf7"
-    },
-    {
-      "bytes": 6562,
-      "mode": "100644",
-      "path": "tests/test_phone_menu.py",
-      "sha256": "94d242aa130edeb1db4d01e40e5c4f30cbd76768f21ac249a15992b790403ced"
-    },
-    {
       "bytes": 1878,
       "mode": "100644",
       "path": "wiki/Live-CAS-Studio.md",
@@ -1443,12 +1485,6 @@
       "mode": "100644",
       "path": "wiki/Getting-Started.md",
       "sha256": "d286b3d30b725966228503b28d949b564806db229243da308adb018f4bdbda86"
-    },
-    {
-      "bytes": 10790,
-      "mode": "100644",
-      "path": "Reports/HOUSEHOLD_CAS_2026-10-15.md",
-      "sha256": "3ea06c7499a50bf01f79f23e65c7490f590dc5c846933d32851c510cfdb3a4fc"
     },
     {
       "bytes": 17339,
@@ -1685,6 +1721,12 @@
       "sha256": "456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e"
     },
     {
+      "bytes": 11482,
+      "mode": "100644",
+      "path": "Source/apex_core/phone_interactions.py",
+      "sha256": "05778ddb4e9e764ee4899cca39e5143bf3a4bd7d3bf61d4890c3e0466b72f025"
+    },
+    {
       "bytes": 1881,
       "mode": "100644",
       "path": "RECOVERED_BINARY_ARTIFACTS.md",
@@ -1763,12 +1805,6 @@
       "sha256": "5ba7506d878c8da70c8daa3ebc3e3a17567001b2aad35ff778fb7be2e6bb87a6"
     },
     {
-      "bytes": 12239,
-      "mode": "100644",
-      "path": "Source/apex_core/gameplay_qol.py",
-      "sha256": "1a421833fd1ff050803338e256dbb7f85ab7c565d80a3a98e0656cf62806c03b"
-    },
-    {
       "bytes": 17421,
       "mode": "100644",
       "path": "tools/cas_ui_build.py",
@@ -1779,12 +1815,6 @@
       "mode": "100644",
       "path": "tools/ea_native_permission.py",
       "sha256": "829e20c9d94188298f6744cc8d8812df5f175b789a4de5e6185a2011b79c0c79"
-    },
-    {
-      "bytes": 9303,
-      "mode": "100644",
-      "path": "tests/test_gameplay_qol.py",
-      "sha256": "403d9e87616300c1909d7c84a7ce6e3465a44f79c4e50dbfb1aff79293060cec"
     },
     {
       "bytes": 2786,
@@ -1845,6 +1875,12 @@
       "mode": "100644",
       "path": "tests/test_cas_history_ack.py",
       "sha256": "cee99103807cf48af036ce1f9185dc2f821069be551f33746469e17a8e6b59e7"
+    },
+    {
+      "bytes": 343185,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "ddb86124eb57ad242f2c11e34194c4adf4e0cc49b2462d89299a7cc1fd4146d8"
     },
     {
       "bytes": 29294,
@@ -2189,6 +2225,12 @@
       "sha256": "5ba0a3787121a2bea5bb06027e6eacdff9074580b4dcc1fdc96d220e091078ef"
     },
     {
+      "bytes": 2946,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/ApexOccultImage.h",
+      "sha256": "3023376c654e2e4c8a79b8c874f89dcaae60e30252ca533e9420de60bfca3b36"
+    },
+    {
       "bytes": 5136,
       "mode": "100644",
       "path": "tests/test_saved_occult_extras.py",
@@ -2217,12 +2259,6 @@
       "mode": "100644",
       "path": "NativeOverlay/third_party/minhook/src/trampoline.h",
       "sha256": "53ed9934492320617a27bfd952ffe7f5b7a4a1d09963d4512447082fe7b727b4"
-    },
-    {
-      "bytes": 53862,
-      "mode": "100644",
-      "path": "Source/apex_core/form_bank_seal.py",
-      "sha256": "5f5014bc985dce122c5876e21f0cc1e0f95052d92b337e2acea13e798b702a91"
     },
     {
       "bytes": 5321,
@@ -2411,12 +2447,6 @@
       "sha256": "876694ca6c6e76d41230225a8bfac4cb0493926179500949befaabf9fbcc62df"
     },
     {
-      "bytes": 45738,
-      "mode": "100644",
-      "path": "README.md",
-      "sha256": "6fd39dd61c32b52f4d3263d0f9a07cf6d564a162c0f6b61b62a05c162f97075a"
-    },
-    {
       "bytes": 38791,
       "mode": "100644",
       "path": "tools/ea_permission_broker.py",
@@ -2513,6 +2543,12 @@
       "sha256": "341e5a7656be0079e1aac3203d18eaea224d5a0f2b655fa88851a5f4f8c714ff"
     },
     {
+      "bytes": 34359,
+      "mode": "100644",
+      "path": "docs/CAS_CLI_CONTROLS.md",
+      "sha256": "8a84c265ed667de671d3aa4ddaedad80956b0eb403f787745cc4415881fcd7ea"
+    },
+    {
       "bytes": 51651,
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_win32.cpp",
@@ -2583,12 +2619,6 @@
       "mode": "100644",
       "path": "Reports/ALTERNATE_CAS_2026-10-08.md",
       "sha256": "cb99603868d17f4b60753e1baadce5985ef8adbc7ece7b8297aebc263d62c616"
-    },
-    {
-      "bytes": 33192,
-      "mode": "100644",
-      "path": "docs/CAS_CLI_CONTROLS.md",
-      "sha256": "8f1515adbd6c967b4b656c7b81f493b67b9c91f90eaff694122a7ee1bc32d0dc"
     },
     {
       "bytes": 5356,
@@ -2759,12 +2789,6 @@
       "sha256": "afe9a17b66ef75d8b5338a521040f4c154b29edd7e06a164e473d217f94ac029"
     },
     {
-      "bytes": 11294,
-      "mode": "100644",
-      "path": "Source/apex_core/phone_interactions.py",
-      "sha256": "033c9b9f788adb075f7519ec8ff90994d22fbeb0861aa22eba216cefec0aae0d"
-    },
-    {
       "bytes": 8220,
       "mode": "100644",
       "path": "tools/cas_bank_cli.py",
@@ -2813,12 +2837,6 @@
       "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
     },
     {
-      "bytes": 24309,
-      "mode": "100644",
-      "path": "NativeOverlay/Tests/ResourceTests.cpp",
-      "sha256": "8f0ee33c43b09cfc4dc55aca8b72e5fa9fc85470c526d41465d87b74448a9aac"
-    },
-    {
       "bytes": 30313,
       "mode": "100644",
       "path": "tools/ea_restart.py",
@@ -2831,10 +2849,10 @@
       "sha256": "d08a714e1bb44376680a5b9cbbadd02faa122f9f3588da9fd541e0a3792bdad4"
     },
     {
-      "bytes": 176369,
+      "bytes": 419292,
       "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "7b4df12f19bd24b32f850122a742db143bb1ca51504e6cef4d3ce17893c52ac3"
+      "path": "Source/td1_occult_hybrid_apex.py",
+      "sha256": "d18547265b517d48f2163c3ea8b3a24d8f2df5276b24abbb6ef8fa9dcb41698d"
     },
     {
       "bytes": 33273,

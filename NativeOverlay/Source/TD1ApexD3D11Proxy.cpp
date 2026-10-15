@@ -42,6 +42,7 @@
 
 #include "ApexUiData.h"
 #include "ApexResourceImage.h"
+#include "ApexOccultImage.h"
 #include "ApexSimPreview.h"
 #include "ApexLiveCatalog.h"
 #include "ApexSliderLibrary.h"
@@ -119,12 +120,16 @@ static std::string g_selectedSim;
 struct QueuedCommand { std::string path; uint64_t generation; bool automaticCasRefresh = false; std::string sim;
     bool automaticCasReconcile = false; std::string casRequestId;
     bool automaticStudioItems = false;
+    bool occultIcons = false;
     bool simPreview = false;
     bool trayClipboard = false;
     int resourceOperation = 0; ui::Json resourceRow = ui::Json::object(); uint64_t resourceSelection = 0;
     bool ownerObservation = false; std::string ownerRequestId;
     std::string casBankAction; };
 static std::deque<QueuedCommand> g_commands;
+static bool g_occultIconsRequested = false; // render thread; one session read
+static std::map<std::string,resource::Pixels> g_occultIconPixels; // worker -> render, g_dataMutex
+static std::map<std::string,ID3D11ShaderResourceView*> g_occultIconTextures; // render thread
 static bool RetainCommandOwner(const QueuedCommand&,const std::string&);
 static uint64_t g_selectionGeneration = 0;
 static std::atomic<bool> g_simPreviewBusy{false};
@@ -1008,8 +1013,19 @@ static void QueueAction(const char* action, const char* occult = nullptr, const 
     QueueCommand(path, name == "cas_ui_result" && value ? value : "");
 }
 
+static bool OccultButton(const char* label,const char* occult,const ImVec2& size=ImVec2(0,0)) {
+    const auto icon=g_occultIconTextures.find(occult&&std::strcmp(occult,"SPELLCASTER")==0?"WITCH":occult?occult:"");
+    if(icon==g_occultIconTextures.end())return ImGui::Button(label,size);
+    const auto height=ImGui::GetFrameHeight();
+    const bool clicked=ImGui::Button((std::string("      ")+label).c_str(),size);
+    const auto pos=ImGui::GetItemRectMin();const auto side=height-4;
+    ImGui::GetWindowDrawList()->AddImage(reinterpret_cast<ImTextureID>(icon->second),
+        ImVec2(pos.x+2,pos.y+2),ImVec2(pos.x+2+side,pos.y+2+side));
+    return clicked;
+}
+
 static bool ActionButton(const char* label, const char* action, const char* occult = nullptr, const char* value = nullptr, const ImVec2& size = ImVec2(-1, 0)) {
-    if (!ImGui::Button(label, size)) return false;
+    if (!OccultButton(label, occult, size)) return false;
     QueueAction(action, occult, value);
     return true;
 }
@@ -1122,6 +1138,31 @@ static void WorkerLoop() {
             if (!g_commands.empty()) { command = g_commands.front(); g_commands.pop_front(); }
         }
         if (command.resourceOperation) { RunResourceCommand(command); continue; }
+            if (command.occultIcons) {
+                if(g_ownerBlocked.load()||g_ownerNativeDeliveryBusy.load()||g_casBankBusy.load())continue;
+                std::string body;
+                if (HttpOwnedCommand(command.path,body)) {
+                    RetainCommandOwner(command,body);
+                    const auto reply=ui::ParseObject(body);
+                    std::map<std::string,resource::Pixels> decoded;
+                    const auto catalog=reply.value("occult_icons",ui::Json::object());
+                    if(reply.value("ok",false)&&catalog.value("schema",0)==1&&
+                        catalog.value("origin",std::string())=="installed-occult-trait-tuning"&&
+                        catalog.contains("items")&&catalog["items"].is_array()&&catalog["items"].size()<=6) {
+                        for(const auto& row:catalog["items"]) {
+                            const auto name=ui::Scalar(row,"name");
+                            if(name!="ALIEN"&&name!="VAMPIRE"&&name!="MERMAID"&&name!="WITCH"&&name!="WEREWOLF"&&name!="FAIRY")continue;
+                            if(ui::Scalar(row,"status")!="resolved"||ui::Scalar(row,"image_base64").size()>175000)continue;
+                            std::string png;
+                            try{png=tray::Decode64(ui::Scalar(row,"image_base64"));}catch(const std::exception&){continue;}
+                            resource::Pixels pixels;std::string reason;
+                            if(resource::DecodeOccultImage(png,row,pixels,reason))decoded.emplace(name,std::move(pixels));
+                        }
+                    }
+                    std::lock_guard<std::mutex> lock(g_dataMutex);g_occultIconPixels=std::move(decoded);
+                }
+                continue; // Artwork never replaces a user's action/result or changes a Sim.
+            }
         if (command.simPreview) { RunSimPreview(command); continue; }
         if (command.trayClipboard) { RunTrayClipboard(command); continue; }
         if (!command.path.empty()) {
@@ -1327,6 +1368,36 @@ static void CleanupLibraryImages() {
     g_libraryImageTextures.clear();g_libraryImageSizes.clear();g_libraryImageAttempted.clear();g_libraryImageContext.clear();
     ++g_libraryImageSerial;
     std::lock_guard<std::mutex> lock(g_dataMutex);g_libraryImagePixels.clear();g_libraryImageErrors.clear();g_thumbnailScene.reset();g_thumbnailBinding=ui::Json::object();
+}
+
+static void CleanupOccultIcons() {
+    for(auto& item:g_occultIconTextures)if(item.second)item.second->Release();
+    g_occultIconTextures.clear();g_occultIconsRequested=false;
+    std::lock_guard<std::mutex> lock(g_dataMutex);g_occultIconPixels.clear();
+}
+
+static void SynchronizeOccultIcons() {
+    std::map<std::string,resource::Pixels> received;
+    {std::lock_guard<std::mutex> lock(g_dataMutex);received.swap(g_occultIconPixels);}
+    for(auto& entry:received) {
+        const auto& p=entry.second;
+        if(!g_device||!p.width||!p.height||p.width>512||p.height>512||p.rgba.size()!=size_t(p.width)*p.height*4)continue;
+        D3D11_TEXTURE2D_DESC desc{};desc.Width=p.width;desc.Height=p.height;desc.MipLevels=desc.ArraySize=desc.SampleDesc.Count=1;
+        desc.Format=DXGI_FORMAT_R8G8B8A8_UNORM;desc.Usage=D3D11_USAGE_IMMUTABLE;desc.BindFlags=D3D11_BIND_SHADER_RESOURCE;
+        D3D11_SUBRESOURCE_DATA data{};data.pSysMem=p.rgba.data();data.SysMemPitch=p.width*4;
+        ID3D11Texture2D* texture=nullptr;ID3D11ShaderResourceView* view=nullptr;
+        if(SUCCEEDED(g_device->CreateTexture2D(&desc,&data,&texture))&&texture){
+            const auto result=g_device->CreateShaderResourceView(texture,nullptr,&view);texture->Release();
+            if(SUCCEEDED(result)&&view){auto& old=g_occultIconTextures[entry.first];if(old)old->Release();old=view;}
+        }
+    }
+#ifndef APEX_NATIVE_SMOKE
+    if(!g_occultIconsRequested&&!g_ownerBlocked&&!g_ownerNativeDeliveryBusy&&!g_casBankBusy) {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if(!g_done&&g_commands.size()<48){QueuedCommand command{"/api/command?action=occult_icons",g_selectionGeneration};
+            command.occultIcons=true;g_commands.push_back(std::move(command));g_occultIconsRequested=true;}
+    }
+#endif
 }
 
 static void SynchronizeLibraryImages(const ui::Json& page) {
@@ -1621,11 +1692,15 @@ static bool CategoryButton(const char* label, const char* action, const char* ke
 }
 
 static void DrawOccultSelector() {
+    SynchronizeOccultIcons();
+    const auto icon=g_occultIconTextures.find(ActiveOccultName());
+    if(icon!=g_occultIconTextures.end()) {ImGui::Image(reinterpret_cast<ImTextureID>(icon->second),ImVec2(26,26));ImGui::SameLine();}
     ImGui::SetNextItemWidth(230);
     ImGui::Combo("Selected Occult", &g_selectedOccultIndex, kOccults, IM_ARRAYSIZE(kOccults));
 }
 
 static void DrawOccultCards(const char* action1, const char* label1, const char* action2, const char* label2, const char* action3 = nullptr, const char* label3 = nullptr, const char* action4 = nullptr, const char* label4 = nullptr) {
+    SynchronizeOccultIcons();
     if (ImGui::BeginTable("occult_grid", 3, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchSame)) {
         for (int i = 0; i < IM_ARRAYSIZE(kOccults); ++i) {
             ImGui::TableNextColumn();
@@ -1674,6 +1749,7 @@ static void DrawQuickAutonomy() {
 }
 
 static void DrawOccultSafety() {
+    SynchronizeOccultIcons();
     ui::Json state;
     { std::lock_guard<std::mutex> lock(g_dataMutex); state = g_qolReceipt; }
     if (!state.contains("autonomy")) return;
@@ -1684,6 +1760,8 @@ static void DrawOccultSafety() {
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Uses the game's death toggle and restores its prior setting. Does not revive a Sim already dying.");
     if (state.value("sim_id", std::string()) == g_selectedSim) {
         bool sun = state.value("sunlight_blocked", false), umbrella = state.value("automatic_umbrellas_blocked", false);
+        const auto icon=g_occultIconTextures.find("VAMPIRE");
+        if(icon!=g_occultIconTextures.end()){ImGui::Image(reinterpret_cast<ImTextureID>(icon->second),ImVec2(24,24));ImGui::SameLine();}
         if (ImGui::Checkbox("Disable vampire sunlight burning for this Sim", &sun)) QueueAction(sun ? "qol_sunlight_on" : "qol_sunlight_off");
         if (ImGui::Checkbox("Disable automatic umbrellas for this Sim", &umbrella)) QueueAction(umbrella ? "qol_umbrella_on" : "qol_umbrella_off");
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Prevents automatic umbrella opening; native put-away events remain available. This preference and sunlight protection are saved separately per Sim and save.");
@@ -3281,17 +3359,21 @@ static void DrawIndependentSimPreview() {
 }
 
 static void DrawStudioFormStrip() {
+    SynchronizeOccultIcons();
     const auto forms=g_studioData.find("form_inventory");if(forms==g_studioData.end()||forms->empty())return;
     ImGui::SeparatorText("APPEARANCE OWNERS / each form keeps its own edits");
     ImGui::BeginDisabled(g_simPreviewBusy||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy||g_previewId[0]);
     float remaining=ImGui::GetContentRegionAvail().x;
     for(size_t i=0;i<forms->size();++i){const auto& form=(*forms)[i];const auto label=ui::Scalar(form,"name")+(form.value("current",false)?" / LIVE":"");
-        const float width=ImGui::CalcTextSize(label.c_str()).x+ImGui::GetStyle().FramePadding.x*2;
+        static const std::map<std::string,const char*> names={{"2","ALIEN"},{"4","VAMPIRE"},{"8","MERMAID"},{"16","WITCH"},{"32","WEREWOLF"},{"64","FAIRY"}};
+        const auto name=names.find(ui::Scalar(form,"flags"));const char* occult=name==names.end()?nullptr:name->second;
+        const float width=ImGui::CalcTextSize(label.c_str()).x+ImGui::GetStyle().FramePadding.x*2+
+            (occult&&g_occultIconTextures.count(occult)?ImGui::CalcTextSize("      ").x:0);
         if(i&&remaining>width+ImGui::GetStyle().ItemSpacing.x){ImGui::SameLine();remaining-=ImGui::GetStyle().ItemSpacing.x;}
         else remaining=ImGui::GetContentRegionAvail().x;
         const bool selected=int(i)==g_studioFormIndex;
         ImGui::PushID(int(i));if(selected)ImGui::PushStyleColor(ImGuiCol_Button,ImVec4(.14f,.42f,.39f,1));
-        if(ImGui::Button(label.c_str())){g_studioFormIndex=int(i);g_studioOutfitIndex=0;g_studioPartIndex=0;QueueStudioAction("studio_status");}
+        if(OccultButton(label.c_str(),occult)){g_studioFormIndex=int(i);g_studioOutfitIndex=0;g_studioPartIndex=0;QueueStudioAction("studio_status");}
         if(selected)ImGui::PopStyleColor();
         if(ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))ImGui::SetTooltip("Inspect and edit this stored appearance. The Live Sim does not transform.\nApply or Cancel a pending try-on before choosing another owner.");
         ImGui::PopID();remaining-=width;
@@ -3799,6 +3881,7 @@ static void ResetRenderer() {
     CleanupRenderTarget();
     CleanupResourceTexture();
     CleanupLibraryImages();
+    CleanupOccultIcons();
     g_simPreview.Reset();
     if (g_hwnd && IsWindow(g_hwnd) && g_oldWndProc &&
         reinterpret_cast<WNDPROC>(GetWindowLongPtrW(g_hwnd, GWLP_WNDPROC)) == WndProc)

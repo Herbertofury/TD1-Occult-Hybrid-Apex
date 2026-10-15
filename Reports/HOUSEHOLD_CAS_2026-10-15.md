@@ -151,4 +151,96 @@ Tray/Gallery gate. Nothing has been published to the online Gallery.
 - [ ] Verify corrected Library listing, real whole-household import, every
   imported alternate, fresh normal save and cold reload.
 - [ ] Verify V126's native F11 queue and visible Save state after all reviews.
-- [ ] Complete the fresh V126 full suite and hosted checks.
+- [x] Complete the fresh V126 full suite: 2,182 tests pass in 658.005 seconds.
+  Both hosted Windows runs for `a906d0d` pass (38771227905 and 38771211837).
+
+## Owner sunlight protection and installed occult artwork (V127)
+
+- [x] Enable the existing sunlight toggle for all five instanced disposable
+  Sims under V126. Each canonical command acknowledges its exact UUID and
+  reads back `qol.sunlight_blocked: true`. Combined receipt SHA-256
+  `4e07f0a6939aa6896d0bb5dd5642dddc404b53f8d96f5bf259cf2feb403d4aa7`.
+  World autonomy remains paused and death prevention remains enabled.
+- [x] Inspect the owner-provided `Tmex-DayWalkers.ts4script` read-only;
+  SHA-256 `38ef740a22239701fade45d7be60e5fdad0359c030dad02c75003ae697aa0adb`.
+  Its Python 3.7 wrapper returns false from `TimeService.is_in_sunlight`
+  for Sims bearing vampire trait 149527. Apex implements that predicate
+  behavior using the installed vampire tuning, scoped to the explicit
+  per-Sim preference. Existing buff protection stays enabled. Unprotected
+  Sims and other sunlight systems delegate to the previous function.
+  Fifteen QoL tests pass, including save scoping and no callback file I/O.
+- [x] Use actual installed `occult_trait.icon` keys for phone form/add/review
+  choices. Add bounded read-only session-cached PNG delivery for F11 occult
+  action buttons, the stored-form strip and vampire safety controls. Resolve
+  artwork at runtime; no game images or guessed resource IDs are shipped.
+  Labels remain available when an installed icon is absent or unsupported.
+  GPU textures are render-thread owned and released with the renderer.
+- [x] Build matching V127 with 90 Python 3.7 modules, seven packages and 207
+  resources, independently verified by Rust. ZIP SHA-256
+  `375218d97024b7b9eeb1babb63f12a2747f00dc7cb24f697780f26bf277732c3`.
+  Focused icon/phone/router tests and all six native CTests pass.
+- [x] Complete the fresh V127 full suite: 2,191 tests pass in 630.355 seconds.
+- [ ] Runtime-qualify V127's exposure hook,
+  actual artwork and F11 controls. The running V126 session still has its
+  existing buff protection; the stronger hook and artwork are not hot loaded.
+- [x] Under V126, list and open the completed five-Sim item in the native
+  local Library with Include Custom Content enabled. All five household
+  members and individual alternate portraits appear. Placing five into the
+  existing five-member household is disabled by the game's eight-Sim limit;
+  no limit bypass or member removal is used.
+- [x] Return to Home normally without saving the original household. The
+  native autosave and its five backups rotate, so the strict all-files-equal
+  helper correctly reports false. The manual b70 save and its backups stay
+  identical. Do not relabel this as every save file staying unchanged.
+- [ ] Replace the temporary new-game CAS household with the full local
+  Library item, then verify every imported Sim, form, trait and appearance.
+- [x] Retain a second V126 native Gallery crash: after the normal unsaved Home
+  transition, New Game and No Thanks reach ordinary default CAS successfully.
+  Opening its Gallery crashes before listing/selecting/importing an item.
+  The corrected item is staged, unlike V125, but no causal link is established.
+  The dump records a null read at `TS4_x64.exe+0x112c645` (`rdx=0`, address 8),
+  in the same function range as the earlier crashes. Do not patch that read
+  blindly or call this gate passed. XML SHA-256
+  `b7d032950dac533a31219a9bc36d9c4c268b1c25cfe0a05d2f125eea9c58c523`;
+  retained receipt SHA-256
+  `b6bb43c600bf1399d1b01a8e6f540440a8c3f0f5252d66b8e3b133708acbcb07`.
+  The manual b70 save remains unchanged.
+- [x] Install V127 only after that process closes. Install receipt SHA-256
+  `c114c604feed7e8d4ca78a6394ae83be075636b444d4253c143ac1202bb54f7f`.
+  The protected original is never written. A fresh-process Library test is
+  separate from qualification of the failing Live/Home/new-game sequence.
+
+## V128 actual icon format and qualification
+
+- [x] Fresh V127 new-game CAS also crashes after declining Story, before the
+  Gallery request. Retain the separate null-read dump at the same native
+  `+0x112c645`; XML SHA-256
+  `2d8ce3931d27884053f9cee961653c30838e76e9816b67451a3f6248d12a69e8`.
+  A previous Live household is therefore not necessary for this failure.
+  Cause remains unproven. No Library import is credited.
+- [x] Read V127's actual six tuning icon references. They are UI PNG aliases;
+  direct PNG reads are unavailable. Read-only installed DBPF inspection finds
+  all six corresponding DST5 images under type `00B2D882`, preserving the exact
+  instance and group. V128 resolves only that specific alias, returns bounded
+  hashed bytes, and decodes the verified one-mip layout on the native worker.
+- [x] Compare all six decoded actual icons with independently unshuffled BC3
+  images decoded by Pillow. Dimensions and alpha/color placement agree; maximum
+  channel rounding difference is one out of 255. All six images are inspected
+  locally; no game artwork is shipped. The native decoder follows
+  [Microsoft's block-compression contract](https://learn.microsoft.com/en-us/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression).
+- [x] Pass seven icon tests, sixteen QoL tests, seven phone tests and all six
+  native CTests. Add explicit read-only QoL exposure proof showing whether
+  Apex's hook is installed, the effective exposure, and the previous callback's
+  exposure. No clock, shade or appearance mutation is used for this proof.
+- [x] Complete normal unsaved CLI Exit Game with V127, observe process exit,
+  verify all disposable save/backup files unchanged and no new crash.
+- [x] Build matching V128: ZIP SHA-256
+  `b126e96451f9506e1d069254858d9655836e8df598a79959d60c65c4af4a743b`;
+  90 Python 3.7 modules, seven packages, 207 independently Rust-verified resources.
+- [ ] Complete the fresh V128 full suite and actual F11 artwork/exposure checks.
+- [ ] Verify the explicit manual b70 load. The preceding Resume used the newer
+  autosave: all forty owners are present, but six stored pelt fields on Sim
+  `349336084686110946` differ from the manual baseline. Do not label that Resume
+  as an exact b70 cold load or silently repair those differences. The manual
+  b70 file itself remains unchanged. Retained comparison SHA-256
+  `7684c3cfe24bd2ebbdb93d68236e8101b7d2f9b5ec5e2cbcf0b45811cb70a1e6`.

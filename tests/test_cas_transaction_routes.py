@@ -67,6 +67,16 @@ class CasTransactionRouteTests(unittest.TestCase):
     def route(self, action, value=None, sim_id='11'):
         return self.module.run_action(action, sim_id=sim_id, value=value)
 
+    def test_icons_are_read_only_game_owned_and_reject_external_resource_requests(self):
+        from apex_core import occult_icons
+        with patch.object(occult_icons, 'catalog', return_value={'schema': 1}) as called:
+            result = self.route('occult_icons')
+            self.assertTrue(result['ok'])
+            self.assertIs(result['appearance_modified'], False)
+            called.assert_called_once_with(self.module)
+            self.assertFalse(self.route('occult_icons', '{"tgi":"external"}')['ok'])
+            called.assert_called_once()
+
     def test_ui_routes_resolve_current_sim_and_dispatch_typed_intent(self):
         called = Mock(return_value={'ok': True, 'clock_proof_validated': True})
         with patch.object(apex_core, 'phone_cas', Obj(ui_dispatch=called), create=True):

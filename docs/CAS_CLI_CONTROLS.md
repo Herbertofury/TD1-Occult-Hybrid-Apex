@@ -398,3 +398,22 @@ EA Client Play evidence takes precedence. It never guesses an account edition.
 Semantic wing selection is quarantined before any request is created; read-only
 wing observation remains available. `game main-menu --background` routes menu
 clicks to the game window and opens its menu through the observed game client.
+# Installed occult artwork and sunlight protection
+
+The existing `qol_sunlight_on`/`qol_sunlight_off` actions keep per-Sim,
+per-save preferences. V127 also wraps the installed native
+`TimeService.is_in_sunlight(self, sim)` predicate for opted-in vampire Sims,
+including hybrids in other forms. Other Sims delegate unchanged; the existing
+vampire sunlight buff filter remains active. This does not revive dying Sims.
+
+The read-only `occult_icons` action accepts no external payload or resource ID.
+It resolves the six installed occult trait icons, with bounded hashed PNG/DST5
+delivery cached for the session. Phone rows use the native resource keys
+directly; F11 decodes on its worker and creates/releases textures on its render
+thread. Missing or unsupported artwork keeps readable text controls. No game
+artwork is included in the repository or candidate archive.
+
+V128 resolves EA's PNG-to-DST image alias using the same exact instance/group,
+verified against all six installed icon resources. A read-only
+`qol.sunlight_exposure` receipt reports the installed wrapper and compares its
+effective predicate with the previous callback; it does not advance the clock.

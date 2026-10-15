@@ -159,8 +159,11 @@ class ApexPhoneMenu(TD1OccultHybridMenuUIPicker):
         if page != 'root':
             choices.append(('page:root', 'Back to Occult Hybrid', 'MENU_BACK'))
         for tag, label, icon in choices:
+            from .occult_icons import key, choice_name
+            native_icon = key(backend, choice_name(tag))
             yield BasePickerRow(name=LocalizationHelperTuning.get_raw_text(label), tag='apex:' + tag,
-                                icon=parse_ui_icon_enum_to_data(getattr(MenuUIBaseIconsEnums, icon)))
+                                icon=native_icon if native_icon is not None else
+                                parse_ui_icon_enum_to_data(getattr(MenuUIBaseIconsEnums, icon)))
 
     def on_choice_selected(self, choice, **kwargs):
         if not isinstance(choice, str) or not choice.startswith('apex:'):

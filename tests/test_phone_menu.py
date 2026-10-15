@@ -62,6 +62,22 @@ class PhoneTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'stale'):
             self.phone.select(backend, '5', 'apex:action:eval')
 
+    def test_native_occult_trait_artwork_is_used_on_actual_phone_rows(self):
+        backend = self.backend()
+        art = Obj(type=55, group=0, instance=88)
+        backend._get_tuning = lambda kind: Obj(occult_trait=Obj(icon=art))
+        picker = self.phone.ApexPhoneMenu(); picker._apex_page = 'forms'
+        context = Obj(sim=Obj(sim_info=Obj(id=5)))
+        with patch.dict(sys.modules, {'td1_occult_hybrid_apex': backend}), patch.object(
+                self.phone.MenuUIBaseIconsEnums, 'MENU_BACK', 'back', create=True), patch.object(
+                self.phone.MenuUIBaseIconsEnums, 'SETTINGS_ENABLED', 'on', create=True), patch.object(
+                self.phone.MenuUIBaseIconsEnums, 'SETTINGS_DISABLED', 'off', create=True):
+            rows = list(self.phone.ApexPhoneMenu.picker_rows_gen(self.phone.ApexPhoneMenu, picker, None, context))
+        occult = [row for row in rows if row.tag.startswith('apex:occult:')]
+        self.assertEqual(len(occult), 6)
+        self.assertTrue(all(row.icon is art for row in occult))
+        self.assertEqual(next(row.icon for row in rows if row.tag == 'apex:action:human'), 'menu')
+
     def test_deferred_live_probe_opens_no_pausing_notification_until_its_game_thread_callback(self):
         picker = self.phone.ApexPhoneMenu()
         picker.sim = Obj(sim_info=Obj(id=5))

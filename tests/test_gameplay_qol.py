@@ -45,6 +45,8 @@ class QolTests(unittest.TestCase):
         self.sim = types.SimpleNamespace(id=7, is_dead=False, death_type=0, trait_tracker=[trait])
         self.instance = types.SimpleNamespace(is_dying=False, get_autonomy_state_setting=lambda: self.service.global_autonomy_settings.value)
         self.sim.get_sim_instance = lambda: self.instance
+        self.sim.get_traits = lambda: list(self.sim.trait_tracker)
+        self.instance.sim_info = self.sim
         self.backend = types.SimpleNamespace(
             _data_directory=lambda: self.temp.name,
             _tuning_traits=lambda kind: [trait], OccultType=types.SimpleNamespace(VAMPIRE=4),
@@ -128,11 +130,47 @@ class QolTests(unittest.TestCase):
                 enter, exit = self.umbrella_route_events.enter_carry_event, self.exit
                 if not context.route_event_already_scheduled(enter, provider=self): context.events.append(enter)
                 if not context.route_event_already_scheduled(exit, provider=self): context.events.append(exit)
+        class Time:
+            def __init__(self): self.calls = []
+            def is_in_sunlight(self, sim):
+                self.calls.append(sim)
+                return True
         tracker_mod = types.ModuleType('traits.trait_tracker'); tracker_mod.TraitTracker = Tracker
         weather_mod = types.ModuleType('weather.weather_aware_component'); weather_mod.WeatherAwareComponent = Weather
-        with patch.dict(sys.modules, {'traits.trait_tracker': tracker_mod, 'weather.weather_aware_component': weather_mod}):
+        time_mod = types.ModuleType('time_service'); time_mod.TimeService = Time
+        self.Time = Time
+        with patch.dict(sys.modules, {'traits.trait_tracker': tracker_mod, 'weather.weather_aware_component': weather_mod,
+                                     'time_service': time_mod}):
             self.q.install(self.backend); self.q.install(self.backend)
         return Tracker, Weather
+
+    def test_daywalker_exposure_protects_only_opted_in_actual_vampires_and_delegates_other_sims(self):
+        self.install_hooks(); time = self.Time()
+        self.assertTrue(time.is_in_sunlight(self.instance))
+        self.q._SUN.add('7')
+        self.assertFalse(time.is_in_sunlight(self.instance))
+        self.assertEqual(time.calls, [self.instance])
+        other = types.SimpleNamespace(sim_info=types.SimpleNamespace(id=8, get_traits=self.sim.get_traits))
+        self.assertTrue(time.is_in_sunlight(other))
+        self.sim.get_traits = lambda: [object()]  # e.g. a PlantSim, no vampire trait
+        self.assertTrue(time.is_in_sunlight(self.instance))
+        self.q._SUN.clear()
+        self.assertTrue(time.is_in_sunlight(self.instance))
+
+    def test_daywalker_exposure_tracks_save_scoped_preferences_without_disk_access_in_callback(self):
+        self.install_hooks(); self.q._persist(self.backend, self.sim, 'sunlight', True)
+        time = self.Time()
+        with patch.object(self.q, '_path', side_effect=AssertionError('callback disk access')):
+            self.assertFalse(time.is_in_sunlight(self.instance))
+        self.guid = 124; self.q._load(self.backend)
+        self.assertTrue(time.is_in_sunlight(self.instance))
+
+    def test_explicit_status_proves_the_installed_predicate_without_mutating_the_clock(self):
+        self.install_hooks(); time = self.Time(); self.backend.services.time_service = lambda: time
+        self.q._SUN.add('7')
+        result = self.q.status(self.backend, self.sim)['sunlight_exposure']
+        self.assertEqual(result, {'query': 'returned', 'apex_exposure_hook_installed': True,
+            'effective_in_sunlight': False, 'previous_callback_in_sunlight': True})
 
     def test_sun_hook_filters_only_enabled_sim_vampire_buffs(self):
         Tracker, _ = self.install_hooks(); tracker = Tracker(); tracker._sim_info = self.sim

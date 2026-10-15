@@ -8429,6 +8429,15 @@ def run_action(action, sim_id=None, occult=None, value=None):
     action = (action or 'status').strip().lower()
     if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
         return {'ok': False, 'message': 'Sim inspection and mutation require the canonical Sims game-thread owner.'}
+    if action == 'occult_icons':
+        from apex_core.occult_icons import catalog
+        import sys
+        try:
+            if value not in (None, '') or occult not in (None, ''):
+                raise ValueError('Game icons accept no external resource identity or payload.')
+            return {'ok': True, 'occult_icons': catalog(sys.modules[__name__]), 'appearance_modified': False}
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'appearance_modified': False}
     if action in ('cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack'):
         from apex_core.cas_ui import dispatch
         import sys

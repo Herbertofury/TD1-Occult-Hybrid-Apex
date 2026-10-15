@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include "ApexResourceImage.h"
+#include "ApexOccultImage.h"
 #include "ApexLiveCatalog.h"
 #include "ApexSliderLibrary.h"
 #include "ApexPointerGate.h"
@@ -10,8 +11,31 @@
 
 int main(int argc, char** argv) {
     using namespace td1; using resource::Json;
+    if(argc==4&&std::string(argv[1])=="--decode-icon") {
+        std::ifstream stream(argv[2],std::ios::binary);std::string raw((std::istreambuf_iterator<char>(stream)),{});
+        if(raw.size()<128||raw.size()>128*1024)return 2;
+        uint32_t width=0,height=0;std::memcpy(&height,raw.data()+12,4);std::memcpy(&width,raw.data()+16,4);
+        resource::Pixels pixels;std::string reason;
+        if(!resource::DecodeOccultImage(raw,{{"format","dst5"},{"width",width},{"height",height},{"sha256",resource::HashBytes(raw)}},pixels,reason))return 3;
+        std::ofstream output(argv[3],std::ios::binary|std::ios::trunc);output.write(reinterpret_cast<const char*>(pixels.rgba.data()),pixels.rgba.size());
+        return output?0:4;
+    }
     unsigned checks = 0, failed = 0;
     auto check = [&](bool pass, const char* label) { ++checks; if (!pass) { ++failed; std::cerr << label << '\n'; } };
+    std::string dst(144,'\0');std::memcpy(dst.data(),"DDS |\0\0\0",8);std::memcpy(dst.data()+84,"DST5",4);
+    auto put=[&](size_t offset,uint32_t value){std::memcpy(dst.data()+offset,&value,4);};
+    put(12,4);put(16,4);put(28,1);put(76,32);
+    dst[128]=char(255);dst[129]=0;dst[130]=0;dst[131]=char(0xf8); // opaque red, RGB565 endpoint
+    resource::Pixels icon;std::string iconReason;
+    Json iconRow={{"format","dst5"},{"width",4},{"height",4},{"sha256",resource::HashBytes(dst)}};
+    check(resource::DecodeOccultImage(dst,iconRow,icon,iconReason)&&icon.rgba.size()==64&&
+        icon.rgba[0]==255&&icon.rgba[1]==0&&icon.rgba[2]==0&&icon.rgba[3]==255,"DST5 planes decode to exact opaque red");
+    auto badIcon=iconRow;badIcon["sha256"]=std::string(64,'a');
+    check(!resource::DecodeOccultImage(dst,badIcon,icon,iconReason),"changed installed image hash is rejected");
+    badIcon=iconRow;badIcon["width"]=512;
+    check(!resource::DecodeOccultImage(dst,badIcon,icon,iconReason),"forged installed image dimensions rejected");
+    auto truncated=dst.substr(0,143);badIcon=iconRow;badIcon["sha256"]=resource::HashBytes(truncated);
+    check(!resource::DecodeOccultImage(truncated,badIcon,icon,iconReason),"truncated DST5 rejected before block reads");
     Json sliderQuery={{"search",""},{"kind","modifier"},{"offset",0},{"limit",25},{"conflicts_only",false}};
     check(sliders::Query(sliderQuery),"bounded slider resource query accepted");
     auto badSliderQuery=sliderQuery;badSliderQuery["limit"]=101;

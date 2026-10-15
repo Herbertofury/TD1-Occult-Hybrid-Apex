@@ -85,8 +85,17 @@ arbitrary-address rejection, initialization failure and response loss.
   a complete semantic function: native branches and switch targets can leave
   the captured region. V138 labels that distinction explicitly and adds bounded
   callback contexts under the same total code-byte limit.
-- [ ] Runtime-qualify the additional callback contexts and decode the remaining
-  conversion/creation handler paths before changing native behavior.
+- [x] Runtime-qualify V138's additional contexts with the single CLI command:
+  six contexts and 17 unwind regions, 28,163 captured code bytes. Receipt
+  SHA-256 `5383d70e329e3dd1d9ffe5049118360915bb24ea82c84fff9b898e27a51b6965`.
+  No household is loaded. Independent decoding checks the captured hashes.
+- [x] Decode the kind setter's dispatch. `SetSimOccult` accepts a numeric kind
+  in the native `1..64` dispatch range, derives the current dominant kind and
+  invokes the controller's kind-setting method when they differ. It is not an
+  additive membership-bitmask API. This observation does not qualify calling
+  it as a lossless hybrid appearance switch.
+- [ ] Trace the controller's conversion/creation behavior and retained form
+  storage before invoking a cross-kind edit or changing native behavior.
 - [ ] Qualify every owned occult inside one native CAS visit, with distinct
   edits retained through Live, MCCC, save/reload and Tray/Library import.
 - [ ] Complete additive CAS membership and special-life-state gameplay.

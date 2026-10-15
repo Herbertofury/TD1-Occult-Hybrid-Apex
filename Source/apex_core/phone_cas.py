@@ -5,6 +5,7 @@ The receiver owns raw appearances, journals, hashes and native restoration.
 Uncertain submissions are never automatically repeated, including observation.
 """
 import json
+import copy
 import math
 import threading
 import time
@@ -15,6 +16,7 @@ _MAX_SESSIONS = 128
 _FORMS = {'1': 'Human', '2': 'Alien', '4': 'Vampire', '8': 'Mermaid',
           '16': 'Spellcaster', '32': 'Werewolf', '64': 'Fairy'}
 _DECISIONS = {'accept-returned': 'Keep returned edit', 'restore-original': 'Restore retained original'}
+_HAIR_PAGE_SIZE = 16
 
 
 def _lane(value):
@@ -24,6 +26,14 @@ def _lane(value):
 
 def _name(lane):
     return _FORMS.get(lane, 'Native form ' + lane)
+
+
+def _outfit_name(category):
+    try:
+        from sims.outfits.outfit_enums import OutfitCategory
+        return OutfitCategory(category).name.replace('_', ' ').title()
+    except (ImportError, AttributeError, ValueError):
+        return 'Category ' + str(category)
 
 
 def _hash(value):
@@ -100,6 +110,7 @@ class PhoneCasSession:
         self.epoch = self.raw_hash = self.plan_hash = None
         self.phase = 'idle'
         self.evidence, self.decisions, self.receipts = [], {}, []
+        self.hair_targets, self.hair_inventory_hash = {}, None
         self.observe_attempted = self.prepare_attempted = self.commit_attempted = False
         self.alarm = self.callback = None
         self.probe = None
@@ -130,6 +141,7 @@ class PhoneCasSession:
             self.nonce = uuid.uuid4().hex
             self.epoch = self.raw_hash = self.plan_hash = None
             self.phase, self.evidence, self.decisions = 'idle', [], {}
+            self.hair_targets, self.hair_inventory_hash = {}, None
             self.observe_attempted = self.prepare_attempted = self.commit_attempted = False
             self.probe = self.error = None
         self._bind(status)
@@ -161,6 +173,7 @@ class PhoneCasSession:
         self.nonce = uuid.uuid4().hex
         self.epoch = self.raw_hash = self.plan_hash = None
         self.evidence, self.decisions = [], {}
+        self.hair_targets, self.hair_inventory_hash = {}, None
         self.observe_attempted = self.prepare_attempted = self.commit_attempted = False
         self.probe = self.error = None
         result = _call(self.backend, self.sim_id, 'cas_bank_begin')
@@ -323,7 +336,125 @@ class PhoneCasSession:
         if status.get('phase') != 'observed' or lane not in {row['lane'] for row in self.evidence}:
             raise ValueError('Only an exact changed form in this observed return can receive a decision.')
         self.decisions[lane] = decision
+        if decision != 'accept-returned':
+            self.hair_targets.pop(lane, None)
         return {'ok': True, 'page': 'cas_review'}
+
+    def hair_inventory(self, status=None):
+        """Receiver-owned outfit identities; no raw appearance crosses the UI.
+
+        Reading an already observed receiver never rehydrates one or submits a
+        native action. The digest binds every outfit to this exact review and
+        raw return, including unchanged outfits. A difference is information,
+        never an automatically checked target.
+        """
+        from . import cas_bank_transaction as bank, outfit_hair
+        status = self.refresh() if status is None else status
+        if status.get('hair_policy_enabled') is not True:
+            raise ValueError('Independent outfit hair was not enabled for this CAS checkpoint.')
+        if self.phase != 'observed' or status.get('phase') != 'observed':
+            raise ValueError('Outfit hair choices require a complete observed CAS return.')
+        live = self._clock_guard(status)
+        with bank._LOCK:
+            _path, _key, _record, transaction = bank._selected(self.backend, live['sim'])
+            instance = bank._instance(self.backend, live['sim'])
+            instance._guard()
+            if (instance.state != 'observed' or transaction['transaction_sha256'] != self.epoch or
+                    transaction['journal']['raw_return_sha256'] != self.raw_hash or
+                    instance.raw_return_sha256 != self.raw_hash):
+                raise ValueError('Hair inventory belongs to a different native CAS return.')
+            original = instance.pending['original_owners']['stored']
+            returned = instance.document['raw_return']['stored']
+            held = transaction['hair_checkpoint']['forms']
+            rows = []
+            for lane in sorted(original, key=int):
+                before = outfit_hair.capture(self.backend, original[lane])
+                after = outfit_hair.capture(self.backend, returned[lane])
+                if before != held.get(lane):
+                    raise ValueError('Hair inventory differs from its fresh original wardrobe checkpoint.')
+                before_index, after_index = outfit_hair._held_index(before), outfit_hair._held_index(after)
+                same_wardrobe = (set(before_index) == set(after_index) and
+                    all(after_index[key]['outfit_id'] == item['outfit_id'] for key, item in before_index.items()))
+                outfits = []
+                # Keep removed originals and added returned outfits visible.
+                # Neither is selectable without a stable original UID.
+                candidates = before + [item for item in after if (item['category'], item['ordinal']) not in before_index]
+                for item in candidates:
+                    key = (item['category'], item['ordinal'])
+                    original_item = before_index.get(key)
+                    returned_item = after_index.get(key)
+                    outfits.append({'category': key[0], 'ordinal': key[1], 'outfit_id': item['outfit_id'],
+                        'category_name': _outfit_name(key[0]),
+                        'original_outfit_id': original_item['outfit_id'] if original_item else None,
+                        'returned_outfit_id': returned_item['outfit_id'] if returned_item else None,
+                        'hair_changed': original_item is None or returned_item is None or returned_item['hair'] != original_item['hair'],
+                        'selectable': same_wardrobe and key[1] < 1024 and len(before) <= 1024})
+                rows.append({'lane': lane, 'wardrobe_unchanged': same_wardrobe, 'outfits': outfits})
+            document = {'schema': 1, 'sim_id': self.sim_id, 'expected_pending_sha256': self.epoch,
+                        'raw_return_sha256': self.raw_hash, 'review_nonce': self.nonce, 'forms': rows}
+            digest = bank.primitive.digest(document)
+        if self.hair_inventory_hash is not None and self.hair_inventory_hash != digest:
+            self.hair_targets = {}  # Old choices never transfer to a new inventory.
+        self.hair_inventory_hash = digest
+        return document, digest
+
+    def validated_hair_targets(self, value, choices, status, inventory_hash=None, require_complete=True):
+        """Validate explicit intent before consuming the once-only plan attempt."""
+        if status.get('hair_policy_enabled') is not True:
+            if value is not None:
+                raise ValueError('Hair targets require the checkpointed independent outfit hair policy.')
+            return {}
+        from .cas_commit_plan import _hair_targets
+        from . import cas_bank_transaction as bank
+        inventory, digest = self.hair_inventory(status)
+        if inventory_hash is not None and (not _hash(inventory_hash) or inventory_hash != digest):
+            raise ValueError('Outfit choices belong to a stale hair inventory; reopen the target picker.')
+        accepted = {lane for lane, action in choices.items() if action == 'accept-returned'}
+        live = self._clock_guard(status)
+        with bank._LOCK:
+            instance = bank._instance(self.backend, live['sim'])
+            instance._guard()
+            targets = _hair_targets(value, accepted, instance.pending['original_owners']['stored'],
+                                    instance.document['raw_return']['stored'], instance.known)
+        by_lane = {row['lane']: row for row in inventory['forms']}
+        for lane in accepted:
+            row = by_lane[lane]
+            if not row['wardrobe_unchanged']:
+                raise ValueError('Hair-isolated wardrobe was added, removed or reordered; restore this form or review the wardrobe separately.')
+            available = {(item['category'], item['ordinal'], item['outfit_id']) for item in row['outfits'] if item['selectable']}
+            if any((item['category'], item['ordinal'], item['outfit_id']) not in available for item in targets.get(lane, [])):
+                raise ValueError('A hair target is unavailable in this exact original and returned wardrobe.')
+            if require_complete and any(item['hair_changed'] for item in row['outfits']) and lane not in targets:
+                raise ValueError('Choose the specific outfits whose returned hair you edited before preparing; other outfits keep their original hair.')
+        return targets
+
+    def choose_hair(self, nonce, lane, digest, category, ordinal, outfit_id, keep):
+        if nonce != self.nonce or self.phase != 'observed' or self.prepare_attempted:
+            raise ValueError('Outfit hair choice is stale or a plan has already been attempted.')
+        status = self.refresh()
+        if self.decisions.get(lane) != 'accept-returned':
+            raise ValueError('Choose Keep returned edit for this changed form before selecting its hair outfits.')
+        inventory, current_digest = self.hair_inventory(status)
+        if digest != current_digest:
+            raise ValueError('Outfit hair choice belongs to a stale inventory; reopen the target picker.')
+        if type(category) is not int or type(ordinal) is not int or type(keep) is not bool:
+            raise ValueError('Hair selection requires exact typed outfit identities and a keep choice.')
+        row = next((row for row in inventory['forms'] if row['lane'] == lane), None)
+        offered = next((item for item in row['outfits'] if item['category'] == category and item['ordinal'] == ordinal
+                        and item['outfit_id'] == outfit_id and item['selectable']), None) if row else None
+        if offered is None:
+            raise ValueError('Hair selection was not offered for this exact native outfit UID.')
+        selected = copy.deepcopy(self.hair_targets)
+        entries = [item for item in selected.get(lane, []) if (item['category'], item['ordinal']) != (category, ordinal)]
+        if keep:
+            entries.append({'category': category, 'ordinal': ordinal, 'outfit_id': outfit_id})
+        if entries:
+            selected[lane] = sorted(entries, key=lambda item: (item['category'], item['ordinal']))
+        else:
+            selected.pop(lane, None)
+        self.hair_targets = self.validated_hair_targets(selected, self.decisions, status, digest, require_complete=False)
+        position = row['outfits'].index(offered)
+        return {'ok': True, 'page': 'cas_form:{}:hair:{}'.format(lane, position // _HAIR_PAGE_SIZE * _HAIR_PAGE_SIZE)}
 
     def prepare(self, nonce):
         if nonce != self.nonce or self.phase != 'observed' or self.prepare_attempted:
@@ -333,8 +464,13 @@ class PhoneCasSession:
         if set(self.decisions) != changed:
             raise ValueError('Choose Keep returned edit or Restore original separately for EVERY changed form.')
         self._clock_guard(self._status())
+        status = self._status()
+        targets = self.validated_hair_targets(self.hair_targets if status.get('hair_policy_enabled') else None,
+                                             self.decisions, status, self.hair_inventory_hash)
         argument = {'expected_pending_sha256': self.epoch, 'expected_raw_return_sha256': self.raw_hash,
             'dispositions': [{'lane': lane, 'action': self.decisions[lane]} for lane in sorted(changed, key=int)]}
+        if status.get('hair_policy_enabled') is True:
+            argument['hair_targets'] = targets
         self.prepare_attempted, self.phase = True, 'preparing'
         self.receipts.append({'operation': 'prepare', 'nonce': self.nonce, 'argument': argument, 'state': 'attempted'})
         try:
@@ -397,6 +533,9 @@ def _ui_receipt(current, operation):
         raise ValueError('Exact receiver acknowledgement is unavailable; no submission was replayed.')
     current._clock_guard(current._status())
     result = dict(last['receipt'])
+    if operation == 'prepare' and 'hair_targets' in last.get('argument', {}):
+        result.update(hair_targets=copy.deepcopy(last['argument']['hair_targets']),
+                      hair_inventory_sha256=current.hair_inventory_hash)
     result.update(clock_proof_validated=True, review_nonce=current.nonce, review_state=current.phase)
     return result
 
@@ -421,6 +560,14 @@ def ui_dispatch(backend, sim_id, action, argument=None):
             result['clock_proof_validated'] = True
         if current.error:
             result['review_error'] = current.error
+        result.update(hair_inventory_available=False, hair_targets={})
+        if result['clock_proof_validated'] and status.get('hair_policy_enabled') is True and status.get('phase') == 'observed':
+            try:
+                inventory, digest = current.hair_inventory(status)
+                result.update(hair_inventory_available=True, hair_inventory=inventory,
+                              hair_inventory_sha256=digest, hair_targets=copy.deepcopy(current.hair_targets))
+            except (ValueError, TypeError, KeyError, AttributeError) as error:
+                result['hair_inventory_error'] = str(error)
         return result
     if action == 'cas_bank_ui_review':
         _ui_argument(argument, {'expected_pending_sha256'})
@@ -438,9 +585,7 @@ def ui_dispatch(backend, sim_id, action, argument=None):
             review_nonce=current.nonce, review_state=current.phase, clock_proof_validated=not pending)
     if action == 'cas_bank_ui_prepare':
         _ui_argument(argument, {'expected_pending_sha256', 'expected_raw_return_sha256', 'dispositions',
-                                'review_nonce'}, {'hair_targets'})
-        if 'hair_targets' in argument:
-            raise ValueError('Explicit per-outfit hair targets are not supported by the phone/F11 review adapter yet.')
+                                'review_nonce'}, {'hair_targets', 'hair_inventory_sha256'})
         status = current.refresh()
         if (argument['review_nonce'] != current.nonce or argument['expected_pending_sha256'] != current.epoch or
                 argument['expected_raw_return_sha256'] != current.raw_hash or current.phase != 'observed'):
@@ -457,7 +602,13 @@ def ui_dispatch(backend, sim_id, action, argument=None):
             choices[row['lane']] = row['action']
         if set(choices) != {row['lane'] for row in current.evidence}:
             raise ValueError('Choose Keep returned edit or Restore original separately for EVERY changed form.')
+        if ('hair_targets' in argument) != ('hair_inventory_sha256' in argument):
+            raise ValueError('Explicit outfit targets require their exact receiver inventory hash.')
+        selected = argument.get('hair_targets', current.hair_targets if status.get('hair_policy_enabled') else None)
+        targets = current.validated_hair_targets(selected, choices, status,
+            argument.get('hair_inventory_sha256', current.hair_inventory_hash))
         current.decisions = choices
+        current.hair_targets = targets
         current.prepare(current.nonce)
         return _ui_receipt(current, 'prepare')
     if action == 'cas_bank_ui_commit':
@@ -477,21 +628,57 @@ def rows(backend, sim_id, page):
     except Exception as error:
         return [('cas:info', 'Review unavailable: ' + str(error), 'MENU_UNKNOWN')]
     if page.startswith('cas_form:'):
-        lane = page.split(':', 1)[1]
+        parts = page.split(':')
+        lane = parts[1]
         record = next((row for row in current.evidence if row['lane'] == lane), None)
         if record is None:
             return [('page:cas_review', 'Return to current form review', 'MENU_BACK')]
+        if len(parts) == 4 and parts[2] == 'hair':
+            try:
+                inventory, digest = current.hair_inventory(status)
+                offset = int(parts[3])
+                form = next(row for row in inventory['forms'] if row['lane'] == lane)
+                outfits = form['outfits']
+                if (str(offset) != parts[3] or offset < 0 or offset % _HAIR_PAGE_SIZE or
+                        offset >= len(outfits) and offset != 0):
+                    raise ValueError('Hair outfit page is unavailable.')
+                choices = [('cas:info', _name(lane) + ': check only outfits whose returned hair you want to keep. Unchecked outfits retain original hair.', 'MENU_UNKNOWN')]
+                selected = {(item['category'], item['ordinal'], item['outfit_id']) for item in current.hair_targets.get(lane, [])}
+                for item in outfits[offset:offset + _HAIR_PAGE_SIZE]:
+                    key = (item['category'], item['ordinal'], item['outfit_id'])
+                    label = '{} {} — {}{}'.format(item['category_name'],
+                        item['ordinal'] + 1, 'KEEP RETURNED' if key in selected else 'restore original hair',
+                        ' (changed)' if item['hair_changed'] else ' (unchanged)')
+                    enabled = item['selectable'] and current.decisions.get(lane) == 'accept-returned' and not current.prepare_attempted
+                    tag = 'cas:hair:{}:{}:{}:{}:{}:{}:{}'.format(current.nonce, lane, digest, item['category'],
+                        item['ordinal'], item['outfit_id'], 'restore' if key in selected else 'keep') if enabled else 'cas:info'
+                    choices.append((tag, label + (' [wardrobe identity changed; unavailable]' if not item['selectable'] else ''), 'MENU_PLACEHOLDER'))
+                for destination, label in ((offset - _HAIR_PAGE_SIZE, 'Previous outfits'), (offset + _HAIR_PAGE_SIZE, 'Next outfits')):
+                    if 0 <= destination < len(outfits):
+                        choices.append(('cas:hair-page:{}:{}:{}:{}'.format(current.nonce, lane, digest, destination), label, 'MENU_PLACEHOLDER'))
+                choices.append(('page:cas_review', 'Back to every changed form', 'MENU_BACK'))
+                return choices
+            except (ValueError, TypeError, KeyError, StopIteration) as error:
+                return [('cas:info', 'Hair picker unavailable: ' + str(error), 'MENU_UNKNOWN'),
+                        ('page:cas_review', 'Back to every changed form', 'MENU_BACK')]
         choices = [('cas:info', _name(lane) + ': every changed field is listed below', 'MENU_UNKNOWN')]
         choices += [('cas:info', field.strip('_').replace('_', ' ') + ' [' + field + ']', 'MENU_UNKNOWN') for field in record['fields']]
         if current.phase == 'observed':
             choices += [('cas:decision:{}:{}:{}'.format(current.nonce, lane, decision), label, 'MENU_PLACEHOLDER')
                         for decision, label in _DECISIONS.items()]
+            if status.get('hair_policy_enabled') is True and current.decisions.get(lane) == 'accept-returned':
+                try:
+                    _inventory, digest = current.hair_inventory(status)
+                    choices.append(('cas:hair-page:{}:{}:{}:0'.format(current.nonce, lane, digest),
+                        'Choose returned hair to keep for individual outfits', 'MENU_PLACEHOLDER'))
+                except (ValueError, TypeError, KeyError) as error:
+                    choices.append(('cas:info', 'Hair picker unavailable: ' + str(error), 'MENU_UNKNOWN'))
         choices.append(('page:cas_review', 'Back to every changed form', 'MENU_BACK'))
         return choices
     choices = [('cas:info', 'Return state: ' + str(status.get('phase', 'unknown')), 'MENU_UNKNOWN')]
     if current.phase == 'observed':
         if status.get('hair_policy_enabled') is True:
-            choices.append(('cas:info', 'Separate hair is enabled. Keeping hair edits needs explicit outfit targets; the phone target picker is unfinished.', 'MENU_UNKNOWN'))
+            choices.append(('cas:info', 'Separate hair is enabled. Keep a form edit, then choose exactly which outfits keep returned hair. Other outfits retain their original hair.', 'MENU_UNKNOWN'))
         for row in current.evidence:
             decision = _DECISIONS.get(current.decisions.get(row['lane']), 'REQUIRED: choose separately')
             choices.append(('page:cas_form:' + row['lane'], '{}: {} ({} changed fields)'.format(
@@ -520,6 +707,23 @@ def select(backend, sim_id, tag, callback=None):
     if tag == 'cas:info':
         return {'ok': True, 'page': 'cas_review'}
     parts = tag.split(':')
+    if len(parts) == 6 and parts[:2] == ['cas', 'hair-page']:
+        nonce, lane, digest, offset = parts[2:]
+        if nonce != current.nonce or current.decisions.get(lane) != 'accept-returned':
+            raise ValueError('Hair picker belongs to a stale review or unaccepted form.')
+        inventory, held_digest = current.hair_inventory()
+        form = next((row for row in inventory['forms'] if row['lane'] == lane), None)
+        if (digest != held_digest or form is None or not offset.isascii() or not offset.isdecimal() or
+                str(int(offset)) != offset or int(offset) % _HAIR_PAGE_SIZE or
+                int(offset) >= len(form['outfits']) and int(offset) != 0):
+            raise ValueError('Hair picker page is stale or was not offered.')
+        return {'ok': True, 'page': 'cas_form:{}:hair:{}'.format(lane, offset)}
+    if len(parts) == 9 and parts[:2] == ['cas', 'hair']:
+        nonce, lane, digest, category, ordinal, outfit_id, choice = parts[2:]
+        if (choice not in ('keep', 'restore') or any(not value.isascii() or not value.isdecimal() or
+                str(int(value)) != value for value in (category, ordinal))):
+            raise ValueError('Hair choice contains invalid typed outfit identities.')
+        return current.choose_hair(nonce, lane, digest, int(category), int(ordinal), outfit_id, choice == 'keep')
     if len(parts) == 5 and parts[:2] == ['cas', 'decision']:
         return current.choose(parts[2], parts[3], parts[4])
     if len(parts) == 3 and parts[:2] == ['cas', 'prepare']:

@@ -907,21 +907,35 @@ def execute(args):
             if args.output is None or args.value is not None:
                 raise ValueError('Map Play requires a new external proof and explicit selected-household parameters.')
             from game_map_play import observe
-            return observe(args.state, args.output, verified_identity(args.state), owned_request,
+            map_request, map_options = owned_request, {}
+            if args.background:
+                from functools import partial
+                import game_capture
+                from game_lifecycle import background_request
+                map_request = background_request(owned_request)
+                map_options['capture'] = partial(game_capture.capture, background=True)
+            return observe(args.state, args.output, verified_identity(args.state), map_request,
                            args.sim_id, args.household_id, args.save_guid, args.slot_id,
                            args.expected_save_sha256, args.selection_proof,
                            args.selection_proof_sha256, seconds=args.seconds,
-                           identity_provider=verified_identity)
+                           identity_provider=verified_identity, **map_options)
         if args.operation == 'map-select':
             if args.output is None or args.value is not None:
                 raise ValueError('Measured map selection requires a new external proof and explicit saved-household parameters.')
             from game_map import select_marker
-            return select_marker(args.state, args.output, verified_identity(args.state), owned_request,
+            map_request, map_options = owned_request, {}
+            if args.background:
+                from functools import partial
+                import game_capture
+                from game_lifecycle import background_request
+                map_request = background_request(owned_request)
+                map_options['capture'] = partial(game_capture.capture, background=True)
+            return select_marker(args.state, args.output, verified_identity(args.state), map_request,
                                  args.sim_id, args.household_id, args.save_guid, args.slot_id,
                                  args.expected_save_sha256, args.world, args.load_proof,
                                  args.load_proof_sha256, args.recovered_input_proof,
                                  args.recovered_input_sha256, identity_provider=verified_identity,
-                                 allow_autosave_drift=args.allow_autosave_drift)
+                                 allow_autosave_drift=args.allow_autosave_drift, **map_options)
         if args.operation == 'load':
             if args.output is None or args.value is not None:
                 raise ValueError('Exact existing-save load requires a new external proof and named save parameters.')

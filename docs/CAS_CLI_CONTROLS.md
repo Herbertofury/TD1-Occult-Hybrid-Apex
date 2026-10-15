@@ -1,5 +1,27 @@
 # Native CAS CLI controls
 
+The latest actual-game checkpoint is V120. Ordinary full CAS edited the actual
+Mermaid alternate with 12 native controls, including its available eyebrow
+palette and an EA nose preset. Its Mermaid → Vampire → Mermaid round trip
+retained all 40 household owners through 5,777 simulation ticks. One later
+full-CAS visit edited six controls each on different companions' actual
+Werewolf and Fairy alternates; all 36 unselected owners stayed exact. Their
+Werewolf → Alien → Werewolf and Fairy → Vampire → Fairy round trips retained
+all 40 owners through 11,225 more ticks. The mixed household's normal save and
+after-save comparison passed; the new save is
+`271b92ca82ec38795bc0dc7102cac8a48f521c40f34bb55036ae0fd46006a9eb`.
+Cold reload of that exact mixed checkpoint is a separate pending acceptance
+step. The [household ledger](../Reports/HOUSEHOLD_CAS_2026-10-14.md) retains the
+individual proofs, historical failures and current scope.
+
+V122 development adds built phone/F11 outfit-hair pickers and compound wing
+readback. Their new current-game tests remain pending. The dedicated
+`game cas --value mccc-full` interoperability mode likewise requires actual
+MCCC entry, edits, Live review, switching and reload proof; it is not supplied
+by ordinary native-entry coverage. The full MCCC, Tray, all-panel and release
+gates remain open. A copied CC nose preset's mismatched native index remains a
+failed verification; the successful EA preset does not qualify that CC item.
+
 An accepted editor entry can take longer to load than its observation window.
 Use `cas-entry-observe --state STATE --sim-id SIM_ID --entry-proof ENTRY_JSON
 --entry-sha256 SHA256 --output NEW_JSON` to inspect that same accepted entry
@@ -34,6 +56,18 @@ selected Sim; a successful request for another Sim is never inferred from an
 input or requested ID. The subsequent workbench must run against that returned
 destination. Use explicit per-member/per-form decisions when returning to Live.
 
+For navigation diagnostics, `form_selection_binding` and
+`member_selection_binding` validate the fresh
+`client.owner_pair_observation`, its `selector_feed.raw_feed` and
+`selector_feed.retained`, and the actual selected native Sim. Read the native
+session from `client.owner_pair_observation.session`. The raw feed retains its
+initial selected index; household navigation can legitimately leave the
+current retained index different. The retained selection must match the fresh
+native Sim and complete raw/retained pair identities. A redundant Customizer
+listener reporting `complete=false`, or `cas_room.available=false`, can coexist
+with a valid authoritative pair. These diagnostics do not authorize refreshing
+the native selector, replaying an accepted entry, or guessing another Sim.
+
 CAS status, submission and result polling share one bounded CLI inventory
 lease. The batch first verifies all installed artifact hashes. Each subsequent
 request checks the journal and artifact identity, size, write time, NTFS
@@ -52,7 +86,37 @@ typed base in the visible wing catalog, requires exactly one matching color in
 that base's family, and sends EA's `{data_id: BASE, color_data_id: COLOR}` shape.
 A base match alone cannot certify the requested color. Invalid, ambiguous or
 foreign bindings stop before mutation. This fixes a concrete V120 pre-mutation
-refusal; V121 actual wing selection still requires runtime qualification.
+refusal. V122 additionally checks the compound native readback: exactly one
+typed selected base must match the requested base, and the independently typed
+selected color must match the requested color. A native success or a matching
+base alone cannot satisfy that postcondition. The bytecode audit checks these
+conditions in the serialized UI package. Actual wing selection and retention
+remain pending; neither built version is qualified by source/audit proof alone.
+
+V122's phone/F11 CAS-return review provides explicit hair targets when
+independent outfit hair was enabled before capture. In the phone review, keep
+the intended form edit, open its outfit picker, and choose which individual
+outfits should keep returned hair. F11 presents the same choices as per-form
+checkboxes in a scrollable list. All original outfits and added/removed returned
+outfits remain visible; unknown categories retain their native number. Only
+stable original/returned outfit identities are selectable. Neither changed
+hair nor an open panel automatically selects an outfit.
+
+`cas_bank_ui_status` exposes the receiver-owned `hair_inventory`, its
+`hair_inventory_sha256`, and explicit `hair_targets`. Each target contains only
+native `category`, zero-based `ordinal`, and decimal-string `outfit_id`. A F11
+`cas_bank_ui_prepare` supplies the exact inventory hash with its target set,
+alongside the existing checkpoint, raw-return hash, review nonce and independent
+form decisions. The receiver preserves unselected outfits' original hair while
+retaining accepted unrelated CAS edits. Stale identities, foreign UIDs and
+added/removed/reordered hair wardrobes refuse before a plan attempt; unresolved
+submitted plans still cannot be replayed. The current contract requires at
+least one explicit keep target when accepting a form with changed hair; an
+empty target set does not silently accept propagation. Eleven new native
+protobuf/receiver fixtures, 23 existing phone CAS tests, six phone-menu tests
+and all six native CTests pass. Actual in-game picker/retention proof remains
+pending; these frontends do not establish that native CAS itself has stopped
+propagating hair.
 
 V40 makes plain `game capture --background` independent of F11 initialization,
 visibility and gameplay/CAS diagnostics. It reads the selected native game's
@@ -124,6 +188,11 @@ Use `python -B tools/apex_cli.py cas panels --state .work/reusable-profile-sessi
 | Return to Live | `cas return` with exact household and a new external `--output`; primary layer required, then actual simulation ticks and final pause |
 
 Catalog paging has no total item cutoff. Packet size limits require another page; they never discard items. Native null results remain unavailable rather than being converted to empty inventories. A native tattoo component currently has five ordinary layers; medical layer 127 is protected from the tattoo removal/reordering commands. This is the installed game's native layout, not a history cutoff.
+
+First-tattoo insertion into an empty native layer list remains quarantined.
+`cas layer-add` refuses that case before adding a layer; the earlier native
+crash and failed acceptance are retained. Existing tattoo discovery/layer
+controls do not qualify first insertion or complete tattoo retention.
 
 Appearance history has no edit-count or total-document cutoff. Inactive complete rows move into immutable content-addressed JSON archives, written and verified before references enter the active bank. The latest legacy completion and every active original/checkpoint/write-ahead record remain directly available. Older raw rows must verify against their length and SHA-256 when opened. No archive grants permission to replay a native mutation.
 

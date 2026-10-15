@@ -226,11 +226,13 @@ class MapPlayTransactionTests(SaveFixture):
             if action == 'overlay_hide': return {'ok': True, 'visible': False}
             if action == 'test_input':
                 durable = json.loads(self.output.read_bytes())
-                self.assertEqual(durable['steps'][-1]['action'], 'input-play-intent')
+                self.assertEqual(durable['steps'][-2]['action'], 'input-play-intent')
+                self.assertIsNone(durable['steps'][-1]['request_id'])
+                kwargs['submission_observer']('test_input', self.receipt['request_id'])
                 value = json.loads(kwargs['value'])['value']
                 self.assertEqual(value['command'], 1)
                 if changed_saves: self.slot.write_bytes(b'changed by native fixture')
-                if lost_input: return {'ok': False, 'outcome': 'unresolved', 'input_submitted': None}
+                if lost_input: return {'ok': False, 'outcome': 'unresolved', 'input_submitted': None, 'request_id': self.receipt['request_id']}
                 return dict(self.receipt, cursor_client={key: value[key] for key in ('x', 'y')})
             if action == 'test_snapshot': return snapshots.pop(0) if snapshots else copy.deepcopy(live)
             if action == 'test_pause':
@@ -243,11 +245,13 @@ class MapPlayTransactionTests(SaveFixture):
             if changed_pre_input_save: self.slot.write_bytes(b'changed before input')
             return dict(self.prior_capture, output=str(path),
                         sha256='0' * 64 if tampered_capture else sha256(path))
+        def metadata(path, _hash, _household, _sim):
+            return copy.deepcopy(getattr(self, 'autosave_metadata', self.metadata) if path.name == 'Slot_ffffffff.save' else self.metadata)
         result = game_map_play.observe(self.state, self.output, self.identity, request,
             SIM, HOUSEHOLD, GUID, 2, self.digest, self.prior_path, sha256(self.prior_path),
             seconds=1, capture=capture, ocr=lambda _path: screen()[1],
             identity_provider=lambda _state: current, alive=lambda _pid: True,
-            metadata_reader=lambda _path, _hash, _household, _sim: copy.deepcopy(self.metadata),
+            metadata_reader=metadata,
             monotonic=lambda: clock[0], pause=lambda value: clock.__setitem__(0, clock[0] + value))
         self.assertEqual(self.original_save.read_bytes(), b'owner save must never change')
         return result, json.loads(self.output.read_bytes()), calls
@@ -327,6 +331,63 @@ class MapPlayTransactionTests(SaveFixture):
         self.prior['target']['household_id'] = HOUSEHOLD
         Path(self.prior['native_inputs'][0]['proof']).write_bytes(b'changed input evidence')
         with self.assertRaises(ValueError): self.run_play()
+        self.assertFalse(self.output.exists())
+
+    def marker_proof(self):
+        target = {'command': 1, 'x': 100, 'y': 100, 'width': 1278, 'height': 1376}
+        self.prior.update(operation='select-existing-played-lot-marker', marker_input_accepted=True,
+            post_click_capture_verified=True, post_click_capture=str(self.prior_image), steps=[
+                {'action': 'input-marker-intent', 'result': {'submission_attempted': True, 'target': target}},
+                {'action': 'test_input', 'request_id': self.receipt['request_id'], 'target': target,
+                 'result': copy.deepcopy(self.receipt)},
+                {'action': 'capture-selected-household', 'result': self.prior_capture}])
+        self.prior.pop('native_inputs'); self.prior.pop('capture'); self.prior.pop('indexed_household')
+
+    def test_verified_marker_proof_flows_directly_to_one_household_play(self):
+        self.marker_proof()
+        result, proof, calls = self.run_play()
+        self.assertTrue(result['ok']); self.assertTrue(proof['native_live_verified'])
+        self.assertEqual(calls.count('test_input'), 1)
+
+    def test_marker_uuid_capture_and_exact_artifact_roster_mutations_refuse_before_input(self):
+        self.marker_proof(); original = copy.deepcopy(self.prior)
+        for change in ('uuid', 'unknown', 'duplicate', 'capture', 'roster'):
+            self.prior = copy.deepcopy(original)
+            if change == 'uuid': self.prior['steps'][1]['request_id'] = 'c' * 32
+            elif change == 'unknown': self.prior['steps'][1]['result']['request_state'] = 'pending'
+            elif change == 'duplicate': self.prior['steps'].append(copy.deepcopy(self.prior['steps'][1]))
+            elif change == 'capture': self.prior['steps'][2]['result']['sha256'] = '0' * 64
+            else: self.prior['inputs'].pop()
+            with self.subTest(change=change), self.assertRaises(ValueError): self.run_play()
+            self.assertFalse(self.output.exists())
+
+    def test_runtime_caption_is_derived_from_retained_native_header(self):
+        observed = screen(caption='A Different Native Lot')[1]
+        self.assertEqual(game_map_play.native_caption(observed), 'A Different Native Lot')
+        observed['lines'].append(copy.deepcopy(observed['lines'][0]))
+        with self.assertRaises(ValueError): game_map_play.native_caption(observed)
+
+    def test_marker_explicit_autosave_drift_preserves_normal_save_anchor_through_play(self):
+        self.marker_proof(); baseline = copy.deepcopy(self.before)
+        autosave = self.profile / 'saves/Slot_ffffffff.save'; autosave.write_bytes(b'new native autosave fixture')
+        self.before = game_map_play.game_lifecycle.all_save_files(self.profile)
+        self.autosave_metadata = dict(self.metadata, slot_name='Autosave', file_sha256=sha256(autosave),
+                                      preferred_manual_slot_name=self.metadata['slot_name'])
+        self.prior.update(allow_autosave_drift=True, operation_save_files_unchanged=True,
+            save_files_unchanged=False, before_saves=self.before, after_saves=self.before,
+            indexed_load_baseline_saves=baseline)
+        result, proof, calls = self.run_play()
+        self.assertTrue(result['ok']); self.assertEqual(calls.count('test_input'), 1)
+        boundary = proof['prior_indexed_load_save_boundary']
+        self.assertFalse(boundary['save_files_unchanged']); self.assertTrue(boundary['non_autosave_files_unchanged'])
+        self.assertEqual(boundary['indexed_normal_save_anchor']['file_sha256'], self.digest)
+
+    def test_marker_autosave_drift_cannot_hide_a_changed_normal_save(self):
+        self.marker_proof(); baseline = copy.deepcopy(self.before)
+        baseline['Slot_00000002.save']['sha256'] = '0' * 64
+        self.prior.update(allow_autosave_drift=True, operation_save_files_unchanged=True,
+            save_files_unchanged=False, indexed_load_baseline_saves=baseline)
+        with self.assertRaisesRegex(ValueError, 'explicitly permitted'): self.run_play()
         self.assertFalse(self.output.exists())
 
 

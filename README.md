@@ -20,14 +20,20 @@ all five passed Vampire → Alien without manual checkpointing, then a normal
 save and all-40 comparison. Ordinary Python-to-native CAS entry now captures
 every hybrid household member before entry. V118 additionally retains four
 companion Alien CAS edits through Alien → Vampire → Alien, 5,267 actual ticks
-and a normal save, with all 38 unselected owners unchanged. The eyebrow color
-request still fails exact readback. V120 fixes selective genetics/voice copying;
+and a normal save, with all 38 unselected owners unchanged. V120 verifies the
+current Mermaid eyebrow palette and fixes selective genetics/voice copying;
 the complete local suite passes **2,021 tests**. Its new color and selective
 paste behavior now passes actual-game copying and Undo on an inactive companion
 Vampire. A companion's actual Mermaid alternate also retains 12 acknowledged
 full-CAS controls through explicit household commit and Mermaid → Vampire →
-Mermaid, with all 38 unselected owners exact. One copied CC nose preset fails
-native selection readback and remains open. Direct native UI entry,
+Mermaid, with all 38 unselected owners exact. A second full-household visit
+edits actual Werewolf and Fairy alternate forms on two different companions;
+their accepted edits survive four Live switches and 11,225 simulation ticks,
+with all 36 unselected owners exact. A verified normal save retains the mixed
+household. V122 adds exact outfit hair choices to phone/F11 review, compound
+Fairy wing base/color verification and a CLI route through the installed MCCC
+callback; their current-game qualification is pending. One copied CC nose
+preset fails native selection readback and remains open. Direct native UI entry,
 all MCCC routes, remaining form-specific edits and broader production-save
 qualification remain open.
 See [current household evidence](Reports/HOUSEHOLD_CAS_2026-10-14.md) and

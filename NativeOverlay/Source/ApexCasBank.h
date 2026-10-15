@@ -62,14 +62,96 @@ inline bool BankEvidence(const Json& reply) {
 }
 
 struct CasBankView {
-    std::string sim, pendingHash, rawHash, planHash, phase, action, ownerId, message, reviewNonce, reviewPhase;
+    std::string sim, pendingHash, rawHash, planHash, phase, action, ownerId, message, reviewNonce, reviewPhase, hairInventoryHash, hairError;
     uint64_t generation = 0;
     bool busy = false, unresolved = false, failed = false, statusKnown = false, blocked = true,
          currentRuntime = false, hairEnabled = false, observeAttempted = false,
          prepareAttempted = false, commitAttempted = false, localPrepared = false, clockProof = false;
     Json evidence = Json::object(), lastReply = Json::object(), lastFailure = Json::object();
+    Json hairInventory = Json::object(), hairTargets = Json::object();
     std::map<std::string,std::string> choices;
 };
+inline bool BankOutfitNumber(const Json& value, uint64_t limit) {
+    if (!value.is_number_integer() || value.is_boolean()) return false;
+    try { return (value.is_number_unsigned() || value.get<int64_t>()>=0) && value.get<uint64_t>()<limit; }
+    catch (...) { return false; }
+}
+inline bool BankHairInventory(const CasBankView& state) {
+    const auto& inventory=state.hairInventory;
+    if (!BankHash(Json(state.hairInventoryHash)) || !inventory.is_object() || inventory.size()!=6 ||
+        inventory.value("schema",Json(nullptr))!=1 || !inventory["schema"].is_number_integer() ||
+        inventory.value("sim_id",Json(nullptr))!=state.sim ||
+        inventory.value("expected_pending_sha256",Json(nullptr))!=state.pendingHash ||
+        inventory.value("raw_return_sha256",Json(nullptr))!=state.rawHash ||
+        inventory.value("review_nonce",Json(nullptr))!=state.reviewNonce ||
+        !inventory.contains("forms") || !inventory["forms"].is_array() || !BankEvidence(state.evidence) ||
+        inventory["forms"].size()!=state.evidence["lane_change_evidence"].size()) return false;
+    std::set<std::string> expected, seen;
+    for (const auto& row:state.evidence["lane_change_evidence"]) expected.insert(Scalar(row,"lane"));
+    for (const auto& form:inventory["forms"]) {
+        if (!form.is_object() || form.size()!=3 || !BankLane(form.value("lane",Json(nullptr))) ||
+            !seen.insert(Scalar(form,"lane")).second || !expected.count(Scalar(form,"lane")) ||
+            !form.contains("wardrobe_unchanged") || !form["wardrobe_unchanged"].is_boolean() ||
+            !form.contains("outfits") || !form["outfits"].is_array() || form["outfits"].size()>4096) return false;
+        std::set<std::pair<uint32_t,uint32_t>> slots; std::set<std::string> ids;
+        std::map<uint32_t,uint32_t> ordinals;
+        for (const auto& row:form["outfits"]) {
+            if (!row.is_object() || row.size()!=8 || !BankOutfitNumber(row.value("category",Json(nullptr)),1ULL<<32) ||
+                !BankOutfitNumber(row.value("ordinal",Json(nullptr)),4096) ||
+                !ExactUint64Identity(row.value("outfit_id",Json(nullptr))) ||
+                !row.contains("category_name") || !row["category_name"].is_string() ||
+                Scalar(row,"category_name").empty() || Scalar(row,"category_name").size()>128 ||
+                !row.contains("hair_changed") || !row["hair_changed"].is_boolean() ||
+                !row.contains("selectable") || !row["selectable"].is_boolean() ||
+                !row.contains("original_outfit_id") || !row.contains("returned_outfit_id") ||
+                (!row["original_outfit_id"].is_null() && !ExactUint64Identity(row["original_outfit_id"])) ||
+                (!row["returned_outfit_id"].is_null() && !ExactUint64Identity(row["returned_outfit_id"])) ||
+                (row["original_outfit_id"].is_null() && row["returned_outfit_id"].is_null()) ||
+                row["outfit_id"]!=(row["original_outfit_id"].is_null()?row["returned_outfit_id"]:row["original_outfit_id"])) return false;
+            const auto category=row["category"].get<uint32_t>(), ordinal=row["ordinal"].get<uint32_t>();
+            if (ordinal!=ordinals[category]++ || !slots.insert({category,ordinal}).second ||
+                (form["wardrobe_unchanged"]==true && (!ids.insert(Scalar(row,"outfit_id")).second ||
+                    row["original_outfit_id"]!=row["returned_outfit_id"])) ||
+                (row["selectable"]==true && (form["wardrobe_unchanged"]!=true || ordinal>=1024 || form["outfits"].size()>1024))) return false;
+        }
+    }
+    return seen==expected;
+}
+inline bool BankHairSelected(const CasBankView& state, const std::string& lane, const Json& outfit) {
+    if (!state.hairTargets.is_object() || !state.hairTargets.contains(lane) || !state.hairTargets[lane].is_array()) return false;
+    const Json target={{"category",outfit.value("category",Json(nullptr))},{"ordinal",outfit.value("ordinal",Json(nullptr))},
+                       {"outfit_id",outfit.value("outfit_id",Json(nullptr))}};
+    return std::find(state.hairTargets[lane].begin(),state.hairTargets[lane].end(),target)!=state.hairTargets[lane].end();
+}
+inline bool BankHairTargetsValid(const CasBankView& state, bool requireComplete=true) {
+    if (!state.hairEnabled) return state.hairTargets.is_object() && state.hairTargets.empty();
+    if (!BankHairInventory(state) || !state.hairTargets.is_object()) return false;
+    std::set<std::string> visited;
+    for (const auto& form:state.hairInventory["forms"]) {
+        const auto lane=Scalar(form,"lane"); const auto choice=state.choices.find(lane);
+        const bool accepted=choice!=state.choices.end() && choice->second=="accept-returned";
+        if (accepted && form["wardrobe_unchanged"]!=true) return false;
+        bool changed=false;
+        for (const auto& outfit:form["outfits"]) changed=changed || outfit["hair_changed"]==true;
+        if (!state.hairTargets.contains(lane)) {
+            if (requireComplete && accepted && changed) return false;
+            continue;
+        }
+        if (!accepted || !state.hairTargets[lane].is_array() || state.hairTargets[lane].empty() || state.hairTargets[lane].size()>1024) return false;
+        visited.insert(lane); std::set<std::pair<uint32_t,uint32_t>> slots;
+        for (const auto& target:state.hairTargets[lane]) {
+            if (!target.is_object() || target.size()!=3 || !BankOutfitNumber(target.value("category",Json(nullptr)),1ULL<<32) ||
+                !BankOutfitNumber(target.value("ordinal",Json(nullptr)),1024) || !ExactUint64Identity(target.value("outfit_id",Json(nullptr))) ||
+                !slots.insert({target["category"].get<uint32_t>(),target["ordinal"].get<uint32_t>()}).second) return false;
+            bool found=false;
+            for (const auto& outfit:form["outfits"])
+                if (outfit["selectable"]==true && target["category"]==outfit["category"] &&
+                    target["ordinal"]==outfit["ordinal"] && target["outfit_id"]==outfit["outfit_id"]) { found=true; break; }
+            if (!found) return false;
+        }
+    }
+    return visited.size()==state.hairTargets.size();
+}
 inline bool BankCurrent(const CasBankView& state, const std::string& sim, uint64_t generation) {
     return state.sim == sim && state.generation == generation && ExactUint64Identity(Json(sim));
 }
@@ -94,7 +176,7 @@ inline bool BankCanPrepare(const CasBankView& state) {
         const auto found = state.choices.find(lane.get<std::string>());
         if (found == state.choices.end() || (found->second != "accept-returned" && found->second != "restore-original")) return false;
     }
-    return true;
+    return BankHairTargetsValid(state);
 }
 inline bool BankCanCommit(const CasBankView& state) {
     return BankIdle(state) && state.currentRuntime && state.clockProof && CasRequestIdentity(Json(state.reviewNonce)) && state.localPrepared && state.phase == "planned" &&
@@ -105,6 +187,24 @@ inline bool BankChoiceCurrent(const CasBankView& current, const CasBankView& ren
         current.phase=="observed" && rendered.phase=="observed" && !current.prepareAttempted && !current.localPrepared &&
         current.pendingHash==rendered.pendingHash && current.rawHash==rendered.rawHash && current.reviewNonce==rendered.reviewNonce &&
         BankHash(Json(current.pendingHash)) && BankHash(Json(current.rawHash));
+}
+inline bool BankSetHairTarget(CasBankView& current, const CasBankView& rendered, const std::string& lane,
+                              const Json& outfit, bool selected) {
+    if (!BankChoiceCurrent(current,rendered) || !current.hairEnabled || !BankHairInventory(current) ||
+        current.hairInventoryHash!=rendered.hairInventoryHash || current.hairInventory!=rendered.hairInventory ||
+        !current.choices.count(lane) || current.choices.at(lane)!="accept-returned") return false;
+    bool offered=false;
+    for (const auto& form:current.hairInventory["forms"]) if (form["lane"]==lane)
+        for (const auto& candidate:form["outfits"]) if (candidate==outfit && candidate["selectable"]==true) offered=true;
+    if (!offered) return false;
+    auto proposed=current;
+    Json targets=Json::array();
+    if (proposed.hairTargets.contains(lane)) for (const auto& target:proposed.hairTargets[lane])
+        if (target["category"]!=outfit["category"] || target["ordinal"]!=outfit["ordinal"]) targets.push_back(target);
+    if (selected) targets.push_back({{"category",outfit["category"]},{"ordinal",outfit["ordinal"]},{"outfit_id",outfit["outfit_id"]}});
+    if (targets.empty()) proposed.hairTargets.erase(lane); else proposed.hairTargets[lane]=targets;
+    if (!BankHairTargetsValid(proposed,false)) return false;
+    current.hairTargets=std::move(proposed.hairTargets); return true;
 }
 inline const char* BankRoute(const std::string& action) {
     if (action=="cas_bank_status") return "cas_bank_ui_status";
@@ -127,7 +227,9 @@ inline bool BankRequest(const CasBankView& state, const std::string& action, Jso
         Json rows=Json::array();
         for (const auto& lane : state.evidence["changed_lanes"]) rows.push_back({{"lane",lane},{"action",state.choices.at(lane.get<std::string>())}});
         argument={{"expected_pending_sha256",state.pendingHash},{"expected_raw_return_sha256",state.rawHash},
-            {"review_nonce",state.reviewNonce},{"dispositions",rows}}; return true;
+            {"review_nonce",state.reviewNonce},{"dispositions",rows}};
+        if (state.hairEnabled) { argument["hair_targets"]=state.hairTargets; argument["hair_inventory_sha256"]=state.hairInventoryHash; }
+        return true;
     }
     if (action == "cas_bank_commit" && BankCanCommit(state)) {
         argument={{"expected_pending_sha256",state.pendingHash},{"expected_plan_sha256",state.planHash},{"review_nonce",state.reviewNonce}}; return true;
@@ -176,9 +278,11 @@ inline bool BankApply(CasBankView& state, const std::string& sim, uint64_t gener
         const auto phase=Scalar(reply,"phase");
         if (!pending.empty() && !BankHash(Json(pending))) return refuse();
         const bool newEpoch = pending != state.pendingHash;
+        const auto priorRaw=state.rawHash, priorNonce=state.reviewNonce, priorHairHash=state.hairInventoryHash;
         const bool priorFailure = state.failed;
         if (newEpoch) {
             state.choices.clear(); state.localPrepared=false; state.clockProof=false;
+            state.hairTargets=Json::object(); state.hairInventory=Json::object(); state.hairInventoryHash.clear();
             state.reviewNonce.clear(); state.reviewPhase.clear();
             state.lastFailure=Json::object();
             state.observeAttempted=false; state.prepareAttempted=false; state.commitAttempted=false;
@@ -197,12 +301,37 @@ inline bool BankApply(CasBankView& state, const std::string& sim, uint64_t gener
         const auto plan=Scalar(reply,"plan_sha256");
         if (plan != state.planHash) state.localPrepared=false;
         state.planHash=plan; state.rawHash=Scalar(reply,"raw_return_sha256");
+        if (priorRaw!=state.rawHash) { state.choices.clear(); state.localPrepared=false; state.hairTargets=Json::object(); }
         if (BankEvidence(reply)) state.evidence=reply;
         else { state.evidence=Json::object(); state.choices.clear(); }
         if ((!phase.empty() && !BankHash(Json(pending))) || (!plan.empty() && !BankHash(Json(plan))) ||
             (!state.rawHash.empty() && !BankHash(Json(state.rawHash)))) return refuse();
         if (state.clockProof && (!state.currentRuntime || !BankHash(Json(state.rawHash)) ||
             (phase!="observed" && phase!="planned" && phase!="completed"))) return refuse();
+        if (state.hairEnabled && phase=="observed" && state.clockProof) {
+            if (!reply.contains("hair_inventory_available") || !reply["hair_inventory_available"].is_boolean()) return refuse();
+            if (reply["hair_inventory_available"]==true) {
+                state.hairInventory=reply.value("hair_inventory",Json(nullptr));
+                state.hairInventoryHash=Scalar(reply,"hair_inventory_sha256");
+                if (!BankHairInventory(state)) return refuse();
+                if (newEpoch || priorRaw!=state.rawHash || priorNonce!=state.reviewNonce || priorHairHash!=state.hairInventoryHash) {
+                    // A new inventory may only adopt already explicit phone choices.
+                    // Never infer a selected outfit from its changed flag.
+                    state.hairTargets=reply.value("hair_targets",Json::object());
+                    if (!state.hairTargets.is_object()) return refuse();
+                    auto checked=state;
+                    for (auto it=checked.hairTargets.begin();it!=checked.hairTargets.end();++it)
+                        checked.choices[it.key()]="accept-returned";
+                    if (!BankHairTargetsValid(checked,false)) return refuse();
+                }
+                state.hairError.clear();
+            } else {
+                state.hairTargets=Json::object(); state.hairInventory=Json::object(); state.hairInventoryHash.clear();
+                state.hairError=Scalar(reply,"hair_inventory_error");
+            }
+        } else if (phase!="planned" && phase!="completed") {
+            state.hairTargets=Json::object(); state.hairInventory=Json::object(); state.hairInventoryHash.clear(); state.hairError.clear();
+        }
         state.failed=(!newEpoch && priorFailure) || reply["legacy_pending_not_converted"]==true ||
             (phase!="" && phase!="captured" && phase!="observed" && phase!="planned" && phase!="completed");
     } else {
@@ -221,6 +350,7 @@ inline bool BankApply(CasBankView& state, const std::string& sim, uint64_t gener
             state.phase="captured"; state.evidence=Json::object(); state.choices.clear(); state.rawHash.clear(); state.planHash.clear();
             state.observeAttempted=false; state.prepareAttempted=false; state.commitAttempted=false; state.clockProof=false; state.localPrepared=false;
             state.reviewNonce.clear(); state.reviewPhase.clear();
+            state.hairTargets=Json::object(); state.hairInventory=Json::object(); state.hairInventoryHash.clear(); state.hairError.clear();
             state.hairEnabled=reply.value("hair_policy_enabled",Json(false))==true;
         } else if (action=="cas_bank_observe") {
             // The canonical phone actor starts a bounded normal-speed/Pause
@@ -238,6 +368,8 @@ inline bool BankApply(CasBankView& state, const std::string& sim, uint64_t gener
             Json accepted=Json::array(); for (const auto& lane:state.evidence["changed_lanes"])
                 if (state.choices.at(lane.get<std::string>())=="accept-returned") accepted.push_back(lane);
             if (reply.value("accepted_lanes",Json(nullptr)) != accepted) return refuse();
+            if (state.hairEnabled && (reply.value("hair_inventory_sha256",Json(nullptr))!=state.hairInventoryHash ||
+                reply.value("hair_targets",Json(nullptr))!=state.hairTargets)) return refuse();
             state.planHash=Scalar(reply,"plan_sha256"); state.localPrepared=true; state.phase="planned";
             state.reviewPhase=Scalar(reply,"review_state");
         } else if (action=="cas_bank_commit") {

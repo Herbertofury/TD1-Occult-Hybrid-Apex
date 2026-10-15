@@ -1534,11 +1534,31 @@
                }
                if(operation=="select") {
                   if(context.selection_variant_id is String) value=String(context.selection_variant_id);
-                  var selected:Array=reply.client.selected as Array;
-                  var matched:Boolean=false;
-                  if(selected) for each(var selectedItem:Object in selected)
-                     if(String(selectedItem.dataID)==value) matched=true;
-                  if(!matched) throw new Error("Native CAS did not read back the requested catalog item");
+                  if(context.selection_base_id is String) {
+                     if(state!=MenuState.CLOTHING_BODY_WINGS)
+                        throw new Error("Compound wing readback requires the exact wing panel");
+                     var wingFilter:Object=this.mCurrentPanel.mcFilterPane!=null ? this.mCurrentPanel.mcFilterPane.GetCatalogFilter() :
+                        {tags:[],excludeTags:[]};
+                     // Native CatalogDataFeed reads selected BASES separately
+                     // from its color variation. Do not compare a base to a
+                     // requested color or infer one from the other.
+                     var wingBases:Array=ApexClone(CommunicationManager.CallGameService("GetCatalogBaseItemSelected",
+                        {state:state,tags:ApexClone(wingFilter.tags),excludeTags:ApexClone(wingFilter.excludeTags),bodyType:0,layer:-1},true)) as Array;
+                     wingFilter=null;
+                     var wingColor:* = CommunicationManager.CallGameService("GetCatalogVariantItemSelected",CASBodyType.WINGS);
+                     if(wingBases==null || wingBases.length!=1 || !(wingBases[0] is String) ||
+                        String(wingBases[0])!=String(context.selection_base_id) || !(wingColor is String) || wingColor!==value)
+                        throw new Error("Native wing base and color did not both read back exactly");
+                     reply.client.wing_selection={base_query:"returned-value",color_query:"returned-value",
+                        selected_base_ids:wingBases,selected_color_id:wingColor,body_type:CASBodyType.WINGS};
+                     wingBases=null; wingColor=null;
+                  } else {
+                     var selected:Array=reply.client.selected as Array;
+                     var matched:Boolean=false;
+                     if(selected) for each(var selectedItem:Object in selected)
+                        if(String(selectedItem.dataID)==value) matched=true;
+                     if(!matched) throw new Error("Native CAS did not read back the requested catalog item");
+                  }
                }
                if(operation=="hair-swatch" || (operation=="select" && state==MenuState.CLOTHING_HAIR))
                   if(String(reply.client.hair_selected_swatch_id)!=value)

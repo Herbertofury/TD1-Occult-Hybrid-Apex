@@ -29,6 +29,31 @@ static CasBankView Observed() {
     state.pendingHash=pending; state.rawHash=raw; state.evidence=Evidence();
     return state;
 }
+static CasBankView HairObserved() {
+    auto state=Observed(); state.hairEnabled=true; state.hairInventoryHash=std::string(64,'d');
+    Json forms=Json::array();
+    for (const auto* lane:{"1","4","32"}) {
+        Json outfits=Json::array();
+        for (unsigned index=0;index<3;++index) outfits.push_back({{"category",index<2?0:42},{"ordinal",index<2?index:0},
+            {"category_name",index<2?"Everyday":"Category 42"},{"outfit_id",std::to_string(UINT64_MAX-index)},
+            {"original_outfit_id",std::to_string(UINT64_MAX-index)},{"returned_outfit_id",std::to_string(UINT64_MAX-index)},
+            {"hair_changed",std::string(lane)!="4"},{"selectable",true}});
+        forms.push_back({{"lane",lane},{"wardrobe_unchanged",true},{"outfits",outfits}});
+    }
+    state.hairInventory={{"schema",1},{"sim_id",state.sim},{"expected_pending_sha256",pending},
+        {"raw_return_sha256",raw},{"review_nonce",nonce},{"forms",forms}};
+    state.choices={{"1","accept-returned"},{"32","restore-original"}};
+    return state;
+}
+static Json HairStatus(const CasBankView& state) {
+    auto result=Evidence();
+    result.update(Json{{"blocked",true},{"legacy_pending_not_converted",false},{"phase","observed"},
+        {"expected_pending_sha256",state.pendingHash},{"raw_return_sha256",state.rawHash},{"plan_sha256",nullptr},
+        {"current_runtime",true},{"hair_policy_enabled",true},{"clock_proof_validated",true},
+        {"review_nonce",state.reviewNonce},{"review_state","observed"},{"hair_inventory_available",true},
+        {"hair_inventory",state.hairInventory},{"hair_inventory_sha256",state.hairInventoryHash},{"hair_targets",Json::object()}});
+    return result;
+}
 int main() {
     int checks=0,failed=0;
     auto check=[&](bool ok,const char* name) { ++checks; if(!ok) { ++failed; std::cerr<<name<<'\n'; } };
@@ -145,5 +170,60 @@ int main() {
     auto replacement=observed; replacement["review_nonce"]=std::string(32,'f');
     check(BankApply(nonceStatus,nonceStatus.sim,4,"cas_bank_status",Owner(replacement)) && nonceStatus.choices.empty() &&
         !nonceStatus.localPrepared,"new Source review nonce invalidates all older UI intent");
+    auto hair=HairObserved();
+    check(BankHairInventory(hair) && !BankCanPrepare(hair),"all exact outfits are available, changed hair is never selected automatically");
+    const auto second=hair.hairInventory["forms"][0]["outfits"][1];
+    check(BankSetHairTarget(hair,hair,"1",second,true) && BankCanPrepare(hair),"explicit Everyday 2 choice authorizes only its exact original UID");
+    const auto firstTargets=hair.hairTargets;
+    check(BankSetHairTarget(hair,hair,"1",second,true) && hair.hairTargets==firstTargets,"reselecting an exact checkbox is idempotent, not duplicate intent");
+    check(BankRequest(hair,"cas_bank_prepare",argument) && argument["hair_targets"]==firstTargets &&
+        argument["hair_inventory_sha256"]==hair.hairInventoryHash && argument["hair_targets"]["1"].size()==1 &&
+        argument["hair_targets"]["1"][0]["ordinal"]==1,"prepare carries explicit exact hair set and its receiver inventory binding");
+    check(!BankSetHairTarget(hair,hair,"32",hair.hairInventory["forms"][2]["outfits"][0],true),"restored form cannot acquire hair intent");
+    auto foreign=second; foreign["outfit_id"]="11";
+    check(!BankSetHairTarget(hair,hair,"1",foreign,true),"foreign outfit UID cannot be offered by a matching numeric slot");
+    auto staleHair=hair; staleHair.hairInventoryHash=std::string(64,'f');
+    check(!BankSetHairTarget(hair,staleHair,"1",second,true),"new inventory invalidates rendered checkbox intent");
+    check(BankSetHairTarget(hair,hair,"1",second,false) && hair.hairTargets.empty() && !BankCanPrepare(hair),"unchecking does not silently accept all propagated hair");
+    for (int invalidCase=0;invalidCase<8;++invalidCase) {
+        auto invalidHair=HairObserved(); auto& outfit=invalidHair.hairInventory["forms"][0]["outfits"][0];
+        if(invalidCase==0) invalidHair.hairInventory["sim_id"]="11";
+        if(invalidCase==1) invalidHair.hairInventory["raw_return_sha256"]=std::string(64,'f');
+        if(invalidCase==2) outfit["ordinal"]=true;
+        if(invalidCase==3) outfit["category"]=-1;
+        if(invalidCase==4) outfit["outfit_id"]=UINT64_MAX;
+        if(invalidCase==5) invalidHair.hairInventory["forms"][0]["outfits"].push_back(outfit);
+        if(invalidCase==6) outfit["hair"]="external bytes";
+        if(invalidCase==7) invalidHair.hairInventory["forms"][0]["wardrobe_unchanged"]=false;
+        check(!BankHairInventory(invalidHair),"foreign, mistyped, duplicate and unbound hair inventories fail closed");
+    }
+    auto many=HairObserved(); auto& manyRows=many.hairInventory["forms"][0]["outfits"];
+    for (unsigned index=0;index<44;++index) manyRows.push_back({{"category",500},{"ordinal",index},
+        {"category_name","Custom category 500"},{"outfit_id",std::to_string(10000+index)},
+        {"original_outfit_id",std::to_string(10000+index)},{"returned_outfit_id",std::to_string(10000+index)},
+        {"hair_changed",true},{"selectable",true}});
+    check(BankHairInventory(many) && manyRows.size()==47,"all numbered and unknown-category outfits remain represented beyond one visible page");
+    auto observedHair=HairObserved(); BankSubmitted(observedHair,"cas_bank_status");
+    check(BankApply(observedHair,observedHair.sim,4,"cas_bank_status",Owner(HairStatus(observedHair))) &&
+        BankHairInventory(observedHair) && observedHair.hairTargets.empty(),"actual typed Source inventory is accepted without invented selection");
+    observedHair.choices={{"1","accept-returned"},{"32","restore-original"}};
+    BankSetHairTarget(observedHair,observedHair,"1",second,true);
+    const auto explicitHair=observedHair.hairTargets;
+    BankSubmitted(observedHair,"cas_bank_status");
+    check(BankApply(observedHair,observedHair.sim,4,"cas_bank_status",Owner(HairStatus(observedHair),'e')) &&
+        observedHair.hairTargets==explicitHair,"same Sim/epoch/raw/nonce/inventory preserves unsent explicit choices through refresh");
+    auto newInventory=HairStatus(observedHair); newInventory["hair_inventory_sha256"]=std::string(64,'f');
+    BankSubmitted(observedHair,"cas_bank_status");
+    check(BankApply(observedHair,observedHair.sim,4,"cas_bank_status",Owner(newInventory,'f')) &&
+        observedHair.hairTargets.empty(),"changed inventory clears all older outfit choices");
+    auto hairPrepared=HairObserved(); BankSetHairTarget(hairPrepared,hairPrepared,"1",second,true);
+    auto hairAck=prepared; hairAck["hair_inventory_sha256"]=hairPrepared.hairInventoryHash; hairAck["hair_targets"]=hairPrepared.hairTargets;
+    BankSubmitted(hairPrepared,"cas_bank_prepare");
+    check(BankApply(hairPrepared,hairPrepared.sim,4,"cas_bank_prepare",Owner(hairAck)) && BankCanCommit(hairPrepared),
+        "matching explicit hair target receipt permits the one prepared commit");
+    auto badHairAck=HairObserved(); BankSetHairTarget(badHairAck,badHairAck,"1",second,true); BankSubmitted(badHairAck,"cas_bank_prepare");
+    hairAck["hair_targets"]=Json::object();
+    check(!BankApply(badHairAck,badHairAck.sim,4,"cas_bank_prepare",Owner(hairAck)) && !BankCanCommit(badHairAck),
+        "mismatched hair target acknowledgement cannot claim preparation success");
     std::cout<<checks<<" checks, "<<failed<<" failures\n"; return failed?1:0;
 }

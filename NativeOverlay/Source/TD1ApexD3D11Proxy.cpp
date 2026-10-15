@@ -1801,9 +1801,44 @@ static void DrawCasBankTransaction() {
                             if (!decision) { g_casBank.choices.erase(lane); state.choices.erase(lane); }
                             else { const auto choice=decision==1 ? "accept-returned" : "restore-original";
                                 g_casBank.choices[lane]=choice; state.choices[lane]=choice; }
+                            if (decision!=1) { g_casBank.hairTargets.erase(lane); state.hairTargets.erase(lane); }
                         }
                     }
                     ImGui::EndDisabled();
+                    if (state.hairEnabled && ui::BankHairInventory(state)) {
+                        const auto& forms=state.hairInventory["forms"];
+                        const auto form=std::find_if(forms.begin(),forms.end(),[&](const auto& item){ return item["lane"]==lane; });
+                        if (form!=forms.end() && ImGui::TreeNode("Keep returned hair for specific outfits")) {
+                            ImGui::TextWrapped("Check only the outfits whose returned hairstyle/color you want. Unchecked outfits keep their retained original hair; other accepted CAS edits are preserved.");
+                            if ((*form)["wardrobe_unchanged"]!=true)
+                                ImGui::TextWrapped("Outfits were added, removed or reordered. Hair acceptance is unavailable for this wardrobe; its originals and returned edit remain retained.");
+                            const auto& outfits=(*form)["outfits"];
+                            ImGui::Text("%u native outfits; no changes selected automatically",static_cast<unsigned>(outfits.size()));
+                            if (ImGui::BeginChild("##hair-outfits",ImVec2(0,200),true)) {
+                                ImGuiListClipper clipper; clipper.Begin(static_cast<int>(outfits.size()));
+                                while (clipper.Step()) for (int index=clipper.DisplayStart;index<clipper.DisplayEnd;++index) {
+                                    const auto& outfit=outfits[static_cast<size_t>(index)];
+                                    const auto uid=ui::Scalar(outfit,"outfit_id");
+                                    const auto outfitLabel=ui::Scalar(outfit,"category_name")+" "+std::to_string(outfit["ordinal"].get<uint32_t>()+1)+
+                                        (outfit["hair_changed"]==true ? "  /  changed" : "  /  unchanged")+"##"+uid;
+                                    bool selected=ui::BankHairSelected(state,lane,outfit);
+                                    const bool selectable=decision==1 && outfit["selectable"]==true && !requestBlocked &&
+                                        ui::BankIdle(state) && state.phase=="observed" && !state.prepareAttempted && !state.localPrepared;
+                                    ImGui::BeginDisabled(!selectable);
+                                    if (ImGui::Checkbox(outfitLabel.c_str(),&selected)) {
+                                        std::lock_guard<std::mutex> lock(g_dataMutex);
+                                        if (ui::BankSetHairTarget(g_casBank,state,lane,outfit,selected)) state.hairTargets=g_casBank.hairTargets;
+                                    }
+                                    ImGui::EndDisabled();
+                                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                                        ImGui::SetTooltip("Original outfit UID: %s\nReturned outfit UID: %s\nCategory: %s / number: %u\nChecked: keep returned hair. Unchecked: retain original hair.",
+                                            ui::Scalar(outfit,"original_outfit_id").c_str(),ui::Scalar(outfit,"returned_outfit_id").c_str(),
+                                            ui::Scalar(outfit,"category").c_str(),outfit["ordinal"].get<uint32_t>()+1);
+                                }
+                            }
+                            ImGui::EndChild(); ImGui::TreePop();
+                        }
+                    }
                     const auto& before=row["before_fingerprint"]["field_sha256"], &after=row["returned_fingerprint"]["field_sha256"];
                     for (const auto& field:row["changed_fields"]) {
                         const auto name=field.get<std::string>();
@@ -1832,7 +1867,8 @@ static void DrawCasBankTransaction() {
             ImGui::PopID();
         }
         if (state.hairEnabled)
-            ImGui::TextWrapped("Hair isolation is enabled. Keeping changed hair requires exact original outfit UID, category and ordinal through the CLI. F11 does not guess hair targets; preparation will refuse unsupported hair intent.");
+            ImGui::TextWrapped("Separate hair is enabled. For each kept form, expand its outfit picker and explicitly check which returned hairstyles/colors to keep. All other outfit hair stays original. Changed hair with no selected target keeps preparation disabled.");
+        if (!state.hairError.empty()) ImGui::TextWrapped("Hair inventory unavailable: %s",state.hairError.c_str());
         if (!state.clockProof) ImGui::TextWrapped("Preparation and commit stay disabled until canonical status verifies the current Live clock proof and Pause.");
         ImGui::BeginDisabled(requestBlocked || !ui::BankCanPrepare(state));
         if (ImGui::Button("Prepare the explicit choices")) QueueAction("cas_bank_prepare");

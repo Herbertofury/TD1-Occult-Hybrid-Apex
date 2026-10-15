@@ -3,7 +3,7 @@
 The production gate remains open. V120 is installed only in the one reusable
 disposable profile. The protected original is read/copy only. The latest normal
 test save has SHA-256
-`0584bd7bc9094a520ea3d9b6c9abe73edd6a12baa1a3c08284f6017f87d60b2e`.
+`271b92ca82ec38795bc0dc7102cac8a48f521c40f34bb55036ae0fd46006a9eb`.
 Earlier save identities below refer to their named historical checkpoints.
 
 ## Implemented corrections
@@ -580,3 +580,89 @@ readback cannot satisfy the requested color. The native bytecode audit and
 It is built but not installed while the V120 game remains open. Wing runtime
 qualification, the retained CC preset mismatch and broader production gates
 remain open.
+
+## V122 review controls and native contracts
+
+V122 supersedes the uninstalled V121 build. The final wing postcondition now
+reads the selected base through `GetCatalogBaseItemSelected` with the native
+filter and detaches that result before querying the exact color through
+`GetCatalogVariantItemSelected(114)`. A single exact string base and an exact
+string color must both match the requested pair. The compiled and serialized
+bytecode audits pass; 21 serialized mutation cases reject changed getters,
+body type, filter ownership, checks, branch targets and acknowledgement values.
+
+Phone and F11 CAS review now expose explicit form/category/outfit-number/native-UID
+hair targets. Every choice is bound to the retained checkpoint, raw return,
+review nonce and wardrobe digest. Changed/reordered/foreign outfits refuse;
+unselected hair remains original. Eleven real-protobuf receiver tests and all
+six native CTests pass. Actual front-end interaction remains pending.
+
+The CLI's `game cas --value mccc-full` invokes the installed MCCC 2026.5.0
+full-household callback with real Sim/client context. It requires the pinned
+archive and actual Python 3.7 function contracts plus a fresh durable ordinary
+frontdoor receipt covering every hybrid. It never constructs the dialog and
+does not claim to qualify all visible MCCC menus. Twelve new callback fixtures
+and fourteen existing frontdoor tests pass; actual runtime qualification is pending.
+
+The read-only `tools/cas_preset_evidence.py` helper pins the copied CPRE v12
+package and before/returned proofs. It checks only expected sculpt footprints,
+with 17 passing fixtures; sculpt presence cannot certify full preset application,
+resource precedence or persistence. The N28 test needs an independent native
+return without subsequently overwriting it with an EA preset.
+
+Candidate: `Apex_Development_Candidate_2026-10-14-household-review-mccc-wings-v122.zip`,
+SHA-256 `5b197de32de936b8c21fa043cfe2ec22440a832e29369525242652f1393ba27d`.
+It contains 88 Python 3.7 modules and seven packages/207 resources, with native
+DLL SHA-256 `f798e266379606e1c81838aeecf72d983389f31258d13fcd17caa0e041ed5d93`.
+Source epoch: `2026-10-14-household-review-mccc-wings-v122`; self-body SHA-256
+`c2b4e212b050a27eb2b410a827be5164746f953a40fc403ce0bb130731078d7f`.
+The complete V122 suite passes **2,089 tests** in 847.523 seconds. Cold reload
+and current-game qualification remain pending.
+
+Independent Foundry Rust verification subsequently compared every decoded
+resource in all seven immutable candidate packages: **207/207 SHA-256 values
+match** the Python DBPF reader. The ZIP and verifier executable remained
+unchanged. Proof `native-cas-v122-independent-rust-verification.json`, SHA-256
+`0cb163abadd7e4f659841920714eb733cb294396036c56630083c897f42cfa94`.
+The earlier build manifest's Rust flag remains false; this separate retained
+verification supplies the package-level evidence without rewriting the bundle.
+
+An additional V120 no-edit full-CAS visit completed all five explicit restores
+and retained all 40 saved appearances. Native Pause occurred at 679 of the
+requested 750 settling ticks, so the original return remained incomplete.
+After the restores, the same accept UUID completed its existing native
+observation at **3,448 ticks**, without another accept submission; all 40
+appearances remained exact. Completion proof SHA-256
+`7d317e9de342a882a6941a714e350576237b18147e6b23a6cf7451d65354022d`.
+The refused shutdown before that completion submitted no quit input.
+
+The subsequent normal background CLI exit observed process termination with
+no crash and all disposable save/backup files unchanged. V122 installed only
+in the marked disposable profile, then launched the verified game executable
+as PID 34832. Launch process observation is verified; the separate EA helper
+did not verify a permission-button acknowledgement. The indexed Slot 2 load
+completed its measured background Play input and reached Ondarion's map.
+Live household/slot/form readback is still pending; that initial load proof
+correctly remains unresolved rather than claiming a completed household load.
+
+The host map CLI now supports the exact current artifact/save inventories,
+completed ordered Home → Load → Play UUID receipts, window-addressed input
+acknowledgements and direct marker-proof-to-household Play. Four CLI dispatch
+tests and **57 map transaction/image tests** pass. An explicitly allowed
+`Slot_ffffffff.save` autosave may carry native slot ID 2 only when its Autosave
+name, GUID, household and preferred manual slot/name match the independently
+hashed unchanged normal save. The two initial actual map preflights refused
+before any input, first on changed autosaves and then on that native slot
+representation. Both refusals remain retained. The compatibility path keeps
+the changed-autosave evidence; it never substitutes an unchanged-save claim.
+
+The newly edited Werewolf passed Werewolf → Alien → Werewolf with **5,649
+actual ticks**. The Fairy passed Fairy → Vampire → Fairy with **5,576 ticks**.
+All 40 owners matched before/after every switch. The mixed household then
+completed a verified normal save: `native-cas-v120-mixed-household-normal-save.json`,
+SHA-256 `b340fb99db4a80b1391d39e371edbf920d8d7d846e048463bbc921031be5f590`.
+An independent after-save comparison retained every owner exactly:
+`native-cas-v120-after-mixed-save-all40.json`, SHA-256
+`ab1e792fcc5a6692ab798a9575e8c397a3e25b6c4c4cf4a733bcd04502494f5a`.
+The latest save contains the accepted Alien, Vampire, Mermaid, Werewolf and
+Fairy edits. Cold reload of this specific mixed checkpoint remains pending.

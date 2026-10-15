@@ -190,7 +190,7 @@ class GameMapTransactionTests(SaveFixture):
         self.artifacts = journal['artifacts']
         self.before = game_map.game_lifecycle.all_save_files(self.profile)
         self.metadata = {'slot_id': 2, 'slot_name': 'Synthetic indexed save',
-                         'save_guid': GUID, 'active_household_id': HOUSEHOLD}
+                         'save_guid': GUID, 'active_household_id': HOUSEHOLD, 'file_sha256': self.digest}
         self.receipt = {'ok': True, 'native_code': 0, 'input_state': 4, 'input_version': 2,
                         'input_submitted': True, 'pointer_verified': True,
                         'execution': 'fixed-native-control', 'request_state': 'completed',
@@ -217,7 +217,8 @@ class GameMapTransactionTests(SaveFixture):
     def run_marker(self, *, wrong_world=False, rejected_input=False, active_cas=False,
                    changed_identity=False, changed_after_capture=False, tampered_frame=False,
                    changed_saves=False, allow_autosave_drift=False, prior_autosave_drift=False,
-                   input_autosave_drift=False, wrong_autosave_metadata=False):
+                   input_autosave_drift=False, wrong_autosave_metadata=False, recovered=True,
+                   manual_slot_autosave=False):
         if prior_autosave_drift:
             for name in game_map.AUTOSAVE_DRIFT_FILES:
                 (self.profile / 'saves' / name).write_bytes(b'observed autosave before marker')
@@ -234,7 +235,9 @@ class GameMapTransactionTests(SaveFixture):
             if action == 'overlay_hide': return {'ok': True, 'visible': False}
             if action == 'test_input':
                 durable = json.loads(self.output.read_bytes())
-                self.assertEqual([row['action'] for row in durable['steps']][-1], 'input-marker-intent')
+                self.assertEqual([row['action'] for row in durable['steps']][-2], 'input-marker-intent')
+                self.assertIsNone(durable['steps'][-1]['request_id'])
+                kwargs['submission_observer']('test_input', self.receipt['request_id'])
                 self.assertTrue(any(row['action'] == 'measured-played-lot-marker' for row in durable['steps']))
                 self.assertEqual(json.loads(kwargs['value'])['value']['command'], 1)
                 if changed_saves: self.slot.write_bytes(b'changed during native input')
@@ -242,7 +245,7 @@ class GameMapTransactionTests(SaveFixture):
                     (self.profile / 'saves/Slot_ffffffff.save').write_bytes(b'observed autosave after marker')
                 delivered = copy.deepcopy(self.receipt)
                 delivered['cursor_client'] = {key: json.loads(kwargs['value'])['value'][key] for key in ('x', 'y')}
-                return {'ok': False, 'input_submitted': None} if rejected_input else delivered
+                return {'ok': False, 'input_submitted': None, 'request_id': self.receipt['request_id']} if rejected_input else delivered
             self.fail('Unexpected native action ' + action)
         def capture(_state, image_path, _request):
             image, _ = frame(); pair(image); image.save(image_path)
@@ -254,12 +257,14 @@ class GameMapTransactionTests(SaveFixture):
             return frame(labels=('WRONG WORLD',) if wrong_world else ('ONDARION',))[1]
         def metadata(path, expected):
             if path.name == 'Slot_ffffffff.save':
-                return {'slot_id': 0xffffffff, 'save_guid': '1' if wrong_autosave_metadata else GUID,
+                return {'slot_id': 2 if manual_slot_autosave else 0xffffffff,
+                        'slot_name': 'Autosave', 'preferred_manual_slot_name': self.metadata['slot_name'],
+                        'save_guid': '1' if wrong_autosave_metadata else GUID,
                         'active_household_id': HOUSEHOLD, 'preferred_manual_slot_id': 2, 'file_sha256': expected}
             return self.metadata
         result = game_map.select_marker(self.state, self.output, self.identity, request,
             SIM, HOUSEHOLD, GUID, 2, self.digest, 'ONDARION', self.prior_path, sha256(self.prior_path),
-            self.recovered_path, sha256(self.recovered_path), capture=capture, ocr=ocr,
+            self.recovered_path if recovered else None, sha256(self.recovered_path) if recovered else None, capture=capture, ocr=ocr,
             identity_provider=lambda _state: current, alive=lambda _pid: True,
             pause=lambda _seconds: None, metadata_reader=metadata,
             allow_autosave_drift=allow_autosave_drift)
@@ -365,6 +370,97 @@ class GameMapTransactionTests(SaveFixture):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 self.run_marker()
             self.assertFalse(self.output.exists()); self.prior = original
+
+    def completed_home_load(self):
+        target = self.prior['steps'][0]['result']['target']
+        def receipt(request_id):
+            value = copy.deepcopy(self.receipt)
+            value.update(request_id=request_id, foreground_required=False, window_messages_accepted=True,
+                         os_cursor_moved=False, pointer_verified=False, cursor_client={'x': -1, 'y': -1})
+            value['window_metrics'].update(root_match=False, foreground_pid=123)
+            return value
+        self.prior['initial_surface'] = 'native-home-menu'
+        self.prior['steps'] = []
+        for phase, request_id in (('home', 'c' * 32), ('play', 'd' * 32)):
+            self.prior['steps'].extend([
+                {'action': 'recognize-' + phase, 'result': {'target': copy.deepcopy(target)}},
+                {'action': 'input-' + phase + '-intent', 'result': {'submission_attempted': True}},
+                {'action': 'test_input', 'request_id': request_id, 'result': receipt(request_id)}])
+
+    def test_completed_home_and_play_use_current_uuid_receipts_without_fake_recovery(self):
+        self.completed_home_load()
+        value = game_map._indexed_play_receipt(self.prior, None, 42)
+        self.assertEqual(value['request_id'], 'd' * 32)
+        self.assertFalse(value['pointer_verified'])
+
+    def test_background_receipts_keep_foreground_contract_strict_and_refuse_unknown_ids(self):
+        self.completed_home_load(); baseline = copy.deepcopy(self.prior)
+        for change in ('wrong-uuid', 'missing-uuid', 'unknown', 'same-uuid', 'missing-window-ack',
+                       'cursor-moved', 'foreign-game', 'wrong-viewport', 'extra-input'):
+            self.prior = copy.deepcopy(baseline); last = self.prior['steps'][-1]
+            if change == 'wrong-uuid': last['request_id'] = 'e' * 32
+            elif change == 'missing-uuid': last.pop('request_id')
+            elif change == 'unknown': last['result']['request_state'] = 'pending'
+            elif change == 'same-uuid': last.update(request_id='c' * 32); last['result']['request_id'] = 'c' * 32
+            elif change == 'missing-window-ack': last['result'].pop('window_messages_accepted')
+            elif change == 'cursor-moved': last['result']['os_cursor_moved'] = True
+            elif change == 'foreign-game': last['result']['window_metrics']['overlay_pid'] = 123
+            elif change == 'wrong-viewport': last['result']['window_metrics']['width'] += 1
+            else: self.prior['steps'].append(copy.deepcopy(last))
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                game_map._indexed_play_receipt(self.prior, None, 42)
+        foreground = copy.deepcopy(self.receipt); foreground['window_metrics']['foreground_pid'] = 123
+        self.assertFalse(game_map._native_click(foreground, 42))
+
+    def test_named_twenty_file_inventory_and_changed_artifact_roster_are_bound(self):
+        for index in range(2): (self.profile / 'saves' / ('additional-backup{}.bin'.format(index))).write_bytes(b'preserved')
+        self.before = game_map.game_lifecycle.all_save_files(self.profile)
+        self.prior.update(before_saves=self.before, after_saves=self.before)
+        self.assertEqual(len(self.before), 20)
+        result, proof, _calls = self.run_marker()
+        self.assertTrue(result['ok']); self.assertEqual(proof['before_saves'], self.before)
+        self.output.unlink()
+        self.prior['inputs'] = copy.deepcopy(self.artifacts[:-1])
+        with self.assertRaisesRegex(ValueError, 'artifacts or saves'): self.run_marker()
+
+    def test_completed_play_path_does_not_require_recovered_input_files(self):
+        self.completed_home_load()
+        result, proof, calls = self.run_marker(recovered=False)
+        self.assertTrue(result['ok']); self.assertEqual(calls.count('test_input'), 1)
+        self.assertIsNone(proof['prerequisites']['recovered_input_proof'])
+        self.assertEqual(proof['indexed_play_receipt']['request_id'], 'd' * 32)
+        submitted = next(row for row in proof['steps'] if row['action'] == 'test_input')
+        self.assertEqual(submitted['request_id'], submitted['result']['request_id'])
+
+    def test_current_named_autosave_may_carry_exact_preferred_manual_slot_proto(self):
+        result, proof, calls = self.run_marker(allow_autosave_drift=True, prior_autosave_drift=True,
+                                             manual_slot_autosave=True)
+        self.assertTrue(result['ok']); self.assertEqual(calls.count('test_input'), 1)
+        boundary = proof['final_save_boundary']
+        self.assertEqual(boundary['autosave_native_identity'], 'native-manual-slot-proto-in-named-autosave-file')
+        self.assertEqual(boundary['indexed_normal_save_anchor']['file_sha256'], self.digest)
+        self.assertFalse(proof['native_slot_verified']); self.assertFalse(proof['save_files_unchanged'])
+
+    def test_manual_slot_autosave_refuses_foreign_names_ids_or_changed_normal_anchor(self):
+        auto_hash = self.before['Slot_ffffffff.save']['sha256']
+        valid = {'slot_id': 2, 'slot_name': 'Autosave', 'save_guid': GUID, 'active_household_id': HOUSEHOLD,
+                 'preferred_manual_slot_id': 2, 'preferred_manual_slot_name': self.metadata['slot_name'], 'file_sha256': auto_hash}
+        for change in ({'slot_id': True}, {'slot_id': 3}, {'slot_name': 'My Saved Game 1'},
+                       {'preferred_manual_slot_id': True}, {'preferred_manual_slot_name': 'Foreign Save'},
+                       {'active_household_id': '123'}, {'save_guid': '123'}, {'file_sha256': '0' * 64}):
+            current = dict(valid, **change)
+            reader = lambda path, _hash: current if path.name == 'Slot_ffffffff.save' else self.metadata
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                game_map._save_boundary(self.before, self.before, True, self.profile, reader, self.target)
+        for change in ({'slot_id': True}, {'slot_id': 3}, {'slot_name': 'Autosave'},
+                       {'active_household_id': '123'}, {'file_sha256': '0' * 64}):
+            normal = dict(self.metadata, **change)
+            reader = lambda path, _hash: valid if path.name == 'Slot_ffffffff.save' else normal
+            with self.subTest(normal_change=change), self.assertRaises(ValueError):
+                game_map._save_boundary(self.before, self.before, True, self.profile, reader, self.target)
+        changed = copy.deepcopy(self.before); changed['Slot_00000002.save']['sha256'] = '0' * 64
+        with self.assertRaises(ValueError):
+            game_map._save_boundary(self.before, changed, True, self.profile, lambda *_args: valid, self.target)
 
 
 if __name__ == '__main__':

@@ -14,13 +14,33 @@ import game_capture
 import game_lifecycle
 import reusable_profile
 from game_load import _save_live_context, normalized
-from game_map import _native_click, save_delta
+from game_map import _native_click, save_delta, _artifact_roster, _save_inventory, _durable_native_input, _save_boundary
 from save_household import read as read_household
 from source_manifest import sha256, write_json
 from windows_ocr import recognize
 
 
 CAPTION = 'Bright Cliff Apartments'
+
+
+def native_caption(observation):
+    """Retain one measured native header; no fixture lot name enters runtime."""
+    if not isinstance(observation, dict) or observation.get('ok') is not True:
+        raise ValueError('Selected native household caption is unavailable.')
+    width, height = observation.get('width'), observation.get('height')
+    if type(width) is not int or type(height) is not int or not 200 <= width <= 8192 or not 200 <= height <= 8192:
+        raise ValueError('Selected native household caption has no bounded viewport.')
+    candidates = []
+    for row in observation.get('lines', []):
+        text = row.get('text') if isinstance(row, dict) else None
+        if not isinstance(text, str) or not normalized(text) or len(text) > 256:
+            continue
+        box = _bounds(row, width, height)
+        if box[3] <= height * .12 and width * .15 <= box[0] < width * .75 and normalized(text) not in ('home', 'manage worlds'):
+            candidates.append(text)
+    if len(candidates) != 1:
+        raise ValueError('Selected native household caption is absent or ambiguous.')
+    return candidates[0]
 
 
 def _bounds(row, width, height):
@@ -203,26 +223,36 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
         if not isinstance(value, dict): raise ValueError('Selected household prerequisite is untyped.')
         return value
     prior = read_proof(selection_proof, selection_proof_sha256)
+    _artifact_roster(journal['artifacts'])
+    marker_proof = prior.get('operation') == 'select-existing-played-lot-marker'
+    explicit_prior_drift = (marker_proof and prior.get('allow_autosave_drift') is True and
+                            prior.get('operation_save_files_unchanged') is True)
     expected_script = next((row['sha256'] for row in journal['artifacts'] if row['name'] == 'ApexOccultHybrid.ts4script'), None)
     keys = ('pid', 'test_token', 'script_sha256')
     target = {'sim_id': sim_id, 'household_id': household_id, 'save_guid': save_guid,
               'slot_id': slot_id, 'file_sha256': expected_save_sha256}
     if (not isinstance(identity, dict) or type(identity.get('pid')) is not int or not 0 < identity['pid'] <= 0xffffffff or
             identity.get('test_token') != journal['token'] or identity.get('script_sha256') != expected_script or
-            len(journal['artifacts']) != 14 or prior.get('operation') != 'select-existing-disposable-household-unit' or
+            prior.get('operation') not in ('select-existing-disposable-household-unit', 'select-existing-played-lot-marker') or
             prior.get('ok') is not True or prior.get('schema') != 1 or
             not isinstance(prior.get('identity'), dict) or any(prior['identity'].get(key) != identity.get(key) for key in keys) or
-            prior.get('inputs') != journal['artifacts'] or prior.get('save_files_unchanged') is not True or
+            prior.get('inputs') != journal['artifacts'] or
+            (prior.get('save_files_unchanged') is not True and not explicit_prior_drift) or
             prior.get('before_saves') != prior.get('after_saves') or prior.get('input_replay_attempted') is not False or
             prior.get('save_requested') is not False or
             any(prior.get('target', {}).get(key) != value for key, value in target.items())):
         raise ValueError('Selected household proof differs from the exact current runtime, artifacts or target.')
     before = game_lifecycle.all_save_files(profile)
     filename = 'Slot_{:08x}.save'.format(slot_id)
-    if len(before) != 18 or before != prior.get('after_saves') or before.get(filename, {}).get('sha256') != expected_save_sha256:
-        raise ValueError('Exact eighteen-file save baseline changed after household selection.')
+    _save_inventory(before); _save_inventory(prior.get('after_saves'))
+    if before != prior.get('after_saves') or before.get(filename, {}).get('sha256') != expected_save_sha256:
+        raise ValueError('Exact named save baseline changed after household selection.')
+    prior_save_boundary = None
+    if explicit_prior_drift:
+        prior_save_boundary = _save_boundary(prior.get('indexed_load_baseline_saves'), before, True, profile,
+            lambda path, digest: metadata_reader(path, digest, household_id, sim_id), target)
     metadata = metadata_reader(profile / 'saves' / filename, expected_save_sha256, household_id, sim_id)
-    if (not isinstance(metadata, dict) or metadata != prior.get('indexed_household') or
+    if (not isinstance(metadata, dict) or (not marker_proof and metadata != prior.get('indexed_household')) or
             not isinstance(prior.get('indexed_save_metadata'), dict) or
             any(metadata.get(key) != value for key, value in prior['indexed_save_metadata'].items()) or
             metadata.get('slot_id') != slot_id or metadata.get('save_guid') != save_guid or
@@ -234,32 +264,52 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
         raise ValueError('Indexed selected household metadata or native identity changed.')
     household_name = metadata.get('household', {}).get('name')
     selected_capture = prior.get('capture')
+    if marker_proof:
+        captures = [row.get('result') for row in prior.get('steps', []) if row.get('action') == 'capture-selected-household']
+        if (prior.get('marker_input_accepted') is not True or prior.get('post_click_capture_verified') is not True or
+                len(captures) != 1 or not isinstance(captures[0], dict)):
+            raise ValueError('Marker proof lacks its verified selected-household capture.')
+        selected_capture = {'result': captures[0]}
     if not isinstance(selected_capture, dict) or not isinstance(selected_capture.get('result'), dict):
         raise ValueError('Selected household proof has no typed native capture.')
-    previous_capture = read_proof(selected_capture.get('proof', ''), selected_capture.get('proof_sha256', ''))
+    previous_capture = (selected_capture['result'] if marker_proof else
+                        read_proof(selected_capture.get('proof', ''), selected_capture.get('proof_sha256', '')))
     if previous_capture != selected_capture['result']:
         raise ValueError('Selected native capture receipt changed.')
     viewport = (previous_capture.get('width'), previous_capture.get('height'))
-    previous_image = reusable_profile.writable(previous_capture.get('output', ''))
+    previous_image = reusable_profile.writable(prior.get('post_click_capture', '') if marker_proof else previous_capture.get('output', ''))
     if (any(previous_image == base or base in previous_image.parents for base in (profile, original)) or
             not previous_image.is_file() or sha256(previous_image) != previous_capture.get('sha256') or
             previous_capture.get('ok') is not True or previous_capture.get('capture_completed_verified') is not True or
             previous_capture.get('test_token') != journal['token'] or previous_capture.get('inputs') != journal['artifacts']):
         raise ValueError('Selected native capture pixels, token or artifacts changed.')
-    clicks = prior.get('native_inputs')
-    if not isinstance(clicks, list) or len(clicks) != 3:
-        raise ValueError('Selected household proof requires its three retained native input receipts.')
-    for click in clicks:
-        if (not isinstance(click, dict) or read_proof(click.get('proof', ''), click.get('sha256', '')) != click.get('result') or
-                not _native_click(click.get('result'), identity['pid'], viewport)):
-            raise ValueError('A selected household native input receipt changed or did not complete.')
-    if len({click['result']['request_id'] for click in clicks}) != 3:
-        raise ValueError('Selected household native input receipts do not represent three distinct requests.')
+    if marker_proof:
+        steps = prior.get('steps', [])
+        native = [row for row in steps if row.get('action') == 'test_input']
+        intents = [row.get('result') for row in steps if row.get('action') == 'input-marker-intent']
+        if (len(native) != 1 or len(intents) != 1 or not isinstance(intents[0], dict) or
+                intents[0].get('submission_attempted') is not True or
+                not isinstance(native[0].get('target'), dict) or native[0]['target'] != intents[0].get('target') or
+                native[0].get('request_id') != native[0].get('result', {}).get('request_id') or
+                not _native_click(native[0].get('result'), identity['pid'], viewport,
+                    (native[0]['target'].get('x'), native[0]['target'].get('y')))):
+            raise ValueError('Marker input intent, original UUID or completed native receipt changed.')
+    else:
+        clicks = prior.get('native_inputs')
+        if not isinstance(clicks, list) or len(clicks) != 3:
+            raise ValueError('Selected household proof requires its three retained native input receipts.')
+        for click in clicks:
+            if (not isinstance(click, dict) or read_proof(click.get('proof', ''), click.get('sha256', '')) != click.get('result') or
+                    not _native_click(click.get('result'), identity['pid'], viewport)):
+                raise ValueError('A selected household native input receipt changed or did not complete.')
+        if len({click['result']['request_id'] for click in clicks}) != 3:
+            raise ValueError('Selected household native input receipts do not represent three distinct requests.')
     if image_reader is None:
         from PIL import Image
         image_reader = Image.open
     with image_reader(previous_image) as pixels:
-        prior_target = play_target(pixels, prior.get('selected_household_observation'), household_name)
+        caption = native_caption(prior.get('selected_household_observation'))
+        prior_target = play_target(pixels, prior.get('selected_household_observation'), household_name, caption)
     if identity_provider is None:
         from apex_cli import verified_identity
         identity_provider = verified_identity
@@ -268,6 +318,7 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
         'identity': identity, 'inputs': journal['artifacts'], 'target': target,
         'selection_proof': str(selection_proof), 'selection_proof_sha256': selection_proof_sha256,
         'indexed_household': metadata, 'before_saves': before, 'steps': [],
+        'prior_indexed_load_save_boundary': prior_save_boundary,
         'household_verified': False, 'native_live_verified': False, 'native_slot_verified': False,
         'play_input_accepted': False, 'save_requested': False, 'save_file_written': False,
         'input_replay_attempted': False, 'outcome': 'unresolved',
@@ -284,6 +335,8 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
     def guarded_request(_state, action, **kwargs):
         bound(); return request(_state, action, **kwargs)
     def call(action, value=None):
+        if action == 'test_input':
+            return _durable_native_input(state, sim_id, journal['token'], value, guarded_request, proof, output)
         return record(action, guarded_request(state, action, sim_id=sim_id,
             value=json.dumps({'test_token': journal['token'], 'value': value}), seconds=2))
     def idle():
@@ -307,7 +360,7 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
             raise ValueError('Fresh selected household capture identity/hash failed.')
         observation = record('observe-selected-household', ocr(image))
         with image_reader(image) as pixels:
-            selected = play_target(pixels, observation, household_name)
+            selected = play_target(pixels, observation, household_name, caption)
         if ((captured.get('width'), captured.get('height')) != (selected['width'], selected['height']) or
                 selected['funds'] != prior_target['funds']):
             raise ValueError('Selected household native viewport or Funds changed before Play.')

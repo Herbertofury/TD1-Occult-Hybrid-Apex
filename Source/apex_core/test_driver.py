@@ -718,10 +718,16 @@ def dispatch(backend, action, sim_id, value):
     if action == 'test_cas':
         if sim is None or sim.get_sim_instance() is None:
             raise ValueError('CAS entry requires an instanced selected Sim.')
+        if argument not in (None, 'full', 'native-full', 'mccc-full'):
+            raise ValueError('CAS mode must be default, full, native-full or mccc-full.')
+        if argument == 'mccc-full':
+            from .cas_frontdoor import mccc_full_entry
+            identity = runtime_identity(backend.__file__)
+            if not identity.get('profile') or not identity.get('test_token'):
+                raise ValueError('MCCC callback qualification requires the marked disposable profile.')
+            return mccc_full_entry(backend, sim, client, identity['profile'])
         from server_commands.cas_commands import modify_in_cas, modify_in_cas_with_household_id
         from server_commands.argument_helpers import OptionalTargetParam
-        if argument not in (None, 'full', 'native-full'):
-            raise ValueError('CAS mode must be default or full.')
         if argument == 'native-full':
             # Exercise the ordinary game/MCCC command boundary, without the
             # CLI's explicit checkpoint path or its prepared capability.

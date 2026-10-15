@@ -576,8 +576,17 @@ def validate_client(client, sim_id, request):
             raise ValueError('Native CAS outfit creation did not verify exactly one appended slot.')
     if operation == 'hair-swatch' and client.get('hair_selected_swatch_id') != request['data_id']:
         raise ValueError('Native hair swatch did not match the exact selected identity.')
-    if operation == 'select' and not any(isinstance(item, dict) and str(item.get('dataID')) == request['data_id'] for item in client.get('selected') or []):
-        raise ValueError('Native selected item did not match the request.')
+    if operation == 'select':
+        if 'base_data_id' in request:
+            wing = client.get('wing_selection')
+            if (request.get('panel') != 'clothing_body_wings' or not isinstance(wing, dict) or
+                    wing.get('base_query') != 'returned-value' or wing.get('color_query') != 'returned-value' or
+                    wing.get('selected_base_ids') != [request['base_data_id']] or
+                    not isinstance(wing.get('selected_color_id'), str) or wing['selected_color_id'] != request['data_id'] or
+                    type(wing.get('body_type')) is not int or wing['body_type'] != 114):
+                raise ValueError('Native wing base and color did not both match the request.')
+        elif not any(isinstance(item, dict) and str(item.get('dataID')) == request['data_id'] for item in client.get('selected') or []):
+            raise ValueError('Native selected item did not match the request.')
     if operation in ('form-select', 'layer-select'):
         form_selection_binding(client, sim_id, request, resulting=True)
     if operation in cas_controls.OPERATIONS:

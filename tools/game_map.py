@@ -18,6 +18,32 @@ AUTOSAVE_DRIFT_FILES = frozenset(['Slot_ffffffff.save'] +
                                ['Slot_ffffffff.save.ver{}'.format(index) for index in range(5)])
 
 
+def _artifact_roster(rows):
+    if not isinstance(rows, list) or not 1 <= len(rows) <= 20000:
+        raise ValueError('Current journal artifact roster is absent or exceeds its bound.')
+    names = []
+    for row in rows:
+        if (not isinstance(row, dict) or not isinstance(row.get('name'), str) or not row['name'] or
+                not isinstance(row.get('sha256'), str) or re.fullmatch('[0-9a-f]{64}', row['sha256']) is None):
+            raise ValueError('Current journal artifact roster is untyped.')
+        names.append(row.get('relative', row['name']))
+    if any(not isinstance(name, str) or not name or len(name) > 1024 for name in names) or len(names) != len(set(names)):
+        raise ValueError('Current journal artifact roster contains ambiguous identities.')
+    return rows
+
+
+def _save_inventory(rows):
+    if (not isinstance(rows, dict) or not 1 <= len(rows) <= 1024 or
+            any(not isinstance(name, str) or not name or Path(name).name != name or
+                not isinstance(row, dict) or set(row) != {'bytes', 'mtime_ns', 'sha256'} or
+                type(row['bytes']) is not int or not 0 <= row['bytes'] <= 512 * 1024 * 1024 or
+                type(row['mtime_ns']) is not int or row['mtime_ns'] < 0 or
+                not isinstance(row['sha256'], str) or re.fullmatch('[0-9a-f]{64}', row['sha256']) is None
+                for name, row in rows.items())):
+        raise ValueError('Exact named save inventory is absent, untyped or exceeds its bound.')
+    return rows
+
+
 def save_delta(before, after):
     return [{'name': name, 'before': before.get(name), 'after': after.get(name)}
             for name in sorted(set(before) | set(after)) if before.get(name) != after.get(name)]
@@ -25,27 +51,54 @@ def save_delta(before, after):
 
 def _save_boundary(before, after, allow_autosave_drift, profile, metadata_reader, target):
     delta = save_delta(before, after)
-    if len(before) != 18 or len(after) != 18 or set(before) != set(after):
-        raise ValueError('Exact eighteen-file save inventory names changed.')
+    _save_inventory(before); _save_inventory(after)
+    if set(before) != set(after):
+        raise ValueError('Exact save inventory names changed.')
     if delta and (not allow_autosave_drift or any(row['name'] not in AUTOSAVE_DRIFT_FILES for row in delta)):
         raise ValueError('Save inventory changed outside the explicitly permitted autosave files.')
-    metadata = None
+    metadata = None; normal_metadata = None; autosave_identity = None
     if allow_autosave_drift:
         filename = 'Slot_ffffffff.save'
         if filename not in after:
             raise ValueError('Explicit autosave drift requires the existing indexed autosave file.')
         metadata = metadata_reader(profile / 'saves' / filename, after[filename]['sha256'])
         if (not isinstance(metadata, dict) or type(metadata.get('slot_id')) is not int or
-                metadata['slot_id'] != 0xffffffff or metadata.get('save_guid') != target['save_guid'] or
+                metadata.get('save_guid') != target['save_guid'] or
                 metadata.get('active_household_id') != target['household_id'] or
                 type(metadata.get('preferred_manual_slot_id')) is not int or
                 metadata['preferred_manual_slot_id'] != target['slot_id'] or
                 metadata.get('file_sha256') != after[filename]['sha256']):
             raise ValueError('Indexed current autosave metadata differs from the exact GUID/household/sentinel/preferred slot.')
+        if metadata['slot_id'] == 0xffffffff:
+            autosave_identity = 'native-autosave-sentinel'
+        elif metadata['slot_id'] == target['slot_id']:
+            # Current game builds can write the preferred manual slot ID into
+            # the native Autosave proto while retaining the ffffffff filename.
+            # This only admits that exact named file, with its untouched normal
+            # save independently hash/metadata-bound; it never certifies Live.
+            normal_name = 'Slot_{:08x}.save'.format(target['slot_id'])
+            normal_hash = target.get('file_sha256', target.get('expected_save_sha256'))
+            if (type(target.get('slot_id')) is not int or not 0 < target['slot_id'] < 0xffffffff or
+                    metadata.get('slot_name') != 'Autosave' or normal_name not in before or normal_name not in after or
+                    before[normal_name] != after[normal_name] or after[normal_name]['sha256'] != normal_hash):
+                raise ValueError('Indexed autosave manual-slot identity lacks its named Autosave and unchanged normal-save anchor.')
+            normal_metadata = metadata_reader(profile / 'saves' / normal_name, normal_hash)
+            if (not isinstance(normal_metadata, dict) or type(normal_metadata.get('slot_id')) is not int or
+                    normal_metadata['slot_id'] != target['slot_id'] or normal_metadata.get('save_guid') != target['save_guid'] or
+                    normal_metadata.get('active_household_id') != target['household_id'] or
+                    normal_metadata.get('file_sha256') != normal_hash or
+                    not isinstance(normal_metadata.get('slot_name'), str) or not normal_metadata['slot_name'] or
+                    normal_metadata['slot_name'] == 'Autosave' or
+                    metadata.get('preferred_manual_slot_name') != normal_metadata['slot_name']):
+                raise ValueError('Indexed autosave manual-slot identity differs from its exact normal-save metadata anchor.')
+            autosave_identity = 'native-manual-slot-proto-in-named-autosave-file'
+        else:
+            raise ValueError('Indexed current autosave metadata differs from the exact native sentinel or preferred manual slot.')
     return {'save_files_unchanged': not delta, 'save_files_changed': bool(delta), 'delta': delta,
             'autosave_drift_allowed': allow_autosave_drift,
             'non_autosave_files_unchanged': not any(row['name'] not in AUTOSAVE_DRIFT_FILES for row in delta),
-            'indexed_autosave_metadata': metadata}
+            'indexed_autosave_metadata': metadata, 'autosave_native_identity': autosave_identity,
+            'indexed_normal_save_anchor': normal_metadata}
 
 
 def marker_target(image, observation, expected_world):
@@ -118,27 +171,100 @@ def marker_target(image, observation, expected_world):
 def _native_click(result, pid, viewport=None, point=None):
     metrics = result.get('window_metrics') if isinstance(result, dict) else None
     cursor = result.get('cursor_client') if isinstance(result, dict) else None
-    return (isinstance(result, dict) and result.get('ok') is True and
+    common = (isinstance(result, dict) and result.get('ok') is True and
             type(result.get('native_code')) is int and result['native_code'] == 0 and
             type(result.get('input_state')) is int and result['input_state'] == 4 and
             type(result.get('input_version')) is int and result['input_version'] == 2 and
-            result.get('input_submitted') is True and result.get('pointer_verified') is True and
+            result.get('input_submitted') is True and
             result.get('execution') == 'fixed-native-control' and result.get('request_state') == 'completed' and
             isinstance(result.get('request_id'), str) and re.fullmatch('[0-9a-f]{32}', result['request_id']) is not None and
-            isinstance(metrics, dict) and metrics.get('available') is True and metrics.get('root_match') is True and
-            type(metrics.get('foreground_pid')) is int and metrics['foreground_pid'] == pid and
+            isinstance(metrics, dict) and metrics.get('available') is True and
             type(metrics.get('overlay_pid')) is int and metrics['overlay_pid'] == pid and
             type(metrics.get('width')) is int and type(metrics.get('height')) is int and
             200 <= metrics['width'] <= 8192 and 200 <= metrics['height'] <= 8192 and
-            (viewport is None or (metrics.get('width'), metrics.get('height')) == viewport) and
+            (viewport is None or (metrics.get('width'), metrics.get('height')) == viewport))
+    if not common:
+        return False
+    if result.get('foreground_required') is False:
+        return (result.get('window_messages_accepted') is True and result.get('os_cursor_moved') is False and
+                result.get('pointer_verified') is False and type(metrics.get('root_match')) is bool and
+                type(metrics.get('foreground_pid')) is int and metrics['foreground_pid'] >= 0 and
+                cursor == {'x': -1, 'y': -1})
+    return (result.get('pointer_verified') is True and metrics.get('root_match') is True and
+            type(metrics.get('foreground_pid')) is int and metrics['foreground_pid'] == pid and
             (point is None or (isinstance(cursor, dict) and set(cursor) == {'x', 'y'} and
                                type(cursor.get('x')) is int and type(cursor.get('y')) is int and
                                (cursor['x'], cursor['y']) == point)))
 
 
+def _indexed_play_receipt(prior, recovered, pid):
+    """Bind one retained completed Play to its ordered measured intent/UUID."""
+    steps = prior.get('steps')
+    if not isinstance(steps, list) or not 1 <= len(steps) <= 4096:
+        raise ValueError('Indexed Play steps are absent or exceed their bound.')
+    phases = ['home', 'play'] if prior.get('initial_surface') == 'native-home-menu' else ['play']
+    if prior.get('initial_surface') not in ('native-home-menu', 'native-load-menu'):
+        raise ValueError('Prior input was not the measured exact indexed save Play operation.')
+    receipts = []
+    previous = -1
+    for phase in phases:
+        recognized = [(i, row) for i, row in enumerate(steps) if isinstance(row, dict) and row.get('action') == 'recognize-' + phase]
+        intents = [(i, row) for i, row in enumerate(steps) if isinstance(row, dict) and row.get('action') == 'input-' + phase + '-intent']
+        if len(recognized) != 1 or len(intents) != 1:
+            raise ValueError('Prior input was not the measured exact indexed save Play operation.')
+        at, row = recognized[0]; intent_at, intent = intents[0]
+        target = row.get('result', {}).get('target')
+        if (not previous < at < intent_at or not isinstance(target, dict) or
+                set(target) != {'command', 'x', 'y', 'width', 'height'} or
+                any(type(value) is not int for value in target.values()) or target['command'] != 1 or
+                not 200 <= target['width'] <= 8192 or not 200 <= target['height'] <= 8192 or
+                not 0 <= target['x'] < target['width'] or not 0 <= target['y'] < target['height'] or
+                intent.get('result', {}).get('submission_attempted') is not True or intent_at + 1 >= len(steps) or
+                steps[intent_at + 1].get('action') != 'test_input'):
+            raise ValueError('Prior input was not the measured exact indexed save Play operation.')
+        submitted = steps[intent_at + 1]
+        receipt = submitted.get('result')
+        request_id = submitted.get('request_id', receipt.get('request_id') if isinstance(receipt, dict) else None)
+        if (not isinstance(request_id, str) or re.fullmatch('[0-9a-f]{32}', request_id) is None or
+                not isinstance(receipt, dict) or receipt.get('request_id') != request_id):
+            raise ValueError('Indexed Play request UUID differs from its retained submission.')
+        if _native_click(receipt, pid, (target['width'], target['height']), (target['x'], target['y'])):
+            if submitted.get('request_id') != request_id:
+                raise ValueError('Completed indexed Play lacks its retained pre-submission UUID.')
+        else:
+            if (phase != 'play' or recovered is None or receipt.get('request_state') not in (None, 'pending', 'unresolved') or
+                    recovered.get('same_request_identity') is not True or
+                    recovered.get('original_request_id') != request_id or
+                    not isinstance(recovered.get('result'), dict) or recovered['result'].get('request_id') != request_id or
+                    not _native_click(recovered['result'], pid, (target['width'], target['height']), (target['x'], target['y']))):
+                raise ValueError('Recovered original indexed Play input lacks its exact native completed receipt.')
+            receipt = recovered['result']
+        receipts.append(receipt); previous = intent_at + 1
+    all_inputs = [row for row in steps if isinstance(row, dict) and row.get('action') == 'test_input']
+    if len(all_inputs) != len(phases) or len({row['request_id'] for row in receipts}) != len(phases):
+        raise ValueError('Indexed Play contains extra or reused native input UUIDs.')
+    return receipts[-1]
+
+
+def _durable_native_input(state, sim_id, token, value, request, proof, output):
+    row = {'action': 'test_input', 'request_id': None, 'target': value}
+    proof['steps'].append(row); write_json(output, proof)
+    def submitted(action, request_id):
+        if (action != 'test_input' or row['request_id'] is not None or
+                not isinstance(request_id, str) or re.fullmatch('[0-9a-f]{32}', request_id) is None):
+            raise ValueError('Native map input UUID changed before submission.')
+        row['request_id'] = request_id; write_json(output, proof)
+    result = request(state, 'test_input', sim_id=sim_id,
+        value=json.dumps({'test_token': token, 'value': value}), seconds=2, submission_observer=submitted)
+    row['result'] = result; write_json(output, proof)
+    if not row['request_id'] or not isinstance(result, dict) or result.get('request_id') != row['request_id']:
+        raise ValueError('Native map input has no matching retained submission UUID; never replay.')
+    return result
+
+
 def select_marker(state, output, identity, request, sim_id, household_id, save_guid,
                   slot_id, expected_save_sha256, world, load_proof, load_proof_sha256,
-                  recovered_input_proof, recovered_input_sha256, capture=game_capture.capture,
+                  recovered_input_proof=None, recovered_input_sha256=None, capture=game_capture.capture,
                   ocr=recognize, identity_provider=None, alive=cas_transition.process_alive,
                   pause=time.sleep, metadata_reader=read_metadata, image_reader=None,
                   allow_autosave_drift=False):
@@ -148,7 +274,10 @@ def select_marker(state, output, identity, request, sim_id, household_id, save_g
             any(not isinstance(value, str) or re.fullmatch('[1-9][0-9]{0,19}', value) is None or
                 not 0 < int(value) < 1 << 64 for value in (sim_id, household_id, save_guid)) or
             any(not isinstance(value, str) or re.fullmatch('[0-9a-f]{64}', value) is None
-                for value in (expected_save_sha256, load_proof_sha256, recovered_input_sha256)) or
+                for value in (expected_save_sha256, load_proof_sha256)) or
+            ((recovered_input_proof is None) != (recovered_input_sha256 is None)) or
+            (recovered_input_sha256 is not None and (not isinstance(recovered_input_sha256, str) or
+                re.fullmatch('[0-9a-f]{64}', recovered_input_sha256) is None)) or
             not isinstance(world, str) or not normalized(world) or len(world) > 64):
         raise ValueError('Map selection requires exact indexed save, runtime and proof identities.')
     output = reusable_profile.writable(output)
@@ -165,12 +294,13 @@ def select_marker(state, output, identity, request, sim_id, household_id, save_g
         if not isinstance(value, dict): raise ValueError('Prior map prerequisite proof is untyped.')
         return value
     prior = read_proof(load_proof, load_proof_sha256)
-    recovered = read_proof(recovered_input_proof, recovered_input_sha256)
+    recovered = read_proof(recovered_input_proof, recovered_input_sha256) if recovered_input_proof is not None else None
+    _artifact_roster(journal['artifacts'])
     expected_script = next((row['sha256'] for row in journal['artifacts'] if row['name'] == 'ApexOccultHybrid.ts4script'), None)
     keys = ('pid', 'test_token', 'script_sha256')
     if (not isinstance(identity, dict) or type(identity.get('pid')) is not int or identity['pid'] <= 0 or
             identity.get('test_token') != journal['token'] or identity.get('script_sha256') != expected_script or
-            len(journal['artifacts']) != 14 or prior.get('operation') != 'load-exact-existing-disposable-save' or
+            prior.get('operation') != 'load-exact-existing-disposable-save' or
             not isinstance(prior.get('identity'), dict) or any(prior['identity'].get(key) != identity.get(key) for key in keys) or
             prior.get('inputs') != journal['artifacts'] or prior.get('save_files_unchanged') is not True or
             prior.get('before_saves') != prior.get('after_saves') or prior.get('input_replay_attempted') is not False):
@@ -179,25 +309,10 @@ def select_marker(state, output, identity, request, sim_id, household_id, save_g
               'slot_id': slot_id, 'file_sha256': expected_save_sha256}
     if any(prior.get('target', {}).get(key) != value for key, value in target.items()):
         raise ValueError('Prior indexed load target differs from the requested original household.')
-    clicks = [row.get('result') for row in prior.get('steps', []) if row.get('action') == 'test_input']
-    receipt = recovered.get('result')
-    play = [row.get('result', {}).get('target') for row in prior.get('steps', [])
-            if row.get('action') == 'recognize-play']
-    intents = [row for row in prior.get('steps', []) if row.get('action') == 'input-play-intent']
-    if (prior.get('initial_surface') != 'native-load-menu' or len(play) != 1 or len(intents) != 1 or
-            not isinstance(play[0], dict) or set(play[0]) != {'command', 'x', 'y', 'width', 'height'} or
-            any(type(value) is not int for value in play[0].values()) or play[0]['command'] != 1 or
-            not 200 <= play[0]['width'] <= 8192 or not 200 <= play[0]['height'] <= 8192 or
-            not 0 <= play[0]['x'] < play[0]['width'] or not 0 <= play[0]['y'] < play[0]['height']):
-        raise ValueError('Prior input was not the measured exact indexed save Play operation.')
-    if (len(clicks) != 1 or not isinstance(clicks[0], dict) or recovered.get('same_request_identity') is not True or
-            not isinstance(receipt, dict) or recovered.get('original_request_id') != clicks[0].get('request_id') or
-            receipt.get('request_id') != recovered.get('original_request_id') or not _native_click(receipt, identity['pid'], (play[0]['width'], play[0]['height']),
-                              (play[0]['x'], play[0]['y']))):
-        raise ValueError('Recovered original indexed Play input lacks its exact native completed receipt.')
+    receipt = _indexed_play_receipt(prior, recovered, identity['pid'])
     before = game_lifecycle.all_save_files(profile)
     filename = 'Slot_{:08x}.save'.format(slot_id)
-    if (len(before) != 18 or filename not in before or
+    if (filename not in before or
             before[filename]['sha256'] != expected_save_sha256):
         raise ValueError('Exact indexed normal save changed after Play.')
     prerequisite_boundary = _save_boundary(prior['after_saves'], before, allow_autosave_drift,
@@ -216,8 +331,9 @@ def select_marker(state, output, identity, request, sim_id, household_id, save_g
     proof = {'schema': 1, 'ok': False, 'operation': 'select-existing-played-lot-marker',
              'identity': identity, 'inputs': journal['artifacts'], 'target': dict(target, world=world),
              'prerequisites': {'load_proof': str(load_proof), 'load_proof_sha256': load_proof_sha256,
-                               'recovered_input_proof': str(recovered_input_proof),
+                               'recovered_input_proof': str(recovered_input_proof) if recovered_input_proof is not None else None,
                                'recovered_input_sha256': recovered_input_sha256},
+             'indexed_save_metadata': metadata, 'indexed_play_receipt': receipt,
              'before_saves': before, 'steps': [], 'save_requested': False, 'save_file_written': False,
              'indexed_load_baseline_saves': prior['after_saves'],
              'save_comparison_scope': 'indexed-load-baseline-through-marker',
@@ -236,6 +352,8 @@ def select_marker(state, output, identity, request, sim_id, household_id, save_g
     def guarded_request(_state, action, **kwargs):
         bound(); return request(_state, action, **kwargs)
     def call(action, value=None):
+        if action == 'test_input':
+            return _durable_native_input(state, sim_id, journal['token'], value, guarded_request, proof, output)
         return record(action, guarded_request(state, action, sim_id=sim_id,
             value=json.dumps({'test_token': journal['token'], 'value': value}), seconds=2))
     def idle():

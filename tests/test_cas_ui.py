@@ -1,4 +1,5 @@
 import argparse
+import copy
 import json
 from pathlib import Path
 import struct
@@ -116,9 +117,16 @@ class CasUiTests(unittest.TestCase):
         request={'operation':'select','panel':'clothing_body_wings','base_data_id':'466503','data_id':'466504'}
         client=self.client('12');client['menu_state']=cas_ui.PANELS['clothing_body_wings']
         client['selected']=[{'dataID':'466503'}]
-        with self.assertRaisesRegex(ValueError,'selected item'):cas_ui.validate_client(client,'12',request)
-        client['selected']=[{'dataID':'466504'}]
+        with self.assertRaisesRegex(ValueError,'wing base and color'):cas_ui.validate_client(client,'12',request)
+        client['wing_selection']={'base_query':'returned-value','color_query':'returned-value',
+            'selected_base_ids':['466503'],'selected_color_id':'466504','body_type':114}
         cas_ui.validate_client(client,'12',request)
+        for change in ({'selected_color_id':'466503'},{'selected_color_id':466504},
+                       {'selected_base_ids':['466503','466503']},{'selected_base_ids':['466505']},
+                       {'color_query':'returned-null'},{'body_type':True}):
+            with self.subTest(change=change):
+                broken=copy.deepcopy(client);broken['wing_selection'].update(change)
+                with self.assertRaisesRegex(ValueError,'wing base and color'):cas_ui.validate_client(broken,'12',request)
 
     def test_every_snapshot_requires_the_same_base_fields_as_f11(self):
         for operation in ('status', 'undo', 'redo'):

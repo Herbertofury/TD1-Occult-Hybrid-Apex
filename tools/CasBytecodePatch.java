@@ -680,6 +680,113 @@ public class CasBytecodePatch {
         require(callers.equals(Set.of("ApexControlExecute","ApexReadback")),
             "Eyebrow palette selection is allowed only in owned command/next-tick phases.");
     }
+
+    static boolean stringLiteral(ABC abc, AVM2Instruction instruction, String value) {
+        return opcode(instruction,0x2c) && value.equals(abc.constants.getString(instruction.operands[0]));
+    }
+    static int uniqueLiteral(ABC abc, MethodBody body, String value) {
+        int found=-1;
+        for(int i=0;i<body.getCode().code.size();i++) if(stringLiteral(abc,body.getCode().code.get(i),value)) {
+            require(found<0,"Wing readback has duplicate native contract literal: "+value); found=i;
+        }
+        require(found>=0,"Wing readback lacks native contract literal: "+value); return found;
+    }
+    static void verifyWingSelection(ABC abc, InstanceInfo instance) {
+        // Inspect the serialized compound wing readback, rather than assuming
+        // that an equipped BASE dataID is also its independently selected color.
+        MethodBody body=ownedBody(abc,instance,"ApexReadback");
+        var code=body.getCode(); code.markOffsets(); var rows=code.code;
+        int base=uniqueLiteral(abc,body,"GetCatalogBaseItemSelected");
+        int color=uniqueLiteral(abc,body,"GetCatalogVariantItemSelected");
+        int refusal=uniqueLiteral(abc,body,"Native wing base and color did not both read back exactly");
+        require(base>0 && color==base+34 && refusal==color+62,
+            "Wing readback getter/detachment/refusal ordering differs from the inspected native contract.");
+        require(opcode(rows.get(base-29),0x6c) && rows.get(base-29).operands[0]==rows.get(base+3).operands[0] &&
+            property(abc,rows.get(base-28),0x60,"MenuState") && property(abc,rows.get(base-27),0x66,"CLOTHING_BODY_WINGS") &&
+            opcode(rows.get(base-26),0x13) && rows.get(base-26).getTargetAddress()==rows.get(base-21).getAddress() &&
+            stringLiteral(abc,rows.get(base-24),"Compound wing readback requires the exact wing panel") &&
+            opcode(rows.get(base-22),0x03),"Wing readback lacks its exact native wing panel refusal.");
+        require(property(abc,rows.get(base-1),0x60,"CommunicationManager") &&
+            property(abc,rows.get(base-2),0x5d,"ApexClone"),"Wing base getter lacks its native receiver and detached copier.");
+        // Exact native base getter object: state, owned filter tag arrays,
+        // bodyType NONE and layer -1. No catalog-search unlock/MTX flags apply.
+        int[] baseOps={0x2c,0x65,0x6c,0x2c,0x5d,0x65,0x6c,0x66,0x46,
+            0x2c,0x5d,0x65,0x6c,0x66,0x46,0x2c,0x24,0x2c,0x24,0x55,0x26,0x46,0x46,
+            0x60,0x87,0x80,0x6d};
+        for(int i=0;i<baseOps.length;i++) require(opcode(rows.get(base+1+i),baseOps[i]),
+            "Wing base getter arguments or borrowed-array detachment differ.");
+        require(stringLiteral(abc,rows.get(base+1),"state") && stringLiteral(abc,rows.get(base+4),"tags") &&
+            property(abc,rows.get(base+5),0x5d,"ApexClone") && property(abc,rows.get(base+8),0x66,"tags") &&
+            property(abc,rows.get(base+9),0x46,"ApexClone") && rows.get(base+9).operands[1]==1 &&
+            stringLiteral(abc,rows.get(base+10),"excludeTags") && property(abc,rows.get(base+11),0x5d,"ApexClone") &&
+            property(abc,rows.get(base+14),0x66,"excludeTags") && property(abc,rows.get(base+15),0x46,"ApexClone") &&
+            rows.get(base+15).operands[1]==1 && stringLiteral(abc,rows.get(base+16),"bodyType") &&
+            rows.get(base+17).operands[0]==0 && stringLiteral(abc,rows.get(base+18),"layer") &&
+            rows.get(base+19).operands[0]==-1 && rows.get(base+20).operands[0]==5 &&
+            property(abc,rows.get(base+22),0x46,"CallGameService") && rows.get(base+22).operands[1]==3 &&
+            property(abc,rows.get(base+23),0x46,"ApexClone") && rows.get(base+23).operands[1]==1 &&
+            property(abc,rows.get(base+24),0x60,"Array") && property(abc,rows.get(base+26),0x80,"Array"),
+            "Wing base getter signature, true native flag, or detached array result differs.");
+        int baseSlot=rows.get(base+27).operands[0];
+        require(property(abc,rows.get(color-1),0x60,"CommunicationManager") &&
+            property(abc,rows.get(color+1),0x60,"CASBodyType") && property(abc,rows.get(color+2),0x66,"WINGS") &&
+            property(abc,rows.get(color+3),0x46,"CallGameService") && rows.get(color+3).operands[1]==2 &&
+            opcode(rows.get(color+4),0x82) && opcode(rows.get(color+5),0x6d),
+            "Wing color getter does not read the exact native WINGS variation as an uncoerced scalar.");
+        int colorSlot=rows.get(color+5).operands[0];
+        require(baseSlot!=colorSlot,"Wing base and color observations share a mutable slot.");
+        int guard=color+6;
+        int[] guardOps={0x65,0x6c,0x20,0xab,0x2a,0x11,0x29,0x65,0x6c,0x66,0x24,0xab,0x96,
+            0x2a,0x11,0x29,0x65,0x6c,0x24,0x66,0x60,0xb3,0x96,0x2a,0x11,0x29,
+            0x65,0x6c,0x24,0x66,0x70,0x65,0x6c,0x66,0x70,0xab,0x96,0x2a,0x11,0x29,
+            0x65,0x6c,0x60,0xb3,0x96,0x2a,0x11,0x29,0x65,0x6c,0x65,0x6c,0xac,0x96,0x12,
+            0x5d,0x2c,0x4a,0x03};
+        for(int i=0;i<guardOps.length;i++) require(opcode(rows.get(guard+i),guardOps[i]),
+            "Wing compound refusal lost its exact null/count/type/base/color checks.");
+        for(int at:new int[]{1,8,17,27}) require(rows.get(guard+at).operands[0]==baseSlot,
+            "Wing compound refusal compares an unrelated base observation.");
+        require(property(abc,rows.get(guard+9),0x66,"length") && rows.get(guard+10).operands[0]==1 &&
+            rows.get(guard+18).operands[0]==0 && rows.get(guard+28).operands[0]==0 &&
+            property(abc,rows.get(guard+20),0x60,"String") && property(abc,rows.get(guard+33),0x66,"selection_base_id") &&
+            rows.get(guard+41).operands[0]==colorSlot && property(abc,rows.get(guard+42),0x60,"String") &&
+            rows.get(guard+49).operands[0]==colorSlot,
+            "Wing compound refusal lacks its exact unique String base or independently typed color.");
+        int valueSlot=rows.get(guard+51).operands[0], contextSlot=rows.get(guard+32).operands[0];
+        require(valueSlot!=baseSlot && valueSlot!=colorSlot,"Wing requested color aliases an observed result.");
+        int variantAssignment=-1;
+        for(int i=Math.max(0,base-65);i<base;i++) if(property(abc,rows.get(i),0x66,"selection_variant_id") &&
+                i+3<rows.size() && opcode(rows.get(i+1),0x70) && opcode(rows.get(i+2),0x85) &&
+                opcode(rows.get(i+3),0x6d) && rows.get(i+3).operands[0]==valueSlot &&
+                opcode(rows.get(i-1),0x6c) && rows.get(i-1).operands[0]==contextSlot) variantAssignment=i;
+        require(variantAssignment>=0,"Wing requested color does not originate from the retained explicit variant intent.");
+        int[][] branches={{5,13},{14,23},{24,37},{38,45},{46,54}};
+        for(int[] branch:branches) require(rows.get(guard+branch[0]).getTargetAddress()==rows.get(guard+branch[1]).getAddress(),
+            "Wing compound refusal can branch around a base/color condition.");
+        require(rows.get(guard+54).getTargetAddress()==rows.get(guard+59).getAddress(),
+            "Wing failed compound readback can bypass its native refusal.");
+        int publish=guard+59;
+        require(property(abc,rows.get(publish+2),0x66,"client") &&
+            stringLiteral(abc,rows.get(publish+3),"base_query") && stringLiteral(abc,rows.get(publish+4),"returned-value") &&
+            stringLiteral(abc,rows.get(publish+5),"color_query") && stringLiteral(abc,rows.get(publish+6),"returned-value") &&
+            stringLiteral(abc,rows.get(publish+7),"selected_base_ids") && opcode(rows.get(publish+9),0x6c) &&
+            rows.get(publish+9).operands[0]==baseSlot && stringLiteral(abc,rows.get(publish+10),"selected_color_id") &&
+            opcode(rows.get(publish+12),0x6c) && rows.get(publish+12).operands[0]==colorSlot &&
+            stringLiteral(abc,rows.get(publish+13),"body_type") && property(abc,rows.get(publish+14),0x60,"CASBodyType") &&
+            property(abc,rows.get(publish+15),0x66,"WINGS") && opcode(rows.get(publish+16),0x55) &&
+            rows.get(publish+16).operands[0]==5 && property(abc,rows.get(publish+17),0x61,"wing_selection"),
+            "Wing compound acknowledgement substitutes an unverified base/color observation.");
+        // This bounded compound getter block is read-only. Other existing
+        // readback phases include explicit writes and are audited separately.
+        Set<String> allowedCalls=Set.of("GetCatalogFilter","CallGameService","ApexClone");
+        int services=0;
+        for(int i=base-21;i<=publish+17;i++) if(opcode(rows.get(i),0x46) || opcode(rows.get(i),0x4f)) {
+            String member=abc.constants.getString(abc.constants.getMultiname(rows.get(i).operands[0]).name_index);
+            require(allowedCalls.contains(member),"Wing readback reaches an unreviewed native write/helper.");
+            if(member.equals("CallGameService")) { services++; require(i==base+22 || i==color+3,
+                "Wing readback contains an additional native service."); }
+        }
+        require(services==2,"Wing readback lacks its two independent native getters.");
+    }
     public static void main(String[] args) throws Exception {
         require(args.length == 3, "Use original SWF, compiler SWF, output ABC.");
         ABC original = load(args[0]), compiled = load(args[1]);
@@ -735,6 +842,7 @@ public class CasBytecodePatch {
         verifyCatalogMetadataLinkage(compiled, newClass);
         verifyCatalogMetadataDisabled(compiled, newClass);
         verifyEyebrowPaletteWidget(compiled, newClass);
+        verifyWingSelection(compiled, newClass);
         MethodBody nativeInit = null, compilerInit = null, nativeUnload = null, compilerUnload = null;
         for (Trait trait : nativeClass.instance_traits.traits) {
             String key = name(original, trait);
@@ -829,6 +937,7 @@ public class CasBytecodePatch {
         verifyQueuedHandshake(serialized, serialized.instance_info.get(oi));
         verifyExactItemSelection(serialized, serialized.instance_info.get(oi));
         verifyTypedControls(serialized, serialized.instance_info.get(oi));
+        verifyWingSelection(serialized, serialized.instance_info.get(oi));
         for (MethodBody body : original.bodies) if (body != nativeInit && body != nativeUnload)
             require(Arrays.equals(nativeCode.get(body.method_info), serialized.findBody(body.method_info).getCodeBytes()),
                 "Serialized unowned native method bytecode changed.");

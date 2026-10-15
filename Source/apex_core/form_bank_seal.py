@@ -29,11 +29,11 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-14-eyebrow-palette-binding-v119'
+UPGRADE_EPOCH = '2026-10-14-selective-genetic-voice-v120'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'debf701b0161096c0c3bddc26626905ba59f08a73f9d95c1167e5a72ab92ea72'
+UPGRADE_SELF_BODY_SHA = '1133323167cdb76522d75f8119108d5ac75cb4764ee49fd78e9293a16426924c'
 UPGRADE_MODULE_PINS = {
-    'apex_core/appearance_transfer.py': '3ef3a75d6f6c7e366de550148d5a62f1269016ae0c5810c2dc1ad6cd25e7c660',
+    'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
     'apex_core/body_hair_initialization.py': 'b90fd14e840ae90de087b647519ef39208e3488dc72b5ab41d4389855f7b0592',
     'apex_core/bridge_startup.py': '0aa605cb1671a198571381ee51aa729082630faffbac657529a2ada385a9bee2',
@@ -51,7 +51,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
     'apex_core/form_bank.py': 'aa19f0b322d1d145bcf7486a5ee4039567471a5fe51d473ca9cb8d1ba2dc9747',
     'apex_core/gameplay_qol.py': '1a421833fd1ff050803338e256dbb7f85ab7c565d80a3a98e0656cf62806c03b',
-    'apex_core/genetics_snapshot.py': '8fefbe2898884cfbc8aab7675d3ff169f376848175d9f0ee7277e2d75bc73640',
+    'apex_core/genetics_snapshot.py': '25944c18d9b240e9c4b579efd4e762443916ada501d154d99d9fe8e0f651bf7a',
     'apex_core/growth_parts.py': 'efca6b2b2cacf2c18171e87779b95cd3be9766809068583fd1547b5f7bd32db2',
     'apex_core/household_io.py': '13e4b8e86ef6587d8e9319e48551637664813acda4c9bf34878d130ecc3df667',
     'apex_core/human_werewolf.py': '9bafd4df1783f6a3c526242b9a40c42033e3dad4d2f8029e0046633b2f4a363e',

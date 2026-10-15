@@ -17,10 +17,27 @@ from game_save import _save_live_context
 from source_manifest import sha256, write_json
 from windows_ocr import recognize
 from save_metadata import read as read_metadata
+from cli_identity_cache import scoped
 
 
 def normalized(text):
     return ' '.join(str(text).split()).casefold()
+
+
+def missing_content(observation):
+    """A missing-pack warning can only stop a load, never authorize dismissal."""
+    if not isinstance(observation, dict) or observation.get('ok') is not True:
+        return None
+    rows = observation.get('lines')
+    if not isinstance(rows, list) or len(rows) > 256 or any(
+            not isinstance(row, dict) or not isinstance(row.get('text'), str) for row in rows):
+        return None
+    labels = [normalized(row['text']) for row in rows]
+    if not any(label in ('get missing packs?', 'get missing packs') for label in labels):
+        return None
+    match = re.search(r'purchase ([0-9]{1,4}) required packs', ' '.join(labels))
+    return {'blocked': True, 'missing_required_packs': int(match[1]) if match else None,
+            'continue_with_missing_content_submitted': False, 'input_permitted': False}
 
 
 def menu_target(observation, phase, slot_name):
@@ -34,6 +51,8 @@ def menu_target(observation, phase, slot_name):
     if any(not isinstance(row, dict) or not isinstance(row.get('text'), str) for row in lines):
         raise ValueError('Load menu text is untyped.')
     labels = [normalized(row['text']) for row in lines]
+    if missing_content(observation):
+        raise ValueError('Required packs unavailable; loading with missing content is blocked.')
     forbidden = ('save game?', 'buy now', 'this game requires permissions', "you don't have access",
                  'you don’t have access', 'leaving so soon?', 'reset current household')
     if any(label in labels for label in forbidden):
@@ -135,6 +154,7 @@ def cold_menu_guard(identity, observed, phase, slot_name):
             'live_completion_established': False}
 
 
+@scoped
 def observe(state, output, identity, request, sim_id, household_id, save_guid,
             slot_id, slot_name, expected_save_sha256, seconds=60, capture=game_capture.capture,
             ocr=recognize, identity_provider=None, alive=cas_transition.process_alive,
@@ -186,7 +206,16 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
         return current
     def call(action, value=None):
         bound()
-        return record(action, request(state, action, sim_id=sim_id, value=envelope(value), seconds=2))
+        row = {'action': action, 'request_id': None}
+        proof['steps'].append(row); write_json(output, proof)
+        def submitting(submitted_action, request_id):
+            if submitted_action != action or row['request_id'] is not None:
+                raise ValueError('Indexed load request identity changed before submission.')
+            row['request_id'] = request_id; write_json(output, proof)
+        result = request(state, action, sim_id=sim_id, value=envelope(value), seconds=2,
+                         submission_observer=submitting)
+        row['result'] = result; write_json(output, proof)
+        return result
     def idle(observed=None, phase=None):
         current = bound()
         if current.get('core_tick_ready') is False:
@@ -233,6 +262,10 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
                     raise ValueError('Fresh native load capture failed; no input submitted.')
                 observed = ocr(image)
                 record('observe-' + phase, observed)  # Keep an unrecognized surface as evidence too.
+                blocked = missing_content(observed)
+                if blocked:
+                    proof.update(outcome='blocked-missing-required-packs', missing_content_gate=blocked)
+                    raise ValueError('Required packs unavailable; no missing-content continuation submitted.')
                 if phase == 'home':
                     try:
                         selected = menu_target(observed, 'play', slot_name)
@@ -253,7 +286,9 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
                     raise ValueError('Native load input refused or unresolved; never repeat this proof.')
                 proof[submitted_phase + '_input_accepted'] = True; write_json(output, proof)
                 pause(0.5)
-        deadline = monotonic() + seconds
+        waiting_started = monotonic()
+        deadline = waiting_started + seconds
+        waiting_surface_observed = False
         while monotonic() < deadline:
             bound()
             snapshot = read_live()
@@ -269,8 +304,19 @@ def observe(state, output, identity, request, sim_id, household_id, save_guid,
                 proof.update(ok=True, native_slot_verified=True, native_live_verified=True,
                              loaded=final, outcome='exact-existing-slot-live-verified')
                 break
+            if not waiting_surface_observed and monotonic() - waiting_started >= 2:
+                waiting_surface_observed = True
+                image = output.with_name(output.stem + '-waiting.bmp')
+                frame = record('capture-waiting-surface', capture(state, image, request))
+                if frame.get('ok') is True:
+                    observed = record('observe-waiting-surface', ocr(image))
+                    blocked = missing_content(observed)
+                    if blocked:
+                        proof.update(outcome='blocked-missing-required-packs', missing_content_gate=blocked,
+                            message='Required packs unavailable; the save remains unloaded. No missing-content continuation submitted.')
+                        break
             pause(0.5)
-        if not proof['ok']:
+        if not proof['ok'] and proof.get('missing_content_gate') is None:
             proof['message'] = 'Load was submitted once; the exact native slot and Live household were not verified. A neighborhood map remains unresolved.'
     except (OSError, ValueError, RuntimeError) as error:
         proof['error'] = str(error)

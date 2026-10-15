@@ -57,6 +57,7 @@ def button(observation, phase):
         # a missing tab title does not make those controls another screen.
         required = ('marketplace', 'load game', 'new game', 'gallery')
         forbidden = ('save game?', 'buy now', 'expansion pack', 'game pack', 'stuff pack',
+                     'get missing packs?', 'get missing packs', 'play save with missing content',
                      'this game requires permissions', 'you don’t have access',
                      "you don't have access", 'cancel')
         contrast = observation.get('contrast_fallback')

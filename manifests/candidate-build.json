@@ -1,10 +1,10 @@
 {
-  "build_epoch": "2026-10-14-eyebrow-palette-binding-v119",
+  "build_epoch": "2026-10-14-selective-genetic-voice-v120",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-14-eyebrow-palette-binding-v119.zip",
-    "bytes": 3224976,
+    "artifact": "Apex_Development_Candidate_2026-10-14-selective-genetic-voice-v120.zip",
+    "bytes": 3226954,
     "members": 28,
-    "sha256": "25fcee8bb266c0c6cad4b5676f46ede46df5e7b3697e145d7775f4c9edea3fcb"
+    "sha256": "b556767613ead6f9d93e45784f05544cdede55b78cf54312f5a2acd491c987bf"
   },
   "compiled_script_modules": 88,
   "deployed": false,
@@ -53,7 +53,7 @@
     {
       "bytes": 50851,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "b1f5f9fd58795d74aeb152cba425f6e23b6996216f77c5f9a11162f9b92ad6f4"
+      "sha256": "100b3b6c8b49adc3aa54dc2a9b5086d1c8ffd6206dec01a78c9270809ceec928"
     },
     {
       "bytes": 1506,
@@ -101,9 +101,9 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 817245,
+      "bytes": 819242,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "00d40519503036cbcd58626f567a46e78218f581e09753b43289f1d74628ae61"
+      "sha256": "e45125cd052cd1ad5610e49696464ddb8ad9896be7d2447126c7e86b49cd4544"
     },
     {
       "bytes": 1846272,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "19e619ba1c22572da4ded7f71df2636588077a7770f62329f19e935c9bffaa60"
+      "sha256": "40bd73838c853454a6878d54d4d50bb77a3ccdceecf4d88876b038366372d06e"
     },
     {
       "bytes": 424,

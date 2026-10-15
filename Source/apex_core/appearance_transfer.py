@@ -123,6 +123,16 @@ def merge(backend, target, source, selection):
         raise ValueError('A selected field is unavailable on this source/destination; no missing value was fabricated.')
     after = copy.deepcopy(target)
     for name in names: after[name] = copy.deepcopy(source[name])
+    if set(names) & {'genetic_data', 'voice_pitch', 'voice_actor'} and 'genetic_data' in after:
+        genetics = appearance.decode(after['genetic_data'])
+        protobuf = isinstance(genetics, tuple) and len(genetics) == 2 and genetics[0] == 'protobuf'
+        raw = genetics[1] if protobuf else genetics
+        if isinstance(raw, bytes):
+            from .genetics_snapshot import mirror_voice
+            pitch = appearance.decode(after['voice_pitch']) if 'voice_pitch' in after else None
+            actor = appearance.decode(after['voice_actor']) if 'voice_actor' in after else None
+            mirrored = mirror_voice(raw, pitch, actor)
+            after['genetic_data'] = appearance.encode(('protobuf', mirrored) if protobuf else mirrored)
     if scope == 'none': return after
     src, dst = _parse(backend, source), _parse(backend, target)
     if scope == 'one':

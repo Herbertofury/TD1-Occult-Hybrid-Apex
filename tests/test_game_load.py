@@ -110,7 +110,7 @@ class LoadMenuTests(unittest.TestCase):
 
 class LoadTests(SaveFixture):
     def run_load(self, *, slot=2, inputs=None, wrong_hash=False, changed_identity=False,
-                 active_cas=False, snapshots=None):
+                 active_cas=False, snapshots=None, missing_packs=False):
         calls, clock = [], [0.0]
         name = 'Apex Disposable Test'
         live = {'ok': True, 'save_slot': slot, 'save_guid': GUID, 'household_id': HOUSEHOLD,
@@ -131,6 +131,9 @@ class LoadTests(SaveFixture):
             diagnostics['native_peers'] = [{'sim_id': SIM, 'age_seconds': 0}]
         frames = [screen(['HOME', 'MARKETPLACE', 'LOAD GAME', 'NEW GAME', 'GALLERY']),
                   load_screen(name)]
+        if missing_packs:
+            frames.append(screen(['GET MISSING PACKS?', 'You need to purchase 114 required packs for this save file.',
+                                  'View Packs', 'Play Save With Missing Content']))
         def request(_state, action, **kwargs):
             calls.append((action, kwargs))
             if action == 'test_snapshot':
@@ -148,7 +151,7 @@ class LoadTests(SaveFixture):
         with patch.object(game_load.game_capture, 'prepare_window'):
             result = game_load.observe(self.state, self.root / 'load-proof.json', self.identity, request,
                 SIM, HOUSEHOLD, GUID, 2, name, '0' * 64 if wrong_hash else self.digest,
-                seconds=1, capture=capture, ocr=lambda _image: frames.pop(0),
+                seconds=4 if missing_packs else 1, capture=capture, ocr=lambda _image: frames.pop(0),
                 identity_provider=lambda _state: current, alive=lambda _pid: True,
                 metadata_reader=lambda _path, _hash: {'slot_id': 2, 'slot_name': name,
                     'save_guid': GUID, 'active_household_id': HOUSEHOLD},
@@ -195,6 +198,35 @@ class LoadTests(SaveFixture):
         self.assertFalse(result['ok']); self.assertFalse(proof['native_live_verified'])
         self.assertEqual(sum(action == 'test_input' for action, _kw in calls), 2)
         self.assertIn('neighborhood map remains unresolved', result['message'])
+
+    def test_missing_packs_blocks_without_continuing_or_writing_the_save(self):
+        result, proof, calls = self.run_load(snapshots=[{'ok': False}], missing_packs=True)
+        self.assertFalse(result['ok']);self.assertEqual(result['outcome'],'blocked-missing-required-packs')
+        self.assertEqual(proof['missing_content_gate']['missing_required_packs'],114)
+        self.assertFalse(proof['missing_content_gate']['continue_with_missing_content_submitted'])
+        self.assertEqual(sum(action=='test_input' for action,_ in calls),2)
+        self.assertTrue(proof['save_files_unchanged']);self.assertFalse(proof['save_file_written'])
+
+
+class BackgroundLoadCliTests(unittest.TestCase):
+    def test_background_load_uses_native_capture_and_window_messages_without_foreground_input(self):
+        import apex_cli
+        from unittest.mock import Mock
+        args = apex_cli.parser().parse_args(['game', 'load', '--state', 'fixture-state',
+            '--background', '--output', 'fixture-output.json', '--slot-id', '2',
+            '--slot-name', 'My Saved Game 1', '--expected-save-sha256', 'a' * 64,
+            '--sim-id', '12', '--household-id', '20', '--save-guid', '30'])
+        native = Mock(return_value={'ok': True})
+        with patch.object(apex_cli, 'require_isolated', return_value=Path('fixture-profile')), \
+                patch.object(apex_cli, 'verified_identity', return_value={'pid': 42}), \
+                patch.object(apex_cli, 'owned_request', native), \
+                patch.object(game_load, 'observe', return_value={'ok': True}) as load:
+            self.assertTrue(apex_cli.execute(args)['ok'])
+        self.assertTrue(load.call_args.kwargs['capture'].keywords['background'])
+        request = load.call_args.args[3]
+        request(args.state, 'test_input', value=json.dumps({'test_token': 'test', 'value':
+            {'command': 1, 'x': 10, 'y': 20, 'width': 100, 'height': 100}}))
+        self.assertEqual(json.loads(native.call_args.kwargs['value'])['value']['command'], 4)
 
 
 if __name__ == '__main__':

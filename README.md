@@ -17,9 +17,15 @@ native cross-form physique/hidden-outfit merging. All five members completed
 through 92,258 simulation ticks and a normal save. Permanent protection remains
 enabled alongside that patch. V115 fixes companion switching after reload:
 all five passed Vampire → Alien without manual checkpointing, then a normal
-save and all-40 comparison; the complete local suite passed 1,976 tests.
-Ordinary phone/MCCC CAS, remaining form-specific edits
-and broader production-save qualification remain open.
+save and all-40 comparison. Ordinary Python-to-native CAS entry now captures
+every hybrid household member before entry. V118 additionally retains four
+companion Alien CAS edits through Alien → Vampire → Alien, 5,267 actual ticks
+and a normal save, with all 38 unselected owners unchanged. The eyebrow color
+request still fails exact readback. V120 fixes selective genetics/voice copying;
+the complete local suite passes **2,021 tests**. Its new color and selective
+paste behavior still require actual-game qualification. Direct native UI entry,
+all MCCC routes, remaining form-specific edits and broader production-save
+qualification remain open.
 See [current household evidence](Reports/HOUSEHOLD_CAS_2026-10-14.md) and
 [autonomy and safety controls](docs/OCCULT_SAFETY_CONTROLS.md).
 See [native prevention patch](docs/NATIVE_FORM_ISOLATION.md) for its exact scope.

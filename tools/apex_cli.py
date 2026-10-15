@@ -398,6 +398,8 @@ def parser():
     household_cas.add_argument('--accept', action='append', help='Keep a returned edit only for this exact SIM_ID:FORM; restore other changed forms')
     household_cas.add_argument('--output', required=True, type=Path)
     household_cas.add_argument('--seconds', type=float, default=60)
+    household_cas.add_argument('--resume-proof', type=Path, help='Resume a retained batch stopped before sending its final request')
+    household_cas.add_argument('--resume-sha256', help='Exact hash of that retained household proof; unresolved UUIDs are never replayed')
     cas_probe = commands.add_parser('cas-probe', help='Regression probe for already open native CAS; no entry or acceptance')
     cas_probe.add_argument('--state', required=True, type=Path)
     cas_probe.add_argument('--sim-id', required=True)
@@ -923,10 +925,17 @@ def execute(args):
             if args.output is None or args.value is not None:
                 raise ValueError('Exact existing-save load requires a new external proof and named save parameters.')
             from game_load import observe
-            return observe(args.state, args.output, verified_identity(args.state), owned_request,
+            load_request, load_options = owned_request, {}
+            if args.background:
+                from functools import partial
+                import game_capture
+                from game_lifecycle import background_request
+                load_request = background_request(owned_request)
+                load_options['capture'] = partial(game_capture.capture, background=True)
+            return observe(args.state, args.output, verified_identity(args.state), load_request,
                            args.sim_id, args.household_id, args.save_guid, args.slot_id,
                            args.slot_name, args.expected_save_sha256, seconds=args.seconds,
-                           identity_provider=verified_identity)
+                           identity_provider=verified_identity, **load_options)
         if args.operation == 'growth-probe':
             if not all((args.sim_id, args.household_id, args.save_guid)) or args.value not in ('1','2','4','8','16','32','64'):
                 raise ValueError('Native detached growth preparation requires exact Sim/household/save and one stored form value.')

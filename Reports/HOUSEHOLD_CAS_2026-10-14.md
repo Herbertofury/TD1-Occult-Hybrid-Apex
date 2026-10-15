@@ -1,9 +1,10 @@
 # Household CAS validation, October 14
 
-The production gate remains open. V113 is installed only in the one reusable
-disposable profile. The protected original is read/copy only. The normal test
-save still has SHA-256
-`4cddc75fd958c2b154cf50d5cc49c1f2209ef77467d002a0b1797cc4bf9294a3`.
+The production gate remains open. V120 is installed only in the one reusable
+disposable profile. The protected original is read/copy only. The latest normal
+test save has SHA-256
+`0584bd7bc9094a520ea3d9b6c9abe73edd6a12baa1a3c08284f6017f87d60b2e`.
+Earlier save identities below refer to their named historical checkpoints.
 
 ## Implemented corrections
 
@@ -467,3 +468,43 @@ Python 3.7 bytecode and a compiled, audited native UI package; its color behavio
 and the accepted save's next cold load still require runtime qualification.
 Ordinary native entry and safe failed-edit recovery do not close all MCCC menus,
 remaining per-form/panel edits, special forms, Tray parity or production readiness.
+
+V119 cold testing stopped at the game's actual **114 required packs missing**
+warning following an EA client update from 13.805 to 13.809. No missing-content
+continuation was submitted; all 20 disposable save files stayed unchanged.
+The warning does not establish a mod failure or the cause of unavailable packs.
+The owner subsequently reported pack access restored. V120 was installed while
+the game was closed and a new correctly account-bound CLI launch started the
+game. Runtime qualification is resuming; a loading screen is not a verified
+household load.
+
+V120 corrects selective genetics paste against the inspected native GeneticData
+contract: native setters mirror voice pitch/actor into the genetic buffer.
+Copying genetics alone now keeps the destination voice; copying voice updates
+its derived mirror without replacing unselected sculpt/body/parts data. Existing
+unknown wire chunks are retained. Eight focused regression tests pass. This is
+not yet an actual-game paste result.
+
+The host now also resumes a household commit only after a retained, hashed proof
+certifies the next step was never submitted. It reuses observed/plan/commit
+receipts, verifies the complete household before writes, and refuses unresolved
+submitted UUIDs or changed decisions. Six fixtures exercise partial planning,
+partial commit and repeated resumption without duplicate mutations. Indexed
+loading now uses background capture/window messages when requested and refuses
+the actual missing-packs warning. The complete V120 local suite passed **2,021
+tests** in 402.089 seconds. These checks do not close the remaining actual-game
+CAS, color, MCCC, special-state, Tray and production gates.
+
+After the owner restored pack access, V120 loaded the exact saved Slot 2
+household. All **40 owners matched the accepted V118 save**, proof
+`native-cas-v120-cold-accepted-all40.json`, SHA-256
+`ee0b4a21c4ab97ff2b3b0f39e4f47f5f8ca077161b4486767173d045b59b782f`.
+They also remained exact after **2,581 actual simulation ticks**. Selective
+genetics paste from the original Alien to companion `349336084686110947`'s
+inactive Vampire owner passed exact native readback after **2,618 ticks**;
+its voice and every unselected owner remained unchanged. Voice-only paste
+passed after **3,040 ticks**, changing only pitch and its embedded genetic
+mirror. Both detached previews changed no real Sim, and both Undo operations
+restored every owner after another unpause. No save was submitted. Proof
+`native-cas-v120-selective-genetics-voice-runtime.json`, SHA-256
+`f474bf14ebe562c84973be15c9896ffe48841f58be5830adfa4947ede41bfe16`.

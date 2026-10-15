@@ -28,12 +28,15 @@ commits; these changes still require runtime qualification. Semantic Fairy
 wing selection is quarantined after a mismatched native color result and a
 later native crash of unproven cause.
 
-The complete V126 suite passes 2,182 tests; both hosted Windows checks pass for
-`a906d0d`. All six native CTests pass. Sunlight protection is enabled and verified
-for all five test Sims. V127 adds the owner-provided DayWalkers exposure behavior,
-scoped to each Sim's toggle, and installed occult artwork for phone/F11 controls.
-Its focused tests and all six native CTests pass; its full suite and game
-qualification are pending. This candidate remains disposable-only. Production
+V129 passes 2,195 tests; both hosted Windows checks pass for `df6399c`.
+All six native CTests pass. The explicit manual-save load retains all 40
+appearances. The actual DayWalkers-style exposure hook is verified on all five
+Sims: four would be exposed by EA's predicate but remain protected by Apex.
+Phone controls use installed occult icon keys. F11's Python image reads return
+no bytes, so V130 adds bounded background reads of the exact installed client
+textures, with no artwork export or per-frame I/O. All six match independently
+decoded installed images; actual V130 F11 rendering remains pending.
+This candidate remains disposable-only. Production
 acceptance, full native Tray/Gallery reload, complete CAS/special-state coverage
 and preview fidelity remain open, as do all seven GitHub issues. The protected
 original is read/copy only.

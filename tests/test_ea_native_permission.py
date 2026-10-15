@@ -80,13 +80,24 @@ class PermissionRecognitionTests(unittest.TestCase):
             elif variant == 'wrong-title': native.user.GetWindowTextW.side_effect = lambda _h, b, _l: setattr(b, 'value', 'Other app')
             elif variant == 'main-size':
                 def large(_hwnd, target):
-                    target._obj.show = 2; target._obj.normal.right = 1280; target._obj.normal.bottom = 1392
+                    target._obj.show = 2; target._obj.normal.right = 2601; target._obj.normal.bottom = 2601
                     return True
                 native.user.GetWindowPlacement.side_effect = large
             elif variant == 'changed': before['normal'][0] += 1
             with self.subTest(variant=variant), self.assertRaises(ValueError):
                 native.restore_minimized(before, 100 if variant == 'expired' else 110, clock=lambda: 100)
             native.user.ShowWindowAsync.assert_not_called()
+
+    def test_minimized_full_ea_window_is_a_capture_candidate_without_permission_authority(self):
+        native = self.minimized_native()
+        def full(_hwnd, target):
+            target._obj.show = 2; target._obj.normal.right = 1280; target._obj.normal.bottom = 1376
+            return True
+        native.user.GetWindowPlacement.side_effect = full
+        row = native.minimized_identity(99)
+        self.assertEqual(row['normal'], [0, 0, 1280, 1376])
+        native.user.ShowWindowAsync.assert_not_called()
+        self.assertNotIn('acknowledged', row)
 
     def test_retained_zero_k_ocr_variant_resolves_only_measured_ok_word_center(self):
         # ea-broker-1791451035412101700.bmp: exact modal wording; OCR emits 0K.

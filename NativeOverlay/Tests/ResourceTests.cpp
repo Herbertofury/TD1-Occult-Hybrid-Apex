@@ -30,6 +30,10 @@ int main(int argc, char** argv) {
     Json iconRow={{"format","dst5"},{"width",4},{"height",4},{"sha256",resource::HashBytes(dst)}};
     check(resource::DecodeOccultImage(dst,iconRow,icon,iconReason)&&icon.rgba.size()==64&&
         icon.rgba[0]==255&&icon.rgba[1]==0&&icon.rgba[2]==0&&icon.rgba[3]==255,"DST5 planes decode to exact opaque red");
+    auto dxt=dst;std::memcpy(dxt.data()+84,"DXT5",4);dxt[130]=dxt[131]=0;dxt[136]=0;dxt[137]=char(0xf8);
+    auto dxtRow=iconRow;dxtRow["format"]="dxt5";dxtRow["sha256"]=resource::HashBytes(dxt);
+    check(resource::DecodeOccultImage(dxt,dxtRow,icon,iconReason)&&icon.rgba[0]==255&&icon.rgba[3]==255,
+        "native unshuffled BC3 matches shuffled icon colors and alpha");
     auto badIcon=iconRow;badIcon["sha256"]=std::string(64,'a');
     check(!resource::DecodeOccultImage(dst,badIcon,icon,iconReason),"changed installed image hash is rejected");
     badIcon=iconRow;badIcon["width"]=512;

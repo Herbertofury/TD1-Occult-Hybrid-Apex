@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
 from apex_core import occult_icons as icons
+from apex_core import installed_icon_resources as installed
 
 
 class OccultIconTests(unittest.TestCase):
@@ -85,3 +86,42 @@ class OccultIconTests(unittest.TestCase):
             bad = bytearray(good); bad[offset:offset+len(change)] = change
             with self.assertRaises(ValueError): icons.image_metadata(bytes(bad))
         with self.assertRaises(ValueError): icons.image_metadata(good[:-1])
+
+    def test_native_unshuffled_bc3_variant_is_explicitly_classified(self):
+        raw=bytearray(self.dst());raw[84:88]=b'DXT5'
+        self.assertEqual(icons.image_metadata(bytes(raw))['format'],'dxt5')
+
+    def test_missing_native_bytes_start_one_worker_and_publish_only_complete_art(self):
+        loader = Mock(return_value=Obj(load_raw=lambda **kw: None))
+        worker = Mock()
+        resources = Obj(ResourceLoader=loader, Key=lambda t, i, g: Obj(type=t, instance=i, group=g))
+        with patch.dict(sys.modules, {'sims4': Obj(resources=resources, paths=Obj(DLL_PATH='actual path'))}), \
+             patch.object(installed, 'game_root', return_value=Path('installed game')), \
+             patch.object(icons.threading, 'Thread', return_value=worker) as thread:
+            first = icons.catalog(self.backend)
+            self.assertTrue(first['loading'])
+            self.assertTrue(all(row['status'] == 'loading' for row in first['items']))
+            icons.catalog(self.backend)
+            thread.assert_called_once()
+            worker.start.assert_called_once()
+            args = thread.call_args.kwargs['args']
+            with patch.object(installed, 'read', return_value={(0x00b2d882, 0, 55):
+                    dict(raw=self.dst(), sources=[dict(container='exact installed container')])}):
+                thread.call_args.kwargs['target'](*args)
+            final = icons.catalog(self.backend)
+            self.assertFalse(final['loading'])
+            self.assertTrue(all(row['status'] == 'resolved' for row in final['items']))
+            self.assertTrue(all(row['status'] == 'loading' for row in first['items']))
+            self.assertEqual(loader.call_count, 12)
+
+    def test_worker_conflict_or_failure_never_returns_an_image_or_restarts_forever(self):
+        rows = [dict(name='ALIEN', status='loading')]
+        for result in ({}, {(1, 0, 55): dict(conflict=True)}):
+            with patch.object(installed, 'read', return_value=result):
+                icons._installed_worker(Path('game'), [(0, (1, 0, 55))], [dict(row) for row in rows])
+            self.assertFalse(icons._CACHE['loading'])
+            self.assertEqual(icons._CACHE['items'][0]['status'], 'unavailable')
+            self.assertNotIn('image_base64', icons._CACHE['items'][0])
+        with patch.object(installed, 'read', side_effect=OSError('no access')):
+            icons._installed_worker(Path('game'), [(0, (1, 0, 55))], rows)
+        self.assertEqual(icons._CACHE['items'][0]['reason'], 'no access')

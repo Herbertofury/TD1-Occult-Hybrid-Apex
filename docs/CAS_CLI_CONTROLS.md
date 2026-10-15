@@ -407,7 +407,7 @@ including hybrids in other forms. Other Sims delegate unchanged; the existing
 vampire sunlight buff filter remains active. This does not revive dying Sims.
 
 The read-only `occult_icons` action accepts no external payload or resource ID.
-It resolves the six installed occult trait icons, with bounded hashed PNG/DST5
+It resolves the six installed occult trait icons, with bounded hashed PNG/DST5/DXT5
 delivery cached for the session. Phone rows use the native resource keys
 directly; F11 decodes on its worker and creates/releases textures on its render
 thread. Missing or unsupported artwork keeps readable text controls. No game
@@ -417,3 +417,10 @@ V128 resolves EA's PNG-to-DST image alias using the same exact instance/group,
 verified against all six installed icon resources. A read-only
 `qol.sunlight_exposure` receipt reports the installed wrapper and compares its
 effective predicate with the previous callback; it does not advance the clock.
+
+V130 handles native Python returning no client image bytes. A background worker
+reads only exact installed client DBPF keys into session memory, checks index
+and resource bounds/content, and refuses differing duplicate resources. The
+catalog returns `loading: true` until complete. F11 polls that read-only result
+at most sixty times, one second apart, without blocking other commands. It
+never exports or redistributes the game artwork. No Sim API runs on this worker.

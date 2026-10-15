@@ -11,6 +11,7 @@ from game_load import normalized, menu_target
 from game_save import _save_live_context
 from source_manifest import sha256, write_json
 from windows_ocr import recognize
+from cli_identity_cache import scoped
 
 
 def target(observation, phase):
@@ -43,6 +44,7 @@ def target(observation, phase):
     return measured_target(observation, label)
 
 
+@scoped
 def observe(state, output, identity, request, sim_id, household_id, save_guid,
             capture=game_capture.capture, ocr=recognize, identity_provider=None,
             pause=time.sleep):

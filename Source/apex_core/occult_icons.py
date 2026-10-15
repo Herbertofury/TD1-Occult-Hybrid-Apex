@@ -1,15 +1,18 @@
 """Use installed occult trait artwork; never bundle or guess game resource IDs.
 
-Phone rows use native resource keys. F11 receives a bounded, hashed PNG once
+Phone rows use native resource keys. F11 receives bounded, hashed image bytes once
 per game session; decoding and GPU allocation happen off the Sims thread.
 Missing/unsupported images leave the control's text label available.
 """
 import base64
+import copy
 import hashlib
 import struct
+import threading
 
 NAMES = ('ALIEN', 'VAMPIRE', 'MERMAID', 'WITCH', 'WEREWOLF', 'FAIRY')
 _CACHE = None
+_LOCK = threading.Lock()
 
 
 def key(backend, name):
@@ -61,23 +64,54 @@ def image_metadata(raw):
     # The six inspected installed icons are DST5 (shuffled BC3), one mip.
     # Reject other DDS layouts instead of giving the worker guessed offsets.
     if (len(raw) < 128 or len(raw) > 128 * 1024 or raw[:8] != b'DDS |\0\0\0' or
-            raw[84:88] != b'DST5' or struct.unpack_from('<I', raw, 76)[0] != 32 or
+            raw[84:88] not in (b'DST5', b'DXT5') or struct.unpack_from('<I', raw, 76)[0] != 32 or
             struct.unpack_from('<I', raw, 28)[0] not in (0, 1)):
         raise ValueError('The installed icon is neither a bounded PNG nor verified DST5.')
     height, width = struct.unpack_from('<II', raw, 12)
     if (not 0 < width <= 512 or not 0 < height <= 512 or width % 4 or height % 4 or
             len(raw) != 128 + width * height):
         raise ValueError('The installed DST5 icon dimensions/payload are unsupported.')
-    return dict(width=width, height=height, format='dst5', sha256=hashlib.sha256(raw).hexdigest())
+    return dict(width=width, height=height, format=raw[84:88].decode('ascii').lower(), sha256=hashlib.sha256(raw).hexdigest())
+
+
+def _installed_worker(root, pending, rows):
+    # Only immutable keys/rows cross this boundary. No game API is called here.
+    from . import installed_icon_resources
+    try:
+        found = installed_icon_resources.read(root, [identity for _, identity in pending])
+        for index, identity in pending:
+            row = rows[index]
+            record = found.get(identity)
+            if record is None:
+                row['reason'] = 'The exact installed client texture is absent.'
+            elif record.get('conflict'):
+                row['reason'] = 'Conflicting installed client textures; no image was guessed.'
+            else:
+                raw = record['raw']
+                try:
+                    row.update(image_metadata(raw), image_base64=base64.b64encode(raw).decode('ascii'),
+                               status='resolved', sources=record['sources'])
+                    row.pop('reason', None)
+                except ValueError as error:
+                    row['reason'] = str(error)
+            if row['status'] != 'resolved':
+                row['status'] = 'unavailable'
+    except (ValueError, TypeError, AttributeError, OSError, ImportError) as error:
+        for index, _ in pending:
+            rows[index].update(status='unavailable', reason=str(error))
+    global _CACHE
+    with _LOCK:
+        _CACHE = dict(schema=1, origin='installed-occult-trait-tuning', loading=False, items=rows)
 
 
 def catalog(backend):
     global _CACHE
     if _CACHE is None:
         from sims4 import resources
-        rows = []
+        rows, pending = [], []
         for name in NAMES:
             row = dict(name=name, status='unavailable')
+            raw = b''
             try:
                 identity = key(backend, name)
                 if identity is None:
@@ -98,10 +132,31 @@ def catalog(backend):
                     values = (0x00b2d882, values[1], values[2])
                 row['resource_tgi'] = '{:08X}:{:08X}:{:016X}'.format(*values)
                 raw = bytes(loaded) if loaded is not None else b''
+                if loaded is None:
+                    row.update(status='loading', reason='Reading the exact installed client texture in the artwork worker.')
+                    pending.append((len(rows), values))
+                    rows.append(row)
+                    continue
                 row.update(image_metadata(raw), image_base64=base64.b64encode(raw).decode('ascii'), status='resolved')
             except (ValueError, TypeError, AttributeError, OSError) as error:
                 row['reason'] = str(error)
+                row['raw_bytes'] = len(raw)
+                row['raw_prefix'] = raw[:16].hex()
+                row['raw_fourcc'] = raw[84:88].hex() if len(raw) >= 88 else None
             rows.append(row)
-        _CACHE = dict(schema=1, origin='installed-occult-trait-tuning', items=rows)
+        _CACHE = dict(schema=1, origin='installed-occult-trait-tuning', loading=bool(pending), items=rows)
+        if pending:
+            try:
+                from sims4 import paths
+                from .installed_icon_resources import game_root
+                root = game_root(paths.DLL_PATH)
+                worker = threading.Thread(target=_installed_worker, args=(root, tuple(pending), [dict(row) for row in rows]),
+                                          name='ApexInstalledArtwork', daemon=True)
+                worker.start()
+            except (ValueError, TypeError, AttributeError, OSError, ImportError, RuntimeError) as error:
+                for index, _ in pending:
+                    rows[index].update(status='unavailable', reason=str(error))
+                _CACHE = dict(_CACHE, loading=False)
     # The caller must not be able to corrupt the shared session cache.
-    return dict(_CACHE, items=[dict(row) for row in _CACHE['items']])
+    with _LOCK:
+        return copy.deepcopy(_CACHE)

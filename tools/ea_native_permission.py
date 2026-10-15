@@ -154,7 +154,7 @@ class NativeEA:
         return rows
 
     def minimized_identity(self, hwnd):
-        """Read a bounded, same-process EA modal's restored placement.
+        """Read a bounded, same-process EA surface's restored placement.
 
         This is only a candidate for restoration, never proof of permission.
         Actual wording and the measured OK button still require fresh pixels.
@@ -171,8 +171,8 @@ class NativeEA:
         if not self.user.GetWindowPlacement(hwnd, ctypes.byref(place)) or place.show != 2:
             raise ValueError('EA minimized placement is unavailable or changed.')
         rect = place.normal
-        if not 200 <= rect.right - rect.left <= 1000 or not 150 <= rect.bottom - rect.top <= 600:
-            raise ValueError('Minimized EA window is outside the bounded modal placement.')
+        if not 200 <= rect.right - rect.left <= 2600 or not 150 <= rect.bottom - rect.top <= 2600:
+            raise ValueError('Minimized EA window is outside the bounded capture placement.')
         return {'pid': pid, 'hwnd': int(hwnd), 'class': name.value,
                 'normal': [rect.left, rect.top, rect.right, rect.bottom]}
 

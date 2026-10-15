@@ -179,10 +179,24 @@ class PermissionBrokerTests(unittest.TestCase):
             broker.wait_launch_context({}, 0.0, 55, seconds=1, read_context=pending,
                 monotonic=lambda: clock[0], pause=lambda delay: clock.__setitem__(0, clock[0] + delay))
         self.assertEqual(clock[0], 1.0)
-        for invalid in (0, -1, 11, True, float('nan')):
+        for invalid in (0, -1, 31, True, float('nan')):
             with self.assertRaisesRegex(ValueError, 'between'):
                 broker.wait_launch_context({}, 0, 55, seconds=invalid,
                     read_context=lambda *_args: self.fail('Invalid duration cannot read launch evidence.'))
+
+    def test_fifteen_second_ea_append_retains_original_handoff_without_relaunch_or_input(self):
+        clock = [0.0]; calls = []
+        expected = {'fixture': 'same account-specific launch'}
+        def context(plan, handoff, offset):
+            calls.append((plan, handoff, offset))
+            if clock[0] < 14.9: raise broker.LaunchRecordPending('EA is still preparing its request')
+            return expected
+        result = broker.wait_launch_context({}, 100.0, 185028, read_context=context,
+            monotonic=lambda: clock[0], pause=lambda delay: clock.__setitem__(0, clock[0]+delay))
+        self.assertIs(result, expected)
+        self.assertGreaterEqual(clock[0], 14.9)
+        self.assertLess(clock[0], 15.2)
+        self.assertEqual(set((handoff, offset) for _, handoff, offset in calls), {(100.0, 185028)})
 
     def test_same_handoff_changed_malformed_rotated_or_expired_record_never_retries(self):
         for message in ('another game', 'unsupported record', 'log rotated', 'context expired'):

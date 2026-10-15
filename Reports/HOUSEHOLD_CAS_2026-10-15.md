@@ -180,9 +180,9 @@ Tray/Gallery gate. Nothing has been published to the online Gallery.
   `375218d97024b7b9eeb1babb63f12a2747f00dc7cb24f697780f26bf277732c3`.
   Focused icon/phone/router tests and all six native CTests pass.
 - [x] Complete the fresh V127 full suite: 2,191 tests pass in 630.355 seconds.
-- [ ] Runtime-qualify V127's exposure hook,
-  actual artwork and F11 controls. The running V126 session still has its
-  existing buff protection; the stronger hook and artwork are not hot loaded.
+- [x] Runtime-qualify the exposure hook under V128/V129, as recorded below.
+- [ ] Runtime-qualify actual F11 artwork; native phone resource keys and offline
+  decoding do not establish that textures reached the F11 renderer.
 - [x] Under V126, list and open the completed five-Sim item in the native
   local Library with Include Custom Content enabled. All five household
   members and individual alternate portraits appear. Placing five into the
@@ -237,8 +237,63 @@ Tray/Gallery gate. Nothing has been published to the online Gallery.
 - [x] Build matching V128: ZIP SHA-256
   `b126e96451f9506e1d069254858d9655836e8df598a79959d60c65c4af4a743b`;
   90 Python 3.7 modules, seven packages, 207 independently Rust-verified resources.
-- [ ] Complete the fresh V128 full suite and actual F11 artwork/exposure checks.
-- [ ] Verify the explicit manual b70 load. The preceding Resume used the newer
+- [x] Complete the fresh V128 full suite: 2,194 tests pass in 860.762 seconds.
+  Both hosted Windows checks pass for `df6399c` (38778505070, 38778496267).
+- [x] Verify the explicit manual b70 load through its actual Ondarion apartment
+  and selected five-member household. Native slot/Live proof succeeds, while
+  the strict map-play helper records false overall because the game rotates
+  its disposable autosave. All 40 appearance owners match the manual baseline
+  exactly after entry. Comparison SHA-256
+  `ba9d3033da501741518d005e73e769945dd614b10a1c2db0ae1b258e0949060c`.
+- [x] Verify the actual installed sunlight exposure hook for all five Sims.
+  Every toggle remains enabled. Four Sims have native previous-callback
+  exposure true and effective Apex exposure false; the fifth is already
+  unexposed. All five remain instanced, alive and not dying, with autonomy
+  paused and death prevention enabled. Combined readback SHA-256
+  `6079c905f4ca0e9c5bc199178de08b8a0480e7bf2cc5416fb0c14d1341671b4e`.
+- [ ] Finish actual F11 artwork loading. V129's raw diagnostics establish that
+  Python returns **zero bytes** for both the original references and DST aliases.
+  Additional image formats cannot fix absent bytes. Do not count offline
+  decoding as an in-game F11 pass.
+- [x] Build matching V129; eight icon tests and all six native CTests pass.
+  ZIP SHA-256 `61dfa77934e535302fd55ab045e3b9d1caa7761785fd0b6013a6e04a6ccb2ed4`;
+  90 Python 3.7 modules, seven packages, 207 Rust-verified resources.
+- [x] Complete V129's fresh full suite: 2,195 tests pass in 865.035 seconds.
+  Read back actual icon diagnostics rather than inferring the failure format.
+- [x] Verify V129 Live again: all 40 appearances match; all five exposure
+  wrappers are installed and effective exposure is false. Four previous native
+  callbacks return true. Household readback SHA-256
+  `bd2af850a16a1268e80aeb40f0df0782358f35056f47ab3dd4ba6305fa019e2a`;
+  sunlight readback SHA-256
+  `4210b925b5badce52e9bb1481d35e8f773dc228052de59c66d06349ceec0635a`.
+
+## V130 exact installed client artwork
+
+- [x] Add a session-only background texture reader. Snapshot six exact native
+  tuning keys on the owner thread; scan only installed client DBPF indexes and
+  bounded selected extents on a worker. No Sim reads, full-package hashing,
+  asset export or render-thread file I/O. Reject linked, changed, malformed,
+  oversized and conflicting resources. Identical duplicate sources are explicit.
+- [x] Resolve all six installed images in 3.727 seconds and compare their bytes
+  exactly with the independently decoded/inspected images. Private proof SHA-256
+  `37d6a37ec79c3b2d86d803a2c57598d0096abf89c5a8f657b142735eacc633cb`.
+  Pass fifteen image/reader tests and all six native CTests. F11 uses bounded
+  read-only loading polls; it does not cache a first loading response forever.
+- [x] Build immutable V130: ZIP SHA-256
+  `d03a74e043303895e5c22d8870302d9893d7bcd7de58530f5e6bec1c720349c7`;
+  91 Python 3.7 modules, seven packages, 207 independently Rust-verified resources.
+- [ ] Complete the fresh V130 full suite and actual F11 rendering qualification.
+- [x] Extend the fresh EA launch-record wait to 30 seconds after the observed
+  14.864-second handoff, preserving the original log offset and request time.
+  Recognize the minimized main EA window as a capture candidate, without
+  granting permission to click until current dialog wording and account context
+  match. Thirty-nine launcher tests pass. Windows elevation restrictions still
+  apply; a denied window restore is not a successful automated launch.
+- [x] Scope full CLI artifact hashing to bounded compound map/menu flows while
+  rechecking the journal and every Mods entry before each request. Seventy-seven
+  identity/map/menu tests pass. No permission or identity check is removed.
+
+The preceding Resume used the newer
   autosave: all forty owners are present, but six stored pelt fields on Sim
   `349336084686110946` differ from the manual baseline. Do not label that Resume
   as an exact b70 cold load or silently repair those differences. The manual

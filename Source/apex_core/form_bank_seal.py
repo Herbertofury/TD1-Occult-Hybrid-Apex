@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-15-native-dst-occult-art-v128'
+UPGRADE_EPOCH = '2026-10-15-installed-occult-textures-v130'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '513d7a5d2b136d90853a0c6606ea5b2b69999f9e21e3fa396f8ed08ba95d1b58'
+UPGRADE_SELF_BODY_SHA = 'de5b59615b5cbf73ea068088ecf5ad3c2035b5b5525db8b1abdbd888363c88d0'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -57,6 +57,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/household_io.py': '13e4b8e86ef6587d8e9319e48551637664813acda4c9bf34878d130ecc3df667',
     'apex_core/human_werewolf.py': '9bafd4df1783f6a3c526242b9a40c42033e3dad4d2f8029e0046633b2f4a363e',
     'apex_core/hybrid_persistence.py': '2998403e356fa003660d4d14398cfee17069b4753f84098593d4a921eaa1b4b7',
+    'apex_core/installed_icon_resources.py': '9dc1e52a3e3ab5d064b729047f34e6c3a635a88780047db258fbb2eb72283cd4',
     'apex_core/legacy_phone_guard.py': '097e88240ed8828101de5389c8f966a76e2c393b821f0580808735b663b600cd',
     'apex_core/morph_controls.py': 'd144ebd7a8dcbff5695b1a2747f641b17017b60a6c39bd904e467602d4c7f876',
     'apex_core/native_controls.py': '543faade8715a27dd5bd7edc9dda25112a92d374879adf4fe943016e240abfbb',
@@ -66,7 +67,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/native_occult_context.py': '4b1fb7278a8719ff58c5b2b1a97aaa89a9e5e953915a31ab212206a67928b186',
     'apex_core/occult_add_guard.py': '3e4630c36c705afdf9f5cbd3f256be85ec7efa0a3a8d94b8394474fb360c982c',
     'apex_core/occult_appearance_extension.py': '1d908a080f608960fdb9394d954552fb9e2af24a87b60e6f623f690bb8cdbe08',
-    'apex_core/occult_icons.py': '3257b5678a71f06123540f9760862782dbb9980479d08dcbabaabe53982c6883',
+    'apex_core/occult_icons.py': '120793c4b8edd6bada54f24df52ff79c4698de79571de0aa17d5ff27ba4b7642',
     'apex_core/outfit_hair.py': '127059656a2dd5ea10d8998c7a5c0f6b8e5353b8d166c4c25cb60dfea8666910',
     'apex_core/outfit_snapshot.py': '76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56',
     'apex_core/overlay_loader.py': '0c59571c99da7a96bd86337590e7333085a2aef81e1308aec8c5d6d6cdd3b905',

@@ -12,6 +12,7 @@ from game_load import normalized
 from save_metadata import read as read_metadata
 from source_manifest import sha256, write_json
 from windows_ocr import recognize
+from cli_identity_cache import scoped
 
 
 AUTOSAVE_DRIFT_FILES = frozenset(['Slot_ffffffff.save'] +
@@ -262,6 +263,7 @@ def _durable_native_input(state, sim_id, token, value, request, proof, output):
     return result
 
 
+@scoped
 def select_marker(state, output, identity, request, sim_id, household_id, save_guid,
                   slot_id, expected_save_sha256, world, load_proof, load_proof_sha256,
                   recovered_input_proof=None, recovered_input_sha256=None, capture=game_capture.capture,

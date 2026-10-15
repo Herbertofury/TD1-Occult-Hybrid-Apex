@@ -43,7 +43,7 @@ SOURCE_FILES = (
 MAX_BYTES = 65536
 LEASE_SECONDS = 90
 EA_LOG = Path(os.environ.get('PROGRAMDATA', r'C:\ProgramData')) / 'EA Desktop' / 'Logs' / 'EADesktop.log'
-LAUNCH_RECORD_WAIT_SECONDS = 10
+LAUNCH_RECORD_WAIT_SECONDS = 30
 
 
 class LaunchRecordPending(ValueError):
@@ -342,7 +342,7 @@ def wait_launch_context(plan, handoff_at, offset, seconds=LAUNCH_RECORD_WAIT_SEC
     input. The eventual context is revalidated by the elevated worker as usual.
     """
     if type(seconds) not in (int, float) or not 0 < seconds <= LAUNCH_RECORD_WAIT_SECONDS:
-        raise ValueError('EA launch-record observation must be between 0 and 10 seconds.')
+        raise ValueError('EA launch-record observation must be between 0 and 30 seconds.')
     read_context = read_context or make_launch_context
     deadline = monotonic() + seconds
     while True:

@@ -18,6 +18,7 @@ from game_map import _native_click, save_delta, _artifact_roster, _save_inventor
 from save_household import read as read_household
 from source_manifest import sha256, write_json
 from windows_ocr import recognize
+from cli_identity_cache import scoped
 
 
 CAPTION = 'Bright Cliff Apartments'
@@ -196,6 +197,7 @@ def play_target(image, observation, household_name, expected_caption=CAPTION):
     return triangles[0]
 
 
+@scoped
 def observe(state, output, identity, request, sim_id, household_id, save_guid,
             slot_id, expected_save_sha256, selection_proof, selection_proof_sha256,
             seconds=60, capture=game_capture.capture, ocr=recognize,

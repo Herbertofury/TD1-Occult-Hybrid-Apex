@@ -127,7 +127,9 @@ struct QueuedCommand { std::string path; uint64_t generation; bool automaticCasR
     bool ownerObservation = false; std::string ownerRequestId;
     std::string casBankAction; };
 static std::deque<QueuedCommand> g_commands;
-static bool g_occultIconsRequested = false; // render thread; one session read
+static std::atomic<bool> g_occultIconsRequested{false};
+static std::atomic<ULONGLONG> g_occultIconsNextAttempt{0};
+static unsigned g_occultIconsReadAttempts = 0; // render thread; bounded read-only loading polls
 static std::map<std::string,resource::Pixels> g_occultIconPixels; // worker -> render, g_dataMutex
 static std::map<std::string,ID3D11ShaderResourceView*> g_occultIconTextures; // render thread
 static bool RetainCommandOwner(const QueuedCommand&,const std::string&);
@@ -1139,13 +1141,18 @@ static void WorkerLoop() {
         }
         if (command.resourceOperation) { RunResourceCommand(command); continue; }
             if (command.occultIcons) {
-                if(g_ownerBlocked.load()||g_ownerNativeDeliveryBusy.load()||g_casBankBusy.load())continue;
+                if(g_ownerBlocked.load()||g_ownerNativeDeliveryBusy.load()||g_casBankBusy.load()){
+                    g_occultIconsNextAttempt=GetTickCount64()+1000;g_occultIconsRequested=false;continue;
+                }
                 std::string body;
                 if (HttpOwnedCommand(command.path,body)) {
                     RetainCommandOwner(command,body);
                     const auto reply=ui::ParseObject(body);
                     std::map<std::string,resource::Pixels> decoded;
                     const auto catalog=reply.value("occult_icons",ui::Json::object());
+                    if(catalog.value("loading",false)){
+                        g_occultIconsNextAttempt=GetTickCount64()+1000;g_occultIconsRequested=false;
+                    }
                     if(reply.value("ok",false)&&catalog.value("schema",0)==1&&
                         catalog.value("origin",std::string())=="installed-occult-trait-tuning"&&
                         catalog.contains("items")&&catalog["items"].is_array()&&catalog["items"].size()<=6) {
@@ -1372,7 +1379,7 @@ static void CleanupLibraryImages() {
 
 static void CleanupOccultIcons() {
     for(auto& item:g_occultIconTextures)if(item.second)item.second->Release();
-    g_occultIconTextures.clear();g_occultIconsRequested=false;
+    g_occultIconTextures.clear();g_occultIconsRequested=false;g_occultIconsNextAttempt=0;g_occultIconsReadAttempts=0;
     std::lock_guard<std::mutex> lock(g_dataMutex);g_occultIconPixels.clear();
 }
 
@@ -1392,10 +1399,11 @@ static void SynchronizeOccultIcons() {
         }
     }
 #ifndef APEX_NATIVE_SMOKE
-    if(!g_occultIconsRequested&&!g_ownerBlocked&&!g_ownerNativeDeliveryBusy&&!g_casBankBusy) {
+    if(!g_occultIconsRequested&&g_occultIconsReadAttempts<60&&GetTickCount64()>=g_occultIconsNextAttempt.load()&&
+       !g_ownerBlocked&&!g_ownerNativeDeliveryBusy&&!g_casBankBusy) {
         std::lock_guard<std::mutex> lock(g_dataMutex);
         if(!g_done&&g_commands.size()<48){QueuedCommand command{"/api/command?action=occult_icons",g_selectionGeneration};
-            command.occultIcons=true;g_commands.push_back(std::move(command));g_occultIconsRequested=true;}
+            command.occultIcons=true;g_commands.push_back(std::move(command));g_occultIconsRequested=true;++g_occultIconsReadAttempts;}
     }
 #endif
 }

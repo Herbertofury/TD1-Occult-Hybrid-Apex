@@ -40,4 +40,6 @@ def run(state, output, request):
     return dict(ok=final.get('ok') is True,output=str(output),proof_sha256=final['proof_sha256'],
         message=final.get('message'),reference_count=references,
         function_snapshots=len(final.get('function_snapshots',[])),
+        controller_available=final.get('controller',{}).get('available',False),
+        controller_methods=final.get('controller',{}).get('methods',[]),
         code_snapshot_bytes=final.get('code_snapshot_bytes',0),native_patch_qualified=False)

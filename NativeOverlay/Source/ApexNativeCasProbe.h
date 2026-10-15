@@ -5,8 +5,74 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <set>
+#include <deque>
+#include <algorithm>
+extern "C" {
+#include "../third_party/minhook/src/hde/hde64.h"
+}
 
 namespace td1::nativecas {
+struct DirectEdge {std::uint32_t instruction,target;bool call;};
+inline std::vector<DirectEdge> CodeEdges(const std::string& bytes,std::uint32_t rva) {
+    if(bytes.empty() || bytes.size()>4096 || bytes.size()>UINT32_MAX-rva)
+        throw std::runtime_error("Native instruction graph exceeds its bounded context.");
+    std::deque<std::uint32_t> pending{rva};std::set<std::uint32_t> seen;
+    std::vector<DirectEdge> result;
+    while(!pending.empty() && seen.size()<2048) {
+        auto at=pending.front();pending.pop_front();
+        while(at>=rva && at-rva<bytes.size() && seen.insert(at).second && seen.size()<=2048) {
+            const auto offset=at-rva;
+            const auto remaining=bytes.size()-offset;
+            unsigned char padded[32]={};std::memcpy(padded,bytes.data()+offset,std::min<std::size_t>(remaining,sizeof(padded)));
+            hde64s op{};hde64_disasm(padded,&op);
+            if(!op.len || op.len>remaining || (op.flags&F_ERROR)) break;
+            const bool call=op.opcode==0xe8;
+            const bool jump=op.opcode==0xe9 || op.opcode==0xeb;
+            const bool conditional=(op.opcode>=0x70 && op.opcode<=0x7f) ||
+                (op.opcode==0x0f && op.opcode2>=0x80 && op.opcode2<=0x8f) ||
+                (op.opcode>=0xe0 && op.opcode<=0xe3);
+            if(call || jump || conditional) {
+                const auto delta=(op.flags&F_IMM8)?static_cast<std::int64_t>(static_cast<std::int8_t>(op.imm.imm8)):
+                    static_cast<std::int64_t>(static_cast<std::int32_t>(op.imm.imm32));
+                const auto dest=static_cast<std::int64_t>(at)+op.len+delta;
+                if(dest>=0 && dest<=UINT32_MAX) {
+                    const auto target=static_cast<std::uint32_t>(dest);
+                    if((call || jump) && result.size()<32) result.push_back({at,target,call});
+                    if(!call && target>=rva && target-rva<bytes.size()) pending.push_back(target);
+                }
+            }
+            // An indirect dispatch has no statically verified destination.
+            if(jump || op.opcode==0xc3 || op.opcode==0xc2 || op.opcode==0xcb || op.opcode==0xca ||
+                op.opcode==0xcc || (op.opcode==0xff && (op.modrm_reg==4 || op.modrm_reg==5))) break;
+            at+=op.len;
+        }
+    }
+    return result;
+}
+inline std::uint32_t SectionPointer(std::uint64_t pointer, std::uint64_t base,
+        std::uint32_t sectionRva, std::size_t sectionSize, std::size_t count) {
+    if (!sectionSize || !count || count>sectionSize || base>UINT64_MAX-sectionRva ||
+        sectionSize>UINT64_MAX-(base+sectionRva) || pointer<base+sectionRva ||
+        pointer-(base+sectionRva)>sectionSize-count)
+        throw std::runtime_error("Native controller pointer left its pinned section.");
+    const auto offset=pointer-base;
+    if(offset>UINT32_MAX) throw std::runtime_error("Native controller RVA exceeds the pinned image.");
+    return static_cast<std::uint32_t>(offset);
+}
+inline std::uint32_t RipLoadTarget(const std::string& code, std::uint32_t codeRva,
+        std::uint32_t instructionRva) {
+    if(instructionRva<codeRva || instructionRva-codeRva>code.size() ||
+        code.size()-(instructionRva-codeRva)<7)
+        throw std::runtime_error("Native controller reference is truncated.");
+    const auto* p=reinterpret_cast<const unsigned char*>(code.data()+instructionRva-codeRva);
+    if(p[0]!=0x48 || p[1]!=0x8b || (p[2]&0xc7)!=5)
+        throw std::runtime_error("Native controller reference is not the inspected RIP load.");
+    std::int32_t delta=0;std::memcpy(&delta,p+3,4);
+    const auto target=static_cast<std::int64_t>(instructionRva)+7+delta;
+    if(target<0 || target>UINT32_MAX) throw std::runtime_error("Native controller reference overflows its image.");
+    return static_cast<std::uint32_t>(target);
+}
 inline void Bounds(std::uint32_t rva, std::size_t size, std::uint32_t imageSize) {
     if (!imageSize || imageSize > 128u*1024u*1024u || !size || size > 64u*1024u*1024u ||
         rva >= imageSize || size > imageSize-rva) throw std::runtime_error("Unsupported bounded image span.");

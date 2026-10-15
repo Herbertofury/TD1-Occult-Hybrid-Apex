@@ -204,8 +204,12 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
         # Validate before any transport, using the same production contract.
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
         from apex_core.cas_ui import envelope
+        if args.operation == 'occult-cache-view':
+            import reusable_profile
+            _, journal, _, _ = reusable_profile.load(args.state)
+            value['test_token'] = journal['token']
         envelope(args.sim_id, value)
-        if args.operation in ('form-select', 'layer-select', 'member-select', 'occult-view'):
+        if args.operation in ('form-select', 'layer-select', 'member-select', 'occult-view', 'occult-cache-view'):
             # Keep the caller's exact session/layer capability. Refresh only its
             # native observation, so operator/CLI latency cannot expire the
             # three-second Source acknowledgement before the navigation request.
@@ -226,7 +230,7 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
                     type(observation.get('session')) is not int or
                     observation['session'] != value['native_session']):
                 raise ValueError('Fresh native CAS context differs from the requested session/layer/household; no form selection sent.')
-            if args.operation == 'occult-view' and selected.get('allOccultTypes') != value['expected_all_occults']:
+            if args.operation in ('occult-view', 'occult-cache-view') and selected.get('allOccultTypes') != value['expected_all_occults']:
                 raise ValueError('Fresh native membership differs from the requested full mask; no occult view sent.')
         submitted = request(args.state, 'cas_ui_request', args.sim_id, value=json.dumps(value))
         request_id = submitted.get('cas_request_id')

@@ -361,7 +361,7 @@ def parser():
     cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
-        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view'))
+        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view'))
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
     cas.add_argument('--target-sim-id', help='Existing household member identity for semantic member-select')
@@ -373,6 +373,7 @@ def parser():
     cas.add_argument('--target-layer', type=int, choices=(0, 1), help='Explicit native primary/alternate layer; supports Vampire pairs with the same occult type')
     cas.add_argument('--occult-type', type=int, help='Exact existing native membership for an occult-view request')
     cas.add_argument('--expected-all-occults', type=int, help='Complete membership mask from the fresh native CAS status')
+    cas.add_argument('--owned-mask', type=int, help='Research-only: actual pre-entry membership mask; requires marked disposable profile')
     cas.add_argument('--native-session', type=int, help='Exact owner observation session from a fresh CAS status')
     cas.add_argument('--panel')
     cas.add_argument('--category', type=int)
@@ -494,6 +495,12 @@ def parser():
     captured_archive.add_argument('--output', required=True, type=Path)
     captured_archive.add_argument('--before-proof', type=Path, help='Exact earlier same-runtime native appearances for older MCCC receipts without before context')
     captured_archive.add_argument('--expected-before-sha256')
+    frontdoor_archive = commands.add_parser('cas-frontdoor-archive', help='Closed disposable only: preserve a Source entry after an exact later cold appearance comparison')
+    for name in ('state', 'entry-path', 'cold-path', 'output'):
+        frontdoor_archive.add_argument('--' + name, type=Path, required=True)
+    for name in ('entry-hash', 'cold-hash', 'save-hash'):
+        frontdoor_archive.add_argument('--' + name, required=True)
+    frontdoor_archive.add_argument('--slot-id', type=int, required=True)
     abandon = commands.add_parser('cas-abandon', help='Archive retained failed CAS metadata after a verified restart of the unchanged save')
     abandon.add_argument('--state', required=True, type=Path)
     abandon.add_argument('--sim-id', required=True)
@@ -701,6 +708,10 @@ def execute(args):
         from cas_journal_archive import archive
         return archive(args.state, args.failed_return_proof, args.expected_proof_sha256,
             args.closure_proof, args.closure_proof_sha256, args.slot_id, args.expected_save_sha256, args.output)
+    if args.command == 'cas-frontdoor-archive':
+        from cas_frontdoor_archive import archive
+        return archive(args.state, args.entry_path, args.entry_hash, args.cold_path, args.cold_hash,
+                       args.slot_id, args.save_hash, args.output)
     if args.command == 'cas-captured-archive':
         from cas_crash_archive import archive
         return archive(args.state, args.entry_proof, args.expected_proof_sha256,

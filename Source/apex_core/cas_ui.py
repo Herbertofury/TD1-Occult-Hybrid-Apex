@@ -64,6 +64,28 @@ def _baseline_hash(baseline):
         allow_nan=False, separators=(',', ':')).encode('ascii')).hexdigest()
 
 
+def _cache_membership(backend, tracker, capture_id):
+    """An experimental cache capability cannot weaken normal navigation."""
+    try:
+        if not callable(getattr(backend, '_all_occults', None)) or not callable(getattr(backend, '_has_occult', None)):
+            return None
+        kinds = list(backend._all_occults())
+        if len(kinds)>32:
+            return None
+        mask = 1
+        for kind in kinds:
+            bit = int(kind)
+            if isinstance(kind, bool) or bit not in (1, 2, 4, 8, 16, 32, 64):
+                return None
+            present = backend._has_occult(tracker, kind)
+            if type(present) is not bool:
+                return None
+            if present: mask |= bit
+        return {'capture_id': capture_id, 'owned_mask': mask}
+    except (TypeError, ValueError, AttributeError, RuntimeError):
+        return None
+
+
 def capture_original_owner(backend, sim):
     """Capture the actual form-bank producer before native CAS entry.
 
@@ -76,10 +98,12 @@ def capture_original_owner(backend, sim):
         complete = len(ids) == len(set(ids)) and context['original_sim_id'] not in ids
         baseline = dict(context, capture_id=uuid.uuid4().hex, complete=complete,
                         error='' if complete else 'Native wrapper identities are ambiguous.')
+        membership = _cache_membership(backend, tracker, baseline['capture_id'])
         key = (context['runtime_pid'], context['save_guid'], context['original_sim_id'])
         with _LOCK:
             _OWNER_BASELINES[key] = {'baseline': baseline, 'sim': sim, 'tracker': tracker,
                                      'wrappers': wrappers, 'form_map': form_map,
+                                     'cache_membership': membership,
                                      'baseline_sha256': _baseline_hash(baseline)}
             _OWNER_BASELINES.move_to_end(key)
             while len(_OWNER_BASELINES) > _CAPACITY:
@@ -764,11 +788,22 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
         socket_ready = send is None and any(peer['sim_id'] == sim_id and clock() - peer['observed_at'] <= 3 for peer in _PEERS.values())
     form_select_context = None
     occult_view_context = None
-    if request['operation'] == 'occult-view':
+    if request['operation'] in ('occult-view', 'occult-cache-view'):
+        if request['operation'] == 'occult-cache-view':
+            # Research-only until actual edited round trips prove the native
+            # cache. The ordinary view contract remains unchanged.
+            from .test_driver import guard
+            guard(backend, json.dumps({'test_token': request['test_token'], 'value': None}))
         if not socket_ready:
             raise ValueError('Occult view requires the exact fresh native CAS socket.')
         with _LOCK:
             original = _form_select_original(backend, sim_id, request['household_id'])
+            if request['operation'] == 'occult-cache-view':
+                key = (os.getpid(), original['save_guid'], sim_id)
+                stored = _OWNER_BASELINES.get(key, {})
+                expected = {'capture_id': original['capture_id'], 'owned_mask': request['owned_mask']}
+                if stored.get('cache_membership') != expected:
+                    raise ValueError('Experimental cache selection lacks the exact pre-entry actual membership capture.')
             peers = {token for token, peer in _PEERS.items() if peer['sim_id'] == sim_id and 0 <= clock()-peer['observed_at'] <= 3}
             prior = next((row for row in reversed(list(_RECORDS.values())) if row['state']=='completed' and
                 row.get('peer') in peers and row['sim_id']==sim_id and row.get('acknowledged_at') is not None and
@@ -930,7 +965,7 @@ def _receive(request_id, payload, backend=None):
         if data.get('ok'):
             client = data.get('client')
             validate_client(client, row['sim_id'], row['request'])
-            if row['request']['operation'] == 'occult-view':
+            if row['request']['operation'] in ('occult-view', 'occult-cache-view'):
                 original = row['occult_view_context']['original']
                 if _form_select_original(backend, row['sim_id'], row['request']['household_id']) != original:
                     raise ValueError('Original hybrid owner capture changed before occult view readback.')
@@ -1034,6 +1069,10 @@ def result(request_id):
             response.update(outcome='occult-view-selected' if row['state']=='completed' else row['state'],
                 selection_only_verified=row['state']=='completed' and row.get('occult_view_selection_verified') is True,
                 appearance_persistence_verified=False, mapping_verified=False)
+        if row['request']['operation'] == 'occult-cache-view':
+            response.update(outcome='experimental-cache-view-selected' if row['state']=='completed' else row['state'],
+                experimental=True, selection_only_verified=row['state']=='completed' and row.get('occult_view_selection_verified') is True,
+                appearance_persistence_verified=False, native_cache_retention_verified=False, mapping_verified=False)
         if row['request']['operation'] in ('form-select', 'layer-select'):
             response.update(outcome=('layer-selected' if row['request']['operation'] == 'layer-select' else 'form-selected') if row['state'] == 'completed' else row['state'],
                             selection_only_verified=row['state'] == 'completed', mapping_verified=False,

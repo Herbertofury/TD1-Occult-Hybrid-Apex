@@ -14,7 +14,7 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
@@ -22,6 +22,7 @@ PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'
 SCHEMAS = {
     'occults': {'operation'},
     'occult-view': {'operation', 'occult_type', 'expected_all_occults', 'household_id', 'native_session', 'expected_layer'},
+    'occult-cache-view': {'operation', 'occult_type', 'expected_all_occults', 'household_id', 'native_session', 'expected_layer', 'owned_mask', 'test_token'},
     'catalog': {'operation', 'panel', 'offset', 'limit'},
     'variants': {'operation', 'panel', 'data_id'},
     'preset': {'operation', 'panel', 'data_id'},
@@ -73,16 +74,24 @@ def wire(request, panel):
     category, index, value = 0, 0, ''
     if op == 'occults':
         return 0, 0, 0, ''
-    if op == 'occult-view':
+    if op in ('occult-view', 'occult-cache-view'):
         target = integer(request['occult_type'], 2, 2**30, 'existing occult appearance')
         if target & (target - 1):
             raise ValueError('Choose one existing native occult appearance.')
         mask = integer(request['expected_all_occults'], 1, 2**31-1, 'complete observed membership mask')
-        if mask & target != target:
+        if op == 'occult-view' and mask & target != target:
             raise ValueError('Native CAS has no observed membership for this view; this operation cannot add or replace a life state.')
         session = integer(request['native_session'], 1, 2**31-1, 'current native session')
         layer = integer(request['expected_layer'], 0, 1, 'currently observed layer')
-        return session, mask, target, identity(request['household_id']) + ',' + str(layer)
+        value = identity(request['household_id']) + ',' + str(layer)
+        if op == 'occult-cache-view':
+            owned = integer(request['owned_mask'], 1, 127, 'captured native membership mask')
+            token = request['test_token']
+            if (target not in (2, 4, 8, 16, 32, 64) or owned & target != target or mask & ~owned or
+                    not isinstance(token, str) or len(token) != 32 or any(c not in '0123456789abcdef' for c in token)):
+                raise ValueError('Cache qualification requires a captured existing occult and exact disposable token.')
+            value += ',' + str(owned)
+        return session, mask, target, value
     if op == 'voice-actor':
         return 0, 0, integer(request['actor_index'], 0, 2**31-1, 'zero-based eligible voice index'), ''
     if op == 'voice-pitch':
@@ -145,7 +154,7 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
-    if op in ('occults', 'occult-view'):
+    if op in ('occults', 'occult-view', 'occult-cache-view'):
         rows = control.get('occults')
         if (not isinstance(rows, list) or len(rows) > 32 or
                 any(not isinstance(row, dict) or type(row.get('occult_type')) is not int or
@@ -158,6 +167,13 @@ def validate(client, request):
                     native.get('occultType') != request['occult_type'] or
                     native.get('householdId') != request['household_id']):
                 raise PostconditionMismatch('Native CAS did not select the requested view with every previous occult membership intact.')
+        if op == 'occult-cache-view':
+            native = client.get('sim', {})
+            mask = native.get('allOccultTypes')
+            if (type(mask) is not int or mask not in (request['occult_type'], request['occult_type'] | 1) or
+                    native.get('occultType') != request['occult_type'] or
+                    native.get('householdId') != request['household_id']):
+                raise PostconditionMismatch('Experimental native cache selection did not reach its requested pair projection.')
     if op in ('voices', 'voice-actor', 'voice-pitch'):
         rows = control.get('voices')
         actor, pitch = client['sim'].get('voiceActor'), client['sim'].get('voicePitch')

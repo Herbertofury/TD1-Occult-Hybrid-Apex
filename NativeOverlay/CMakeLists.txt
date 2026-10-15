@@ -48,6 +48,7 @@ target_link_libraries(ApexPermissionCapture PRIVATE windowsapp d3d11 dxgi dwmapi
 if(BUILD_TESTING)
     add_executable(ApexNativeCasProbeTests Tests/NativeCasProbeTests.cpp)
     target_include_directories(ApexNativeCasProbeTests PRIVATE Source)
+    target_link_libraries(ApexNativeCasProbeTests PRIVATE ApexMinHook)
     target_compile_options(ApexNativeCasProbeTests PRIVATE /W4 /permissive- /EHsc /utf-8)
     add_test(NAME native-cas-code-probe COMMAND ApexNativeCasProbeTests)
     add_test(NAME native-ea-capture-empty-owner COMMAND ApexPermissionCapture 0 0 200 150 unused-invalid-ea.bmp)

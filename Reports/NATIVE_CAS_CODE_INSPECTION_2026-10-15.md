@@ -106,3 +106,69 @@ not implement a native CAS fix or establish production-save readiness.
 The V135 hosted run passes 2,137 offline tests, then correctly fails its stale
 canonical source inventory. The inventory must be regenerated from the final
 staged sources; no integrity check is disabled or weakened.
+
+## Controller conversion and native cache
+
+V139 reads only the fixed controller pointer reached independently by the
+two inspected callbacks. Four bounded pointer reads verify the same controller
+and read-only vtable before returning method code. No interface is invoked.
+The runtime receipt is
+`f182afa0c7a1010a6c049bfdb6f109f4d2ae0b5fcdb2b11b119cebb17f952e71`.
+Kind conversion and primary/alternate selection are separate methods.
+
+V140 follows decoded instruction boundaries with the already-bundled HDE64,
+including conditional paths across split unwind regions. Immediate bytes and
+unreachable instructions after a return do not become fabricated calls.
+The actual main-menu receipt captures 52,950 code bytes under the existing
+64 KiB limit, SHA-256
+`8ed87f34844bf8e4a752b08ef5477dd0e38f5e7194e49c440f509a0de3424720`.
+Its conversion helper saves the old pair into a keyed cache using a tree
+lookup/insertion and record assignment. That helper is **not a deletion
+routine**. This does not yet establish that conversion, subsequent edits or
+serialization retain every cached appearance or occult membership.
+
+V139 and V140 exit normally from the unloaded main menu, using one recorded
+background confirmation each. Both confirm-input acknowledgements are lost
+when the game exits; the requests remain retained and are not repeated.
+Independent process disappearance and complete save inventories confirm all
+20 save/backup files are unchanged.
+
+V141 adds a separate disposable-only `occult-cache-view` qualification path.
+It requires the exact profile token, a pre-entry actual-membership capture,
+existing target appearance owner, fresh paired observation and exact
+household/session/layer. It deliberately distinguishes native pair projection
+from persistent membership. Its selection ACK cannot certify cache retention,
+appearance persistence or production safety. Ordinary `occult-view` retains
+its stricter existing contract. The deletion warning is not suppressed.
+
+- [x] Compile the updated retained-bytecode CAS package without loosening its
+  native service inventory or original-body preservation checks.
+- [ ] Exercise actual Alien → Vampire → Alien with distinct alternate edits,
+  inspect raw returned owners before restoration, and verify all 40 owners.
+- [ ] Add the actual native CAS all-owned portrait/icon selector and additive
+  membership controls after the navigation path is qualified.
+- [ ] Prove ordinary/phone/MCCC CAS, save/cold reload and single-Sim/household
+  Tray/Gallery transfers before removing the corresponding deletion warning.
+
+V141 cold-load qualification compares all 40 native owners exactly with the
+retained baseline, receipt
+`b88baeb5b52964af4d451f7d7c43f52a3f9c5b004b8100522e8056868fa7bbde`.
+The first entry then correctly refuses before its native CAS command because
+all five records retain never-observed checkpoints from the now-closed V138
+process. It does not bypass or overwrite that gate.
+
+The new `cas-frontdoor-archive` recovery accepts the actual Source-authored
+entry receipt and a later read-only cold comparison. Every old raw stored and
+active owner must match exactly. Both observed processes and every game
+process must be closed, the normal save hash must match, and all captured
+transactions must remain in their never-observed state. It validates the
+complete household before changing metadata, retains a flushed full bank
+backup and all raw originals in history, then uses the existing cooperative
+atomic bank writer. It performs no Sim restoration or save and makes no CAS
+return or save/reload acceptance claim. Four recovery tests cover altered
+scope, mismatched owners/checkpoints/runtime, begun observation/writes and the
+complete atomic backup/archive round trip.
+
+Actual recovery passes for all five V138 records. The complete bank's stored
+appearances and all save/backup files remain unchanged. New bank hash:
+`65f034a4063e1bb7df9029a72b1fa9e191ffcc08d6b709a36c77727e232ade9a`.

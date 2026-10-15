@@ -5,6 +5,16 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V139/V140 resolve and inspect the actual native conversion controller and
+its keyed occult cache without calling it or modifying game memory. V141 adds
+a separate disposable-token-gated cache-navigation qualification path, with
+actual pre-entry membership authority and no appearance-retention claim.
+The literal native CAS all-owned portrait selector, additive memberships,
+cross-route edits and whole-household Tray round trip remain release gates.
+The deletion warning must be removed only after its underlying destructive
+behavior is demonstrably fixed; the permanent guard remains enabled.
+See the updated native inspection ledger below.
+
 V136/V137's explicit read-only diagnostic works in the actual main-menu process,
 finds seven live CAS service references and returns 17 bounded code regions;
 it requires no household or foreground handoff. The selector takes a Boolean

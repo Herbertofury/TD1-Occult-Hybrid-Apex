@@ -18,6 +18,23 @@ inline std::string OwnImageRead(HMODULE module,std::uint32_t rva,std::size_t cou
         bytes.data(),count,&read) || read!=count) throw std::runtime_error("Exact own-image code span is unreadable.");
     return bytes;
 }
+inline std::uint64_t OwnControllerPointer(std::uintptr_t address) {
+    // One typed pointer only. Never accept an address from the exported API,
+    // invoke the interface, enumerate the heap or change memory protection.
+    if(address<0x10000 || address>0x00007ffffffffff7ULL || address%8)
+        throw std::runtime_error("Native controller pointer is not a readable aligned user pointer.");
+    MEMORY_BASIC_INFORMATION region{};
+    if(VirtualQuery(reinterpret_cast<const void*>(address),&region,sizeof(region))!=sizeof(region) ||
+        region.State!=MEM_COMMIT || (region.Protect&(PAGE_GUARD|PAGE_NOACCESS)) ||
+        address<reinterpret_cast<std::uintptr_t>(region.BaseAddress) ||
+        address-reinterpret_cast<std::uintptr_t>(region.BaseAddress)>region.RegionSize ||
+        region.RegionSize-(address-reinterpret_cast<std::uintptr_t>(region.BaseAddress))<8)
+        throw std::runtime_error("Native controller pointer is unavailable in committed memory.");
+    std::uint64_t value=0;SIZE_T read=0;
+    if(!ReadProcessMemory(GetCurrentProcess(),reinterpret_cast<const void*>(address),&value,sizeof(value),&read) || read!=sizeof(value))
+        throw std::runtime_error("Native controller pointer changed or became unreadable.");
+    return value;
+}
 inline ui::Json Inspect() {
     const auto module=GetModuleHandleW(nullptr);
     wchar_t filename[32768]={};
@@ -52,12 +69,13 @@ inline ui::Json Inspect() {
     const auto table=static_cast<std::size_t>(dos.e_lfanew)+offsetof(IMAGE_NT_HEADERS64,OptionalHeader)+nt.FileHeader.SizeOfOptionalHeader;
     if(table>disk.size() || nt.FileHeader.NumberOfSections>(disk.size()-table)/sizeof(IMAGE_SECTION_HEADER))
         throw std::runtime_error("Own section table is truncated.");
-    IMAGE_SECTION_HEADER text{},data{},unwind{};unsigned textCount=0,dataCount=0,unwindCount=0;
+    IMAGE_SECTION_HEADER text{},data{},writable{},unwind{};unsigned textCount=0,dataCount=0,writableCount=0,unwindCount=0;
     for(unsigned i=0;i<nt.FileHeader.NumberOfSections;++i) {
         IMAGE_SECTION_HEADER section{};std::memcpy(&section,disk.data()+table+i*sizeof(section),sizeof(section));
         const std::string name(reinterpret_cast<const char*>(section.Name),strnlen_s(reinterpret_cast<const char*>(section.Name),8));
         if(name==".text") {text=section;++textCount;}
         if(name==".rdata") {data=section;++dataCount;}
+        if(name==".data") {writable=section;++writableCount;}
         if(name==".pdata") {unwind=section;++unwindCount;}
     }
     if(textCount!=1 || dataCount!=1 || !(text.Characteristics&IMAGE_SCN_MEM_EXECUTE) ||
@@ -89,6 +107,41 @@ inline ui::Json Inspect() {
     disk.clear();disk.shrink_to_fit();stream.close();
     const auto code=OwnImageRead(module,text.VirtualAddress,text.Misc.VirtualSize);
     const auto constants=OwnImageRead(module,data.VirtualAddress,data.Misc.VirtualSize);
+    ui::Json controller={{"available",false},{"pointer_reads",0},{"interface_called",false},
+        {"game_memory_written",false},{"methods",ui::Json::array()}};
+    std::set<std::uint32_t> controllerMethods;
+    try {
+        constexpr std::uint32_t global=0x2948f00;
+        // Two independently decoded registration callbacks reach this same
+        // controller. Refuse drift before inspecting its typed vtable.
+        if(RipLoadTarget(code,text.VirtualAddress,0x2096f8)!=global ||
+           RipLoadTarget(code,text.VirtualAddress,0x208a42)!=global || writableCount!=1 ||
+           !(writable.Characteristics&IMAGE_SCN_MEM_WRITE) || (writable.Characteristics&IMAGE_SCN_MEM_EXECUTE))
+            throw std::runtime_error("Native CAS controller references differ from the inspected callbacks.");
+        const auto base=reinterpret_cast<std::uintptr_t>(module);
+        SectionPointer(base+global,base,writable.VirtualAddress,writable.Misc.VirtualSize,8);
+        auto pointer=[&](std::uintptr_t address) {
+            controller["pointer_reads"]=controller["pointer_reads"].get<unsigned>()+1;
+            return OwnControllerPointer(address);
+        };
+        const auto object=pointer(base+global);
+        if(!object) throw std::runtime_error("Native CAS controller is not initialized in this game state.");
+        const auto vtable=pointer(object);
+        const auto tableRva=SectionPointer(vtable,base,data.VirtualAddress,data.Misc.VirtualSize,0x1e8);
+        ui::Json methods=ui::Json::array();
+        for(const auto slot:{0x128u,0x1e0u}) {
+            std::uint64_t target=0;std::memcpy(&target,constants.data()+tableRva-data.VirtualAddress+slot,8);
+            const auto rva=SectionPointer(target,base,text.VirtualAddress,text.Misc.VirtualSize,1);
+            if(!findFunction(rva)) throw std::runtime_error("Native controller method lacks its pinned unwind entry.");
+            methods.push_back({{"name",slot==0x128?"set-occult-kind":"select-primary-alternate"},
+                {"slot",slot},{"target_rva",rva}});
+        }
+        if(pointer(base+global)!=object || pointer(object)!=vtable ||
+           OwnImageRead(module,tableRva,0x1e8)!=constants.substr(tableRva-data.VirtualAddress,0x1e8))
+            throw std::runtime_error("Native CAS controller identity changed during inspection.");
+        controller.update({{"available",true},{"global_rva",global},{"vtable_rva",tableRva},{"methods",methods}});
+        for(const auto& method:methods) controllerMethods.insert(method.at("target_rva").get<std::uint32_t>());
+    } catch(const std::exception& error) {controller["reason"]=error.what();}
     ui::Json rows=ui::Json::array();std::set<std::uint32_t> callbacks;
     for(const auto* name:{"SetSimOccult","CasGetAvailableOccults","CasSelectOccultForm","CasCreateSimOccultForm",
             "CasRemoveSimOccultForm","CasSyncSimOccultForm","CasEnableAutoSyncOccultForm",
@@ -119,32 +172,39 @@ inline ui::Json Inspect() {
     if(memoryHash.size()!=64) throw std::runtime_error("Runtime code fingerprint is unavailable.");
     ui::Json snapshots=ui::Json::array(),contexts=ui::Json::array();std::deque<std::pair<std::uint32_t,unsigned>> pending;
     std::set<std::uint32_t> seen;std::size_t captured=0;
-    for(const auto callback:callbacks) {
-        pending.push_back({callback,0});
-        if(captured>=49152) continue;
+    std::vector<std::uint32_t> roots(controllerMethods.begin(),controllerMethods.end());
+    for(const auto callback:callbacks) if(!controllerMethods.count(callback)) roots.push_back(callback);
+    std::set<std::uint32_t> contextSeen;
+    auto captureContext=[&](std::uint32_t callback,bool root) {
+        if(captured>=49152 || !contextSeen.insert(callback).second) return;
         const auto offset=static_cast<std::size_t>(callback-text.VirtualAddress);
-        const auto count=std::min<std::size_t>({4096,code.size()-offset,49152-captured});
+        const auto count=std::min<std::size_t>({root?4096u:2048u,code.size()-offset,49152-captured});
         const auto body=code.substr(offset,count);captured+=count;
         contexts.push_back({{"callback_rva",callback},{"captured_bytes",count},{"code_sha256",resource::HashBytes(body)},
-            {"code_hex",HexBytes(body)},{"scope","bounded-registered-callback-code-context"},
+            {"code_hex",HexBytes(body)},{"scope",controllerMethods.count(callback)?"bounded-controller-method-code-context":
+                callbacks.count(callback)?"bounded-registered-callback-code-context":"bounded-decoded-callee-code-context"},
             {"semantic_function_complete",false},{"adjacent_code_may_be_included",true}});
+    };
+    for(const auto callback:roots) {
+        pending.push_back({callback,0});
+        captureContext(callback,true);
     }
     while(!pending.empty() && snapshots.size()<32 && captured<65536) {
         const auto item=pending.front();pending.pop_front();
         if(!seen.insert(item.first).second) continue;
         const auto* function=findFunction(item.first);if(!function) continue;
+        if(item.second) captureContext(item.first,false);
         const auto count=std::min<std::size_t>({function->end-function->begin,4096,65536-captured});
         if(!count) break;
         const auto body=code.substr(function->begin-text.VirtualAddress,count);captured+=count;
         ui::Json branches=ui::Json::array();
-        for(std::size_t offset=0;offset+5<=body.size() && branches.size()<16;++offset) {
-            const auto opcode=static_cast<unsigned char>(body[offset]);if(opcode!=0xe8 && opcode!=0xe9) continue;
-            std::int32_t displacement=0;std::memcpy(&displacement,body.data()+offset+1,4);
-            const auto destination=static_cast<std::int64_t>(function->begin)+static_cast<std::int64_t>(offset)+5+displacement;
-            if(destination<text.VirtualAddress || destination>=text.VirtualAddress+text.Misc.VirtualSize) continue;
-            const auto target=static_cast<std::uint32_t>(destination);if(!findFunction(target) || target==function->begin) continue;
-            branches.push_back({{"instruction_rva",function->begin+offset},{"target_rva",target},
-                {"kind",opcode==0xe8?"direct-call-candidate":"direct-jump-candidate"},{"instruction_boundary_verified",false}});
+        const auto graphBytes=std::min<std::size_t>(4096,code.size()-(function->begin-text.VirtualAddress));
+        for(const auto& edge:CodeEdges(code.substr(function->begin-text.VirtualAddress,graphBytes),function->begin)) {
+            const auto target=edge.target;
+            if(!findFunction(target) || target==function->begin) continue;
+            branches.push_back({{"instruction_rva",edge.instruction},{"target_rva",target},
+                {"kind",edge.call?"decoded-direct-call":"decoded-direct-jump"},{"instruction_boundary_verified",true},
+                {"decoder","hde64"},{"scope","bounded-control-flow-context"}});
             if(item.second<2 && pending.size()<128) pending.push_back({target,item.second+1});
         }
         snapshots.push_back({{"begin_rva",function->begin},{"end_rva",function->end},{"captured_bytes",count},
@@ -155,7 +215,7 @@ inline ui::Json Inspect() {
     return {{"schema",1},{"ok",true},{"pid",GetCurrentProcessId()},{"exe_sha256",hash},
         {"image_size",nt.OptionalHeader.SizeOfImage},{"text_rva",text.VirtualAddress},{"text_bytes",code.size()},
         {"disk_text_sha256",diskCodeHash},{"runtime_text_sha256",memoryHash},{"runtime_text_matches_disk",memoryHash==diskCodeHash},
-        {"services",rows},{"function_snapshots",snapshots},{"callback_contexts",contexts},{"code_snapshot_bytes",captured},
+        {"services",rows},{"controller",controller},{"function_snapshots",snapshots},{"callback_contexts",contexts},{"code_snapshot_bytes",captured},
         {"callback_roots",callbacks},{"own_process_only",true},{"read_only",true},{"game_memory_written",false},
         {"game_files_written",false},{"memory_dump_written",false},{"native_patch_qualified",false}};
 }

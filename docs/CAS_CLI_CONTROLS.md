@@ -1,5 +1,14 @@
 # Native CAS CLI controls
 
+V141 also has a research-only `occult-cache-view` command. Use the same exact
+session/layer/view-mask arguments as `occult-view`, plus `--owned-mask` from
+the actual pre-entry membership capture. The CLI obtains the marked disposable
+token from its journal; normal profiles cannot authorize this operation.
+The server checks that membership and the target's existing owner before
+delivery. A successful pair-projection acknowledgement **does not** verify
+retention, edits, save/reload or release readiness. Never repeat an unresolved
+conversion UUID. This experimental path does not relax `occult-view`.
+
 V135 adds complete-membership entry preparation; V134 added typed native
 `occults` and `occult-view` controls. These extend the mod toward all owned
 occults in one native CAS visit. The actual V134 visit still reported only

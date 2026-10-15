@@ -552,3 +552,31 @@ comparisons found no differences:
 `8cd3b466ada6778afb94fc990d658b6ffd88536d4ee816ed630aa48183012a07`,
 and `native-cas-v120-vampire-back-to-edited-mermaid.json`, SHA-256
 `c51e138027e47e4f00a704cf598085d885d0477d3041493b1367ca679dba046f`.
+
+V120 next edited **two different companions in one full-CAS visit**. Native
+selection independently verified Werewolf `32`, alternate layer 1 on
+`349336084686110946`, and Fairy `64`, alternate layer 1 on
+`450667075246031054`. Six controls passed on each: head skin details, earrings,
+lipstick, clothing, fingernails and necklace. A native backbuffer capture also
+shows the actual EA Werewolf body/head in the full editor. The fur panel offered
+no different item and is not counted. Fairy wings refused before mutation when
+EA's color-variant getter omitted the base body type; that refusal is retained.
+
+The native return advanced **1,707 actual ticks** and paused. All five appearance
+and availability commits passed, accepting only those two alternate owners.
+The independent all-40 check found changes only to their outfits/genetics and
+active copies, with **36 unselected owners exact**, including the earlier
+Mermaid edits. Proof `native-cas-v120-after-two-form-commit-all40.json`, SHA-256
+`544ce7856212a0ff53378aa55d4cc986642cc964a9059865b1977e6db5d22bad`.
+Five-member commit proof `native-cas-v120-two-alternates-household-commit.json`,
+SHA-256 `1e8e93f56960927f4b20f287eee285ac06edf469627e5b007323715735417a11`.
+
+V121 binds an explicit wing base and color using the inspected native clothing
+contract. It validates the typed base in the current wing catalog and the exact
+swatch in that base's family before sending EA's two-ID payload; base-only
+readback cannot satisfy the requested color. The native bytecode audit and
+**2,028 full-suite tests** pass (484.602 seconds). Candidate SHA-256
+`903b7a34d0f3e9b24ee6544f16f80b818d4a7be6898f30199822248b8c7e94dd`.
+It is built but not installed while the V120 game remains open. Wing runtime
+qualification, the retained CC preset mismatch and broader production gates
+remain open.

@@ -359,6 +359,7 @@ def parser():
     cas.add_argument('--category', type=int)
     cas.add_argument('--index', type=int, help='Zero-based existing outfit number')
     cas.add_argument('--data-id', help='Exact decimal native CAS catalog data identity')
+    cas.add_argument('--base-data-id', help='Exact returned wing base bound to its selected color data ID')
     cas.add_argument('--offset', type=int, default=0, help='Catalog page offset; every page remains accessible')
     cas.add_argument('--limit', type=int, default=8, help='Items per transport packet, 1-32')
     cas.add_argument('--body-type', type=int, help='Exact body type returned by the native catalog')

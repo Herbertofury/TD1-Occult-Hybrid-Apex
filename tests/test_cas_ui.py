@@ -98,6 +98,28 @@ class CasUiTests(unittest.TestCase):
         client['selected'] = [{'dataID':'18446744073709551615', 'newPackField': {'raw': 'preserved'}}]
         cas_ui.validate_client(client, '12', {'operation':'select', 'panel':'hair', 'data_id':'18446744073709551615'})
 
+    def test_wing_base_and_color_keep_exact_distinct_uint64_identities_on_wire(self):
+        request={'operation':'select','panel':'clothing_body_wings',
+                 'base_data_id':'18446744073709551614','data_id':'18446744073709551615'}
+        _rid,wire=cas_ui.envelope('12',request)
+        self.assertEqual(wire.split('|')[-1],'18446744073709551614,18446744073709551615')
+        self.assertEqual(wire.split('|')[3],str(cas_ui.PANELS['clothing_body_wings']))
+
+    def test_wing_binding_refuses_other_panels_noncanonical_ids_and_extra_fields(self):
+        request={'operation':'select','panel':'clothing_body_wings','base_data_id':'466503','data_id':'466504'}
+        for change in ({'panel':'clothing_hair'},{'base_data_id':466503},{'base_data_id':'0466503'},
+                       {'base_data_id':'466503,466504'},{'data_id':'466504|undo'},{'unknown':'value'}):
+            with self.subTest(change=change),self.assertRaises(ValueError):
+                cas_ui.envelope('12',dict(request,**change))
+
+    def test_wing_base_match_alone_cannot_certify_its_requested_color(self):
+        request={'operation':'select','panel':'clothing_body_wings','base_data_id':'466503','data_id':'466504'}
+        client=self.client('12');client['menu_state']=cas_ui.PANELS['clothing_body_wings']
+        client['selected']=[{'dataID':'466503'}]
+        with self.assertRaisesRegex(ValueError,'selected item'):cas_ui.validate_client(client,'12',request)
+        client['selected']=[{'dataID':'466504'}]
+        cas_ui.validate_client(client,'12',request)
+
     def test_every_snapshot_requires_the_same_base_fields_as_f11(self):
         for operation in ('status', 'undo', 'redo'):
             for name, value in (('outfit', None), ('outfit', {'outfit_type':0,'outfit_index':5}),

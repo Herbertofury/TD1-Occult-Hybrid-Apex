@@ -1270,7 +1270,30 @@
                if(!(this.mCurrentPanel is ClothingPanel) && !((this.mCurrentPanel is FaceModPanel) &&
                   (state==MenuState.PROFILE_HAIR_EYEBROWS || state==MenuState.PROFILE_PET_WHISKERS)) || state==MenuState.CLOTHING_LOOKS)
                   throw new Error("Use the native preset, swatch or featured-look contract for this panel");
-               var product:Object=CommunicationManager.CallGameService("GetCatalogItem",value);
+               var selectionBase:String="";
+               if(value.indexOf(",")>=0) {
+                  if(state!=MenuState.CLOTHING_BODY_WINGS ||
+                     !new RegExp("^[1-9][0-9]{0,19},[1-9][0-9]{0,19}$").test(value))
+                     throw new Error("Explicit base/color selection requires one exact native wing pair");
+                  var selectionIds:Array=value.split(",");
+                  selectionBase=String(selectionIds[0]); value=String(selectionIds[1]);
+                  apexPendingContext.selection_variant_id=value;
+                  apexPendingContext.selection_base_id=selectionBase;
+               }
+               var product:Object=null;
+               var available:Array=null;
+               if(selectionBase!="") {
+                  // Wing color records can omit body_type. Bind the requested
+                  // variant to its exact typed base from this visible catalog.
+                  available=ApexCatalog(state);
+                  var baseMatches:int=0;
+                  for each(var baseProduct:Object in available)
+                     if(baseProduct && String(baseProduct.data_id)==selectionBase &&
+                        ("body_type" in baseProduct) && int(baseProduct.body_type)==CASBodyType.WINGS) {
+                        product=ApexClone(baseProduct); baseMatches++;
+                     }
+                  if(baseMatches!=1) throw new Error("Native wing base is absent or ambiguous; no item changed");
+               } else product=CommunicationManager.CallGameService("GetCatalogItem",value);
                if(!product) {
                   var products:Array=CommunicationManager.CallGameService("GetCatalogVariantItems",value) as Array;
                   if(products) for each(var variantProduct:Object in products)
@@ -1287,7 +1310,7 @@
                if(!("body_type" in product) || int(product.body_type)!=expectedBodyType)
                   throw new Error("Native catalog item's body type differs from the requested panel; no item changed");
                if(expectedBodyType<=0) throw new Error("Native catalog item has no typed body identity");
-               var available:Array=ApexCatalog(state);
+               if(available==null) available=ApexCatalog(state);
                var belongs:Boolean=false;
                for each(var availableProduct:Object in available)
                   if(availableProduct && String(availableProduct.data_id)==String(product.data_id) &&
@@ -1322,7 +1345,7 @@
                // palette operation after the selected part has settled.
                var facePart:Boolean=state==MenuState.PROFILE_HAIR_EYEBROWS || state==MenuState.PROFILE_PET_WHISKERS;
                var faceBase:String=String(product.data_id);
-               product=null; products=null; variantProduct=null; available=null; availableProduct=null;
+               product=null; products=null; variantProduct=null; available=null; availableProduct=null; baseProduct=null;
                family=null; exactVariant=null; variant=null;
                reply.mutation_started=true;
                CommunicationManager.CallGameService("SetCatalogSlotSelected",facePart ? faceBase : exactModifiers);
@@ -1510,6 +1533,7 @@
                   if(operation=="outfit-add") reply.client.outfit_created={before_count:int(context.before_count),after_count:int(context.after_count)};
                }
                if(operation=="select") {
+                  if(context.selection_variant_id is String) value=String(context.selection_variant_id);
                   var selected:Array=reply.client.selected as Array;
                   var matched:Boolean=false;
                   if(selected) for each(var selectedItem:Object in selected)

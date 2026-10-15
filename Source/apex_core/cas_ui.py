@@ -695,7 +695,9 @@ def envelope(sim_id, request):
         'form-select': {'operation', 'household_id', 'expected_layer', 'form_flags', 'native_session'},
         'layer-select': {'operation', 'household_id', 'expected_layer', 'target_layer', 'native_session'},
         'member-select': {'operation','household_id','expected_layer','native_session','target_sim_id'}}
-    if op not in allowed or set(request) != allowed[op]: raise ValueError('Unsupported or incomplete CAS request.')
+    optional_base = op == 'select' and 'base_data_id' in request
+    expected = allowed.get(op, set()) | ({'base_data_id'} if optional_base else set())
+    if op not in allowed or set(request) != expected: raise ValueError('Unsupported or incomplete CAS request.')
     state = panel(request['panel']) if 'panel' in request else 0
     if op == 'select':
         name = ALIASES.get(request['panel'], request['panel'])
@@ -734,6 +736,11 @@ def envelope(sim_id, request):
         raise ValueError('Only installed native CAS outfit categories may be appended.')
     if op in ('select', 'hair-swatch') and (not isinstance(value, str) or not value.isdigit() or not 0 < int(value) < 2 ** 64):
         raise ValueError('Native CAS data_id must be an exact decimal resource identity.')
+    if optional_base:
+        if request['panel'] != 'clothing_body_wings':
+            raise ValueError('Explicit base/color binding is supported only by the inspected native wing contract.')
+        _owner_id(request['base_data_id']); _owner_id(value)
+        value = request['base_data_id'] + ',' + value
     request_id = uuid.uuid4().hex
     wire = '|'.join(map(str, (request_id, sim_id, op, state, category, index, value)))
     if len(wire) > 512 or any(not 32 <= ord(c) <= 126 for c in wire): raise ValueError('CAS envelope exceeds its limit.')

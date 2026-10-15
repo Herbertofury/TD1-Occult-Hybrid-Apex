@@ -263,8 +263,12 @@ def _run(state, output, identity, request, sim_id, edit=False, panels=None, step
                               isinstance(row.get('dataID'), str) and decimal_id(row['dataID']) and row['dataID'] not in equipped]
                 if not identities:
                     item['outcome'] = 'no-different-native-variant'; record(); continue
+                chosen_base = chosen
                 chosen = identities[0]
-                applied = control('select', panel=name, data_id=chosen)
+                selection = dict(panel=name, data_id=chosen)
+                if name == 'clothing_body_wings':
+                    selection['base_data_id'] = chosen_base
+                applied = control('select', **selection)
             item.update(edit_verified_in_cas=True, selected_data_id=chosen, outcome='native-edit-acknowledged',
                         cas_request_id=applied['cas_request_id']); record()
         proof.update(ok=True, outcome='completed-discovery-and-scoped-edits',

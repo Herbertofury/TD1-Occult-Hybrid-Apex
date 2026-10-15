@@ -36,10 +36,23 @@ destination. Use explicit per-member/per-form decisions when returning to Live.
 
 CAS status, submission and result polling share one bounded CLI inventory
 lease. The batch first verifies all installed artifact hashes. Each subsequent
-request checks the journal and every Mod file's identity, size, write time and
-NTFS ChangeTime; any change stops the batch. This avoids hashing the 1.1 GB
+request checks the journal and artifact identity, size, write time, NTFS
+ChangeTime and USN (or content hash when unavailable). The two recognized MCCC
+diagnostic logs may update/rotate; settings, pinned artifacts, unknown files and
+replaced directories still stop the batch. This avoids hashing the 1.1 GB
 slider/preset setup between a fresh status receipt and its three-second
 navigation deadline. Separate commands start new full verifications.
+
+V121 adds an explicit base/color binding for native Fairy wings. Obtain the
+base from `cas catalog --panel clothing_body_wings` and its exact color ID from
+`cas variants`. Use `cas select --panel clothing_body_wings --base-data-id BASE
+--data-id COLOR` with the same selected Sim. The native wing color getter may
+return a partial record without body type. The command therefore checks the
+typed base in the visible wing catalog, requires exactly one matching color in
+that base's family, and sends EA's `{data_id: BASE, color_data_id: COLOR}` shape.
+A base match alone cannot certify the requested color. Invalid, ambiguous or
+foreign bindings stop before mutation. This fixes a concrete V120 pre-mutation
+refusal; V121 actual wing selection still requires runtime qualification.
 
 V40 makes plain `game capture --background` independent of F11 initialization,
 visibility and gameplay/CAS diagnostics. It reads the selected native game's

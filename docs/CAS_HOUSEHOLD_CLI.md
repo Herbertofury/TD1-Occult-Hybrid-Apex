@@ -37,6 +37,14 @@ submission. An uncertain operation stops the sequence. Poll its original UUID
 instead of rerunning the command. A partially completed household commit is
 not an atomic household transaction and is not automatically replayed.
 
+For the specific host error certifying that no request was sent, a retained
+partial commit can continue with `--resume-proof PRIOR_JSON --resume-sha256 SHA`
+alongside the same original entry hash and explicit accepted Sim/form choices.
+The CLI revalidates every member, retained observation, plan, completed native
+receipt and runtime identity before new writes. Completed steps are not repeated.
+A submitted UUID with unknown completion cannot use this path; poll that UUID
+without replay instead. The original partial proof is retained unchanged.
+
 After commit, capture every member, unpause, verify actual
 `services.time_service().sim_now` progress, pause, and compare all stored plus
 active appearances. Save and cold-load checks remain separate. Empty or

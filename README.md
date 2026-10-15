@@ -23,7 +23,11 @@ companion Alien CAS edits through Alien → Vampire → Alien, 5,267 actual tick
 and a normal save, with all 38 unselected owners unchanged. The eyebrow color
 request still fails exact readback. V120 fixes selective genetics/voice copying;
 the complete local suite passes **2,021 tests**. Its new color and selective
-paste behavior still require actual-game qualification. Direct native UI entry,
+paste behavior now passes actual-game copying and Undo on an inactive companion
+Vampire. A companion's actual Mermaid alternate also retains 12 acknowledged
+full-CAS controls through explicit household commit and Mermaid → Vampire →
+Mermaid, with all 38 unselected owners exact. One copied CC nose preset fails
+native selection readback and remains open. Direct native UI entry,
 all MCCC routes, remaining form-specific edits and broader production-save
 qualification remain open.
 See [current household evidence](Reports/HOUSEHOLD_CAS_2026-10-14.md) and

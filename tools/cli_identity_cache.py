@@ -1,4 +1,4 @@
-"""Bounded command-batch inventory lease; every changed file invalidates it."""
+"""Bounded artifact lease; known runtime logs are not executable authority."""
 from contextlib import contextmanager
 import hashlib
 import os
@@ -9,6 +9,7 @@ from functools import wraps
 import reusable_profile
 
 _LOCAL = threading.local()
+_RUNTIME_LOGS = frozenset(('mccc/mc_cmd_center.log', 'mccc/mc_lastexception.html'))
 
 
 def scoped(function):
@@ -86,13 +87,28 @@ def stamp(state):
                         getattr(profile_data, 'st_file_attributes', 0))
     rows = [('journal',identity(state),hashlib.sha256(state.read_bytes()).hexdigest()),
             ('profile',str(profile),profile_identity),('original-path',str(original)),('token',journal['token'])]
+    pinned = {str(row.get('relative', '')).replace('\\', '/').casefold()
+              for row in journal.get('artifacts', [])}
     mods = profile / 'Mods'
+    def entry(path):
+        data = path.lstat()
+        if path.is_symlink() or getattr(data, 'st_file_attributes', 0) & 0x400:
+            raise ValueError('A profile lease cannot follow links or reparse points.')
+        relative = str(path.relative_to(mods)).replace('\\', '/').casefold()
+        if relative in _RUNTIME_LOGS and relative not in pinned:
+            if not path.is_file():
+                raise ValueError('Known MCCC runtime log is not an ordinary file.')
+            return  # Content/rotation of these two diagnostic files is expected.
+        # Directory writes are not executable content. All children are still
+        # enumerated; additions/removals and replaced directories remain gated.
+        value = ((data.st_dev, data.st_ino, getattr(data, 'st_file_attributes', 0))
+                 if path.is_dir() else identity(path))
+        rows.append((str(path.relative_to(profile)), value))
     for root, dirs, files in os.walk(mods, followlinks=False):
         root = Path(root)
-        rows.append((str(root.relative_to(profile)),identity(root)))
+        entry(root)
         for name in sorted(dirs + files):
-            path = root / name
-            rows.append((str(path.relative_to(profile)),identity(path)))
+            entry(root / name)
     return tuple(sorted(rows,key=lambda row:row[0]))
 
 

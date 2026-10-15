@@ -508,3 +508,47 @@ mirror. Both detached previews changed no real Sim, and both Undo operations
 restored every owner after another unpause. No save was submitted. Proof
 `native-cas-v120-selective-genetics-voice-runtime.json`, SHA-256
 `f474bf14ebe562c84973be15c9896ffe48841f58be5830adfa4947ede41bfe16`.
+
+The same companion then entered ordinary native full CAS. The CLI selected the
+**actual Mermaid alternate layer** (`occultType=8`, `occultLayer=1`), rather than
+editing its Human appearance. Head skin details, earrings, lipstick, clothing,
+finger/toenails, necklaces, rings, eyeshadow and eyeliner passed native readback.
+The rebuilt eyebrow widget applied the current form's exact palette ID `273248`;
+both pre/post snapshot probes and the palette getter retained that value. Its
+old `320731` ID was absent from this form's palette and was refused without
+mutation. An EA nose preset (`8191`, native index 224) also passed. The copied
+`[NORTHERN SIBERIA WINDS] FEMALE NOSE PRESET N28.package` preset returned index -1
+instead of its selected index; that CC preset remains an explicit failed
+verification, not a qualified edit or an established corrupt package.
+
+The native return advanced **751 actual ticks** and paused. All five members
+completed explicit appearance/context commits, accepting only
+`349336084686110947:8`. Independent comparison found changes only in the Mermaid
+owner and its active appearance (`__outfits__`, `facial_attributes`,
+`genetic_data`); the other **38 owners stayed exact**. No save was submitted.
+Proofs:
+
+- Actual alternate selection: `native-cas-v120-mermaid-alternate-selected.json`,
+  SHA-256 `66478441babfb37855ed869ea8066a7fea4d249993fc7c4c573d100268ac7ef4`.
+- Exact eyebrow readback: `native-cas-v120-mermaid-eyebrow-native-black.json`,
+  SHA-256 `daf8c9a02d451e318eb7892a558204bec4207150db2597f7e2d94d135d4c9427`.
+- Five-member commit: `native-cas-v120-mermaid-household-commit.json`, SHA-256
+  `a4e56323be7c950659e794a21580404f6e3305c22350d97f0165809c0a946c16`.
+- Independent all-40 check: `native-cas-v120-after-mermaid-commit-all40.json`,
+  SHA-256 `52c6dd42d0d1d11c5e4ce1221d84f5b7766d628a1e5a1e575b0d2562cc5258db`.
+
+An expected MCCC diagnostic-log write interrupted one category batch before its
+next native selection. The host lease now excludes only the two known MCCC
+diagnostic logs' contents/rotation, still rejecting links, directories in their
+place, pinned artifacts, changed settings and unknown files. Directory physical
+identity and every child artifact remain checked. All 14 lease tests, six
+household-resume tests and 13 workbench tests pass. The remaining category batch
+then completed in the existing session, without a restart.
+
+The accepted Mermaid edits then passed actual Mermaid → Vampire → Mermaid
+switching with **5,777 simulation ticks**. Both independent all-household
+comparisons found no differences:
+`native-cas-v120-edited-mermaid-to-vampire.json`, SHA-256
+`8cd3b466ada6778afb94fc990d658b6ffd88536d4ee816ed630aa48183012a07`,
+and `native-cas-v120-vampire-back-to-edited-mermaid.json`, SHA-256
+`c51e138027e47e4f00a704cf598085d885d0477d3041493b1367ca679dba046f`.

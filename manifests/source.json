@@ -5,12 +5,6 @@
   "source_encoding": "canonical-git-index-blobs",
   "source_files": [
     {
-      "bytes": 42663,
-      "mode": "100644",
-      "path": "README.md",
-      "sha256": "7ec2d378cef74532464247bafea7087caf137a0a034f1b25cca8c71b314222af"
-    },
-    {
       "bytes": 4370,
       "mode": "100644",
       "path": "PreviewWorker/ApexClip.cs",
@@ -161,6 +155,12 @@
       "sha256": "d860e5240b3a7e2732f134c46504103777fa22f66673d682253cb4da385feef1"
     },
     {
+      "bytes": 42966,
+      "mode": "100644",
+      "path": "README.md",
+      "sha256": "613cb4da24d3b24ac294a4e20f58d9e38308453c0d9e08d9b64d7386f4cd7df4"
+    },
+    {
       "bytes": 12173,
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/imconfig.h",
@@ -227,12 +227,6 @@
       "sha256": "73cc0b72baa7a3525ad91fb26f5e86e10b1dca32b46199e9854e374e1963fde7"
     },
     {
-      "bytes": 31596,
-      "mode": "100644",
-      "path": "Reports/HOUSEHOLD_CAS_2026-10-14.md",
-      "sha256": "76925646b00b0823ea3a9056dd59f5b1920f98b6724fa272cbe9b0067136d126"
-    },
-    {
       "bytes": 3405,
       "mode": "100644",
       "path": "tests/test_load_record_immutability.py",
@@ -249,6 +243,12 @@
       "mode": "100644",
       "path": "tests/test_studio.py",
       "sha256": "0f30634716b717bc206de00c4382a1c143491f833614101f19cd9c7225e80765"
+    },
+    {
+      "bytes": 34436,
+      "mode": "100644",
+      "path": "Reports/HOUSEHOLD_CAS_2026-10-14.md",
+      "sha256": "72da2850fa30437191425e9ad10583fe038d90a867b74d4cf1603f27a4b6c740"
     },
     {
       "bytes": 2327,
@@ -297,12 +297,6 @@
       "mode": "100644",
       "path": "wiki/Home.md",
       "sha256": "8bb453d00379fb29e7455e267af04dca41199c7e31131e3aeb84dfa0457c22f6"
-    },
-    {
-      "bytes": 6480,
-      "mode": "100644",
-      "path": "tools/cli_identity_cache.py",
-      "sha256": "4913cb7ac8054ce7ca2015171f3705582b967c7d96090d7d581dc171ba50da62"
     },
     {
       "bytes": 329453,
@@ -1049,6 +1043,12 @@
       "sha256": "18722f8b1acca1ea969c22c8982ae8ef7be3c7bb32685bbd84955a6a9a1b6e8c"
     },
     {
+      "bytes": 7486,
+      "mode": "100644",
+      "path": "tools/cli_identity_cache.py",
+      "sha256": "bfbe0507d2af5234c6013fc6e760c820a0b872bd6391ea3f078b8bec083fa2ee"
+    },
+    {
       "bytes": 8505,
       "mode": "100644",
       "path": "tools/cas_crash.py",
@@ -1515,6 +1515,12 @@
       "mode": "100644",
       "path": "tests/test_occult_add_guard.py",
       "sha256": "f3add3bc4aee81d0f932b0ca3a08339e0b3fcb8a4bf92bec77ba6bbdeec368b6"
+    },
+    {
+      "bytes": 7013,
+      "mode": "100644",
+      "path": "tests/test_cli_identity_cache.py",
+      "sha256": "91e0b6825ad7f6eefcf3ac52bfe0927a6d1238245bdd19806dd3daaf7cf2c5ba"
     },
     {
       "bytes": 8274,
@@ -2847,12 +2853,6 @@
       "mode": "100644",
       "path": "tools/cas_bank_cli.py",
       "sha256": "712f32bddd8ce66909e3f5ae0773d952110979d18a6af2eab9adf81341309f8f"
-    },
-    {
-      "bytes": 4970,
-      "mode": "100644",
-      "path": "tests/test_cli_identity_cache.py",
-      "sha256": "b240cfd5208fdb3027645d5a002eaf3145c2725674eeadaf71df6da7ebe8d461"
     },
     {
       "bytes": 4559,

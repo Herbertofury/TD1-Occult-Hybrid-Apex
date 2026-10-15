@@ -70,6 +70,37 @@ class IdentityBatchTests(unittest.TestCase):
             self.profile.rename(self.profile.with_name('retained-test-profile'))
             self.mods.mkdir(parents=True);self.part.write_bytes(b'valid')
             with self.assertRaises(ValueError):cache.validate(self.state,self.full)
+    def test_known_mccc_log_creation_rotation_and_write_do_not_expire_artifacts(self):
+        mccc=self.mods/'MCCC';mccc.mkdir()
+        with cache.session(self.state):
+            cache.validate(self.state,self.full)
+            log=mccc/'mc_cmd_center.log';log.write_text('runtime entry')
+            cache.validate(self.state,self.full)
+            log.write_text('another native runtime entry')
+            cache.validate(self.state,self.full)
+            log.unlink();log.write_text('rotated diagnostic')
+            (mccc/'mc_lastexception.html').write_text('diagnostic only')
+            cache.validate(self.state,self.full)
+        self.assertEqual(self.calls,1)
+    def test_unknown_logs_settings_and_new_executables_still_invalidate(self):
+        mccc=self.mods/'MCCC';mccc.mkdir()
+        for filename in ('unknown.log','mc_settings.cfg','mc_cmd_center.log.ts4script'):
+            with self.subTest(filename=filename),cache.session(self.state):
+                cache.validate(self.state,self.full)
+                (mccc/filename).write_text('changed')
+                with self.assertRaises(ValueError):cache.validate(self.state,self.full)
+    def test_runtime_log_name_cannot_hide_a_directory_or_reparse_point(self):
+        mccc=self.mods/'MCCC';mccc.mkdir();log=mccc/'mc_cmd_center.log'
+        log.mkdir()
+        with self.assertRaisesRegex(ValueError,'not an ordinary file'):cache.stamp(self.state)
+    def test_pinned_artifact_using_log_name_remains_content_checked(self):
+        mccc=self.mods/'MCCC';mccc.mkdir();log=mccc/'mc_cmd_center.log';log.write_bytes(b'first')
+        self.mock.stop()
+        with patch.object(cache.reusable_profile,'load',return_value=(self.state,
+                {'token':'token','artifacts':[{'relative':'MCCC/mc_cmd_center.log'}]},self.profile,self.profile.parent/'original')):
+            with cache.session(self.state):
+                cache.validate(self.state,self.full);log.write_bytes(b'other')
+                with self.assertRaises(ValueError):cache.validate(self.state,self.full)
     def test_profile_switch_and_failed_full_check_never_create_lease(self):
         with cache.session(self.state):
             with self.assertRaises(ValueError):

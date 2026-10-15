@@ -145,8 +145,12 @@ class CasControlsTests(unittest.TestCase):
         source=(Path(__file__).resolve().parents[1]/'Source/CASUi/semantic_methods.as').read_text()
         self.assertEqual(set(verify_control_dispatch(source)),cas_controls.OPERATIONS)
         for operation in cas_controls.OPERATIONS:
-            start=source.index('private function ApexReadback()')
-            changed=source[:start]+source[start:].replace('operation=="'+operation+'"','operation=="missing-control"',1)
+            start=source.index('reply.client=ApexSnapshot();',source.index('private function ApexReadback()'))
+            end=source.index('reply.client.control=ApexControlResult',start)
+            dispatch=source[start:end]
+            mutated=dispatch.replace('operation=="'+operation+'"','operation=="missing-control"',1)
+            self.assertNotEqual(dispatch,mutated)
+            changed=source[:start]+mutated+source[end:]
             with self.assertRaisesRegex(ValueError,'dispatch'):
                 verify_control_dispatch(changed)
 

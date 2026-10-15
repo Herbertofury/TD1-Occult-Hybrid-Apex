@@ -75,8 +75,17 @@ def stamp(state):
         content = hashlib.sha256(path.read_bytes()).hexdigest() if os.name != 'nt' and path.is_file() else None
         return (data.st_dev, data.st_ino, data.st_size, data.st_mtime_ns, data.st_ctime_ns,
                 getattr(data, 'st_file_attributes', 0),change_time(path,data),content)
+    # Normal Live/CAS operations create cache/log/save entries in this folder.
+    # Its physical identity and reparse status matter; directory timestamps and
+    # size are not mod or journal authority. Still enumerate and stamp every
+    # Mods entry below, including unknown names and each file's USN/content.
+    profile_data = profile.lstat()
+    if profile.is_symlink() or getattr(profile_data, 'st_file_attributes', 0) & 0x400:
+        raise ValueError('A profile lease cannot follow links or reparse points.')
+    profile_identity = (profile_data.st_dev, profile_data.st_ino,
+                        getattr(profile_data, 'st_file_attributes', 0))
     rows = [('journal',identity(state),hashlib.sha256(state.read_bytes()).hexdigest()),
-            ('profile',str(profile),identity(profile)),('original-path',str(original)),('token',journal['token'])]
+            ('profile',str(profile),profile_identity),('original-path',str(original)),('token',journal['token'])]
     mods = profile / 'Mods'
     for root, dirs, files in os.walk(mods, followlinks=False):
         root = Path(root)
@@ -110,7 +119,10 @@ def validate(state, full_check):
     before = stamp(state)
     if lease['stamp'] is not None:
         if before != lease['stamp']:
-            raise ValueError('Test artifacts or journal changed during this CLI batch; no request sent.')
+            old, new = dict((row[0], row[1:]) for row in lease['stamp']), dict((row[0], row[1:]) for row in before)
+            changed = sorted(key for key in set(old) | set(new) if old.get(key) != new.get(key))
+            raise ValueError('Test artifacts or journal changed during this CLI batch; no request sent. Changed entries: ' +
+                             ', '.join(changed[:8]))
         return lease['result']
     result = full_check()
     if before != stamp(state):

@@ -92,6 +92,38 @@ def preserve_crash(profile, output, before):
     return result
 
 
+def protected_initial_member(entry, diagnostic, requested):
+    """Admit only another freshly captured member of this exact full editor."""
+    if entry.get('requested_editor') != 'existing-household-full':
+        return None
+    scope = entry.get('household_form_checkpoints')
+    if not isinstance(scope, dict) or scope.get('ok') is not True:
+        return None
+    rows, roster, household = scope.get('members'), scope.get('roster_sim_ids'), scope.get('household_id')
+    def identity(value):
+        return isinstance(value, str) and value.isascii() and value.isdecimal() and str(int(value)) == value and 0 < int(value) < 1 << 64
+    if (not identity(household) or not isinstance(rows, list) or not 1 <= len(rows) <= 8 or
+            not isinstance(roster, list) or not 1 <= len(roster) <= 8 or
+            any(not identity(sid) for sid in roster) or len(set(roster)) != len(roster)):
+        return None
+    held = {}
+    for row in rows:
+        if not isinstance(row, dict): return None
+        sid, checkpoint = row.get('sim_id'), row.get('form_checkpoint')
+        owner = row.get('owner_observation', entry.get('original_owner') if sid == requested else None)
+        baseline = owner.get('original_owner') if isinstance(owner, dict) else None
+        if (not identity(sid) or sid in held or sid not in roster or not isinstance(checkpoint, dict) or
+                checkpoint.get('ok') is not True or not isinstance(baseline, dict) or
+                baseline.get('complete') is not True or baseline.get('original_sim_id') != sid or
+                baseline.get('household_id') != household):
+            return None
+        held[sid] = baseline
+    if requested not in held:
+        return None
+    peers = [sid for sid in held if sid != requested and fresh_peer(diagnostic, sid)]
+    return {'source': peers[0], 'target': requested, 'household': household} if len(peers) == 1 else None
+
+
 def observe(state, output, identity, request, sim_id, value=None, seconds=60,
             processes=None, monotonic=time.monotonic, pause=time.sleep, transport=None):
     """Submit entry once, then observe an exact-Sim peer and one status ACK.
@@ -258,6 +290,32 @@ Lost or failed requests are retained and never resubmitted by this observer.
                 proof['outcome'] = proof['last_verified_stage'] = 'handshake'
                 write_json(output, proof)
                 break
+            handoff = protected_initial_member(entry, diagnostic, sim_id)
+            if handoff and not proof.get('initial_member_selection_attempted'):
+                # Existing-household CAS can start on the active member instead
+                # of its command target. Navigate within this captured editor;
+                # never repeat the entry or a member-selection submission.
+                proof['initial_member_selection_attempted'] = True
+                proof['initial_native_member'] = handoff['source']; write_json(output, proof)
+                current = cas_client.execute(SimpleNamespace(operation='status', state=state,
+                    sim_id=handoff['source'], seconds=remaining(), output=None), call,
+                    monotonic=monotonic, pause=bounded_pause)
+                record('initial-member-status', current)
+                if current.get('ok') is not True:
+                    raise ValueError('Initial captured CAS member status did not verify; no selection submitted.')
+                native = current['client']['sim']
+                if native.get('simId') != handoff['source'] or native.get('householdId') != handoff['household']:
+                    raise ValueError('Initial native CAS member/household differs from its captured owner.')
+                selected = cas_client.execute(SimpleNamespace(operation='member-select', state=state,
+                    sim_id=handoff['source'], seconds=remaining(), output=None,
+                    household_id=handoff['household'], target_sim_id=sim_id,
+                    expected_layer=native['occultLayer'],
+                    native_session=current['client']['owner_pair_observation']['session']), call,
+                    monotonic=monotonic, pause=bounded_pause)
+                record('initial-member-selection', selected)
+                if selected.get('ok') is not True or selected.get('client', {}).get('sim', {}).get('simId') != sim_id:
+                    raise ValueError('Native CAS member selection did not verify; retain its UUID without replay.')
+                proof['initial_member_selection_verified'] = True; write_json(output, proof)
             pause(min(.25, remaining()))
         # Exactly one native status submission. cas_client only polls its ID.
         args = SimpleNamespace(operation='status', state=state, sim_id=sim_id,

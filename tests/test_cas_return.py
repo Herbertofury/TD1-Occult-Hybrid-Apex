@@ -895,6 +895,30 @@ class CasReturnTests(unittest.TestCase):
         self.assertFalse(proof['accept_intent_observed'])
         self.assertIn('mode changed', proof['error'])
 
+    def test_native_pause_after_required_real_ticks_does_not_discard_verified_settling(self):
+        def handler(action, value):
+            if action == 'test_snapshot' and self.speed == 1:
+                self.ticks += 35; self.speed = 0
+                return self.snapshot()
+        self.handler = handler
+        result, proof = self.run_observer(settle_ticks=30)
+        self.assertTrue(proof['clock_progress_verified'])
+        self.assertTrue(proof['native_pause_after_required_ticks'])
+        self.assertTrue(proof['final_paused'])
+        self.assertTrue(proof['return_metadata_completed'])
+        self.assertEqual(sum(action == 'test_play' for action, _ in self.calls), 1)
+
+    def test_native_pause_before_required_ticks_retains_intent_without_restarting_play(self):
+        def handler(action, value):
+            if action == 'test_snapshot' and self.speed == 1:
+                self.ticks += 1; self.speed = 0
+                return self.snapshot()
+        self.handler = handler
+        result, proof = self.run_observer(settle_ticks=30)
+        self.assertFalse(proof['clock_progress_verified'])
+        self.assertFalse(proof['return_metadata_completed'])
+        self.assertEqual(sum(action == 'test_play' for action, _ in self.calls), 1)
+
     def test_no_tick_progress_stops_and_attempts_pause_once_without_completion(self):
         self.increment = 0
         result, proof = self.run_observer()

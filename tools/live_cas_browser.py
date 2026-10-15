@@ -227,12 +227,21 @@ def handler(browser):
 
         def do_POST(self):
             try:
-                if not self.allowed() or self.headers.get('Content-Type') != 'application/json' or self.headers.get('Transfer-Encoding'):
+                if self.headers.get('Transfer-Encoding'):
                     raise ValueError('Loopback bounded JSON required.')
                 length = int(self.headers.get('Content-Length', '0'))
                 if not 0 < length <= MAX_BODY:
                     raise ValueError('Invalid request length.')
-                request = json.loads(self.rfile.read(length))
+                # Consume only a bounded, timed body before rejecting an origin
+                # or content type. Closing over unread bytes can reset Windows
+                # TCP before the client receives the typed 409 response.
+                self.connection.settimeout(3)
+                raw = self.rfile.read(length)
+                if len(raw) != length:
+                    raise ValueError('Incomplete bounded JSON body.')
+                if not self.allowed() or self.headers.get('Content-Type') != 'application/json':
+                    raise ValueError('Loopback bounded JSON required.')
+                request = json.loads(raw)
                 if self.path == '/v1/catalog/query':
                     result = browser.query(request)
                 elif self.path == '/v1/catalog/inspect':

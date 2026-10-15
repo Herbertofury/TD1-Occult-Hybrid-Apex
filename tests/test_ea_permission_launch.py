@@ -13,7 +13,7 @@ import game_launch
 
 
 class PermissionLaunchTests(unittest.TestCase):
-    def invoke(self, permission, explicit, context_error=None):
+    def invoke(self, permission, explicit, context_error=None, diagnostic=None):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             log = root / 'EADesktop.log'
@@ -33,7 +33,8 @@ class PermissionLaunchTests(unittest.TestCase):
                  patch.object(game_launch, 'observe_start', return_value={'process_started': False}), \
                  patch.object(game_launch, 'os', os_api), patch.dict(sys.modules, {'winreg': registry}), \
                  patch.object(game_launch.time, 'sleep'), \
-                 patch.object(ea_permission, 'acknowledge', return_value=permission), \
+                 patch.object(ea_permission, 'acknowledge', return_value=permission) as uia, \
+                 patch.object(broker, 'diagnose', return_value=diagnostic or {'ok': True, 'compatible_integrity': True}) as integrity, \
                  patch.object(broker, 'wait_launch_context', return_value={'trusted': 'fixture'}, side_effect=context_error) as context, \
                  patch.object(broker, 'elevate_once', return_value={'ok': True, 'acknowledged': True, 'game_start_verified': False}) as elevate:
                 result = game_launch.launch(root / 'Game', root / 'state.json', execute=True,
@@ -41,6 +42,8 @@ class PermissionLaunchTests(unittest.TestCase):
             self.assertEqual(os_api.startfile.call_args.args, (plan['url'],))
             self.assertEqual(os_api.startfile.call_count, 1)
             closed.assert_called_once()
+            if diagnostic and diagnostic.get('normal_elevation_may_help') is True and explicit:
+                uia.assert_not_called()
             return result, context, elevate
 
     def test_default_and_already_acknowledged_launch_never_elevate(self):
@@ -68,6 +71,17 @@ class PermissionLaunchTests(unittest.TestCase):
         elevate.assert_not_called()
         self.assertFalse(result['ea_permission_broker']['acknowledged'])
         self.assertIn('another game', result['ea_permission_broker']['message'])
+
+    def test_authorized_higher_integrity_owner_uses_helper_without_uncertain_uia_attempt(self):
+        result, context, elevate = self.invoke({'acknowledgement_unresolved': True}, True,
+            diagnostic={'ok': True, 'compatible_integrity': False, 'normal_elevation_may_help': True})
+        self.assertTrue(result['ea_permission']['incompatible_uia_skipped'])
+        context.assert_called_once(); elevate.assert_called_once()
+
+    def test_integrity_mismatch_without_authorization_never_requests_helper(self):
+        result, context, elevate = self.invoke({'acknowledged': False}, False,
+            diagnostic={'ok': True, 'compatible_integrity': False, 'normal_elevation_may_help': True})
+        elevate.assert_not_called();context.assert_not_called()
 
     def test_cli_flag_defaults_false_and_only_forwards_an_explicit_request(self):
         arguments = ['launch', '--game-root', 'fixture-game', '--state', 'fixture-state']

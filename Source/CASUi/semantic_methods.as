@@ -756,6 +756,31 @@
          return rows;
       }
 
+      private function ApexSelectEyebrowSwatch(value:String,rows:Array) : Object
+      {
+         // Mirror FaceModPanel/ColorSwatchPanel's actual palette selection.
+         // Its grid callback also maintains the native Match Hair checkbox
+         // and flags. A bare color service call omits that widget lifecycle.
+         if(this.mCurrState!=MenuState.PROFILE_HAIR_EYEBROWS || !(this.mCurrentPanel is FaceModPanel) ||
+            rows==null || rows.length==0 || rows.length>512)
+            throw new Error("Exact native eyebrow palette is unavailable");
+         var widget:Object=FaceModPanel(this.mCurrentPanel).mcColorSwatchPanel;
+         if(widget==null || widget.mcSelectionGrid==null || !widget.IsEnabled())
+            throw new Error("Native eyebrow color widget is unavailable");
+         var at:int=-1; var count:int=0;
+         for(var i:int=0;i<rows.length;i++)
+            if(rows[i] && String(rows[i].dataID)==value) { at=i; count++; }
+         if(count!=1) throw new Error("Native eyebrow widget requires one exact returned swatch");
+         widget.SetType(3);
+         widget.Refresh();
+         // Refresh already owns/populates the native feed. Repopulating it
+         // again resets a live selection grid and can queue stale callbacks.
+         var before:Array=ApexClone(widget.GetSelectedIndices()) as Array;
+         widget.mcSelectionGrid.SetSelection(at);
+         return {requested_data_id:value,target_index:at,palette_count:rows.length,
+            selected_indices_before:before,selected_indices_after:ApexClone(widget.GetSelectedIndices())};
+      }
+
       private function ApexControlExecute(operation:String,state:int,category:int,index:int,value:String,reply:Object,context:Object) : void
       {
          var data:Object=null; var rows:Array=null; var row:Object=null; var n:int=0;
@@ -865,6 +890,8 @@
          }
          if(operation=="swatches" || operation=="swatch") {
             if(state<0 || state>16 || state==5) throw new Error("Native palette requires its supported typed color context");
+            if(operation=="swatch" && state==3)
+               HandleContextMenuSetMenuState({menuState:MenuState.PROFILE_HAIR_EYEBROWS,skipAnim:true,setZoomState:true});
             rows=CommunicationManager.CallGameService("CasGetSwatchColorList",state) as Array;
             if(rows==null) throw new Error("Native palette is unavailable");
             if(operation=="swatches") {
@@ -887,6 +914,10 @@
             } else if(index!=0) throw new Error("Only fur palettes have indexed colors");
             var swatchPayload:Object={dataId:value,swatchType:state,colorId:ApexClone(data.color),
                furColors:fur,value_range_modifier:modifier};
+            if(state==3) {
+               data=null; row=null; reply.mutation_started=true;
+               reply.eyebrow_widget=ApexSelectEyebrowSwatch(value,rows); rows=null; return;
+            }
             data=null; rows=null; row=null;
             reply.mutation_started=true;
             CommunicationManager.CallGameService("CasSetSwatchColorSelected",swatchPayload);
@@ -1381,13 +1412,15 @@
                if(!isFinite(hairValue)) throw new Error("Native hair swatch modifier is not finite");
                var hairPayload:Object={dataId:String(exactHairSwatch.dataID),swatchType:int(context.palette_type),
                   colorId:exactHairSwatch.color,furColors:null,value_range_modifier:hairValue};
-               exactHairSwatch=null; freshHairSwatches=null; hairSwatch=null;
+               exactHairSwatch=null; hairSwatch=null;
                // Advance before calling native code: even a nested callback
                // cannot see this sub-mutation as eligible to execute again.
                apexPendingPhase=1; apexReadbackTick=int(apexTimer.currentCount)+1;
                apexAwaiting="readback|"+apexTimer.currentCount;
                writeStarted=true;
-               CommunicationManager.CallGameService("CasSetSwatchColorSelected",hairPayload);
+               if(int(context.palette_type)==3) reply.eyebrow_widget=ApexSelectEyebrowSwatch(value,freshHairSwatches);
+               else CommunicationManager.CallGameService("CasSetSwatchColorSelected",hairPayload);
+               freshHairSwatches=null;
                return;
             }
             if(!("message" in reply) && apexPendingPhase==3) {
@@ -1403,7 +1436,12 @@
                CommunicationManager.SendUIMessage("CASRefreshActiveCatalog");
                return;
             }
+            var eyebrowProbe:Boolean=(operation=="select" && state==MenuState.PROFILE_HAIR_EYEBROWS) || (operation=="swatch" && state==3);
+            if(eyebrowProbe)
+               reply.eyebrow_palette_before_snapshot=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",3));
             reply.client=ApexSnapshot();
+            if(eyebrowProbe)
+               reply.eyebrow_palette_after_snapshot=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",3));
             if(!("message" in reply)) {
                if(operation=="catalog" || operation=="variants" || operation=="preset" || operation=="select-layer" ||
                   operation=="remove" || operation=="layers" || operation=="layer-add" || operation=="layer-remove" ||

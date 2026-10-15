@@ -668,6 +668,18 @@ public class CasBytecodePatch {
         }
         require(readers>=3,"CAS catalog inventory readers are unavailable for the disabled-query verification.");
     }
+    static void verifyEyebrowPaletteWidget(ABC abc, InstanceInfo instance) {
+        Set<String> calls=propertyCalls(abc,ownedBody(abc,instance,"ApexSelectEyebrowSwatch"));
+        require(calls.containsAll(Set.of("Refresh","IsEnabled","SetType","SetSelection","GetSelectedIndices")) &&
+            !calls.contains("CallGameService") && !calls.contains("SetData"),
+            "Eyebrow colors must use the native widget lifecycle, without a second direct native setter.");
+        Set<String> callers=new HashSet<>();
+        for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter &&
+            propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains("ApexSelectEyebrowSwatch"))
+            callers.add(name(abc,trait));
+        require(callers.equals(Set.of("ApexControlExecute","ApexReadback")),
+            "Eyebrow palette selection is allowed only in owned command/next-tick phases.");
+    }
     public static void main(String[] args) throws Exception {
         require(args.length == 3, "Use original SWF, compiler SWF, output ABC.");
         ABC original = load(args[0]), compiled = load(args[1]);
@@ -689,7 +701,7 @@ public class CasBytecodePatch {
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
-            "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers");
+            "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
         for (Trait trait : newClass.instance_traits.traits) {
@@ -722,6 +734,7 @@ public class CasBytecodePatch {
         verifyAcceptPrimaryLayerOnly(compiled, newClass);
         verifyCatalogMetadataLinkage(compiled, newClass);
         verifyCatalogMetadataDisabled(compiled, newClass);
+        verifyEyebrowPaletteWidget(compiled, newClass);
         MethodBody nativeInit = null, compilerInit = null, nativeUnload = null, compilerUnload = null;
         for (Trait trait : nativeClass.instance_traits.traits) {
             String key = name(original, trait);

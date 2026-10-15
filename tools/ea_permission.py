@@ -11,6 +11,8 @@ SCRIPT = r'''
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+[Console]::Out.WriteLine('{"phase":"observation-started"}')
+[Console]::Out.Flush()
 $eaProcesses = @(Get-Process -Name EADesktop -ErrorAction SilentlyContinue)
 $accepted = $false
 $reason = 'Exact EA launch-permission dialog was not accessible.'
@@ -41,6 +43,8 @@ foreach ($eaProcess in $eaProcesses) {
             }
             if ($messageMatched -and $buttons.Count -eq 1) {
                 $pattern = $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+                [Console]::Out.WriteLine('{"phase":"invoke-intent"}')
+                [Console]::Out.Flush()
                 $pattern.Invoke()
                 $accepted = $true
                 $reason = 'Invoked the exact EA game-launch permission OK button; game start still requires observation.'
@@ -55,22 +59,55 @@ foreach ($eaProcess in $eaProcesses) {
 '''
 
 
+def _messages(output):
+    if isinstance(output, bytes):
+        output = output.decode('utf-8', 'replace')
+    if not isinstance(output, str) or len(output) > 16384:
+        return [], None
+    messages, reply = [], None
+    for line in output.splitlines():
+        try:
+            row = json.loads(line)
+        except (ValueError, TypeError):
+            continue
+        if isinstance(row, dict):
+            messages.append(row)
+            if type(row.get('ok')) is bool and type(row.get('acknowledged')) is bool:
+                reply = row
+    return messages, reply
+
+
+def _uncertain():
+    return {'ok': False, 'acknowledged': False, 'acknowledgement_unresolved': True,
+            'retry_safe': False, 'windows_uac_approved': False,
+            'message': 'EA consent outcome is unknown. Observe the existing launch without replay.'}
+
+
 def acknowledge(work=None):
     try:
         result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', SCRIPT],
             capture_output=True, text=True, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as error:
         # Invoke may have run before the accessibility provider stopped
         # responding. Observe game start; never replay consent through another
         # mechanism merely because the UIA observer timed out.
-        return {'ok': False, 'acknowledged': False, 'acknowledgement_unresolved': True,
-                'retry_safe': False, 'windows_uac_approved': False,
-                'message': 'EA accessibility observation timed out; consent outcome is unknown. Observe the existing launch without replay.'}
-    if result.returncode:
-        response = {'ok': False, 'acknowledged': False, 'message': 'EA accessibility consent could not be invoked at this process integrity; owner acknowledgement is required.',
-                    'windows_uac_approved': False}
+        messages, _reply = _messages(error.stdout)
+        phases = [row.get('phase') for row in messages]
+        if 'observation-started' not in phases or 'invoke-intent' in phases:
+            return _uncertain()
+        # subprocess.run has killed/reaped the helper. Its flushed observation
+        # marker, without its mandatory pre-Invoke marker, proves no UIA input
+        # was attempted. Only this certificate permits the existing fallback.
+        response = {'ok': False, 'acknowledged': False, 'readonly_probe_timed_out': True,
+                    'uia_invocation_attempted': False, 'windows_uac_approved': False,
+                    'message': 'EA read-only UIA observation timed out before any Invoke intent.'}
     else:
-        response = json.loads(result.stdout)
+        messages, response = _messages(result.stdout)
+        if response is None:
+            if any(row.get('phase') == 'invoke-intent' for row in messages):
+                return _uncertain()
+            response = {'ok': False, 'acknowledged': False, 'windows_uac_approved': False,
+                        'message': 'Exact EA dialog was not acknowledged by UIA.'}
     if response.get('acknowledged') or work is None:
         return response
     import ea_native_permission

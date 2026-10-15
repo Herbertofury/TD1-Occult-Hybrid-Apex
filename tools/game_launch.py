@@ -210,7 +210,23 @@ def launch(game_root, state, execute=False, headless=False, observe_seconds=60, 
         plan['handed_off'] = True
         import ea_permission
         time.sleep(1)
-        plan['ea_permission'] = ea_permission.acknowledge(Path(state).resolve().parent)
+        direct_broker = False
+        if elevate_permission_once:
+            import ea_permission_broker
+            try:
+                diagnostic = ea_permission_broker.diagnose()
+                plan['permission_integrity'] = diagnostic
+                direct_broker = (diagnostic.get('ok') is True and
+                    diagnostic.get('compatible_integrity') is False and
+                    diagnostic.get('normal_elevation_may_help') is True)
+            except (OSError, ValueError, RuntimeError) as error:
+                plan['permission_integrity'] = {'ok': False, 'message': str(error)}
+        if direct_broker:
+            plan['ea_permission'] = {'ok': False, 'acknowledged': False, 'input_sent': False,
+                'incompatible_uia_skipped': True, 'windows_uac_approved': False,
+                'message': 'Remembered one-shot helper selected for the exact higher-integrity EA owner; UIA input was not attempted.'}
+        else:
+            plan['ea_permission'] = ea_permission.acknowledge(Path(state).resolve().parent)
         if (elevate_permission_once and not plan['ea_permission'].get('acknowledged') and
                 not plan['ea_permission'].get('acknowledgement_unresolved')):
             import ea_permission_broker

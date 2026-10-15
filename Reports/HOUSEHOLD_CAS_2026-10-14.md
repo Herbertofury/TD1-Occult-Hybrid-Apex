@@ -347,3 +347,123 @@ These results qualify the direct native prevention and the five-member
 post-load switching fix. They do not close ordinary phone/MCCC CAS, remaining
 per-form CAS editing, special-state forms, every-panel coverage or the broader
 production-save acceptance gate.
+
+## Ordinary native CAS entry and failed-edit recovery, V116–V118
+
+V116 installed an event-bound hook at the game's `_commands.client_cheat`
+boundary. The installed native Python commands and MCCC's cached Python alias
+reach that boundary. It captures every hybrid household member before native
+CAS entry, reuses an explicit capture only while its native originals remain
+exact, and durably consumes entry intent before dispatch. The CLI's own entry
+uses the same hook without another capture. Permanent protection stays enabled.
+
+The new script cold-loaded the accepted five-member save. All 40 owners matched
+the V113 accepted Alien/Vampire golden exactly. Proof:
+`native-cas-v116-cold-all40.json`, SHA-256
+`f9252278f98e06e2deed6f6706a134a8f39d3472bcc464d5da7f6e213a911d8e`.
+
+Actual ordinary-route full CAS acknowledged all five independent raw captures,
+complete original navigation identities and native pair preparation. Its
+durable entry receipt was `d3e30b258e234259865d4be156fa3115`. The native editor
+initially selected the active member, not the requested companion. The original
+observer therefore timed out; its entry was not repeated. Fresh native status
+and semantic member selection reached companion `349336084686110946` in actual
+Alien form, layer 0. The original entry proof remains failed for its requested
+observation scope: `native-cas-v116-ordinary-full-entry.json`, SHA-256
+`81f64af2905e985b99f09bd4a10a7a5e35b404b0f6012e6e93bfddc7e1275abc`.
+
+The next eyebrow edit failed exact native readback: requested swatch `320731`,
+returned `320729`. Independent explicit palette tests confirmed the mismatch;
+disabling matching flags did not resolve it. This was not counted as a passed
+edit. A complete mismatched palette ACK also disconnected the CAS transport.
+V117 fixes that transport failure while retaining the exact failed operation,
+and supplies the full household roster required by the actual host return
+validator. Fourteen entry tests and three failed-ACK transport tests pass.
+The full V117 local suite passed **1,993 tests**.
+
+The disposable CAS visit returned to Live through the game-owned, window-addressed
+CLI input, without OS cursor movement or foreground change. After **2,572 real
+simulation ticks** and Pause, all five returns were observed before any commit.
+Every changed appearance was explicitly restored to its fresh entry original;
+no returned test edit was accepted. A lease invalidation stopped the fourth
+commit before submission. A new fully verified batch observed the three exact
+completed commits and submitted only the two remaining plans. All five finished.
+
+All 40 restored appearances then matched the accepted golden exactly:
+`native-cas-v116-restored-all40.json`, SHA-256
+`879597e338d7ee33379b393228784a46906a0a21c41fb26d7d59da5e0d78e3a8`.
+The CLI closed normally without saving and verified all 20 saved files unchanged:
+`native-cas-v118-prior-normal-exit.json`, SHA-256
+`8bfda5729e0dff09f3ba990797cb3cb68f986e080eb7f2110becfbdfc9daa573`.
+The protected original remained read/copy only.
+
+The host observer now recognizes a different fresh, independently captured
+initial member of this exact full editor and can issue one semantic member
+selection. Foreign/stale/missing captures cannot authorize it; entry and
+selection are never replayed. Three focused tests and all 26 existing entry
+observer tests pass.
+
+V118 replaces the eyebrow color driver's abbreviated setter with the native
+palette grid callback, including its native widget/matching lifecycle. The
+compiled bytecode audit verifies that the new helper has no direct native
+setter and is reachable only from the owned command/readback phases. This
+candidate is installed only in the disposable profile. Its actual eyebrow test
+still mismatched the requested color: the palette readback was `320720` instead
+of `320731`. That color fix has not passed. Four other native Alien edits on
+companion `349336084686110946` passed exact readback: head skin details,
+earrings, lipstick and clothing. Body skin details had no different eligible
+item and is not counted as an edit. Proof:
+`native-cas-v118-companion-alien-other-workbench.json`, SHA-256
+`c83808e2ac5962fd799de0de3a3cd54cc503d059ccecc53d88b55efaf17143ac`.
+
+The new transport handling passed an actual failed-swatches test: request
+`2af2eb3f7ff946ed9592ff0c3803196b` stayed `native-postcondition-failed`, and a
+fresh CAS status request `91af73a9d87c4414b91b38a86f477634` completed without
+disconnecting. The V118 full local suite passed **1,996 tests**.
+
+Native CAS acceptance then returned to Live and advanced **889 actual ticks**
+against a 750-tick requirement before the game paused. The old host observer
+rejected that pause despite sufficient progress. The host now accepts only a
+normal-speed play acknowledgement followed by enough native simulation ticks
+and speed 0 or 1, still requiring exact identity and final Pause. An early pause
+remains a failure without another Play submission. All 63 return tests pass.
+The original accept UUID was completed through the native receiver without
+another acceptance or Play submission.
+
+The inventory lease also incorrectly included mutable profile-directory
+timestamps. Normal cache/save creation is no longer treated as a changed mod:
+the lease retains the physical directory identity and reparse checks, every
+Mods entry/USN/content check and the exact journal. Added directory-replacement
+and normal native-cache/save tests bring the focused lease suite to ten passes.
+The five-member household commit then finished. Only companion
+`349336084686110946`'s returned Alien owner was accepted; every other changed
+form was restored independently. All five native owner/context receipts passed.
+The accepted test appearance includes the observed eyebrow result; this does
+not qualify the failed requested black swatch. The independent comparison found
+changes only in that Alien owner and its active appearance, with the other
+**38 owners exact**. Proof `native-cas-v118-after-accepted-alien-edit-all40.json`,
+SHA-256 `9ddb78e76ff5d82aaa563acf5f516cbaedb734f7e4dbb0b425f43b6c1d4f7d11`.
+
+Actual Alien → Vampire → Alien switching passed with **5,267 real ticks**,
+preserving the accepted edits and every household companion:
+
+- Alien → Vampire: `native-cas-v118-edited-alien-to-vampire.json`, SHA-256
+  `4afe6e65583804a3c61631ab6b09dd231358cd24c24217ffe0fd0a92677aa38f`.
+- Vampire → Alien: `native-cas-v118-vampire-back-to-edited-alien.json`, SHA-256
+  `dc47e33d589a842b290f57fb539f1f873bfa0394b4af2147a3aa1d12d1426097`.
+- Independent all-40 check: `native-cas-v118-after-roundtrip-all40.json`, SHA-256
+  `f6237cfadc971da1ac5e99b5d2dc59ab7aa5ed864ca73e70f8a6c10e95794fcb`.
+
+Normal save/seal completed. Slot 2 became SHA-256
+`0584bd7bc9094a520ea3d9b6c9abe73edd6a12baa1a3c08284f6017f87d60b2e`.
+All 40 owners remained exact after saving:
+`native-cas-v118-after-save-all40.json`, SHA-256
+`08388b301b57f292f24ee1fa128d704bb9175d9cc23c030251d950ca418eb6e9`.
+
+V119 explicitly binds the eyebrow widget to palette 3, avoids repopulating its
+already refreshed live feed, and records native palette values before/after
+bulk snapshot collection. It is an immutable development candidate with fresh
+Python 3.7 bytecode and a compiled, audited native UI package; its color behavior
+and the accepted save's next cold load still require runtime qualification.
+Ordinary native entry and safe failed-edit recovery do not close all MCCC menus,
+remaining per-form/panel edits, special forms, Tray parity or production readiness.

@@ -56,6 +56,20 @@ class IdentityBatchTests(unittest.TestCase):
         with cache.session(self.state):
             cache.validate(self.state,self.full);self.state.write_text('{"changed":true}')
             with self.assertRaises(ValueError):cache.validate(self.state,self.full)
+    def test_normal_profile_cache_and_save_writes_do_not_invalidate_mod_inventory(self):
+        with cache.session(self.state):
+            cache.validate(self.state,self.full)
+            (self.profile/'clientDB.package').write_bytes(b'native user-data cache')
+            (self.profile/'saves').mkdir()
+            (self.profile/'saves'/'Slot_00000002.save').write_bytes(b'disposable save')
+            cache.validate(self.state,self.full)
+        self.assertEqual(self.calls,1)
+    def test_replaced_profile_directory_still_invalidates_batch_even_with_same_mod_bytes(self):
+        with cache.session(self.state):
+            cache.validate(self.state,self.full)
+            self.profile.rename(self.profile.with_name('retained-test-profile'))
+            self.mods.mkdir(parents=True);self.part.write_bytes(b'valid')
+            with self.assertRaises(ValueError):cache.validate(self.state,self.full)
     def test_profile_switch_and_failed_full_check_never_create_lease(self):
         with cache.session(self.state):
             with self.assertRaises(ValueError):

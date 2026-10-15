@@ -637,13 +637,15 @@ def _observe(state, output, identity, request, sim_id, household_id, seconds=60,
             remaining(reserve=True)
             settled = call('test_snapshot', guard_value())
             same_live(settled)
-            if settled.get('clock_speed') != 1:
-                raise ValueError('Game ceased native normal-speed play during CAS settling.')
-            if int(settled['sim_now_ticks']) - int(baseline['sim_now_ticks']) >= settle_ticks:
+            advanced = int(settled['sim_now_ticks']) - int(baseline['sim_now_ticks'])
+            if advanced >= settle_ticks and settled.get('clock_speed') in (0, 1):
                 proof['clock_progress_verified'] = True
+                proof['native_pause_after_required_ticks'] = settled.get('clock_speed') == 0
                 proof['settled_snapshot'] = settled
                 save()
                 break
+            if settled.get('clock_speed') != 1:
+                raise ValueError('Game ceased native normal-speed play before required CAS settling ticks.')
             wait()
         paused = pause_once()
         if int(paused['sim_now_ticks']) - int(baseline['sim_now_ticks']) < settle_ticks:

@@ -20,6 +20,47 @@ class NativeEngineTests(unittest.TestCase):
             engine.argument(value)
         self.assertEqual(engine.reply(self.status, 555), self.status)
 
+    def test_committed_native_exports_are_complete_and_bound_to_one_owner_generation(self):
+        import hashlib
+        raw=b'complete-native-appearance-with-opaque-fields'
+        row=dict(schema=1,sim_id='123',owner_id='fairy/alternate',generation=7,native_kind=64,
+            bytes=len(raw),native_hex=raw.hex(),sha256=hashlib.sha256(raw).hexdigest(),
+            appearance_written=False,model_harvested=False,source='committed-native-appearance')
+        status=copy.deepcopy(self.status)
+        status['members'][0].update(graph_generation=7,separate_owners=[dict(owner_id='fairy/alternate',native_kind=64)])
+        status['owner_export']=row
+        engine.argument(dict(operation='export-owner',scope_id='a'*32,sim_id='123',owner_id='fairy/alternate',expected_generation=7))
+        result=engine.reply(copy.deepcopy(status),555)
+        self.assertEqual(result['owner_export']['native_hex'],raw.hex())
+        for key,value in (('generation',8),('owner_id','alien/alternate'),('native_kind',2),
+                          ('appearance_written',True),('model_harvested',True),('bytes',len(raw)-1),
+                          ('native_hex',raw.hex().upper()),('sha256','a'*64)):
+            broken=copy.deepcopy(status);broken['owner_export'][key]=value
+            with self.subTest(key=key),self.assertRaises(ValueError):engine.reply(broken,555)
+
+    def test_available_native_descriptor_must_agree_with_exported_sim_identity(self):
+        import hashlib
+        from apex_core import sim_data
+        raw=b'native-appearance'
+        parsed=[]
+        class Message:
+            sim_id=123
+            def ParseFromString(self,value):parsed.append(value)
+        status=copy.deepcopy(self.status)
+        status['members'][0].update(graph_generation=7,separate_owners=[dict(owner_id='native/2',native_kind=2)])
+        status['owner_export']=dict(schema=1,sim_id='123',owner_id='native/2',generation=7,native_kind=2,
+            bytes=len(raw),native_hex=raw.hex(),sha256=hashlib.sha256(raw).hexdigest(),
+            appearance_written=False,model_harvested=False,source='committed-native-appearance')
+        module=Obj(SimData=Message)
+        with patch.dict(sys.modules,{'protocolbuffers':Obj(FileSerialization_pb2=module)}), \
+             patch.object(sim_data,'catalog',return_value=dict(field_schemas={'all':True})):
+            result=engine.reply(copy.deepcopy(status),555)
+            self.assertEqual(result['owner_export_catalog_query'],'returned-value')
+            self.assertEqual(parsed,[raw])
+            self.assertEqual(result['owner_export_catalog']['field_schemas'],{'all':True})
+            Message.sim_id=999
+            with self.assertRaisesRegex(ValueError,'another Sim identity'):engine.reply(copy.deepcopy(status),555)
+
     def test_bad_scope_ids_masks_duplicate_members_and_pointers_refuse(self):
         for sid in ('0', '01', '18446744073709551616', '１２３', 123, True):
             bad=copy.deepcopy(self.arm);bad['members'][0]['sim_id']=sid

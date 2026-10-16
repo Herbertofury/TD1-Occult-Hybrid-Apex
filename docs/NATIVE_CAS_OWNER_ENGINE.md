@@ -1,6 +1,6 @@
 # Independent native CAS form owners
 
-The current development candidate is V164. Production saves are not qualified.
+The current development candidate is V166. Production saves are not qualified.
 The permanent Source guard remains enabled alongside the native fixes.
 
 ## Exact ownership
@@ -99,6 +99,21 @@ Friend relationship. Special-state gameplay producers remain separate work.
   are required; a family-kind match alone cannot pass. The reconnect fix waits
   only after an explicit unqueued status-read refusal and never replays a queued
   read or mutation. Runtime validation of this package remains open.
+- V164's full semantic CLI selected every one of the first Sim's 39 owners.
+  A second visit caught changed body-hair swatch IDs on the Fairy alternate in
+  four of the 77 observed panels. The matrix stopped at visit 43 and is FAILED.
+- V165's temporary suppression of hair matching during binding/synchronization
+  did not solve that runtime discrepancy. It is removed from V166. Its passing
+  synthetic tests are not evidence that the body-hair issue is fixed.
+- V166 adds `export-owner` to the typed native control. It serializes a committed
+  owner DTO through inspected game functions, checks the Sim/generation, bounds,
+  exact serializer end pointer and SHA-256, and optionally catalogs every declared
+  field through the game's Python descriptor. Raw bytes remain available if that
+  descriptor cannot be imported. This reads the committed graph; it does not
+  harvest the current model, apply data or write a save. Nonappearance DTO fields
+  may contain construction defaults, so this is not a whole-Sim backup or restore.
+  This is the next check for distinguishing stored outfit changes from a derived
+  catalog-color readback. Native tests pass; real-game export remains unqualified.
 
 Runtime gates still include edited Alien/Vampire/Alien and every other form,
 all members/categories, native undo/redo, explicit copy/link controls, complete

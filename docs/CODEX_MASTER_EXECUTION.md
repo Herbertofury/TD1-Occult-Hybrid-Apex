@@ -5,6 +5,16 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V166 adds read-only native owner protobuf snapshots and declared-field catalogs.
+V164 selected all 39 separate owners through the semantic CLI, but its revisit
+matrix failed at the Fairy alternate's four body-hair swatches. V165's temporary
+matching suppression also failed in game and is removed. Do not call that issue
+fixed or the matrix passed. Compare committed native outfit data before/after
+harvesting the current model next. These DTO snapshots can have nonappearance
+construction defaults and must never replace an entire Sim. All twenty disposable
+save files remain unchanged through V165's unsaved closure. Production remains
+unqualified; special gameplay roles and full edited save/Tray persistence are open.
+
 V164 retains the V163 direct native rendering fix and reads the active model
 genus through the inspected GetSimOccult getter, separately from the unchanged
 CASGetSimInfo family metadata. V163's native Alien -> Vampire dark -> Alien

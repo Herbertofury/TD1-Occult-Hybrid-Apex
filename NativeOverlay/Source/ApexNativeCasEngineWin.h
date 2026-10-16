@@ -47,6 +47,9 @@ using UndoSelectFn=void(*)(void*,std::uint64_t,bool);
 using UndoCreateFn=void(*)(void*,std::uint64_t,bool,bool);
 using UndoBindFn=void(*)(void*,void**);
 using KindMaskFn=std::uint32_t(*)(const void*);
+using ExportProtoFn=void(*)(const void*,void*);
+using ProtoSizeFn=int(*)(const void*);
+using ProtoArrayFn=char*(*)(const void*,char*);
 inline thread_local const void* detachedTarget=nullptr;
 struct DetachedTarget {
     const void* previous;
@@ -66,6 +69,7 @@ struct Api {
     ModelBindFn modelBind=nullptr;CoreBindFn coreBind=nullptr;ContextFn context=nullptr;IndexFn index=nullptr;LayerFn layer=nullptr;
     UndoSelectFn undoSelect=nullptr;UndoCreateFn undoCreate=nullptr;UndoBindFn undoBind=nullptr;
     KindMaskFn kindMask=nullptr;
+    ExportProtoFn exportProto=nullptr;ProtoSizeFn protoSize=nullptr;ProtoArrayFn protoArray=nullptr;
 };
 inline void Span(const void* value,std::size_t count) {
     const auto start=reinterpret_cast<std::uintptr_t>(value);
@@ -97,6 +101,25 @@ struct NativeOwner {
     ~NativeOwner() {if(value) {destroy(value);_aligned_free(value);}}
     const void* data() const {return static_cast<const char*>(value)+0xd0;}
 };
+inline std::string SerializeOwner(const Api& api,const NativeOwner& owner,std::uint64_t id) {
+    if(!api.exportProto || !api.protoSize || !api.protoArray || !api.protoConstruct || !api.protoDestroy)
+        throw std::runtime_error("The pinned native appearance serializer is unavailable.");
+    alignas(16) std::array<char,0x400> proto{};api.protoConstruct(proto.data());
+    try {
+        api.exportProto(owner.value,proto.data());
+        if(Read<std::uint64_t>(proto.data(),0x10)!=id)
+            throw std::runtime_error("The native appearance serializer changed its Sim identity.");
+        const auto size=api.protoSize(proto.data());
+        if(size<=0 || size>512*1024)
+            throw std::runtime_error("Native appearance bytes exceed the complete snapshot bound.");
+        std::vector<char> bytes(static_cast<std::size_t>(size)+32,char(0x5a));
+        const auto end=api.protoArray(proto.data(),bytes.data());
+        if(end!=bytes.data()+size || !std::all_of(bytes.begin()+size,bytes.end(),[](char v){return v==char(0x5a);}))
+            throw std::runtime_error("Native appearance serialization differs from its measured size.");
+        std::string result(bytes.data(),static_cast<std::size_t>(size));
+        api.protoDestroy(proto.data());return result;
+    } catch(...) {api.protoDestroy(proto.data());throw;}
+}
 // Native undo contexts use consuming intrusive references. Own one reference
 // per exact form, independently of EA's (Sim, primary/alternate) map.
 struct NativeUndo {
@@ -918,7 +941,10 @@ inline void Install() {
         {0x45ca90,"9ae7bac621428972d4afaf8719b76bc9f1a1a2e3cd225974f105144041693e44"},
         {0x297630,"5c8655909952eb2f05ef98fca6e83c12d0d9d924253716373009ae2f80bec3b5"},
         {0x45c290,"c80209c8928069a2bd8fc5de7da89f1b1f8e386bc3b13f66e94f95c1cbb4d6f4"},
-        {0x45c318,"943eb3933a680528b30128f30d47c187046bcd2b629fad58a47fd1ec39b4a3ee"}
+        {0x45c318,"943eb3933a680528b30128f30d47c187046bcd2b629fad58a47fd1ec39b4a3ee"},
+        {0x323990,"e90d48dcd731ebb911f40edc9980c774a4b55836c46e82453538a02a3e76e4dc"},
+        {0x617780,"7551fbeac222a844a6bbcba8332a9795e40da3d486ee4339a8d924d26f8e39d7"},
+        {0x63f470,"6322b81000b364019e148ec50a47751e090f93e5000ff266f2e403fdd8bca0bc"}
     };
     for(const auto& pin:pins)
         if(resource::HashBytes(OwnImageRead(pinned.module,pin.rva,32))!=pin.hash)
@@ -942,6 +968,9 @@ inline void Install() {
     state.api.undoCreate=reinterpret_cast<UndoCreateFn>(at(0x3e9e50));
     state.api.undoBind=reinterpret_cast<UndoBindFn>(at(0x45ca90));
     state.api.kindMask=reinterpret_cast<KindMaskFn>(at(0x297630));
+    state.api.exportProto=reinterpret_cast<ExportProtoFn>(at(0x323990));
+    state.api.protoSize=reinterpret_cast<ProtoSizeFn>(at(0x617780));
+    state.api.protoArray=reinterpret_cast<ProtoArrayFn>(at(0x63f470));
     const auto init=MH_Initialize();if(init!=MH_OK && init!=MH_ERROR_ALREADY_INITIALIZED)
         throw std::runtime_error("Native form hook registry is unavailable.");
     struct Hook {void* target;void* detour;void** original;};
@@ -980,6 +1009,29 @@ inline ui::Json Control(const ui::Json& request) {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
     if(request.is_object() && request.size()==1 && request.value("operation","")=="status") return Status();
     if(request.is_object() && request.size()==1 && request.value("operation","")=="view-status") return ViewStatus();
+    if(request.is_object() && request.size()==5 && request.value("operation","")=="export-owner") {
+        if(!request.contains("scope_id") || !request["scope_id"].is_string() ||
+           request["scope_id"].get<std::string>()!=state.scope.id || !state.selectionEnabled ||
+           !request.contains("sim_id") || !request["sim_id"].is_string() ||
+           !request.contains("owner_id") || !request["owner_id"].is_string() ||
+           !FormOwnerId(request["owner_id"].get<std::string>()) ||
+           !request.contains("expected_generation") || !request["expected_generation"].is_number_unsigned())
+            throw std::runtime_error("Appearance snapshot requires its exact native scope and generation.");
+        const auto id=SimId(request["sim_id"]);const auto at=state.bank.find(id);
+        if(at==state.bank.end() || !at->second.graph)
+            throw std::runtime_error("The complete captured appearance is unavailable.");
+        const auto& graph=*at->second.graph;const auto cursor=graph.cursor();
+        if(cursor.generation!=request["expected_generation"].get<std::uint64_t>())
+            throw std::runtime_error("The captured appearance changed before its snapshot.");
+        const auto owner=request["owner_id"].get<std::string>();const auto& captured=graph.appearance(owner);
+        const auto bytes=SerializeOwner(state.api,*captured,id);
+        auto result=Status();result["owner_export"]={{"schema",1},{"sim_id",std::to_string(id)},
+            {"owner_id",owner},{"generation",cursor.generation},{"native_kind",Read<std::uint32_t>(captured->data(),8)},
+            {"native_hex",HexBytes(bytes)},{"sha256",resource::HashBytes(bytes)},{"bytes",bytes.size()},
+            {"appearance_written",false},{"model_harvested",false},{"source","committed-native-appearance"},
+            {"scope","Appearance DTO; nonappearance metadata can contain construction defaults."}};
+        return result;
+    }
     if(request.is_object() && request.size()==8 && request.value("operation","")=="stage-view") {
         for(const auto* name:{"scope_id","sim_id","request_id","expected_owner_id","owner_id"})
             if(!request.contains(name) || !request[name].is_string()) throw std::runtime_error("Untyped form view intent.");

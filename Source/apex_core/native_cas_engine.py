@@ -20,6 +20,13 @@ def argument(value):
         return
     if operation == 'entry-ready' and set(value) == {'operation', 'scope_id', 'sim_id'} and _identity(value['sim_id']):
         return
+    if operation == 'export-owner' and set(value) == {'operation','scope_id','sim_id','owner_id','expected_generation'}:
+        import re
+        if (not _identity(value['sim_id']) or not isinstance(value['owner_id'],str) or
+                re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',value['owner_id']) is None or
+                type(value['expected_generation']) is not int or not 0<value['expected_generation']<2**64):
+            raise ValueError('Snapshot one existing exact appearance owner and graph generation.')
+        return
     if operation == 'stage-view' and set(value) == {'operation', 'scope_id', 'sim_id', 'request_id',
             'expected_owner_id', 'owner_id', 'expected_generation', 'expected_layer'}:
         import re
@@ -106,6 +113,53 @@ def reply(value, pid=None):
             raise ValueError('Native form patch owner capture is incomplete or untyped.')
         if imported and sum(kinds) != imported:
             raise ValueError('Native form patch readiness does not cover all imported kinds.')
+    exported = value.get('owner_export')
+    if exported is not None:
+        import hashlib
+        import re
+        if (not isinstance(exported,dict) or type(exported.get('schema')) is not int or exported['schema']!=1 or
+                not _identity(exported.get('sim_id')) or not isinstance(exported.get('owner_id'),str) or
+                re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',exported['owner_id']) is None or
+                type(exported.get('generation')) is not int or not 0<exported['generation']<2**64 or
+                type(exported.get('native_kind')) is not int or exported['native_kind'] not in (1,2,4,8,16,32,64) or
+                type(exported.get('bytes')) is not int or not 0<exported['bytes']<=512*1024 or
+                exported.get('appearance_written') is not False or exported.get('model_harvested') is not False or
+                exported.get('source')!='committed-native-appearance'):
+            raise ValueError('Native appearance snapshot identity or read-only scope differs.')
+        encoded=exported.get('native_hex');digest=exported.get('sha256')
+        if (not isinstance(encoded,str) or len(encoded)!=2*exported['bytes'] or
+                re.fullmatch(r'[0-9a-f]+',encoded) is None or not isinstance(digest,str) or
+                re.fullmatch(r'[0-9a-f]{64}',digest) is None):
+            raise ValueError('Native appearance snapshot is truncated or noncanonical.')
+        raw=bytes.fromhex(encoded)
+        if hashlib.sha256(raw).hexdigest()!=digest:
+            raise ValueError('Native appearance snapshot bytes differ from their SHA-256.')
+        members=[row for row in rows if row['sim_id']==exported['sim_id']]
+        if (len(members)!=1 or members[0].get('graph_generation')!=exported['generation'] or
+                not any(owner.get('owner_id')==exported['owner_id'] and owner.get('native_kind')==exported['native_kind']
+                        for owner in members[0].get('separate_owners',()))):
+            raise ValueError('Native appearance snapshot belongs to a different owner/generation.')
+        # Parsing is a detached schema read; it never reloads or writes a Sim.
+        # Keep the complete raw snapshot even if this game's Python descriptor
+        # is unavailable, rather than replacing it with partial inferred fields.
+        try:
+            from protocolbuffers import FileSerialization_pb2
+        except ImportError as error:
+            value['owner_export_catalog_query']='unavailable'
+            value['owner_export_catalog_error']=str(error)[:2048]
+        else:
+            message=FileSerialization_pb2.SimData();message.ParseFromString(raw)
+            if str(message.sim_id)!=exported['sim_id']:
+                raise ValueError('Parsed native appearance has another Sim identity.')
+            try:
+                from . import sim_data
+                catalog=sim_data.catalog(message)
+                catalog['scope']='Committed CAS appearance DTO; nonappearance fields can have construction defaults.'
+                value['owner_export_catalog']=catalog
+                value['owner_export_catalog_query']='returned-value'
+            except Exception as error:
+                value['owner_export_catalog_query']='failed'
+                value['owner_export_catalog_error']=str(error)[:2048]
     return value
 
 

@@ -10,6 +10,8 @@ template<class T> void Write(void* p,std::size_t offset,T value) {std::memcpy(st
 using Cache=std::map<unsigned,std::array<char,32>>;
 unsigned destroyed=0,converted=0,allocated=0,freed=0;
 const void* sourceProto=nullptr;unsigned protoDestroyed=0;
+std::map<const void*,std::string> protoExports;
+int exportSizeOverride=0;bool exportWrongId=false,exportWrongLength=false;
 unsigned serviceFallbacks=0,controllerCalls=0,avatarRefreshes=0;
 unsigned reboundKind=0;
 void OriginalRebind(void*,const void*,unsigned target) {reboundKind=target;}
@@ -48,7 +50,18 @@ void OriginalChange(void*,unsigned,const void*,const void*,void**,void**) {++con
 unsigned OriginalAlternate(unsigned mask,unsigned current) {return current&~1u?1u:mask&~1u;}
 void* ProtoConstruct(void* value) {std::memcpy(value,sourceProto,0x1e8);return value;}
 bool ProtoParse(void*,const ByteView* bytes) {return bytes->length==2 && std::memcmp(bytes->data,"\1\2",2)==0;}
-void ProtoDestroy(void*) {++protoDestroyed;}
+void ProtoDestroy(void* value) {++protoDestroyed;protoExports.erase(value);}
+void ExportProto(const void* owner,void* proto) {
+    const auto id=Read<std::uint64_t>(owner,0xb8);Write(proto,0x10,exportWrongId?std::uint64_t(999):id);
+    std::string bytes(1,'\x09');bytes.append(reinterpret_cast<const char*>(&id),8);
+    bytes.append("\x12\x80\x06",3);bytes.append(static_cast<const char*>(owner)+0xd0,0x300);
+    protoExports[proto]=std::move(bytes);
+}
+int ProtoSize(const void* proto) {return exportSizeOverride?exportSizeOverride:static_cast<int>(protoExports.at(proto).size());}
+char* ProtoArray(const void* proto,char* output) {
+    const auto& bytes=protoExports.at(proto);std::memcpy(output,bytes.data(),bytes.size());
+    return output+bytes.size()+(exportWrongLength?1:0);
+}
 std::array<void*,0x500/8> viewControllerTable{},groupInterfaceTable{};
 void* viewMetadata=nullptr;
 std::uint64_t NativeGroupId(void*) {return 123;}
@@ -254,6 +267,25 @@ int main() {
     Write(currentModel.data(),0x178,4u);Write(currentModel.data(),0x17c,127u);Write(currentModel.data(),0x188,9999u);
     NativeCoreBind(controller.data(),0,false); // Initial household binding bypasses the stock copying binder too.
     Require(bank.viewBound && !bank.viewFault && Read<unsigned>(currentModel.data(),0x178)==2);
+    api.exportProto=ExportProto;api.protoSize=ProtoSize;api.protoArray=ProtoArray;
+    auto* exportedData=const_cast<void*>(bank.graph->appearance("native/4")->data());
+    Write(exportedData,0x240,0x11223344u); // Opaque field beyond the short fixture header survives export.
+    const auto exportCursor=bank.graph->cursor();const auto exportModel=currentModel;
+    Json exportRequest={{"operation","export-owner"},{"scope_id",scope.id},{"sim_id","123"},
+        {"owner_id","native/4"},{"expected_generation",exportCursor.generation}};
+    const auto exported=Control(exportRequest)["owner_export"];
+    Require(exported["source"]=="committed-native-appearance" && exported["model_harvested"]==false);
+    const std::string rawExport="44332211";
+    Require(exported["native_hex"].get<std::string>().find(rawExport)!=std::string::npos);
+    Require(bank.graph->cursor().generation==exportCursor.generation && currentModel==exportModel);
+    const auto destroyedBefore=protoDestroyed;
+    exportWrongId=true;Refuses([&]{Control(exportRequest);});exportWrongId=false;
+    exportWrongLength=true;Refuses([&]{Control(exportRequest);});exportWrongLength=false;
+    exportSizeOverride=1024*1024;Refuses([&]{Control(exportRequest);});exportSizeOverride=0;
+    Require(protoDestroyed==destroyedBefore+3 && protoExports.empty());
+    auto staleExport=exportRequest;staleExport["expected_generation"]=exportCursor.generation+1;
+    Refuses([&]{Control(staleExport);});staleExport=exportRequest;staleExport.erase("sim_id");staleExport["extra"]=true;
+    Refuses([&]{Control(staleExport);});
     Require(runtime.kindBiasPrevented>0);
     Require(ModelKindMask(nullptr,127,runtime.image+0x45c32d)==127); // Other callers retain every membership bit.
     Require(bank.partner=="native/1" && Read<unsigned>(group.data(),0xe8)==9999);

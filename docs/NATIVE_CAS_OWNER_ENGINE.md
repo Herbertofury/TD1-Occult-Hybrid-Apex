@@ -198,3 +198,29 @@ Private evidence: `.work/native-cas-v160-final-native-tests.log`,
 `.work/native-cas-v159-arm-inspected-pins.json`,
 `.work/native-cas-v159-cold-all40.json`,
 `.work/native-cas-v159-unsaved-exit-for-v160.json`.
+
+## Bounded complete-owner export (V169, runtime qualification pending)
+
+`python tools/apex_cli.py cas-owner-export --state .work/reusable-profile-session.json --output .work/NEW-export.json`
+
+The default reads every owner of every scoped household member. `--sim-id`
+can explicitly narrow the export. It reads the committed graph without changing
+the current model, accepting CAS, writing an appearance bank or saving. An
+uncommitted edit must first complete the existing same-owner synchronization;
+this read does not silently harvest it.
+
+The native `export-owner-page` operation returns at most eight owners, 512 KiB
+of serialized native data and 1.5 MiB of row JSON per page. It retains revisions,
+directed links, membership and selected-owner identity. The collector requires
+the exact full inventory and runtime/scope/generation/cursor on every page;
+missing/relabelled owners, duplicates, stale pages, corrupt bytes and exceeded
+budgets cannot become a complete collection. Unknown protobuf bytes remain
+intact. A final status check rejects household changes during collection.
+
+Nine native targets cover page boundaries, large payloads, unchanged model and
+generation, opaque fields and refused cursors/scopes. Six page/collector tests,
+three CLI household/partial-export tests, ten engine-contract tests, seven
+engine-CLI tests and 31 epoch/migration tests pass. This candidate is built but
+has not replaced the running V168 session. These DTOs can contain construction
+defaults outside appearance data; this is neither whole-Sim restore authority
+nor completed CAS-return/Live/save/Tray persistence.

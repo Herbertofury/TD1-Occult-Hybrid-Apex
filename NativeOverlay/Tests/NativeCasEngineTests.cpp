@@ -12,6 +12,7 @@ unsigned destroyed=0,converted=0,allocated=0,freed=0;
 const void* sourceProto=nullptr;unsigned protoDestroyed=0;
 std::map<const void*,std::string> protoExports;
 int exportSizeOverride=0;bool exportWrongId=false,exportWrongLength=false;
+std::size_t exportPadding=0;
 unsigned serviceFallbacks=0,controllerCalls=0,avatarRefreshes=0;
 unsigned reboundKind=0,nativeSyncCalls=0;
 unsigned previewRestores=0;
@@ -56,6 +57,7 @@ void ExportProto(const void* owner,void* proto) {
     const auto id=Read<std::uint64_t>(owner,0xb8);Write(proto,0x10,exportWrongId?std::uint64_t(999):id);
     std::string bytes(1,'\x09');bytes.append(reinterpret_cast<const char*>(&id),8);
     bytes.append("\x12\x80\x06",3);bytes.append(static_cast<const char*>(owner)+0xd0,0x300);
+    bytes.append(exportPadding,'\x5a');
     protoExports[proto]=std::move(bytes);
 }
 int ProtoSize(const void* proto) {return exportSizeOverride?exportSizeOverride:static_cast<int>(protoExports.at(proto).size());}
@@ -296,6 +298,29 @@ int main() {
     exportWrongLength=true;Refuses([&]{Control(exportRequest);});exportWrongLength=false;
     exportSizeOverride=1024*1024;Refuses([&]{Control(exportRequest);});exportSizeOverride=0;
     Require(protoDestroyed==destroyedBefore+3 && protoExports.empty());
+    Json pageRequest={{"operation","export-owner-page"},{"scope_id",scope.id},{"sim_id","123"},
+        {"expected_generation",exportCursor.generation},{"after_owner_id",""}};
+    const auto page=Control(pageRequest);
+    Require(page["scope"]=="native-owner-export-page" && page["owners"].size()==8 && page["complete"]==false);
+    std::vector<std::string> pageIds;
+    for(const auto& row:page["owners"]) pageIds.push_back(row["owner_id"].get<std::string>());
+    Require(std::is_sorted(pageIds.begin(),pageIds.end()));
+    auto nextPage=pageRequest;nextPage["after_owner_id"]=page["next_owner_id"];
+    const auto tail=Control(nextPage);
+    Require(tail["owners"].size()==1 && tail["complete"]==true && tail["next_owner_id"].is_null());
+    pageIds.push_back(tail["owners"][0]["owner_id"].get<std::string>());
+    Require(pageIds.size()==bank.graph->owners().size() && std::adjacent_find(pageIds.begin(),pageIds.end())==pageIds.end());
+    Require(page["selected_owner_id"]==exportCursor.owner && page["owned_mask"]==127);
+    for(const auto& row:page["owners"]) {
+        Require(row["revision"]==bank.graph->revision(row["owner_id"].get<std::string>()));
+        Require(row["linked_targets"].empty());
+    }
+    exportPadding=128*1024;const auto largePage=Control(pageRequest);exportPadding=0;
+    Require(largePage["owners"].size()==3 && largePage["complete"]==false && protoExports.empty());
+    Require(bank.graph->cursor().generation==exportCursor.generation && currentModel==exportModel && nativeSyncCalls==0);
+    auto invalidPage=pageRequest;invalidPage["after_owner_id"]="unknown/other";Refuses([&]{Control(invalidPage);});
+    invalidPage=pageRequest;invalidPage["expected_generation"]=exportCursor.generation+1;Refuses([&]{Control(invalidPage);});
+    invalidPage=pageRequest;invalidPage["scope_id"]="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";Refuses([&]{Control(invalidPage);});
     auto staleExport=exportRequest;staleExport["expected_generation"]=exportCursor.generation+1;
     Refuses([&]{Control(staleExport);});staleExport=exportRequest;staleExport.erase("sim_id");staleExport["extra"]=true;
     Refuses([&]{Control(staleExport);});

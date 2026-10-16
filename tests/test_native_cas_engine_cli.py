@@ -69,3 +69,11 @@ class EngineCliTests(unittest.TestCase):
         result=self.run_engine(request,dict(operation='export-owner',scope_id='a'*32,
             sim_id='123',owner_id='ghost/other',expected_generation=17))
         self.assertFalse(result['ok']);self.assertEqual(calls,['test_native_cas_engine'])
+
+    def test_paged_export_also_avoids_a_renderer_restart(self):
+        calls=[]
+        def request(state,action,**options):
+            calls.append(action);return dict(ok=True,production_ready=False)
+        self.assertTrue(self.run_engine(request,dict(operation='export-owner-page',scope_id='a'*32,
+            sim_id='123',expected_generation=17,after_owner_id=''))['ok'])
+        self.assertEqual(calls,['test_native_cas_engine'])

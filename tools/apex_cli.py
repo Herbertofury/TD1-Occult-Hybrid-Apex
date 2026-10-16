@@ -363,6 +363,10 @@ def parser():
                       help='Exact currently observed native form for native-human')
     game.add_argument('--ensure-witch-owner', action='store_true',
                       help='Allow native-human to construct a missing tuned Witch owner without random generation')
+    owner_export = commands.add_parser('cas-owner-export', help='Read every committed form through bounded native snapshot pages')
+    owner_export.add_argument('--state', required=True, type=Path)
+    owner_export.add_argument('--output', required=True, type=Path)
+    owner_export.add_argument('--sim-id', help='Optional exact member; defaults to the complete scoped household')
     cas = commands.add_parser('cas', help='Semantic native CAS controls; no mouse input')
     cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
@@ -657,6 +661,9 @@ def parser():
 
 
 def execute(args):
+    if args.command == 'cas-owner-export':
+        from cas_owner_export import run
+        return run(args.state,args.output,args.sim_id)
     if args.command == 'lifestate':
         from lifestate_cli import run
         return run(args, owned_request)

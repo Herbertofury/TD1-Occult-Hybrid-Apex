@@ -1041,6 +1041,55 @@ inline ui::Json Control(const ui::Json& request) {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
     if(request.is_object() && request.size()==1 && request.value("operation","")=="status") return Status();
     if(request.is_object() && request.size()==1 && request.value("operation","")=="view-status") return ViewStatus();
+    if(request.is_object() && request.size()==5 && request.value("operation","")=="export-owner-page") {
+        if(!request.contains("scope_id") || !request["scope_id"].is_string() ||
+           request["scope_id"].get<std::string>()!=state.scope.id || !state.selectionEnabled ||
+           !request.contains("sim_id") || !request["sim_id"].is_string() ||
+           !request.contains("after_owner_id") || !request["after_owner_id"].is_string() ||
+           !request.contains("expected_generation") || !request["expected_generation"].is_number_unsigned())
+            throw std::runtime_error("Owner export page requires its exact native scope and generation.");
+        const auto id=SimId(request["sim_id"]);const auto at=state.bank.find(id);
+        if(at==state.bank.end() || !at->second.graph)
+            throw std::runtime_error("The complete captured appearance graph is unavailable.");
+        const auto& graph=*at->second.graph;const auto cursor=graph.cursor();
+        if(cursor.generation!=request["expected_generation"].get<std::uint64_t>())
+            throw std::runtime_error("The appearance graph changed before its export page.");
+        std::vector<std::string> ids;for(const auto& owner:graph.owners()) ids.push_back(owner.id);
+        if(ids.empty() || ids.size()>2048) throw std::runtime_error("Owner export inventory exceeds its complete bound.");
+        std::sort(ids.begin(),ids.end());const auto after=request["after_owner_id"].get<std::string>();
+        std::size_t start=0;
+        if(!after.empty()) {
+            const auto found=std::find(ids.begin(),ids.end(),after);
+            if(found==ids.end()) throw std::runtime_error("Owner export cursor is outside the exact graph.");
+            start=static_cast<std::size_t>(found-ids.begin())+1;
+        }
+        auto rows=ui::Json::array();std::size_t used=0,wire=0,index=start;
+        // Bound both work and wire bytes. A single serializer result is already
+        // capped at 512 KiB; hexadecimal expansion stays below the 2 MiB ABI.
+        for(;index<ids.size() && rows.size()<8;++index) {
+            const auto& captured=graph.appearance(ids[index]);const auto bytes=SerializeOwner(state.api,*captured,id);
+            if(!rows.empty() && used+bytes.size()>512*1024) break;
+            auto links=ui::Json::array();for(const auto& target:ids)
+                if(graph.linked(ids[index],target)) links.push_back(target);
+            auto row=ui::Json{{"owner_id",ids[index]},
+                {"native_kind",Read<std::uint32_t>(captured->data(),8)},
+                {"revision",graph.revision(ids[index])},{"linked_targets",links},
+                {"native_hex",HexBytes(bytes)},{"sha256",resource::HashBytes(bytes)},{"bytes",bytes.size()}};
+            const auto size=row.dump().size();
+            if(size>1536*1024) throw std::runtime_error("One complete form exceeds the bounded page wire budget.");
+            if(!rows.empty() && wire+size>1536*1024) break;
+            used+=bytes.size();wire+=size;rows.push_back(std::move(row));
+        }
+        return {{"ok",true},{"schema",1},{"scope","native-owner-export-page"},{"pid",GetCurrentProcessId()},
+            {"scope_id",state.scope.id},{"sim_id",std::to_string(id)},{"generation",cursor.generation},
+            {"owned_mask",graph.mask()},{"selected_owner_id",cursor.owner},
+            {"after_owner_id",after},{"start_index",start},{"total_owners",ids.size()},
+            {"owners",rows},{"complete",index==ids.size()},
+            {"next_owner_id",index==ids.size()?ui::Json(nullptr):ui::Json(ids[index-1])},
+            {"appearance_written",false},{"model_harvested",false},{"game_files_written",false},
+            {"native_patch_qualified",false},{"production_ready",false},
+            {"source","committed-native-appearance"}};
+    }
     if(request.is_object() && request.size()==5 && request.value("operation","")=="export-owner") {
         if(!request.contains("scope_id") || !request["scope_id"].is_string() ||
            request["scope_id"].get<std::string>()!=state.scope.id || !state.selectionEnabled ||

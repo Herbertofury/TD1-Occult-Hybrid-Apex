@@ -1,12 +1,12 @@
 {
-  "build_epoch": "2026-10-16-native-cas-finish-preview-before-owner-copy-v168",
+  "build_epoch": "2026-10-16-native-cas-bounded-owner-pages-v169",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-16-native-cas-finish-preview-before-owner-copy-v168.zip",
-    "bytes": 3483289,
+    "artifact": "Apex_Development_Candidate_2026-10-16-native-cas-bounded-owner-pages-v169.zip",
+    "bytes": 3496373,
     "members": 28,
-    "sha256": "08b78e73f69fe9eb92a57e37c974814d333f37bc3d3ed78ee19de47521fb4dc7"
+    "sha256": "96860f989d8d00ce0fe24099538508beac559b8f1590fb3335dd1a01af65ea9a"
   },
-  "compiled_script_modules": 95,
+  "compiled_script_modules": 96,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -51,9 +51,9 @@
       "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 53189,
+      "bytes": 53532,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "4a53ef5fdfc3d3e4b891b463b0f5da6efc30f92e0682c573b9c2f2007f0e6cc5"
+      "sha256": "52c91f3f4f932e8fe27f06ca050197a5f9da1eabc95272b4efb927c1b50f8f70"
     },
     {
       "bytes": 1506,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 920165,
+      "bytes": 927238,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "09d47b4aecadbfe5d13b019b0a592d094bf9554fbb65ef8ca88d2704b3ea3e84"
+      "sha256": "784681284ec00277dadb8d0e22d3f9d213d901aab4aee56023adc5e74c1c3bd3"
     },
     {
-      "bytes": 2167808,
+      "bytes": 2182144,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "a3180034fa2dbffa9d06fc90bd194f008f50f397c1920e08d635505410163b2b"
+      "sha256": "76e381c95d41df3a6828082c7232035a74424d99c42dc14d612b41f16f0e4a65"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "e67c33c8cc4ba4331536d40f37068056b2a3e18bd160edd534c02d0209a2dd10"
+      "sha256": "30dd6d56c1d258fdc299b3821adcc7fe0f95c2cc29b85fa18ac55cc719000cbb"
     },
     {
       "bytes": 424,

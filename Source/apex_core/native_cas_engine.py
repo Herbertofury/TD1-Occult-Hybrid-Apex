@@ -20,6 +20,13 @@ def argument(value):
         return
     if operation == 'entry-ready' and set(value) == {'operation', 'scope_id', 'sim_id'} and _identity(value['sim_id']):
         return
+    if operation == 'export-owner-page' and set(value) == {'operation','scope_id','sim_id','expected_generation','after_owner_id'}:
+        from .cas_owner_export_page import OWNER
+        if (not _identity(value['sim_id']) or type(value['expected_generation']) is not int or
+                not 0<value['expected_generation']<2**64 or not isinstance(value['after_owner_id'],str) or
+                value['after_owner_id'] and OWNER.fullmatch(value['after_owner_id']) is None):
+            raise ValueError('Export one bounded page of the exact committed owner graph.')
+        return
     if operation == 'export-owner' and set(value) == {'operation','scope_id','sim_id','owner_id','expected_generation'}:
         import re
         if (not _identity(value['sim_id']) or not isinstance(value['owner_id'],str) or
@@ -82,6 +89,9 @@ def reply(value, pid=None):
         return value
     if type(value.get('pid')) is not int or value['pid'] != (os.getpid() if pid is None else pid):
         raise ValueError('Native form patch belongs to a different game process.')
+    if value.get('scope') == 'native-owner-export-page':
+        from .cas_owner_export_page import validate
+        return validate(value, os.getpid() if pid is None else pid)
     if value.get('scope') == 'native-form-view-status':
         if type(value.get('available')) is not bool:
             raise ValueError('Native form view availability is untyped.')

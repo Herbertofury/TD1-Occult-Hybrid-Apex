@@ -5,6 +5,14 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V169 is built, not installed or runtime-qualified. It adds bounded read-only
+native owner pages and `cas-owner-export`, defaulting to the complete scoped
+household. Pages preserve exact bytes, owner IDs, revisions, directed links,
+selected owner and membership, with generation/cursor checks and complete
+inventory validation. Nine native CTests and 57 Python checks pass. This is
+collection infrastructure; CAS-return/bank/save persistence is still open.
+The running game remains V168 while its expanded edited matrix continues.
+
 V168 is installed only in the disposable profile. Its real tattoo-panel
 Alien -> Vampire -> Alien rerun now retains identical complete snapshot bytes;
 V167 had lost five outfit parts. The complete five-point Fairy round trip also

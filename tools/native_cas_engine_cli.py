@@ -26,7 +26,7 @@ def run(state, output, request, argument):
             # exact running DLL. Starting the renderer again cannot create that
             # graph. Dispatch this read directly; the game still verifies the
             # loaded DLL, scope, owner and generation, and fails if absent.
-            startup = (None if argument['operation']=='export-owner' else
+            startup = (None if argument['operation'] in ('export-owner','export-owner-page') else
                 call(state, 'overlay_start', value=json.dumps({'test_token': journal['token'], 'value': None})))
             if startup is not None and startup.get('ok') is not True:
                 result = dict(ok=False, message='Matching native sidecar did not start.', startup=startup)

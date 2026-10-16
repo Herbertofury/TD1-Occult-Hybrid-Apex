@@ -36,7 +36,14 @@ inline std::uint64_t OwnControllerPointer(std::uintptr_t address) {
         throw std::runtime_error("Native controller pointer changed or became unreadable.");
     return value;
 }
-inline ui::Json Inspect() {
+struct PinnedCasImage {
+    HMODULE module;
+    std::string disk,hash;
+    IMAGE_NT_HEADERS64 headers;
+    IMAGE_SECTION_HEADER text,data,writable,unwind;
+    unsigned writableCount,unwindCount;
+};
+inline PinnedCasImage OpenPinnedCasImage() {
     const auto module=GetModuleHandleW(nullptr);
     wchar_t filename[32768]={};
     const auto length=GetModuleFileNameW(module,filename,32768);
@@ -84,6 +91,16 @@ inline ui::Json Inspect() {
         throw std::runtime_error("Expected code/read-only sections are unavailable.");
     Bounds(text.VirtualAddress,text.Misc.VirtualSize,nt.OptionalHeader.SizeOfImage);
     Bounds(data.VirtualAddress,data.Misc.VirtualSize,nt.OptionalHeader.SizeOfImage);
+    const auto tableBytes=nt.FileHeader.NumberOfSections*sizeof(IMAGE_SECTION_HEADER);
+    if(OwnImageRead(module,static_cast<std::uint32_t>(table),tableBytes)!=disk.substr(table,tableBytes))
+        throw std::runtime_error("Loaded section table differs from the pinned executable.");
+    return {module,std::move(disk),hash,nt,text,data,writable,unwind,writableCount,unwindCount};
+}
+inline ui::Json Inspect(bool includeOwnerData=true) {
+    auto image=OpenPinnedCasImage();
+    const auto module=image.module;auto& disk=image.disk;const auto& hash=image.hash;const auto& nt=image.headers;
+    const auto& text=image.text;const auto& data=image.data;const auto& writable=image.writable;const auto& unwind=image.unwind;
+    const auto writableCount=image.writableCount,unwindCount=image.unwindCount;
     struct Function {std::uint32_t begin,end;};std::vector<Function> functions;
     if(unwindCount!=1 || !unwind.Misc.VirtualSize || unwind.Misc.VirtualSize%12 || unwind.Misc.VirtualSize>4u*1024u*1024u ||
        unwind.PointerToRawData>disk.size() || unwind.Misc.VirtualSize>disk.size()-unwind.PointerToRawData)
@@ -111,7 +128,7 @@ inline ui::Json Inspect() {
         throw std::runtime_error("Pinned on-disk code span is incomplete.");
     const auto diskCodeHash=resource::HashBytes(disk.substr(text.PointerToRawData,text.Misc.VirtualSize));
     if(diskCodeHash.size()!=64) throw std::runtime_error("Pinned code fingerprint is unavailable.");
-    disk.clear();disk.shrink_to_fit();stream.close();
+    disk.clear();disk.shrink_to_fit();
     const auto code=OwnImageRead(module,text.VirtualAddress,text.Misc.VirtualSize);
     const auto constants=OwnImageRead(module,data.VirtualAddress,data.Misc.VirtualSize);
     ui::Json controller={{"available",false},{"pointer_reads",0},{"interface_called",false},
@@ -182,6 +199,7 @@ inline ui::Json Inspect() {
             for(const auto& method:modelMethods) controllerMethods.insert(method.at("target_rva").get<std::uint32_t>());
         } catch(const std::exception& error) {model["reason"]=error.what();}
         controller["conversion_model"]=std::move(model);
+        if(includeOwnerData) {
         ui::Json inventory={{"available",false},{"appearance_data_read",false},
             {"scope","Pinned native cache keys only; no appearance equality or ownership-lifetime claim"}};
         try {
@@ -195,6 +213,7 @@ inline ui::Json Inspect() {
             inventory.update({{"available",true},{"double_read_verified",true},{"owners",owners}});
         } catch(const std::exception& error) {inventory["reason"]=error.what();}
         controller["kind_cache_inventory"]=std::move(inventory);
+        }
     } catch(const std::exception& error) {controller["reason"]=error.what();}
     ui::Json rows=ui::Json::array();std::set<std::uint32_t> callbacks,messageRegions,cacheHelpers;
     // Native helpers with leaf/no-unwind entries would otherwise be omitted
@@ -307,5 +326,21 @@ inline ui::Json Inspect() {
         {"callback_roots",callbacks},{"pinned_fault_contexts",faults},{"own_process_only",true},{"read_only",true},{"game_memory_written",false},
         {"game_files_written",false},{"memory_dump_written",false},{"native_patch_qualified",false},
         {"sim_data_read",controller.contains("kind_cache_inventory")}};
+}
+inline ui::Json InspectCodeWindow(std::uint32_t rva,std::size_t count) {
+    // A development debugger read of the pinned executable's code section.
+    // An RVA is never a process pointer: heap/data/other modules are excluded.
+    const auto identity=OpenPinnedCasImage();
+    const auto begin=identity.text.VirtualAddress;
+    const auto size=identity.text.Misc.VirtualSize;
+    if(!count || count>8192 || rva<begin || rva-begin>size || count>size-(rva-begin))
+        throw std::runtime_error("Native code window must lie entirely within the pinned text section (1..8192 bytes).");
+    const auto body=OwnImageRead(GetModuleHandleW(nullptr),rva,count);
+    return {{"schema",1},{"ok",true},{"pid",GetCurrentProcessId()},
+        {"exe_sha256",identity.hash},{"text_rva",begin},{"text_bytes",size},
+        {"code_rva",rva},{"captured_bytes",count},{"code_sha256",resource::HashBytes(body)},
+        {"code_hex",HexBytes(body)},{"function_entry_verified",false},{"own_process_only",true},
+        {"read_only",true},{"game_memory_written",false},{"game_files_written",false},
+        {"sim_data_read",false},{"native_patch_qualified",false}};
 }
 }

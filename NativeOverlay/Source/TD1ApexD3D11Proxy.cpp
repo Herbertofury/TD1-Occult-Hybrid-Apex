@@ -59,6 +59,7 @@
 #include "ApexNativeCasProbeWin.h"
 #include "OverlayInput.h"
 #include "MinHook.h"
+#include "ApexNativeCasEngineWin.h"
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
@@ -4330,6 +4331,35 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexNativeCasProbe() {
     if(reply.size()>262144) reply=R"({"ok":false,"message":"Native diagnostic exceeds its bound.","read_only":true,"game_memory_written":false,"game_files_written":false,"native_patch_qualified":false})";
     return reply.c_str();
 }
+extern "C" __declspec(dllexport) const char* WINAPI ApexNativeCasCodeWindow(const char* raw) {
+    thread_local std::string reply;
+    try {
+        if(!raw || strnlen_s(raw,512)==512) throw std::runtime_error("Bounded native code-window JSON required.");
+        const auto argument=td1::ui::Json::parse(raw);
+        if(!argument.is_object() || argument.size()!=2 || !argument.contains("rva") || !argument.contains("bytes") ||
+            !argument["rva"].is_number_unsigned() || !argument["bytes"].is_number_unsigned() ||
+            argument["rva"].get<std::uint64_t>()>UINT32_MAX || argument["bytes"].get<std::uint64_t>()>8192)
+            throw std::runtime_error("Native code inspection accepts a bounded code RVA and byte count only.");
+        reply=td1::nativecas::InspectCodeWindow(argument["rva"].get<std::uint32_t>(),argument["bytes"].get<std::size_t>()).dump();
+    } catch(const std::exception& error) {
+        reply=td1::ui::Json({{"ok",false},{"message",error.what()},{"read_only",true},
+            {"game_memory_written",false},{"game_files_written",false},{"sim_data_read",false},
+            {"native_patch_qualified",false}}).dump();
+    }
+    return reply.c_str();
+}
+extern "C" __declspec(dllexport) const char* WINAPI ApexNativeCasEngineControl(const char* raw) {
+    thread_local std::string reply;
+    try {
+        constexpr std::size_t bound=8u*1024u*1024u+8192u;
+        if(!raw || strnlen_s(raw,bound)==bound) throw std::runtime_error("Bounded native form scope JSON required.");
+        reply=td1::nativecas::engine::Control(td1::ui::Json::parse(raw)).dump();
+    } catch(const std::exception& error) {
+        reply=td1::ui::Json({{"ok",false},{"message",error.what()},{"game_files_written",false},
+            {"native_patch_qualified",false},{"production_ready",false}}).dump();
+    }
+    return reply.c_str();
+}
 extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const char* raw) {
     static std::string reply;
     std::lock_guard<std::recursive_mutex> renderLock(td1::g_renderMutex);
@@ -4672,6 +4702,20 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID) {
 // input, game processes, files, or exports that bypass the production guard.
 extern "C" int ApexRunNativeSmoke() {
     using namespace td1;
+    // The debugger export rejects malformed requests and this foreign test
+    // executable without reading a game process or accepting a write claim.
+    for(const auto* raw:std::array<const char*,4>{{nullptr,"{}","{\"rva\":1,\"bytes\":8193}","{\"rva\":1,\"bytes\":1}"}}) {
+        const auto refused=ui::Json::parse(ApexNativeCasCodeWindow(raw));
+        if(refused.value("ok",true) || !refused.value("read_only",false) ||
+            refused.value("game_memory_written",true) || refused.value("game_files_written",true) ||
+            refused.value("sim_data_read",true)) return 77;
+    }
+    const auto engineStatus=ui::Json::parse(ApexNativeCasEngineControl("{\"operation\":\"status\"}"));
+    if(!engineStatus.value("ok",false) || engineStatus.value("installed",true) || engineStatus.value("armed",true)) return 78;
+    const auto engineArm=ui::Json({{"operation","arm"},{"scope_id",std::string(32,'a')},
+        {"members",ui::Json::array({{{"sim_id","123"},{"owned_mask",127u}}})}}).dump();
+    const auto engineRefusal=ui::Json::parse(ApexNativeCasEngineControl(engineArm.c_str()));
+    if(engineRefusal.value("ok",true) || engineRefusal.value("production_ready",true) || engineRefusal.value("game_files_written",true)) return 79;
     // Exercise the actual owner recovery and queue guards with deterministic
     // receipts. This test never starts HTTP or repeats a command submission.
     const std::string ownerId(32, 'a'), nativeId(32, 'b');

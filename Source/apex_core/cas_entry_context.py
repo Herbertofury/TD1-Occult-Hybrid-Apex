@@ -156,6 +156,8 @@ def prepare(backend, selected, full_household):
                    for kind, owner in owners.items()):
                 raise ValueError('CAS pair preparation changed a native appearance; originals retained.')
             row.update(after_context=after, verified=True); proof['stage'] = 'verifying'; publish(path, proof)
+        from . import native_cas_engine
+        proof['native_owner_import'] = native_cas_engine.seed_members(backend)
         proof['stage'] = 'verified'; publish(path, proof)
     except Exception as error:
         proof.update(stage='unresolved', error=str(error)[:2048], retry_safe=False); publish(path, proof)

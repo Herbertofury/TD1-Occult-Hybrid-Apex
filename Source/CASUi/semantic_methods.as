@@ -857,7 +857,7 @@
             context.control={operation:operation,before:ApexFormsStatus()}; reply.mutation_started=true;
             ApexFormsApply(workspaceX,workspaceY,workspaceScale,String(parts[3])=="1",String(parts[4])=="1"); return;
          }
-         if(operation=="occults" || operation=="occult-view" || operation=="occult-cache-view") {
+         if(operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view") {
             data=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
             if(!data || !(data.allOccultTypes is int) || !(data.occultType is int) || !(data.occultLayer is int))
                throw new Error("Native occult view identity is unavailable");
@@ -866,10 +866,11 @@
                throw new Error("Native occult catalog is unavailable");
             context.control={operation:operation,occults:occultCatalog.avail_occult};
             if(operation=="occults") { data=null;occultCatalog=null;return; }
-            var cacheProbe:Boolean=operation=="occult-cache-view";
+            var ownerProbe:Boolean=operation=="occult-owner-view";
+            var cacheProbe:Boolean=operation=="occult-cache-view" || ownerProbe;
             if(state!=apexOwnerSession || parts.length!=(cacheProbe?3:2) || String(data.householdId)!=parts[0] ||
                int(data.occultLayer)!=int(parts[1]) || int(data.allOccultTypes)!=category ||
-               index<2 || (index & (index-1))!=0 || (!cacheProbe && (category & index)!=index) ||
+               index<(ownerProbe?1:2) || (index & (index-1))!=0 || (!cacheProbe && (category & index)!=index) ||
                CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled",null,true)!==true)
                throw new Error("Occult view requires the exact existing membership, session, household and full CAS editor");
             if(cacheProbe && (int(parts[2])<1 || int(parts[2])>127 || index>64 ||
@@ -1155,7 +1156,7 @@
             var workspace:Object=ApexFormsStatus();
             return {operation:operation,layout:workspace.layout,visible:workspace.visible,appearance_written:false,before:context.control.before};
          }
-         if(operation=="occults" || operation=="occult-view" || operation=="occult-cache-view") {
+         if(operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view") {
             var occultCatalog:Object=ApexClone(CommunicationManager.CallGameService("CasGetAvailableOccults",{simId:String(client.sim.simId)}));
             if(!occultCatalog || !(occultCatalog.avail_occult is Array))throw new Error("Native occult catalog readback is unavailable");
             return {operation:operation,occults:occultCatalog.avail_occult,before:context.occultBefore};
@@ -1585,7 +1586,7 @@
                   operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
                   operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" ||
                   operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
-                  operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="detail-status" ||
+                  operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view" || operation=="detail-status" ||
                   operation=="detail-mode" || operation=="filters" || operation=="filter-clear")
                   reply.client.control=ApexControlResult(operation,state,category,index,value,context,reply.client);
                if(operation=="accept") {

@@ -8792,7 +8792,7 @@ if services is not None:
             response = _submit_action('cas_ui_socket_ack', value={
                 'peer': peer, 'request_id': request_id, 'payload': payload}, wait_seconds=8.0)
             return bool(response.get('acknowledgement_accepted'))
-        _apex_start_cas_socket(_apex_owned_cas_ack)
+        _apex_start_cas_socket(_apex_owned_cas_ack, sys.modules[__name__])
     except Exception as exc:
         _log('Native CAS transport unavailable: {}'.format(exc))
 

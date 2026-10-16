@@ -348,6 +348,87 @@ def native_cas_probe(module_file, dll_path):
     return value
 
 
+def _code_window_argument(argument):
+    if (not isinstance(argument, dict) or set(argument) != {'rva', 'bytes'} or
+            type(argument['rva']) is not int or not 0 <= argument['rva'] <= 0xffffffff or
+            type(argument['bytes']) is not int or not 1 <= argument['bytes'] <= 8192):
+        raise ValueError('Use a bounded pinned-image code RVA and 1..8192 bytes only.')
+
+
+def _code_window_reply(argument, value, pid):
+    import hashlib
+    _code_window_argument(argument)
+    if (not isinstance(value, dict) or type(value.get('ok')) is not bool or
+            value.get('read_only') is not True or value.get('game_memory_written') is not False or
+            value.get('game_files_written') is not False or value.get('sim_data_read') is not False or
+            value.get('native_patch_qualified') is not False):
+        raise ValueError('Native code window lacks its code-only no-write contract.')
+    if not value['ok']:
+        return value
+    if (value.get('own_process_only') is not True or type(value.get('pid')) is not int or value['pid'] != pid or
+            value.get('exe_sha256') != '916b852b187b9c41b9c2d77af55e0d5ed6aaf06909661397d7aa98f2e4db78ab' or
+            value.get('function_entry_verified') is not False):
+        raise ValueError('Native code window has a foreign identity or unverified entry claim.')
+    if any(type(value.get(key)) is not int for key in ('code_rva', 'captured_bytes', 'text_rva', 'text_bytes')):
+        raise ValueError('Native code window bounds are untyped.')
+    start, size = value['text_rva'], value['text_bytes']
+    rva, count = value['code_rva'], value['captured_bytes']
+    if (rva != argument['rva'] or count != argument['bytes'] or not 0 <= start <= rva or
+            not 0 < size <= 0xffffffff or start + size > 0x100000000 or rva - start + count > size):
+        raise ValueError('Native code window left the exact requested text-section bounds.')
+    encoded = value.get('code_hex')
+    if (not isinstance(encoded, str) or len(encoded) != count * 2 or
+            any(c not in '0123456789abcdef' for c in encoded) or
+            hashlib.sha256(bytes.fromhex(encoded)).hexdigest() != value.get('code_sha256')):
+        raise ValueError('Native code window bytes do not match their exact fingerprint.')
+    return value
+
+
+@serialized
+def native_cas_code_window(module_file, dll_path, argument):
+    _code_window_argument(argument)
+    if not _CALLS:
+        raise ValueError('The matching game-owned native sidecar is not loaded.')
+    path, info = sidecar_paths(module_file)
+    if info['sha256'] != _LOADED_SHA or str(path) != _LOADED_PATH:
+        raise ValueError('The native build changed while the game runs.')
+    native = _game_ctypes(dll_path)
+    class String(native._SimpleCData): _type_ = 'z'
+    class WindowCall(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL
+        _restype_ = String
+        _argtypes_ = (String,)
+    class Library: _handle = _HANDLE
+    result = WindowCall(('ApexNativeCasCodeWindow', Library()))(json.dumps(argument).encode('ascii'))
+    reply = getattr(result, 'value', result)
+    if not isinstance(reply, bytes) or len(reply) > 32768:
+        raise ValueError('Native code window returned invalid bounded JSON.')
+    return _code_window_reply(argument, json.loads(reply.decode('utf-8')), os.getpid())
+
+
+@serialized
+def native_cas_engine_control(module_file, dll_path, argument):
+    from . import native_cas_engine
+    native_cas_engine.argument(argument)
+    if not _CALLS:
+        raise ValueError('The matching game-owned native sidecar is not loaded.')
+    path, info = sidecar_paths(module_file)
+    if info['sha256'] != _LOADED_SHA or str(path) != _LOADED_PATH:
+        raise ValueError('The native build changed while the game runs.')
+    native = _game_ctypes(dll_path)
+    class String(native._SimpleCData): _type_ = 'z'
+    class EngineCall(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL
+        _restype_ = String
+        _argtypes_ = (String,)
+    class Library: _handle = _HANDLE
+    result = EngineCall(('ApexNativeCasEngineControl', Library()))(json.dumps(argument).encode('ascii'))
+    raw = getattr(result, 'value', result)
+    if not isinstance(raw, bytes) or len(raw) > 32768:
+        raise ValueError('Native form patch returned invalid bounded JSON.')
+    return native_cas_engine.reply(json.loads(raw.decode('utf-8')))
+
+
 @serialized
 def sim_preview(module_file, dll_path, argument):
     if not _CALLS or not isinstance(argument, dict) or argument.get('operation') not in ('status', 'load', 'view', 'mode', 'workspace', 'clear', 'tray', 'tray-copy', 'library-select', 'thumbnail', 'gallery-query', 'gallery-select', 'gallery-view', 'cas-review'):

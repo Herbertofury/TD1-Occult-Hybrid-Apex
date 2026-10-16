@@ -7,7 +7,7 @@ Request identities deduplicate commands after response loss.
 from collections import OrderedDict
 import threading
 
-ACTIONS = frozenset(('test_input', 'test_capture', 'test_studio_ui', 'test_preview', 'test_native_cas_probe', 'overlay_start', 'overlay_status', 'overlay_show', 'overlay_hide'))
+ACTIONS = frozenset(('test_input', 'test_capture', 'test_studio_ui', 'test_preview', 'test_native_cas_probe', 'test_native_cas_code_window', 'test_native_cas_engine', 'overlay_start', 'overlay_status', 'overlay_show', 'overlay_hide'))
 _LOCK = threading.RLock()
 _RESULTS = OrderedDict()
 
@@ -42,9 +42,13 @@ def dispatch(backend, action, value, request_id):
             if argument is not None:
                 raise ValueError('Native CAS inspection accepts no addresses or operations.')
             result = overlay_loader.native_cas_probe(backend.__file__, paths.DLL_PATH)
+        elif action == 'test_native_cas_code_window':
+            result = overlay_loader.native_cas_code_window(backend.__file__, paths.DLL_PATH, argument)
+        elif action == 'test_native_cas_engine':
+            result = overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, argument)
         else:
             result = overlay_loader.input_event(backend.__file__, paths.DLL_PATH, argument)
-        sim_data_read = result.get('sim_data_read', False) if action == 'test_native_cas_probe' else False
+        sim_data_read = action == 'test_native_cas_engine' or (result.get('sim_data_read', False) if action in ('test_native_cas_probe', 'test_native_cas_code_window') else False)
         if type(sim_data_read) is not bool:
             raise ValueError('Native CAS metadata-read declaration is untyped.')
         result = dict(result, request_id=request_id, request_state='completed',

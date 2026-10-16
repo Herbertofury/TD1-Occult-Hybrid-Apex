@@ -15,6 +15,20 @@ import ea_native_permission as native_module
 
 
 class PermissionBrokerTests(unittest.TestCase):
+    def test_elevated_uia_phase_lines_preserve_success_and_do_not_click_twice(self):
+        target={'pid':123,'creation_time':456}
+        for final in ('{"ok":true,"acknowledged":true}', ''):
+            output='{"phase":"observation-started"}\n{"phase":"invoke-intent"}\n'+final
+            response=SimpleNamespace(returncode=0,stdout=output)
+            with self.subTest(final=final), patch.object(broker,'process_identity',return_value=target), \
+                    patch.object(broker,'validate_launch_context'), \
+                    patch.object(broker.subprocess,'run',return_value=response), \
+                    patch.object(native_module,'NativeEA') as native:
+                result=broker.acknowledge_exact(target,Path('unused'),110,None,clock=lambda:100)
+                self.assertEqual(result['acknowledged'],bool(final))
+                if not final:self.assertTrue(result['acknowledgement_unresolved'])
+                native.assert_not_called()
+
     def test_minimized_restore_requires_fresh_launch_ownership_and_still_exact_dialog_pixels(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

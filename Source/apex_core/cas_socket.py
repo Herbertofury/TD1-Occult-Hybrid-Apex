@@ -110,7 +110,7 @@ def status():
             'startup_error': _START_ERROR, 'native_connection_verified': False}
 
 
-def start(acknowledge):
+def start(acknowledge, backend=None):
     global _SERVER, _START_ERROR
     if _SERVER is not None:
         return True
@@ -125,6 +125,16 @@ def start(acknowledge):
     _SERVER = listener
     def client(connection):
         from .cas_ui import attach_client, poll_client, detach_client, client_owned_mask
+        def attach(sim_id):
+            token=attach_client(sim_id)
+            try:
+                if backend is not None:
+                    from .native_cas_engine import entry_ready
+                    entry_ready(backend,sim_id)
+            except Exception:
+                detach_client(token)
+                raise
+            return token
         peer = None
         wait_seconds = IDLE_SECONDS
         try:
@@ -132,7 +142,7 @@ def start(acknowledge):
                 # One absolute deadline covers header and payload, including
                 # fragmented reads; arriving bytes do not renew it indefinitely.
                 value = read_frame(connection, time.monotonic() + wait_seconds)
-                response, peer = packet(value, peer, attach_client, poll_client, acknowledge, client_owned_mask)
+                response, peer = packet(value, peer, attach, poll_client, acknowledge, client_owned_mask)
                 connection.settimeout(IDLE_SECONDS)
                 connection.sendall(frame(response))
                 wait_seconds = response_wait(value, response)

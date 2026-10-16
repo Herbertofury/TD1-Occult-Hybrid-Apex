@@ -813,6 +813,10 @@ def envelope(sim_id, request):
 def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
     if request.get('operation') == 'occult-cache-view' and CACHE_VIEW_QUARANTINED:
         raise ValueError('Native occult cache conversion is quarantined after the V141 crash; no request sent.')
+    if request.get('operation') == 'occult-owner-view':
+        from . import native_cas_engine
+        if not native_cas_engine.selection_ready(backend, sim_id, request.get('owned_mask'), request.get('occult_type')):
+            raise ValueError('Native owner selection requires the activated complete native engine patch; no request sent.')
     if request.get('operation') == 'select' and request.get('panel') == 'clothing_body_wings':
         raise ValueError('Native wing selection is quarantined after failed exact color readback and a crash trial; no request sent.')
     request_id, wire = envelope(sim_id, request)
@@ -820,8 +824,8 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
         socket_ready = send is None and any(peer['sim_id'] == sim_id and clock() - peer['observed_at'] <= 3 for peer in _PEERS.values())
     form_select_context = None
     occult_view_context = None
-    if request['operation'] in ('occult-view', 'occult-cache-view'):
-        if request['operation'] == 'occult-cache-view':
+    if request['operation'] in ('occult-view', 'occult-cache-view', 'occult-owner-view'):
+        if request['operation'] in ('occult-cache-view', 'occult-owner-view'):
             # Research-only until actual edited round trips prove the native
             # cache. The ordinary view contract remains unchanged.
             from .test_driver import guard
@@ -830,7 +834,7 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
             raise ValueError('Occult view requires the exact fresh native CAS socket.')
         with _LOCK:
             original = _form_select_original(backend, sim_id, request['household_id'])
-            if request['operation'] == 'occult-cache-view':
+            if request['operation'] in ('occult-cache-view', 'occult-owner-view'):
                 key = (os.getpid(), original['save_guid'], sim_id)
                 stored = _OWNER_BASELINES.get(key, {})
                 expected = {'capture_id': original['capture_id'], 'owned_mask': request['owned_mask']}
@@ -843,9 +847,22 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
             if prior is None:
                 raise ValueError('Inspect fresh owned CAS status before changing an occult view.')
             before = prior['result']['client']
-            binding = form_selection_binding(before, sim_id, dict(operation='layer-select',
-                household_id=request['household_id'],native_session=request['native_session'],
-                expected_layer=request['expected_layer'],target_layer=request['expected_layer']))
+            if request['operation'] == 'occult-owner-view':
+                # The extended native bank and its actual controller establish
+                # ownership. EA's two-row feed is not the authority for forms
+                # the native engine now imports and owns independently.
+                validate_accept_context(before)
+                observation=before.get('owner_pair_observation',{})
+                if (before['sim']['householdId']!=request['household_id'] or
+                    before['sim']['occultLayer']!=request['expected_layer'] or
+                    observation.get('session')!=request['native_session']):
+                    raise ValueError('Native owner view differs from its exact CAS editor/session/layer.')
+                binding={'native_engine':True,'native_session':request['native_session'],
+                         'source_kind':before['sim']['occultType'],'source_layer':request['expected_layer']}
+            else:
+                binding = form_selection_binding(before, sim_id, dict(operation='layer-select',
+                    household_id=request['household_id'],native_session=request['native_session'],
+                    expected_layer=request['expected_layer'],target_layer=request['expected_layer']))
             if (before['sim']['allOccultTypes'] != request['expected_all_occults'] or
                     request['occult_type'] not in {row['form_flags'] for row in original['wrappers']}):
                 raise ValueError('The requested view has no exact captured owner and complete native membership.')
@@ -997,7 +1014,7 @@ def _receive(request_id, payload, backend=None):
         if data.get('ok'):
             client = data.get('client')
             validate_client(client, row['sim_id'], row['request'])
-            if row['request']['operation'] in ('occult-view', 'occult-cache-view'):
+            if row['request']['operation'] in ('occult-view', 'occult-cache-view', 'occult-owner-view'):
                 original = row['occult_view_context']['original']
                 if _form_select_original(backend, row['sim_id'], row['request']['household_id']) != original:
                     raise ValueError('Original hybrid owner capture changed before occult view readback.')
@@ -1104,6 +1121,10 @@ def result(request_id):
         if row['request']['operation'] == 'occult-cache-view':
             response.update(outcome='experimental-cache-view-selected' if row['state']=='completed' else row['state'],
                 experimental=True, selection_only_verified=row['state']=='completed' and row.get('occult_view_selection_verified') is True,
+                appearance_persistence_verified=False, native_cache_retention_verified=False, mapping_verified=False)
+        if row['request']['operation'] == 'occult-owner-view':
+            response.update(outcome='native-owner-view-selected' if row['state']=='completed' else row['state'],
+                selection_only_verified=row['state']=='completed' and row.get('occult_view_selection_verified') is True,
                 appearance_persistence_verified=False, native_cache_retention_verified=False, mapping_verified=False)
         if row['request']['operation'] in ('form-select', 'layer-select'):
             response.update(outcome=('layer-selected' if row['request']['operation'] == 'layer-select' else 'form-selected') if row['state'] == 'completed' else row['state'],

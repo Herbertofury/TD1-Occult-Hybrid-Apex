@@ -24,6 +24,24 @@ try:
                       'ApexCaptureCompleted': 0, 'ApexCaptureFull': -1, 'ApexCaptureOverlay': -1,
                       'ApexGameInputVersion': 2, 'ApexGameInputState': 0, 'ApexGameCursorX': -1, 'ApexGameCursorY': -1}, result
     assert _integer(lambda: _bind_input(_ctypes, handle)(1, 0, 0, 1280, 720)) == -1
+    class Text(_ctypes._SimpleCData): _type_ = 'z'
+    class WindowCall(_ctypes.CFuncPtr):
+        _flags_ = _ctypes.FUNCFLAG_STDCALL
+        _restype_ = Text
+        _argtypes_ = (Text,)
+    class Library: _handle = handle
+    raw = WindowCall(('ApexNativeCasCodeWindow', Library()))(b'{"rva":4096,"bytes":16}')
+    guarded = json.loads(getattr(raw, 'value', raw).decode('utf-8'))
+    assert guarded.get('ok') is False and guarded.get('read_only') is True
+    assert guarded.get('game_memory_written') is False and guarded.get('sim_data_read') is False
+    engine = WindowCall(('ApexNativeCasEngineControl', Library()))
+    status_raw = engine(b'{"operation":"status"}')
+    status = json.loads(getattr(status_raw, 'value', status_raw).decode('utf-8'))
+    assert status['ok'] and not status['installed'] and not status['armed']
+    arm = {'operation':'arm', 'scope_id':'a'*32, 'members':[{'sim_id':'123','owned_mask':127}]}
+    refused_raw = engine(json.dumps(arm).encode('ascii'))
+    refused = json.loads(getattr(refused_raw, 'value', refused_raw).decode('utf-8'))
+    assert refused['ok'] is False and refused['production_ready'] is False and refused['game_files_written'] is False
     print(json.dumps(result, sort_keys=True))
 finally:
     _ctypes.FreeLibrary(handle)

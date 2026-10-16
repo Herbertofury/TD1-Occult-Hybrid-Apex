@@ -5,6 +5,20 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V154 implements direct native importer, conversion-history, normalization and
+selection-service hooks. V152's actual five-member CAS visit imported all 35
+stored owners and returned with all 40 stored/active appearances matching;
+normal unsaved exit preserved all 20 save/backup files. V153 extends native
+capture to the five active appearances, also observed in the actual game.
+Its Alien request exposed another native limitation: `SetSimOccult` compares
+the requested kind to the first membership bit, so it never reached the
+patched controller. V154 replaces that service decision and restores the
+explicit active kind after appearance deserialization. Eight native CTests,
+the Python 3.7 sidecar ABI checks and 26 frozen migration checks pass.
+Actual edited Alien → Vampire → Alien switching remains the immediate gate;
+all-owned strip buttons, all-category household edits, save/cold load and
+Tray/Gallery qualification remain open. Production saves are not qualified.
+
 V149 verifies a bounded native kind-cache metadata reader in the unloaded
 main menu. It declares metadata access accurately and does not read appearance
 payloads or mutate native state. The next direct-engine step is to compare

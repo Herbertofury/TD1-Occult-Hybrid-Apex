@@ -415,10 +415,13 @@ def acknowledge_exact(target, work, deadline, launch_context=None, clock=time.ti
         response = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script],
             capture_output=True, text=True, timeout=min(15, max(1, deadline - clock())),
             creationflags=subprocess.CREATE_NO_WINDOW)
-        if response.returncode == 0:
-            receipt = json.loads(response.stdout)
-            if receipt.get('acknowledged') is True:
-                return receipt
+        messages, receipt = ea_permission._messages(response.stdout)
+        if response.returncode == 0 and receipt is not None and receipt.get('acknowledged') is True:
+            return receipt
+        if any(row.get('phase') == 'invoke-intent' for row in messages):
+            # Invoke may already have approved the pending launch. A missing
+            # final receipt must never send a second click through the fallback.
+            return ea_permission._uncertain()
     native = native_module.NativeEA([target['pid']])
     restored = []
     # A minimized Qt dialog exposes a 160x28 client, so the ordinary captured

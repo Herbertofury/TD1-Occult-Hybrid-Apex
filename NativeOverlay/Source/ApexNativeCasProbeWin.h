@@ -9,6 +9,7 @@
 #include "ApexUiData.h"
 #include "ApexResourceImage.h"
 #include "ApexNativeCasProbe.h"
+#include "ApexNativeCasOwners.h"
 
 namespace td1::nativecas {
 inline std::string OwnImageRead(HMODULE module,std::uint32_t rva,std::size_t count) {
@@ -100,6 +101,12 @@ inline ui::Json Inspect() {
             [](const Function& item,std::uint32_t value){return item.begin<value;});
         return found!=functions.end() && found->begin==address?&*found:nullptr;
     };
+    auto containingFunction=[&](std::uint32_t address)->const Function* {
+        auto found=std::upper_bound(functions.begin(),functions.end(),address,
+            [](std::uint32_t value,const Function& item){return value<item.begin;});
+        if(found==functions.begin()) return nullptr;
+        --found;return address<found->end?&*found:nullptr;
+    };
     if(text.PointerToRawData>disk.size() || text.Misc.VirtualSize>disk.size()-text.PointerToRawData)
         throw std::runtime_error("Pinned on-disk code span is incomplete.");
     const auto diskCodeHash=resource::HashBytes(disk.substr(text.PointerToRawData,text.Misc.VirtualSize));
@@ -127,25 +134,83 @@ inline ui::Json Inspect() {
         const auto object=pointer(base+global);
         if(!object) throw std::runtime_error("Native CAS controller is not initialized in this game state.");
         const auto vtable=pointer(object);
-        const auto tableRva=SectionPointer(vtable,base,data.VirtualAddress,data.Misc.VirtualSize,0x1e8);
+        const auto tableRva=SectionPointer(vtable,base,data.VirtualAddress,data.Misc.VirtualSize,0x428);
         ui::Json methods=ui::Json::array();
-        for(const auto slot:{0x128u,0x1e0u}) {
+        for(const auto slot:{0x128u,0x1e0u,0x3f0u,0x410u,0x420u}) {
             std::uint64_t target=0;std::memcpy(&target,constants.data()+tableRva-data.VirtualAddress+slot,8);
             const auto rva=SectionPointer(target,base,text.VirtualAddress,text.Misc.VirtualSize,1);
-            if(!findFunction(rva)) throw std::runtime_error("Native controller method lacks its pinned unwind entry.");
-            methods.push_back({{"name",slot==0x128?"set-occult-kind":"select-primary-alternate"},
-                {"slot",slot},{"target_rva",rva}});
+            // A leaf vtable thunk need not have a PE unwind record. It is
+            // still an exact, image-bound vtable target, not a function
+            // boundary inferred from nearby bytes. Capture it separately.
+            const char* name=slot==0x128?"set-occult-kind":slot==0x1e0?"select-primary-alternate":
+                slot==0x3f0?"kind-conversion-controller-preflight":
+                slot==0x410?"lookup-sim-cache":"build-current-sim-info";
+            methods.push_back({{"name",name},
+                {"slot",slot},{"target_rva",rva},{"unwind_entry_verified",findFunction(rva)!=nullptr}});
         }
         if(pointer(base+global)!=object || pointer(object)!=vtable ||
-           OwnImageRead(module,tableRva,0x1e8)!=constants.substr(tableRva-data.VirtualAddress,0x1e8))
+           OwnImageRead(module,tableRva,0x428)!=constants.substr(tableRva-data.VirtualAddress,0x428))
             throw std::runtime_error("Native CAS controller identity changed during inspection.");
         controller.update({{"available",true},{"global_rva",global},{"vtable_rva",tableRva},{"methods",methods}});
         for(const auto& method:methods) controllerMethods.insert(method.at("target_rva").get<std::uint32_t>());
+        // The pinned kind setter delegates creation and UI rebinding to a
+        // second interface. Follow only the four slots independently decoded
+        // at 3f5c5d/3f5c76/3f5c97/3f0c62; never call or patch that interface.
+        // This separates the actual native pair constructor from the public
+        // setter and its old-pair cache, which are insufficient patch targets.
+        ui::Json model={{"available",false},{"interface_called",false},{"game_memory_written",false}};
+        try {
+            const auto modelObject=pointer(object+0x1d0);
+            if(!modelObject) throw std::runtime_error("Native conversion model is not initialized.");
+            const auto modelTable=pointer(modelObject);
+            const auto modelRva=SectionPointer(modelTable,base,data.VirtualAddress,data.Misc.VirtualSize,0x750);
+            ui::Json modelMethods=ui::Json::array();
+            for(const auto slot:{0x70u,0x348u,0x4b0u,0x748u}) {
+                std::uint64_t target=0;std::memcpy(&target,constants.data()+modelRva-data.VirtualAddress+slot,8);
+                const auto rva=SectionPointer(target,base,text.VirtualAddress,text.Misc.VirtualSize,1);
+                const char* name=slot==0x70?"kind-conversion-model-stage-a":
+                    slot==0x348?"kind-conversion-model-rebind":
+                    slot==0x4b0?"kind-conversion-model-selection":"kind-conversion-pair-constructor";
+                modelMethods.push_back({{"name",name},{"slot",slot},{"target_rva",rva},
+                    {"unwind_entry_verified",findFunction(rva)!=nullptr}});
+            }
+            if(pointer(object+0x1d0)!=modelObject || pointer(modelObject)!=modelTable ||
+                OwnImageRead(module,modelRva,0x750)!=constants.substr(modelRva-data.VirtualAddress,0x750))
+                throw std::runtime_error("Native conversion model changed during inspection.");
+            model.update({{"available",true},{"vtable_rva",modelRva},{"methods",modelMethods},
+                {"scope","Callsite-derived native kind-conversion interface; method meanings require independent decoding"}});
+            for(const auto& method:modelMethods) controllerMethods.insert(method.at("target_rva").get<std::uint32_t>());
+        } catch(const std::exception& error) {model["reason"]=error.what();}
+        controller["conversion_model"]=std::move(model);
+        ui::Json inventory={{"available",false},{"appearance_data_read",false},
+            {"scope","Pinned native cache keys only; no appearance equality or ownership-lifetime claim"}};
+        try {
+            const auto first=ReadKindCacheMetadata(object,pointer);
+            const auto second=ReadKindCacheMetadata(object,pointer);
+            if(first!=second || pointer(base+global)!=object || pointer(object)!=vtable)
+                throw std::runtime_error("Native owner-cache metadata changed between bounded reads.");
+            ui::Json owners=ui::Json::array();
+            for(const auto& row:first) owners.push_back({{"sim_id",std::to_string(row.simId)},
+                {"stored_kind_keys",row.kinds},{"key_matches_stored_record_kind",true}});
+            inventory.update({{"available",true},{"double_read_verified",true},{"owners",owners}});
+        } catch(const std::exception& error) {inventory["reason"]=error.what();}
+        controller["kind_cache_inventory"]=std::move(inventory);
     } catch(const std::exception& error) {controller["reason"]=error.what();}
-    ui::Json rows=ui::Json::array();std::set<std::uint32_t> callbacks;
+    ui::Json rows=ui::Json::array();std::set<std::uint32_t> callbacks,messageRegions,cacheHelpers;
+    // Native helpers with leaf/no-unwind entries would otherwise be omitted
+    // by the unwind-only graph. Verify the actual decoded callsites first.
+    const auto conversionEdges=CodeEdges(code.substr(0x3f0af0-text.VirtualAddress,0x2bc),0x3f0af0);
+    for(const auto expected:std::array<std::pair<std::uint32_t,std::uint32_t>,4>{{
+            {0x3f0c06,0x442020},{0x3f0c18,0x1b1c70},{0x3f0c20,0x6a6e0},{0x3f0c2d,0x3405c0}}}) {
+        if(std::none_of(conversionEdges.begin(),conversionEdges.end(),[&](const auto& edge){
+                return edge.call && edge.instruction==expected.first && edge.target==expected.second;}))
+            throw std::runtime_error("Native kind-cache helper callsite differs from the inspected layout.");
+        cacheHelpers.insert(expected.second);
+    }
     for(const auto* name:{"SetSimOccult","CasGetAvailableOccults","CasSelectOccultForm","CasCreateSimOccultForm",
             "CasRemoveSimOccultForm","CasSyncSimOccultForm","CasEnableAutoSyncOccultForm",
-            "occult_sim_infos","current_occult_types"}) {
+            "occult_sim_infos","current_occult_types","CasToClientIFace::SimInfoWithOutfitsResponse",
+            "CasToClientIFace::SendProtocolBuffer"}) {
         ui::Json targets=ui::Json::array();
         for(const auto target:StringRvas(constants,data.VirtualAddress,nt.OptionalHeader.SizeOfImage,name)) {
             ui::Json refs=ui::Json::array();
@@ -157,6 +222,11 @@ inline ui::Json Inspect() {
                         {"code_hex",CodeWindow(code,text.VirtualAddress,address)}});
                     const auto callback=RegisteredCallback(code,text.VirtualAddress,nt.OptionalHeader.SizeOfImage,address,0xdad300);
                     if(callback && findFunction(callback)) {row["registered_callback_rva"]=callback;callbacks.insert(callback);}
+                    if(std::string(name).rfind("CasToClientIFace::",0)==0) {
+                        if(const auto* region=containingFunction(address)) {
+                            row["containing_unwind_region_rva"]=region->begin;messageRegions.insert(region->begin);
+                        }
+                    }
                     refs.push_back(std::move(row));
                 }
             };
@@ -172,7 +242,9 @@ inline ui::Json Inspect() {
     if(memoryHash.size()!=64) throw std::runtime_error("Runtime code fingerprint is unavailable.");
     ui::Json snapshots=ui::Json::array(),contexts=ui::Json::array();std::deque<std::pair<std::uint32_t,unsigned>> pending;
     std::set<std::uint32_t> seen;std::size_t captured=0;
-    std::vector<std::uint32_t> roots(controllerMethods.begin(),controllerMethods.end());
+    std::vector<std::uint32_t> roots(cacheHelpers.begin(),cacheHelpers.end());
+    roots.insert(roots.end(),controllerMethods.begin(),controllerMethods.end());
+    roots.insert(roots.end(),messageRegions.begin(),messageRegions.end());
     for(const auto callback:callbacks) if(!controllerMethods.count(callback)) roots.push_back(callback);
     std::set<std::uint32_t> contextSeen;
     auto captureContext=[&](std::uint32_t callback,bool root) {
@@ -233,6 +305,7 @@ inline ui::Json Inspect() {
         {"disk_text_sha256",diskCodeHash},{"runtime_text_sha256",memoryHash},{"runtime_text_matches_disk",memoryHash==diskCodeHash},
         {"services",rows},{"controller",controller},{"function_snapshots",snapshots},{"callback_contexts",contexts},{"code_snapshot_bytes",captured},
         {"callback_roots",callbacks},{"pinned_fault_contexts",faults},{"own_process_only",true},{"read_only",true},{"game_memory_written",false},
-        {"game_files_written",false},{"memory_dump_written",false},{"native_patch_qualified",false}};
+        {"game_files_written",false},{"memory_dump_written",false},{"native_patch_qualified",false},
+        {"sim_data_read",controller.contains("kind_cache_inventory")}};
 }
 }

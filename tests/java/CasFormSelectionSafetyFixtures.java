@@ -124,13 +124,11 @@ public class CasFormSelectionSafetyFixtures {
             case "selector-service-contract": literal(abc,helper,"ApexReadOwnerPairFeed").operands[0]=abc.constants.getStringId("CasSelectSim",true); break;
             case "selector-helper-native-write": literal(abc,helper,"CASGetSimInfo").operands[0]=abc.constants.getStringId("CasSelectSim",true); break;
             case "selection-current-index": property(abc,execute,"selected_index").operands[0]=member(abc,"target_layer"); break;
-            case "selection-write-order": {
-                var first=literal(abc,execute,"CasSelectSim");var second=literal(abc,execute,"CasSelectOccultForm");
-                int value=first.operands[0];first.operands[0]=second.operands[0];second.operands[0]=value;break;
+            case "selection-native-handler": {
+                  literal(abc,execute,"ApexNavigateOwnerLayer").operands[0]=abc.constants.getStringId("CasSelectOccultForm",true);break;
             }
-            case "selection-typed-boolean": {
-                var code=execute.getCode().code;int at=code.indexOf(literal(abc,execute,"CasSelectOccultForm"));
-                code.get(at+1).operands[0]=abc.constants.getStringId("hue_range_modifier",true);break;
+            case "selection-layer-key": {
+                  literal(abc,execute,"expected_layer").operands[0]=abc.constants.getStringId("hue_range_modifier",true);break;
             }
             case "selection-next-tick-readback":
                 for(var instruction:readback.getCode().code) if(CasBytecodePatch.property(abc,instruction,0x46,"ApexFormSelectionContext")) {

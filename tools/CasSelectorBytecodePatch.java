@@ -17,9 +17,10 @@ public class CasSelectorBytecodePatch {
     static final String PIN = "420eb0f8417bfc6935ffb4126086f19b72f2cae98a853d34abf6d59a94d454f1";
     static final String CLEANUP_PIN = "e79b3b65c8b6234c54d4a76f4c7a671f46ece7ddb9f6940bc5db312850fdef91";
     static final Map<String,String> FIELDS = Map.of("apexSelectorFeed", "Object",
-        "apexSelectorSequence", "int", "apexSelectorRegistered", "Boolean", "apexSelectorResetRegistered", "Boolean");
+        "apexSelectorSequence", "int", "apexSelectorRegistered", "Boolean", "apexSelectorResetRegistered", "Boolean",
+        "apexSelectorNavigationRegistered", "Boolean", "apexSelectorLastNavigation", "String");
     static final Set<String> METHODS = Set.of("ApexSelectorInitialize", "ApexSelectorCaptureFeed",
-        "ApexSelectorClearFeed", "ApexSelectorCopyRow", "ApexSelectorReadOwnerFeed");
+        "ApexSelectorClearFeed", "ApexSelectorCopyRow", "ApexSelectorReadOwnerFeed", "ApexSelectorNavigate");
     static void require(boolean value, String message) { CasBytecodePatch.require(value, message); }
     static String name(ABC abc, Trait trait) { return CasBytecodePatch.name(abc, trait); }
     static String member(ABC abc, int id) {
@@ -103,6 +104,7 @@ public class CasSelectorBytecodePatch {
             : key.equals("ApexSelectorCopyRow") ? Set.of("test", "String", "int", "Boolean")
             : key.equals("ApexSelectorReadOwnerFeed") ? Set.of("RequestItemAt", "ApexSelectorCopyRow", "push", "String", "int", "Boolean")
             : key.equals("ApexSelectorCaptureFeed") ? Set.of("ApexSelectorCopyRow", "push", "String", "int", "Boolean") : Set.of();
+        if(key.equals("ApexSelectorNavigate")) calls=Set.of("RequestItemAt","ApexSelectorCopyRow","test","String","int","SelectSimLayer");
         var instructions=body.getCode().code;
         for (int index=0;index<instructions.size();index++) {
             var op=instructions.get(index);
@@ -115,16 +117,16 @@ public class CasSelectorBytecodePatch {
                 require(calls.contains(member(abc, op.operands[0])), "Owned selector calls an unreviewed service/member: " + key);
             if (code == 0x4a) require(Set.of("Error", "RegExp").contains(member(abc, op.operands[0])),
                 "Owned selector constructs an unreviewed property.");
-            if (code == 0x42) require(key.equals("ApexSelectorCopyRow") && index >= 2 && op.operands[0] == 1 &&
+            if (code == 0x42) require(Set.of("ApexSelectorCopyRow","ApexSelectorNavigate").contains(key) && index >= 2 && op.operands[0] == 1 &&
                 opcode(instructions.get(index-2),0x60) && member(abc,instructions.get(index-2).operands[0]).equals("RegExp") &&
-                opcode(instructions.get(index-1),0x2c) && abc.constants.getString(instructions.get(index-1).operands[0]).equals("^(0|[1-9][0-9]{0,19})$"),
+                opcode(instructions.get(index-1),0x2c) && Set.of("^(0|[1-9][0-9]{0,19})$","^[0-9a-f]{32}$","^[1-9][0-9]{0,19}$").contains(abc.constants.getString(instructions.get(index-1).operands[0])),
                 "Owned selector constructs an unreviewed dynamic receiver.");
             if (namedOperand(op)) {
                 String property = member(abc, op.operands[0]);
                 require(!Set.of("CommunicationManager", "CallGameService", "CallUIService", "SendUIMessage", "SendMessage",
                     "Socket", "Timer", "connect", "writeUTFBytes", "flush", "SelectSim", "CasSelectSim", "CasSelectOccultForm").contains(property),
                     "Owned selector accesses native/transport work: " + key);
-                if (!key.equals("ApexSelectorReadOwnerFeed"))
+                if (!Set.of("ApexSelectorReadOwnerFeed","ApexSelectorNavigate").contains(key))
                     require(!Set.of("mDataFeed", "mSelectedSimIndex", "mSelectedSimLayerIndex", "mCurrSimId", "RequestItemAt").contains(property),
                         "Selector callback reads retained/native state outside its read service.");
                 if (code == 0x61 || code == 0x68 || code == 0x6a)
@@ -173,29 +175,30 @@ public class CasSelectorBytecodePatch {
             "\",\"cleanup_static_bridge_code_sha256\":\""+sha(bridge.getCodeBytes())+"\",\"cleanup_instance_code_sha256\":\""+sha(remove.getCodeBytes())+"\"";
     }
     static void verifyRegistration(ABC abc, MethodBody body) {
-        var code = body.getCode().code;
-        Map<String,String> expected = Map.of("RegisterServiceHandler", "ApexReadOwnerPairFeed", "AddMessageListener", "CASClearSimsForReset");
-        Map<String,String> callbacks = Map.of("RegisterServiceHandler", "ApexSelectorReadOwnerFeed", "AddMessageListener", "ApexSelectorClearFeed");
-        Set<String> seen = new HashSet<>();
-        for (int index=0; index<code.size(); index++) {
-            var op = code.get(index);
-            if (!(opcode(op,0x46) || opcode(op,0x4c) || opcode(op,0x4f))) continue;
-            String operation = member(abc, op.operands[0]);
-            require(expected.containsKey(operation) && seen.add(operation) && op.operands[1] == 2,
+        var code=body.getCode().code;
+        Map<String,String> expected=Map.of(
+            "RegisterServiceHandler:ApexReadOwnerPairFeed","ApexSelectorReadOwnerFeed",
+            "RegisterServiceHandler:ApexNavigateOwnerLayer","ApexSelectorNavigate",
+            "AddMessageListener:CASClearSimsForReset","ApexSelectorClearFeed");
+        Set<String> seen=new HashSet<>();
+        for(int index=0;index<code.size();index++) {
+            var op=code.get(index);
+            if(!(opcode(op,0x46)||opcode(op,0x4c)||opcode(op,0x4f))) continue;
+            String operation=member(abc,op.operands[0]),event=null,callback=null;
+            require(Set.of("RegisterServiceHandler","AddMessageListener").contains(operation) && op.operands[1]==2,
                 "Selector registration is not an exact two-argument widget wrapper.");
-            String event=null, callback=null;
-            for (int prior=Math.max(0,index-5); prior<index; prior++) {
-                var arg = code.get(prior);
-                if (opcode(arg,0x2c)) event=abc.constants.getString(arg.operands[0]);
-                if (opcode(arg,0x60) || opcode(arg,0x66)) {
-                    String candidate=member(abc,arg.operands[0]);
-                    if (METHODS.contains(candidate)) callback=candidate;
+            for(int prior=Math.max(0,index-5);prior<index;prior++) {
+                var arg=code.get(prior);
+                if(opcode(arg,0x2c)) event=abc.constants.getString(arg.operands[0]);
+                if(opcode(arg,0x60)||opcode(arg,0x66)) {
+                    String candidate=member(abc,arg.operands[0]); if(METHODS.contains(candidate)) callback=candidate;
                 }
             }
-            require(expected.get(operation).equals(event) && callbacks.get(operation).equals(callback),
-                "Selector registration event/callback linkage differs.");
+            String key=operation+":"+event;
+            require(expected.containsKey(key) && expected.get(key).equals(callback),"Selector registration event/callback linkage differs.");
+            require(seen.add(key),"Selector registration is not an exact two-argument widget wrapper.");
         }
-        require(seen.equals(expected.keySet()), "Selector registration inventory differs.");
+        require(seen.equals(expected.keySet()),"Selector registration inventory differs.");
     }
     static List<Trait> ownedTraits(ABC abc, InstanceInfo instance) {
         List<Trait> added=new ArrayList<>(); Set<String> seen=new HashSet<>(); Set<Integer> methods=new HashSet<>();
@@ -219,6 +222,8 @@ public class CasSelectorBytecodePatch {
                     "Owned selector field type/automatic slot contract differs.");
                 require(slot.value_index == 0 || (key.equals("apexSelectorSequence") &&
                     slot.value_kind == ValueKind.CONSTANT_Int && abc.constants.getInt(slot.value_index) == 0) ||
+                    (key.equals("apexSelectorLastNavigation") && slot.value_kind == 0x01 &&
+                    abc.constants.getString(slot.value_index).equals("")) ||
                     (FIELDS.get(key).equals("Boolean") && slot.value_kind == ValueKind.CONSTANT_False &&
                     slot.value_index == ValueKind.CONSTANT_False),
                     "Owned selector field default differs.");
@@ -228,7 +233,7 @@ public class CasSelectorBytecodePatch {
                 int index=((TraitMethodGetterSetter)trait).method_info;
                 require(methods.add(index), "Owned selector methods alias the same body.");
                 MethodInfo method=abc.method_info.get(index);
-                boolean initialize=key.equals("ApexSelectorInitialize"), returnsObject=key.equals("ApexSelectorCopyRow") || key.equals("ApexSelectorReadOwnerFeed");
+                boolean initialize=key.equals("ApexSelectorInitialize"), returnsObject=key.equals("ApexSelectorCopyRow") || key.equals("ApexSelectorReadOwnerFeed") || key.equals("ApexSelectorNavigate");
                 boolean optional=key.equals("ApexSelectorClearFeed") || key.equals("ApexSelectorReadOwnerFeed");
                 require(method.param_types.length == (initialize ? 0 : 1) &&
                     (initialize || member(abc,method.param_types[0]).equals("Object")) &&
@@ -443,7 +448,7 @@ public class CasSelectorBytecodePatch {
             cleanup=verifyExternalCleanup(CasBytecodePatch.load(args[3])); embedded=true;
         }
         byte[] result=patch(original,compiled); Files.write(Path.of(args[2]),result);
-        System.out.println("{\"native_method_count\":"+nativeCount+",\"apex_method_count\":5,\"owned_field_count\":4,"+
+        System.out.println("{\"native_method_count\":"+nativeCount+",\"apex_method_count\":6,\"owned_field_count\":6,"+
             "\"unchanged_native_methods\":"+(nativeCount-3)+",\"native_class_script_traits_preserved\":true,"+
             "\"native_initialize_tail_hook_verified\":true,\"native_refresh_entry_hook_verified\":true,"+
             "\"native_bodies_after_hook_stripping_exact\":true,\"native_lexical_scope_preserved\":true,"+

@@ -30,7 +30,9 @@ public class CasSelectorSafetyFixtures {
             op(0xd0),op(0x66,qname(abc,"ApexSelectorReadOwnerFeed")),op(0x4f,qname(abc,"RegisterServiceHandler"),2));
         byte[] reset=bytes(op(0xd0),op(0x2c,abc.constants.getStringId(event,true)),op(0xd0),
             op(0x66,qname(abc,callback)),op(0x4f,qname(abc,"AddMessageListener"),count));
-        return body(abc,bytes(op(0xd0),op(0x30),service,reset,duplicate ? reset : new byte[0],op(0x47)));
+        byte[] navigate=bytes(op(0xd0),op(0x2c,abc.constants.getStringId("ApexNavigateOwnerLayer",true)),
+            op(0xd0),op(0x66,qname(abc,"ApexSelectorNavigate")),op(0x4f,qname(abc,"RegisterServiceHandler"),2));
+        return body(abc,bytes(op(0xd0),op(0x30),service,reset,navigate,duplicate ? reset : new byte[0],op(0x47)));
     }
     static InstanceInfo owned(ABC abc) {
         var instance=new InstanceInfo(new Traits());
@@ -42,7 +44,7 @@ public class CasSelectorSafetyFixtures {
         }
         for(String key:CasSelectorBytecodePatch.METHODS) {
             boolean init=key.equals("ApexSelectorInitialize"), optional=key.equals("ApexSelectorClearFeed") || key.equals("ApexSelectorReadOwnerFeed");
-            boolean returnsObject=key.equals("ApexSelectorCopyRow") || key.equals("ApexSelectorReadOwnerFeed");
+            boolean returnsObject=key.equals("ApexSelectorCopyRow") || key.equals("ApexSelectorReadOwnerFeed") || key.equals("ApexSelectorNavigate");
             var info=new MethodInfo(init ? new int[0] : new int[]{qname(abc,"Object")},qname(abc,returnsObject ? "Object" : "void"),
                 0,optional ? MethodInfo.FLAG_HAS_OPTIONAL : 0,optional ? new ValueKind[]{new ValueKind(ValueKind.CONSTANT_Null,ValueKind.CONSTANT_Null)} : new ValueKind[0],new int[0]);
             var trait=new TraitMethodGetterSetter(); trait.kindType=Trait.TRAIT_METHOD;

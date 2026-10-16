@@ -79,13 +79,19 @@ def response_wait(value, response):
     return IDLE_SECONDS
 
 
-def packet(value, peer, attach, poll, acknowledge):
+def packet(value, peer, attach, poll, acknowledge, owner_mask=None):
     """Pure typed routing; native actions can only come from the owned queue."""
     if value.startswith('HELLO|'):
         if peer is not None:
             raise ValueError('CAS peer is already bound.')
         token = attach(value[6:])
-        return 'HELLO|' + token, token
+        response = 'HELLO|' + token
+        if owner_mask is not None:
+            mask = owner_mask(token)
+            if type(mask) is not int or not 0 <= mask <= 127 or mask and not mask & 1:
+                raise ValueError('CAS membership display descriptor is untyped.')
+            response += '|' + str(mask)
+        return response, token
     if peer is None:
         raise ValueError('CAS peer must identify its selected Sim first.')
     if value == 'POLL|' + peer:
@@ -118,7 +124,7 @@ def start(acknowledge):
         return False
     _SERVER = listener
     def client(connection):
-        from .cas_ui import attach_client, poll_client, detach_client
+        from .cas_ui import attach_client, poll_client, detach_client, client_owned_mask
         peer = None
         wait_seconds = IDLE_SECONDS
         try:
@@ -126,7 +132,7 @@ def start(acknowledge):
                 # One absolute deadline covers header and payload, including
                 # fragmented reads; arriving bytes do not renew it indefinitely.
                 value = read_frame(connection, time.monotonic() + wait_seconds)
-                response, peer = packet(value, peer, attach_client, poll_client, acknowledge)
+                response, peer = packet(value, peer, attach_client, poll_client, acknowledge, client_owned_mask)
                 connection.settimeout(IDLE_SECONDS)
                 connection.sendall(frame(response))
                 wait_seconds = response_wait(value, response)

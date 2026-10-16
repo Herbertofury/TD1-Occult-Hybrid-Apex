@@ -1,4 +1,6 @@
 #include "ApexNativeCasProbe.h"
+#include "ApexNativeCasOwners.h"
+#include <map>
 #include <iostream>
 #include <functional>
 using namespace td1::nativecas;
@@ -62,6 +64,36 @@ int main() {
     Require(CodeEdges(std::string("\xc3\xe8\0\0\0\0",6),0x1000).empty());
     Require(CodeEdges(std::string("\xe8\0",2),0x1000).empty());
     Refuses([&]{CodeEdges(std::string(4097,'\x90'),0x1000);});
+    // Captured-layout fixtures cover empty caches, disjoint Sim identities,
+    // all seven kind records and malformed native links without a process.
+    std::map<std::uint64_t,std::uint64_t> memory;
+    auto read=[&](std::uint64_t at) {
+        const auto found=memory.find(at);
+        if(found==memory.end()) throw std::runtime_error("Fixture address unavailable.");
+        return found->second;
+    };
+    constexpr std::uint64_t controller=0x10000,first=0x20000,second=0x21000;
+    memory[controller+0x138]=0;Require(ReadKindCacheMetadata(controller,read).empty());
+    memory[controller+0x138]=first;
+    memory[first]=0;memory[first+8]=second;memory[first+0x20]=101;memory[first+0xd0]=0x30000;
+    memory[second]=0;memory[second+8]=0;memory[second+0x20]=202;memory[second+0xd0]=0x40000;
+    for(unsigned i=0;i<7;++i) {
+        const auto node=0x30000ULL+i*0x100;
+        memory[node]=0;memory[node+8]=i<6?node+0x100:0;
+        memory[node+0x20]=memory[node+0x38]=1u<<i;
+    }
+    memory[0x40000]=0;memory[0x40008]=0;memory[0x40020]=memory[0x40038]=4;
+    const auto good=memory;const auto owners=ReadKindCacheMetadata(controller,read);
+    Require(owners.size()==2 && owners[0].simId==101 && owners[1].simId==202 &&
+        owners[0].kinds==std::vector<std::uint32_t>({1,2,4,8,16,32,64}) && owners[1].kinds==std::vector<std::uint32_t>({4}));
+    memory[first]=first;Refuses([&]{ReadKindCacheMetadata(controller,read);});memory=good;
+    memory[second+0x20]=101;Refuses([&]{ReadKindCacheMetadata(controller,read);});memory=good;
+    memory[0x30038]=4;Refuses([&]{ReadKindCacheMetadata(controller,read);});memory=good;
+    memory[second+0xd0]=0x30000;Refuses([&]{ReadKindCacheMetadata(controller,read);});memory=good;
+    memory[0x30008]=0x30000;Refuses([&]{ReadKindCacheMetadata(controller,read);});memory=good;
+    memory[0x30120]=memory[0x30138]=1;Refuses([&]{ReadKindCacheMetadata(controller,read);});memory=good;
+    memory[controller+0x138]=0x20001;Refuses([&]{ReadKindCacheMetadata(controller,read);});memory=good;
+    Refuses([&]{ReadKindCacheMetadata(0xfffffffffffffff8ULL,read);});
     std::cout<<"Bounded native CAS reference tests passed; no process access.\n";return 0;
  } catch(const std::exception& error) {std::cerr<<error.what()<<'\n';return 1;}
 }

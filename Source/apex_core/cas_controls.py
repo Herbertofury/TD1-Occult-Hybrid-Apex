@@ -14,12 +14,13 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'workspace'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
 PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'))
 SCHEMAS = {
+    'workspace': {'operation', 'x', 'y', 'scale', 'locked', 'collapsed'},
     'occults': {'operation'},
     'occult-view': {'operation', 'occult_type', 'expected_all_occults', 'household_id', 'native_session', 'expected_layer'},
     'occult-cache-view': {'operation', 'occult_type', 'expected_all_occults', 'household_id', 'native_session', 'expected_layer', 'owned_mask', 'test_token'},
@@ -72,6 +73,18 @@ def wire(request, panel):
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
+    if op == 'workspace':
+        values = []
+        for name, low, high in (('x', 0, 1), ('y', 0, 1), ('scale', 0.7, 1.5)):
+            number = request[name]
+            if type(number) not in (int, float) or not math.isfinite(number) or not low <= number <= high:
+                raise ValueError('CAS workspace requires finite bounded ' + name + '.')
+            values.append(format(float(number) if number else 0.0, '.9f').rstrip('0').rstrip('.'))
+        for name in ('locked', 'collapsed'):
+            if type(request[name]) is not bool:
+                raise ValueError('CAS workspace requires explicit typed ' + name + '.')
+            values.append('1' if request[name] else '0')
+        return 0, 0, 0, ','.join(values)
     if op == 'occults':
         return 0, 0, 0, ''
     if op in ('occult-view', 'occult-cache-view'):
@@ -154,6 +167,19 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
+    if op == 'workspace':
+        layout = control.get('layout')
+        if (not isinstance(layout, dict) or control.get('appearance_written') is not False or
+                control.get('visible') is not True or layout.get('dragging') is not False):
+            raise ValueError('CAS workspace did not return a visible settled layout.')
+        for name in ('x', 'y', 'scale'):
+            actual = layout.get(name)
+            if type(actual) not in (int, float) or not math.isfinite(actual) or abs(actual-request[name]) > 0.000001:
+                raise PostconditionMismatch('CAS workspace ' + name + ' did not read back.')
+        for name in ('locked', 'collapsed'):
+            if type(layout.get(name)) is not bool or layout[name] != request[name]:
+                raise PostconditionMismatch('CAS workspace ' + name + ' did not read back.')
+        return
     if op in ('occults', 'occult-view', 'occult-cache-view'):
         rows = control.get('occults')
         if (not isinstance(rows, list) or len(rows) > 32 or

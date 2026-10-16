@@ -30,6 +30,7 @@ CLEANUP_PIN = 'e79b3b65c8b6234c54d4a76f4c7a671f46ece7ddb9f6940bc5db312850fdef91'
 VOICE_KEY = (0x62ECC59A, 0, 0xE36BA403351FFE60)
 VOICE_PIN = 'd0f81a01e1ef4039dc8fb4b5d39dac680ea45e512a8102e243e59a99d3362764'
 PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.java',
+                  'Source/CASUi/form_strip_methods.as',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
                   'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py',
                   'tools/CasVoiceBytecodePatch.java')
@@ -174,7 +175,7 @@ def inject(source, methods):
         raise ValueError('Installed CAS initializer does not match the inspected contract.')
     source = source.replace(anchor, anchor + '\n         ApexInitialize();')
     # Resolve external QNames at compilation, avoiding dotted runtime lookups.
-    source = source.replace('   import ', '   import flash.utils.describeType;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
+    source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import flash.utils.describeType;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
     if end < 0: raise ValueError('CAS class end is missing.')
@@ -205,6 +206,7 @@ def run(args):
 def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_decompiled=None, cleanup_library=None, voice_swf=None):
     expected_sources = source_pins()
     semantic = (ROOT / 'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/form_strip_methods.as').read_text(encoding='utf-8')
     control_dispatch = verify_control_dispatch(semantic)
     detached_snapshot_getters = verify_snapshot_ownership(semantic)
     household_acceptance = verify_household_acceptance(semantic)

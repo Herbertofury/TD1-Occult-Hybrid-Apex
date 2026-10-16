@@ -1,6 +1,7 @@
 """Fixed game-owned native controls available before a household loads.
 
-No Sim inspection, gameplay service calls, evaluation or foreign process input.
+No gameplay service calls, evaluation or foreign process input. The fixed
+native CAS reader explicitly reports whether cache-key metadata was inspected.
 Request identities deduplicate commands after response loss.
 """
 from collections import OrderedDict
@@ -43,8 +44,11 @@ def dispatch(backend, action, value, request_id):
             result = overlay_loader.native_cas_probe(backend.__file__, paths.DLL_PATH)
         else:
             result = overlay_loader.input_event(backend.__file__, paths.DLL_PATH, argument)
+        sim_data_read = result.get('sim_data_read', False) if action == 'test_native_cas_probe' else False
+        if type(sim_data_read) is not bool:
+            raise ValueError('Native CAS metadata-read declaration is untyped.')
         result = dict(result, request_id=request_id, request_state='completed',
-                      execution='fixed-native-control', sim_data_read=False)
+                      execution='fixed-native-control', sim_data_read=sim_data_read)
         _RESULTS[request_id] = (signature, result)
         while len(_RESULTS) > 128:
             _RESULTS.popitem(last=False)

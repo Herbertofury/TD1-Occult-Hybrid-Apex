@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-15-native-cas-cache-quarantine-v142'
+UPGRADE_EPOCH = '2026-10-15-native-cas-owner-metadata-v149'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'cff025453339a3e8b3d393209b211c69730568b694d4e023f03456e67bee9ed6'
+UPGRADE_SELF_BODY_SHA = '93491c2c40d1efba31f1e78efe55237e22caa7cdbe85a12614970fe9df2d9d38'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -40,13 +40,13 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_bank_transaction.py': 'b48c7db7de5e2f19c39874c34159f3baf3cdbbf16c0d098ce2ac4c8677f4305f',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '416111b3f723114b1577df406ade969fa535095f43bcadc8328273bb568a97e0',
-    'apex_core/cas_controls.py': '7cc3e5af4cb9f2a6bd33d101f45d06959c8a08a9208fb0f9d65a732f9c473663',
+    'apex_core/cas_controls.py': '0f834d01a5af0377b3a99bfb98b0af55dc9b06e18243316b9bd62f95598d2f36',
     'apex_core/cas_entry_context.py': 'c2901e1cd156216e4225ef38277d1c45db60e0268128f8879a2a417ec3f28324',
     'apex_core/cas_frontdoor.py': 'cc749e4d5f4e3f05fcfe16b8c92a80296e84a4a9ebfb30b7e9cbaa6980e82f95',
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_save_boundary.py': '29b7298311b0b6f466c7ac4f7f91149009b7980b19730071eea5b2e08266708b',
-    'apex_core/cas_ui.py': 'ee176c77a298f39bef6c2a339d6ff0379a00b81afb1694381bb7a55eabf755ad',
+    'apex_core/cas_ui.py': '35465b861449959fcc3ae8cf6c3fc39d9c3d14012b018d1564a57f766a374541',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
@@ -62,7 +62,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/lifestate_forms.py': '35e5360d6bda72ee9e2b0f0d1041ca1f3217c2904a56f1bfa37d3f6af80eaba3',
     'apex_core/lifestates.py': 'c45a4c6f621b75c055e91f55fdb0b767ac15418cff649dcc90801e1bee355ac7',
     'apex_core/morph_controls.py': 'd144ebd7a8dcbff5695b1a2747f641b17017b60a6c39bd904e467602d4c7f876',
-    'apex_core/native_controls.py': '1c63535f951a584ac897a05f952688fd4b82326f193b8bf2f46a54f726eb5b1b',
+    'apex_core/native_controls.py': '19c2667ad5ae84f0edfd68d3524cb0b067dfa0126369688cd946d40e91432663',
     'apex_core/native_form_isolation.py': '8b543ee251da890e30df2f96a961d4d7d76519816376617330f5136de414bb33',
     'apex_core/native_form_select.py': '5c3c9b28d82df3e6515169f3bb653f94ed9c9505d7745673514d85ed79744c44',
     'apex_core/native_http.py': 'dfad235fba919f8aa3a1abfdcb6ba02eddae9f9181fbd1780d8f26bef515f046',

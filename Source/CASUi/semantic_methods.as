@@ -75,6 +75,7 @@
             try { apexSocket.close(); } catch(closeError:Error) { }
          }
          apexSocket=null; apexSocketActive=false; apexHelloPending=false; apexNonce=""; apexBoundSim="";
+         ApexFormsDispose();
          apexAwaiting=""; apexAckId=""; apexFrame=""; apexExpected=-1;
          apexReceiving=false; apexWire="";
          // Keep the last UUID/reply across connection failures. A lost ACK
@@ -121,8 +122,17 @@
                   ApexSocketFailure("CAS socket "+waiting[0]+" timed out"); return;
                }
             }
-            var native:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
-            var simId:String=native ? String(native.simId) : "";
+            // Polling an idle socket needs no native Sim-info allocation.
+            // Use the selector's already delivered AS data for idle binding;
+            // commands, gestures and their readbacks still get a fresh native
+            // identity before they can do any work.
+            var nativeNeeded:Boolean=apexSocket==null || apexHelloPending || apexReceiving ||
+               apexPendingFields!=null || apexFormsIntent!=null ||
+               apexFormsResult!=null && apexFormsResult.pending===true;
+            var native:Object=nativeNeeded ? CommunicationManager.CallGameService("CASGetSimInfo",null,true) : null;
+            var formsSim:Object=nativeNeeded ? ApexClone(native) : ApexFormsObservedSim();
+            var simId:String=formsSim ? String(formsSim.simId) : apexBoundSim;
+            if(nativeNeeded && formsSim!=null) apexFormsHousehold=String(formsSim.householdId);
             native=null;
             if(!/^[1-9][0-9]{0,19}$/.test(simId)) return;
             if(apexSocket==null) {
@@ -165,6 +175,7 @@
                ApexExecute(); return;
             }
             if(apexSocketActive && apexNonce.length==64 && apexAwaiting=="") {
+               ApexFormsTick(formsSim); formsSim=null;
                apexAwaiting="poll|"+apexTimer.currentCount;
                ApexSocketSend("POLL|"+apexNonce);
             }
@@ -221,8 +232,12 @@
                apexFrame=apexFrame.substr(apexExpected); apexExpected=-1;
                var stage:String=apexAwaiting.split("|")[0];
                if(stage=="hello") {
-                  if(!/^HELLO\|[0-9a-f]{64}$/.test(payload)) throw new Error("Invalid CAS session nonce");
-                  apexNonce=payload.substr(6); apexAwaiting="";
+                  if(!/^HELLO\|[0-9a-f]{64}\|(0|[1-9][0-9]{0,2})$/.test(payload)) throw new Error("Invalid CAS session nonce or membership descriptor");
+                  var hello:Array=payload.split("|");
+                  apexFormsOwnedMask=int(hello[2]);
+                  if(apexFormsOwnedMask>127 || apexFormsOwnedMask!=0 && (apexFormsOwnedMask & 1)==0)
+                     throw new Error("Invalid captured membership display descriptor");
+                  apexNonce=String(hello[1]); apexAwaiting="";
                } else if(stage=="poll") {
                   if(payload=="WAIT") { apexAwaiting=""; }
                   else {
@@ -363,11 +378,13 @@
 
 
       private function ApexFormSelectionContext(simId:String, householdId:String, expectedLayer:int,
-         formFlags:int, nativeSession:int, requestedLayer:int=-1) : Object
+         formFlags:int, nativeSession:int, requestedLayer:int=-1, userGesture:Boolean=false) : Object
       {
          // A same-ID paired feed permits navigation only. It never proves the
          // native wrapper relationship and cannot authorize alternate acceptance.
-         if(!apexTicking || apexDisconnected || !apexSocketActive || apexClaimNonce!=apexNonce ||
+         if(!apexTicking || apexDisconnected || !apexSocketActive ||
+            (!userGesture && apexClaimNonce!=apexNonce) ||
+            (userGesture && (!apexFormsApplying || apexFormsOwnedMask==0 || apexPendingFields!=null)) ||
             nativeSession!=apexOwnerSession || nativeSession<=0 || (expectedLayer!=0 && expectedLayer!=1))
             throw new Error("CAS form selection lacks its exact Timer/session/peer ownership");
          var native:Object=null; var selector:Object=null; var fresh:Object=null;
@@ -695,7 +712,7 @@
             hair_color:hairSelected,hair_selected_swatch_id:hairSelected,hair_swatches:hairSwatches,
             hair_swatch_query:hairQuery,planned_outfits:plannedOutfits,planned_outfits_scope:"slot-metadata-only",
             native_context:nativeContext,catalogs:catalogs,catalog_metadata:catalogMetadata,
-            owner_pair_observation:ApexOwnerObservation(),
+            owner_pair_observation:ApexOwnerObservation(),form_strip:ApexFormsStatus(),
             catalog_metadata_complete:catalogMetadataComplete,catalog_metadata_scope:"native-catalog-identities-only",
             catalog_metadata_query:includeCatalogMetadata ? "explicit-lookup" : "disabled-pending-native-contract-proof"};
       }
@@ -826,6 +843,20 @@
       {
          var data:Object=null; var rows:Array=null; var row:Object=null; var n:int=0;
          var parts:Array=value.split(","); var layerId:int=0; var target:int=0;
+         if(operation=="workspace") {
+            if(parts.length!=5 || !/^(0|1)(\.[0-9]+)?$/.test(String(parts[0])) ||
+               !/^(0|1)(\.[0-9]+)?$/.test(String(parts[1])) ||
+               !/^[01](\.[0-9]+)?$/.test(String(parts[2])) ||
+               !/^[01]$/.test(String(parts[3])) || !/^[01]$/.test(String(parts[4])))
+               throw new Error("CAS workspace requires typed position, scale and explicit toggles");
+            var workspaceX:Number=Number(parts[0]); var workspaceY:Number=Number(parts[1]); var workspaceScale:Number=Number(parts[2]);
+            if(!isFinite(workspaceX) || !isFinite(workspaceY) || !isFinite(workspaceScale) ||
+               workspaceX<0 || workspaceX>1 || workspaceY<0 || workspaceY>1 || workspaceScale<0.7 || workspaceScale>1.5 ||
+               apexFormsRoot==null || apexFormsDragging)
+               throw new Error("CAS workspace must be visible, in bounds and not being dragged");
+            context.control={operation:operation,before:ApexFormsStatus()}; reply.mutation_started=true;
+            ApexFormsApply(workspaceX,workspaceY,workspaceScale,String(parts[3])=="1",String(parts[4])=="1"); return;
+         }
          if(operation=="occults" || operation=="occult-view" || operation=="occult-cache-view") {
             data=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
             if(!data || !(data.allOccultTypes is int) || !(data.occultType is int) || !(data.occultLayer is int))
@@ -1120,6 +1151,10 @@
 
       private function ApexControlResult(operation:String,state:int,category:int,index:int,value:String,context:Object,client:Object) : Object
       {
+         if(operation=="workspace") {
+            var workspace:Object=ApexFormsStatus();
+            return {operation:operation,layout:workspace.layout,visible:workspace.visible,appearance_written:false,before:context.control.before};
+         }
          if(operation=="occults" || operation=="occult-view" || operation=="occult-cache-view") {
             var occultCatalog:Object=ApexClone(CommunicationManager.CallGameService("CasGetAvailableOccults",{simId:String(client.sim.simId)}));
             if(!occultCatalog || !(occultCatalog.avail_occult is Array))throw new Error("Native occult catalog readback is unavailable");
@@ -1303,13 +1338,14 @@
                if(selectionBefore.selected_layer!=selectionBefore.target_layer) {
                   // Claim/phase are consumed before either native write. The
                   // index is the already selected same-original-ID pair only.
-                  var selectionIndex:int=int(selectionBefore.selected_index);
-                  var selectAlternate:Boolean=int(selectionBefore.target_layer)>0;
                   reply.mutation_started=true;
-                  var nativeSelection:* = CommunicationManager.CallGameService("CasSelectSim",selectionIndex);
-                  if(!(nativeSelection is Boolean) || nativeSelection!==true)
-                     throw new Error("Native CasSelectSim refused or returned an untyped result; no second write");
-                  CommunicationManager.CallGameService("CasSelectOccultForm",{select:selectAlternate});
+                  var navigation:Object=CommunicationManager.CallUIService("ApexNavigateOwnerLayer",{
+                     request_id:String(fields[0]),sim_id:String(fields[1]),index:int(selectionBefore.selected_index),
+                     expected_layer:int(selectionBefore.selected_layer),target_layer:int(selectionBefore.target_layer),
+                     target_kind:int(selectionBefore.form_flags),feed_sequence:int(selectionBefore.feed_sequence)});
+                  if(navigation==null || navigation.protocol!==1 || navigation.request_id!==String(fields[0]) ||
+                     navigation.sim_id!==String(fields[1]) || navigation.submitted!==true || navigation.native_selector_handler!==true)
+                     throw new Error("Native selector handler did not acknowledge this exact navigation intent");
                }
             } else if(operation=="panel") {
                reply.mutation_started=true;
@@ -1547,7 +1583,7 @@
                   operation=="remove" || operation=="layers" || operation=="layer-add" || operation=="layer-remove" ||
                   operation=="layer-move" || operation=="swatches" || operation=="swatch" || operation=="physique" ||
                   operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
-                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" ||
+                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" ||
                   operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
                   operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="detail-status" ||
                   operation=="detail-mode" || operation=="filters" || operation=="filter-clear")

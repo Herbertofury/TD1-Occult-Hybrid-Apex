@@ -1,10 +1,13 @@
-// Apex-owned read-only observer appended to the exact installed selector.
-// The retained-bytecode adapter calls CaptureFeed before the native handler.
-// No native getter, refresh, selection or mutation is issued by these methods.
+// Apex-owned observer and checked navigation appended to the installed selector.
+// CaptureFeed copies the raw delivery before the unchanged native handler.
+// Navigation delegates to EA's complete SelectSimLayer lifecycle after checking
+// the exact Sim, delivered pair, selected layer and one-shot request identity.
       private var apexSelectorFeed:Object;
       private var apexSelectorSequence:int = 0;
       private var apexSelectorRegistered:Boolean = false;
       private var apexSelectorResetRegistered:Boolean = false;
+      private var apexSelectorNavigationRegistered:Boolean = false;
+      private var apexSelectorLastNavigation:String = "";
 
       private function ApexSelectorInitialize() : void
       {
@@ -14,6 +17,8 @@
             apexSelectorRegistered=RegisterServiceHandler("ApexReadOwnerPairFeed",ApexSelectorReadOwnerFeed);
          if(!apexSelectorResetRegistered)
             apexSelectorResetRegistered=AddMessageListener("CASClearSimsForReset",ApexSelectorClearFeed);
+         if(!apexSelectorNavigationRegistered)
+            apexSelectorNavigationRegistered=RegisterServiceHandler("ApexNavigateOwnerLayer",ApexSelectorNavigate);
       }
 
       private function ApexSelectorCopyRow(raw:Object) : Object
@@ -101,6 +106,44 @@
             retained.complete=false; retained.error=readError.message;
          } finally { row=null; layers=null; raw=null; message=null; }
          return {protocol:1,scope:"native-selector-owner-pair-view",service_registered:apexSelectorRegistered,
+            navigation_service_registered:apexSelectorNavigationRegistered,
             reset_listener_registered:apexSelectorResetRegistered,raw_feed:apexSelectorFeed,retained:retained,
             mapping_verified:false,alternate_accept_authorized:false};
+      }
+
+      private function ApexSelectorNavigate(request:Object) : Object
+      {
+         if(request==null || !(request.request_id is String) || !/^[0-9a-f]{32}$/.test(request.request_id) ||
+            request.request_id==apexSelectorLastNavigation || !(request.sim_id is String) ||
+            !/^[1-9][0-9]{0,19}$/.test(request.sim_id) || !(request.index is int) ||
+            !(request.expected_layer is int) || !(request.target_layer is int) || !(request.feed_sequence is int) ||
+            !(request.target_kind is int) || request.index!=mSelectedSimIndex || request.sim_id!=mCurrSimId ||
+            request.expected_layer!=mSelectedSimLayerIndex || request.expected_layer<0 || request.expected_layer>1 ||
+            request.target_layer<0 || request.target_layer>1 || mDataFeed==null ||
+            request.index<0 || request.index>=mDataFeed.length || apexSelectorFeed==null ||
+            apexSelectorFeed.complete!==true || apexSelectorFeed.delivered!==true ||
+            request.feed_sequence!=apexSelectorFeed.sequence || request.index>=apexSelectorFeed.pairs.length)
+            throw new Error("Native selector navigation lost its exact Sim, pair, layer, sequence or one-shot identity");
+         var item:Object=mDataFeed.RequestItemAt(int(request.index));
+         var layers:Array=item!=null && item.sim_layers is Array ? item.sim_layers : null;
+         var target:Object=layers!=null && layers.length==2 ? layers[int(request.target_layer)] : null;
+         var copied:Object=ApexSelectorCopyRow(target);
+         var raw:Object=apexSelectorFeed.pairs[int(request.index)];
+         raw=raw==null ? null : request.target_layer==0 ? raw.base : raw.alternate;
+         if(copied==null || raw==null || copied.sim_id!=request.sim_id || copied.index!=request.index ||
+            copied.occult_layer!=request.target_layer || copied.occult_type!=request.target_kind ||
+            target.enabled!==true || raw.sim_id!==copied.sim_id || raw.index!==copied.index ||
+            raw.occult_layer!==copied.occult_layer || raw.occult_type!==copied.occult_type ||
+            raw.all_occult_types!==copied.all_occult_types)
+            throw new Error("Native selector target is unavailable or differs from its actual raw delivery");
+         item=null; layers=null; target=null; raw=null; copied=null;
+         var index:int=int(request.index); var layer:int=int(request.target_layer);
+         var id:String=String(request.request_id); var simId:String=String(request.sim_id);
+         apexSelectorLastNavigation=id; request=null;
+         // The unchanged EA handler owns thumbnail cleanup, hiding equipped
+         // traits, both native setters, retained selection/index, copy/link UI
+         // and customizer lifecycle. Do not duplicate only its low-level calls.
+         SelectSimLayer(index,layer);
+         return {protocol:1,request_id:id,sim_id:simId,target_layer:layer,submitted:true,
+            native_selector_handler:true,selection_verified:false};
       }

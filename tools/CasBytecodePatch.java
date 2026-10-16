@@ -422,9 +422,33 @@ public class CasBytecodePatch {
         // A timer readback, rather than the globally dispatched feed callback,
         // owns the two selected reads and household comparison.
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex") &&
-                !name(abc,trait).equals("ApexSnapshot"))
+                !Set.of("ApexSnapshot","ApexFormsTick").contains(name(abc,trait)))
             require(!propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains("ApexOwnerObservation"),
                 "CAS owner observation has a caller outside the Timer snapshot.");
+    }
+    static void verifyFormStrip(ABC abc, InstanceInfo instance) {
+        var expected=Map.of("ApexFormsTick",List.of("CasGetAvailableOccults","GetOccultIcon"),
+            "ApexFormsClick",List.of("CASGetSimInfo"));
+        for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex")) {
+            String key=name(abc,trait); var body=abc.findBody(((TraitMethodGetterSetter)trait).method_info);
+            var calls=propertyCalls(abc,body);
+            if(!Set.of("ApexTick","ApexFormsApply").contains(key)) require(!calls.contains("ApexFormsTick"),"Native strip may run only on its owning UI Timer or typed workspace command.");
+            if(!key.startsWith("ApexForms")) continue;
+            List<String> services=new ArrayList<>(); var ops=body.getCode().code;
+            for(int i=0;i<ops.size();i++) if(property(abc,ops.get(i),0x46,"CallGameService") || property(abc,ops.get(i),0x4f,"CallGameService")) {
+                String literal=null;
+                for(int p=Math.max(0,i-14);p<i;p++) if(opcode(ops.get(p),0x2c)) {
+                    String text=abc.constants.getString(ops.get(p).operands[0]);
+                    if(Set.of("CasGetAvailableOccults","GetOccultIcon","CASGetSimInfo").contains(text)) literal=text;
+                }
+                require(literal!=null,"Native form strip invokes an unreviewed game service."); services.add(literal);
+            }
+            require(services.equals(expected.getOrDefault(key,List.of())),"Native strip service order/inventory differs: "+key);
+            require(Collections.disjoint(calls,Set.of("SendMessage","SendUIMessage","writeUTFBytes","ApexAccept","ApexExecute","ApexControlExecute")),
+                "Native form strip bypasses its bounded same-pair navigation.");
+        }
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsTick")).contains("ApexFormSelectionContext"),
+            "Native form strip lacks full fresh pair validation.");
     }
     static void verifyQueuedHandshake(ABC abc, InstanceInfo instance) {
         var callback=ownedBody(abc,instance,"ApexSocketConnect").getCode().code;
@@ -599,38 +623,33 @@ public class CasBytecodePatch {
         Set<String> callers=new HashSet<>();
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex") &&
                 propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains(helper)) callers.add(name(abc,trait));
-        require(callers.equals(Set.of("ApexExecute","ApexReadback","ApexMemberSelectionContext")), "CAS form selection helper is called outside owned Timer command phases.");
+        require(callers.equals(Set.of("ApexExecute","ApexReadback","ApexMemberSelectionContext","ApexFormsTick")), "CAS form selection helper is called outside owned Timer command phases.");
         var execute=ownedBody(abc,instance,"ApexExecute").getCode().code;
-        int indexSlot=-1, flagSlot=-1;
-        for(int i=0;i+5<execute.size();i++) {
-            if(property(abc,execute.get(i),0x66,"selected_index") && opcode(execute.get(i+1),0x73) &&
-                    opcode(execute.get(i+2),0x73) && opcode(execute.get(i+3),0x6d))
-                indexSlot=execute.get(i+3).operands[0];
-            if(property(abc,execute.get(i),0x66,"target_layer") && opcode(execute.get(i+1),0x73) &&
-                    opcode(execute.get(i+2),0x24) && execute.get(i+2).operands[0]==0 && opcode(execute.get(i+3),0xaf) &&
-                    opcode(execute.get(i+4),0x76) && opcode(execute.get(i+5),0x6d)) flagSlot=execute.get(i+5).operands[0];
-        }
-        require(indexSlot>0 && flagSlot>0 && indexSlot!=flagSlot, "CAS form selection lacks its typed observed index/layer payloads.");
-        List<String> writes=new ArrayList<>();
-        for(int i=0;i<execute.size();i++) if(opcode(execute.get(i),0x2c)) {
-            String service=abc.constants.getString(execute.get(i).operands[0]);
-            if("CasSelectSim".equals(service)) {
-                require(i+3<execute.size() && slotLoad(execute,i+1,indexSlot) &&
-                    property(abc,execute.get(i+3),0x46,"CallGameService") && execute.get(i+3).operands[1]==2,
-                    "CAS form selection does not select its typed already observed index.");
-                writes.add(service);
+        int dispatches=0;
+        Set<String> required=Set.of("request_id","sim_id","index","expected_layer","target_layer","target_kind","feed_sequence");
+        for(int i=0;i<execute.size();i++) if(stringLiteral(abc,execute.get(i),"ApexNavigateOwnerLayer")) {
+            int at=i+1; Set<String> keys=new HashSet<>(); int pairs=0;
+            for(;at<execute.size();at++) {
+                var op=execute.get(at);
+                if(opcode(op,0x2c)) {
+                    String text=abc.constants.getString(op.operands[0]);
+                    require(required.contains(text) && keys.add(text),"CAS navigation has an unexpected/duplicate typed field."); pairs++;
+                }
+                if(opcode(op,0x55)) {
+                    require(op.operands[0]==7 && pairs==7 && keys.equals(required),"CAS navigation lacks its complete exact typed fields.");
+                    require(at+1<execute.size() && property(abc,execute.get(at+1),0x46,"CallUIService") && execute.get(at+1).operands[1]==2,
+                        "CAS navigation bypasses the complete native selector handler.");break;
+                }
             }
-            if("CasSelectOccultForm".equals(service)) {
-                require(i+5<execute.size() && opcode(execute.get(i+1),0x2c) &&
-                    "select".equals(abc.constants.getString(execute.get(i+1).operands[0])) &&
-                    slotLoad(execute,i+2,flagSlot) && opcode(execute.get(i+4),0x55) && execute.get(i+4).operands[0]==1 &&
-                    property(abc,execute.get(i+5),0x4f,"CallGameService") && execute.get(i+5).operands[1]==2,
-                    "CAS form selection occult payload is not its exact typed select Boolean.");
-                writes.add(service);
-            }
+            require(at<execute.size(),"CAS navigation payload is incomplete.");dispatches++;
         }
-        require(writes.equals(List.of("CasSelectSim","CasSelectOccultForm")), "CAS form selection native write order/inventory differs.");
-
+        require(dispatches==1,"CAS navigation requires exactly one complete native selector dispatch.");
+        Set<String> properties=new HashSet<>();
+        for(var op:execute) if(opcode(op,0x66)) properties.add(abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index));
+        require(properties.containsAll(Set.of("selected_index","selected_layer","target_layer","form_flags","feed_sequence")),
+            "CAS navigation fields do not originate from its fresh pair preflight.");
+        for(var op:execute) if(opcode(op,0x2c)) require(!Set.of("CasSelectSim","CasSelectOccultForm").contains(abc.constants.getString(op.operands[0])),
+            "CAS navigation duplicated the native selector's low-level writes.");
     }
     static void verifyMemberSelection(ABC abc, InstanceInfo instance) {
         MethodBody helper=ownedBody(abc,instance,"ApexMemberSelectionContext");
@@ -880,12 +899,16 @@ public class CasBytecodePatch {
             "apexSocket", "apexTimer", "apexFrame", "apexExpected", "apexNonce", "apexBoundSim",
             "apexAwaiting", "apexAckId", "apexDisconnected", "apexSocketActive", "apexHelloPending", "apexSocketError",
             "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking",
-            "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener");
+            "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener",
+            "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
+            "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
-            "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation");
+            "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
+            "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
+            "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
         for (Trait trait : newClass.instance_traits.traits) {
@@ -909,6 +932,7 @@ public class CasBytecodePatch {
         verifyTimerPipeline(compiled, newClass);
         verifyOwnerObservation(compiled, newClass);
         verifyFormSelection(compiled, newClass);
+        verifyFormStrip(compiled, newClass);
         verifyMemberSelection(compiled,newClass);
         verifyQueuedHandshake(compiled, newClass);
         verifyExactItemSelection(compiled, newClass);
@@ -1010,6 +1034,7 @@ public class CasBytecodePatch {
         verifyCatalogMetadataDisabled(serialized, serialized.instance_info.get(oi));
         verifyOwnerObservation(serialized, serialized.instance_info.get(oi));
         verifyFormSelection(serialized, serialized.instance_info.get(oi));
+        verifyFormStrip(serialized, serialized.instance_info.get(oi));
         verifyTimerPipeline(serialized, serialized.instance_info.get(oi));
         verifyQueuedHandshake(serialized, serialized.instance_info.get(oi));
         verifyExactItemSelection(serialized, serialized.instance_info.get(oi));

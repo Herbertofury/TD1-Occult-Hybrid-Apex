@@ -13,7 +13,7 @@ CASES = ('actual-constructor-timer-path', 'native-snapshot-detached', 'native-sn
     'connect-transport-send', 'connect-event-owner', 'constructor-connect-event',
     'constructor-connect-callback', 'handshake-native-getter', 'handshake-consume-once',
     'handshake-exact-sim-payload', 'selector-service-contract', 'selector-helper-native-write',
-    'selection-current-index', 'selection-write-order', 'selection-typed-boolean',
+    'selection-current-index', 'selection-native-handler', 'selection-layer-key',
     'selection-next-tick-readback', 'earrings-wrong-bodytype', 'ambiguous-swatch-count',
     'body-region-native-write', 'body-region-unbound-definition',
     'layer-null-unsafe-service', 'layer-helper-socket-phase', 'member-service-name',

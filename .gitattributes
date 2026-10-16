@@ -8,7 +8,10 @@ Source/apex_core/cas_panels.py -text whitespace=cr-at-eol
 Source/apex_core/switch_trace.py -text whitespace=cr-at-eol
 # The CAS bytecode manifests also pin their exact compiler input bytes.
 Source/CASUi/semantic_methods.as -text whitespace=cr-at-eol
+Source/CASUi/form_strip_methods.as -text whitespace=cr-at-eol
+Source/CASUi/selector_methods.as -text whitespace=cr-at-eol
 tools/CasBytecodePatch.java -text whitespace=cr-at-eol
+tools/CasSelectorBytecodePatch.java -text whitespace=cr-at-eol
 NativeOverlay/Source/TD1ApexD3D11Proxy.cpp -text whitespace=cr-at-eol
 NativeOverlay/third_party/** -text
 *.package -text

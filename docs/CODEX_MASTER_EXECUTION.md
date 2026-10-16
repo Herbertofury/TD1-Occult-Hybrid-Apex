@@ -5,6 +5,31 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V149 verifies a bounded native kind-cache metadata reader in the unloaded
+main menu. It declares metadata access accurately and does not read appearance
+payloads or mutate native state. The next direct-engine step is to compare
+the populated cache with the complete captured household, then patch native
+selection/construction to retain the correct existing owner per occult/layer.
+
+V148 follows the native kind-conversion model's constructor and rebinding
+interface, rather than treating the public kind setter as the complete
+engine operation. These reads do not install a native fix. The highest
+priority is a direct native owner-retention and selection fix, with the
+permanent guard retained alongside it. Cross-kind navigation remains gated.
+
+V147 implements the form strip in the native CAS `.package`, with CAS fonts,
+game occult icons, a draggable header and scale/lock/collapse/reset controls.
+All seven captured memberships remain visible; cross-kind cards are disabled
+while unsafe conversion is quarantined. V146's in-game CLI layout movement and
+scale pass, but a later input attempt was followed by a native crash. Its
+clicked target was not established; later CAS clicks exposed stale hit-testing.
+V147 delegates same-pair navigation to EA's complete, unchanged selector
+handler instead of duplicating only its low-level setters. The typed CLI's
+actual Alien → Human disguise → Alien round trip, native acceptance and five
+independent commits retain all 40 owners exactly. Normal unsaved exit leaves
+all 20 save/backup files unchanged. This does not qualify production saves or close the native
+all-owned CAS, MCCC or household Tray gates.
+
 V142 quarantines the experimental cache conversion in both host CLI and Source
 receiver after V141's actual Alien-to-Vampire selection was followed by a native
 crash. Returning to Alien was refused before submission because the new Vampire

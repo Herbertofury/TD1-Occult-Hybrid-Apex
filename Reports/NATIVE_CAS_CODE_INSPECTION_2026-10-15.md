@@ -5,6 +5,43 @@ support additive membership without merging their appearances. Existing
 native presentation limits remain implementation work. The permanent guard
 and native copy prevention stay enabled together.
 
+## Current native UI and engine work
+
+V147 places the movable form strip in the CAS package itself, using native
+CAS fonts and game occult icons. The CLI verifies movement, 110% scale,
+locking, collapse and expansion without an appearance write. Its same-pair
+navigation delegates to EA's complete `SelectSimLayer` handler, including
+thumbnail cleanup, native selection, retained UI selection and copy/link
+panel updates. All other native selector bodies remain byte-for-byte intact.
+
+Actual typed navigation verifies Alien layer 0 → Human disguise layer 1 →
+Alien layer 0. After native acceptance, actual simulation ticks and all five
+member commits, all 40 appearance owners match the canonical baseline:
+`ff74138724a7fe3ca8ff928648901e2a6f6e54f93243ea0fc942ef06a7ba3ac7`.
+Normal unsaved exit verifies all 20 save/backup entries unchanged.
+
+Two earlier window-addressed input attempts were followed by native crashes.
+The later control comparison exposes stale CAS hit-testing, so those ACKs
+cannot establish which control was clicked. They remain failures of unknown
+precise cause; the successful typed pair navigation does not qualify mouse
+buttons, kind conversion or production saves.
+
+V148 follows the actual kind setter's second native interface: its preflight,
+selection, pair-construction and UI-rebinding methods. The fixed reader
+checks the pinned executable and exact read-only vtables, bounds every
+snapshot and calls none of these interfaces. This work targets the direct
+native owner/constructor fix. Cross-kind conversion remains quarantined
+until its ownership and lifetime behavior is understood and tested.
+
+V149 additionally inspects the native cache's Sim IDs and stored kind keys.
+Two bounded reads must agree, and cyclic/shared nodes, duplicate IDs/kinds,
+unaligned pointers, exhausted bounds and key/record mismatches are refused.
+This operation explicitly declares `sim_data_read=true`; it reads no appearance
+payload. The real main-menu probe returns an empty cache. Inspection inside
+the existing household's CAS is the next step. The helper callsites and the
+native protocol-response references are captured separately so construction,
+cache lookup and initial population can be distinguished before patching.
+
 ## Confirmed runtime boundary
 
 V135 prepares every member of the five-hybrid household with all six

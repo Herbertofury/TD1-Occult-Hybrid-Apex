@@ -48,3 +48,13 @@ class NativeControlTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'no addresses'):
                 native_controls.dispatch(self.backend,'test_native_cas_probe','changed','e'*32)
             probe.assert_not_called()
+
+    def test_native_owner_metadata_is_declared_and_still_deduplicated(self):
+        with patch.object(test_driver, 'guard', return_value=None), \
+             patch.dict(sys.modules, {'paths': Obj(DLL_PATH='game-dlls')}), \
+             patch.object(overlay_loader, 'native_cas_probe', return_value={'ok': True, 'read_only': True, 'sim_data_read': True}) as probe:
+            first = native_controls.dispatch(self.backend, 'test_native_cas_probe', 'typed', 'f' * 32)
+            self.assertTrue(first['sim_data_read'])
+            self.assertEqual(first, native_controls.dispatch(self.backend, 'test_native_cas_probe', 'typed', 'f' * 32))
+            probe.assert_called_once()
+            self.backend.services.assert_not_called()

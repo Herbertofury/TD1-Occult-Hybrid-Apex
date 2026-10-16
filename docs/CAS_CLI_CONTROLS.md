@@ -1,5 +1,37 @@
 # Native CAS CLI controls
 
+## Native CAS form strip and workspace
+
+The form strip is implemented in `ApexCASBridge.package`, inside the native
+CAS UI. It uses CAS fonts, the game's occult icons, a pale blue panel and a
+green selected state. Its header supports dragging; the toolbar provides
+scale, lock, collapse and reset controls. The current native pair is shown
+below the full captured membership list. Cross-kind cards remain disabled
+while that conversion path is quarantined.
+
+`cas workspace` changes only this panel's layout. Coordinates are normalized
+within the available viewport, and scale is bounded to 0.7–1.5. Supply all five
+layout fields; a later UI tick must return the actual layout and explicitly
+report no appearance write. The layout survives Sim/socket rebinding within
+this CAS widget; persistence across new CAS sessions is not implemented.
+
+```powershell
+python tools/apex_cli.py cas workspace --state STATE --sim-id SIM_ID --x 0.85 --y 0.14 --scale 1.1 --no-locked --no-collapsed --output NEW_WORKSPACE_JSON
+```
+
+V146's actual CAS run verifies movement and scale through this command. A
+subsequent window-addressed input attempt was followed by a native crash;
+the actual clicked target was not established. V147 routes
+both same-pair CLI navigation and strip buttons through the unchanged native
+`SelectSimLayer` handler, preserving its thumbnail cleanup, native setters,
+retained selection, link/copy UI and customizer lifecycle. The typed CLI now
+passes actual Alien layer 0 → Human disguise layer 1 → Alien layer 0, followed
+by native acceptance, simulation ticks, five independent commits and an exact
+40-owner comparison. Movement, scale, collapse, lock and expansion also have
+actual layout readbacks. This qualifies the existing pair, not cross-kind
+switching or the strip's mouse buttons. Window-addressed CAS clicks can use
+stale hit-testing; input ACKs must never establish the selected control.
+
 **V142 quarantines `occult-cache-view` after a native crash following its first
 acknowledged Alien-to-Vampire conversion. Both host CLI and game receiver refuse
 before any native request. Do not enable or replay it.**

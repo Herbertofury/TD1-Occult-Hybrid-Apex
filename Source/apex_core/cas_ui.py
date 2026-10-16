@@ -434,6 +434,33 @@ def detach_client(token):
         _PEERS.pop(token, None)
 
 
+def client_owned_mask(token):
+    """Display-only pre-entry memberships for this exact native socket peer.
+
+    CAS has disposed the Live producer: never dereference its saved wrappers
+    from the socket worker. Ambiguous, stale or unsealed captures advertise
+    nothing. This descriptor is not a form-selection/write capability.
+    """
+    with _LOCK:
+        peer = _PEERS.get(token)
+        if peer is None:
+            raise ValueError('Native CAS peer is not bound.')
+        matches = [(key, value) for key, value in _OWNER_BASELINES.items()
+                   if key[0] == os.getpid() and key[2] == peer['sim_id']]
+        if len(matches) != 1:
+            return 0
+        key, stored = matches[0]
+        baseline, membership = stored['baseline'], stored.get('cache_membership')
+        if (baseline.get('complete') is not True or baseline.get('runtime_pid') != key[0] or
+                baseline.get('original_sim_id') != key[2] or baseline.get('save_guid') != key[1] or
+                stored.get('baseline_sha256') != _baseline_hash(baseline) or
+                not isinstance(membership, dict) or
+                membership.get('capture_id') != baseline.get('capture_id')):
+            return 0
+        mask = membership.get('owned_mask')
+        return mask if type(mask) is int and 0 < mask <= 127 and mask & 1 else 0
+
+
 def poll_client(token, clock=time.monotonic):
     with _LOCK:
         peer = _PEERS.get(token)

@@ -5,6 +5,15 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V142 quarantines the experimental cache conversion in both host CLI and Source
+receiver after V141's actual Alien-to-Vampire selection was followed by a native
+crash. Returning to Alien was refused before submission because the new Vampire
+pair had an empty alternate placeholder. This is **not** an accepted hybrid
+round trip. The crash and original UUIDs are retained, all 40 originals are
+preserved, and the complete 20 save/backup-file inventory is unchanged. The
+literal all-owned CAS selector and the actual native prevention fix remain open;
+the deletion warning is retained. Production saves are not qualified.
+
 V139/V140 resolve and inspect the actual native conversion controller and
 its keyed occult cache without calling it or modifying game memory. V141 adds
 a separate disposable-token-gated cache-navigation qualification path, with

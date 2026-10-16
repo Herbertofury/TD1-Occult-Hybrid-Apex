@@ -480,6 +480,8 @@ def parser():
     journal_archive.add_argument('--expected-save-sha256', required=True)
     journal_archive.add_argument('--output', required=True, type=Path)
     crash_archive = commands.add_parser('cas-crash-archive', help='Archive only never-observed CAS metadata while the crashed disposable game is closed')
+    crash_archive.add_argument('--frontdoor-proof', type=Path, help='Exact Source receipt when the older CLI entry omitted the native frontdoor ID')
+    crash_archive.add_argument('--expected-frontdoor-sha256')
     crash_archive.add_argument('--state', required=True, type=Path)
     crash_archive.add_argument('--crash-proof', required=True, type=Path)
     crash_archive.add_argument('--expected-proof-sha256', required=True)
@@ -720,7 +722,8 @@ def execute(args):
     if args.command == 'cas-crash-archive':
         from cas_crash_archive import archive
         return archive(args.state, args.crash_proof, args.expected_proof_sha256,
-            args.slot_id, args.expected_save_sha256, args.output)
+                       args.slot_id, args.expected_save_sha256, args.output,
+                       frontdoor_proof=args.frontdoor_proof, expected_frontdoor_sha256=args.expected_frontdoor_sha256)
     if args.command == 'cas-crash':
         from cas_crash import record
         return record(args.state, args.entry_proof, args.expected_proof_sha256, args.output)

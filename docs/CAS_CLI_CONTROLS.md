@@ -1,6 +1,10 @@
 # Native CAS CLI controls
 
-V141 also has a research-only `occult-cache-view` command. Use the same exact
+**V142 quarantines `occult-cache-view` after a native crash following its first
+acknowledged Alien-to-Vampire conversion. Both host CLI and game receiver refuse
+before any native request. Do not enable or replay it.**
+
+V141 introduced the research-only `occult-cache-view` command. Its contract used the same exact
 session/layer/view-mask arguments as `occult-view`, plus `--owned-mask` from
 the actual pre-entry membership capture. The CLI obtains the marked disposable
 token from its journal; normal profiles cannot authorize this operation.

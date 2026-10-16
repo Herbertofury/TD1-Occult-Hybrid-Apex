@@ -220,4 +220,42 @@ class ClosedCrashArchiveTests(SealFixture):
                     2, self.target['expected_save_sha256'], self.output, entry_only=True,
                     before_proof=path, expected_before_sha256=sha256(path))
             self.assertEqual(self.bank_path.read_bytes(), held)
+
+    def bind_supplemental_frontdoor(self):
+        intent='d'*32
+        data=json.loads(self.bank_path.read_text())
+        data['records'][self.key]['cas_transaction']['native_entry_intent']=intent
+        self.bank_path.write_text(json.dumps(data))
+        checkpoint=self.entry['steps'][0]['result']['form_checkpoint']
+        source=dict(schema=1,stage='native-command-returned',native_appearance_written=False,
+            id=intent,household_id=HH,sim_id=SIM,members=[dict(sim_id=SIM,checkpoint=checkpoint,
+                owner_observation={'original_owner':dict(complete=True,runtime_pid=self.old['pid'],
+                    original_sim_id=SIM,household_id=HH,save_guid=GUID)})])
+        path=self.root/'source-frontdoor.json';write_json(path,source)
+        return path,source
+
+    def test_source_frontdoor_binds_old_cli_receipt_missing_its_native_intent(self):
+        path,_source=self.bind_supplemental_frontdoor()
+        before=self.bank_path.read_bytes()
+        result=cas_crash_archive.archive(self.root/'state.json',self.proof_path,self.proof_hash,
+            2,self.target['expected_save_sha256'],self.output,
+            frontdoor_proof=path,expected_frontdoor_sha256=sha256(path))
+        self.assertTrue(result['ok']);self.assertTrue(result['bank_lanes_unchanged'])
+        self.assertEqual(result['native_entry_intent'],'d'*32)
+        self.assertEqual((self.root/'archive-bank-before.json').read_bytes(),before)
+        self.assertFalse(result['save_written'])
+
+    def test_source_frontdoor_cannot_authorize_another_runtime_or_missing_member(self):
+        path,source=self.bind_supplemental_frontdoor();before=self.bank_path.read_bytes()
+        for change in ('runtime','roster','checkpoint'):
+            altered=copy.deepcopy(source)
+            if change=='runtime':altered['members'][0]['owner_observation']['original_owner']['runtime_pid']+=1
+            elif change=='roster':altered['members']=[]
+            else:altered['members'][0]['checkpoint']['checkpoint_sha256']='f'*64
+            write_json(path,altered)
+            with self.subTest(change=change),self.assertRaises(ValueError):
+                cas_crash_archive.archive(self.root/'state.json',self.proof_path,self.proof_hash,
+                    2,self.target['expected_save_sha256'],self.output,
+                    frontdoor_proof=path,expected_frontdoor_sha256=sha256(path))
+            self.assertEqual(self.bank_path.read_bytes(),before)
             self.assertFalse(self.output.exists())

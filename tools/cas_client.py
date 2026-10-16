@@ -179,6 +179,10 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
         value = {'operation': args.operation}
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
         from apex_core import cas_controls
+        if args.operation == 'occult-cache-view':
+            from apex_core.cas_ui import CACHE_VIEW_QUARANTINED
+            if CACHE_VIEW_QUARANTINED:
+                raise ValueError('Native occult cache conversion is quarantined after the V141 crash; no request sent.')
         if args.operation in cas_controls.OPERATIONS:
             value.update({name: getattr(args, name, None) for name in cas_controls.SCHEMAS[args.operation] - {'operation'}})
         if args.operation in ('panel', 'select'): value['panel'] = args.panel

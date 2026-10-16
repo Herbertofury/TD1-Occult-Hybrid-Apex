@@ -17,7 +17,7 @@ from source_manifest import sha256, write_json
 
 @reusable_profile.serialized
 def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sha256, output, entry_only=False,
-            before_proof=None, expected_before_sha256=None):
+            before_proof=None, expected_before_sha256=None, frontdoor_proof=None, expected_frontdoor_sha256=None):
     reusable_profile.legacy.require_closed()
     journal_path, journal, profile, original = reusable_profile.load(state)
     path, proof = cas_crash.external_json(crash_proof, profile, original, expected_proof_sha256)
@@ -79,6 +79,30 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
     if supplemental is not None and set(supplemental['snapshots']) != set(checkpoints):
         raise ValueError('Supplemental native before packet omits or adds a captured member.')
     held = {}
+    frontdoor_path, frontdoor_id = None, None
+    if frontdoor_proof is not None or expected_frontdoor_sha256 is not None:
+        if entry_only or frontdoor_proof is None or expected_frontdoor_sha256 is None:
+            raise ValueError('Supplemental Source entry requires both its proof/hash and a preserved native crash.')
+        frontdoor_path, native_entry = cas_crash.external_json(frontdoor_proof, profile, original, expected_frontdoor_sha256)
+        members = native_entry.get('members')
+        if (native_entry.get('schema') != 1 or native_entry.get('stage') != 'native-command-returned' or
+                native_entry.get('native_appearance_written') is not False or
+                native_entry.get('household_id') != proof['household_id'] or
+                native_entry.get('sim_id') != proof['sim_id'] or not receiver._token(native_entry.get('id')) or
+                not isinstance(members, list) or len(members) != len(checkpoints) or
+                {row.get('sim_id') for row in members} != set(checkpoints)):
+            raise ValueError('Supplemental Source entry differs from the exact crash household scope.')
+        for member in members:
+            sid = member['sim_id']; original_owner = member.get('owner_observation', {}).get('original_owner', {})
+            checkpoint = member.get('checkpoint', {})
+            if (original_owner.get('complete') is not True or original_owner.get('runtime_pid') != identity['pid'] or
+                    original_owner.get('original_sim_id') != sid or original_owner.get('save_guid') != proof['save_guid'] or
+                    original_owner.get('household_id') != proof['household_id'] or
+                    checkpoint.get('ok') is not True or checkpoint.get('native_appearance_written') is not False or
+                    any(checkpoint.get(key) != checkpoints[sid].get(key) for key in
+                        ('checkpoint_sha256', 'expected_pending_sha256'))):
+                raise ValueError('Supplemental Source entry does not bind every exact captured owner/checkpoint.')
+        frontdoor_id = native_entry['id']
     # Validate every exact entry member before preparing any metadata change.
     # Observed/planned receivers cannot be relabelled as never-observed.
     for sid, captured in checkpoints.items():
@@ -88,7 +112,8 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
             raise ValueError('No exact captured CAS metadata, or another transition is unresolved.')
         pending, transaction = record.get('pending'), record.get('cas_transaction')
         if isinstance(transaction, dict) and 'native_entry_intent' in transaction:
-            if transaction['native_entry_intent'] != cas_crash.entry_receipt(entry).get('native_frontdoor', {}).get('id'):
+            if transaction['native_entry_intent'] not in (
+                    cas_crash.entry_receipt(entry).get('native_frontdoor', {}).get('id'), frontdoor_id):
                 raise ValueError('Captured native entry intent differs from the exact submitted frontdoor.')
         argument = dict(prior_pid=identity['pid'], household_id=proof['household_id'],
             save_guid=proof['save_guid'], expected_cas_transaction_sha256=_hash(transaction))
@@ -126,6 +151,9 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         receipt.update(supplemental_native_before_proof=str(before_path),
             supplemental_native_before_sha256=expected_before_sha256,
             supplemental_appearances_equal_entry_originals=True)
+    if frontdoor_path is not None:
+        receipt.update(supplemental_source_frontdoor_proof=str(frontdoor_path),
+            supplemental_source_frontdoor_sha256=expected_frontdoor_sha256, native_entry_intent=frontdoor_id)
     with backup.open('xb') as stream:
         stream.write(bank_bytes)
     write_json(output, receipt)
@@ -141,7 +169,8 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         record['cas_transaction'] = None
     reusable_profile.legacy.require_closed()
     if (sha256(path) != expected_proof_sha256 or all_save_files(profile) != before_saves or
-            bank.read_bytes() != bank_bytes or supplemental is not None and sha256(before_path) != expected_before_sha256):
+            bank.read_bytes() != bank_bytes or supplemental is not None and sha256(before_path) != expected_before_sha256 or
+            frontdoor_path is not None and sha256(frontdoor_path) != expected_frontdoor_sha256):
         raise ValueError('Crash, saves or bank changed before archival; no bank write.')
     receipt['metadata_write_submitted'] = True
     write_json(output, receipt)

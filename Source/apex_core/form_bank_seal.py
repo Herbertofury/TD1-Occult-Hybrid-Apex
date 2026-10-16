@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-15-native-cas-owned-cache-view-v141'
+UPGRADE_EPOCH = '2026-10-15-native-cas-cache-quarantine-v142'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '40a319e9714cbe5ea444a5ab8a9ff23749a4613aa795dfd9d7babccbb4d22d2e'
+UPGRADE_SELF_BODY_SHA = 'cff025453339a3e8b3d393209b211c69730568b694d4e023f03456e67bee9ed6'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -46,7 +46,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_save_boundary.py': '29b7298311b0b6f466c7ac4f7f91149009b7980b19730071eea5b2e08266708b',
-    'apex_core/cas_ui.py': 'c915d3c9b6d05303662655fee107e151ca614f49687f06b793bbc98b69b7a380',
+    'apex_core/cas_ui.py': 'ee176c77a298f39bef6c2a339d6ff0379a00b81afb1694381bb7a55eabf755ad',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',

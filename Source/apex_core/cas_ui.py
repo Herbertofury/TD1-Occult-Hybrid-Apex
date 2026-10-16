@@ -34,6 +34,9 @@ def _owner_id(value, allow_zero=False, producer=False):
     return value
 
 
+CACHE_VIEW_QUARANTINED = True  # V141 native post-conversion crash; no automatic retry.
+
+
 def _owner_context(backend, sim):
     """Read producer identities only; never create, restore or ensure wrappers."""
     sim_id = _owner_id(sim.id, producer=True)
@@ -781,6 +784,8 @@ def envelope(sim_id, request):
 
 
 def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
+    if request.get('operation') == 'occult-cache-view' and CACHE_VIEW_QUARANTINED:
+        raise ValueError('Native occult cache conversion is quarantined after the V141 crash; no request sent.')
     if request.get('operation') == 'select' and request.get('panel') == 'clothing_body_wings':
         raise ValueError('Native wing selection is quarantined after failed exact color readback and a crash trial; no request sent.')
     request_id, wire = envelope(sim_id, request)

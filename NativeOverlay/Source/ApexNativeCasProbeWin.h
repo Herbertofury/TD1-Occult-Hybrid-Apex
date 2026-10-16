@@ -212,11 +212,27 @@ inline ui::Json Inspect() {
             {"scope","unwind-region"},{"semantic_function_complete",false},
             {"code_sha256",resource::HashBytes(body)},{"code_hex",HexBytes(body)},{"branch_candidates",branches}});
     }
+    ui::Json faults=ui::Json::array();
+    // Fixed sites from retained CAS crash reports only. These are bounded
+    // diagnostic windows, never guessed function entries or hook targets.
+    for(const auto fault:{0x105a1deu,0x112c645u,0x3f7ad2u}) {
+        if(captured>=65536) break;
+        const auto start=fault-256;
+        Bounds(start,1024,nt.OptionalHeader.SizeOfImage);
+        if(start<text.VirtualAddress || start-text.VirtualAddress>code.size() ||
+           code.size()-(start-text.VirtualAddress)<1024)
+            throw std::runtime_error("Pinned CAS crash site left its code section.");
+        const auto count=std::min<std::size_t>(1024,65536-captured);
+        const auto body=code.substr(start-text.VirtualAddress,count);captured+=count;
+        faults.push_back({{"fault_rva",fault},{"window_rva",start},{"captured_bytes",count},
+            {"code_sha256",resource::HashBytes(body)},{"code_hex",HexBytes(body)},
+            {"scope","fixed-pinned-cas-crash-context"},{"function_entry_verified",false}});
+    }
     return {{"schema",1},{"ok",true},{"pid",GetCurrentProcessId()},{"exe_sha256",hash},
         {"image_size",nt.OptionalHeader.SizeOfImage},{"text_rva",text.VirtualAddress},{"text_bytes",code.size()},
         {"disk_text_sha256",diskCodeHash},{"runtime_text_sha256",memoryHash},{"runtime_text_matches_disk",memoryHash==diskCodeHash},
         {"services",rows},{"controller",controller},{"function_snapshots",snapshots},{"callback_contexts",contexts},{"code_snapshot_bytes",captured},
-        {"callback_roots",callbacks},{"own_process_only",true},{"read_only",true},{"game_memory_written",false},
+        {"callback_roots",callbacks},{"pinned_fault_contexts",faults},{"own_process_only",true},{"read_only",true},{"game_memory_written",false},
         {"game_files_written",false},{"memory_dump_written",false},{"native_patch_qualified",false}};
 }
 }

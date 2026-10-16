@@ -172,3 +172,62 @@ complete atomic backup/archive round trip.
 Actual recovery passes for all five V138 records. The complete bank's stored
 appearances and all save/backup files remain unchanged. New bank hash:
 `65f034a4063e1bb7df9029a72b1fa9e191ffcc08d6b709a36c77727e232ade9a`.
+
+## V141 actual conversion failure and V142 quarantine
+
+The recovered V141 cold load again matches all 40 owners exactly, receipt
+`8aec9e4c64e0bc7139f4bccdf2a052c52dc2e1715f2f4735808703ec001b3a34`.
+Full existing-household CAS entry passes, receipt
+`9a1176e2aad1f81903958cb21b647d7dbe3e92c6cedef796b18695ae3033fed8`.
+The actual Alien is type 2 on layer 0. One recorded cache view request selects
+Vampire type 4 on layer 0, projected mask 4. This is selection only. Its new
+alternate row is the native zero-ID placeholder, not an existing dark form.
+The proposed return to Alien is refused before submission by the pair-binding
+validator; that refused request is not retried.
+
+The process then disappears and produces a new native crash at game RVA
+`0x105a1de`, with caller `0x3f7ad2` in the retained stack. The diagnostic preserves
+the original crash, SHA-pinned proof
+`9209f963f73831144f1b4e02c1279273b820a1734e184a2708a8fe421051e7b8`.
+Temporal sequence is observed; the precise native cause is not established.
+There is no return, alternate edit, cache-retention or release-safety pass.
+
+V142 refuses this experimental operation in the host CLI and Source receiver,
+before guards, RPC or native submission. Tests retain the offline typed-contract
+coverage under an explicit fixture override and separately verify the real
+quarantine. No user-facing selector is wired to the unqualified conversion.
+The permanent guard stays enabled and the deletion warning is not hidden.
+
+The older CLI entry result omitted its native frontdoor ID. Closed crash
+archival now accepts a separate SHA-pinned actual Source frontdoor receipt
+only when its runtime, household and every captured checkpoint match the
+preserved crash entry exactly. Two tests cover that compatibility path and
+refuse altered runtime, missing members and changed checkpoint hashes.
+Actual archival preserves all five raw checkpoints and bank appearances,
+with final bank SHA-256
+`761e99b37adb2b9695a506d8f2c83a427a74bd10226758b42a8b95f6688ea57f`.
+An independent comparison against the last normal-exit complete roster confirms
+all 20 save/backup files are byte-for-byte unchanged after the crash.
+
+V142 adds fixed bounded diagnostic windows for the retained CAS crash sites.
+These windows are not function-entry assertions, patch targets or native calls.
+Actual root-cause analysis and a verified native fix remain required.
+
+The V142 reader is exercised in a fresh unloaded main-menu process. It returns
+56,022 bounded code bytes, receipt
+`8124106eee2cdf81f51f98bd3b0cffb04d7eaa2f6268f06da7322866fb336a02`.
+Pinned unwind-chain metadata and independent decoding identify the newest
+fault at a source-buffer read in a counted four-byte-element copy. Its retained
+controller frame dispatches the actual `CASSetSimInfo` UI message. This narrows
+the investigation to native UI data/lifetime handling; the offending field
+and exact ownership error remain unidentified. No null-check patch, skipped
+copy, allocator patch or deletion-warning suppression is substituted for a
+real ownership fix.
+
+The V142 immutable bundle has 93 Python 3.7 modules, seven packages and 207
+independently Rust-verified resources. Bundle SHA-256:
+`1190feb28bb1de058dcb092efbecd98a1ae1fcb97466ede3600201d0018e6be3`.
+All seven native CTests, 26 frozen-source migration checks, 22 CLI intent
+checks, 16 crash-archival checks and four interrupted-entry archival checks
+pass. The updated cache/quarantine contract suite has 18 passing checks.
+These component passes do not qualify the failed gameplay path.

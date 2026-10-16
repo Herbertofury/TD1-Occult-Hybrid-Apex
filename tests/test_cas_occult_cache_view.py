@@ -2,6 +2,7 @@
 import copy,json,os,sys
 from pathlib import Path
 from unittest.mock import patch
+from contextlib import nullcontext
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Source'))
 from apex_core import cas_ui,cas_controls,test_driver
 from test_cas_occult_view import OccultViewTests,client
@@ -11,6 +12,7 @@ import test_cas_form_select as fixture
 class CacheQualificationTests(OccultViewTests):
     def setUp(self):
         super().setUp()
+        self.enterContext(patch.object(cas_ui,'CACHE_VIEW_QUARANTINED',False))
         self.backend._all_occults=lambda:(1,4,64)
         self.backend._has_occult=lambda tracker,kind:kind in tracker.forms
         cas_ui.capture_original_owner(self.backend,self.sim)
@@ -80,3 +82,23 @@ class CacheQualificationTests(OccultViewTests):
             self.assertTrue(value['original_owner']['complete'])
             stored=next(reversed(cas_ui._OWNER_BASELINES.values()))
             self.assertIsNone(stored['cache_membership'])
+
+    def test_actual_native_crash_quarantine_precedes_guard_and_queueing(self):
+        with patch.object(cas_ui,'CACHE_VIEW_QUARANTINED',True),patch.object(test_driver,'guard') as guard:
+            with self.assertRaisesRegex(ValueError,'quarantined'):
+                cas_ui.submit(fixture.SIM,self.probe(),clock=lambda:10,backend=self.backend)
+            guard.assert_not_called()
+        self.assertFalse(cas_ui._RECORDS)
+
+    def test_host_cli_quarantine_precedes_every_rpc_or_token_read(self):
+        sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
+        import cas_client
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        with patch('cli_identity_cache.session',return_value=nullcontext()),\
+                patch.object(cas_ui,'CACHE_VIEW_QUARANTINED',True),patch('reusable_profile.load') as load:
+            request=Mock()
+            args=SimpleNamespace(operation='occult-cache-view',state=Path('unused'),output=None,
+                seconds=1,request_id=None,sim_id=fixture.SIM)
+            with self.assertRaisesRegex(ValueError,'quarantined'):cas_client.execute(args,request)
+            request.assert_not_called();load.assert_not_called()

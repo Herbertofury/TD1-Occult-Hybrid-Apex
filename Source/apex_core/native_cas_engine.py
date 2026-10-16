@@ -280,6 +280,46 @@ def entry_ready(backend, sim_id):
             raise ValueError('Native CAS initial-import lifetime was not closed at its actual client handshake.')
 
 
+def _verify_imported_owners(call, status, expected):
+    """Read every imported DTO before the native CAS entry can begin.
+
+    This comparison uses the fresh pre-entry fields, not a post-import baseline.
+    A stable but already damaged owner must never pass entry qualification.
+    No appearance data is written by this bounded readback.
+    """
+    from .cas_owner_export_page import Collector
+    from . import cas_owner_decode, form_appearance
+    if status.get('ok') is not True or status.get('selection_enabled') is not True:
+        raise ValueError('Cannot verify an incomplete native appearance import.')
+    members = status.get('members', [])
+    if {row['sim_id'] for row in members} != {sid for sid, _owner in expected}:
+        raise ValueError('Native import readback has a different household roster.')
+    verified = []
+    for member in members:
+        sid = member['sim_id']
+        kinds = {owner: item['native_kind'] for (sim_id, owner), item in expected.items() if sim_id == sid}
+        identity = dict(pid=status['pid'], scope_id=status['scope_id'], sim_id=sid,
+            generation=member['graph_generation'], owned_mask=member['owned_mask'],
+            selected_owner_id=member['graph_selected_owner_id'])
+        collector = Collector(identity, kinds)
+        cursor = ''
+        while not collector.complete:
+            page = call(dict(operation='export-owner-page', scope_id=identity['scope_id'], sim_id=sid,
+                expected_generation=identity['generation'], after_owner_id=cursor))
+            cursor = collector.append(page)['next_owner_id']
+        for row in collector.document()['owners']:
+            original = expected[(sid, row['owner_id'])]['fields']
+            observed = cas_owner_decode.read(bytes.fromhex(row['native_hex']), sid, cas_owner_decode.layout(original))['fields']
+            before = form_appearance.fingerprint(original); after = form_appearance.fingerprint(observed)
+            changed = sorted(name for name in set(original) | set(observed)
+                if before['field_sha256'].get(name) != after['field_sha256'].get(name))
+            if changed:
+                raise ValueError('Native import changed pre-entry appearance '+sid+'/'+row['owner_id']+': '+', '.join(changed))
+            verified.append(dict(sim_id=sid, owner_id=row['owner_id'], native_kind=row['native_kind'],
+                native_sha256=row['sha256'], appearance_sha256=after['appearance_sha256']))
+    return dict(ok=True, owners=verified, appearance_written=False, pre_entry_fields_verified=True)
+
+
 def seed_members(backend):
     """Extend CAS's native import with every pre-entry canonical owner.
 
@@ -302,7 +342,7 @@ def seed_members(backend):
     members = {str(sim.id): sim for sim in household.sim_info_gen()}
     if not set(row['sim_id'] for row in status['members']) <= set(members):
         raise ValueError('Native form scope does not belong to the current household.')
-    receipts = [];layouts={}
+    receipts = [];layouts={}; expected={}
     import base64
     for row in status['members']:
         sim = members[row['sim_id']]
@@ -313,6 +353,7 @@ def seed_members(backend):
             native_kind=int(backend._get_current_flags(sim)) if kind=='active' else int(kind)
             owner_id='active/'+str(native_kind) if kind=='active' else 'native/'+str(native_kind)
             layouts[(row['sim_id'],owner_id)]=dict(native_kind=native_kind,layout=cas_owner_decode.layout(fields[str(kind)]))
+            expected[(row['sim_id'],owner_id)]=dict(native_kind=native_kind,fields=fields[str(kind)])
         capture = sim_data.snapshot(backend, sim)
         raw = base64.b64decode(capture['native_base64'], validate=True)
         result = call(dict(operation='seed', scope_id=status['scope_id'], sim_id=row['sim_id'],
@@ -347,11 +388,16 @@ def seed_members(backend):
                               appearance_sha256=variant['appearance_sha256'], native_sha256=projected['sha256']))
             layouts[(row['sim_id'],variant['owner_id'])]=dict(native_kind=variant['native_kind'],
                 layout=cas_owner_decode.layout(variant['fields']))
+            expected[(row['sim_id'],variant['owner_id'])]=dict(native_kind=variant['native_kind'],fields=variant['fields'])
+        if any(appearance.fingerprint(appearance.packed(backend,owner)) != before[str(kind)] for kind,owner in owners.items()):
+            raise ValueError('Independent full-record imports changed a pre-entry native Sim appearance.')
         receipts.append(dict(sim_id=row['sim_id'], native_sha256=capture['native_sha256'],
                              native_bytes=len(raw), native_message_type=capture['native_message_type'],
                              imported_mask=imported['imported_mask'], kinds=imported['kinds'], named_owners=named))
     result = call(dict(operation='activate', scope_id=status['scope_id']))
     if result.get('ok') is not True or result.get('selection_enabled') is not True:
         raise ValueError('Complete native owner selection did not activate.')
+    verification = _verify_imported_owners(call,result,expected)
     _LAYOUT_SCOPE=dict(pid=os.getpid(),scope_id=status['scope_id'],owners=layouts)
-    return dict(enabled=True, scope_id=status['scope_id'], members=receipts, existing_appearances_unchanged=True)
+    return dict(enabled=True, scope_id=status['scope_id'], members=receipts, existing_appearances_unchanged=True,
+                import_verification=verification)

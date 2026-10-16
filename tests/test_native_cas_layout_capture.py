@@ -29,7 +29,8 @@ class NativeLayoutCaptureTests(unittest.TestCase):
                 dict(owner_id='ghost/manifested',native_kind=2 if fail=='named-kind' else 1)])
             return dict(ok=True,members=[imported])
         prior=dict(pid=1,scope_id='b'*32,owners={})
-        with patch.object(engine,'_LAYOUT_SCOPE',prior),patch.object(overlay_loader,'_CALLS',{'ready':True}), \
+        with patch.object(engine,'_verify_imported_owners',return_value=dict(ok=True,owners=[])), \
+                patch.object(engine,'_LAYOUT_SCOPE',prior),patch.object(overlay_loader,'_CALLS',{'ready':True}), \
                 patch.object(overlay_loader,'native_cas_engine_control',side_effect=call), \
                 patch.object(appearance,'packed',side_effect=lambda backend,owner:fields(owner)), \
                 patch.object(sim_data,'snapshot',return_value=capture), \

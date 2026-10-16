@@ -27,7 +27,11 @@ void Controller(void* controller,unsigned target) {
 Cache& Map(const void* p) {return **reinterpret_cast<Cache* const*>(static_cast<const char*>(p)+8);}
 void* Construct(void* p,std::uint64_t id) {std::memset(p,0,0x830);Write(p,0xb8,id);return p;}
 void Destroy(void*) {++destroyed;}
-void Available(void* p,std::uint32_t v) {Write(p,0xdc,v);}
+void Available(void* p,std::uint32_t v) {
+    // All pre-entry detached owners must enter the normalization scope before
+    // the first setter, matching the canonical full-record import contract.
+    Require(detachedTarget==static_cast<char*>(p)+0xd0);Write(p,0xdc,v);
+}
 void Current(void* p,std::uint32_t v) {Write(p,0xd8,v);}
 void AvailableData(void* p,std::uint32_t v) {Write(p,12,v);}
 void OriginalImport(void* output,const void* proto) {Write(output,0xb8,Read<std::uint64_t>(proto,0x10));}

@@ -125,7 +125,8 @@ class NativeEngineTests(unittest.TestCase):
         def capture(backend,sim):
             raw=str(sim.id).encode('ascii')
             return dict(native_base64=base64.b64encode(raw).decode('ascii'),native_sha256=hashlib.sha256(raw).hexdigest(),native_message_type='fixture.SimData')
-        with patch.object(overlay_loader,'_CALLS',{'loaded':True}), \
+        with patch.object(engine,'_verify_imported_owners',return_value=dict(ok=True,owners=[])), \
+                patch.object(overlay_loader,'_CALLS',{'loaded':True}), \
                 patch.object(overlay_loader,'native_cas_engine_control',side_effect=native), \
                 patch.dict(sys.modules,{'paths':Obj(DLL_PATH='game-dlls')}), \
                 patch.object(sim_data,'snapshot',side_effect=capture), \

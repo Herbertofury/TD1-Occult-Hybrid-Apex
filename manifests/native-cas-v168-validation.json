@@ -37,6 +37,14 @@
       "proof_sha256": "88ea2062b2fa8ef8e585853fc29a6c0db2caa57a759865e040ea6a204577748f",
       "total_separate_appearance_owners": 195
     },
+    "expanded_matrix": {
+      "completed_members": 2,
+      "completed_visits": 94,
+      "passed": false,
+      "proof_sha256": "38d86a5ee523d57e850808fc80f9f428cf29b83834edb7d40195611d2c45e643",
+      "reason": "Pre-entry named Fairy wing genetics lost during primary import.",
+      "stopped": true
+    },
     "fairy_cross_kind_complete_snapshot": {
       "export_points": 5,
       "identical_native_bytes": true,
@@ -91,6 +99,14 @@
           "panel": "profile_body_skincolor"
         }
       ]
+    },
+    "pre_entry_named_fairy_import": {
+      "changed_fields": [
+        "genetic_data"
+      ],
+      "missing_genetic_part_id": 464564,
+      "ok": false,
+      "proof_sha256": "bd984e8bfee409ad7740da97ce7b73cc94e86db3fe370942839cfec9b5940168"
     },
     "unchanged_cold_originals": {
       "appearance_owners": 40,

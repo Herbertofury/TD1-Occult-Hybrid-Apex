@@ -552,9 +552,9 @@ inline bool Capture(std::uint64_t id,const void* proto,bool sourceSeed) {
             const auto activeKind=current?current:1u;
             if(!Kind(activeKind) || !(member->second.mask&activeKind))
                 throw std::runtime_error("Native active entry owner has an unknown or unowned kind.");
+            const DetachedTarget target(replacement.active->data());
             state.api.available(replacement.active->value,member->second.mask);
             state.api.current(replacement.active->value,activeKind);
-            const DetachedTarget target(replacement.active->data());
             state.api.fields(replacement.active->value,proto,nullptr);
             // The field loader can classify a multi-kind tracker using its
             // legacy priority rules. The tracker's explicit current field is
@@ -1077,8 +1077,8 @@ inline std::unique_ptr<NativeOwner> ReadAppearanceRecord(State& state,std::uint6
         }
         if(!selectedRecord) throw std::runtime_error("The exact full appearance record is missing.");
         auto owner=std::make_unique<NativeOwner>(state.api,id);
-        state.api.available(owner->value,mask);state.api.current(owner->value,kind);
         const DetachedTarget target(owner->data());
+        state.api.available(owner->value,mask);state.api.current(owner->value,kind);
         // The primary/null-record path regenerates genetics and omits Fairy
         // wings. The record path imports the complete supplied genetic payload.
         state.api.fields(owner->value,proto.data(),selectedRecord);

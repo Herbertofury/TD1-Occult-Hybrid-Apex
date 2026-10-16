@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-16-native-cas-complete-genetic-record-import-v170'
+UPGRADE_EPOCH = '2026-10-16-native-cas-verify-complete-entry-import-v171'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '8e7d18f60457cf69e8ced1db9817adb5e52c0897f05ee30d6e58a3365afcb15f'
+UPGRADE_SELF_BODY_SHA = '4c3195fd95350819265b62e8461e7d22e22c6a4e459f49d35ff2ddff6708d49d'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -65,7 +65,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/lifestate_forms.py': '48032945ff8243c7a67f9ae820d3c285a85e1fc11f89ea14c938ccba83b2e1f6',
     'apex_core/lifestates.py': 'c45a4c6f621b75c055e91f55fdb0b767ac15418cff649dcc90801e1bee355ac7',
     'apex_core/morph_controls.py': 'd144ebd7a8dcbff5695b1a2747f641b17017b60a6c39bd904e467602d4c7f876',
-    'apex_core/native_cas_engine.py': 'eb359ef325e4fe11c42e9c47fd1e9ed6aba025a76589e5f1de459697ba1fe32e',
+    'apex_core/native_cas_engine.py': 'f3a2c97d1ec98bdb554c4fa76b7c8361cff0141a2f3764053b27b15f5b33d8e7',
     'apex_core/native_controls.py': '14cdf881981539a2f3067bbb34f3b348ecd60b2aafaf998416f898379868992f',
     'apex_core/native_form_isolation.py': '8b543ee251da890e30df2f96a961d4d7d76519816376617330f5136de414bb33',
     'apex_core/native_form_select.py': '5c3c9b28d82df3e6515169f3bb653f94ed9c9505d7745673514d85ed79744c44',

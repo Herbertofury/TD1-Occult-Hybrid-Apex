@@ -5,6 +5,15 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V170 crashed during accepted full-CAS entry before the client handshake.
+The preserved dump faults at 0x14112c678, a previously observed allocator
+failure; the corrupting call is not identified. Do not qualify V170 from its
+offline tests. V171 puts both detached setters inside the canonical owner's
+normalization scope and adds complete per-owner import readback before CAS
+entry. The scope fix is concrete; crash causality remains unproven. The new
+readback compares every native, active and named owner with fresh pre-entry
+fields and refuses missing, stale or changed data, including genetics.
+
 V170 corrects a newly reproduced pre-entry import loss: named Fairy appearances
 lost wing part 464564 from genetics, although their later native snapshots
 remained stable. The primary/null-record loader regenerates genetics; the

@@ -32,8 +32,13 @@ void Current(void* p,std::uint32_t v) {Write(p,0xd8,v);}
 void AvailableData(void* p,std::uint32_t v) {Write(p,12,v);}
 void OriginalImport(void* output,const void* proto) {Write(output,0xb8,Read<std::uint64_t>(proto,0x10));}
 void Fields(void* output,const void* proto,const void* record) {
+    const auto initialKind=Read<unsigned>(output,0xd8),initialMask=Read<unsigned>(output,0xdc);
+    Require(Kind(initialKind) && (initialMask&initialKind));
     Write(output,0xb8,Read<std::uint64_t>(proto,0x10));
-    if(record) Write(output,0xe8,Read<unsigned>(record,0x1c));
+    if(record) {
+        Write(output,0xe8,Read<unsigned>(record,0x1c));
+        Write(output,0x360,0xface0000u+initialKind); // Complete inherited payload read only by record loader.
+    }
     else {Current(output,4);Available(output,126);Write(output,0xe8,9999u);}
 }
 void AssignData(void* output,const void* input) {std::memcpy(output,input,0x300);}
@@ -210,6 +215,11 @@ int main() {
         {"native_hex","0102"},{"sha256",td1::resource::HashBytes(std::string("\1\2",2))}});
     Require(Control(seed).value("ok",false) && bank.seeded && bank.mask==127 && protoDestroyed==1);
     Require(bank.active && Read<unsigned>(bank.active->data(),8)==2 && Read<unsigned>(bank.active->data(),0x18)==9999);
+    Refuses([&]{Control({{"operation","activate"},{"scope_id",scope.id}});}); // Root regeneration is not full active import.
+    auto activeSeed=seed;activeSeed["operation"]="seed-active";activeSeed["native_kind"]=2u;
+    Write(records[1].data(),0x1c,9999u);Require(Control(activeSeed).value("ok",false));Write(records[1].data(),0x1c,200u);
+    Refuses([&]{Control(activeSeed);}); // No second active seed can replace an imported entry.
+    Require(bank.activeSourceSeeded && Read<unsigned>(bank.graph->appearance("active/2")->data(),0x290)==0xface0002u);
     runtime.selectionEnabled=true;
     std::array<char,0xc40> currentModel{};Write(controller.data(),0x1d0,currentModel.data());
     Write(currentModel.data(),0x178,2u);original[1].fill(0);
@@ -249,7 +259,8 @@ int main() {
     const auto namedSeed=Json({{"operation","seed-appearance"},{"scope_id",scope.id},{"sim_id","123"},
         {"owner_id","ghost/manifested"},{"native_kind",1u},{"native_hex","0102"},
         {"sha256",td1::resource::HashBytes(std::string("\1\2",2))}});
-    Require(Control(namedSeed).value("ok",false));
+    Write(records[0].data(),0x1c,9999u);Require(Control(namedSeed).value("ok",false));Write(records[0].data(),0x1c,100u);
+    Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x290)==0xface0001u);
     Require(bank.graph->owners().size()==9 && Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),8)==1);
     Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x18)==9999);
     Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100);
@@ -265,7 +276,7 @@ int main() {
     Refuses([&]{Control(seed);}); // A CAS-ready graph cannot be reset over pending edits.
     Refuses([&]{Control(namedSeed);});
     Free(child,0x830);Write(output.data(),0x4c0,static_cast<void*>(nullptr));
-    auto badSeed=seed;badSeed["sha256"]=std::string(64,'a');Refuses([&]{Control(badSeed);});Require(protoDestroyed==3);
+    auto badSeed=seed;badSeed["sha256"]=std::string(64,'a');Refuses([&]{Control(badSeed);});Require(protoDestroyed==4);
     // Execute the actual adapter with native-shaped records and the original
     // game's destructive inactive-copy behavior represented by NativeSync.
     api.sync=NativeSync;api.bind=NativeOriginalBind;api.modelBind=NativeModelBind;

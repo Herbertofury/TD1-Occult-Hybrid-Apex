@@ -147,7 +147,7 @@ struct Imported {
     std::unique_ptr<NativeOwner> active;
     std::unique_ptr<OwnerGraph<std::unique_ptr<NativeOwner>>> graph;
     std::map<std::string,std::unique_ptr<NativeUndo>> undoOwners;
-    bool initialImport=true,viewBound=false,viewFault=false;void* boundGroup=nullptr;void* boundContext=nullptr;std::string entryOwner=NativeOwnerId(1),partner=NativeOwnerId(2);std::map<std::string,std::uint32_t> uiTokens;
+    bool initialImport=true,viewBound=false,viewFault=false,activeSourceSeeded=false;void* boundGroup=nullptr;void* boundContext=nullptr;std::string entryOwner=NativeOwnerId(1),partner=NativeOwnerId(2);std::map<std::string,std::uint32_t> uiTokens;
     std::uint32_t mask=0,preferred=0;unsigned imports=0,switches=0,skippedPackets=0;bool seeded=false;std::string error;
 };
 struct ViewIntent {
@@ -549,14 +549,16 @@ inline bool Capture(std::uint64_t id,const void* proto,bool sourceSeed) {
         }
         if(sourceSeed) {
             replacement.active=std::make_unique<NativeOwner>(state.api,id);
+            const auto activeKind=current?current:1u;
+            if(!Kind(activeKind) || !(member->second.mask&activeKind))
+                throw std::runtime_error("Native active entry owner has an unknown or unowned kind.");
+            state.api.available(replacement.active->value,member->second.mask);
+            state.api.current(replacement.active->value,activeKind);
             const DetachedTarget target(replacement.active->data());
             state.api.fields(replacement.active->value,proto,nullptr);
             // The field loader can classify a multi-kind tracker using its
             // legacy priority rules. The tracker's explicit current field is
             // the active owner identity; restore it after loading appearance.
-            const auto activeKind=current?current:1u;
-            if(!Kind(activeKind) || !(member->second.mask&activeKind))
-                throw std::runtime_error("Native active entry owner has an unknown or unowned kind.");
             state.api.current(replacement.active->value,activeKind);
             state.api.availableData(const_cast<void*>(replacement.active->data()),member->second.mask);
         }
@@ -872,6 +874,7 @@ inline ui::Json Status() {
             {"imports",found==state.bank.end()?0:found->second.imports},{"switches",found==state.bank.end()?0:found->second.switches},
             {"source_seeded",found!=state.bank.end() && found->second.seeded},
             {"active_entry_captured",found!=state.bank.end() && found->second.active!=nullptr},
+            {"active_entry_source_seeded",found!=state.bank.end() && found->second.activeSourceSeeded},
             {"active_entry_kind",found!=state.bank.end() && found->second.active?Read<std::uint32_t>(found->second.active->data(),8):0},
             {"narrowed_packets_skipped",found==state.bank.end()?0:found->second.skippedPackets},
             {"independent_owner_graph",found!=state.bank.end() && found->second.graph!=nullptr},
@@ -1037,6 +1040,53 @@ inline void Install() {
         throw;
     }
 }
+inline std::string SeedAppearanceBytes(const ui::Json& request) {
+    const auto encoded=request["native_hex"].get<std::string>();
+    if(encoded.empty() || encoded.size()>8u*1024u*1024u || encoded.size()%2 ||
+       encoded.find_first_not_of("0123456789abcdef")!=std::string::npos)
+        throw std::runtime_error("Native appearance bytes are not bounded canonical hexadecimal.");
+    auto nibble=[](char c){return c<='9'?c-'0':c-'a'+10;};std::string bytes(encoded.size()/2,'\0');
+    for(std::size_t i=0;i<bytes.size();++i) bytes[i]=static_cast<char>((nibble(encoded[i*2])<<4)|nibble(encoded[i*2+1]));
+    if(resource::HashBytes(bytes)!=request["sha256"].get<std::string>())
+        throw std::runtime_error("Native appearance bytes differ from their captured SHA-256.");
+    return bytes;
+}
+inline std::unique_ptr<NativeOwner> ReadAppearanceRecord(State& state,std::uint64_t id,std::uint32_t kind,
+                                                       std::uint32_t mask,const std::string& bytes) {
+    alignas(16) std::array<char,0x400> proto{};state.api.protoConstruct(proto.data());
+    try {
+        const ByteView view{bytes.data(),static_cast<std::uint64_t>(bytes.size())};
+        if(!state.api.protoParse(proto.data(),&view) || Read<std::uint64_t>(proto.data(),0x10)!=id ||
+           !(Read<std::uint32_t>(proto.data(),0x1dc)&(1u<<26)))
+            throw std::runtime_error("Full appearance record belongs to another Sim or lacks attributes.");
+        const auto attributes=Read<const void*>(proto.data(),0xc0);
+        if(!attributes || !(Read<std::uint8_t>(attributes,0x13a)&1))
+            throw std::runtime_error("Full appearance record lacks its detached tracker message.");
+        const auto tracker=Read<const void*>(attributes,0x90);
+        const auto count=Read<std::int32_t>(tracker,0x20);
+        if(count<1 || count>7) throw std::runtime_error("Full appearance record inventory is out of bounds.");
+        const auto records=Read<const void* const*>(tracker,0x18);Span(records,static_cast<std::size_t>(count)*8);
+        const void* selectedRecord=nullptr;
+        for(int i=0;i<count;++i) {
+            const auto record=Read<const void*>(records,static_cast<std::size_t>(i)*8);
+            if(!(Read<std::uint32_t>(record,0x84)&1)) throw std::runtime_error("Full appearance record has no typed kind.");
+            if(Read<std::uint32_t>(record,0x18)==kind) {
+                if(selectedRecord) throw std::runtime_error("Full appearance record kind is duplicated.");
+                selectedRecord=record;
+            }
+        }
+        if(!selectedRecord) throw std::runtime_error("The exact full appearance record is missing.");
+        auto owner=std::make_unique<NativeOwner>(state.api,id);
+        state.api.available(owner->value,mask);state.api.current(owner->value,kind);
+        const DetachedTarget target(owner->data());
+        // The primary/null-record path regenerates genetics and omits Fairy
+        // wings. The record path imports the complete supplied genetic payload.
+        state.api.fields(owner->value,proto.data(),selectedRecord);
+        state.api.current(owner->value,kind);state.api.availableData(const_cast<void*>(owner->data()),mask);
+        if(Read<std::uint64_t>(owner->value,0xb8)!=id) throw std::runtime_error("Full appearance import changed its Sim identity.");
+        state.api.protoDestroy(proto.data());return owner;
+    } catch(...) {state.api.protoDestroy(proto.data());throw;}
+}
 inline ui::Json Control(const ui::Json& request) {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
     if(request.is_object() && request.size()==1 && request.value("operation","")=="status") return Status();
@@ -1150,6 +1200,24 @@ inline ui::Json Control(const ui::Json& request) {
         for(auto& row:state.bank) row.second.initialImport=false;
         return Status();
     }
+    if(request.is_object() && request.size()==6 && request.value("operation","")=="seed-active") {
+        for(const auto* name:{"scope_id","sim_id","native_hex","sha256"})
+            if(!request.contains(name) || !request[name].is_string()) throw std::runtime_error("Untyped active appearance import.");
+        if(!request.contains("native_kind") || !request["native_kind"].is_number_unsigned())
+            throw std::runtime_error("An active appearance requires its exact rendering kind.");
+        const auto id=SimId(request["sim_id"]);const auto kind=request["native_kind"].get<std::uint64_t>();
+        const auto found=state.bank.find(id);
+        if(!state.armed || state.selectionEnabled || request["scope_id"].get<std::string>()!=state.scope.id ||
+           kind>64 || !Kind(static_cast<std::uint32_t>(kind)) || found==state.bank.end() || !found->second.seeded ||
+           !found->second.initialImport || found->second.activeSourceSeeded || found->second.viewBound || !found->second.active || !found->second.graph ||
+           found->second.entryOwner!="active/"+std::to_string(kind) ||
+           found->second.graph->cursor().owner!=found->second.entryOwner ||
+           Read<std::uint32_t>(found->second.active->data(),8)!=kind)
+            throw std::runtime_error("Active appearance import lacks its exact unused entry scope.");
+        auto owner=ReadAppearanceRecord(state,id,static_cast<std::uint32_t>(kind),found->second.mask,SeedAppearanceBytes(request));
+        found->second.graph->commit(found->second.graph->cursor(),owner);
+        found->second.active=std::move(owner);found->second.activeSourceSeeded=true;return Status();
+    }
     if(request.is_object() && request.size()==7 && request.value("operation","")=="seed-appearance") {
         for(const auto* name:{"scope_id","sim_id","owner_id","native_hex","sha256"})
             if(!request.contains(name) || !request[name].is_string()) throw std::runtime_error("Untyped named appearance import.");
@@ -1163,29 +1231,10 @@ inline ui::Json Control(const ui::Json& request) {
            found==state.bank.end() || !found->second.graph || !found->second.seeded || !found->second.initialImport ||
            !(found->second.mask&static_cast<std::uint32_t>(kind64)))
             throw std::runtime_error("Named appearance import lacks its exact pre-entry Sim/form scope.");
-        const auto encoded=request["native_hex"].get<std::string>();
-        if(encoded.empty() || encoded.size()>8u*1024u*1024u || encoded.size()%2 ||
-           encoded.find_first_not_of("0123456789abcdef")!=std::string::npos)
-            throw std::runtime_error("Named native appearance bytes are not bounded canonical hexadecimal.");
-        auto nibble=[](char c){return c<='9'?c-'0':c-'a'+10;};std::string bytes(encoded.size()/2,'\0');
-        for(std::size_t i=0;i<bytes.size();++i) bytes[i]=static_cast<char>((nibble(encoded[i*2])<<4)|nibble(encoded[i*2+1]));
-        if(resource::HashBytes(bytes)!=request["sha256"].get<std::string>())
-            throw std::runtime_error("Named appearance bytes differ from their captured SHA-256.");
-        alignas(16) std::array<char,0x400> proto{};state.api.protoConstruct(proto.data());
-        try {
-            const ByteView view{bytes.data(),static_cast<std::uint64_t>(bytes.size())};
-            if(!state.api.protoParse(proto.data(),&view) || Read<std::uint64_t>(proto.data(),0x10)!=id)
-                throw std::runtime_error("Named appearance's native message belongs to a different Sim.");
-            auto owner=std::make_unique<NativeOwner>(state.api,id);
-            const DetachedTarget target(owner->data());
-            state.api.fields(owner->value,proto.data(),nullptr);
-            const auto kind=static_cast<std::uint32_t>(kind64);
-            state.api.current(owner->value,kind);state.api.availableData(const_cast<void*>(owner->data()),found->second.mask);
-            if(Read<std::uint64_t>(owner->value,0xb8)!=id) throw std::runtime_error("Named appearance deserializer changed its Sim identity.");
-            found->second.graph->capture(found->second.graph->cursor(),ownerId,kind,owner);
-            OwnerUiTokens(state,id,found->second);
-        } catch(...) {state.api.protoDestroy(proto.data());throw;}
-        state.api.protoDestroy(proto.data());return Status();
+        const auto kind=static_cast<std::uint32_t>(kind64);
+        auto owner=ReadAppearanceRecord(state,id,kind,found->second.mask,SeedAppearanceBytes(request));
+        found->second.graph->capture(found->second.graph->cursor(),ownerId,kind,owner);
+        OwnerUiTokens(state,id,found->second);return Status();
     }
     if(request.is_object() && request.size()==5 && request.value("operation","")=="seed" &&
        request.contains("scope_id") && request["scope_id"].is_string() &&
@@ -1221,7 +1270,8 @@ inline ui::Json Control(const ui::Json& request) {
             throw std::runtime_error("Native owner activation does not match its armed scope.");
         for(const auto& row:state.scope.members) {
             const auto found=state.bank.find(row.first);
-            if(found==state.bank.end() || found->second.mask!=row.second.mask || !found->second.seeded || !found->second.active)
+            if(found==state.bank.end() || found->second.mask!=row.second.mask || !found->second.seeded ||
+               !found->second.active || !found->second.activeSourceSeeded)
                 throw std::runtime_error("Every scoped Sim requires all stored and separate active native owners before selection.");
         }
         state.selectionEnabled=true;return Status();

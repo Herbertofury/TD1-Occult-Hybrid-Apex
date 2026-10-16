@@ -5,13 +5,29 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V170 corrects a newly reproduced pre-entry import loss: named Fairy appearances
+lost wing part 464564 from genetics, although their later native snapshots
+remained stable. The primary/null-record loader regenerates genetics; the
+full occult-record loader preserves the complete supplied message. Named and
+active entry owners now use detached full-record projections; canonical owners
+remain independent. All 155 named projections across five Sims retain all twelve
+appearance fields and exact record genetics using the installed descriptors.
+Nine native targets and 55 transport plus 31 epoch/migration checks pass.
+In-game V170 import and subsequent retention remain unqualified.
+
+V168's expanded matrix was stopped after 94 completed visits and two complete
+members when the independent import comparison exposed that genetics loss.
+The interrupted final read was resolved with its original request identity;
+no CAS acceptance or save was submitted. Its six panel retention passes remain
+valid post-import evidence, not proof that entry preserved original genetics.
+
 V169 is built, not installed or runtime-qualified. It adds bounded read-only
 native owner pages and `cas-owner-export`, defaulting to the complete scoped
 household. Pages preserve exact bytes, owner IDs, revisions, directed links,
 selected owner and membership, with generation/cursor checks and complete
 inventory validation. Nine native CTests and 57 Python checks pass. This is
 collection infrastructure; CAS-return/bank/save persistence is still open.
-The running game remains V168 while its expanded edited matrix continues.
+The running game remains V168 until normal unsaved closure for V170 installation.
 
 V168 is installed only in the disposable profile. Its real tattoo-panel
 Alien -> Vampire -> Alien rerun now retains identical complete snapshot bytes;

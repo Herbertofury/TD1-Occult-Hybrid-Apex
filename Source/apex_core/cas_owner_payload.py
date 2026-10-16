@@ -151,3 +151,78 @@ def project(capture, fields):
     _chunks(result)
     return dict(native_hex=result.hex(), sha256=hashlib.sha256(result).hexdigest(),
                 native_bytes=len(result), native_message_type=capture['native_message_type'])
+
+
+def project_record(capture, fields, native_kind):
+    """Project onto the full occult-record loader, including exact genetics.
+
+    The primary loader regenerates genetics from equipped parts. The record
+    loader reads the complete supplied genetic message. Keep the complete root
+    appearance too: pelt layers/custom texture have no occult-record fields.
+    All work is detached wire data; no membership or gameplay Sim is changed.
+    """
+    if type(native_kind) is not int or native_kind not in (1,2,4,8,16,32,64):
+        raise ValueError('A projected appearance needs its exact native rendering kind.')
+    projected=project(capture,fields)
+    schemas=capture['field_schemas']
+    def schema(name):
+        rows=schemas.get(name)
+        if not isinstance(rows,list) or not rows:raise ValueError('Missing native appearance record descriptor.')
+        by_name={};numbers=set()
+        for row in rows:
+            if (not isinstance(row,dict) or not isinstance(row.get('name'),str) or type(row.get('number')) is not int or
+                    not 0<row['number']<2**29 or row['name'] in by_name or row['number'] in numbers):
+                raise ValueError('Ambiguous native appearance record descriptor.')
+            by_name[row['name']]=row;numbers.add(row['number'])
+        return by_name
+    def child(by_name,name,repeated=False):
+        field=by_name.get(name)
+        if (field is None or field.get('type')!='message' or field.get('repeated') is not repeated or
+                not isinstance(field.get('message_type'),str)):
+            raise ValueError('Native appearance record path is not represented by its descriptor.')
+        return field
+    def singular(rows,descriptor):
+        found=[row for row in rows if row[0]==descriptor['number']]
+        if len(found)>1 or found and found[0][1]!=2:raise ValueError('Native appearance path has duplicate or invalid messages.')
+        return found[0][2] if found else b''
+    def replace(rows,descriptor,raw):
+        return b''.join(row[3] for row in rows if row[0]!=descriptor['number'])+_encode(descriptor,('protobuf',raw))
+    root_schema=schema(capture['native_message_type']);attributes=child(root_schema,'attributes')
+    attributes_schema=schema(attributes['message_type']);tracker=child(attributes_schema,'occult_tracker')
+    tracker_schema=schema(tracker['message_type']);records=child(tracker_schema,'occult_sim_infos',True)
+    record_schema=schema(records['message_type']);kind=record_schema.get('occult_type')
+    if kind is None or kind.get('type')!='uint32' or kind.get('repeated'):
+        raise ValueError('Native appearance record lacks its exact occult identity.')
+    root_rows=_chunks(bytes.fromhex(projected['native_hex']))
+    attribute_rows=_chunks(singular(root_rows,attributes));tracker_rows=_chunks(singular(attribute_rows,tracker))
+    matched=None;record_count=0
+    for index,row in enumerate(tracker_rows):
+        if row[0]!=records['number']:continue
+        record_count+=1
+        if row[1]!=2 or record_count>7:raise ValueError('Native appearance record inventory is invalid.')
+        identity=[part for part in _chunks(row[2]) if part[0]==kind['number']]
+        if len(identity)!=1 or identity[0][1]!=0:raise ValueError('Native appearance record identity is ambiguous.')
+        if identity[0][2]==native_kind:
+            if matched is not None:raise ValueError('The selected native appearance record is duplicated.')
+            matched=index
+    record_rows=_chunks(tracker_rows[matched][2]) if matched is not None else []
+    replacements={kind['number']:_encode(kind,native_kind)}
+    for name,value in appearance.payload(fields).items():
+        descriptor=record_schema.get('outfits' if name=='__outfits__' else name)
+        if descriptor is None:
+            if name in ('pelt_layers','custom_texture'):continue  # Retained in the complete root projection.
+            raise ValueError('Native record cannot represent a captured appearance field: '+name)
+        if name=='parts_custom_tattoos' and isinstance(value,dict):
+            replacements[descriptor['number']]=_custom_tattoos(descriptor,value,schemas,record_rows)
+        else:replacements[descriptor['number']]=_encode(descriptor,value)
+    selected=b''.join(row[3] for row in record_rows if row[0] not in replacements)
+    selected+=b''.join(replacements[number] for number in sorted(replacements))
+    record_chunk=_encode(dict(records,repeated=False),('protobuf',selected))
+    updated=b''.join(record_chunk if index==matched else row[3] for index,row in enumerate(tracker_rows))
+    if matched is None:
+        if record_count>=7:raise ValueError('No room for the detached exact appearance record.')
+        updated+=record_chunk
+    result=replace(root_rows,attributes,replace(attribute_rows,tracker,updated))
+    _chunks(result)
+    return dict(native_hex=result.hex(),sha256=hashlib.sha256(result).hexdigest(),native_bytes=len(result),
+                native_message_type=capture['native_message_type'])

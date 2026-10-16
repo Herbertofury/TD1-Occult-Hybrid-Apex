@@ -1,6 +1,8 @@
 """Typed development controls for the native existing-owner selection patch."""
 import os
 
+_LAYOUT_SCOPE = None  # Fresh pre-entry representations, never prior appearance values.
+
 
 def _identity(value):
     return (isinstance(value, str) and 1 <= len(value) <= 20 and value.isascii() and
@@ -56,6 +58,11 @@ def argument(value):
         if hashlib.sha256(bytes.fromhex(encoded)).hexdigest() != digest:
             raise ValueError('Native full-owner bytes differ from their captured SHA-256.')
         return
+    if operation == 'seed-active' and set(value) == {'operation','scope_id','sim_id','native_kind','native_hex','sha256'}:
+        if type(value['native_kind']) is not int or value['native_kind'] not in (1,2,4,8,16,32,64):
+            raise ValueError('An active entry requires its exact native rendering kind.')
+        argument({key:item for key,item in dict(value,operation='seed').items() if key!='native_kind'})
+        return
     if operation == 'seed-appearance' and set(value) == {
             'operation', 'scope_id', 'sim_id', 'owner_id', 'native_kind', 'native_hex', 'sha256'}:
         import re
@@ -91,7 +98,32 @@ def reply(value, pid=None):
         raise ValueError('Native form patch belongs to a different game process.')
     if value.get('scope') == 'native-owner-export-page':
         from .cas_owner_export_page import validate
-        return validate(value, os.getpid() if pid is None else pid)
+        validate(value, os.getpid() if pid is None else pid)
+        for key in ('owner_appearances','owner_appearance_error'):value.pop(key,None)
+        value['owner_appearance_query']='unavailable'
+        value['bank_commit_authorized']=False
+        scope=_LAYOUT_SCOPE
+        if scope is not None and scope['pid']==value['pid'] and scope['scope_id']==value['scope_id']:
+            try:
+                from . import cas_owner_decode,form_appearance
+                decoded=[]
+                for row in value['owners']:
+                    captured=scope['owners'][(value['sim_id'],row['owner_id'])]
+                    if captured['native_kind']!=row['native_kind']:
+                        raise ValueError('Native appearance changed its captured rendering kind.')
+                    item=cas_owner_decode.read(bytes.fromhex(row['native_hex']),value['sim_id'],captured['layout'])
+                    if item['native_sha256']!=row['sha256']:
+                        raise ValueError('Decoded native appearance differs from its complete snapshot.')
+                    decoded.append(dict(owner_id=row['owner_id'],native_kind=row['native_kind'],
+                        native_sha256=item['native_sha256'],fields=item['fields'],
+                        appearance_sha256=form_appearance.fingerprint(item['fields'])['appearance_sha256']))
+                value['owner_appearances']=decoded
+                value['owner_appearance_query']='returned-value'
+                value['bank_commit_authorized']=False
+            except Exception as error:
+                value['owner_appearance_query']='failed'
+                value['owner_appearance_error']=str(error)[:2048]
+        return value
     if value.get('scope') == 'native-form-view-status':
         if type(value.get('available')) is not bool:
             raise ValueError('Native form view availability is untyped.')
@@ -255,7 +287,8 @@ def seed_members(backend):
     The client packet can narrow the occult tracker; the complete native save
     model supplies its otherwise omitted records without exporting a file.
     """
-    from . import overlay_loader, sim_data, form_appearance as appearance, lifestate_forms, cas_owner_payload
+    global _LAYOUT_SCOPE
+    from . import overlay_loader, sim_data, form_appearance as appearance, lifestate_forms, cas_owner_payload, cas_owner_decode
     if not overlay_loader._CALLS:
         return {'enabled': False}
     import paths
@@ -269,12 +302,17 @@ def seed_members(backend):
     members = {str(sim.id): sim for sim in household.sim_info_gen()}
     if not set(row['sim_id'] for row in status['members']) <= set(members):
         raise ValueError('Native form scope does not belong to the current household.')
-    receipts = []
+    receipts = [];layouts={}
     import base64
     for row in status['members']:
         sim = members[row['sim_id']]
         owners = dict(backend._form_map(sim.occult_tracker), active=sim)
-        before = {str(kind): appearance.fingerprint(appearance.packed(backend, owner)) for kind, owner in owners.items()}
+        fields = {str(kind): appearance.packed(backend, owner) for kind, owner in owners.items()}
+        before = {kind: appearance.fingerprint(payload) for kind,payload in fields.items()}
+        for kind,owner in owners.items():
+            native_kind=int(backend._get_current_flags(sim)) if kind=='active' else int(kind)
+            owner_id='active/'+str(native_kind) if kind=='active' else 'native/'+str(native_kind)
+            layouts[(row['sim_id'],owner_id)]=dict(native_kind=native_kind,layout=cas_owner_decode.layout(fields[str(kind)]))
         capture = sim_data.snapshot(backend, sim)
         raw = base64.b64decode(capture['native_base64'], validate=True)
         result = call(dict(operation='seed', scope_id=status['scope_id'], sim_id=row['sim_id'],
@@ -286,9 +324,16 @@ def seed_members(backend):
             raise ValueError('Native full-owner import did not retain every captured kind.')
         if any(appearance.fingerprint(appearance.packed(backend, owner)) != before[str(kind)] for kind, owner in owners.items()):
             raise ValueError('Full native serialization changed a pre-entry appearance.')
+        active_kind=int(backend._get_current_flags(sim))
+        projected=cas_owner_payload.project_record(capture,fields['active'],active_kind)
+        active=call(dict(operation='seed-active',scope_id=status['scope_id'],sim_id=row['sim_id'],
+            native_kind=active_kind,native_hex=projected['native_hex'],sha256=projected['sha256']))
+        active_row=next(item for item in active.get('members',()) if item['sim_id']==row['sim_id'])
+        if active.get('ok') is not True or active_row.get('active_entry_source_seeded') is not True:
+            raise ValueError('The exact active appearance did not import its complete genetic record.')
         named = []
         for variant in lifestate_forms.native_cas_owners(backend, sim):
-            projected = cas_owner_payload.project(capture, variant['fields'])
+            projected = cas_owner_payload.project_record(capture, variant['fields'],variant['native_kind'])
             result = call(dict(operation='seed-appearance', scope_id=status['scope_id'], sim_id=row['sim_id'],
                 owner_id=variant['owner_id'], native_kind=variant['native_kind'],
                 native_hex=projected['native_hex'], sha256=projected['sha256']))
@@ -300,10 +345,13 @@ def seed_members(backend):
                 raise ValueError('Native import did not retain the exact named owner identity.')
             named.append(dict(owner_id=variant['owner_id'], native_kind=variant['native_kind'],
                               appearance_sha256=variant['appearance_sha256'], native_sha256=projected['sha256']))
+            layouts[(row['sim_id'],variant['owner_id'])]=dict(native_kind=variant['native_kind'],
+                layout=cas_owner_decode.layout(variant['fields']))
         receipts.append(dict(sim_id=row['sim_id'], native_sha256=capture['native_sha256'],
                              native_bytes=len(raw), native_message_type=capture['native_message_type'],
                              imported_mask=imported['imported_mask'], kinds=imported['kinds'], named_owners=named))
     result = call(dict(operation='activate', scope_id=status['scope_id']))
     if result.get('ok') is not True or result.get('selection_enabled') is not True:
         raise ValueError('Complete native owner selection did not activate.')
+    _LAYOUT_SCOPE=dict(pid=os.getpid(),scope_id=status['scope_id'],owners=layouts)
     return dict(enabled=True, scope_id=status['scope_id'], members=receipts, existing_appearances_unchanged=True)

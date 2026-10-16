@@ -10,6 +10,7 @@ from apex_core import native_cas_engine as engine
 
 class NativeEngineTests(unittest.TestCase):
     def setUp(self):
+        scope=patch.object(engine,'_LAYOUT_SCOPE',None);scope.start();self.addCleanup(scope.stop)
         self.arm = dict(operation='arm', scope_id='a'*32, members=[dict(sim_id='123', owned_mask=127)])
         self.status = dict(ok=True, pid=555, game_files_written=False, native_patch_qualified=False,
             production_ready=False, installed=True, armed=True, selection_enabled=False,
@@ -103,9 +104,9 @@ class NativeEngineTests(unittest.TestCase):
 
     def test_entry_supplies_complete_source_bytes_before_native_activation_without_disk_exports(self):
         import base64, hashlib
-        from apex_core import overlay_loader, sim_data, form_appearance, lifestate_forms
+        from apex_core import overlay_loader, sim_data, form_appearance, lifestate_forms,cas_owner_payload
         sims=[Obj(id=123,forms={1:Obj(id=1),2:Obj(id=2)}),Obj(id=456,forms={1:Obj(id=3),2:Obj(id=4)})]
-        backend=Obj(__file__='matching-script',_form_map=lambda sim:sim.forms,
+        backend=Obj(__file__='matching-script',_form_map=lambda sim:sim.forms,_get_current_flags=lambda sim:2,
             services=Obj(active_household=lambda:Obj(sim_info_gen=lambda:iter(sims))))
         for sim in sims:sim.occult_tracker=sim
         status=dict(ok=True,armed=True,scope_id='a'*32,members=[dict(sim_id=str(s.id),owned_mask=3,imported_mask=0,kinds=[]) for s in sims])
@@ -115,6 +116,9 @@ class NativeEngineTests(unittest.TestCase):
             if argument['operation']=='seed':
                 row=next(r for r in status['members'] if r['sim_id']==argument['sim_id'])
                 row.update(imported_mask=3,kinds=[1,2])
+            if argument['operation']=='seed-active':
+                row=next(r for r in status['members'] if r['sim_id']==argument['sim_id'])
+                row['active_entry_source_seeded']=True
             if argument['operation']=='activate':
                 self.assertTrue(all(r['imported_mask']==3 for r in status['members']));status['selection_enabled']=True
             return copy.deepcopy(status)
@@ -126,9 +130,12 @@ class NativeEngineTests(unittest.TestCase):
                 patch.dict(sys.modules,{'paths':Obj(DLL_PATH='game-dlls')}), \
                 patch.object(sim_data,'snapshot',side_effect=capture), \
                 patch.object(lifestate_forms,'native_cas_owners',return_value=[]), \
-                patch.object(form_appearance,'packed',side_effect=lambda backend,owner:{'skin_tone':form_appearance.encode(owner.id)}):
+                patch.object(cas_owner_payload,'project_record',return_value=dict(native_hex='0102',sha256=hashlib.sha256(b'\1\2').hexdigest())), \
+                patch.object(form_appearance,'packed',side_effect=lambda backend,owner:{
+                    'skin_tone':form_appearance.encode(owner.id),
+                    '__outfits__':form_appearance.encode(('protobuf',b'\xa0\x06\x01'))}):
             result=engine.seed_members(backend)
-        self.assertEqual(calls,['status','seed','seed','activate'])
+        self.assertEqual(calls,['status','seed','seed-active','seed','seed-active','activate'])
         self.assertTrue(result['existing_appearances_unchanged']);self.assertEqual(len(result['members']),2)
 
     def test_unarmed_overlay_never_serializes_the_household(self):

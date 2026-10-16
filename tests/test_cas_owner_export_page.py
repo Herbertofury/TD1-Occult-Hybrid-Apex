@@ -67,7 +67,7 @@ class OwnerExportPageTests(unittest.TestCase):
 
     def test_reply_and_request_remain_read_only_and_bounded(self):
         page=self.page()
-        self.assertEqual(engine.reply(copy.deepcopy(page),555),page)
+        self.assertEqual(engine.reply(copy.deepcopy(page),555),dict(page,owner_appearance_query='unavailable',bank_commit_authorized=False))
         request=dict(operation='export-owner-page',scope_id='a'*32,sim_id='123',
                      expected_generation=17,after_owner_id='')
         engine.argument(request)

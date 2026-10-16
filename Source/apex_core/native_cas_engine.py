@@ -58,7 +58,7 @@ def argument(value):
         if hashlib.sha256(bytes.fromhex(encoded)).hexdigest() != digest:
             raise ValueError('Native full-owner bytes differ from their captured SHA-256.')
         return
-    if operation == 'seed-active' and set(value) == {'operation','scope_id','sim_id','native_kind','native_hex','sha256'}:
+    if operation in ('seed-active','seed-canonical') and set(value) == {'operation','scope_id','sim_id','native_kind','native_hex','sha256'}:
         if type(value['native_kind']) is not int or value['native_kind'] not in (1,2,4,8,16,32,64):
             raise ValueError('An active entry requires its exact native rendering kind.')
         argument({key:item for key,item in dict(value,operation='seed').items() if key!='native_kind'})
@@ -365,6 +365,17 @@ def seed_members(backend):
             raise ValueError('Native full-owner import did not retain every captured kind.')
         if any(appearance.fingerprint(appearance.packed(backend, owner)) != before[str(kind)] for kind, owner in owners.items()):
             raise ValueError('Full native serialization changed a pre-entry appearance.')
+        # EA's tracker record has no per-form pelt/custom-texture fields.
+        # Import each exact complete owner separately, with its own root fields.
+        for kind in sorted(backend._form_map(sim.occult_tracker),key=int):
+            projected=cas_owner_payload.project_record(capture,fields[str(kind)],int(kind))
+            canonical=call(dict(operation='seed-canonical',scope_id=status['scope_id'],sim_id=row['sim_id'],
+                native_kind=int(kind),native_hex=projected['native_hex'],sha256=projected['sha256']))
+            if canonical.get('ok') is not True:
+                raise ValueError('Complete canonical appearance import failed.')
+        canonical_row=next(item for item in canonical['members'] if item['sim_id']==row['sim_id'])
+        if type(canonical_row.get('canonical_source_seeded_mask')) is not int or canonical_row['canonical_source_seeded_mask']!=row['owned_mask']:
+            raise ValueError('Complete canonical appearance import omitted an existing form.')
         active_kind=int(backend._get_current_flags(sim))
         projected=cas_owner_payload.project_record(capture,fields['active'],active_kind)
         active=call(dict(operation='seed-active',scope_id=status['scope_id'],sim_id=row['sim_id'],

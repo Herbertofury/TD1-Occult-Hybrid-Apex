@@ -51,6 +51,7 @@ using ExportProtoFn=void(*)(const void*,void*);
 using ProtoSizeFn=int(*)(const void*);
 using ProtoArrayFn=char*(*)(const void*,char*);
 using PreviewFn=void(*)(void*,bool);
+using OutfitPartFn=bool(*)(void*,const void*,std::uint32_t,std::uint32_t,std::uint32_t);
 inline thread_local const void* detachedTarget=nullptr;
 struct DetachedTarget {
     const void* previous;
@@ -58,6 +59,7 @@ struct DetachedTarget {
     ~DetachedTarget() {detachedTarget=previous;}
 };
 struct Api {
+    OutfitPartFn outfitPart=nullptr;
     ImportFn import=nullptr;FieldsFn fields=nullptr;ConstructFn construct=nullptr;DestroyFn destroy=nullptr;
     SetFn available=nullptr,current=nullptr,availableData=nullptr;LookupFn lookup=nullptr;StoreFn store=nullptr;MetaFn metadata=nullptr;
     AllocateFn allocate=nullptr;FreeFn free=nullptr;TreeDestroyFn treeDestroy=nullptr;
@@ -148,7 +150,7 @@ struct Imported {
     std::unique_ptr<OwnerGraph<std::unique_ptr<NativeOwner>>> graph;
     std::map<std::string,std::unique_ptr<NativeUndo>> undoOwners;
     bool initialImport=true,viewBound=false,viewFault=false,activeSourceSeeded=false;void* boundGroup=nullptr;void* boundContext=nullptr;std::string entryOwner=NativeOwnerId(1),partner=NativeOwnerId(2);std::map<std::string,std::uint32_t> uiTokens;
-    std::uint32_t mask=0,preferred=0;unsigned imports=0,switches=0,skippedPackets=0;bool seeded=false;std::string error;
+    std::uint32_t mask=0,preferred=0,canonicalSourceMask=0;unsigned imports=0,switches=0,skippedPackets=0;bool seeded=false;std::string error;
 };
 struct ViewIntent {
     std::string request,owner;std::uint64_t sim=0,generation=0;std::uint32_t token=0;std::uint8_t layer=0;
@@ -158,13 +160,27 @@ struct State {
     std::unique_ptr<ViewIntent> viewIntent;ui::Json viewResult=nullptr;std::set<std::uint32_t> viewTokens;std::uint64_t nativeUiSequence=0;std::uint32_t nextUiToken=0x20000000;
     std::map<std::uint32_t,std::pair<std::uint64_t,std::string>> uiOwners;
     std::uint64_t boundSim=0;void* boundController=nullptr;
-    unsigned kindBiasPrevented=0;
+    unsigned kindBiasPrevented=0,importOutfitFillsPrevented=0;
     void* kindRelay=nullptr;std::int32_t originalKindCall=0,patchedKindCall=0;bool kindCallPatched=false,kindRelayReady=false;
     std::uintptr_t image=0;bool installed=false,armed=false,selectionEnabled=false;unsigned intercepted=0,converted=0,alternateOverrides=0,normalizationsPrevented=0,initialOwnersImported=0,serviceSelections=0,rebindCorrections=0,blockedConversions=0;
 };
 // The DLL remains loaded for the entire process. Never run game destructors
 // from CRT/DllMain teardown after the game's native services have gone away.
 inline State& Runtime() {static auto* state=new State;return *state;}
+inline bool ImportOutfitPart(void* data,const void* part,std::uint32_t category,std::uint32_t index,
+                             std::uint32_t flags,std::uintptr_t caller) {
+    auto& state=Runtime();
+    // This exact loader call invents a hair part in an originally empty outfit.
+    // Ordinary CAS edits and all other callers retain the original behavior.
+    if(data==detachedTarget && data && caller==state.image+0x3264fb && flags==0) {
+        ++state.importOutfitFillsPrevented;return true;
+    }
+    return state.api.outfitPart(data,part,category,index,flags);
+}
+__declspec(noinline) inline bool OutfitPart(void* data,const void* part,std::uint32_t category,
+                                          std::uint32_t index,std::uint32_t flags) {
+    return ImportOutfitPart(data,part,category,index,flags,reinterpret_cast<std::uintptr_t>(_ReturnAddress()));
+}
 struct Selection {std::uint64_t id=0;std::uint32_t target=0;void* controller=nullptr;};
 inline thread_local Selection selected;
 struct ViewBinding {void* controller=nullptr;Imported* bank=nullptr;std::string owner;};
@@ -875,6 +891,7 @@ inline ui::Json Status() {
             {"source_seeded",found!=state.bank.end() && found->second.seeded},
             {"active_entry_captured",found!=state.bank.end() && found->second.active!=nullptr},
             {"active_entry_source_seeded",found!=state.bank.end() && found->second.activeSourceSeeded},
+            {"canonical_source_seeded_mask",found==state.bank.end()?0u:found->second.canonicalSourceMask},
             {"active_entry_kind",found!=state.bank.end() && found->second.active?Read<std::uint32_t>(found->second.active->data(),8):0},
             {"narrowed_packets_skipped",found==state.bank.end()?0:found->second.skippedPackets},
             {"independent_owner_graph",found!=state.bank.end() && found->second.graph!=nullptr},
@@ -923,6 +940,7 @@ inline ui::Json Status() {
         {"owner_view_adapter_available",state.installed},{"owner_view_result",state.viewResult},
         {"owner_view_staged",state.viewIntent!=nullptr},
         {"native_kind_bias_prevented",state.kindBiasPrevented},
+        {"import_outfit_fills_prevented",state.importOutfitFillsPrevented},
         {"selection_route","quarantined-kind-conversion"},
         {"selected_native",selectedNative},
         {"native_patch_qualified",false},{"production_ready",false}};
@@ -976,7 +994,8 @@ inline void Install() {
         {0x63f470,"6322b81000b364019e148ec50a47751e090f93e5000ff266f2e403fdd8bca0bc"},
         {0x45c070,"28bd4e82a8fb688e0addc2808f300afb4aa44068945992641826e703528b5424"},
         {0x44ba00,"e06169b5e5330e8cfe47b23d840e0545987eea134bfaeb82dafdc2dfeee5f431"},
-        {0x44bbe0,"c2cf12e18d5385311fc573702461234512a6ddac9e77eeef0ccd1b08e0930f1d"}
+        {0x44bbe0,"c2cf12e18d5385311fc573702461234512a6ddac9e77eeef0ccd1b08e0930f1d"},
+        {0x340940,"a531116eba161769314e9281fc48df00939b9632c544159ed1ae448862e4a1bf"}
     };
     for(const auto& pin:pins)
         if(resource::HashBytes(OwnImageRead(pinned.module,pin.rva,32))!=pin.hash)
@@ -1010,6 +1029,7 @@ inline void Install() {
         throw std::runtime_error("Native form hook registry is unavailable.");
     struct Hook {void* target;void* detour;void** original;};
     Hook hooks[]={
+        {at(0x340940),reinterpret_cast<void*>(&OutfitPart),reinterpret_cast<void**>(&state.api.outfitPart)},
         {at(0x327640),reinterpret_cast<void*>(&Import),reinterpret_cast<void**>(&state.api.import)},
         {at(0x3f0af0),reinterpret_cast<void*>(&History),reinterpret_cast<void**>(&state.api.history)},
         {at(0x44a9e0),reinterpret_cast<void*>(&Change),reinterpret_cast<void**>(&state.api.change)},
@@ -1083,7 +1103,9 @@ inline std::unique_ptr<NativeOwner> ReadAppearanceRecord(State& state,std::uint6
         // wings. The record path imports the complete supplied genetic payload.
         state.api.fields(owner->value,proto.data(),selectedRecord);
         state.api.current(owner->value,kind);state.api.availableData(const_cast<void*>(owner->data()),mask);
-        if(Read<std::uint64_t>(owner->value,0xb8)!=id) throw std::runtime_error("Full appearance import changed its Sim identity.");
+        if(Read<std::uint64_t>(owner->value,0xb8)!=id || Read<std::uint32_t>(owner->data(),8)!=kind ||
+           Read<std::uint32_t>(owner->data(),12)!=mask)
+            throw std::runtime_error("Full appearance import changed its Sim, rendering kind or membership.");
         state.api.protoDestroy(proto.data());return owner;
     } catch(...) {state.api.protoDestroy(proto.data());throw;}
 }
@@ -1200,6 +1222,24 @@ inline ui::Json Control(const ui::Json& request) {
         for(auto& row:state.bank) row.second.initialImport=false;
         return Status();
     }
+    if(request.is_object() && request.size()==6 && request.value("operation","")=="seed-canonical") {
+        for(const auto* name:{"scope_id","sim_id","native_hex","sha256"})
+            if(!request.contains(name) || !request[name].is_string()) throw std::runtime_error("Untyped canonical appearance import.");
+        if(!request.contains("native_kind") || !request["native_kind"].is_number_unsigned())
+            throw std::runtime_error("Canonical appearance requires its exact kind.");
+        const auto id=SimId(request["sim_id"]),kind=request["native_kind"].get<std::uint64_t>();
+        const auto found=state.bank.find(id);
+        if(!state.armed || state.selectionEnabled || request["scope_id"].get<std::string>()!=state.scope.id ||
+           kind>64 || !Kind(static_cast<std::uint32_t>(kind)) || found==state.bank.end() || !found->second.seeded ||
+           !found->second.initialImport || found->second.viewBound || !found->second.graph ||
+           !(found->second.mask&kind) || (found->second.canonicalSourceMask&kind))
+            throw std::runtime_error("Canonical appearance import lacks its exact unused entry scope.");
+        const auto nativeKind=static_cast<std::uint32_t>(kind);
+        auto owner=ReadAppearanceRecord(state,id,nativeKind,found->second.mask,SeedAppearanceBytes(request));
+        found->second.graph->replace(found->second.graph->cursor(),NativeOwnerId(nativeKind),owner);
+        found->second.owners.at(nativeKind)=std::move(owner);found->second.canonicalSourceMask|=nativeKind;
+        return Status();
+    }
     if(request.is_object() && request.size()==6 && request.value("operation","")=="seed-active") {
         for(const auto* name:{"scope_id","sim_id","native_hex","sha256"})
             if(!request.contains(name) || !request[name].is_string()) throw std::runtime_error("Untyped active appearance import.");
@@ -1271,7 +1311,7 @@ inline ui::Json Control(const ui::Json& request) {
         for(const auto& row:state.scope.members) {
             const auto found=state.bank.find(row.first);
             if(found==state.bank.end() || found->second.mask!=row.second.mask || !found->second.seeded ||
-               !found->second.active || !found->second.activeSourceSeeded)
+               !found->second.active || !found->second.activeSourceSeeded || found->second.canonicalSourceMask!=row.second.mask)
                 throw std::runtime_error("Every scoped Sim requires all stored and separate active native owners before selection.");
         }
         state.selectionEnabled=true;return Status();

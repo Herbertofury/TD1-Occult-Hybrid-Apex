@@ -5,6 +5,15 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V171 refused CAS entry after its new complete import audit found eleven changed
+owners out of 195. All genetics now match, but nine canonical owners inherited
+the active appearance's pelt, and the first Sim's native/named Spellcaster
+received invented hair in an empty outfit. The game remained in Live mode;
+no entry was retried. V172 imports each canonical owner with its own complete
+root fields (EA's occult records cannot hold pelt/custom texture), and suppresses
+only the inspected detached-loader outfit-fill call. Normal CAS part selection
+and other call sites retain native behavior. Runtime proof remains open.
+
 V170 crashed during accepted full-CAS entry before the client handshake.
 The preserved dump faults at 0x14112c678, a previously observed allocator
 failure; the corrupting call is not identified. Do not qualify V170 from its

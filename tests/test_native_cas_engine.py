@@ -119,6 +119,9 @@ class NativeEngineTests(unittest.TestCase):
             if argument['operation']=='seed-active':
                 row=next(r for r in status['members'] if r['sim_id']==argument['sim_id'])
                 row['active_entry_source_seeded']=True
+            if argument['operation']=='seed-canonical':
+                row=next(r for r in status['members'] if r['sim_id']==argument['sim_id'])
+                row['canonical_source_seeded_mask']=row.get('canonical_source_seeded_mask',0)|argument['native_kind']
             if argument['operation']=='activate':
                 self.assertTrue(all(r['imported_mask']==3 for r in status['members']));status['selection_enabled']=True
             return copy.deepcopy(status)
@@ -136,7 +139,8 @@ class NativeEngineTests(unittest.TestCase):
                     'skin_tone':form_appearance.encode(owner.id),
                     '__outfits__':form_appearance.encode(('protobuf',b'\xa0\x06\x01'))}):
             result=engine.seed_members(backend)
-        self.assertEqual(calls,['status','seed','seed-active','seed','seed-active','activate'])
+        self.assertEqual(calls,['status','seed','seed-canonical','seed-canonical','seed-active',
+                               'seed','seed-canonical','seed-canonical','seed-active','activate'])
         self.assertTrue(result['existing_appearances_unchanged']);self.assertEqual(len(result['members']),2)
 
     def test_unarmed_overlay_never_serializes_the_household(self):

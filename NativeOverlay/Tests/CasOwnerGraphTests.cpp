@@ -88,6 +88,15 @@ int main() {
     Require(*graph.appearance(2)==originalAlien); // Unlinked Alien is untouched.
     cursor=graph.link(cursor,1,4,false);(*human)["skin"]=777;cursor=graph.commit(cursor,human);
     Require((*graph.appearance(4))["skin"]==12345 && (*graph.appearance(1))["skin"]==777);
+    // A pre-entry complete import replaces one exact owner without selecting
+    // it, copying the active owner or changing any other canonical appearance.
+    auto replacement=Clone(graph.appearance(2),4);(*replacement)["pelt"]="independent source pelt";
+    const auto sourceCursor=graph.cursor();const auto untouchedAlien=*graph.appearance(2);
+    const auto replaced=graph.replace(sourceCursor,"native/4",replacement);
+    Require(replaced.owner==sourceCursor.owner && (*graph.appearance(4))["pelt"]=="independent source pelt");
+    Require(*graph.appearance(2)==untouchedAlien);
+    Refuses([&]{graph.replace(sourceCursor,"native/4",replacement);});
+    Refuses([&]{graph.replace(replaced,"native/128",replacement);});
     // Every family and alternate has its OWN ID, even if EA renders many
     // of them with kind Human (1) or uses kind Fairy (64) for both variants.
     auto everySeed=Captured(700);

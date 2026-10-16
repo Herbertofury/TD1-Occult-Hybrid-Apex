@@ -16,6 +16,10 @@ std::size_t exportPadding=0;
 unsigned serviceFallbacks=0,controllerCalls=0,avatarRefreshes=0;
 unsigned reboundKind=0,nativeSyncCalls=0;
 unsigned previewRestores=0;
+unsigned outfitPartCalls=0;
+bool OriginalOutfitPart(void* data,const void* part,unsigned category,unsigned index,unsigned flags) {
+    ++outfitPartCalls;Require(part==data && category==3 && index==2);Write(data,24,flags+148023u);return false;
+}
 void OriginalRebind(void*,const void*,unsigned target) {reboundKind=target;}
 std::array<void*,0x368/8> avatarTable{};void* avatarTablePointer=avatarTable.data();
 bool OriginalService(const void*) {++serviceFallbacks;return false;}
@@ -174,6 +178,15 @@ int main() {
     Require(!IndependentHybridGenus(3,2) && !IndependentHybridGenus(259,2) && !IndependentHybridGenus(127,3));
     auto& runtime=Runtime();runtime.scope=scope;runtime.armed=true;
     auto& api=runtime.api;api.import=OriginalImport;api.fields=Fields;api.construct=Construct;api.destroy=Destroy;
+    api.outfitPart=OriginalOutfitPart;
+    std::array<char,32> importData{};
+    {const DetachedTarget owned(importData.data());
+        Require(ImportOutfitPart(importData.data(),importData.data(),3,2,0,runtime.image+0x3264fb));
+        Require(Read<unsigned>(importData.data(),24)==0 && outfitPartCalls==0);
+        Require(!ImportOutfitPart(importData.data(),importData.data(),3,2,1,runtime.image+0x3264fb));
+        Require(!ImportOutfitPart(importData.data(),importData.data(),3,2,0,runtime.image+0x3264fc));}
+    Require(!ImportOutfitPart(importData.data(),importData.data(),3,2,0,runtime.image+0x3264fb));
+    Require(outfitPartCalls==3 && runtime.importOutfitFillsPrevented==1);
     api.available=Available;api.current=Current;api.availableData=AvailableData;api.lookup=Lookup;api.store=Store;api.metadata=Meta;
     api.allocate=Allocate;api.free=Free;api.treeDestroy=TreeDestroy;api.change=OriginalChange;
     api.alternate=OriginalAlternate;api.protoConstruct=ProtoConstruct;api.protoParse=ProtoParse;api.protoDestroy=ProtoDestroy;
@@ -220,6 +233,13 @@ int main() {
     Require(Control(seed).value("ok",false) && bank.seeded && bank.mask==127 && protoDestroyed==1);
     Require(bank.active && Read<unsigned>(bank.active->data(),8)==2 && Read<unsigned>(bank.active->data(),0x18)==9999);
     Refuses([&]{Control({{"operation","activate"},{"scope_id",scope.id}});}); // Root regeneration is not full active import.
+    for(unsigned kind=1;kind<=64;kind*=2) {
+        auto canonicalSeed=seed;canonicalSeed["operation"]="seed-canonical";canonicalSeed["native_kind"]=kind;
+        Require(Control(canonicalSeed).value("ok",false));Refuses([&]{Control(canonicalSeed);});
+        Require(bank.graph->cursor().owner=="active/2" &&
+            Read<unsigned>(bank.graph->appearance(kind)->data(),0x290)==0xface0000u+kind);
+    }
+    Require(bank.canonicalSourceMask==127);
     auto activeSeed=seed;activeSeed["operation"]="seed-active";activeSeed["native_kind"]=2u;
     Write(records[1].data(),0x1c,9999u);Require(Control(activeSeed).value("ok",false));Write(records[1].data(),0x1c,200u);
     Refuses([&]{Control(activeSeed);}); // No second active seed can replace an imported entry.
@@ -280,7 +300,8 @@ int main() {
     Refuses([&]{Control(seed);}); // A CAS-ready graph cannot be reset over pending edits.
     Refuses([&]{Control(namedSeed);});
     Free(child,0x830);Write(output.data(),0x4c0,static_cast<void*>(nullptr));
-    auto badSeed=seed;badSeed["sha256"]=std::string(64,'a');Refuses([&]{Control(badSeed);});Require(protoDestroyed==4);
+    const auto beforeBadSeed=protoDestroyed;
+    auto badSeed=seed;badSeed["sha256"]=std::string(64,'a');Refuses([&]{Control(badSeed);});Require(protoDestroyed==beforeBadSeed);
     // Execute the actual adapter with native-shaped records and the original
     // game's destructive inactive-copy behavior represented by NativeSync.
     api.sync=NativeSync;api.bind=NativeOriginalBind;api.modelBind=NativeModelBind;

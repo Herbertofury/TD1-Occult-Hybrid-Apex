@@ -100,6 +100,13 @@ public:
         return cursor_;
     }
     Cursor select(const Cursor& expected,std::uint32_t target) {return select(expected,NativeOwnerId(target));}
+    Cursor replace(const Cursor& expected,const std::string& target,const Appearance& appearance) {
+        Current(expected);const auto& entry=Owned(target);
+        if(entry.revision==UINT64_MAX) throw std::runtime_error("Appearance revision is exhausted.");
+        auto prepared=clone_(appearance,entry.nativeKind);
+        using std::swap;swap(entries_.at(target).appearance,prepared);++entries_.at(target).revision;
+        ++cursor_.generation;return cursor_;
+    }
     Cursor commit(const Cursor& expected,const Appearance& edited) {
         Current(expected);
         std::set<std::string> destinations{cursor_.owner};

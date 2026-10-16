@@ -25,7 +25,7 @@ class NativeLayoutCaptureTests(unittest.TestCase):
             op=value['operation'];calls.append(op)
             if op=='status':return dict(ok=True,armed=True,scope_id='a'*32,members=[dict(sim_id='123',owned_mask=3)])
             if op=='activate':return dict(ok=fail!='activate',selection_enabled=fail!='activate')
-            imported=dict(sim_id='123',imported_mask=3,kinds=[1,2],active_entry_source_seeded=True,separate_owners=[
+            imported=dict(sim_id='123',imported_mask=3,kinds=[1,2],active_entry_source_seeded=True,canonical_source_seeded_mask=3,separate_owners=[
                 dict(owner_id='ghost/manifested',native_kind=2 if fail=='named-kind' else 1)])
             return dict(ok=True,members=[imported])
         prior=dict(pid=1,scope_id='b'*32,owners={})
@@ -47,7 +47,7 @@ class NativeLayoutCaptureTests(unittest.TestCase):
 
     def test_fresh_native_active_and_named_owners_publish_only_representations(self):
         calls,scope=self.seed()
-        self.assertEqual(calls,['status','seed','seed-active','seed-appearance','activate'])
+        self.assertEqual(calls,['status','seed','seed-canonical','seed-canonical','seed-active','seed-appearance','activate'])
         self.assertEqual(scope['pid'],os.getpid());self.assertEqual(scope['scope_id'],'a'*32)
         self.assertEqual(set(scope['owners']),{('123','native/1'),('123','native/2'),('123','active/2'),('123','ghost/manifested')})
         self.assertEqual(scope['owners'][('123','active/2')]['native_kind'],2)

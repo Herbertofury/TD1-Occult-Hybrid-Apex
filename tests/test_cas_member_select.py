@@ -111,6 +111,49 @@ class MemberSelectionTests(unittest.TestCase):
             value=request();value[key]=bad
             with self.subTest(key=key),self.assertRaises(ValueError):cas_ui.envelope(SIM,value)
 
+    def test_filtered_alternates_do_not_block_exact_household_navigation(self):
+        value=household();selector=value['owner_pair_observation']['selector_feed']
+        selector['retained']['complete']=False
+        for pair in selector['retained']['pairs']:pair['alternate']=None
+        before=copy.deepcopy(value)
+        bound=cas_ui.member_selection_binding(value,SIM,request())
+        self.assertEqual(bound['target_index'],1)
+        self.assertEqual(value,before)  # No filtered row was filled or invented.
+        # This does not authorize the native pair's stronger layer selection.
+        with self.assertRaises(ValueError):cas_ui.form_selection_binding(value,SIM,dict(
+            operation='layer-select',household_id=HH,expected_layer=0,target_layer=1,native_session=1))
+
+    def test_filtered_alternates_still_require_all_retained_base_identities(self):
+        for damage in ('base-id','base-index','raw-id','duplicate','retained-alternate','household','selected-layer'):
+            with self.subTest(damage=damage):
+                value=household();obs=value['owner_pair_observation'];selector=obs['selector_feed']
+                selector['retained']['complete']=False
+                for pair in selector['retained']['pairs']:pair['alternate']=None
+                if damage=='base-id':selector['retained']['pairs'][1]['base']['sim_id']='42'
+                elif damage=='base-index':selector['retained']['pairs'][1]['base']['index']=0
+                elif damage=='raw-id':selector['raw_feed']['pairs'][1]['alternate']['sim_id']='42'
+                elif damage=='duplicate':
+                    for feed in ('raw_feed','retained'):
+                        for side in ('base','alternate'):
+                            row=selector[feed]['pairs'][1][side]
+                            if row is not None:row['sim_id']=SIM
+                elif damage=='retained-alternate':
+                    selector['retained']['pairs'][1]['alternate']=copy.deepcopy(selector['raw_feed']['pairs'][1]['alternate'])
+                    selector['retained']['pairs'][1]['alternate']['occult_type']=2
+                elif damage=='household':value['sim']['householdId']='42'
+                else:selector['retained']['selected_layer']=1
+                with self.assertRaises(ValueError):cas_ui.member_selection_binding(value,SIM,request())
+
+    def test_destination_can_resume_its_existing_alternate_layer(self):
+        value=household(TARGET);obs=value['owner_pair_observation'];selector=obs['selector_feed']
+        value['sim'].update(occultLayer=1,occultType=64)
+        obs['selected'].update(occult_layer=1,occult_type=64)
+        selector['retained'].update(selected_layer=1,complete=False)
+        for pair in selector['retained']['pairs']:pair['alternate']=None
+        bound=cas_ui.member_selection_binding(value,SIM,request(),resulting=True)
+        self.assertEqual(bound['target_index'],1)
+        self.assertEqual(bound['source_index'],1)
+
     def test_mutation_failure_remains_unresolved(self):
         rid=self.submit();self.receive(rid,dict(protocol=1,ok=False,cas_request_id=rid,mutation_started=True,message='Native destination unavailable'))
         self.assertEqual(cas_ui._RECORDS[rid]['state'],'form-select-unresolved')

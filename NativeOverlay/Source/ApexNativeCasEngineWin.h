@@ -313,8 +313,17 @@ inline void Sync(void* controller) {
         if(bank.boundGroup!=group || !bank.graph) throw std::runtime_error("Native CAS changed its bound form owner.");
         const auto layer=Read<std::uint8_t>(controller,0x242);
         const auto inactive=layer?group:Read<void*>(group,0x4c0);
-        state.api.sync(controller); // Finalize the actual CAS edits once.
+        // CAS setters have already written the selected model's complete
+        // CasData. The stock two-slot synchronizer is not a serializer: it
+        // changes preview modes, regenerates outfit/genetic parts and copies
+        // fields to the other layer. A real Fairy round trip changed every
+        // outfit's four body-hair swatches without an edit. Persist the actual
+        // current model through the game's deep-copy API instead. No prior
+        // appearance, field whitelist or regenerated outfit is substituted.
         auto edited=CloneModel(state,bank,controller);
+        const auto selected=layer?Read<void*>(group,0x4c0):group;
+        if(!selected) throw std::runtime_error("Selected native form has no exact appearance slot.");
+        state.api.assignData(static_cast<char*>(selected)+0xd0,edited->data());
         bank.graph->commit(bank.graph->cursor(),edited);
         // The explicit graph, not EA's copied inactive fields, owns the other
         // form. This also honors intentional links while keeping defaults apart.

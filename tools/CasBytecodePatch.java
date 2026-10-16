@@ -635,7 +635,7 @@ public class CasBytecodePatch {
         Set<String> callers=new HashSet<>();
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex") &&
                 propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains(helper)) callers.add(name(abc,trait));
-        require(callers.equals(Set.of("ApexExecute","ApexReadback","ApexMemberSelectionContext","ApexFormsTick")), "CAS form selection helper is called outside owned Timer command phases.");
+        require(callers.equals(Set.of("ApexExecute","ApexReadback","ApexFormsTick")), "CAS form selection helper is called outside owned Timer command phases.");
         var execute=ownedBody(abc,instance,"ApexExecute").getCode().code;
         int dispatches=0;
         Set<String> required=Set.of("request_id","sim_id","index","expected_layer","target_layer","target_kind","feed_sequence");
@@ -665,9 +665,20 @@ public class CasBytecodePatch {
     }
     static void verifyMemberSelection(ABC abc, InstanceInfo instance) {
         MethodBody helper=ownedBody(abc,instance,"ApexMemberSelectionContext");
-        require(Set.of("ApexFormSelectionContext","CallUIService","push","test","ApexEncode").containsAll(propertyCalls(abc,helper)),
+        require(Set.of("ApexOwnerSimRow","CallGameService","CallUIService","push","test","ApexEncode").containsAll(propertyCalls(abc,helper)),
             "Member navigation preflight invokes an unreviewed member.");
         var inspection=helper.getCode().code;
+        Set<String> memberReads=new HashSet<>();
+        for(int i=0;i<inspection.size();i++) if(property(abc,inspection.get(i),0x46,"CallGameService")) {
+            int arguments=inspection.get(i).operands[1];
+            require((arguments==1 || arguments==3) && i>=arguments && opcode(inspection.get(i-arguments),0x2c),
+                "Member navigation native read is not one literal typed service.");
+            String service=abc.constants.getString(inspection.get(i-arguments).operands[0]);
+            require(Set.of("CASGetSimInfo","CasGetCASEditMode","CasIsNewFamily","CasIsEnteredFromPlayArea").contains(service) &&
+                memberReads.add(service) && arguments==(service.equals("CASGetSimInfo")?3:1),
+                "Member navigation uses an unreviewed native read or repeats one.");
+        }
+        require(memberReads.size()==4,"Member navigation lacks fresh native identity/mode/entry reads.");
         int reads=0;
         for(int i=0;i<inspection.size();i++) if(property(abc,inspection.get(i),0x46,"CallUIService")) {
             require(i>=2 && inspection.get(i).operands[1]==2 && opcode(inspection.get(i-1),0x20) &&

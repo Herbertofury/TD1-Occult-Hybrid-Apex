@@ -1,6 +1,6 @@
 # Independent native CAS form owners
 
-The current development candidate is V166. Production saves are not qualified.
+The current development candidate is V167. Production saves are not qualified.
 The permanent Source guard remains enabled alongside the native fixes.
 
 ## Exact ownership
@@ -112,8 +112,43 @@ Friend relationship. Special-state gameplay producers remain separate work.
   descriptor cannot be imported. This reads the committed graph; it does not
   harvest the current model, apply data or write a save. Nonappearance DTO fields
   may contain construction defaults, so this is not a whole-Sim backup or restore.
-  This is the next check for distinguishing stored outfit changes from a derived
-  catalog-color readback. Native tests pass; real-game export remains unqualified.
+  Real-game exports succeed and establish that the Fairy loss is a stored-data
+  change: leaving the view changed 122 exported fields, including 56 root outfit
+  part entries. The first selection itself left the committed graph unchanged.
+- V167 replaces the scoped two-slot synchronizer with a complete deep copy of
+  the current edited model into its exact selected owner and native slot. The
+  stock routine also changes preview modes, regenerates genetic/outfit parts
+  and writes the inactive slot; it is not merely a serialization call. Scoped
+  synchronization no longer calls that routine. Unscoped CAS keeps its native
+  path. The regression fixture mutates both the model and inactive slot inside
+  the stock routine, and checks that current edits and an opaque field survive.
+- Household member navigation now validates delivered identities against every
+  actual retained base row. Missing alternate thumbnails cannot block member
+  selection. It neither fills filtered rows nor relaxes alternate acceptance;
+  a destination can retain its previously selected alternate layer. The native
+  selector still performs the member change and next-tick readback verifies it.
+- V167 passes 893 CAS tests, nine native CTests and 31 epoch/migration checks.
+  The real-game Fairy -> Werewolf -> Alien -> Vampire -> Fairy sequence and a
+  subsequent same-owner synchronization retain identical complete snapshot
+  bytes at all five export points. The full repeat/member matrix remains open.
+
+## Repeatable CLI matrix
+
+`python tools/cas_owner_matrix.py --state .work/reusable-profile-session.json --output .work/NEW-matrix.json`
+
+The command discovers every captured owner for every scoped household member;
+it does not hard-code native kinds, family names or a first-Sim-only subset.
+Two visits compare all returned Sim fields and equipped panels, including
+empty panels. Each action retains its existing typed CLI intent and receipt.
+An ambiguous command or appearance difference stops the matrix without retry,
+acceptance or saving. `--member-id` can narrow a diagnostic run; the default
+covers the full captured roster. This is appearance-view retention evidence,
+not proof of edited native fields, special gameplay roles or save/Tray round trips.
+With `--edit-physique-markers`, the first cycle gives every owner a distinct
+actual native physique value. Later visits must retain those values and every
+other observed field/panel. This detects aliases that identical unedited
+templates could conceal. Marker edits remain in the disposable CAS session;
+the command does not accept or save them.
 
 Runtime gates still include edited Alien/Vampire/Alien and every other form,
 all members/categories, native undo/redo, explicit copy/link controls, complete

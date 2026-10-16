@@ -515,18 +515,57 @@
       private function ApexMemberSelectionContext(currentId:String, targetId:String, householdId:String,
          expectedLayer:int, nativeSession:int) : Object
       {
-         // Reuse the complete fresh source-pair validator. Member navigation
-         // is separate from appearance acceptance and never creates a Sim.
-         var source:Object=ApexFormSelectionContext(currentId,householdId,expectedLayer,1,nativeSession,expectedLayer);
+         // Member navigation uses actual retained base rows. EA filters
+         // alternate thumbnails for composite masks; never invent them.
+         if(!apexTicking || apexDisconnected || !apexSocketActive || apexClaimNonce!=apexNonce ||
+            nativeSession!=apexOwnerSession || nativeSession<=0 || (expectedLayer!=0 && expectedLayer!=1))
+            throw new Error("Member selection lacks its owned Timer/session/peer");
+         var selected:Object=ApexOwnerSimRow(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
+         if(selected==null || selected.sim_id!=currentId || selected.household_id!=householdId ||
+            selected.occult_layer!=expectedLayer) throw new Error("Member selection selected identity differs");
+         var mode:* = CommunicationManager.CallGameService("CasGetCASEditMode");
+         var family:* = CommunicationManager.CallGameService("CasIsNewFamily");
+         var area:Object=CommunicationManager.CallGameService("CasIsEnteredFromPlayArea");
+         if(!(mode is int) || int(mode)!=0 || family!==false || area==null || area.result!==true)
+            throw new Error("Member selection requires the full existing-household editor from Live");
          var selector:Object=CommunicationManager.CallUIService("ApexReadOwnerPairFeed",null);
-         var pairs:Array=selector.retained.pairs as Array;
+         if(selector==null || selector.protocol!==1 || selector.scope!="native-selector-owner-pair-view" ||
+            selector.service_registered!==true || selector.reset_listener_registered!==true ||
+            selector.mapping_verified!==false || selector.alternate_accept_authorized!==false)
+            throw new Error("Member selection roster service is unavailable");
+         var raw:Object=selector.raw_feed; var retained:Object=selector.retained;
+         if(raw==null || retained==null || raw.source!="native-selector-raw-entry-observer" ||
+            raw.before_native_handler!==true || raw.delivered!==true || raw.complete!==true ||
+            !(raw.sequence is int) || raw.sequence<=0 || retained.source!="native-selector-retained-filtered-feed" ||
+            retained.available!==true || !(raw.pairs is Array) || !(retained.pairs is Array) ||
+            raw.pairs.length==0 || raw.pairs.length>32 || raw.pairs.length!=retained.pairs.length ||
+            raw.base_row_count!==raw.pairs.length || raw.alternate_row_count!==raw.pairs.length ||
+            !(retained.selected_index is int) || retained.selected_index<0 || retained.selected_index>=raw.pairs.length ||
+            retained.selected_sim_id!==currentId || retained.selected_layer!==expectedLayer)
+            throw new Error("Member selection lacks its complete delivered/retained member roster");
+         var pairs:Array=raw.pairs as Array;
          var roster:Array=[]; var targetIndex:int=-1; var targetKind:int=-1;
+         var identities:Object={}; var currentIndex:int=int(retained.selected_index);
          for(var i:int=0;i<pairs.length;i++) {
-            var pair:Object=pairs[i];
-            if(pair.base.sim_id!=pair.alternate.sim_id) throw new Error("Member selection refuses guessed wrapper IDs");
+            var pair:Object=pairs[i]; var kept:Object=retained.pairs[i];
+            if(pair==null || pair.index!==i || kept==null || kept.index!==i || pair.base==null || pair.alternate==null || kept.base==null)
+               throw new Error("Member selection lacks exact roster positions");
+            var base:Object=pair.base; var alt:Object=pair.alternate;
+            if(!(base.sim_id is String) || !/^[1-9][0-9]{0,19}$/.test(base.sim_id) ||
+               base.sim_id!==alt.sim_id || identities[base.sim_id]===true || base.index!==i || alt.index!==i ||
+               base.occult_layer!==0 || alt.occult_layer!==1 || base.all_occult_types!==alt.all_occult_types)
+               throw new Error("Member selection identities are invalid or duplicated");
+            identities[base.sim_id]=true;
             var copied:Object={index:i};
             for each(var side:String in ["base","alternate"]) {
                var row:Object=pair[side];
+               var keptRow:Object=kept[side];
+               if(!(row.occult_type is int) || !/^(1|2|4|8|16|32|64)$/.test(String(row.occult_type)) ||
+                  !(row.all_occult_types is int) || (row.all_occult_types & row.occult_type)==0 ||
+                  (keptRow!=null && (keptRow.sim_id!==row.sim_id || keptRow.index!==row.index ||
+                   keptRow.occult_type!==row.occult_type || keptRow.all_occult_types!==row.all_occult_types ||
+                   keptRow.occult_layer!==row.occult_layer)))
+                  throw new Error("Member selection raw and retained identities differ");
                copied[side]={sim_id:String(row.sim_id),index:int(row.index),occult_type:int(row.occult_type),
                   all_occult_types:int(row.all_occult_types),occult_layer:int(row.occult_layer)};
             }
@@ -536,10 +575,14 @@
                targetIndex=i; targetKind=int(pair.base.occult_type);
             }
          }
+         var chosen:Object=expectedLayer==0 ? pairs[currentIndex].base : pairs[currentIndex].alternate;
+         if(chosen.sim_id!==currentId || chosen.occult_type!==selected.occult_type ||
+            chosen.all_occult_types!==selected.all_occult_types)
+            throw new Error("Member selection fresh metadata differs from delivery");
          selector=null; pairs=null;
          if(targetIndex<0) throw new Error("Member selection target is absent from the observed household");
          return {native_session:nativeSession,household_id:householdId,source_sim_id:currentId,target_sim_id:targetId,
-            source_index:int(source.selected_index),target_index:targetIndex,target_form_flags:targetKind,
+            source_index:currentIndex,target_index:targetIndex,target_form_flags:targetKind,
             roster_json:ApexEncode(roster)};
       }
 
@@ -1661,7 +1704,7 @@
                if(operation=="member-select") {
                   var memberOriginal:Object=context.member_before;
                   var memberAfter:Object=ApexMemberSelectionContext(String(context.target_sim_id),String(context.target_sim_id),
-                     String(memberOriginal.household_id),0,index);
+                     String(memberOriginal.household_id),int(reply.client.sim.occultLayer),index);
                   if(memberAfter.native_session!=memberOriginal.native_session || memberAfter.household_id!=memberOriginal.household_id ||
                      memberAfter.target_index!=memberOriginal.target_index || memberAfter.target_form_flags!=memberOriginal.target_form_flags ||
                      memberAfter.roster_json!=memberOriginal.roster_json || String(reply.client.sim.simId)!=String(context.target_sim_id))

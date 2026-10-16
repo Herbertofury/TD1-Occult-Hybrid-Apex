@@ -389,30 +389,94 @@ def form_selection_binding(client, sim_id, request, resulting=False):
             'pair': projections[index]}
 
 def member_selection_binding(client, sim_id, request, resulting=False):
+    """Bind household navigation to delivered members, not filtered alternates.
+
+    EA drops alternate thumbnail rows for composite occult masks. That does
+    not remove the member's base row or authorize editing/accepting a guessed
+    alternate. Validate raw identities against every retained base row and
+    the fresh selected Sim. Keep alternate acceptance's stronger checks intact.
+    """
     target = request['target_sim_id']
     selected_id = target if resulting else sim_id
-    layer = 0 if resulting else request['expected_layer']
-    context = form_selection_binding(client, selected_id, dict(operation='layer-select',
-        household_id=request['household_id'], expected_layer=layer, target_layer=layer,
-        native_session=request['native_session']))
-    pairs = client['owner_pair_observation']['selector_feed']['retained']['pairs']
-    roster, target_rows = [], []
-    for index, pair in enumerate(pairs):
-        if pair['base']['sim_id'] != pair['alternate']['sim_id']:
-            raise ValueError('Member selection refuses guessed wrapper IDs.')
+    native=client.get('sim',{}) if isinstance(client,dict) else {}
+    observation=client.get('owner_pair_observation',{}) if isinstance(client,dict) else {}
+    context=client.get('native_context',{}) if isinstance(client,dict) else {}
+    if (observation.get('protocol')!=1 or type(observation.get('session')) is not int or
+            observation['session']!=request['native_session'] or observation.get('stable') is not True or
+            observation.get('scope')!='native-cas-paired-feed-read-only' or
+            observation.get('selected_query')!='returned-value'):
+        raise ValueError('Member selection requires the current owned native session.')
+    selected=_owner_record(observation.get('selected'))
+    layer=selected['occult_layer'] if resulting else request['expected_layer']
+    if (selected['sim_id']!=selected_id or selected['household_id']!=request['household_id'] or
+            layer not in (0,1) or selected['occult_layer']!=layer or
+            native.get('simId')!=selected_id or native.get('householdId')!=request['household_id'] or
+            any(type(native.get(key)) is not int or native[key]!=selected[field] for key,field in
+                (('occultType','occult_type'),('allOccultTypes','all_occult_types'),('occultLayer','occult_layer')))):
+        raise ValueError('Member selection lost its exact selected Sim, household or layer.')
+    if (any(not isinstance(context.get(name),dict) or context[name].get('query')!='returned-value'
+            for name in ('edit_mode','new_family','entered_from_play_area')) or
+            type(context['edit_mode'].get('value')) is not int or context['edit_mode']['value']!=0 or
+            context['new_family'].get('value') is not False or
+            not isinstance(context['entered_from_play_area'].get('value'),dict) or
+            context['entered_from_play_area']['value'].get('result') is not True):
+        raise ValueError('Member selection requires the full existing-household CAS editor entered from Live.')
+    selector=observation.get('selector_feed',{})
+    if (observation.get('selector_query')!='returned-value' or selector.get('protocol')!=1 or
+            selector.get('scope')!='native-selector-owner-pair-view' or
+            selector.get('service_registered') is not True or selector.get('reset_listener_registered') is not True or
+            selector.get('mapping_verified') is not False or selector.get('alternate_accept_authorized') is not False):
+        raise ValueError('Member selection requires the registered read-only roster service.')
+    raw,retained=selector.get('raw_feed',{}),selector.get('retained',{})
+    pairs,kept=raw.get('pairs'),retained.get('pairs')
+    if (raw.get('source')!='native-selector-raw-entry-observer' or raw.get('before_native_handler') is not True or
+            raw.get('delivered') is not True or raw.get('complete') is not True or
+            type(raw.get('sequence')) is not int or not 0<raw['sequence']<2**31 or
+            retained.get('source')!='native-selector-retained-filtered-feed' or retained.get('available') is not True or
+            not isinstance(pairs,list) or not isinstance(kept,list) or not 0<len(pairs)<=32 or len(kept)!=len(pairs) or
+            type(raw.get('base_row_count')) is not int or raw['base_row_count']!=len(pairs) or
+            type(raw.get('alternate_row_count')) is not int or raw['alternate_row_count']!=len(pairs)):
+        raise ValueError('Member selection lacks its complete delivered and retained member roster.')
+    index=retained.get('selected_index')
+    if (type(index) is not int or not 0<=index<len(pairs) or retained.get('selected_sim_id')!=selected_id or
+            type(retained.get('selected_layer')) is not int or retained['selected_layer']!=layer):
+        raise ValueError('Member selection retained current member or layer differs.')
+    roster,target_rows,identities=[],[],set()
+    for position,(pair,retained_pair) in enumerate(zip(pairs,kept)):
+        if any(not isinstance(p,dict) or type(p.get('index')) is not int or p['index']!=position
+                for p in (pair,retained_pair)):
+            raise ValueError('Member selection roster positions differ.')
+        base=_owner_record(pair.get('base'),feed=True); alternate=_owner_record(pair.get('alternate'),feed=True)
+        kept_base=_owner_record(retained_pair.get('base'),feed=True)
+        if (base['sim_id']=='0' or base['sim_id']!=alternate['sim_id'] or base['sim_id'] in identities or
+                base['index']!=position or alternate['index']!=position or
+                base['occult_layer']!=0 or alternate['occult_layer']!=1 or
+                any(base[k]!=kept_base[k] for k in base if k!='selected') or
+                base['all_occult_types']!=alternate['all_occult_types'] or
+                any(row['occult_type'] not in (1,2,4,8,16,32,64) or
+                    not row['all_occult_types'] & row['occult_type'] for row in (base,alternate))):
+            raise ValueError('Member selection raw and retained original identities differ or duplicate.')
+        identities.add(base['sim_id'])
+        if retained_pair.get('alternate') is not None:
+            kept_alt=_owner_record(retained_pair['alternate'],feed=True)
+            if any(alternate[k]!=kept_alt[k] for k in alternate if k!='selected'):
+                raise ValueError('Member selection retained alternate differs from its delivery.')
         copied = {'index': index}
         for side in ('base', 'alternate'):
             copied[side] = {key: value for key, value in pair[side].items() if key != 'selected'}
+        copied['index']=position
         roster.append(copied)
-        if pair['base']['sim_id'] == target: target_rows.append(index)
+        if base['sim_id']==target: target_rows.append(position)
+    chosen=pairs[index]['base' if layer==0 else 'alternate']
+    if (chosen['sim_id']!=selected_id or any(chosen[k]!=selected[k]
+            for k in ('occult_type','all_occult_types','occult_layer'))):
+        raise ValueError('Member selection fresh selected metadata differs from the delivered member.')
     if len(target_rows) != 1:
         raise ValueError('Member selection target is absent or ambiguous in this household.')
-    if client['native_context']['edit_mode']['value'] != 0:
-        raise ValueError('Member selection requires the full existing-household CAS editor.')
-    if resulting and context['selected_index'] != target_rows[0]:
+    if resulting and index != target_rows[0]:
         raise ValueError('Member selection did not reach its exact destination index.')
-    return dict(native_session=context['native_session'],household_id=request['household_id'],
-        source_sim_id=sim_id,target_sim_id=target,source_index=context['selected_index'],
+    return dict(native_session=observation['session'],household_id=request['household_id'],
+        source_sim_id=sim_id,target_sim_id=target,source_index=index,
         target_index=target_rows[0],target_form_flags=roster[target_rows[0]]['base']['occult_type'],roster=roster)
 
 

@@ -13,7 +13,7 @@ const void* sourceProto=nullptr;unsigned protoDestroyed=0;
 std::map<const void*,std::string> protoExports;
 int exportSizeOverride=0;bool exportWrongId=false,exportWrongLength=false;
 unsigned serviceFallbacks=0,controllerCalls=0,avatarRefreshes=0;
-unsigned reboundKind=0;
+unsigned reboundKind=0,nativeSyncCalls=0;
 void OriginalRebind(void*,const void*,unsigned target) {reboundKind=target;}
 std::array<void*,0x368/8> avatarTable{};void* avatarTablePointer=avatarTable.data();
 bool OriginalService(const void*) {++serviceFallbacks;return false;}
@@ -34,7 +34,7 @@ void Fields(void* output,const void* proto,const void* record) {
     if(record) Write(output,0xe8,Read<unsigned>(record,0x1c));
     else {Current(output,4);Available(output,126);Write(output,0xe8,9999u);}
 }
-void AssignData(void* output,const void* input) {std::memcpy(output,input,32);}
+void AssignData(void* output,const void* input) {std::memcpy(output,input,0x300);}
 void* CopySim(void* output,const void* input) {std::memcpy(output,input,0x830);return output;}
 unsigned OriginalNormalize(void* data,bool alternate) {
     const auto current=Read<unsigned>(data,8),mask=Read<unsigned>(data,12);
@@ -69,10 +69,13 @@ void* NativeCache(void*,std::uint64_t) {return viewMetadata;}
 void* NativeContext(void*,std::uint64_t,bool) {return viewMetadata;}
 int NativeIndex(void*,std::uint64_t) {return 0;}
 void NativeSync(void* controller) {
+    ++nativeSyncCalls;
     auto group=Read<void*>(controller,0x100);auto child=Read<void*>(group,0x4c0);
     auto layer=Read<std::uint8_t>(controller,0x242);auto model=Read<void*>(controller,0x1d0);
     AssignData(static_cast<char*>(layer?child:group)+0xd0,static_cast<char*>(model)+0x170);
     if(child) Write(layer?group:child,0xe8,876543u); // Stock cross-owner propagation must be removed.
+    Write(model,0x188,987654u); // Stock normalization mutates the edited model too.
+    Write(model,0x3b0,0xdeadu); // Reproduce loss of a field outside the short header.
 }
 void NativeModelBind(void* model,const void* data,void* context,bool) {
     AssignData(static_cast<char*>(model)+0x170,data);Write(model,0x510,context);
@@ -330,8 +333,10 @@ int main() {
     Require(Read<unsigned>(independentChild,0xd8)==1 && Read<unsigned>(independentChild,0xe8)==100);
     Require(Read<unsigned>(group.data(),0xe8)==9999);
     stageView("ffffffffffffffffffffffffffffffff","ghost/manifested");
-    Write(currentModel.data(),0x188,77777u);Sync(controller.data());
+    Write(currentModel.data(),0x188,77777u);Write(currentModel.data(),0x3b0,0x55667788u);Sync(controller.data());
     Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x18)==77777);
+    Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x240)==0x55667788u);
+    Require(Read<unsigned>(currentModel.data(),0x188)==77777 && Read<unsigned>(currentModel.data(),0x3b0)==0x55667788u);
     Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100 && Read<unsigned>(group.data(),0xe8)==9999);
     Require(Read<unsigned>(bank.graph->appearance(4)->data(),0x18)==44444);
     Require(Read<UndoFixture*>(currentModel.data(),0x70)==ghostUndo);
@@ -370,6 +375,9 @@ int main() {
     Require(NativeUiView(controller.data(),"native/2"));
     Require(Read<unsigned>(currentModel.data(),0x188)==22222 && Read<UndoFixture*>(currentModel.data(),0x70)==alienUndo);
     Require(Read<unsigned>(runtime.bank.at(456).graph->appearance(2)->data(),0x18)==456456);
+    Require(nativeSyncCalls==0); // Owned forms never enter the destructive two-slot synchronizer.
+    runtime.selectionEnabled=false;Sync(controller.data());Require(nativeSyncCalls==1);
+    runtime.selectionEnabled=true; // Unscoped CAS keeps the game's ordinary path.
     Free(Read<void*>(secondGroup.data(),0x4c0),0x830);
     Require(controllerCalls==0); // No converter/controller transaction was called.
     Write(argument.data(),8,0x1fffffffu);Require(!SetOccultService(arguments.data())); // No token replay.

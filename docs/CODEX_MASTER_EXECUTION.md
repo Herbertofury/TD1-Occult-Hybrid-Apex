@@ -5,12 +5,32 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V167 replaces the scoped native synchronizer's destructive regeneration with
+deep copying of the current edited complete CasData. Real V166 exports proved
+122 fields changed on Fairy leave; V167's complete cross-form round trip and
+same-owner synchronization retain identical snapshot bytes. The full repeat/
+member matrix remains open. Household
+navigation now validates the actual base roster even when EA filters alternate
+thumbnails, and can resume a member's last alternate layer. Nine native tests,
+893 CAS tests and 31 epoch/migration checks pass. All twenty disposable save
+files remain unchanged through V166's normal unsaved closure.
+
+October 16 V167 validation progress:
+- [x] Reproduce actual Fairy outfit/genetic loss with complete committed native exports, not a catalog-only assumption.
+- [x] Replace scoped destructive synchronization with complete current-model deep copies; preserve the permanent Source guard.
+- [x] Verify identical complete Fairy snapshot bytes before selection, after leaving, after Werewolf/Alien/Vampire round trip and after another synchronization.
+- [x] Select every one of the five household members and return to the first through the semantic CLI, despite EA filtering alternate thumbnails.
+- [x] Pass 893 CAS tests, nine native CTests, 33 export/seal tests and 31 epoch/migration checks.
+- [ ] Finish unique actual edit markers and repeated field/panel readback for all 71 currently captured owners.
+- [ ] Finish all-category edits on each form/member, CAS/Live/MCCC/F11 return, complete named-owner persistence, normal save/cold load and household Tray/Gallery round trips.
+- [ ] Qualify production use and special gameplay roles; appearance templates alone do not close these gates.
+
 V166 adds read-only native owner protobuf snapshots and declared-field catalogs.
 V164 selected all 39 separate owners through the semantic CLI, but its revisit
 matrix failed at the Fairy alternate's four body-hair swatches. V165's temporary
 matching suppression also failed in game and is removed. Do not call that issue
-fixed or the matrix passed. Compare committed native outfit data before/after
-harvesting the current model next. These DTO snapshots can have nonappearance
+fixed or the matrix passed by synthetic checks alone. The committed exports
+confirmed actual outfit/genetic changes. These DTO snapshots can have nonappearance
 construction defaults and must never replace an entire Sim. All twenty disposable
 save files remain unchanged through V165's unsaved closure. Production remains
 unqualified; special gameplay roles and full edited save/Tray persistence are open.

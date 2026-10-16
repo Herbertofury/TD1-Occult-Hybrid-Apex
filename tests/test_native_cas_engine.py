@@ -24,7 +24,7 @@ class NativeEngineTests(unittest.TestCase):
         for sid in ('0', '01', '18446744073709551616', '１２３', 123, True):
             bad=copy.deepcopy(self.arm);bad['members'][0]['sim_id']=sid
             with self.subTest(sid=sid), self.assertRaises(ValueError):engine.argument(bad)
-        for mask in (0,1,2,128,True,'127'):
+        for mask in (0,2,128,True,'127'):
             bad=copy.deepcopy(self.arm);bad['members'][0]['owned_mask']=mask
             with self.subTest(mask=mask), self.assertRaises(ValueError):engine.argument(bad)
         bad=copy.deepcopy(self.arm);bad['members']*=2
@@ -62,7 +62,7 @@ class NativeEngineTests(unittest.TestCase):
 
     def test_entry_supplies_complete_source_bytes_before_native_activation_without_disk_exports(self):
         import base64, hashlib
-        from apex_core import overlay_loader, sim_data, form_appearance
+        from apex_core import overlay_loader, sim_data, form_appearance, lifestate_forms
         sims=[Obj(id=123,forms={1:Obj(id=1),2:Obj(id=2)}),Obj(id=456,forms={1:Obj(id=3),2:Obj(id=4)})]
         backend=Obj(__file__='matching-script',_form_map=lambda sim:sim.forms,
             services=Obj(active_household=lambda:Obj(sim_info_gen=lambda:iter(sims))))
@@ -84,6 +84,7 @@ class NativeEngineTests(unittest.TestCase):
                 patch.object(overlay_loader,'native_cas_engine_control',side_effect=native), \
                 patch.dict(sys.modules,{'paths':Obj(DLL_PATH='game-dlls')}), \
                 patch.object(sim_data,'snapshot',side_effect=capture), \
+                patch.object(lifestate_forms,'native_cas_owners',return_value=[]), \
                 patch.object(form_appearance,'packed',side_effect=lambda backend,owner:{'skin_tone':form_appearance.encode(owner.id)}):
             result=engine.seed_members(backend)
         self.assertEqual(calls,['status','seed','seed','activate'])

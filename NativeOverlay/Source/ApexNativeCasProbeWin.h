@@ -226,7 +226,8 @@ inline ui::Json Inspect(bool includeOwnerData=true) {
             throw std::runtime_error("Native kind-cache helper callsite differs from the inspected layout.");
         cacheHelpers.insert(expected.second);
     }
-    for(const auto* name:{"SetSimOccult","CasGetAvailableOccults","CasSelectOccultForm","CasCreateSimOccultForm",
+    for(const auto* name:{"CASGetSimInfo","CasGetHouseholdSims","GetSimOccult",
+            "SetSimOccult","CasGetAvailableOccults","CasSelectOccultForm","CasCreateSimOccultForm",
             "CasRemoveSimOccultForm","CasSyncSimOccultForm","CasEnableAutoSyncOccultForm",
             "occult_sim_infos","current_occult_types","CasToClientIFace::SimInfoWithOutfitsResponse",
             "CasToClientIFace::SendProtocolBuffer"}) {

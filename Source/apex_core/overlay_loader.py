@@ -424,7 +424,7 @@ def native_cas_engine_control(module_file, dll_path, argument):
     class Library: _handle = _HANDLE
     result = EngineCall(('ApexNativeCasEngineControl', Library()))(json.dumps(argument).encode('ascii'))
     raw = getattr(result, 'value', result)
-    if not isinstance(raw, bytes) or len(raw) > 32768:
+    if not isinstance(raw, bytes) or len(raw) > 2 * 1024 * 1024:
         raise ValueError('Native form patch returned invalid bounded JSON.')
     return native_cas_engine.reply(json.loads(raw.decode('utf-8')))
 

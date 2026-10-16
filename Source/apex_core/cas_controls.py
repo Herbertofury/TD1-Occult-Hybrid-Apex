@@ -14,12 +14,13 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'workspace'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
 PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'))
 SCHEMAS = {
+    'form-owner-select': {'operation','owner_id','native_kind','owned_mask','household_id','native_session','expected_layer','test_token'},
     'workspace': {'operation', 'x', 'y', 'scale', 'locked', 'collapsed'},
     'occults': {'operation'},
     'occult-view': {'operation', 'occult_type', 'expected_all_occults', 'household_id', 'native_session', 'expected_layer'},
@@ -74,6 +75,21 @@ def wire(request, panel):
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
+    if op == 'form-owner-select':
+        import re
+        owner = request['owner_id']
+        if not isinstance(owner, str) or re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}', owner) is None:
+            raise ValueError('Use the exact existing independent form owner identity.')
+        identity(request['household_id'])
+        state = integer(request['native_kind'], 1, 64, 'rendering kind')
+        if state & (state-1): raise ValueError('A form requires one native rendering kind.')
+        category = integer(request['owned_mask'], 1, 127, 'owned membership mask')
+        if not category & 1 or not category & state: raise ValueError('A form requires an existing rendering owner.')
+        integer(request['native_session'], 1, 2**31-1, 'editor session')
+        index = integer(request['expected_layer'], 0, 1, 'current native layer')
+        if not isinstance(request['test_token'], str) or re.fullmatch(r'[0-9a-f]{32}', request['test_token']) is None:
+            raise ValueError('Independent form qualification requires the disposable profile token.')
+        return state, category, index, owner
     if op == 'workspace':
         values = []
         for name, low, high in (('x', 0, 1), ('y', 0, 1), ('scale', 0.7, 1.5)):
@@ -168,6 +184,17 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
+    if op == 'form-owner-select':
+        native = client.get('sim', {})
+        context = client.get('native_context')
+        rendered = context.get('rendered_form') if isinstance(context, dict) else None
+        if (control.get('owner_id') != request['owner_id'] or native.get('householdId') != request['household_id'] or
+                not isinstance(rendered, dict) or rendered.get('query') != 'returned-value' or
+                type(rendered.get('value')) is not int or rendered['value'] != request['native_kind'] or
+                type(native.get('allOccultTypes')) is not int or
+                native['allOccultTypes'] | 1 != request['owned_mask']):
+            raise PostconditionMismatch('Native CAS did not show the exact independently selected form and membership.')
+        return
     if op == 'workspace':
         layout = control.get('layout')
         if (not isinstance(layout, dict) or control.get('appearance_written') is not False or

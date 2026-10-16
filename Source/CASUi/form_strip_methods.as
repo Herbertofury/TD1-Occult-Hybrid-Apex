@@ -17,6 +17,16 @@
       private var apexFormsHousehold:String = "";
       private var apexFormsLayerButtons:Array;
       private var apexFormsGestureSequence:int = 0;
+      private var apexFormsOwners:Array=[];
+      private var apexFormsOwnerTotal:int=-1;
+      private var apexFormsSelectedId:String="";
+      private var apexFormsNativeState:String="";
+      private var apexFormsDesiredId:String="";
+      private var apexFormsNativeIntent:Object;
+      private var apexFormsBootstrap:Boolean=false;
+      private var apexFormsPage:int=0;
+      private var apexFormsPanelHeight:Number=146;
+
 
       private function ApexFormsDispose() : void
       {
@@ -35,6 +45,8 @@
          apexFormsDragging=false;
          apexFormsHousehold="";
          apexFormsLayerButtons=null;
+         apexFormsOwners=[];apexFormsOwnerTotal=-1;apexFormsSelectedId="";apexFormsNativeState="";
+         apexFormsDesiredId="";apexFormsNativeIntent=null;apexFormsBootstrap=false;apexFormsPage=0;apexFormsPanelHeight=146;
       }
 
       private function ApexFormsText(parent:flash.display.Sprite,text:String,x:Number,y:Number,width:Number,size:int,color:uint) : flash.text.TextField
@@ -75,13 +87,15 @@
             button.graphics.moveTo(36,5); button.graphics.lineTo(36,36); button.graphics.lineTo(26,20);
             button.graphics.lineTo(36,5); button.graphics.endFill();
          }
-         var label:flash.text.TextField=ApexFormsText(button,title,1,39,70,11,selected ? 0x256207 : 0x315778);
+         var label:flash.text.TextField=ApexFormsText(button,title,1,37,70,10,selected ? 0x256207 : 0x315778);
+         label.multiline=true;label.wordWrap=true;label.height=25;
          var format:flash.text.TextFormat=label.defaultTextFormat; format.align="center"; label.setTextFormat(format);
       }
 
       private function ApexFormsTick(sim:Object) : void
       {
          if(stage==null || sim==null || String(sim.simId)!=apexBoundSim || apexFormsOwnedMask==0 || apexFormsDragging) return;
+         if(apexFormsOwners.length>0 && apexFormsOwners.length==apexFormsOwnerTotal) { ApexFormsOwnedTick(sim);return; }
          if(!isFinite(apexFormsScale) || apexFormsScale<0.7 || apexFormsScale>1.5) apexFormsScale=1;
          // Live entry is needed for a captured original. Other editors retain
          // their ordinary EA interface until a complete owner is available.
@@ -275,6 +289,12 @@
          if(event==null || event.target==null || apexFormsIntent!=null || apexPendingFields!=null || apexReceiving ||
             apexFormsResult!=null && apexFormsResult.verified!==true) return;
          var name:String=String(event.target.name);
+         if(name.indexOf("apexOwned_")==0) {
+            var ownerIndex:int=int(name.substr(10));
+            if(ownerIndex<0 || ownerIndex>=apexFormsOwners.length || apexFormsDesiredId!="" || apexFormsNativeState!="bound") return;
+            apexFormsNativeIntent=apexFormsOwners[ownerIndex];return;
+         }
+
          var target:String="";
          if(name.indexOf("apexLayer_")==0) target=name.substr(10);
          else if(name.indexOf("apexForm_")==0) {
@@ -297,7 +317,8 @@
       {
          return {protocol:1,scope:"native-cas-hybrid-form-strip",visible:apexFormsRoot!=null,
             sim_id:apexBoundSim,owned_mask:apexFormsOwnedMask,session:apexOwnerSession,
-            cross_kind_navigation:false,form_conversion_called:false,gesture_pending:apexFormsIntent!=null,
+            cross_kind_navigation:apexFormsNativeState=="bound",selected_owner_id:apexFormsSelectedId,owner_count:apexFormsOwners.length,
+            native_owner_state:apexFormsNativeState,desired_owner_id:apexFormsDesiredId,form_conversion_called:false,gesture_pending:apexFormsIntent!=null,
             selection_result:ApexClone(apexFormsResult),message:apexFormsMessage,
             layout:{scale:apexFormsScale,locked:apexFormsLocked,collapsed:apexFormsCollapsed,dragging:apexFormsDragging,
                x:apexFormsPosition==null ? null : apexFormsPosition.x,y:apexFormsPosition==null ? null : apexFormsPosition.y}};
@@ -318,6 +339,8 @@
       {
          if(action=="smaller") apexFormsScale=Math.max(0.7,Math.round((apexFormsScale-0.1)*10)/10);
          else if(action=="larger") apexFormsScale=Math.min(1.5,Math.round((apexFormsScale+0.1)*10)/10);
+         else if(action=="previous") apexFormsPage=Math.max(0,apexFormsPage-1);
+         else if(action=="next") apexFormsPage=Math.min(Math.ceil(apexFormsOwners.length/21)-1,apexFormsPage+1);
          else if(action=="lock") apexFormsLocked=!apexFormsLocked;
          else if(action=="collapse") apexFormsCollapsed=!apexFormsCollapsed;
          else if(action=="reset") { apexFormsPosition=null; apexFormsScale=1; apexFormsCollapsed=false; apexFormsLocked=false; }
@@ -330,11 +353,11 @@
          if(apexFormsRoot==null || stage==null) return;
          apexFormsRoot.scaleX=apexFormsRoot.scaleY=apexFormsScale;
          var spanX:Number=Math.max(0,stage.stageWidth-apexFormsPanelWidth*apexFormsScale-28);
-         var spanY:Number=Math.max(0,stage.stageHeight-(apexFormsCollapsed ? 34 : 146)*apexFormsScale-28);
+         var spanY:Number=Math.max(0,stage.stageHeight-(apexFormsCollapsed ? 34 : apexFormsPanelHeight)*apexFormsScale-28);
          var x:Number=apexFormsPosition==null ? 18 : 14+apexFormsPosition.x*spanX;
          var y:Number=apexFormsPosition==null ? stage.stageHeight-326 : 14+apexFormsPosition.y*spanY;
          x=Math.max(14,Math.min(x,stage.stageWidth-apexFormsPanelWidth*apexFormsScale-14));
-         y=Math.max(14,Math.min(y,stage.stageHeight-(apexFormsCollapsed ? 34 : 146)*apexFormsScale-14));
+         y=Math.max(14,Math.min(y,stage.stageHeight-(apexFormsCollapsed ? 34 : apexFormsPanelHeight)*apexFormsScale-14));
          var point:flash.geom.Point=globalToLocal(new flash.geom.Point(x,y));
          apexFormsRoot.x=point.x; apexFormsRoot.y=point.y;
       }
@@ -359,7 +382,7 @@
          apexFormsRoot.stopDrag();
          var point:flash.geom.Point=localToGlobal(new flash.geom.Point(apexFormsRoot.x,apexFormsRoot.y));
          var spanX:Number=Math.max(1,stage.stageWidth-apexFormsPanelWidth*apexFormsScale-28);
-         var spanY:Number=Math.max(1,stage.stageHeight-(apexFormsCollapsed ? 34 : 146)*apexFormsScale-28);
+         var spanY:Number=Math.max(1,stage.stageHeight-(apexFormsCollapsed ? 34 : apexFormsPanelHeight)*apexFormsScale-28);
          apexFormsPosition=new flash.geom.Point(Math.max(0,Math.min(1,(point.x-14)/spanX)),Math.max(0,Math.min(1,(point.y-14)/spanY)));
          apexFormsDragging=false; apexFormsSignature=""; ApexFormsPlace();
       }
@@ -381,4 +404,69 @@
          apexFormsPosition=new flash.geom.Point(x,y); apexFormsScale=scale;
          apexFormsLocked=locked; apexFormsCollapsed=collapsed; apexFormsSignature="";
          ApexFormsTick(ApexFormsObservedSim());
+      }
+
+      private function ApexFormsOwnedTick(sim:Object) : void
+      {
+         var busy:Boolean=apexPendingFields!=null || apexReceiving || apexFormsDragging || apexFormsDesiredId!="";
+         if(apexFormsNativeState=="unbound" && !apexFormsBootstrap && !busy) {
+            for each(var original:Object in apexFormsOwners) if(original.id==apexFormsSelectedId) {
+               apexFormsNativeIntent=original;apexFormsBootstrap=true;break;
+            }
+         }
+         if(apexFormsNativeIntent!=null && !busy && String(sim.simId)==apexBoundSim) {
+            var intent:Object=apexFormsNativeIntent;apexFormsNativeIntent=null;
+            var nativeToken:int=int(intent.token);
+            if(nativeToken<0x20000000 || nativeToken>0x2fffffff) throw new Error("Native form button lost its exact token");
+            apexFormsDesiredId=String(intent.id);
+            CommunicationManager.CallGameService("SetSimOccult",nativeToken);
+            busy=true;
+         }
+         if(apexFormsCatalog==null || apexFormsCatalog.sim_id!=apexBoundSim) {
+            apexFormsCatalog={sim_id:apexBoundSim,icons:{}};
+            for each(var kind:int in [2,4,8,16,32,64]) {
+               var iconData:Object=ApexClone(CommunicationManager.CallGameService("GetOccultIcon",kind));
+               if(iconData && iconData.icon && iconData.icon.instance is String) apexFormsCatalog.icons[String(kind)]=String(iconData.icon.instance);
+            }
+         }
+         var count:int=apexFormsOwners.length;var columns:int=Math.min(7,count);
+         apexFormsPage=Math.max(0,Math.min(apexFormsPage,Math.ceil(count/21)-1));
+         var start:int=apexFormsPage*21;var end:int=Math.min(count,start+21);
+         var rows:int=Math.ceil((end-start)/columns);
+         apexFormsPanelWidth=Math.max(350,columns*78+8);apexFormsPanelHeight=rows*68+74;
+         var signature:String=apexBoundSim+":"+apexFormsSelectedId+":"+apexFormsNativeState+":"+apexFormsDesiredId+":"+
+            count+":"+apexFormsPage+":"+busy+":"+apexFormsScale+":"+apexFormsLocked+":"+apexFormsCollapsed;
+         if(signature==apexFormsSignature) return;apexFormsSignature=signature;
+         if(apexFormsRoot==null) {
+            apexFormsRoot=new flash.display.Sprite();apexFormsRoot.name="ApexHybridForms";
+            apexFormsRoot.addEventListener(flash.events.MouseEvent.CLICK,ApexFormsClick,false,0,true);
+            apexFormsRoot.addEventListener(flash.events.MouseEvent.MOUSE_DOWN,ApexFormsDragStart,false,0,true);
+            apexFormsRoot.addEventListener(flash.events.MouseEvent.DOUBLE_CLICK,ApexFormsResetPosition,false,0,true);addChild(apexFormsRoot);
+         }
+         while(apexFormsRoot.numChildren>0) apexFormsRoot.removeChildAt(0);
+         apexFormsRoot.graphics.clear();apexFormsRoot.graphics.beginFill(0xf4fbff,0.97);
+         apexFormsRoot.graphics.lineStyle(2,0xffffff,0.95);
+         apexFormsRoot.graphics.drawRoundRect(-8,-6,apexFormsPanelWidth+4,apexFormsCollapsed?34:apexFormsPanelHeight,16,16);apexFormsRoot.graphics.endFill();
+         var handle:flash.display.Sprite=new flash.display.Sprite();handle.name="apexDragHandle";
+         handle.graphics.beginFill(0xdceefa,1);handle.graphics.drawRoundRect(-7,-5,apexFormsPanelWidth+2,30,14,14);handle.graphics.endFill();apexFormsRoot.addChild(handle);
+         ApexFormsText(handle,"ALL FORMS",12,0,180,14,0x2765a2);
+         if(count>21) { ApexFormsToolbar("previous","<",172);ApexFormsToolbar("next",">",199); }
+         ApexFormsToolbar("smaller","-",apexFormsPanelWidth-190);ApexFormsToolbar("larger","+",apexFormsPanelWidth-163);
+         ApexFormsToolbar("lock",apexFormsLocked?"Unlock":"Lock",apexFormsPanelWidth-134,49);
+         ApexFormsToolbar("reset","Reset",apexFormsPanelWidth-82,47);ApexFormsToolbar("collapse",apexFormsCollapsed?"+":"-",apexFormsPanelWidth-32);
+         ApexFormsPlace();if(apexFormsCollapsed) return;
+         var nativeNames:Object={"1":"Human","2":"Alien","4":"Vampire","8":"Mermaid","16":"Spellcaster","32":"Werewolf","64":"Fairy"};
+         for(var i:int=start;i<end;++i) {
+            var owner:Object=apexFormsOwners[i];var pieces:Array=String(owner.id).split("/");
+            var title:String=pieces[0]=="native" ? String(nativeNames[pieces[1]]) : pieces[0]=="active" ? "Current "+String(nativeNames[pieces[1]]) : String(owner.id).replace(/_/g," ").replace("/",": ");
+            var selected:Boolean=owner.id==apexFormsSelectedId && apexFormsNativeState=="bound";
+            var icon:String=apexFormsCatalog.icons.hasOwnProperty(String(owner.kind)) ? String(apexFormsCatalog.icons[String(owner.kind)]) : "";
+            ApexFormsButton(int(owner.kind),-1,title,icon,selected,!busy && !selected && apexFormsNativeState=="bound",
+               ((i-start)%columns)*78,33+Math.floor((i-start)/columns)*68);
+            var button:flash.display.Sprite=apexFormsRoot.getChildAt(apexFormsRoot.numChildren-1) as flash.display.Sprite;
+            button.name="apexOwned_"+i;
+         }
+         var footer:String=apexFormsNativeState=="unresolved" ? "Form view unresolved; further switching is blocked." : apexFormsDesiredId!="" ? "Opening "+apexFormsDesiredId : apexFormsNativeState=="bound" ? "Each form keeps its own edits. Copy or link only when you choose." :
+            apexFormsNativeState=="unresolved" ? "Form view unresolved; further switching is blocked." : "Initializing independent form owners...";
+         ApexFormsText(apexFormsRoot,footer,2,apexFormsPanelHeight-31,apexFormsPanelWidth-8,11,0x55778f);
       }

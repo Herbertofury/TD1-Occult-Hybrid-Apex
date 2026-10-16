@@ -159,6 +159,29 @@ def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
             raise
 
 
+def _submit_status(args, request, monotonic, pause):
+    """Await a reconnect before submitting a read, never replay a queued UUID."""
+    value = json.dumps({'operation': 'status'})
+    result = request(args.state, 'cas_ui_request', args.sim_id, value=value)
+    deadline = monotonic() + args.seconds
+    refused = 'Native UI transport has no distributor client; no CAS request sent.'
+    for _ in range(40):
+        if (result.get('cas_request_id') or result.get('ok') is not False or
+                result.get('message') != refused or monotonic() >= deadline):
+            break
+        peers = request(args.state, 'cas_ui_diagnostics').get('native_peers', [])
+        if any(isinstance(peer, dict) and peer.get('sim_id') == args.sim_id and
+               type(peer.get('age_seconds')) in (int, float) and
+               math.isfinite(peer['age_seconds']) and 0 <= peer['age_seconds'] <= 3
+               for peer in peers):
+            # The explicit refusal created no CAS queue record. A reconnect
+            # permits a new read, while its distinct owner UUID stays recorded.
+            result = request(args.state, 'cas_ui_request', args.sim_id, value=value)
+        else:
+            pause(.15)
+    return result
+
+
 def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
     preflight = None
     if args.operation == 'panels': return request(args.state, 'cas_ui_panels')
@@ -208,12 +231,12 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
         # Validate before any transport, using the same production contract.
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
         from apex_core.cas_ui import envelope
-        if args.operation in ('occult-cache-view', 'occult-owner-view'):
+        if args.operation in ('occult-cache-view', 'occult-owner-view', 'form-owner-select'):
             import reusable_profile
             _, journal, _, _ = reusable_profile.load(args.state)
             value['test_token'] = journal['token']
         envelope(args.sim_id, value)
-        if args.operation in ('form-select', 'layer-select', 'member-select', 'occult-view', 'occult-cache-view', 'occult-owner-view'):
+        if args.operation in ('form-select', 'layer-select', 'member-select', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select'):
             # Keep the caller's exact session/layer capability. Refresh only its
             # native observation, so operator/CLI latency cannot expire the
             # three-second Source acknowledgement before the navigation request.
@@ -236,7 +259,8 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
                 raise ValueError('Fresh native CAS context differs from the requested session/layer/household; no form selection sent.')
             if args.operation in ('occult-view', 'occult-cache-view', 'occult-owner-view') and selected.get('allOccultTypes') != value['expected_all_occults']:
                 raise ValueError('Fresh native membership differs from the requested full mask; no occult view sent.')
-        submitted = request(args.state, 'cas_ui_request', args.sim_id, value=json.dumps(value))
+        submitted = (_submit_status(args, request, monotonic, pause) if args.operation == 'status'
+                     else request(args.state, 'cas_ui_request', args.sim_id, value=json.dumps(value)))
         request_id = submitted.get('cas_request_id')
         if not request_id:
             return dict(submitted, form_selection_preflight=preflight) if preflight is not None else submitted

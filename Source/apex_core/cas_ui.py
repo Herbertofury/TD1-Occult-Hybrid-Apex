@@ -475,6 +475,51 @@ def poll_client(token, clock=time.monotonic):
     return None
 
 
+def owner_metadata(token, backend):
+    """Paged, data-only owner catalog and actual native selection for the strip."""
+    from . import overlay_loader
+    if not overlay_loader._CALLS: return None
+    import paths
+    with _LOCK:
+        peer = _PEERS.get(token)
+        if peer is None: raise ValueError('Native form catalog peer is no longer bound.')
+        sim_id = peer['sim_id']
+        ready = 'owner_catalog' in peer
+    if not client_owned_mask(token): return None
+    call = lambda value: overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, value)
+    if not ready:
+        status = call({'operation':'status'})
+        rows = [row for row in status.get('members', ()) if row['sim_id'] == sim_id]
+        if status.get('owner_view_adapter_available') is not True or len(rows) != 1: return None
+        import re
+        catalog = rows[0].get('separate_owners', [])
+        catalog = sorted(catalog, key=lambda item: (0, int(item['owner_id'].split('/')[1]))
+            if item.get('owner_id', '').startswith('native/') else (1, item.get('owner_id', '')))
+        if not catalog or len(catalog)>2048: raise ValueError('Native owner catalog is incomplete or oversized.')
+        for row in catalog:
+            if (not isinstance(row.get('owner_id'), str) or
+                re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',row['owner_id']) is None or
+                type(row.get('native_kind')) is not int or row['native_kind'] not in (1,2,4,8,16,32,64) or
+                type(row.get('ui_token')) is not int or not 0x20000000<=row['ui_token']<=0x2fffffff):
+                raise ValueError('Native owner button descriptor is malformed.')
+        if len({row['owner_id'] for row in catalog}) != len(catalog): raise ValueError('Native owner catalog contains duplicate identities.')
+        with _LOCK:
+            peer = _PEERS.get(token)
+            if peer is None or peer['sim_id'] != sim_id: return None
+            peer.update(owner_catalog=copy.deepcopy(catalog),owner_catalog_offset=0)
+    with _LOCK:
+        peer = _PEERS.get(token)
+        if peer is None: return None
+        rows, offset = peer['owner_catalog'], peer['owner_catalog_offset']
+        if offset < len(rows):
+            page=rows[offset:offset+32];peer['owner_catalog_offset']+=len(page)
+            return 'OWNERS|{}|{}|'.format(offset,len(rows))+';'.join(
+                '{},{},{}'.format(row['owner_id'],row['native_kind'],row['ui_token']) for row in page)
+    status = call({'operation':'view-status'})
+    if status.get('available') is not True or status.get('sim_id') != sim_id: return None
+    return 'OWNERSTATE|{}|{}|{}|{}'.format(status['owner_id'],status['native_kind'],status['layer'],status['state'])
+
+
 def receive_socket(token, request_id, payload, clock=time.monotonic, backend=None):
     with _LOCK:
         peer, row = _PEERS.get(token), _RECORDS.get(request_id)
@@ -870,6 +915,20 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
                     request['occult_type'] not in {row['form_flags'] for row in original['wrappers']}):
                 raise ValueError('The requested view has no exact captured owner and complete native membership.')
             occult_view_context = {'original': original, 'before': binding}
+    if request['operation'] == 'form-owner-select':
+        from .test_driver import guard
+        guard(backend, json.dumps({'test_token': request['test_token'], 'value': None}))
+        if not socket_ready: raise ValueError('Independent form views require the fresh exact-Sim CAS socket.')
+        with _LOCK:
+            _form_select_original(backend, sim_id, request['household_id'])
+            fresh = [row for row in reversed(list(_RECORDS.values())) if row['state']=='completed' and
+                row['sim_id']==sim_id and row.get('acknowledged_at') is not None and
+                0 <= clock()-row['acknowledged_at'] <= 3 and row['result'].get('ok')]
+            if not fresh: raise ValueError('Read fresh CAS status before selecting an independent form.')
+            before=fresh[0]['result']['client']; observation=before.get('owner_pair_observation',{})
+            if (before['sim']['householdId']!=request['household_id'] or
+                before['sim']['occultLayer']!=request['expected_layer'] or observation.get('session')!=request['native_session']):
+                raise ValueError('Independent form view belongs to a different CAS editor, household or layer.')
     if request['operation'] in ('form-select', 'layer-select', 'member-select'):
         if not socket_ready:
             raise ValueError('CAS form selection requires a fresh exact-Sim socket peer; no request sent.')
@@ -915,6 +974,12 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
         _RECORDS[request_id] = {'state': 'pending', 'sim_id': sim_id, 'request': copy.deepcopy(request),
                               'created': clock(), 'result': None, 'wire': wire,
                               'transport': 'loopback-socket' if socket_ready else 'game-ui-message', 'delivery': 'queued'}
+        if request['operation'] == 'form-owner-select':
+            from . import native_cas_engine
+            token = native_cas_engine.stage_view(backend, sim_id, request_id, request)
+            parts = wire.split('|'); parts[5] = str(token); wire = '|'.join(parts)
+            _RECORDS[request_id]['wire'] = wire
+
         if form_select_context is not None:
             _RECORDS[request_id]['form_select_context'] = form_select_context
         if occult_view_context is not None:
@@ -1017,6 +1082,9 @@ def _receive(request_id, payload, backend=None):
         if data.get('ok'):
             client = data.get('client')
             validate_client(client, row['sim_id'], row['request'])
+            if row['request']['operation'] == 'form-owner-select':
+                from . import native_cas_engine
+                row['native_owner_view_receipt'] = native_cas_engine.view_result(backend, row['sim_id'], request_id, row['request'])
             if row['request']['operation'] in ('occult-view', 'occult-cache-view', 'occult-owner-view'):
                 original = row['occult_view_context']['original']
                 if _form_select_original(backend, row['sim_id'], row['request']['household_id']) != original:
@@ -1125,6 +1193,10 @@ def result(request_id):
             response.update(outcome='experimental-cache-view-selected' if row['state']=='completed' else row['state'],
                 experimental=True, selection_only_verified=row['state']=='completed' and row.get('occult_view_selection_verified') is True,
                 appearance_persistence_verified=False, native_cache_retention_verified=False, mapping_verified=False)
+        if row['request']['operation'] == 'form-owner-select':
+            response.update(native_owner_view_receipt=copy.deepcopy(row.get('native_owner_view_receipt')),
+                selection_only_verified=row['state']=='completed', appearance_persistence_verified=False,
+                production_ready=False)
         if row['request']['operation'] == 'occult-owner-view':
             response.update(outcome='native-owner-view-selected' if row['state']=='completed' else row['state'],
                 selection_only_verified=row['state']=='completed' and row.get('occult_view_selection_verified') is True,

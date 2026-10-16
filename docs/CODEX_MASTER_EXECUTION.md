@@ -1,10 +1,41 @@
 # Apex Occult Hybrid — Codex Master Execution Contract
 
-Last reconciled: 2026-10-15
+Last reconciled: 2026-10-16
 Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance retained
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V164 retains the V163 direct native rendering fix and reads the active model
+genus through the inspected GetSimOccult getter, separately from the unchanged
+CASGetSimInfo family metadata. V163's native Alien -> Vampire dark -> Alien
+round trip verifies exact independent owners, model genera, full memberships
+and separate undo contexts; Alien's older semantic readback remained a failure.
+The first Sim has 39 separate native/named appearance owners; the remaining four
+retain eight each. Named appearance templates do not qualify special gameplay
+roles. All forty original Live appearances and twenty save files were checked
+after unsaved closures. V164's semantic readback, edited all-form household
+matrix, complete graph export, repeated entries and save/Tray persistence
+remain open. The protected original is unchanged and production is unqualified.
+
+V159 expands ownership beyond EA's seven kind bits: named family/variant
+identities keep same-kind alternates separate, including every registered
+special lifestate. The five native active appearances also have separate
+owners from their 35 stored forms. The direct native adapter replaces the
+unconditional pair copy, binds complete owned CasData, retains per-owner
+native undo contexts, and keeps the inactive owner independent during history
+rebind. A paged native `.package` drawer and typed CLI selection transport are
+implemented. Fresh named captures read current native data without authorizing
+an older appearance bank. Nine native CTests (including actual DXGI successor
+chain replacement), 16 named-form tests and 26 migration checks pass.
+V158's first native-hook activation was correctly refused by fingerprint
+validation; its subsequent stock CAS visit is NOT a passing adapter test.
+After cancellation and unpausing, one Werewolf member's stored/active skin
+tone changed. That unsaved session was discarded; all 20 disk save files are
+unchanged. V159 corrects the undo pins using inspected runtime code and fixes
+capture/F11 attachment across same-window DXGI chain replacement. Actual
+all-form edits/undo/return, native export, copy/link UI, MCCC, cold persistence
+and Tray/Gallery remain qualification gates. Production saves remain unqualified.
+
 V156 corrects the architecture after the user's observed blending. The
 SetSimOccult conversion route is blocked in Source, AS and the scoped native
 service/history hooks. A new native owner graph deep-copies each complete

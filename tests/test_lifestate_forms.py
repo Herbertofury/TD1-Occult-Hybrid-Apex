@@ -63,6 +63,28 @@ class LifeStateFormsTests(unittest.TestCase):
         self.assertEqual(len(rows), len(lifestates.NATIVE) + len(lifestates.SPECIAL) + 1)
         self.assertEqual(len({forms.handle(row['id']) for row in rows}), len(rows))
 
+    def test_fresh_native_capture_never_authorizes_or_imports_an_older_bank(self):
+        path,key=form_bank.context(self.backend,self.sim)
+        bank=form_bank.load(path);record=bank['records'][key]
+        record.pop(forms.KEY);record.pop('lifestate_runtime_pid')
+        record['runtime_pid']=os.getpid()+1
+        old_bank=copy.deepcopy(record['bank']);old_pid=record['runtime_pid']
+        form_bank.save(path,bank)
+        self.human.physique='New native appearance, not old bank'
+        self.sim.physique=self.human.physique
+        with patch.object(form_bank,'current_runtime_authorized',return_value=False):
+            captured=self.capture('fresh_ghost','GHOST')
+            self.assertEqual(appearance.decode(captured['fields']['physique']),self.sim.physique)
+            self.assertEqual(forms.list_forms(self.backend,self.sim)['forms'][0]['id'],'fresh_ghost')
+            owners=forms.native_cas_owners(self.backend,self.sim)
+            self.assertEqual(owners[0]['owner_id'],'ghost/fresh_ghost')
+            with self.assertRaisesRegex(ValueError,'current accepted native bank'):
+                forms.select(self.backend,self.sim,dict(id='fresh_ghost',expected_sha256=captured['appearance_sha256']))
+        after=self.record()
+        self.assertEqual(after['runtime_pid'],old_pid)
+        self.assertEqual(after['bank'],old_bank)
+        self.assertEqual(self.sim.physique,'New native appearance, not old bank')
+
     def test_inactive_tattoos_skin_voice_morphs_and_outfits_never_write_a_sim(self):
         before = form_bank.capture(self.backend, self.sim)
         row = self.capture('skeleton', 'SKELETON')
@@ -122,6 +144,41 @@ class LifeStateFormsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'existing native'):
             self.capture('new_alien', 'ALIEN', base=2)
         self.assertEqual(set(self.forms), {1, 4})
+
+    def test_current_human_appearance_does_not_require_an_extra_stored_wrapper(self):
+        self.forms.pop(1)
+        before=appearance.packed(self.backend,self.sim)
+        row=self.capture('human_ghost','GHOST',base=1)
+        self.assertEqual(row['fields'],before)
+        self.assertEqual(set(self.forms),{4})
+
+    def test_revalidation_proves_each_native_capture_without_restoring_or_rebasing(self):
+        from apex_core.form_bank_seal import _hash
+        self.capture('unchanged_ghost','GHOST')
+        path,key=form_bank.context(self.backend,self.sim);bank=form_bank.load(path);record=bank['records'][key]
+        prior=os.getpid()+1;record['lifestate_runtime_pid']=prior;record['runtime_pid']=prior
+        old_bank=copy.deepcopy(record['bank']);native=form_bank.capture(self.backend,self.sim)
+        argument=dict(expected_document_sha256=_hash(forms.document(record)),prior_pid=prior,household_id='7',save_guid='99')
+        self.sim.household_id=7
+        self.backend.services.current_zone=lambda:Obj(is_zone_running=True)
+        self.backend.services.game_clock_service=lambda:Obj(clock_speed=0)
+        self.backend.services.active_household=lambda:Obj(id=7)
+        form_bank.save(path,bank)
+        with patch.object(form_bank,'_old_process_absent',return_value=False):
+            with self.assertRaisesRegex(ValueError,'still alive'):forms.revalidate(self.backend,self.sim,argument)
+        self.assertEqual(self.record()['lifestate_runtime_pid'],prior)
+        with patch.object(form_bank,'_old_process_absent',return_value=True):
+            self.sim.physique='Newer native edit'
+            with self.assertRaisesRegex(ValueError,'differs from native'):forms.revalidate(self.backend,self.sim,argument)
+            self.assertEqual(self.record()['lifestate_runtime_pid'],prior)
+            self.sim.physique=self.human.physique
+            result=forms.revalidate(self.backend,self.sim,argument)
+            with self.assertRaisesRegex(ValueError,'another runtime'):forms.revalidate(self.backend,self.sim,argument)
+        self.assertEqual(result['captured_forms_verified'],2)
+        after=self.record();self.assertEqual(after['bank'],old_bank);self.assertEqual(after['runtime_pid'],prior)
+        self.assertEqual(after['lifestate_runtime_pid'],os.getpid())
+        self.assertEqual(form_bank.capture(self.backend,self.sim),native)
+        self.assertFalse(result['appearance_modified']);self.assertFalse(result['bank_authority_updated'])
 
     def test_unknown_sim_and_wrong_thread_are_rejected_before_disk_or_native_write(self):
         for invalid in ('sim', 'thread'):

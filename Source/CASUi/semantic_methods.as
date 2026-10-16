@@ -240,7 +240,37 @@
                   apexNonce=String(hello[1]); apexAwaiting="";
                } else if(stage=="poll") {
                   if(payload=="WAIT") { apexAwaiting=""; }
-                  else {
+                  else if(payload.indexOf("OWNERS|")==0) {
+                     var catalogFields:Array=payload.split("|");
+                     if(catalogFields.length!=4 || !/^[0-9]+$/.test(catalogFields[1]) || !/^[0-9]+$/.test(catalogFields[2]))
+                        throw new Error("Invalid native owner catalog page");
+                     var catalogOffset:int=int(catalogFields[1]);var catalogTotal:int=int(catalogFields[2]);
+                     if(catalogTotal<1 || catalogTotal>2048 || catalogOffset!=apexFormsOwners.length ||
+                        apexFormsOwnerTotal>=0 && apexFormsOwnerTotal!=catalogTotal) throw new Error("Native owner catalog sequence changed");
+                     apexFormsOwnerTotal=catalogTotal;
+                     var catalogRows:Array=String(catalogFields[3]).split(";");
+                     if(catalogRows.length<1 || catalogRows.length>32 || catalogOffset+catalogRows.length>catalogTotal)
+                        throw new Error("Invalid native owner catalog page size");
+                     for each(var catalogRow:String in catalogRows) {
+                        var ownerFields:Array=catalogRow.split(",");
+                        if(ownerFields.length!=3 || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[0]) ||
+                           !/^[0-9]+$/.test(ownerFields[1]) || !/^[0-9]+$/.test(ownerFields[2])) throw new Error("Invalid native owner button");
+                        var ownerKind:int=int(ownerFields[1]);var ownerToken:uint=uint(ownerFields[2]);
+                        if(ownerKind<1 || ownerKind>64 || (ownerKind & (ownerKind-1))!=0 || ownerToken<0x20000000 || ownerToken>0x2fffffff)
+                           throw new Error("Invalid native owner button rendering kind/token");
+                        for each(var oldOwner:Object in apexFormsOwners) if(oldOwner.id==ownerFields[0]) throw new Error("Duplicate native owner identity");
+                        apexFormsOwners.push({id:String(ownerFields[0]),kind:ownerKind,token:ownerToken});
+                     }
+                     apexFormsSignature="";apexAwaiting="";
+                  } else if(payload.indexOf("OWNERSTATE|")==0) {
+                     var ownerState:Array=payload.split("|");
+                     if(ownerState.length!=5 || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerState[1]) ||
+                        !/^[0-9]+$/.test(ownerState[2]) || !/^[01]$/.test(ownerState[3]) ||
+                        ["bound","unbound","unresolved"].indexOf(ownerState[4])<0) throw new Error("Invalid native owner selection metadata");
+                     apexFormsSelectedId=String(ownerState[1]);apexFormsNativeState=String(ownerState[4]);
+                     if(apexFormsDesiredId!="" && apexFormsDesiredId==apexFormsSelectedId && apexFormsNativeState=="bound") apexFormsDesiredId="";
+                     apexAwaiting="";apexFormsSignature="";
+                  } else {
                      if(payload.length>512 || payload.split("|").length!=7)
                         throw new Error("Invalid semantic CAS command frame");
                      for(var c:int=0;c<payload.length;++c)
@@ -693,7 +723,7 @@
          // Preserve raw return types and distinguish unavailable from false/0.
          // Context is evidence only; it does not authorize a CAS exit/commit.
          var nativeContext:Object={};
-         var contextGetters:Object={edit_mode:"CasGetCASEditMode",new_family:"CasIsNewFamily",
+         var contextGetters:Object={edit_mode:"CasGetCASEditMode",new_family:"CasIsNewFamily",rendered_form:"GetSimOccult",
             entered_from_play_area:"CasIsEnteredFromPlayArea",forced_full_edit:"CasIsForcedFullEditingEnabled"};
          for(var contextName:String in contextGetters) {
             var contextValue:* = null; var contextQuery:String="returned-null"; var contextError:String="";
@@ -843,6 +873,16 @@
       {
          var data:Object=null; var rows:Array=null; var row:Object=null; var n:int=0;
          var parts:Array=value.split(","); var layerId:int=0; var target:int=0;
+         if(operation=="form-owner-select") {
+            if(!/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(value) ||
+               index<0x10000000 || index>0x1fffffff)
+               throw new Error("Independent form view requires its exact staged one-shot token");
+            context.owner_id=value;context.owner_deadline_tick=int(apexTimer.currentCount)+20;
+            reply.mutation_started=true;
+            // The pinned native hook recognizes this reserved token and binds
+            // the staged existing owner. It never calls the kind converter.
+            CommunicationManager.CallGameService("SetSimOccult",index); return;
+         }
          if(operation=="workspace") {
             if(parts.length!=5 || !/^(0|1)(\.[0-9]+)?$/.test(String(parts[0])) ||
                !/^(0|1)(\.[0-9]+)?$/.test(String(parts[1])) ||
@@ -1152,6 +1192,7 @@
 
       private function ApexControlResult(operation:String,state:int,category:int,index:int,value:String,context:Object,client:Object) : Object
       {
+         if(operation=="form-owner-select") return {operation:operation,owner_id:String(context.owner_id)};
          if(operation=="workspace") {
             var workspace:Object=ApexFormsStatus();
             return {operation:operation,layout:workspace.layout,visible:workspace.visible,appearance_written:false,before:context.control.before};
@@ -1534,6 +1575,16 @@
          try {
             var native:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
             selectedSimMatches=native && String(native.simId)==(operation=="member-select" ? String(context.target_sim_id) : String(fields[1]));
+            // CASGetSimInfo reports the Sim's family metadata. GetSimOccult
+            // reads the current native model's genus, including its alt view.
+            var renderedKind:* = operation=="form-owner-select" ? CommunicationManager.CallGameService("GetSimOccult") : null;
+            if(selectedSimMatches && operation=="form-owner-select" && !("message" in reply) &&
+                (!(renderedKind is int) || int(renderedKind)!=state || (int(native.allOccultTypes) | 1)!=category)) {
+               if(int(apexTimer.currentCount)<int(context.owner_deadline_tick)) {
+                  apexReadbackTick=int(apexTimer.currentCount)+1;return;
+               }
+               throw new Error("Native independent form view did not settle before its bounded readback deadline");
+            }
             native=null;
             if(!selectedSimMatches) throw new Error("CAS selected Sim changed before native readback");
             if(!("message" in reply) && apexPendingPhase==2) {
@@ -1588,7 +1639,7 @@
                   operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
                   operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" ||
                   operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
-                  operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view" || operation=="detail-status" ||
+                  operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view" || operation=="form-owner-select" || operation=="detail-status" ||
                   operation=="detail-mode" || operation=="filters" || operation=="filter-clear")
                   reply.client.control=ApexControlResult(operation,state,category,index,value,context,reply.client);
                if(operation=="accept") {

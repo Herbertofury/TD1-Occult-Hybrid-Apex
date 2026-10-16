@@ -11,7 +11,7 @@ def argument(value):
     if not isinstance(value, dict):
         raise ValueError('Use a typed native CAS engine operation.')
     operation = value.get('operation')
-    if operation == 'status' and set(value) == {'operation'}:
+    if operation in ('status', 'view-status') and set(value) == {'operation'}:
         return
     scope = value.get('scope_id')
     if not isinstance(scope, str) or len(scope) != 32 or any(c not in '0123456789abcdef' for c in scope):
@@ -19,6 +19,18 @@ def argument(value):
     if operation == 'activate' and set(value) == {'operation', 'scope_id'}:
         return
     if operation == 'entry-ready' and set(value) == {'operation', 'scope_id', 'sim_id'} and _identity(value['sim_id']):
+        return
+    if operation == 'stage-view' and set(value) == {'operation', 'scope_id', 'sim_id', 'request_id',
+            'expected_owner_id', 'owner_id', 'expected_generation', 'expected_layer'}:
+        import re
+        pattern = r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}'
+        if (not _identity(value['sim_id']) or not isinstance(value['request_id'], str) or
+                re.fullmatch(r'[0-9a-f]{32}', value['request_id']) is None or
+                any(not isinstance(value[name], str) or re.fullmatch(pattern, value[name]) is None
+                    for name in ('expected_owner_id', 'owner_id')) or
+                type(value['expected_generation']) is not int or not 0 < value['expected_generation'] < 2**64 or
+                type(value['expected_layer']) is not int or value['expected_layer'] not in (0, 1)):
+            raise ValueError('Use an exact existing form owner, generation and one-shot view identity.')
         return
     if operation == 'seed' and set(value) == {'operation', 'scope_id', 'sim_id', 'native_hex', 'sha256'}:
         encoded, digest = value['native_hex'], value['sha256']
@@ -30,6 +42,17 @@ def argument(value):
         if hashlib.sha256(bytes.fromhex(encoded)).hexdigest() != digest:
             raise ValueError('Native full-owner bytes differ from their captured SHA-256.')
         return
+    if operation == 'seed-appearance' and set(value) == {
+            'operation', 'scope_id', 'sim_id', 'owner_id', 'native_kind', 'native_hex', 'sha256'}:
+        import re
+        if (not isinstance(value['owner_id'], str) or
+                re.fullmatch(r'[a-z][a-z0-9_]{0,63}/[a-z][a-z0-9_]{0,63}', value['owner_id']) is None or
+                value['owner_id'].startswith('native/') or type(value['native_kind']) is not int or
+                value['native_kind'] not in (1, 2, 4, 8, 16, 32, 64)):
+            raise ValueError('Use an independent named form identity and existing native rendering kind.')
+        argument({key: item for key, item in dict(value, operation='seed').items()
+                  if key not in ('owner_id', 'native_kind')})
+        return
     rows = value.get('members')
     if operation != 'arm' or set(value) != {'operation', 'scope_id', 'members'} or not isinstance(rows, list) or not 1 <= len(rows) <= 8:
         raise ValueError('Use the complete captured household roster to arm native form selection.')
@@ -38,7 +61,7 @@ def argument(value):
         if not isinstance(row, dict) or set(row) != {'sim_id', 'owned_mask'} or not _identity(row['sim_id']):
             raise ValueError('Native form scope has an invalid member identity.')
         mask = row['owned_mask']
-        if type(mask) is not int or not 3 <= mask <= 127 or not mask & 1 or row['sim_id'] in ids:
+        if type(mask) is not int or not 1 <= mask <= 127 or not mask & 1 or row['sim_id'] in ids:
             raise ValueError('Native form scope has an invalid or duplicated existing owner.')
         ids.add(row['sim_id'])
 
@@ -52,6 +75,18 @@ def reply(value, pid=None):
         return value
     if type(value.get('pid')) is not int or value['pid'] != (os.getpid() if pid is None else pid):
         raise ValueError('Native form patch belongs to a different game process.')
+    if value.get('scope') == 'native-form-view-status':
+        if type(value.get('available')) is not bool:
+            raise ValueError('Native form view availability is untyped.')
+        if value['available']:
+            import re
+            if (not _identity(value.get('sim_id')) or not isinstance(value.get('owner_id'), str) or
+                    re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}', value['owner_id']) is None or
+                    type(value.get('native_kind')) is not int or value['native_kind'] not in (1,2,4,8,16,32,64) or
+                    type(value.get('layer')) is not int or value['layer'] not in (0,1) or
+                    value.get('state') not in ('bound','unbound','unresolved')):
+                raise ValueError('Native form view identity is incomplete.')
+        return value
     if any(type(value.get(key)) is not bool for key in ('installed', 'armed', 'selection_enabled')):
         raise ValueError('Native form patch readiness is untyped.')
     rows = value.get('members')
@@ -64,7 +99,7 @@ def reply(value, pid=None):
         ids.add(row['sim_id'])
         mask, imported = row.get('owned_mask'), row.get('imported_mask')
         kinds = row.get('kinds')
-        if (type(mask) is not int or not 3 <= mask <= 127 or not mask & 1 or
+        if (type(mask) is not int or not 1 <= mask <= 127 or not mask & 1 or
                 type(imported) is not int or imported not in (0, mask) or
                 not isinstance(kinds, list) or len(kinds) > 7 or
                 any(type(k) is not int or k not in (1, 2, 4, 8, 16, 32, 64) for k in kinds) or len(set(kinds)) != len(kinds)):
@@ -91,6 +126,51 @@ def selection_ready(backend, sim_id, mask, kind):
     return len(rows) == 1 and rows[0]['owned_mask'] == mask == rows[0]['imported_mask'] and kind in rows[0]['kinds']
 
 
+def stage_view(backend, sim_id, request_id, request):
+    from . import overlay_loader
+    import paths
+    call = lambda value: overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, value)
+    status = call({'operation': 'status'})
+    rows = [row for row in status.get('members', ()) if row['sim_id'] == sim_id]
+    selected = status.get('selected_native', {})
+    if (status.get('owner_view_adapter_available') is not True or status.get('selection_enabled') is not True or
+            len(rows) != 1 or selected.get('available') is not True or selected.get('sim_id') != sim_id or
+            selected.get('layer') != request['expected_layer'] or
+            rows[0]['owned_mask'] != request['owned_mask'] or rows[0]['imported_mask'] != request['owned_mask']):
+        raise ValueError('Independent native view lacks its exact complete Sim/layer scope.')
+    row = rows[0]
+    owners = [owner for owner in row.get('separate_owners', ()) if owner.get('owner_id') == request['owner_id']]
+    if len(owners) != 1 or owners[0].get('native_kind') != request['native_kind']:
+        raise ValueError('The exact independent form owner is absent or has a different rendering kind.')
+    result = call(dict(operation='stage-view', scope_id=status['scope_id'], sim_id=sim_id,
+        request_id=request_id, expected_owner_id=row['graph_selected_owner_id'], owner_id=request['owner_id'],
+        expected_generation=row['graph_generation'], expected_layer=request['expected_layer']))
+    stage = result.get('view_stage', {})
+    if (stage.get('request_id') != request_id or stage.get('sim_id') != sim_id or
+            stage.get('owner_id') != request['owner_id'] or stage.get('staged_only') is not True or
+            type(stage.get('token')) is not int or not 0x10000000 <= stage['token'] <= 0x1fffffff):
+        raise ValueError('Independent native view staging was not acknowledged exactly; do not replay.')
+    return stage['token']
+
+
+def view_result(backend, sim_id, request_id, request):
+    from . import overlay_loader
+    import paths
+    status = overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, {'operation': 'status'})
+    result = status.get('owner_view_result', {})
+    selected = status.get('selected_native', {})
+    if (not isinstance(result, dict) or result.get('request_id') != request_id or
+            result.get('sim_id') != sim_id or result.get('owner_id') != request['owner_id'] or
+            result.get('state') != 'applied' or result.get('conversion_called') is not False or
+            result.get('independent_undo_bound') is not True or result.get('undo_owner_id') != request['owner_id'] or
+            result.get('native_kind') != request['native_kind'] or result.get('owned_mask') != request['owned_mask'] or
+            selected.get('available') is not True or selected.get('sim_id') != sim_id or
+            selected.get('occult_type') != request['native_kind'] or
+            selected.get('model_occult_type') != request['native_kind']):
+        raise ValueError('Independent native form view lacks its exact completed binding receipt.')
+    return result
+
+
 def entry_ready(backend, sim_id):
     from . import overlay_loader
     if not overlay_loader._CALLS:
@@ -111,7 +191,7 @@ def seed_members(backend):
     The client packet can narrow the occult tracker; the complete native save
     model supplies its otherwise omitted records without exporting a file.
     """
-    from . import overlay_loader, sim_data, form_appearance as appearance
+    from . import overlay_loader, sim_data, form_appearance as appearance, lifestate_forms, cas_owner_payload
     if not overlay_loader._CALLS:
         return {'enabled': False}
     import paths
@@ -142,9 +222,23 @@ def seed_members(backend):
             raise ValueError('Native full-owner import did not retain every captured kind.')
         if any(appearance.fingerprint(appearance.packed(backend, owner)) != before[str(kind)] for kind, owner in owners.items()):
             raise ValueError('Full native serialization changed a pre-entry appearance.')
+        named = []
+        for variant in lifestate_forms.native_cas_owners(backend, sim):
+            projected = cas_owner_payload.project(capture, variant['fields'])
+            result = call(dict(operation='seed-appearance', scope_id=status['scope_id'], sim_id=row['sim_id'],
+                owner_id=variant['owner_id'], native_kind=variant['native_kind'],
+                native_hex=projected['native_hex'], sha256=projected['sha256']))
+            if result.get('ok') is not True:
+                raise ValueError('Independent named native appearance import failed.')
+            member = next(item for item in result['members'] if item['sim_id'] == row['sim_id'])
+            matches = [item for item in member.get('separate_owners', ()) if item.get('owner_id') == variant['owner_id']]
+            if len(matches) != 1 or matches[0].get('native_kind') != variant['native_kind']:
+                raise ValueError('Native import did not retain the exact named owner identity.')
+            named.append(dict(owner_id=variant['owner_id'], native_kind=variant['native_kind'],
+                              appearance_sha256=variant['appearance_sha256'], native_sha256=projected['sha256']))
         receipts.append(dict(sim_id=row['sim_id'], native_sha256=capture['native_sha256'],
                              native_bytes=len(raw), native_message_type=capture['native_message_type'],
-                             imported_mask=imported['imported_mask'], kinds=imported['kinds']))
+                             imported_mask=imported['imported_mask'], kinds=imported['kinds'], named_owners=named))
     result = call(dict(operation='activate', scope_id=status['scope_id']))
     if result.get('ok') is not True or result.get('selection_enabled') is not True:
         raise ValueError('Complete native owner selection did not activate.')

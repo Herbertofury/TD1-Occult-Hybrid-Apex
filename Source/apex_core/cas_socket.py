@@ -124,7 +124,10 @@ def start(acknowledge, backend=None):
         return False
     _SERVER = listener
     def client(connection):
-        from .cas_ui import attach_client, poll_client, detach_client, client_owned_mask
+        from .cas_ui import attach_client, poll_client, detach_client, client_owned_mask, owner_metadata
+        def poll(token):
+            command = poll_client(token)
+            return command or (owner_metadata(token, backend) if backend is not None else None)
         def attach(sim_id):
             token=attach_client(sim_id)
             try:
@@ -142,7 +145,7 @@ def start(acknowledge, backend=None):
                 # One absolute deadline covers header and payload, including
                 # fragmented reads; arriving bytes do not renew it indefinitely.
                 value = read_frame(connection, time.monotonic() + wait_seconds)
-                response, peer = packet(value, peer, attach, poll_client, acknowledge, client_owned_mask)
+                response, peer = packet(value, peer, attach, poll, acknowledge, client_owned_mask)
                 connection.settimeout(IDLE_SECONDS)
                 connection.sendall(frame(response))
                 wait_seconds = response_wait(value, response)

@@ -428,7 +428,7 @@ public class CasBytecodePatch {
     }
     static void verifyFormStrip(ABC abc, InstanceInfo instance) {
         var expected=Map.of("ApexFormsTick",List.of("CasGetAvailableOccults","GetOccultIcon"),
-            "ApexFormsClick",List.of("CASGetSimInfo"));
+            "ApexFormsClick",List.of("CASGetSimInfo"), "ApexFormsOwnedTick",List.of("SetSimOccult","GetOccultIcon"));
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex")) {
             String key=name(abc,trait); var body=abc.findBody(((TraitMethodGetterSetter)trait).method_info);
             var calls=propertyCalls(abc,body);
@@ -439,7 +439,7 @@ public class CasBytecodePatch {
                 String literal=null;
                 for(int p=Math.max(0,i-14);p<i;p++) if(opcode(ops.get(p),0x2c)) {
                     String text=abc.constants.getString(ops.get(p).operands[0]);
-                    if(Set.of("CasGetAvailableOccults","GetOccultIcon","CASGetSimInfo").contains(text)) literal=text;
+                    if(Set.of("CasGetAvailableOccults","GetOccultIcon","CASGetSimInfo","SetSimOccult").contains(text)) literal=text;
                 }
                 require(literal!=null,"Native form strip invokes an unreviewed game service."); services.add(literal);
             }
@@ -447,6 +447,18 @@ public class CasBytecodePatch {
             require(Collections.disjoint(calls,Set.of("SendMessage","SendUIMessage","writeUTFBytes","ApexAccept","ApexExecute","ApexControlExecute")),
                 "Native form strip bypasses its bounded same-pair navigation.");
         }
+        Set<String> nativeOwnerCallers=new HashSet<>();
+        for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter &&
+            propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains("ApexFormsOwnedTick"))
+                nativeOwnerCallers.add(name(abc,trait));
+        require(nativeOwnerCallers.equals(Set.of("ApexFormsTick")),"Independent form buttons may execute only on the owned strip Timer.");
+        var ownerCode=ownedBody(abc,instance,"ApexFormsOwnedTick").getCode().code;
+        boolean tokenLow=false,tokenHigh=false;
+        for(var op:ownerCode) if(opcode(op,0x2d)) {
+            long value=abc.constants.getInt(op.operands[0]);
+            if(value==0x20000000L) tokenLow=true;if(value==0x2fffffffL) tokenHigh=true;
+        }
+        require(tokenLow && tokenHigh,"Independent owner buttons require the reserved native capability-token bounds.");
         require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsTick")).contains("ApexFormSelectionContext"),
             "Native form strip lacks full fresh pair validation.");
     }
@@ -517,7 +529,7 @@ public class CasBytecodePatch {
         // The existing-member view adds five reviewed calls: current Sim,
         // available occults, full-edit permission, edit mode and SetSimOccult.
         // Its next-tick result adds one available-occults readback.
-        Map<String,Integer> counts=Map.of("ApexCatalog",1,"ApexControlExecute",33,"ApexControlResult",5,
+        Map<String,Integer> counts=Map.of("ApexCatalog",1,"ApexControlExecute",34,"ApexControlResult",5,
             "ApexBodyTypes",1,"ApexNativeLayers",2);
         var snapshot=ownedBody(abc,instance,"ApexSnapshot").getCode().code;
         int detached=0;
@@ -575,7 +587,7 @@ public class CasBytecodePatch {
                 viewCode.get(i+2).operands[1]==2,
                 "Occult view must call the literal native setter with its typed existing-kind index only.");
         }
-        require(viewSetters==1,"Occult view native setter inventory changed.");
+        require(viewSetters==2,"Existing-kind and staged-owner native setter inventory changed.");
     }
     static void verifyLiteralServices(ABC abc,MethodBody body,Map<String,Integer> expected) {
         Set<String> observed=new HashSet<>();
@@ -901,14 +913,14 @@ public class CasBytecodePatch {
             "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking",
             "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener",
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
-            "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence");
+            "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
-            "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply");
+            "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
         for (Trait trait : newClass.instance_traits.traits) {

@@ -40,7 +40,7 @@ inline Scope ParseScope(const ui::Json& request) {
         if(!row.is_object() || row.size()!=2 || !row.contains("sim_id") || !row.contains("owned_mask") ||
            !row["owned_mask"].is_number_unsigned()) throw std::runtime_error("Untyped native form scope member.");
         const auto id=SimId(row["sim_id"]);const auto mask=row["owned_mask"].get<std::uint64_t>();
-        if(mask>127 || !(mask&1) || !(mask&~1ULL) || !result.members.emplace(id,Member{id,static_cast<std::uint32_t>(mask)}).second)
+        if(mask>127 || !(mask&1) || !result.members.emplace(id,Member{id,static_cast<std::uint32_t>(mask)}).second)
             throw std::runtime_error("Native form ownership is absent, duplicated or outside supported kinds.");
     }
     return result;

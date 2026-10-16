@@ -54,6 +54,26 @@ def document(record):
     return validate(copy.deepcopy(record.get(KEY, {'schema': 1, 'forms': {}, 'active': {}})))
 
 
+def native_cas_owners(backend, sim):
+    """Read all named owners during pre-entry, even with a captured checkpoint.
+
+    Does not select a form, replace its native backing lane, or invent a
+    membership. CAS's native graph receives complete independent appearances.
+    """
+    lifestates.owner_thread(backend, sim)
+    path, key = form_bank.context(backend, sim)
+    record = form_bank.load(path)['records'].get(key)
+    if record is None or KEY not in record:
+        return []
+    if record.get('lifestate_runtime_pid') != os.getpid():
+        raise ValueError('Named CAS owners require their current native capture runtime.')
+    data = document(record)
+    from .cas_owner_payload import owner_id
+    return [dict(owner_id=owner_id(row['lifestate'], row['id']), native_kind=row['base_form'],
+                 fields=copy.deepcopy(row['fields']), appearance_sha256=row['appearance_sha256'])
+            for row in data['forms'].values()]
+
+
 def sync(record, lane, fields):
     """Called by existing accepted appearance transactions, never a polling hook."""
     if KEY not in record:
@@ -67,13 +87,13 @@ def sync(record, lane, fields):
         record[KEY] = data
 
 
-def _context(backend, sim):
+def _context(backend, sim, native_capture=False):
     lifestates.owner_thread(backend, sim)
     form_bank.assert_idle(backend, sim)
     path, key = form_bank.context(backend, sim)
     bank = form_bank.load(path)
     record = bank['records'].get(key)
-    if record is not None and not form_bank.current_runtime_authorized(backend, sim, record):
+    if record is not None and not native_capture and not form_bank.current_runtime_authorized(backend, sim, record):
         raise ValueError('Life-state forms require the current accepted native bank; no old sidecar replay.')
     if record is not None and KEY in record and record.get('lifestate_runtime_pid') != os.getpid():
         raise ValueError('Independent life-state reload is not yet qualified; prior appearances remain retained.')
@@ -81,12 +101,12 @@ def _context(backend, sim):
 
 
 def _fields(backend, sim, base):
+    if backend._get_current_flags(sim) == base:
+        return appearance.packed(backend, sim)
     owners = backend._form_map(sim.occult_tracker)
     owner = owners.get(backend._coerce_flags(base))
     if owner is None:
         raise ValueError('A life-state appearance requires an existing native base owner.')
-    if backend._get_current_flags(sim) == base:
-        owner = sim
     return appearance.packed(backend, owner)
 
 
@@ -96,7 +116,10 @@ def capture(backend, sim, argument):
             type(argument['base_form']) is not int or argument['base_form'] not in lifestates.NATIVE.values()):
         raise ValueError('Use an explicit named appearance ID, life state, label and existing base form.')
     state = lifestates.name(argument['lifestate'])
-    path, key, bank, record = _context(backend, sim)
+    # A new capture reads the current native owner, never an older bank lane.
+    # Retain that older bank and its authority exactly; capture is not a rebase
+    # or permission to restore it. Existing prior-runtime named forms still stop.
+    path, key, bank, record = _context(backend, sim, native_capture=True)
     data = document(record or {})
     if argument['id'] in data['forms']:
         raise ValueError('That independent appearance already exists; no user edit was replaced.')
@@ -117,7 +140,7 @@ def capture(backend, sim, argument):
 
 
 def list_forms(backend, sim):
-    _, _, _, record = _context(backend, sim)
+    _, _, _, record = _context(backend, sim, native_capture=True)
     data = document(record or {})
     return {'ok': True, 'forms': [dict(id=row['id'], label=row['label'], lifestate=row['lifestate'],
         base_form=row['base_form'], appearance_sha256=row['appearance_sha256'],
@@ -263,6 +286,60 @@ def bind(backend, sim, argument):
     return {'ok': True, 'appearance_modified': False, 'gameplay_modified': False, 'id': row['id']}
 
 
+def revalidate(backend, sim, argument):
+    """Requalify unchanged native captures after restart, without restoring one.
+
+    Edited/inactive saved variants which differ from native data require the
+    separate persistence path; this operation cannot bless or replay them.
+    """
+    from .form_bank_seal import _hash, _sha
+    required = {'expected_document_sha256', 'prior_pid', 'household_id', 'save_guid'}
+    if (not isinstance(argument, dict) or set(argument) != required or
+            not _sha(argument['expected_document_sha256']) or type(argument['prior_pid']) is not int or
+            not 0 < argument['prior_pid'] <= 0xffffffff or argument['prior_pid'] == os.getpid() or
+            any(not isinstance(argument[name], str) or not argument[name].isascii() or
+                not argument[name].isdecimal() or argument[name].startswith('0') or
+                not 0 < int(argument[name]) < 1 << 64 for name in ('household_id', 'save_guid'))):
+        raise ValueError('Revalidate one exact prior native capture document and save/household identity.')
+    lifestates.owner_thread(backend, sim);form_bank.assert_idle(backend, sim)
+    path, key = form_bank.context(backend, sim)
+    bank = form_bank.load(path);record = bank['records'].get(key)
+    if (not isinstance(record, dict) or KEY not in record or
+            record.get('lifestate_runtime_pid') != argument['prior_pid'] or
+            key != argument['save_guid'] + ':' + str(sim.id) or str(sim.household_id) != argument['household_id']):
+        raise ValueError('Named captures belong to another runtime, Sim, household or save.')
+    data = document(record)
+    if not data['forms'] or _hash(data) != argument['expected_document_sha256']:
+        raise ValueError('Named capture document changed; no runtime authority updated.')
+    if not form_bank._old_process_absent(argument['prior_pid']):
+        raise ValueError('The captured runtime is still alive; no cross-runtime selection allowed.')
+    def live():
+        zone = backend.services.current_zone()
+        if (zone is None or not zone.is_zone_running or
+                int(backend.services.game_clock_service().clock_speed) != 0 or
+                str(backend.services.active_household().id) != argument['household_id'] or
+                form_bank.context(backend, sim) != (path, key)):
+            raise ValueError('Named capture revalidation requires the exact paused Live household.')
+        lifestates.owner_thread(backend, sim)
+    live()
+    observations = []
+    for row in data['forms'].values():
+        actual = appearance.fingerprint(_fields(backend, sim, row['base_form']))['appearance_sha256']
+        if actual != row['appearance_sha256']:
+            raise ValueError('A named appearance differs from native data; every retained edit was preserved.')
+        observations.append(dict(id=row['id'], native_sha256=actual))
+    live()
+    history = record.setdefault('lifestate_revalidation_history', [])
+    if not isinstance(history, list): raise ValueError('Named capture audit history is invalid.')
+    history.append(dict(prior_pid=argument['prior_pid'], runtime_pid=os.getpid(),
+        document_sha256=argument['expected_document_sha256'], observations=observations,
+        appearance_restored=False, bank_authority_updated=False))
+    record['lifestate_runtime_pid'] = os.getpid()
+    form_bank.save(path, bank)
+    return dict(ok=True, captured_forms_verified=len(observations), appearance_modified=False,
+        bank_authority_updated=False, save_file_written=False, save_reload_verified=False)
+
+
 def dispatch(backend, sim, action, value):
     if action == 'lifestate_catalog':
         if value not in (None, ''):
@@ -274,7 +351,7 @@ def dispatch(backend, sim, action, value):
         return list_forms(backend, sim)
     argument = backend._apex_cas_transaction_argument(value)
     operation = {'lifestate_form_capture': capture, 'lifestate_form_bind': bind,
-                 'lifestate_form_select': select}.get(action)
+                 'lifestate_form_select': select, 'lifestate_form_revalidate': revalidate}.get(action)
     if operation is None:
         raise ValueError('Unknown independent life-state form operation.')
     return operation(backend, sim, argument)

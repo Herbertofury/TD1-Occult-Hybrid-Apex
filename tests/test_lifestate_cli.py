@@ -39,3 +39,11 @@ class LifeStateCliTests(unittest.TestCase):
         args=parser.parse_args(['lifestate','capture','--state','state.json','--sim-id','123','--output','proof.json',
             '--id','reaper','--lifestate','REAPER','--label','My Reaper','--base-form','1'])
         self.assertEqual(lifestate_cli.argument(args)[0],'lifestate_form_capture')
+
+    def test_revalidation_cannot_smuggle_an_edit_or_skip_document_identity(self):
+        values=dict(expected_document_sha256='a'*64,prior_pid=456,household_id='7',save_guid='99')
+        self.assertEqual(lifestate_cli.argument(self.args('revalidate',**values))[0],'lifestate_form_revalidate')
+        for changed in (dict(id='replace'),dict(prior_pid=True),dict(household_id='0'),dict(expected_document_sha256='b')):
+            with self.subTest(changed=changed),self.assertRaises(ValueError):
+                lifestate_cli.argument(self.args('revalidate',**dict(values,**changed)))
+        with self.assertRaises(ValueError):lifestate_cli.argument(self.args('list',**values))

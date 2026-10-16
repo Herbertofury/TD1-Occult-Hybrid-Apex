@@ -100,6 +100,7 @@ static std::atomic<int> g_cursorX{-1}, g_cursorY{-1};
 static std::atomic<int> g_toggleEvents{0};
 static HWND g_hwnd = nullptr;
 static IDXGISwapChain* g_swapChain = nullptr; // identity only; owned by the caller
+static ULONGLONG g_lastSelectedPresent = 0; // g_renderMutex; never dereference retired chains
 static std::recursive_mutex g_renderMutex;
 static std::mutex g_hookMutex;
 static ToggleInput g_toggleInput;
@@ -3999,7 +4000,13 @@ static BOOL CALLBACK CountGameCanvas(HWND window, LPARAM result) {
 
 static bool SelectSwapChain(IDXGISwapChain* sc) {
     if (g_swapChain && !IsWindow(g_hwnd)) ResetRenderer();
-    if (g_swapChain) return sc == g_swapChain;
+    const auto now = GetTickCount64();
+    if (g_swapChain == sc && sc) { g_lastSelectedPresent = now; return true; }
+    // CAS/Live transitions can retire a swapchain while retaining the same
+    // Canvas HWND. A pointer to that retired chain must not lock out all later
+    // captures/F11 frames. Ignore competing chains while the selected one is
+    // presenting; only adopt a verified same-window successor after quiescence.
+    if (g_swapChain && now - g_lastSelectedPresent < 350) return false;
     DXGI_SWAP_CHAIN_DESC desc{};
     DWORD process = 0;
     RECT client{};
@@ -4013,10 +4020,17 @@ static bool SelectSwapChain(IDXGISwapChain* sc) {
         reinterpret_cast<LPARAM>(&matchingWindows)) ||
         !UniqueGameCanvas(true, matchingWindows)) return false;
 #endif
+    if (g_swapChain) {
+        if (desc.OutputWindow != g_hwnd) return false;
+        const bool visible = g_visible.load();
+        ResetRenderer();
+        g_visible = visible;
+    }
     // Discover the actual window before the first keypress. The previous code
     // checked a null handle, then initialized it only after a successful toggle.
     g_hwnd = desc.OutputWindow;
     g_swapChain = sc;
+    g_lastSelectedPresent = now;
     g_loaderStatus = 2;
     return true;
 }
@@ -4967,6 +4981,18 @@ extern "C" int ApexRunNativeSmoke() {
     hr = newer->Present1(0, 0, &parameters);
     newer->Release();
     if (FAILED(hr) || g_presentCount != 5 || !g_device) return 26;
+    // A real CAS transition can replace DXGI without replacing its Canvas.
+    // An active chain wins; a retired chain must release that identity after
+    // quiescence without destroying the HWND or stealing desktop focus.
+    IDXGISwapChain* successor = nullptr;
+    if (FAILED(g_realCreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0,
+        nullptr, 0, D3D11_SDK_VERSION, &desc, &successor, nullptr, nullptr, nullptr)) || !successor) return 39;
+    if (SelectSwapChain(successor) || g_swapChain != swap) return 40;
+    g_lastSelectedPresent = GetTickCount64() - 351;
+    if (!SelectSwapChain(successor) || g_swapChain != successor || !g_visible.load()) return 41;
+    HookSwapChain(successor);successor->Present(0, 0);
+    if (!g_device || !g_context || g_loaderStatus != 3) return 42;
+    successor->Release();
     ToggleInput input;
     if (!input.sample(true, true) || input.sample(true, true) || input.sample(true, false) ||
         input.sample(false, true) || input.sample(true, true) || input.sample(false, false) ||

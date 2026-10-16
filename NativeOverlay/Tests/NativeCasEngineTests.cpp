@@ -49,17 +49,89 @@ unsigned OriginalAlternate(unsigned mask,unsigned current) {return current&~1u?1
 void* ProtoConstruct(void* value) {std::memcpy(value,sourceProto,0x1e8);return value;}
 bool ProtoParse(void*,const ByteView* bytes) {return bytes->length==2 && std::memcmp(bytes->data,"\1\2",2)==0;}
 void ProtoDestroy(void*) {++protoDestroyed;}
+std::array<void*,0x500/8> viewControllerTable{},groupInterfaceTable{};
+void* viewMetadata=nullptr;
+std::uint64_t NativeGroupId(void*) {return 123;}
+void* NativeCache(void*,std::uint64_t) {return viewMetadata;}
+void* NativeContext(void*,std::uint64_t,bool) {return viewMetadata;}
+int NativeIndex(void*,std::uint64_t) {return 0;}
+void NativeSync(void* controller) {
+    auto group=Read<void*>(controller,0x100);auto child=Read<void*>(group,0x4c0);
+    auto layer=Read<std::uint8_t>(controller,0x242);auto model=Read<void*>(controller,0x1d0);
+    AssignData(static_cast<char*>(layer?child:group)+0xd0,static_cast<char*>(model)+0x170);
+    if(child) Write(layer?group:child,0xe8,876543u); // Stock cross-owner propagation must be removed.
+}
+void NativeModelBind(void* model,const void* data,void* context,bool) {
+    AssignData(static_cast<char*>(model)+0x170,data);Write(model,0x510,context);
+    // Reproduce the actual setter's Vampire-membership CMOV. Removing this
+    // protection must fail initial Alien binding and every other form switch.
+    const auto mask=ModelKindMask(data,Read<unsigned>(data,12),Runtime().image+0x45c32c);
+    if(mask&4) Write(model,0x178,4u);
+}
+struct UndoFixture {void* table=nullptr;unsigned references=1,padding=0;unsigned marker=0;};
+std::array<void*,1> undoTable{};
+std::vector<std::unique_ptr<UndoFixture>> undoFixtures;
+void UndoDestroyed(void* pointer,int) {static_cast<UndoFixture*>(pointer)->references=0;}
+void* NewUndo(unsigned marker=0) {
+    auto result=std::make_unique<UndoFixture>();result->table=undoTable.data();result->marker=marker;
+    auto pointer=result.get();undoFixtures.push_back(std::move(result));return pointer;
+}
+void UndoBind(void* model,void** consumed) {
+    auto pointer=static_cast<UndoFixture*>(*consumed);auto old=Read<UndoFixture*>(model,0x70);
+    if(pointer!=old) {
+        ++pointer->references;Write(model,0x70,pointer);
+        if(old && !--old->references) UndoDestroyed(old,1);
+    }
+    if(!--pointer->references) UndoDestroyed(pointer,1);
+}
+void UndoCreate(void* controller,std::uint64_t,bool,bool) {
+    auto pointer=NewUndo();UndoBind(Read<void*>(controller,0x1d0),&pointer);
+}
+void OriginalUndoSelect(void*,std::uint64_t,bool) {throw std::runtime_error("Shared pair undo selection ran for an owned form.");}
+void NativeCoreBind(void* controller,int,bool) {
+    BindSelected(controller,false);
+    SelectUndo(controller,123,Read<std::uint8_t>(controller,0x242)!=0);
+}
+void NativeOriginalBind(void*,bool) {throw std::runtime_error("Stock merging binder must not run for explicit owner views.");}
+unsigned RelayResult(const void*) {return 13;}
+void ExerciseLocalCallsite() {
+    auto* image=static_cast<unsigned char*>(VirtualAlloc(nullptr,0x460000,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE));
+    Require(image!=nullptr);
+    const unsigned char getter[]={0x8b,0x41,0x0c,0xc3};std::memcpy(image+0x297630,getter,sizeof(getter));
+    unsigned char caller[]={0x48,0x83,0xec,0x28,0x90,0x90,0x90,0xe8,0,0,0,0,0x48,0x83,0xc4,0x28,0xc3};
+    const auto displacement=std::int32_t(0x297630-0x45c32c);std::memcpy(caller+8,&displacement,4);
+    std::memcpy(image+0x45c320,caller,sizeof(caller));DWORD old=0;
+    Require(VirtualProtect(image+0x297000,4096,PAGE_EXECUTE_READ,&old)!=0);
+    Require(VirtualProtect(image+0x45c000,4096,PAGE_EXECUTE_READ,&old)!=0);
+    FlushInstructionCache(GetCurrentProcess(),image,0x460000);
+    const auto invoke=reinterpret_cast<KindMaskFn>(image+0x45c320);
+    const auto leaf=reinterpret_cast<KindMaskFn>(image+0x297630);
+    std::array<unsigned,4> data{{0,0,1,127}};
+    Require(invoke(data.data())==127 && leaf(data.data())==127);
+    auto& runtime=Runtime();const auto previous=runtime.api.kindMask;runtime.api.kindMask=RelayResult;
+    State local;local.image=reinterpret_cast<std::uintptr_t>(image);InstallKindCall(local);
+    Require(local.kindCallPatched && invoke(data.data())==13 && leaf(data.data())==127);
+    RestoreKindCall(local);Require(!local.kindCallPatched && invoke(data.data())==127);
+    InstallKindCall(local);Require(invoke(data.data())==13); // Safe reuse after a rolled-back install.
+    RestoreKindCall(local);runtime.api.kindMask=previous;
+    MEMORY_BASIC_INFORMATION page{};VirtualQuery(image+0x45c328,&page,sizeof(page));
+    Require(page.Protect==PAGE_EXECUTE_READ);
+    Require(VirtualFree(image,0,MEM_RELEASE)!=0);
+}
 int main() {
  try {
+    ExerciseLocalCallsite();
     Json request={{"operation","arm"},{"scope_id",std::string(32,'a')},
         {"members",Json::array({{{"sim_id","123"},{"owned_mask",127u}}})}};
     const auto scope=ParseScope(request);Require(scope.members.size()==1 && scope.members.at(123).mask==127);
     for(const auto bad:Json::array({"0","01","18446744073709551616",123,true,"-1"})) Refuses([&]{SimId(bad);});
     Require(SimId("18446744073709551615")==UINT64_MAX);
     auto changed=request;changed["members"].push_back(changed["members"][0]);Refuses([&]{ParseScope(changed);});
-    for(const auto mask:Json::array({0,1,2,128,true,"127"})) {changed=request;changed["members"][0]["owned_mask"]=mask;Refuses([&]{ParseScope(changed);});}
+    for(const auto mask:Json::array({0,2,128,true,"127"})) {changed=request;changed["members"][0]["owned_mask"]=mask;Refuses([&]{ParseScope(changed);});}
     ValidateKinds(127,{1,2,4,8,16,32,64});Refuses([&]{ValidateKinds(127,{1,2,4,8,16,32});});
     Refuses([&]{ValidateKinds(127,{1,2,4,8,16,32,32});});Refuses([&]{ValidateKinds(3,{1,2,4});});
+    auto humanScope=request;humanScope["members"][0]["owned_mask"]=1u;
+    Require(ParseScope(humanScope).members.at(123).mask==1);
     Require(OwnedTarget(scope.members.at(123),127,4));Require(!OwnedTarget(scope.members.at(123),3,4));
     Require(!OwnedTarget(scope.members.at(123),127,3));
     Require(IndependentHybridGenus(127,2) && IndependentHybridGenus(126,1));
@@ -137,7 +209,9 @@ int main() {
     Require(!SetOccultService(arguments.data()) && serviceFallbacks==3 && controllerCalls==0);
     runtime.selectionEnabled=true;
     std::array<char,32> genus{};Write(genus.data(),8,2u);Write(genus.data(),12,127u);
-    Require(Normalize(genus.data(),true)==2 && Read<unsigned>(genus.data(),8)==2 && runtime.normalizationsPrevented==1);
+    { const DetachedTarget owned(genus.data());
+      Require(Normalize(genus.data(),true)==2 && Read<unsigned>(genus.data(),8)==2 && runtime.normalizationsPrevented==1); }
+    Normalize(genus.data(),false);Require(Read<unsigned>(genus.data(),8)==1 && runtime.normalizationsPrevented==1);
     Write(genus.data(),8,4u);Write(genus.data(),12,5u);Normalize(genus.data(),false);Require(Read<unsigned>(genus.data(),8)==1);
     Write(output.data(),0xd8,4u);Write(output.data(),0xe8,4000u);
     Write(tracker.data(),0x10,3u);Import(output.data(),proto.data());
@@ -145,14 +219,129 @@ int main() {
     Require(Read<unsigned>(output.data(),0xd8)==2 && Read<unsigned>(output.data(),0xe8)==9999);
     const auto child=Read<void*>(output.data(),0x4c0);
     Require(child && Read<unsigned>(child,0xd8)==1 && Read<unsigned>(child,0xe8)==100 && Read<unsigned>(child,8)==1);
+    const auto namedSeed=Json({{"operation","seed-appearance"},{"scope_id",scope.id},{"sim_id","123"},
+        {"owner_id","ghost/manifested"},{"native_kind",1u},{"native_hex","0102"},
+        {"sha256",td1::resource::HashBytes(std::string("\1\2",2))}});
+    Require(Control(namedSeed).value("ok",false));
+    Require(bank.graph->owners().size()==9 && Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),8)==1);
+    Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x18)==9999);
+    Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100);
+    auto badNamed=namedSeed;badNamed["owner_id"]="native/1";Refuses([&]{Control(badNamed);});
+    badNamed=namedSeed;badNamed["sim_id"]="124";Refuses([&]{Control(badNamed);});
+    Refuses([&]{Control(namedSeed);}); // No duplicate named owner replacement.
     Control({{"operation","entry-ready"},{"scope_id",scope.id},{"sim_id","123"}});
     Write(output.data(),0xe8,7777u);Import(output.data(),proto.data());Require(Read<unsigned>(output.data(),0xe8)==7777);
     Require(bank.graph && bank.graph->cursor().kind==2 && bank.graph->mask()==127);
-    Require(Read<unsigned>(bank.graph->appearance(2)->data(),0x18)==9999);
+    Require(Read<unsigned>(bank.graph->appearance(2)->data(),0x18)==200);
+    Require(Read<unsigned>(bank.graph->appearance("active/2")->data(),0x18)==9999);
     Require(Read<unsigned>(bank.graph->appearance(4)->data(),0x18)==400);
     Refuses([&]{Control(seed);}); // A CAS-ready graph cannot be reset over pending edits.
+    Refuses([&]{Control(namedSeed);});
     Free(child,0x830);Write(output.data(),0x4c0,static_cast<void*>(nullptr));
-    auto badSeed=seed;badSeed["sha256"]=std::string(64,'a');Refuses([&]{Control(badSeed);});Require(protoDestroyed==1);
+    auto badSeed=seed;badSeed["sha256"]=std::string(64,'a');Refuses([&]{Control(badSeed);});Require(protoDestroyed==3);
+    // Execute the actual adapter with native-shaped records and the original
+    // game's destructive inactive-copy behavior represented by NativeSync.
+    api.sync=NativeSync;api.bind=NativeOriginalBind;api.modelBind=NativeModelBind;
+    api.coreBind=NativeCoreBind;api.context=NativeContext;api.index=NativeIndex;
+    api.undoSelect=OriginalUndoSelect;api.undoCreate=UndoCreate;api.undoBind=UndoBind;
+    undoTable[0]=reinterpret_cast<void*>(&UndoDestroyed);
+    Write(currentModel.data(),0x70,NewUndo(9999));
+    viewMetadata=metadata.data();viewControllerTable[0x410/8]=reinterpret_cast<void*>(&NativeCache);
+    groupInterfaceTable[0]=reinterpret_cast<void*>(&NativeGroupId);
+    Write(controller.data(),0,viewControllerTable.data());Write(group.data(),0x10,groupInterfaceTable.data());
+    Write(controller.data(),0x1d0,currentModel.data());Write(controller.data(),0x242,std::uint8_t(0));
+    Write(group.data(),0xd8,4u);Write(group.data(),0xdc,127u);
+    Write(currentModel.data(),0x178,4u);Write(currentModel.data(),0x17c,127u);Write(currentModel.data(),0x188,9999u);
+    NativeCoreBind(controller.data(),0,false); // Initial household binding bypasses the stock copying binder too.
+    Require(bank.viewBound && !bank.viewFault && Read<unsigned>(currentModel.data(),0x178)==2);
+    Require(runtime.kindBiasPrevented>0);
+    Require(ModelKindMask(nullptr,127,runtime.image+0x45c32d)==127); // Other callers retain every membership bit.
+    Require(bank.partner=="native/1" && Read<unsigned>(group.data(),0xe8)==9999);
+    Require(Read<unsigned>(Read<void*>(group.data(),0x4c0),0xe8)==100);
+    auto stageView=[&](const char* rid,const char* owner) {
+        const auto cursor=bank.graph->cursor();
+        auto staged=Control({{"operation","stage-view"},{"scope_id",scope.id},{"sim_id","123"},
+            {"request_id",rid},{"owner_id",owner},{"expected_owner_id",cursor.owner},
+            {"expected_generation",cursor.generation},{"expected_layer",static_cast<unsigned>(Read<std::uint8_t>(controller.data(),0x242))}});
+        const auto token=staged["token"].get<unsigned>();
+        Write(argument.data(),0,4u);Write(argument.data(),8,token);
+        Require(SetOccultService(arguments.data()));
+        Require(runtime.viewResult["state"]=="applied" && runtime.viewResult["owner_id"]==owner);
+    };
+    stageView("11111111111111111111111111111111","native/2");
+    Require(Read<unsigned>(currentModel.data(),0x188)==200);
+    Require(Read<unsigned>(bank.graph->appearance("active/2")->data(),0x18)==9999);
+    const auto alienUndo=Read<UndoFixture*>(currentModel.data(),0x70);
+    Require(alienUndo->marker==0);alienUndo->marker=22222;
+    Write(currentModel.data(),0x188,22222u);
+    stageView("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","native/4");
+    Require(Read<unsigned>(currentModel.data(),0x178)==4 && Read<unsigned>(currentModel.data(),0x188)==400);
+    Require(Read<unsigned>(bank.graph->appearance(2)->data(),0x18)==22222);
+    Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100);
+    const auto vampireUndo=Read<UndoFixture*>(currentModel.data(),0x70);
+    Require(vampireUndo!=alienUndo && vampireUndo->marker==0);vampireUndo->marker=44444;
+    Write(currentModel.data(),0x188,44444u);
+    stageView("cccccccccccccccccccccccccccccccc","ghost/manifested");
+    Require(Read<unsigned>(currentModel.data(),0x178)==1 && Read<unsigned>(currentModel.data(),0x188)==9999);
+    Require(Read<unsigned>(bank.graph->appearance(4)->data(),0x18)==44444);
+    Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100);
+    const auto ghostUndo=Read<UndoFixture*>(currentModel.data(),0x70);
+    Require(ghostUndo!=alienUndo && ghostUndo!=vampireUndo);
+    stageView("dddddddddddddddddddddddddddddddd","native/2");
+    Require(Read<unsigned>(currentModel.data(),0x188)==22222);
+    Require(Read<UndoFixture*>(currentModel.data(),0x70)==alienUndo && alienUndo->marker==22222);
+    stageView("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","native/1");
+    Require(Read<unsigned>(currentModel.data(),0x188)==100 && Read<std::uint8_t>(controller.data(),0x242)==1);
+    const auto humanUndo=Read<UndoFixture*>(currentModel.data(),0x70);
+    Require(humanUndo!=ghostUndo && humanUndo!=alienUndo && humanUndo!=vampireUndo);
+    const auto independentChild=Read<void*>(group.data(),0x4c0);
+    Require(Read<unsigned>(independentChild,0xd8)==1 && Read<unsigned>(independentChild,0xe8)==100);
+    Require(Read<unsigned>(group.data(),0xe8)==9999);
+    stageView("ffffffffffffffffffffffffffffffff","ghost/manifested");
+    Write(currentModel.data(),0x188,77777u);Sync(controller.data());
+    Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x18)==77777);
+    Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100 && Read<unsigned>(group.data(),0xe8)==9999);
+    Require(Read<unsigned>(bank.graph->appearance(4)->data(),0x18)==44444);
+    Require(Read<UndoFixture*>(currentModel.data(),0x70)==ghostUndo);
+    // Native history may ask for an invalid/composite opposite kind. It must
+    // neither replace this same-kind owner nor delete/overwrite the entry form.
+    const auto oldRebound=reboundKind;
+    for(const auto target:{0u,1u,4u,126u}) {
+        Write(group.data(),0xe8,123456u);Rebind(controller.data(),metadata.data(),target);
+        Require(Read<unsigned>(group.data(),0xe8)==9999 && Read<unsigned>(currentModel.data(),0x188)==77777);
+        Require(reboundKind==oldRebound && !bank.viewFault);
+    }
+    Require(bank.undoOwners.size()==5 && bank.undoOwners.at("active/2")->value!=alienUndo);
+    Write(currentModel.data(),0x188,88888u);
+    NativeCoreBind(controller.data(),0,false); // Ordinary same-owner refresh retains edits.
+    Require(!bank.viewFault && Read<unsigned>(currentModel.data(),0x188)==88888);
+    Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x18)==88888);
+    for(const auto& row:bank.undoOwners) Require(Read<unsigned>(row.second->value,8)>0);
+    // One native model is reused across household members. Even a shared
+    // context pointer must never let the incoming member harvest its data.
+    runtime.scope.members.emplace(456,Member{456,127});
+    Write(proto.data(),0x10,std::uint64_t(456));
+    Write(tracker.data(),0x10,126u);
+    for(unsigned i=0;i<7;++i) Write(records[i].data(),0x1c,(1u<<i)*100u+1000u);
+    auto secondSeed=seed;secondSeed["sim_id"]="456";Require(Control(secondSeed).value("ok",false));
+    std::array<char,0x830> secondGroup{};Write(secondGroup.data(),0xb8,std::uint64_t(456));
+    Write(secondGroup.data(),0x10,groupInterfaceTable.data());Write(controller.data(),0x100,secondGroup.data());
+    NativeCoreBind(controller.data(),1,false);
+    Require(runtime.boundSim==456 && Read<unsigned>(currentModel.data(),0x188)==9999);
+    Require(NativeUiView(controller.data(),"native/2"));
+    Require(Read<unsigned>(currentModel.data(),0x188)==1200);
+    Write(currentModel.data(),0x188,456456u);Sync(controller.data());
+    Write(controller.data(),0x100,group.data());
+    Sync(controller.data()); // A late incoming sync must not write member 456 into member 123.
+    NativeCoreBind(controller.data(),0,false);
+    Require(runtime.boundSim==123 && Read<unsigned>(currentModel.data(),0x188)==88888);
+    Require(NativeUiView(controller.data(),"native/2"));
+    Require(Read<unsigned>(currentModel.data(),0x188)==22222 && Read<UndoFixture*>(currentModel.data(),0x70)==alienUndo);
+    Require(Read<unsigned>(runtime.bank.at(456).graph->appearance(2)->data(),0x18)==456456);
+    Free(Read<void*>(secondGroup.data(),0x4c0),0x830);
+    Require(controllerCalls==0); // No converter/controller transaction was called.
+    Write(argument.data(),8,0x1fffffffu);Require(!SetOccultService(arguments.data())); // No token replay.
+    Free(independentChild,0x830);Write(group.data(),0x4c0,static_cast<void*>(nullptr));
     std::cout<<"Native existing-owner capture and selection contracts passed\n";return 0;
  } catch(const std::exception& e) {std::cerr<<e.what()<<'\n';return 1;}
 }

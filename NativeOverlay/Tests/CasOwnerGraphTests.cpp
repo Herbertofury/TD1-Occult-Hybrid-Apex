@@ -75,7 +75,7 @@ int main() {
     auto& graph=*household.at(101);auto cursor=graph.select(graph.cursor(),2);
     Refuses([&]{graph.commit(household.at(102)->cursor(),graph.appearance(2));});
     Refuses([&]{graph.select(cursor,128);});Refuses([&]{graph.select(cursor,3);});
-    Refuses([&]{graph.link(cursor,2,4,true);});
+    Refuses([&]{graph.link(cursor,2,2,true);});
     const auto originalHuman=*graph.appearance(1),originalAlien=*graph.appearance(2),originalVampire=*graph.appearance(4);
     cursor=graph.link(cursor,1,4,true);
     Require(*graph.appearance(1)==originalHuman && *graph.appearance(4)==originalVampire);
@@ -88,6 +88,54 @@ int main() {
     Require(*graph.appearance(2)==originalAlien); // Unlinked Alien is untouched.
     cursor=graph.link(cursor,1,4,false);(*human)["skin"]=777;cursor=graph.commit(cursor,human);
     Require((*graph.appearance(4))["skin"]==12345 && (*graph.appearance(1))["skin"]==777);
+    // Every family and alternate has its OWN ID, even if EA renders many
+    // of them with kind Human (1) or uses kind Fairy (64) for both variants.
+    auto everySeed=Captured(700);
+    Graph every(700,127,1,everySeed,Clone);
+    const std::vector<std::pair<std::string,unsigned>> allForms={
+        {"human/primary",1},{"alien/alien",2},{"alien/disguise",1},
+        {"vampire/base",1},{"vampire/dark",4},{"mermaid/human",1},{"mermaid/mermaid",8},
+        {"spellcaster/primary",16},{"spellcaster/human",1},{"werewolf/beast",32},
+        {"werewolf/human",1},{"werewolf/human_cc",32},{"fairy/primary",64},{"fairy/alternate",64},
+        {"plantsim/plant",1},{"plantsim/human",1},{"servo/robot",1},{"servo/human_cc",1},
+        {"ghost/ghost",1},{"ghost/living",1},{"reaper/reaper",1},{"reaper/unrobed",1},
+        {"skeleton/skeleton",1},{"skeleton/human_cc",1},{"scarecrow/scarecrow",1},{"scarecrow/human_cc",1},
+        {"imaginary_friend/lil_monster",1},{"imaginary_friend/pegacorn",1},
+        {"imaginary_friend/spooky_kid",1},{"imaginary_friend/wild_child",1},{"imaginary_friend/real",1},
+        {"future_mod/custom_alternate",1}};
+    for(const auto& slot:allForms) every.capture(every.cursor(),slot.first,slot.second,everySeed.at(slot.second));
+    std::map<std::string,Json> expectedEvery;
+    for(const auto& owner:every.owners()) expectedEvery.emplace(owner.id,*every.appearance(owner.id));
+    for(const auto& slot:allForms) {
+        const auto ec=every.select(every.cursor(),slot.first);
+        auto edit=Clone(every.appearance(slot.first),slot.second);
+        (*edit)["skin_details"]=Json::array({slot.first});(*edit)["tattoos"]=Json::array({slot.first});
+        (*edit)["future_unrecognized_field"]["owner"]=slot.first;
+        (*edit)["outfits"]["everyday_2"]["hair"]=slot.first;
+        expectedEvery[slot.first]=*edit;every.commit(ec,edit);
+        for(const auto& row:expectedEvery) Require(*every.appearance(row.first)==row.second);
+    }
+    for(unsigned round=0;round<25;++round) for(const auto& slot:allForms) {
+        const auto ec=every.select(every.cursor(),slot.first);
+        Require(ec.owner==slot.first && ec.kind==slot.second && *every.appearance(slot.first)==expectedEvery.at(slot.first));
+    }
+    auto ec=every.select(every.cursor(),"plantsim/plant");auto forged=ec;forged.owner="skeleton/skeleton";
+    Refuses([&]{every.commit(forged,every.appearance("plantsim/plant"));}); // Both render as Human; still different owners.
+    for(const auto& bad:{"ghost", "Ghost/primary", "../human", "human/../plant", "human/", "/human"})
+        Refuses([&]{every.capture(ec,bad,1,everySeed.at(1));});
+    Refuses([&]{every.capture(ec,"fairy/alternate",64,everySeed.at(64));});
+    // Explicit linking/copying is allowed between ANY two forms, including
+    // unrelated specials; selection alone never creates a link.
+    ec=every.link(ec,"plantsim/plant","imaginary_friend/real",true);
+    auto plant=Clone(every.appearance("plantsim/plant"),1);(*plant)["skin"]=314159;
+    ec=every.commit(ec,plant);
+    Require((*every.appearance("imaginary_friend/real"))["skin"]==314159);
+    Require(*every.appearance("ghost/ghost")==expectedEvery.at("ghost/ghost"));
+    ec=every.link(ec,"plantsim/plant","imaginary_friend/real",false);
+    ec=every.copy(ec,"fairy/alternate","servo/robot");
+    auto servoExpected=expectedEvery.at("fairy/alternate");servoExpected["kind"]=1;
+    Require(*every.appearance("servo/robot")==servoExpected);
+    Require(*every.appearance("fairy/primary")==expectedEvery.at("fairy/primary"));
     // A native deep-copy allocation failure must not partially replace forms.
     auto seed=Captured(999);bool fail=false;
     Graph atomic(999,127,1,seed,[&](const Data& data,unsigned kind) {

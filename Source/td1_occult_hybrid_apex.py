@@ -8430,7 +8430,7 @@ def run_action(action, sim_id=None, occult=None, value=None):
     if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
         return {'ok': False, 'message': 'Sim inspection and mutation require the canonical Sims game-thread owner.'}
     if action in ('lifestate_catalog', 'lifestate_form_list', 'lifestate_form_capture',
-                  'lifestate_form_bind', 'lifestate_form_select'):
+                  'lifestate_form_bind', 'lifestate_form_select', 'lifestate_form_revalidate'):
         from apex_core.lifestate_forms import dispatch
         import sys
         try:

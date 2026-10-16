@@ -1,7 +1,7 @@
 import copy
 import hashlib
 import unittest
-from cas_owner_matrix import inventory,appearance_view,digest,physique_markers,native_bytes
+from cas_owner_matrix import inventory,appearance_view,digest,physique_markers,native_bytes,page_index
 
 
 class OwnerMatrixTests(unittest.TestCase):
@@ -68,6 +68,20 @@ class OwnerMatrixTests(unittest.TestCase):
             with self.subTest(key=key,value=value):
                 snapshot=self.snapshot();snapshot['owner_export'][key]=value
                 with self.assertRaises(ValueError):native_bytes(snapshot,'123',owner,17)
+
+    def test_cycle_pages_cover_every_member_and_exact_owner(self):
+        members,_=inventory(self.status())
+        value=dict(ok=True,appearance_written=False,model_harvested=False,save_submitted=False,members=[
+            dict(identity=dict(sim_id=m['sim_id']),owners=[dict(owner_id=o['owner_id'],native_kind=o['native_kind'],
+                sha256=hashlib.sha256((m['sim_id']+o['owner_id']).encode()).hexdigest()) for o in m['owners']]) for m in members])
+        self.assertEqual(len(page_index(value,members)),5)
+        for damage in ('missing','duplicate','kind','write'):
+            changed=copy.deepcopy(value)
+            if damage=='missing':changed['members'].pop()
+            elif damage=='duplicate':changed['members'][0]['owners'].append(changed['members'][0]['owners'][0])
+            elif damage=='kind':changed['members'][0]['owners'][0]['native_kind']=1
+            else:changed['appearance_written']=True
+            with self.subTest(damage=damage),self.assertRaises(ValueError):page_index(changed,members)
 
 
 if __name__=='__main__':unittest.main()

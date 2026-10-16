@@ -5,6 +5,18 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V173 passes the real complete pre-entry comparison for all 195 independent
+appearances across all five Sims. Full CAS accepted the entry and completed its
+client handshake. All twelve captured appearance fields match each owner's
+fresh original, including Fairy genetics, separate pelts and empty Spellcaster
+outfits. Nine native targets and 31 epoch/migration checks pass. The edited
+195-owner repeat/member matrix is running; CAS-return persistence and production
+qualification remain open. Host tooling now reuses only sub-second completed
+native acknowledgements inside a bounded batch, retains all Source/native
+freshness guards, and compares complete household bytes at cycle barriers.
+Thirty-six host-tool checks pass. A .stop file requests a stop between completed
+commands without terminating a process or replaying an unresolved request.
+
 V172's real all-195 comparison verifies the per-form pelt fix: 193 appearances
 match completely; only the first Sim's native/named Spellcaster empty outfit
 differs. The attempted later part-assignment hook was never invoked and does

@@ -7,9 +7,55 @@ from pathlib import Path
 import re
 import sys
 import time
+import threading
+from contextlib import contextmanager
 from types import SimpleNamespace
 
 from source_manifest import sha256, write_json
+
+_OBSERVATION = threading.local()
+
+
+@contextmanager
+def observation_batch(state):
+    """Reuse sub-second completed ACKs; Source still verifies native freshness.
+
+    Standalone commands keep their normal status preflight. Only this bounded
+    batch can reuse a successful previous native response. Every submission
+    retains the ordinary profile checks, UUID journal and Source/native guards.
+    """
+    previous=getattr(_OBSERVATION,'lease',None)
+    key=str(Path(state).resolve())
+    if previous is not None:
+        if previous['state']!=key:raise ValueError('CAS observation batch cannot change profiles.')
+        yield
+        return
+    _OBSERVATION.lease=dict(state=key,result=None,at=0)
+    try:yield
+    finally:_OBSERVATION.lease=None
+
+
+def _recent_observation(args,clock):
+    lease=getattr(_OBSERVATION,'lease',None)
+    if (lease is None or lease['state']!=str(Path(args.state).resolve()) or lease['result'] is None or
+            not 0<=clock()-lease['at']<=1):return None
+    row=lease['result']
+    if row['client']['sim']['simId']!=args.sim_id:return None
+    return copy.deepcopy(row)
+
+
+def _remember_observation(args,result,clock):
+    lease=getattr(_OBSERVATION,'lease',None)
+    if lease is None:return result
+    lease['result']=None
+    observed=result.get('destination_status',result) if isinstance(result,dict) else {}
+    if (isinstance(result,dict) and result.get('ok') is True and observed.get('ok') is True and
+            isinstance(observed.get('client'),dict) and isinstance(observed['client'].get('sim'),dict) and
+            isinstance(observed['client']['sim'].get('simId'),str) and
+            isinstance(observed.get('cas_request_id'),str) and re.fullmatch('[0-9a-f]{32}',observed['cas_request_id'])):
+        lease.update(at=clock(),result=dict(ok=True,cas_request_id=observed['cas_request_id'],
+            client=copy.deepcopy(observed['client']),preflight_source='previous-completed-native-ack'))
+    return result
 
 
 class IntentEvidence:
@@ -145,13 +191,15 @@ def execute(args, request, monotonic=time.monotonic, pause=time.sleep):
     from cli_identity_cache import session
     with session(args.state):
         if getattr(args, 'output', None) is None:
-            return _execute(args, request, monotonic, pause)
+            return _remember_observation(args,_execute(args, request, monotonic, pause),monotonic)
         evidence = IntentEvidence(args)
         internal = copy.copy(args)
         internal.output = None
         try:
-            return evidence.finish(_execute(internal, evidence.wrap(request), monotonic, pause))
+            return evidence.finish(_remember_observation(args,_execute(internal, evidence.wrap(request), monotonic, pause),monotonic))
         except BaseException as error:
+            lease=getattr(_OBSERVATION,'lease',None)
+            if lease is not None:lease['result']=None
             try:
                 evidence.fail(error)
             except Exception:
@@ -240,9 +288,11 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
             # Keep the caller's exact session/layer capability. Refresh only its
             # native observation, so operator/CLI latency cannot expire the
             # three-second Source acknowledgement before the navigation request.
-            preflight = execute(SimpleNamespace(operation='status', state=args.state,
-                sim_id=args.sim_id, seconds=args.seconds, output=None), request,
-                monotonic=monotonic, pause=pause)
+            preflight = _recent_observation(args,monotonic)
+            if preflight is None:
+                preflight = execute(SimpleNamespace(operation='status', state=args.state,
+                    sim_id=args.sim_id, seconds=args.seconds, output=None), request,
+                    monotonic=monotonic, pause=pause)
             if preflight.get('ok') is not True:
                 return dict(preflight, form_selection_submitted=False,
                             form_selection_preflight_verified=False)

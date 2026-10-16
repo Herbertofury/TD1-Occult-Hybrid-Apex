@@ -13,6 +13,9 @@ import re
 import struct
 from pathlib import Path
 
+class MatrixStopped(Exception):
+    pass
+
 
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
@@ -106,13 +109,32 @@ def native_bytes(value,sid,owner,generation):
     return decoded
 
 
-def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=False):
+def page_index(value,members):
+    if (value.get('ok') is not True or value.get('appearance_written') is not False or
+            value.get('model_harvested') is not False or value.get('save_submitted') is not False):
+        raise ValueError('Complete read-only page export is required.')
+    expected={(m['sim_id'],o['owner_id']):o['native_kind'] for m in members for o in m['owners']}
+    result={}
+    for member in value.get('members',[]):
+        sid=member.get('identity',{}).get('sim_id')
+        for row in member.get('owners',[]):
+            key=(sid,row.get('owner_id'));sha=row.get('sha256')
+            if (key not in expected or key in result or type(row.get('native_kind')) is not int or row['native_kind']!=expected[key] or
+                    not isinstance(sha,str) or re.fullmatch('[0-9a-f]{64}',sha) is None):
+                raise ValueError('Paged matrix snapshot changed or duplicated an exact owner.')
+            result[key]=sha
+    if set(result)!=set(expected):raise ValueError('Paged matrix snapshot omitted household appearances.')
+    return result
+
+
+def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=False,verify_pages=False):
     from apex_cli import execute,parser
     from cli_identity_cache import session
     from source_manifest import write_json,sha256
     state=Path(state); output=Path(output)
     if (type(cycles) is not int or not 2<=cycles<=10 or type(edit_markers) is not bool or
-            type(verify_native) is not bool or output.exists()):
+            type(verify_native) is not bool or type(verify_pages) is not bool or
+            verify_native and verify_pages or output.exists()):
         raise ValueError('Use 2..10 cycles and one new external proof file.')
     # Existing command evidence validates its outputs against the test profile.
     # The matrix's aggregate proof belongs beside those individual receipts.
@@ -125,12 +147,15 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=F
         cycles=cycles,targets=[],steps=[],differences=[],appearance_edits_submitted=False,
         edit_markers_requested=edit_markers,marker_edits=[],
         native_bytes_requested=verify_native,native_snapshot_count=0,
+        native_pages_requested=verify_pages,native_page_checkpoints=[],
         cas_accept_submitted=False,save_submitted=False,complete_native_fields_verified=False,
         complete_native_snapshot_bytes_verified=False,
         production_ready=False)
+    stop_file=output.with_suffix('.stop');proof.update(stopped=False,stop_file=str(stop_file))
     write_json(output,proof); sequence=0
     def command(args):
         nonlocal sequence
+        if stop_file.exists():raise MatrixStopped('Stopped at a completed command boundary; no request replayed.')
         path=output.with_name(output.stem+'-'+format(sequence,'04d')+'.json');sequence+=1
         if path.exists():raise ValueError('A matrix receipt already exists; do not replay.')
         value=execute(parser().parse_args(args+['--state',str(state),'--output',str(path)]))
@@ -140,9 +165,11 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=F
             raise ValueError('Matrix command failed; retain '+str(path)+': '+str(value.get('message',value.get('error'))))
         return value,path
     try:
-        with session(state):
+        from cas_client import observation_batch
+        with session(state),observation_batch(state):
             native,_=command(['game','native-cas-engine','--value',json.dumps(dict(operation='status'))])
             members,sid=inventory(native)
+            all_members=copy.deepcopy(members);page_baseline=None
             if member_ids:
                 requested=set(member_ids)
                 if not requested<={m['sim_id'] for m in members}:raise ValueError('Requested member is absent from the native roster.')
@@ -226,10 +253,34 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=F
                         proof['steps'].append(step);write_json(output,proof)
                         print(json.dumps(dict(visits=len(proof['steps']),**step)),flush=True)
                         if proof['differences']:raise ValueError('CAS appearance changed across owner/member visits.')
+                if verify_pages:
+                    # All outgoing owners were committed by their normal
+                    # switches. Flush only the final edited view once, then
+                    # read the complete household through bounded native pages.
+                    c=current['client'];last=member['owners'][-1]
+                    current,_=command(['cas','form-owner-select','--sim-id',sid,'--owner-id',last['owner_id'],
+                        '--native-kind',str(last['native_kind']),'--owned-mask',str(member['owned_mask']),
+                        '--household-id',household,'--expected-layer',str(c['sim']['occultLayer']),
+                        '--native-session',str(c['owner_pair_observation']['session']),'--seconds','25'])
+                    from cas_owner_export import run as export_pages
+                    checkpoint=output.with_name(output.stem+'-cycle-'+str(cycle)+'-pages.json')
+                    exported=export_pages(state,checkpoint);index=page_index(exported,all_members)
+                    proof['native_page_checkpoints'].append(dict(cycle=cycle,path=str(checkpoint),
+                        sha256=sha256(checkpoint),owners=len(index)))
+                    proof['native_snapshot_count']+=len(index)
+                    if page_baseline is None:page_baseline=index
+                    else:
+                        for key,sha in index.items():
+                            if page_baseline[key]!=sha:proof['differences'].append(dict(sim_id=key[0],owner_id=key[1],
+                                complete_native_bytes_changed=True,before_sha256=page_baseline[key],after_sha256=sha))
+                    write_json(output,proof)
+                    if proof['differences']:raise ValueError('Complete household native bytes changed across cycle barriers.')
             proof['ok']=len(proof['steps'])==cycles*sum(len(m['owners']) for m in members)
             # The serialized DTO includes every captured byte. That does not
             # establish arbitrary field editing or a complete gameplay Sim.
-            proof['complete_native_snapshot_bytes_verified']=verify_native and proof['ok']
+            proof['complete_native_snapshot_bytes_verified']=(verify_native or verify_pages) and proof['ok']
+    except MatrixStopped as error:
+        proof.update(stopped=True,error=str(error))
     except Exception as error:
         proof['error']=str(error)
     finally:write_json(output,proof)
@@ -242,6 +293,7 @@ if __name__=='__main__':
     p.add_argument('--cycles',type=int,default=2);p.add_argument('--member-id',action='append')
     p.add_argument('--edit-physique-markers',action='store_true',help='Edit each disposable CAS owner to a unique physique value; never accept/save')
     p.add_argument('--verify-native-bytes',action='store_true',help='Flush actual edits and compare complete native protobuf bytes, including unknown fields')
-    args=p.parse_args();result=run(args.state,args.output,args.cycles,args.member_id,args.edit_physique_markers,args.verify_native_bytes)
+    p.add_argument('--verify-native-pages',action='store_true',help='Compare complete household bytes at cycle barriers; avoids an export/flush per visit')
+    args=p.parse_args();result=run(args.state,args.output,args.cycles,args.member_id,args.edit_physique_markers,args.verify_native_bytes,args.verify_native_pages)
     print(json.dumps({k:result.get(k) for k in ('ok','error','differences','production_ready')}))
     raise SystemExit(0 if result['ok'] else 1)

@@ -878,8 +878,7 @@ inline ui::Json Status() {
             const auto& graph=*found->second.graph;
             for(const auto& owner:graph.owners()) {
                 auto links=ui::Json::array();
-                for(const auto& target:graph.owners())
-                    if(graph.linked(owner.id,target.id)) links.push_back(target.id);
+                for(const auto& target:graph.linkedTargets(owner.id)) links.push_back(target);
                 graphOwners.push_back({{"owner_id",owner.id},{"native_kind",owner.nativeKind},{"revision",owner.revision},
                     {"selected",owner.selected},{"linked_targets",links},{"ui_token",found->second.uiTokens.at(owner.id)}});
             }
@@ -1140,8 +1139,7 @@ inline ui::Json Control(const ui::Json& request) {
         for(;index<ids.size() && rows.size()<8;++index) {
             const auto& captured=graph.appearance(ids[index]);const auto bytes=SerializeOwner(state.api,*captured,id);
             if(!rows.empty() && used+bytes.size()>512*1024) break;
-            auto links=ui::Json::array();for(const auto& target:ids)
-                if(graph.linked(ids[index],target)) links.push_back(target);
+            auto links=ui::Json::array();for(const auto& target:graph.linkedTargets(ids[index])) links.push_back(target);
             auto row=ui::Json{{"owner_id",ids[index]},
                 {"native_kind",Read<std::uint32_t>(captured->data(),8)},
                 {"revision",graph.revision(ids[index])},{"linked_targets",links},

@@ -5,6 +5,13 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+Additional host validation compares every untouched decoded appearance field
+with its fresh pre-entry original, excluding only the explicitly edited
+physique field; two focused tests pass. A native snapshot optimization is built
+and passes all nine native targets: linked targets are enumerated directly
+instead of rebuilding/scanning the entire owner list for every owner. It is
+not installed in the running V173 game and carries no measured FPS claim.
+
 V173 passes the real complete pre-entry comparison for all 195 independent
 appearances across all five Sims. Full CAS accepted the entry and completed its
 client handshake. All twelve captured appearance fields match each owner's

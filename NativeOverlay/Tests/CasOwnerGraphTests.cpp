@@ -78,6 +78,9 @@ int main() {
     Refuses([&]{graph.link(cursor,2,2,true);});
     const auto originalHuman=*graph.appearance(1),originalAlien=*graph.appearance(2),originalVampire=*graph.appearance(4);
     cursor=graph.link(cursor,1,4,true);
+    Require(graph.linkedTargets("native/1")==std::set<std::string>{"native/4"});
+    Require(graph.linkedTargets("native/4").empty()); // Links stay directed.
+    Refuses([&]{graph.linkedTargets("native/128");});
     Require(*graph.appearance(1)==originalHuman && *graph.appearance(4)==originalVampire);
     cursor=graph.copy(cursor,2,4); // Explicit cross-kind copy retags the destination.
     auto copied=originalAlien;copied["kind"]=4;
@@ -87,6 +90,7 @@ int main() {
     Require((*graph.appearance(4))["skin"]==12345 && (*graph.appearance(4))["kind"]==4);
     Require(*graph.appearance(2)==originalAlien); // Unlinked Alien is untouched.
     cursor=graph.link(cursor,1,4,false);(*human)["skin"]=777;cursor=graph.commit(cursor,human);
+    Require(graph.linkedTargets("native/1").empty());
     Require((*graph.appearance(4))["skin"]==12345 && (*graph.appearance(1))["skin"]==777);
     // A pre-entry complete import replaces one exact owner without selecting
     // it, copying the active owner or changing any other canonical appearance.

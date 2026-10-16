@@ -86,6 +86,11 @@ public:
         return at!=links_.end() && at->second.count(target)!=0;
     }
     bool linked(std::uint32_t source,std::uint32_t target) const {return linked(NativeOwnerId(source),NativeOwnerId(target));}
+    const std::set<std::string>& linkedTargets(const std::string& source) const {
+        Owned(source);const auto at=links_.find(source);
+        static const std::set<std::string> empty;
+        return at==links_.end()?empty:at->second;
+    }
     Cursor capture(const Cursor& expected,const std::string& id,std::uint32_t kind,const Appearance& appearance) {
         Current(expected);
         if(!FormOwnerId(id) || !Kind(kind) || !(mask_&kind) || entries_.count(id))

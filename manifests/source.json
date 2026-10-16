@@ -155,6 +155,12 @@
       "sha256": "93f8b51480e31760ec1097d04562212607fbfacd9304ef507694a03951f72c1f"
     },
     {
+      "bytes": 9376,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/ApexCasOwnerGraph.h",
+      "sha256": "983ba0acca43e78532e8c12db364f87a5081c88aee489093488493b6b95f5fbf"
+    },
+    {
       "bytes": 3337,
       "mode": "100644",
       "path": "tests/test_test_addons.py",
@@ -231,12 +237,6 @@
       "mode": "100644",
       "path": "tests/test_legacy_phone_guard.py",
       "sha256": "73cc0b72baa7a3525ad91fb26f5e86e10b1dca32b46199e9854e374e1963fde7"
-    },
-    {
-      "bytes": 9131,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/ApexCasOwnerGraph.h",
-      "sha256": "06c281a2035519773a5df08244763db9cdc3b79e3f037057f3681378f412e569"
     },
     {
       "bytes": 3405,
@@ -471,12 +471,6 @@
       "mode": "100644",
       "path": "tests/test_cas_household_resume.py",
       "sha256": "d7aeaaa7a4075e978e11367f9f8fc2dd3386cec1bd7b3c6c9cb5ddcd7c925f52"
-    },
-    {
-      "bytes": 197305,
-      "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "e78865bebae3068d63cb3f579e7ee49d5dcf2497b2b39ab8b7b5f951abeb3023"
     },
     {
       "bytes": 2773,
@@ -831,6 +825,12 @@
       "mode": "100644",
       "path": "tests/test_cas_owner_decode.py",
       "sha256": "1610051e43cdaae3a282bd79f30499ba46f4ded0b914f5d987e664c08a3eb249"
+    },
+    {
+      "bytes": 2441,
+      "mode": "100644",
+      "path": "tests/test_cas_owner_compare.py",
+      "sha256": "35e9a0fc1baaa2b37affdbe3979e3a24c6290b6a77e10bfdc35c758942efaa90"
     },
     {
       "bytes": 13096,
@@ -1781,6 +1781,12 @@
       "sha256": "7f3d1015c3dba0450988e0ba5fbf999afecd55e136eac128d954bb94c125d6c9"
     },
     {
+      "bytes": 4747,
+      "mode": "100644",
+      "path": "tools/cas_owner_compare.py",
+      "sha256": "6987c174585aafeb7c9dcb7e14aa673b171bca91d78b351127376bf22f6604cc"
+    },
+    {
       "bytes": 8113,
       "mode": "100644",
       "path": "tests/test_occult_add_guard.py",
@@ -1809,12 +1815,6 @@
       "mode": "100644",
       "path": "docs/APEX_OCCULT_HYBRID_CORE.md",
       "sha256": "5c0cfaa3e8c5a3fa27e1230d8ccb174624d4782d65b646743dfca561d9d99cbd"
-    },
-    {
-      "bytes": 10640,
-      "mode": "100644",
-      "path": "NativeOverlay/Tests/CasOwnerGraphTests.cpp",
-      "sha256": "d6abf8e811d4840a9e98ed213a012b4219824c384809c44d2c78d45c69d51e71"
     },
     {
       "bytes": 10854,
@@ -2051,12 +2051,6 @@
       "sha256": "cee99103807cf48af036ce1f9185dc2f821069be551f33746469e17a8e6b59e7"
     },
     {
-      "bytes": 91463,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/ApexNativeCasEngineWin.h",
-      "sha256": "dec3d2186ac8949a375ede178b8cc2a96dd379e0c4eb6274e142e3b6076577ff"
-    },
-    {
       "bytes": 29294,
       "mode": "100644",
       "path": "tests/test_form_bank.py",
@@ -2241,6 +2235,12 @@
       "mode": "100644",
       "path": "tests/test_cas_entry_observe.py",
       "sha256": "02ed9a9d4d6ba5848b1b66014a2f427dc90b7d09c079ad01d85ee8f4c4a14c2e"
+    },
+    {
+      "bytes": 10907,
+      "mode": "100644",
+      "path": "NativeOverlay/Tests/CasOwnerGraphTests.cpp",
+      "sha256": "0e12791f8d659293445373808448efcd59b861dd2e739041ef3c3b6047cd4ae8"
     },
     {
       "bytes": 45324,
@@ -2627,6 +2627,12 @@
       "sha256": "2c6c07382551f880ba0bbec38da4af52440abf2f8ef060e2921d2fbba77fd50a"
     },
     {
+      "bytes": 91394,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/ApexNativeCasEngineWin.h",
+      "sha256": "ed805f565e8b21b720201d46661519ff96514178f613874fb113251af79b898c"
+    },
+    {
       "bytes": 2497,
       "mode": "100644",
       "path": "tests/test_pe_imports.py",
@@ -2733,6 +2739,12 @@
       "mode": "100644",
       "path": "Reports/LIVE_CAS_LIBRARY_2026-10-10.md",
       "sha256": "5d40b478a4cd285f934ab0881b717b519951d2a0e17f8db045bda22fb340c641"
+    },
+    {
+      "bytes": 197760,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "831a2ee78bfb6777262ece1e92890a3d6b99777e018d6f81a876838aad256f68"
     },
     {
       "bytes": 22747,

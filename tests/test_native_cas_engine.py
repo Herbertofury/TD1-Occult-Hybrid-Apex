@@ -43,6 +43,16 @@ class NativeEngineTests(unittest.TestCase):
         self.assertEqual(engine.reply(bad,555),bad)
         self.assertFalse(engine.selection_ready(None,'123',127,4))
 
+    def test_complete_import_and_activation_do_not_qualify_the_old_conversion_route(self):
+        from apex_core import overlay_loader
+        status=copy.deepcopy(self.status)
+        status.update(selection_enabled=True,selected_native=dict(available=True,sim_id='123'))
+        with patch.object(overlay_loader,'native_cas_engine_control',return_value=status), \
+                patch.dict(sys.modules,{'paths':Obj(DLL_PATH='fixture')}):
+            self.assertFalse(engine.selection_ready(Obj(__file__='fixture'),'123',127,4))
+            status.update(independent_owner_view_ready=True,selection_route='quarantined-kind-conversion')
+            self.assertFalse(engine.selection_ready(Obj(__file__='fixture'),'123',127,4))
+
     def test_full_owner_bytes_require_the_capture_digest_and_canonical_encoding(self):
         import hashlib
         raw=b'\1\2';seed=dict(operation='seed',scope_id='a'*32,sim_id='123',native_hex=raw.hex(),sha256=hashlib.sha256(raw).hexdigest())

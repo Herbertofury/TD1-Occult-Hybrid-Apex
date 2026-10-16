@@ -28,7 +28,7 @@ class NativeOwnerViewTests(OccultViewTests):
 
     def test_unactivated_engine_refuses_before_guard_or_socket_delivery(self):
         with patch.object(native_cas_engine,'selection_ready',return_value=False),patch.object(test_driver,'guard') as guard:
-            with self.assertRaisesRegex(ValueError,'activated complete'):cas_ui.submit(fixture.SIM,self.owner_request(),backend=self.backend)
+            with self.assertRaisesRegex(ValueError,'quarantined'):cas_ui.submit(fixture.SIM,self.owner_request(),backend=self.backend)
             guard.assert_not_called()
         self.assertFalse(cas_ui._RECORDS)
 
@@ -41,18 +41,11 @@ class NativeOwnerViewTests(OccultViewTests):
             after=client(4,mask);after['control']=dict(operation='occult-owner-view',occults=[dict(occult_type=4)])
             with self.subTest(mask=mask),self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(after,request)
 
-    def test_activated_complete_owner_is_delivered_once_without_an_appearance_retention_claim(self):
-        # Observe the exact prior narrowed native mask while the captured
-        # Source roster still proves Human, Vampire and Fairy membership.
-        rid=cas_ui.submit(fixture.SIM,{'operation':'status'},clock=lambda:10)['cas_request_id']
-        cas_ui.poll_client(self.peer,clock=lambda:10)
-        initial=client(64,65);initial['sim']['occultLayer']=0
-        cas_ui.receive_socket(self.peer,rid,json.dumps(dict(protocol=1,ok=True,cas_request_id=rid,client=initial)),clock=lambda:10,backend=self.backend)
-        with patch.object(native_cas_engine,'selection_ready',return_value=True),patch.object(test_driver,'guard',return_value=None):
-            rid=cas_ui.submit(fixture.SIM,self.owner_request(),clock=lambda:10,backend=self.backend)['cas_request_id']
-        cas_ui.poll_client(self.peer,clock=lambda:10)
-        after=client(4,69);after['control']=dict(operation='occult-owner-view',occults=[dict(occult_type=4)])
-        payload=json.dumps(dict(protocol=1,ok=True,cas_request_id=rid,client=after,mutation_started=True))
-        for _ in range(2):cas_ui.receive_socket(self.peer,rid,payload,clock=lambda:10,backend=self.backend)
-        result=cas_ui.result(rid)
-        self.assertTrue(result['selection_only_verified']);self.assertFalse(result['appearance_persistence_verified'])
+    def test_even_activated_engine_cannot_dispatch_the_mislabeling_conversion(self):
+        with patch.object(native_cas_engine, 'selection_ready', return_value=True) as ready, \
+                patch.object(test_driver, 'guard') as guard:
+            with self.assertRaisesRegex(ValueError, 'independent owner'):
+                cas_ui.submit(fixture.SIM, self.owner_request(), backend=self.backend)
+            ready.assert_not_called()
+            guard.assert_not_called()
+        self.assertFalse(cas_ui._RECORDS)

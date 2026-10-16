@@ -1310,6 +1310,8 @@
             var native:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
             if(!native || String(native.simId)!=String(fields[1])) throw new Error("CAS selected Sim differs from request");
             native=null;
+            if(operation=="occult-owner-view")
+               throw new Error("Cross-occult conversion is disabled; independent owner binding is required");
             var state:int=int(fields[3]);
             var category:int=int(fields[4]); var index:int=int(fields[5]); var value:String=fields[6];
             if(operation=="member-select") {

@@ -5,6 +5,32 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V156 corrects the architecture after the user's observed blending. The
+SetSimOccult conversion route is blocked in Source, AS and the scoped native
+service/history hooks. A new native owner graph deep-copies each complete
+appearance, makes selection cursor-only, starts every form unlinked, requires
+exact Sim/form/generation for edits, and supplies explicit copy/link/unlink
+operations. The five-Sim/seven-owner fixture passes repeated separation, all
+fixture fields, stale/cross-Sim refusal and allocation-failure atomicity. Nine
+native CTest targets pass. These are code-level checks; the direct native
+view/undo binding and literal clickable cross-occult selector remain unfinished.
+The failed V155 CAS visit was cancelled without applying. After 27,806 real
+simulation ticks, all five Sims/all 40 appearances exactly match the canonical
+capture. All 20 save/backup files remain unchanged. The running game still has
+V155 cached. No production-readiness or in-game selector claim is made.
+
+V155 corrects the native history visitor's composite alternate key at the
+controller rebind boundary. V154 reached both patched native selection hooks,
+but the client still reported Vampire; its paused Live return did not resolve
+the selected Sim before that unsaved session was discarded. This is a failed,
+unsettled return, not a passing switch or proof of permanent deletion. All 20
+saved/backup files remained unchanged. V155's cold reload verifies all five
+Sims and all 40 appearances. All five never-observed V154 checkpoints were
+archived through the existing metadata-only receiver, retaining their complete
+originals and unchanged bank appearance lanes; a second all-40 comparison passes.
+Eight final native CTests, Python 3.7 ABI checks and 26 migration checks pass.
+Actual cross-kind edit retention and settled return remain under test.
+
 V154 implements direct native importer, conversion-history, normalization and
 selection-service hooks. V152's actual five-member CAS visit imported all 35
 stored owners and returned with all 40 stored/active appearances matching;

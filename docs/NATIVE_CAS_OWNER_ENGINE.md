@@ -1,79 +1,83 @@
-# Native CAS existing-owner selection
+# Separate native CAS form owners
 
-The native CAS importer for game 1.128.90.1030 constructs one primary and one
-alternate from the saved occult tracker. The native change-kind implementation
-then runs an appearance generator. Merely advertising all memberships does not
-make that converter select the independently stored appearances.
+Cross-occult CAS selection is unfinished and is not qualified for production
+saves. V155 reached a native Alien kind, but CAS still highlighted Vampire.
+Its early UI acknowledgement reported the old kind. The conversion/history
+route can cache Alien appearance data under Vampire's identity. It is not the
+independent, clickable form selector requested by the user.
 
-`ApexNativeCasEngineWin.h` implements a different native path for an explicitly
-captured development household. It intercepts the native Sim importer, reads
-each existing occult record with the game's field deserializer, and owns
-separate native allocations for those records. The V151 runtime observed a
-narrowed client packet for all five household members, so V152 also supplies
-each complete pre-entry native save-model message from the Live game thread.
-EA's native protobuf parser and field deserializer construct the missing
-client owners in memory. No disk export or live-owner replacement is involved.
-A narrowed client packet cannot overwrite this complete import.
-Missing, repeated or unexpected
-owners prevent activation. Importing does not overwrite the game's current
-appearance.
+V156 disables that route at Source dispatch, the AS client and the scoped
+native service/history boundaries. Complete import and activation alone no
+longer authorize navigation. Status reports the conversion quarantine and
+`independent_owner_view_ready: false`. The permanent Source guard remains on.
+The old V155 code remains cached in the current disposable game; building a
+replacement is not evidence that it has been installed or qualified.
 
-After complete capture, the selection hook replaces the native generator for
-owned targets. The normal CAS operation records current edits first. The hook
-keeps those edited records, adds the imported owners absent from that cache,
-and constructs independent before/after native history records. The selected
-record supplies the requested appearance. Every captured membership remains
-in both the history headers and cached appearance headers. Unscoped Sims and
-new-kind generation retain the existing game implementation.
+## Implemented owner separation
 
-The DLL checks the exact executable SHA-256 and runtime function fingerprints
-before installing the six hooks. One hook replaces a composite
-alternate-kind result with the selected single family for a scoped hybrid's
-Human appearance. The other prevents the legacy Vampire/Witch-priority
-normalizer from replacing an already selected kind in a known hybrid genus.
-V153 captures the active entry owner separately from the seven stored owners
-and imports both the correct primary and actual alternate before the native
-client is ready. The actual socket handshake closes that initialization
-lifetime; later CAS edits cannot be overwritten by the entry capture.
-V153 imported all forty owners in the actual household, but the primary kind
-still read Vampire and an Alien request did not reach the controller at all.
-The game's `SetSimOccult` callback compares the request with the first set
-membership bit, rather than the displayed kind. For an all-occult Sim that
-comparison treats Alien as already selected. V154 replaces that decision for
-captured existing owners, calls the original complete controller transaction,
-and sends the same native avatar notification. Unscoped selections retain the
-original callback. The active capture also takes its kind from the tracker's
-explicit current field after appearance deserialization, which can otherwise
-apply a legacy priority classification.
-It uses native construction, deep copying
-and destruction on the native calling thread. There is no frame-loop polling,
-executable-file rewrite, CAS exit/re-entry substitution or shared appearance
-allocation between history records. The permanent Source guard remains enabled.
+`ApexCasOwnerGraph.h` owns one separate appearance allocation for every
+captured Human/occult owner of each Sim. Selection changes only its cursor.
+It cannot copy appearance fields or create/delete memberships. Edits require
+the exact Sim, form and selection generation. Stale, repeated and cross-Sim
+commits are refused.
 
-Development CLI, with a new external proof file for each call:
+Forms are unlinked by default. Explicit copy deep-copies a complete appearance
+and preserves the destination owner identity. Explicit directed Human/form
+links control subsequent edit propagation; enabling a link does not overwrite
+either existing appearance. Unlink stops propagation. Copying between different
+occults is supported as an explicit action, independently of linking.
 
-```
-apex_cli.py game native-cas-engine --state SESSION --value ARM_JSON --output NEW_JSON
-apex_cli.py game native-cas-engine --state SESSION --output NEW_JSON
-apex_cli.py game native-cas-engine --state SESSION --value ACTIVATE_JSON --output NEW_JSON
-```
+The native adapter clones the game's complete CasData with its deep-copy
+routine, then sets only the destination identity header. Unknown captured
+fields remain in that native copy. The active entry appearance is captured
+separately and initializes only its actual owner. Reseeding after the real CAS
+handshake is refused before native protobuf construction. Graph ownership and
+revision metadata are visible in status without exporting appearance payloads.
 
-`ARM_JSON` has `operation: "arm"`, a fresh hexadecimal `scope_id`, and a
-`members` array containing exact decimal `sim_id` strings and `owned_mask`
-integers. `ACTIVATE_JSON` contains `operation: "activate"` and that same scope.
-Activation requires every scoped member's complete native capture. Reusing a
-scope with changed members is refused.
+The graph currently represents the seven captured native kinds. It does not
+claim complete special-lifestate coverage or additional same-kind alternate
+slots. Native undo histories, view binding, edited return serialization and
+extra alternate-slot identities still need integration and runtime proof.
 
-The native fixture exercises complete and incomplete imports, duplicate kinds,
-edited-record precedence, target-owner selection, independent history copies
-and matching allocation/destruction. Private Python 3.7 checks the exported ABI
-and rejection of a foreign host executable. These checks do not prove in-game
-appearance retention. Actual cross-kind edits, native return serialization,
-undo/redo, all household members, cold loading and Tray/Gallery round trips
-remain release gates until corresponding runtime evidence is recorded. The
-candidate reports `production_ready: false` throughout this qualification.
+## Native integration still required
 
-V154's eight native CTests pass, including the Vampire-displayed/Alien-requested
-regression, numeric argument forms, unscoped/invalid request handling and
-explicit active-kind restoration after the field loader. These fixture checks
-are not an in-game cross-kind edit or serialization result.
+The inspected native primary/alternate selector synchronizes the old view
+before rebinding. That synchronization also copies fields into the inactive
+owner. The replacement must commit the exact bound owner, preserve every
+unlinked inactive record, bind the requested existing owner, and associate
+its own undo history. Calling SetSimOccult again is not that implementation.
+
+Native conversion is blocked for the captured development household. Ordinary
+unscoped Sims retain EA's implementation. All hooks are tied to the exact
+1.128.90.1030 executable and inspected runtime function fingerprints. No
+executable file is rewritten. Runtime code windows remain private work data.
+
+The `.package` strip shows all captured kinds and supports qualified same-pair
+navigation. Cross-kind buttons remain disabled. They must not be enabled until
+the direct owner-view path and its postconditions are implemented. A native
+kind change alone does not prove correct appearance ownership or retention.
+
+## Evidence
+
+The new native owner graph fixture exercises five Sims, seven independently
+allocated forms each, all fixture fields including unknown fields, 800 repeated
+form selections, edits across the household, explicit copy/link/unlink,
+stale/cross-Sim rejection and allocation-failure atomicity. All nine native
+CTest targets pass. These are code-level checks, not an actual game switch.
+
+The V155 failed trial was cancelled through the actual CAS confirmation,
+without applying its conversion. Live simulation advanced from 1,603,309 to
+1,631,115 ticks before pausing. All five Sims and all forty stored/active
+appearances exactly match the canonical capture. All twenty save/backup
+files remain unchanged. Private evidence:
+
+- `.work/native-cas-v156-after-cancel-all40.json`, SHA-256
+  `4574968bd79d2c1f49e1dc012817775a59d6a7b82d1264272cd6eec89f70098f`.
+- `.work/native-cas-v156-after-cancel-save-inventory.json`, SHA-256
+  `53a98c18de5e074c1833f1802a05f34ad688bca111f05d8ef3ff277195714ea8`.
+- `.work/native-cas-v156-final-native-tests.log`.
+
+Release gates remain actual Alien/Vampire/Alien separate edits, explicit
+Human/alternate links and copies, every household member and category,
+CAS/MCCC/F11/Live changes, native undo/redo, settled Live return, controlled
+save/cold load and complete household Tray/Gallery round trips.

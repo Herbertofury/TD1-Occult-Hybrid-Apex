@@ -3,13 +3,16 @@
 #include <iostream>
 using namespace td1::nativecas::engine;
 using Json=td1::ui::Json;
-void Require(bool v) {if(!v) throw std::runtime_error("Native owner selection regression.");}
+void Check(bool v,int line) {if(!v) throw std::runtime_error("Native owner selection regression at line "+std::to_string(line));}
+#define Require(...) Check((__VA_ARGS__),__LINE__)
 void Refuses(const std::function<void()>& call) {bool caught=false;try {call();}catch(const std::exception&) {caught=true;}Require(caught);}
 template<class T> void Write(void* p,std::size_t offset,T value) {std::memcpy(static_cast<char*>(p)+offset,&value,sizeof(value));}
 using Cache=std::map<unsigned,std::array<char,32>>;
 unsigned destroyed=0,converted=0,allocated=0,freed=0;
 const void* sourceProto=nullptr;unsigned protoDestroyed=0;
 unsigned serviceFallbacks=0,controllerCalls=0,avatarRefreshes=0;
+unsigned reboundKind=0;
+void OriginalRebind(void*,const void*,unsigned target) {reboundKind=target;}
 std::array<void*,0x368/8> avatarTable{};void* avatarTablePointer=avatarTable.data();
 bool OriginalService(const void*) {++serviceFallbacks;return false;}
 void* Avatar() {return &avatarTablePointer;}
@@ -68,6 +71,7 @@ int main() {
     api.alternate=OriginalAlternate;api.protoConstruct=ProtoConstruct;api.protoParse=ProtoParse;api.protoDestroy=ProtoDestroy;
     api.assignData=AssignData;api.copySim=CopySim;api.normalize=OriginalNormalize;
     api.service=OriginalService;api.controller=Controller;api.avatar=Avatar;
+    api.rebind=OriginalRebind;
     avatarTable[0x360/8]=reinterpret_cast<void*>(&RefreshAvatar);
     std::array<char,0x1e8> proto{};std::array<char,0x140> attributes{};std::array<char,0x38> tracker{};
     std::array<std::array<char,0x88>,7> records{};std::array<const void*,7> pointers{};
@@ -79,9 +83,9 @@ int main() {
     auto& bank=runtime.bank.at(123);Require(bank.mask==127 && bank.owners.size()==7 && bank.error.empty());
     Require(Read<unsigned>(bank.owners.at(4)->data(),0x18)==400);
     Require(Read<unsigned>(output.data(),0xd8)==0); // Import did not overwrite the game's current appearance.
-    Import(output.data(),proto.data());Require(destroyed==7 && bank.imports==2);
+    Import(output.data(),proto.data());Require(destroyed==14 && bank.imports==2);
     std::array<char,0x250> controller{};std::array<char,0x830> group{};std::array<char,0x38> metadata{};
-    int model=0;Write(controller.data(),0x100,group.data());Write(controller.data(),0x1d0,&model);
+    std::array<char,0xc40> model{};Write(controller.data(),0x100,group.data());Write(controller.data(),0x1d0,&model);
     Write(group.data(),0xb8,std::uint64_t(123));Write(group.data(),0xd8,2u);Write(group.data(),0xdc,127u);
     Cache original;Write(metadata.data(),8,&original);
     original[2].fill(0);Write(original[2].data(),8,2u);Write(original[2].data(),12,127u);Write(original[2].data(),0x18,222u);
@@ -108,17 +112,29 @@ int main() {
     Require(Control(seed).value("ok",false) && bank.seeded && bank.mask==127 && protoDestroyed==1);
     Require(bank.active && Read<unsigned>(bank.active->data(),8)==2 && Read<unsigned>(bank.active->data(),0x18)==9999);
     runtime.selectionEnabled=true;
+    std::array<char,0xc40> currentModel{};Write(controller.data(),0x1d0,currentModel.data());
+    Write(currentModel.data(),0x178,2u);original[1].fill(0);
+    Rebind(controller.data(),metadata.data(),125);
+    Require(reboundKind==1 && runtime.rebindCorrections==1);
+    Rebind(controller.data(),metadata.data(),124);
+    Require(reboundKind==1 && runtime.rebindCorrections==2);
+    Rebind(controller.data(),metadata.data(),1);Require(reboundKind==1 && runtime.rebindCorrections==2);
+    Rebind(controller.data(),metadata.data(),0);Require(reboundKind==0 && runtime.rebindCorrections==2);
+    Write(currentModel.data(),0x178,1u);
+    Rebind(controller.data(),metadata.data(),126);Require(reboundKind==2 && runtime.rebindCorrections==3);
+    runtime.selectionEnabled=false;Rebind(controller.data(),metadata.data(),126);
+    Require(reboundKind==126 && runtime.rebindCorrections==3);runtime.selectionEnabled=true;
     std::array<char,24> arguments{},argument{};Write(arguments.data(),8,argument.data());
     Write(argument.data(),0,4u);Write(argument.data(),8,2u);Write(group.data(),0xd8,4u);
-    Require(SetOccultService(arguments.data()) && controllerCalls==1 && avatarRefreshes==1 &&
-        Read<unsigned>(group.data(),0xd8)==2 && serviceFallbacks==0); // First membership is already Alien; displayed form was Vampire.
+    Require(!SetOccultService(arguments.data()) && controllerCalls==0 && avatarRefreshes==0 &&
+        Read<unsigned>(group.data(),0xd8)==4 && serviceFallbacks==0 && runtime.blockedConversions==1);
     Write(argument.data(),0,3u);Write(argument.data(),8,8.0);
-    Require(SetOccultService(arguments.data()) && controllerCalls==2 && Read<unsigned>(group.data(),0xd8)==8);
-    Write(argument.data(),8,8.5);Require(!SetOccultService(arguments.data()) && serviceFallbacks==1 && controllerCalls==2);
+    Require(!SetOccultService(arguments.data()) && controllerCalls==0 && Read<unsigned>(group.data(),0xd8)==4 && runtime.blockedConversions==2);
+    Write(argument.data(),8,8.5);Require(!SetOccultService(arguments.data()) && serviceFallbacks==1 && controllerCalls==0);
     Write(argument.data(),0,4u);Write(argument.data(),8,3u);
-    Require(!SetOccultService(arguments.data()) && serviceFallbacks==2 && controllerCalls==2);
+    Require(!SetOccultService(arguments.data()) && serviceFallbacks==2 && controllerCalls==0);
     runtime.selectionEnabled=false;Write(argument.data(),8,2u);
-    Require(!SetOccultService(arguments.data()) && serviceFallbacks==3 && controllerCalls==2);
+    Require(!SetOccultService(arguments.data()) && serviceFallbacks==3 && controllerCalls==0);
     runtime.selectionEnabled=true;
     std::array<char,32> genus{};Write(genus.data(),8,2u);Write(genus.data(),12,127u);
     Require(Normalize(genus.data(),true)==2 && Read<unsigned>(genus.data(),8)==2 && runtime.normalizationsPrevented==1);
@@ -131,6 +147,10 @@ int main() {
     Require(child && Read<unsigned>(child,0xd8)==1 && Read<unsigned>(child,0xe8)==100 && Read<unsigned>(child,8)==1);
     Control({{"operation","entry-ready"},{"scope_id",scope.id},{"sim_id","123"}});
     Write(output.data(),0xe8,7777u);Import(output.data(),proto.data());Require(Read<unsigned>(output.data(),0xe8)==7777);
+    Require(bank.graph && bank.graph->cursor().kind==2 && bank.graph->mask()==127);
+    Require(Read<unsigned>(bank.graph->appearance(2)->data(),0x18)==9999);
+    Require(Read<unsigned>(bank.graph->appearance(4)->data(),0x18)==400);
+    Refuses([&]{Control(seed);}); // A CAS-ready graph cannot be reset over pending edits.
     Free(child,0x830);Write(output.data(),0x4c0,static_cast<void*>(nullptr));
     auto badSeed=seed;badSeed["sha256"]=std::string(64,'a');Refuses([&]{Control(badSeed);});Require(protoDestroyed==1);
     std::cout<<"Native existing-owner capture and selection contracts passed\n";return 0;

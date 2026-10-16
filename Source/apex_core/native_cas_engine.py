@@ -80,7 +80,9 @@ def selection_ready(backend, sim_id, mask, kind):
     from . import overlay_loader
     import paths
     status = overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, {'operation': 'status'})
-    if status.get('ok') is not True or status.get('selection_enabled') is not True:
+    if (status.get('ok') is not True or status.get('selection_enabled') is not True or
+            status.get('selection_route') != 'independent-owner-binding' or
+            status.get('independent_owner_view_ready') is not True):
         return False
     selected = status.get('selected_native', {})
     if selected.get('available') is not True or selected.get('sim_id') != sim_id:

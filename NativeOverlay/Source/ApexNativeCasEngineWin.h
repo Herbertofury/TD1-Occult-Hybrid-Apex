@@ -1,8 +1,8 @@
-// Direct, version-pinned CAS engine interception. Existing owners are loaded
-// with EA's field deserializer and selected with its history operation, while
-// the destructive new-kind generator is bypassed for that explicit scope.
+// Version-pinned CAS owner import. Cross-kind conversion is quarantined.
+// Separate editable owner graphs are captured independently of EA's pair view.
 #pragma once
 #include "ApexNativeCasEngine.h"
+#include "ApexCasOwnerGraph.h"
 #include "ApexNativeCasProbeWin.h"
 #include "MinHook.h"
 #include <mutex>
@@ -34,6 +34,7 @@ using AssignDataFn=void(*)(void*,const void*);
 using ServiceFn=bool(*)(const void*);
 using AvatarFn=void*(*)();
 using RefreshFn=void(*)(void*);
+using RebindFn=void(*)(void*,const void*,std::uint32_t);
 struct Api {
     ImportFn import=nullptr;FieldsFn fields=nullptr;ConstructFn construct=nullptr;DestroyFn destroy=nullptr;
     SetFn available=nullptr,current=nullptr,availableData=nullptr;LookupFn lookup=nullptr;StoreFn store=nullptr;MetaFn metadata=nullptr;
@@ -43,6 +44,7 @@ struct Api {
     AlternateFn alternate=nullptr;
     NormalizeFn normalize=nullptr;AssignDataFn assignData=nullptr;MetaFn copySim=nullptr;
     ServiceFn service=nullptr;HistoryFn controller=nullptr;AvatarFn avatar=nullptr;
+    RebindFn rebind=nullptr;
 };
 inline void Span(const void* value,std::size_t count) {
     const auto start=reinterpret_cast<std::uintptr_t>(value);
@@ -77,12 +79,13 @@ struct NativeOwner {
 struct Imported {
     std::map<std::uint32_t,std::unique_ptr<NativeOwner>> owners;
     std::unique_ptr<NativeOwner> active;
+    std::unique_ptr<OwnerGraph<std::unique_ptr<NativeOwner>>> graph;
     bool initialImport=true;
     std::uint32_t mask=0,preferred=0;unsigned imports=0,switches=0,skippedPackets=0;bool seeded=false;std::string error;
 };
 struct State {
     std::recursive_mutex mutex;Api api;Scope scope;std::map<std::uint64_t,Imported> bank;
-    std::uintptr_t image=0;bool installed=false,armed=false,selectionEnabled=false;unsigned intercepted=0,converted=0,alternateOverrides=0,normalizationsPrevented=0,initialOwnersImported=0,serviceSelections=0;
+    std::uintptr_t image=0;bool installed=false,armed=false,selectionEnabled=false;unsigned intercepted=0,converted=0,alternateOverrides=0,normalizationsPrevented=0,initialOwnersImported=0,serviceSelections=0,rebindCorrections=0,blockedConversions=0;
 };
 // The DLL remains loaded for the entire process. Never run game destructors
 // from CRT/DllMain teardown after the game's native services have gone away.
@@ -99,6 +102,8 @@ inline bool Capture(std::uint64_t id,const void* proto,bool sourceSeed) {
     // The client can send a narrowed pair even after Source captured all
     // owners. That packet must not replace the complete pre-entry native bank.
     if(bank.seeded && !sourceSeed) {++bank.skippedPackets;return true;}
+    if(bank.seeded && sourceSeed && !bank.initialImport)
+        throw std::runtime_error("A ready CAS owner graph cannot be reseeded over user edits.");
     try {
         if(Read<std::uint64_t>(proto,0x10)!=id || !(Read<std::uint32_t>(proto,0x1dc)&(1u<<26)))
             throw std::runtime_error("Native import identity or attributes are incomplete.");
@@ -145,6 +150,21 @@ inline bool Capture(std::uint64_t id,const void* proto,bool sourceSeed) {
             state.api.current(replacement.active->value,activeKind);
             state.api.availableData(const_cast<void*>(replacement.active->data()),member->second.mask);
         }
+        const auto activeKind=replacement.active?Read<std::uint32_t>(replacement.active->data(),8):
+            (Kind(current) && (member->second.mask&current)?current:1u);
+        const auto api=state.api;
+        replacement.graph=std::make_unique<OwnerGraph<std::unique_ptr<NativeOwner>>>(
+            id,member->second.mask,activeKind,replacement.owners,
+            [api,id](const std::unique_ptr<NativeOwner>& from,std::uint32_t destination) {
+                auto clone=std::make_unique<NativeOwner>(api,id);
+                api.assignData(const_cast<void*>(clone->data()),from->data());
+                api.current(clone->value,destination);
+                if(Read<std::uint64_t>(clone->value,0xb8)!=id || Read<std::uint32_t>(clone->data(),8)!=destination)
+                    throw std::runtime_error("Cloned appearance changed its exact Sim/form identity.");
+                return clone;
+            });
+        if(replacement.active)
+            replacement.graph->commit(replacement.graph->cursor(),replacement.active);
         bank=std::move(replacement);return true;
     } catch(const std::exception& error) {
         // No existing game owner is written by import. Incomplete captures
@@ -226,6 +246,12 @@ inline void History(void* controller,std::uint32_t target) {
                OwnedTarget(member->second,bank->second.mask,target)) selected={id,target,controller};
         }
     }
+    if(selected.id) {
+        // This is EA's kind-conversion/history path, not a form-view switch.
+        // V155 demonstrated stale kind labels, so never cache edits through it.
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);
+        ++state.blockedConversions;selected=previous;return;
+    }
     try {state.api.history(controller,target);} catch(...) {selected=previous;throw;}
     selected=previous;
 }
@@ -254,16 +280,35 @@ inline bool SetOccultService(const void* arguments) {
         }
     }
     if(!controller) return state.api.service(arguments);
-    // EA compares the first set membership bit to the request. That makes an
-    // Alien request a no-op even when this hybrid currently displays Vampire.
-    // Invoke its actual controller transaction with the requested existing
-    // owner, then use the same avatar notification as the original service.
-    auto* avatar=state.api.avatar();
-    if(!avatar) return false;
-    state.api.controller(controller,target);
-    Read<RefreshFn>(Read<void*>(avatar),0x360)(avatar);
-    {std::lock_guard<std::recursive_mutex> lock(state.mutex);++state.serviceSelections;}
-    return true;
+    // A request for an existing owner is NOT permission to convert it. The
+    // separate owner-view adapter must bind that record on the native UI thread.
+    std::lock_guard<std::recursive_mutex> lock(state.mutex);
+    ++state.blockedConversions;return false;
+}
+inline void Rebind(void* controller,const void* metadata,std::uint32_t target) {
+    auto& state=Runtime();
+    {
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);
+        if(state.selectionEnabled && !Kind(target)) {
+            const auto group=Read<void*>(controller,0x100);
+            const auto model=Read<void*>(controller,0x1d0);
+            const auto id=group?Read<std::uint64_t>(group,0xb8):0;
+            const auto found=state.bank.find(id);
+            if(model && found!=state.bank.end() && found->second.mask && found->second.seeded) {
+                const auto current=Read<std::uint32_t>(model,0x178);
+                const auto expected=current==1?found->second.preferred:1u;
+                if(Kind(current) && (found->second.mask&current) && Kind(expected) &&
+                   (target==(found->second.mask^current) || target==((found->second.mask&~1u)^current)) &&
+                   state.api.lookup(metadata,expected)) {
+                    // The history visitor computes mask XOR current. That is
+                    // a composite membership, not an alternate owner, for a
+                    // hybrid. Bind the actual independent alternate instead.
+                    target=expected;++state.rebindCorrections;
+                }
+            }
+        }
+    }
+    state.api.rebind(controller,metadata,target);
 }
 inline void* Record(const Api& api,const void* metadata,const void* genus) {
     auto* result=static_cast<char*>(api.allocate(0x58,nullptr,0,0,nullptr,0));
@@ -318,13 +363,35 @@ inline ui::Json Status() {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);auto rows=ui::Json::array();
     for(const auto& member:state.scope.members) {
         const auto found=state.bank.find(member.first);auto kinds=ui::Json::array();
-        if(found!=state.bank.end()) for(const auto& owner:found->second.owners) kinds.push_back(owner.first);
+        auto genus=ui::Json::array();
+        if(found!=state.bank.end()) for(const auto& owner:found->second.owners) {
+            kinds.push_back(owner.first);
+            genus.push_back({{"kind",owner.first},{"age",Read<std::uint32_t>(owner.second->data())},
+                {"gender",Read<std::uint32_t>(owner.second->data(),4)},
+                {"species",Read<std::uint32_t>(owner.second->data(),16)}});
+        }
+        auto graphOwners=ui::Json::array();
+        if(found!=state.bank.end() && found->second.graph) {
+            const auto& graph=*found->second.graph;
+            for(const auto& owner:found->second.owners) {
+                auto links=ui::Json::array();
+                for(const auto& target:found->second.owners)
+                    if(graph.linked(owner.first,target.first)) links.push_back(target.first);
+                graphOwners.push_back({{"kind",owner.first},{"revision",graph.revision(owner.first)},
+                    {"selected",graph.cursor().kind==owner.first},{"linked_targets",links}});
+            }
+        }
         rows.push_back({{"sim_id",std::to_string(member.first)},{"owned_mask",member.second.mask},
-            {"imported_mask",found==state.bank.end()?0:found->second.mask},{"kinds",kinds},
+            {"imported_mask",found==state.bank.end()?0:found->second.mask},{"kinds",kinds},{"imported_genus",genus},
             {"imports",found==state.bank.end()?0:found->second.imports},{"switches",found==state.bank.end()?0:found->second.switches},
             {"source_seeded",found!=state.bank.end() && found->second.seeded},
             {"active_entry_captured",found!=state.bank.end() && found->second.active!=nullptr},
+            {"active_entry_kind",found!=state.bank.end() && found->second.active?Read<std::uint32_t>(found->second.active->data(),8):0},
             {"narrowed_packets_skipped",found==state.bank.end()?0:found->second.skippedPackets},
+            {"independent_owner_graph",found!=state.bank.end() && found->second.graph!=nullptr},
+            {"owner_view_ready",false},
+            {"separate_owners",graphOwners},
+            {"graph_selected_kind",found!=state.bank.end() && found->second.graph?found->second.graph->cursor().kind:0},
             {"error",found==state.bank.end()?"":found->second.error}});
     }
     ui::Json selectedNative={{"available",false}};
@@ -340,6 +407,13 @@ inline ui::Json Status() {
                    Read<std::uint8_t>(controller,0x242)==layer && Read<std::uint64_t>(group,0xb8)==id)
                     selectedNative={{"available",true},{"sim_id",std::to_string(id)},{"occult_type",kind},
                         {"all_occult_types",mask},{"layer",layer}};
+                const auto model=Read<void*>(controller,0x1d0);
+                if(model && selectedNative.value("available",false)) {
+                    selectedNative["model_occult_type"]=Read<std::uint32_t>(model,0x178);
+                    selectedNative["model_all_occult_types"]=Read<std::uint32_t>(model,0x17c);
+                    selectedNative["model_cache_present"]=Read<void*>(model,0x518)!=nullptr;
+                    selectedNative["model_avatar_present"]=Read<void*>(model,0x520)!=nullptr;
+                }
             }
         }
     } catch(const std::exception&) {selectedNative={{"available",false}};}
@@ -349,6 +423,10 @@ inline ui::Json Status() {
         {"alternate_kind_overrides",state.alternateOverrides},
         {"normalizations_prevented",state.normalizationsPrevented},{"initial_active_owners_imported",state.initialOwnersImported},
         {"native_service_selections",state.serviceSelections},
+        {"alternate_rebind_corrections",state.rebindCorrections},
+        {"blocked_existing_owner_conversions",state.blockedConversions},
+        {"conversion_quarantined",true},{"independent_owner_view_ready",false},
+        {"selection_route","quarantined-kind-conversion"},
         {"selected_native",selectedNative},
         {"native_patch_qualified",false},{"production_ready",false}};
 }
@@ -381,7 +459,8 @@ inline void Install() {
         {0x321c50,"ef90d19307dceb58d454d3d184f69a27c4e80033cebab3d888ac39a9a1f3bb95"},
         {0x2096a0,"66ceb6da5d2cbedf26ec3fa013dd0f585c8c72e374deb60d93b49ce9358b785e"},
         {0x3f5c30,"c70c491f0229d9b9d2582b53a3208c6dfcfdae5432b3aad8b36317a753b46297"},
-        {0x2039c0,"9a7ff049ec7f2630868754afc7e0b4bc622e125bb0b3ecbd050c9e3c60507ae0"}
+        {0x2039c0,"9a7ff049ec7f2630868754afc7e0b4bc622e125bb0b3ecbd050c9e3c60507ae0"},
+        {0x3e9120,"69cb8818733701549c0596bf8c90067de73203aa2c2b240df7d192a3dba4fbef"}
     };
     for(const auto& pin:pins)
         if(resource::HashBytes(OwnImageRead(pinned.module,pin.rva,32))!=pin.hash)
@@ -408,7 +487,8 @@ inline void Install() {
         {at(0x44a9e0),reinterpret_cast<void*>(&Change),reinterpret_cast<void**>(&state.api.change)},
         {at(0x342750),reinterpret_cast<void*>(&Alternate),reinterpret_cast<void**>(&state.api.alternate)},
         {at(0x3426c0),reinterpret_cast<void*>(&Normalize),reinterpret_cast<void**>(&state.api.normalize)},
-        {at(0x2096a0),reinterpret_cast<void*>(&SetOccultService),reinterpret_cast<void**>(&state.api.service)}
+        {at(0x2096a0),reinterpret_cast<void*>(&SetOccultService),reinterpret_cast<void**>(&state.api.service)},
+        {at(0x3e9120),reinterpret_cast<void*>(&Rebind),reinterpret_cast<void**>(&state.api.rebind)}
     };
     std::vector<void*> created;
     try {
@@ -454,6 +534,9 @@ inline ui::Json Control(const ui::Json& request) {
         for(std::size_t i=0;i<bytes.size();++i) bytes[i]=static_cast<char>((nibble(encoded[i*2])<<4)|nibble(encoded[i*2+1]));
         if(resource::HashBytes(bytes)!=request["sha256"].get<std::string>())
             throw std::runtime_error("Native full-owner bytes differ from their captured SHA-256.");
+        const auto existing=state.bank.find(id);
+        if(existing!=state.bank.end() && existing->second.seeded && !existing->second.initialImport)
+            throw std::runtime_error("A ready CAS owner graph cannot be reseeded over user edits.");
         alignas(16) std::array<char,0x400> proto{};state.api.protoConstruct(proto.data());
         try {
             const ByteView view{bytes.data(),static_cast<std::uint64_t>(bytes.size())};

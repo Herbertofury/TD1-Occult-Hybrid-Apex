@@ -35,6 +35,7 @@ def _owner_id(value, allow_zero=False, producer=False):
 
 
 CACHE_VIEW_QUARANTINED = True  # V141 native post-conversion crash; no automatic retry.
+OWNER_CONVERSION_QUARANTINED = True  # V155 mislabels owners; form selection must never convert.
 
 
 def _owner_context(backend, sim):
@@ -814,6 +815,8 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
     if request.get('operation') == 'occult-cache-view' and CACHE_VIEW_QUARANTINED:
         raise ValueError('Native occult cache conversion is quarantined after the V141 crash; no request sent.')
     if request.get('operation') == 'occult-owner-view':
+        if OWNER_CONVERSION_QUARANTINED:
+            raise ValueError('Cross-occult conversion is quarantined: select an independent owner; no request sent.')
         from . import native_cas_engine
         if not native_cas_engine.selection_ready(backend, sim_id, request.get('owned_mask'), request.get('occult_type')):
             raise ValueError('Native owner selection requires the activated complete native engine patch; no request sent.')

@@ -5,6 +5,20 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V168 is installed only in the disposable profile. Its real tattoo-panel
+Alien -> Vampire -> Alien rerun now retains identical complete snapshot bytes;
+V167 had lost five outfit parts. The complete five-point Fairy round trip also
+retains identical bytes. V168 restores the current owner's reversible hair,
+clothing and Fairy-wing preview modes before deep copying; the destructive
+stock regeneration/cross-layer synchronizer remains bypassed. Native CAS has
+imported 39 separate appearance owners for each of the five household members
+(195 total). Nine native tests, 31 epoch/migration checks, seven matrix-tool
+tests and six native-engine CLI tests pass. All six panel round trips pass:
+tattoos, head/body skin details, eye makeup, nose and skin color retain byte-
+identical Alien snapshots. The edited 195-owner byte matrix remains open.
+These are independent appearance owners;
+special gameplay roles and production use remain unqualified.
+
 V167 replaces the scoped native synchronizer's destructive regeneration with
 deep copying of the current edited complete CasData. Real V166 exports proved
 122 fields changed on Fairy leave; V167's complete cross-form round trip and

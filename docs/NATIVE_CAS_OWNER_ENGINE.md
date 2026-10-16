@@ -1,6 +1,7 @@
 # Independent native CAS form owners
 
-The current development candidate is V167. Production saves are not qualified.
+The current development candidate is V168, awaiting installation/runtime checks.
+Production saves are not qualified.
 The permanent Source guard remains enabled alongside the native fixes.
 Machine-readable results and unqualified gates are recorded in
 `manifests/native-cas-v167-validation.json`; private raw game data is not published.
@@ -155,6 +156,14 @@ actual native physique value. Later visits must retain those values and every
 other observed field/panel. This detects aliases that identical unedited
 templates could conceal. Marker edits remain in the disposable CAS session;
 the command does not accept or save them.
+With `--verify-native-bytes`, actual edits are first flushed through same-owner
+selection on the game thread. Every visit then exports that exact committed
+owner/generation and compares all serialized bytes with its first-cycle
+baseline, including unknown fields. This does not reload a whole Sim or treat
+the DTO's construction defaults as gameplay data. A complete snapshot mismatch
+stops the matrix even if all visible CAS fields still match. The seven matrix
+tests include stale identity/generation, truncated data, digest and future-byte
+changes. Runtime qualification is recorded separately from these tool tests.
 The panel workbench separately checks the typed actual rendered genus and
 records the independent owner when present. `CASGetSimInfo` family metadata
 cannot stand in for the actual form. Switching owners mid-workbench changes
@@ -165,6 +174,23 @@ all members/categories, native undo/redo, explicit copy/link controls, complete
 edited graph export on CAS return, repeated CAS entries, MCCC/F11/Live edits,
 settled simulation readback, controlled save/cold load and whole-household
 Tray/Gallery round trips. No passing unit/build result closes those gates.
+
+V167's subsequent panel-preview test passes head/body skin details but FAILS
+body tattoos: opening that panel and switching Alien -> Vampire -> Alien
+reduces one outfit's part arrays from 20 to 15 without an appearance edit.
+The V168 candidate runs only the three inspected reversible preview-cleanup
+functions before deep copying the current owner. Its new native fixture holds
+an outfit part outside the short header in a temporary preview cache and checks
+restoration before copying, current-edit retention and no repeated cache replay.
+The stock regeneration/cross-owner routine remains bypassed. V168's real
+tattoo -> Vampire -> Alien round trip now preserves identical committed native
+bytes. Head/body skin details, eye makeup, nose and skin color also pass, and
+all five complete Fairy exports remain identical through its cross-kind round
+trip and another synchronization. Native CAS imports 39 owners for each of
+five members (195 total); this is broader than V167's 71-owner inventory.
+The 142-visit edited evidence remains V167; the expanded edited V168 matrix
+must be qualified separately. `manifests/native-cas-v168-validation.json`
+records these concrete cases without certifying gameplay roles or persistence.
 
 Private evidence: `.work/native-cas-v160-final-native-tests.log`,
 `.work/native-cas-v160-current-native-capture-tests.log`,

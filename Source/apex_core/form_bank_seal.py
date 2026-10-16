@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-16-native-cas-current-owner-sync-v167'
+UPGRADE_EPOCH = '2026-10-16-native-cas-finish-preview-before-owner-copy-v168'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '7197e3ef81ca556565a074ec794443d28c46404089be7675bae4b829c1f61391'
+UPGRADE_SELF_BODY_SHA = 'fe238948b4669834a941987f0d64fd44a98c0e802e0c292dc5953cc44f4f1587'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',

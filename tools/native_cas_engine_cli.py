@@ -22,8 +22,13 @@ def run(state, output, request, argument):
         evidence.record()
         call = evidence.wrap(request)
         try:
-            startup = call(state, 'overlay_start', value=json.dumps({'test_token': journal['token'], 'value': None}))
-            if startup.get('ok') is not True:
+            # A committed-owner export requires an already armed graph in the
+            # exact running DLL. Starting the renderer again cannot create that
+            # graph. Dispatch this read directly; the game still verifies the
+            # loaded DLL, scope, owner and generation, and fails if absent.
+            startup = (None if argument['operation']=='export-owner' else
+                call(state, 'overlay_start', value=json.dumps({'test_token': journal['token'], 'value': None})))
+            if startup is not None and startup.get('ok') is not True:
                 result = dict(ok=False, message='Matching native sidecar did not start.', startup=startup)
             else:
                 result = call(state, 'test_native_cas_engine', value=json.dumps({'test_token': journal['token'], 'value': argument}))

@@ -66,6 +66,18 @@
       "ok": true,
       "returned_to_first": true
     },
+    "panel_preview": {
+      "appearance_edits_submitted": false,
+      "failed_panel": "clothing_body_tattoos",
+      "ok": false,
+      "outfit_parts_after": 15,
+      "outfit_parts_before": 20,
+      "passed_panels": [
+        "clothing_head_skin_details",
+        "clothing_body_skin_details"
+      ],
+      "proof_sha256": "1b4c073884d6f800c215ed88429f55cb1617a7b92c9bb073c4269529850bf697"
+    },
     "unchanged_cold_originals": {
       "appearance_owners": 40,
       "ok": true,

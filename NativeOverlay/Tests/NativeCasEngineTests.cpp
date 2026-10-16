@@ -14,6 +14,7 @@ std::map<const void*,std::string> protoExports;
 int exportSizeOverride=0;bool exportWrongId=false,exportWrongLength=false;
 unsigned serviceFallbacks=0,controllerCalls=0,avatarRefreshes=0;
 unsigned reboundKind=0,nativeSyncCalls=0;
+unsigned previewRestores=0;
 void OriginalRebind(void*,const void*,unsigned target) {reboundKind=target;}
 std::array<void*,0x368/8> avatarTable{};void* avatarTablePointer=avatarTable.data();
 bool OriginalService(const void*) {++serviceFallbacks;return false;}
@@ -77,6 +78,14 @@ void NativeSync(void* controller) {
     Write(model,0x188,987654u); // Stock normalization mutates the edited model too.
     Write(model,0x3b0,0xdeadu); // Reproduce loss of a field outside the short header.
 }
+void HairPreview(void* model,bool show) {Write(model,0xa60,std::uint8_t(show));}
+void ClothingPreview(void* model,bool undress) {
+    if(Read<std::uint8_t>(model,0xbb9) && !undress) {
+        Write(model,0x3c0,Read<unsigned>(model,0xb20));++previewRestores;
+    }
+    Write(model,0xbb9,std::uint8_t(undress));
+}
+void WingsPreview(void* model,bool show) {Write(model,0xbba,std::uint8_t(show));}
 void NativeModelBind(void* model,const void* data,void* context,bool) {
     AssignData(static_cast<char*>(model)+0x170,data);Write(model,0x510,context);
     // Reproduce the actual setter's Vampire-membership CMOV. Removing this
@@ -258,6 +267,7 @@ int main() {
     // Execute the actual adapter with native-shaped records and the original
     // game's destructive inactive-copy behavior represented by NativeSync.
     api.sync=NativeSync;api.bind=NativeOriginalBind;api.modelBind=NativeModelBind;
+    api.hairPreview=HairPreview;api.clothingPreview=ClothingPreview;api.wingsPreview=WingsPreview;
     api.coreBind=NativeCoreBind;api.context=NativeContext;api.index=NativeIndex;
     api.undoSelect=OriginalUndoSelect;api.undoCreate=UndoCreate;api.undoBind=UndoBind;
     undoTable[0]=reinterpret_cast<void*>(&UndoDestroyed);
@@ -337,6 +347,15 @@ int main() {
     Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x18)==77777);
     Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x240)==0x55667788u);
     Require(Read<unsigned>(currentModel.data(),0x188)==77777 && Read<unsigned>(currentModel.data(),0x3b0)==0x55667788u);
+    // A body/tattoo preview hides held outfit parts without a user deletion.
+    // Finish the original reversible preview before copying complete data.
+    Write(currentModel.data(),0xbb9,std::uint8_t(1));Write(currentModel.data(),0xb20,0x1234abcdu);
+    Write(currentModel.data(),0x3c0,0u);Sync(controller.data());
+    Require(previewRestores==1 && Read<std::uint8_t>(currentModel.data(),0xbb9)==0);
+    Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x250)==0x1234abcdu);
+    Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x18)==77777);
+    Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x240)==0x55667788u);
+    Sync(controller.data());Require(previewRestores==1); // No second restoration or stale cache replay.
     Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100 && Read<unsigned>(group.data(),0xe8)==9999);
     Require(Read<unsigned>(bank.graph->appearance(4)->data(),0x18)==44444);
     Require(Read<UndoFixture*>(currentModel.data(),0x70)==ghostUndo);

@@ -1,6 +1,7 @@
 import copy
+import hashlib
 import unittest
-from cas_owner_matrix import inventory,appearance_view,digest,physique_markers
+from cas_owner_matrix import inventory,appearance_view,digest,physique_markers,native_bytes
 
 
 class OwnerMatrixTests(unittest.TestCase):
@@ -46,6 +47,27 @@ class OwnerMatrixTests(unittest.TestCase):
             self.assertLess(abs(value*1500-round(value*1500)),0.001)
             self.assertTrue(0.15<value<0.85)
         with self.assertRaises(ValueError):physique_markers([])
+
+    def snapshot(self,raw=b'\x08\x7b\xf8\xff\x01\x11'):
+        return dict(ok=True,owner_export=dict(schema=1,sim_id='123',owner_id='ghost/other',native_kind=1,
+            generation=17,appearance_written=False,model_harvested=False,source='committed-native-appearance',
+            bytes=len(raw),native_hex=raw.hex(),sha256=hashlib.sha256(raw).hexdigest()))
+
+    def test_complete_snapshot_compares_unknown_future_bytes_without_projection(self):
+        owner=dict(owner_id='ghost/other',native_kind=1)
+        prior=native_bytes(self.snapshot(),'123',owner,17)
+        changed=native_bytes(self.snapshot(b'\x08\x7b\xf8\xff\x01\x12'),'123',owner,17)
+        self.assertNotEqual(prior,changed)
+        self.assertEqual(prior,b'\x08\x7b\xf8\xff\x01\x11')
+
+    def test_complete_snapshot_rejects_stale_owner_or_partial_data(self):
+        owner=dict(owner_id='ghost/other',native_kind=1)
+        for key,value in [('sim_id','456'),('owner_id','ghost/living'),('native_kind',2),('native_kind',True),
+                          ('generation',16),('bytes',2),('sha256','0'*64),('native_hex','08'),
+                          ('appearance_written',True),('model_harvested',True),('schema',True)]:
+            with self.subTest(key=key,value=value):
+                snapshot=self.snapshot();snapshot['owner_export'][key]=value
+                with self.assertRaises(ValueError):native_bytes(snapshot,'123',owner,17)
 
 
 if __name__=='__main__':unittest.main()

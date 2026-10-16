@@ -9,6 +9,7 @@ import argparse
 import copy
 import hashlib
 import json
+import re
 import struct
 from pathlib import Path
 
@@ -84,12 +85,34 @@ def physique_markers(members):
     return result
 
 
-def run(state,output,cycles=2,member_ids=None,edit_markers=False):
+def native_bytes(value,sid,owner,generation):
+    """Compare every serialized byte, including unknown future native fields."""
+    exported=value.get('owner_export',{})
+    if (value.get('ok') is not True or type(exported.get('schema')) is not int or exported['schema']!=1 or
+            exported.get('sim_id')!=sid or exported.get('owner_id')!=owner['owner_id'] or
+            type(exported.get('native_kind')) is not int or exported['native_kind']!=owner['native_kind'] or
+            type(exported.get('generation')) is not int or exported['generation']!=generation or
+            exported.get('appearance_written') is not False or exported.get('model_harvested') is not False or
+            exported.get('source')!='committed-native-appearance' or
+            type(exported.get('bytes')) is not int or not 0<exported['bytes']<=512*1024):
+        raise ValueError('Complete native snapshot has another owner, generation or scope.')
+    raw=exported.get('native_hex'); expected=exported.get('sha256')
+    if (not isinstance(raw,str) or len(raw)!=2*exported['bytes'] or re.fullmatch('[0-9a-f]+',raw) is None or
+            not isinstance(expected,str) or re.fullmatch('[0-9a-f]{64}',expected) is None):
+        raise ValueError('Complete native snapshot is truncated or noncanonical.')
+    decoded=bytes.fromhex(raw)
+    if hashlib.sha256(decoded).hexdigest()!=expected:
+        raise ValueError('Complete native snapshot bytes differ from their digest.')
+    return decoded
+
+
+def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=False):
     from apex_cli import execute,parser
     from cli_identity_cache import session
     from source_manifest import write_json,sha256
     state=Path(state); output=Path(output)
-    if type(cycles) is not int or not 2<=cycles<=10 or type(edit_markers) is not bool or output.exists():
+    if (type(cycles) is not int or not 2<=cycles<=10 or type(edit_markers) is not bool or
+            type(verify_native) is not bool or output.exists()):
         raise ValueError('Use 2..10 cycles and one new external proof file.')
     # Existing command evidence validates its outputs against the test profile.
     # The matrix's aggregate proof belongs beside those individual receipts.
@@ -101,7 +124,9 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False):
     proof=dict(schema=1,operation='native-household-all-owner-view-matrix',ok=False,
         cycles=cycles,targets=[],steps=[],differences=[],appearance_edits_submitted=False,
         edit_markers_requested=edit_markers,marker_edits=[],
+        native_bytes_requested=verify_native,native_snapshot_count=0,
         cas_accept_submitted=False,save_submitted=False,complete_native_fields_verified=False,
+        complete_native_snapshot_bytes_verified=False,
         production_ready=False)
     write_json(output,proof); sequence=0
     def command(args):
@@ -125,7 +150,7 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False):
             proof['targets']=copy.deepcopy(members);write_json(output,proof)
             marker_values=physique_markers(members) if edit_markers else {}
             current,_=command(['cas','status','--sim-id',sid,'--seconds','20'])
-            household=current['client']['sim']['householdId']; baselines={}
+            household=current['client']['sim']['householdId']; baselines={}; native_baselines={}
             for cycle in range(cycles):
                 for member in members:
                     target=member['sim_id']
@@ -147,6 +172,7 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False):
                                 receipt.get('native_kind')!=owner['native_kind'] or
                                 receipt.get('independent_undo_bound') is not True or receipt.get('undo_owner_id')!=owner['owner_id']):
                             raise ValueError('Form selection lacks its exact independent owner/history receipt.')
+                        export_path=None; raw=None
                         if edit_markers and cycle==0:
                             value=marker_values[(sid,owner['owner_id'])]
                             existing=current['client']['sim']['physiqueValues'][0]
@@ -160,6 +186,24 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False):
                             proof['marker_edits'].append(dict(sim_id=sid,owner_id=owner['owner_id'],
                                 requested=value,readback=current['client']['sim']['physiqueValues'][0],
                                 edit_submitted=submitted,receipt_sha256=sha256(edit_path)))
+                        if verify_native:
+                            if edit_markers and cycle==0:
+                                # Export reads the committed graph, never the
+                                # live model. Flush the actual edit by selecting
+                                # the same owner through its normal game-thread
+                                # synchronizer before taking its baseline.
+                                c=current['client']
+                                current,_=command(['cas','form-owner-select','--sim-id',sid,
+                                    '--owner-id',owner['owner_id'],'--native-kind',str(owner['native_kind']),
+                                    '--owned-mask',str(member['owned_mask']),'--household-id',household,
+                                    '--expected-layer',str(c['sim']['occultLayer']),
+                                    '--native-session',str(c['owner_pair_observation']['session']),'--seconds','25'])
+                            generation=current['native_owner_view_receipt']['generation']
+                            exported,export_path=command(['game','native-cas-engine','--value',json.dumps(dict(
+                                operation='export-owner',scope_id=native['scope_id'],sim_id=sid,
+                                owner_id=owner['owner_id'],expected_generation=generation))])
+                            raw=native_bytes(exported,sid,owner,generation)
+                            proof['native_snapshot_count']+=1
                         view=appearance_view(current['client']); key=(sid,owner['owner_id'])
                         if cycle==0:baselines[key]=view
                         elif view!=baselines[key]:
@@ -167,12 +211,25 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False):
                             proof['differences'].append(dict(sim_id=sid,owner_id=owner['owner_id'],
                                 fields=[k for k in view if view[k]!=prior[k]],
                                 panels=[p for p in view['panels'] if view['panels'][p]!=prior['panels'].get(p)]))
+                        if verify_native:
+                            if cycle==0:native_baselines[key]=raw
+                            elif raw!=native_baselines[key]:
+                                proof['differences'].append(dict(sim_id=sid,owner_id=owner['owner_id'],
+                                    complete_native_bytes_changed=True,
+                                    before_sha256=hashlib.sha256(native_baselines[key]).hexdigest(),
+                                    after_sha256=hashlib.sha256(raw).hexdigest()))
                         step=dict(cycle=cycle,sim_id=sid,owner_id=owner['owner_id'],
                             native_kind=owner['native_kind'],receipt_sha256=sha256(path),view_sha256=digest(view))
+                        if export_path is not None:
+                            step.update(native_snapshot_receipt_sha256=sha256(export_path),
+                                        native_bytes_sha256=hashlib.sha256(raw).hexdigest())
                         proof['steps'].append(step);write_json(output,proof)
                         print(json.dumps(dict(visits=len(proof['steps']),**step)),flush=True)
                         if proof['differences']:raise ValueError('CAS appearance changed across owner/member visits.')
             proof['ok']=len(proof['steps'])==cycles*sum(len(m['owners']) for m in members)
+            # The serialized DTO includes every captured byte. That does not
+            # establish arbitrary field editing or a complete gameplay Sim.
+            proof['complete_native_snapshot_bytes_verified']=verify_native and proof['ok']
     except Exception as error:
         proof['error']=str(error)
     finally:write_json(output,proof)
@@ -184,6 +241,7 @@ if __name__=='__main__':
     p.add_argument('--state',required=True,type=Path);p.add_argument('--output',required=True,type=Path)
     p.add_argument('--cycles',type=int,default=2);p.add_argument('--member-id',action='append')
     p.add_argument('--edit-physique-markers',action='store_true',help='Edit each disposable CAS owner to a unique physique value; never accept/save')
-    args=p.parse_args();result=run(args.state,args.output,args.cycles,args.member_id,args.edit_physique_markers)
+    p.add_argument('--verify-native-bytes',action='store_true',help='Flush actual edits and compare complete native protobuf bytes, including unknown fields')
+    args=p.parse_args();result=run(args.state,args.output,args.cycles,args.member_id,args.edit_physique_markers,args.verify_native_bytes)
     print(json.dumps({k:result.get(k) for k in ('ok','error','differences','production_ready')}))
     raise SystemExit(0 if result['ok'] else 1)

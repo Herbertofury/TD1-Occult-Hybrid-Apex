@@ -50,6 +50,7 @@ using KindMaskFn=std::uint32_t(*)(const void*);
 using ExportProtoFn=void(*)(const void*,void*);
 using ProtoSizeFn=int(*)(const void*);
 using ProtoArrayFn=char*(*)(const void*,char*);
+using PreviewFn=void(*)(void*,bool);
 inline thread_local const void* detachedTarget=nullptr;
 struct DetachedTarget {
     const void* previous;
@@ -70,6 +71,7 @@ struct Api {
     UndoSelectFn undoSelect=nullptr;UndoCreateFn undoCreate=nullptr;UndoBindFn undoBind=nullptr;
     KindMaskFn kindMask=nullptr;
     ExportProtoFn exportProto=nullptr;ProtoSizeFn protoSize=nullptr;ProtoArrayFn protoArray=nullptr;
+    PreviewFn hairPreview=nullptr,clothingPreview=nullptr,wingsPreview=nullptr;
 };
 inline void Span(const void* value,std::size_t count) {
     const auto start=reinterpret_cast<std::uintptr_t>(value);
@@ -300,6 +302,20 @@ inline void StoreCanonical(State& state,Imported& bank,void* controller) {
     if(!metadata) throw std::runtime_error("Native view lacks its complete appearance cache.");
     for(const auto& owner:bank.owners) state.api.store(metadata,owner.first,bank.graph->appearance(owner.first)->data());
 }
+inline void FinishPreview(State& state,void* controller) {
+    const auto model=Read<void*>(controller,0x1d0);
+    if(!model || !state.api.hairPreview || !state.api.clothingPreview || !state.api.wingsPreview)
+        throw std::runtime_error("Native appearance synchronization lacks its inspected preview cleanup.");
+    // These are the stock synchronizer's three reversible preview operations,
+    // not its outfit/genetics regeneration or cross-layer copying. Tattoo/body
+    // panels temporarily remove actual outfit rows and hold them in the model;
+    // copying that preview directly would persist missing clothes. Restore the
+    // current owner's held rows before harvesting, then bind another owner.
+    if(!Read<std::uint8_t>(model,0xa60)) state.api.hairPreview(model,true);
+    if(Read<std::uint8_t>(model,0xbb9)) state.api.clothingPreview(model,false);
+    if(Read<std::uint32_t>(model,0x178)==64 && !Read<std::uint8_t>(model,0xbba))
+        state.api.wingsPreview(model,true);
+}
 inline void Sync(void* controller) {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
     if(binding && binding->controller==controller) return; // Never harvest a half-bound view.
@@ -313,6 +329,7 @@ inline void Sync(void* controller) {
         if(bank.boundGroup!=group || !bank.graph) throw std::runtime_error("Native CAS changed its bound form owner.");
         const auto layer=Read<std::uint8_t>(controller,0x242);
         const auto inactive=layer?group:Read<void*>(group,0x4c0);
+        FinishPreview(state,controller);
         // CAS setters have already written the selected model's complete
         // CasData. The stock two-slot synchronizer is not a serializer: it
         // changes preview modes, regenerates outfit/genetic parts and copies
@@ -953,7 +970,10 @@ inline void Install() {
         {0x45c318,"943eb3933a680528b30128f30d47c187046bcd2b629fad58a47fd1ec39b4a3ee"},
         {0x323990,"e90d48dcd731ebb911f40edc9980c774a4b55836c46e82453538a02a3e76e4dc"},
         {0x617780,"7551fbeac222a844a6bbcba8332a9795e40da3d486ee4339a8d924d26f8e39d7"},
-        {0x63f470,"6322b81000b364019e148ec50a47751e090f93e5000ff266f2e403fdd8bca0bc"}
+        {0x63f470,"6322b81000b364019e148ec50a47751e090f93e5000ff266f2e403fdd8bca0bc"},
+        {0x45c070,"28bd4e82a8fb688e0addc2808f300afb4aa44068945992641826e703528b5424"},
+        {0x44ba00,"e06169b5e5330e8cfe47b23d840e0545987eea134bfaeb82dafdc2dfeee5f431"},
+        {0x44bbe0,"c2cf12e18d5385311fc573702461234512a6ddac9e77eeef0ccd1b08e0930f1d"}
     };
     for(const auto& pin:pins)
         if(resource::HashBytes(OwnImageRead(pinned.module,pin.rva,32))!=pin.hash)
@@ -980,6 +1000,9 @@ inline void Install() {
     state.api.exportProto=reinterpret_cast<ExportProtoFn>(at(0x323990));
     state.api.protoSize=reinterpret_cast<ProtoSizeFn>(at(0x617780));
     state.api.protoArray=reinterpret_cast<ProtoArrayFn>(at(0x63f470));
+    state.api.hairPreview=reinterpret_cast<PreviewFn>(at(0x45c070));
+    state.api.clothingPreview=reinterpret_cast<PreviewFn>(at(0x44ba00));
+    state.api.wingsPreview=reinterpret_cast<PreviewFn>(at(0x44bbe0));
     const auto init=MH_Initialize();if(init!=MH_OK && init!=MH_ERROR_ALREADY_INITIALIZED)
         throw std::runtime_error("Native form hook registry is unavailable.");
     struct Hook {void* target;void* detour;void** original;};

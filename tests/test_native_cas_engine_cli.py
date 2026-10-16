@@ -48,3 +48,24 @@ class EngineCliTests(unittest.TestCase):
             return dict(ok=True, production_ready=False)
         self.assertTrue(self.run_engine(request,scope,evidence)['ok'])
         self.assertEqual(calls,['overlay_start','test_native_cas_engine'])
+
+    def test_committed_export_reads_existing_graph_without_restarting_renderer(self):
+        import json
+        argument=dict(operation='export-owner',scope_id='a'*32,sim_id='123',
+                      owner_id='ghost/other',expected_generation=17)
+        calls=[]; evidence=Evidence()
+        def request(state, action, **options):
+            calls.append(action)
+            self.assertEqual(evidence.proof['native_engine_request'],argument)
+            self.assertEqual(json.loads(options['value']),dict(test_token='b'*32,value=argument))
+            return dict(ok=True,production_ready=False)
+        self.assertTrue(self.run_engine(request,argument,evidence)['ok'])
+        self.assertEqual(calls,['test_native_cas_engine'])
+
+    def test_missing_committed_graph_does_not_start_or_replay_export(self):
+        calls=[]
+        def request(state,action,**options):
+            calls.append(action);return dict(ok=False,message='Graph is absent.')
+        result=self.run_engine(request,dict(operation='export-owner',scope_id='a'*32,
+            sim_id='123',owner_id='ghost/other',expected_generation=17))
+        self.assertFalse(result['ok']);self.assertEqual(calls,['test_native_cas_engine'])

@@ -61,7 +61,7 @@ class NativeCodeCliTests(unittest.TestCase):
             return dict(ok=True,read_only=True,game_memory_written=False,game_files_written=False,
                         native_patch_qualified=False,code_rva=window['rva'],captured_bytes=window['bytes'],code_sha256='c'*64)
         result=self.run_probe(request,evidence,window)
-        self.assertEqual(calls,['overlay_start','test_native_cas_code_window'])
+        self.assertEqual(calls,['test_native_cas_code_window'])
         self.assertEqual(evidence.proof['requested_code_window'],window)
         self.assertEqual(result['code_rva'],window['rva']);self.assertEqual(result['captured_bytes'],1024)
 

@@ -10,7 +10,36 @@ from pathlib import Path
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Source'))
 from apex_core import form_appearance
+from apex_core import outfit_snapshot
 from source_manifest import sha256,write_json
+
+
+def original_outfit_records(before,after):
+    """Describe added outfits separately without relaxing the strict result.
+
+    Every original child byte and category-relative ordinal must survive.
+    Unknown top-level bytes must remain identical. Additions are reported, not
+    declared user-authorized edits or removed from the full comparison.
+    """
+    def rows(value):
+        decoded=form_appearance.decode(value)
+        if not isinstance(decoded,tuple) or decoded[0]!='protobuf':raise ValueError('Complete native outfit messages are required.')
+        raw=decoded[1];outfit_snapshot.normalize(raw)
+        entries={};counts={};unknown=[];offset=0
+        while offset<len(raw):
+            start=offset;number,wire,offset,child=outfit_snapshot.field(raw,offset)
+            if number==1:
+                if wire!=2:raise ValueError('An outfit record has another wire type.')
+                category=outfit_snapshot.category(child);ordinal=counts.get(category,0);counts[category]=ordinal+1
+                entries[(category,ordinal)]=child
+            else:unknown.append(raw[start:offset])
+        return entries,unknown
+    old,old_unknown=rows(before);new,new_unknown=rows(after)
+    changed=[dict(category=key[0],ordinal=key[1]) for key,raw in old.items() if new.get(key)!=raw]
+    added=[dict(category=key[0],ordinal=key[1]) for key in new if key not in old]
+    return dict(original_records_retained=not changed and old_unknown==new_unknown,
+        changed_or_missing_originals=changed,unknown_top_level_retained=old_unknown==new_unknown,
+        added_records=added)
 
 
 def compare(reference,pages,intended=()):
@@ -19,7 +48,7 @@ def compare(reference,pages,intended=()):
             not set(intended)<set(form_appearance.FIELDS+('__outfits__',))):
         raise ValueError('Use a complete original reference and an explicit partial intended-field set.')
     expected={(sid,oid):row for sid,owners in reference['members'].items() for oid,row in owners.items()}
-    seen=set();differences=[]
+    seen=set();differences=[];original_losses=[];outfit_additions=[]
     for page in pages:
         if (page.get('ok') is not True or page.get('scope')!='native-owner-export-page' or
                 page.get('scope_id')!=reference['native_scope_id'] or
@@ -40,9 +69,18 @@ def compare(reference,pages,intended=()):
             changed=sorted(name for name in set(before['field_sha256'])|set(after['field_sha256'])
                 if name not in intended and before['field_sha256'].get(name)!=after['field_sha256'].get(name))
             if changed:differences.append(dict(sim_id=key[0],owner_id=key[1],fields=changed))
+            lost=list(changed)
+            if '__outfits__' in changed:
+                delta=original_outfit_records(expected[key]['fields']['__outfits__'],row['fields']['__outfits__'])
+                if delta['original_records_retained']:lost.remove('__outfits__')
+                if delta['added_records']:
+                    outfit_additions.append(dict(sim_id=key[0],owner_id=key[1],records=delta['added_records']))
+            if lost:original_losses.append(dict(sim_id=key[0],owner_id=key[1],fields=lost))
     if seen!=set(expected):raise ValueError('Complete comparison omitted household owners.')
     return dict(ok=not differences,owners_compared=len(seen),intended_fields=sorted(set(intended)),
         differences=differences,appearance_written=False,cas_accept_submitted=False,save_submitted=False,
+        original_fields_and_outfit_records_retained=not original_losses,original_losses=original_losses,
+        added_outfits=outfit_additions,added_outfits_user_authorized=False,
         production_ready=False)
 
 

@@ -5,6 +5,32 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V174 is built, not installed or runtime-qualified. Its CAS-return receiver
+captures every committed canonical, active and named native DTO with complete
+raw bytes, binds it to the member's exact pre-entry transaction, and retains
+named forms by their exact IDs. Changed named forms require individual typed
+keep/discard decisions through the CLI; cancellation never implies acceptance.
+Missing or changed native readback blocks completion instead of merging from
+the seven native rendering lanes. The return, save/cold-load, phone/F11 review
+and Tray workflows still require runtime qualification.
+
+The native bridge now copies selection observations inside CAS callbacks.
+Source/socket status and view staging no longer follow live controller/group/
+model pointers; the actual callback still checks the engine objects before
+selection. Nine native targets pass, including an unreadable singleton-pointer
+test. This change is in the built V174 candidate, not the running V173 session.
+
+V173 completed distinct actual physique edits for all 195 appearances/five Sims.
+The strict original-field audit then failed: 130 owners acquired 756 additional
+outfits. Complete original outfit child bytes, unknown top-level outfit bytes,
+and all other untouched appearance fields remain intact for all 195 owners.
+The full unchanged-field result remains false; added outfits are not declared
+user-authorized. The matrix stopped between completed commands. A separate
+post-initialization revisit compares all 195 owners with their edited baselines
+and complete native snapshot hashes; that run is still in progress. No CAS
+acceptance or save was submitted. Native automatic outfit generation remains
+under investigation, including whether bulk UI getters create missing outfits.
+
 Additional host validation compares every untouched decoded appearance field
 with its fresh pre-entry original, excluding only the explicitly edited
 physique field; two focused tests pass. A native snapshot optimization is built
@@ -17,7 +43,8 @@ appearances across all five Sims. Full CAS accepted the entry and completed its
 client handshake. All twelve captured appearance fields match each owner's
 fresh original, including Fairy genetics, separate pelts and empty Spellcaster
 outfits. Nine native targets and 31 epoch/migration checks pass. The edited
-195-owner repeat/member matrix is running; CAS-return persistence and production
+195-owner first edit pass completed; the strict untouched-field audit reported
+the additional outfits described above. CAS-return persistence and production
 qualification remain open. Host tooling now reuses only sub-second completed
 native acknowledgements inside a bounded batch, retains all Source/native
 freshness guards, and compares complete household bytes at cycle barriers.

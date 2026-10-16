@@ -5,6 +5,7 @@ appearance bytes stay inside the game-owned checkpoint and journal.
 """
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import reusable_profile
@@ -27,19 +28,19 @@ def _pairs(items):
     return result
 
 
-def _intent_file(path, expected, active, original):
+def _intent_file(path, expected, active, original,limit=128*1024):
     if path is None or not _hash(expected):
         raise ValueError('Intent files require their exact SHA-256.')
     path = reusable_profile.legacy.unlinked(path)
     if path.suffix.lower() != '.json' or any(path == root or root in path.parents for root in (active, original)):
         raise ValueError('Use an external JSON intent file.')
     before = path.stat()
-    if not path.is_file() or not 0 < before.st_size <= 128 * 1024:
+    if not path.is_file() or not 0 < before.st_size <= limit:
         raise ValueError('CAS intent file exceeds its bound.')
     with path.open('rb') as stream:
-        raw = stream.read(128 * 1024 + 1)
+        raw = stream.read(limit + 1)
     after = path.stat()
-    if (len(raw) > 128 * 1024 or hashlib.sha256(raw).hexdigest() != expected or
+    if (len(raw) > limit or hashlib.sha256(raw).hexdigest() != expected or
             (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns)):
         raise ValueError('CAS intent file changed or differs from its exact hash.')
     return json.loads(raw.decode('utf-8'), object_pairs_hook=_pairs)
@@ -78,6 +79,20 @@ def _hair_targets(value, accepted):
     return value
 
 
+def _named_dispositions(value):
+    if not isinstance(value,list) or len(value)>2048:raise ValueError('Use bounded exact named-form decisions.')
+    seen=set()
+    for row in value:
+        if (not isinstance(row,dict) or set(row)!={'owner_id','action'} or
+                not isinstance(row['owner_id'],str) or
+                re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',row['owner_id']) is None or
+                row['owner_id'].startswith(('native/','active/')) or row['owner_id'] in seen or
+                row['action'] not in ('accept-returned','restore-original')):
+            raise ValueError('Use unique named form identities and explicit actions; external appearance fields are forbidden.')
+        seen.add(row['owner_id'])
+    return value
+
+
 def run(args, request):
     _, journal, active, original = reusable_profile.load(args.state)
     output = reusable_profile.writable(args.output)
@@ -89,10 +104,12 @@ def run(args, request):
             str(int(args.sim_id)) != args.sim_id or not 0 < int(args.sim_id) < 2 ** 64):
         raise ValueError('Use an exact native uint64 Sim identity.')
     supplied = {key: getattr(args, key) for key in ('expected_pending_sha256', 'expected_raw_return_sha256',
-        'expected_plan_sha256', 'dispositions_file', 'dispositions_sha256', 'hair_targets_file', 'hair_targets_sha256')}
+        'expected_plan_sha256', 'dispositions_file', 'dispositions_sha256', 'hair_targets_file', 'hair_targets_sha256',
+        'named_dispositions_file','named_dispositions_sha256')}
     allowed = {'begin': set(), 'status': set(), 'observe': {'expected_pending_sha256'},
                'prepare': {'expected_pending_sha256', 'expected_raw_return_sha256', 'dispositions_file',
-                           'dispositions_sha256', 'hair_targets_file', 'hair_targets_sha256'},
+                           'dispositions_sha256', 'hair_targets_file', 'hair_targets_sha256',
+                           'named_dispositions_file','named_dispositions_sha256'},
                'commit': {'expected_pending_sha256', 'expected_plan_sha256'}}[args.operation]
     if any(value is not None and key not in allowed for key, value in supplied.items()):
         raise ValueError('CAS bank options belong to a different operation; no request submitted.')
@@ -104,6 +121,9 @@ def run(args, request):
             value[name] = supplied[name]
     if args.operation == 'prepare':
         value['dispositions'] = _dispositions(_intent_file(args.dispositions_file, args.dispositions_sha256, active, original))
+        if args.named_dispositions_file is not None or args.named_dispositions_sha256 is not None:
+            value['named_dispositions']=_named_dispositions(_intent_file(args.named_dispositions_file,
+                args.named_dispositions_sha256,active,original,limit=512*1024))
         if args.hair_targets_file is not None or args.hair_targets_sha256 is not None:
             accepted = {row['lane'] for row in value['dispositions'] if row['action'] == 'accept-returned'}
             value['hair_targets'] = _hair_targets(_intent_file(args.hair_targets_file, args.hair_targets_sha256, active, original), accepted)

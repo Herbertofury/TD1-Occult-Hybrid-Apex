@@ -317,6 +317,15 @@ int main() {
     Write(currentModel.data(),0x178,4u);Write(currentModel.data(),0x17c,127u);Write(currentModel.data(),0x188,9999u);
     NativeCoreBind(controller.data(),0,false); // Initial household binding bypasses the stock copying binder too.
     Require(bank.viewBound && !bank.viewFault && Read<unsigned>(currentModel.data(),0x178)==2);
+    const auto capturedSelection=Status()["selected_native"];
+    Require(capturedSelection["source"]=="native-cas-callback-observation" && capturedSelection["occult_type"]==2);
+    // The CAS engine can dispose its controller without taking our mutex.
+    // Worker status must only read the callback's value snapshot, even when
+    // the singleton points at unreadable memory; no pointer probing or Sync.
+    controllerPointer=reinterpret_cast<void*>(1);
+    Require(Status()["selected_native"]==capturedSelection);
+    Require(ViewStatus()["available"]==true && ViewStatus()["native_kind"]==2);
+    controllerPointer=controller.data();
     api.exportProto=ExportProto;api.protoSize=ProtoSize;api.protoArray=ProtoArray;
     auto* exportedData=const_cast<void*>(bank.graph->appearance("native/4")->data());
     Write(exportedData,0x240,0x11223344u); // Opaque field beyond the short fixture header survives export.

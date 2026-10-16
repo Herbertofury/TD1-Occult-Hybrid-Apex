@@ -429,6 +429,8 @@ def parser():
     cas_bank.add_argument('--dispositions-sha256')
     cas_bank.add_argument('--hair-targets-file', type=Path)
     cas_bank.add_argument('--hair-targets-sha256')
+    cas_bank.add_argument('--named-dispositions-file', type=Path)
+    cas_bank.add_argument('--named-dispositions-sha256')
     household_cas = commands.add_parser('cas-household-commit', help='Commit each fresh household CAS checkpoint with explicit Sim/form edit intent')
     household_cas.add_argument('--state', required=True, type=Path)
     household_cas.add_argument('--entry-proof', required=True, type=Path)

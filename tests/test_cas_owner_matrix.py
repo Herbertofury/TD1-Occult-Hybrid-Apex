@@ -1,7 +1,10 @@
 import copy
 import hashlib
+import json
+from pathlib import Path
+import tempfile
 import unittest
-from cas_owner_matrix import inventory,appearance_view,digest,physique_markers,native_bytes,page_index
+from cas_owner_matrix import inventory,appearance_view,digest,physique_markers,native_bytes,page_index,resume_prefix
 
 
 class OwnerMatrixTests(unittest.TestCase):
@@ -82,6 +85,50 @@ class OwnerMatrixTests(unittest.TestCase):
             elif damage=='kind':changed['members'][0]['owners'][0]['native_kind']=1
             else:changed['appearance_written']=True
             with self.subTest(damage=damage),self.assertRaises(ValueError):page_index(changed,members)
+
+    def resume_fixture(self,directory):
+        native=self.status();native.update(pid=12345,scope_id='a'*32)
+        members,_=inventory(native);sid='123';oid=members[0]['owners'][0]['owner_id']
+        marker=physique_markers(members)[(sid,oid)]
+        value=dict(ok=True,client=dict(sim=dict(simId=sid,physiqueValues=[marker]),
+            catalogs=[dict(panel='skin_details',supported=True,items=[])]),
+            native_owner_view_receipt=dict(sim_id=sid,owner_id=oid,native_kind=2,independent_undo_bound=True))
+        def write(name,data):
+            raw=json.dumps(data).encode();(directory/name).write_bytes(raw)
+            return hashlib.sha256(raw).hexdigest()
+        write('matrix-0000.json',native);receipt=write('matrix-0001.json',value)
+        refused='Native UI transport has no distributor client; no CAS request sent.'
+        write('matrix-0002.json',dict(ok=False,message=refused,request_state='failed',ui_transition_verified=False))
+        prior=dict(ok=False,cycles=2,targets=members,differences=[],cas_accept_submitted=False,save_submitted=False,
+            edit_markers_requested=True,native_bytes_requested=False,native_pages_requested=True,native_page_checkpoints=[],
+            error='Matrix command failed: '+refused,steps=[dict(cycle=0,sim_id=sid,owner_id=oid,native_kind=2,
+                receipt_sha256=receipt,view_sha256=digest(appearance_view(value['client'])))],
+            marker_edits=[dict(sim_id=sid,owner_id=oid,requested=marker,readback=marker,receipt_sha256=receipt)])
+        path=directory/'matrix.json';write(path.name,prior)
+        return path,native,members,prior
+
+    def test_resume_only_uses_exact_completed_receipts_in_same_native_scope(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path,native,members,_=self.resume_fixture(Path(temporary))
+            prior,baselines,continuity=resume_prefix(path,native,members,2,True,False,True)
+            self.assertEqual(len(baselines),1);self.assertEqual(continuity['completed_visits'],1)
+            self.assertFalse(continuity['last_request_sent']);self.assertFalse(prior['ok'])
+
+    def test_resume_rejects_uncertain_receipts_other_runtime_or_changed_baseline(self):
+        for damage in ('pending','runtime','scope','receipt','view','order','saved'):
+            with self.subTest(damage=damage),tempfile.TemporaryDirectory() as temporary:
+                directory=Path(temporary);path,native,members,prior=self.resume_fixture(directory)
+                if damage=='pending':
+                    value=json.loads((directory/'matrix-0002.json').read_text());value['request_state']='pending'
+                    (directory/'matrix-0002.json').write_text(json.dumps(value))
+                elif damage=='runtime':native['pid']+=1
+                elif damage=='scope':native['scope_id']='b'*32
+                elif damage=='receipt':prior['marker_edits'][0]['receipt_sha256']='f'*64
+                elif damage=='view':prior['steps'][0]['view_sha256']='f'*64
+                elif damage=='order':prior['steps'][0]['owner_id']='ghost/other'
+                elif damage=='saved':prior['save_submitted']=True
+                path.write_text(json.dumps(prior))
+                with self.assertRaises(ValueError):resume_prefix(path,native,members,2,True,False,True)
 
 
 if __name__=='__main__':unittest.main()

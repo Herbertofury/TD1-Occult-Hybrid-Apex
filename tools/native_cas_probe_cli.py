@@ -27,10 +27,11 @@ def run(state, output, request, code_window=None):
         call=evidence.wrap(request)
         envelope=json.dumps({'test_token':journal['token'],'value':None})
         try:
-            # The existing loader is idempotent for the exact already-loaded
-            # DLL; it rejects replacement/mismatched lifetimes instead of reloading.
-            startup=call(state,'overlay_start',value=envelope)
-            if startup.get('ok') is not True:
+            # A code window requires the already loaded exact native DLL.
+            # Read it directly; starting the renderer adds no read authority
+            # and can stall an unrelated CAS session.
+            startup=None if code_window is not None else call(state,'overlay_start',value=envelope)
+            if startup is not None and startup.get('ok') is not True:
                 result=dict(ok=False,message='Native sidecar initialization was not acknowledged.',
                     startup=startup,probe_submitted=False,native_patch_qualified=False)
             else:

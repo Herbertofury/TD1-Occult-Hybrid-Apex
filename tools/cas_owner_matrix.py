@@ -127,7 +127,66 @@ def page_index(value,members):
     return result
 
 
-def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=False,verify_pages=False):
+def resume_prefix(path,native,members,cycles,edit_markers,verify_native,verify_pages):
+    """Recover completed first-cycle evidence only after an explicit non-send.
+
+    Never replay an unresolved request. The only admitted failure happened
+    before the Source receiver created a CAS command. Every earlier edit and
+    view must still have its exact successful receipt in this runtime/scope.
+    """
+    from source_manifest import sha256
+    path=Path(path);prior=json.loads(path.read_text(encoding='utf-8'))
+    refused='Native UI transport has no distributor client; no CAS request sent.'
+    if (prior.get('ok') is not False or prior.get('cycles')!=cycles or
+            prior.get('targets')!=members or prior.get('differences') or
+            prior.get('cas_accept_submitted') is not False or prior.get('save_submitted') is not False or
+            prior.get('edit_markers_requested')!=edit_markers or not edit_markers or
+            prior.get('native_bytes_requested')!=verify_native or verify_native or
+            prior.get('native_pages_requested')!=verify_pages or not verify_pages or
+            prior.get('native_page_checkpoints') or not prior.get('error','').endswith(refused)):
+        raise ValueError('Only a first-cycle, explicitly unsent transport refusal can resume.')
+    receipts={};numbered=[]
+    for receipt in path.parent.glob(path.stem+'-*.json'):
+        if re.fullmatch(re.escape(path.stem)+r'-[0-9]{4}\.json',receipt.name):
+            raw=receipt.read_bytes();receipts[hashlib.sha256(raw).hexdigest()]=json.loads(raw)
+            numbered.append(receipt)
+    numbered.sort()
+    if not numbered:raise ValueError('No original matrix command evidence.')
+    first=json.loads(numbered[0].read_text(encoding='utf-8'))
+    last=json.loads(numbered[-1].read_text(encoding='utf-8'))
+    if (first.get('ok') is not True or first.get('pid')!=native['pid'] or first.get('scope_id')!=native['scope_id'] or
+            last.get('ok') is not False or last.get('message')!=refused or last.get('request_state')!='failed' or
+            last.get('ui_transition_verified') is not False):
+        raise ValueError('The stopped matrix has another runtime/scope or an uncertain last request.')
+    expected=[(m['sim_id'],o['owner_id'],o['native_kind']) for m in members for o in m['owners']]
+    steps=prior.get('steps');edits=prior.get('marker_edits')
+    if (not isinstance(steps,list) or not 0<len(steps)<len(expected) or
+            not isinstance(edits,list) or len(edits)!=len(steps)):
+        raise ValueError('Only an exact completed first-cycle prefix can resume.')
+    baselines={};markers=physique_markers(members)
+    for index,(step,edit) in enumerate(zip(steps,edits)):
+        sid,oid,kind=expected[index];key=(sid,oid)
+        selected=receipts.get(step.get('receipt_sha256'),{})
+        receipt=selected.get('native_owner_view_receipt',{})
+        edited=receipts.get(edit.get('receipt_sha256'),{})
+        if (step.get('cycle')!=0 or (step.get('sim_id'),step.get('owner_id'),step.get('native_kind'))!=(sid,oid,kind) or
+                (edit.get('sim_id'),edit.get('owner_id'))!=key or edit.get('requested')!=markers[key] or
+                selected.get('ok') is not True or receipt.get('sim_id')!=sid or receipt.get('owner_id')!=oid or
+                receipt.get('native_kind')!=kind or receipt.get('independent_undo_bound') is not True or
+                edited.get('ok') is not True):
+            raise ValueError('A completed matrix step lacks its exact independent edit/view evidence.')
+        view=appearance_view(edited['client'])
+        observed=view['sim'].get('physiqueValues',[None])[0]
+        if (view['sim'].get('simId')!=sid or observed!=edit.get('readback') or
+                type(observed) not in (int,float) or abs(observed-markers[key])>0.000001 or
+                digest(view)!=step.get('view_sha256')):
+            raise ValueError('A retained matrix edit differs from its complete original readback.')
+        baselines[key]=view
+    return prior,baselines,dict(path=str(path.resolve()),sha256=sha256(path),completed_visits=len(steps),
+        last_request_sent=False,runtime_pid=native['pid'],scope_id=native['scope_id'])
+
+
+def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=False,verify_pages=False,resume=None):
     from apex_cli import execute,parser
     from cli_identity_cache import session
     from source_manifest import write_json,sha256
@@ -178,8 +237,20 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=F
             marker_values=physique_markers(members) if edit_markers else {}
             current,_=command(['cas','status','--sim-id',sid,'--seconds','20'])
             household=current['client']['sim']['householdId']; baselines={}; native_baselines={}
+            completed=0
+            if resume is not None:
+                previous,baselines,continuity=resume_prefix(resume,native,members,cycles,edit_markers,verify_native,verify_pages)
+                for name in ('steps','marker_edits','appearance_edits_submitted'):
+                    proof[name]=copy.deepcopy(previous[name])
+                proof['resumed_from']=continuity;completed=len(previous['steps']);write_json(output,proof)
+            position=0
             for cycle in range(cycles):
                 for member in members:
+                    pending=[]
+                    for owner in member['owners']:
+                        if position>=completed:pending.append(owner)
+                        position+=1
+                    if not pending:continue
                     target=member['sim_id']
                     if sid!=target:
                         c=current['client']
@@ -187,7 +258,7 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=F
                             '--household-id',household,'--expected-layer',str(c['sim']['occultLayer']),
                             '--native-session',str(c['owner_pair_observation']['session']),'--seconds','25'])
                         sid=target
-                    for owner in member['owners']:
+                    for owner in pending:
                         c=current['client']
                         current,path=command(['cas','form-owner-select','--sim-id',sid,
                             '--owner-id',owner['owner_id'],'--native-kind',str(owner['native_kind']),
@@ -294,6 +365,7 @@ if __name__=='__main__':
     p.add_argument('--edit-physique-markers',action='store_true',help='Edit each disposable CAS owner to a unique physique value; never accept/save')
     p.add_argument('--verify-native-bytes',action='store_true',help='Flush actual edits and compare complete native protobuf bytes, including unknown fields')
     p.add_argument('--verify-native-pages',action='store_true',help='Compare complete household bytes at cycle barriers; avoids an export/flush per visit')
-    args=p.parse_args();result=run(args.state,args.output,args.cycles,args.member_id,args.edit_physique_markers,args.verify_native_bytes,args.verify_native_pages)
+    p.add_argument('--resume-unsent-prefix',type=Path,help='Continue exact successful first-cycle receipts after a proven not-sent transport refusal; never replay an uncertain request')
+    args=p.parse_args();result=run(args.state,args.output,args.cycles,args.member_id,args.edit_physique_markers,args.verify_native_bytes,args.verify_native_pages,args.resume_unsent_prefix)
     print(json.dumps({k:result.get(k) for k in ('ok','error','differences','production_ready')}))
     raise SystemExit(0 if result['ok'] else 1)

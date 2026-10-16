@@ -16,14 +16,31 @@
       "proof_sha256": "ef1bf139db9805655429e5cfd4cf83e2e4930ef20606543780e021578cae43db"
     },
     "edited_all195_matrix": {
+      "additional_outfits": 756,
+      "additional_outfits_user_authorized": false,
+      "cas_accept_submitted": false,
+      "changed_owners": 130,
+      "existing_original_records_changed": 0,
+      "first_cycle_edits": 195,
+      "members": 5,
+      "original_fields_and_outfit_records_retained": true,
+      "original_outfit_unknown_bytes_retained": true,
+      "original_record_analysis_sha256": "c85520c2d3563da661c1b52ae49e95d08dff2e68c2afaf6c075ac29ce6b3b837",
       "passed": false,
-      "state": "running"
+      "raw_first_cycle_export_sha256": "ffc3ed87a36245b9e54d5958c31f35bb3c793001b90fc5430a4a4ce8f96b0c90",
+      "save_submitted": false,
+      "state": "stopped-at-strict-field-audit",
+      "strict_original_fields_unchanged": false
     },
     "full_cas": {
       "client_handshake_verified": true,
       "entry_accepted": true,
       "inventory_qualified": false,
       "proof_sha256": "beb19b5f7fbf88c54c985ba72d2e69cf74ede9f5ae11c56b63f32abbec9ba553"
+    },
+    "post_initialization_revisit": {
+      "passed": false,
+      "state": "running"
     },
     "pre_entry_import": {
       "empty_outfits_retained": true,

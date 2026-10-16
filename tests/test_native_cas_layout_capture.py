@@ -6,7 +6,7 @@ import sys
 from types import SimpleNamespace as Obj
 import unittest
 from unittest.mock import patch
-from apex_core import native_cas_engine as engine,overlay_loader,sim_data,form_appearance as appearance,lifestate_forms,cas_owner_payload
+from apex_core import native_cas_engine as engine,overlay_loader,sim_data,form_appearance as appearance,lifestate_forms,cas_owner_payload,cas_bank_transaction
 
 
 class NativeLayoutCaptureTests(unittest.TestCase):
@@ -30,6 +30,7 @@ class NativeLayoutCaptureTests(unittest.TestCase):
             return dict(ok=True,members=[imported])
         prior=dict(pid=1,scope_id='b'*32,owners={})
         with patch.object(engine,'_verify_imported_owners',return_value=dict(ok=True,owners=[])), \
+                patch.object(cas_bank_transaction,'status',return_value=dict(phase='captured',expected_pending_sha256='c'*64)), \
                 patch.object(engine,'_LAYOUT_SCOPE',prior),patch.object(overlay_loader,'_CALLS',{'ready':True}), \
                 patch.object(overlay_loader,'native_cas_engine_control',side_effect=call), \
                 patch.object(appearance,'packed',side_effect=lambda backend,owner:fields(owner)), \

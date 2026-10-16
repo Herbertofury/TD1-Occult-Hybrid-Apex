@@ -160,6 +160,7 @@ struct State {
     std::unique_ptr<ViewIntent> viewIntent;ui::Json viewResult=nullptr;std::set<std::uint32_t> viewTokens;std::uint64_t nativeUiSequence=0;std::uint32_t nextUiToken=0x20000000;
     std::map<std::uint32_t,std::pair<std::uint64_t,std::string>> uiOwners;
     std::uint64_t boundSim=0;void* boundController=nullptr;
+    ui::Json observedNative={{"available",false}};std::uint64_t observationSequence=0;
     unsigned kindBiasPrevented=0,importOutfitFillsPrevented=0;
     void* kindRelay=nullptr;std::int32_t originalKindCall=0,patchedKindCall=0;bool kindCallPatched=false,kindRelayReady=false;
     std::uintptr_t image=0;bool installed=false,armed=false,selectionEnabled=false;unsigned intercepted=0,converted=0,alternateOverrides=0,normalizationsPrevented=0,initialOwnersImported=0,serviceSelections=0,rebindCorrections=0,blockedConversions=0;
@@ -331,6 +332,27 @@ inline void FinishPreview(State& state,void* controller) {
     if(Read<std::uint32_t>(model,0x178)==64 && !Read<std::uint8_t>(model,0xbba))
         state.api.wingsPreview(model,true);
 }
+// Called only inside native CAS callbacks while the engine owns these objects.
+// Source/socket workers may read the copied observation, never controller,
+// group or model pointers whose lifetime is outside our mutex.
+inline void ObserveSelected(State& state,void* controller) {
+    state.observedNative={{"available",false}};
+    const auto group=Read<void*>(controller,0x100);
+    if(!group) return;
+    const auto id=Read<std::uint64_t>(group,0xb8);const auto layer=Read<std::uint8_t>(controller,0x242);
+    const auto view=layer?Read<void*>(group,0x4c0):group;const auto model=Read<void*>(controller,0x1d0);
+    if(layer>1 || !view || !model || !state.scope.members.count(id)) return;
+    const auto kind=Read<std::uint32_t>(view,0xd8);
+    if(!Kind(kind)) return;
+    if(state.observationSequence==UINT64_MAX) throw std::runtime_error("Native observation sequence is exhausted.");
+    state.observedNative={{"available",true},{"sim_id",std::to_string(id)},{"occult_type",kind},
+        {"all_occult_types",Read<std::uint32_t>(view,0xdc)},{"layer",layer},
+        {"model_occult_type",Read<std::uint32_t>(model,0x178)},
+        {"model_all_occult_types",Read<std::uint32_t>(model,0x17c)},
+        {"model_cache_present",Read<void*>(model,0x518)!=nullptr},
+        {"model_avatar_present",Read<void*>(model,0x520)!=nullptr},
+        {"source","native-cas-callback-observation"},{"observation_sequence",++state.observationSequence}};
+}
 inline void Sync(void* controller) {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
     if(binding && binding->controller==controller) return; // Never harvest a half-bound view.
@@ -362,7 +384,9 @@ inline void Sync(void* controller) {
         if(inactive) state.api.assignData(static_cast<char*>(inactive)+0xd0,
             bank.graph->appearance(layer?bank.entryOwner:bank.partner)->data());
         StoreCanonical(state,bank,controller);
+        ObserveSelected(state,controller);
     } catch(const std::exception& error) {
+        state.observedNative={{"available",false}};
         bank.viewFault=true;state.viewResult={{"state","unresolved"},{"sim_id",std::to_string(id)},
             {"message",error.what()},{"native_sync_blocked",true}};
     }
@@ -400,6 +424,7 @@ inline void BindSelected(void* controller,bool notify) {
             ViewBinding current{controller,&bank,owner};binding=&current;
             BindSelected(controller,notify);binding=previous;bank.viewBound=true;
         } catch(const std::exception& error) {
+            state.observedNative={{"available",false}};
             binding=previous;bank.viewFault=true;
             state.viewResult={{"state","unresolved"},{"sim_id",std::to_string(id)},
                 {"message",error.what()},{"native_bind_blocked",true}};
@@ -421,6 +446,7 @@ inline void BindSelected(void* controller,bool notify) {
         throw std::runtime_error("The native model rewrote the independent form's rendering kind.");
     bank.boundContext=context;
     state.boundSim=bank.graph->cursor().sim;state.boundController=controller;
+    ObserveSelected(state,controller);
 }
 inline bool SelectView(std::uint32_t token) {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
@@ -477,7 +503,7 @@ inline bool SelectView(std::uint32_t token) {
         result["state"]="applied";result["native_kind"]=desiredKind;result["generation"]=bank.graph->cursor().generation;
         result["layer"]=layer;result["owned_mask"]=bank.mask;
         result["independent_undo_bound"]=true;result["undo_owner_id"]=intent.owner;return true;
-    } catch(const std::exception& error) {if(affected) affected->viewFault=true;result["state"]="unresolved";result["message"]=error.what();return false;}
+    } catch(const std::exception& error) {state.observedNative={{"available",false}};if(affected) affected->viewFault=true;result["state"]="unresolved";result["message"]=error.what();return false;}
 }
 
 
@@ -850,14 +876,14 @@ inline ui::Json ViewStatus() {
         {"available",false},{"game_files_written",false},{"native_patch_qualified",false},{"production_ready",false}};
     if(!state.selectionEnabled || !state.image) return result;
     try {
-        const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
-        const auto group=controller?Read<void*>(controller,0x100):nullptr;
-        if(!group) return result;const auto id=Read<std::uint64_t>(group,0xb8);const auto at=state.bank.find(id);
+        if(!state.observedNative.value("available",false)) return result;
+        const auto id=SimId(state.observedNative["sim_id"]);const auto at=state.bank.find(id);
         if(at==state.bank.end() || !at->second.graph) return result;
         const auto cursor=at->second.graph->cursor();
         result["available"]=true;result["sim_id"]=std::to_string(id);result["owner_id"]=cursor.owner;
         result["native_kind"]=cursor.kind;result["generation"]=cursor.generation;
-        result["layer"]=Read<std::uint8_t>(controller,0x242);
+        result["layer"]=state.observedNative["layer"];
+        result["source"]="native-cas-callback-observation";
         result["state"]=at->second.viewFault?"unresolved":at->second.viewBound?"bound":"unbound";
     } catch(const std::exception&) {result["available"]=false;}
     return result;
@@ -903,29 +929,7 @@ inline ui::Json Status() {
             {"graph_selected_owner_id",found!=state.bank.end() && found->second.graph?found->second.graph->cursor().owner:""},
             {"error",found==state.bank.end()?"":found->second.error}});
     }
-    ui::Json selectedNative={{"available",false}};
-    if(state.image && state.selectionEnabled) try {
-        const auto address=reinterpret_cast<void*>(state.image+0x2948f00);
-        const auto controller=Read<void*>(address);const auto group=controller?Read<void*>(controller,0x100):nullptr;
-        if(group) {
-            const auto id=Read<std::uint64_t>(group,0xb8);const auto layer=Read<std::uint8_t>(controller,0x242);
-            const auto view=layer?Read<void*>(group,0x4c0):group;
-            if(layer<=1 && view && state.scope.members.count(id)) {
-                const auto kind=Read<std::uint32_t>(view,0xd8),mask=Read<std::uint32_t>(view,0xdc);
-                if(Kind(kind) && Read<void*>(address)==controller && Read<void*>(controller,0x100)==group &&
-                   Read<std::uint8_t>(controller,0x242)==layer && Read<std::uint64_t>(group,0xb8)==id)
-                    selectedNative={{"available",true},{"sim_id",std::to_string(id)},{"occult_type",kind},
-                        {"all_occult_types",mask},{"layer",layer}};
-                const auto model=Read<void*>(controller,0x1d0);
-                if(model && selectedNative.value("available",false)) {
-                    selectedNative["model_occult_type"]=Read<std::uint32_t>(model,0x178);
-                    selectedNative["model_all_occult_types"]=Read<std::uint32_t>(model,0x17c);
-                    selectedNative["model_cache_present"]=Read<void*>(model,0x518)!=nullptr;
-                    selectedNative["model_avatar_present"]=Read<void*>(model,0x520)!=nullptr;
-                }
-            }
-        }
-    } catch(const std::exception&) {selectedNative={{"available",false}};}
+    const auto selectedNative=state.selectionEnabled?state.observedNative:ui::Json{{"available",false}};
     return {{"ok",true},{"pid",GetCurrentProcessId()},{"installed",state.installed},{"armed",state.armed},
         {"scope_id",state.scope.id},{"selection_enabled",state.selectionEnabled},{"members",rows},{"existing_owner_selections",state.intercepted},
         {"native_converter_calls",state.converted},{"game_files_written",false},
@@ -1200,10 +1204,12 @@ inline ui::Json Control(const ui::Json& request) {
         if(cursor.owner!=request["expected_owner_id"].get<std::string>() || cursor.generation!=request["expected_generation"].get<std::uint64_t>())
             throw std::runtime_error("Form view intent belongs to a stale owner selection.");
         graph.appearance(owner);
-        const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
-        const auto group=controller?Read<void*>(controller,0x100):nullptr;
-        if(!group || Read<std::uint64_t>(group,0xb8)!=id || Read<std::uint8_t>(controller,0x242)!=layer)
-            throw std::runtime_error("Form view intent belongs to a different native Sim or layer.");
+        if(!state.observedNative.value("available",false) ||
+           state.observedNative.value("sim_id","")!=std::to_string(id) ||
+           state.observedNative["layer"].get<std::uint64_t>()!=layer)
+            throw std::runtime_error("Form view intent belongs to a different observed native Sim or layer.");
+        // SelectView checks the actual engine objects in the native CAS
+        // callback before any edit. This worker only stages typed intent.
         const auto token=0x10000000u|static_cast<std::uint32_t>(std::stoul(rid.substr(0,7),nullptr,16));
         if(!state.viewTokens.insert(token).second) throw std::runtime_error("Form view intent token was already consumed; no replay.");
         state.viewIntent=std::make_unique<ViewIntent>(ViewIntent{rid,owner,id,cursor.generation,token,static_cast<std::uint8_t>(layer)});

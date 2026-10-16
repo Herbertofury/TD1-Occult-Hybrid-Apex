@@ -1,9 +1,11 @@
 import copy
 import hashlib
 import os
+import sys
+from types import SimpleNamespace as Obj
 import unittest
 from unittest.mock import patch
-from apex_core import native_cas_engine as engine, cas_owner_decode, form_appearance as appearance
+from apex_core import native_cas_engine as engine, cas_owner_decode, form_appearance as appearance,overlay_loader
 
 
 class NativeImportReadbackTests(unittest.TestCase):
@@ -61,6 +63,45 @@ class NativeImportReadbackTests(unittest.TestCase):
                 with patch.object(cas_owner_decode,'read',side_effect=read):
                     with self.assertRaises(ValueError):
                         engine._verify_imported_owners(lambda value:pages[value['sim_id']],status,expected)
+
+    def return_fixture(self):
+        status,expected,pages,decoded,read=self.fixture()
+        for row in status['members']:row['native_view_fault']=False
+        scope=dict(pid=os.getpid(),scope_id=status['scope_id'],epochs={'123':'c'*64,'456':'d'*64},owners={
+            key:dict(native_kind=row['native_kind'],layout=cas_owner_decode.layout(row['fields'])) for key,row in expected.items()})
+        return status,pages,read,scope
+
+    def test_complete_return_keeps_named_raw_bytes_and_checkpoint_identity(self):
+        status,pages,read,scope=self.return_fixture();calls=[]
+        def call(module,dll,value):
+            calls.append(value['operation'])
+            return copy.deepcopy(status if value['operation']=='status' else pages[value['sim_id']])
+        with patch.object(engine,'_LAYOUT_SCOPE',scope),patch.object(cas_owner_decode,'read',side_effect=read), \
+                patch.object(overlay_loader,'native_cas_engine_control',side_effect=call), \
+                patch.dict(sys.modules,{'paths':Obj(DLL_PATH='fixture')}):
+            result=engine.returned_owners(Obj(__file__='fixture'),Obj(id=123),'c'*64)
+        self.assertEqual(calls,['status','export-owner-page','status']);self.assertEqual(len(result['owners']),4)
+        self.assertEqual(result['checkpoint_epoch'],'c'*64);self.assertFalse(result['appearance_written'])
+        ghost=next(row for row in result['owners'] if row['owner_id']=='ghost/manifested')
+        self.assertEqual(bytes.fromhex(ghost['native_hex']),b'123ghost/manifested')
+        self.assertEqual(ghost['fields']['physique'],appearance.encode('123ghost/manifested'))
+
+    def test_stale_return_epoch_fault_or_changed_generation_never_publishes_partial_forms(self):
+        for damage in ('epoch','pid','fault','generation','missing'):
+            with self.subTest(damage=damage):
+                status,pages,read,scope=self.return_fixture();calls=[]
+                if damage=='pid':scope['pid']+=1
+                if damage=='fault':status['members'][0]['native_view_fault']=True
+                if damage=='missing':pages['123']['owners'].pop()
+                def call(module,dll,value):
+                    calls.append(value['operation']);result=copy.deepcopy(status if value['operation']=='status' else pages[value['sim_id']])
+                    if damage=='generation' and len(calls)==3:result['members'][0]['graph_generation']+=1
+                    return result
+                with patch.object(engine,'_LAYOUT_SCOPE',scope),patch.object(cas_owner_decode,'read',side_effect=read), \
+                        patch.object(overlay_loader,'native_cas_engine_control',side_effect=call), \
+                        patch.dict(sys.modules,{'paths':Obj(DLL_PATH='fixture')}):
+                    with self.assertRaises(ValueError):
+                        engine.returned_owners(Obj(__file__='fixture'),Obj(id=123),'e'*64 if damage=='epoch' else 'c'*64)
 
 
 if __name__=='__main__':unittest.main()

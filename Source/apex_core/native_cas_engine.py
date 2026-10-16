@@ -342,10 +342,16 @@ def seed_members(backend):
     members = {str(sim.id): sim for sim in household.sim_info_gen()}
     if not set(row['sim_id'] for row in status['members']) <= set(members):
         raise ValueError('Native form scope does not belong to the current household.')
-    receipts = [];layouts={}; expected={}
+    receipts = [];layouts={}; expected={};epochs={}
     import base64
     for row in status['members']:
         sim = members[row['sim_id']]
+        from . import cas_bank_transaction
+        checkpoint=cas_bank_transaction.status(backend,sim)
+        epoch=checkpoint.get('expected_pending_sha256')
+        if checkpoint.get('phase')!='captured' or not cas_bank_transaction.primitive._hash(epoch):
+            raise ValueError('Native owners require this member\'s fresh captured CAS transaction.')
+        epochs[row['sim_id']]=epoch
         owners = dict(backend._form_map(sim.occult_tracker), active=sim)
         fields = {str(kind): appearance.packed(backend, owner) for kind, owner in owners.items()}
         before = {kind: appearance.fingerprint(payload) for kind,payload in fields.items()}
@@ -409,6 +415,56 @@ def seed_members(backend):
     if result.get('ok') is not True or result.get('selection_enabled') is not True:
         raise ValueError('Complete native owner selection did not activate.')
     verification = _verify_imported_owners(call,result,expected)
-    _LAYOUT_SCOPE=dict(pid=os.getpid(),scope_id=status['scope_id'],owners=layouts)
+    _LAYOUT_SCOPE=dict(pid=os.getpid(),scope_id=status['scope_id'],owners=layouts,epochs=epochs)
     return dict(enabled=True, scope_id=status['scope_id'], members=receipts, existing_appearances_unchanged=True,
                 import_verification=verification)
+
+
+def owns_return(sim_id,epoch):
+    scope=_LAYOUT_SCOPE
+    if scope is None or not any(sid==sim_id for sid,_oid in scope['owners']):return False
+    if scope['pid']!=os.getpid() or scope.get('epochs',{}).get(sim_id)!=epoch:
+        raise ValueError('Native CAS return belongs to a different process or member checkpoint.')
+    return True
+
+
+def returned_owners(backend,sim,epoch):
+    """Read the complete committed graph after receiver-owned Live return.
+
+    No model is harvested on a Source worker. CAS must already have completed
+    its native synchronization; this retains raw unknown bytes independently
+    for every canonical, active and named owner. It never loads a gameplay DTO.
+    """
+    sid=str(sim.id)
+    if not owns_return(sid,epoch):return None
+    from . import overlay_loader,cas_owner_decode
+    from .cas_owner_export_page import Collector
+    import paths
+    scope=_LAYOUT_SCOPE
+    call=lambda value:overlay_loader.native_cas_engine_control(backend.__file__,paths.DLL_PATH,value)
+    status=call(dict(operation='status'))
+    rows=[row for row in status.get('members',[]) if row['sim_id']==sid]
+    if (status.get('ok') is not True or status.get('pid')!=scope['pid'] or
+            status.get('scope_id')!=scope['scope_id'] or len(rows)!=1 or
+            rows[0].get('native_view_fault') is not False):
+        raise ValueError('Native CAS return has another or unresolved owner graph.')
+    member=rows[0];expected={oid:item for (owner_sid,oid),item in scope['owners'].items() if owner_sid==sid}
+    identity=dict(pid=scope['pid'],scope_id=scope['scope_id'],sim_id=sid,generation=member['graph_generation'],
+        owned_mask=member['owned_mask'],selected_owner_id=member['graph_selected_owner_id'])
+    collector=Collector(identity,{oid:item['native_kind'] for oid,item in expected.items()});cursor=''
+    while not collector.complete:
+        page=call(dict(operation='export-owner-page',scope_id=scope['scope_id'],sim_id=sid,
+            expected_generation=identity['generation'],after_owner_id=cursor))
+        cursor=collector.append(page)['next_owner_id']
+    document=collector.document()
+    for row in document['owners']:
+        row['fields']=cas_owner_decode.read(bytes.fromhex(row['native_hex']),sid,expected[row['owner_id']]['layout'])['fields']
+    final=call(dict(operation='status'))
+    fresh=[row for row in final.get('members',[]) if row['sim_id']==sid]
+    if (final.get('ok') is not True or final.get('pid')!=scope['pid'] or final.get('scope_id')!=scope['scope_id'] or
+            len(fresh)!=1 or fresh[0].get('graph_generation')!=identity['generation'] or
+            fresh[0].get('graph_selected_owner_id')!=identity['selected_owner_id'] or
+            fresh[0].get('native_view_fault') is not False):
+        raise ValueError('Native CAS return changed during its complete appearance readback.')
+    return dict(schema=1,ok=True,source='receiver-native-owner-return',identity=identity,
+        checkpoint_epoch=epoch,owners=document['owners'],appearance_written=False,save_reload_verified=False)

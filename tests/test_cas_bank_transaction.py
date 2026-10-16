@@ -142,12 +142,13 @@ class CasBankReceiverTests(unittest.TestCase):
         self.observation = receiver.observe(self.backend, self.sim, {'expected_pending_sha256': self.epoch})
         return self.observation
 
-    def prepare(self, decisions, hair_targets=None):
+    def prepare(self, decisions, hair_targets=None,named_dispositions=None):
         argument = {'expected_pending_sha256': self.epoch,
             'expected_raw_return_sha256': self.observation['raw_return_sha256'],
             'dispositions': [{'lane': str(lane), 'action': action} for lane, action in decisions]}
         if hair_targets is not None:
             argument['hair_targets'] = hair_targets
+        if named_dispositions is not None:argument['named_dispositions']=named_dispositions
         self.plan_receipt = receiver.prepare(self.backend, self.sim, argument)
         self.commit_argument = {'expected_pending_sha256': self.epoch,
                                'expected_plan_sha256': self.plan_receipt['plan_sha256']}
@@ -999,6 +1000,56 @@ class CasBankReceiverTests(unittest.TestCase):
         # the changed bank never supplies those new originals.
         self.begin()
         self.assertEqual(self.record()['pending']['original_owners']['stored'], self.originals)
+
+    def named_native_return(self):
+        data=self.data();record=data['records'][self.key];forms={};owners=[]
+        for identity in ('ghost_ghost','ghost_living'):
+            original=copy.deepcopy(self.originals['1'])
+            forms[identity]=dict(id=identity,lifestate='GHOST',label=identity,base_form=1,
+                fields=original,appearance_sha256=appearance.fingerprint(original)['appearance_sha256'])
+            fields=copy.deepcopy(original);fields['physique']=appearance.encode('edited-'+identity)
+            raw=('native-'+identity).encode()
+            owners.append(dict(owner_id='ghost/'+identity,native_kind=1,fields=fields,native_hex=raw.hex(),
+                sha256=hashlib.sha256(raw).hexdigest()))
+        record['lifestate_forms']=dict(schema=1,forms=forms,active={'1':'ghost_ghost'})
+        form_bank.save(self.path,data)
+        return dict(ok=True,source='receiver-native-owner-return',appearance_written=False,owners=owners)
+
+    def test_native_named_return_keeps_same_genus_variants_separate_on_atomic_completion(self):
+        from apex_core import native_cas_engine
+        returned=self.named_native_return();self.begin()
+        with patch.object(native_cas_engine,'owns_return',return_value=True), \
+                patch.object(native_cas_engine,'returned_owners',return_value=returned):
+            self.observe()
+        self.prepare([],named_dispositions=[dict(owner_id=row['owner_id'],action='accept-returned') for row in returned['owners']])
+        self.commit();record=self.record()
+        self.assertEqual(record['lifestate_forms']['forms']['ghost_ghost']['fields']['physique']['value'],'edited-ghost_ghost')
+        self.assertEqual(record['lifestate_forms']['forms']['ghost_living']['fields']['physique']['value'],'edited-ghost_living')
+        self.assertEqual(record['native_cas_owner_archive'],returned)
+        self.assertEqual(record['bank'],self.originals)
+        self.assertEqual(record['lifestate_forms']['active'],{})
+        self.assertEqual(self.data()['records']['30:99'],self.foreign)
+        self.assertTrue(receiver.assert_idle(self.backend,self.sim))
+
+    def test_failed_native_named_capture_cannot_fall_back_to_lane_merging(self):
+        from apex_core import native_cas_engine
+        self.named_native_return();self.begin()
+        with patch.object(native_cas_engine,'owns_return',return_value=True), \
+                patch.object(native_cas_engine,'returned_owners',side_effect=ValueError('lost exact native graph')):
+            with self.assertRaisesRegex(ValueError,'lost exact native graph'):self.observe()
+        self.observation=receiver.status(self.backend,self.sim)
+        with self.assertRaisesRegex(ValueError,'missing or changed'):self.prepare([])
+        self.assertEqual(self.native_writes,[])
+
+    def test_cancelled_named_edits_require_dispositions_and_can_restore_every_original(self):
+        from apex_core import native_cas_engine
+        returned=self.named_native_return();original=copy.deepcopy(self.record()['lifestate_forms']);self.begin()
+        with patch.object(native_cas_engine,'owns_return',return_value=True), \
+                patch.object(native_cas_engine,'returned_owners',return_value=returned):self.observe()
+        with self.assertRaisesRegex(ValueError,'explicit disposition'):self.prepare([])
+        self.assertEqual(self.native_writes,[])
+        self.prepare([],named_dispositions=[dict(owner_id=row['owner_id'],action='restore-original') for row in returned['owners']])
+        self.commit();self.assertEqual(self.record()['lifestate_forms'],original)
 
 
 if __name__ == '__main__':

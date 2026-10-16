@@ -1,6 +1,6 @@
 import copy
 import unittest
-from cas_owner_compare import compare
+from cas_owner_compare import compare,original_outfit_records
 from apex_core import form_appearance as appearance
 
 
@@ -36,6 +36,20 @@ class OwnerAppearanceComparisonTests(unittest.TestCase):
                 elif change=='sha':changed['owner_appearances'][0]['native_sha256']='c'*64
                 else:changed['owner_appearance_query']='unavailable'
             with self.subTest(change=change),self.assertRaises(ValueError):compare(reference,pages,['physique'])
+
+    def test_added_outfits_are_reported_without_passing_the_strict_comparison(self):
+        reference,page=self.fixture()
+        original=appearance.encode(('protobuf',b'\x0a\x07\x08\x01\x10\x00\xa0\x06\x01\xa0\x06\x01'))
+        added=appearance.encode(('protobuf',b'\x0a\x07\x08\x01\x10\x00\xa0\x06\x01\x0a\x04\x08\x02\x10\x01\xa0\x06\x01'))
+        reference['members']['123']['ghost/living']['fields']['__outfits__']=original
+        page['owner_appearances'][0]['fields']['__outfits__']=added
+        result=compare(reference,[page],['physique'])
+        self.assertFalse(result['ok']);self.assertTrue(result['original_fields_and_outfit_records_retained'])
+        self.assertEqual(result['added_outfits'][0]['records'],[dict(category=1,ordinal=0)])
+        self.assertFalse(result['added_outfits_user_authorized'])
+        raw=bytearray(appearance.decode(added)[1]);raw[8]=2
+        changed=appearance.encode(('protobuf',bytes(raw)))
+        self.assertFalse(original_outfit_records(original,changed)['original_records_retained'])
 
 
 if __name__=='__main__':unittest.main()

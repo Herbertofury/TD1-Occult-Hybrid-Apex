@@ -139,6 +139,25 @@ class CasBankCliTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 cas_bank_cli._hair_targets(value, {'1'})
 
+    def test_exact_named_form_decisions_reach_receiver_without_render_kind_grouping(self):
+        numeric,ndigest=self.intent('native.json',[])
+        names=[dict(owner_id='ghost/living',action='restore-original'),
+            dict(owner_id='ghost/manifested',action='accept-returned'),
+            dict(owner_id='custom/future_form',action='accept-returned')]
+        named,digest=self.intent('named.json',names)
+        args=self.args('prepare',['--expected-pending-sha256','c'*64,'--expected-raw-return-sha256','d'*64,
+            '--dispositions-file',numeric,'--dispositions-sha256',ndigest,
+            '--named-dispositions-file',named,'--named-dispositions-sha256',digest])
+        observed=[]
+        cas_bank_cli.run(args,lambda *a,**k:observed.append(json.loads(k['value'])) or {'ok':True})
+        self.assertEqual(observed[0]['named_dispositions'],names)
+
+    def test_named_decisions_refuse_external_fields_duplicates_and_native_aliases(self):
+        for rows in ([dict(owner_id='ghost/look',action='accept-returned',fields={})],
+                [dict(owner_id='native/1',action='accept-returned')],
+                [dict(owner_id='ghost/look',action='accept-returned')]*2):
+            with self.subTest(rows=rows),self.assertRaises(ValueError):cas_bank_cli._named_dispositions(rows)
+
 
 if __name__ == '__main__':
     unittest.main()

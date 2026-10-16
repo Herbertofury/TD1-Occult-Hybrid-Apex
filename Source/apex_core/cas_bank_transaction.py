@@ -346,6 +346,14 @@ def _completed(transaction):
                 ack.get('plan_sha256') != journal['plan_sha256'] or
                 not isinstance(plan.get('desired'), dict) or set(plan['desired']) != set(original['stored'])):
             return False
+        if 'native_owner_return_sha256' in plan:
+            native_return=transaction.get('native_owner_return')
+            if (not isinstance(native_return,dict) or
+                    not primitive._hash(plan['native_owner_return_sha256']) or
+                    plan['native_owner_return_sha256']!=transaction.get('native_owner_return_sha256') or
+                    primitive.digest(native_return)!=plan['native_owner_return_sha256'] or
+                    not primitive._hash(plan.get('named_document_sha256'))):
+                return False
         changed = {lane for lane in original['stored'] if
                    appearance.fingerprint(original['stored'][lane])['appearance_sha256'] !=
                    appearance.fingerprint(returned['stored'][lane])['appearance_sha256']}
@@ -544,10 +552,21 @@ def _commit_metadata(backend, sim, token, receipt):
                 raise ValueError('Enabled hair policy changed during CAS.')
             policy['forms'] = {lane: outfit_hair.capture(backend, fields)
                                for lane, fields in receipt['bank'].items()}
+        native_return=_native_return_capability(path=_path,key=_key,transaction=transaction)
         record['bank'] = copy.deepcopy(receipt['bank'])
-        from .lifestate_forms import sync as sync_lifestate
-        for lane, fields in record['bank'].items():
-            sync_lifestate(record, lane, fields)
+        if native_return is not None:
+            from . import cas_named_return
+            named,archive=cas_named_return.prepare(record,native_return,record['bank'],journal['plan'].get('named_dispositions'))
+            if (journal['plan'].get('native_owner_return_sha256')!=primitive.digest(native_return) or
+                    journal['plan'].get('named_document_sha256')!=primitive.digest(named)):
+                raise ValueError('Named CAS completion differs from its exact prepared native-owner plan.')
+            record['lifestate_forms']=named
+            record['native_cas_owner_archive']=archive
+            record['lifestate_runtime_pid']=os.getpid()
+        else:
+            from .lifestate_forms import sync as sync_lifestate
+            for lane, fields in record['bank'].items():
+                sync_lifestate(record, lane, fields)
         if policy is not None:
             record['hair_policy'] = policy
         record['active_lane'] = receipt['active_lane']
@@ -668,6 +687,19 @@ class _HairTransaction(primitive.CasCommitTransaction):
 
 def _cache_key(path, key, token):
     return str(path), key, token
+
+
+def _native_return_capability(path,key,transaction):
+    held=_CAPTURED.get(_cache_key(path,key,transaction['transaction_id']))
+    if not held:raise ValueError('The native return receiver capability is unavailable.')
+    if transaction.get('native_owner_return_required',False)!=held.get('native_return_required',False):
+        raise ValueError('The captured native return requirement changed; no fallback authorized.')
+    if held.get('native_return_required') is not True:return None
+    returned=held.get('native_return');digest=transaction.get('native_owner_return_sha256')
+    if (not isinstance(returned,dict) or not primitive._hash(digest) or
+            primitive.digest(returned)!=digest or transaction.get('native_owner_return')!=returned):
+        raise ValueError('Complete native-owner CAS return is missing or changed; no named form can be merged.')
+    return copy.deepcopy(returned)
 
 
 def _instance(backend, sim, allow_primary_recreation=False):
@@ -960,7 +992,26 @@ def observe(backend, sim, argument):
     with _LOCK:
         transaction = _argument(backend, sim, argument, {'expected_pending_sha256'})
         instance = _instance(backend, sim, allow_primary_recreation=True)
+        from . import native_cas_engine
+        path,key,_record,_transaction=_selected(backend,sim)
+        held=_CAPTURED[_cache_key(path,key,transaction['transaction_id'])]
+        held['native_return_required']=native_cas_engine.owns_return(str(sim.id),transaction['transaction_sha256'])
+        def requirement(data,record,identity):
+            record['cas_transaction']['native_owner_return_required']=held['native_return_required']
+        _mutate(backend,sim,requirement)
         result = instance.observe_return(snapshot_reader=lambda: sim_data.snapshot(backend, sim))
+        if held['native_return_required']:
+            returned=native_cas_engine.returned_owners(backend,sim,transaction['transaction_sha256'])
+            if returned is None:raise ValueError('Required native CAS return disappeared; every prior form remains retained.')
+            held['native_return']=copy.deepcopy(returned)
+            def retain(data,record,identity):
+                record['cas_transaction']['native_owner_return']=copy.deepcopy(returned)
+                record['cas_transaction']['native_owner_return_sha256']=primitive.digest(returned)
+            _mutate(backend,sim,retain)
+            result['independent_owners_retained']=len(returned['owners'])
+            from . import cas_named_return
+            _path,_key,original,_transaction=_selected(backend,sim,allow_consumed=True)
+            result['named_owner_changes']=cas_named_return.changes(original,returned)
         result['checkpoint_sha256'] = result.pop('pending_sha256')
         result['expected_pending_sha256'] = transaction['transaction_sha256']
         _path, _key, _record, observed = _selected(backend, sim, allow_consumed=True)
@@ -972,12 +1023,30 @@ def observe(backend, sim, argument):
 def prepare(backend, sim, argument):
     with _LOCK:
         transaction = _argument(backend, sim, argument,
-            {'expected_pending_sha256', 'expected_raw_return_sha256', 'dispositions'}, {'hair_targets'})
+            {'expected_pending_sha256', 'expected_raw_return_sha256', 'dispositions'}, {'hair_targets','named_dispositions'})
         if not primitive._hash(argument['expected_raw_return_sha256']):
             raise ValueError('CAS returned-owner hash must be exact.')
         instance = _instance(backend, sim)
+        path,key,record,_transaction=_selected(backend,sim)
+        native_return=_native_return_capability(path,key,transaction)
+        if native_return is not None:
+            # Validate every exact named form before the native write phase.
+            from . import cas_named_return
+            cas_named_return.prepare(record,native_return,instance.document['raw_return']['stored'],argument.get('named_dispositions'))
+        elif 'named_dispositions' in argument:
+            raise ValueError('Named CAS decisions require their complete receiver-owned native graph.')
         result = instance.prepare(transaction['checkpoint_sha256'],
             argument['expected_raw_return_sha256'], argument['dispositions'], argument.get('hair_targets'))
+        if native_return is not None:
+            named,_archive=cas_named_return.prepare(record,native_return,instance.plan['desired'],argument['named_dispositions'])
+            instance.plan.update(native_owner_return_sha256=primitive.digest(native_return),
+                named_document_sha256=primitive.digest(named),named_dispositions=copy.deepcopy(argument['named_dispositions']))
+            document=copy.deepcopy(instance.document)
+            document.update(plan=copy.deepcopy(instance.plan),plan_sha256=primitive.digest(instance.plan))
+            try:instance._write(document)
+            except Exception as error:instance._failure(error,'exact named-owner return plan')
+            result['plan_sha256']=document['plan_sha256']
+            result['independent_owners_planned']=len(native_return['owners'])
         result['expected_pending_sha256'] = transaction['transaction_sha256']
         return result
 

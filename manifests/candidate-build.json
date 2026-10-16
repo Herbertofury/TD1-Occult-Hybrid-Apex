@@ -1,10 +1,10 @@
 {
-  "build_epoch": "2026-10-16-native-cas-isolate-pelts-and-empty-outfits-v172",
+  "build_epoch": "2026-10-16-native-cas-preserve-empty-outfit-hair-v173",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-16-native-cas-isolate-pelts-and-empty-outfits-v172.zip",
-    "bytes": 3511417,
+    "artifact": "Apex_Development_Candidate_2026-10-16-native-cas-preserve-empty-outfit-hair-v173.zip",
+    "bytes": 3511279,
     "members": 28,
-    "sha256": "5ca84d7566267ac1e5b2ab7da0bbc8f608cf351c6291c89b98c9ce6cb74b941d"
+    "sha256": "6247e09e77dc538d4460961ebd40f732f1fd74380f7505625d69dd3b30afdd0a"
   },
   "compiled_script_modules": 97,
   "deployed": false,
@@ -53,7 +53,7 @@
     {
       "bytes": 53867,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "2fad7331c0993c152a7c20b3fb5baf62409d5b29885a451246ad5e454092fc1a"
+      "sha256": "2873b6c4ab6d152e3857e2d83fa6b8779de81848eecad3271a95cdbdde07c5da"
     },
     {
       "bytes": 1506,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 938950,
+      "bytes": 938948,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "0bd03571eb023d07b110d3c40071bb58c0ffd1080f2f6467f408618f5534d586"
+      "sha256": "e3850395986d0dabf1dd968535705492a9c0c512a2fa05f7461f9cbcdc4e2f6c"
     },
     {
-      "bytes": 2190336,
+      "bytes": 2189824,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "5c95874927144cd21bbaea1a221365f4be78b1b7b5a1a0f03363101261da795b"
+      "sha256": "966bc532ed78b242e7ca9311eca498e779058d2148ab622c05b8b67a760d5d61"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "8175554946aff829f82d8d8351835e8064d5845ec00e79aeb8bdf63612cd6156"
+      "sha256": "7a3fad0a85db1d82f364746160e7d731e2910551c75ab752861d008e7af9389f"
     },
     {
       "bytes": 424,

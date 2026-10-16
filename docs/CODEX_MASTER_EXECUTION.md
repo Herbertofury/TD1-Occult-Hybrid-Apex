@@ -5,6 +5,14 @@ Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance 
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
 Current checkpoint:
+V172's real all-195 comparison verifies the per-form pelt fix: 193 appearances
+match completely; only the first Sim's native/named Spellcaster empty outfit
+differs. The attempted later part-assignment hook was never invoked and does
+not qualify the hair fix. Inspected runtime helper 0x330a40 explicitly inserts
+default hair 0x24236/0x24237; V173 replaces the unused hook with suppression of
+that exact call from the detached record loader. Normal game loaders and other
+call sites keep the native helper. V173 runtime qualification remains open.
+
 V171 refused CAS entry after its new complete import audit found eleven changed
 owners out of 195. All genetics now match, but nine canonical owners inherited
 the active appearance's pelt, and the first Sim's native/named Spellcaster

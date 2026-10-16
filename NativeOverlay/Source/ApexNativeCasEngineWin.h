@@ -51,7 +51,7 @@ using ExportProtoFn=void(*)(const void*,void*);
 using ProtoSizeFn=int(*)(const void*);
 using ProtoArrayFn=char*(*)(const void*,char*);
 using PreviewFn=void(*)(void*,bool);
-using OutfitPartFn=bool(*)(void*,const void*,std::uint32_t,std::uint32_t,std::uint32_t);
+using OutfitHairFn=void(*)(void*,const void*);
 inline thread_local const void* detachedTarget=nullptr;
 struct DetachedTarget {
     const void* previous;
@@ -59,7 +59,7 @@ struct DetachedTarget {
     ~DetachedTarget() {detachedTarget=previous;}
 };
 struct Api {
-    OutfitPartFn outfitPart=nullptr;
+    OutfitHairFn outfitHair=nullptr;
     ImportFn import=nullptr;FieldsFn fields=nullptr;ConstructFn construct=nullptr;DestroyFn destroy=nullptr;
     SetFn available=nullptr,current=nullptr,availableData=nullptr;LookupFn lookup=nullptr;StoreFn store=nullptr;MetaFn metadata=nullptr;
     AllocateFn allocate=nullptr;FreeFn free=nullptr;TreeDestroyFn treeDestroy=nullptr;
@@ -167,19 +167,18 @@ struct State {
 // The DLL remains loaded for the entire process. Never run game destructors
 // from CRT/DllMain teardown after the game's native services have gone away.
 inline State& Runtime() {static auto* state=new State;return *state;}
-inline bool ImportOutfitPart(void* data,const void* part,std::uint32_t category,std::uint32_t index,
-                             std::uint32_t flags,std::uintptr_t caller) {
+inline void ImportOutfitHair(void* outfit,const void* genus,std::uintptr_t caller) {
     auto& state=Runtime();
-    // This exact loader call invents a hair part in an originally empty outfit.
-    // Ordinary CAS edits and all other callers retain the original behavior.
-    if(data==detachedTarget && data && caller==state.image+0x3264fb && flags==0) {
-        ++state.importOutfitFillsPrevented;return true;
+    // The inspected helper explicitly inserts 0x24236/0x24237 into an outfit
+    // without hair. Preserve the complete supplied outfit only in our detached
+    // record import; normal loaders and all other call sites stay native.
+    if(detachedTarget && caller==state.image+0x3261f7) {
+        ++state.importOutfitFillsPrevented;return;
     }
-    return state.api.outfitPart(data,part,category,index,flags);
+    state.api.outfitHair(outfit,genus);
 }
-__declspec(noinline) inline bool OutfitPart(void* data,const void* part,std::uint32_t category,
-                                          std::uint32_t index,std::uint32_t flags) {
-    return ImportOutfitPart(data,part,category,index,flags,reinterpret_cast<std::uintptr_t>(_ReturnAddress()));
+__declspec(noinline) inline void OutfitHair(void* outfit,const void* genus) {
+    ImportOutfitHair(outfit,genus,reinterpret_cast<std::uintptr_t>(_ReturnAddress()));
 }
 struct Selection {std::uint64_t id=0;std::uint32_t target=0;void* controller=nullptr;};
 inline thread_local Selection selected;
@@ -995,7 +994,7 @@ inline void Install() {
         {0x45c070,"28bd4e82a8fb688e0addc2808f300afb4aa44068945992641826e703528b5424"},
         {0x44ba00,"e06169b5e5330e8cfe47b23d840e0545987eea134bfaeb82dafdc2dfeee5f431"},
         {0x44bbe0,"c2cf12e18d5385311fc573702461234512a6ddac9e77eeef0ccd1b08e0930f1d"},
-        {0x340940,"a531116eba161769314e9281fc48df00939b9632c544159ed1ae448862e4a1bf"}
+        {0x330a40,"acfc08b49e61ba88dc09feea22142fe9dae5368ecc0ca0ba53d209965c4a6e7c"}
     };
     for(const auto& pin:pins)
         if(resource::HashBytes(OwnImageRead(pinned.module,pin.rva,32))!=pin.hash)
@@ -1029,7 +1028,7 @@ inline void Install() {
         throw std::runtime_error("Native form hook registry is unavailable.");
     struct Hook {void* target;void* detour;void** original;};
     Hook hooks[]={
-        {at(0x340940),reinterpret_cast<void*>(&OutfitPart),reinterpret_cast<void**>(&state.api.outfitPart)},
+        {at(0x330a40),reinterpret_cast<void*>(&OutfitHair),reinterpret_cast<void**>(&state.api.outfitHair)},
         {at(0x327640),reinterpret_cast<void*>(&Import),reinterpret_cast<void**>(&state.api.import)},
         {at(0x3f0af0),reinterpret_cast<void*>(&History),reinterpret_cast<void**>(&state.api.history)},
         {at(0x44a9e0),reinterpret_cast<void*>(&Change),reinterpret_cast<void**>(&state.api.change)},

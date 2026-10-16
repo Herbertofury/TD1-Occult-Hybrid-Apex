@@ -51,12 +51,24 @@ def context(client, sim_id):
             not isinstance(native['entered_from_play_area'].get('value'), dict) or
             native['entered_from_play_area']['value'].get('result') is not True):
         raise ValueError('Workbench requires the existing-Sim full editor entered from Live.')
+    rendered=native.get('rendered_form')
+    if (not isinstance(rendered,dict) or rendered.get('query')!='returned-value' or
+            type(rendered.get('value')) is not int or rendered['value'] not in (1,2,4,8,16,32,64)):
+        raise ValueError('Workbench requires the actual rendered form; family metadata cannot identify it.')
     full = client['native_context'].get('forced_full_edit')
     if not isinstance(full, dict) or full.get('query') != 'returned-value' or full.get('value') is not True:
         raise ValueError('The workbench requires actual native full-edit CAS.')
     sim = client['sim']
     keys = ('simId', 'householdId', 'speciesType', 'age', 'occultType', 'allOccultTypes', 'occultLayer')
     result = {key: sim.get(key) for key in keys}
+    result['rendered_form']=rendered['value']
+    strip=client.get('form_strip')
+    if isinstance(strip,dict) and strip.get('cross_kind_navigation') is True:
+        owner=strip.get('selected_owner_id')
+        if (strip.get('native_owner_state')!='bound' or not isinstance(owner,str) or
+                not owner or strip.get('desired_owner_id')):
+            raise ValueError('Workbench independent form owner is unavailable or still switching.')
+        result['independent_owner_id']=owner
     if not decimal_id(result['householdId']) or type(result['occultLayer']) is not int or result['occultLayer'] not in (0, 1):
         raise ValueError('Native CAS household identity is unavailable.')
     return result

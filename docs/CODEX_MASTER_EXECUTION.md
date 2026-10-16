@@ -9,7 +9,8 @@ V167 replaces the scoped native synchronizer's destructive regeneration with
 deep copying of the current edited complete CasData. Real V166 exports proved
 122 fields changed on Fairy leave; V167's complete cross-form round trip and
 same-owner synchronization retain identical snapshot bytes. The full repeat/
-member matrix remains open. Household
+member matrix passes 142 visits across all 71 captured owners and five Sims,
+with no returned Sim-field/equipped-panel differences. Household
 navigation now validates the actual base roster even when EA filters alternate
 thumbnails, and can resume a member's last alternate layer. Nine native tests,
 893 CAS tests and 31 epoch/migration checks pass. All twenty disposable save
@@ -21,7 +22,9 @@ October 16 V167 validation progress:
 - [x] Verify identical complete Fairy snapshot bytes before selection, after leaving, after Werewolf/Alien/Vampire round trip and after another synchronization.
 - [x] Select every one of the five household members and return to the first through the semantic CLI, despite EA filtering alternate thumbnails.
 - [x] Pass 893 CAS tests, nine native CTests, 33 export/seal tests and 31 epoch/migration checks.
-- [ ] Finish unique actual edit markers and repeated field/panel readback for all 71 currently captured owners.
+- [x] Give all 71 captured appearance owners across five Sims distinct observed native physique values; preserve the stopped float-boundary requests separately.
+- [x] Revisit all 39 first-Sim owners after editing the other household members; every returned Sim field and equipped panel matches its own edited baseline.
+- [x] Finish unique actual edit markers and repeated field/panel readback for all 71 currently captured owners: 142 visits, zero differences. This covers returned CLI fields/panels and does not certify every native field or save/Tray persistence.
 - [ ] Finish all-category edits on each form/member, CAS/Live/MCCC/F11 return, complete named-owner persistence, normal save/cold load and household Tray/Gallery round trips.
 - [ ] Qualify production use and special gameplay roles; appearance templates alone do not close these gates.
 

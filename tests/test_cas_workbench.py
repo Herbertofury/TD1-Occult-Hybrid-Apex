@@ -27,6 +27,7 @@ class CasWorkbenchTests(unittest.TestCase):
             value.update(menu_state=self.menu, panel_visible=True)
             value['sim'].update(allOccultTypes=65, occultType=64, occultLayer=self.layer, age=16)
             value['native_context']['forced_full_edit'] = {'query':'returned-value', 'value':True}
+            value['native_context']['rendered_form'] = {'query':'returned-value','value':64}
             return value
         self.game.client = client
         self.original_request = self.game.request
@@ -82,6 +83,26 @@ class CasWorkbenchTests(unittest.TestCase):
         self.assertFalse(proof['all_edit_paths_complete'])
         self.assertFalse(proof['full_catalog_inventory'])
         self.assertFalse(proof['live_retention_verified'])
+
+    def test_rendered_form_is_distinct_from_family_kind_and_part_of_context(self):
+        value=self.game.client();value['sim']['occultType']=4
+        value['native_context']['rendered_form']['value']=2
+        value['form_strip']=dict(cross_kind_navigation=True,native_owner_state='bound',
+            selected_owner_id='alien/alien_alien',desired_owner_id='')
+        result=workbench.context(value,fixture.SIM)
+        self.assertEqual(result['occultType'],4);self.assertEqual(result['rendered_form'],2)
+        self.assertEqual(result['independent_owner_id'],'alien/alien_alien')
+
+    def test_unavailable_or_untyped_rendered_form_refuses_before_edits(self):
+        for bad in (None,dict(query='unavailable',value=2),dict(query='returned-value',value=True)):
+            with self.subTest(bad=bad):
+                value=self.game.client();value['native_context']['rendered_form']=bad
+                with self.assertRaisesRegex(ValueError,'actual rendered'):workbench.context(value,fixture.SIM)
+
+    def test_in_progress_independent_form_is_not_an_edit_owner(self):
+        value=self.game.client();value['form_strip']=dict(cross_kind_navigation=True,
+            native_owner_state='bound',selected_owner_id='alien/alien_alien',desired_owner_id='vampire/vampire_dark')
+        with self.assertRaisesRegex(ValueError,'still switching'):workbench.context(value,fixture.SIM)
 
     def test_alternate_editor_is_allowed_but_source_accept_still_requires_primary(self):
         value = self.game.client()

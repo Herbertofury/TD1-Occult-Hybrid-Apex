@@ -2,6 +2,8 @@
 
 The current development candidate is V167. Production saves are not qualified.
 The permanent Source guard remains enabled alongside the native fixes.
+Machine-readable results and unqualified gates are recorded in
+`manifests/native-cas-v167-validation.json`; private raw game data is not published.
 
 ## Exact ownership
 
@@ -130,7 +132,11 @@ Friend relationship. Special-state gameplay producers remain separate work.
 - V167 passes 893 CAS tests, nine native CTests and 31 epoch/migration checks.
   The real-game Fairy -> Werewolf -> Alien -> Vampire -> Fairy sequence and a
   subsequent same-owner synchronization retain identical complete snapshot
-  bytes at all five export points. The full repeat/member matrix remains open.
+  bytes at all five export points. The edited repeat/member matrix completes
+  142 visits across 71 owners/five Sims with zero returned-field/panel differences.
+  Its first pass uses distinct observed physique values, so identical unedited
+  templates cannot conceal aliases. All 39 first-Sim owners and eight owners
+  for each other member are revisited after the household edit sequence.
 
 ## Repeatable CLI matrix
 
@@ -149,6 +155,10 @@ actual native physique value. Later visits must retain those values and every
 other observed field/panel. This detects aliases that identical unedited
 templates could conceal. Marker edits remain in the disposable CAS session;
 the command does not accept or save them.
+The panel workbench separately checks the typed actual rendered genus and
+records the independent owner when present. `CASGetSimInfo` family metadata
+cannot stand in for the actual form. Switching owners mid-workbench changes
+its context and stops subsequent edits.
 
 Runtime gates still include edited Alien/Vampire/Alien and every other form,
 all members/categories, native undo/redo, explicit copy/link controls, complete

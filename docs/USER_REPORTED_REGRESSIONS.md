@@ -43,6 +43,23 @@ Before CAS/MCCC mutation:
 - preserve stable identity for each form;
 - capture only the minimum recovery snapshot needed.
 
+### Owner's mandatory six-occult workflow — 2026-10-07
+
+Create one disposable Sim with Alien, Vampire, Mermaid, Spellcaster, Werewolf
+and Fairy memberships. Edit each distinct supported appearance form in CAS
+entered through MCCC and through the game's own CAS entry, using visibly
+different presets, clothing, skin details and colors. Retain exact per-form
+snapshots and screenshots. Switch away and back through Apex's actual Live
+menu, unpause to settle engine changes, then verify every edited form and every
+unrelated form. Repeat after save/reload and a complete game restart.
+
+Spellcaster and other memberships without a separate native CAS appearance
+must be explicitly mapped to their shared appearance owner; do not fabricate a
+separate saved form or overwrite another membership's look. MCCC coexistence
+and standalone Apex runs use the same retained test profile, with exact addon
+receipts. Never load the original Mods library or original saves for this test.
+Passing membership/form switches alone does not satisfy this workflow.
+
 After CAS:
 - prove every pre-existing form still exists unless the user intentionally removed it;
 - detect missing form links/records immediately;

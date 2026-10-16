@@ -1,0 +1,25 @@
+Uploaded MCCC archive: McCmdCenter_AllModules_2026_3_1.rar
+RAR listing inspected locally. Files present:
+- mc_career.ts4script
+- mc_cas.ts4script
+- mc_cheats.ts4script
+- mc_cleaner.ts4script
+- mc_clubs.ts4script
+- mc_cmd_center.package
+- mc_cmd_center.ts4script
+- mc_control.ts4script
+- mc_dresser.ts4script
+- mc_gedcom.ts4script
+- mc_occult.ts4script
+- mc_population.ts4script
+- mc_pregnancy.ts4script
+- mc_tuner.ts4script
+- mc_settings.cfg
+- mc_cmd_center.log
+- mc_lastexception.html
+
+Compatibility design response:
+- Detect these modules at runtime with safe imports.
+- Do not bundle or modify MCCC.
+- Add MCCC CAS Shield workflow around MCCC Modify in CAS.
+- Add optional soft hook scan that is off by default and only wraps obvious top-level CAS launcher functions if the user deliberately enables it.

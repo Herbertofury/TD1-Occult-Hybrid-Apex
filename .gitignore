@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+NativeOverlay/build/
+.work/
+dist/
+Source/TD1_Apex_Data/
+*.user
+*.suo
+*.dmp

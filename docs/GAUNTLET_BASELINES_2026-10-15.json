@@ -1,0 +1,307 @@
+{
+  "schema": 1,
+  "observed_at": "2026-10-15",
+  "author": "Gauntlet101010",
+  "author_url": "https://www.curseforge.com/members/gauntlet101010/projects?page=1",
+  "authorization": "Project owner explicitly authorized downloading and adapting relevant releases in this task.",
+  "projects": [
+    {
+      "name": "Servo Lifestate Customs",
+      "url": "https://www.curseforge.com/sims4/mods/servo-trait-customs",
+      "download": "https://www.curseforge.com/sims4/mods/servo-trait-customs/download/9029259"
+    },
+    {
+      "name": "Possessed Smile and Walkstyle Trait",
+      "url": "https://www.curseforge.com/sims4/mods/possessed-smile-and-walkstyle-trait",
+      "download": "https://www.curseforge.com/sims4/mods/possessed-smile-and-walkstyle-trait/download/9001410"
+    },
+    {
+      "name": "Mute Voice",
+      "url": "https://www.curseforge.com/sims4/mods/mute-trait",
+      "download": "https://www.curseforge.com/sims4/mods/mute-trait/download/9001396"
+    },
+    {
+      "name": "Fewer Idles Trait",
+      "url": "https://www.curseforge.com/sims4/mods/fewer-idles-trait",
+      "download": "https://www.curseforge.com/sims4/mods/fewer-idles-trait/download/9000667"
+    },
+    {
+      "name": "Grim Reaper Optionals",
+      "url": "https://www.curseforge.com/sims4/mods/sims4-grim-reaper-optionals",
+      "download": "https://www.curseforge.com/sims4/mods/sims4-grim-reaper-optionals/download/9000601"
+    },
+    {
+      "name": "All Ghosts Reward",
+      "url": "https://www.curseforge.com/sims4/mods/all-ghosts-reward",
+      "download": "https://www.curseforge.com/sims4/mods/all-ghosts-reward/download/9000571"
+    },
+    {
+      "name": "Bigfoot Trait",
+      "url": "https://www.curseforge.com/sims4/mods/bigfoot-trait",
+      "download": "https://www.curseforge.com/sims4/mods/bigfoot-trait/download/9000538"
+    },
+    {
+      "name": "Skeleton Outfit Unlocked, Trait cloned",
+      "url": "https://www.curseforge.com/sims4/mods/skeleton-unlocked-trait-changed",
+      "download": "https://www.curseforge.com/sims4/mods/skeleton-unlocked-trait-changed/download/9000517"
+    },
+    {
+      "name": "Hybrid Through Gameplay",
+      "url": "https://www.curseforge.com/sims4/mods/hybrid-through-gameplay",
+      "download": "https://www.curseforge.com/sims4/mods/hybrid-through-gameplay/download/9000488"
+    },
+    {
+      "name": "Reaper Actions Unlocker",
+      "url": "https://www.curseforge.com/sims4/mods/reaper-actions-unlocker",
+      "download": "https://www.curseforge.com/sims4/mods/reaper-actions-unlocker/download/8781553"
+    },
+    {
+      "name": "Adventure Awaits Careers And NPCs",
+      "url": "https://www.curseforge.com/sims4/mods/adventure-awaits-careers-and-npcs",
+      "download": "https://www.curseforge.com/sims4/mods/adventure-awaits-careers-and-npcs/download/7958737"
+    },
+    {
+      "name": "Reaping Skill + NPC Soul Reaper Career",
+      "url": "https://www.curseforge.com/sims4/mods/reaping-skill-soul-reaper-career",
+      "download": "https://www.curseforge.com/sims4/mods/reaping-skill-soul-reaper-career/download/7958734"
+    },
+    {
+      "name": "NPC Paranormal Careers and NPC Definition",
+      "url": "https://www.curseforge.com/sims4/mods/paranormal-careers",
+      "download": "https://www.curseforge.com/sims4/mods/paranormal-careers/download/7773325"
+    },
+    {
+      "name": "Plantsim Lifestate Edits and Objects",
+      "url": "https://www.curseforge.com/sims4/mods/plantsim-lifestate-edits-and-objects",
+      "download": "https://www.curseforge.com/sims4/mods/plantsim-lifestate-edits-and-objects/download/6758409"
+    }
+  ],
+  "downloads": [
+    {
+      "filename": "Gauntlet101010_4_AdventureAwaits_Careers_NPCs.zip",
+      "sha256": "ea35a036ca804d5c6e2243f11f4d3b1fa0a405b268c196092a16ef0e260eefc7",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_AdventureAwaits_Careers_NPCs.package",
+          "bytes": 299691,
+          "resources": 201
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_All_Ghosts_Reward.zip",
+      "sha256": "025e113897c3cd2fc16f1c0b25f83e0c61f17b6d03dac47bb3a1bb94c54db9cd",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_All_Ghosts_Reward.package",
+          "bytes": 83275,
+          "resources": 107
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_FewerIdles_Trait.zip",
+      "sha256": "d8e2127b070705e6278958722494ee7c6049725a0ea97e6785b0cb186e19bd7f",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_FewerIdles_Trait.package",
+          "bytes": 11551,
+          "resources": 28
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_Hybrid.zip",
+      "sha256": "ab422abd56f979a775a41e100fa31cd36fd2cd96e4b3043d9a6914f1b94cef87",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_Hybrid.package",
+          "bytes": 68313,
+          "resources": 99
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_Mute_Trait.zip",
+      "sha256": "71c495fa96ecda80f206782d3760f0a1be09ea2419f4d59bd5f9ec16f264c497",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_Mute_Trait.package",
+          "bytes": 12137,
+          "resources": 24
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_Paranormal_Careers.zip",
+      "sha256": "a4d2ad7a8a9713997092229311cd927dd2fa211b9b1d08545277e83931d8da0a",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_Paranormal_Careers.package",
+          "bytes": 559679,
+          "resources": 58
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_PlantsimStuff.zip",
+      "sha256": "1c2eb5eda2c5397a5e11bb4922fe14349bd447b3d90244f0423e36545cd0fa22",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_Plantsim_Trait_Edited.package",
+          "bytes": 52215,
+          "resources": 33
+        },
+        {
+          "name": "Gauntlet101010_4_PlantsimCure.package",
+          "bytes": 130333,
+          "resources": 113
+        },
+        {
+          "name": "Gauntlet101010_4_Plantsim_Items.package",
+          "bytes": 742235,
+          "resources": 286
+        },
+        {
+          "name": "Gauntlet101010_4_Plantsim_Trait_Edited-NoPhysicalChange.package",
+          "bytes": 51146,
+          "resources": 32
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_PosessedSmileWalkstyle_Trait.zip",
+      "sha256": "36bd9a76f140eeda88e9ebccbf106280279431b84ae2a0d4294d515d8415fb55",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_PosessedSmileWalkstyle_Trait.package",
+          "bytes": 11981,
+          "resources": 13
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_Reaper_Actions_Unlocker.zip",
+      "sha256": "7cce1076c3b7fde05b64058cba1f31c6d6fd67a5757d70cddf9b9891f7d3a13d",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_Reaper_Actions_Unlocker.package",
+          "bytes": 2293491,
+          "resources": 466
+        },
+        {
+          "name": "Gauntlet101010_4_Greg_Actions_Unlocker.package",
+          "bytes": 4653,
+          "resources": 6
+        },
+        {
+          "name": "Gauntlet101010_4_Reaper_Actions_Unlocker_SocialOutcomes_Agnes_Shady.package",
+          "bytes": 30582,
+          "resources": 7
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_Reaper_Career.zip",
+      "sha256": "81ac54a484db41776784ac2741c9f3856fe76f9dba45e5e2af06e89bbe3baaea",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_Reaper_Career.package",
+          "bytes": 907902,
+          "resources": 260
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_Robot_Trait.zip",
+      "sha256": "e5f4d739d5418fc31c3fcdac0e9377c9e564d40bb13455643a097032874807db",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_Robot_Trait_MotiveLock.package",
+          "bytes": 5751,
+          "resources": 4
+        },
+        {
+          "name": "Gauntlet101010_4_Robot_Trait_Edited.package",
+          "bytes": 352780,
+          "resources": 224
+        },
+        {
+          "name": "Gauntlet101010_4_Robot_Trait_EditedSlightly.package",
+          "bytes": 3310,
+          "resources": 5
+        },
+        {
+          "name": "Gauntlet101010_4_Robot_Trait_Cloned.package",
+          "bytes": 320911,
+          "resources": 225
+        },
+        {
+          "name": "Gauntlet101010_4_Robot_Trait_Shared.ts4script",
+          "bytes": 10330,
+          "resources": 0
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_Skeleton.zip",
+      "sha256": "76b38d4f2310039df0a9211b5fcff6711b156a62518e0a77866e73c414d633ef",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_Skeleton.package",
+          "bytes": 87773,
+          "resources": 45
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_Trait_Bigfoot.zip",
+      "sha256": "74b56713f30fbdf36f4222036342f180d113cda91ab879b0b97e061f5ec162fb",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_Trait_Bigfoot.package",
+          "bytes": 15944,
+          "resources": 31
+        }
+      ]
+    },
+    {
+      "filename": "Gauntlet101010_4_trait_ReaperOptionals.zip",
+      "sha256": "007ac3e4807b7991433eec7e49ce29d5c2b4d83d2e5a29929e43ec6a89247147",
+      "members": [
+        {
+          "name": "Gauntlet101010_4_trait_ReaperOptionalVoice.package",
+          "bytes": 15110,
+          "resources": 26
+        },
+        {
+          "name": "Gauntlet101010_4_trait_ReaperOptionalWalkstyle.package",
+          "bytes": 8231,
+          "resources": 30
+        },
+        {
+          "name": "Gauntlet101010_4_trait_Float.package",
+          "bytes": 11883,
+          "resources": 26
+        },
+        {
+          "name": "Gauntlet101010_4_trait_OutfitLock.package",
+          "bytes": 4616,
+          "resources": 23
+        },
+        {
+          "name": "Gauntlet101010_4_trait_ReaperVanillaUnlocked.package",
+          "bytes": 9629,
+          "resources": 3
+        },
+        {
+          "name": "Gauntlet101010_4_trait_ReaperVanillaUnlockedBuff.package",
+          "bytes": 3828,
+          "resources": 6
+        }
+      ]
+    }
+  ],
+  "installed_in_test_profile": false,
+  "third_party_packages_bundled": false
+}

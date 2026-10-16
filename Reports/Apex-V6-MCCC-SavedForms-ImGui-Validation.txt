@@ -1,0 +1,57 @@
+TD1 Occult Hybrid Apex V6 - MCCC / Saved Forms / Dear ImGui Command Overlay Validation
+Date: 2026-05-28
+
+Build target
+- Continued from TD1 Occult Hybrid Apex V5.1 archive.
+- Kept the same mod folder identity: TD1 Occult Hybrid Apex.
+- Repacked TD1_OccultHybridApex.ts4script with Source/td1_occult_hybrid_apex.py.
+- Updated NativeOverlay/Source/TD1ApexD3D11Proxy.cpp for a command-heavy F11 Dear ImGui UI.
+
+Research basis applied
+- MCCC is modular; mc_cmd_center is required and module versions should match. The uploaded MCCC RAR listed mc_cmd_center, mc_cas, mc_dresser, mc_occult, and other modules.
+- MCCC FAQ directs large-household-safe CAS editing through MCCC > Sim Commands > Modify in CAS rather than base-game Manage Household/Edit in CAS.
+- MC CAS manipulates Sim appearance/body/voice CAS features.
+- MC Dresser supports outfit copy/save/load style workflows and documents tattoo, skin detail, scars, and outfit body-type categories.
+- Lot51 Core supports creator logging/config/event systems and recommends event handlers over direct injection points to reduce conflicts.
+- XML Injector is useful for XML tuning interaction injection, but this mod already needs a script/DX11 overlay and does not need a pie-menu XML injection dependency for F11 overlay commands.
+
+New backend features
+- Saved occult form slots:
+  save_current_form, save_occult_form, list_saved_forms, apply_saved_form, force_apply_saved_form, apply_saved_form_current, delete_saved_form.
+- Saved slots support label/search and store appearance payloads without writing occult identity flags into appearance paste operations.
+- MCCC compatibility shield:
+  mccc_detect, mccc_prepare_active, mccc_prepare_household, mccc_restore_active, mccc_restore_household, mccc_auto_restore_on/off, mccc_soft_hooks_on/off.
+- Optional Lot51 event registration:
+  loading_screen_lifted restore and pre_save safety restore when Core Library is installed.
+- Appearance maintenance tools:
+  copy/paste full CAS, wardrobe, body, skin, tattoos/details, voice; apply each scope to all active occult forms.
+
+New ImGui overlay commands
+- F11 Control tab: repair, normalize, recalc, add/purge/generate forms, all Sim repair, auto repair toggle.
+- Forms tab: switch selected occult, save current form, form generate/delete/copy buttons.
+- Saved Forms tab: label, search, slot field, save, search, force apply, apply to current, delete.
+- MCCC Shield tab: detect MCCC, arm active/household, keep human/selected occult, auto-restore toggle, optional soft hook scan toggle, Lot51 event registration.
+- CAS Tools tab: copy/paste and apply-to-all-forms for CAS/wardrobe/body/skin/tattoos/voice.
+- Running log remains docked on the right side and in its own tab.
+
+Performance guards
+- Native overlay remains passive while hidden: no HTTP polling.
+- Visible overlay polls compact state only.
+- Gameplay edits route through the Python game-thread queue.
+- MCCC auto-restore monitor is dormant unless the user arms the shield.
+- Auto repair remains off by default.
+- MCCC soft hook scan is off by default.
+
+Local validation completed
+- Python source AST parse: OK.
+- Python source py_compile with current interpreter: OK.
+- TS4SCRIPT zip integrity: OK.
+- Final archive integrity: OK.
+- Native helper DLL: PE32+ x64 Windows DLL.
+- Native helper exports: 21 TD1Occult* helper functions.
+- Overlay C++ brace/comment/string balance sanity check: OK.
+- MCCC uploaded RAR listing read successfully; extraction was not available in this Linux sandbox due missing RAR5 extraction backend.
+
+Runtime limitations
+- This environment cannot launch The Sims 4, MCCC, or a Windows DX11 process. The d3d11.dll proxy still needs to be built and smoke-tested on Windows with Visual Studio Build Tools.
+- The MCCC soft hook scan is deliberately optional/off by default because MCCC does not publish a stable public Python hook contract for CAS entry/exit.

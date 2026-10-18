@@ -21,7 +21,7 @@ TOOLS = Path(__file__).resolve().parent
 if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
-PINS = ('game_focus.py', 'game_window.py', 'ea_permission_broker.py',
+PINS = ('game_focus.py', 'game_window.py', 'game_background_window.py', 'ea_permission_broker.py',
         'apex_cli.py', 'reusable_profile.py', 'test_profile.py', 'game_launch.py', 'windows_process.py',
         'candidate_install.py', 'source_manifest.py')
 LEASE = 90
@@ -47,13 +47,15 @@ def exclusive(path, value):
 
 def validate(request, now, pins, identity, process, state_digest):
     core = {'schema', 'nonce', 'expires_at', 'state', 'state_sha256', 'sources', 'binding', 'game'}
-    if (not isinstance(request, dict) or set(request) not in (core, core | {'input'}) or
+    if (not isinstance(request, dict) or set(request) not in (core, core | {'input'}, core | {'background_restore'}) or
             type(request['schema']) is not int or request['schema'] != 1 or
             not isinstance(request['nonce'], str) or not re.fullmatch('[0-9a-f]{32}', request['nonce']) or
             type(request['expires_at']) not in (int, float) or
             not now < request['expires_at'] <= now + LEASE or request['sources'] != pins or
             request['state_sha256'] != state_digest):
         raise ValueError('Focus lease, journal or pinned helper sources changed.')
+    if 'background_restore' in request and request['background_restore'] is not True:
+        raise ValueError('Background restoration requires an explicit fixed no-focus operation.')
     binding = request['binding']
     if (not isinstance(binding, dict) or set(binding) != {'pid', 'test_token', 'script_sha256'} or
             type(binding['pid']) is not int or not 0 < binding['pid'] <= 0xffffffff or
@@ -119,11 +121,19 @@ def worker(path, expected_hash):
             raise ValueError('Focus helper has no compatible Windows token/session.')
         validate(request, time.time(), source_pins(), verified_identity(state),
                  process_identity(target['pid']), digest(state))
-        result['focus_attempted'] = True
-        focused = focus(target['pid'], allow_alt_unlock=True)
-        result['focus'] = focused
-        result['ok'] = bool(focused.get('ok') is True and focused.get('foreground_verified') is True and
-                            process_identity(target['pid']) == target)
+        if request.get('background_restore') is True:
+            from game_background_window import restore
+            restored=restore(target['pid'])
+            result['background_restore']=restored
+            result['ok']=bool(restored.get('ok') is True and restored.get('no_focus_request') is True and
+                restored.get('foreground_unchanged') is True and restored.get('input_sent') is False and
+                process_identity(target['pid'])==target)
+        else:
+            result['focus_attempted'] = True
+            focused = focus(target['pid'], allow_alt_unlock=True)
+            result['focus'] = focused
+            result['ok'] = bool(focused.get('ok') is True and focused.get('foreground_verified') is True and
+                                process_identity(target['pid']) == target)
         if 'input' in request and result['ok']:
             from apex_cli import get
             argument = request['input']['argument']
@@ -172,7 +182,7 @@ def runas(path, expected_hash):
     return info.hProcess
 
 
-def elevate_once(state, output, native_input=None):
+def elevate_once(state, output, native_input=None, *, background_restore=False):
     import reusable_profile
     from apex_cli import verified_identity
     from ea_permission_broker import evidence_directory, process_identity, helper_exited
@@ -185,6 +195,10 @@ def elevate_once(state, output, native_input=None):
     request = {'schema': 1, 'nonce': nonce, 'expires_at': time.time() + LEASE,
                'state': str(state), 'state_sha256': digest(state), 'sources': source_pins(),
                'binding': {key: observed[key] for key in ('pid', 'test_token', 'script_sha256')}, 'game': target}
+    if type(background_restore) is not bool or background_restore and native_input is not None:
+        raise ValueError('Background restoration cannot request focus or submit native input.')
+    if background_restore:
+        request['background_restore']=True
     if native_input is not None:
         request['input'] = native_input
     validate(request, time.time(), source_pins(), observed, target, digest(state))
@@ -219,8 +233,14 @@ def elevate_once(state, output, native_input=None):
                 result['input_sent'] = receipt['input_sent']
                 validate(request, time.time(), source_pins(), verified_identity(state), process_identity(target['pid']), digest(state))
                 result['host_binding_verified'] = True
-                result['foreground'] = foreground(receipt.get('focus', {}).get('window', {}))
-                result['ok'] = receipt['ok'] and result['foreground']['verified']
+                if background_restore:
+                    restored=receipt.get('background_restore',{})
+                    result['ok']=bool(receipt['ok'] and receipt.get('focus_attempted') is False and
+                        restored.get('ok') is True and restored.get('no_focus_request') is True and
+                        restored.get('foreground_unchanged') is True and restored.get('input_sent') is False)
+                else:
+                    result['foreground'] = foreground(receipt.get('focus', {}).get('window', {}))
+                    result['ok'] = receipt['ok'] and result['foreground']['verified']
                 break
             if helper_exited(handle):
                 result['message'] = 'Focus helper exited without a validated receipt.'; break

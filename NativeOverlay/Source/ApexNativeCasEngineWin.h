@@ -3,6 +3,8 @@
 #pragma once
 #include "ApexNativeCasEngine.h"
 #include "ApexCasOwnerGraph.h"
+#include "ApexCasFormPair.h"
+#include "ApexNativeOwnerMemory.h"
 #include "ApexNativeCasProbeWin.h"
 #include "MinHook.h"
 #include <mutex>
@@ -96,14 +98,33 @@ template<class T> inline T Read(const void* p,std::size_t offset=0) {
     const auto address=static_cast<const char*>(p)+offset;Span(address,sizeof(T));T value{};std::memcpy(&value,address,sizeof(T));return value;
 }
 struct NativeOwner {
+#ifdef APEX_CAS_OWNER_MEMORY_DIAGNOSTICS
+    GuardedOwnerMemory memory{0x830};
+#endif
     void* value=nullptr;DestroyFn destroy=nullptr;
     NativeOwner(const Api& api,std::uint64_t id):destroy(api.destroy) {
+#ifdef APEX_CAS_OWNER_MEMORY_DIAGNOSTICS
+        value=memory.get();api.construct(value,id);memory.Validate();
+#else
         value=_aligned_malloc(0x830,16);if(!value) throw std::bad_alloc();
         api.construct(value,id);
+#endif
     }
     NativeOwner(const NativeOwner&)=delete;NativeOwner& operator=(const NativeOwner&)=delete;
-    ~NativeOwner() {if(value) {destroy(value);_aligned_free(value);}}
-    const void* data() const {return static_cast<const char*>(value)+0xd0;}
+    ~NativeOwner() {
+        if(value) {
+            destroy(value);
+#ifndef APEX_CAS_OWNER_MEMORY_DIAGNOSTICS
+            _aligned_free(value);
+#endif
+        }
+    }
+    const void* data() const {
+#ifdef APEX_CAS_OWNER_MEMORY_DIAGNOSTICS
+        memory.Validate();
+#endif
+        return static_cast<const char*>(value)+0xd0;
+    }
 };
 inline std::string SerializeOwner(const Api& api,const NativeOwner& owner,std::uint64_t id) {
     if(!api.exportProto || !api.protoSize || !api.protoArray || !api.protoConstruct || !api.protoDestroy)
@@ -148,13 +169,20 @@ struct Imported {
     std::map<std::uint32_t,std::unique_ptr<NativeOwner>> owners;
     std::unique_ptr<NativeOwner> active;
     std::unique_ptr<OwnerGraph<std::unique_ptr<NativeOwner>>> graph;
+    std::map<std::uint32_t,std::string> logicalOwners;
     std::map<std::string,std::unique_ptr<NativeUndo>> undoOwners;
-    bool initialImport=true,viewBound=false,viewFault=false,activeSourceSeeded=false;void* boundGroup=nullptr;void* boundContext=nullptr;std::string entryOwner=NativeOwnerId(1),partner=NativeOwnerId(2);std::map<std::string,std::uint32_t> uiTokens;
+    bool initialImport=true,viewBound=false,viewFault=false,activeSourceSeeded=false;void* boundGroup=nullptr;void* boundContext=nullptr;std::string entryOwner=NativeOwnerId(1),partner=NativeOwnerId(2),humanOwner=NativeOwnerId(1);std::map<std::string,std::uint32_t> uiTokens;
     std::uint32_t mask=0,preferred=0,canonicalSourceMask=0;unsigned imports=0,switches=0,skippedPackets=0;bool seeded=false;std::string error;
 };
 struct ViewIntent {
     std::string request,owner;std::uint64_t sim=0,generation=0;std::uint32_t token=0;std::uint8_t layer=0;
 };
+inline std::uint8_t ConfigurePortraitPair(Imported& bank,const std::string& owner) {
+    const auto pair=SelectFormPair(bank.humanOwner,owner,
+        Read<std::uint32_t>(bank.graph->appearance(owner)->data(),8),{bank.entryOwner,bank.partner,0});
+    bank.graph->appearance(pair.base);bank.graph->appearance(pair.alternate);
+    bank.entryOwner=pair.base;bank.partner=pair.alternate;return pair.layer;
+}
 struct State {
     std::recursive_mutex mutex;Api api;Scope scope;std::map<std::uint64_t,Imported> bank;
     std::unique_ptr<ViewIntent> viewIntent;ui::Json viewResult=nullptr;std::set<std::uint32_t> viewTokens;std::uint64_t nativeUiSequence=0;std::uint32_t nextUiToken=0x20000000;
@@ -316,7 +344,8 @@ inline void StoreCanonical(State& state,Imported& bank,void* controller) {
     const auto group=Read<void*>(controller,0x100);
     auto* metadata=Read<CacheFn>(Read<void*>(controller),0x410)(controller,GroupId(group));
     if(!metadata) throw std::runtime_error("Native view lacks its complete appearance cache.");
-    for(const auto& owner:bank.owners) state.api.store(metadata,owner.first,bank.graph->appearance(owner.first)->data());
+    for(const auto& owner:bank.owners)
+        state.api.store(metadata,owner.first,bank.graph->appearance(bank.logicalOwners.at(owner.first))->data());
 }
 inline void FinishPreview(State& state,void* controller) {
     const auto model=Read<void*>(controller,0x1d0);
@@ -408,8 +437,7 @@ inline void BindSelected(void* controller,bool notify) {
                 Sync(controller); // Same-owner refresh must retain newly edited model data.
             if(bank.viewFault) return;
             const auto owner=bank.graph->cursor().owner;
-            const auto layer=static_cast<std::uint8_t>(owner==bank.entryOwner?0:1);
-            if(layer) bank.partner=owner;
+            const auto layer=ConfigurePortraitPair(bank,owner);
             auto* child=Read<void*>(group,0x4c0);
             if(!child) {
                 child=state.api.allocate(0x830,nullptr,0,0,nullptr,0);if(!child) throw std::bad_alloc();
@@ -480,15 +508,22 @@ inline bool SelectView(std::uint32_t token) {
         }
         if(bank.viewFault) throw std::runtime_error("The current native form owner is unresolved.");
         const auto desiredKind=Read<std::uint32_t>(bank.graph->appearance(intent.owner)->data(),8);
-        const auto layer=static_cast<std::uint8_t>(intent.owner==bank.entryOwner?0:1);
-        if(layer) bank.partner=intent.owner;
+        const auto layer=ConfigurePortraitPair(bank,intent.owner);
         if(desiredKind!=1) bank.preferred=desiredKind;
         state.api.assignData(static_cast<char*>(group)+0xd0,bank.graph->appearance(bank.entryOwner)->data());
         state.api.assignData(static_cast<char*>(child)+0xd0,bank.graph->appearance(bank.partner)->data());
         StoreCanonical(state,bank,controller);
-        bank.boundGroup=group;bank.viewBound=false;std::memcpy(static_cast<char*>(controller)+0x242,&layer,1);
+        bank.boundGroup=group;bank.viewBound=false;
         ViewBinding current{controller,&bank,intent.owner};const auto previous=binding;binding=&current;
-        try {state.api.coreBind(controller,index,false);} catch(...) {binding=previous;throw;}
+        try {
+            // Let EA own an actual physical-layer transition, including its
+            // model notification and layer-specific state. Writing its layer
+            // byte and calling only the inner binder skipped that lifecycle.
+            // Sync above already harvested the outgoing owner; binding keeps
+            // the original transition's Sync from harvesting the new pair.
+            if(layer!=intent.layer) state.api.layer(controller,layer!=0,true,false);
+            else state.api.coreBind(controller,index,false); // Native layer selection would no-op here.
+        } catch(...) {binding=previous;throw;}
         binding=previous;
         const auto model=Read<void*>(controller,0x1d0);const auto view=layer?child:group;
         if(Read<std::uint32_t>(view,0xd8)!=desiredKind || Read<std::uint32_t>(model,0x178)!=desiredKind ||
@@ -618,12 +653,15 @@ inline bool Capture(std::uint64_t id,const void* proto,bool sourceSeed) {
                 return clone;
             });
         replacement.entryOwner=NativeOwnerId(activeKind);
+        for(const auto& owner:replacement.owners) replacement.logicalOwners.emplace(owner.first,NativeOwnerId(owner.first));
         if(replacement.active) {
             replacement.entryOwner="active/"+std::to_string(activeKind);
             replacement.graph->capture(replacement.graph->cursor(),replacement.entryOwner,activeKind,replacement.active);
             replacement.graph->select(replacement.graph->cursor(),replacement.entryOwner);
+            replacement.logicalOwners.at(activeKind)=replacement.entryOwner;
         }
         replacement.partner=NativeOwnerId(activeKind==1?(replacement.preferred?replacement.preferred:1u):1u);
+        if(activeKind==1) replacement.humanOwner=replacement.entryOwner;
         OwnerUiTokens(state,id,replacement);bank=std::move(replacement);return true;
     } catch(const std::exception& error) {
         // No existing game owner is written by import. Incomplete captures
@@ -883,6 +921,10 @@ inline ui::Json ViewStatus() {
         result["available"]=true;result["sim_id"]=std::to_string(id);result["owner_id"]=cursor.owner;
         result["native_kind"]=cursor.kind;result["generation"]=cursor.generation;
         result["layer"]=state.observedNative["layer"];
+        result["human_owner_id"]=at->second.humanOwner;
+        result["portrait_pair"]={{"base_owner_id",at->second.entryOwner},{"alternate_owner_id",at->second.partner},
+            {"base_kind",Read<std::uint32_t>(at->second.graph->appearance(at->second.entryOwner)->data(),8)},
+            {"alternate_kind",Read<std::uint32_t>(at->second.graph->appearance(at->second.partner)->data(),8)}};
         result["source"]="native-cas-callback-observation";
         result["state"]=at->second.viewFault?"unresolved":at->second.viewBound?"bound":"unbound";
     } catch(const std::exception&) {result["available"]=false;}
@@ -899,7 +941,9 @@ inline ui::Json Status() {
                 {"gender",Read<std::uint32_t>(owner.second->data(),4)},
                 {"species",Read<std::uint32_t>(owner.second->data(),16)}});
         }
-        auto graphOwners=ui::Json::array();
+        auto graphOwners=ui::Json::array();auto logicalOwners=ui::Json::object();
+        if(found!=state.bank.end()) for(const auto& owner:found->second.logicalOwners)
+            logicalOwners[std::to_string(owner.first)]=owner.second;
         if(found!=state.bank.end() && found->second.graph) {
             const auto& graph=*found->second.graph;
             for(const auto& owner:graph.owners()) {
@@ -927,6 +971,8 @@ inline ui::Json Status() {
             {"native_view_fault",found!=state.bank.end() && found->second.viewFault},
             {"undo_owner_count",found==state.bank.end()?0:found->second.undoOwners.size()},
             {"graph_selected_owner_id",found!=state.bank.end() && found->second.graph?found->second.graph->cursor().owner:""},
+            {"human_owner_id",found!=state.bank.end()?found->second.humanOwner:NativeOwnerId(1)},
+            {"logical_owner_ids",logicalOwners},
             {"error",found==state.bank.end()?"":found->second.error}});
     }
     const auto selectedNative=state.selectionEnabled?state.observedNative:ui::Json{{"available",false}};
@@ -942,6 +988,12 @@ inline ui::Json Status() {
         {"owner_view_adapter_available",state.installed},{"owner_view_result",state.viewResult},
         {"owner_view_staged",state.viewIntent!=nullptr},
         {"native_kind_bias_prevented",state.kindBiasPrevented},
+#ifdef APEX_CAS_OWNER_MEMORY_DIAGNOSTICS
+        {"diagnostic_owner_memory",{{"enabled",true},{"reserved_bytes",GuardedOwnerMemory::Status().reserved},
+            {"live_records",GuardedOwnerMemory::Status().live},{"retired_records",GuardedOwnerMemory::Status().retired}}},
+#else
+        {"diagnostic_owner_memory",{{"enabled",false}}},
+#endif
         {"import_outfit_fills_prevented",state.importOutfitFillsPrevented},
         {"selection_route","quarantined-kind-conversion"},
         {"selected_native",selectedNative},

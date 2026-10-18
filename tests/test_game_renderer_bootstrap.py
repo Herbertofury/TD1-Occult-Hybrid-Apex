@@ -40,6 +40,9 @@ class RendererBootstrapTests(unittest.TestCase):
         self.after_focus = None
         self.after_fallback = None
         self.fallback_result = focused(automatic_pre_input_focus=True, focus_helper_proof='d' * 64)
+        self.background_restores = []
+        self.background_restore_result = dict(ok=True, no_focus_request=True,
+            foreground_unchanged=True, input_sent=False)
 
     def call(self, _state, action, **kwargs):
         self.calls.append(action)
@@ -86,7 +89,39 @@ class RendererBootstrapTests(unittest.TestCase):
             return game_capture.prepare_window('state', self.call, self.evidence,
                 lambda: self.records.append(copy.deepcopy(self.evidence)), identity=expected,
                 identity_provider=self.bridge, focus=None if default_focus else self.focus, monotonic=lambda: self.clock,
-                pause=lambda seconds: setattr(self, 'clock', self.clock + seconds), background=background)
+                pause=lambda seconds: setattr(self, 'clock', self.clock + seconds), background=background,
+                background_restore=self.restore_background)
+
+    def restore_background(self, pid):
+        self.background_restores.append(pid)
+        return copy.deepcopy(self.background_restore_result)
+
+    def test_ready_background_renderer_restores_its_exact_window_without_focus(self):
+        # A prior successful Present does not establish that the window is
+        # still restored: it can have been minimized since that observation.
+        self.values = [status(3)]
+        self.focused = AssertionError('Must never request focus.')
+        result = self.run_bootstrap(expected=identity(), background=True)
+        self.assertEqual(result['native_status'], 3)
+        self.assertEqual(self.background_restores, [42])
+        self.assertEqual(self.calls, ['overlay_status'])
+        self.assertFalse(self.evidence['focus_attempted'])
+        self.assertFalse(self.evidence['start_attempted'])
+
+    def test_ready_background_renderer_authenticates_before_restoring(self):
+        self.values = [status(3)]
+        self.identities = [identity(script_sha256='f' * 64)]
+        with self.assertRaises(ValueError): self.run_bootstrap(background=True)
+        self.assertEqual(self.background_restores, [])
+        self.assertEqual(self.calls, ['overlay_status'])
+
+    def test_ready_background_restore_failure_never_falls_back_to_focus(self):
+        self.values = [status(3)]
+        self.background_restore_result['ok'] = False
+        with self.assertRaises(ValueError): self.run_bootstrap(background=True)
+        self.assertEqual(self.background_restores, [42])
+        self.assertEqual(self.calls, ['overlay_status'])
+        self.assertFalse(self.evidence['focus_attempted'])
 
     def test_background_start_observes_canvas_without_foreground_fallback(self):
         self.values = [{'ok': False, 'message': 'F11 sidecar has not been started.'}, status(), status(2)]

@@ -2,6 +2,79 @@
 
 The canonical executable checklist is [docs/CODEX_MASTER_EXECUTION.md](../docs/CODEX_MASTER_EXECUTION.md). This page is the human-readable wiki view.
 
+## Controlling CAS correction — 2026-10-17
+
+Use one shared Human appearance and modify EA's actual portrait UI and form
+behavior. Preserve existing EA form layouts; forms without a paired portrait
+interface get their own form above the shared Human with full linking/copying.
+This never substitutes Vampire data or merges forms. Alien retains EA's
+existing portrait arrangement and gains missing Link/Unlink and Copy controls.
+Use the [player-focused judgment rule](../.cursor/rules/apex-player-first-hybrids.mdc)
+throughout development and QA. All supported forms need actual independent editing,
+explicit linking/copying and household/save/Tray retention. Duplicate internal
+records are not separate player-facing forms or proof of completion.
+
+Follow the [shared-Human implementation and QA checklist](../docs/CAS_SHARED_HUMAN_REQUIREMENTS.md).
+This supersedes older layout assumptions; the historical checkpoint below does
+not establish current implementation or runtime readiness.
+
+## Current checkpoint — 2026-10-18
+
+Current runtime status: V180 still crashes on the fourth member's first
+scripted Alien body edit (`TS4_x64+0x112c713`), before any completed body edit.
+Deferred socket cleanup and retained writes correct their specific contracts,
+but are not demonstrated crash fixes. All twenty disposable save files still
+match their pre-launch hashes; no CAS acceptance or save occurred. A same-build
+comparison using EA's actual CAS slider is pending. The current full CAS suite
+passes 965 checks; ten native checks and 76 focused transport checks pass.
+Production, native copy/link, complete-category and save/Tray gates remain open.
+
+Historical V180 preparation: the V179 allocator crash did not hit an Apex
+owner guard. Event callbacks now queue socket cleanup for the next UI Timer,
+ignore stale socket events, and send a single retained ASCII frame with lossless
+Unicode JSON escaping. All 76 focused checks pass, including serialized unsafe
+callback/buffer cases. Earlier full CAS checks passed 959 tests and ten native
+checks pass. V180 runtime qualification remains open; production use is not
+qualified, and all save/Tray and native copy/link gates stay open.
+
+V178 crashed after nine visits and six body edits; a same-build collapsed-strip
+run reproduced a crash after six visits/four edits. It is unsafe for real-save
+use. All twenty disposable save files remain unchanged. V179 diagnostic
+preparation removes repeated idle metadata redraws and adds opt-in protected
+Apex owner allocations to identify memory misuse. No crash-fix claim is made.
+Actual native copy/link, complete household/category edits and save/Tray/Gallery
+qualification remain unfinished.
+
+Historical V178 preparation: the cold runtime test was pending. V177 reproduced the cold fourth-member
+Alien body-edit allocator crash despite retaining EA's layer lifecycle. V178
+matches the stock slider's preview -> completion sequence, with an owner check
+and consumed one-shot completion state. Compiled bytecode checks pass; this
+does not establish a crash fix. V177's pre-gesture CAS suite passed 957 checks.
+All twenty save files still match. Production use remains unqualified.
+
+V177 is built; runtime cold Fairy -> Alien qualification is pending. It retains
+EA's actual layer-transition lifecycle rather than manually flipping its layer
+byte before the inner binder. Nine native checks pass. After the V176 crash
+reproduced, the fourth member retained three distinct Human/Vampire/Alien body
+edits through six switches. Full audit of all 195 captured owners finds only
+those three intended fields changed, with no lost originals or added outfits.
+Cancellation and unsaved exit leave all twenty test saves unchanged. This does
+not qualify all categories, actual copy/link controls, CAS return or save/Tray.
+
+Historical V176 checkpoint:
+
+V176 is installed only in the disposable profile. The native adapter now writes
+the exact displayed logical form to its EA cache lane, retaining older aliases
+without copying them over the player's edit. Link propagation follows direct
+configured scopes, and UI snapshots query only the current panel. Nine native
+checks pass. V175's real test retained twelve body edits across three members
+but crashed during the fourth member's first body edit. The allocator failure
+is preserved and unexplained; all twenty test saves are unchanged. V176's cold
+readback matches all forty original appearances. Current household editing and
+return validation, actual EA copy/link controls, all-category coverage and
+save/Tray/Gallery round trips remain open. Do not use this checkpoint as a
+production-readiness certificate.
+
 ## Execution checkpoint — 2026-10-07
 
 The owner-selected V9.6 source is preserved and the actual authorized hybrid, Crilender, MCCC and Color Sliders files are implementation bases. Six packages/204 resources and a matching 47-module script build; Foundry independently extracts/verifies every resource. Four ported MCCC helpers match nine original-bytecode cases. F11 now has a mod-folder sidecar loader plus numeric H/S/B/O controls using actual CASP ranges and shared preview/Apply/Undo recovery. 101 offline fixtures, 21 native data checks, actual independent DX11 menu/color rendering and packaged Python 3.7 extension-loader checks pass. The metadata reader matches 32 installed-game CASPs and nine original C# writer versions. Source/build leaves T207/T208 are checked with proof. See [the current report](../Reports/SIDECAR_AND_COLOR_2026-10-07.md) and canonical task proofs. Current-game compatibility and all runtime/regression/release gates remain open.

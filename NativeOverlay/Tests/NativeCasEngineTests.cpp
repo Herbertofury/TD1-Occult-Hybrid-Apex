@@ -15,6 +15,7 @@ int exportSizeOverride=0;bool exportWrongId=false,exportWrongLength=false;
 std::size_t exportPadding=0;
 unsigned serviceFallbacks=0,controllerCalls=0,avatarRefreshes=0;
 unsigned reboundKind=0,nativeSyncCalls=0;
+unsigned nativeLayerTransitions=0;
 unsigned previewRestores=0;
 unsigned outfitHairCalls=0;
 void OriginalOutfitHair(void* outfit,const void* genus) {
@@ -131,6 +132,15 @@ void OriginalUndoSelect(void*,std::uint64_t,bool) {throw std::runtime_error("Sha
 void NativeCoreBind(void* controller,int,bool) {
     BindSelected(controller,false);
     SelectUndo(controller,123,Read<std::uint8_t>(controller,0x242)!=0);
+}
+void NativeLayerTransition(void* controller,bool alternate,bool notify,bool refresh) {
+    Require(Read<std::uint8_t>(controller,0x242)!=static_cast<std::uint8_t>(alternate));
+    Require(notify && !refresh && binding && binding->controller==controller);
+    const auto generation=binding->bank->graph->cursor().generation;
+    Sync(controller); // The stock handler's outgoing Sync must not harvest the newly assigned pair.
+    Require(binding->bank->graph->cursor().generation==generation);
+    ++nativeLayerTransitions;Write(controller,0x242,static_cast<std::uint8_t>(alternate));
+    NativeCoreBind(controller,0,false);
 }
 void NativeOriginalBind(void*,bool) {throw std::runtime_error("Stock merging binder must not run for explicit owner views.");}
 unsigned RelayResult(const void*) {return 13;}
@@ -305,7 +315,7 @@ int main() {
     // game's destructive inactive-copy behavior represented by NativeSync.
     api.sync=NativeSync;api.bind=NativeOriginalBind;api.modelBind=NativeModelBind;
     api.hairPreview=HairPreview;api.clothingPreview=ClothingPreview;api.wingsPreview=WingsPreview;
-    api.coreBind=NativeCoreBind;api.context=NativeContext;api.index=NativeIndex;
+    api.coreBind=NativeCoreBind;api.layer=NativeLayerTransition;api.context=NativeContext;api.index=NativeIndex;
     api.undoSelect=OriginalUndoSelect;api.undoCreate=UndoCreate;api.undoBind=UndoBind;
     undoTable[0]=reinterpret_cast<void*>(&UndoDestroyed);
     Write(currentModel.data(),0x70,NewUndo(9999));
@@ -317,6 +327,11 @@ int main() {
     Write(currentModel.data(),0x178,4u);Write(currentModel.data(),0x17c,127u);Write(currentModel.data(),0x188,9999u);
     NativeCoreBind(controller.data(),0,false); // Initial household binding bypasses the stock copying binder too.
     Require(bank.viewBound && !bank.viewFault && Read<unsigned>(currentModel.data(),0x178)==2);
+    // The visible actual entry appearance must also be the one EA serializes.
+    // Its older stored native/2 look remains archived in the complete graph.
+    Require(Read<unsigned>(Map(metadata.data()).at(2).data(),0x18)==9999);
+    Require(Read<unsigned>(bank.graph->appearance("native/2")->data(),0x18)==200);
+    Require(Status()["members"][0]["logical_owner_ids"]["2"]=="active/2");
     const auto capturedSelection=Status()["selected_native"];
     Require(capturedSelection["source"]=="native-cas-callback-observation" && capturedSelection["occult_type"]==2);
     // The CAS engine can dispose its controller without taking our mutex.
@@ -383,25 +398,35 @@ int main() {
         Require(runtime.viewResult["state"]=="applied" && runtime.viewResult["owner_id"]==owner);
     };
     stageView("11111111111111111111111111111111","native/2");
+    Require(nativeLayerTransitions==0); // Same-layer owner changes must rebind, not call EA's no-op selector.
     Require(Read<unsigned>(currentModel.data(),0x188)==200);
     Require(Read<unsigned>(bank.graph->appearance("active/2")->data(),0x18)==9999);
     const auto alienUndo=Read<UndoFixture*>(currentModel.data(),0x70);
     Require(alienUndo->marker==0);alienUndo->marker=22222;
     Write(currentModel.data(),0x188,22222u);
     stageView("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","native/4");
+    Require(nativeLayerTransitions==1); // Alien base -> occult alternate uses the full original lifecycle.
     Require(Read<unsigned>(currentModel.data(),0x178)==4 && Read<unsigned>(currentModel.data(),0x188)==400);
+    Require(bank.entryOwner=="native/1" && bank.partner=="native/4");
+    Require(Read<unsigned>(group.data(),0xd8)==1 && Read<unsigned>(group.data(),0xe8)==100);
+    Require(Read<unsigned>(Read<void*>(group.data(),0x4c0),0xd8)==4);
     Require(Read<unsigned>(bank.graph->appearance(2)->data(),0x18)==22222);
     Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100);
     const auto vampireUndo=Read<UndoFixture*>(currentModel.data(),0x70);
     Require(vampireUndo!=alienUndo && vampireUndo->marker==0);vampireUndo->marker=44444;
     Write(currentModel.data(),0x188,44444u);
     stageView("cccccccccccccccccccccccccccccccc","ghost/manifested");
+    Require(nativeLayerTransitions==1); // Two different top forms share the physical layer, not their data.
     Require(Read<unsigned>(currentModel.data(),0x178)==1 && Read<unsigned>(currentModel.data(),0x188)==9999);
     Require(Read<unsigned>(bank.graph->appearance(4)->data(),0x18)==44444);
     Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100);
+    Require(bank.entryOwner=="native/1" && bank.partner=="ghost/manifested");
+    Require(ViewStatus()["portrait_pair"]["alternate_owner_id"]=="ghost/manifested");
+    Require(Read<unsigned>(currentModel.data(),0x178)==1); // No Vampire substitute.
     const auto ghostUndo=Read<UndoFixture*>(currentModel.data(),0x70);
     Require(ghostUndo!=alienUndo && ghostUndo!=vampireUndo);
     stageView("dddddddddddddddddddddddddddddddd","native/2");
+    Require(nativeLayerTransitions==2);
     Require(Read<unsigned>(currentModel.data(),0x188)==22222);
     Require(Read<UndoFixture*>(currentModel.data(),0x70)==alienUndo && alienUndo->marker==22222);
     stageView("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","native/1");
@@ -410,7 +435,7 @@ int main() {
     Require(humanUndo!=ghostUndo && humanUndo!=alienUndo && humanUndo!=vampireUndo);
     const auto independentChild=Read<void*>(group.data(),0x4c0);
     Require(Read<unsigned>(independentChild,0xd8)==1 && Read<unsigned>(independentChild,0xe8)==100);
-    Require(Read<unsigned>(group.data(),0xe8)==9999);
+    Require(Read<unsigned>(group.data(),0xe8)==22222);
     stageView("ffffffffffffffffffffffffffffffff","ghost/manifested");
     Write(currentModel.data(),0x188,77777u);Write(currentModel.data(),0x3b0,0x55667788u);Sync(controller.data());
     Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x18)==77777);
@@ -425,7 +450,7 @@ int main() {
     Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x18)==77777);
     Require(Read<unsigned>(bank.graph->appearance("ghost/manifested")->data(),0x240)==0x55667788u);
     Sync(controller.data());Require(previewRestores==1); // No second restoration or stale cache replay.
-    Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100 && Read<unsigned>(group.data(),0xe8)==9999);
+    Require(Read<unsigned>(bank.graph->appearance(1)->data(),0x18)==100 && Read<unsigned>(group.data(),0xe8)==100);
     Require(Read<unsigned>(bank.graph->appearance(4)->data(),0x18)==44444);
     Require(Read<UndoFixture*>(currentModel.data(),0x70)==ghostUndo);
     // Native history may ask for an invalid/composite opposite kind. It must
@@ -433,7 +458,7 @@ int main() {
     const auto oldRebound=reboundKind;
     for(const auto target:{0u,1u,4u,126u}) {
         Write(group.data(),0xe8,123456u);Rebind(controller.data(),metadata.data(),target);
-        Require(Read<unsigned>(group.data(),0xe8)==9999 && Read<unsigned>(currentModel.data(),0x188)==77777);
+        Require(Read<unsigned>(group.data(),0xe8)==100 && Read<unsigned>(currentModel.data(),0x188)==77777);
         Require(reboundKind==oldRebound && !bank.viewFault);
     }
     Require(bank.undoOwners.size()==5 && bank.undoOwners.at("active/2")->value!=alienUndo);

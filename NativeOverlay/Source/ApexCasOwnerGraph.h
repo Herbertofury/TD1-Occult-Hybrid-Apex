@@ -115,15 +115,12 @@ public:
     Cursor commit(const Cursor& expected,const Appearance& edited) {
         Current(expected);
         std::set<std::string> destinations{cursor_.owner};
-        bool changed=true;
-        while(changed) {
-            const auto before=destinations.size();
-            for(const auto& id:std::set<std::string>(destinations)) {
-                const auto links=links_.find(id);
-                if(links!=links_.end()) destinations.insert(links->second.begin(),links->second.end());
-            }
-            changed=destinations.size()!=before;
-        }
+        // A copied destination is not a new user edit. Follow only links that
+        // the player explicitly configured for the edited source. Otherwise
+        // Alien -> Human and Human -> Vampire would unexpectedly merge all
+        // three appearances when only the Alien/Human pair was being edited.
+        const auto direct=links_.find(cursor_.owner);
+        if(direct!=links_.end()) destinations.insert(direct->second.begin(),direct->second.end());
         // Prepare all complete clones before writing any owner. A failed native
         // allocation cannot leave half a linked group updated.
         std::map<std::string,Appearance> prepared;

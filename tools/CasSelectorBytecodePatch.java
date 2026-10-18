@@ -18,9 +18,12 @@ public class CasSelectorBytecodePatch {
     static final String CLEANUP_PIN = "e79b3b65c8b6234c54d4a76f4c7a671f46ece7ddb9f6940bc5db312850fdef91";
     static final Map<String,String> FIELDS = Map.of("apexSelectorFeed", "Object",
         "apexSelectorSequence", "int", "apexSelectorRegistered", "Boolean", "apexSelectorResetRegistered", "Boolean",
-        "apexSelectorNavigationRegistered", "Boolean", "apexSelectorLastNavigation", "String");
+        "apexSelectorNavigationRegistered", "Boolean", "apexSelectorLastNavigation", "String",
+        "apexSelectorHybridRegistered", "Boolean", "apexSelectorHybridServiceRegistered", "Boolean",
+        "apexSelectorHybridSim", "String");
     static final Set<String> METHODS = Set.of("ApexSelectorInitialize", "ApexSelectorCaptureFeed",
-        "ApexSelectorClearFeed", "ApexSelectorCopyRow", "ApexSelectorReadOwnerFeed", "ApexSelectorNavigate");
+        "ApexSelectorClearFeed", "ApexSelectorCopyRow", "ApexSelectorReadOwnerFeed", "ApexSelectorNavigate",
+        "ApexSelectorEnableHybridPair", "ApexSelectorRestorePair");
     static void require(boolean value, String message) { CasBytecodePatch.require(value, message); }
     static String name(ABC abc, Trait trait) { return CasBytecodePatch.name(abc, trait); }
     static String member(ABC abc, int id) {
@@ -105,6 +108,8 @@ public class CasSelectorBytecodePatch {
             : key.equals("ApexSelectorReadOwnerFeed") ? Set.of("RequestItemAt", "ApexSelectorCopyRow", "push", "String", "int", "Boolean")
             : key.equals("ApexSelectorCaptureFeed") ? Set.of("ApexSelectorCopyRow", "push", "String", "int", "Boolean") : Set.of();
         if(key.equals("ApexSelectorNavigate")) calls=Set.of("RequestItemAt","ApexSelectorCopyRow","test","String","int","SelectSimLayer");
+        if(key.equals("ApexSelectorEnableHybridPair")) calls=Set.of("test","String");
+        if(key.equals("ApexSelectorRestorePair")) calls=Set.of("RequestItemAt","ReplaceItemAt","UpdateSelectedIndex","UpdateAffordable","UpdateLayout","int");
         var instructions=body.getCode().code;
         for (int index=0;index<instructions.size();index++) {
             var op=instructions.get(index);
@@ -117,7 +122,7 @@ public class CasSelectorBytecodePatch {
                 require(calls.contains(member(abc, op.operands[0])), "Owned selector calls an unreviewed service/member: " + key);
             if (code == 0x4a) require(Set.of("Error", "RegExp").contains(member(abc, op.operands[0])),
                 "Owned selector constructs an unreviewed property.");
-            if (code == 0x42) require(Set.of("ApexSelectorCopyRow","ApexSelectorNavigate").contains(key) && index >= 2 && op.operands[0] == 1 &&
+            if (code == 0x42) require(Set.of("ApexSelectorCopyRow","ApexSelectorNavigate","ApexSelectorEnableHybridPair").contains(key) && index >= 2 && op.operands[0] == 1 &&
                 opcode(instructions.get(index-2),0x60) && member(abc,instructions.get(index-2).operands[0]).equals("RegExp") &&
                 opcode(instructions.get(index-1),0x2c) && Set.of("^(0|[1-9][0-9]{0,19})$","^[0-9a-f]{32}$","^[1-9][0-9]{0,19}$").contains(abc.constants.getString(instructions.get(index-1).operands[0])),
                 "Owned selector constructs an unreviewed dynamic receiver.");
@@ -126,11 +131,12 @@ public class CasSelectorBytecodePatch {
                 require(!Set.of("CommunicationManager", "CallGameService", "CallUIService", "SendUIMessage", "SendMessage",
                     "Socket", "Timer", "connect", "writeUTFBytes", "flush", "SelectSim", "CasSelectSim", "CasSelectOccultForm").contains(property),
                     "Owned selector accesses native/transport work: " + key);
-                if (!Set.of("ApexSelectorReadOwnerFeed","ApexSelectorNavigate").contains(key))
+                if (!Set.of("ApexSelectorReadOwnerFeed","ApexSelectorNavigate","ApexSelectorEnableHybridPair","ApexSelectorRestorePair").contains(key))
                     require(!Set.of("mDataFeed", "mSelectedSimIndex", "mSelectedSimLayerIndex", "mCurrSimId", "RequestItemAt").contains(property),
                         "Selector callback reads retained/native state outside its read service.");
                 if (code == 0x61 || code == 0x68 || code == 0x6a)
-                    require(!Set.of("mDataFeed", "mSelectedSimIndex", "mSelectedSimLayerIndex", "mCurrSimId", "sim_layers").contains(property),
+                    require(!Set.of("mDataFeed", "mSelectedSimIndex", "mSelectedSimLayerIndex", "mCurrSimId", "sim_layers").contains(property) ||
+                        key.equals("ApexSelectorRestorePair") && property.equals("sim_layers"),
                         "Owned selector mutates retained/native state.");
                 if (key.equals("ApexSelectorReadOwnerFeed") && (code == 0x61 || code == 0x68))
                     require(!FIELDS.containsKey(property), "Selector read service changes owned observation state.");
@@ -179,7 +185,9 @@ public class CasSelectorBytecodePatch {
         Map<String,String> expected=Map.of(
             "RegisterServiceHandler:ApexReadOwnerPairFeed","ApexSelectorReadOwnerFeed",
             "RegisterServiceHandler:ApexNavigateOwnerLayer","ApexSelectorNavigate",
-            "AddMessageListener:CASClearSimsForReset","ApexSelectorClearFeed");
+            "AddMessageListener:CASClearSimsForReset","ApexSelectorClearFeed",
+            "RegisterServiceHandler:ApexConfigureFormPortraits","ApexSelectorEnableHybridPair",
+            "AddMessageListener:CASRefreshSimIcons","ApexSelectorRestorePair");
         Set<String> seen=new HashSet<>();
         for(int index=0;index<code.size();index++) {
             var op=code.get(index);
@@ -222,7 +230,7 @@ public class CasSelectorBytecodePatch {
                     "Owned selector field type/automatic slot contract differs.");
                 require(slot.value_index == 0 || (key.equals("apexSelectorSequence") &&
                     slot.value_kind == ValueKind.CONSTANT_Int && abc.constants.getInt(slot.value_index) == 0) ||
-                    (key.equals("apexSelectorLastNavigation") && slot.value_kind == 0x01 &&
+                    (Set.of("apexSelectorLastNavigation","apexSelectorHybridSim").contains(key) && slot.value_kind == 0x01 &&
                     abc.constants.getString(slot.value_index).equals("")) ||
                     (FIELDS.get(key).equals("Boolean") && slot.value_kind == ValueKind.CONSTANT_False &&
                     slot.value_index == ValueKind.CONSTANT_False),
@@ -233,7 +241,7 @@ public class CasSelectorBytecodePatch {
                 int index=((TraitMethodGetterSetter)trait).method_info;
                 require(methods.add(index), "Owned selector methods alias the same body.");
                 MethodInfo method=abc.method_info.get(index);
-                boolean initialize=key.equals("ApexSelectorInitialize"), returnsObject=key.equals("ApexSelectorCopyRow") || key.equals("ApexSelectorReadOwnerFeed") || key.equals("ApexSelectorNavigate");
+                boolean initialize=key.equals("ApexSelectorInitialize"), returnsObject=key.equals("ApexSelectorCopyRow") || key.equals("ApexSelectorReadOwnerFeed") || key.equals("ApexSelectorNavigate") || key.equals("ApexSelectorEnableHybridPair");
                 boolean optional=key.equals("ApexSelectorClearFeed") || key.equals("ApexSelectorReadOwnerFeed");
                 require(method.param_types.length == (initialize ? 0 : 1) &&
                     (initialize || member(abc,method.param_types[0]).equals("Object")) &&
@@ -448,7 +456,7 @@ public class CasSelectorBytecodePatch {
             cleanup=verifyExternalCleanup(CasBytecodePatch.load(args[3])); embedded=true;
         }
         byte[] result=patch(original,compiled); Files.write(Path.of(args[2]),result);
-        System.out.println("{\"native_method_count\":"+nativeCount+",\"apex_method_count\":6,\"owned_field_count\":6,"+
+        System.out.println("{\"native_method_count\":"+nativeCount+",\"apex_method_count\":"+METHODS.size()+",\"owned_field_count\":"+FIELDS.size()+","+
             "\"unchanged_native_methods\":"+(nativeCount-3)+",\"native_class_script_traits_preserved\":true,"+
             "\"native_initialize_tail_hook_verified\":true,\"native_refresh_entry_hook_verified\":true,"+
             "\"native_bodies_after_hook_stripping_exact\":true,\"native_lexical_scope_preserved\":true,"+

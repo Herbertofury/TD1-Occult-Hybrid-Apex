@@ -32,7 +32,11 @@ public class CasSelectorSafetyFixtures {
             op(0x66,qname(abc,callback)),op(0x4f,qname(abc,"AddMessageListener"),count));
         byte[] navigate=bytes(op(0xd0),op(0x2c,abc.constants.getStringId("ApexNavigateOwnerLayer",true)),
             op(0xd0),op(0x66,qname(abc,"ApexSelectorNavigate")),op(0x4f,qname(abc,"RegisterServiceHandler"),2));
-        return body(abc,bytes(op(0xd0),op(0x30),service,reset,navigate,duplicate ? reset : new byte[0],op(0x47)));
+        byte[] hybrid=bytes(op(0xd0),op(0x2c,abc.constants.getStringId("ApexConfigureFormPortraits",true)),
+            op(0xd0),op(0x66,qname(abc,"ApexSelectorEnableHybridPair")),op(0x4f,qname(abc,"RegisterServiceHandler"),2));
+        byte[] refresh=bytes(op(0xd0),op(0x2c,abc.constants.getStringId("CASRefreshSimIcons",true)),
+            op(0xd0),op(0x66,qname(abc,"ApexSelectorRestorePair")),op(0x4f,qname(abc,"AddMessageListener"),2));
+        return body(abc,bytes(op(0xd0),op(0x30),service,reset,navigate,hybrid,refresh,duplicate ? reset : new byte[0],op(0x47)));
     }
     static InstanceInfo owned(ABC abc) {
         var instance=new InstanceInfo(new Traits());
@@ -44,7 +48,7 @@ public class CasSelectorSafetyFixtures {
         }
         for(String key:CasSelectorBytecodePatch.METHODS) {
             boolean init=key.equals("ApexSelectorInitialize"), optional=key.equals("ApexSelectorClearFeed") || key.equals("ApexSelectorReadOwnerFeed");
-            boolean returnsObject=key.equals("ApexSelectorCopyRow") || key.equals("ApexSelectorReadOwnerFeed") || key.equals("ApexSelectorNavigate");
+            boolean returnsObject=key.equals("ApexSelectorCopyRow") || key.equals("ApexSelectorReadOwnerFeed") || key.equals("ApexSelectorNavigate") || key.equals("ApexSelectorEnableHybridPair");
             var info=new MethodInfo(init ? new int[0] : new int[]{qname(abc,"Object")},qname(abc,returnsObject ? "Object" : "void"),
                 0,optional ? MethodInfo.FLAG_HAS_OPTIONAL : 0,optional ? new ValueKind[]{new ValueKind(ValueKind.CONSTANT_Null,ValueKind.CONSTANT_Null)} : new ValueKind[0],new int[0]);
             var trait=new TraitMethodGetterSetter(); trait.kindType=Trait.TRAIT_METHOD;
@@ -108,6 +112,12 @@ public class CasSelectorSafetyFixtures {
             refuses(()->CasSelectorBytecodePatch.verifySafeBody(abc,"ApexSelectorReadOwnerFeed",body(abc,bytes(op(0xd0),op(0x20),op(0x61,qname(abc,"mDataFeed")),op(0x47)))),"mutates retained/native");
         } else if(key.equals("service-observation-write")) {
             refuses(()->CasSelectorBytecodePatch.verifySafeBody(abc,"ApexSelectorReadOwnerFeed",body(abc,bytes(op(0xd0),op(0x20),op(0x61,qname(abc,"apexSelectorFeed")),op(0x47)))),"changes owned observation");
+        } else if(key.equals("hybrid-presentation-no-game-getter")) {
+            refuses(()->CasSelectorBytecodePatch.verifySafeBody(abc,"ApexSelectorRestorePair",body(abc,bytes(op(0x60,qname(abc,"CommunicationManager")),op(0x47)))),"native/transport");
+        } else if(key.equals("hybrid-presentation-no-current-sim-write")) {
+            refuses(()->CasSelectorBytecodePatch.verifySafeBody(abc,"ApexSelectorRestorePair",body(abc,bytes(op(0xd0),op(0x20),op(0x61,qname(abc,"mCurrSimId")),op(0x47)))),"mutates retained/native");
+        } else if(key.equals("hybrid-enable-no-slot-write")) {
+            refuses(()->CasSelectorBytecodePatch.verifySafeBody(abc,"ApexSelectorEnableHybridPair",body(abc,bytes(op(0xd0),op(0x20),op(0x61,qname(abc,"sim_layers")),op(0x47)))),"mutates retained/native");
         } else if(key.equals("initialize-clears-feed")) {
             refuses(()->CasSelectorBytecodePatch.verifySafeBody(abc,"ApexSelectorInitialize",body(abc,bytes(op(0xd0),op(0x20),op(0x61,qname(abc,"apexSelectorFeed")),op(0x47)))),"already captured feed");
         } else if(key.equals("callback-closure") || key.equals("callback-direct-call") || key.equals("callback-outer-scope")) {

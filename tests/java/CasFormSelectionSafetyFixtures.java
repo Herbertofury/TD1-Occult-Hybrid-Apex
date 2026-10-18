@@ -28,6 +28,7 @@ public class CasFormSelectionSafetyFixtures {
         var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
         CasBytecodePatch.verifyTimerPipeline(abc,instance);
         CasBytecodePatch.verifyQueuedHandshake(abc,instance);
+        CasBytecodePatch.verifySocketLifetime(abc,instance);
         CasBytecodePatch.verifyFormSelection(abc,instance);
         CasBytecodePatch.verifyMemberSelection(abc,instance);
         CasBytecodePatch.verifyExactItemSelection(abc,instance);
@@ -44,8 +45,41 @@ public class CasFormSelectionSafetyFixtures {
         MethodBody region=CasBytecodePatch.ownedBody(abc,instance,"ApexBodyTypes");
         MethodBody layers=CasBytecodePatch.ownedBody(abc,instance,"ApexNativeLayers");
         MethodBody memberHelper=CasBytecodePatch.ownedBody(abc,instance,"ApexMemberSelectionContext");
+        MethodBody failure=CasBytecodePatch.ownedBody(abc,instance,"ApexSocketFailure");
+        MethodBody send=CasBytecodePatch.ownedBody(abc,instance,"ApexSocketSend");
+        MethodBody quote=CasBytecodePatch.ownedBody(abc,instance,"ApexQuote");
+        MethodBody socketData=CasBytecodePatch.ownedBody(abc,instance,"ApexSocketData");
         checks(abc);
         switch(kind) {
+            case "socket-failure-not-queued":
+                for(var op:failure.getCode().code) if(CasBytecodePatch.property(abc,op,0x61,"apexSocketResetPending")) {
+                    op.operands[0]=member(abc,"apexHelloPending");break;
+                }
+                break;
+            case "socket-failure-native-close":
+                int callbackReturn=failure.getCode().code.size()-1;
+                if(!CasBytecodePatch.opcode(failure.getCode().code.get(callbackReturn),0x47))
+                    throw new AssertionError("Missing callback return for native-close regression.");
+                failure.insertAll(callbackReturn,List.of(new AVM2Instruction(0,0xd0,new int[0]),
+                    new AVM2Instruction(0,0x4f,new int[]{member(abc,"ApexResetSocket"),0})));
+                break;
+            case "socket-data-stale-event": property(abc,socketData,"currentTarget").operands[0]=member(abc,"simId");break;
+            case "socket-send-unretained-buffer":
+                for(int i=1;i<send.getCode().code.size();i++) {
+                    var rows=send.getCode().code;
+                    if(CasBytecodePatch.property(abc,rows.get(i),0x4f,"writeUTFBytes") || CasBytecodePatch.property(abc,rows.get(i),0x46,"writeUTFBytes")) {
+                        rows.get(i-1).operands[0]=member(abc,"apexWire");break;
+                    }
+                }
+                break;
+            case "socket-send-native-service":
+                for(var op:send.getCode().code) if(CasBytecodePatch.property(abc,op,0x4f,"writeUTFBytes") || CasBytecodePatch.property(abc,op,0x46,"writeUTFBytes")) {
+                    op.operands[0]=member(abc,"CallGameService");break;
+                }
+                break;
+            case "socket-json-unescaped-unicode":
+                for(var op:quote.getCode().code) if(CasBytecodePatch.opcode(op,0x24) && op.operands[0]==126) {op.operands[0]=127;break;}
+                break;
             case "member-service-name":
                 literal(abc,execute,"CASSelectSim").operands[0]=abc.constants.getStringId("CasRemoveSim",true);break;
             case "member-destination-index":
@@ -143,7 +177,7 @@ public class CasFormSelectionSafetyFixtures {
             }
             default:throw new AssertionError("Unknown fixture "+kind);
         }
-        for(MethodBody body:List.of(execute,helper,connect,tick,readback,region,layers,memberHelper,
+        for(MethodBody body:List.of(execute,helper,connect,tick,readback,region,layers,memberHelper,failure,send,quote,socketData,
             CasBytecodePatch.ownedBody(abc,instance,"ApexSnapshot"))) body.setModified();
         ByteArrayOutputStream bytes=new ByteArrayOutputStream();abc.saveToStream(bytes);
         ABC saved=new ABC(new ABCInputStream(new MemoryInputStream(bytes.toByteArray())),abc.getSwf(),null);

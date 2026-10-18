@@ -8,6 +8,9 @@
       private var apexSelectorResetRegistered:Boolean = false;
       private var apexSelectorNavigationRegistered:Boolean = false;
       private var apexSelectorLastNavigation:String = "";
+      private var apexSelectorHybridRegistered:Boolean = false;
+      private var apexSelectorHybridServiceRegistered:Boolean = false;
+      private var apexSelectorHybridSim:String = "";
 
       private function ApexSelectorInitialize() : void
       {
@@ -19,6 +22,10 @@
             apexSelectorResetRegistered=AddMessageListener("CASClearSimsForReset",ApexSelectorClearFeed);
          if(!apexSelectorNavigationRegistered)
             apexSelectorNavigationRegistered=RegisterServiceHandler("ApexNavigateOwnerLayer",ApexSelectorNavigate);
+         if(!apexSelectorHybridRegistered)
+            apexSelectorHybridRegistered=AddMessageListener("CASRefreshSimIcons",ApexSelectorRestorePair);
+         if(!apexSelectorHybridServiceRegistered)
+            apexSelectorHybridServiceRegistered=RegisterServiceHandler("ApexConfigureFormPortraits",ApexSelectorEnableHybridPair);
       }
 
       private function ApexSelectorCopyRow(raw:Object) : Object
@@ -69,12 +76,55 @@
 
       private function ApexSelectorClearFeed(message:Object=null) : void
       {
+         apexSelectorHybridSim="";
          if(apexSelectorSequence<2147483647) apexSelectorSequence++;
          apexSelectorFeed={delivered:false,complete:false,sequence:apexSelectorSequence,
             source:"native-selector-raw-entry-observer",before_native_handler:true,
             selected_index:-1,selected_layer:-1,base_row_count:0,alternate_row_count:0,
             pairs:[],error:"Native selector cleared its feed; awaiting actual delivery"};
          message=null;
+      }
+
+      private function ApexSelectorEnableHybridPair(request:Object) : Object
+      {
+         if(request==null || !(request.sim_id is String) ||
+            !/^[1-9][0-9]{0,19}$/.test(request.sim_id) || request.sim_id!=mCurrSimId ||
+            mDataFeed==null || mSelectedSimIndex<0 || mSelectedSimIndex>=mDataFeed.length)
+            return {protocol:1,enabled:false};
+         // Presentation only. The native graph owns actual slot data and
+         // navigation; no appearance, conversion or membership is written.
+         apexSelectorHybridSim=String(request.sim_id);
+         return {protocol:1,enabled:true,sim_id:apexSelectorHybridSim};
+      }
+
+      private function ApexSelectorRestorePair(message:Object) : void
+      {
+         // Registered after EA's refresh listener. Restore actual delivered
+         // rows hidden by its composite-mask filter, never invented thumbnails.
+         if(apexSelectorHybridSim=="" || apexSelectorHybridSim!=mCurrSimId ||
+            mbGeneticsPaneActive || message==null || !(message.sim_data is Array) ||
+            !(message.sim_occult_data is Array) || !(message.selected_sim is int) ||
+            !(message.selected_layer is int) || message.selected_sim!=mSelectedSimIndex ||
+            message.selected_sim<0 || message.selected_sim>=message.sim_data.length ||
+            message.selected_sim>=message.sim_occult_data.length ||
+            message.selected_layer<0 || message.selected_layer>1) return;
+         var index:int=int(message.selected_sim);
+         var base:SimLayerSkewerData=message.sim_data[index] as SimLayerSkewerData;
+         var alternate:SimLayerSkewerData=message.sim_occult_data[index] as SimLayerSkewerData;
+         if(base==null || alternate==null || base.simId!=apexSelectorHybridSim ||
+            alternate.simId!=apexSelectorHybridSim || base.occultLayer!=0 || alternate.occultLayer!=1 ||
+            mDataFeed==null || index>=mDataFeed.length) return;
+         var row:SimSkewerData=mDataFeed.RequestItemAt(index) as SimSkewerData;
+         if(row==null || row.sim_layers.length==0 || row.sim_layers[0].simId!=apexSelectorHybridSim) return;
+         row.sim_layers=[base,alternate];
+         // Stock copy/link must not flatten these independent owners. Explicit
+         // graph-aware controls require their own qualification.
+         row.mbAllowCopyAltForm=false;
+         mDataFeed.ReplaceItemAt(index,row);
+         UpdateSelectedIndex(index,int(message.selected_layer));
+         UpdateAffordable();
+         UpdateLayout();
+         message=null;row=null;base=null;alternate=null;
       }
 
       private function ApexSelectorReadOwnerFeed(message:Object=null) : Object

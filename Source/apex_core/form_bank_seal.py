@@ -29,9 +29,9 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-16-native-cas-exact-named-return-v174'
+UPGRADE_EPOCH = '2026-10-18-native-cas-deferred-socket-lifetime-v180'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '045739352165ed57777fa2631baa248897b7a2c505855d7ae02de6f2341d655d'
+UPGRADE_SELF_BODY_SHA = '27de85a11096920b48a0d19863edb57c54f093aa007fb1d2a536197d3201208b'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -42,6 +42,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_commit_plan.py': '416111b3f723114b1577df406ade969fa535095f43bcadc8328273bb568a97e0',
     'apex_core/cas_controls.py': '18d844b8dc242616ab7b24fbab0d217872691a77f03a3c7ce82c74a4b07c0a47',
     'apex_core/cas_entry_context.py': '3be8694221f00c8d37d5c658616177b4695b3a268618bc27d4bcf08b81f74b9f',
+    'apex_core/cas_form_catalog.py': '6b491e2b5eb469a350f0fbe2459a773fd9f4699d18a88749e7d02fddde6829f9',
     'apex_core/cas_frontdoor.py': 'cc749e4d5f4e3f05fcfe16b8c92a80296e84a4a9ebfb30b7e9cbaa6980e82f95',
     'apex_core/cas_named_return.py': 'd38c9022ca4a8e2182d7eab99b8f10390e7c2f22f7c9c5da775d306051ca7e02',
     'apex_core/cas_owner_decode.py': 'f371901c795ddd1fa6270d24b49db3ab0982f5084ce5edc3fb6d5f46fc2ca938',
@@ -50,7 +51,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_save_boundary.py': '29b7298311b0b6f466c7ac4f7f91149009b7980b19730071eea5b2e08266708b',
-    'apex_core/cas_ui.py': 'a175858eeaca20be751019500b3bdda5db98afe7bf52f256a58fb12cc63127f7',
+    'apex_core/cas_ui.py': '17053ffac4cf4a12bf9f7edfaf76ae8028494d599c74a6d7d8ea792c15811fe6',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',

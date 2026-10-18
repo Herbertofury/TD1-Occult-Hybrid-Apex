@@ -72,6 +72,22 @@ class CasUiTests(unittest.TestCase):
                 'catalogs': [{'panel': name, 'menu_state': state, 'supported': True, 'items': [],
                               'preset': None, 'preset_query': 'returned-null'} for name, state in cas_ui.PANELS.items()]}
 
+    def test_inactive_panels_stay_unknown_without_losing_their_identity(self):
+        client = self.client('12')
+        for row in client['catalogs']:
+            if row['menu_state'] != client['menu_state']:
+                row.update(supported=False, items=None, preset=None,
+                           preset_query='not-queried-inactive-panel', query='not-queried-inactive-panel')
+        cas_ui.validate_client(client, '12', {'operation': 'status'})
+        hidden = next(row for row in client['catalogs'] if not row['supported'])
+        hidden['items'] = []
+        with self.assertRaises(ValueError): cas_ui.validate_client(client, '12', {'operation': 'status'})
+        hidden['items'] = None
+        current = next(row for row in client['catalogs'] if row['menu_state'] == client['menu_state'])
+        current.update(supported=False, items=None, preset=None,
+                       preset_query='not-queried-inactive-panel', query='not-queried-inactive-panel')
+        with self.assertRaises(ValueError): cas_ui.validate_client(client, '12', {'operation': 'status'})
+
     def test_ordered_ascii_transport_and_client_selected_sim_identity(self):
         messages = []
         submitted = cas_ui.submit('772674414928396571', {'operation': 'panel', 'panel': 'hair'}, send=messages.append)

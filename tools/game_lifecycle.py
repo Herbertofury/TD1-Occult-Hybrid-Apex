@@ -52,18 +52,24 @@ def button(observation, phase):
             raise ValueError('Complete native exit confirmation is not recognized; no discard click submitted.')
         label = 'exit game' if phase == 'confirmation-discard' else 'save and exit'
     elif phase == 'resume':
-        # OCR can miss the dark HOME text on its bright green decorative tab.
-        # Require every distinct actionable Home control and Marketplace;
-        # a missing tab title does not make those controls another screen.
-        required = ('marketplace', 'load game', 'new game', 'gallery')
+        # Actual current-game captures can lose either decorative tab label.
+        # Require one unambiguous Home/Marketplace header AND every actionable
+        # Home control. Missing both headers or any control still refuses input.
+        required = ('load game', 'new game', 'gallery')
+        # In a retained native Home capture, the New Game icon joined its
+        # label as "eNEW GAME". Recognize that exact artifact only. Keep
+        # duplicate-control detection and the other Home/modal checks intact.
+        controls = ['new game' if item == 'enew game' else item for item in text]
         forbidden = ('save game?', 'buy now', 'expansion pack', 'game pack', 'stuff pack',
                      'get missing packs?', 'get missing packs', 'play save with missing content',
                      'this game requires permissions', 'you don’t have access',
                      "you don't have access", 'cancel')
         contrast = observation.get('contrast_fallback')
         if (observation.get('ok') is not True or
-                isinstance(contrast, dict) and contrast.get('accepted') is not True or text.count('home') > 1 or
-                not all(text.count(item) == 1 for item in required) or any(item in text for item in forbidden)):
+                isinstance(contrast, dict) and contrast.get('accepted') is not True or
+                text.count('home')>1 or text.count('marketplace')>1 or
+                not any(text.count(header)==1 for header in ('home','marketplace')) or
+                not all(controls.count(item) == 1 for item in required) or any(item in text for item in forbidden)):
             raise ValueError('Complete Sims 4 Home menu is not recognized; no Resume click submitted.')
         labels = [item for item in ('resume game', 'resume') if item in text]
         if len(labels) != 1:

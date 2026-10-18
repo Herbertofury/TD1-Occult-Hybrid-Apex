@@ -1,10 +1,108 @@
 # Apex Occult Hybrid — Codex Master Execution Contract
 
-Last reconciled: 2026-10-16
+Last reconciled: 2026-10-18
 Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance retained
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
 
-Current checkpoint:
+## Controlling CAS product correction — 2026-10-17
+
+The owner requires one shared Human appearance per Sim and an integrated EA
+portrait selector. Preserve existing form-specific layouts. For forms without
+a paired portrait interface, implement that form above the shared Human below
+with full linking/copying. Reusing the UI pattern never means assigning Vampire
+data/gameplay or merging independent appearances. **Alien keeps EA's existing
+portrait arrangement and selection behavior; add its missing linking/copying
+without imposing the Vampire ordering.**
+Implement actual UI and editing/link/copy behavior for all supported forms,
+including special life states. Internal canonical/active/named records must not
+be exposed as duplicate forms or separate Human appearances for each occult.
+Preserve distinct existing looks during migration; do not silently discard them.
+
+Use self-agency and common sense throughout development and QA: design for
+enjoyable real play, remove obvious friction, preserve data and other-mod
+compatibility, and prove actual behavior. Follow the persistent
+[player-focused hybrid rule](../.cursor/rules/apex-player-first-hybrids.mdc).
+
+The controlling requirements and implementation/QA checklist are
+[Native CAS forms: shared Human and EA portrait layout](CAS_SHARED_HUMAN_REQUIREMENTS.md).
+The historical 195-owner test topology below does not qualify this product
+layout, correct form semantics, full-category editing or save/Tray retention.
+All implementation and runtime acceptance items remain open unless individually
+supported by evidence; this correction records requirements only.
+
+Current runtime status: V180 still crashes on the fourth member's first
+scripted Alien body edit (`TS4_x64+0x112c713`), before any completed body edit.
+Deferred socket cleanup and retained writes correct their specific contracts,
+but are not demonstrated crash fixes. All twenty disposable save files still
+match their pre-launch hashes; no CAS acceptance or save occurred. A same-build
+comparison using EA's actual CAS slider is pending. The current full CAS suite
+passes 965 checks; ten native checks and 76 focused transport checks pass.
+Production, native copy/link, complete-category and save/Tray gates remain open.
+
+Historical V180 preparation: the V179 allocator crash did not hit an Apex
+owner guard. Event callbacks now queue socket cleanup for the next UI Timer,
+ignore stale socket events, and send a single retained ASCII frame with lossless
+Unicode JSON escaping. All 76 focused checks pass, including serialized unsafe
+callback/buffer cases. Earlier full CAS checks passed 959 tests and ten native
+checks pass. V180 runtime qualification remains open; production use is not
+qualified, and all save/Tray and native copy/link gates stay open.
+
+Current checkpoint — V179 diagnostic preparation:
+V178 completed the cold fourth-member edits, then crashed on the first member's
+Alien -> Human return (nine visits, six body edits). The collapsed-strip A/B run
+also crashed on the first member's Alien body edit after six visits/four edits.
+Icons are not a necessary trigger. Both failures are preserved; all twenty test
+save files remain unchanged. Idle metadata deduplication and authenticated
+background window restoration pass their focused checks. The next native build
+adds opt-in guarded/quarantined Apex owner records to localize memory misuse;
+this is diagnostic preparation, not a demonstrated crash fix. Actual copy/link,
+all-category, CAS/Live/save and Tray/Gallery release gates remain open.
+
+Historical V178 preparation:
+V177's cold fourth-member Alien body edit reproduced the allocator crash at
+`TS4_x64+0x112c645`; retaining the native layer lifecycle did not resolve it.
+Its full pre-gesture CAS regression suite passed 957 checks, and all twenty
+save files remain unchanged. V178 follows the inspected EA slider lifecycle:
+one preview, then one owner-checked completion on a later UI tick, followed by
+final value verification. The compiled bytecode checker verifies both native
+setter sites and consumption of the completion phase before its native call.
+The new cold runtime test is pending. Candidate SHA-256:
+`c41702d6886c86366b5476aca43c4a441611dba5a65ce1f2e4ebaa430647b219`.
+No crash-fix or production-readiness claim is supported yet.
+
+Historical V177 checkpoint:
+V177 is built with EA's original physical-layer transition lifecycle retained
+inside independent owner selection. Nine native checks pass; its cold runtime
+test is pending. It is not a production release. V176 reproduced the fourth
+member's cold Alien-edit allocator crash. A subsequent V176 session accepted
+distinct Human/Vampire/Alien body edits on that member and retained them through
+six switches. Independent full export audit of all 195 owners finds exactly
+the three intended physique edits, zero other changes, no missing original
+records and zero added outfits. No CAS acceptance or save was submitted.
+Normal cancellation/unsaved closure leaves all twenty saves unchanged. The CLI
+has a bounded refresh for definite pre-queue expiry refusals and qualified
+background capture of the CAS cancellation dialog. Actual copy/link controls,
+all-category editing and CAS/Live/save/Tray release gates remain open.
+
+Historical V176 checkpoint:
+The V176 candidate is installed only in the disposable profile. It carries the
+shared-Human/EA portrait work, exact visible-owner cache bindings, direct-only
+link propagation and current-panel-only UI snapshots. Nine native checks pass;
+the actual adapter regression reproduces the old cache mismatch and verifies
+the correction. V175's runtime test completed twelve distinct body edits and
+eighteen form visits across three Sims, then crashed on the fourth member's
+first body-slider edit. The preserved dump faults at `TS4_x64+0x112c645`; the
+corrupting call is not identified. No CAS acceptance or save occurred, and all
+twenty existing test save files remain byte-identical. V176's cold readback
+matches all forty original active/stored appearances; the old CAS transaction
+metadata is archived without altering saved files or form-bank appearances.
+The new runtime matrix remains open. Actual EA Link/Unlink/partial Copy,
+all-category edits and CAS/Live/save/Tray qualification are unfinished.
+See the controlling checklist for evidence limits. Production release remains
+blocked; fixture counts and the existing native Alien portrait image do not
+establish safety for the owner's original save.
+
+Historical V174 checkpoint:
 V174 is built, not installed or runtime-qualified. Its CAS-return receiver
 captures every committed canonical, active and named native DTO with complete
 raw bytes, binds it to the member's exact pre-entry transaction, and retains

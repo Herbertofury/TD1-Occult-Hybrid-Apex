@@ -30,7 +30,8 @@ def renderer_status(value):
 
 
 def prepare_window(state, request, evidence, record, identity=None, identity_provider=None,
-                   focus=None, monotonic=time.monotonic, pause=time.sleep, background=False):
+                   focus=None, monotonic=time.monotonic, pause=time.sleep, background=False,
+                   background_restore=None):
     """Start once only on exact not-started evidence; focus and observe selection.
 
     Native status 1 remains transitional. No capture, visibility change or input
@@ -56,7 +57,7 @@ def prepare_window(state, request, evidence, record, identity=None, identity_pro
                    set(current) <= {'ok', 'message', 'request_id', 'request_state', 'execution', 'sim_data_read'})
     if not not_started:
         current = _renderer_status(current, 1)
-        if current['native_status'] >= 2:
+        if current['native_status'] >= 2 and not background:
             evidence['game_window_verified'] = True; record()
             return renderer_status(current)
     # Authenticate the current bridge and its exact installed script before any
@@ -94,6 +95,18 @@ def prepare_window(state, request, evidence, record, identity=None, identity_pro
     if current.get('dll_sha256') != expected_dll:
         raise ValueError('Started sidecar identity differs from the disposable artifact.')
     if background:
+        if background_restore is None:
+            from game_background_window import restore_for_capture
+            background_restore=lambda pid: restore_for_capture(state,pid)
+        if bound(identity_provider(state)) != binding:
+            raise ValueError('Background renderer identity changed before window restoration.')
+        evidence['background_restore']=background_restore(binding['pid']);record()
+        restored=evidence['background_restore']
+        if (restored.get('ok') is not True or restored.get('no_focus_request') is not True or
+                restored.get('foreground_unchanged') is not True or restored.get('input_sent') is not False):
+            raise ValueError('Background window restoration is unverified; no focus or input submitted.')
+        if bound(identity_provider(state)) != binding:
+            raise ValueError('Background renderer identity changed after window restoration.')
         # The native selector verifies one process-owned visible Sims Canvas.
         # Observe its normal Present; never invoke a foreground fallback.
         deadline = monotonic() + 3
@@ -333,12 +346,20 @@ def _capture_ready(state, output, request, journal, profile, monotonic, pause, o
         raise ValueError('Capture request lacks a typed native acceptance; no capture request is replayed.')
     proof['capture_submitted'] = True
     record()
-    deadline, previous = monotonic() + 5, None
+    # Background CAS may need several render frames before readback completes.
+    # Observe the one request for a bounded interval; never resubmit a capture.
+    deadline, previous, completed_status = monotonic() + 15, None, None
     while monotonic() < deadline:
-        after = renderer_status(request(state, 'overlay_status', seconds=1))
+        # Once the native counter certifies a completed write, the remaining
+        # check is local file stability. A second game round trip can consume
+        # the whole deadline in background CAS even though the image is done.
+        # Keep the exact native receipt and still require one unique, stable
+        # bounded BMP; never issue another capture or change window focus.
+        after = completed_status or renderer_status(request(state, 'overlay_status', seconds=1))
         new = [reusable_profile.writable(path) for path in directory.glob(pattern)
                if str(path) not in prior]
         if after.get('captures_completed', 0) > requested.get('captures_completed', 0) and len(new) == 1:
+            completed_status = after
             source = new[0]
             observed = (source.stat().st_mtime_ns, source.stat().st_size)
             if observed == previous:

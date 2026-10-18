@@ -23,6 +23,16 @@ class GameFocusLeaseTests(unittest.TestCase):
         request, pins, identity, process = self.fixture()
         self.assertEqual(validate(request, 100, pins, identity, process, 'e' * 64), request['binding'])
 
+    def test_background_restore_is_explicit_and_cannot_include_native_input(self):
+        request,pins,identity,process=self.fixture()
+        request['background_restore']=True
+        self.assertEqual(validate(request,100,pins,identity,process,'e'*64),request['binding'])
+        for value in (False,1,'true',None):
+            altered=deepcopy(request);altered['background_restore']=value
+            with self.assertRaises(ValueError):validate(altered,100,pins,identity,process,'e'*64)
+        request['input']={}
+        with self.assertRaises(ValueError):validate(request,100,pins,identity,process,'e'*64)
+
     def test_expired_nonfinite_or_overlong_lease_refused(self):
         request, pins, identity, process = self.fixture()
         for expiry in (100, 99, 191, True, float('nan'), float('inf')):

@@ -230,7 +230,7 @@ def _submit_status(args, request, monotonic, pause):
     return result
 
 
-def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
+def _execute(args, request, monotonic=time.monotonic, pause=time.sleep, allow_preflight_refresh=True):
     preflight = None
     if args.operation == 'panels': return request(args.state, 'cas_ui_panels')
     if args.operation == 'diagnostics': return request(args.state, 'cas_ui_diagnostics')
@@ -313,6 +313,23 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep):
                      else request(args.state, 'cas_ui_request', args.sim_id, value=json.dumps(value)))
         request_id = submitted.get('cas_request_id')
         if not request_id:
+            # This exact pinned Source refusal occurs BEFORE creation of a CAS
+            # queue record or native view token. Transport/validation latency
+            # can expire a successful status ACK before the next request. Only
+            # this definite pre-queue refusal permits one fresh preflight; an
+            # issued/unknown CAS UUID or started mutation must never be replayed.
+            if (allow_preflight_refresh and args.operation == 'form-owner-select' and
+                    submitted.get('ok') is False and 'cas_request_id' not in submitted and
+                    submitted.get('message') == 'Read fresh CAS status before selecting an independent form.' and
+                    submitted.get('request_state') in (None, 'failed') and
+                    submitted.get('mutation_started') is not True and submitted.get('input_submitted') is not True):
+                lease=getattr(_OBSERVATION,'lease',None)
+                if lease is not None:lease['result']=None
+                refreshed=_execute(SimpleNamespace(**dict(vars(args),output=None)),request,
+                    monotonic=monotonic,pause=pause,allow_preflight_refresh=False)
+                return dict(refreshed,preflight_refresh=dict(
+                    reason='definite-prequeue-freshness-refusal',rejected_owner_request_id=submitted.get('request_id'),
+                    native_request_created=False,refresh_count=1))
             return dict(submitted, form_selection_preflight=preflight) if preflight is not None else submitted
     if len(request_id) != 32 or any(c not in '0123456789abcdef' for c in request_id):
         raise ValueError('Use the returned CAS request identity.')

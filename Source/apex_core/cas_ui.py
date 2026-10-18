@@ -557,8 +557,6 @@ def owner_metadata(token, backend):
         if status.get('owner_view_adapter_available') is not True or len(rows) != 1: return None
         import re
         catalog = rows[0].get('separate_owners', [])
-        catalog = sorted(catalog, key=lambda item: (0, int(item['owner_id'].split('/')[1]))
-            if item.get('owner_id', '').startswith('native/') else (1, item.get('owner_id', '')))
         if not catalog or len(catalog)>2048: raise ValueError('Native owner catalog is incomplete or oversized.')
         for row in catalog:
             if (not isinstance(row.get('owner_id'), str) or
@@ -567,21 +565,37 @@ def owner_metadata(token, backend):
                 type(row.get('ui_token')) is not int or not 0x20000000<=row['ui_token']<=0x2fffffff):
                 raise ValueError('Native owner button descriptor is malformed.')
         if len({row['owner_id'] for row in catalog}) != len(catalog): raise ValueError('Native owner catalog contains duplicate identities.')
+        from . import cas_form_catalog
+        projected = cas_form_catalog.project(catalog, rows[0]['human_owner_id'], rows[0]['graph_selected_owner_id'],
+            rows[0].get('logical_owner_ids'))
+        catalog = projected['forms']
         with _LOCK:
             peer = _PEERS.get(token)
             if peer is None or peer['sim_id'] != sim_id: return None
-            peer.update(owner_catalog=copy.deepcopy(catalog),owner_catalog_offset=0)
+            peer.update(owner_catalog=copy.deepcopy(catalog),owner_catalog_offset=0,
+                        retained_looks=projected['retained_looks'])
     with _LOCK:
         peer = _PEERS.get(token)
         if peer is None: return None
         rows, offset = peer['owner_catalog'], peer['owner_catalog_offset']
         if offset < len(rows):
             page=rows[offset:offset+32];peer['owner_catalog_offset']+=len(page)
+            from urllib.parse import quote
             return 'OWNERS|{}|{}|'.format(offset,len(rows))+';'.join(
-                '{},{},{}'.format(row['owner_id'],row['native_kind'],row['ui_token']) for row in page)
+                '{},{},{},{},{}'.format(row['owner_id'],row['native_kind'],row['ui_token'],
+                    row['form_id'],quote(row['label'],safe='')) for row in page)
     status = call({'operation':'view-status'})
     if status.get('available') is not True or status.get('sim_id') != sim_id: return None
-    return 'OWNERSTATE|{}|{}|{}|{}'.format(status['owner_id'],status['native_kind'],status['layer'],status['state'])
+    message = 'OWNERSTATE|{}|{}|{}|{}'.format(status['owner_id'],status['native_kind'],status['layer'],status['state'])
+    with _LOCK:
+        peer = _PEERS.get(token)
+        if peer is None or peer['sim_id'] != sim_id: return None
+        # An unchanged idle poll is a heartbeat, not a new presentation. The
+        # client otherwise destroys/reloads every icon on each OWNERSTATE.
+        # Cache per connection so a reconnect always receives its first state.
+        if peer.get('owner_state_message') == message: return None
+        peer['owner_state_message'] = message
+    return message
 
 
 def receive_socket(token, request_id, payload, clock=time.monotonic, backend=None):
@@ -719,10 +733,14 @@ def validate_client(client, sim_id, request):
         if type(supported) is not bool or (supported and (not isinstance(items, list) or len(items) > 1024 or any(not isinstance(item, dict) for item in items))) or (not supported and items is not None):
             raise ValueError('CAS inventory must distinguish unknown panels from empty panels.')
         preset_query, preset = catalog.get('preset_query'), catalog.get('preset')
-        if preset_query not in ('returned-value', 'returned-null', 'failed', 'not-applicable') or (
+        if preset_query not in ('returned-value', 'returned-null', 'failed', 'not-applicable', 'not-queried-inactive-panel') or (
                 (preset_query == 'returned-value' and not isinstance(preset, dict)) or
                 (preset_query != 'returned-value' and preset is not None)):
             raise ValueError('CAS preset query must distinguish a returned record from null or failed discovery.')
+        if preset_query == 'not-queried-inactive-panel' and (
+                catalog['menu_state'] == client['menu_state'] or supported or items is not None or
+                catalog.get('query') != 'not-queried-inactive-panel'):
+            raise ValueError('An inactive panel must remain explicitly unqueried, not an empty or current catalog.')
     validate_catalog_metadata(client)
     operation = request['operation']
     if operation in ({'panel', 'select'} | cas_controls.PANEL_OPERATIONS) and (type(client.get('menu_state')) is not int or client['menu_state'] != panel(request['panel']) or client.get('panel_visible') is not True):

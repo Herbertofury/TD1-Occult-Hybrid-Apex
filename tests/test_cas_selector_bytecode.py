@@ -16,6 +16,7 @@ CASES = (
     'hook-qname-tamper', 'hook-argument-tamper', 'callback-copy-only', 'callback-native-getter',
     'service-native-getter', 'callback-native-class', 'callback-retained-getter',
     'service-native-write', 'service-observation-write', 'initialize-clears-feed',
+    'hybrid-presentation-no-game-getter', 'hybrid-presentation-no-current-sim-write', 'hybrid-enable-no-slot-write',
     'callback-closure', 'callback-direct-call', 'callback-outer-scope', 'local-scope-overflow',
     'arbitrary-constructor', 'registration-exact', 'registration-event', 'registration-callback',
     'registration-arity', 'registration-duplicate',

@@ -112,7 +112,8 @@ public class CasBytecodePatch {
         for(String event:List.of("ApexSocketData","ApexSocketConnect","ApexSocketFailure"))
             require(Collections.disjoint(calls.get(event), Set.of("ApexExecute", "ApexReadback", "ApexSnapshot", "ApexComplete", "ApexAccept",
                 "ApexFormSelectionContext", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers",
-                "CallGameService", "CallUIService", "SendUIMessage", "SendMessage", "ApexMemberSelectionContext")), "Socket callback executes native CAS work.");
+                "CallGameService", "CallUIService", "SendUIMessage", "SendMessage", "ApexMemberSelectionContext",
+                "ApexResetSocket", "ApexDisconnect", "close", "connect", "ApexSocketSend")), "Socket callback executes native CAS or socket lifecycle work.");
         require(calls.get("ApexSocketConnect").equals(Set.of("split")), "CAS CONNECT callback must queue only.");
         require(calls.get("ApexTick").containsAll(Set.of("CallGameService","ApexSocketSend","connect","addEventListener")),
             "Queued CAS handshake lacks the actual native Timer/Socket constructor path.");
@@ -125,6 +126,44 @@ public class CasBytecodePatch {
         require(Collections.disjoint(calls.get("ApexReadback"), Set.of("ApexAccept")) &&
             Collections.disjoint(calls.get("ApexComplete"), Set.of("ApexAccept")),
             "CAS accept commit is not isolated to its ACK-armed Timer phase.");
+    }
+    static void verifySocketLifetime(ABC abc, InstanceInfo instance) {
+        var failure=ownedBody(abc,instance,"ApexSocketFailure").getCode().code;
+        boolean queued=false,ownedFailure=false,ownedData=false;
+        for(int i=0;i<failure.size();i++) {
+            if(i>0 && opcode(failure.get(i-1),0x26) && property(abc,failure.get(i),0x61,"apexSocketResetPending")) queued=true;
+            if(property(abc,failure.get(i),0x66,"currentTarget")) ownedFailure=true;
+        }
+        for(var op:ownedBody(abc,instance,"ApexSocketData").getCode().code)
+            if(property(abc,op,0x66,"currentTarget")) ownedData=true;
+        require(queued && ownedFailure && ownedData,"Socket events must own their exact source and queue cleanup only.");
+        var tick=ownedBody(abc,instance,"ApexTick").getCode().code;
+        int reset=-1,pending=-1,nativeRead=-1;
+        for(int i=0;i<tick.size();i++) {
+            if(pending<0 && (property(abc,tick.get(i),0x60,"apexSocketResetPending") || property(abc,tick.get(i),0x66,"apexSocketResetPending"))) pending=i;
+            if(reset<0 && (property(abc,tick.get(i),0x46,"ApexResetSocket") || property(abc,tick.get(i),0x4f,"ApexResetSocket"))) reset=i;
+            if(nativeRead<0 && opcode(tick.get(i),0x2c) && "CASGetSimInfo".equals(abc.constants.getString(tick.get(i).operands[0]))) nativeRead=i;
+        }
+        require(pending>=0 && pending<reset && reset<nativeRead,"The later UI Timer must process pending socket cleanup before native reads or new work.");
+        var send=ownedBody(abc,instance,"ApexSocketSend");var rows=send.getCode().code;
+        require(Set.of("charCodeAt","substr","writeUTFBytes","flush").containsAll(propertyCalls(abc,send)),
+            "Socket frame dispatch has an unreviewed copy or native call.");
+        int writes=0,flushes=0,retained=-1,issued=-1,lease=-1;boolean retainedArgument=false;
+        for(int i=0;i<rows.size();i++) {
+            if(property(abc,rows.get(i),0x61,"apexOutboundFrame")) retained=i;
+            if(i>0 && opcode(rows.get(i-1),0x26) && property(abc,rows.get(i),0x61,"apexOutboundPending")) lease=i;
+            if(property(abc,rows.get(i),0x46,"writeUTFBytes") || property(abc,rows.get(i),0x4f,"writeUTFBytes")) {
+                writes++;issued=i;
+                retainedArgument=i>0 && (property(abc,rows.get(i-1),0x60,"apexOutboundFrame") || property(abc,rows.get(i-1),0x66,"apexOutboundFrame"));
+            }
+            if(property(abc,rows.get(i),0x46,"flush") || property(abc,rows.get(i),0x4f,"flush")) flushes++;
+        }
+        require(writes==1 && flushes==1 && retained>=0 && retained<issued && lease>=0 && lease<issued && retainedArgument,
+            "Socket frames require one retained, leased header/body write and one flush.");
+        boolean escapesUnicode=false;
+        for(var op:ownedBody(abc,instance,"ApexQuote").getCode().code)
+            if(opcode(op,0x24) && op.operands[0]==126) escapesUnicode=true;
+        require(escapesUnicode,"Socket JSON must escape Unicode so its length is its ASCII byte length.");
     }
     static void verifyAcceptLinkage(ABC abc, InstanceInfo instance) {
         MethodBody accept = null;
@@ -529,7 +568,7 @@ public class CasBytecodePatch {
         // The existing-member view adds five reviewed calls: current Sim,
         // available occults, full-edit permission, edit mode and SetSimOccult.
         // Its next-tick result adds one available-occults readback.
-        Map<String,Integer> counts=Map.of("ApexCatalog",1,"ApexControlExecute",34,"ApexControlResult",5,
+        Map<String,Integer> counts=Map.of("ApexCatalog",1,"ApexControlExecute",35,"ApexControlResult",5,
             "ApexBodyTypes",1,"ApexNativeLayers",2);
         var snapshot=ownedBody(abc,instance,"ApexSnapshot").getCode().code;
         int detached=0;
@@ -588,6 +627,37 @@ public class CasBytecodePatch {
                 "Occult view must call the literal native setter with its typed existing-kind index only.");
         }
         require(viewSetters==2,"Existing-kind and staged-owner native setter inventory changed.");
+    }
+    static void verifyPhysiqueGesture(ABC abc, InstanceInfo instance) {
+        var start=ownedBody(abc,instance,"ApexControlExecute").getCode().code;
+        var finish=ownedBody(abc,instance,"ApexReadback").getCode().code;
+        int preview=-1,commit=-1,armed=-1,consumed=-1;boolean previewValue=false,commitValue=false,ownerGuard=false;
+        for(int pass=0;pass<2;pass++) {
+            var rows=pass==0?start:finish;int setters=0;
+            for(int i=0;i<rows.size();i++) {
+                if(opcode(rows.get(i),0x2c)) {
+                    String text=abc.constants.getString(rows.get(i).operands[0]);
+                    if("slider_mouse_up".equals(text) && i+1<rows.size()) {
+                        if(pass==0 && opcode(rows.get(i+1),0x27)) previewValue=true;
+                        if(pass==1 && opcode(rows.get(i+1),0x26)) commitValue=true;
+                    }
+                    if("SetSimPhysiqueValue".equals(text)) {
+                        for(int n=i+1;n<Math.min(i+6,rows.size());n++)
+                            if(property(abc,rows.get(n),0x46,"CallGameService") || property(abc,rows.get(n),0x4f,"CallGameService")) {
+                                setters++;if(pass==0) preview=n;else commit=n;break;
+                            }
+                    }
+                    if(pass==1 && "Native physique preview changed owner or did not retain the requested value; no completion replay".equals(text)) ownerGuard=true;
+                }
+                if(i>0 && property(abc,rows.get(i),0x61,"physique_commit_pending")) {
+                    if(pass==0 && opcode(rows.get(i-1),0x26)) armed=i;
+                    if(pass==1 && opcode(rows.get(i-1),0x27)) consumed=i;
+                }
+            }
+            require(setters==1,"Physique gesture must issue one preview and one later completion, never duplicate native setters.");
+        }
+        require(previewValue && commitValue && armed>=0 && armed<preview && consumed>=0 && consumed<commit && ownerGuard,
+            "Physique gesture lacks preview/completion ordering, consumed one-shot state or exact-owner preview refusal.");
     }
     static void verifyLiteralServices(ABC abc,MethodBody body,Map<String,Integer> expected) {
         Set<String> observed=new HashSet<>();
@@ -921,6 +991,7 @@ public class CasBytecodePatch {
         Set<String> ownedFields = Set.of("apexWire", "apexReceiving", "apexLastId", "apexLastReply",
             "apexSocket", "apexTimer", "apexFrame", "apexExpected", "apexNonce", "apexBoundSim",
             "apexAwaiting", "apexAckId", "apexDisconnected", "apexSocketActive", "apexHelloPending", "apexSocketError",
+            "apexSocketResetPending", "apexOutboundFrame", "apexOutboundPending",
             "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking",
             "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener",
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
@@ -931,7 +1002,7 @@ public class CasBytecodePatch {
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
-            "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick");
+            "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
         for (Trait trait : newClass.instance_traits.traits) {
@@ -958,8 +1029,10 @@ public class CasBytecodePatch {
         verifyFormStrip(compiled, newClass);
         verifyMemberSelection(compiled,newClass);
         verifyQueuedHandshake(compiled, newClass);
+        verifySocketLifetime(compiled,newClass);
         verifyExactItemSelection(compiled, newClass);
         verifyTypedControls(compiled, newClass);
+        verifyPhysiqueGesture(compiled,newClass);
         verifyAcceptLinkage(compiled, newClass);
         verifyAcceptHouseholdBinding(compiled, newClass);
         verifyAcceptPrimaryLayerOnly(compiled, newClass);
@@ -1060,6 +1133,7 @@ public class CasBytecodePatch {
         verifyFormStrip(serialized, serialized.instance_info.get(oi));
         verifyTimerPipeline(serialized, serialized.instance_info.get(oi));
         verifyQueuedHandshake(serialized, serialized.instance_info.get(oi));
+        verifySocketLifetime(serialized,serialized.instance_info.get(oi));
         verifyExactItemSelection(serialized, serialized.instance_info.get(oi));
         verifyTypedControls(serialized, serialized.instance_info.get(oi));
         verifyWingSelection(serialized, serialized.instance_info.get(oi));

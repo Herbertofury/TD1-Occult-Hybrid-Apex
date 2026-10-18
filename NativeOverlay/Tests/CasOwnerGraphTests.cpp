@@ -1,4 +1,5 @@
 #include "ApexCasOwnerGraph.h"
+#include "ApexCasFormPair.h"
 #include <iostream>
 #include <memory>
 using namespace td1::nativecas::engine;
@@ -26,6 +27,24 @@ std::map<unsigned,Data> Captured(std::uint64_t sim) {
 }
 int main() {
  try {
+    // One Human, actual non-Vampire identities, and EA's Alien orientation.
+    FormPair pair=SelectFormPair("native/1","native/2",2,{});
+    Require(pair.base=="native/2" && pair.alternate=="native/1" && pair.layer==0);
+    pair=SelectFormPair("native/1","native/1",1,pair);
+    Require(pair.base=="native/2" && pair.alternate=="native/1" && pair.layer==1);
+    pair=SelectFormPair("native/1","native/4",4,pair);
+    Require(pair.base=="native/1" && pair.alternate=="native/4" && pair.layer==1);
+    for(const auto* special:{"ghost/manifested","servo/robot","imaginary_friend/pegacorn"}) {
+        pair=SelectFormPair("native/1",special,1,pair);
+        Require(pair.base=="native/1" && pair.alternate==special && pair.layer==1);
+        pair=SelectFormPair("native/1","native/1",1,pair);
+        Require(pair.base=="native/1" && pair.alternate==special && pair.layer==0);
+    }
+    pair=SelectFormPair("native/1","native/2",2,pair);
+    Require(pair.base=="native/2" && pair.alternate=="native/1" && pair.layer==0);
+    pair=SelectFormPair("active/1","active/1",1,{});
+    Require(pair.base=="active/1" && pair.alternate=="active/1" && pair.layer==0);
+    Refuses([&]{SelectFormPair("bad","native/1",1,{});});
     std::map<std::uint64_t,std::unique_ptr<Graph>> household;
     for(std::uint64_t sim=101;sim<=105;++sim) {
         auto seed=Captured(sim);auto graph=std::make_unique<Graph>(sim,127,2,seed,Clone);
@@ -92,6 +111,23 @@ int main() {
     cursor=graph.link(cursor,1,4,false);(*human)["skin"]=777;cursor=graph.commit(cursor,human);
     Require(graph.linkedTargets("native/1").empty());
     Require((*graph.appearance(4))["skin"]==12345 && (*graph.appearance(1))["skin"]==777);
+    // Links describe explicit edit scopes, not a transitive appearance merge.
+    cursor=graph.link(cursor,2,1,true);
+    cursor=graph.link(cursor,1,4,true);
+    cursor=graph.select(cursor,2);
+    const auto vampireBeforeIndirect=*graph.appearance(4);
+    auto alien=Clone(graph.appearance(2),2);(*alien)["skin"]=24680;
+    cursor=graph.commit(cursor,alien);
+    Require((*graph.appearance(1))["skin"]==24680 && *graph.appearance(4)==vampireBeforeIndirect);
+    cursor=graph.link(cursor,2,1,false);
+    (*alien)["skin"]=24681;cursor=graph.commit(cursor,alien);
+    Require((*graph.appearance(1))["skin"]==24680 && (*graph.appearance(2))["skin"]==24681);
+    // Editing Human itself still honors the explicitly selected Human/Vampire link.
+    cursor=graph.select(cursor,1);
+    auto humanDirect=Clone(graph.appearance(1),1);(*humanDirect)["skin"]=35790;
+    cursor=graph.commit(cursor,humanDirect);
+    Require((*graph.appearance(4))["skin"]==35790 && (*graph.appearance(2))["skin"]==24681);
+    cursor=graph.link(cursor,1,4,false);
     // A pre-entry complete import replaces one exact owner without selecting
     // it, copying the active owner or changing any other canonical appearance.
     auto replacement=Clone(graph.appearance(2),4);(*replacement)["pelt"]="independent source pelt";

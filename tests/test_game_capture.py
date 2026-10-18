@@ -47,6 +47,7 @@ class CaptureTests(unittest.TestCase):
 
     def status(self):
         return {'ok': True, 'native_status': 3 if self.initialized else 2,
+                'dll_sha256': 'd' * 64,
                 'game_window_verified': True, 'renderer_initialized': self.initialized,
                 'rendered_frames': self.rendered, 'frame_submission_verified': self.rendered > 0,
                 'captures_completed': self.completed, 'visible': self.visible,
@@ -85,9 +86,15 @@ class CaptureTests(unittest.TestCase):
         original = {str(path.relative_to(self.original)): path.read_bytes()
                     for path in self.original.rglob('*') if path.is_file()}
         with patch.object(game_capture.reusable_profile, 'load', return_value=(None,
-                {'token': 'c' * 32, 'artifacts': []}, self.profile, self.original)):
+                {'token': 'c' * 32, 'artifacts': [
+                    {'name': 'ApexOccultHybrid.ts4script', 'sha256': 'e' * 64},
+                    {'name': 'ApexOverlay.dll', 'sha256': 'd' * 64}]}, self.profile, self.original)), \
+                patch('game_background_window.restore_for_capture', return_value=dict(
+                    ok=True, no_focus_request=True, foreground_unchanged=True, input_sent=False)):
             result = game_capture.capture('state', self.output, self.request, overlay=overlay,
-                monotonic=lambda: self.clock, pause=lambda duration: setattr(self, 'clock', self.clock + duration), background=background)
+                monotonic=lambda: self.clock, pause=lambda duration: setattr(self, 'clock', self.clock + duration),
+                identity_provider=lambda _state: dict(pid=42, test_token='c' * 32, script_sha256='e' * 64),
+                background=background)
         proof = json.loads(self.output.with_suffix('.json').read_text(encoding='utf-8'))
         self.assertEqual(result, proof)
         self.assertEqual(original, {str(path.relative_to(self.original)): path.read_bytes()
@@ -104,6 +111,35 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(self.rendered,0)
         self.assertTrue(result['renderer_preparation']['plain_backbuffer_only'])
         self.assertFalse(any(action in ('cas_ui_diagnostics','overlay_show','overlay_hide') for action,_ in self.calls))
+
+    def test_completed_write_waits_for_local_stability_without_another_game_round_trip(self):
+        completed_reads=[]
+        def delayed_status(action,_kwargs):
+            if action=='overlay_status' and self.completed:
+                completed_reads.append(True)
+                self.assertEqual(len(completed_reads),1,'A second native call delays an already completed file.')
+                self.clock+=3
+                return self.status()
+        self.handler=delayed_status
+        result=self.run_capture(background=True)
+        self.assertTrue(result['capture_completed_verified'])
+        self.assertEqual(completed_reads,[True])
+        self.assertLess(self.clock,5)
+
+    def test_slow_background_readback_completes_one_request_without_replaying_it(self):
+        self.emit_capture=False
+        def delayed_completion(action,_kwargs):
+            if action=='overlay_status' and any(a=='test_capture' for a,_ in self.calls):
+                self.clock+=1
+                if self.clock>=6 and not self.completed:
+                    (self.profile/'TD1ApexScreenshots/TD1Apex_full_slow.bmp').write_bytes(self.raw)
+                    self.completed=1
+                return self.status()
+        self.handler=delayed_completion
+        result=self.run_capture(background=True)
+        self.assertTrue(result['capture_completed_verified'])
+        self.assertEqual(sum(action=='test_capture' for action,_ in self.calls),1)
+        self.assertGreaterEqual(self.clock,6)
 
     def test_background_plain_copy_does_not_expose_an_active_hidden_cas_view(self):
         self.diag['native_peers']=[{'sim_id':'4','age_seconds':1}]
@@ -257,7 +293,7 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(result['outcome'], 'unresolved')
         self.assertEqual(sum(action == 'test_capture' for action, _ in self.calls), 1)
         self.assertFalse(self.output.exists())
-        self.assertLessEqual(self.clock, 5.101)
+        self.assertLessEqual(self.clock, 15.101)
 
     def test_bad_capture_bytes_preserve_failure_proof_without_output_or_replay(self):
         self.initialized, self.rendered, self.raw = True, 1, b'not an actual BMP'

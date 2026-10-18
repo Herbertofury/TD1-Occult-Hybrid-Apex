@@ -17,6 +17,9 @@
       private var apexSocketActive:Boolean = false;
       private var apexHelloPending:Boolean = false;
       private var apexSocketError:String = "";
+      private var apexSocketResetPending:Boolean = false;
+      private var apexOutboundFrame:String = "";
+      private var apexOutboundPending:Boolean = false;
       private var apexPendingFields:Array;
       private var apexPendingReply:Object;
       private var apexPendingContext:Object;
@@ -62,6 +65,7 @@
 
       private function ApexResetSocket() : void
       {
+         apexSocketResetPending=false;
          // Losing the owner after intent must never arm/replay a CAS commit
          // under a replacement nonce. Retain the issued identity as unresolved.
          if(apexPendingPhase==5 || apexPendingPhase==6) {
@@ -75,6 +79,7 @@
             try { apexSocket.close(); } catch(closeError:Error) { }
          }
          apexSocket=null; apexSocketActive=false; apexHelloPending=false; apexNonce=""; apexBoundSim="";
+         apexOutboundPending=false;apexOutboundFrame="";
          ApexFormsDispose();
          apexAwaiting=""; apexAckId=""; apexFrame=""; apexExpected=-1;
          apexReceiving=false; apexWire="";
@@ -106,9 +111,13 @@
 
       private function ApexTick(message:Object=null) : void
       {
-         if(apexDisconnected || apexTicking || apexPendingPhase==7 || apexPendingPhase==8) return;
+         if(apexDisconnected || apexTicking) return;
          apexTicking=true;
          try {
+            // Never tear down GFx's native Socket from its own event callback.
+            // A failure records intent only; this later Timer owns closure.
+            if(apexSocketResetPending) { ApexResetSocket();return; }
+            if(apexPendingPhase==7 || apexPendingPhase==8) return;
             // GFx implements Timer.currentCount, but explicitly does not support
             // Socket.securityError. Bound every outstanding stage using the
             // existing state string: stage|timer-count. Never register an
@@ -194,22 +203,29 @@
 
       private function ApexSocketFailure(message:Object=null) : void
       {
+         if(message is flash.events.Event && (apexSocket==null || message.currentTarget!==apexSocket)) return;
          apexSocketError=message==null ? "CAS socket disconnected" : String(message);
-         ApexResetSocket();
+         apexSocketResetPending=true;
       }
 
       private function ApexSocketSend(payload:String) : void
       {
-         var bytes:flash.utils.ByteArray=new flash.utils.ByteArray();
-         bytes.writeUTFBytes(payload);
-         if(bytes.length<1 || bytes.length>131072) throw new Error("CAS socket frame exceeds limit");
-         apexSocket.writeUTFBytes(("00000000"+bytes.length).substr(-8));
-         apexSocket.writeBytes(bytes,0,bytes.length);
+         if(apexOutboundPending) throw new Error("CAS socket still owns its previous unacknowledged frame");
+         if(payload.length<1 || payload.length>131072) throw new Error("CAS socket frame exceeds limit");
+         for(var i:int=0;i<payload.length;++i)
+            if(payload.charCodeAt(i)>127) throw new Error("CAS socket frame must be ASCII encoded");
+         // JSON escapes preserve every Unicode value while making byte length
+         // equal to String.length. Submit header+body in one native write and
+         // retain the complete buffer through the peer's matching response.
+         apexOutboundFrame=("00000000"+payload.length).substr(-8)+payload;
+         apexOutboundPending=true;
+         apexSocket.writeUTFBytes(apexOutboundFrame);
          apexSocket.flush();
       }
 
       private function ApexSocketData(message:Object=null) : void
       {
+         if(apexSocket==null || message==null || message.currentTarget!==apexSocket) return;
          try {
             var available:uint=apexSocket.bytesAvailable;
             if(available>131080 || apexFrame.length+available>131080)
@@ -253,13 +269,18 @@
                         throw new Error("Invalid native owner catalog page size");
                      for each(var catalogRow:String in catalogRows) {
                         var ownerFields:Array=catalogRow.split(",");
-                        if(ownerFields.length!=3 || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[0]) ||
+                        if(ownerFields.length!=5 || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[0]) ||
+                           !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[3]) ||
+                           String(ownerFields[4]).length>1024 ||
                            !/^[0-9]+$/.test(ownerFields[1]) || !/^[0-9]+$/.test(ownerFields[2])) throw new Error("Invalid native owner button");
                         var ownerKind:int=int(ownerFields[1]);var ownerToken:uint=uint(ownerFields[2]);
                         if(ownerKind<1 || ownerKind>64 || (ownerKind & (ownerKind-1))!=0 || ownerToken<0x20000000 || ownerToken>0x2fffffff)
                            throw new Error("Invalid native owner button rendering kind/token");
                         for each(var oldOwner:Object in apexFormsOwners) if(oldOwner.id==ownerFields[0]) throw new Error("Duplicate native owner identity");
-                        apexFormsOwners.push({id:String(ownerFields[0]),kind:ownerKind,token:ownerToken});
+                        var ownerLabel:String=decodeURIComponent(String(ownerFields[4]));
+                        if(ownerLabel.length<1 || ownerLabel.length>192) throw new Error("Invalid form display name");
+                        apexFormsOwners.push({id:String(ownerFields[0]),kind:ownerKind,token:ownerToken,
+                           form_id:String(ownerFields[3]),label:ownerLabel});
                      }
                      apexFormsSignature="";apexAwaiting="";
                   } else if(payload.indexOf("OWNERSTATE|")==0) {
@@ -269,7 +290,10 @@
                         ["bound","unbound","unresolved"].indexOf(ownerState[4])<0) throw new Error("Invalid native owner selection metadata");
                      apexFormsSelectedId=String(ownerState[1]);apexFormsNativeState=String(ownerState[4]);
                      if(apexFormsDesiredId!="" && apexFormsDesiredId==apexFormsSelectedId && apexFormsNativeState=="bound") apexFormsDesiredId="";
-                     apexAwaiting="";apexFormsSignature="";
+                     // The renderer's signature already includes selection,
+                     // native state and desired owner. An identical heartbeat
+                     // must not tear down and reload every native image.
+                     apexAwaiting="";
                   } else {
                      if(payload.length>512 || payload.split("|").length!=7)
                         throw new Error("Invalid semantic CAS command frame");
@@ -294,6 +318,9 @@
                   } else apexAwaiting="";
                   apexAckId="";
                } else throw new Error("Unsolicited CAS transport frame");
+               // Keep the buffer itself until the next send. The matched peer
+               // response releases only the one outstanding-frame lease.
+               apexOutboundPending=false;
             }
          } catch(frameError:Error) { ApexSocketFailure(frameError); }
       }
@@ -310,7 +337,7 @@
          for(var i:int=0; i<value.length; ++i) {
             var c:int=value.charCodeAt(i);
             if(c==34 || c==92) result += "\\" + value.charAt(i);
-            else if(c<32) result += "\\u" + ("0000" + c.toString(16)).substr(-4);
+            else if(c<32 || c>126) result += "\\u" + ("0000" + c.toString(16)).substr(-4);
             else result += value.charAt(i);
          }
          return result + '"';
@@ -672,16 +699,20 @@
          var catalogs:Array=[];
          var catalogMetadata:Array=[]; var catalogMetadataSeen:Object={};
          var catalogMetadataComplete:Boolean=includeCatalogMetadata;
-         // Read every mapped native panel without changing the selected panel.
-         // Null remains unsupported/unknown; it must never masquerade as empty.
+         // A native getter is not guaranteed to support an inactive panel.
+         // Keep every panel's identity, but query only the actual current one.
+         // Complete appearance DTOs retain the other fields independently.
          var panels:Object=__APEX_PANEL_STATES__;
          for(var name:String in panels) {
             // Detach each returned record before another native getter. No
             // borrowed GFx catalog/preset objects survive subsequent calls.
-            var items:* = ApexClone(CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:panels[name]}));
-            var preset:* = null; var presetQuery:String="returned-null";
+            var panelCurrent:Boolean=int(panels[name])==this.mCurrState;
+            var items:* = panelCurrent ? ApexClone(CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:panels[name]})) : null;
+            var preset:* = null; var presetQuery:String=panelCurrent ? "returned-null" : "not-queried-inactive-panel";
             try {
-               if(int(panels[name])==MenuState.PROFILE_HAIR_EYEBROWS || int(panels[name])==MenuState.PROFILE_PET_WHISKERS) {
+               if(!panelCurrent) {
+                  // Visiting another panel is an explicit navigation action.
+               } else if(int(panels[name])==MenuState.PROFILE_HAIR_EYEBROWS || int(panels[name])==MenuState.PROFILE_PET_WHISKERS) {
                   // The native FaceModPanel explicitly uses equipped-part
                   // selection for these states, never a preset index.
                   presetQuery="not-applicable";
@@ -691,6 +722,7 @@
                }
             } catch(presetError:Error) { presetQuery="failed"; }
             catalogs.push({panel:name,menu_state:panels[name],supported:items is Array,items:items is Array ? items : null,
+               query:panelCurrent ? "queried-current-panel" : "not-queried-inactive-panel",
                preset:preset,preset_query:presetQuery});
             // Selected dataID is a native catalog identity, not a CASP TGI.
             // Keep these optional annotations separate from exact equipped
@@ -743,13 +775,17 @@
                catalogMetadata.push(annotation);
             }
          }
-         // Native OutfitType defines 0..13. Normal swim/hot/cold categories
-         // are 9/10/11, not 5/6/7. This getter accepts a category and does not
-         // select it; preserve all raw slot metadata, including future fields.
+         // Do not inventory hidden categories by invoking their game getter.
+         // A getter can lazily create missing outfit records. Complete native
+         // DTO exports retain the full wardrobe without visiting each category.
+         // Read only the currently selected category; explicit outfit controls
+         // own requests to create/select another category or slot.
+         var observedSlot:Object=ApexClone(CommunicationManager.CallGameService("CasGetCurrSimOutfitSlot"));
          var plannedOutfits:Array=[];
          for(var outfitCategory:int=0;outfitCategory<=13;outfitCategory++) {
-            var plannedData:* = null; var plannedQuery:String="returned-null"; var plannedError:String="";
-            try {
+            var plannedData:* = null; var plannedQuery:String="not-queried-no-edit-intent"; var plannedError:String="";
+            if(observedSlot!=null && observedSlot.outfit_type is int && outfitCategory==int(observedSlot.outfit_type)) try {
+               plannedQuery="returned-null";
                plannedData=ApexClone(CommunicationManager.CallGameService("CasGetPlannedOutfits",outfitCategory));
                if(plannedData!=null) plannedQuery="returned-value";
             } catch(outfitError:Error) { plannedQuery="failed"; plannedError=outfitError.message; }
@@ -780,37 +816,45 @@
          }
          return {protocol:1,scope:"native-cas-client",sim:ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true)),
             menu_state:this.mCurrState,panel_visible:this.mCurrentPanel!=null && this.mCurrentPanel.visible,
-            outfit:ApexClone(CommunicationManager.CallGameService("CasGetCurrSimOutfitSlot")),
+            outfit:observedSlot,
             selected:ApexClone(CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:this.mCurrState})),
             hair_color:hairSelected,hair_selected_swatch_id:hairSelected,hair_swatches:hairSwatches,
-            hair_swatch_query:hairQuery,planned_outfits:plannedOutfits,planned_outfits_scope:"slot-metadata-only",
+            hair_swatch_query:hairQuery,planned_outfits:plannedOutfits,planned_outfits_scope:"selected-category-only",
             native_context:nativeContext,catalogs:catalogs,catalog_metadata:catalogMetadata,
             owner_pair_observation:ApexOwnerObservation(),form_strip:ApexFormsStatus(),
             catalog_metadata_complete:catalogMetadataComplete,catalog_metadata_scope:"native-catalog-identities-only",
             catalog_metadata_query:includeCatalogMetadata ? "explicit-lookup" : "disabled-pending-native-contract-proof"};
       }
 
-      private function ApexClone(value:*) : *
+      private function ApexClone(value:*,depth:int=0) : *
       {
+         if(depth>12) throw new Error("CAS clone nesting exceeds limit");
          if(value==null || value is String || value is Number || value is Boolean) return value;
          if(value is Array) {
             var result:Array=[];
-            for each(var item:* in value) result.push(ApexClone(item));
+            if(value.length>1024) throw new Error("CAS clone list exceeds limit");
+            for each(var item:* in value) result.push(ApexClone(item,depth+1));
             return result;
          }
          var object:Object={};
-         for(var name:String in value) object[name]=ApexClone(value[name]);
+         var fieldCount:int=0;
+         for(var name:String in value) {
+            if(++fieldCount>1024) throw new Error("CAS clone object exceeds limit");
+            object[name]=ApexClone(value[name],depth+1);
+         }
          // Sealed native filter records have non-enumerable public slots.
          // Reflect this data class only; never walk arbitrary widget getters.
          // Include public instance fields added by later patches.
          if(value is CASCatalogFilter) {
             var definition:XML=describeType(value);
             for each(var slot:XML in definition.variable) {
-               name=String(slot.@name); object[name]=ApexClone(value[name]);
+               if(++fieldCount>1024) throw new Error("CAS clone slots exceed limit");
+               name=String(slot.@name); object[name]=ApexClone(value[name],depth+1);
             }
             for each(var accessor:XML in definition.accessor) {
                if(String(accessor.@access)!="writeonly") {
-                  name=String(accessor.@name); object[name]=ApexClone(value[name]);
+                  if(++fieldCount>1024) throw new Error("CAS clone accessors exceed limit");
+                  name=String(accessor.@name); object[name]=ApexClone(value[name],depth+1);
                }
             }
          }
@@ -1115,7 +1159,16 @@
             if(!data || !(data.physiqueValues is Array) || data.physiqueValues.length<=state ||
                !isFinite(newValue) || newValue<0 || newValue>1 || !isFinite(Number(data.physiqueValues[state])))
                throw new Error("Native physique values are unavailable or outside the slider range");
-            var physiquePayload:Object={type:state,value:newValue,slider_mouse_up:true,slider_start_value:Number(data.physiqueValues[state])};
+            context.physique_start_value=Number(data.physiqueValues[state]);
+            context.physique_layer=int(data.occultLayer);context.physique_owner_id=apexFormsSelectedId;
+            var physiquePayload:Object={type:state,value:newValue,slider_mouse_up:false,slider_start_value:context.physique_start_value};
+            data=null;
+            var physiqueKind:* = CommunicationManager.CallGameService("GetSimOccult");
+            if(!(physiqueKind is int)) throw new Error("Native physique form identity is unavailable");
+            context.physique_kind=int(physiqueKind);context.physique_commit_pending=true;
+            // Match the stock SmoothSlider SNAP -> DRAG_END lifecycle. A fresh
+            // form's first edit must initialize its preview/undo gesture before
+            // the mouse-up commit; a completion-only call skips that contract.
             data=null; reply.mutation_started=true;
             CommunicationManager.CallGameService("SetSimPhysiqueValue",physiquePayload);
             return;
@@ -1630,6 +1683,27 @@
             }
             native=null;
             if(!selectedSimMatches) throw new Error("CAS selected Sim changed before native readback");
+            if(!("message" in reply) && operation=="physique" && context.physique_commit_pending===true) {
+               var physiqueRead:Object=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
+               var physiqueCurrentKind:* = CommunicationManager.CallGameService("GetSimOccult");
+               if(!physiqueRead || String(physiqueRead.simId)!=String(fields[1]) ||
+                  int(physiqueRead.occultLayer)!=int(context.physique_layer) ||
+                  !(physiqueCurrentKind is int) || int(physiqueCurrentKind)!=int(context.physique_kind) ||
+                  String(context.physique_owner_id)!="" && apexFormsSelectedId!=String(context.physique_owner_id) ||
+                  !(physiqueRead.physiqueValues is Array) || physiqueRead.physiqueValues.length<=state ||
+                  Math.abs(Number(physiqueRead.physiqueValues[state])-Number(value))>0.000001)
+                  throw new Error("Native physique preview changed owner or did not retain the requested value; no completion replay");
+               physiqueRead=null;
+               var physiqueCommit:Object={type:state,value:Number(value),slider_mouse_up:true,
+                  slider_start_value:Number(context.physique_start_value)};
+               // Consume this phase before native code; the next tick observes
+               // the final value. A lost acknowledgement cannot repeat it.
+               context.physique_commit_pending=false;apexPendingPhase=1;
+               apexReadbackTick=int(apexTimer.currentCount)+1;apexAwaiting="readback|"+apexTimer.currentCount;
+               writeStarted=true;
+               CommunicationManager.CallGameService("SetSimPhysiqueValue",physiqueCommit);
+               return;
+            }
             if(!("message" in reply) && apexPendingPhase==2) {
                // Item selection settles before querying that hairstyle's swatches.
                var freshHairSwatches:Array=CommunicationManager.CallGameService("CasGetSwatchColorList",int(context.palette_type)) as Array;

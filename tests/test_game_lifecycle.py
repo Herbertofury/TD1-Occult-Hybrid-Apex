@@ -24,6 +24,15 @@ def observed(labels, width=1278, height=1376):
 
 
 class LifecycleTests(unittest.TestCase):
+    def test_resume_accepts_observed_new_game_icon_ocr_without_relaxing_other_controls(self):
+        labels=['MARKETPLACE','RESUME GAME','LOAD GAME','eNEW GAME','GALLERY']
+        self.assertEqual(game_lifecycle.button(observed(labels),'resume')['command'],1)
+        for changed in (labels+['NEW GAME'],labels+['Cancel'],
+                        [item for item in labels if item!='GALLERY'],
+                        ['MARKETPLACE','RESUME GAME','LOAD GAME','Renew Game','GALLERY']):
+            with self.subTest(labels=changed),self.assertRaises(ValueError):
+                game_lifecycle.button(observed(changed),'resume')
+
     def resume_surface(self):
         return observed(['HOME', 'MARKETPLACE', 'RESUME GAME', 'LOAD GAME', 'NEW GAME', 'GALLERY'])
 
@@ -205,6 +214,17 @@ class LifecycleTests(unittest.TestCase):
                        ['HOME', 'MARKETPLACE', 'RESUME GAME', 'RESUME', 'LOAD GAME', 'NEW GAME', 'GALLERY']):
             with self.subTest(labels=labels), self.assertRaises(ValueError):
                 game_lifecycle.button(observed(labels), 'resume')
+
+    def test_resume_tolerates_one_missed_tab_but_requires_all_actionable_controls(self):
+        for header in ('HOME','MARKETPLACE'):
+            value=observed([header,'RESUME GAME','LOAD GAME','NEW GAME','GALLERY'])
+            self.assertEqual(game_lifecycle.button(value,'resume')['y'],440)
+        with self.assertRaises(ValueError):
+            game_lifecycle.button(observed(['RESUME GAME','LOAD GAME','NEW GAME','GALLERY']),'resume')
+        for missing in ('LOAD GAME','NEW GAME','GALLERY'):
+            with self.assertRaises(ValueError):
+                game_lifecycle.button(observed([s for s in
+                    ['HOME','RESUME GAME','LOAD GAME','NEW GAME','GALLERY'] if s!=missing]),'resume')
 
     def already_live(self, clock=1):
         result = self.loaded_snapshot()

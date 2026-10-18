@@ -3,9 +3,11 @@ import copy
 import hashlib
 import os
 import sys
+from pathlib import Path
 from types import SimpleNamespace as Obj
 import unittest
 from unittest.mock import patch
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Source'))
 from apex_core import native_cas_engine as engine,overlay_loader,sim_data,form_appearance as appearance,lifestate_forms,cas_owner_payload,cas_bank_transaction
 
 
@@ -24,7 +26,8 @@ class NativeLayoutCaptureTests(unittest.TestCase):
         def call(module,dll,value):
             op=value['operation'];calls.append(op)
             if op=='status':return dict(ok=True,armed=True,scope_id='a'*32,members=[dict(sim_id='123',owned_mask=3)])
-            if op=='activate':return dict(ok=fail!='activate',selection_enabled=fail!='activate')
+            if op=='activate':return dict(ok=fail!='activate',selection_enabled=fail!='activate',
+                members=[dict(sim_id='123',logical_owner_ids={'1':'native/1','2':'active/2'},human_owner_id='native/1')])
             imported=dict(sim_id='123',imported_mask=3,kinds=[1,2],active_entry_source_seeded=True,canonical_source_seeded_mask=3,separate_owners=[
                 dict(owner_id='ghost/manifested',native_kind=2 if fail=='named-kind' else 1)])
             return dict(ok=True,members=[imported])
@@ -52,6 +55,7 @@ class NativeLayoutCaptureTests(unittest.TestCase):
         self.assertEqual(scope['pid'],os.getpid());self.assertEqual(scope['scope_id'],'a'*32)
         self.assertEqual(set(scope['owners']),{('123','native/1'),('123','native/2'),('123','active/2'),('123','ghost/manifested')})
         self.assertEqual(scope['owners'][('123','active/2')]['native_kind'],2)
+        self.assertEqual(scope['logical_owners']['123'],dict(logical_owner_ids={'1':'native/1','2':'active/2'},human_owner_id='native/1'))
         for captured in scope['owners'].values():
             self.assertEqual(captured['layout']['physique'],appearance.encode(''))
             self.assertEqual(captured['layout']['__outfits__'],appearance.encode(('protobuf',b'')))

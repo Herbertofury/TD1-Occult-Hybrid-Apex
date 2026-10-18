@@ -134,6 +134,38 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(observed['preprocessing']['coordinates'], 'original-viewport')
         self.assertEqual(list(self.image.parent.iterdir()), [self.image])
 
+    def test_busy_home_background_uses_complete_white_text_frame_without_guessing_labels(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376),(30,95,70)).save(self.image)
+        original=self.image.read_bytes()
+        primary=windows_ocr.original_viewport(home_observation(),2)
+        primary['lines']=[row for row in primary['lines'] if row['text'] in ('MARKETPLACE','RESUME GAME')]
+        fallback=windows_ocr.original_viewport(home_observation(),2)
+        with patch.object(windows_ocr,'_native_observation',side_effect=[primary,fallback]) as read:
+            result=windows_ocr.recognize(self.image)
+        self.assertTrue(result['white_text_fallback']['accepted'])
+        self.assertEqual(result['lines'],fallback['lines'])
+        self.assertEqual(result['raw_observation'],primary)
+        self.assertEqual(game_lifecycle.button(result,'resume')['x'],175)
+        self.assertEqual(self.image.read_bytes(),original)
+        self.assertNotEqual(read.call_args_list[1].args[0],self.image)
+        self.assertEqual(list(self.image.parent.iterdir()),[self.image])
+
+    def test_white_text_missing_control_duplicate_or_modal_is_not_input_authority(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376)).save(self.image)
+        primary=windows_ocr.original_viewport(home_observation(),2)
+        primary['lines']=[row for row in primary['lines'] if row['text'] in ('MARKETPLACE','RESUME GAME')]
+        for damage in ('missing','duplicate','modal'):
+            fallback=windows_ocr.original_viewport(home_observation(),2)
+            if damage=='missing':fallback['lines'].pop(1)
+            elif damage=='duplicate':fallback['lines'].append(copy.deepcopy(fallback['lines'][1]))
+            else:fallback['lines'].append(dict(text='CANNOT SAVE',words=[]))
+            with self.subTest(damage=damage),patch.object(windows_ocr,'_native_observation',side_effect=[primary,fallback]):
+                result=windows_ocr.recognize(self.image)
+            self.assertFalse(result['white_text_fallback']['accepted'])
+            with self.assertRaises(ValueError):game_lifecycle.button(result,'resume')
+
     def test_invalid_scale_missing_input_and_native_failure_refuse_without_inventing_labels(self):
         with patch.object(windows_ocr.subprocess, 'run') as run:
             for scale in (True, 0, 3, 2.0):

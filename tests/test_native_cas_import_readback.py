@@ -2,9 +2,11 @@ import copy
 import hashlib
 import os
 import sys
+from pathlib import Path
 from types import SimpleNamespace as Obj
 import unittest
 from unittest.mock import patch
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Source'))
 from apex_core import native_cas_engine as engine, cas_owner_decode, form_appearance as appearance,overlay_loader
 
 
@@ -66,9 +68,12 @@ class NativeImportReadbackTests(unittest.TestCase):
 
     def return_fixture(self):
         status,expected,pages,decoded,read=self.fixture()
-        for row in status['members']:row['native_view_fault']=False
+        for row in status['members']:
+            row.update(native_view_fault=False,logical_owner_ids={'1':'native/1','2':'active/2'},human_owner_id='native/1')
         scope=dict(pid=os.getpid(),scope_id=status['scope_id'],epochs={'123':'c'*64,'456':'d'*64},owners={
-            key:dict(native_kind=row['native_kind'],layout=cas_owner_decode.layout(row['fields'])) for key,row in expected.items()})
+            key:dict(native_kind=row['native_kind'],layout=cas_owner_decode.layout(row['fields'])) for key,row in expected.items()},
+            logical_owners={row['sim_id']:dict(logical_owner_ids=copy.deepcopy(row['logical_owner_ids']),
+                human_owner_id=row['human_owner_id']) for row in status['members']})
         return status,pages,read,scope
 
     def test_complete_return_keeps_named_raw_bytes_and_checkpoint_identity(self):
@@ -82,20 +87,24 @@ class NativeImportReadbackTests(unittest.TestCase):
             result=engine.returned_owners(Obj(__file__='fixture'),Obj(id=123),'c'*64)
         self.assertEqual(calls,['status','export-owner-page','status']);self.assertEqual(len(result['owners']),4)
         self.assertEqual(result['checkpoint_epoch'],'c'*64);self.assertFalse(result['appearance_written'])
+        self.assertEqual(result['logical_owner_ids'],{'1':'native/1','2':'active/2'})
+        self.assertEqual(result['human_owner_id'],'native/1')
         ghost=next(row for row in result['owners'] if row['owner_id']=='ghost/manifested')
         self.assertEqual(bytes.fromhex(ghost['native_hex']),b'123ghost/manifested')
         self.assertEqual(ghost['fields']['physique'],appearance.encode('123ghost/manifested'))
 
     def test_stale_return_epoch_fault_or_changed_generation_never_publishes_partial_forms(self):
-        for damage in ('epoch','pid','fault','generation','missing'):
+        for damage in ('epoch','pid','fault','generation','missing','binding','binding-after-read'):
             with self.subTest(damage=damage):
                 status,pages,read,scope=self.return_fixture();calls=[]
                 if damage=='pid':scope['pid']+=1
                 if damage=='fault':status['members'][0]['native_view_fault']=True
                 if damage=='missing':pages['123']['owners'].pop()
+                if damage=='binding':status['members'][0]['logical_owner_ids']['2']='native/2'
                 def call(module,dll,value):
                     calls.append(value['operation']);result=copy.deepcopy(status if value['operation']=='status' else pages[value['sim_id']])
                     if damage=='generation' and len(calls)==3:result['members'][0]['graph_generation']+=1
+                    if damage=='binding-after-read' and len(calls)==3:result['members'][0]['logical_owner_ids']['2']='native/2'
                     return result
                 with patch.object(engine,'_LAYOUT_SCOPE',scope),patch.object(cas_owner_decode,'read',side_effect=read), \
                         patch.object(overlay_loader,'native_cas_engine_control',side_effect=call), \

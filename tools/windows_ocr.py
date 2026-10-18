@@ -92,6 +92,50 @@ def _contrast_candidate(observation):
             not any(item in labels for item in forbidden))
 
 
+def _partial_home_candidate(observation):
+    """Permit another pixel observation, never permission to click a control."""
+    labels = _home_labels(observation)
+    forbidden = ('save game?', 'cannot save', 'buy now', 'expansion pack', 'game pack', 'stuff pack',
+                 'get missing packs?', 'get missing packs', 'play save with missing content',
+                 'this game requires permissions', 'you don’t have access', "you don't have access", 'cancel')
+    return (labels.count('marketplace') == 1 and labels.count('resume game') == 1 and
+            all(labels.count(item) <= 1 for item in ('home', 'load game', 'new game', 'gallery')) and
+            not any(item in labels for item in forbidden))
+
+
+def _white_home_observation(path, source, primary, scale, started):
+    """Recognize real full-frame white glyphs against a busy Home background."""
+    from PIL import Image, ImageChops, ImageOps
+    with Image.open(io.BytesIO(source)) as image:
+        if (image.size != (primary['width'], primary['height']) or
+                image.width * image.height > 16 * 1024 * 1024 or getattr(image, 'n_frames', 1) != 1):
+            raise ValueError('White-text bitmap dimensions differ from the native capture.')
+        red, green, blue = image.convert('RGB').split()
+        low = ImageChops.darker(ImageChops.darker(red, green), blue)
+        high = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+        bright = low.point(lambda value: 255 if value >= 205 else 0)
+        neutral = ImageChops.subtract(high, low).point(lambda value: 255 if value <= 32 else 0)
+        mask = ImageOps.invert(ImageChops.multiply(bright, neutral))
+    # No crop, geometric transform, synthetic label or inferred coordinates.
+    with tempfile.TemporaryDirectory(prefix='apex-ocr-') as temporary:
+        transformed = Path(temporary) / 'full-frame-white-text.png'
+        mask.save(transformed, format='PNG')
+        remaining = 35 - (time.monotonic() - started)
+        if remaining <= 0 or path.read_bytes() != source:
+            raise ValueError('Capture/deadline changed before white-text OCR.')
+        fallback = _native_observation(transformed, scale, timeout=remaining)
+    if (fallback['width'], fallback['height']) != (primary['width'], primary['height']) or path.read_bytes() != source:
+        raise ValueError('Capture/viewport changed during white-text OCR.')
+    # All actionable labels must be recognized independently in this one
+    # complete frame. Never merge partial observations or repair guessed text.
+    accepted = (_home_scale_candidate(fallback, require_load=True) and _partial_home_candidate(fallback))
+    evidence = dict(attempted=True, accepted=accepted, transform='full-frame-white-text',
+                    source_sha256=hashlib.sha256(source).hexdigest())
+    if not accepted:
+        return dict(primary, white_text_fallback=dict(evidence, observation=fallback))
+    return dict(fallback, raw_observation=primary, white_text_fallback=evidence)
+
+
 def recognize(path, scale=2):
     if type(scale) is not int or scale not in (1, 2):
         raise ValueError('Use one- or two-times native OCR scaling.')
@@ -129,6 +173,8 @@ def recognize(path, scale=2):
                 'scale': 1, 'reason': 'native-size-home-not-complete', 'observation': unscaled,
                 'source_sha256': hashlib.sha256(source).hexdigest()})
     if not _contrast_candidate(primary):
+        if _partial_home_candidate(primary) and not _home_scale_candidate(primary, require_load=True):
+            return _white_home_observation(path, source, primary, scale, started)
         return primary
     if path.read_bytes() != source:
         raise ValueError('Capture changed between native OCR and contrast fallback.')

@@ -204,7 +204,7 @@ struct State {
     std::map<std::uint32_t,std::pair<std::uint64_t,std::string>> uiOwners;
     std::uint64_t boundSim=0;void* boundController=nullptr;
     ui::Json observedNative={{"available",false}};std::uint64_t observationSequence=0;
-    unsigned kindBiasPrevented=0,importOutfitFillsPrevented=0;
+    unsigned kindBiasPrevented=0,importOutfitFillsPrevented=0,sessionsRetired=0;
     void* kindRelay=nullptr;std::int32_t originalKindCall=0,patchedKindCall=0;bool kindCallPatched=false,kindRelayReady=false;
     std::uintptr_t image=0;bool installed=false,armed=false,selectionEnabled=false;unsigned intercepted=0,converted=0,alternateOverrides=0,normalizationsPrevented=0,initialOwnersImported=0,serviceSelections=0,rebindCorrections=0,blockedConversions=0;
 };
@@ -1030,6 +1030,7 @@ inline ui::Json Status() {
     return {{"ok",true},{"pid",GetCurrentProcessId()},{"installed",state.installed},{"armed",state.armed},
         {"ui_transport",pipeStatus},
         {"scope_id",state.scope.id},{"selection_enabled",state.selectionEnabled},{"members",rows},{"existing_owner_selections",state.intercepted},
+        {"sessions_retired",state.sessionsRetired},
         {"native_converter_calls",state.converted},{"game_files_written",false},
         {"alternate_kind_overrides",state.alternateOverrides},
         {"normalizations_prevented",state.normalizationsPrevented},{"initial_active_owners_imported",state.initialOwnersImported},
@@ -1223,6 +1224,36 @@ inline ui::Json Control(const ui::Json& request) {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
     if(request.is_object() && request.size()==1 && request.value("operation","")=="status") return Status();
     if(request.is_object() && request.size()==1 && request.value("operation","")=="view-status") return ViewStatus();
+    if(request.is_object() && request.size()==3 && request.value("operation","")=="retire-committed-session") {
+        // Internal Source completion only; not part of the public research
+        // argument API. Every member's exact graph generation is required.
+        if(!state.armed || !state.selectionEnabled || state.viewIntent || binding ||
+           !request.contains("scope_id") || !request["scope_id"].is_string() ||
+           request["scope_id"].get<std::string>()!=state.scope.id ||
+           !request.contains("members") || !request["members"].is_array() ||
+           request["members"].size()!=state.scope.members.size())
+            throw std::runtime_error("CAS retirement requires the complete committed session scope.");
+        {auto& box=pipe::Channel();std::lock_guard<std::mutex> channelLock(box.mutex);
+         if(!box.finished.load(std::memory_order_acquire) || !box.stop || box.connected)
+            throw std::runtime_error("An attached CAS transport still owns its appearance graph.");}
+        std::set<std::uint64_t> members;
+        for(const auto& row:request["members"]) {
+            if(!row.is_object() || row.size()!=2 || !row.contains("sim_id") || !row["sim_id"].is_string() ||
+               !row.contains("generation") || !row["generation"].is_number_unsigned())
+                throw std::runtime_error("CAS retirement needs exact member identities and generations.");
+            const auto id=SimId(row["sim_id"]);const auto found=state.bank.find(id);
+            if(!members.insert(id).second || state.scope.members.find(id)==state.scope.members.end() ||
+               found==state.bank.end() || !found->second.graph || found->second.viewFault ||
+               found->second.graph->cursor().generation!=row["generation"].get<std::uint64_t>())
+                throw std::runtime_error("CAS retirement graph changed or a committed member is missing.");
+        }
+        // The whole check precedes disposal. Keep the installed hooks and
+        // armed roster ready for a new, freshly checkpointed import.
+        state.selectionEnabled=false;state.boundSim=0;state.boundController=nullptr;
+        state.observedNative={{"available",false}};state.viewResult=nullptr;
+        state.uiOwners.clear();state.viewTokens.clear();state.bank.clear();++state.sessionsRetired;
+        return Status();
+    }
     if(request.is_object() && request.size()==5 && request.value("operation","")=="export-owner-page") {
         if(!request.contains("scope_id") || !request["scope_id"].is_string() ||
            request["scope_id"].get<std::string>()!=state.scope.id || !state.selectionEnabled ||

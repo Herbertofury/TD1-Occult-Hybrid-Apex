@@ -67,6 +67,24 @@ remain available. Runtime checks caught an accidentally requested single-Sim
 entry before edits and refused household-member navigation. This is retained
 as a failed test attempt, not a household qualification.
 
+V183's untouched single-editor visit completed five receiver transactions;
+a fresh Live audit exactly matched all forty saved appearances. Its next full
+CAS entry then refused before native entry because the ready graph could not
+be reseeded. This exposed a repeated-visit lifecycle gap, not an edited-form
+retention pass. The session exited normally without saving; all twenty files
+were unchanged and the five never-entered checkpoints remain archived.
+
+V186 adds private completed-session retirement. Source requires verified
+completion of every scoped receiver; the DLL requires the entire exact graph
+generation roster, no active native view and a finished/disconnected transport.
+Only then are the old detached graph/undo owners released. Installed hooks and
+the armed roster remain ready for a fresh checkpointed import. Public research
+commands cannot request retirement; the loader requires the held Source
+completion object, and an attempted retirement is never replayed. Six Source
+checks exercise the real loader validation, and eleven native checks pass,
+including refusal for stale/missing members and successful fresh reseeding.
+Runtime repeated-visit and edited-form Live/save/Tray qualification remain open.
+
 V182's native-owned UI transport completed this matrix without the previously
 reproduced allocator crash. It does not establish universal crash freedom or
 prove a root cause. Eleven native checks pass; diagnostic owner-memory guards

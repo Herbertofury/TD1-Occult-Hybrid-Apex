@@ -407,9 +407,17 @@ def native_cas_code_window(module_file, dll_path, argument):
 
 
 @serialized
-def native_cas_engine_control(module_file, dll_path, argument):
+def native_cas_engine_control(module_file, dll_path, argument, _retirement_capability=None):
     from . import native_cas_engine
-    native_cas_engine.argument(argument)
+    if _retirement_capability is None:
+        native_cas_engine.argument(argument)
+    else:
+        native_cas_engine._retirement_argument(argument,_retirement_capability)
+    return _native_cas_engine_call(module_file,dll_path,argument)
+
+
+def _native_cas_engine_call(module_file,dll_path,argument):
+    from . import native_cas_engine
     if not _CALLS:
         raise ValueError('The matching game-owned native sidecar is not loaded.')
     path, info = sidecar_paths(module_file)

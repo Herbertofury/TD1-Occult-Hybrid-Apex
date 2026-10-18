@@ -332,6 +332,9 @@ def seed_members(backend):
     from . import overlay_loader, sim_data, form_appearance as appearance, lifestate_forms, cas_owner_payload, cas_owner_decode
     if not overlay_loader._CALLS:
         return {'enabled': False}
+    if (_LAYOUT_SCOPE is not None and _LAYOUT_SCOPE.get('completions') and
+            set(_LAYOUT_SCOPE['completions'])==set(_LAYOUT_SCOPE['epochs'])):
+        _retire_completed_scope(backend,_LAYOUT_SCOPE)
     import paths
     call = lambda value: overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, value)
     status = call({'operation': 'status'})
@@ -429,6 +432,74 @@ def owns_return(sim_id,epoch):
     if scope['pid']!=os.getpid() or scope.get('epochs',{}).get(sim_id)!=epoch:
         raise ValueError('Native CAS return belongs to a different process or member checkpoint.')
     return True
+
+
+def complete_return(backend,sim,transaction):
+    """Retire a native session only after every receiver committed its forms.
+
+    Retiring is not a form write or rollback. Complete raw graphs have already
+    been retained in each committed receiver. Partial/unresolved completion
+    keeps the graph locked; an attempted native retirement is never replayed.
+    """
+    global _LAYOUT_SCOPE
+    scope=_LAYOUT_SCOPE
+    if scope is None:return dict(enabled=False,retired=False)
+    from . import cas_bank_transaction as receiver,cas_commit_plan as primitive,cas_ui,overlay_loader
+    sid=str(sim.id);epoch=transaction.get('transaction_sha256')
+    if not owns_return(sid,epoch) or not receiver._completed(transaction):
+        raise ValueError('Native CAS retirement requires this exact completed receiver transaction.')
+    returned=transaction.get('native_owner_return');identity=returned.get('identity',{}) if isinstance(returned,dict) else {}
+    if (not isinstance(returned,dict) or primitive.digest(returned)!=transaction.get('native_owner_return_sha256') or
+            identity.get('pid')!=scope['pid'] or identity.get('sim_id')!=sid or identity.get('scope_id')!=scope['scope_id'] or
+            type(identity.get('generation')) is not int or identity['generation']<=0):
+        raise ValueError('Completed CAS receiver lacks its exact retained native graph generation.')
+    completions=scope.setdefault('completions',{})
+    retained=dict(epoch=epoch,generation=identity['generation'],native_return_sha256=transaction['native_owner_return_sha256'])
+    if sid in completions and completions[sid]!=retained:
+        raise ValueError('Native CAS completion changed; its appearance graph remains retained.')
+    completions[sid]=retained
+    if set(completions)!=set(scope['epochs']):
+        return dict(enabled=True,retired=False,completed_members=len(completions),required_members=len(scope['epochs']))
+    return _retire_completed_scope(backend,scope)
+
+
+def _retire_completed_scope(backend,scope):
+    global _LAYOUT_SCOPE
+    from . import cas_ui,overlay_loader
+    if scope is not _LAYOUT_SCOPE or scope['pid']!=os.getpid():
+        raise ValueError('Native CAS retirement requires its held current-process scope.')
+    completions=scope.get('completions',{})
+    if not completions or set(completions)!=set(scope['epochs']):
+        raise ValueError('Every scoped CAS member must complete before retirement.')
+    if cas_ui.diagnostics().get('native_peers')!=[]:
+        raise ValueError('A native CAS peer still owns this completed appearance graph.')
+    if scope.get('retirement_attempted'):
+        raise ValueError('Native CAS retirement has a retained attempt; no automatic replay.')
+    scope['retirement_attempted']=True
+    import paths
+    result=overlay_loader.native_cas_engine_control(backend.__file__,paths.DLL_PATH,dict(
+        operation='retire-committed-session',scope_id=scope['scope_id'],members=[dict(sim_id=member,
+            generation=completions[member]['generation']) for member in sorted(completions)]),_retirement_capability=scope)
+    if (result.get('ok') is not True or result.get('pid')!=scope['pid'] or result.get('scope_id')!=scope['scope_id'] or
+            result.get('armed') is not True or result.get('selection_enabled') is not False or
+            {row['sim_id'] for row in result.get('members',[])}!=set(scope['epochs']) or
+            any(row.get('imported_mask')!=0 for row in result['members'])):
+        raise ValueError('Native session retirement did not verify; retain its attempt without replay.')
+    _LAYOUT_SCOPE=None
+    return dict(enabled=True,retired=True,completed_members=len(completions),scope_id=scope['scope_id'],
+                appearance_written=False,native_write_replay_authorized=False)
+
+
+def _retirement_argument(value,capability):
+    """Only the held completion object can reach the private native operation."""
+    if (capability is not _LAYOUT_SCOPE or capability['pid']!=os.getpid() or
+            capability.get('retirement_attempted') is not True or
+            not capability.get('completions') or set(capability['completions'])!=set(capability['epochs'])):
+        raise ValueError('Native CAS retirement lacks its private completed-session capability.')
+    expected=dict(operation='retire-committed-session',scope_id=capability['scope_id'],members=[dict(
+        sim_id=sid,generation=capability['completions'][sid]['generation']) for sid in sorted(capability['completions'])])
+    if value!=expected:
+        raise ValueError('Native CAS retirement differs from its complete held member generations.')
 
 
 def returned_owners(backend,sim,epoch):

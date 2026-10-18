@@ -1079,6 +1079,15 @@ def commit(backend, sim, argument):
         instance = _instance(backend, sim)
         result = instance.commit(argument['expected_plan_sha256'])
         result.update(expected_pending_sha256=transaction['transaction_sha256'], replayed=False)
+        from . import native_cas_engine
+        _path,_key,_record,completed=_selected(backend,sim,allow_consumed=True)
+        try:
+            result['native_session_completion']=native_cas_engine.complete_return(backend,sim,completed)
+        except Exception as error:
+            # Appearance/metadata commit already succeeded. Preserve that ACK;
+            # a blocked retirement must never replay the form transaction.
+            result['native_session_completion']=dict(ok=False,retired=False,message=str(error)[:2048],
+                appearance_replay_authorized=False)
         if getattr(backend, '_APEX_CAS_SAVE_BOUNDARY_READY', False):
             from .cas_save_boundary import refresh_ui
             try:

@@ -506,6 +506,23 @@ int main() {
     Require(controllerCalls==0); // No converter/controller transaction was called.
     Write(argument.data(),8,0x1fffffffu);Require(!SetOccultService(arguments.data())); // No token replay.
     Free(independentChild,0x830);Write(group.data(),0x4c0,static_cast<void*>(nullptr));
+    Json retire={{"operation","retire-committed-session"},{"scope_id",scope.id},{"members",Json::array()}};
+    for(const auto& row:runtime.scope.members)
+        retire["members"].push_back({{"sim_id",std::to_string(row.first)},
+            {"generation",runtime.bank.at(row.first).graph->cursor().generation}});
+    auto invalidRetire=retire;invalidRetire["members"].erase(0);Refuses([&]{Control(invalidRetire);});
+    invalidRetire=retire;invalidRetire["members"][0]["generation"]=
+        retire["members"][0]["generation"].get<std::uint64_t>()+1u;
+    Refuses([&]{Control(invalidRetire);});Require(runtime.bank.size()==2 && runtime.selectionEnabled);
+    {auto& channel=td1::nativecas::pipe::Channel();channel.connected=true;channel.stop=false;
+     Refuses([&]{Control(retire);});channel.connected=false;channel.stop=true;}
+    const auto retired=Control(retire);
+    Require(retired["armed"]==true && retired["selection_enabled"]==false && runtime.bank.empty());
+    Require(runtime.sessionsRetired==1 && runtime.uiOwners.empty() && runtime.boundController==nullptr);
+    Refuses([&]{Control(retire);});Require(runtime.sessionsRetired==1); // No retirement replay.
+    Write(proto.data(),0x10,std::uint64_t(123));
+    const auto reopened=Control(seed); // A later checkpoint can import fresh owners in this process.
+    Require(reopened.value("ok",false) && runtime.bank.at(123).mask==127 && !runtime.selectionEnabled);
     std::cout<<"Native existing-owner capture and selection contracts passed\n";return 0;
  } catch(const std::exception& e) {std::cerr<<e.what()<<'\n';return 1;}
 }

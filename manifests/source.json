@@ -281,12 +281,6 @@
       "sha256": "4b1fb7278a8719ff58c5b2b1a97aaa89a9e5e953915a31ab212206a67928b186"
     },
     {
-      "bytes": 24177,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "f1c1a4f89af297bc7c8b6413c1898a72db42cdb30df52c0908cdc293c4870bd5"
-    },
-    {
       "bytes": 4348,
       "mode": "100644",
       "path": "tests/test_native_cas_pair_order.py",
@@ -671,6 +665,12 @@
       "sha256": "5b1f5b79cc9222af6e328e7f2f3e4fd1b378993aa07aa630bb45da895ee0ced9"
     },
     {
+      "bytes": 214601,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "0ffe41bd65856539b142ff3cffdd95eef121e2ad3b2b102ed0ba999c476587f4"
+    },
+    {
       "bytes": 7698,
       "mode": "100644",
       "path": "tests/test_phone_menu.py",
@@ -795,6 +795,12 @@
       "mode": "100644",
       "path": "tools/dbpf_build.py",
       "sha256": "93af2586fbd9afd2c12fe68f2c24c3b418f8c17672641eb5cab9f4b205ac1708"
+    },
+    {
+      "bytes": 25004,
+      "mode": "100644",
+      "path": "tools/cas_client.py",
+      "sha256": "50ef31456924309f358ff045f1f4d860f08be9b70f9d60e10a78de74de53e0c3"
     },
     {
       "bytes": 5310,
@@ -1271,6 +1277,12 @@
       "sha256": "e91cedc374353240e8a5abdde6ab6e99d2313de9158a3846b5a74e1f1fe0c8ca"
     },
     {
+      "bytes": 3234,
+      "mode": "100644",
+      "path": "tests/test_cas_read_reconnect.py",
+      "sha256": "3ef354e100938193005ef8e1a790adba8aa22fafa17988caf7278befc2d21cc4"
+    },
+    {
       "bytes": 10067,
       "mode": "100644",
       "path": "tools/cas_failed_commit_archive.py",
@@ -1389,6 +1401,12 @@
       "mode": "100644",
       "path": "wiki/_Sidebar.md",
       "sha256": "e71119d70bb9b97d3bda6aad1b45223b4562419611c146d40f6aaf9151725563"
+    },
+    {
+      "bytes": 22920,
+      "mode": "100644",
+      "path": "wiki/TODO.md",
+      "sha256": "fcdcd3fba59c43332598a6cfa704db3db696057d1519ccca8d6e435218aff552"
     },
     {
       "bytes": 3875,
@@ -1553,12 +1571,6 @@
       "sha256": "60c90cc07a661f2229b8a1222737bab724566c5be4812fd09556f67459b3ef19"
     },
     {
-      "bytes": 214156,
-      "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "e435beba59fdffd6672f192c226151fb78290f7a47d4d52250fe18c32cc1a18a"
-    },
-    {
       "bytes": 4553,
       "mode": "100644",
       "path": "tests/test_cas_owner_record_payload.py",
@@ -1581,12 +1593,6 @@
       "mode": "100644",
       "path": "tests/test_tray_complete_appearance.py",
       "sha256": "7734cf6b9623b504dec47272f15160088706cf45eb2b0fe700673f8f72f3f02b"
-    },
-    {
-      "bytes": 23305,
-      "mode": "100644",
-      "path": "tools/cas_client.py",
-      "sha256": "2bbce521782d20a235ee574fdac56bdfa98570d31693999cc9db0f627d0e3e95"
     },
     {
       "bytes": 14688,
@@ -1653,6 +1659,12 @@
       "mode": "100644",
       "path": "SOURCE_RECOVERY_STATUS.md",
       "sha256": "3b8bd0b7cf481daa42af5e37fea6575f06eca3fbc6fcd28a27718a2a50ee7994"
+    },
+    {
+      "bytes": 24622,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "fdfe27760ca7336375cad5d9dca774ec179bd83f1afe2532a20121cf8ac4350b"
     },
     {
       "bytes": 391,
@@ -2913,12 +2925,6 @@
       "mode": "100644",
       "path": "tests/test_runtime_tests.py",
       "sha256": "000f2f6d9b048a184eef6b1e5c185f1f4bd1e9eeb0b50a4373560e4f8c88758d"
-    },
-    {
-      "bytes": 22475,
-      "mode": "100644",
-      "path": "wiki/TODO.md",
-      "sha256": "339cef6a1015d779d81d06e3e519f8feea7c09d63151adc85f130441b55a1fca"
     },
     {
       "bytes": 9547,

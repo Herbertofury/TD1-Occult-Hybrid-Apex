@@ -29,6 +29,13 @@ the save and seal ledger stay unchanged, no native appearance restoration is
 requested, and the game is paused again. Repeated named inventory reads do not
 rewrite the bank. The owner's protected original remains read/copy-only.
 
+V188 also passes Alien -> Vampire -> Alien across all five members in Live,
+with eighteen settled transitions including restoration of each starting form.
+Each transition checks the full household: stored and active appearance fields
+stay intact, every independent named document stays unchanged, no outfits are
+added, and the normal save is unchanged. This is actual occult switching after
+the saved-metadata cold load, not a Human-only test.
+
 V187's frozen regression run passes 2,548 tests. Its first real metadata cold
 load exposed an admission refusal despite exact native appearance retention.
 V188 accepts an exact current saved native match without depending on an early

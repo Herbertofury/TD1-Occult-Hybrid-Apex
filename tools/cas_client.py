@@ -313,6 +313,25 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep, allow_pr
                      else request(args.state, 'cas_ui_request', args.sim_id, value=json.dumps(value)))
         request_id = submitted.get('cas_request_id')
         if not request_id:
+            if (allow_preflight_refresh and args.operation not in ('status', 'result') and
+                    submitted.get('ok') is False and 'cas_request_id' not in submitted and
+                    submitted.get('message') == 'Native UI transport has no distributor client; no CAS request sent.' and
+                    submitted.get('request_state') in (None, 'failed') and
+                    submitted.get('mutation_started') is not True and submitted.get('input_submitted') is not True):
+                # A command can outlive the previous peer's freshness.
+                # Reconnect with a bounded status read, then submit it natively
+                # once. The pinned refusal proves no native request was created;
+                # an unknown or issued UUID never enters this branch.
+                fresh = _execute(SimpleNamespace(operation='status', state=args.state,
+                    sim_id=args.sim_id, seconds=args.seconds, output=None), request,
+                    monotonic=monotonic, pause=pause, allow_preflight_refresh=False)
+                if fresh.get('ok') is not True:
+                    return dict(fresh, read_query_submitted=False, native_operation_submitted=False,
+                                rejected_read_owner_uuid=submitted.get('request_id'))
+                refreshed = _execute(SimpleNamespace(**dict(vars(args), output=None)), request,
+                    monotonic=monotonic, pause=pause, allow_preflight_refresh=False)
+                return dict(refreshed, read_reconnect=dict(reason='definite-prequeue-transport-refusal',
+                    rejected_owner_request_id=submitted.get('request_id'), native_request_created=False, refresh_count=1))
             # This exact pinned Source refusal occurs BEFORE creation of a CAS
             # queue record or native view token. Transport/validation latency
             # can expire a successful status ACK before the next request. Only

@@ -36,6 +36,13 @@ class OwnerMetadataTests(OccultViewTests):
             self.assertIsNone(cas_ui.owner_metadata(self.peer,self.backend))
         self.assertTrue(first.startswith('OWNERS|0|34|'))
         self.assertEqual(len(first.split('|')[3].split(';')),32)
+        from urllib.parse import unquote
+        descriptors = [row.split(',') for row in first.split('|')[3].split(';')]
+        self.assertTrue(all(len(row)==10 for row in descriptors))
+        ghost = next(row for row in descriptors if row[0]=='ghost/look_1')
+        self.assertEqual(ghost[5], 'ghost')
+        self.assertEqual(ghost[6], str(int('14094b494cd3f93d',16)))
+        self.assertIn('Ghost', unquote(ghost[8]))
         self.assertTrue(second.startswith('OWNERS|32|34|'))
         self.assertEqual(third,'OWNERSTATE|ghost/look_1|1|1|bound')
         self.assertEqual(changed,'OWNERSTATE|ghost/look_1|1|0|unbound')

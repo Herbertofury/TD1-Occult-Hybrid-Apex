@@ -145,6 +145,17 @@ class SavedNamedFormsTests(SealFixture):
         self.assertFalse(seal.admit_saved_named(self.backend,self.sim))
         self.assertEqual(self.bank_path.read_bytes(),original);self.assertEqual(self.writes,[])
 
+    def test_audited_v192_menu_upgrade_reopens_metadata_without_native_restore_authority(self):
+        old_source='cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd'
+        self.assertIn(old_source,seal.NAMED_METADATA_PREDECESSORS)
+        self.identity['script_sha256']=old_source
+        certified=self.certify();self.identity['script_sha256']='c'*64
+        self.loaded();forms.list_forms(self.backend,self.sim)
+        self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
+        with self.assertRaisesRegex(ValueError,'another source'):
+            seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
+        self.assertEqual(self.writes,[])
+
     def test_same_process_save_reload_uses_the_saved_names_and_not_the_unsaved_old_tracker(self):
         self.certify()
         data=json.loads(self.bank_path.read_text());ghost=data['records'][self.key]['lifestate_forms']['forms']['ghost_ghost']

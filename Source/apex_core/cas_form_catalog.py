@@ -30,6 +30,49 @@ _FAMILIES = {'plantsim': 'PlantSim', 'servo': 'Servo', 'ghost': 'Ghost',
              'reaper': 'Reaper', 'skeleton': 'Skeleton', 'scarecrow': 'Scarecrow',
              'imaginary_friend': 'Imaginary Friend', 'fairy': 'Fairy', 'werewolf': 'Werewolf'}
 
+# Installed 1.128.90 tuning references, not copied artwork. The game loads its
+# own images in place. See docs/CAS_LIFESTATE_ARTWORK.md for provenance.
+ARTWORK = {
+    'plantsim': '425bcd3b1ebb6371', 'servo': '75a1aca2763417f0',
+    'ghost': '14094b494cd3f93d', 'reaper': '632e51f43a7678cc',
+    'skeleton': '57cabc4ee22aa528', 'scarecrow': 'a55ac15b5a63645d',
+    'imaginary_friend': '9eadf868d4fa1232',
+}
+VARIANT_ARTWORK = {
+    'lil_monster': '03843c32b120c44e', 'pegacorn': '463ff86e000cb962',
+    'spooky_kid': 'c6742495a4cf0bd6', 'wild_child': '3a60d722d08102f3',
+}
+DESCRIPTIONS = {
+    'human': 'Human: the one shared Human appearance for this Sim.',
+    'alien': 'Alien: edit the Alien appearance independently of its shared Human disguise.',
+    'vampire': 'Vampire: edit the dark form independently of the shared Human appearance.',
+    'mermaid': 'Mermaid: customize the aquatic form separately from Human.',
+    'witch': 'Spellcaster: customize this magical form without changing other appearances.',
+    'werewolf': 'Werewolf: choose the beast or human-looking Werewolf appearance.',
+    'fairy': 'Fairy: choose and customize the Fairy appearances independently.',
+    'plantsim': 'PlantSim: customize the plant appearance separately from Human.',
+    'servo': 'Servo / Robot: customize the robotic appearance separately from Human.',
+    'ghost': 'Ghost: customize this spectral appearance separately from living Human.',
+    'reaper': 'Grim Reaper: choose the robed or unrobed appearance.',
+    'skeleton': 'Skeleton / Bonehilda: customize the skeletal appearance.',
+    'scarecrow': 'Scarecrow / Patchy: customize the scarecrow appearance.',
+    'imaginary_friend': 'Imaginary Friend: choose Lil\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. '
+                        'Each keeps its own edits. The real appearance uses shared Human.',
+}
+
+
+def presentation(row):
+    """Data-only menu metadata; never infer identity from a rendering flag."""
+    family, variant = row['form_id'].split('/')
+    if variant.startswith(family+'_'):
+        variant = variant[len(family)+1:]
+    icon = VARIANT_ARTWORK.get(variant, ARTWORK.get(family, '')) if family == 'imaginary_friend' else ARTWORK.get(family, '')
+    # ResourceKey.instance uses an exact decimal string, never an AS Number.
+    row.update(family=family, icon=str(int(icon, 16)) if icon else '',
+               family_icon=str(int(ARTWORK[family], 16)) if family in ARTWORK else '',
+               description=DESCRIPTIONS.get(family, row['label']+': customize this independent appearance.'))
+    return row
+
 
 def project(owners, human_owner_id, selected_owner_id, logical_owner_ids=None):
     """Choose display bindings, keeping every distinct original recoverable.
@@ -92,6 +135,7 @@ def project(owners, human_owner_id, selected_owner_id, logical_owner_ids=None):
         if variant not in ('plant', 'robot', 'ghost', 'reaper', 'skeleton', 'scarecrow'):
             label += ' · '+variant.replace('_', ' ').title()
         forms.append(dict(copy.deepcopy(row), form_id=identity, label=label))
+    forms = [presentation(row) for row in forms]
     visible = {row['owner_id'] for row in forms}
     return {'forms': forms,
             'human_owner_id': human_owner_id,

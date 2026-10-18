@@ -104,12 +104,15 @@ def observe(state, output, identity, request, sim_id, slot_id, slot_name, expect
         record()
         if not isinstance(result, dict):
             raise ValueError('Save observer requires typed game-owned results.')
-        if (result.get('outcome') == 'unresolved' and uuid_id(result.get('request_id'))
+        owner_id = result.get('request_id')
+        while (result.get('outcome') == 'unresolved' and uuid_id(owner_id)
                 and result.get('request_state') not in ('completed', 'failed', 'cancelled')):
             # Poll the original owner UUID, including a save scheduling response
             # delayed past the short request timeout. Never resubmit its command.
-            result = apex_cli.poll_request(result['request_id'], seconds=min(2, remaining()),
+            result = apex_cli.poll_request(owner_id, seconds=min(2, remaining()),
                         transport=pinned_transport, monotonic=monotonic, pause=lambda value: pause(min(value, remaining())))
+            if result.get('request_id') != owner_id:
+                raise ValueError('Save completion changed its original owner UUID; no replay permitted.')
             proof['steps'].append({'action': 'observe-owner:' + action, 'result': result})
             record()
         return result

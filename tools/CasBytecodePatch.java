@@ -516,6 +516,17 @@ public class CasBytecodePatch {
         require(tokenLow && tokenHigh,"Independent owner buttons require the reserved native capability-token bounds.");
         require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsTick")).contains("ApexFormSelectionContext"),
             "Native form strip lacks full fresh pair validation.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsOwnedTick")).containsAll(
+            Set.of("ApexFormsGroupCatalog","ApexFormsClearTooltips","ApexFormsCompactButton")),
+            "Life-state menu lacks grouping, exact owner controls or tooltip cleanup.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsDispose")).contains("ApexFormsClearTooltips") &&
+            propertyCalls(abc,ownedBody(abc,instance,"ApexFormsClearTooltips")).contains("Shutdown") &&
+            propertyCalls(abc,ownedBody(abc,instance,"ApexFormsTooltip")).contains("Initialize"),
+            "Life-state hover descriptions lack the native tooltip lifecycle.");
+        var groupCode=ownedBody(abc,instance,"ApexFormsGroupCatalog").getCode().code;
+        require(groupCode.stream().anyMatch(op->property(abc,op,0x66,"family")) &&
+            groupCode.stream().noneMatch(op->property(abc,op,0x66,"native_kind")),
+            "Life-state menu must group exact named families, never native rendering genera.");
     }
     static void verifyQueuedHandshake(ABC abc, InstanceInfo instance) {
         var callback=ownedBody(abc,instance,"ApexSocketConnect").getCode().code;
@@ -1069,7 +1080,7 @@ public class CasBytecodePatch {
             "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking",
             "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener",
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
-            "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight");
+            "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame",
@@ -1077,7 +1088,7 @@ public class CasBytecodePatch {
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
-            "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton");
+            "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
         for (Trait trait : newClass.instance_traits.traits) {

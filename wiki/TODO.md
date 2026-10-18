@@ -20,6 +20,48 @@ not establish current implementation or runtime readiness.
 
 ## Current checkpoint — 2026-10-18
 
+V194 menu checkpoint: the CAS strip groups variants under one life-state button,
+including one Imaginary Friend entry with four independent variant owners and
+a shortcut to the existing shared Human / Real appearance. Special artwork
+references come from installed game tuning; native hover descriptions use
+EA's tooltip lifecycle. The CLI can browse a family or return to all forms
+without selecting an appearance. The package builds and focused metadata,
+menu, catalog, control and serialized bytecode checks pass. V193's frozen
+regression run passes 2,583 tests. V194 adds selected-button no-op behavior,
+readable variant tiles, cached group metadata and a metadata-only V192 save
+upgrade; 108 focused checks pass. Actual full CAS shows fourteen unique
+life-state groups, thirteen installed occult/special icons and one Imaginary
+Friend entry. Its four labelled variant tiles use their own game artwork;
+Human / Real references the one shared Human. Native hover text is visibly
+verified. Browsing leaves all five graph generations, selected owners and
+logical bindings unchanged; clicking the selected Alien is a verified no-op.
+Actual button clicks open Imaginary Friend and select the exact Spooky Kid
+owner; Pegacorn and the starting actual Alien remain separately selectable.
+A complete post-switch export retains every field in all 39 member owners.
+This is menu/selection proof, not special-state gameplay or native link/copy
+qualification. Human still uses text until shared portrait artwork is wired.
+
+V192 now also completes distinct eyebrow, head skin-detail and earring edits
+on the second member's actual Alien and Vampire. Nine readbacks retain all
+choices through Alien -> Vampire -> Alien, followed by its original Werewolf
+view. The complete 195-owner audit finds changes only in that member's two
+chosen appearances (outfit/genetic fields); the other 193 remain identical.
+A known ordinary eyebrow family works; the first catalog family's colour
+request remains a failed result, not a qualified selection. This checkpoint
+also completes all five receiver commits, retains all forty Live appearances
+after 1,396 ticks and passes Alien -> Vampire -> Alien -> original Werewolf
+with full-household checks and no added outfits. One normal save completes
+under its original UUID, creates all five named seals and preserves all forty
+post-save appearances. Its host observer initially stops too early; the CLI
+now spends the remaining bounded timeout polling only the original request
+instead of abandoning it after one short poll. Twenty-seven save checks pass.
+V194 cold loading reopens all five saved named documents and retains all
+forty appearances before and after another 685 simulation ticks, with the
+save file and seal ledger unchanged and no native appearance restoration.
+In-game menu presentation and exact variant selection now pass as described
+above. Full-category/every-member coverage, universal shared-Human ownership,
+native link/copy and household Tray/Gallery remain open release gates.
+
 V192 development checkpoint: ordinary CAS selections bind an exact visible
 parent and returned colour variant, with native selected-item readback. V191
 actually applies different child earring colours to the second member's Alien
@@ -35,7 +77,7 @@ readback requires the exact bound owner as well as its actual native genus.
 Pending readback can poll owner metadata with the original nonce and one-frame
 lease. An already-bound owner skips redundant bootstrap. Twelve serialized
 bytecode fixtures, seven bounded preflight checks and eleven socket checks pass.
-V191's frozen regression suite passes 2,575 tests; V192's full run is pending.
+V191's frozen regression suite passes 2,575 tests; V192 passes 2,579 tests.
 
 Cancelling the V191 test retains all forty original Live appearances and all
 five memberships. Normal unsaved closure leaves every save file unchanged.

@@ -26,10 +26,15 @@
       private var apexFormsBootstrap:Boolean=false;
       private var apexFormsPage:int=0;
       private var apexFormsPanelHeight:Number=146;
+      private var apexFormsGroups:Array=[];
+      private var apexFormsVariantFamily:String="";
+      private var apexFormsTooltips:Array=[];
+      private var apexFormsGroupKey:String="";
 
 
       private function ApexFormsDispose() : void
       {
+         ApexFormsClearTooltips();
          if(apexFormsRoot!=null) {
             apexFormsRoot.stopDrag();
             apexFormsRoot.removeEventListener(flash.events.MouseEvent.CLICK,ApexFormsClick);
@@ -47,6 +52,7 @@
          apexFormsLayerButtons=null;
          apexFormsOwners=[];apexFormsOwnerTotal=-1;apexFormsSelectedId="";apexFormsNativeState="";
          apexFormsDesiredId="";apexFormsNativeIntent=null;apexFormsBootstrap=false;apexFormsPage=0;apexFormsPanelHeight=146;
+         apexFormsGroups=[];apexFormsVariantFamily="";apexFormsGroupKey="";
       }
 
       private function ApexFormsText(parent:flash.display.Sprite,text:String,x:Number,y:Number,width:Number,size:int,color:uint) : flash.text.TextField
@@ -286,13 +292,24 @@
          if(event!=null && event.target!=null && String(event.target.name).indexOf("apexTool_")==0) {
             ApexFormsToolbarClick(String(event.target.name).substr(9)); return;
          }
-         if(event==null || event.target==null || apexFormsIntent!=null || apexPendingFields!=null || apexReceiving ||
+         if(event==null || event.target==null || apexFormsIntent!=null || apexFormsNativeIntent!=null || apexPendingFields!=null || apexReceiving ||
             apexFormsResult!=null && apexFormsResult.verified!==true) return;
          var name:String=String(event.target.name);
+         if(name.indexOf("apexGroup_")==0) {
+            var groupIndex:int=int(name.substr(10));
+            if(groupIndex<0 || groupIndex>=apexFormsGroups.length || apexFormsDesiredId!="" || apexFormsNativeState!="bound") return;
+            var group:Object=apexFormsGroups[groupIndex];
+            if(group.indices.length>1 || group.family=="imaginary_friend") {
+               apexFormsVariantFamily=String(group.family);apexFormsPage=0;apexFormsSignature="";
+            } else if(apexFormsOwners[int(group.indices[0])].id!=apexFormsSelectedId)
+               apexFormsNativeIntent=apexFormsOwners[int(group.indices[0])];
+            return;
+         }
          if(name.indexOf("apexOwned_")==0) {
             var ownerIndex:int=int(name.substr(10));
             if(ownerIndex<0 || ownerIndex>=apexFormsOwners.length || apexFormsDesiredId!="" || apexFormsNativeState!="bound") return;
-            apexFormsNativeIntent=apexFormsOwners[ownerIndex];return;
+            if(apexFormsOwners[ownerIndex].id!=apexFormsSelectedId) apexFormsNativeIntent=apexFormsOwners[ownerIndex];
+            apexFormsVariantFamily="";apexFormsPage=0;apexFormsSignature="";return;
          }
 
          var target:String="";
@@ -320,6 +337,7 @@
             cross_kind_navigation:apexFormsNativeState=="bound",selected_owner_id:apexFormsSelectedId,owner_count:apexFormsOwners.length,
             native_owner_state:apexFormsNativeState,desired_owner_id:apexFormsDesiredId,form_conversion_called:false,gesture_pending:apexFormsIntent!=null,
             selection_result:ApexClone(apexFormsResult),message:apexFormsMessage,
+            life_states:ApexClone(apexFormsGroups),variant_family:apexFormsVariantFamily,
             layout:{scale:apexFormsScale,locked:apexFormsLocked,collapsed:apexFormsCollapsed,dragging:apexFormsDragging,
                x:apexFormsPosition==null ? null : apexFormsPosition.x,y:apexFormsPosition==null ? null : apexFormsPosition.y}};
       }
@@ -343,6 +361,7 @@
          else if(action=="next") apexFormsPage=Math.min(Math.ceil(apexFormsOwners.length/21)-1,apexFormsPage+1);
          else if(action=="lock") apexFormsLocked=!apexFormsLocked;
          else if(action=="collapse") apexFormsCollapsed=!apexFormsCollapsed;
+         else if(action=="forms") { apexFormsVariantFamily="";apexFormsPage=0; }
          else if(action=="reset") { apexFormsPosition=null; apexFormsScale=1; apexFormsCollapsed=false; apexFormsLocked=false; }
          else return;
          apexFormsSignature="";
@@ -432,18 +451,31 @@
          }
          if(apexFormsCatalog==null || apexFormsCatalog.sim_id!=apexBoundSim) {
             apexFormsCatalog={sim_id:apexBoundSim,icons:{}};
-            for each(var kind:int in [2,4,8,16,32,64]) {
+            for each(var kind:int in [1,2,4,8,16,32,64]) {
                var iconData:Object=ApexClone(CommunicationManager.CallGameService("GetOccultIcon",kind));
                if(iconData && iconData.icon && iconData.icon.instance is String) apexFormsCatalog.icons[String(kind)]=String(iconData.icon.instance);
             }
          }
-         var count:int=apexFormsOwners.length;var columns:int=Math.min(8,count);
+         ApexFormsGroupCatalog();
+         var entries:Array=[];
+         if(apexFormsVariantFamily!="") {
+            for each(var variantGroup:Object in apexFormsGroups) if(variantGroup.family==apexFormsVariantFamily)
+               entries=variantGroup.indices.concat();
+            // Real is the existing shared Human, never another IF Human owner.
+            if(apexFormsVariantFamily=="imaginary_friend") for(var h:int=0;h<apexFormsOwners.length;++h)
+               if(apexFormsOwners[h].form_id=="human/shared") entries.push(h);
+            if(entries.length==0) apexFormsVariantFamily="";
+         }
+         var count:int=apexFormsVariantFamily==""?apexFormsGroups.length:entries.length;
+         var columns:int=Math.min(8,count);
          apexFormsPage=Math.max(0,Math.min(apexFormsPage,Math.ceil(count/21)-1));
          var start:int=apexFormsPage*21;var end:int=Math.min(count,start+21);
          var rows:int=Math.ceil((end-start)/columns);
-         apexFormsPanelWidth=Math.max(350,columns*44+8);apexFormsPanelHeight=rows*44+62;
+         var cellWidth:int=apexFormsVariantFamily==""?44:82;
+         var cellHeight:int=apexFormsVariantFamily==""?44:70;
+         apexFormsPanelWidth=Math.max(350,columns*cellWidth+8);apexFormsPanelHeight=rows*cellHeight+62;
          var signature:String=apexBoundSim+":"+apexFormsSelectedId+":"+apexFormsNativeState+":"+apexFormsDesiredId+":"+
-            count+":"+apexFormsPage+":"+busy+":"+apexFormsScale+":"+apexFormsLocked+":"+apexFormsCollapsed;
+            count+":"+apexFormsPage+":"+busy+":"+apexFormsScale+":"+apexFormsLocked+":"+apexFormsCollapsed+":"+apexFormsVariantFamily;
          if(signature==apexFormsSignature) return;apexFormsSignature=signature;
          if(apexFormsRoot==null) {
             apexFormsRoot=new flash.display.Sprite();apexFormsRoot.name="ApexHybridForms";
@@ -451,6 +483,7 @@
             apexFormsRoot.addEventListener(flash.events.MouseEvent.MOUSE_DOWN,ApexFormsDragStart,false,0,true);
             apexFormsRoot.addEventListener(flash.events.MouseEvent.DOUBLE_CLICK,ApexFormsResetPosition,false,0,true);addChild(apexFormsRoot);
          }
+         ApexFormsClearTooltips();
          while(apexFormsRoot.numChildren>0) apexFormsRoot.removeChildAt(0);
          apexFormsRoot.graphics.clear();apexFormsRoot.graphics.beginFill(0xf4fbff,0.97);
          apexFormsRoot.graphics.lineStyle(2,0xffffff,0.95);
@@ -459,7 +492,11 @@
          handle.graphics.beginFill(0xdceefa,1);handle.graphics.drawRoundRect(-7,-5,apexFormsPanelWidth+2,30,14,14);handle.graphics.endFill();apexFormsRoot.addChild(handle);
          var selectedLabel:String="Forms";
          for each(var selectedOwner:Object in apexFormsOwners) if(selectedOwner.id==apexFormsSelectedId) selectedLabel=String(selectedOwner.label);
-         ApexFormsText(handle,selectedLabel,12,2,apexFormsPanelWidth-210,12,0x2765a2);
+         if(apexFormsVariantFamily!="") for each(var titleGroup:Object in apexFormsGroups)
+            if(titleGroup.family==apexFormsVariantFamily) selectedLabel=String(titleGroup.label);
+         ApexFormsText(handle,selectedLabel,apexFormsVariantFamily!=""?76:12,2,
+            apexFormsPanelWidth-(apexFormsVariantFamily!=""?274:210),12,0x2765a2);
+         if(apexFormsVariantFamily!="") ApexFormsToolbar("forms","< Forms",2,66);
          if(count>21) { ApexFormsToolbar("previous","<",172);ApexFormsToolbar("next",">",199); }
          ApexFormsToolbar("smaller","-",apexFormsPanelWidth-190);ApexFormsToolbar("larger","+",apexFormsPanelWidth-163);
          ApexFormsToolbar("lock",apexFormsLocked?"Unlock":"Lock",apexFormsPanelWidth-134,49);
@@ -467,9 +504,23 @@
          ApexFormsPlace();if(apexFormsCollapsed) return;
          var nativeNames:Object={"1":"Human","2":"Alien","4":"Vampire","8":"Mermaid","16":"Spellcaster","32":"Werewolf","64":"Fairy"};
          for(var i:int=start;i<end;++i) {
-            var owner:Object=apexFormsOwners[i];
-            ApexFormsCompactButton(owner,i,((i-start)%columns)*44,32+Math.floor((i-start)/columns)*44,
-               !busy && apexFormsNativeState=="bound");
+            var owner:Object;
+            var button:flash.display.Sprite;
+            if(apexFormsVariantFamily=="") {
+               var familyGroup:Object=apexFormsGroups[i];
+               owner=ApexClone(apexFormsOwners[int(familyGroup.indices[0])]);
+               owner.id=familyGroup.selected?apexFormsSelectedId:"";
+               owner.icon=familyGroup.icon;owner.label=familyGroup.label;owner.description=familyGroup.description;
+               button=ApexFormsCompactButton(owner,i,((i-start)%columns)*44,32+Math.floor((i-start)/columns)*44,!busy);
+               button.name="apexGroup_"+i;
+               if(familyGroup.indices.length>1 || familyGroup.family=="imaginary_friend")
+                  ApexFormsText(button,"\u25be",28,24,10,9,0x2765a2);
+            } else {
+               var exactIndex:int=int(entries[i]);owner=ApexClone(apexFormsOwners[exactIndex]);
+               owner.label=owner.form_id=="human/shared"?"Human / Real":owner.variant_label;
+               owner.description=owner.label+". "+owner.description;
+               button=ApexFormsCompactButton(owner,exactIndex,((i-start)%columns)*cellWidth,32+Math.floor((i-start)/columns)*cellHeight,!busy,true);
+            }
          }
          var footer:String=apexFormsNativeState=="unresolved" ? "Form view unresolved; further switching is blocked." : apexFormsDesiredId!="" ? "Opening "+apexFormsDesiredId : apexFormsNativeState=="bound" ? "Each form keeps its own edits. Copy or link only when you choose." :
             apexFormsNativeState=="unresolved" ? "Form view unresolved; further switching is blocked." : "Initializing independent form owners...";
@@ -477,26 +528,74 @@
          ApexFormsText(apexFormsRoot,footer,2,apexFormsPanelHeight-23,apexFormsPanelWidth-8,10,0x55778f);
       }
 
-      private function ApexFormsCompactButton(owner:Object,index:int,x:Number,y:Number,enabled:Boolean) : void
+      private function ApexFormsCompactButton(owner:Object,index:int,x:Number,y:Number,enabled:Boolean,wide:Boolean=false) : flash.display.Sprite
       {
          var selected:Boolean=owner.id==apexFormsSelectedId && apexFormsNativeState=="bound";
          var button:flash.display.Sprite=new flash.display.Sprite();
          button.name="apexOwned_"+index;button.x=x;button.y=y;
          button.graphics.beginFill(selected?0xe8f8c9:0xffffff,1);
          button.graphics.lineStyle(selected?2:1,selected?0x7cb737:0xb4cee1,1);
-         button.graphics.drawRoundRect(0,0,40,38,10,10);button.graphics.endFill();
-         button.mouseChildren=false;button.mouseEnabled=enabled && !selected;button.buttonMode=button.mouseEnabled;
+         button.graphics.drawRoundRect(0,0,wide?76:40,wide?64:38,10,10);button.graphics.endFill();
+         // Selected and temporarily busy controls still explain themselves on hover.
+         button.mouseChildren=false;button.mouseEnabled=true;button.buttonMode=enabled;
          apexFormsRoot.addChild(button);
-         var icon:String=int(owner.kind)!=1 && apexFormsCatalog.icons.hasOwnProperty(String(owner.kind)) ?
-            String(apexFormsCatalog.icons[String(owner.kind)]):"";
+         var icon:String=owner.icon is String?String(owner.icon):"";
+         var nativeFamilies:Object={human:1,alien:2,vampire:4,mermaid:8,witch:16,werewolf:32,fairy:64};
+         if(icon=="" && nativeFamilies.hasOwnProperty(String(owner.family)) &&
+            apexFormsCatalog.icons.hasOwnProperty(String(nativeFamilies[String(owner.family)])))
+            icon=String(apexFormsCatalog.icons[String(nativeFamilies[String(owner.family)])]);
          if(icon!="") {
-            var image:Object=new IconComponentResource();image.x=6;image.y=5;image.mouseEnabled=false;
+            var image:Object=new IconComponentResource();image.x=wide?24:6;image.y=5;image.mouseEnabled=false;
             button.addChild(image);image.ResetImageSize(28,28);image.LoadImage(icon);
          } else {
-            // Distinguish special Human-genus forms rather than using another
-            // occult's artwork. Exact installed special-form icons remain open.
+            // Unknown/mod-added identities retain their name, never borrowed art.
             var initials:String=String(owner.label).substr(0,3).toUpperCase();
             if(String(owner.form_id).indexOf("imaginary_friend/")==0) initials="IF";
             ApexFormsText(button,initials,3,11,37,11,0x2765a2);
          }
+         if(wide) {
+            var caption:flash.text.TextField=ApexFormsText(button,String(owner.label),3,36,70,10,0x2765a2);
+            caption.wordWrap=true;caption.height=27;
+            var captionFormat:flash.text.TextFormat=caption.defaultTextFormat;captionFormat.align="center";caption.setTextFormat(captionFormat);
+         }
+         ApexFormsTooltip(button,String(owner.label)+"\n"+String(owner.description));
+         return button;
+      }
+
+      private function ApexFormsGroupCatalog() : void
+      {
+         var key:String=apexBoundSim+":"+apexFormsOwners.length+":"+apexFormsSelectedId;
+         if(key==apexFormsGroupKey && apexFormsGroups.length>0) return;
+         apexFormsGroups=[];var byFamily:Object={};
+         var nativeFamilies:Object={human:1,alien:2,vampire:4,mermaid:8,witch:16,werewolf:32,fairy:64};
+         var labels:Object={human:"Human",alien:"Alien",vampire:"Vampire",mermaid:"Mermaid",witch:"Spellcaster",
+            werewolf:"Werewolf",fairy:"Fairy",ghost:"Ghost",plantsim:"PlantSim",servo:"Servo / Robot",reaper:"Grim Reaper",
+            skeleton:"Skeleton / Bonehilda",scarecrow:"Scarecrow / Patchy",imaginary_friend:"Imaginary Friend"};
+         for(var i:int=0;i<apexFormsOwners.length;++i) {
+            var owner:Object=apexFormsOwners[i];var family:String=String(owner.family);
+            if(!byFamily.hasOwnProperty(family)) {
+               var icon:String=String(owner.family_icon);
+               if(icon=="" && nativeFamilies.hasOwnProperty(family) && apexFormsCatalog.icons.hasOwnProperty(String(nativeFamilies[family])))
+                  icon=String(apexFormsCatalog.icons[String(nativeFamilies[family])]);
+               var group:Object={family:family,label:labels.hasOwnProperty(family)?labels[family]:owner.label,
+                  description:owner.description,icon:icon,indices:[],variants:[],selected:false};
+               byFamily[family]=group;apexFormsGroups.push(group);
+            }
+            group=byFamily[family];group.indices.push(i);group.selected=group.selected || owner.id==apexFormsSelectedId;
+            group.variants.push({owner_id:owner.id,label:owner.variant_label,icon:owner.icon,description:owner.description});
+         }
+         apexFormsGroupKey=key;
+      }
+
+      private function ApexFormsTooltip(button:flash.display.Sprite,text:String) : void
+      {
+         var tooltip:TooltipObject=new TooltipObject(button);
+         tooltip.Initialize({text:text,maxwidth:300},250);
+         apexFormsTooltips.push(tooltip);
+      }
+
+      private function ApexFormsClearTooltips() : void
+      {
+         for each(var tooltip:TooltipObject in apexFormsTooltips) tooltip.Shutdown();
+         apexFormsTooltips=[];
       }

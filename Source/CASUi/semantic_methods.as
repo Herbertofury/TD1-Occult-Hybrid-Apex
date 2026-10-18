@@ -333,9 +333,12 @@
                         throw new Error("Invalid native owner catalog page size");
                      for each(var catalogRow:String in catalogRows) {
                         var ownerFields:Array=catalogRow.split(",");
-                        if(ownerFields.length!=5 || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[0]) ||
+                        if(ownerFields.length!=10 || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[0]) ||
                            !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[3]) ||
                            String(ownerFields[4]).length>1024 ||
+                           !/^[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[5]) ||
+                           !/^(|[1-9][0-9]{0,19})$/.test(ownerFields[6]) || !/^(|[1-9][0-9]{0,19})$/.test(ownerFields[7]) ||
+                           String(ownerFields[8]).length>4096 || String(ownerFields[9]).length>1024 ||
                            !/^[0-9]+$/.test(ownerFields[1]) || !/^[0-9]+$/.test(ownerFields[2])) throw new Error("Invalid native owner button");
                         var ownerKind:int=int(ownerFields[1]);var ownerToken:uint=uint(ownerFields[2]);
                         if(ownerKind<1 || ownerKind>64 || (ownerKind & (ownerKind-1))!=0 || ownerToken<0x20000000 || ownerToken>0x2fffffff)
@@ -343,8 +346,13 @@
                         for each(var oldOwner:Object in apexFormsOwners) if(oldOwner.id==ownerFields[0]) throw new Error("Duplicate native owner identity");
                         var ownerLabel:String=decodeURIComponent(String(ownerFields[4]));
                         if(ownerLabel.length<1 || ownerLabel.length>192) throw new Error("Invalid form display name");
+                        var ownerDescription:String=decodeURIComponent(String(ownerFields[8]));
+                        var variantLabel:String=decodeURIComponent(String(ownerFields[9]));
+                        if(ownerDescription.length<1 || ownerDescription.length>768 || variantLabel.length<1 || variantLabel.length>192)
+                           throw new Error("Invalid form description or variant name");
                         apexFormsOwners.push({id:String(ownerFields[0]),kind:ownerKind,token:ownerToken,
-                           form_id:String(ownerFields[3]),label:ownerLabel});
+                           form_id:String(ownerFields[3]),label:ownerLabel,family:String(ownerFields[5]),
+                           icon:String(ownerFields[6]),family_icon:String(ownerFields[7]),description:ownerDescription,variant_label:variantLabel});
                      }
                      apexFormsSignature="";apexAwaiting="";
                   } else if(payload.indexOf("OWNERSTATE|")==0) {
@@ -1049,6 +1057,17 @@
             // the staged existing owner. It never calls the kind converter.
             CommunicationManager.CallGameService("SetSimOccult",index); return;
          }
+         if(operation=="form-menu") {
+            if(!/^[a-z0-9_][a-z0-9_-]{0,63}$/.test(value) || apexFormsRoot==null || apexFormsDragging ||
+               apexFormsDesiredId!="" || apexFormsNativeIntent!=null || apexFormsNativeState!="bound")
+               throw new Error("Life-state menu is not ready for browsing");
+            ApexFormsGroupCatalog();var foundFamily:Boolean=value=="all";
+            for each(var menuGroup:Object in apexFormsGroups) if(menuGroup.family==value) foundFamily=true;
+            if(!foundFamily) throw new Error("Life-state family is absent from this Sim's captured forms");
+            context.control={operation:operation};reply.mutation_started=true;
+            apexFormsVariantFamily=value=="all"?"":value;apexFormsPage=0;apexFormsCollapsed=false;apexFormsSignature="";
+            return;
+         }
          if(operation=="workspace") {
             if(parts.length!=5 || !/^(0|1)(\.[0-9]+)?$/.test(String(parts[0])) ||
                !/^(0|1)(\.[0-9]+)?$/.test(String(parts[1])) ||
@@ -1368,6 +1387,10 @@
       private function ApexControlResult(operation:String,state:int,category:int,index:int,value:String,context:Object,client:Object) : Object
       {
          if(operation=="form-owner-select") return {operation:operation,owner_id:String(context.owner_id)};
+         if(operation=="form-menu") {
+            var menu:Object=ApexFormsStatus();
+            return {operation:operation,life_states:menu.life_states,variant_family:menu.variant_family,appearance_written:false};
+         }
          if(operation=="workspace") {
             var workspace:Object=ApexFormsStatus();
             return {operation:operation,layout:workspace.layout,visible:workspace.visible,appearance_written:false,before:context.control.before};
@@ -1849,7 +1872,7 @@
                   operation=="remove" || operation=="layers" || operation=="layer-add" || operation=="layer-remove" ||
                   operation=="layer-move" || operation=="swatches" || operation=="swatch" || operation=="physique" ||
                   operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
-                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" ||
+                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" ||
                   operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
                   operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view" || operation=="form-owner-select" || operation=="detail-status" ||
                   operation=="detail-mode" || operation=="filters" || operation=="filter-clear")

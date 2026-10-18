@@ -417,6 +417,27 @@ class SaveObserverTests(SaveFixture):
         self.assertEqual(self.calls, ['test_snapshot', 'test_save'])
         self.assertEqual(sum(row['action'] == 'test_save' for row in self.submissions), 1)
 
+    def test_slow_household_capture_uses_remaining_budget_and_only_polls_the_original_save(self):
+        captured=[];polls=[]
+        def handler(action, _value, rid):
+            if action=='test_save':
+                captured.append(rid)
+                return dict(ok=False,outcome='unresolved',request_id=rid)
+        def transport(path, query):
+            if path!='/api/requests/status':return None
+            self.assertEqual(query,dict(request_id=captured[0]));polls.append(query['request_id'])
+            if len(polls)<10:return dict(state='running')
+            self.slot.write_bytes(b'one slow native household save');self.slot_proto.slot_id=2
+            return dict(state='completed',result=dict(ok=True,save_submitted=True,slot_id=2,
+                save_guid=GUID,household_id=HOUSEHOLD,sim_id=SIM))
+        self.handler=handler;self.transport_handler=transport
+        result,proof=self.run_observer()
+        self.assertTrue(result['ok'],proof.get('error'))
+        self.assertEqual(len(captured),1);self.assertEqual(len(polls),10)
+        self.assertEqual(self.calls.count('test_save'),1)
+        self.assertEqual(sum(row['action']=='test_save' for row in self.submissions),1)
+        self.assertGreater(sum(row['action']=='observe-owner:test_save' for row in proof['steps']),1)
+
     def test_unchanged_file_after_successful_scheduling_is_unresolved_and_never_resubmitted(self):
         def handler(action, _value, rid):
             if action == 'test_save':

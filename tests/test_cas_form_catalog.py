@@ -56,6 +56,36 @@ class CatalogTests(unittest.TestCase):
         self.assertIn('reaper/reaper_unrobed', ids)
         self.assertNotIn('werewolf/werewolf_human', ids)
 
+    def test_special_artwork_follows_exact_family_not_human_rendering_kind(self):
+        forms = catalog.project(rows(), 'native/1', 'ghost/ghost_ghost')['forms']
+        for family, resource in catalog.ARTWORK.items():
+            entries = [r for r in forms if r['family'] == family]
+            self.assertTrue(entries, family)
+            for entry in entries:
+                self.assertEqual(entry['family_icon'], str(int(resource, 16)))
+                self.assertTrue(entry['description'])
+                self.assertEqual(entry['native_kind'], 1)
+        ghost = next(r for r in forms if r['family'] == 'ghost')
+        self.assertNotEqual(ghost['icon'], next(r for r in forms if r['family'] == 'human')['icon'])
+
+    def test_imaginary_friend_variants_share_menu_family_but_never_owner_or_image(self):
+        original = rows()
+        for variant in ('lil_monster', 'spooky_kid', 'wild_child'):
+            original.append(dict(owner_id='imaginary_friend/imaginary_friend_'+variant,
+                native_kind=1, ui_token=0x20000000+len(original)))
+        before = copy.deepcopy(original)
+        value = catalog.project(original, 'native/1', 'imaginary_friend/imaginary_friend_spooky_kid')
+        variants = [r for r in value['forms'] if r['family'] == 'imaginary_friend']
+        self.assertEqual(len(variants), 4)
+        self.assertEqual(len({r['owner_id'] for r in variants}), 4)
+        self.assertEqual(len({r['ui_token'] for r in variants}), 4)
+        self.assertEqual(len({r['icon'] for r in variants}), 4)
+        self.assertEqual(len({r['family_icon'] for r in variants}), 1)
+        self.assertEqual(original, before)
+        self.assertEqual(value['selected_form_id'], 'imaginary_friend/imaginary_friend_spooky_kid')
+        self.assertEqual(sum(r['family']=='human' for r in value['forms']), 1)
+        self.assertIn('imaginary_friend/imaginary_friend_real', {r['owner_id'] for r in value['retained_looks']})
+
     def test_selected_named_primary_retains_exact_binding_without_copy(self):
         value = catalog.project(rows(), 'native/1', 'vampire/vampire_dark')
         self.assertEqual(next(r for r in value['forms'] if r['form_id']=='vampire/dark')['owner_id'],

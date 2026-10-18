@@ -582,8 +582,10 @@ def owner_metadata(token, backend):
             page=rows[offset:offset+32];peer['owner_catalog_offset']+=len(page)
             from urllib.parse import quote
             return 'OWNERS|{}|{}|'.format(offset,len(rows))+';'.join(
-                '{},{},{},{},{}'.format(row['owner_id'],row['native_kind'],row['ui_token'],
-                    row['form_id'],quote(row['label'],safe='')) for row in page)
+                '{},{},{},{},{},{},{},{},{},{}'.format(row['owner_id'],row['native_kind'],row['ui_token'],
+                    row['form_id'],quote(row['label'],safe=''),row['family'],
+                    row['icon'],row['family_icon'],quote(row['description'],safe=''),
+                    quote(row['label'].split(' \u00b7 ',1)[-1],safe='')) for row in page)
     status = call({'operation':'view-status'})
     if status.get('available') is not True or status.get('sim_id') != sim_id: return None
     generation = status.get('generation')

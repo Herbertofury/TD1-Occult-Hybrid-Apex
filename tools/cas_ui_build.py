@@ -175,7 +175,7 @@ def inject(source, methods):
         raise ValueError('Installed CAS initializer does not match the inspected contract.')
     source = source.replace(anchor, anchor + '\n         ApexInitialize();')
     # Resolve external QNames at compilation, avoiding dotted runtime lookups.
-    source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import flash.utils.describeType;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
+    source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
     if end < 0: raise ValueError('CAS class end is missing.')

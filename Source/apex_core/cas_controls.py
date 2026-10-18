@@ -14,12 +14,13 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
 PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'))
 SCHEMAS = {
+    'form-menu': {'operation', 'family'},
     'form-owner-select': {'operation','owner_id','native_kind','owned_mask','household_id','native_session','expected_layer','test_token'},
     'workspace': {'operation', 'x', 'y', 'scale', 'locked', 'collapsed'},
     'occults': {'operation'},
@@ -75,6 +76,12 @@ def wire(request, panel):
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
+    if op == 'form-menu':
+        import re
+        family = request['family']
+        if not isinstance(family, str) or re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}', family) is None:
+            raise ValueError('Choose all or one exact returned life-state family.')
+        return 0, 0, 0, family
     if op == 'form-owner-select':
         import re
         owner = request['owner_id']
@@ -184,6 +191,17 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
+    if op == 'form-menu':
+        family = '' if request['family'] == 'all' else request['family']
+        rows = control.get('life_states')
+        if (control.get('appearance_written') is not False or control.get('variant_family') != family or
+                not isinstance(rows, list) or not 1 <= len(rows) <= 2048 or
+                any(not isinstance(row, dict) or not isinstance(row.get('family'), str) or
+                    not isinstance(row.get('variants'), list) or not row['variants'] for row in rows) or
+                len({row['family'] for row in rows}) != len(rows) or
+                family and family not in {row['family'] for row in rows}):
+            raise PostconditionMismatch('The exact life-state menu did not read back; no appearance selection is authorized.')
+        return
     if op == 'form-owner-select':
         native = client.get('sim', {})
         context = client.get('native_context')

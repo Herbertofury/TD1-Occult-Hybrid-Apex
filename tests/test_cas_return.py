@@ -1249,6 +1249,27 @@ class CasReturnTests(unittest.TestCase):
                 self.assertFalse(proof['pause_rebound_attempted'])
                 self.assertEqual(pauses[0], 1)
 
+    def test_native_overlay_status_keeps_its_bounded_renderer_budget_before_accept(self):
+        ordinary=self.request;native_calls=[]
+        def request(state,action,**kwargs):
+            if action=='overlay_status':
+                self.calls.append((action,None))
+                kwargs['transport']('/api/bridge')
+                return kwargs['transport']('/api/native',dict(action=action,request_id=uuid.uuid4().hex))
+            return ordinary(state,action,**kwargs)
+        self.request=request
+        def transport(path,query=None,timeout=12):
+            if path=='/api/native':
+                self.assertEqual(timeout,12)
+                native_calls.append(query)
+                return dict(ok=True,visible=False,request_id=query['request_id'],request_state='completed')
+            return self.transport(path,query,timeout)
+        result=cas_return.observe(self.state,self.output,self.identity,self.request,SIM,HOUSEHOLD,
+            seconds=30,transport=transport,alive=lambda _pid:self.alive,monotonic=lambda:self.clock,pause=self.tick)
+        self.assertTrue(result['ok'],result.get('message'))
+        self.assertEqual(len(native_calls),1)
+        self.assertEqual([json.loads(value)['operation'] for action,value in self.calls if action=='cas_ui_request'],['status','accept'])
+
     def test_resume_acknowledged_intent_observes_existing_accept_without_replay(self):
         self.detach = False
         first, prior = self.run_observer(seconds=2)

@@ -208,7 +208,10 @@ def _observe(state, output, identity, request, sim_id, household_id, seconds=60,
         return result
 
     def pinned_transport(path, query=None, timeout=12):
-        timeout = min(timeout, 2, remaining())
+        # Native visibility/status controls can wait for a renderer-owned
+        # boundary. Keep their normal bounded call budget; a two-second owner
+        # polling interval is not a native completion deadline.
+        timeout = min(timeout, 12 if path == '/api/native' else 2, remaining())
         if path in ('/api/command', '/api/native') and isinstance(query, dict):
             proof['owner_requests'].append({'action': query.get('action'), 'request_id': query.get('request_id')})
             if query.get('action') == 'test_cas_return_observed':

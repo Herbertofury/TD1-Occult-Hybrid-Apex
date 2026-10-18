@@ -132,6 +132,43 @@ class CasCommitPlanTests(unittest.TestCase):
         return self.tx.prepare(self.tx.pending_sha256, self.tx.raw_return_sha256,
                                dispositions, hair_targets=hair_targets)
 
+    def test_authenticated_cas_choices_preserve_actual_wrappers_and_apply_only_explicit_decisions(self):
+        def choices(raw):
+            self.assertEqual(self.persisted['state'],'native-raw-observed')
+            self.assertEqual(raw,self.original['original_owners'])
+            raw['stored']['1']['physique']=appearance.encode('CAS Human')
+            raw['stored']['2']['physique']=appearance.encode('CAS Alien')
+            return raw
+        self.tx.observe_return(appearance_reader=choices)
+        self.assertEqual(self.persisted['native_raw_return'],self.original['original_owners'])
+        self.assertEqual(self.persisted['pre_write_owners'],self.original['original_owners'])
+        receipt=self.prepare([(1,'restore-original'),(2,'accept-returned')])
+        self.tx.commit(receipt['plan_sha256'])
+        self.assertEqual(self.forms[1].physique,'original-1')
+        self.assertEqual(self.forms[2].physique,'CAS Alien')
+        self.assertEqual(self.sim.physique,'original-64')
+
+    def test_invalid_graph_choices_keep_durable_raw_evidence_without_native_writes(self):
+        def foreign(raw):
+            raw['identity']['sim_id']='11'
+            return raw
+        with self.assertRaisesRegex(plan.RecoveryRequired,'identity'):
+            self.tx.observe_return(appearance_reader=foreign)
+        self.assertEqual(self.persisted['native_raw_return'],self.original['original_owners'])
+        self.assertEqual(self.persisted['state'],'recovery-required')
+        self.assertEqual(self.writes,[])
+
+    def test_concurrent_live_change_blocks_graph_choice_commit_without_replay(self):
+        def choices(raw):
+            raw['stored']['2']['physique']=appearance.encode('CAS Alien')
+            return raw
+        self.tx.observe_return(appearance_reader=choices)
+        receipt=self.prepare([(2,'accept-returned')])
+        self.edit(4,value='Concurrent Live edit')
+        with self.assertRaisesRegex(ValueError,'changed after observation'):
+            self.tx.commit(receipt['plan_sha256'])
+        self.assertEqual(self.writes,[])
+
     def test_simultaneous_fairy_and_human_edits_survive_all_owner_commit(self):
         self.edit(64)
         self.edit(1)

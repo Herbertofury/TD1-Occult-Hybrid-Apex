@@ -17,6 +17,8 @@ from source_manifest import sha256, write_json
 
 SIM_TIME_SOURCE = 'services.time_service().sim_now'
 ZONE_CANCELLED_BEFORE_EXECUTION = 'Zone changed before execution; submit against the new zone explicitly.'
+WAIT_CANCELLED_BEFORE_EXECUTION = 'Wait expired; command cancelled before execution.'
+READINESS_ACTIONS = ('cas_ui_diagnostics', 'cas_ui_result', 'test_snapshot')
 
 
 def decimal_id(value, zero=False):
@@ -32,11 +34,51 @@ def hash_id(value):
     return isinstance(value, str) and len(value) == 64 and all(char in '0123456789abcdef' for char in value)
 
 
-def cancelled_snapshot(result):
+def cancelled_read(result):
     return (isinstance(result, dict) and
             set(result) == {'ok', 'request_state', 'message', 'request_id'} and
             result.get('ok') is False and result.get('request_state') == 'cancelled' and
-            result.get('message') == ZONE_CANCELLED_BEFORE_EXECUTION and uuid_id(result.get('request_id')))
+            result.get('message') in (ZONE_CANCELLED_BEFORE_EXECUTION, WAIT_CANCELLED_BEFORE_EXECUTION) and
+            uuid_id(result.get('request_id')))
+
+
+def cancelled_snapshot(result):
+    return cancelled_read(result) and result['message'] == ZONE_CANCELLED_BEFORE_EXECUTION
+
+
+def resume_intent(path, digest, profile, original, identity, journal, sim_id, household_id, settle_ticks):
+    """Resume observation of an acknowledged intent, never its native action."""
+    if path is None and digest is None:
+        return None
+    from cas_bank_cli import _intent_file
+    prior = _intent_file(path, digest, profile, original, limit=16 * 1024 * 1024)
+    if (not isinstance(prior, dict) or prior.get('operation') != 'semantic-cas-return-to-live' or
+            prior.get('ok') is not False or prior.get('outcome') != 'unresolved' or
+            not isinstance(prior.get('identity'), dict) or
+            any(prior['identity'].get(key) != identity.get(key)
+                for key in ('pid', 'test_token', 'script_sha256', 'profile', 'build_version')) or
+            prior.get('inputs') != journal['artifacts'] or
+            prior.get('sim_id') != sim_id or prior.get('household_id') != household_id or
+            prior.get('settle_ticks') != settle_ticks or prior.get('accept_submitted') is not True or
+            prior.get('accept_submission_attempted') is not True or prior.get('accept_intent_observed') is not True or
+            not uuid_id(prior.get('cas_request_id')) or
+            prior.get('native_commit_outcome') not in ('unobserved', 'unresolved') or
+            any(prior.get(key) for key in ('play_attempted', 'form_bank_finish_attempted', 'cas_bank_observe_attempted',
+                'return_metadata_completed', 'return_metadata_observations', 'pause_observations',
+                'process_exit_verified', 'clock_progress_verified', 'live_context_verified'))):
+        raise ValueError('Resume requires the exact acknowledged CAS intent before any Live settling or bank action.')
+    intent = prior.get('accept_intent')
+    if (not isinstance(intent, dict) or intent.get('ok') is not True or
+            intent.get('cas_request_id') != prior['cas_request_id'] or
+            intent.get('lifecycle_stage') != 'accept-intent' or intent.get('commit_submitted') is not False or
+            intent.get('ui_transition_verified', False) is not False):
+        raise ValueError('Retained CAS proof lacks its exact acknowledged native accept intent.')
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
+    from apex_core.cas_ui import validate_client
+    validate_client(intent.get('client'), sim_id, {'operation': 'accept', 'household_id': household_id})
+    if intent['client']['sim']['householdId'] != household_id:
+        raise ValueError('Retained CAS intent belongs to another household.')
+    return prior
 
 
 def native_live_context(snapshot, sim_id, household_id):
@@ -65,15 +107,17 @@ def live_snapshot(snapshot, sim_id, household_id):
 
 
 def observe(state, output, identity, request, sim_id, household_id, seconds=60, settle_ticks=30,
-            transport=None, alive=cas_transition.process_alive, monotonic=time.monotonic, pause=time.sleep):
+            transport=None, alive=cas_transition.process_alive, monotonic=time.monotonic, pause=time.sleep,
+            resume_proof=None, resume_sha256=None):
     from cli_identity_cache import session
     with session(state):
         return _observe(state, output, identity, request, sim_id, household_id, seconds, settle_ticks,
-                        transport, alive, monotonic, pause)
+                        transport, alive, monotonic, pause, resume_proof, resume_sha256)
 
 
 def _observe(state, output, identity, request, sim_id, household_id, seconds=60, settle_ticks=30,
-             transport=None, alive=cas_transition.process_alive, monotonic=time.monotonic, pause=time.sleep):
+             transport=None, alive=cas_transition.process_alive, monotonic=time.monotonic, pause=time.sleep,
+             resume_proof=None, resume_sha256=None):
     started = monotonic()
     if (type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 120 or
             type(settle_ticks) is not int or not 1 <= settle_ticks <= 6000 or
@@ -88,6 +132,8 @@ def _observe(state, output, identity, request, sim_id, household_id, seconds=60,
         raise ValueError('CAS return identity differs from the exact disposable journal and installed script.')
     if identity.get('profile') is not None and Path(identity['profile']).resolve() != profile:
         raise ValueError('CAS return bridge belongs to a different disposable profile.')
+    resumed = resume_intent(resume_proof, resume_sha256, profile, original, identity, journal,
+                            sim_id, household_id, settle_ticks)
     output = reusable_profile.writable(output)
     if (output.exists() or output.suffix.casefold() != '.json' or not output.parent.is_dir() or output == journal_path or
             any(output == root or root in output.parents for root in (profile, original))):
@@ -119,6 +165,12 @@ def _observe(state, output, identity, request, sim_id, household_id, seconds=60,
              'save_reload_verified': False, 'process_exit_verified': False, 'profile_read_only': True,
              'input_submitted': False, 'no_input_replay': True, 'crash_before': crash_before}
     proof['overlay_suppression'] = {}
+    if resumed is not None:
+        proof.update(cas_request_id=resumed['cas_request_id'], accept_submitted=True,
+                     accept_submission_attempted=True, accept_intent_observed=True,
+                     accept_intent=resumed['accept_intent'], accept_replayed=False,
+                     resumed_from={'proof': str(Path(resume_proof).resolve()), 'sha256': resume_sha256,
+                                   'owner_requests': resumed.get('owner_requests', [])})
     with output.open('x', encoding='utf-8') as stream:
         json.dump(proof, stream, ensure_ascii=False, indent=2)
     play_attempted = pause_attempted = False
@@ -251,22 +303,31 @@ def _observe(state, output, identity, request, sim_id, household_id, seconds=60,
                 result.get('request_state') not in ('completed', 'failed', 'cancelled')):
             result = observe_bank_owner(result)
             record('completed-owner:cas_bank_observe', result)
-        if (action in ('cas_ui_diagnostics', 'cas_ui_result', 'test_snapshot') and
-                result.get('outcome') == 'unresolved' and uuid_id(result.get('request_id'))):
-            # Readiness polling may cross a zone transition. Continue observing
-            # this exact already-submitted owner UUID, never create a replay.
+        while action in READINESS_ACTIONS:
+            # The exact read UUID remains owned until terminal. A zone change
+            # can certify that it never executed; only then submit a fresh read.
             from apex_cli import poll_request
-            result = poll_request(result['request_id'], seconds=min(2, remaining()),
-                                  transport=pinned_transport, monotonic=monotonic,
-                                  pause=lambda value: pause(min(value, remaining())))
-            record('observe-owner:' + action, result)
-        if action == 'test_snapshot' and cancelled_snapshot(result):
-            # A read cancelled before execution may be reobserved once against
-            # the new zone. It never repeats acceptance, Play or a mutation.
+            while (result.get('outcome') == 'unresolved' or
+                   result.get('request_state') in ('pending', 'running', 'unknown')):
+                request_id = result.get('request_id')
+                if not uuid_id(request_id):
+                    raise ValueError('Readiness observation lacks its retained owner UUID.')
+                running(); pinned_transport('/api/bridge')
+                result = poll_request(request_id, seconds=min(2, remaining()),
+                                      transport=pinned_transport, monotonic=monotonic,
+                                      pause=lambda value: pause(min(value, remaining())))
+                if result.get('request_id') != request_id:
+                    raise ValueError('Readiness observation returned a different owner UUID.')
+                record('observe-owner:' + action, result)
+            if not cancelled_read(result):
+                break
             remaining(); running(); pinned_transport('/api/bridge')
-            result = request(state, 'test_snapshot', sim_id=sim_id, value=value,
+            result = request(state, action, sim_id=sim_id, value=value,
                              seconds=min(2, remaining()), transport=pinned_transport)
-            record('reobserve-cancelled-live-snapshot', result)
+            record('reobserve-cancelled-live-snapshot' if action == 'test_snapshot' else
+                   'reobserve-cancelled:' + action, result)
+            if not isinstance(result, dict):
+                raise ValueError('Readiness reobservation requires a typed game-owned result.')
         return result
 
     def wait():
@@ -490,101 +551,114 @@ def _observe(state, output, identity, request, sim_id, household_id, seconds=60,
     try:
         running()
         remaining(reserve=True)
-        overlay.suppress()
-        diagnostic = overlay.wait_idle(seconds=min(3, remaining(reserve=True)), monotonic=monotonic,
-                                       pause=lambda value: pause(min(value, remaining(reserve=True))))
-        if not cas_transition.fresh_peer(diagnostic, sim_id):
-            raise ValueError('No fresh exact-Sim native CAS peer; acceptance was not submitted.')
-        # One read-only native inventory proves the requested household/context
-        # before any commit intent is queued. Its own UUID is also never replayed.
-        preflight = call('cas_ui_request', json.dumps({'operation': 'status'}))
-        preflight_id = preflight.get('cas_request_id')
-        if not uuid_id(preflight_id):
-            raise RuntimeError('Native preflight UUID was not observed; no accept intent submitted.')
-        proof['preflight_request_id'] = preflight_id
-        save()
-        while True:
-            remaining(reserve=True)
-            preflight = call('cas_ui_result', preflight_id)
-            if preflight.get('cas_request_id') != preflight_id:
-                raise ValueError('Native preflight receipt belongs to another request UUID.')
-            if preflight.get('outcome') != 'pending-client':
-                break
-            wait()
-        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
-        from apex_core.cas_ui import validate_client, validate_accept_context
-        if preflight.get('ok') is not True or preflight.get('ui_transition_verified') is not True:
-            raise RuntimeError('Complete native preflight was not acknowledged; no accept intent submitted.')
-        validate_client(preflight.get('client'), sim_id, {'operation': 'status'})
-        if preflight['client']['sim']['householdId'] != household_id:
-            raise ValueError('Requested household differs from native CAS; no accept intent submitted.')
-        if preflight['client']['sim'].get('occultLayer') == 1:
-            native = preflight['client']
-            session = native.get('owner_pair_observation', {}).get('session')
-            if type(session) is not int or session <= 0:
-                raise ValueError('Alternate-layer return lacks its native session; no layer or accept submitted.')
-            navigation = {'operation': 'layer-select', 'household_id': household_id,
-                          'expected_layer': 1, 'target_layer': 0, 'native_session': session}
-            from apex_core.cas_ui import envelope
-            envelope(sim_id, navigation)
-            selected = call('cas_ui_request', json.dumps(navigation))
-            selected_id = selected.get('cas_request_id')
-            proof['primary_layer_navigation'] = {'cas_request_id': selected_id, 'request': navigation}
+        if resumed is None:
+            overlay.suppress()
+            diagnostic = overlay.wait_idle(seconds=min(3, remaining(reserve=True)), monotonic=monotonic,
+                                           pause=lambda value: pause(min(value, remaining(reserve=True))))
+            if not cas_transition.fresh_peer(diagnostic, sim_id):
+                raise ValueError('No fresh exact-Sim native CAS peer; acceptance was not submitted.')
+            # One read-only native inventory proves the requested household/context
+            # before any commit intent is queued. Its own UUID is also never replayed.
+            preflight = call('cas_ui_request', json.dumps({'operation': 'status'}))
+            preflight_id = preflight.get('cas_request_id')
+            if not uuid_id(preflight_id):
+                raise RuntimeError('Native preflight UUID was not observed; no accept intent submitted.')
+            proof['preflight_request_id'] = preflight_id
             save()
-            if not uuid_id(selected_id):
-                raise RuntimeError('Primary-layer navigation UUID was not observed; no accept submitted.')
             while True:
                 remaining(reserve=True)
-                selected = call('cas_ui_result', selected_id)
-                if selected.get('cas_request_id') != selected_id:
-                    raise ValueError('Primary-layer reply has a different UUID; no accept submitted.')
-                if selected.get('outcome') != 'pending-client': break
+                preflight = call('cas_ui_result', preflight_id)
+                if preflight.get('cas_request_id') != preflight_id:
+                    raise ValueError('Native preflight receipt belongs to another request UUID.')
+                if preflight.get('outcome') != 'pending-client':
+                    break
                 wait()
-            proof['primary_layer_navigation']['result'] = selected; save()
-            if selected.get('ok') is not True or selected.get('ui_transition_verified') is not True:
-                raise RuntimeError('Primary-layer navigation remains unresolved; no accept submitted or layer replayed.')
-            validate_client(selected.get('client'), sim_id, {'operation': 'status'})
-            preflight = selected
-        validate_accept_context(preflight['client'])
-        proof['preflight'] = preflight
-        save()
-        proof['accept_submission_attempted'] = True
-        save()
-        submitted = call('cas_ui_request', json.dumps({'operation': 'accept', 'household_id': household_id}))
-        rid = submitted.get('cas_request_id')
-        if not uuid_id(rid):
-            raise RuntimeError('CAS acceptance UUID was not observed; retain its owner request and do not repeat.')
-        proof['cas_request_id'] = rid
-        proof['accept_submitted'] = True
-        save()
-        while True:
-            remaining(reserve=True)
-            result = call('cas_ui_result', rid)
-            if result.get('cas_request_id') != rid:
-                raise ValueError('CAS acceptance receipt belongs to another request UUID.')
-            if result.get('outcome') == 'pending-client':
-                wait()
-                continue
-            if result.get('outcome') == 'accept-rejected':
-                reject_native(result)
-            intent = result
-            if result.get('outcome') == 'accept-unresolved':
-                intent = result.get('accept_intent')
-                proof['native_commit_outcome'] = 'unresolved'
-            if (result.get('outcome') not in ('accept-intent', 'accept-unresolved') or
-                    result.get('ui_transition_verified') is not False or
-                    not isinstance(intent, dict) or intent.get('ok') is not True or
-                    intent.get('lifecycle_stage') != 'accept-intent' or intent.get('commit_submitted') is not False or
-                    intent.get('cas_request_id') != rid or intent.get('ui_transition_verified', False) is not False):
-                proof['outcome'] = 'accept-rejected' if result.get('outcome') == 'accept-rejected' else 'unresolved'
-                raise RuntimeError('A guarded native precommit accept intent was not observed.')
-            validate_client(intent.get('client'), sim_id, {'operation': 'accept', 'household_id': household_id})
-            if intent['client']['sim']['householdId'] != household_id:
-                raise ValueError('Native CAS household changed after the read-only preflight.')
-            proof['accept_intent'] = intent
-            proof['accept_intent_observed'] = True
+            sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
+            from apex_core.cas_ui import validate_client, validate_accept_context
+            if preflight.get('ok') is not True or preflight.get('ui_transition_verified') is not True:
+                raise RuntimeError('Complete native preflight was not acknowledged; no accept intent submitted.')
+            validate_client(preflight.get('client'), sim_id, {'operation': 'status'})
+            if preflight['client']['sim']['householdId'] != household_id:
+                raise ValueError('Requested household differs from native CAS; no accept intent submitted.')
+            if preflight['client']['sim'].get('occultLayer') == 1:
+                native = preflight['client']
+                session = native.get('owner_pair_observation', {}).get('session')
+                if type(session) is not int or session <= 0:
+                    raise ValueError('Alternate-layer return lacks its native session; no layer or accept submitted.')
+                navigation = {'operation': 'layer-select', 'household_id': household_id,
+                              'expected_layer': 1, 'target_layer': 0, 'native_session': session}
+                from apex_core.cas_ui import envelope
+                envelope(sim_id, navigation)
+                selected = call('cas_ui_request', json.dumps(navigation))
+                selected_id = selected.get('cas_request_id')
+                proof['primary_layer_navigation'] = {'cas_request_id': selected_id, 'request': navigation}
+                save()
+                if not uuid_id(selected_id):
+                    raise RuntimeError('Primary-layer navigation UUID was not observed; no accept submitted.')
+                while True:
+                    remaining(reserve=True)
+                    selected = call('cas_ui_result', selected_id)
+                    if selected.get('cas_request_id') != selected_id:
+                        raise ValueError('Primary-layer reply has a different UUID; no accept submitted.')
+                    if selected.get('outcome') != 'pending-client': break
+                    wait()
+                proof['primary_layer_navigation']['result'] = selected; save()
+                if selected.get('ok') is not True or selected.get('ui_transition_verified') is not True:
+                    raise RuntimeError('Primary-layer navigation remains unresolved; no accept submitted or layer replayed.')
+                validate_client(selected.get('client'), sim_id, {'operation': 'status'})
+                preflight = selected
+            validate_accept_context(preflight['client'])
+            proof['preflight'] = preflight
             save()
-            break
+            proof['accept_submission_attempted'] = True
+            save()
+            submitted = call('cas_ui_request', json.dumps({'operation': 'accept', 'household_id': household_id}))
+            rid = submitted.get('cas_request_id')
+            if not uuid_id(rid):
+                raise RuntimeError('CAS acceptance UUID was not observed; retain its owner request and do not repeat.')
+            proof['cas_request_id'] = rid
+            proof['accept_submitted'] = True
+            save()
+            while True:
+                remaining(reserve=True)
+                result = call('cas_ui_result', rid)
+                if result.get('cas_request_id') != rid:
+                    raise ValueError('CAS acceptance receipt belongs to another request UUID.')
+                if result.get('outcome') == 'pending-client':
+                    wait()
+                    continue
+                if result.get('outcome') == 'accept-rejected':
+                    reject_native(result)
+                intent = result
+                if result.get('outcome') == 'accept-unresolved':
+                    intent = result.get('accept_intent')
+                    proof['native_commit_outcome'] = 'unresolved'
+                if (result.get('outcome') not in ('accept-intent', 'accept-unresolved') or
+                        result.get('ui_transition_verified') is not False or
+                        not isinstance(intent, dict) or intent.get('ok') is not True or
+                        intent.get('lifecycle_stage') != 'accept-intent' or intent.get('commit_submitted') is not False or
+                        intent.get('cas_request_id') != rid or intent.get('ui_transition_verified', False) is not False):
+                    proof['outcome'] = 'accept-rejected' if result.get('outcome') == 'accept-rejected' else 'unresolved'
+                    raise RuntimeError('A guarded native precommit accept intent was not observed.')
+                validate_client(intent.get('client'), sim_id, {'operation': 'accept', 'household_id': household_id})
+                if intent['client']['sim']['householdId'] != household_id:
+                    raise ValueError('Native CAS household changed after the read-only preflight.')
+                proof['accept_intent'] = intent
+                proof['accept_intent_observed'] = True
+                save()
+                break
+        else:
+            rid = proof['cas_request_id']
+            pinned_transport('/api/bridge')
+            retained = call('cas_ui_result', rid)
+            if retained.get('cas_request_id') != rid:
+                raise ValueError('Retained CAS intent no longer has its exact native UUID.')
+            if retained.get('outcome') == 'accept-rejected':
+                reject_native(retained)
+            if retained.get('outcome') not in ('accept-intent', 'accept-unresolved'):
+                raise ValueError('Retained CAS intent changed lifecycle; inspect its receipt without replay.')
+            proof['resumed_receipt'] = retained
+            save()
         while True:
             remaining(reserve=True)
             diagnostic = call('cas_ui_diagnostics')

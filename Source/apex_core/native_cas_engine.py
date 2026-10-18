@@ -1,5 +1,6 @@
 """Typed development controls for the native existing-owner selection patch."""
 import os
+import copy
 
 _LAYOUT_SCOPE = None  # Fresh pre-entry representations, never prior appearance values.
 
@@ -415,7 +416,9 @@ def seed_members(backend):
     if result.get('ok') is not True or result.get('selection_enabled') is not True:
         raise ValueError('Complete native owner selection did not activate.')
     verification = _verify_imported_owners(call,result,expected)
-    _LAYOUT_SCOPE=dict(pid=os.getpid(),scope_id=status['scope_id'],owners=layouts,epochs=epochs)
+    _LAYOUT_SCOPE=dict(pid=os.getpid(),scope_id=status['scope_id'],owners=layouts,epochs=epochs,
+        logical_owners={row['sim_id']:dict(logical_owner_ids=row['logical_owner_ids'],human_owner_id=row['human_owner_id'])
+                        for row in result['members']})
     return dict(enabled=True, scope_id=status['scope_id'], members=receipts, existing_appearances_unchanged=True,
                 import_verification=verification)
 
@@ -449,6 +452,10 @@ def returned_owners(backend,sim,epoch):
             rows[0].get('native_view_fault') is not False):
         raise ValueError('Native CAS return has another or unresolved owner graph.')
     member=rows[0];expected={oid:item for (owner_sid,oid),item in scope['owners'].items() if owner_sid==sid}
+    binding=scope['logical_owners'].get(sid)
+    if (not isinstance(binding,dict) or any(member.get(key)!=binding[key]
+            for key in ('logical_owner_ids','human_owner_id'))):
+        raise ValueError('Native CAS logical form bindings changed after their original capture.')
     identity=dict(pid=scope['pid'],scope_id=scope['scope_id'],sim_id=sid,generation=member['graph_generation'],
         owned_mask=member['owned_mask'],selected_owner_id=member['graph_selected_owner_id'])
     collector=Collector(identity,{oid:item['native_kind'] for oid,item in expected.items()});cursor=''
@@ -464,7 +471,9 @@ def returned_owners(backend,sim,epoch):
     if (final.get('ok') is not True or final.get('pid')!=scope['pid'] or final.get('scope_id')!=scope['scope_id'] or
             len(fresh)!=1 or fresh[0].get('graph_generation')!=identity['generation'] or
             fresh[0].get('graph_selected_owner_id')!=identity['selected_owner_id'] or
-            fresh[0].get('native_view_fault') is not False):
+            fresh[0].get('native_view_fault') is not False or any(fresh[0].get(key)!=binding[key]
+                for key in ('logical_owner_ids','human_owner_id'))):
         raise ValueError('Native CAS return changed during its complete appearance readback.')
     return dict(schema=1,ok=True,source='receiver-native-owner-return',identity=identity,
-        checkpoint_epoch=epoch,owners=document['owners'],appearance_written=False,save_reload_verified=False)
+        checkpoint_epoch=epoch,owners=document['owners'],logical_owner_ids=copy.deepcopy(binding['logical_owner_ids']),
+        human_owner_id=binding['human_owner_id'],appearance_written=False,save_reload_verified=False)

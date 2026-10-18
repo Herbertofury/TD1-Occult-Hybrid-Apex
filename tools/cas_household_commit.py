@@ -45,6 +45,53 @@ def accepts(values, members):
     return result
 
 
+def owner_accepts(values, members):
+    result=set()
+    for value in values or []:
+        parts=value.split(':') if isinstance(value,str) else []
+        if len(parts)!=2 or parts[0] not in members:
+            raise ValueError('Each named edit must identify an entry member and exact owner: SIM_ID:OWNER_ID.')
+        cas_bank_cli._named_dispositions([dict(owner_id=parts[1],action='accept-returned')])
+        pair=tuple(parts)
+        if pair in result:raise ValueError('Do not repeat a named-form edit decision.')
+        result.add(pair)
+    return result
+
+
+def retained_named_changes(profile,sid,checkpoint,identity):
+    """Read an already-observed receiver journal; never repeat its observation.
+
+    Older status replies omit named changes. Only names/decisions leave this
+    read. The game receiver independently checks its held native-return digest
+    again before accepting any plan; host appearance bytes are never submitted.
+    """
+    import sys
+    sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Source'))
+    from apex_core import cas_named_return,cas_commit_plan
+    path=reusable_profile.legacy.unlinked(profile/'TD1_OccultHybridApexData/form_bank.json')
+    before=path.stat()
+    if not path.is_file() or not 0<before.st_size<=64*1024*1024:
+        raise ValueError('Retained receiver bank exceeds its complete bounded read.')
+    raw=path.read_bytes();after=path.stat()
+    if (len(raw)>64*1024*1024 or (before.st_size,before.st_mtime_ns,before.st_ino)!=(after.st_size,after.st_mtime_ns,after.st_ino)):
+        raise ValueError('Receiver journal changed during its read; no plan submitted.')
+    data=json.loads(raw.decode('utf-8-sig'),object_pairs_hook=cas_bank_cli._pairs)
+    rows=[row for key,row in data.get('records',{}).items() if key.endswith(':'+sid) and
+          isinstance(row,dict) and isinstance(row.get('cas_transaction'),dict) and
+          row['cas_transaction'].get('transaction_sha256')==checkpoint['expected_pending_sha256']]
+    if len(rows)!=1:raise ValueError('Named changes lack one exact retained member checkpoint.')
+    record=rows[0];transaction=record['cas_transaction'];returned=transaction.get('native_owner_return')
+    if returned is None:
+        if transaction.get('native_owner_return_required') is True:
+            raise ValueError('Required named-form return is missing; no plan submitted.')
+        return None
+    if (not isinstance(returned,dict) or returned.get('checkpoint_epoch')!=checkpoint['expected_pending_sha256'] or
+            returned.get('identity',{}).get('pid')!=identity['pid'] or returned.get('identity',{}).get('sim_id')!=sid or
+            cas_commit_plan.digest(returned)!=transaction.get('native_owner_return_sha256')):
+        raise ValueError('Named-form return belongs to another runtime or checkpoint.')
+    return cas_named_return.changes(record,returned)
+
+
 def entry_receipt(document):
     if (not isinstance(document, dict) or document.get('operation') != 'observe-native-cas-entry' or
             document.get('entry_accepted') is not True or document.get('entry_submitted') is not True):
@@ -79,7 +126,7 @@ def run(args, identity, request):
         return _run(args, identity, request)
 
 
-def retained_resume(args, identity, scope, members, decisions, profile, original):
+def retained_resume(args, identity, scope, members, decisions, profile, original, owner_decisions=()):
     path, digest = getattr(args, 'resume_proof', None), getattr(args, 'resume_sha256', None)
     if path is None and digest is None:
         return None
@@ -87,11 +134,12 @@ def retained_resume(args, identity, scope, members, decisions, profile, original
         raise ValueError('Resume requires both the retained proof and its exact hash.')
     prior = read_entry(path, digest, profile, original)
     expected = [{'sim_id': sid, 'lane': lane} for sid, lane in sorted(decisions)]
+    expected_named=[{'sim_id':sid,'owner_id':oid} for sid,oid in sorted(owner_decisions)]
     fields = ('pid', 'profile', 'test_token', 'script_sha256', 'build_version')
     if (prior.get('schema') != 1 or prior.get('operation') != 'commit-native-household-cas' or
             prior.get('ok') is not False or prior.get('entry_sha256') != args.entry_sha256 or
             prior.get('household_id') != scope['household_id'] or prior.get('member_sim_ids') != list(members) or
-            prior.get('accepted_edits') != expected or not isinstance(prior.get('identity'), dict) or
+            prior.get('accepted_edits') != expected or prior.get('accepted_named_edits',[])!=expected_named or not isinstance(prior.get('identity'), dict) or
             any(prior['identity'].get(name) != identity.get(name) for name in fields)):
         raise ValueError('Resume differs from the retained runtime, entry, roster or explicit edit decisions.')
     steps = prior.get('steps')
@@ -137,7 +185,8 @@ def _run(args, identity, request):
                 if row['name'] == 'ApexOccultHybrid.ts4script'), None)):
         raise ValueError('Entry checkpoint belongs to another runtime, profile or candidate.')
     decisions = accepts(args.accept, members)
-    prior = retained_resume(args, identity, scope, members, decisions, profile, original)
+    owner_decisions=owner_accepts(getattr(args,'accept_owner',None),members)
+    prior = retained_resume(args, identity, scope, members, decisions, profile, original,owner_decisions)
     if type(args.seconds) not in (int, float) or not math.isfinite(args.seconds) or not 0 < args.seconds <= 300:
         raise ValueError('Use a bounded per-request completion timeout.')
     output = reusable_profile.writable(args.output)
@@ -147,7 +196,9 @@ def _run(args, identity, request):
     proof = dict(schema=1, operation='commit-native-household-cas', ok=False, identity=identity,
                  entry_sha256=args.entry_sha256, household_id=scope['household_id'],
                  member_sim_ids=list(members), accepted_edits=[{'sim_id': sid, 'lane': lane}
-                    for sid, lane in sorted(decisions)], steps=[], observations={}, plans={}, commits={},
+                    for sid, lane in sorted(decisions)],
+                 accepted_named_edits=[{'sim_id':sid,'owner_id':oid} for sid,oid in sorted(owner_decisions)],
+                 steps=[], observations={}, plans={}, commits={},
                  automatic_replay_allowed=False, save_submitted=False, all_categories_edited_verified=False)
     if prior is not None:
         proof.update(resume_sha256=args.resume_sha256,
@@ -221,15 +272,33 @@ def _run(args, identity, request):
                     not set(observed['changed_lanes']) <= cas_bank_cli.FORMS):
                 raise ValueError('Complete member change evidence is unavailable; no decision guessed.')
             proof['observations'][sid] = observed; write_json(output, proof)
+        named_changes={}
+        for sid,checkpoint in members.items():
+            observed=proof['observations'][sid]
+            changes=observed.get('named_owner_changes')
+            if changes is None and observed.get('phase')=='observed':
+                changes=retained_named_changes(profile,sid,checkpoint,identity)
+            if changes is not None:
+                if not isinstance(changes,list):raise ValueError('Named changes are not a complete receiver list.')
+                cas_bank_cli._named_dispositions([dict(owner_id=row.get('owner_id') if isinstance(row,dict) else None,
+                    action='restore-original') for row in changes])
+                named_changes[sid]=changes
+        available={(sid,row['owner_id']) for sid,changes in named_changes.items() for row in changes}
+        if not owner_decisions<=available:
+            raise ValueError('An accepted named owner is not an actual changed receiver form; no plan submitted.')
         for sid, checkpoint in members.items():
             if sid in proof['plans']:
                 continue
             observed = proof['observations'][sid]
             dispositions = [{'lane': lane, 'action': 'accept-returned' if (sid, lane) in decisions
                              else 'restore-original'} for lane in observed['changed_lanes']]
-            planned = call(sid, 'cas_bank_prepare', {
+            value={
                 'expected_pending_sha256': checkpoint['expected_pending_sha256'],
-                'expected_raw_return_sha256': observed['raw_return_sha256'], 'dispositions': dispositions})
+                'expected_raw_return_sha256': observed['raw_return_sha256'], 'dispositions': dispositions}
+            if sid in named_changes:
+                value['named_dispositions']=[dict(owner_id=row['owner_id'],action='accept-returned'
+                    if (sid,row['owner_id']) in owner_decisions else 'restore-original') for row in named_changes[sid]]
+            planned = call(sid, 'cas_bank_prepare', value)
             proof['plans'][sid] = planned; write_json(output, proof)
         for sid, checkpoint in members.items():
             if sid in proof['commits']:

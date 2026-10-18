@@ -1249,6 +1249,78 @@ class CasReturnTests(unittest.TestCase):
                 self.assertFalse(proof['pause_rebound_attempted'])
                 self.assertEqual(pauses[0], 1)
 
+    def test_resume_acknowledged_intent_observes_existing_accept_without_replay(self):
+        self.detach = False
+        first, prior = self.run_observer(seconds=2)
+        self.assertFalse(first['ok'])
+        self.assertTrue(prior['accept_intent_observed'])
+        prior_path = self.output
+        prior_raw = prior_path.read_bytes()
+        self.output = self.root / 'resumed.json'
+        self.detach = True
+        self.calls.clear()
+        result, proof = self.run_observer(resume_proof=prior_path,
+            resume_sha256=hashlib.sha256(prior_raw).hexdigest())
+        self.assertTrue(result['ok'], proof.get('error'))
+        self.assertEqual(result['cas_request_id'], first['cas_request_id'])
+        self.assertFalse(proof['accept_replayed'])
+        self.assertFalse(any(action == 'cas_ui_request' for action, _ in self.calls))
+        self.assertEqual(prior_path.read_bytes(), prior_raw)
+        self.assertEqual(sum(action == 'test_play' for action, _ in self.calls), 1)
+
+    def test_resume_rejects_changed_identity_or_downstream_action_before_requests(self):
+        self.detach = False
+        _, prior = self.run_observer(seconds=2)
+        for change in ({'play_attempted': True}, {'cas_bank_observe_attempted': True},
+                       {'identity': dict(self.identity, pid=43)}, {'cas_request_id': 'f' * 32},
+                       {'return_metadata_observations': [{'phase': 'baseline'}]}, {'ok': True}):
+            with self.subTest(change=change):
+                altered = dict(prior, **change)
+                path = self.root / 'altered.json'
+                path.write_text(json.dumps(altered))
+                self.calls.clear()
+                with self.assertRaises(ValueError):
+                    self.run_observer(resume_proof=path,
+                        resume_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+                self.assertEqual(self.calls, [])
+
+    def test_readiness_tracks_one_pending_uuid_through_multiple_poll_windows(self):
+        retained = []
+        polls = []
+        def handler(action, value):
+            if action == 'test_snapshot' and not retained:
+                retained.append(self.transport_calls[-1][1]['request_id'])
+                return {'ok': False, 'outcome': 'unresolved', 'request_id': retained[0]}
+        def transport_handler(path, query, _timeout):
+            if path == '/api/requests/status':
+                self.assertEqual(query, {'request_id': retained[0]})
+                polls.append(query['request_id'])
+                return {'request_id': retained[0], 'state': 'completed' if len(polls) > 10 else 'running',
+                        'result': self.snapshot()}
+        self.handler, self.transport_handler = handler, transport_handler
+        result, proof = self.run_observer(seconds=10)
+        self.assertTrue(result['ok'], proof.get('error'))
+        self.assertGreater(len(polls), 10)
+        self.assertEqual(len(set(polls)), 1)
+        self.assertEqual([json.loads(value)['operation'] for action, value in self.calls
+                          if action == 'cas_ui_request'], ['status', 'accept'])
+
+    def test_certified_unexecuted_cas_read_can_refresh_without_replaying_accept(self):
+        cancelled = []
+        def handler(action, value):
+            if action == 'cas_ui_result' and value == self.accept_id and self.received and not cancelled:
+                owner = self.transport_calls[-1][1]['request_id']
+                cancelled.append(owner)
+                return {'ok': False, 'request_state': 'cancelled', 'request_id': owner,
+                        'message': cas_return.WAIT_CANCELLED_BEFORE_EXECUTION}
+        self.handler = handler
+        result, proof = self.run_observer()
+        self.assertTrue(result['ok'], proof.get('error'))
+        self.assertEqual(len(cancelled), 1)
+        self.assertEqual(sum(s['action'] == 'reobserve-cancelled:cas_ui_result' for s in proof['steps']), 1)
+        self.assertEqual([json.loads(value)['operation'] for action, value in self.calls
+                          if action == 'cas_ui_request'], ['status', 'accept'])
+
     def test_second_pause_cancellation_or_lost_response_never_submits_a_third(self):
         for lost in (False, True):
             with self.subTest(lost=lost):

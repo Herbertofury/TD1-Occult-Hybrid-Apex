@@ -405,13 +405,15 @@ class CasCommitTransaction:
             self.recovery_recorded = False
         raise RecoveryRequired('CAS ' + phase + ' failed; originals and returned state require inspection: ' + str(error))
 
-    def observe_return(self, snapshot_reader=None):
+    def observe_return(self, snapshot_reader=None, appearance_reader=None):
         """Durably retain every raw owner BEFORE optional complete serialization.
 
         snapshot_reader is trusted native serialization code and may mutate
         hidden outfit buffers. Its output is appended separately; the pre-call
-        raw return remains the sole appearance-choice source. Any serializer
-        failure retains the raw return and blocks planning/replay.
+        raw return remains the appearance-choice source. An authenticated
+        native CAS graph may supply choices via a trusted appearance_reader;
+        the actual Live wrappers remain retained separately for rollback and
+        concurrent-write checks. Neither callback is accepted through JSON.
         """
         if self.state != 'new':
             raise ValueError('This CAS return was already observed or interrupted.')
@@ -432,6 +434,25 @@ class CasCommitTransaction:
             except Exception as journal_error:
                 self._failure(journal_error, 'rejected raw-owner journal')
             self._failure(error, 'raw owner validation')
+        native_raw = copy.deepcopy(raw)
+        if appearance_reader is not None:
+            # Preserve raw wrappers durably before invoking another reader.
+            self._write({'schema': 1, 'state': 'native-raw-observed', 'identity': self.identity,
+                         'pending_sha256': self.pending_sha256,
+                         'original_owners': copy.deepcopy(self.pending['original_owners']),
+                         'native_raw_return': native_raw, 'native_raw_return_sha256': digest(native_raw),
+                         'native_write_attempted': False, 'bank_committed': False,
+                         'automatic_replay_allowed': False})
+            try:
+                raw = appearance_reader(copy.deepcopy(native_raw))
+                _validate_raw(raw, self.known)
+                if (raw['identity'] != native_raw['identity'] or set(raw['stored']) != set(native_raw['stored']) or
+                        raw['active']['lane'] != native_raw['active']['lane'] or any(
+                        set(raw['stored'][lane]) != set(native_raw['stored'][lane]) for lane in raw['stored'])):
+                    raise ValueError('Authenticated CAS choices changed native identity, roster, active lane or field coverage.')
+                _consistent(raw)
+            except Exception as error:
+                self._failure(error, 'authenticated native CAS appearance choices')
         self.raw_return_sha256 = digest(raw)
         document = {'schema': 1, 'state': 'raw-observed', 'identity': self.identity,
                     'pending_sha256': self.pending_sha256,
@@ -439,6 +460,9 @@ class CasCommitTransaction:
                     'raw_return': raw, 'raw_return_sha256': self.raw_return_sha256,
                     'native_write_attempted': False, 'bank_committed': False,
                     'automatic_replay_allowed': False}
+        if appearance_reader is not None:
+            document.update(native_raw_return=native_raw, native_raw_return_sha256=digest(native_raw),
+                            appearance_choice_source='authenticated-native-cas-logical-owners')
         try:
             self._write(document)
             self._guard()

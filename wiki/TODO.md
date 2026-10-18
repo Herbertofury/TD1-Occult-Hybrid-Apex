@@ -20,22 +20,47 @@ not establish current implementation or runtime readiness.
 
 ## Current checkpoint — 2026-10-18
 
-Current checkpoint: V181 still crashes during the fourth member's first,
-small Alien physique edit (about 0.7793 -> 0.76; `TS4_x64+0x112c66a`). No
-completed edit, CAS acceptance or save is established. This rules out requiring
-a large body-change reaction in that run and does not qualify the read-order
-correction as a crash fix. All twenty disposable save files remain unchanged;
-a fresh cold household comparison again matches all forty original appearances.
+Current checkpoint: V182 completed 60 actual full-CAS form visits across all
+five hybrid household members, with 20 distinct Human/Alien/Vampire/Ghost
+physique edits. A second switching pass retained every marker. Complete native
+exports cover all 195 captured owners: exactly the 20 intended physique fields
+changed, with no unrelated changes or added outfits. These are body-edit tests,
+not complete-category or special-gameplay qualification. The original small
+fourth-member Alien gesture and its larger follow-up also passed.
 
-V182 moves the CAS transport's networking/buffers to an isolated native worker.
-EA variant/string exchange runs only in the UI-owned callback; the worker never
-uses EA/GFx objects or movie allocations. The versioned callback is pinned to
-the inspected build, ordinary GetSimOccult calls retain EA's original path, and
-one-frame/generation/scope leases preserve the existing Source UUID/nonce/ACK
-protocol. Matching UI candidates require this native path. The older GFx socket
-branch is retained only for source/build comparison, with no exposed runtime
-fallback. Eleven native checks pass. Runtime crash and retention qualification
-remain open; this is a candidate, not a production release.
+CAS returned to the same Live Sim/household, advanced simulation ticks and was
+paused again. The host recovered its acknowledged Accept intent after a
+read-only zone-transition timeout, without replaying Accept. All five native
+return archives were retained before any plan or commit. This exposed a real
+boundary gap: EA's returned Live wrappers still held older canonical appearances,
+although the native CAS graph retained the edits. No stale appearance commit or
+save was submitted. The disposable session closed without saving; all twenty
+save files remain unchanged, and complete pending/returned records are archived.
+
+V183 projects the graph's captured logical owner bindings into the existing
+explicit accept/restore transaction. Shared Human and the active Alien alias
+are exact identities; named special forms cannot substitute for canonical lanes
+by matching genus. Actual Live wrappers remain separate durable rollback and
+concurrency evidence. Receiver tests prove separate Human/Alien acceptance,
+Vampire restoration and independent Ghost variants. Focused checks pass: 55
+receiver, 43 transaction, 2 projection, 10 engine, 67 return-observer, 13 household,
+23 seal and 26 upgrade tests. V183 builds 100 Python 3.7 modules, seven packages
+and 207 independently Rust-verified resources. Runtime CAS-to-Live retention,
+full-category edits, copy/link, save/cold-load and Tray qualification remain open.
+
+V184 separates pure historical graph-receipt validation from current-runtime
+receiver authority, so a completed receipt can survive a cold load without
+authorizing replay. Three projection checks cover this separation; the 55
+receiver checks also validate a completed receipt under a later process ID.
+The host CLI now defaults to full-household CAS; explicit native/MCCC routes
+remain available. Runtime checks caught an accidentally requested single-Sim
+entry before edits and refused household-member navigation. This is retained
+as a failed test attempt, not a household qualification.
+
+V182's native-owned UI transport completed this matrix without the previously
+reproduced allocator crash. It does not establish universal crash freedom or
+prove a root cause. Eleven native checks pass; diagnostic owner-memory guards
+remain enabled in this development DLL. This is not a production release.
 
 A same-build V180 session successfully changed one actual EA body preset on the
 fourth member's actual Alien with the bridge connected. Its exact native preset

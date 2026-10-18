@@ -9,6 +9,17 @@ import apex_cli
 
 
 class CliTests(unittest.TestCase):
+    def test_game_cas_defaults_to_full_household_and_preserves_explicit_entry_routes(self):
+        import cas_transition
+        for explicit,expected in ((None,'full'),('full','full'),('native-full','native-full'),('mccc-full','mccc-full')):
+            with self.subTest(explicit=explicit),patch.object(apex_cli,'require_isolated'), \
+                    patch.object(apex_cli,'verified_identity',return_value={'pid':42}), \
+                    patch.object(cas_transition,'observe',return_value={'ok':True}) as observe:
+                argv=['game','cas','--state','state.json','--sim-id','7','--output','entry.json']
+                if explicit is not None:argv+=['--value',explicit]
+                self.assertTrue(apex_cli.execute(apex_cli.parser().parse_args(argv))['ok'])
+                self.assertEqual(observe.call_args.kwargs['value'],expected)
+
     def test_qol_controls_use_the_same_game_thread_owner_without_input(self):
         for operation in ('status', 'autonomy-pause', 'autonomy-resume', 'death-prevent',
                           'death-restore', 'sunlight-on', 'sunlight-off', 'umbrella-on', 'umbrella-off'):

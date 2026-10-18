@@ -104,7 +104,7 @@ class NativeEngineTests(unittest.TestCase):
 
     def test_entry_supplies_complete_source_bytes_before_native_activation_without_disk_exports(self):
         import base64, hashlib
-        from apex_core import overlay_loader, sim_data, form_appearance, lifestate_forms,cas_owner_payload
+        from apex_core import overlay_loader, sim_data, form_appearance, lifestate_forms,cas_owner_payload,cas_bank_transaction
         sims=[Obj(id=123,forms={1:Obj(id=1),2:Obj(id=2)}),Obj(id=456,forms={1:Obj(id=3),2:Obj(id=4)})]
         backend=Obj(__file__='matching-script',_form_map=lambda sim:sim.forms,_get_current_flags=lambda sim:2,
             services=Obj(active_household=lambda:Obj(sim_info_gen=lambda:iter(sims))))
@@ -124,11 +124,15 @@ class NativeEngineTests(unittest.TestCase):
                 row['canonical_source_seeded_mask']=row.get('canonical_source_seeded_mask',0)|argument['native_kind']
             if argument['operation']=='activate':
                 self.assertTrue(all(r['imported_mask']==3 for r in status['members']));status['selection_enabled']=True
+                for row in status['members']:
+                    row.update(logical_owner_ids={'1':'native/1','2':'active/2'},human_owner_id='native/1')
             return copy.deepcopy(status)
         def capture(backend,sim):
             raw=str(sim.id).encode('ascii')
             return dict(native_base64=base64.b64encode(raw).decode('ascii'),native_sha256=hashlib.sha256(raw).hexdigest(),native_message_type='fixture.SimData')
         with patch.object(engine,'_verify_imported_owners',return_value=dict(ok=True,owners=[])), \
+                patch.object(cas_bank_transaction,'status',side_effect=lambda backend,sim:
+                    dict(phase='captured',expected_pending_sha256=('a' if sim.id==123 else 'b')*64)), \
                 patch.object(overlay_loader,'_CALLS',{'loaded':True}), \
                 patch.object(overlay_loader,'native_cas_engine_control',side_effect=native), \
                 patch.dict(sys.modules,{'paths':Obj(DLL_PATH='game-dlls')}), \
@@ -142,6 +146,7 @@ class NativeEngineTests(unittest.TestCase):
         self.assertEqual(calls,['status','seed','seed-canonical','seed-canonical','seed-active',
                                'seed','seed-canonical','seed-canonical','seed-active','activate'])
         self.assertTrue(result['existing_appearances_unchanged']);self.assertEqual(len(result['members']),2)
+        self.assertEqual(engine._LAYOUT_SCOPE['epochs'],{'123':'a'*64,'456':'b'*64})
 
     def test_unarmed_overlay_never_serializes_the_household(self):
         from apex_core import overlay_loader, sim_data

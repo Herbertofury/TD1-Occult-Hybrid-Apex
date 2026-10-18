@@ -354,6 +354,12 @@ def _completed(transaction):
                     primitive.digest(native_return)!=plan['native_owner_return_sha256'] or
                     not primitive._hash(plan.get('named_document_sha256'))):
                 return False
+            if journal.get('appearance_choice_source') == 'authenticated-native-cas-logical-owners':
+                native_raw = journal.get('native_raw_return')
+                from . import cas_native_return
+                if (not valid_raw(native_raw) or primitive.digest(native_raw) != journal.get('native_raw_return_sha256') or
+                        cas_native_return.project_archive(native_return, native_raw, transaction['transaction_sha256']) != returned):
+                    return False
         changed = {lane for lane in original['stored'] if
                    appearance.fingerprint(original['stored'][lane])['appearance_sha256'] !=
                    appearance.fingerprint(returned['stored'][lane])['appearance_sha256']}
@@ -999,8 +1005,7 @@ def observe(backend, sim, argument):
         def requirement(data,record,identity):
             record['cas_transaction']['native_owner_return_required']=held['native_return_required']
         _mutate(backend,sim,requirement)
-        result = instance.observe_return(snapshot_reader=lambda: sim_data.snapshot(backend, sim))
-        if held['native_return_required']:
+        def native_choices(raw):
             returned=native_cas_engine.returned_owners(backend,sim,transaction['transaction_sha256'])
             if returned is None:raise ValueError('Required native CAS return disappeared; every prior form remains retained.')
             held['native_return']=copy.deepcopy(returned)
@@ -1008,6 +1013,12 @@ def observe(backend, sim, argument):
                 record['cas_transaction']['native_owner_return']=copy.deepcopy(returned)
                 record['cas_transaction']['native_owner_return_sha256']=primitive.digest(returned)
             _mutate(backend,sim,retain)
+            from . import cas_native_return
+            return cas_native_return.project(returned,raw,transaction['transaction_sha256'])
+        result = instance.observe_return(snapshot_reader=lambda: sim_data.snapshot(backend, sim),
+            appearance_reader=native_choices if held['native_return_required'] else None)
+        if held['native_return_required']:
+            returned=held['native_return']
             result['independent_owners_retained']=len(returned['owners'])
             from . import cas_named_return
             _path,_key,original,_transaction=_selected(backend,sim,allow_consumed=True)

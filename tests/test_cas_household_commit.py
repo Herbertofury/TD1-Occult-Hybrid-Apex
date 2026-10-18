@@ -98,7 +98,8 @@ class HouseholdCommitTests(unittest.TestCase):
                 result.update(phase='observed', lane_change_evidence_available=True,
                               changed_lanes=['1', '2'], raw_return_sha256='d' * 64)
             return result
-        result = self.run_tool(invoke)
+        with patch.object(tool,'retained_named_changes',return_value=None):
+            result = self.run_tool(invoke)
         self.assertTrue(result['ok'])
         self.assertEqual([(sid, action) for sid, action, value in self.calls if action == 'cas_bank_observe'],
                          [('200', 'cas_bank_observe')])
@@ -107,6 +108,68 @@ class HouseholdCommitTests(unittest.TestCase):
         for values in (['999:2'], ['100:3'], ['100:2', '100:2']):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 tool.accepts(values, {'100': {}})
+
+    def test_named_forms_keep_only_the_explicit_sim_and_owner_even_with_same_genus(self):
+        self.args.accept_owner=['100:ghost/ghost_ghost']
+        def invoke(state,action,**kwargs):
+            result=self.request(state,action,**kwargs)
+            if action=='cas_bank_observe':
+                result['named_owner_changes']=[dict(owner_id='ghost/ghost_ghost',native_kind=1),
+                    dict(owner_id='reaper/reaper',native_kind=1)]
+            return result
+        self.assertTrue(self.run_tool(invoke)['ok'])
+        plans={sid:value for sid,action,value in self.calls if action=='cas_bank_prepare'}
+        self.assertEqual(plans['100']['named_dispositions'],[
+            dict(owner_id='ghost/ghost_ghost',action='accept-returned'),dict(owner_id='reaper/reaper',action='restore-original')])
+        self.assertTrue(all(row['action']=='restore-original' for row in plans['200']['named_dispositions']))
+        proof=json.loads(self.args.output.read_text())
+        self.assertEqual(proof['accepted_named_edits'],[dict(sim_id='100',owner_id='ghost/ghost_ghost')])
+
+    def test_unknown_named_acceptance_stops_before_every_plan_or_commit(self):
+        self.args.accept_owner=['100:ghost/unknown']
+        self.assertFalse(self.run_tool()['ok'])
+        self.assertEqual(self.observations,2)
+        self.assertFalse(any(action in ('cas_bank_prepare','cas_bank_commit') for _sid,action,_value in self.calls))
+
+    def test_foreign_duplicate_or_native_alias_named_decisions_are_rejected(self):
+        for values in (['999:ghost/ghost_ghost'],['100:ghost/ghost_ghost']*2,
+                       ['100:native/1'],['100:active/2'],['100:../ghost'],['100:ghost/ghost:other']):
+            with self.subTest(values=values),self.assertRaises(ValueError):tool.owner_accepts(values,{'100':{}})
+
+    def test_observed_named_evidence_is_read_without_repeating_its_native_observation(self):
+        self.observations=1;self.args.accept_owner=['100:ghost/ghost_ghost']
+        def invoke(state,action,**kwargs):
+            result=self.request(state,action,**kwargs)
+            if action=='cas_bank_status' and kwargs['sim_id']=='100':
+                result.update(phase='observed',lane_change_evidence_available=True,
+                    changed_lanes=['1','2'],raw_return_sha256='d'*64)
+            if action=='cas_bank_observe':result['named_owner_changes']=[]
+            return result
+        with patch.object(tool,'retained_named_changes',return_value=[dict(owner_id='ghost/ghost_ghost')]) as retained:
+            self.assertTrue(self.run_tool(invoke)['ok']);retained.assert_called_once()
+        self.assertEqual([(sid,action) for sid,action,_ in self.calls if action=='cas_bank_observe'],[('200','cas_bank_observe')])
+
+    def test_receiver_file_rejects_foreign_epoch_pid_and_digest_before_exposing_names(self):
+        import copy
+        sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Source'))
+        from apex_core import cas_named_return,cas_commit_plan
+        profile=self.root/'profile';folder=profile/'TD1_OccultHybridApexData';folder.mkdir(parents=True)
+        path=folder/'form_bank.json';checkpoint=dict(expected_pending_sha256='a'*64)
+        returned=dict(checkpoint_epoch='a'*64,identity=dict(pid=123,sim_id='100'))
+        base=dict(records={'9:100':dict(cas_transaction=dict(transaction_sha256='a'*64,
+            native_owner_return=returned,native_owner_return_sha256=cas_commit_plan.digest(returned)))})
+        path.write_text(json.dumps(base))
+        with patch.object(cas_named_return,'changes',return_value=[]) as verify:
+            self.assertEqual(tool.retained_named_changes(profile,'100',checkpoint,self.identity),[]);verify.assert_called_once()
+        for field,value in [('pid',999),('epoch','b'*64),('digest','0'*64)]:
+            data=copy.deepcopy(base);transaction=data['records']['9:100']['cas_transaction']
+            if field=='pid':transaction['native_owner_return']['identity']['pid']=value
+            elif field=='epoch':transaction['native_owner_return']['checkpoint_epoch']=value
+            else:transaction['native_owner_return_sha256']=value
+            path.write_text(json.dumps(data))
+            with self.subTest(field=field),self.assertRaises(ValueError),patch.object(cas_named_return,'changes') as verify:
+                tool.retained_named_changes(profile,'100',checkpoint,self.identity)
+            verify.assert_not_called()
 
     def test_selected_only_legacy_entry_cannot_claim_household_protection(self):
         self.entry['steps'][0]['result'].pop('household_form_checkpoints')

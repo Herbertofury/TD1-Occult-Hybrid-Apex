@@ -377,6 +377,8 @@ def parser():
     cas.add_argument('--target-sim-id', help='Existing household member identity for semantic member-select')
     cas.add_argument('--household-id', help='Exact existing household identity required for semantic CAS return')
     cas.add_argument('--settle-ticks', type=int, default=30, help='Native simulation timeline ticks required before leaving Live paused')
+    cas.add_argument('--resume-proof', type=Path, help='Observe an exact previously acknowledged CAS return intent; never submit Accept again')
+    cas.add_argument('--resume-sha256', help='SHA-256 of that retained CAS return proof')
     cas.add_argument('--form', dest='form_flags', type=int, choices=(1, 2, 4, 8, 16, 32, 64),
                      help='Exact form actually present in the observed native base/alternate pair')
     cas.add_argument('--expected-layer', type=int, choices=(0, 1), help='Exact currently observed native CAS layer')
@@ -436,6 +438,7 @@ def parser():
     household_cas.add_argument('--entry-proof', required=True, type=Path)
     household_cas.add_argument('--entry-sha256', required=True)
     household_cas.add_argument('--accept', action='append', help='Keep a returned edit only for this exact SIM_ID:FORM; restore other changed forms')
+    household_cas.add_argument('--accept-owner', action='append', help='Keep this exact changed named form, SIM_ID:OWNER_ID; restore other changed named forms')
     household_cas.add_argument('--output', required=True, type=Path)
     household_cas.add_argument('--seconds', type=float, default=60)
     household_cas.add_argument('--resume-proof', type=Path, help='Resume a retained batch stopped before sending its final request')
@@ -947,7 +950,10 @@ def execute(args):
             from cas_return import observe
             return observe(args.state, args.output, verified_identity(args.state), owned_request,
                            args.sim_id, args.household_id, seconds=args.seconds,
-                           settle_ticks=args.settle_ticks, transport=get)
+                           settle_ticks=args.settle_ticks, transport=get,
+                           resume_proof=args.resume_proof, resume_sha256=args.resume_sha256)
+        if args.resume_proof is not None or args.resume_sha256 is not None:
+            raise ValueError('Retained return proofs apply only to cas return.')
         from cas_client import execute as cas_execute
         return cas_execute(args, owned_request)
     if args.command == 'cas-probe':
@@ -959,6 +965,8 @@ def execute(args):
         return run(args.state, args.output, verified_identity(args.state), owned_request, args.sim_id,
                    seconds=args.seconds, step_seconds=args.step_seconds, transport=get)
     if args.command == 'game':
+        if args.operation == 'cas' and args.value is None:
+            args.value = 'full'
         if args.operation == 'native-cas-engine':
             from native_cas_engine_cli import run
             return run(args.state, args.output, owned_request, json.loads(args.value or '{"operation":"status"}'))
@@ -1062,7 +1070,8 @@ def execute(args):
         if args.operation == 'cas' and args.output is not None:
             from cas_transition import observe
             return observe(args.state, args.output, verified_identity(args.state), owned_request,
-                           sim_id=args.sim_id, value=args.value, seconds=args.seconds, transport=get)
+                           sim_id=args.sim_id, value=args.value,
+                           seconds=args.seconds, transport=get)
         if args.operation == 'resume':
             if args.output is None:
                 raise ValueError('A new external JSON proof filename is required for Resume.')

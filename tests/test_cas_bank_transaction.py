@@ -1013,15 +1013,22 @@ class CasBankReceiverTests(unittest.TestCase):
                 sha256=hashlib.sha256(raw).hexdigest()))
         record['lifestate_forms']=dict(schema=1,forms=forms,active={'1':'ghost_ghost'})
         form_bank.save(self.path,data)
-        return dict(ok=True,source='receiver-native-owner-return',appearance_written=False,owners=owners)
+        for lane,fields in self.originals.items():
+            raw=('opaque-native-'+lane).encode()
+            owners.append(dict(owner_id='native/'+lane,native_kind=int(lane),fields=copy.deepcopy(fields),
+                native_hex=raw.hex(),sha256=hashlib.sha256(raw).hexdigest()))
+        return dict(ok=True,source='receiver-native-owner-return',appearance_written=False,owners=owners,
+            logical_owner_ids={lane:'native/'+lane for lane in self.originals},human_owner_id='native/1',
+            identity=dict(pid=os.getpid(),sim_id=str(self.sim.id)))
 
     def test_native_named_return_keeps_same_genus_variants_separate_on_atomic_completion(self):
         from apex_core import native_cas_engine
-        returned=self.named_native_return();self.begin()
+        returned=self.named_native_return();self.begin();returned['checkpoint_epoch']=self.epoch
         with patch.object(native_cas_engine,'owns_return',return_value=True), \
                 patch.object(native_cas_engine,'returned_owners',return_value=returned):
             self.observe()
-        self.prepare([],named_dispositions=[dict(owner_id=row['owner_id'],action='accept-returned') for row in returned['owners']])
+        self.prepare([],named_dispositions=[dict(owner_id=row['owner_id'],action='accept-returned')
+            for row in returned['owners'] if row['owner_id'].startswith('ghost/')])
         self.commit();record=self.record()
         self.assertEqual(record['lifestate_forms']['forms']['ghost_ghost']['fields']['physique']['value'],'edited-ghost_ghost')
         self.assertEqual(record['lifestate_forms']['forms']['ghost_living']['fields']['physique']['value'],'edited-ghost_living')
@@ -1038,17 +1045,52 @@ class CasBankReceiverTests(unittest.TestCase):
                 patch.object(native_cas_engine,'returned_owners',side_effect=ValueError('lost exact native graph')):
             with self.assertRaisesRegex(ValueError,'lost exact native graph'):self.observe()
         self.observation=receiver.status(self.backend,self.sim)
-        with self.assertRaisesRegex(ValueError,'missing or changed'):self.prepare([])
+        with self.assertRaisesRegex(ValueError,'hash must be exact'):self.prepare([])
+        self.assertEqual(self.observation['phase'],'recovery-required')
         self.assertEqual(self.native_writes,[])
+
+    def test_logical_native_cas_edits_reach_live_while_stale_wrappers_remain_rollback_evidence(self):
+        from apex_core import native_cas_engine
+        returned=self.named_native_return();self.begin();returned['checkpoint_epoch']=self.epoch
+        # EA's Live wrappers remain entirely original. The actual CAS graph
+        # contains separately edited Human, Alien and Vampire, plus two Ghosts.
+        for row in returned['owners']:
+            if row['owner_id'] in ('native/1','native/2','native/4'):
+                row['fields']['physique']=appearance.encode('CAS-'+row['owner_id'])
+        with patch.object(native_cas_engine,'owns_return',return_value=True), \
+                patch.object(native_cas_engine,'returned_owners',return_value=returned):self.observe()
+        self.assertEqual(self.observation['changed_lanes'],['1','2','4'])
+        journal=self.record()['cas_transaction']['journal']
+        self.assertEqual(journal['native_raw_return']['stored'],self.originals)
+        self.assertEqual(journal['pre_write_owners']['stored'],self.originals)
+        self.prepare([(1,'accept-returned'),(2,'accept-returned'),(4,'restore-original')],
+            named_dispositions=[dict(owner_id='ghost/ghost_ghost',action='accept-returned'),
+                                dict(owner_id='ghost/ghost_living',action='restore-original')])
+        self.commit();record=self.record()
+        self.assertEqual(self.forms[1].physique,'CAS-native/1')
+        self.assertEqual(self.forms[2].physique,'CAS-native/2')
+        self.assertEqual(self.forms[4].physique,'original-4')
+        self.assertEqual(self.sim.physique,'original-64')
+        self.assertEqual(record['lifestate_forms']['forms']['ghost_ghost']['fields']['physique']['value'],'edited-ghost_ghost')
+        self.assertEqual(record['lifestate_forms']['forms']['ghost_living']['fields'],self.originals['1'])
+        self.assertTrue(receiver.assert_idle(self.backend,self.sim))
+        # A forged cached graph cannot authorize a historical completion.
+        with patch.object(primitive.os,'getpid',return_value=os.getpid()+1):
+            self.assertTrue(receiver._completed(record['cas_transaction']))
+        altered=copy.deepcopy(record)
+        altered['cas_transaction']['native_owner_return']['logical_owner_ids']['2']='native/4'
+        self.assertFalse(receiver._completed(altered['cas_transaction']))
 
     def test_cancelled_named_edits_require_dispositions_and_can_restore_every_original(self):
         from apex_core import native_cas_engine
         returned=self.named_native_return();original=copy.deepcopy(self.record()['lifestate_forms']);self.begin()
+        returned['checkpoint_epoch']=self.epoch
         with patch.object(native_cas_engine,'owns_return',return_value=True), \
                 patch.object(native_cas_engine,'returned_owners',return_value=returned):self.observe()
         with self.assertRaisesRegex(ValueError,'explicit disposition'):self.prepare([])
         self.assertEqual(self.native_writes,[])
-        self.prepare([],named_dispositions=[dict(owner_id=row['owner_id'],action='restore-original') for row in returned['owners']])
+        self.prepare([],named_dispositions=[dict(owner_id=row['owner_id'],action='restore-original')
+            for row in returned['owners'] if row['owner_id'].startswith('ghost/')])
         self.commit();self.assertEqual(self.record()['lifestate_forms'],original)
 
 

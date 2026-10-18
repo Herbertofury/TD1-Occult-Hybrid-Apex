@@ -1,12 +1,12 @@
 {
-  "build_epoch": "2026-10-18-native-cas-ui-owned-transport-v182",
+  "build_epoch": "2026-10-18-native-cas-logical-return-history-v184",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-18-native-cas-ui-owned-transport-v182.zip",
-    "bytes": 3541393,
+    "artifact": "Apex_Development_Candidate_2026-10-18-native-cas-logical-return-history-v184.zip",
+    "bytes": 3547366,
     "members": 28,
-    "sha256": "17279e9caf658dd46980aafa495bb7fae017caf27212abf803e2ea50c9f46c9d"
+    "sha256": "2f3b5ab5b3863dac7f3cc6524e230ddbe13718f2fbb2a978928b271803655a31"
   },
-  "compiled_script_modules": 99,
+  "compiled_script_modules": 100,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -51,9 +51,9 @@
       "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 54533,
+      "bytes": 54868,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "04e2598ab7c0f422c61778e05ea6a2db1b8da2c48a3c7e20cbd4dc89304ad846"
+      "sha256": "3dde215e645ebeb0336516d59c2ab7c72f840b62bf163a0ed6fd6f1d03ac2e00"
     },
     {
       "bytes": 1506,
@@ -101,9 +101,9 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 953799,
+      "bytes": 959810,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "3c5bb6bfe1d9e0c84c2643ae4536a60fd00b4107bcc9bb7287453f170f9becff"
+      "sha256": "cb0321a74c8c53aea3224d0a3baed0994fd3f7dc56cdee81f54611b158e01767"
     },
     {
       "bytes": 2217472,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "f2b72182a179b6418028d8b094fa7e40ffaccce6db2c7d94946c3c376b2b8e91"
+      "sha256": "6c6c387439ccfd5f1e0e78efa563ff5a093b108c4f5dfa31504a9062a9a4ea35"
     },
     {
       "bytes": 424,

@@ -113,6 +113,38 @@ class SavedNamedFormsTests(SealFixture):
             self.assertEqual(len(record['named_load_history']),count)
         self.assertEqual(self.writes,[])
 
+    def test_deferred_native_load_completion_can_match_saved_state_after_an_early_partial_sample(self):
+        self.certify(); self.loaded()
+        seal._LOADED[self.key]['native']['stored'].pop('16')
+        forms.list_forms(self.backend,self.sim)
+        self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
+        self.assertTrue(forms._owns_runtime(self.record(),self.sim));self.assertEqual(self.writes,[])
+
+    def test_partial_load_sample_cannot_certify_a_current_native_loss_or_unproved_live_edit(self):
+        self.certify();self.loaded()
+        seal._LOADED[self.key]['native']['stored'].pop('16')
+        self.forms[1].physique='a differing current Native Human'
+        original=self.bank_path.read_bytes()
+        self.assertFalse(seal.admit_saved_named(self.backend,self.sim))
+        self.assertEqual(self.bank_path.read_bytes(),original);self.assertEqual(self.writes,[])
+        self.assertIn('match-save',self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['reason'])
+
+    def test_known_metadata_predecessor_does_not_gain_native_restore_authority(self):
+        certified=self.certify();old_source=self.identity['script_sha256'];self.identity['script_sha256']='c'*64
+        with patch.object(seal,'NAMED_METADATA_PREDECESSORS',(old_source,)):
+            self.loaded();forms.list_forms(self.backend,self.sim)
+            self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
+            self.assertEqual(self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['metadata_source_authority'],
+                'named-metadata-only:'+old_source)
+            with self.assertRaisesRegex(ValueError,'another source'):
+                seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
+        self.assertEqual(self.writes,[])
+
+    def test_unknown_source_still_cannot_admit_saved_names_or_mutate_native_data(self):
+        self.certify();self.identity['script_sha256']='c'*64;self.loaded();original=self.bank_path.read_bytes()
+        self.assertFalse(seal.admit_saved_named(self.backend,self.sim))
+        self.assertEqual(self.bank_path.read_bytes(),original);self.assertEqual(self.writes,[])
+
     def test_same_process_save_reload_uses_the_saved_names_and_not_the_unsaved_old_tracker(self):
         self.certify()
         data=json.loads(self.bank_path.read_text());ghost=data['records'][self.key]['lifestate_forms']['forms']['ghost_ghost']

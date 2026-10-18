@@ -1,7 +1,7 @@
 """Hash-bound household appearance sidecars for native saves and reloads.
 
 An unsealed bank never authorizes a write. A seal binds the actual changed save
-file, selected bank, native Sim/household/GUID, token and exact script. Reload
+file, household banks, native Sim/household/GUID, token and exact script. Reload
 reconciliation also requires an unchanged native load receipt, so subsequent
 unsaved native edits cannot be replaced by an older sidecar.
 
@@ -29,10 +29,13 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     'outfits': 'complete-category-normalized-protobuf', 'ownership': 'stored-and-active-separate'},
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
+# Metadata-only compatibility: V187 captured complete schema-1 named documents
+# in household seals. This never authorizes a native appearance restoration.
+NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c2039d895fc0cd8363e',)
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-18-household-named-save-reload-v187'
+UPGRADE_EPOCH = '2026-10-18-completed-native-load-metadata-v188'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'f4a452e13fca47d10dddae25bc7239b734f0f238ee184ef2eccfb9e2ee551ded'
+UPGRADE_SELF_BODY_SHA = '220be9db81e5e70957fdd62cf99924f36149358b8ecd1a12c113b88ee965736e'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -52,7 +55,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_owner_payload.py': '47134e0e2ae6b222898677d7ed80a6e9cd20ddbc2be98a771af8d0167ca94b21',
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
-    'apex_core/cas_save_boundary.py': '050553a370fec51bb91898038b93471372d06377b11b7355deab08b9916ca006',
+    'apex_core/cas_save_boundary.py': '10979a3d995059613bfa756524ce6df19e3cb70ae0bfc601ca259697342241cc',
     'apex_core/cas_ui.py': 'cfa0c33ce4bc63cf5c4d4f646d1dcd435cc2e11a905fb9a4dce83edfad8a8cfd',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
@@ -90,7 +93,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/sim_data.py': 'dfc26d8d9a016b24d69187233ab089058fe72ef82abbac60a2d09710fe0e7266',
     'apex_core/studio.py': '984b5df893762ec0ad0f82f0cb3e09c7845aac4cd8f27aa9bd078b45fdcc25f9',
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
-    'apex_core/test_driver.py': '1319a52513122d5d0b726a0f0657e1329f553018df5a894bb0d525012c6bca25',
+    'apex_core/test_driver.py': 'fab9e16c9431ad6228f492a0e4f483b23413be1650d65cd7da8fcdc348d4e47d',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
     'td1_occult_hybrid_apex.py': '3d304f8f7aa216cb1e78a8b6b17a32d9f271da88a4198dca34d7d91c70f5def8',
 }
@@ -426,7 +429,7 @@ def _upgrade_receipt(backend, identity, profile, bank_path, key, seal_path, row)
     return value['receipt_sha256']
 
 
-def _source_authority(backend, identity, profile, bank_path, key, seal_path, row):
+def _seal_owner_authority(identity, key, seal_path, row):
     old = row.get('identity')
     if (not isinstance(old, dict) or any(old.get(name) != identity.get(name) for name in ('profile', 'test_token')) or
             row.get('contract_sha256') != CONTRACT or any(name not in row for name in _SEAL_FIELDS) or
@@ -441,11 +444,26 @@ def _source_authority(backend, identity, profile, bank_path, key, seal_path, row
             ids.get(primary), ('sealed', 'reconciled'))
         if key not in members or members[key].get('seal_sha256') != row['seal_sha256']:
             raise ValueError('Seal belongs to another retained household group.')
+
+
+def _source_authority(backend, identity, profile, bank_path, key, seal_path, row):
+    _seal_owner_authority(identity, key, seal_path, row)
+    old = row['identity']
     if old.get('script_sha256') == identity['script_sha256']:
         return None
     if old.get('script_sha256') != UPGRADE_PREDECESSOR:
         raise ValueError('Seal belongs to another source; only the audited A0 transition is supported.')
     return _upgrade_receipt(backend, identity, profile, bank_path, key, seal_path, row)
+
+
+def _named_source_authority(backend, identity, profile, bank_path, key, seal_path, row):
+    _seal_owner_authority(identity, key, seal_path, row)
+    source = row['identity'].get('script_sha256')
+    if source != identity['script_sha256'] and source in NAMED_METADATA_PREDECESSORS and 'named_forms' in row:
+        from .lifestate_forms import document, KEY
+        document({KEY: row['named_forms']})
+        return 'named-metadata-only:' + source
+    return _source_authority(backend, identity, profile, bank_path, key, seal_path, row)
 
 
 def _upgrade_runtime(bank_path, key, row, receipt_hash):
@@ -636,6 +654,12 @@ def admit_saved_named(backend, sim):
     document; no Sim, native appearance, membership or save file is written.
     """
     from . import lifestate_forms, lifestates
+    diagnostics = getattr(backend, '_APEX_NAMED_LOAD_DIAGNOSTICS', None)
+    if not isinstance(diagnostics, dict):
+        diagnostics = {}; backend._APEX_NAMED_LOAD_DIAGNOSTICS = diagnostics
+    def refuse(reason):
+        diagnostics[str(sim.id)] = dict(state='retained', reason=reason, native_appearance_written=False)
+        return False
     bank_path, key = form_bank.context(backend, sim)
     seal_path = _unlinked(bank_path.with_name('form_bank_seals.json'))
     if not bank_path.exists() or not seal_path.exists():
@@ -648,55 +672,63 @@ def admit_saved_named(backend, sim):
             return False
         if record.get('runtime_pid') == os.getpid() and lifestate_forms._owns_runtime(record, sim):
             return True
+        diagnostics[str(sim.id)] = dict(state='retained', reason='metadata-not-yet-admitted', native_appearance_written=False)
         try:
             lifestates.owner_thread(backend, sim)
             identity, profile, observed_bank, observed_key, path = _identity(backend, sim)
             if (observed_bank, observed_key, path) != (bank_path, key, seal_path):
-                return False
+                return refuse('native-profile-or-owner-context-changed')
             _idle()
             from .cas_bank_transaction import _blocked
             if _blocked(record, key):
-                return False
+                return refuse('retained-cas-review-incomplete')
             row = _store(path)['records'].get(key)
             if (not isinstance(row, dict) or row.get('sealed') is not True or
                     row.get('state') not in ('sealed', 'reconciled') or 'named_forms' not in row):
-                return False  # A legacy certificate never gains uncaptured names.
-            authority = _source_authority(backend, identity, profile, bank_path, key, path, row)
+                return refuse('no-complete-saved-named-document')  # Legacy data never gains uncaptured names.
+            authority = _named_source_authority(backend, identity, profile, bank_path, key, path, row)
             target = row['target']
             if target.get('sim_id') != str(sim.id) or target.get('household_id') != str(sim.household_id):
-                return False
+                return refuse('saved-sim-or-household-identity-changed')
             live = _live(backend, sim, target)
             from .test_driver import _save_file_evidence
             if (live.get('save_slot') != target['slot_id'] or
                     _save_file_evidence(profile, target['slot_id'])['sha256'] != row['file_sha256']):
-                return False
+                return refuse('native-slot-or-save-file-changed')
             saved = lifestate_forms.document({lifestate_forms.KEY: row['named_forms']})
             prior = lifestate_forms.document(record)
             for name in ('runtime_pid', 'lifestate_runtime_pid'):
                 old = record.get(name)
                 if type(old) is not int or old <= 0 or old != identity['pid'] and not form_bank._old_process_absent(old):
-                    return False
+                    return refuse('prior-runtime-identity-is-invalid-or-still-alive')
             current = _native(backend, sim)
             if set(current['stored']) != set(row['appearances']) or str(current['active_form']) not in current['stored']:
-                return False
+                return refuse('native-saved-owner-coverage-changed')
             def matches_saved(native):
                 return (set(native['stored']) == set(row['appearances']) and all(
                     appearance.fingerprint(native['stored'][lane]['fields'])['appearance_sha256'] ==
                     appearance.fingerprint(fields)['appearance_sha256'] for lane, fields in row['appearances'].items()))
             loaded = _LOADED.get(key)
-            if isinstance(loaded, dict) and loaded.get('pid') == identity['pid']:
+            if not matches_saved(current):
+                if not isinstance(loaded, dict) or loaded.get('pid') != identity['pid']:
+                    return refuse('current-native-appearances-differ-without-a-load-observation')
                 if (loaded.get('tracker') is not sim.occult_tracker or loaded.get('identity') != identity or
                         loaded.get('file_sha256') != row['file_sha256'] or
-                        loaded.get('upgrade_receipt_sha256') != authority or not matches_saved(loaded['native'])):
-                    return False
-            elif not matches_saved(current):
-                return False
+                        loaded.get('upgrade_receipt_sha256') != authority):
+                    return refuse('load-observation-identity-changed')
+                # Native loading can finish deferred appearance extensions after
+                # the tracker load callback. Exact current saved appearances are
+                # sufficient for metadata admission; an early incomplete sample
+                # must not block that match. Later divergent Live edits require
+                # a complete matching load sample and are never overwritten.
+                if not matches_saved(loaded['native']):
+                    return refuse('neither-loaded-nor-current-native-appearances-match-save')
             actual = {lane: owner['fields'] for lane, owner in current['stored'].items()}
             if (appearance.fingerprint(current['active'])['appearance_sha256'] !=
                     appearance.fingerprint(actual[str(current['active_form'])])['appearance_sha256']):
-                return False
-        except (ValueError, OSError, KeyError, TypeError):
-            return False
+                return refuse('active-native-appearance-differs-from-stored-owner')
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            return refuse(str(error)[:2048])
         archived = None
         if prior != saved or any(appearance.fingerprint(record['bank'][lane])['appearance_sha256'] !=
                 appearance.fingerprint(fields)['appearance_sha256'] for lane, fields in actual.items()):
@@ -730,6 +762,8 @@ def admit_saved_named(backend, sim):
         record[lifestate_forms.KEY] = saved
         lifestate_forms._bind_runtime(record,sim)
         form_bank.save(bank_path, bank_data)
+        diagnostics[str(sim.id)] = dict(state='saved-metadata-admitted', seal_sha256=row['seal_sha256'],
+            metadata_source_authority=authority, native_appearance_written=False)
         return True
 
 
@@ -895,8 +929,8 @@ def note_loaded(tracker):
         row = _store(path)['records'].get(key)
         if not isinstance(row, dict):
             return
-        authority = _source_authority(backend, identity, profile, bank_path, key, path, row)
-        if authority is not None:
+        authority = _named_source_authority(backend, identity, profile, bank_path, key, path, row)
+        if authority is not None and not authority.startswith('named-metadata-only:'):
             _runtime_path, _runtime_data, row = _upgrade_runtime(bank_path, key, row, authority)
         if isinstance(row, dict) and row.get('state') == 'recovery-required':
             tracker._apex_seal_recovery_required = True

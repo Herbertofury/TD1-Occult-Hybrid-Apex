@@ -106,6 +106,12 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
               'game_time_source': 'services.game_clock_service().now()'}
     if isinstance(getattr(backend, '_APEX_NAMED_SAVE_BOUNDARY', None), dict):
         result['named_save_boundary'] = copy.deepcopy(backend._APEX_NAMED_SAVE_BOUNDARY)
+    named_load = getattr(backend, '_APEX_NAMED_LOAD_DIAGNOSTICS', {}).get(str(sim.id)) if sim is not None else None
+    if isinstance(named_load, dict):
+        result['named_load_diagnostic'] = copy.deepcopy(named_load)
+    load_error = getattr(getattr(sim, 'occult_tracker', None), '_apex_sealed_load_observation_error', None)
+    if isinstance(load_error, str):
+        result['sealed_load_observation_error'] = load_error[:2048]
     # The game clock can advance while the simulation timeline is frozen.
     # Keep both native observations, and never infer sim progress from it.
     result.update(client_id=None, zone_running=None, sim_now=None, sim_now_ticks=None,

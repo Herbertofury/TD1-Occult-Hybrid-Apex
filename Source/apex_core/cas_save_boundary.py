@@ -4,7 +4,8 @@ The inspected game's _save_game_gen first calls get_save_lock_tooltip and
 returns FAILED_SAVE_LOCKED before starting any serialization when non-None.
 Use that existing failure path and the matching UI predicate. Internal CAS
 Sim serialization stays native; no appearance is restored or edit inferred.
-No timer, periodic scan, native serializer exception, or disk write is added.
+The one inspected native save generator also captures household sidecars at
+save time. No timer, periodic scan or swallowed native exception is added.
 """
 import hashlib
 import json

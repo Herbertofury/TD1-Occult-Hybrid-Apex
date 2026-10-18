@@ -7,6 +7,28 @@ and named implementation records as separate form choices.
 
 ## Current evidence: 2026-10-18
 
+V188 checkpoint: the ordinary native Save and Exit path creates a fresh
+five-member household seal with all independent named documents, writes the
+normal save and exits normally. Cold loading that exact file reopens each
+member's distinct Ghost metadata independently of Human. Every field in all
+forty native appearances remains correct before and after 667 simulation ticks;
+the save and seal ledger stay unchanged, no native appearance restoration is
+requested, and the game is paused again. Repeated named inventory reads do not
+rewrite the bank. The owner's protected original remains read/copy-only.
+
+V187's frozen regression run passes 2,548 tests. Its first real metadata cold
+load exposed an admission refusal despite exact native appearance retention.
+V188 accepts an exact current saved native match without depending on an early
+tracker-load sample, while divergent current fields still require a complete
+matching load observation. It adds bounded diagnostic reasons and an exact
+V187 schema-compatible metadata transition; this grants no native restoration
+authority. Focused checks pass: 11 saved-name, 6 household-seal, 23 core-seal,
+26 audited-upgrade, 55 CAS receiver, 18 save-admission and 9 save-lifecycle tests.
+The candidate builds 103 Python 3.7 modules, seven packages and 207 independently
+Rust-verified resources. Actual Save As, complete-category editing, native
+link/copy, universal Live/F11 form ownership and Tray/Gallery remain unqualified.
+This is a development candidate, not an actual-save release.
+
 Current checkpoint: V182 completed 60 actual full-CAS form visits across all
 five hybrid household members, with 20 distinct Human/Alien/Vampire/Ghost
 physique edits. A second switching pass retained every marker. Complete native
@@ -105,7 +127,8 @@ native copy/link, save/cold-load and Tray qualification remain open.
 - [x] Thirty reopened form visits and complete 195-owner field retention.
 - [ ] Qualify distinct edits in every applicable category and native copy/link.
 - [x] Native body-edit save/cold-load retention for all five members and forty appearances.
-- [ ] Qualify saved independent named-form metadata, normal EA Save and Save As.
+- [x] Five-member saved independent named metadata and ordinary native Save and Exit.
+- [ ] Qualify actual Save As and independent named metadata in every editing route.
 - [ ] Qualify household Tray/Gallery retention.
 
 V182's native-owned UI transport completed this matrix without the previously

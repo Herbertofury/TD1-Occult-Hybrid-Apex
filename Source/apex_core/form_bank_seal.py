@@ -1,4 +1,4 @@
-"""Hash-bound appearance sidecars for controlled disposable saves and reloads.
+"""Hash-bound household appearance sidecars for native saves and reloads.
 
 An unsealed bank never authorizes a write. A seal binds the actual changed save
 file, selected bank, native Sim/household/GUID, token and exact script. Reload
@@ -10,6 +10,7 @@ the audited target source/bytecode and immutable seal. It never grants automatic
 product recovery or authorizes an unmarked profile.
 """
 import hashlib
+import copy
 import io
 import json
 import os
@@ -29,15 +30,15 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-18-native-cas-private-session-retirement-v186'
+UPGRADE_EPOCH = '2026-10-18-household-named-save-reload-v187'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '0c7a88403afb634e7c57f98180300d8c59f66172bb360e31f118aa0c27abb9ba'
+UPGRADE_SELF_BODY_SHA = 'f4a452e13fca47d10dddae25bc7239b734f0f238ee184ef2eccfb9e2ee551ded'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
     'apex_core/body_hair_initialization.py': 'b90fd14e840ae90de087b647519ef39208e3488dc72b5ab41d4389855f7b0592',
     'apex_core/bridge_startup.py': '0aa605cb1671a198571381ee51aa729082630faffbac657529a2ada385a9bee2',
-    'apex_core/cas_bank_transaction.py': '649c0f142ab4c8ca6f6a031dd0507b247582d46827ed01e17097b8c6de412f8e',
+    'apex_core/cas_bank_transaction.py': 'c84aebc05b3802326b73c01d4ec61d47d46eb8b817f7bc9be4aceb1149592abc',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '3edd23d636a6e2a015ec472197fa2803e260f10ecfa614f0029edb03f70c175f',
     'apex_core/cas_controls.py': '18d844b8dc242616ab7b24fbab0d217872691a77f03a3c7ce82c74a4b07c0a47',
@@ -51,7 +52,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_owner_payload.py': '47134e0e2ae6b222898677d7ed80a6e9cd20ddbc2be98a771af8d0167ca94b21',
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
-    'apex_core/cas_save_boundary.py': '29b7298311b0b6f466c7ac4f7f91149009b7980b19730071eea5b2e08266708b',
+    'apex_core/cas_save_boundary.py': '050553a370fec51bb91898038b93471372d06377b11b7355deab08b9916ca006',
     'apex_core/cas_ui.py': 'cfa0c33ce4bc63cf5c4d4f646d1dcd435cc2e11a905fb9a4dce83edfad8a8cfd',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
@@ -61,13 +62,15 @@ UPGRADE_MODULE_PINS = {
     'apex_core/genetics_snapshot.py': '25944c18d9b240e9c4b579efd4e762443916ada501d154d99d9fe8e0f651bf7a',
     'apex_core/growth_parts.py': 'efca6b2b2cacf2c18171e87779b95cd3be9766809068583fd1547b5f7bd32db2',
     'apex_core/household_io.py': '13e4b8e86ef6587d8e9319e48551637664813acda4c9bf34878d130ecc3df667',
+    'apex_core/household_save_group.py': 'dcad435189961dc1a2375e35fc0a04e2e6304cf644a9b7d628a25e222f24e06d',
     'apex_core/human_werewolf.py': '9bafd4df1783f6a3c526242b9a40c42033e3dad4d2f8029e0046633b2f4a363e',
     'apex_core/hybrid_persistence.py': '53e192f2ba37df8dc313e7b471286721ae57c9ea6b3fc7b49a6121b23bb4c3ec',
     'apex_core/installed_icon_resources.py': '9dc1e52a3e3ab5d064b729047f34e6c3a635a88780047db258fbb2eb72283cd4',
     'apex_core/legacy_phone_guard.py': '097e88240ed8828101de5389c8f966a76e2c393b821f0580808735b663b600cd',
-    'apex_core/lifestate_forms.py': '48032945ff8243c7a67f9ae820d3c285a85e1fc11f89ea14c938ccba83b2e1f6',
+    'apex_core/lifestate_forms.py': '3c276c99a38c95f9330e7c9ae4c6ac6220131d0eebb705653d6e79e03392d770',
     'apex_core/lifestates.py': 'c45a4c6f621b75c055e91f55fdb0b767ac15418cff649dcc90801e1bee355ac7',
     'apex_core/morph_controls.py': 'd144ebd7a8dcbff5695b1a2747f641b17017b60a6c39bd904e467602d4c7f876',
+    'apex_core/named_save_boundary.py': 'e91cedc374353240e8a5abdde6ab6e99d2313de9158a3846b5a74e1f1fe0c8ca',
     'apex_core/native_cas_engine.py': 'dadb7ca461a7535f69fb117bdac990bbfeb9b956287ee8d60108ff5ae4d6fe05',
     'apex_core/native_controls.py': '14cdf881981539a2f3067bbb34f3b348ecd60b2aafaf998416f898379868992f',
     'apex_core/native_form_isolation.py': '8b543ee251da890e30df2f96a961d4d7d76519816376617330f5136de414bb33',
@@ -82,13 +85,14 @@ UPGRADE_MODULE_PINS = {
     'apex_core/overlay_loader.py': '22c4580ce7558870958ce80e7a8914edaabf6692e7649f48ef52db904c1549ca',
     'apex_core/phone_cas.py': 'dfa10301eaecde9d92282ebab19fceccfb2599be1e08cd9ebd8db6983a4138b6',
     'apex_core/phone_interactions.py': '05778ddb4e9e764ee4899cca39e5143bf3a4bd7d3bf61d4890c3e0466b72f025',
+    'apex_core/profile_save_identity.py': '3dff19214d24119caa20bf3b0849e16e1c006a73a5a9e8f0c167ca5c0a080453',
     'apex_core/saved_occult_extras.py': '6b7f0c8c4ea258823d680f35764155bd2de02551a1fc876424888108c814fb0a',
     'apex_core/sim_data.py': 'dfc26d8d9a016b24d69187233ab089058fe72ef82abbac60a2d09710fe0e7266',
     'apex_core/studio.py': '984b5df893762ec0ad0f82f0cb3e09c7845aac4cd8f27aa9bd078b45fdcc25f9',
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
-    'apex_core/test_driver.py': 'ee8830092c3f7926550000c4a27b4ec700af88aed959eecfe6fe3c55cd80adbe',
+    'apex_core/test_driver.py': '1319a52513122d5d0b726a0f0657e1329f553018df5a894bb0d525012c6bca25',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
-    'td1_occult_hybrid_apex.py': 'b4250d1def5e8fd9fd01ff0a32d8b7f9c05aff78925c5cd88d6f17972aea8c86',
+    'td1_occult_hybrid_apex.py': '3d304f8f7aa216cb1e78a8b6b17a32d9f271da88a4198dca34d7d91c70f5def8',
 }
 _SEAL_FIELDS = ('intent_id', 'identity', 'contract_sha256', 'target',
                 'bank_record_sha256', 'appearances', 'file_sha256')
@@ -426,8 +430,17 @@ def _source_authority(backend, identity, profile, bank_path, key, seal_path, row
     old = row.get('identity')
     if (not isinstance(old, dict) or any(old.get(name) != identity.get(name) for name in ('profile', 'test_token')) or
             row.get('contract_sha256') != CONTRACT or any(name not in row for name in _SEAL_FIELDS) or
-            _hash({name: row[name] for name in _SEAL_FIELDS}) != row.get('seal_sha256')):
+            _seal_digest(row) != row.get('seal_sha256')):
         raise ValueError('Seal native/profile/contract identity differs.')
+    if 'save_group' in row:
+        from . import household_save_group
+        group = row['save_group']
+        primary = group.get('primary_key') if isinstance(group, dict) else None
+        ids = group.get('member_intents', {}) if isinstance(group, dict) else {}
+        members = household_save_group.members(_store(seal_path)['records'], primary,
+            ids.get(primary), ('sealed', 'reconciled'))
+        if key not in members or members[key].get('seal_sha256') != row['seal_sha256']:
+            raise ValueError('Seal belongs to another retained household group.')
     if old.get('script_sha256') == identity['script_sha256']:
         return None
     if old.get('script_sha256') != UPGRADE_PREDECESSOR:
@@ -474,6 +487,11 @@ def _hash(value):
     return hashlib.sha256(_bytes(value)).hexdigest()
 
 
+def _seal_digest(row):
+    names = _SEAL_FIELDS + tuple(name for name in ('save_group', 'named_forms') if name in row)
+    return _hash({name: row[name] for name in names})
+
+
 def _read(path):
     path = _unlinked(path)
     before = path.stat()
@@ -503,17 +521,22 @@ def _store(path):
 def _identity(backend, sim):
     from .test_driver import runtime_identity, _save_id
     identity = runtime_identity(backend.__file__)
+    player = not _uuid(identity.get('test_token'))
+    if player:
+        from .profile_save_identity import player as player_identity
+        identity = player_identity(backend)
     if (type(identity.get('pid')) is not int or identity['pid'] != os.getpid() or not _uuid(identity.get('test_token')) or
             not _sha(identity.get('script_sha256')) or not isinstance(identity.get('profile'), str) or
             sim is None or not _save_id(str(sim.id)) or not _save_id(str(sim.household_id))):
         raise ValueError('No exact marked native sidecar identity.')
     profile = _unlinked(Path(identity['profile']))
-    marker = _unlinked(profile / '.apex-disposable-profile.json')
-    if marker.stat().st_size > 4096:
-        raise ValueError('Disposable marker exceeds its bound.')
-    marked = json.loads(marker.read_text(encoding='utf-8'))
-    if not isinstance(marked, dict) or marked.get('disposable') is not True or marked.get('token') != identity['test_token']:
-        raise ValueError('Disposable marker changed; no sidecar operation authorized.')
+    if not player:
+        marker = _unlinked(profile / '.apex-disposable-profile.json')
+        if marker.stat().st_size > 4096:
+            raise ValueError('Disposable marker exceeds its bound.')
+        marked = json.loads(marker.read_text(encoding='utf-8'))
+        if not isinstance(marked, dict) or marked.get('disposable') is not True or marked.get('token') != identity['test_token']:
+            raise ValueError('Disposable marker changed; no sidecar operation authorized.')
     bank_path, key = form_bank.context(backend, sim)
     if profile.name != 'The Sims 4' or bank_path.parent != profile / 'TD1_OccultHybridApexData':
         raise ValueError('Appearance sidecar escaped the marked disposable layout.')
@@ -546,22 +569,25 @@ def _record(bank_path, key):
     if (not isinstance(bank, dict) or type(bank.get('schema')) is not int or bank['schema'] != 1 or not isinstance(row, dict) or
             row.get('pending') is not None or row.get('switch_pending') is not None or
             (row.get('native_rebase_requires_cas_completion') is not None and row.get('native_rebase_requires_cas_completion') is not False) or
-            not isinstance(row.get('bank'), dict) or set(row['bank']) != {str(flag) for flag in FORMS} or
-            not isinstance(row.get('history'), list) or not row['history'] or not isinstance(row['history'][-1], dict) or
-            row['history'][-1].get('state') != 'completed'):
-        raise ValueError('No idle completed seven-lane form bank; unsealed data cannot authorize restoration.')
+            not isinstance(row.get('bank'), dict) or '1' not in row['bank'] or
+            not set(row['bank']).issubset({str(flag) for flag in FORMS}) or
+            not isinstance(row.get('history'), list) or
+            (row['history'] and (not isinstance(row['history'][-1], dict) or row['history'][-1].get('state') != 'completed')) or
+            (not row['history'] and 'lifestate_forms' not in row)):
+        raise ValueError('No idle completed seven-lane or exact captured partial form bank; unsealed data cannot authorize restoration.')
     for fields in row['bank'].values():
         appearance.fingerprint(fields)
     return row
 
 
-def _members(backend, sim):
+def _members(backend, sim, lanes=None):
     kinds = {int(kind): kind for kind in backend._all_occults()}
-    if not set(FORMS[1:]).issubset(kinds):
-        raise ValueError('Native six-occult tuning is unavailable.')
-    for flags in FORMS[1:]:
+    required = set(FORMS[1:]) if lanes is None else {int(lane) for lane in lanes} - {1}
+    if not required.issubset(kinds):
+        raise ValueError('Native tuning for a captured occult is unavailable.')
+    for flags in required:
         if sim.occult_tracker.has_occult_type(kinds[flags]) is not True:
-            raise ValueError('Direct native six-occult membership is unavailable.')
+            raise ValueError('Direct native membership for a captured occult is unavailable.')
     return kinds
 
 
@@ -601,18 +627,124 @@ def current_runtime_bank_verified(backend, sim, bank_record):
         _sha(row.get('seal_sha256')))
 
 
-def begin_save(backend, sim, argument, native_before, file_before):
-    """Called before scheduling a controlled native save, never afterward."""
+def admit_saved_named(backend, sim):
+    """Reopen certified saved variants with current native caches, no restore.
+
+    The save seal owns the named document. A completed native load observation
+    distinguishes load loss (which needs the existing repair path) from later
+    Live edits. Unsaved sidecar looks are archived before selecting the saved
+    document; no Sim, native appearance, membership or save file is written.
+    """
+    from . import lifestate_forms, lifestates
+    bank_path, key = form_bank.context(backend, sim)
+    seal_path = _unlinked(bank_path.with_name('form_bank_seals.json'))
+    if not bank_path.exists() or not seal_path.exists():
+        return False
+    from .cas_bank_transaction import _LOCK
+    with _LOCK:
+        bank_data = form_bank.load(bank_path)
+        record = bank_data['records'].get(key)
+        if not isinstance(record, dict) or lifestate_forms.KEY not in record:
+            return False
+        if record.get('runtime_pid') == os.getpid() and lifestate_forms._owns_runtime(record, sim):
+            return True
+        try:
+            lifestates.owner_thread(backend, sim)
+            identity, profile, observed_bank, observed_key, path = _identity(backend, sim)
+            if (observed_bank, observed_key, path) != (bank_path, key, seal_path):
+                return False
+            _idle()
+            from .cas_bank_transaction import _blocked
+            if _blocked(record, key):
+                return False
+            row = _store(path)['records'].get(key)
+            if (not isinstance(row, dict) or row.get('sealed') is not True or
+                    row.get('state') not in ('sealed', 'reconciled') or 'named_forms' not in row):
+                return False  # A legacy certificate never gains uncaptured names.
+            authority = _source_authority(backend, identity, profile, bank_path, key, path, row)
+            target = row['target']
+            if target.get('sim_id') != str(sim.id) or target.get('household_id') != str(sim.household_id):
+                return False
+            live = _live(backend, sim, target)
+            from .test_driver import _save_file_evidence
+            if (live.get('save_slot') != target['slot_id'] or
+                    _save_file_evidence(profile, target['slot_id'])['sha256'] != row['file_sha256']):
+                return False
+            saved = lifestate_forms.document({lifestate_forms.KEY: row['named_forms']})
+            prior = lifestate_forms.document(record)
+            for name in ('runtime_pid', 'lifestate_runtime_pid'):
+                old = record.get(name)
+                if type(old) is not int or old <= 0 or old != identity['pid'] and not form_bank._old_process_absent(old):
+                    return False
+            current = _native(backend, sim)
+            if set(current['stored']) != set(row['appearances']) or str(current['active_form']) not in current['stored']:
+                return False
+            def matches_saved(native):
+                return (set(native['stored']) == set(row['appearances']) and all(
+                    appearance.fingerprint(native['stored'][lane]['fields'])['appearance_sha256'] ==
+                    appearance.fingerprint(fields)['appearance_sha256'] for lane, fields in row['appearances'].items()))
+            loaded = _LOADED.get(key)
+            if isinstance(loaded, dict) and loaded.get('pid') == identity['pid']:
+                if (loaded.get('tracker') is not sim.occult_tracker or loaded.get('identity') != identity or
+                        loaded.get('file_sha256') != row['file_sha256'] or
+                        loaded.get('upgrade_receipt_sha256') != authority or not matches_saved(loaded['native'])):
+                    return False
+            elif not matches_saved(current):
+                return False
+            actual = {lane: owner['fields'] for lane, owner in current['stored'].items()}
+            if (appearance.fingerprint(current['active'])['appearance_sha256'] !=
+                    appearance.fingerprint(actual[str(current['active_form'])])['appearance_sha256']):
+                return False
+        except (ValueError, OSError, KeyError, TypeError):
+            return False
+        archived = None
+        if prior != saved or any(appearance.fingerprint(record['bank'][lane])['appearance_sha256'] !=
+                appearance.fingerprint(fields)['appearance_sha256'] for lane, fields in actual.items()):
+            preserved = dict(schema=1, owner_key=key, runtime_pid=record['runtime_pid'],
+                lifestate_runtime_pid=record['lifestate_runtime_pid'], bank=record['bank'],
+                named_forms=prior, active_lane=record.get('active_lane'),
+                reason='prior-sidecar-looks-retained-before-certified-named-load')
+            digest = _hash(preserved)
+            folder = _unlinked(bank_path.parent / 'named_form_history'); folder.mkdir(exist_ok=True)
+            archive = _unlinked(folder / (digest + '.json'))
+            if archive.exists():
+                if _hash(_read(archive)) != digest:
+                    raise ValueError('Named appearance recovery archive changed; metadata not replaced.')
+            else:
+                _write(archive, preserved)
+            archived = dict(path=str(archive), sha256=digest)
+        # Native rendering lanes remain actual current data. A named variant is
+        # never overwritten merely because it shares that lane's rendering kind.
+        for lane, name in list(saved['active'].items()):
+            if appearance.fingerprint(actual[lane])['appearance_sha256'] != saved['forms'][name]['appearance_sha256']:
+                del saved['active'][lane]
+        history = record.setdefault('named_load_history', [])
+        if not isinstance(history, list):
+            raise ValueError('Named load history is malformed; saved variants remain retained.')
+        history.append(dict(runtime_pid=identity['pid'], prior_runtime_pid=record['runtime_pid'],
+            seal_sha256=row['seal_sha256'], file_sha256=row['file_sha256'],
+            saved_named_sha256=_hash(row['named_forms']), archived_unsaved=archived,
+            native_appearance_written=False))
+        record.update(runtime_pid=identity['pid'], lifestate_runtime_pid=identity['pid'],
+            bank=copy.deepcopy(actual), active_lane=str(current['active_form']))
+        record[lifestate_forms.KEY] = saved
+        lifestate_forms._bind_runtime(record,sim)
+        form_bank.save(bank_path, bank_data)
+        return True
+
+
+def _prepare_save_member(backend, sim, argument, native_before, file_before, seals):
+    """Prepare one verified member without a partial sidecar write."""
     identity, profile, bank_path, key, path = _identity(backend, sim)
     if not bank_path.exists():
         return {'state': 'not-applicable', 'reason': 'no-form-bank', 'sealed': False}
     bank = _read(bank_path)
     if key not in bank.get('records', {}):
         return {'state': 'not-applicable', 'reason': 'no-selected-form-bank', 'sealed': False}
-    _idle(); _members(backend, sim)
+    _idle()
     row = _record(bank_path, key)
-    data = _store(path)
-    previous = data['records'].get(key)
+    _members(backend, sim, row['bank'])
+    previous = seals['records'].get(key)
     prior_reconciled = current_runtime_bank_verified(backend, sim, row)
     if (type(row.get('runtime_pid')) is not int or row['runtime_pid'] != identity['pid']) and not prior_reconciled:
         raise ValueError('Bank is not from this runtime; reconcile its prior certified reload first.')
@@ -630,18 +762,87 @@ def begin_save(backend, sim, argument, native_before, file_before):
         'target': dict(argument), 'bank_record_sha256': _hash(row), 'appearances': row['bank'],
         'before_file': file_before, 'before_context': native_before, 'native_before': native,
         'seal_sha256': None, 'file_sha256': None, 'sealed': False}
-    data['records'][key] = intent; _write(path, data)
-    return {'state': intent['state'], 'intent_id': intent['intent_id'], 'sealed': False, 'contract_sha256': CONTRACT}
+    from . import lifestate_forms
+    if lifestate_forms.KEY in row:
+        if not lifestate_forms._owns_runtime(row,sim):
+            raise ValueError('Prior named variants need certified load admission or explicit unsaved draft recovery before saving.')
+        intent['named_forms'] = lifestate_forms.document(row)
+    return intent
+
+
+def _household(backend, sim):
+    from .test_driver import _save_id
+    household = backend.services.active_household()
+    if household is None or str(household.id) != str(sim.household_id):
+        raise ValueError('The native save household changed before sidecar preparation.')
+    members = list(household.sim_info_gen())
+    if (not 1 <= len(members) <= 8 or any(member is None or not _save_id(str(member.id)) or
+            str(member.household_id) != str(household.id) for member in members) or
+            len({str(member.id) for member in members}) != len(members) or
+            not any(member is sim for member in members)):
+        raise ValueError('The complete native save household roster is unavailable.')
+    return {str(member.id): member for member in members}
+
+
+def begin_save(backend, sim, argument, native_before, file_before):
+    """Prepare every household bank before the one native save request."""
+    from . import household_save_group
+    identity, profile, bank_path, selected_key, path = _identity(backend, sim)
+    if not bank_path.exists():
+        return {'state': 'not-applicable', 'reason': 'no-form-bank', 'sealed': False}
+    roster = _household(backend, sim)
+    data = _store(path); prepared = {}
+    for sid, member in roster.items():
+        admit_saved_named(backend, member)
+        target = dict(argument, sim_id=sid)
+        before = native_before if member is sim else _live(backend, member, target)
+        row = _prepare_save_member(backend, member, target, before, file_before, data)
+        if row.get('state') == 'not-applicable':
+            continue
+        key = argument['save_guid'] + ':' + sid
+        if row.get('identity') != identity:
+            raise ValueError('A prepared household member belongs to another runtime or source.')
+        prepared[key] = row
+    if set(_household(backend, sim)) != set(roster):
+        raise ValueError('Native household changed during preparation; no save intent written.')
+    if not prepared:
+        return {'state': 'not-applicable', 'reason': 'no-household-form-bank', 'sealed': False}
+    primary = selected_key if selected_key in prepared else sorted(prepared)[0]
+    prepared = household_save_group.prepare(primary, list(roster), prepared)
+    data['records'].update(prepared)
+    _write(path, data)
+    return {'state': 'save-intent', 'intent_id': prepared[primary]['intent_id'], 'sealed': False,
+            'contract_sha256': CONTRACT, 'primary_key': primary,
+            'household_member_count': len(roster), 'appearance_bank_count': len(prepared)}
+
+
+def _save_group(data, selected_key, intent_id, states):
+    from . import household_save_group
+    matches = [(key, row) for key, row in data['records'].items()
+               if isinstance(row, dict) and row.get('intent_id') == intent_id]
+    if len(matches) != 1:
+        raise ValueError('Save intent has no unique retained primary.')
+    key, row = matches[0]
+    if row.get('save_group') is None and key != selected_key:
+        raise ValueError('A legacy intent belongs to another selected Sim.')
+    if row.get('state') not in states:
+        if 'save-submitted' in states:
+            raise ValueError('No submitted native save intent for this completion.')
+        raise ValueError('Native save intent changed before submission.')
+    return key, household_save_group.members(data['records'], key, intent_id, (row['state'],))
 
 
 def submitted(backend, sim, receipt, accepted):
     if receipt.get('state') == 'not-applicable':
         return
     _identity_row, _profile, _bank, key, path = _identity(backend, sim)
-    data = _store(path); row = data['records'].get(key)
-    if not isinstance(row, dict) or row.get('intent_id') != receipt.get('intent_id') or row.get('state') != 'save-intent':
-        raise ValueError('Native save intent identity changed.')
-    row['state'] = 'save-submitted' if accepted is True else 'save-rejected' if accepted is False else 'save-unresolved'
+    data = _store(path)
+    primary, rows = _save_group(data, key, receipt.get('intent_id'), ('save-intent',))
+    for row in rows.values():
+        if row.get('identity') != _identity_row:
+            raise ValueError('A household save intent belongs to another runtime/source.')
+    for row in rows.values():
+        row['state'] = 'save-submitted' if accepted is True else 'save-rejected' if accepted is False else 'save-unresolved'
     _write(path, data)
 
 
@@ -649,27 +850,35 @@ def complete_save(backend, sim, argument):
     if not isinstance(argument, dict) or set(argument) != {'intent_id', 'expected_save_sha256'} or not _uuid(argument['intent_id']) or not _sha(argument['expected_save_sha256']):
         raise ValueError('Use the original save intent and exact stable changed file hash.')
     identity, profile, bank_path, key, path = _identity(backend, sim)
-    _idle(); data = _store(path); row = data['records'].get(key)
-    if (not isinstance(row, dict) or row.get('intent_id') != argument['intent_id'] or row.get('identity') != identity or
-            row.get('contract_sha256') != CONTRACT or row.get('state') not in ('save-submitted', 'sealed')):
-        raise ValueError('No submitted native save intent for this exact runtime/source.')
-    target = row['target']; live = _live(backend, sim, target)
-    if live.get('save_slot') != target['slot_id'] or _hash(_record(bank_path, key)) != row['bank_record_sha256']:
-        raise ValueError('Native saved target or desired bank changed; no seal created.')
+    _idle(); data = _store(path)
+    primary, rows = _save_group(data, key, argument['intent_id'], ('save-submitted', 'sealed'))
+    row = rows[primary]; target = row['target']
+    roster = _household(backend, sim) if row.get('save_group') is not None else {str(sim.id): sim}
+    if row.get('save_group') is not None and set(roster) != set(row['save_group']['roster_sim_ids']):
+        raise ValueError('Native household changed after submission; no group sealed.')
+    for owner_key, member_row in rows.items():
+        sid = member_row['target']['sim_id']; member = roster.get(sid)
+        if (member is None or member_row.get('identity') != identity or member_row.get('contract_sha256') != CONTRACT):
+            raise ValueError('A saved member has another runtime, source or identity.')
+        live = _live(backend, member, member_row['target'])
+        if (live.get('save_slot') != target['slot_id'] or
+                _hash(_record(bank_path, owner_key)) != member_row['bank_record_sha256']):
+            raise ValueError('A saved member or desired bank changed; no group sealed.')
     from .test_driver import _save_file_evidence
     observed = _save_file_evidence(profile, target['slot_id'])
     if observed['sha256'] != argument['expected_save_sha256'] or observed['sha256'] == row['before_file']['sha256']:
         raise ValueError('Actual save file does not match the changed completion hash.')
-    if row['state'] == 'sealed':
-        if row['file_sha256'] != observed['sha256']:
-            raise ValueError('Existing seal differs; no completion replay.')
-    else:
-        row.update(state='sealed', sealed=True, file_sha256=observed['sha256'], after_file=observed)
-        row['seal_sha256'] = _hash({name: row[name] for name in ('intent_id', 'identity', 'contract_sha256',
-            'target', 'bank_record_sha256', 'appearances', 'file_sha256')})
+    for member_row in rows.values():
+        if member_row['state'] == 'sealed' and member_row['file_sha256'] != observed['sha256']:
+            raise ValueError('An existing household seal differs; no completion replay.')
+    if row['state'] != 'sealed':
+        for member_row in rows.values():
+            member_row.update(state='sealed', sealed=True, file_sha256=observed['sha256'], after_file=observed)
+            member_row['seal_sha256'] = _seal_digest(member_row)
         _write(path, data)
     return {'ok': True, 'state': 'sealed', 'intent_id': row['intent_id'], 'seal_sha256': row['seal_sha256'],
-            'file_sha256': row['file_sha256'], 'bank_record_sha256': row['bank_record_sha256'], 'save_reload_verified': False}
+            'file_sha256': row['file_sha256'], 'bank_record_sha256': row['bank_record_sha256'], 'save_reload_verified': False,
+            'household_seals': {owner_key: member['seal_sha256'] for owner_key, member in rows.items()}}
 
 
 def note_loaded(tracker):
@@ -697,9 +906,12 @@ def note_loaded(tracker):
         recovery = row.get('reconciliation')
         if (row['state'] == 'reconciled' and isinstance(recovery, dict) and
                 type(recovery.get('pid')) is int and recovery['pid'] == identity['pid']):
-            return  # Durable same-runtime consumption survives repeated load hooks.
+            from . import lifestate_forms
+            bank_record=_record(bank_path,key)
+            if lifestate_forms.KEY not in bank_record or lifestate_forms._owns_runtime(bank_record,sim):
+                return  # Same tracker/zone reload cannot replay a saved look.
         first = _LOADED.get(key)
-        if isinstance(first, dict) and first.get('pid') == identity['pid']:
+        if isinstance(first, dict) and first.get('pid') == identity['pid'] and first.get('tracker') is tracker:
             return  # Zone loads cannot replace the original load-boundary baseline.
         from .test_driver import _save_file_evidence
         file_row = _save_file_evidence(profile, row['target']['slot_id'])
@@ -715,12 +927,13 @@ def reconcile(backend, sim, argument):
     if not isinstance(argument, dict) or set(argument) != {'seal_sha256'} or not _sha(argument['seal_sha256']):
         raise ValueError('Use one exact certified save seal; no caller appearance payload accepted.')
     identity, profile, bank_path, key, path = _identity(backend, sim)
-    _idle(); _members(backend, sim)
+    _idle()
     data = _store(path); row = data['records'].get(key)
     if (not isinstance(row, dict) or row.get('state') not in ('sealed', 'reconciled') or row.get('sealed') is not True or
             row.get('seal_sha256') != argument['seal_sha256'] or row.get('contract_sha256') != CONTRACT or
             not isinstance(row.get('identity'), dict) or row['identity'].get('pid') == identity['pid']):
         raise ValueError('Seal is absent, altered, unresolved or from another source/runtime identity.')
+    _members(backend, sim, row['appearances'])
     authority = _source_authority(backend, identity, profile, bank_path, key, path, row)
     if authority is not None:
         path, data, row = _upgrade_runtime(bank_path, key, row, authority)

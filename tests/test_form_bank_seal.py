@@ -49,7 +49,8 @@ class SealFixture(unittest.TestCase):
                 if name == '__outfits__': owner.blob = value[1]
                 else: setattr(owner, name, value)
         self.backend = Obj(__file__='fixture', _data_directory=lambda: str(self.data_dir),
-            services=Obj(get_persistence_service=lambda: Obj(get_save_slot_proto_guid=lambda: int(GUID))),
+            services=Obj(get_persistence_service=lambda: Obj(get_save_slot_proto_guid=lambda: int(GUID)),
+                active_household=lambda: Obj(id=int(HH),sim_info_gen=lambda:iter([self.sim]))),
             _all_occults=lambda: seal.FORMS[1:], _form_map=lambda tracker: tracker._sim_info_map,
             _coerce_flags=int, _get_current_flags=lambda owner: owner.current_occult_types,
             _v8_read_outfit_blob=lambda owner: owner.blob, _restore_siminfo_payload=restore,

@@ -192,6 +192,16 @@ class UpgradeFixture(TargetFixture, SealFixture):
         self.enterContext(patch.object(seal, 'UPGRADE_PREDECESSOR', self.old_sha))
         self.identity['script_sha256'] = self.old_sha
         self.certified = self.certify()
+        # This fixture represents the real A0 predecessor, whose certificate
+        # predates household save groups. Keep its original legacy wire shape;
+        # do not accidentally manufacture a new-format certificate for A0.
+        legacy = seal._store(self.path)
+        legacy_row = legacy['records'][self.key]
+        legacy_row.pop('save_group', None)
+        legacy_row['seal_sha256'] = seal._seal_digest(legacy_row)
+        seal._write(self.path, legacy)
+        self.certified['seal_sha256'] = legacy_row['seal_sha256']
+        self.certified.pop('household_seals', None)
         self.original_seal = self.path.read_bytes()
         self.original_bank = self.bank_path.read_bytes()
         self.before_saves = upgrade.save_hashes(self.profile)

@@ -568,11 +568,13 @@ def _commit_metadata(backend, sim, token, receipt):
                 raise ValueError('Named CAS completion differs from its exact prepared native-owner plan.')
             record['lifestate_forms']=named
             record['native_cas_owner_archive']=archive
-            record['lifestate_runtime_pid']=os.getpid()
         else:
             from .lifestate_forms import sync as sync_lifestate
             for lane, fields in record['bank'].items():
                 sync_lifestate(record, lane, fields)
+        from . import lifestate_forms
+        if lifestate_forms.KEY in record:
+            lifestate_forms._bind_runtime(record,sim)
         if policy is not None:
             record['hair_policy'] = policy
         record['active_lane'] = receipt['active_lane']
@@ -809,6 +811,8 @@ def begin(backend, sim, snapshot_reader=None):
     """
     with _LOCK:
         assert_idle(backend, sim)
+        from .form_bank_seal import admit_saved_named
+        admit_saved_named(backend, sim)
         identity, path, key, data, file_hash, existing = _context(backend, sim)
         record = copy.deepcopy(existing) if existing is not None else {'bank': {}, 'history': []}
         if (not isinstance(record.get('history', []), list) or

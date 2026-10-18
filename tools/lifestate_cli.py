@@ -11,14 +11,14 @@ def argument(args):
         raise ValueError('Choose one exact existing uint64 Sim identity.')
     options = {name:getattr(args,name,None) for name in ('id','lifestate','label','base_form','expected_sha256')}
     reload = {name:getattr(args,name,None) for name in ('expected_document_sha256','prior_pid','household_id','save_guid')}
-    if operation=='revalidate':
+    if operation in ('revalidate','resume-draft'):
         if (any(value is not None for value in options.values()) or
                 not isinstance(reload['expected_document_sha256'],str) or re.fullmatch(r'[0-9a-f]{64}',reload['expected_document_sha256']) is None or
                 type(reload['prior_pid']) is not int or not 0 < reload['prior_pid'] <= 0xffffffff or
                 any(not isinstance(reload[name],str) or re.fullmatch(r'[1-9][0-9]{0,19}',reload[name]) is None or
                     int(reload[name]) >= 1 << 64 for name in ('household_id','save_guid'))):
             raise ValueError('Revalidation requires the exact captured document/runtime/save/household and no edit payload.')
-        return 'lifestate_form_revalidate',reload
+        return ('lifestate_form_revalidate' if operation=='revalidate' else 'lifestate_form_resume_draft'),reload
     if any(value is not None for value in reload.values()):
         raise ValueError('Capture reload options cannot be attached to another operation.')
     if operation in ('catalog','list'):

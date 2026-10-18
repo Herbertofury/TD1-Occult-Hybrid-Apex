@@ -126,11 +126,13 @@ def install(backend, service_type=None, reason_factory=None):
     service = backend.services.get_persistence_service()
     cls = type(service) if service_type is None else service_type
     locked, tooltip = getattr(cls, 'is_save_locked', None), getattr(cls, 'get_save_lock_tooltip', None)
+    generator = getattr(cls, '_save_game_gen', None)
     installed = (getattr(locked, '_apex_cas_save_boundary', None) is backend and
-                 getattr(tooltip, '_apex_cas_save_boundary', None) is backend)
+                 getattr(tooltip, '_apex_cas_save_boundary', None) is backend and
+                 getattr(generator, '_apex_cas_save_boundary', None) is backend)
     candidates = {'is_save_locked': getattr(locked, '_apex_original', locked) if installed else locked,
                   'get_save_lock_tooltip': getattr(tooltip, '_apex_original', tooltip) if installed else tooltip,
-                  '_save_game_gen': getattr(cls, '_save_game_gen', None),
+                  '_save_game_gen': getattr(generator, '_apex_original', generator) if installed else generator,
                   '_send_lock_save_message': getattr(cls, '_send_lock_save_message', None),
                   '_send_unlock_save_message': getattr(cls, '_send_unlock_save_message', None)}
     for name, method in candidates.items():
@@ -159,7 +161,9 @@ def install(backend, service_type=None, reason_factory=None):
     for method, original in ((is_save_locked, locked), (get_save_lock_tooltip, tooltip)):
         method._apex_cas_save_boundary = backend
         method._apex_original = original
-    cls.is_save_locked, cls.get_save_lock_tooltip = is_save_locked, get_save_lock_tooltip
+    from . import named_save_boundary
+    wrapped_generator = named_save_boundary.wrap(backend, candidates['_save_game_gen'], reason)
+    cls.is_save_locked, cls.get_save_lock_tooltip, cls._save_game_gen = is_save_locked, get_save_lock_tooltip, wrapped_generator
     backend._APEX_CAS_SAVE_BOUNDARY_READY = True
     return True
 
@@ -199,7 +203,7 @@ def probe(backend, exercise_locked_generator=False):
         return result
     if state['locked'] is not True or not state['pending_sim_ids'] or reason is None:
         raise ValueError('The native generator probe requires actual pending CAS owners and a current native lock reason; no save submitted.')
-    original = type(service)._save_game_gen
+    original = getattr(type(service)._save_game_gen, '_apex_original', type(service)._save_game_gen)
     if _shape(original) != _CONTRACT['_save_game_gen']:
         raise ValueError('Native save generator contract changed; no probe submitted.')
     # This exact inspected function returns its lock tuple before examining

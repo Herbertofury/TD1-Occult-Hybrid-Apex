@@ -74,6 +74,27 @@ be reseeded. This exposed a repeated-visit lifecycle gap, not an edited-form
 retention pass. The session exited normally without saving; all twenty files
 were unchanged and the five never-entered checkpoints remain archived.
 
+V186 now also completes the second return and all five receiver commits. After
+1,351 further simulation ticks, all forty Live appearances still match. One
+controlled normal save, normal game closure and cold load then preserve all
+five members, six occult memberships each and every field in all forty native
+appearances. A further 750-tick selected-member reload audit passes without
+appearance or bank restoration, followed by another full-household comparison.
+The original profile remains untouched. This establishes the body-edit native
+save boundary; it does not qualify every CAS category or Tray/Gallery.
+
+That cold load exposed a separate named-form metadata gap: V186 certifies only
+the selected member and cannot reopen independently edited Ghost looks as saved
+variants. V187 captures all household bank members in one save group, retains
+separate named documents, and distinguishes a new load tracker from later Live
+edits. Saved metadata admission writes no native appearance; unsaved looks stay
+in content-addressed recovery history. An explicit legacy draft import never
+claims old uncaptured names were saved. The normal EA save generator now captures
+and finishes the same group, including Save As, without a second save. Synthetic
+checks pass for failure/cancellation, no replay, household isolation and named
+reloads; the matching V187 runtime qualification remains pending. Native copy/link,
+full-category edits, universal Live/F11 form semantics and Tray gates remain open.
+
 V186 adds private completed-session retirement. Source requires verified
 completion of every scoped receiver; the DLL requires the entire exact graph
 generation roster, no active native view and a finished/disconnected transport.

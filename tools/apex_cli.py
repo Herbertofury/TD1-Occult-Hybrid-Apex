@@ -289,7 +289,7 @@ def parser():
     request.add_argument('--occult')
     request.add_argument('--value')
     life = commands.add_parser('lifestate', help='Named independent life-state appearances; game-thread CLI, no screen input')
-    life.add_argument('operation', choices=('catalog','list','capture','bind','select','revalidate'))
+    life.add_argument('operation', choices=('catalog','list','capture','bind','select','revalidate','resume-draft'))
     life.add_argument('--state', required=True, type=Path)
     life.add_argument('--sim-id', required=True)
     life.add_argument('--output', required=True, type=Path)

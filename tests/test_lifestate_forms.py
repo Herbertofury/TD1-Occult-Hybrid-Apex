@@ -180,6 +180,32 @@ class LifeStateFormsTests(unittest.TestCase):
         self.assertEqual(form_bank.capture(self.backend,self.sim),native)
         self.assertFalse(result['appearance_modified']);self.assertFalse(result['bank_authority_updated'])
 
+    def test_explicit_legacy_draft_keeps_distinct_looks_without_claiming_saved_provenance(self):
+        from apex_core.form_bank_seal import _hash
+        ghost=self.capture('independent_ghost','GHOST')
+        fields=dict(ghost['fields'],physique=appearance.encode('independent legacy Ghost look'))
+        forms.update(self.backend,self.sim,ghost['id'],fields,ghost['appearance_sha256'])
+        path,key=form_bank.context(self.backend,self.sim);bank=form_bank.load(path);record=bank['records'][key]
+        prior=os.getpid()+1;record['lifestate_runtime_pid']=prior;record['runtime_pid']=prior
+        old_bank=copy.deepcopy(record['bank']);old_named=copy.deepcopy(record[forms.KEY])
+        argument=dict(expected_document_sha256=_hash(forms.document(record)),prior_pid=prior,household_id='7',save_guid='99')
+        self.sim.household_id=7
+        self.backend.services.current_zone=lambda:Obj(is_zone_running=True)
+        self.backend.services.game_clock_service=lambda:Obj(clock_speed=0)
+        self.backend.services.active_household=lambda:Obj(id=7)
+        form_bank.save(path,bank);self.sim.physique='new current Live appearance'
+        native=form_bank.capture(self.backend,self.sim)
+        with patch.object(form_bank,'_old_process_absent',return_value=True):
+            result=forms.resume_draft(self.backend,self.sim,argument)
+            with self.assertRaisesRegex(ValueError,'another runtime'):forms.resume_draft(self.backend,self.sim,argument)
+        after=self.record()
+        self.assertEqual(after[forms.KEY],old_named)
+        self.assertEqual(after['bank'],native)
+        self.assertEqual(after['named_draft_history'][-1]['prior_bank'],old_bank)
+        self.assertEqual(form_bank.capture(self.backend,self.sim),native)
+        self.assertFalse(result['appearance_modified']);self.assertFalse(result['saved_names_certified'])
+        self.assertFalse(result['save_reload_verified']);self.assertTrue(result['named_draft_resumed'])
+
     def test_unknown_sim_and_wrong_thread_are_rejected_before_disk_or_native_write(self):
         for invalid in ('sim', 'thread'):
             with self.subTest(invalid=invalid):

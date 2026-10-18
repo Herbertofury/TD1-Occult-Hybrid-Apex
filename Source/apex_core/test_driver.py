@@ -104,6 +104,8 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
               'in_build_buy': bool(zone.is_in_build_buy),
               'sim_time_source': 'services.time_service().sim_now',
               'game_time_source': 'services.game_clock_service().now()'}
+    if isinstance(getattr(backend, '_APEX_NAMED_SAVE_BOUNDARY', None), dict):
+        result['named_save_boundary'] = copy.deepcopy(backend._APEX_NAMED_SAVE_BOUNDARY)
     # The game clock can advance while the simulation timeline is frozen.
     # Keep both native observations, and never infer sim progress from it.
     result.update(client_id=None, zone_running=None, sim_now=None, sim_now_ticks=None,

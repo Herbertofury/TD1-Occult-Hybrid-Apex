@@ -47,3 +47,11 @@ class LifeStateCliTests(unittest.TestCase):
             with self.subTest(changed=changed),self.assertRaises(ValueError):
                 lifestate_cli.argument(self.args('revalidate',**dict(values,**changed)))
         with self.assertRaises(ValueError):lifestate_cli.argument(self.args('list',**values))
+
+    def test_legacy_draft_is_explicit_and_has_no_external_appearance_payload(self):
+        values=dict(expected_document_sha256='a'*64,prior_pid=456,household_id='7',save_guid='99')
+        route,payload=lifestate_cli.argument(self.args('resume-draft',**values))
+        self.assertEqual(route,'lifestate_form_resume_draft');self.assertEqual(payload,values)
+        for changed in (dict(id='replace'),dict(base_form=4),dict(prior_pid=True),dict(expected_document_sha256='b')):
+            with self.subTest(changed=changed),self.assertRaises(ValueError):
+                lifestate_cli.argument(self.args('resume-draft',**dict(values,**changed)))

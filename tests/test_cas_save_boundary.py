@@ -17,6 +17,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
 from apex_core import cas_save_boundary as gate, cas_bank_transaction as bank
 from apex_core import form_bank, test_driver
+from apex_core import named_save_boundary
 import test_cas_bank_transaction as fixture
 SaveGameResult = Obj(FAILED_SAVE_LOCKED='FAILED_SAVE_LOCKED')
 
@@ -73,6 +74,7 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         self.enterContext(patch.object(gate, '_CONTRACT', self.contract))
         self.reason = object()
         self.original_generator = self.cls._save_game_gen
+        self.enterContext(patch.object(named_save_boundary, 'prepare', return_value=None))
 
     def install(self):
         return gate.install(self.backend, reason_factory=lambda _text: self.reason)
@@ -185,14 +187,14 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         self.assertEqual(self.game.path.read_bytes(), retained)
         self.assertFalse(self.backend._APEX_CAS_SAVE_ADMISSION['automatic_restore_performed'])
 
-    def test_internal_cas_snapshot_serialization_still_runs_and_native_save_generator_is_unmodified(self):
+    def test_internal_cas_snapshot_serialization_still_runs_and_original_save_generator_is_retained(self):
         self.install()
         self.game.begin()
         self.assertTrue(self.service.is_save_locked())
         self.assertEqual(self.game.snapshot_calls, [])
         self.game.observe()
         self.assertEqual(self.game.snapshot_calls, [10])
-        self.assertIs(self.cls._save_game_gen, self.original_generator)
+        self.assertIs(self.cls._save_game_gen._apex_original, self.original_generator)
         self.assertEqual(self.service.serializer_calls, [])
         self.assertEqual(self.service.save_file_creations, [])
 
@@ -320,7 +322,7 @@ class NativeSaveBoundaryTests(unittest.TestCase):
             self.assertTrue(gate.require_installed(self.backend))
         self.assertIs(self.cls.is_save_locked, locked)
         self.assertIs(self.cls.get_save_lock_tooltip, tooltip)
-        self.assertIs(self.cls._save_game_gen, self.original_generator)
+        self.assertIs(self.cls._save_game_gen._apex_original, self.original_generator)
 
     def test_probe_exercises_only_the_real_early_locked_branch_and_never_an_idle_save(self):
         self.install()

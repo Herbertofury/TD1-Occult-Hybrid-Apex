@@ -413,8 +413,13 @@
          if(portraits==null || portraits.protocol!==1 || portraits.enabled!==true || portraits.sim_id!==apexBoundSim)
             return;
          if(!apexFormsBootstrap && !busy) {
-            for each(var original:Object in apexFormsOwners) if(original.id==apexFormsSelectedId) {
-               apexFormsNativeIntent=original;apexFormsBootstrap=true;break;
+            // Member navigation may already have bound the exact native owner.
+            // Rebinding it again can strand an identical-state UI lease and
+            // needlessly rebuild the model/undo context.
+            apexFormsBootstrap=apexFormsNativeState=="bound";
+            if(!apexFormsBootstrap) for each(var original:Object in apexFormsOwners) if(original.id==apexFormsSelectedId) {
+               apexFormsNativeIntent=ApexClone(original);apexFormsNativeIntent.bootstrap=true;
+               apexFormsBootstrap=true;break;
             }
          }
          if(apexFormsNativeIntent!=null && !busy && String(sim.simId)==apexBoundSim) {

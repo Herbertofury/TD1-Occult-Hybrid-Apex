@@ -22,12 +22,14 @@ class CasWorkbenchTests(unittest.TestCase):
         original_client = self.game.client
         self.menu = cas_ui.PANELS['clothing_hair']
         self.layer, self.fault, self.preset = 1, None, -1
+        self.catalog, self.families, self.selected = [], {}, []
         def client():
             value = original_client()
             value.update(menu_state=self.menu, panel_visible=True)
             value['sim'].update(allOccultTypes=65, occultType=64, occultLayer=self.layer, age=16)
             value['native_context']['forced_full_edit'] = {'query':'returned-value', 'value':True}
             value['native_context']['rendered_form'] = {'query':'returned-value','value':64}
+            value['selected'] = copy.deepcopy(self.selected)
             return value
         self.game.client = client
         self.original_request = self.game.request
@@ -45,7 +47,16 @@ class CasWorkbenchTests(unittest.TestCase):
         if 'panel' in operation: self.menu = cas_ui.panel(operation['panel'])
         client = self.game.client()
         if op in ('catalog', 'swatches'):
-            client['control'] = {'operation':op, 'offset':operation['offset'], 'limit':operation['limit'], 'total':0, 'items':[]}
+            client['control'] = {'operation':op, 'offset':operation['offset'], 'limit':operation['limit'],
+                                 'total':len(self.catalog), 'items':copy.deepcopy(self.catalog)}
+        elif op == 'variants':
+            client['control'] = {'operation':op, 'data_id':operation['data_id'],
+                                 'family':copy.deepcopy(self.families[operation['data_id']])}
+        elif op == 'select':
+            self.selected = [{'dataID':operation['data_id']}]
+            client['selected'] = copy.deepcopy(self.selected)
+            client['catalog_selection'] = dict(base_data_id=operation['base_data_id'],
+                data_id=operation['data_id'], body_type=12, filtered_base_matches=1, family_variant_matches=1)
         elif op != 'panel': self.fail('Unexpected workbench operation ' + op)
         result = {'ok':True, 'protocol':1, 'operation':op, 'cas_request_id':rid,
             'cas_request_state':'completed', 'client':client, 'ui_transition_verified':True}
@@ -83,6 +94,16 @@ class CasWorkbenchTests(unittest.TestCase):
         self.assertFalse(proof['all_edit_paths_complete'])
         self.assertFalse(proof['full_catalog_inventory'])
         self.assertFalse(proof['live_retention_verified'])
+
+    def test_child_swatch_keeps_parent_binding_even_when_absent_from_filtered_cards(self):
+        self.catalog = [{'data_id':'129329', 'body_type':12}]
+        self.families = {'129329':{'mItems':[{'dataID':'129323'}]}}
+        result, proof, _ = self.run_workbench(edit=True, panels=['earrings'])
+        self.assertTrue(result['ok'], result.get('error'))
+        selections = [row for row in self.game.submitted if row['operation'] == 'select']
+        self.assertEqual(selections, [dict(operation='select', panel='clothing_accessories_earrings',
+                                          base_data_id='129329', data_id='129323')])
+        self.assertEqual(proof['panels'][0]['selected_data_id'], '129323')
 
     def test_rendered_form_is_distinct_from_family_kind_and_part_of_context(self):
         value=self.game.client();value['sim']['occultType']=4

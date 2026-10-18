@@ -29,13 +29,14 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     'outfits': 'complete-category-normalized-protobuf', 'ownership': 'stored-and-active-separate'},
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
-# Metadata-only compatibility: V187 captured complete schema-1 named documents
+# Metadata-only compatibility: V187/V188 captured complete schema-1 named documents
 # in household seals. This never authorizes a native appearance restoration.
-NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c2039d895fc0cd8363e',)
+NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c2039d895fc0cd8363e',
+                               'a534570689a04e48ea6d90cb26d9727cdaf369806ae950898ffacbf4fc0fa8d1')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-18-completed-native-load-metadata-v188'
+UPGRADE_EPOCH = '2026-10-18-native-palette-feed-and-bootstrap-v192'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '220be9db81e5e70957fdd62cf99924f36149358b8ecd1a12c113b88ee965736e'
+UPGRADE_SELF_BODY_SHA = '6ed7755ad5d0c68d0d5a3b3652eebb039f59a49eb1bee0faca39c58cc355d7e9'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -44,7 +45,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_bank_transaction.py': 'c84aebc05b3802326b73c01d4ec61d47d46eb8b817f7bc9be4aceb1149592abc',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '3edd23d636a6e2a015ec472197fa2803e260f10ecfa614f0029edb03f70c175f',
-    'apex_core/cas_controls.py': '18d844b8dc242616ab7b24fbab0d217872691a77f03a3c7ce82c74a4b07c0a47',
+    'apex_core/cas_controls.py': '8948d2c1163c9bb853ee76cc518668947fa6d35ee67a8198fb7f5debbe7deebf',
     'apex_core/cas_entry_context.py': '3be8694221f00c8d37d5c658616177b4695b3a268618bc27d4bcf08b81f74b9f',
     'apex_core/cas_form_catalog.py': '6b491e2b5eb469a350f0fbe2459a773fd9f4699d18a88749e7d02fddde6829f9',
     'apex_core/cas_frontdoor.py': 'cc749e4d5f4e3f05fcfe16b8c92a80296e84a4a9ebfb30b7e9cbaa6980e82f95',
@@ -56,7 +57,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_save_boundary.py': '10979a3d995059613bfa756524ce6df19e3cb70ae0bfc601ca259697342241cc',
-    'apex_core/cas_ui.py': 'cfa0c33ce4bc63cf5c4d4f646d1dcd435cc2e11a905fb9a4dce83edfad8a8cfd',
+    'apex_core/cas_ui.py': '25ded03cde785b7a87c819fd3481a71eb92155a0f1906c855383fce431f7611a',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',

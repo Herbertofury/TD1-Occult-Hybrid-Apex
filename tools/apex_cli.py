@@ -248,7 +248,8 @@ def parser():
     bundle = profile_commands.add_parser('install-candidate', help='Install verified packages, script and matching F11 DLL together')
     bundle.add_argument('--state', required=True, type=Path)
     bundle.add_argument('--bundle', required=True, type=Path)
-    bundle.add_argument('--experimental-ui', action='store_true')
+    bundle.add_argument('--experimental-ui', action='store_true',
+                        help='Legacy Color Studio UI; conflicts with bundles containing ApexCASBridge. Leave off for current candidates.')
     bundle.add_argument('--optional', action='store_true')
     backup = profile_commands.add_parser('backup', help='Preserve disposable saves/Tray externally and hash original saves read-only')
     backup.add_argument('--state', required=True, type=Path)
@@ -401,7 +402,7 @@ def parser():
     cas.add_argument('--category', type=int)
     cas.add_argument('--index', type=int, help='Zero-based existing outfit number')
     cas.add_argument('--data-id', help='Exact decimal native CAS catalog data identity')
-    cas.add_argument('--base-data-id', help='Exact returned wing base bound to its selected color data ID')
+    cas.add_argument('--base-data-id', help='Exact item returned by this filtered panel, bound to a color data ID from its variants')
     cas.add_argument('--offset', type=int, default=0, help='Catalog page offset; every page remains accessible')
     cas.add_argument('--limit', type=int, default=8, help='Items per transport packet, 1-32')
     cas.add_argument('--body-type', type=int, help='Exact body type returned by the native catalog')
@@ -522,6 +523,8 @@ def parser():
     captured_archive.add_argument('--output', required=True, type=Path)
     captured_archive.add_argument('--before-proof', type=Path, help='Exact earlier same-runtime native appearances for older MCCC receipts without before context')
     captured_archive.add_argument('--expected-before-sha256')
+    captured_archive.add_argument('--source-frontdoor-proof', type=Path, help='Exact preserved Source entry when the outer acknowledgement omitted its native intent')
+    captured_archive.add_argument('--source-frontdoor-sha256')
     frontdoor_archive = commands.add_parser('cas-frontdoor-archive', help='Closed disposable only: preserve a Source entry after an exact later cold appearance comparison')
     for name in ('state', 'entry-path', 'cold-path', 'output'):
         frontdoor_archive.add_argument('--' + name, type=Path, required=True)
@@ -749,7 +752,8 @@ def execute(args):
         from cas_crash_archive import archive
         return archive(args.state, args.entry_proof, args.expected_proof_sha256,
             args.slot_id, args.expected_save_sha256, args.output, entry_only=True,
-            before_proof=args.before_proof, expected_before_sha256=args.expected_before_sha256)
+            before_proof=args.before_proof, expected_before_sha256=args.expected_before_sha256,
+            frontdoor_proof=args.source_frontdoor_proof, expected_frontdoor_sha256=args.source_frontdoor_sha256)
     if args.command == 'cas-crash-archive':
         from cas_crash_archive import archive
         return archive(args.state, args.crash_proof, args.expected_proof_sha256,

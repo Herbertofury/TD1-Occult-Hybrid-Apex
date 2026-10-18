@@ -277,9 +277,7 @@ def _run(state, output, identity, request, sim_id, edit=False, panels=None, step
                     item['outcome'] = 'no-different-native-variant'; record(); continue
                 chosen_base = chosen
                 chosen = identities[0]
-                selection = dict(panel=name, data_id=chosen)
-                if name == 'clothing_body_wings':
-                    selection['base_data_id'] = chosen_base
+                selection = dict(panel=name, data_id=chosen, base_data_id=chosen_base)
                 applied = control('select', **selection)
             item.update(edit_verified_in_cas=True, selected_data_id=chosen, outcome='native-edit-acknowledged',
                         cas_request_id=applied['cas_request_id']); record()

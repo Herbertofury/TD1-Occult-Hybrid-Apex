@@ -561,6 +561,52 @@ public class CasBytecodePatch {
         require(getter>=0 && constructor>getter && listener>constructor && consumed>listener && hello>consumed && hello-consumed<=16 && originalBound,
             "CAS handshake native identity/constructor/queued Timer ordering differs.");
     }
+    static void verifyOwnerMetadataReadback(ABC abc, InstanceInfo instance) {
+        var body=ownedBody(abc,instance,"ApexReadback");
+        var code=body.getCode();code.markOffsets();var rows=code.code;
+        int p=uniqueLiteral(abc,body,"POLL|");
+        require(p>=18 && p+9<rows.size(),"Owner metadata readback is truncated.");
+        require(property(abc,rows.get(p-13),0x66,"owner_deadline_tick") && opcode(rows.get(p-11),0x0c),
+            "Owner metadata poll lost its bounded readback deadline.");
+        require(property(abc,rows.get(p-10),0x60,"apexOutboundPending") && opcode(rows.get(p-9),0x96) &&
+            opcode(rows.get(p-8),0x12) && rows.get(p-8).getTargetAddress()==rows.get(p+4).getAddress(),
+            "Owner metadata poll can overwrite its outstanding transport frame.");
+        require(stringLiteral(abc,rows.get(p-6),"poll|") && property(abc,rows.get(p-5),0x60,"apexTimer") &&
+            property(abc,rows.get(p-4),0x66,"currentCount") && opcode(rows.get(p-3),0xa0) &&
+            property(abc,rows.get(p-2),0x61,"apexAwaiting"),"Owner metadata reply lost its poll-stage ownership.");
+        require(property(abc,rows.get(p-1),0x5d,"ApexSocketSend") && property(abc,rows.get(p+1),0x60,"apexNonce") &&
+            opcode(rows.get(p+2),0xa0) && property(abc,rows.get(p+3),0x4f,"ApexSocketSend") &&
+            rows.get(p+3).operands[1]==1,"Owner metadata poll does not retain its exact owning nonce/send.");
+        for(int i=p-10;i<=p+3;i++) require(!property(abc,rows.get(i),0x46,"CallGameService") &&
+            !property(abc,rows.get(i),0x4f,"CallGameService"),"Owner metadata poll executes an additional native action.");
+    }
+    static void verifyCatalogVariantReadback(ABC abc,InstanceInfo instance) {
+        var body=ownedBody(abc,instance,"ApexReadback");var rows=body.getCode().code;
+        int palette=uniqueLiteral(abc,body,"CasGetSwatchColorList");
+        int wing=uniqueLiteral(abc,body,"Native wing base and color did not both read back exactly")-56;
+        require(wing>=0 && wing+51<rows.size() && opcode(rows.get(wing+51),0x6c),
+            "Catalog variant readback lacks its known exact requested-value slot.");
+        int valueSlot=rows.get(wing+51).operands[0],count=0;
+        for(int i=1;i+3<palette;i++) if(property(abc,rows.get(i),0x66,"selection_variant_id") &&
+            opcode(rows.get(i+1),0x70) && opcode(rows.get(i+2),0x85) && opcode(rows.get(i+3),0x6d) &&
+            rows.get(i+3).operands[0]==valueSlot) count++;
+        require(count==1,"Exact child variant is not normalized before native palette completion.");
+    }
+    static int settledBootstrapAssignment(ABC abc,InstanceInfo instance) {
+        var rows=ownedBody(abc,instance,"ApexFormsOwnedTick").getCode().code;int found=-1;
+        for(int i=3;i+3<rows.size();i++) if(property(abc,rows.get(i),0x61,"apexFormsBootstrap") &&
+            property(abc,rows.get(i-3),0x60,"apexFormsNativeState") && stringLiteral(abc,rows.get(i-2),"bound") &&
+            opcode(rows.get(i-1),0xab)) {
+            require(found<0,"Duplicate settled-owner bootstrap assignment.");found=i;
+        }
+        require(found>=0,"Already-bound native owner is not recognized before bootstrap.");return found;
+    }
+    static void verifySettledOwnerBootstrap(ABC abc,InstanceInfo instance) {
+        var rows=ownedBody(abc,instance,"ApexFormsOwnedTick").getCode().code;
+        int i=settledBootstrapAssignment(abc,instance);
+        require(property(abc,rows.get(i+1),0x60,"apexFormsBootstrap") && opcode(rows.get(i+2),0x96) &&
+            opcode(rows.get(i+3),0x12),"Native bootstrap rebinds an already-bound owner.");
+    }
     static void verifyExactItemSelection(ABC abc, InstanceInfo instance) {
         var code=ownedBody(abc,instance,"ApexExecute").getCode().code;
         boolean earrings=false, expectedBody=false, exactSwatch=false;
@@ -822,7 +868,7 @@ public class CasBytecodePatch {
     }
     static void verifyEyebrowPaletteWidget(ABC abc, InstanceInfo instance) {
         Set<String> calls=propertyCalls(abc,ownedBody(abc,instance,"ApexSelectEyebrowSwatch"));
-        require(calls.containsAll(Set.of("Refresh","IsEnabled","SetType","SetSelection","GetSelectedIndices")) &&
+        require(calls.containsAll(Set.of("IsEnabled","SetType","SetSelection","GetSelectedIndices","GetDataFeed","RequestItemsAt","ApexClone")) &&
             !calls.contains("CallGameService") && !calls.contains("SetData"),
             "Eyebrow colors must use the native widget lifecycle, without a second direct native setter.");
         Set<String> callers=new HashSet<>();
@@ -1069,6 +1115,9 @@ public class CasBytecodePatch {
         verifyCatalogMetadataDisabled(compiled, newClass);
         verifyEyebrowPaletteWidget(compiled, newClass);
         verifyWingSelection(compiled, newClass);
+        verifyOwnerMetadataReadback(compiled,newClass);
+        verifyCatalogVariantReadback(compiled,newClass);
+        verifySettledOwnerBootstrap(compiled,newClass);
         MethodBody nativeInit = null, compilerInit = null, nativeUnload = null, compilerUnload = null;
         for (Trait trait : nativeClass.instance_traits.traits) {
             String key = name(original, trait);
@@ -1166,6 +1215,9 @@ public class CasBytecodePatch {
         verifyExactItemSelection(serialized, serialized.instance_info.get(oi));
         verifyTypedControls(serialized, serialized.instance_info.get(oi));
         verifyWingSelection(serialized, serialized.instance_info.get(oi));
+        verifyOwnerMetadataReadback(serialized,serialized.instance_info.get(oi));
+        verifyCatalogVariantReadback(serialized,serialized.instance_info.get(oi));
+        verifySettledOwnerBootstrap(serialized,serialized.instance_info.get(oi));
         for (MethodBody body : original.bodies) if (body != nativeInit && body != nativeUnload)
             require(Arrays.equals(nativeCode.get(body.method_info), serialized.findBody(body.method_info).getCodeBytes()),
                 "Serialized unowned native method bytecode changed.");

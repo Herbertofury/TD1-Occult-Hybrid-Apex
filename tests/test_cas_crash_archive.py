@@ -73,6 +73,27 @@ class ClosedCrashArchiveTests(SealFixture):
         self.assertEqual(self.slot.read_bytes(),saved); self.assertEqual(self.writes,[])
         self.assertFalse(result['loaded_file_verified']); self.assertFalse(result['save_reload_verified'])
 
+    def test_closed_accepted_entry_timeout_can_archive_captured_metadata_without_claiming_inventory(self):
+        self.entry.update(ok=False,outcome='unresolved',inventory_verified=False,handshake_verified=False)
+        write_json(self.entry_path,self.entry); original_entry=self.entry_path.read_bytes()
+        result=cas_crash_archive.archive(self.root/'state.json',self.entry_path,sha256(self.entry_path),
+            2,self.target['expected_save_sha256'],self.output,entry_only=True)
+        self.assertTrue(result['ok']);self.assertFalse(result['entry_inventory_verified'])
+        self.assertTrue(result['bank_lanes_unchanged']);self.assertTrue(result['save_files_unchanged'])
+        self.assertEqual(self.entry_path.read_bytes(),original_entry)
+
+    def test_incomplete_inventory_does_not_qualify_native_crash_or_rejected_entry(self):
+        self.entry.update(ok=False,outcome='unresolved',inventory_verified=False)
+        write_json(self.entry_path,self.entry)
+        self.proof['entry_proof_sha256']=sha256(self.entry_path);self.publish()
+        before=self.bank_path.read_bytes()
+        with self.assertRaises(ValueError):self.invoke()
+        self.entry['entry_accepted']=False;write_json(self.entry_path,self.entry)
+        with self.assertRaises(ValueError):
+            cas_crash_archive.archive(self.root/'state.json',self.entry_path,sha256(self.entry_path),
+                2,self.target['expected_save_sha256'],self.output,entry_only=True)
+        self.assertEqual(self.bank_path.read_bytes(),before);self.assertFalse(self.output.exists())
+
     def scoped_entry(self, additional=()):
         row=self.entry['steps'][0]['result']
         members=[{'sim_id':SIM,'form_checkpoint':row['form_checkpoint']}] + list(additional)
@@ -244,6 +265,20 @@ class ClosedCrashArchiveTests(SealFixture):
         self.assertEqual(result['native_entry_intent'],'d'*32)
         self.assertEqual((self.root/'archive-bank-before.json').read_bytes(),before)
         self.assertFalse(result['save_written'])
+
+    def test_closed_timeout_uses_exact_source_frontdoor_without_inventing_inventory_success(self):
+        path,source=self.bind_supplemental_frontdoor()
+        self.entry.update(ok=False,outcome='unresolved',inventory_verified=False)
+        write_json(self.entry_path,self.entry);entry_bytes=self.entry_path.read_bytes()
+        before=self.bank_path.read_bytes()
+        result=cas_crash_archive.archive(self.root/'state.json',self.entry_path,sha256(self.entry_path),
+            2,self.target['expected_save_sha256'],self.output,entry_only=True,
+            frontdoor_proof=path,expected_frontdoor_sha256=sha256(path))
+        self.assertTrue(result['ok']);self.assertFalse(result['entry_inventory_verified'])
+        self.assertFalse(result['normal_exit_verified']);self.assertFalse(result['save_reload_verified'])
+        self.assertEqual(self.entry_path.read_bytes(),entry_bytes)
+        self.assertEqual((self.root/'archive-bank-before.json').read_bytes(),before)
+        self.assertEqual(result['native_entry_intent'],source['id'])
 
     def test_source_frontdoor_cannot_authorize_another_runtime_or_missing_member(self):
         path,source=self.bind_supplemental_frontdoor();before=self.bank_path.read_bytes()

@@ -7,6 +7,33 @@ and named implementation records as separate form choices.
 
 ## Current evidence: 2026-10-18
 
+V192 development checkpoint: ordinary CAS selections bind an exact visible
+parent and returned colour variant, with native selected-item readback. V191
+actually applies different child earring colours to the second member's Alien
+and Vampire, retains both through Alien -> Vampire -> Alien and restores the
+starting Werewolf view. This is a CAS-only earring qualification. Its eyebrow
+colour request remains a failed result: the palette widget changed its index,
+but the native colour stayed on the base. V192 resolves the requested identity
+from the refreshed widget's actual feed and avoids its duplicate refresh.
+
+The second-member test also catches an initial portrait-binding race before
+part editing. Explicit views consume only an unsubmitted automatic bootstrap;
+readback requires the exact bound owner as well as its actual native genus.
+Pending readback can poll owner metadata with the original nonce and one-frame
+lease. An already-bound owner skips redundant bootstrap. Twelve serialized
+bytecode fixtures, seven bounded preflight checks and eleven socket checks pass.
+V191's frozen regression suite passes 2,575 tests; V192's full run is pending.
+
+Cancelling the V191 test retains all forty original Live appearances and all
+five memberships. Normal unsaved closure leaves every save file unchanged.
+Closed-only recovery preserves every captured checkpoint and never invents an
+inventory, CAS acceptance or reload pass. A stale CAS peer/captured guard still
+requires explicit test cleanup after cancellation; automatic player cancellation
+lifecycle, full category/member coverage, shared-Human Live/F11 ownership,
+native link/copy and Tray/Gallery remain release gates. V192 builds 103 Python
+3.7 modules, seven packages and 207 Rust-verified resources. It is a development
+candidate; V192 runtime palette/member-switch qualification remains open.
+
 V188 category-retention checkpoint: the first member receives distinct actual
 Alien and Vampire eyebrow, head skin-detail and earring items through full CAS.
 Nine selected-item readbacks pass through Alien -> Vampire -> Alien. Complete

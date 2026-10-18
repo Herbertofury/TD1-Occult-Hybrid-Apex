@@ -44,6 +44,8 @@ class IndependentOwnerSelectTests(OccultViewTests):
         after = client(4, 69)
         after['native_context']['rendered_form'] = dict(query='returned-value', value=4)
         after['control'] = dict(operation='form-owner-select', owner_id='native/4')
+        after['form_strip'] = dict(sim_id=fixture.SIM, selected_owner_id='native/4',
+                                  native_owner_state='bound', desired_owner_id='')
         receipt = dict(request_id=rid, owner_id='native/4', state='applied', conversion_called=False)
         with patch.object(native_cas_engine, 'view_result', return_value=receipt) as result:
             cas_ui.receive_socket(self.peer, rid, json.dumps(dict(protocol=1, ok=True, cas_request_id=rid,
@@ -81,6 +83,8 @@ class IndependentOwnerSelectTests(OccultViewTests):
         request = dict(self.owner_request, owner_id='alien/alien', native_kind=2)
         observed = client(4, 69)
         observed['control'] = dict(operation='form-owner-select', owner_id='alien/alien')
+        observed['form_strip'] = dict(sim_id=fixture.SIM, selected_owner_id='alien/alien',
+                                     native_owner_state='bound', desired_owner_id='')
         observed['native_context']['rendered_form'] = dict(query='returned-value', value=2)
         cas_controls.validate(observed, request)
         self.assertEqual(observed['sim']['occultType'], 4)
@@ -89,3 +93,18 @@ class IndependentOwnerSelectTests(OccultViewTests):
             observed['native_context']['rendered_form'] = bad
             with self.subTest(bad=bad), self.assertRaises(cas_controls.PostconditionMismatch):
                 cas_controls.validate(observed, request)
+
+    def test_matching_renderer_and_echoed_target_cannot_hide_another_or_pending_owner(self):
+        request=dict(self.owner_request,owner_id='native/2',native_kind=2)
+        observed=client(4,69)
+        observed['native_context']['rendered_form']=dict(query='returned-value',value=2)
+        observed['control']=dict(operation='form-owner-select',owner_id='native/2')
+        valid=dict(sim_id=fixture.SIM,selected_owner_id='native/2',native_owner_state='bound',desired_owner_id='')
+        observed['form_strip']=dict(valid)
+        cas_controls.validate(observed,request)
+        for change in ({'selected_owner_id':'native/1'},{'desired_owner_id':'native/1'},
+                       {'desired_owner_id':'native/2'},{'native_owner_state':'unbound'},
+                       {'native_owner_state':'unresolved'},{'sim_id':'13'}):
+            with self.subTest(change=change):
+                observed['form_strip']=dict(valid,**change)
+                with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(observed,request)

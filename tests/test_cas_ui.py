@@ -132,12 +132,42 @@ class CasUiTests(unittest.TestCase):
         send.assert_not_called()
         self.assertEqual(cas_ui._RECORDS, before)
 
-    def test_wing_binding_refuses_other_panels_noncanonical_ids_and_extra_fields(self):
+    def test_base_binding_refuses_noncanonical_ids_and_extra_fields(self):
         request={'operation':'select','panel':'clothing_body_wings','base_data_id':'466503','data_id':'466504'}
-        for change in ({'panel':'clothing_hair'},{'base_data_id':466503},{'base_data_id':'0466503'},
+        for change in ({'base_data_id':466503},{'base_data_id':'0466503'},
                        {'base_data_id':'466503,466504'},{'data_id':'466504|undo'},{'unknown':'value'}):
             with self.subTest(change=change),self.assertRaises(ValueError):
                 cas_ui.envelope('12',dict(request,**change))
+
+    def test_ordinary_swatch_requires_both_filtered_parent_and_selected_child_evidence(self):
+        request = {'operation':'select', 'panel':'earrings',
+                   'base_data_id':'18446744073709551614', 'data_id':'18446744073709551615'}
+        _, wire = cas_ui.envelope('12', request)
+        self.assertEqual(wire.split('|')[-1], request['base_data_id'] + ',' + request['data_id'])
+        client = self.client('12'); client['menu_state'] = cas_ui.panel('earrings')
+        client['selected'] = [{'dataID':request['data_id']}]
+        with self.assertRaisesRegex(ValueError, 'base and exact family'):
+            cas_ui.validate_client(client, '12', request)
+        binding = dict(base_data_id=request['base_data_id'], data_id=request['data_id'], body_type=12,
+                       filtered_base_matches=1, family_variant_matches=1)
+        client['catalog_selection'] = binding
+        cas_ui.validate_client(client, '12', request)
+        for change in ({'base_data_id':request['data_id']}, {'data_id':request['base_data_id']},
+                       {'body_type':True}, {'body_type':0}, {'filtered_base_matches':0},
+                       {'filtered_base_matches':2}, {'filtered_base_matches':True},
+                       {'family_variant_matches':2}, {'family_variant_matches':True}):
+            with self.subTest(change=change):
+                broken = copy.deepcopy(client); broken['catalog_selection'].update(change)
+                with self.assertRaisesRegex(ValueError, 'base and exact family'):
+                    cas_ui.validate_client(broken, '12', request)
+        client['selected'] = [{'dataID':request['base_data_id']}]
+        with self.assertRaisesRegex(ValueError, 'selected item'):
+            cas_ui.validate_client(client, '12', request)
+
+    def test_explicit_parent_cannot_bypass_layered_or_preset_contract(self):
+        for panel in ('nose', 'clothing_looks', 'clothing_body_tattoos', 'clothing_head_tattoos'):
+            with self.subTest(panel=panel), self.assertRaises(ValueError):
+                cas_ui.envelope('12', dict(operation='select', panel=panel, base_data_id='12', data_id='13'))
 
     def test_wing_base_match_alone_cannot_certify_its_requested_color(self):
         request={'operation':'select','panel':'clothing_body_wings','base_data_id':'466503','data_id':'466504'}

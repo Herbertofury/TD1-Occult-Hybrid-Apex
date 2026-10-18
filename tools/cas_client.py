@@ -58,6 +58,15 @@ def _remember_observation(args,result,clock):
     return result
 
 
+def _owner_strip_settled(client):
+    strip=client.get('form_strip') if isinstance(client,dict) else None
+    sim=client.get('sim',{}) if isinstance(client,dict) else {}
+    return (isinstance(strip,dict) and strip.get('sim_id')==sim.get('simId') and
+            isinstance(strip.get('selected_owner_id'),str) and bool(strip['selected_owner_id']) and
+            strip.get('native_owner_state')=='bound' and strip.get('desired_owner_id')=='' and
+            strip.get('gesture_pending') is not True)
+
+
 class IntentEvidence:
     """Retain exact owner UUIDs before dispatch, independently of the final ACK."""
     def __init__(self, args):
@@ -296,6 +305,24 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep, allow_pr
             if preflight.get('ok') is not True:
                 return dict(preflight, form_selection_submitted=False,
                             form_selection_preflight_verified=False)
+            if args.operation=='form-owner-select':
+                # A new member may still be binding its initial native portrait.
+                # Give the idle UI a tick to consume that intent; refresh reads
+                # only, without staging a view or replaying a selection.
+                settle_deadline=monotonic()+min(args.seconds,6)
+                for _ in range(4):
+                    if _owner_strip_settled(preflight.get('client')):break
+                    if monotonic()>=settle_deadline:break
+                    pause(min(.6,max(0,settle_deadline-monotonic())))
+                    preflight=execute(SimpleNamespace(operation='status',state=args.state,
+                        sim_id=args.sim_id,seconds=min(args.seconds,6),output=None),request,
+                        monotonic=monotonic,pause=pause)
+                    if preflight.get('ok') is not True:break
+                if preflight.get('ok') is not True or not _owner_strip_settled(preflight.get('client')):
+                    return dict(preflight,ok=False,outcome='form-owner-preflight-not-settled',
+                        form_selection_submitted=False,form_selection_preflight_verified=False,
+                        native_operation_submitted=False,mutation_started=False,
+                        message='Initial form owner is still settling; no independent selection submitted.')
             from apex_core.cas_ui import validate_client
             validate_client(preflight.get('client'), args.sim_id, {'operation': 'status'})
             selected = preflight['client']['sim']

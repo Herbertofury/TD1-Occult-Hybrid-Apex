@@ -58,6 +58,23 @@ class CasSocketTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'unresolved'):
             cas_ui.submit('12', {'operation':'redo'}, clock=lambda:0)
 
+    def test_metadata_poll_can_acknowledge_owner_while_original_command_remains_claimed(self):
+        peer=cas_ui.attach_client('12',clock=lambda:0)
+        rid=cas_ui.submit('12',{'operation':'undo'},clock=lambda:0)['cas_request_id']
+        original=cas_ui.poll_client(peer,clock=lambda:0)
+        self.assertIn(rid,original)
+        metadata='OWNERSTATE|native/2|2|0|bound'
+        def poll(token):
+            return cas_ui.poll_client(token,clock=lambda:0) or metadata
+        for _ in range(3):
+            value,held=cas_socket.packet('POLL|'+peer,peer,lambda _sim:None,poll,lambda *_args:False)
+            self.assertEqual(value,metadata);self.assertEqual(held,peer)
+        self.assertEqual(cas_ui._RECORDS[rid]['delivery'],'claimed')
+        self.assertEqual(cas_ui.result(rid)['outcome'],'pending-client')
+        with self.assertRaisesRegex(ValueError,'unresolved'):
+            cas_ui.submit('12',{'operation':'redo'},clock=lambda:0)
+        self.assertEqual(list(cas_ui._RECORDS),[rid])
+
     def test_typed_router_never_accepts_unbound_ack_or_unowned_action(self):
         calls = []
         def ack(*args): calls.append(args); return True

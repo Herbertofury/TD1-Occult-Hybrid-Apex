@@ -765,7 +765,7 @@ def validate_client(client, sim_id, request):
     if operation == 'hair-swatch' and client.get('hair_selected_swatch_id') != request['data_id']:
         raise ValueError('Native hair swatch did not match the exact selected identity.')
     if operation == 'select':
-        if 'base_data_id' in request:
+        if 'base_data_id' in request and panel(request['panel']) == PANELS['clothing_body_wings']:
             wing = client.get('wing_selection')
             if (request.get('panel') != 'clothing_body_wings' or not isinstance(wing, dict) or
                     wing.get('base_query') != 'returned-value' or wing.get('color_query') != 'returned-value' or
@@ -773,8 +773,20 @@ def validate_client(client, sim_id, request):
                     not isinstance(wing.get('selected_color_id'), str) or wing['selected_color_id'] != request['data_id'] or
                     type(wing.get('body_type')) is not int or wing['body_type'] != 114):
                 raise ValueError('Native wing base and color did not both match the request.')
-        elif not any(isinstance(item, dict) and str(item.get('dataID')) == request['data_id'] for item in client.get('selected') or []):
-            raise ValueError('Native selected item did not match the request.')
+        else:
+            if not any(isinstance(item, dict) and item.get('dataID') == request['data_id']
+                       for item in client.get('selected') or []):
+                raise ValueError('Native selected item did not match the request.')
+            if 'base_data_id' in request:
+                binding = client.get('catalog_selection')
+                if (not isinstance(binding, dict) or binding.get('base_data_id') != request['base_data_id'] or
+                        binding.get('data_id') != request['data_id'] or
+                        type(binding.get('body_type')) is not int or binding['body_type'] <= 0 or
+                        binding.get('filtered_base_matches') != 1 or
+                        type(binding.get('filtered_base_matches')) is not int or
+                        binding.get('family_variant_matches') != 1 or
+                        type(binding.get('family_variant_matches')) is not int):
+                    raise ValueError('Native catalog base and exact family variant were not both verified.')
     if operation in ('form-select', 'layer-select'):
         form_selection_binding(client, sim_id, request, resulting=True)
     if operation in cas_controls.OPERATIONS:
@@ -934,8 +946,6 @@ def envelope(sim_id, request):
     if op in ('select', 'hair-swatch') and (not isinstance(value, str) or not value.isdigit() or not 0 < int(value) < 2 ** 64):
         raise ValueError('Native CAS data_id must be an exact decimal resource identity.')
     if optional_base:
-        if request['panel'] != 'clothing_body_wings':
-            raise ValueError('Explicit base/color binding is supported only by the inspected native wing contract.')
         _owner_id(request['base_data_id']); _owner_id(value)
         value = request['base_data_id'] + ',' + value
     request_id = uuid.uuid4().hex

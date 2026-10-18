@@ -188,7 +188,11 @@ def validate(client, request):
         native = client.get('sim', {})
         context = client.get('native_context')
         rendered = context.get('rendered_form') if isinstance(context, dict) else None
+        strip = client.get('form_strip')
         if (control.get('owner_id') != request['owner_id'] or native.get('householdId') != request['household_id'] or
+                not isinstance(strip, dict) or strip.get('sim_id') != native.get('simId') or
+                strip.get('selected_owner_id') != request['owner_id'] or
+                strip.get('native_owner_state') != 'bound' or strip.get('desired_owner_id') != '' or
                 not isinstance(rendered, dict) or rendered.get('query') != 'returned-value' or
                 type(rendered.get('value')) is not int or rendered['value'] != request['native_kind'] or
                 type(native.get('allOccultTypes')) is not int or

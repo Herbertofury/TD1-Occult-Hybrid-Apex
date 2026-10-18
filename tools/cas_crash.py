@@ -58,12 +58,21 @@ def entry_receipt(entry):
     return completed
 
 
-def entry_context(entry, identity, sim_id, household_id, save_guid, slot_id, supplemental_before=None):
+def entry_context(entry, identity, sim_id, household_id, save_guid, slot_id, supplemental_before=None,
+                  captured_metadata_only=False):
+    if type(captured_metadata_only) is not bool:
+        raise ValueError('Captured metadata validation requires an explicit scope.')
     if (not isinstance(entry, dict) or entry.get('schema') != 1 or
             entry.get('operation') != 'observe-native-cas-entry' or
-            entry.get('ok') is not True or entry.get('outcome') != 'inventory' or
+            (not captured_metadata_only and (entry.get('ok') is not True or entry.get('outcome') != 'inventory' or
+                entry.get('handshake_verified') is not True or entry.get('inventory_verified') is not True)) or
+            (captured_metadata_only and not (
+                entry.get('ok') is True and entry.get('outcome') == 'inventory' and
+                entry.get('inventory_verified') is True and entry.get('handshake_verified') is True or
+                entry.get('ok') is False and entry.get('outcome') == 'unresolved' and
+                entry.get('inventory_verified') is False and type(entry.get('handshake_verified')) is bool)) or
             any(entry.get(field) is not True for field in
-                ('entry_submitted', 'entry_accepted', 'handshake_verified', 'inventory_verified', 'no_input_replay')) or
+                ('entry_submitted', 'entry_accepted', 'no_input_replay')) or
             entry.get('requested_sim_id') != sim_id or not isinstance(entry.get('identity'), dict) or
             any(entry['identity'].get(field) != identity.get(field)
                 for field in ('pid', 'test_token', 'script_sha256', 'profile'))):

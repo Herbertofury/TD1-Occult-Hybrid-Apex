@@ -1006,17 +1006,26 @@
          var widget:Object=FaceModPanel(this.mCurrentPanel).mcColorSwatchPanel;
          if(widget==null || widget.mcSelectionGrid==null || !widget.IsEnabled())
             throw new Error("Native eyebrow color widget is unavailable");
-         var at:int=-1; var count:int=0;
-         for(var i:int=0;i<rows.length;i++)
-            if(rows[i] && String(rows[i].dataID)==value) { at=i; count++; }
-         if(count!=1) throw new Error("Native eyebrow widget requires one exact returned swatch");
          widget.SetType(3);
-         widget.Refresh();
-         // Refresh already owns/populates the native feed. Repopulating it
-         // again resets a live selection grid and can queue stale callbacks.
+         // SetType already refreshes. Resolve against the widget's actual
+         // current feed, whose order can differ from the earlier native array.
+         var layout:Object=widget.mcSelectionGrid.mGridLayout;
+         var feed:Object=layout!=null ? layout.GetDataFeed() : null;
+         if(feed==null || int(feed.length)<1 || int(feed.length)>512)
+            throw new Error("Native eyebrow widget has no complete bounded swatch feed");
+         var items:Array=ApexClone(feed.RequestItemsAt(0,int(feed.length))) as Array;
+         var at:int=-1; var count:int=0;
+         if(items==null || items.length!=int(feed.length))
+            throw new Error("Native eyebrow widget feed is incomplete");
+         for(var i:int=0;i<items.length;i++)
+            if(items[i] && items[i].dataID is String && String(items[i].dataID)==value) { at=i; count++; }
+         if(count!=1) throw new Error("Native eyebrow widget requires one exact returned swatch");
+         var selectedItem:String=ApexEncode(items[at]);var itemCount:int=items.length;
+         items=null;feed=null;layout=null;
          var before:Array=ApexClone(widget.GetSelectedIndices()) as Array;
-         widget.mcSelectionGrid.SetSelection(at);
-         return {requested_data_id:value,target_index:at,palette_count:rows.length,
+         widget.mcSelectionGrid.SetSelection(at,true,true);
+         return {requested_data_id:value,target_index:at,palette_count:itemCount,native_palette_count:rows.length,
+            selected_palette_item_json:selectedItem,
             selected_indices_before:before,selected_indices_after:ApexClone(widget.GetSelectedIndices())};
       }
 
@@ -1028,6 +1037,12 @@
             if(!/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(value) ||
                index<0x10000000 || index>0x1fffffff)
                throw new Error("Independent form view requires its exact staged one-shot token");
+            if(apexFormsDesiredId!="" || apexFormsNativeIntent!=null && apexFormsNativeIntent.bootstrap!==true)
+               throw new Error("Wait for the current form-button selection to settle; no independent view submitted");
+            // An explicit selection supersedes only the unsubmitted automatic
+            // bootstrap. Never leave that old default queued behind this view,
+            // and never discard a player's pending portrait gesture.
+            apexFormsNativeIntent=null;apexFormsBootstrap=true;apexFormsDesiredId=value;
             context.owner_id=value;context.owner_deadline_tick=int(apexTimer.currentCount)+20;
             reply.mutation_started=true;
             // The pinned native hook recognizes this reserved token and binds
@@ -1185,7 +1200,7 @@
             if(state<0 || state>16 || state==5) throw new Error("Native palette requires its supported typed color context");
             if(operation=="swatch" && state==3)
                HandleContextMenuSetMenuState({menuState:MenuState.PROFILE_HAIR_EYEBROWS,skipAnim:true,setZoomState:true});
-            rows=CommunicationManager.CallGameService("CasGetSwatchColorList",state) as Array;
+            rows=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorList",state)) as Array;
             if(rows==null) throw new Error("Native palette is unavailable");
             if(operation=="swatches") {
                if(category<0 || index<1 || index>32) throw new Error("Invalid native palette page");
@@ -1587,27 +1602,28 @@
                   throw new Error("Use the native preset, swatch or featured-look contract for this panel");
                var selectionBase:String="";
                if(value.indexOf(",")>=0) {
-                  if(state!=MenuState.CLOTHING_BODY_WINGS ||
-                     !new RegExp("^[1-9][0-9]{0,19},[1-9][0-9]{0,19}$").test(value))
-                     throw new Error("Explicit base/color selection requires one exact native wing pair");
+                  if(!new RegExp("^[1-9][0-9]{0,19},[1-9][0-9]{0,19}$").test(value))
+                     throw new Error("Explicit base/color selection requires one exact native catalog pair");
                   var selectionIds:Array=value.split(",");
                   selectionBase=String(selectionIds[0]); value=String(selectionIds[1]);
                   apexPendingContext.selection_variant_id=value;
-                  apexPendingContext.selection_base_id=selectionBase;
+                  if(state==MenuState.CLOTHING_BODY_WINGS) apexPendingContext.selection_base_id=selectionBase;
                }
                var product:Object=null;
                var available:Array=null;
                if(selectionBase!="") {
-                  // Wing color records can omit body_type. Bind the requested
-                  // variant to its exact typed base from this visible catalog.
+                  // A swatch need not be a card in the filtered base catalog
+                  // and may omit body_type. Never guess its parent: the caller
+                  // supplies the exact visible base and its returned variant.
                   available=ApexCatalog(state);
                   var baseMatches:int=0;
                   for each(var baseProduct:Object in available)
                      if(baseProduct && String(baseProduct.data_id)==selectionBase &&
-                        ("body_type" in baseProduct) && int(baseProduct.body_type)==CASBodyType.WINGS) {
+                        ("body_type" in baseProduct) && int(baseProduct.body_type)>0 &&
+                        (state!=MenuState.CLOTHING_BODY_WINGS || int(baseProduct.body_type)==CASBodyType.WINGS)) {
                         product=ApexClone(baseProduct); baseMatches++;
                      }
-                  if(baseMatches!=1) throw new Error("Native wing base is absent or ambiguous; no item changed");
+                  if(baseMatches!=1) throw new Error("Native catalog base is absent or ambiguous; no item changed");
                } else product=CommunicationManager.CallGameService("GetCatalogItem",value);
                if(!product) {
                   var products:Array=CommunicationManager.CallGameService("GetCatalogVariantItems",value) as Array;
@@ -1641,6 +1657,9 @@
                }
                if(variantMatches!=1)
                   throw new Error("Choose one exact returned catalog swatch dataID; base/ambiguous variant requests are not changed");
+               if(selectionBase!="" && state!=MenuState.CLOTHING_BODY_WINGS)
+                  apexPendingContext.catalog_selection={base_data_id:selectionBase,data_id:value,
+                     body_type:int(product.body_type),filtered_base_matches:baseMatches,family_variant_matches:variantMatches};
                var exactModifiers:Object={
                   data_id:value,slider_mouse_up:true,
                   hue_range_modifier:("hue_range_modifier" in exactVariant ? Number(exactVariant.hue_range_modifier) : 0),
@@ -1729,6 +1748,9 @@
          var context:Object=apexPendingContext;
          var operation:String=fields[2]; var state:int=int(fields[3]);
          var category:int=int(fields[4]); var index:int=int(fields[5]); var value:String=fields[6];
+         // Palette completion needs the child ID too, before its next-tick
+         // lookup. The original wire retains the parent/child pair unchanged.
+         if(operation=="select" && context.selection_variant_id is String) value=String(context.selection_variant_id);
          if((operation=="undo" || operation=="redo") && context.history_before is String)
             reply.history_before_json=String(context.history_before);
          var selectedSimMatches:Boolean=false; var writeStarted:Boolean=false;
@@ -1760,8 +1782,17 @@
             // reads the current native model's genus, including its alt view.
             var renderedKind:* = operation=="form-owner-select" ? CommunicationManager.CallGameService("GetSimOccult") : null;
             if(selectedSimMatches && operation=="form-owner-select" && !("message" in reply) &&
-                (!(renderedKind is int) || int(renderedKind)!=state || (int(native.allOccultTypes) | 1)!=category)) {
+                (!(renderedKind is int) || int(renderedKind)!=state || (int(native.allOccultTypes) | 1)!=category ||
+                 apexFormsSelectedId!=String(context.owner_id) || apexFormsNativeState!="bound" || apexFormsDesiredId!="")) {
                if(int(apexTimer.currentCount)<int(context.owner_deadline_tick)) {
+                  // The normal idle poll is suspended while a command owns
+                  // its readback. Poll only metadata here: Source's outstanding
+                  // request excludes another command until this one is ACKed.
+                  // Keep the same nonce/claim and the one-frame transport lease.
+                  if(!apexOutboundPending) {
+                     apexAwaiting="poll|"+apexTimer.currentCount;
+                     ApexSocketSend("POLL|"+apexNonce);
+                  }
                   apexReadbackTick=int(apexTimer.currentCount)+1;return;
                }
                throw new Error("Native independent form view did not settle before its bounded readback deadline");
@@ -1770,7 +1801,7 @@
             if(!selectedSimMatches) throw new Error("CAS selected Sim changed before native readback");
             if(!("message" in reply) && apexPendingPhase==2) {
                // Item selection settles before querying that hairstyle's swatches.
-               var freshHairSwatches:Array=CommunicationManager.CallGameService("CasGetSwatchColorList",int(context.palette_type)) as Array;
+               var freshHairSwatches:Array=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorList",int(context.palette_type))) as Array;
                if(!freshHairSwatches) throw new Error("Native hair swatches are unavailable after item selection");
                var exactHairSwatch:Object=null; var hairMatches:int=0;
                for each(var hairSwatch:Object in freshHairSwatches)
@@ -1903,6 +1934,8 @@
                      if(selected) for each(var selectedItem:Object in selected)
                         if(String(selectedItem.dataID)==value) matched=true;
                      if(!matched) throw new Error("Native CAS did not read back the requested catalog item");
+                     if(context.catalog_selection!=null)
+                        reply.client.catalog_selection=ApexClone(context.catalog_selection);
                   }
                }
                if(operation=="hair-swatch" || (operation=="select" && state==MenuState.CLOTHING_HAIR))

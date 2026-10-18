@@ -45,7 +45,7 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
                   else cas_crash.entry_receipt(entry).get('before', {}))
         cas_crash.entry_context(entry, identity, entry.get('requested_sim_id'), before.get('household_id'),
             before.get('save_guid'), before.get('save_slot'),
-            supplemental_before=before if supplemental is not None else None)
+            supplemental_before=before if supplemental is not None else None, captured_metadata_only=True)
         proof = dict(identity=identity, sim_id=entry['requested_sim_id'], household_id=before['household_id'],
             save_guid=before['save_guid'], slot_id=before['save_slot'])
     else:
@@ -81,8 +81,8 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
     held = {}
     frontdoor_path, frontdoor_id = None, None
     if frontdoor_proof is not None or expected_frontdoor_sha256 is not None:
-        if entry_only or frontdoor_proof is None or expected_frontdoor_sha256 is None:
-            raise ValueError('Supplemental Source entry requires both its proof/hash and a preserved native crash.')
+        if frontdoor_proof is None or expected_frontdoor_sha256 is None:
+            raise ValueError('Supplemental Source entry requires both its exact proof and hash.')
         frontdoor_path, native_entry = cas_crash.external_json(frontdoor_proof, profile, original, expected_frontdoor_sha256)
         members = native_entry.get('members')
         if (native_entry.get('schema') != 1 or native_entry.get('stage') != 'native-command-returned' or
@@ -143,6 +143,7 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         archived_member_sim_ids=list(checkpoints),
         crash_verified=not entry_only, normal_exit_verified=False,
         closure_scope='Exact prior process absent, all game processes closed, current disk save hash and never-observed checkpoint; no native return or save/reload proof.',
+        entry_inventory_verified=entry.get('inventory_verified') is True,
         original_bank_sha256=hashlib.sha256(bank_bytes).hexdigest(), original_bank_backup=str(backup),
         disk_slot_id=slot_id, expected_save_sha256=expected_save_sha256,
         native_slot_at_entry=proof['slot_id'], metadata_write_submitted=False,

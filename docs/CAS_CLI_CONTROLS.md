@@ -494,3 +494,48 @@ and resource bounds/content, and refuses differing duplicate resources. The
 catalog returns `loading: true` until complete. F11 polls that read-only result
 at most sixty times, one second apart, without blocking other commands. It
 never exports or redistributes the game artwork. No Sim API runs on this worker.
+
+## Native capture coordinates and disposable closure
+
+WinRT OCR may report a nonzero `TextAngle` even on a horizontal game menu.
+Its word rectangles then refer to the deskewed image. The host maps all four
+rectangle corners clockwise around the image centre before undoing bitmap
+scaling, preserving the untouched capture. An observed 8.5-degree result had
+previously targeted Load Game instead of Resume; the captured regression now
+maps to the visible Resume control. See Microsoft's
+[TextAngle contract](https://learn.microsoft.com/uwp/api/windows.media.ocr.ocrresult.textangle).
+
+Native input still rejects a viewport mismatch before submission. Retain that
+failure and obtain fresh geometry rather than relabelling it successful. The
+V198 launch encountered a 720-pixel backbuffer with a 672-pixel client; a single
+verified no-activation window adjustment aligned them without changing focus.
+That adjustment remains a private diagnostic, not a shipped automatic repair.
+
+Apartment-map qualification remains open. Selecting the occupied building and
+then its unit floor exposes the household Play control; the floating plumbob
+and portrait alone did not select the unit. The existing single-marker map
+driver does not establish apartment navigation parity.
+
+The owner explicitly permits ending a stuck disposable test process after
+normal closure fails. Authenticate its exact PID, installed script, disposable
+token and profile, retain current save hashes and the failed closure evidence,
+and act only on that process. This permission never covers an original-profile
+game. V197 exited normally without saving; force termination was not required.
+
+For an independently bound hybrid controller, CAS return selects its one shared
+Human owner when EA requires the primary layer. It does not depend on a complete
+legacy two-row feed for an actual Fairy or another independent appearance.
+The navigation carries the exact disposable token, household, owner and session.
+
+`cas-return-settle --state STATE --return-proof RETURN --return-sha256 HASH
+--output NEW_JSON` finishes only an already observed, paused Live return whose
+retained native Pause receipt proves the required simulation ticks. It verifies
+a fresh matching Live snapshot and completes the original return's metadata.
+It never submits CAS acceptance, Play, appearance writes or a game save; its
+proof retains any unobserved native commit result rather than inventing one.
+
+The V199 native input candidate separates background move, down and up by
+120/100 ms so CAS grid hover state can settle. It releases a held game button
+after a viewport change and refuses replaced windows. The twelve native checks
+pass; the installed DLL completes native Resume and normal Exit through
+background window messages. Real CAS-grid selection remains a separate gate.

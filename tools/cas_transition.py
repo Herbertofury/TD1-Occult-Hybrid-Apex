@@ -42,9 +42,11 @@ def process_alive(pid):
     return game_launch.observe_game_process(pid) is not None
 
 
-def read_crash(profile):
+def _read_report(profile, name):
     """Read at most one MiB; neither the active nor original profile is written."""
-    path = reusable_profile.writable(profile / 'lastCrash.txt')
+    if name not in ('lastCrash.txt', 'lastUIException.txt'):
+        raise ValueError('Only the native crash and UI exception reports are supported.')
+    path = reusable_profile.writable(profile / name)
     if not path.exists():
         return {'state': 'absent'}, None
     try:
@@ -57,6 +59,34 @@ def read_crash(profile):
                 'sha256': hashlib.sha256(raw).hexdigest()}, raw
     except OSError as error:
         return {'state': 'unreadable', 'error': str(error)}, None
+
+
+def read_crash(profile):
+    return _read_report(profile, 'lastCrash.txt')
+
+
+def read_ui_exception(profile):
+    return _read_report(profile, 'lastUIException.txt')
+
+
+def ui_health(profile, before, output):
+    """A connected inventory cannot qualify a newly broken native CAS UI."""
+    observed, raw = read_ui_exception(profile)
+    result = {'ok': False, 'before': before, 'after': observed, 'profile_written': False}
+    if observed['state'] == 'absent' or (
+            observed.get('sha256') and observed.get('sha256') == before.get('sha256')):
+        return dict(result, ok=True, outcome='no-new-ui-exception')
+    if raw is not None:
+        target = reusable_profile.writable(output.with_name(output.stem + '-ui-exception-' + observed['sha256'] + '.xml'))
+        if target.exists():
+            if sha256(target) != observed['sha256']:
+                raise ValueError('The external UI report filename has different contents.')
+        else:
+            with target.open('xb') as stream:stream.write(raw)
+        result.update(outcome='new-ui-exception', path=str(target))
+    else:
+        result['outcome'] = 'ui-report-unverified'
+    return result
 
 
 def preserve_crash(profile, output, before):
@@ -151,6 +181,7 @@ Lost or failed requests are retained and never resubmitted by this observer.
             output == journal_path):
         raise ValueError('Use one new external JSON CAS proof filename outside both profiles and the journal.')
     before, _ = read_crash(profile)
+    ui_before, _ = read_ui_exception(profile)
     proof = {'schema': 1, 'ok': False, 'operation': 'observe-native-cas-entry',
              'outcome': 'unresolved', 'last_verified_stage': None, 'identity': identity,
              'journal': str(journal_path), 'inputs': journal['artifacts'], 'requested_sim_id': sim_id,
@@ -158,7 +189,8 @@ Lost or failed requests are retained and never resubmitted by this observer.
              'handshake_verified': False, 'inventory_verified': False, 'process_exit_verified': False,
              'owner_requests': [], 'cas_request_id': None,
              'entry_request_id': None, 'entry_status_poll_count': 0,
-             'crash_before': before, 'profile_read_only': True, 'no_input_replay': True}
+             'crash_before': before, 'ui_exception_before': ui_before,
+             'profile_read_only': True, 'no_input_replay': True}
     # Reserve this evidence filename exclusively before any game command.
     with output.open('x', encoding='utf-8') as stream:
         json.dump(proof, stream, ensure_ascii=False, indent=2)
@@ -327,6 +359,9 @@ Lost or failed requests are retained and never resubmitted by this observer.
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
         from apex_core.cas_ui import validate_client
         validate_client(inventory.get('client'), sim_id, {'operation': 'status'})
+        proof['ui_health'] = ui_health(profile, ui_before, output)
+        if proof['ui_health']['ok'] is not True:
+            raise RuntimeError('A new native CAS UI exception or unreadable UI report prevents readiness; no additional input submitted.')
         running()
         remaining()
         proof.update(ok=True, inventory_verified=True, outcome='inventory', last_verified_stage='inventory',

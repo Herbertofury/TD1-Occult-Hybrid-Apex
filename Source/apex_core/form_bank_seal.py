@@ -29,15 +29,18 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     'outfits': 'complete-category-normalized-protobuf', 'ownership': 'stored-and-active-separate'},
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
-# Metadata-only compatibility: V187/V188/V192 captured complete schema-1 named documents
-# in household seals. This never authorizes a native appearance restoration.
+# Metadata-only compatibility: V187/V188/V192/V198 captured complete schema-1 named
+# documents in household seals. V198's saved household was checked across all 40
+# native appearances and all five named-form seals. This never authorizes a
+# native appearance restoration.
 NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c2039d895fc0cd8363e',
                                'a534570689a04e48ea6d90cb26d9727cdaf369806ae950898ffacbf4fc0fa8d1',
-                               'cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd')
+                               'cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd',
+                               'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-18-life-state-variant-polish-v194'
+UPGRADE_EPOCH = '2026-10-18-qualified-fairy-save-v200'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '782c04d3e4aa50d9785a3a3a86d307da76b3a71f0463f9b98dc806b486c19bb5'
+UPGRADE_SELF_BODY_SHA = '218e729c649f095e4da5fc91a0be6aa8995113ddb89e21921e309fbc8138c629'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -48,7 +51,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_commit_plan.py': '3edd23d636a6e2a015ec472197fa2803e260f10ecfa614f0029edb03f70c175f',
     'apex_core/cas_controls.py': '1d10f6401ffc7bf9175bd3eb0d8a25ba756d54e1ec9c621fb294394a6e0f6fe2',
     'apex_core/cas_entry_context.py': '3be8694221f00c8d37d5c658616177b4695b3a268618bc27d4bcf08b81f74b9f',
-    'apex_core/cas_form_catalog.py': '91885929951dff7491571d2b413d820689eeb04b02b697b731d9475af531db57',
+    'apex_core/cas_form_catalog.py': 'c7c7efc7925691ed2712d9ee0d1047c1368e3e68ddd49cc5fde84402076da32c',
     'apex_core/cas_frontdoor.py': 'cc749e4d5f4e3f05fcfe16b8c92a80296e84a4a9ebfb30b7e9cbaa6980e82f95',
     'apex_core/cas_named_return.py': 'd38c9022ca4a8e2182d7eab99b8f10390e7c2f22f7c9c5da775d306051ca7e02',
     'apex_core/cas_native_return.py': '3baf9162e487d9547703611a0725c5a497f1c342d6ebf72f3a70917cff9df8a0',

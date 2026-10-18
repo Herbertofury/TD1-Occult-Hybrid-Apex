@@ -35,6 +35,38 @@ def home_observation(home=False):
 
 
 class CoordinateTests(unittest.TestCase):
+    def test_winrt_deskewed_resume_box_maps_to_actual_button_not_load_game(self):
+        # Actual 1278x720 captured Home menu: WinRT TextAngle=8.5 placed
+        # Resume's boxes near y=393 when simply divided by two. The visible
+        # Resume button is y=324; y=395 is the different Load Game control.
+        source = observation()
+        source.update(width=1278,height=720,text_angle=8.5)
+        source['preprocessing'].update(ocr_height=1440)
+        source['lines']=[dict(text='RESUME GAME',words=[
+            dict(text='RESUME',x=164,y=765,width=213,height=69),
+            dict(text='GAME',x=397,y=739,width=153,height=59)])]
+        original=copy.deepcopy(source)
+        result=windows_ocr.original_viewport(source,2)
+        words=result['lines'][0]['words']
+        x=(min(w['x'] for w in words)+max(w['x']+w['width'] for w in words))/2
+        y=(min(w['y'] for w in words)+max(w['y']+w['height'] for w in words))/2
+        self.assertTrue(175<x<185);self.assertTrue(320<y<330)
+        self.assertEqual(source,original)
+
+    def test_invalid_winrt_angles_refuse_coordinates(self):
+        for angle in (True,'8.5',float('nan'),float('inf'),181,-181):
+            with self.subTest(angle=angle),self.assertRaisesRegex(ValueError,'angle'):
+                windows_ocr.original_viewport(dict(observation(),text_angle=angle),2)
+
+    def test_rotation_direction_and_all_four_box_corners(self):
+        for angle,expected in ((90,(380,100,20,40)),(-90,(200,460,20,40))):
+            source=observation();source.update(width=600,height=600,text_angle=angle)
+            source['preprocessing'].update(ocr_width=1200,ocr_height=1200)
+            source['lines']=[dict(text='button',words=[dict(text='button',x=200,y=400,width=80,height=40)])]
+            word=windows_ocr.original_viewport(source,2)['lines'][0]['words'][0]
+            for name,value in zip(('x','y','width','height'),expected):
+                with self.subTest(angle=angle,field=name):self.assertAlmostEqual(word[name],value)
+
     def test_two_times_coordinates_return_to_original_viewport_without_losing_fields(self):
         source = observation()
         unchanged = copy.deepcopy(source)

@@ -12,7 +12,13 @@ from test_profile import unlinked
 
 
 def original_viewport(observation, requested_scale):
-    """Project a bounded scaling-only OCR bitmap back to the captured pixels."""
+    """Map WinRT's scaled, deskewed word boxes back to captured pixels.
+
+    WinRT BoundingRect is measured on the counter-clockwise rotated image
+    when TextAngle is nonzero. Microsoft's OCR sample rotates the overlay
+    clockwise around the image centre; apply that same mapping to all corners.
+    https://learn.microsoft.com/uwp/api/windows.media.ocr.ocrresult.textangle
+    """
     if (not isinstance(observation, dict) or observation.get('ok') is not True or
             type(requested_scale) is not int or requested_scale not in (1, 2)):
         raise ValueError('OCR requires a typed successful bitmap observation.')
@@ -27,6 +33,14 @@ def original_viewport(observation, requested_scale):
             (scaled_width, scaled_height) != (width * scale, height * scale) or
             scaled_width * scaled_height > 16 * 1024 * 1024):
         raise ValueError('OCR transform dimensions differ from the original viewport.')
+    angle = observation.get('text_angle')
+    if angle is None:
+        angle = 0
+    if type(angle) not in (int, float) or not math.isfinite(angle) or not -180 <= angle <= 180:
+        raise ValueError('OCR text angle is not a bounded rotation.')
+    radians = math.radians(angle)
+    cosine, sine = math.cos(radians), math.sin(radians)
+    centre_x, centre_y = scaled_width / 2, scaled_height / 2
     lines = observation.get('lines')
     if not isinstance(lines, list) or len(lines) > 8192:
         raise ValueError('OCR line inventory is not bounded.')
@@ -46,6 +60,15 @@ def original_viewport(observation, requested_scale):
             x, y, word_width, word_height = values
             if not (0 <= x < x + word_width <= scaled_width and 0 <= y < y + word_height <= scaled_height):
                 raise ValueError('OCR word rectangle is outside the scaled bitmap.')
+            if angle:
+                corners = [(centre_x + cosine * (px-centre_x) - sine * (py-centre_y),
+                            centre_y + sine * (px-centre_x) + cosine * (py-centre_y))
+                           for px, py in ((x,y),(x+word_width,y),(x,y+word_height),(x+word_width,y+word_height))]
+                left, top = max(0,min(p[0] for p in corners)), max(0,min(p[1] for p in corners))
+                right, bottom = min(scaled_width,max(p[0] for p in corners)), min(scaled_height,max(p[1] for p in corners))
+                if left >= right or top >= bottom:
+                    raise ValueError('Rotated OCR word lies outside the captured image.')
+                values = (left, top, right-left, bottom-top)
             words.append(dict(word, **{name: value / scale for name, value in zip(('x', 'y', 'width', 'height'), values)}))
         mapped.append(dict(line, words=words))
     return dict(observation, lines=mapped, preprocessing=dict(preprocessing, coordinates='original-viewport'))

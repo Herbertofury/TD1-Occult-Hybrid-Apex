@@ -119,8 +119,15 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
         if set(tgi(key) for key in read(ui_path.read_bytes())) != {
                 '62ECC59A:00000000:DF09D526F4C77B95',
                 '62ECC59A:00000000:26DF5B0A7B97963E',
-                '62ECC59A:00000000:E36BA403351FFE60'}:
-            raise ValueError('CAS bridge must contain exactly the three verified native UI resources.')
+                '62ECC59A:00000000:E36BA403351FFE60',
+                '62ECC59A:00000000:7D5FA9E0C2A4F038'}:
+            raise ValueError('CAS bridge must contain exactly the four verified native UI resources.')
+        molecule = ui_info.get('molecule_native_bytecode_contract', {})
+        if (molecule.get('ok') is not True or molecule.get('edited_method_count') != 4 or
+                molecule.get('unrelated_native_methods_preserved') is not True or
+                molecule.get('native_lexical_scope_preserved') is not True or
+                molecule.get('base_resource_sha256') != '3124ed12ea50140da6f072d16ab0703e6154e448974edb1c3f6f7d05f7c24524'):
+            raise ValueError('CAS molecule lacks its verified full-edit hybrid selection contract.')
         voice = ui_info.get('voice_native_bytecode_contract', {})
         if (voice.get('ok') is not True or voice.get('unrelated_native_methods_preserved') is not True or
                 voice.get('user_voice_handler_preserved') is not True or

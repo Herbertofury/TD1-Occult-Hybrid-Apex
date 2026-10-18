@@ -323,6 +323,10 @@ def parser():
     entry_observe.add_argument('--entry-proof', required=True, type=Path)
     entry_observe.add_argument('--entry-sha256', required=True)
     entry_observe.add_argument('--output', required=True, type=Path)
+    return_settle = commands.add_parser('cas-return-settle', help='Finish an already paused observed Live return without replaying CAS acceptance or Play')
+    for name in ('state','return-proof','output'):
+        return_settle.add_argument('--'+name,required=True,type=Path)
+    return_settle.add_argument('--return-sha256',required=True)
     entry_recover = commands.add_parser('cas-entry-recover', help='Archive an exact pre-entry rejection after verifying the unchanged paused household; no form or save writes')
     for name in ('state','entry-proof','native-proof','output'):
         entry_recover.add_argument('--'+name,required=True,type=Path)
@@ -861,6 +865,9 @@ def execute(args):
                        seconds=args.seconds, transport=get,
                        allow_auto_save_slot_metadata_only=args.allow_auto_save_slot_metadata_only,
                        **recovery_options)
+    if args.command == 'cas-return-settle':
+        from cas_return_settle import run
+        return run(args.state,args.return_proof,args.return_sha256,args.output,verified_identity(args.state),owned_request)
     if args.command == 'cas-reload':
         from cas_reload import observe
         if (args.save_proof is None) != (args.expected_save_proof_sha256 is None):

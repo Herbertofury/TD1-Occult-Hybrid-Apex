@@ -7,6 +7,35 @@ and named implementation records as separate form choices.
 
 ## Current evidence: 2026-10-18
 
+V200 cold-load checkpoint: all five saved independent named-form documents
+reopen and all forty native appearances match before and after 946 simulation
+ticks, with the save file and seal ledger unchanged and Live paused again.
+This follows the fourth member's actual purple Fairy wing-card edit, retained
+through Fairy -> Alien -> Fairy, five-member acceptance, forty-owner Live
+verification and Alien -> Vampire -> Alien -> Fairy. The 195-owner comparison
+changes only the intended Fairy outfit/genetic/pelt fields; the outfit decoder
+finds only the wing part changed in category 9, index 0. V199's named-metadata
+upgrade refusal remains retained as a failed proof. V200 adds the exact audited
+V198 metadata predecessor without granting native restore authority; 92 focused
+save/upgrade/return checks pass. V200's complete regression passes 2,616 tests.
+Native-menu Alien -> Vampire -> Alien now stays visible after both redraws.
+Initial empty wing paint data, semantic wing selection, every-member/category,
+native Link/Unlink/Copy and household Tray/Gallery remain open. This is not an
+actual-save release.
+
+V197 checkpoint: EA Human artwork is visibly verified in full CAS, replacing
+HUM without adding a second Human owner. The owner confirms the third Sim's
+appearance is intact; its stale portrait does not justify changing saved looks.
+V195/V196 cold loads retain all forty native appearances and all five saved
+named documents after simulation advances, with save/ledger unchanged. Native
+molecule restoration now routes choices through retained owners and corrects
+the display genus separately from native membership. V196 exposes a real tooltip
+type error during widget loading; V197 fixes the inspected API contract and
+passes six molecule checks plus 143 compiled-UI checks. CLI entry now rejects a
+new UI exception rather than calling a connected but broken editor ready.
+Corrected native button switching and Fairy wing/material behavior remain open
+runtime gates. Neither candidate is an actual-save release.
+
 V194 menu checkpoint: the CAS strip groups variants under one life-state button,
 including one Imaginary Friend entry with four independent variant owners and
 a shortcut to the existing shared Human / Real appearance. Special artwork

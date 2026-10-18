@@ -33,6 +33,7 @@ _FAMILIES = {'plantsim': 'PlantSim', 'servo': 'Servo', 'ghost': 'Ghost',
 # Installed 1.128.90 tuning references, not copied artwork. The game loads its
 # own images in place. See docs/CAS_LIFESTATE_ARTWORK.md for provenance.
 ARTWORK = {
+    'human': '785ddfe321bcae11',
     'plantsim': '425bcd3b1ebb6371', 'servo': '75a1aca2763417f0',
     'ghost': '14094b494cd3f93d', 'reaper': '632e51f43a7678cc',
     'skeleton': '57cabc4ee22aa528', 'scarecrow': 'a55ac15b5a63645d',

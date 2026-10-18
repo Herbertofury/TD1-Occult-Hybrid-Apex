@@ -499,8 +499,18 @@ public class CasBytecodePatch {
                 require(literal!=null,"Native form strip invokes an unreviewed game service."); services.add(literal);
             }
             require(services.equals(expected.getOrDefault(key,List.of())),"Native strip service order/inventory differs: "+key);
-            require(Collections.disjoint(calls,Set.of("SendMessage","SendUIMessage","writeUTFBytes","ApexAccept","ApexExecute","ApexControlExecute")),
+            require(Collections.disjoint(calls,Set.of("SendMessage","writeUTFBytes","ApexAccept","ApexExecute","ApexControlExecute")),
                 "Native form strip bypasses its bounded same-pair navigation.");
+            if(calls.contains("SendUIMessage")) {
+                require(key.equals("ApexFormsBindUiKind"),"Only bound display metadata may refresh the CAS context menu.");
+                int messages=0;
+                for(int i=3;i<ops.size();i++) if(property(abc,ops.get(i),0x46,"SendUIMessage") || property(abc,ops.get(i),0x4f,"SendUIMessage")) {
+                    require(ops.get(i).operands[1]==2 && stringLiteral(abc,ops.get(i-3),"CASContextMenuSetSimInfo") &&
+                        opcode(ops.get(i-2),0xd0) && property(abc,ops.get(i-1),0x66,"mCurrSimInfo"),
+                        "Bound display refresh may send only its UI SimInfo to the native context menu.");messages++;
+                }
+                require(messages==1,"Bound CAS display refresh requires one exact UI message.");
+            }
         }
         Set<String> nativeOwnerCallers=new HashSet<>();
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter &&
@@ -1078,10 +1088,10 @@ public class CasBytecodePatch {
             "apexAwaiting", "apexAckId", "apexDisconnected", "apexSocketActive", "apexHelloPending", "apexSocketError",
             "apexSocketResetPending", "apexOutboundFrame", "apexOutboundPending",
             "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking",
-            "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener",
+            "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener", "apexMoleculeRegistered", "apexMoleculeListener", "apexMoleculeView",
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
             "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey");
-        Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick",
+        Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexMoleculeChooseOccult", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",

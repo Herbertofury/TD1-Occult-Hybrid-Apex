@@ -54,6 +54,7 @@ try {
             }) }
         })
         @{ ok=$true; width=$apexDecoder.PixelWidth; height=$apexDecoder.PixelHeight; lines=$apexLines;
+           text_angle=$apexResult.TextAngle;
            preprocessing=@{ requested_scale=$apexRequest.scale; scale=$apexScale;
                ocr_width=$apexBitmap.PixelWidth; ocr_height=$apexBitmap.PixelHeight; interpolation='cubic'; coordinates='scaled-bitmap' }
         } | ConvertTo-Json -Depth 6 -Compress

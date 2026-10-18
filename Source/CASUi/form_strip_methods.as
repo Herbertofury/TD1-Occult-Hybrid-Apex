@@ -287,6 +287,55 @@
             occultLayer:int(row.occult_layer),allOccultTypes:int(row.all_occult_types)};
       }
 
+      private function ApexMoleculeChooseOccult(request:Object) : Boolean
+      {
+         // The EA molecule's choice is an appearance selection for a retained
+         // hybrid, never a destructive native genus conversion. Only enqueue;
+         // the existing UI timer revalidates and consumes the exact owner token.
+         var sim:Object=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
+         if(sim==null) return true;
+         var mask:int=int(sim.allOccultTypes)&~1;
+         if(apexFormsOwners.length==0 && (mask==0 || (mask&(mask-1))==0)) return false;
+         if(apexDisconnected || request==null || !(request.sim_id is String) ||
+            request.sim_id!==apexBoundSim || String(sim.simId)!==apexBoundSim ||
+            !(request.kind is int) || [1,2,4,8,16,32,64].indexOf(int(request.kind))<0 ||
+            !Boolean(CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled"))) return true;
+         if(apexPendingFields!=null || apexFormsDesiredId!="" || apexFormsNativeIntent!=null ||
+            apexFormsNativeState!="bound") {
+            apexFormsMessage="Wait for the current form to finish loading.";
+            apexFormsSignature="";return true;
+         }
+         var forms:Object={1:"human/shared",2:"alien/alien",4:"vampire/dark",8:"mermaid/mermaid",
+            16:"witch/primary",32:"werewolf/beast",64:"fairy/primary"};
+         for each(var owner:Object in apexFormsOwners) if(owner.form_id===forms[String(request.kind)]) {
+            if(owner.id!==apexFormsSelectedId) apexFormsNativeIntent=ApexClone(owner);
+            apexFormsMessage="";apexFormsSignature="";return true;
+         }
+         apexFormsMessage="This occult has no captured independent appearance yet.";
+         apexFormsSignature="";return true;
+      }
+
+      private function ApexObserveMolecule(message:Object) : void
+      {
+         // Data-only event: no native reads/writes or UI transitions here.
+         if(message==null || !(message.sim_id is String) ||
+            !/^[1-9][0-9]{0,19}$/.test(message.sim_id) || !(message.kind is int) ||
+            !(message.visible is Boolean) || !(message.enabled is Boolean) ||
+            !(message.occult_count is int) || message.occult_count<0 || message.occult_count>32) return;
+         for each(var key:String in ["x","y","width","height"])
+            if(!(message[key] is Number) || !isFinite(Number(message[key])) || Math.abs(Number(message[key]))>16384) return;
+         apexMoleculeView=ApexClone(message);
+      }
+
+      private function ApexMoleculeListen(enable:Boolean) : void
+      {
+         if(enable) apexMoleculeListener=AddMessageListener("ApexMoleculeObserved",ApexObserveMolecule);
+         else {
+            if(apexMoleculeListener) RemoveMessageListener("ApexMoleculeObserved",ApexObserveMolecule);
+            apexMoleculeListener=false;apexMoleculeView=null;
+         }
+      }
+
       private function ApexFormsClick(event:flash.events.MouseEvent) : void
       {
          if(event!=null && event.target!=null && String(event.target.name).indexOf("apexTool_")==0) {
@@ -427,6 +476,7 @@
 
       private function ApexFormsOwnedTick(sim:Object) : void
       {
+         ApexFormsBindUiKind();
          var busy:Boolean=apexPendingFields!=null || apexReceiving || apexFormsDragging || apexFormsDesiredId!="";
          var portraits:Object=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim});
          if(portraits==null || portraits.protocol!==1 || portraits.enabled!==true || portraits.sim_id!==apexBoundSim)
@@ -558,7 +608,7 @@
             caption.wordWrap=true;caption.height=27;
             var captionFormat:flash.text.TextFormat=caption.defaultTextFormat;captionFormat.align="center";caption.setTextFormat(captionFormat);
          }
-         ApexFormsTooltip(button,String(owner.label)+"\n"+String(owner.description));
+         ApexFormsTooltip(button,String(owner.description));
          return button;
       }
 
@@ -592,6 +642,25 @@
          var tooltip:TooltipObject=new TooltipObject(button);
          tooltip.Initialize({text:text,maxwidth:300},250);
          apexFormsTooltips.push(tooltip);
+      }
+
+      private function ApexFormsBindUiKind() : void
+      {
+         // EA's UI SimInfo can still describe the physical Vampire backing
+         // slot after the native model binds an independent Fairy/Mermaid.
+         // Correct this AS display record from the exact bound owner. Do not
+         // change memberships, native CasData, traits or either appearance.
+         if(apexFormsNativeState!="bound" || apexFormsDesiredId!="" || this.mCurrSimInfo==null ||
+            String(this.mCurrSimInfo.simId)!==apexBoundSim) return;
+         for each(var owner:Object in apexFormsOwners) if(owner.id===apexFormsSelectedId) {
+            var kind:int=int(owner.kind);
+            if([1,2,4,8,16,32,64].indexOf(kind)<0 ||
+               (int(this.mCurrSimInfo.allOccultTypes)&kind)==0 || int(this.mCurrSimInfo.occultType)==kind) return;
+            this.mCurrSimInfo.occultType=kind;
+            CommunicationManager.SendUIMessage("CASContextMenuSetSimInfo",this.mCurrSimInfo);
+            HandleContextMenuUpdate(this.mContextMenuState);
+            return;
+         }
       }
 
       private function ApexFormsClearTooltips() : void

@@ -140,6 +140,26 @@ class CasTransitionTests(unittest.TestCase):
                             for action, _ in self.calls))
         return result, proof
 
+    def test_new_ui_exception_refuses_inventory_success_without_reentering_cas(self):
+        def failure(action, kwargs):
+            if action=='cas_ui_result':
+                (self.profile/'lastUIException.txt').write_text('<root><report>Tooltip type error</report></root>',encoding='utf-8')
+        self.handler=failure
+        result,proof=self.run_observer()
+        self.assertFalse(result['ok']);self.assertTrue(result['entry_accepted'])
+        self.assertFalse(result['inventory_verified'])
+        self.assertEqual(proof['ui_health']['outcome'],'new-ui-exception')
+        report=Path(proof['ui_health']['path'])
+        self.assertEqual(report.read_bytes(),(self.profile/'lastUIException.txt').read_bytes())
+        self.assertNotIn(self.profile,report.parents);self.assertNotIn(self.original,report.parents)
+        self.assertEqual(sum(action=='test_cas' for action,_ in self.calls),1)
+
+    def test_unchanged_old_ui_report_does_not_invent_a_new_failure(self):
+        (self.profile/'lastUIException.txt').write_bytes(b'old unrelated UI report')
+        result,proof=self.run_observer()
+        self.assertTrue(result['ok'])
+        self.assertEqual(proof['ui_health']['outcome'],'no-new-ui-exception')
+
     def test_success_has_one_entry_then_exact_handshake_then_one_complete_inventory(self):
         result, proof = self.run_observer()
         self.assertTrue(result['ok'])

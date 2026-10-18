@@ -37,6 +37,9 @@
       private var apexOwnerSession:int = 0;
       private var apexOwnerFeedListener:Boolean = false;
       private var apexOwnerResetListener:Boolean = false;
+      private var apexMoleculeRegistered:Boolean = false;
+      private var apexMoleculeListener:Boolean = false;
+      private var apexMoleculeView:Object;
 
       private function ApexInitialize() : void
       {
@@ -59,6 +62,9 @@
             // replace that mapping or manufacture a native refresh/delivery.
             apexOwnerFeedListener=AddMessageListener("CASRefreshSimIcons",ApexObserveOwnerFeed);
             apexOwnerResetListener=AddMessageListener("CASClearSimsForReset",ApexInvalidateOwnerFeed);
+            if(!apexMoleculeRegistered)
+               apexMoleculeRegistered=RegisterServiceHandler("ApexMoleculeChooseOccult",ApexMoleculeChooseOccult);
+            ApexMoleculeListen(true);
             apexTimer=new flash.utils.Timer(500);
             apexTimer.addEventListener(flash.events.TimerEvent.TIMER,ApexTick);
             apexTimer.start();
@@ -100,6 +106,7 @@
       private function ApexDisconnect() : void
       {
          apexDisconnected=true;
+         ApexMoleculeListen(false);
          if(apexOwnerFeedListener) {
             RemoveMessageListener("CASRefreshSimIcons",ApexObserveOwnerFeed);
             apexOwnerFeedListener=false;
@@ -888,6 +895,8 @@
          }
          return {protocol:1,scope:"native-cas-client",sim:ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true)),
             menu_state:this.mCurrState,panel_visible:this.mCurrentPanel!=null && this.mCurrentPanel.visible,
+            ui_occult_type:this.mCurrSimInfo==null ? null : int(this.mCurrSimInfo.occultType),
+            molecule:ApexClone(apexMoleculeView),
             outfit:observedSlot,
             selected:ApexClone(CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:this.mCurrState})),
             hair_color:hairSelected,hair_selected_swatch_id:hairSelected,hair_swatches:hairSwatches,

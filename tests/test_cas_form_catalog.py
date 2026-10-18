@@ -68,6 +68,15 @@ class CatalogTests(unittest.TestCase):
         ghost = next(r for r in forms if r['family'] == 'ghost')
         self.assertNotEqual(ghost['icon'], next(r for r in forms if r['family'] == 'human')['icon'])
 
+    def test_shared_human_uses_eas_species_button_artwork_without_an_extra_owner(self):
+        value = catalog.project(rows(), 'native/1', 'native/1')
+        humans = [r for r in value['forms'] if r['family'] == 'human']
+        self.assertEqual(len(humans), 1)
+        self.assertEqual(humans[0]['icon'], str(int('785ddfe321bcae11', 16)))
+        self.assertEqual(humans[0]['family_icon'], humans[0]['icon'])
+        self.assertEqual(humans[0]['owner_id'], 'native/1')
+        self.assertFalse(value['appearance_written'])
+
     def test_imaginary_friend_variants_share_menu_family_but_never_owner_or_image(self):
         original = rows()
         for variant in ('lil_monster', 'spooky_kid', 'wild_child'):

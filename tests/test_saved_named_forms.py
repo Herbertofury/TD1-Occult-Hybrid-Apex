@@ -156,6 +156,19 @@ class SavedNamedFormsTests(SealFixture):
             seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
         self.assertEqual(self.writes,[])
 
+    def test_audited_v198_fairy_save_reopens_metadata_without_native_restore_authority(self):
+        old_source='aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770'
+        self.assertIn(old_source,seal.NAMED_METADATA_PREDECESSORS)
+        self.identity['script_sha256']=old_source
+        certified=self.certify();self.identity['script_sha256']='c'*64
+        self.loaded();forms.list_forms(self.backend,self.sim)
+        self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
+        self.assertEqual(self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['metadata_source_authority'],
+            'named-metadata-only:'+old_source)
+        with self.assertRaisesRegex(ValueError,'another source'):
+            seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
+        self.assertEqual(self.writes,[])
+
     def test_same_process_save_reload_uses_the_saved_names_and_not_the_unsaved_old_tracker(self):
         self.certify()
         data=json.loads(self.bank_path.read_text());ghost=data['records'][self.key]['lifestate_forms']['forms']['ghost_ghost']

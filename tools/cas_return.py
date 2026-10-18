@@ -34,6 +34,37 @@ def hash_id(value):
     return isinstance(value, str) and len(value) == 64 and all(char in '0123456789abcdef' for char in value)
 
 
+def primary_navigation(client, sim_id, household_id, test_token=None):
+    """Use the shared Human owner when a hybrid has an independently bound graph.
+
+    Its physical EA pair can be incomplete or describe another rendering genus.
+    A legacy layer-select is not authority for that graph. Keep the old native
+    pair path only for editors without an independently bound owner controller.
+    """
+    session = client.get('owner_pair_observation', {}).get('session')
+    if type(session) is not int or session <= 0:
+        raise ValueError('Alternate-layer return lacks its native session; no layer or accept submitted.')
+    navigation = dict(operation='layer-select',household_id=household_id,
+                      expected_layer=1,target_layer=0,native_session=session)
+    strip = client.get('form_strip')
+    if isinstance(strip,dict) and strip.get('native_owner_state') == 'bound':
+        if not uuid_id(test_token):
+            raise ValueError('Bound hybrid navigation requires the exact disposable token; no request submitted.')
+        mask=client.get('sim',{}).get('allOccultTypes')
+        groups=strip.get('life_states')
+        if (strip.get('sim_id')!=sim_id or strip.get('cross_kind_navigation') is not True or
+                type(mask) is not int or mask<=0 or not mask&1 or strip.get('owned_mask')!=mask or not isinstance(groups,list)):
+            raise ValueError('Bound hybrid return lacks its exact current owner graph; no navigation or accept submitted.')
+        human=[row for row in groups if isinstance(row,dict) and row.get('family')=='human']
+        variants=human[0].get('variants') if len(human)==1 else None
+        if (not isinstance(variants,list) or len(variants)!=1 or not isinstance(variants[0],dict) or
+                variants[0].get('owner_id') not in ('native/1','active/1')):
+            raise ValueError('Bound hybrid return requires its one shared Human owner; no navigation or accept submitted.')
+        navigation=dict(operation='form-owner-select',owner_id=variants[0]['owner_id'],native_kind=1,
+                        owned_mask=mask,household_id=household_id,expected_layer=1,native_session=session,test_token=test_token)
+    return navigation
+
+
 def cancelled_read(result):
     return (isinstance(result, dict) and
             set(result) == {'ok', 'request_state', 'message', 'request_id'} and
@@ -585,11 +616,7 @@ def _observe(state, output, identity, request, sim_id, household_id, seconds=60,
                 raise ValueError('Requested household differs from native CAS; no accept intent submitted.')
             if preflight['client']['sim'].get('occultLayer') == 1:
                 native = preflight['client']
-                session = native.get('owner_pair_observation', {}).get('session')
-                if type(session) is not int or session <= 0:
-                    raise ValueError('Alternate-layer return lacks its native session; no layer or accept submitted.')
-                navigation = {'operation': 'layer-select', 'household_id': household_id,
-                              'expected_layer': 1, 'target_layer': 0, 'native_session': session}
+                navigation = primary_navigation(native,sim_id,household_id,journal['token'])
                 from apex_core.cas_ui import envelope
                 envelope(sim_id, navigation)
                 selected = call('cas_ui_request', json.dumps(navigation))

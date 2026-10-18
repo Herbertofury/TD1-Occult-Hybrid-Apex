@@ -47,6 +47,7 @@
 #include "ApexLiveCatalog.h"
 #include "ApexSliderLibrary.h"
 #include "ApexPointerGate.h"
+#include "ApexBackgroundPointer.h"
 #include "ApexGameWindow.h"
 #include "ApexStudioItems.h"
 #include "ApexTrayView.h"
@@ -4583,12 +4584,33 @@ extern "C" __declspec(dllexport) int WINAPI ApexGameInput(int command, int x, in
     if (command == 4) {
         // Address the verified game's event queue only. No SetForegroundWindow,
         // physical cursor movement or SendInput; acceptance is not UI proof.
-        const LPARAM position = MAKELPARAM(x, y);
-        const bool moved = PostMessageW(hwnd, WM_MOUSEMOVE, 0, position) != 0;
-        const bool down = moved && PostMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, position) != 0;
-        const bool up = down && PostMessageW(hwnd, WM_LBUTTONUP, 0, position) != 0;
-        td1::g_inputState = moved && down && up ? 4 : -5;
-        td1::g_inputBusy = false;
+        try {
+            std::thread([hwnd, x, y, width, height] {
+                ApexInputDpi workerDpi;
+                auto owned = [&] {
+                    DWORD pid = 0;
+                    return IsWindow(hwnd) && GetWindowThreadProcessId(hwnd, &pid) && pid == GetCurrentProcessId();
+                };
+                auto valid = [&] {
+                    RECT current{};
+                    return owned() && IsWindowVisible(hwnd) && GetClientRect(hwnd, &current) &&
+                        current.right == width && current.bottom == height;
+                };
+                auto post = [&](td1::BackgroundPointerEvent event) {
+                    const UINT message = event == td1::BackgroundPointerEvent::Move ? WM_MOUSEMOVE :
+                        event == td1::BackgroundPointerEvent::Down ? WM_LBUTTONDOWN : WM_LBUTTONUP;
+                    const WPARAM flags = event == td1::BackgroundPointerEvent::Down ? MK_LBUTTON : 0;
+                    return PostMessageW(hwnd, message, flags, MAKELPARAM(x, y)) != 0;
+                };
+                td1::g_inputState = td1::RunBackgroundPointer(valid, owned, post,
+                    [](int milliseconds) { Sleep(static_cast<DWORD>(milliseconds)); },
+                    [](int value) { td1::g_inputState = value; });
+                td1::g_inputBusy = false;
+            }).detach();
+        } catch (...) {
+            td1::g_inputState = -5; td1::g_inputBusy = false;
+            return -5;
+        }
         return 0;
     }
     // Move is delivered on a game-owned worker, then allowed to traverse the

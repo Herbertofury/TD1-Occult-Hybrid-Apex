@@ -20,6 +20,57 @@ not establish current implementation or runtime readiness.
 
 ## Current checkpoint — 2026-10-18
 
+- [x] Replace HUM with EA's actual Human artwork; verify it visually in full CAS.
+- [x] Verify V195/V196/V197 cold loading preserves forty native appearances and five
+  independent saved named documents after simulation advances; keep save/ledger unchanged.
+- [x] Fix the observed native tooltip API type mismatch and add its regression check.
+- [x] Reject CAS readiness when a new native UI exception occurs despite a connected inventory.
+- [x] Exercise actual native-menu Alien -> Vampire -> Alien selection in full CAS;
+  retain mask 127 and the distinct Alien appearance, with the button visible after both switches.
+- [ ] Extend native-popup qualification across all forms and household members.
+- [ ] Keep the strip clear of native popup cards on short viewports; qualify fresh
+  geometry separately from the cached SetSimInfo observation during animations.
+- [ ] Fix and qualify grey Fairy wings, style/color editing and independent retention.
+- [x] Qualify the fourth member's native purple wing-card selection through
+  Fairy -> Alien -> Fairy, Live switching, normal save and a cold load.
+- [ ] Qualify prompt portrait refresh separately from actual appearance integrity.
+
+V197 passes 2,601 regression tests and loads full CAS without a new UI exception.
+Its native menu opens and selects the actual retained Vampire owner from Alien,
+with all six memberships retained. A subsequent molecule redraw hides the button
+again: its private HouseholdSimData still carries the combined mask. V198 uses
+the selected genus on that presentation model only, retaining full membership
+on SimInfo and the native owners. It passes 2,602 full regression tests, seven
+molecule/API checks, and the actual Alien -> Vampire -> Alien popup cycle. All
+forty native appearances and five named documents survive its cold load and
+935 simulation ticks. A native-card edit selects purple Fairy wings 473791,
+which remain visibly coloured through Fairy -> Alien -> Fairy. The 195-owner
+comparison changes only that fourth member's actual Fairy outfits, genetics
+and pelt fields; all other 194 appearances remain unchanged. Live acceptance
+from that member requires shared-Human owner navigation in the CLI rather than
+the incomplete legacy pair; its 78 return/settlement tests pass. The household
+commit now succeeds for all five members. All forty Live appearances match
+after 989 ticks; fourth-member Alien -> Vampire -> Alien -> Fairy also passes
+with no added outfits. A normal save retains all forty appearances and creates
+all five named-form seals. The
+subsequent OCR-angle fix passes 24 OCR and 307 host game tests; the captured
+8.5-degree Home-menu case now targets Resume correctly. V196's
+widget-loading failure is retained as failed evidence. Do not promote these
+candidates to actual-save readiness or close hybrid/link/copy/Tray gates.
+
+V199 passes 2,615 full regression tests and twelve native checks. Its installed
+frame-separated pointer completes normal background exit. The native cold load
+retains all forty appearances, but its saved named-form admission rejects the
+qualified V198 source. V200 explicitly admits only that audited schema-compatible
+metadata source, without native appearance restoration authority. Its cold load
+reopens all five independent named documents and retains all forty native
+appearances before and after 946 simulation ticks; save and ledger stay unchanged
+and Live is paused again. Ninety-two focused save/upgrade/return tests pass;
+the frozen V200 complete regression passes 2,616 tests in 776.817 seconds.
+The background CAS-grid fix still needs a real grid-selection check. Initial
+Fairy records with empty wing paint data and semantic wing selection remain
+open; successful stock-card editing does not qualify their separate repair/API.
+
 V194 menu checkpoint: the CAS strip groups variants under one life-state button,
 including one Imaginary Friend entry with four independent variant owners and
 a shortcut to the existing shared Human / Real appearance. Special artwork

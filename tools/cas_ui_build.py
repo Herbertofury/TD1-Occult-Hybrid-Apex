@@ -29,11 +29,14 @@ CLEANUP_KEY = (0x62ECC59A, 0, 0x3FFE72432A703655)
 CLEANUP_PIN = 'e79b3b65c8b6234c54d4a76f4c7a671f46ece7ddb9f6940bc5db312850fdef91'
 VOICE_KEY = (0x62ECC59A, 0, 0xE36BA403351FFE60)
 VOICE_PIN = 'd0f81a01e1ef4039dc8fb4b5d39dac680ea45e512a8102e243e59a99d3362764'
+MOLECULE_KEY = (0x62ECC59A, 0, 9034126160331862072)
+MOLECULE_PIN = '3124ed12ea50140da6f072d16ab0703e6154e448974edb1c3f6f7d05f7c24524'
 PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.java',
                   'Source/CASUi/form_strip_methods.as',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
                   'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py',
-                  'tools/CasVoiceBytecodePatch.java')
+                  'tools/CasVoiceBytecodePatch.java', 'tools/cas_molecule_patch.py',
+                  'tools/CasMoleculeBytecodePatch.java')
 
 
 def source_pins(root=ROOT):
@@ -264,10 +267,33 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     voice_tag = next(t[3] for t in tags(unpack(original_voice)[1]) if t[0] == 82)
     voice_boundary = voice_tag.index(b'\0', 4) + 1
     voice_payload = replace_payload(original_voice, voice_tag[:voice_boundary] + voice_retained.read_bytes())
+    import cas_molecule_patch
+    molecule_swf = work / 'cas-hair-casmolecule-current.swf'
+    original_molecule = molecule_swf.read_bytes()
+    if hashlib.sha256(original_molecule).hexdigest() != MOLECULE_PIN:
+        raise ValueError('CAS molecule differs from the inspected 1.128.90 build.')
+    molecule_compiled = molecule_swf
+    for sequence, target in enumerate(cas_molecule_patch.METHODS):
+        source = work / 'cas-hair-casmolecule-current/scripts' / (target.replace('.', '/') + '.as')
+        owned_source = work / ('apex-molecule-' + str(sequence) + '.as')
+        owned_source.write_text(cas_molecule_patch.inject(source.read_text(encoding='utf-8'), target), encoding='utf-8')
+        destination = work / ('apex-molecule-compiled-' + str(sequence) + '.swf')
+        run([ffdec, '-importAssets', 'yes,local', '-replace', molecule_compiled, destination, target, owned_source])
+        molecule_compiled = destination
+    run(['javac', '-cp', Path(ffdec).parent / 'ffdec.jar', '-d', java_classes,
+         ROOT / 'tools/CasBytecodePatch.java', ROOT / 'tools/CasMoleculeBytecodePatch.java'])
+    molecule_retained = work / 'apex-molecule-retained.abc'
+    molecule_verification = run(['java', '-cp', str(Path(ffdec).parent / 'ffdec.jar') + os.pathsep + str(java_classes),
+        'CasMoleculeBytecodePatch', molecule_swf, molecule_compiled, molecule_retained])
+    molecule_contract = json.loads(molecule_verification.stdout)
+    molecule_tag = next(t[3] for t in tags(unpack(original_molecule)[1]) if t[0] == 82)
+    molecule_boundary = molecule_tag.index(b'\0', 4) + 1
+    molecule_payload = replace_payload(original_molecule, molecule_tag[:molecule_boundary] + molecule_retained.read_bytes())
     if source_pins() != expected_sources:
         raise ValueError('CAS bridge source changed during compilation; no package was written.')
     Path(output).parent.mkdir(parents=True, exist_ok=True)
-    Path(output).write_bytes(dbpf_build.build({KEY: payload, SELECTOR_KEY: selector_payload, VOICE_KEY: voice_payload}))
+    Path(output).write_bytes(dbpf_build.build({KEY: payload, SELECTOR_KEY: selector_payload, VOICE_KEY: voice_payload,
+                                              MOLECULE_KEY: molecule_payload}))
     info = {'schema': 1, 'artifact': Path(output).name, 'scope': 'native-CAS-semantic-bridge',
         'source_pins': expected_sources,
         'typed_control_dispatch_verified': control_dispatch,
@@ -279,12 +305,15 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'runtime_verified': False, 'non_script_tags_preserved': True, 'native_bytecode_contract': contract,
         'selector_native_bytecode_contract': selector_contract,
         'voice_native_bytecode_contract': voice_contract,
-        'base_resources': {dbpf_build.tgi(KEY): PIN, dbpf_build.tgi(SELECTOR_KEY): SELECTOR_PIN, dbpf_build.tgi(VOICE_KEY): VOICE_PIN},
+        'molecule_native_bytecode_contract': molecule_contract,
+        'base_resources': {dbpf_build.tgi(KEY): PIN, dbpf_build.tgi(SELECTOR_KEY): SELECTOR_PIN, dbpf_build.tgi(VOICE_KEY): VOICE_PIN,
+                           dbpf_build.tgi(MOLECULE_KEY): MOLECULE_PIN},
         'unmodified_dependency_resources': {dbpf_build.tgi(CLEANUP_KEY): CLEANUP_PIN},
         'patched_resources': {dbpf_build.tgi(KEY): hashlib.sha256(payload).hexdigest(),
                               dbpf_build.tgi(SELECTOR_KEY): hashlib.sha256(selector_payload).hexdigest(),
-                              dbpf_build.tgi(VOICE_KEY): hashlib.sha256(voice_payload).hexdigest()},
-        'resources': [dbpf_build.tgi(KEY), dbpf_build.tgi(SELECTOR_KEY), dbpf_build.tgi(VOICE_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
+                              dbpf_build.tgi(VOICE_KEY): hashlib.sha256(voice_payload).hexdigest(),
+                              dbpf_build.tgi(MOLECULE_KEY): hashlib.sha256(molecule_payload).hexdigest()},
+        'resources': [dbpf_build.tgi(KEY), dbpf_build.tgi(SELECTOR_KEY), dbpf_build.tgi(VOICE_KEY), dbpf_build.tgi(MOLECULE_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
         'socket_protocol': {'host': '127.0.0.1', 'port': 8021, 'length_digits': 8,
             'encoding': 'utf-8', 'maximum_frame_bytes': 131072, 'poll_interval_ms': 500}}
     write_json(Path(str(output) + '.manifest.json'), info)

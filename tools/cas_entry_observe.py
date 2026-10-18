@@ -93,6 +93,10 @@ def observe(state, entry_path, entry_hash, sim_id, output, request, identity_pro
                 raise ValueError('Existing native CAS inventory remains unverified; retain its read request.')
             if household is not None and result.get('client',{}).get('sim',{}).get('householdId')!=household:
                 raise ValueError('Initial native CAS member belongs to a different captured household.')
+            if isinstance(entry.get('ui_exception_before'), dict):
+                proof['ui_health'] = cas_transition.ui_health(profile, entry['ui_exception_before'], output)
+                if proof['ui_health']['ok'] is not True:
+                    raise ValueError('A new native CAS UI exception prevents readiness; the accepted entry is not replayed.')
             fresh = identity_provider(state)
             if any(fresh.get(k) != identity.get(k) for k in ('pid', 'test_token', 'script_sha256')):
                 raise ValueError('Runtime changed during the read-only follow-up.')

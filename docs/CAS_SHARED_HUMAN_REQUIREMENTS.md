@@ -60,7 +60,17 @@ commands cannot request retirement; the loader requires the held Source
 completion object, and an attempted retirement is never replayed. Six Source
 checks exercise the real loader validation, and eleven native checks pass,
 including refusal for stale/missing members and successful fresh reseeding.
-Runtime repeated-visit and edited-form Live/save/Tray qualification remain open.
+V186's actual full-household run repeats all sixty visits and twenty independent
+Human/Alien/Vampire/Ghost physique edits. Complete returned native data matches
+all 195 CAS exports byte for byte. All five explicit receiver commits pass,
+including the separate Ghost choices; only the fifth completed receiver retires
+the graph. The native counter verifies one retirement with the armed roster
+retained and no imported graph. After 1,294 further simulation ticks, all forty
+active/stored Live appearances match the intended logical CAS choices in every
+captured field, and the game is paused again. All five named Ghost records match
+their edited exports. No save was submitted. The frozen Source regression run
+passes 2,506 tests. Same-process repeated entry, all-category edits, native
+copy/link, save/cold-load and Tray qualification remain open.
 
 V182's native-owned UI transport completed this matrix without the previously
 reproduced allocator crash. It does not establish universal crash freedom or

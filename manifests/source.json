@@ -467,6 +467,12 @@
       "sha256": "dfc26d8d9a016b24d69187233ab089058fe72ef82abbac60a2d09710fe0e7266"
     },
     {
+      "bytes": 210724,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "3fabd8886ad7b702e0305d5d52040872b5d7cb0d63b8fa2b7dcbdf35af29c902"
+    },
+    {
       "bytes": 13153,
       "mode": "100644",
       "path": "Source/apex_core/cas_owner_payload.py",
@@ -609,6 +615,12 @@
       "mode": "100644",
       "path": "Source/apex_core/sim_record.py",
       "sha256": "86a06014de2ef0253b7a76473b874508c3623b39ed3f46d208471cee46447f03"
+    },
+    {
+      "bytes": 19043,
+      "mode": "100644",
+      "path": "wiki/TODO.md",
+      "sha256": "1566a1b43cc44cddb4f8f1afb7013de28849af1624475ad8f4030e1e24b5e498"
     },
     {
       "bytes": 932,
@@ -1109,12 +1121,6 @@
       "sha256": "dfa10301eaecde9d92282ebab19fceccfb2599be1e08cd9ebd8db6983a4138b6"
     },
     {
-      "bytes": 209956,
-      "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "9dbb40e283408eb2859c6f6fe9928418e4cbf7b5de313bb89c183133441945a5"
-    },
-    {
       "bytes": 715,
       "mode": "100644",
       "path": "tools/loopback_server.py",
@@ -1143,6 +1149,12 @@
       "mode": "100644",
       "path": "tests/test_native_controls.py",
       "sha256": "ee02de8e77b7f6b6e2e5fe57d347c404203f78f6db5288a48572a48c00aff0c7"
+    },
+    {
+      "bytes": 6360,
+      "mode": "100644",
+      "path": "tools/cas_entry_observe.py",
+      "sha256": "4a9fe74d3e224ca59a09551f73a08f5190da4e5b6dc3c1c2ab0e8b909a031ed3"
     },
     {
       "bytes": 4623,
@@ -1269,12 +1281,6 @@
       "mode": "100644",
       "path": "tests/test_cas_postcondition_transport.py",
       "sha256": "d5525b4857af91341a69130ac0ff995eb5a41424d40140aa70b164f62446d7d3"
-    },
-    {
-      "bytes": 19178,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "4a31430e5f0fb8298b30719682575ede434711feb5b319df1b230cb13cc26e68"
     },
     {
       "bytes": 8497,
@@ -1455,6 +1461,12 @@
       "mode": "100644",
       "path": "Source/apex_core/outfit_snapshot.py",
       "sha256": "76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56"
+    },
+    {
+      "bytes": 8117,
+      "mode": "100644",
+      "path": "tests/test_cas_entry_observe.py",
+      "sha256": "2149d6e37fa656f9d2154a3fb9cc96508683c844a4df3f47ec73ecaa3c4f75ee"
     },
     {
       "bytes": 11151,
@@ -1791,12 +1803,6 @@
       "mode": "100644",
       "path": "tests/test_cli_background_map.py",
       "sha256": "59ddf308c578fba1a20e16a18675e009dbe55ac087ea847c1aa0f04e8bca2d9e"
-    },
-    {
-      "bytes": 18275,
-      "mode": "100644",
-      "path": "wiki/TODO.md",
-      "sha256": "8fc0d627f804eb63cc0d398e8e3bf98f668135ac08df7ce50d534cdc06103c31"
     },
     {
       "bytes": 4373,
@@ -2319,12 +2325,6 @@
       "mode": "100644",
       "path": "tests/test_game_live_observe.py",
       "sha256": "eb90382671521a6de0db47278d0ddeaecad9a9abafe37093003e5466989c2497"
-    },
-    {
-      "bytes": 1953,
-      "mode": "100644",
-      "path": "tests/test_cas_entry_observe.py",
-      "sha256": "02ed9a9d4d6ba5848b1b66014a2f427dc90b7d09c079ad01d85ee8f4c4a14c2e"
     },
     {
       "bytes": 2609,
@@ -3119,6 +3119,12 @@
       "sha256": "105f6db24d6f9f535d1fd45a8a7a6daea3b7ede42948a4110f9b686cc7fd1df4"
     },
     {
+      "bytes": 19946,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "9a782f8bd9e7af39168daaef1c8b3df49b0dab06835f9d5d4ce184e4a3d754d8"
+    },
+    {
       "bytes": 13216,
       "mode": "100644",
       "path": "tools/live_color_probe.py",
@@ -3219,12 +3225,6 @@
       "mode": "100644",
       "path": "tests/test_restore_genetics.py",
       "sha256": "e3d8a3386ab37e25d72efac66964e17e4fc3b0cffb0290f02df665d5eeb967bd"
-    },
-    {
-      "bytes": 3825,
-      "mode": "100644",
-      "path": "tools/cas_entry_observe.py",
-      "sha256": "c06c5fbaf0728174872413621fdd59a508b33b4030db99447eece7deeeaa6e41"
     },
     {
       "bytes": 35149,

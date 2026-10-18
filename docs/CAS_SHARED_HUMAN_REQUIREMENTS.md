@@ -69,8 +69,21 @@ retained and no imported graph. After 1,294 further simulation ticks, all forty
 active/stored Live appearances match the intended logical CAS choices in every
 captured field, and the game is paused again. All five named Ghost records match
 their edited exports. No save was submitted. The frozen Source regression run
-passes 2,506 tests. Same-process repeated entry, all-category edits, native
-copy/link, save/cold-load and Tray qualification remain open.
+passes 2,506 tests. A second full-CAS visit in the same process then passes
+thirty Human/Alien/Vampire/Ghost visits across all five members, retaining every
+distinct body edit. Its complete 195-owner audit matches every expected field,
+including the untouched outfit and skin-detail data. The host observes EA's
+initially selected captured household member without replaying entry or sending
+selection input; 25 entry and 26 transition checks pass. All-category edits,
+native copy/link, save/cold-load and Tray qualification remain open.
+
+- [x] Five-member, sixty-visit distinct physique-edit matrix and exact all-owner audit.
+- [x] Five explicit graph-to-Live receiver commits, with independent Ghost choices.
+- [x] Post-commit Live advancement and forty active/stored full-field comparisons.
+- [x] Completed native graph retirement and fresh same-process full-CAS entry.
+- [x] Thirty reopened form visits and complete 195-owner field retention.
+- [ ] Qualify distinct edits in every applicable category and native copy/link.
+- [ ] Qualify normal save/cold-load and household Tray/Gallery retention.
 
 V182's native-owned UI transport completed this matrix without the previously
 reproduced allocator crash. It does not establish universal crash freedom or

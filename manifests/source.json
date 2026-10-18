@@ -467,12 +467,6 @@
       "sha256": "dfc26d8d9a016b24d69187233ab089058fe72ef82abbac60a2d09710fe0e7266"
     },
     {
-      "bytes": 210724,
-      "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "3fabd8886ad7b702e0305d5d52040872b5d7cb0d63b8fa2b7dcbdf35af29c902"
-    },
-    {
       "bytes": 13153,
       "mode": "100644",
       "path": "Source/apex_core/cas_owner_payload.py",
@@ -615,12 +609,6 @@
       "mode": "100644",
       "path": "Source/apex_core/sim_record.py",
       "sha256": "86a06014de2ef0253b7a76473b874508c3623b39ed3f46d208471cee46447f03"
-    },
-    {
-      "bytes": 19043,
-      "mode": "100644",
-      "path": "wiki/TODO.md",
-      "sha256": "1566a1b43cc44cddb4f8f1afb7013de28849af1624475ad8f4030e1e24b5e498"
     },
     {
       "bytes": 932,
@@ -1233,6 +1221,12 @@
       "mode": "100644",
       "path": "tests/test_cas_review_cli.py",
       "sha256": "3d674219f8baec90e14addf9ea44fbbea0f7991c86f95f6a646b69b4d24f5c89"
+    },
+    {
+      "bytes": 211124,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "56bd1eccead9ded5ec0fa405f5a0d24ec3dc76dd8b1185ecb328b9218f5077b9"
     },
     {
       "bytes": 6122,
@@ -1947,6 +1941,12 @@
       "mode": "100644",
       "path": "tools/runtime_tests.py",
       "sha256": "3edad5f8b98e8024a22fcbae06678c9e28358709fd109eb6fad2335ceab03670"
+    },
+    {
+      "bytes": 20909,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "0a22f1a24bbd79cb0646b78c1d326e67a4e04fa1e5739ab0e211a6941638c29e"
     },
     {
       "bytes": 8132,
@@ -3119,12 +3119,6 @@
       "sha256": "105f6db24d6f9f535d1fd45a8a7a6daea3b7ede42948a4110f9b686cc7fd1df4"
     },
     {
-      "bytes": 19946,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "9a782f8bd9e7af39168daaef1c8b3df49b0dab06835f9d5d4ce184e4a3d754d8"
-    },
-    {
       "bytes": 13216,
       "mode": "100644",
       "path": "tools/live_color_probe.py",
@@ -3219,6 +3213,12 @@
       "mode": "100644",
       "path": "tests/test_game_background_window.py",
       "sha256": "4a25814327a8276f7dc8364d3b1f782a70e7179c6ed7dde0d38b2556ebd578c4"
+    },
+    {
+      "bytes": 19443,
+      "mode": "100644",
+      "path": "wiki/TODO.md",
+      "sha256": "bdf0ada3bba6a745ba78b60f369b82fd4b104f5aafa810197af1e11e1af56384"
     },
     {
       "bytes": 3200,

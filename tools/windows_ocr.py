@@ -169,9 +169,16 @@ def recognize(path, scale=2):
                 'reason': 'independent-complete-home-load-label' if missing_home_load else 'empty-two-times-inventory',
                 'source_sha256': hashlib.sha256(source).hexdigest()})
         if missing_home_load:
-            return dict(primary, scaling_fallback={'attempted': True, 'accepted': False,
+            incomplete = dict(primary, scaling_fallback={'attempted': True, 'accepted': False,
                 'scale': 1, 'reason': 'native-size-home-not-complete', 'observation': unscaled,
                 'source_sha256': hashlib.sha256(source).hexdigest()})
+            # A second incomplete reading is not a reason to skip the existing
+            # pixel-only fallback. Both prior observations must independently
+            # exclude duplicate controls and known dialogs. The transformed
+            # frame must still recognize every exact Home control on its own.
+            if _partial_home_candidate(primary) and _partial_home_candidate(unscaled):
+                return _white_home_observation(path, source, incomplete, scale, started)
+            return incomplete
     if not _contrast_candidate(primary):
         if _partial_home_candidate(primary) and not _home_scale_candidate(primary, require_load=True):
             return _white_home_observation(path, source, primary, scale, started)

@@ -166,6 +166,23 @@ class LauncherTests(unittest.TestCase):
             self.assertFalse(result['white_text_fallback']['accepted'])
             with self.assertRaises(ValueError):game_lifecycle.button(result,'resume')
 
+    def test_failed_native_size_home_read_still_allows_independent_white_glyph_read(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376),(30,95,70)).save(self.image)
+        original=self.image.read_bytes()
+        primary=windows_ocr.original_viewport(home_observation(),2)
+        primary['lines'][2]['text']='eNEW GAMEA'
+        unscaled=copy.deepcopy(primary);unscaled['lines'][1]['text']='L AD GAME'
+        fallback=windows_ocr.original_viewport(home_observation(),2)
+        with patch.object(windows_ocr,'_native_observation',side_effect=[primary,unscaled,fallback]) as read:
+            result=windows_ocr.recognize(self.image)
+        self.assertEqual([call.args[1] for call in read.call_args_list],[2,1,2])
+        self.assertTrue(result['white_text_fallback']['accepted'])
+        self.assertFalse(result['raw_observation']['scaling_fallback']['accepted'])
+        self.assertEqual(result['lines'],fallback['lines'])
+        self.assertEqual(game_lifecycle.button(result,'resume')['x'],175)
+        self.assertEqual(self.image.read_bytes(),original)
+
     def test_invalid_scale_missing_input_and_native_failure_refuse_without_inventing_labels(self):
         with patch.object(windows_ocr.subprocess, 'run') as run:
             for scale in (True, 0, 3, 2.0):
@@ -218,6 +235,8 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(self.image.read_bytes(), b'bounded capture fixture')
 
     def test_native_size_home_requires_unique_complete_controls_without_dialogs(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376)).save(self.image)
         primary = home_observation(); primary['lines'][1]['text'] = 'Lv GAME'
         for kind in ('still-misread', 'missing-gallery', 'duplicate-load', 'modal'):
             native = home_observation()
@@ -226,9 +245,11 @@ class LauncherTests(unittest.TestCase):
             elif kind == 'missing-gallery': native['lines'].pop(3)
             elif kind == 'duplicate-load': native['lines'].append(copy.deepcopy(native['lines'][1]))
             else: native['lines'].append(dict(text='BUY NOW', words=[]))
-            replies = [SimpleNamespace(returncode=0, stdout=json.dumps(row), stderr='') for row in (primary, native)]
-            with self.subTest(kind=kind), patch.object(windows_ocr.subprocess, 'run', side_effect=replies):
+            masked=copy.deepcopy(native);masked['preprocessing']=copy.deepcopy(primary['preprocessing'])
+            replies = [SimpleNamespace(returncode=0, stdout=json.dumps(row), stderr='') for row in (primary, native, masked)]
+            with self.subTest(kind=kind), patch.object(windows_ocr.subprocess, 'run', side_effect=replies) as read:
                 observed = windows_ocr.recognize(self.image)
+                self.assertEqual(read.call_count,3 if kind in ('still-misread','missing-gallery') else 2)
             self.assertFalse(observed['scaling_fallback']['accepted'])
             self.assertEqual(observed['lines'][1]['text'], 'Lv GAME')
 

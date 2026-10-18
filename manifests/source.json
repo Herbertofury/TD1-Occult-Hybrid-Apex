@@ -587,6 +587,12 @@
       "sha256": "bf4e5ad559d04901678a37c2fb066eda9495af97c334fcd0e7606d540a25998a"
     },
     {
+      "bytes": 13875,
+      "mode": "100644",
+      "path": "tools/windows_ocr.py",
+      "sha256": "40662d9db0106b8de357b7fa4512604894443930b932dde6895b5d2a7b58adcc"
+    },
+    {
       "bytes": 100806,
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexNativeCasEngineWin.h",
@@ -1277,6 +1283,12 @@
       "sha256": "d5525b4857af91341a69130ac0ff995eb5a41424d40140aa70b164f62446d7d3"
     },
     {
+      "bytes": 20624,
+      "mode": "100644",
+      "path": "tests/test_windows_ocr.py",
+      "sha256": "32544a6a2f84505852f4ec0f4cc8be55d7a7ea7c9585683734a02f3e9448fb07"
+    },
+    {
       "bytes": 8497,
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexPermissionCapture.cpp",
@@ -1335,12 +1347,6 @@
       "mode": "100644",
       "path": "NativeOverlay/third_party/minhook/src/hook.c",
       "sha256": "edcce4c81985d7dd5b73feae96d6498c8f749b1bca4c3d2d9926ea9a17a84755"
-    },
-    {
-      "bytes": 19230,
-      "mode": "100644",
-      "path": "tests/test_windows_ocr.py",
-      "sha256": "99db42580731f085f7e607f0e6e2fb1cb5930823d3f4853072a0e51b162f8b7f"
     },
     {
       "bytes": 2974,
@@ -3429,12 +3435,6 @@
       "mode": "100644",
       "path": "tests/test_loopback_server.py",
       "sha256": "2ca5fcf3fb3b61648dd8d18feee9a10085980ac51fda118d4d3312aca2c3e78e"
-    },
-    {
-      "bytes": 13352,
-      "mode": "100644",
-      "path": "tools/windows_ocr.py",
-      "sha256": "993f53f84022ebfae8c3d684d1527a8f0dd0cc0af7614a19fe285ac15045199c"
     },
     {
       "bytes": 4559,

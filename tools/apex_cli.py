@@ -322,6 +322,9 @@ def parser():
     entry_observe.add_argument('--entry-proof', required=True, type=Path)
     entry_observe.add_argument('--entry-sha256', required=True)
     entry_observe.add_argument('--output', required=True, type=Path)
+    entry_recover = commands.add_parser('cas-entry-recover', help='Archive an exact pre-entry rejection after verifying the unchanged paused household; no form or save writes')
+    for name in ('state','entry-proof','native-proof','output'):
+        entry_recover.add_argument('--'+name,required=True,type=Path)
     poll = commands.add_parser('poll')
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
@@ -672,6 +675,9 @@ def execute(args):
     if args.command == 'lifestate':
         from lifestate_cli import run
         return run(args, owned_request)
+    if args.command == 'cas-entry-recover':
+        from cas_rejected_entry_recovery import run
+        return run(args)
     if args.command == 'cas-entry-observe':
         from cas_entry_observe import observe as observe_accepted_entry
         return observe_accepted_entry(args.state, args.entry_proof, args.entry_sha256,

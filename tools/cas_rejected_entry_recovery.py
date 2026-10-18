@@ -29,6 +29,20 @@ def plan(entry, native, status, diagnostic, bank, preparation):
          entry.get('handshake_verified') is False and entry.get('entry_submitted') is True,
          'Only a terminal rejected entry with no native handshake can be recovered.')
     failed = [row.get('result', {}) for row in entry.get('steps', []) if row.get('action') == 'test_cas']
+    need(len(failed)==1 and isinstance(failed[0],dict),'One exact original entry request is required.')
+    original=failed[0]
+    if original.get('outcome')=='unresolved':
+        # Completion observation is not another entry. Accept only the exact
+        # terminal receipt for the retained initial UUID, never a new request.
+        rid=original.get('request_id')
+        need(isinstance(rid,str) and len(rid)==32 and all(c in '0123456789abcdef' for c in rid),
+             'Unresolved entry lacks its original owner UUID.')
+        failed=[row.get('result',{}) for row in entry.get('steps',[]) if row.get('action')=='test_cas_completion']
+        need(len(failed)==1 and isinstance(failed[0],dict) and failed[0].get('request_id')==rid,
+             'Completion must belong to the original entry UUID.')
+        intents=entry.get('owner_requests')
+        if intents is not None:
+            need(intents==[dict(action='test_cas',request_id=rid)],'Entry contains another or ambiguous submission.')
     need(len(failed) == 1 and failed[0].get('ok') is False and failed[0].get('request_state') == 'failed' and
          failed[0].get('message') == 'A prior CAS pair preparation is unresolved; no replay authorized.',
          'The exact pre-preparation rejection is required; no generic error authorizes reset.')

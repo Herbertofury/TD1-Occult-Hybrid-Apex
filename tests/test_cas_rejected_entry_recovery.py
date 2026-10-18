@@ -66,3 +66,23 @@ class RejectedEntryRecoveryTests(unittest.TestCase):
                 before=copy.deepcopy(self.bank)
                 with self.assertRaises(ValueError):self.plan()
                 self.assertEqual(self.bank,before);self.native=saved
+
+    def test_retained_timed_out_entry_uses_only_its_exact_terminal_completion(self):
+        terminal=copy.deepcopy(self.entry['steps'][0]['result'])
+        self.entry['steps'][0]['result']=dict(ok=False,outcome='unresolved',request_id='c'*32)
+        self.entry['steps'].append(dict(action='test_cas_completion',result=terminal))
+        self.entry['owner_requests']=[dict(action='test_cas',request_id='c'*32)]
+        self.assertIsNone(self.plan()['records']['99:3']['pending'])
+
+    def test_unknown_other_uuid_or_second_submission_cannot_authorize_metadata_reset(self):
+        original=copy.deepcopy(self.entry)
+        for damage in ('unknown','uuid','second'):
+            with self.subTest(damage=damage):
+                self.entry=copy.deepcopy(original);terminal=copy.deepcopy(self.entry['steps'][0]['result'])
+                self.entry['steps'][0]['result']=dict(ok=False,outcome='unresolved',request_id='c'*32)
+                self.entry['steps'].append(dict(action='test_cas_completion',result=terminal))
+                self.entry['owner_requests']=[dict(action='test_cas',request_id='c'*32)]
+                if damage=='unknown':terminal['request_state']='unknown'
+                elif damage=='uuid':terminal['request_id']='d'*32
+                else:self.entry['owner_requests'].append(dict(action='test_cas',request_id='d'*32))
+                with self.assertRaises(ValueError):self.plan()

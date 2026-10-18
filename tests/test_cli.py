@@ -9,6 +9,14 @@ import apex_cli
 
 
 class CliTests(unittest.TestCase):
+    def test_public_entry_recovery_routes_to_the_existing_no_form_write_verifier(self):
+        import cas_rejected_entry_recovery
+        with patch.object(cas_rejected_entry_recovery,'run',return_value={'ok':True}) as recover:
+            args=apex_cli.parser().parse_args(['cas-entry-recover','--state','state.json',
+                '--entry-proof','entry.json','--native-proof','native.json','--output','recovery.json'])
+            self.assertTrue(apex_cli.execute(args)['ok'])
+            recover.assert_called_once_with(args)
+
     def test_game_cas_defaults_to_full_household_and_preserves_explicit_entry_routes(self):
         import cas_transition
         for explicit,expected in ((None,'full'),('full','full'),('native-full','native-full'),('mccc-full','mccc-full')):

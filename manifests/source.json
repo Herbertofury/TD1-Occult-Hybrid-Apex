@@ -455,6 +455,12 @@
       "sha256": "e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f"
     },
     {
+      "bytes": 88226,
+      "mode": "100644",
+      "path": "tools/apex_cli.py",
+      "sha256": "833eef4a39411a9c535d6cf135156ce98511b44fc247bc6d5e6657b41f4d477c"
+    },
+    {
       "bytes": 9658,
       "mode": "100644",
       "path": "Source/apex_core/sim_data.py",
@@ -705,6 +711,12 @@
       "mode": "100644",
       "path": "tools/source_inventory.py",
       "sha256": "5872550246a244f060b8129bf5012e97ad2f2a9e365c9e71cecb7f4ea2635e46"
+    },
+    {
+      "bytes": 5972,
+      "mode": "100644",
+      "path": "tests/test_cas_rejected_entry_recovery.py",
+      "sha256": "cbafde2019d2fb5f0213da914274a8fc5d2134351b0cd0b512121e15a956549f"
     },
     {
       "bytes": 3942,
@@ -1019,12 +1031,6 @@
       "sha256": "622449a6400073370e86a3ef9bfe80ae955d234bf72246bf9df53a73006e8557"
     },
     {
-      "bytes": 9688,
-      "mode": "100644",
-      "path": "tools/cas_rejected_entry_recovery.py",
-      "sha256": "b0bf82883eb590033d0ca184674147c52021d61bcafd03c131e5180d9a3fc393"
-    },
-    {
       "bytes": 1557,
       "mode": "100644",
       "path": "Reports/Pride-Build-V3-Research-Summary.txt",
@@ -1065,12 +1071,6 @@
       "mode": "100644",
       "path": "tools/game_capture.py",
       "sha256": "1174dc462a82e5f80463941bd7876b59a9195d39ea9c10ac95fa5fcfef7060cd"
-    },
-    {
-      "bytes": 50185,
-      "mode": "100644",
-      "path": "tests/test_cli.py",
-      "sha256": "a92e22fc642cb0896b66f6eb6e6e43aba7861eef69d3141958623392d37e7da8"
     },
     {
       "bytes": 14457,
@@ -1275,12 +1275,6 @@
       "mode": "100644",
       "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
       "sha256": "4a31430e5f0fb8298b30719682575ede434711feb5b319df1b230cb13cc26e68"
-    },
-    {
-      "bytes": 87793,
-      "mode": "100644",
-      "path": "tools/apex_cli.py",
-      "sha256": "c759f24d1a7e9a63151b427b1b8bea2f0b6207463d32267ed3cff89dc8621373"
     },
     {
       "bytes": 8497,
@@ -1583,6 +1577,12 @@
       "sha256": "9be1531097dc31917f3c898ecd4f68d9691346fcdecabb5dd1fa68d8836b92d3"
     },
     {
+      "bytes": 50719,
+      "mode": "100644",
+      "path": "tests/test_cli.py",
+      "sha256": "627ecec18e4752320a14787d36c00f8cae08cee511954c89ab2e25841f2b400a"
+    },
+    {
       "bytes": 3233,
       "mode": "100644",
       "path": "tools/launch_preferences.py",
@@ -1629,12 +1629,6 @@
       "mode": "100644",
       "path": "tests/test_picker_resources.py",
       "sha256": "add4a83314869b5672c7f421b1f0c2283778ea14a909589cd979e20d4a8a61d6"
-    },
-    {
-      "bytes": 4559,
-      "mode": "100644",
-      "path": "tests/test_cas_rejected_entry_recovery.py",
-      "sha256": "4b2a215990085ed8ec45e2d7af57d5a426d31953300352dc8fb9fc9568200b40"
     },
     {
       "bytes": 4667,
@@ -2901,6 +2895,12 @@
       "mode": "100644",
       "path": "tests/test_cas_failed_postcondition.py",
       "sha256": "4d5e3ef2b4b087683c8e28eba7bc1b9b893e1b79997b603a65d4064fb73ec3be"
+    },
+    {
+      "bytes": 10690,
+      "mode": "100644",
+      "path": "tools/cas_rejected_entry_recovery.py",
+      "sha256": "0226ceceb472e93a5e62e1191a65c3cf363577900a9a8e20f3dad3712b90fe54"
     },
     {
       "bytes": 3468,

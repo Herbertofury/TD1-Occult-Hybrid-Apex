@@ -665,12 +665,6 @@
       "sha256": "5b1f5b79cc9222af6e328e7f2f3e4fd1b378993aa07aa630bb45da895ee0ced9"
     },
     {
-      "bytes": 214601,
-      "mode": "100644",
-      "path": "docs/CODEX_MASTER_EXECUTION.md",
-      "sha256": "0ffe41bd65856539b142ff3cffdd95eef121e2ad3b2b102ed0ba999c476587f4"
-    },
-    {
       "bytes": 7698,
       "mode": "100644",
       "path": "tests/test_phone_menu.py",
@@ -1403,12 +1397,6 @@
       "sha256": "e71119d70bb9b97d3bda6aad1b45223b4562419611c146d40f6aaf9151725563"
     },
     {
-      "bytes": 22920,
-      "mode": "100644",
-      "path": "wiki/TODO.md",
-      "sha256": "fcdcd3fba59c43332598a6cfa704db3db696057d1519ccca8d6e435218aff552"
-    },
-    {
       "bytes": 3875,
       "mode": "100644",
       "path": "tests/test_outfit_snapshot.py",
@@ -1449,6 +1437,12 @@
       "mode": "100644",
       "path": "tests/test_body_hair_load_dispatch.py",
       "sha256": "dbe5f6b005c7735e0affccb2c554f06e2b92f83e8c10a67b25b871518f2ac451"
+    },
+    {
+      "bytes": 216386,
+      "mode": "100644",
+      "path": "docs/CODEX_MASTER_EXECUTION.md",
+      "sha256": "83e9397a50f044487fecdb9489d8dfa72ff3be0c59b6e4ca2d0d7475c69c711a"
     },
     {
       "bytes": 7996,
@@ -1661,12 +1655,6 @@
       "sha256": "3b8bd0b7cf481daa42af5e37fea6575f06eca3fbc6fcd28a27718a2a50ee7994"
     },
     {
-      "bytes": 24622,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "fdfe27760ca7336375cad5d9dca774ec179bd83f1afe2532a20121cf8ac4350b"
-    },
-    {
       "bytes": 391,
       "mode": "100644",
       "path": "Reports/Apex-V9-CAS-BodyType-Table-Audit.json",
@@ -1701,6 +1689,12 @@
       "mode": "100644",
       "path": "docs/CAS_CLI_CONTROLS.md",
       "sha256": "e2cf92c336665a0bade476cbb3817569e80b37f87e9d8998c6bbda6be976f0c2"
+    },
+    {
+      "bytes": 26514,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "feb12a0a966fb1ddede036ecf88b77d02b92d342795e6b683e3fc68b20ca8633"
     },
     {
       "bytes": 2270,
@@ -2937,6 +2931,12 @@
       "mode": "100644",
       "path": "tests/test_cas_failed_postcondition.py",
       "sha256": "4d5e3ef2b4b087683c8e28eba7bc1b9b893e1b79997b603a65d4064fb73ec3be"
+    },
+    {
+      "bytes": 24705,
+      "mode": "100644",
+      "path": "wiki/TODO.md",
+      "sha256": "56baec2a3164ad3360018d9a1e75a5248e92c4cfb39679be665a4f526c938306"
     },
     {
       "bytes": 10690,

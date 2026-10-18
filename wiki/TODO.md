@@ -20,6 +20,32 @@ not establish current implementation or runtime readiness.
 
 ## Current checkpoint — 2026-10-18
 
+V188 category-retention checkpoint: the first member receives distinct actual
+Alien and Vampire eyebrow, head skin-detail and earring items through full CAS.
+Nine selected-item readbacks pass through Alien -> Vampire -> Alien. Complete
+committed exports and unchanged companion graph generations account for all
+195 owners: only that member's chosen Alien and Vampire records change, in
+outfit and genetic fields. The active visible owner is captured on departure;
+a committed-only export taken before that departure is not a loss verdict.
+
+After declining two unrelated self-discovery trait prompts, the original CAS
+Accept is completed without replay. All five receiver commits pass. All forty
+Live appearances match the intended CAS choices after another 1,163 simulation
+ticks. Normal Save and Exit creates fresh five-member named-form seals. Cold
+loading that exact file then retains the separate category edits, all five
+independent Ghost documents and all forty native appearances after another
+727 ticks, with save/ledger unchanged and Live paused. This is a first-member,
+three-category test; it is not an all-category/every-member qualification.
+
+The CLI now reconnects after the exact pre-queue transport refusal proving no
+native request was created. Issued/unknown UUIDs and started operations never
+enter that path. Five reconnect, 22 intent-journal, 16 workbench, 12 member and
+30 form-navigation checks pass, alongside both CI jobs. A legitimate colour
+family child absent from the filtered base list is still refused before write;
+ordinary-part base/variant capabilities remain open under issue #7. The final
+cold launch also exercises a successful EA-only restart to clear a blank stale
+Qt permission surface; account and every save remain unchanged by the restart.
+
 V188 checkpoint: the ordinary native Save and Exit path creates a fresh
 five-member household seal with all independent named documents, writes the
 normal save and exits normally. Cold loading that exact file reopens each

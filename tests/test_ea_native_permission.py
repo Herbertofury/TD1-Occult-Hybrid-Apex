@@ -6,6 +6,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock
 import ctypes
+import tempfile
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from ea_native_permission import dialog_button, NativeEA, blank_rgb
@@ -23,6 +25,53 @@ def retained_modal():
 
 
 class PermissionRecognitionTests(unittest.TestCase):
+    def printed_native(self, bordered=False, changed=False):
+        native=NativeEA.__new__(NativeEA)
+        row=dict(hwnd=42,pid=123,width=200,height=150,**{'class':'QtModal'})
+        native.identity=Mock(side_effect=[dict(row),dict(row,pid=124)] if changed else None,
+                             return_value=dict(row))
+        def bounds(_hwnd,target):
+            target._obj.right=202 if bordered else 200;target._obj.bottom=150
+            return True
+        native.user=SimpleNamespace(GetDC=Mock(return_value=1),ReleaseDC=Mock(),
+            GetWindowRect=Mock(side_effect=bounds),PrintWindow=Mock(return_value=True))
+        reads=[0]
+        def pixels(_dc,_bitmap,_start,height,buffer,_info,_flags):
+            reads[0]+=1
+            raw=bytearray(len(buffer))
+            if reads[0]>1:raw[4]=1
+            buffer.raw=bytes(raw)
+            return height
+        native.gdi=SimpleNamespace(CreateCompatibleDC=Mock(return_value=2),
+            CreateCompatibleBitmap=Mock(return_value=3),SelectObject=Mock(return_value=4),
+            GetDIBits=Mock(side_effect=pixels),DeleteObject=Mock(),DeleteDC=Mock())
+        return native,row
+
+    def test_frameless_print_recovers_blank_client_without_desktop_capture_or_input(self):
+        native,row=self.printed_native()
+        with tempfile.TemporaryDirectory() as directory,patch('ea_native_permission.graphics_capture') as fallback:
+            output=Path(directory)/'modal.bmp'
+            self.assertEqual(len(native.capture(row,output)),64)
+            self.assertEqual(output.read_bytes()[:2],b'BM')
+            fallback.assert_not_called()
+        self.assertEqual([call.args[2] for call in native.user.PrintWindow.call_args_list],[3,2])
+        native.gdi.DeleteObject.assert_called_once_with(3)
+        native.user.ReleaseDC.assert_called_once_with(42,1)
+
+    def test_full_print_is_never_used_when_frame_and_client_dimensions_differ(self):
+        native,row=self.printed_native(bordered=True)
+        with tempfile.TemporaryDirectory() as directory,patch('ea_native_permission.graphics_capture',side_effect=ValueError('blank')) as fallback:
+            with self.assertRaisesRegex(ValueError,'blank'):native.capture(row,Path(directory)/'modal.bmp')
+            fallback.assert_called_once()
+        self.assertEqual([call.args[2] for call in native.user.PrintWindow.call_args_list],[3])
+
+    def test_printed_pixels_do_not_authorize_a_reused_or_changed_ea_window(self):
+        native,row=self.printed_native(changed=True)
+        with tempfile.TemporaryDirectory() as directory,patch('ea_native_permission.graphics_capture') as fallback:
+            output=Path(directory)/'modal.bmp'
+            with self.assertRaisesRegex(ValueError,'identity changed'):native.capture(row,output)
+            self.assertFalse(output.exists());fallback.assert_not_called()
+
     def test_blank_qt_bitmap_ignores_alpha_but_never_accepts_nonuniform_rgb(self):
         self.assertTrue(blank_rgb(b'\0\0\0\0'+b'\0\0\0\xff'))
         self.assertTrue(blank_rgb(b'\x20\x30\x40\xff'*16))

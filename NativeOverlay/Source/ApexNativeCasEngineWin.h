@@ -6,6 +6,7 @@
 #include "ApexCasFormPair.h"
 #include "ApexNativeOwnerMemory.h"
 #include "ApexNativeCasProbeWin.h"
+#include "ApexCasNativePipeWin.h"
 #include "MinHook.h"
 #include <mutex>
 #include <array>
@@ -35,6 +36,7 @@ using AlternateFn=std::uint32_t(*)(std::uint32_t,std::uint32_t);
 using NormalizeFn=std::uint32_t(*)(void*,bool);
 using AssignDataFn=void(*)(void*,const void*);
 using ServiceFn=bool(*)(const void*);
+using StringValueFn=void(*)(void*,const char*);
 using AvatarFn=void*(*)();
 using RefreshFn=void(*)(void*);
 using RebindFn=void(*)(void*,const void*,std::uint32_t);
@@ -69,7 +71,8 @@ struct Api {
     ProtoConstructFn protoConstruct=nullptr;DestroyFn protoDestroy=nullptr;ProtoParseFn protoParse=nullptr;
     AlternateFn alternate=nullptr;
     NormalizeFn normalize=nullptr;AssignDataFn assignData=nullptr;MetaFn copySim=nullptr;
-    ServiceFn service=nullptr;HistoryFn controller=nullptr;AvatarFn avatar=nullptr;
+    ServiceFn service=nullptr,getOccultService=nullptr;StringValueFn stringValue=nullptr;
+    HistoryFn controller=nullptr;AvatarFn avatar=nullptr;
     RebindFn rebind=nullptr;SyncFn sync=nullptr;BindFn bind=nullptr;
     ModelBindFn modelBind=nullptr;CoreBindFn coreBind=nullptr;ContextFn context=nullptr;IndexFn index=nullptr;LayerFn layer=nullptr;
     UndoSelectFn undoSelect=nullptr;UndoCreateFn undoCreate=nullptr;UndoBindFn undoBind=nullptr;
@@ -96,6 +99,18 @@ inline void Span(const void* value,std::size_t count) {
 template<class T> inline T Read(const void* p,std::size_t offset=0) {
     if(!p) throw std::runtime_error("Native form record is null.");
     const auto address=static_cast<const char*>(p)+offset;Span(address,sizeof(T));T value{};std::memcpy(&value,address,sizeof(T));return value;
+}
+inline std::string UiString(const void* value) {
+    if(Read<std::uint32_t>(value)!=6)throw std::runtime_error("Native CAS pipe requires a string value.");
+    const auto object=Read<const void*>(value,8);Span(object,16);
+    const auto tail=Read<std::uint8_t>(object,15);
+    const auto length=(tail&128)?Read<std::uint32_t>(object,8):15u-tail;
+    if(!(tail&128)&&tail>15)throw std::runtime_error("Native short string length differs.");
+    if(length>pipe::Limit+128)throw std::runtime_error("Native CAS pipe input exceeds its bound.");
+    const auto text=(tail&128)?Read<const char*>(object):static_cast<const char*>(object);
+    Span(text,length+1);
+    if(text[length]!=0)throw std::runtime_error("Native CAS pipe string lacks its exact terminator.");
+    return std::string(text,length);
 }
 struct NativeOwner {
 #ifdef APEX_CAS_OWNER_MEMORY_DIAGNOSTICS
@@ -764,6 +779,36 @@ inline void History(void* controller,std::uint32_t target) {
     try {state.api.history(controller,target);} catch(...) {selected=previous;throw;}
     selected=previous;
 }
+inline bool GetOccultService(const void* arguments) {
+    auto& state=Runtime();
+    const auto parameter=Read<const void*>(arguments,8);
+    if(!parameter||Read<std::uint32_t>(parameter)!=6)return state.api.getOccultService(arguments);
+    std::string text;
+    try {text=UiString(parameter);}catch(const std::exception&){return state.api.getOccultService(arguments);}
+    if(text.rfind("APEXUI1|",0)!=0)return state.api.getOccultService(arguments);
+    std::string response="UNAVAILABLE";
+    try {
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);
+        if(!state.armed||!state.selectionEnabled||state.scope.id.empty())throw std::runtime_error("Native CAS pipe lacks its exact scope.");
+        const auto command=text.substr(8);const auto split=command.find('|');
+        if(split==std::string::npos)throw std::runtime_error("Native CAS pipe command is incomplete.");
+        const auto action=command.substr(0,split);const auto rest=command.substr(split+1);
+        const auto end=rest.find('|');const auto identity=rest.substr(0,end);
+        const auto number=SimId(ui::Json(identity));
+        if(action=="OPEN") {
+            if(end!=std::string::npos)throw std::runtime_error("Native CAS open has extra fields.");
+            const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
+            const auto group=controller?Read<void*>(controller,0x100):nullptr;
+            if(!group||Read<std::uint64_t>(group,0xb8)!=number||!state.scope.members.count(number))
+                throw std::runtime_error("Native CAS pipe cannot open for another selected Sim.");
+            response=pipe::Open(state.scope.id);
+        } else if(action=="READ"&&end==std::string::npos)response=pipe::Channel().Poll(number,state.scope.id);
+        else if(action=="CLOSE"&&end==std::string::npos)response=pipe::Channel().Close(number,state.scope.id);
+        else if(action=="WRITE"&&end!=std::string::npos)response=pipe::Channel().Send(number,state.scope.id,rest.substr(end+1));
+        else throw std::runtime_error("Native CAS pipe operation differs.");
+    } catch(const std::exception&) {response="REFUSED";}
+    state.api.stringValue(Read<void*>(arguments,0x10),response.c_str());return true;
+}
 inline bool SetOccultService(const void* arguments) {
     auto& state=Runtime();
     const auto argument=Read<const void*>(arguments,8);
@@ -976,7 +1021,14 @@ inline ui::Json Status() {
             {"error",found==state.bank.end()?"":found->second.error}});
     }
     const auto selectedNative=state.selectionEnabled?state.observedNative:ui::Json{{"available",false}};
+    ui::Json pipeStatus;
+    {auto& box=pipe::Channel();std::lock_guard<std::mutex> lock(box.mutex);
+     pipeStatus={{"transport","native-owned-loopback"},{"generation",box.generation},{"scope_id",box.scope},
+        {"connected",box.connected&&!box.stop},{"worker_finished",box.finished.load(std::memory_order_acquire)},
+        {"frames_queued",box.queued},{"frames_received",box.received},{"frames_delivered",box.delivered},
+        {"frame_in_flight",box.inFlight},{"error",box.error}};}
     return {{"ok",true},{"pid",GetCurrentProcessId()},{"installed",state.installed},{"armed",state.armed},
+        {"ui_transport",pipeStatus},
         {"scope_id",state.scope.id},{"selection_enabled",state.selectionEnabled},{"members",rows},{"existing_owner_selections",state.intercepted},
         {"native_converter_calls",state.converted},{"game_files_written",false},
         {"alternate_kind_overrides",state.alternateOverrides},
@@ -1027,6 +1079,8 @@ inline void Install() {
         {0x1b1c70,"2b226667354985830fd9d6f425b8558cd2cb133eb900bd254d771e0c5747d978"},
         {0x321c50,"ef90d19307dceb58d454d3d184f69a27c4e80033cebab3d888ac39a9a1f3bb95"},
         {0x2096a0,"66ceb6da5d2cbedf26ec3fa013dd0f585c8c72e374deb60d93b49ce9358b785e"},
+        {0x2044b0,"0eab5a8c74abfe0d2bb578b8a04f6c37269041d9bc3a8fc7db16ff91450393fc"},
+        {0xda6540,"cc712023ad1285bb00a89e1b4901620637bf088a813e59800a28477d1e84bab0"},
         {0x3f5c30,"c70c491f0229d9b9d2582b53a3208c6dfcfdae5432b3aad8b36317a753b46297"},
         {0x2039c0,"9a7ff049ec7f2630868754afc7e0b4bc622e125bb0b3ecbd050c9e3c60507ae0"},
         {0x3e9120,"69cb8818733701549c0596bf8c90067de73203aa2c2b240df7d192a3dba4fbef"},
@@ -1056,6 +1110,7 @@ inline void Install() {
             throw std::runtime_error("Native form implementation differs from its inspected function pins.");
     auto at=[&](std::uint32_t rva){return reinterpret_cast<void*>(state.image+rva);};
     state.api.fields=reinterpret_cast<FieldsFn>(at(0x325640));
+    state.api.stringValue=reinterpret_cast<StringValueFn>(at(0xda6540));
     state.api.construct=reinterpret_cast<ConstructFn>(at(0x321f00));
     state.api.destroy=reinterpret_cast<DestroyFn>(at(0x3221c0));
     state.api.available=reinterpret_cast<SetFn>(at(0x343ea0));state.api.current=reinterpret_cast<SetFn>(at(0x343f30));
@@ -1090,6 +1145,7 @@ inline void Install() {
         {at(0x342750),reinterpret_cast<void*>(&Alternate),reinterpret_cast<void**>(&state.api.alternate)},
         {at(0x3426c0),reinterpret_cast<void*>(&Normalize),reinterpret_cast<void**>(&state.api.normalize)},
         {at(0x2096a0),reinterpret_cast<void*>(&SetOccultService),reinterpret_cast<void**>(&state.api.service)},
+        {at(0x2044b0),reinterpret_cast<void*>(&GetOccultService),reinterpret_cast<void**>(&state.api.getOccultService)},
         {at(0x3e9120),reinterpret_cast<void*>(&Rebind),reinterpret_cast<void**>(&state.api.rebind)},
         {at(0x3e9480),reinterpret_cast<void*>(&Sync),reinterpret_cast<void**>(&state.api.sync)},
         {at(0x3eb480),reinterpret_cast<void*>(&BindSelected),reinterpret_cast<void**>(&state.api.bind)},

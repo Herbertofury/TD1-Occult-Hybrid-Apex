@@ -7,14 +7,29 @@ and named implementation records as separate form choices.
 
 ## Current evidence: 2026-10-18
 
-Current runtime status: V180 still crashes on the fourth member's first
-scripted Alien body edit (`TS4_x64+0x112c713`), before any completed body edit.
-Deferred socket cleanup and retained writes correct their specific contracts,
-but are not demonstrated crash fixes. All twenty disposable save files still
-match their pre-launch hashes; no CAS acceptance or save occurred. A same-build
-comparison using EA's actual CAS slider is pending. The current full CAS suite
-passes 965 checks; ten native checks and 76 focused transport checks pass.
-Production, native copy/link, complete-category and save/Tray gates remain open.
+Current checkpoint: V181 still crashes during the fourth member's first,
+small Alien physique edit (about 0.7793 -> 0.76; `TS4_x64+0x112c66a`). No
+completed edit, CAS acceptance or save is established. This rules out requiring
+a large body-change reaction in that run and does not qualify the read-order
+correction as a crash fix. All twenty disposable save files remain unchanged;
+a fresh cold household comparison again matches all forty original appearances.
+
+V182 moves the CAS transport's networking/buffers to an isolated native worker.
+EA variant/string exchange runs only in the UI-owned callback; the worker never
+uses EA/GFx objects or movie allocations. The versioned callback is pinned to
+the inspected build, ordinary GetSimOccult calls retain EA's original path, and
+one-frame/generation/scope leases preserve the existing Source UUID/nonce/ACK
+protocol. Matching UI candidates require this native path. The older GFx socket
+branch is retained only for source/build comparison, with no exposed runtime
+fallback. Eleven native checks pass. Runtime crash and retention qualification
+remain open; this is a candidate, not a production release.
+
+A same-build V180 session successfully changed one actual EA body preset on the
+fourth member's actual Alien with the bridge connected. Its exact native preset
+and physique changed. This does not establish an exact EA slider comparison.
+The session was cancelled and closed normally without saving; all twenty saves
+remained byte-identical. Production, native copy/link, complete-category and
+save/Tray gates remain open.
 
 V175 presents one shared Human and twenty logical form choices while retaining
 all 39 captured storage owners per member. A real full-CAS image shows the
@@ -189,7 +204,7 @@ The persistent project rule is
   whole/partial copying for every applicable pair, including special forms.
 - [ ] Eliminate unauthorized automatic outfit creation and other destructive
   normalization; distinguish original-byte retention from strict no-change QA.
-- [ ] Package the matching UI, script and native changes together; verify the
+- [x] Package the matching UI, script and native changes together; verify the
   candidate before installation into the single disposable profile.
 
 ## Player-focused acceptance tests

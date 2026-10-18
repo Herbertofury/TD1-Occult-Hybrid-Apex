@@ -6,6 +6,11 @@
       private var apexLastId:String = "";
       private var apexLastReply:String = "";
       private var apexSocket:flash.net.Socket;
+      // Retain the old path for build-time comparison; matching candidates
+      // require the native pipe and never instantiate a GFx Socket.
+      private var apexNativeTransportRequired:Boolean = true;
+      private var apexNativeChannel:String = "";
+      private var apexNativeConnected:Boolean = false;
       private var apexTimer:flash.utils.Timer;
       private var apexFrame:String = "";
       private var apexExpected:int = -1;
@@ -40,6 +45,7 @@
          // transport is driven exclusively by native UI events and its timer.
          try {
             ApexDisconnect();
+            apexNativeTransportRequired=true;apexNativeChannel="";apexNativeConnected=false;
             apexWire=""; apexReceiving=false; apexLastId=""; apexLastReply="";
             apexPendingFields=null; apexPendingReply=null; apexPendingContext=null;
             apexReadbackTick=-1; apexPendingPhase=0; apexClaimNonce="";
@@ -66,6 +72,10 @@
       private function ApexResetSocket() : void
       {
          apexSocketResetPending=false;
+         if(apexNativeChannel!="") {
+            try { ApexNativeExchange("CLOSE|"+apexNativeChannel); } catch(pipeCloseError:Error) { }
+            apexNativeChannel="";apexNativeConnected=false;
+         }
          // Losing the owner after intent must never arm/replay a CAS commit
          // under a replacement nonce. Retain the issued identity as unresolved.
          if(apexPendingPhase==5 || apexPendingPhase==6) {
@@ -117,6 +127,7 @@
             // Never tear down GFx's native Socket from its own event callback.
             // A failure records intent only; this later Timer owns closure.
             if(apexSocketResetPending) { ApexResetSocket();return; }
+            if(apexNativeChannel!="") ApexNativeReceive();
             if(apexPendingPhase==7 || apexPendingPhase==8) return;
             // GFx implements Timer.currentCount, but explicitly does not support
             // Socket.securityError. Bound every outstanding stage using the
@@ -135,16 +146,24 @@
             // Use the selector's already delivered AS data for idle binding;
             // commands, gestures and their readbacks still get a fresh native
             // identity before they can do any work.
-            var nativeNeeded:Boolean=apexSocket==null || apexHelloPending || apexReceiving ||
+            var physiqueOpen:Boolean=apexPendingFields!=null && String(apexPendingFields[2])=="physique" &&
+               apexPendingContext!=null && apexPendingContext.physique_commit_pending===true;
+            // CASGetSimInfo can synchronize/replace appearance cache records.
+            // An open native slider gesture still owns its preview/undo data.
+            // Use the delivered selector identity until its completion returns.
+            var nativeNeeded:Boolean=!physiqueOpen && (apexSocket==null && apexNativeChannel=="" || apexHelloPending || apexReceiving ||
                apexPendingFields!=null || apexFormsIntent!=null ||
-               apexFormsResult!=null && apexFormsResult.pending===true;
+               apexFormsResult!=null && apexFormsResult.pending===true);
             var native:Object=nativeNeeded ? CommunicationManager.CallGameService("CASGetSimInfo",null,true) : null;
             var formsSim:Object=nativeNeeded ? ApexClone(native) : ApexFormsObservedSim();
             var simId:String=formsSim ? String(formsSim.simId) : apexBoundSim;
             if(nativeNeeded && formsSim!=null) apexFormsHousehold=String(formsSim.householdId);
             native=null;
             if(!/^[1-9][0-9]{0,19}$/.test(simId)) return;
-            if(apexSocket==null) {
+            if(apexSocket==null && apexNativeChannel=="") {
+               if(apexNativeTransportRequired) {
+                  ApexNativeOpen(simId);return;
+               }
                apexSocket=new flash.net.Socket();
                apexSocket.addEventListener(flash.events.Event.CONNECT,ApexSocketConnect);
                apexSocket.addEventListener(flash.events.Event.CLOSE,ApexSocketFailure);
@@ -164,7 +183,8 @@
             if(apexHelloPending) {
                // The real CONNECT callback queues only. This Timer's fresh
                // exact-Sim read owns handshake production and consumes once.
-               if(apexAwaiting.split("|")[0]!="connect" || apexBoundSim!=simId || !apexSocket.connected)
+               if(apexAwaiting.split("|")[0]!="connect" || apexBoundSim!=simId ||
+                  !(apexNativeChannel!="" ? apexNativeConnected : apexSocket.connected))
                   throw new Error("Queued CAS handshake lost its exact socket/Sim ownership");
                apexHelloPending=false; apexSocketActive=true;
                apexAwaiting="hello|"+apexTimer.currentCount;
@@ -219,6 +239,11 @@
          // retain the complete buffer through the peer's matching response.
          apexOutboundFrame=("00000000"+payload.length).substr(-8)+payload;
          apexOutboundPending=true;
+         if(apexNativeChannel!="") {
+            if(ApexNativeExchange("WRITE|"+apexNativeChannel+"|"+apexOutboundFrame)!="QUEUED")
+               throw new Error("Native CAS frame ownership refused; no replay");
+            return;
+         }
          apexSocket.writeUTFBytes(apexOutboundFrame);
          apexSocket.flush();
       }
@@ -231,6 +256,45 @@
             if(available>131080 || apexFrame.length+available>131080)
                throw new Error("CAS socket receive buffer exceeds limit");
             var chunk:String=apexSocket.readUTFBytes(available);
+            ApexConsumeFrame(chunk);
+         } catch(frameError:Error) { ApexSocketFailure(frameError); }
+      }
+
+      private function ApexNativeExchange(command:String) : String
+      {
+         var response:* = CommunicationManager.CallGameService("GetSimOccult","APEXUI1|"+command,true);
+         if(!(response is String)) throw new Error("Matching native CAS pipe is unavailable; no GFx Socket fallback");
+         return String(response);
+      }
+
+      private function ApexNativeOpen(simId:String) : void
+      {
+         var opened:String=ApexNativeExchange("OPEN|"+simId);
+         if(!/^OPEN\|[1-9][0-9]{0,19}$/.test(opened)) throw new Error("Native CAS pipe opening refused");
+         apexNativeChannel=opened.substr(5);apexNativeConnected=false;
+         apexBoundSim=simId;apexHelloPending=false;
+         apexAwaiting="connect|"+apexTimer.currentCount;
+      }
+
+      private function ApexNativeReceive() : void
+      {
+         var received:String=ApexNativeExchange("READ|"+apexNativeChannel);
+         if(received=="WAIT") return;
+         if(received=="CONNECTED") {
+            if(apexNativeConnected || apexAwaiting.split("|")[0]!="connect")
+               throw new Error("Native CAS pipe repeated its connection event");
+            apexNativeConnected=true;apexSocketActive=true;apexHelloPending=true;return;
+         }
+         if(!apexNativeConnected || received.indexOf("DATA|")!=0)
+            throw new Error("Native CAS pipe closed or lost its scope; no replay");
+         ApexConsumeFrame(received.substr(5));
+      }
+
+      private function ApexConsumeFrame(chunk:String) : void
+      {
+         try {
+            if(chunk.length>131080 || apexFrame.length+chunk.length>131080)
+               throw new Error("CAS transport receive buffer exceeds limit");
             for(var p:int=0;p<chunk.length;++p)
                if(chunk.charCodeAt(p)>127) throw new Error("CAS command frame must contain ASCII only");
             apexFrame+=chunk;
@@ -1669,6 +1733,27 @@
             reply.history_before_json=String(context.history_before);
          var selectedSimMatches:Boolean=false; var writeStarted:Boolean=false;
          try {
+            if(operation=="physique" && context.physique_commit_pending===true) {
+               if("message" in reply) throw new Error("Native physique preview is unresolved; no completion replay");
+               var physiqueRead:Object=ApexFormsObservedSim();
+               selectedSimMatches=physiqueRead && String(physiqueRead.simId)==String(fields[1]);
+               var physiqueCurrentKind:* = CommunicationManager.CallGameService("GetSimOccult");
+               if(!selectedSimMatches || int(physiqueRead.occultLayer)!=int(context.physique_layer) ||
+                  !(physiqueCurrentKind is int) || int(physiqueCurrentKind)!=int(context.physique_kind) ||
+                  String(context.physique_owner_id)!="" && apexFormsSelectedId!=String(context.physique_owner_id))
+                  throw new Error("Native physique preview changed owner; no completion replay");
+               physiqueRead=null;
+               var physiqueCommit:Object={type:state,value:Number(value),slider_mouse_up:true,
+                  slider_start_value:Number(context.physique_start_value)};
+               // Complete the gesture before any full native snapshot/cache
+               // synchronization. Verify its actual value on the next tick.
+               reply.physique_preview_readback="deferred-until-native-completion";
+               context.physique_commit_pending=false;apexPendingPhase=1;
+               apexReadbackTick=int(apexTimer.currentCount)+1;apexAwaiting="readback|"+apexTimer.currentCount;
+               writeStarted=true;
+               CommunicationManager.CallGameService("SetSimPhysiqueValue",physiqueCommit);
+               return;
+            }
             var native:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
             selectedSimMatches=native && String(native.simId)==(operation=="member-select" ? String(context.target_sim_id) : String(fields[1]));
             // CASGetSimInfo reports the Sim's family metadata. GetSimOccult
@@ -1683,27 +1768,6 @@
             }
             native=null;
             if(!selectedSimMatches) throw new Error("CAS selected Sim changed before native readback");
-            if(!("message" in reply) && operation=="physique" && context.physique_commit_pending===true) {
-               var physiqueRead:Object=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
-               var physiqueCurrentKind:* = CommunicationManager.CallGameService("GetSimOccult");
-               if(!physiqueRead || String(physiqueRead.simId)!=String(fields[1]) ||
-                  int(physiqueRead.occultLayer)!=int(context.physique_layer) ||
-                  !(physiqueCurrentKind is int) || int(physiqueCurrentKind)!=int(context.physique_kind) ||
-                  String(context.physique_owner_id)!="" && apexFormsSelectedId!=String(context.physique_owner_id) ||
-                  !(physiqueRead.physiqueValues is Array) || physiqueRead.physiqueValues.length<=state ||
-                  Math.abs(Number(physiqueRead.physiqueValues[state])-Number(value))>0.000001)
-                  throw new Error("Native physique preview changed owner or did not retain the requested value; no completion replay");
-               physiqueRead=null;
-               var physiqueCommit:Object={type:state,value:Number(value),slider_mouse_up:true,
-                  slider_start_value:Number(context.physique_start_value)};
-               // Consume this phase before native code; the next tick observes
-               // the final value. A lost acknowledgement cannot repeat it.
-               context.physique_commit_pending=false;apexPendingPhase=1;
-               apexReadbackTick=int(apexTimer.currentCount)+1;apexAwaiting="readback|"+apexTimer.currentCount;
-               writeStarted=true;
-               CommunicationManager.CallGameService("SetSimPhysiqueValue",physiqueCommit);
-               return;
-            }
             if(!("message" in reply) && apexPendingPhase==2) {
                // Item selection settles before querying that hairstyle's swatches.
                var freshHairSwatches:Array=CommunicationManager.CallGameService("CasGetSwatchColorList",int(context.palette_type)) as Array;
@@ -1860,12 +1924,15 @@
                apexAwaiting="readback|"+apexTimer.currentCount;
                return;
             }
-            if(reply.mutation_started && selectedSimMatches && reply.client==null) {
+            if(reply.mutation_started && selectedSimMatches && reply.client==null &&
+               !(operation=="physique" && context.physique_commit_pending===true)) {
                try { reply.client=ApexSnapshot(); }
                catch(snapshotError:Error) { reply.client_snapshot_error=snapshotError.message; }
             }
          }
+         var unresolvedPhysique:Boolean=operation=="physique" && context.physique_commit_pending===true;
          ApexComplete();
+         if(unresolvedPhysique) apexPendingPhase=8; // No later getter or mutation after a partial gesture.
       }
 
       private function ApexComplete() : void

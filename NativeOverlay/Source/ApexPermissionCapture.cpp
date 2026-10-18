@@ -57,8 +57,12 @@ int wmain(int argc,wchar_t** argv) {
         auto pool=Direct3D11CaptureFramePool::CreateFreeThreaded(captureDevice,DirectXPixelFormat::B8G8R8A8UIntNormalized,2,size);
         auto session=pool.CreateCaptureSession(item);session.IsCursorCaptureEnabled(false);session.StartCapture();
         Direct3D11CaptureFrame frame{nullptr};const auto deadline=GetTickCount64()+5000;
-        while(GetTickCount64()<deadline&&!frame){frame=pool.TryGetNextFrame();if(!frame)Sleep(20);}
-        if(!frame)throw std::runtime_error("EA window did not produce a capture frame.");
+        std::vector<unsigned char> pixels;bool captured=false;
+        // Qt's first compositor frame can be entirely transparent before its
+        // actual dialog surface arrives. Observe later frames within the same
+        // fixed lease; a blank frame can never authorize input.
+        while(GetTickCount64()<deadline&&!captured) {
+        frame=pool.TryGetNextFrame();if(!frame){Sleep(20);continue;}
         if(frame.ContentSize().Width!=size.Width||frame.ContentSize().Height!=size.Height)
             throw std::runtime_error("EA capture resized before readback.");
         RECT bounds{},extended{};POINT origin{0,0};
@@ -81,10 +85,18 @@ int wmain(int argc,wchar_t** argv) {
         D3D11_BOX crop{static_cast<UINT>(left),static_cast<UINT>(top),0,static_cast<UINT>(left+width),static_cast<UINT>(top+height),1};
         context->CopySubresourceRegion(staging.get(),0,0,0,0,source.get(),0,&crop);
         D3D11_MAPPED_SUBRESOURCE mapped{};check_hresult(context->Map(staging.get(),0,D3D11_MAP_READ,0,&mapped));
-        std::vector<unsigned char> pixels(static_cast<size_t>(width)*height*4);
+        pixels.resize(static_cast<size_t>(width)*height*4);
         for(int y=0;y<height;++y)std::memcpy(pixels.data()+static_cast<size_t>(y)*width*4,
             static_cast<const unsigned char*>(mapped.pData)+static_cast<size_t>(y)*mapped.RowPitch,static_cast<size_t>(width)*4);
         context->Unmap(staging.get(),0);Validate(window,pid,width,height);
+        for(size_t i=4;i<pixels.size();i+=4) {
+            if(pixels[i]!=pixels[0]||pixels[i+1]!=pixels[1]||pixels[i+2]!=pixels[2]) {
+                captured=true;break;
+            }
+        }
+        if(!captured){frame.Close();frame=nullptr;Sleep(20);}
+        }
+        if(!captured)throw std::runtime_error("EA window did not produce nonblank client pixels within five seconds.");
         BITMAPFILEHEADER header{};BITMAPINFOHEADER info{};header.bfType=0x4D42;header.bfOffBits=sizeof(header)+sizeof(info);
         header.bfSize=header.bfOffBits+static_cast<DWORD>(pixels.size());info.biSize=sizeof(info);info.biWidth=width;info.biHeight=-height;
         info.biPlanes=1;info.biBitCount=32;info.biSizeImage=static_cast<DWORD>(pixels.size());

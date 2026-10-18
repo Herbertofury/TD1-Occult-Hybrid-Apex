@@ -33,6 +33,7 @@ public class CasFormSelectionSafetyFixtures {
         CasBytecodePatch.verifyMemberSelection(abc,instance);
         CasBytecodePatch.verifyExactItemSelection(abc,instance);
         CasBytecodePatch.verifyTypedControls(abc,instance);
+        CasBytecodePatch.verifyPhysiqueGesture(abc,instance);
     }
     public static void main(String[] args) throws Exception {
         String kind=args[0]; ABC abc=CasBytecodePatch.load(args[1]);
@@ -51,6 +52,26 @@ public class CasFormSelectionSafetyFixtures {
         MethodBody socketData=CasBytecodePatch.ownedBody(abc,instance,"ApexSocketData");
         checks(abc);
         switch(kind) {
+            case "native-pipe-not-required": {
+                var rows=CasBytecodePatch.ownedBody(abc,instance,"ApexInitialize").getCode().code;
+                for(int i=1;i<rows.size();i++)if(CasBytecodePatch.property(abc,rows.get(i),0x61,"apexNativeTransportRequired")) {
+                    rows.set(i-1,new AVM2Instruction(0,0x27,new int[0]));break;
+                }
+                break;
+            }
+            case "native-pipe-wrong-service":
+                literal(abc,CasBytecodePatch.ownedBody(abc,instance,"ApexNativeExchange"),"GetSimOccult").operands[0]=abc.constants.getStringId("SetSimOccult",true);break;
+            case "native-pipe-frame-parser-native-write": {
+                var consume=CasBytecodePatch.ownedBody(abc,instance,"ApexConsumeFrame");
+                for(var op:consume.getCode().code)if(CasBytecodePatch.property(abc,op,0x46,"split")) {
+                    op.operands[0]=member(abc,"CallGameService");break;
+                }
+                break;
+            }
+            case "physique-readback-before-completion":
+                literal(abc,readback,"GetSimOccult").operands[0]=abc.constants.getStringId("CASGetSimInfo",true);break;
+            case "physique-timer-preview-guard-missing":
+                property(abc,tick,"physique_commit_pending").operands[0]=member(abc,"apexFormsBootstrap");break;
             case "socket-failure-not-queued":
                 for(var op:failure.getCode().code) if(CasBytecodePatch.property(abc,op,0x61,"apexSocketResetPending")) {
                     op.operands[0]=member(abc,"apexHelloPending");break;
@@ -178,6 +199,9 @@ public class CasFormSelectionSafetyFixtures {
             default:throw new AssertionError("Unknown fixture "+kind);
         }
         for(MethodBody body:List.of(execute,helper,connect,tick,readback,region,layers,memberHelper,failure,send,quote,socketData,
+            CasBytecodePatch.ownedBody(abc,instance,"ApexInitialize"),
+            CasBytecodePatch.ownedBody(abc,instance,"ApexNativeExchange"),
+            CasBytecodePatch.ownedBody(abc,instance,"ApexConsumeFrame"),
             CasBytecodePatch.ownedBody(abc,instance,"ApexSnapshot"))) body.setModified();
         ByteArrayOutputStream bytes=new ByteArrayOutputStream();abc.saveToStream(bytes);
         ABC saved=new ABC(new ABCInputStream(new MemoryInputStream(bytes.toByteArray())),abc.getSwf(),null);

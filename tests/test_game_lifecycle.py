@@ -24,6 +24,15 @@ def observed(labels, width=1278, height=1376):
 
 
 class LifecycleTests(unittest.TestCase):
+    def test_discard_menu_recognizes_disabled_save_labels_from_complete_live_menu(self):
+        labels=['MENU','Game Options','Technical Support','Exit to Main Menu','Exit Game']
+        self.assertEqual(game_lifecycle.button(observed(labels),'menu-discard')['command'],1)
+        with self.assertRaises(ValueError):game_lifecycle.button(observed(labels),'menu')
+        for changed in (labels+['Exit Game'],labels+['Save Game?'],
+                        [item for item in labels if item!='Game Options']):
+            with self.subTest(labels=changed),self.assertRaises(ValueError):
+                game_lifecycle.button(observed(changed),'menu-discard')
+
     def test_resume_accepts_observed_new_game_icon_ocr_without_relaxing_other_controls(self):
         labels=['MARKETPLACE','RESUME GAME','LOAD GAME','eNEW GAME','GALLERY']
         self.assertEqual(game_lifecycle.button(observed(labels),'resume')['command'],1)

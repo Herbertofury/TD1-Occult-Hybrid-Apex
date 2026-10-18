@@ -146,7 +146,7 @@ public class CasBytecodePatch {
         }
         require(pending>=0 && pending<reset && reset<nativeRead,"The later UI Timer must process pending socket cleanup before native reads or new work.");
         var send=ownedBody(abc,instance,"ApexSocketSend");var rows=send.getCode().code;
-        require(Set.of("charCodeAt","substr","writeUTFBytes","flush").containsAll(propertyCalls(abc,send)),
+        require(Set.of("charCodeAt","substr","writeUTFBytes","flush","ApexNativeExchange").containsAll(propertyCalls(abc,send)),
             "Socket frame dispatch has an unreviewed copy or native call.");
         int writes=0,flushes=0,retained=-1,issued=-1,lease=-1;boolean retainedArgument=false;
         for(int i=0;i<rows.size();i++) {
@@ -164,6 +164,22 @@ public class CasBytecodePatch {
         for(var op:ownedBody(abc,instance,"ApexQuote").getCode().code)
             if(opcode(op,0x24) && op.operands[0]==126) escapesUnicode=true;
         require(escapesUnicode,"Socket JSON must escape Unicode so its length is its ASCII byte length.");
+        var initialize=ownedBody(abc,instance,"ApexInitialize").getCode().code;
+        boolean nativeRequired=false;
+        for(int i=1;i<initialize.size();i++)
+            if(opcode(initialize.get(i-1),0x26) && property(abc,initialize.get(i),0x61,"apexNativeTransportRequired"))nativeRequired=true;
+        require(nativeRequired,"Matching CAS builds must require the native transport before any connection.");
+        var exchange=ownedBody(abc,instance,"ApexNativeExchange");
+        require(propertyCalls(abc,exchange).equals(Set.of("CallGameService")),"Native pipe exchange reaches an unreviewed service/helper.");
+        boolean getter=false,prefix=false;
+        for(var op:exchange.getCode().code)if(opcode(op,0x2c)) {
+            String literal=abc.constants.getString(op.operands[0]);
+            if("GetSimOccult".equals(literal))getter=true;if("APEXUI1|".equals(literal))prefix=true;
+        }
+        require(getter && prefix,"Native CAS pipe lacks its fixed versioned game-service envelope.");
+        require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,"ApexConsumeFrame")),
+            Set.of("CallGameService","CallUIService","ApexExecute","ApexReadback","ApexAccept")),
+            "Transport frame parsing must not execute a native CAS mutation.");
     }
     static void verifyAcceptLinkage(ABC abc, InstanceInfo instance) {
         MethodBody accept = null;
@@ -647,7 +663,7 @@ public class CasBytecodePatch {
                                 setters++;if(pass==0) preview=n;else commit=n;break;
                             }
                     }
-                    if(pass==1 && "Native physique preview changed owner or did not retain the requested value; no completion replay".equals(text)) ownerGuard=true;
+                    if(pass==1 && "Native physique preview changed owner; no completion replay".equals(text)) ownerGuard=true;
                 }
                 if(i>0 && property(abc,rows.get(i),0x61,"physique_commit_pending")) {
                     if(pass==0 && opcode(rows.get(i-1),0x26)) armed=i;
@@ -658,6 +674,17 @@ public class CasBytecodePatch {
         }
         require(previewValue && commitValue && armed>=0 && armed<preview && consumed>=0 && consumed<commit && ownerGuard,
             "Physique gesture lacks preview/completion ordering, consumed one-shot state or exact-owner preview refusal.");
+        for(int i=0;i<commit;i++) {
+            if(opcode(finish.get(i),0x2c))
+                require(!"CASGetSimInfo".equals(abc.constants.getString(finish.get(i).operands[0])),
+                    "Full Sim synchronization must follow native slider completion, never run inside its preview.");
+            require(!property(abc,finish.get(i),0x46,"ApexSnapshot") && !property(abc,finish.get(i),0x4f,"ApexSnapshot"),
+                "A full appearance snapshot cannot run before slider completion.");
+        }
+        boolean timerGuard=false;
+        for(var op:ownedBody(abc,instance,"ApexTick").getCode().code)
+            if(property(abc,op,0x66,"physique_commit_pending")) timerGuard=true;
+        require(timerGuard,"The owning Timer must avoid full Sim reads during its pending physique gesture.");
     }
     static void verifyLiteralServices(ABC abc,MethodBody body,Map<String,Integer> expected) {
         Set<String> observed=new HashSet<>();
@@ -989,6 +1016,7 @@ public class CasBytecodePatch {
         List<Trait> added = new ArrayList<>();
         Set<Integer> ownedMethods = new HashSet<>();
         Set<String> ownedFields = Set.of("apexWire", "apexReceiving", "apexLastId", "apexLastReply",
+            "apexNativeTransportRequired", "apexNativeChannel", "apexNativeConnected",
             "apexSocket", "apexTimer", "apexFrame", "apexExpected", "apexNonce", "apexBoundSim",
             "apexAwaiting", "apexAckId", "apexDisconnected", "apexSocketActive", "apexHelloPending", "apexSocketError",
             "apexSocketResetPending", "apexOutboundFrame", "apexOutboundPending",
@@ -998,6 +1026,7 @@ public class CasBytecodePatch {
             "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
+            "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",

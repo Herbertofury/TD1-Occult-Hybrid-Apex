@@ -105,6 +105,7 @@ class NativeEA:
             'EnumWindows': ([ctypes.WINFUNCTYPE(W.BOOL, W.HWND, W.LPARAM), W.LPARAM], W.BOOL),
             'GetWindowThreadProcessId': ([W.HWND, ctypes.POINTER(W.DWORD)], W.DWORD),
             'IsWindowVisible': ([W.HWND], W.BOOL), 'GetClientRect': ([W.HWND, ctypes.POINTER(W.RECT)], W.BOOL),
+            'GetWindowRect': ([W.HWND, ctypes.POINTER(W.RECT)], W.BOOL),
             'IsIconic': ([W.HWND], W.BOOL),
             'GetWindowPlacement': ([W.HWND, ctypes.POINTER(WindowPlacement)], W.BOOL),
             'ShowWindowAsync': ([W.HWND, ctypes.c_int], W.BOOL),
@@ -229,11 +230,26 @@ class NativeEA:
             if self.gdi.GetDIBits(memory, bitmap, 0, height, pixels, info, 0) != height:
                 raise OSError('EA client pixel readback failed.')
             if not printed or blank_rgb(pixels.raw):
+                # EA's frameless Qt modal can reject WM_PRINTCLIENT while
+                # supporting a full-window print. Accept that alternative only
+                # when the measured full window is exactly the client viewport;
+                # no desktop crop, guessed border or obscuring app is included.
+                bounds = W.RECT()
+                if (self.user.GetWindowRect(hwnd, ctypes.byref(bounds)) and
+                        bounds.right-bounds.left == width and bounds.bottom-bounds.top == height):
+                    prior = self.gdi.SelectObject(memory, bitmap)
+                    printed = self.user.PrintWindow(hwnd, memory, 2)
+                    self.gdi.SelectObject(memory, prior); prior = None
+                    if self.gdi.GetDIBits(memory, bitmap, 0, height, pixels, info, 0) != height:
+                        raise OSError('EA frameless pixel readback failed.')
+            if not printed or blank_rgb(pixels.raw):
                 # WGC captures the selected window's compositor surface rather
                 # than desktop pixels, so other apps may cover it.
                 digest=graphics_capture(row,output)
                 if self.identity(hwnd)!=row:raise ValueError('EA identity changed after graphics capture.')
                 return digest
+            if self.identity(hwnd) != row:
+                raise ValueError('EA identity changed after window print.')
             raw = struct.pack('<2sIHHI', b'BM', 54 + len(pixels.raw), 0, 0, 54) + header + pixels.raw
             output = writable(output)
             if output.exists(): raise ValueError('Capture evidence already exists.')

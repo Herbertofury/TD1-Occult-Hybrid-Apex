@@ -170,6 +170,17 @@ void ExerciseLocalCallsite() {
 }
 int main() {
  try {
+    std::array<char,16> shortText{};std::memcpy(shortText.data(),"APEXUI1|READ|7",14);shortText[15]=1;
+    std::array<char,16> stringValue{};Write(stringValue.data(),0,6u);Write(stringValue.data(),8,shortText.data());
+    Require(UiString(stringValue.data())=="APEXUI1|READ|7");
+    const std::string longText="APEXUI1|WRITE|7|00000004WAIT";
+    std::array<char,16> longObject{};Write(longObject.data(),0,longText.c_str());
+    Write(longObject.data(),8,static_cast<std::uint32_t>(longText.size()));longObject[15]=char(128);
+    Write(stringValue.data(),8,longObject.data());Require(UiString(stringValue.data())==longText);
+    Write(longObject.data(),8,static_cast<std::uint32_t>(td1::nativecas::pipe::Limit+129));Refuses([&]{UiString(stringValue.data());});
+    Write(stringValue.data(),8,shortText.data());shortText[15]=20;Refuses([&]{UiString(stringValue.data());});
+    shortText[15]=1;shortText[14]='x';Refuses([&]{UiString(stringValue.data());});
+    Write(stringValue.data(),0,5u);Refuses([&]{UiString(stringValue.data());});
     ExerciseLocalCallsite();
     Json request={{"operation","arm"},{"scope_id",std::string(32,'a')},
         {"members",Json::array({{{"sim_id","123"},{"owned_mask",127u}}})}};

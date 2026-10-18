@@ -19,7 +19,9 @@ CASES = ('actual-constructor-timer-path', 'native-snapshot-detached', 'native-sn
     'layer-null-unsafe-service', 'layer-helper-socket-phase', 'member-service-name',
     'member-destination-index', 'member-preflight-service', 'member-readback-missing',
     'socket-failure-not-queued', 'socket-failure-native-close', 'socket-data-stale-event',
-    'socket-send-unretained-buffer', 'socket-send-native-service', 'socket-json-unescaped-unicode')
+    'socket-send-unretained-buffer', 'socket-send-native-service', 'socket-json-unescaped-unicode',
+    'physique-readback-before-completion', 'physique-timer-preview-guard-missing',
+    'native-pipe-not-required','native-pipe-wrong-service','native-pipe-frame-parser-native-write')
 
 
 class FormSelectBytecodeSafetyTests(unittest.TestCase):

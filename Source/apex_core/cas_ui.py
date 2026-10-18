@@ -586,6 +586,9 @@ def owner_metadata(token, backend):
                     row['form_id'],quote(row['label'],safe='')) for row in page)
     status = call({'operation':'view-status'})
     if status.get('available') is not True or status.get('sim_id') != sim_id: return None
+    generation = status.get('generation')
+    if type(generation) is not int or not 0 <= generation < 2**64:
+        raise ValueError('Native form view lacks its exact selection generation.')
     message = 'OWNERSTATE|{}|{}|{}|{}'.format(status['owner_id'],status['native_kind'],status['layer'],status['state'])
     with _LOCK:
         peer = _PEERS.get(token)
@@ -593,8 +596,11 @@ def owner_metadata(token, backend):
         # An unchanged idle poll is a heartbeat, not a new presentation. The
         # client otherwise destroys/reloads every icon on each OWNERSTATE.
         # Cache per connection so a reconnect always receives its first state.
-        if peer.get('owner_state_message') == message: return None
-        peer['owner_state_message'] = message
+        # A same-owner rebind still needs an acknowledgement. Suppressing it
+        # strands the UI's "Opening ..." lease after its initial bootstrap.
+        identity = (message, generation)
+        if peer.get('owner_state_identity') == identity: return None
+        peer['owner_state_identity'] = identity
     return message
 
 

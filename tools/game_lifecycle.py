@@ -41,8 +41,14 @@ def button(observation, phase):
     lines = observation.get('lines', [])
     normalized = lambda text: ' '.join(str(text).split()).casefold()
     text = [normalized(row.get('text')) for row in lines]
-    if phase == 'menu':
-        if 'menu' not in text or 'save' not in text or not any(label in text for label in ('save as', 'save as...', 'save as…')) or 'save game?' in text:
+    if phase in ('menu', 'menu-discard'):
+        normal_menu = 'menu' in text and 'save' in text and any(label in text for label in ('save as', 'save as...', 'save as…'))
+        if phase == 'menu-discard':
+            complete = normal_menu or all(text.count(item)==1 for item in
+                                          ('menu','game options','technical support','exit to main menu','exit game'))
+        else:
+            complete = normal_menu
+        if not complete or 'save game?' in text:
             raise ValueError('Native main menu is not recognized; no Exit click submitted.')
         label = 'exit game'
     elif phase in ('confirmation', 'confirmation-discard'):
@@ -598,9 +604,10 @@ def shutdown(state, output, identity, request, capture=game_capture.capture, ocr
         frame = record('capture-initial', capture(state, image, request)); observed = ocr(image)
         initial = None
         confirmation = 'confirmation' if save else 'confirmation-discard'
+        menu_phase = 'menu' if save else 'menu-discard'
         for phase in (confirmation, 'menu'):
             try:
-                button(observed, phase); initial = (phase, frame, observed); break
+                button(observed, menu_phase if phase=='menu' else phase); initial = (phase, frame, observed); break
             except ValueError: pass
         if initial is None:
             guard_cas()
@@ -615,7 +622,7 @@ def shutdown(state, output, identity, request, capture=game_capture.capture, ocr
                 else:
                     image = output.with_name(output.stem + '-' + phase + '-' + str(attempt + 1) + '.bmp')
                     frame = record('capture-' + phase, capture(state, image, request)); observed = ocr(image)
-                try: selected = button(observed, phase)
+                try: selected = button(observed, menu_phase if phase=='menu' else phase)
                 except ValueError as error:
                     proof['steps'].append({'action': 'recognize-' + phase, 'observation': observed, 'error': str(error)})
                     write_json(output, proof)

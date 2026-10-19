@@ -209,7 +209,7 @@ struct State {
     std::uint64_t boundSim=0;void* boundController=nullptr;
     ui::Json observedNative={{"available",false}};std::uint64_t observationSequence=0;
     unsigned kindBiasPrevented=0,importOutfitFillsPrevented=0,sessionsRetired=0;
-    unsigned animationMembershipScopes=0;
+    unsigned animationMembershipScopes=0,animationConstructionScopes=0;
     ui::Json lastAnimationScope=nullptr;
     void* kindRelay=nullptr;std::int32_t originalKindCall=0,patchedKindCall=0;bool kindCallPatched=false,kindRelayReady=false;
     std::uintptr_t image=0;bool installed=false,armed=false,selectionEnabled=false;unsigned intercepted=0,converted=0,alternateOverrides=0,normalizationsPrevented=0,initialOwnersImported=0,serviceSelections=0,rebindCorrections=0,blockedConversions=0;
@@ -237,11 +237,12 @@ inline thread_local ViewBinding* binding=nullptr;
 inline void RouteAnimationGenus(void* actor,const void* data,bool notify,std::uintptr_t caller) {
     auto& state=Runtime();
     std::array<std::uint32_t,5> preview{};bool scoped=false;
-    // This inspected CAS model update sends its own 20-byte genus to the
-    // idle animation actor. The actor derives isWerewolf/isVampire/etc from
+    // These inspected CAS construction/update calls send the model's own
+    // 20-byte genus to its idle actor. It derives isWerewolf/isVampire/etc from
     // membership, even when a different form is selected. Narrow only this
     // borrowed animation argument; never change the Sim, model or owner bank.
-    if(state.selectionEnabled && caller==state.image+0x45864d) {
+    const bool constructing=caller==state.image+0x44903a;
+    if(state.selectionEnabled && (constructing || caller==state.image+0x45864d)) {
         try {
             std::lock_guard<std::recursive_mutex> lock(state.mutex);
             const auto controller=binding?binding->controller:state.boundController;
@@ -250,6 +251,7 @@ inline void RouteAnimationGenus(void* actor,const void* data,bool notify,std::ui
             const auto id=group?Read<std::uint64_t>(group,0xb8):0;
             const auto found=state.bank.find(id);
             if(found!=state.bank.end() && found->second.graph && !found->second.viewFault &&
+               found->second.boundGroup==group &&
                model && data==static_cast<const char*>(model)+0x170 &&
                actor==Read<void*>(model,0x48) && actor &&
                (binding?binding->bank==&found->second:
@@ -263,9 +265,10 @@ inline void RouteAnimationGenus(void* actor,const void* data,bool notify,std::ui
                     state.lastAnimationScope={{"sim_id",std::to_string(id)},{"owner_id",owner},
                         {"native_kind",desired},{"original_owned_mask",preview[3]},
                         {"animation_mask",desired},{"werewolf_animation",desired==32},
-                        {"source","exact-cas-preview-actor"},{"appearance_written",false},
+                        {"source",constructing?"exact-cas-preview-construction":"exact-cas-preview-actor"},{"appearance_written",false},
                         {"membership_written",false}};
                     preview[3]=desired;++state.animationMembershipScopes;scoped=true;
+                    if(constructing)++state.animationConstructionScopes;
                 }
             }
         } catch(...) {
@@ -1208,6 +1211,7 @@ inline ui::Json Status() {
         {"owner_view_staged",state.viewIntent!=nullptr},
         {"native_kind_bias_prevented",state.kindBiasPrevented},
         {"cas_animation_membership_scopes",state.animationMembershipScopes},
+        {"cas_animation_construction_scopes",state.animationConstructionScopes},
         {"last_cas_animation_scope",state.lastAnimationScope},
 #ifdef APEX_CAS_OWNER_MEMORY_DIAGNOSTICS
         {"diagnostic_owner_memory",{{"enabled",true},{"reserved_bytes",GuardedOwnerMemory::Status().reserved},
@@ -1270,6 +1274,7 @@ inline void Install() {
         {0x47de93,"23e4b4ba4805ed768a18eda0a65353e083a6973df2c7afa38f2b96a5a74b4a09"},
         {0x47e049,"87b616551199e7936bd6e69f604274ccf65527891acf2409fd8ed16a6202fff7"},
         {0x458630,"05fb8e8a89a5bcf029cefb8dba8eaabc9871589f5ac94c566e915845a31ed300"},
+        {0x449020,"eb3a3892153e14cf66c4cb13918fd2850c9482f6a94054db1b22cc4118172586"},
         {0x323990,"e90d48dcd731ebb911f40edc9980c774a4b55836c46e82453538a02a3e76e4dc"},
         {0x617780,"7551fbeac222a844a6bbcba8332a9795e40da3d486ee4339a8d924d26f8e39d7"},
         {0x63f470,"6322b81000b364019e148ec50a47751e090f93e5000ff266f2e403fdd8bca0bc"},

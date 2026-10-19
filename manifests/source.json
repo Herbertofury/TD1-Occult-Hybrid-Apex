@@ -455,12 +455,6 @@
       "sha256": "dfc26d8d9a016b24d69187233ab089058fe72ef82abbac60a2d09710fe0e7266"
     },
     {
-      "bytes": 35970,
-      "mode": "100644",
-      "path": "wiki/TODO.md",
-      "sha256": "3a6bf3a3511023c3e974bb52e23c9a33a6e1c8d90509b74768a740f9c653c8a5"
-    },
-    {
       "bytes": 13153,
       "mode": "100644",
       "path": "Source/apex_core/cas_owner_payload.py",
@@ -555,12 +549,6 @@
       "mode": "100644",
       "path": "Source/apex_core/studio.py",
       "sha256": "984b5df893762ec0ad0f82f0cb3e09c7845aac4cd8f27aa9bd078b45fdcc25f9"
-    },
-    {
-      "bytes": 47969,
-      "mode": "100644",
-      "path": "NativeOverlay/Tests/NativeCasEngineTests.cpp",
-      "sha256": "452d3c3c106b5fd72d072383e2f773f17961bdf16cf2c8bf70cff0f4e08f7f82"
     },
     {
       "bytes": 59764,
@@ -953,6 +941,12 @@
       "sha256": "530c43ea8b4872e60fe9af21e6543a80dfd104ca6a434fcbc61882206c41f0fc"
     },
     {
+      "bytes": 37887,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "1d7fffaa849f455abb21150d9ca5f161934679c1d2cc34fac26df490eb782665"
+    },
+    {
       "bytes": 5486,
       "mode": "100644",
       "path": "tests/test_cas_owner_metadata.py",
@@ -1257,12 +1251,6 @@
       "mode": "100644",
       "path": "tests/test_cas_review_cli.py",
       "sha256": "3d674219f8baec90e14addf9ea44fbbea0f7991c86f95f6a646b69b4d24f5c89"
-    },
-    {
-      "bytes": 70677,
-      "mode": "100644",
-      "path": "Source/apex_core/form_bank_seal.py",
-      "sha256": "3a212c066d5ff55bf02bcdb7522af0569ff57005974e81cda7fc3f3accb0b7cf"
     },
     {
       "bytes": 6122,
@@ -1757,6 +1745,12 @@
       "sha256": "ba807c87a41a553528de134360ea3f13fc4a0acdfd39c21fa31ff7a5ab2ea805"
     },
     {
+      "bytes": 36415,
+      "mode": "100644",
+      "path": "wiki/TODO.md",
+      "sha256": "ee6ceb0d6ac5fd7e1feee6f789e52152160153c40d7b0c42f3be8aba1cd8796a"
+    },
+    {
       "bytes": 2270,
       "mode": "100644",
       "path": "NativeOverlay/Tests/NativeOwnerMemoryTests.cpp",
@@ -1799,6 +1793,12 @@
       "sha256": "988db78569ad21f56bea3d57e717c7b1eb7c8c06af835eb853161e4de31f0b62"
     },
     {
+      "bytes": 70678,
+      "mode": "100644",
+      "path": "Source/apex_core/form_bank_seal.py",
+      "sha256": "2d1816803a65440bc34573fa970bca4b10299dc1a802bdc67600bd4b00fcb71b"
+    },
+    {
       "bytes": 953436,
       "mode": "100644",
       "path": "NativeOverlay/third_party/nlohmann/json.hpp",
@@ -1827,12 +1827,6 @@
       "mode": "100644",
       "path": "tests/test_package_build.py",
       "sha256": "f93483745f13f73f9c9b715762542ba8e8e296153a9e80597e3406d7bc6462de"
-    },
-    {
-      "bytes": 36595,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "af4f00004196309f5e4f2230e4a02a2ba6e8f7315719358b1d91a42022b29fe6"
     },
     {
       "bytes": 8277,
@@ -2459,6 +2453,12 @@
       "sha256": "697726d96dc60c175d4a6ba03dd174b948eecbd4de391a6ac99cd0ca57ad0cdf"
     },
     {
+      "bytes": 46964,
+      "mode": "100644",
+      "path": "docs/CAS_CLI_CONTROLS.md",
+      "sha256": "0aa084911200d9281168bab49064f56196f9eb87769ab6d40277d96500f9ec43"
+    },
+    {
       "bytes": 39095,
       "mode": "100644",
       "path": "tools/ea_permission_broker.py",
@@ -2555,12 +2555,6 @@
       "sha256": "cbc00225f99c32c89b12a2f095c78f0b1627069227cd296b0946e15b9822d0f8"
     },
     {
-      "bytes": 113374,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/ApexNativeCasEngineWin.h",
-      "sha256": "2ac03ca5106647065b317405f7880333feaac3095b519c3b4ac869150f233972"
-    },
-    {
       "bytes": 24370,
       "mode": "100644",
       "path": "Source/apex_core/overlay_loader.py",
@@ -2607,6 +2601,12 @@
       "mode": "100644",
       "path": "tests/test_hybrid_persistence.py",
       "sha256": "618fecacc4fdffdbd04867db59d4db6eab41b65ff24b0418e6e904870fc9aa51"
+    },
+    {
+      "bytes": 18276,
+      "mode": "100644",
+      "path": "Reports/NATIVE_CAS_SAVE_2026-10-18.md",
+      "sha256": "1e8ae12ef36ad4bda8dded912b6493280cd5f74dc9ae32211448f216db9b68ee"
     },
     {
       "bytes": 1213,
@@ -2793,12 +2793,6 @@
       "mode": "100644",
       "path": "tests/test_live_color_probe.py",
       "sha256": "835aad87ad92f3073189ed5caf02f890c203173e6948bf33415e5735c310c5b0"
-    },
-    {
-      "bytes": 16568,
-      "mode": "100644",
-      "path": "Reports/NATIVE_CAS_SAVE_2026-10-18.md",
-      "sha256": "ecd6cd2ff7aaa8f0c24ff5bb47e3bafe01f244403081d2c4dd8169a7b1239a0f"
     },
     {
       "bytes": 1379,
@@ -3059,12 +3053,6 @@
       "sha256": "fac50247fb3e85ba7265aeb2626a1b796f9c1ffc1a55d6017719a043f752b2e3"
     },
     {
-      "bytes": 45939,
-      "mode": "100644",
-      "path": "docs/CAS_CLI_CONTROLS.md",
-      "sha256": "0f9e665d33141a0ec89f04e1e1fc21afec76d44d840d2d38497b70f0fe984c8d"
-    },
-    {
       "bytes": 18864,
       "mode": "100644",
       "path": "tests/test_lifestate_forms.py",
@@ -3219,6 +3207,12 @@
       "mode": "100644",
       "path": "Source/td1_occult_hybrid_apex.py",
       "sha256": "3d304f8f7aa216cb1e78a8b6b17a32d9f271da88a4198dca34d7d91c70f5def8"
+    },
+    {
+      "bytes": 113821,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/ApexNativeCasEngineWin.h",
+      "sha256": "5f5e67f99ce0dc8361ffc46a120329e081fb7e6a9b9da1025e3c176b27d51895"
     },
     {
       "bytes": 10023,
@@ -3423,6 +3417,12 @@
       "mode": "100644",
       "path": "PreviewWorker/LICENSE",
       "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "bytes": 50316,
+      "mode": "100644",
+      "path": "NativeOverlay/Tests/NativeCasEngineTests.cpp",
+      "sha256": "7eba4da2822987be6ee9c8bc8ed76f9ea063ad0fa41d94f19ed15a9781d6d33d"
     },
     {
       "bytes": 30313,

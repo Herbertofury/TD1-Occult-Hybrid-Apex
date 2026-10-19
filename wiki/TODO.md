@@ -29,10 +29,16 @@ not establish current implementation or runtime readiness.
   pause again, and verify every save file and the ledger are unchanged.
 - [ ] Reuse EA's actual category checkbox link/copy panel for each independent
   pair. Add missing category support, pair-scoped preferences and selective undo.
-- [ ] Qualify V205's CAS-only animation argument fix: other forms must not get
-  Werewolf idles, while the actual Werewolf keeps them and all memberships remain.
-- [ ] Qualify V206's first-preview correction too; V205 retains combined
-  animation flags on initial entry until a switch. Keep that failure recorded.
+- [x] V205: verify CAS-only animation isolation in 37 visits across all five
+  members and all seven native genera; Werewolf keeps its flag, other forms
+  do not, and every field in all 195 captured records remains unchanged.
+- [x] Retain V205/V206's failed first-preview proofs. V206's late actor is
+  reproduced by native tests; its no-edit audit retains all 195 records.
+- [x] V207: verify initial full-CAS Alien animation before any form switch;
+  complete thirteen preview visits across all five members/all seven native
+  genera, then retain every field in all 195 records and every test save file.
+- [x] V207 cold load: retain forty Live appearances and five saved named
+  documents through 731 simulation ticks, with save/ledger unchanged and paused.
 - [x] V204 full regression: 2,645 passes. V205 native regression: 12 passes.
 - [x] Reproduce and fix no-edit native Sync propagating through a new link;
   compare complete native serialized data, including unknown fields.

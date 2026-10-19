@@ -35,6 +35,16 @@ void ExerciseAnimationIsolation(void* controller) {
     for(const auto& owner:owners) {
         bank.graph->select(bank.graph->cursor(),owner);const auto kind=bank.graph->cursor().kind;Write(model,0x178,kind);
         const auto ownerBefore=SerializeOwner(runtime.api,*bank.graph->appearance(owner),123);
+        // Real first-entry timing: binding can finish without an actor. Its
+        // later construction must settle animation without any form switch.
+        Write(model,0x48,static_cast<void*>(nullptr));
+        const auto beforeConstruction=runtime.animationMembershipScopes;
+        RefreshBoundAnimation(runtime,bank,controller);
+        Require(runtime.animationMembershipScopes==beforeConstruction);
+        Write(model,0x48,actor.data());
+        RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x44903a);
+        Require(animationArgument[2]==kind && animationArgument[3]==kind);
+        Require(Read<unsigned>(model,0x17c)==127);
         const auto count=runtime.animationMembershipScopes;
         std::memcpy(actor.data()+0xc0,model+0x170,sizeof(animationArgument));
         RefreshBoundAnimation(runtime,bank,controller);
@@ -50,21 +60,43 @@ void ExerciseAnimationIsolation(void* controller) {
         Require(Read<unsigned>(model,0x17c)==127 && bank.mask==127);
         Require(SerializeOwner(runtime.api,*bank.graph->appearance(owner),123)==ownerBefore);
         Require(runtime.animationMembershipScopes==count+2 && runtime.lastAnimationScope["owner_id"]==owner);
+        const auto constructions=runtime.animationConstructionScopes;
+        // The first native actor is created after binding; the usual dirty
+        // update need not run when the selected genus has not changed.
+        RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x44903a);
+        Require(animationArgument[2]==kind && animationArgument[3]==kind);
+        Require(runtime.lastAnimationScope["source"]=="exact-cas-preview-construction");
+        Require(runtime.animationConstructionScopes==constructions+1);
+        // Construction during an in-progress exact binding is also valid,
+        // before the outer binder publishes the new bound Sim/view flag.
+        const auto previous=binding;const auto viewBound=bank.viewBound;
+        ViewBinding initial{controller,&bank,owner};binding=&initial;
+        bank.viewBound=false;runtime.boundSim=456;
+        RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x44903a);
+        Require(animationArgument[3]==kind && runtime.lastAnimationScope["owner_id"]==owner);
+        binding=previous;bank.viewBound=viewBound;runtime.boundSim=123;
+        Require(runtime.animationConstructionScopes==constructions+2);
+        Require(SerializeOwner(runtime.api,*bank.graph->appearance(owner),123)==ownerBefore);
         // A different call site, actor or detached record cannot authorize
         // changing animation flags. These paths still receive the original.
         RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x45864e);
+        Require(animationArgument[3]==127 && animationPointer==model+0x170);
+        RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x44903b);
         Require(animationArgument[3]==127 && animationPointer==model+0x170);
         std::array<char,0xe0> otherActor{};
         RouteAnimationGenus(otherActor.data(),model+0x170,true,runtime.image+0x45864d);Require(animationArgument[3]==127);
         auto detached=originalGenus;detached[2]=kind;
         RouteAnimationGenus(actor.data(),detached.data(),true,runtime.image+0x45864d);Require(animationArgument[3]==127);
+        const auto exactGroup=bank.boundGroup;bank.boundGroup=otherActor.data();
+        RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x44903a);Require(animationArgument[3]==127);
+        bank.boundGroup=exactGroup;
         bank.viewFault=true;RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x45864d);
         Require(animationArgument[3]==127);bank.viewFault=false;
         runtime.selectionEnabled=false;RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x45864d);
         Require(animationArgument[3]==127);runtime.selectionEnabled=true;
         runtime.boundSim=456;RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x45864d);
         Require(animationArgument[3]==127);runtime.boundSim=123;
-        Require(runtime.animationMembershipScopes==count+2);
+        Require(runtime.animationMembershipScopes==count+4);
     }
     bank.graph->select(bank.graph->cursor(),originalCursor.owner);
     std::memcpy(model+0x170,originalGenus.data(),sizeof(originalGenus));Write(model,0x48,oldActor);

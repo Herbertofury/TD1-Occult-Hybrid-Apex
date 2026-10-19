@@ -19,7 +19,10 @@ executed on this route. The permanent guard restores all forty appearances and
 all five named documents after 887 ticks, with every save file and the seal
 ledger unchanged. A delayed second-member commit is observed through its
 original UUID, never replayed. Normal background Exit Game then closes the
-disposable session without saving or a new crash.
+disposable session without saving or a new crash. A read-only follow-up finds
+the saved pelt/texture extension absent from all 195 native CAS owner exports.
+The exporter/loader boundary therefore needs investigation too; this observation
+does not qualify a direct fix or justify removing the permanent guard.
 
 V205 addresses the reported CAS howl leak. The inspected preview actor derives
 its `isWerewolf` flag from the full owned mask even when another native genus
@@ -34,8 +37,28 @@ all twelve native targets pass. The actual Vampire preview has animation mask
 entry still caches mask 127 before a switch: this failed startup observation
 is retained separately. V206 settles the exact actor at binding completion,
 verifies its cached genus and skips repeated settled updates. Twelve native
-targets pass with named Ghost and foreign-member isolation added. Its cold
-first-preview qualification and the complete household matrix remain pending.
+targets pass with named Ghost and foreign-member isolation added. V205's actual
+37-visit matrix now verifies all five members and every native genus: the
+Werewolf flag is set only for Werewolf, with model membership still 127. The
+follow-up complete export retains every field in all 195 captured records.
+
+V206 still fails initial entry because the actor can be constructed after
+binding. Its no-edit export again retains all 195 records. V207 also scopes
+the inspected construction caller, with pinned call-site bytes and exact
+Sim/model/actor/owner checks. Native regressions now reproduce an absent actor
+at binding followed by late construction, plus construction during binding.
+Twelve native targets and 49 seal/upgrade tests pass. V207's first actual full-CAS
+entry now has Alien animation mask 2 and model membership 127 before any form
+switch, with the construction hook recorded. Thirteen visits verify all seven
+native genera and all five members' original occult owners. Its cold load keeps
+all forty Live appearances and five named documents through 731 ticks, with
+save/ledger unchanged and Live paused before entry. The complete post-matrix
+comparison retains every field in all 195 captured records and leaves every
+test save file unchanged. Initial CAS entry is checked before any form switch;
+the later members are checked after selecting their original occult owners.
+Both earlier failed startup proofs remain retained. The
+[validation record](../manifests/cas-animation-validation.json) pins the exact
+candidate and local evidence, and explicitly keeps production readiness false.
 
 EA's actual checkbox panel has been located. Its stock callbacks operate on a
 legacy two-form model, and its saved UI mode is keyed only by Sim ID. Reusing

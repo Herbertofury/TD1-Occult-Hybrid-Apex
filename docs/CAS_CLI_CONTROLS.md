@@ -14,6 +14,22 @@ in native engine status. These report the exact selected preview actor's
 temporary animation mask; they do not authorize membership or appearance writes.
 Actual runtime qualification is separate from the native test pass.
 
+V207 also reports `cas_animation_construction_scopes`. The exact preview's
+construction call and later model-update call receive the selected animation
+genus; unrelated actors and callers retain the game's original argument.
+`last_cas_animation_scope.source` distinguishes construction, update and
+binding settlement. Model membership remains complete. Verify the first
+preview before submitting a form switch: V205/V206's failed startup checks
+would otherwise be hidden by their successful later switching.
+
+Actual V207 qualification verifies the first Alien preview before any form
+switch, then thirteen visits across five members and all seven native genera.
+Werewolf animation flags appear only on Werewolf. The subsequent complete
+comparison retains every field in all 195 captured appearance records and all
+test save files. This qualifies CAS animation isolation; category link/copy,
+CAS-exit Human paint and broader release gates remain open. See the
+[validation record](../manifests/cas-animation-validation.json).
+
 ## Portrait pair controls (V204 development candidate)
 
 The portrait toolbar adds Link/Unlink and two explicitly directed whole-appearance

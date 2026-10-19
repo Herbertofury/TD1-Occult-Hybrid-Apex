@@ -31,7 +31,25 @@ The first preview nevertheless starts with the combined animation mask until
 a form switch. V206 also settles animation parameters at exact owner binding,
 checks the actor cache, and skips an already settled actor. Its twelve native
 targets pass, including a distinct named Ghost and foreign-member refusal.
-Full-household actor and first-preview qualification remain in progress.
+V205's actual matrix now passes 37 visits across all five members, including
+all seven native genera. The actor's Werewolf flag is set only for Werewolf;
+each model retains membership 127. A complete follow-up export retains every
+field in all 195 captured records, with no save write. These are internal
+appearance records, not 195 player-facing form choices.
+
+V206 still fails its first-preview check: the actor can be created after the
+binder returns. Its no-edit export again retains all 195 records. V207 scopes
+the inspected actor-construction caller too, with the same exact model, actor,
+Sim and owner checks. The call-site bytes are pinned. Native tests reproduce
+the late actor and construction during binding, retain opaque owner fields,
+and reject foreign contexts. Twelve native targets and 49 seal/upgrade tests
+pass. V207's actual first full-CAS entry now verifies Alien animation mask 2
+with no preceding form switch, model membership 127 and the construction
+callback recorded. Thirteen visits verify all seven native genera and the
+original occult owner on all five members. The complete post-matrix comparison
+retains every field in all 195 captured records; all test save files remain
+unchanged. The first-entry check is distinct from the later member/form checks.
+See the [scoped validation record](../manifests/cas-animation-validation.json).
 
 The requested final link/copy interface is EA's existing checkbox panel,
 extended to the independent selected pair, plus missing categories such as

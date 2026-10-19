@@ -33,6 +33,7 @@ MOLECULE_KEY = (0x62ECC59A, 0, 9034126160331862072)
 MOLECULE_PIN = '3124ed12ea50140da6f072d16ab0703e6154e448974edb1c3f6f7d05f7c24524'
 PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.java',
                   'Source/CASUi/form_strip_methods.as',
+                  'Source/CASUi/pair_controls_methods.as',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
                   'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py',
                   'tools/CasVoiceBytecodePatch.java', 'tools/cas_molecule_patch.py',
@@ -178,7 +179,7 @@ def inject(source, methods):
         raise ValueError('Installed CAS initializer does not match the inspected contract.')
     source = source.replace(anchor, anchor + '\n         ApexInitialize();')
     # Resolve external QNames at compilation, avoiding dotted runtime lookups.
-    source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
+    source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import flash.utils.getTimer;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
     if end < 0: raise ValueError('CAS class end is missing.')
@@ -210,6 +211,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     expected_sources = source_pins()
     semantic = (ROOT / 'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/form_strip_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/pair_controls_methods.as').read_text(encoding='utf-8')
     control_dispatch = verify_control_dispatch(semantic)
     detached_snapshot_getters = verify_snapshot_ownership(semantic)
     household_acceptance = verify_household_acceptance(semantic)

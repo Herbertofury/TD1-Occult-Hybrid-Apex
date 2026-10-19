@@ -14,12 +14,14 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
 PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'))
 SCHEMAS = {
+    'pair-link': {'operation','owner_id','enabled'},
+    'pair-copy': {'operation','source_owner_id','target_owner_id'},
     'form-menu': {'operation', 'family'},
     'form-owner-select': {'operation','owner_id','native_kind','owned_mask','household_id','native_session','expected_layer','test_token'},
     'workspace': {'operation', 'x', 'y', 'scale', 'locked', 'collapsed'},
@@ -76,6 +78,19 @@ def wire(request, panel):
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
+    if op in ('pair-link','pair-copy'):
+        import re
+        names=('owner_id',) if op=='pair-link' else ('source_owner_id','target_owner_id')
+        for name in names:
+            if not isinstance(request[name],str) or re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',request[name]) is None:
+                raise ValueError('Pair controls require exact independently owned form identities.')
+        if op=='pair-link':
+            if type(request['enabled']) is not bool:raise ValueError('Choose explicit link or unlink.')
+            value=request['owner_id']+','+('1' if request['enabled'] else '0')
+        else:
+            if request['source_owner_id']==request['target_owner_id']:raise ValueError('Copy requires two distinct owners.')
+            value=request['source_owner_id']+','+request['target_owner_id']
+        return 0,0,0,value
     if op == 'form-menu':
         import re
         family = request['family']
@@ -191,6 +206,23 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
+    if op in ('pair-link','pair-copy'):
+        import re
+        pair=control.get('pair')
+        if (control.get('acknowledged') is not True or control.get('scope')!='whole-appearance' or
+            not isinstance(control.get('request_id'),str) or re.fullmatch('[0-9a-f]{32}',control['request_id']) is None or
+            control.get('sim_id')!=client.get('sim',{}).get('simId') or not isinstance(pair,dict) or
+            pair.get('sim_id')!=control['sim_id'] or pair.get('base_owner_id')==pair.get('alternate_owner_id') or
+            pair.get('human_owner_id') not in (pair.get('base_owner_id'),pair.get('alternate_owner_id'))):
+            raise PostconditionMismatch('Native pair action lacks its exact completed Sim and shared-Human pair.')
+        if op=='pair-link':
+            other=pair['alternate_owner_id'] if pair['base_owner_id']==pair['human_owner_id'] else pair['base_owner_id']
+            if other!=request['owner_id'] or control.get('enabled') is not request['enabled'] or pair.get('linked') is not request['enabled']:
+                raise PostconditionMismatch('The requested actual form link state did not read back.')
+        elif (control.get('source_owner_id')!=request['source_owner_id'] or control.get('target_owner_id')!=request['target_owner_id'] or
+              {request['source_owner_id'],request['target_owner_id']}!={pair['base_owner_id'],pair['alternate_owner_id']}):
+            raise PostconditionMismatch('Copy did not acknowledge its exact source and destination.')
+        return
     if op == 'form-menu':
         family = '' if request['family'] == 'all' else request['family']
         rows = control.get('life_states')

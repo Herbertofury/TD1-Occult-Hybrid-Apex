@@ -951,6 +951,8 @@ def save_with_retention(original, tracker, occult_utils, *args, **kwargs):
 
 
 def load_with_retention(original, tracker, data, occult_cache, occult_utils, occult_enum, base_wrapper):
+    from .native_pelt_copy import install as install_pelt_copy
+    tracker._apex_native_pelt_patch = install_pelt_copy(type(tracker))
     data, incoming = _unique_data_view(tracker, data, 'load')
     occult_cache.OccultDataCache.process_custom_occults()
     sim_before = tracker.sim_info

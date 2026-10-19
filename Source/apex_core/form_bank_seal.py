@@ -38,9 +38,9 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                'cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd',
                                'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-18-qualified-fairy-save-v200'
+UPGRADE_EPOCH = '2026-10-18-cas-initial-animation-isolation-v206'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '218e729c649f095e4da5fc91a0be6aa8995113ddb89e21921e309fbc8138c629'
+UPGRADE_SELF_BODY_SHA = 'b05e947059ec74f02ef517e3dc6961848980a07d429cb7f5a1e15c9781d56302'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -49,7 +49,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_bank_transaction.py': 'c84aebc05b3802326b73c01d4ec61d47d46eb8b817f7bc9be4aceb1149592abc',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '3edd23d636a6e2a015ec472197fa2803e260f10ecfa614f0029edb03f70c175f',
-    'apex_core/cas_controls.py': '1d10f6401ffc7bf9175bd3eb0d8a25ba756d54e1ec9c621fb294394a6e0f6fe2',
+    'apex_core/cas_controls.py': '2b3c5c0ea66ce101032c23793ac1ada3897f0a3ec2958d6693d8463b4c691865',
     'apex_core/cas_entry_context.py': '3be8694221f00c8d37d5c658616177b4695b3a268618bc27d4bcf08b81f74b9f',
     'apex_core/cas_form_catalog.py': 'c7c7efc7925691ed2712d9ee0d1047c1368e3e68ddd49cc5fde84402076da32c',
     'apex_core/cas_frontdoor.py': 'cc749e4d5f4e3f05fcfe16b8c92a80296e84a4a9ebfb30b7e9cbaa6980e82f95',
@@ -61,7 +61,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_save_boundary.py': '10979a3d995059613bfa756524ce6df19e3cb70ae0bfc601ca259697342241cc',
-    'apex_core/cas_ui.py': '1d0b0a718ff8f34e1f53ddadbaf7737d13b449a76b642fc38a094866e53d3121',
+    'apex_core/cas_ui.py': '17b54088f34ed3d1ef372cb2d48200b6bd5149bd9f2e4b8c5fcf6bb95c7f1d11',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
@@ -72,7 +72,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/household_io.py': '13e4b8e86ef6587d8e9319e48551637664813acda4c9bf34878d130ecc3df667',
     'apex_core/household_save_group.py': 'dcad435189961dc1a2375e35fc0a04e2e6304cf644a9b7d628a25e222f24e06d',
     'apex_core/human_werewolf.py': '9bafd4df1783f6a3c526242b9a40c42033e3dad4d2f8029e0046633b2f4a363e',
-    'apex_core/hybrid_persistence.py': '53e192f2ba37df8dc313e7b471286721ae57c9ea6b3fc7b49a6121b23bb4c3ec',
+    'apex_core/hybrid_persistence.py': '9b4096b8058ec70b66f603ba3acb2dbe619200d6fff1e5209118a5a0c4173176',
     'apex_core/installed_icon_resources.py': '9dc1e52a3e3ab5d064b729047f34e6c3a635a88780047db258fbb2eb72283cd4',
     'apex_core/legacy_phone_guard.py': '097e88240ed8828101de5389c8f966a76e2c393b821f0580808735b663b600cd',
     'apex_core/lifestate_forms.py': '3c276c99a38c95f9330e7c9ae4c6ac6220131d0eebb705653d6e79e03392d770',
@@ -85,6 +85,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/native_form_select.py': '5c3c9b28d82df3e6515169f3bb653f94ed9c9505d7745673514d85ed79744c44',
     'apex_core/native_http.py': 'dfad235fba919f8aa3a1abfdcb6ba02eddae9f9181fbd1780d8f26bef515f046',
     'apex_core/native_occult_context.py': '4b1fb7278a8719ff58c5b2b1a97aaa89a9e5e953915a31ab212206a67928b186',
+    'apex_core/native_pelt_copy.py': '4076c1193634c138e095e86f6c45c042dd6a6050e83c3236706bda54a1100191',
     'apex_core/occult_add_guard.py': '3e4630c36c705afdf9f5cbd3f256be85ec7efa0a3a8d94b8394474fb360c982c',
     'apex_core/occult_appearance_extension.py': '1d908a080f608960fdb9394d954552fb9e2af24a87b60e6f623f690bb8cdbe08',
     'apex_core/occult_icons.py': '8d2cf390a254bba09d98928da9863f3980782bc4429786c3b0f2781ae4e76589',
@@ -98,7 +99,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/sim_data.py': 'dfc26d8d9a016b24d69187233ab089058fe72ef82abbac60a2d09710fe0e7266',
     'apex_core/studio.py': '984b5df893762ec0ad0f82f0cb3e09c7845aac4cd8f27aa9bd078b45fdcc25f9',
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
-    'apex_core/test_driver.py': 'fab9e16c9431ad6228f492a0e4f483b23413be1650d65cd7da8fcdc348d4e47d',
+    'apex_core/test_driver.py': '6eeae8b7d779edd48a49560d3108e36bec564b6210b1ce1e0fa8f03301551a5d',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
     'td1_occult_hybrid_apex.py': '3d304f8f7aa216cb1e78a8b6b17a32d9f271da88a4198dca34d7d91c70f5def8',
 }

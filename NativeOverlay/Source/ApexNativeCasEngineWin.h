@@ -4,6 +4,7 @@
 #include "ApexNativeCasEngine.h"
 #include "ApexCasOwnerGraph.h"
 #include "ApexCasFormPair.h"
+#include "ApexCasPairAction.h"
 #include "ApexNativeOwnerMemory.h"
 #include "ApexNativeCasProbeWin.h"
 #include "ApexCasNativePipeWin.h"
@@ -56,6 +57,7 @@ using ProtoSizeFn=int(*)(const void*);
 using ProtoArrayFn=char*(*)(const void*,char*);
 using PreviewFn=void(*)(void*,bool);
 using OutfitHairFn=void(*)(void*,const void*);
+using AnimationGenusFn=void(*)(void*,const void*,bool);
 inline thread_local const void* detachedTarget=nullptr;
 struct DetachedTarget {
     const void* previous;
@@ -63,6 +65,7 @@ struct DetachedTarget {
     ~DetachedTarget() {detachedTarget=previous;}
 };
 struct Api {
+    AnimationGenusFn animationGenus=nullptr;
     OutfitHairFn outfitHair=nullptr;
     ImportFn import=nullptr;FieldsFn fields=nullptr;ConstructFn construct=nullptr;DestroyFn destroy=nullptr;
     SetFn available=nullptr,current=nullptr,availableData=nullptr;LookupFn lookup=nullptr;StoreFn store=nullptr;MetaFn metadata=nullptr;
@@ -200,11 +203,14 @@ inline std::uint8_t ConfigurePortraitPair(Imported& bank,const std::string& owne
 }
 struct State {
     std::recursive_mutex mutex;Api api;Scope scope;std::map<std::uint64_t,Imported> bank;
+    ui::Json pairResult=nullptr;std::set<std::string> pairRequests;
     std::unique_ptr<ViewIntent> viewIntent;ui::Json viewResult=nullptr;std::set<std::uint32_t> viewTokens;std::uint64_t nativeUiSequence=0;std::uint32_t nextUiToken=0x20000000;
     std::map<std::uint32_t,std::pair<std::uint64_t,std::string>> uiOwners;
     std::uint64_t boundSim=0;void* boundController=nullptr;
     ui::Json observedNative={{"available",false}};std::uint64_t observationSequence=0;
     unsigned kindBiasPrevented=0,importOutfitFillsPrevented=0,sessionsRetired=0;
+    unsigned animationMembershipScopes=0;
+    ui::Json lastAnimationScope=nullptr;
     void* kindRelay=nullptr;std::int32_t originalKindCall=0,patchedKindCall=0;bool kindCallPatched=false,kindRelayReady=false;
     std::uintptr_t image=0;bool installed=false,armed=false,selectionEnabled=false;unsigned intercepted=0,converted=0,alternateOverrides=0,normalizationsPrevented=0,initialOwnersImported=0,serviceSelections=0,rebindCorrections=0,blockedConversions=0;
 };
@@ -228,6 +234,86 @@ struct Selection {std::uint64_t id=0;std::uint32_t target=0;void* controller=nul
 inline thread_local Selection selected;
 struct ViewBinding {void* controller=nullptr;Imported* bank=nullptr;std::string owner;};
 inline thread_local ViewBinding* binding=nullptr;
+inline void RouteAnimationGenus(void* actor,const void* data,bool notify,std::uintptr_t caller) {
+    auto& state=Runtime();
+    std::array<std::uint32_t,5> preview{};bool scoped=false;
+    // This inspected CAS model update sends its own 20-byte genus to the
+    // idle animation actor. The actor derives isWerewolf/isVampire/etc from
+    // membership, even when a different form is selected. Narrow only this
+    // borrowed animation argument; never change the Sim, model or owner bank.
+    if(state.selectionEnabled && caller==state.image+0x45864d) {
+        try {
+            std::lock_guard<std::recursive_mutex> lock(state.mutex);
+            const auto controller=binding?binding->controller:state.boundController;
+            const auto group=controller?Read<void*>(controller,0x100):nullptr;
+            const auto model=controller?Read<void*>(controller,0x1d0):nullptr;
+            const auto id=group?Read<std::uint64_t>(group,0xb8):0;
+            const auto found=state.bank.find(id);
+            if(found!=state.bank.end() && found->second.graph && !found->second.viewFault &&
+               model && data==static_cast<const char*>(model)+0x170 &&
+               actor==Read<void*>(model,0x48) && actor &&
+               (binding?binding->bank==&found->second:
+                    found->second.viewBound && state.boundSim==id)) {
+                auto& bank=found->second;
+                const auto& owner=binding?binding->owner:bank.graph->cursor().owner;
+                const auto desired=Read<std::uint32_t>(bank.graph->appearance(owner)->data(),8);
+                Span(data,sizeof(preview));std::memcpy(preview.data(),data,sizeof(preview));
+                if(Kind(desired) && preview[2]==desired && (preview[3]|1u)==bank.mask &&
+                   (preview[3]&desired) && preview[3]!=desired) {
+                    state.lastAnimationScope={{"sim_id",std::to_string(id)},{"owner_id",owner},
+                        {"native_kind",desired},{"original_owned_mask",preview[3]},
+                        {"animation_mask",desired},{"werewolf_animation",desired==32},
+                        {"source","exact-cas-preview-actor"},{"appearance_written",false},
+                        {"membership_written",false}};
+                    preview[3]=desired;++state.animationMembershipScopes;scoped=true;
+                }
+            }
+        } catch(...) {
+            // No game call or write has happened. Unrecognized/foreign CAS
+            // contexts retain their original argument and native behavior.
+            scoped=false;
+        }
+    }
+    state.api.animationGenus(actor,scoped?preview.data():data,notify);
+}
+__declspec(noinline) inline void AnimationGenus(void* actor,const void* data,bool notify) {
+    RouteAnimationGenus(actor,data,notify,reinterpret_cast<std::uintptr_t>(_ReturnAddress()));
+}
+inline void RefreshBoundAnimation(State& state,Imported& bank,void* controller) {
+    // EA can construct its first actor before the independent view is bound.
+    // If the model genus then stays identical, its dirty-bit update need not
+    // run again. Settle this exact preview at binding completion as well.
+    // This changes only the actor's native animation parameters, never CasData.
+    try {
+        const auto group=Read<void*>(controller,0x100),model=Read<void*>(controller,0x1d0);
+        if(!state.selectionEnabled || !bank.graph || bank.viewFault || !group || !model ||
+           group!=bank.boundGroup || Read<std::uint64_t>(group,0xb8)!=state.boundSim) return;
+        const auto actor=Read<void*>(model,0x48);if(!actor) return;
+        const auto& owner=binding?binding->owner:bank.graph->cursor().owner;
+        const auto desired=Read<std::uint32_t>(bank.graph->appearance(owner)->data(),8);
+        std::array<std::uint32_t,5> preview{};
+        const auto data=static_cast<const char*>(model)+0x170;Span(data,sizeof(preview));
+        std::memcpy(preview.data(),data,sizeof(preview));
+        if(!Kind(desired) || preview[2]!=desired || (preview[3]|1u)!=bank.mask || !(preview[3]&desired)) return;
+        std::array<std::uint32_t,5> before{};const auto cache=static_cast<const char*>(actor)+0xc0;
+        Span(cache,sizeof(before));std::memcpy(before.data(),cache,sizeof(before));
+        if(before[2]==desired && before[3]==desired) return;
+        const auto originalMask=preview[3];preview[3]=desired;
+        state.api.animationGenus(actor,preview.data(),true);
+        ++state.animationMembershipScopes;
+        std::array<std::uint32_t,5> observed{};Span(cache,sizeof(observed));std::memcpy(observed.data(),cache,sizeof(observed));
+        state.lastAnimationScope={{"sim_id",std::to_string(state.boundSim)},{"owner_id",owner},
+            {"native_kind",desired},{"original_owned_mask",originalMask},{"animation_mask",desired},
+            {"werewolf_animation",desired==32},{"source","exact-cas-preview-bind"},
+            {"actor_cache_verified",observed[2]==desired && observed[3]==desired},
+            {"appearance_written",false},{"membership_written",false}};
+    } catch(const std::exception& error) {
+        // Optional preview settlement cannot discard an otherwise intact Sim.
+        // In particular, never replay an issued native animation update.
+        state.lastAnimationScope={{"source","exact-cas-preview-bind"},{"verified",false},
+            {"error",error.what()},{"appearance_written",false},{"membership_written",false}};
+    }
+}
 inline std::uint32_t ModelKindMask(const void* data,std::uint32_t observed,std::uintptr_t caller) {
     auto& state=Runtime();
     if(!state.selectionEnabled || !(observed&4u) || caller!=state.image+0x45c32c) return observed;
@@ -422,7 +508,15 @@ inline void Sync(void* controller) {
         const auto selected=layer?Read<void*>(group,0x4c0):group;
         if(!selected) throw std::runtime_error("Selected native form has no exact appearance slot.");
         state.api.assignData(static_cast<char*>(selected)+0xd0,edited->data());
-        bank.graph->commit(bank.graph->cursor(),edited);
+        // Reading CAS information and rebinding a view also enter Sync. They
+        // are not user edits: committing identical data would copy the entire
+        // source through a newly enabled link, or relay a directed Copy into
+        // that destination's other links. Compare complete native serialized
+        // records, including opaque/future fields; never compare pointer bytes
+        // or a subset of appearance fields.
+        const auto cursor=bank.graph->cursor();
+        if(SerializeOwner(state.api,*edited,id)!=SerializeOwner(state.api,*bank.graph->appearance(cursor.owner),id))
+            bank.graph->commit(cursor,edited);
         // The explicit graph, not EA's copied inactive fields, owns the other
         // form. This also honors intentional links while keeping defaults apart.
         if(inactive) state.api.assignData(static_cast<char*>(inactive)+0xd0,
@@ -489,9 +583,11 @@ inline void BindSelected(void* controller,bool notify) {
         throw std::runtime_error("The native model rewrote the independent form's rendering kind.");
     bank.boundContext=context;
     state.boundSim=bank.graph->cursor().sim;state.boundController=controller;
+    RefreshBoundAnimation(state,bank,controller);
     ObserveSelected(state,controller);
 }
 inline bool SelectView(std::uint32_t token) {
+    const auto started=std::chrono::steady_clock::now();
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
     if(!state.viewIntent || state.viewIntent->token!=token) return false;
     const auto intent=*state.viewIntent;state.viewIntent.reset();
@@ -552,7 +648,9 @@ inline bool SelectView(std::uint32_t token) {
         auto* avatar=state.api.avatar();if(avatar) Read<RefreshFn>(Read<void*>(avatar),0x360)(avatar);
         result["state"]="applied";result["native_kind"]=desiredKind;result["generation"]=bank.graph->cursor().generation;
         result["layer"]=layer;result["owned_mask"]=bank.mask;
-        result["independent_undo_bound"]=true;result["undo_owner_id"]=intent.owner;return true;
+        result["independent_undo_bound"]=true;result["undo_owner_id"]=intent.owner;
+        result["native_view_elapsed_ms"]=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-started).count();
+        return true;
     } catch(const std::exception& error) {state.observedNative={{"available",false}};if(affected) affected->viewFault=true;result["state"]="unresolved";result["message"]=error.what();return false;}
 }
 
@@ -779,6 +877,71 @@ inline void History(void* controller,std::uint32_t target) {
     try {state.api.history(controller,target);} catch(...) {selected=previous;throw;}
     selected=previous;
 }
+inline std::string FastOwnerState(State& state,std::uint64_t channel) {
+    // UI-thread read of the already-bound model. No Python/socket round trip,
+    // serialization, synchronization, allocation of EA objects or harvesting.
+    if(!state.armed || !state.selectionEnabled || !state.image || state.scope.id.empty()) return "UNAVAILABLE";
+    if(!pipe::Channel().Matches(channel,state.scope.id)) return "STALE";
+    const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
+    const auto group=controller?Read<void*>(controller,0x100):nullptr;
+    const auto id=group?Read<std::uint64_t>(group,0xb8):0;
+    const auto found=state.bank.find(id);
+    if(!state.scope.members.count(id) || found==state.bank.end() || !found->second.graph || !found->second.viewBound ||
+       found->second.viewFault || state.boundSim!=id || state.boundController!=controller ||
+       found->second.boundGroup!=group) return "WAIT";
+    const auto cursor=found->second.graph->cursor();
+    const auto layer=Read<std::uint8_t>(controller,0x242);
+    const auto view=layer==0?group:layer==1?Read<void*>(group,0x4c0):nullptr;
+    const auto model=Read<void*>(controller,0x1d0);
+    if(!view || !model || Read<std::uint32_t>(view,0xd8)!=cursor.kind ||
+       Read<std::uint32_t>(model,0x178)!=cursor.kind) return "WAIT";
+    return "VIEWSTATE|"+std::to_string(id)+"|"+cursor.owner+"|"+std::to_string(cursor.kind)+"|"+
+        std::to_string(layer)+"|bound|"+std::to_string(cursor.generation);
+}
+inline Imported& PairBank(State& state,std::uint64_t channel,void*& controller) {
+    if(FastOwnerState(state,channel).rfind("VIEWSTATE|",0)!=0)throw std::runtime_error("Pair controls lack an exact bound native model.");
+    controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
+    const auto group=Read<void*>(controller,0x100);auto& bank=state.bank.at(Read<std::uint64_t>(group,0xb8));
+    if(bank.entryOwner==bank.partner || (bank.entryOwner!=bank.humanOwner&&bank.partner!=bank.humanOwner))
+        throw std::runtime_error("Pair controls require the one shared Human and a separate actual form.");
+    bank.graph->appearance(bank.entryOwner);bank.graph->appearance(bank.partner);return bank;
+}
+inline std::string PairState(State& state,std::uint64_t channel) {
+    void* controller=nullptr;auto& bank=PairBank(state,channel,controller);const auto cursor=bank.graph->cursor();
+    const auto linked=bank.graph->linked(bank.entryOwner,bank.partner)&&bank.graph->linked(bank.partner,bank.entryOwner);
+    return "PAIR|"+std::to_string(cursor.sim)+"|"+cursor.owner+"|"+bank.entryOwner+"|"+bank.partner+"|"+
+        bank.humanOwner+"|"+(linked?"1":"0")+"|"+std::to_string(cursor.generation);
+}
+inline std::string ApplyPairAction(State& state,std::uint64_t channel,const std::string& payload) {
+    const auto action=ParsePairAction(payload);void* controller=nullptr;auto& bank=PairBank(state,channel,controller);
+    const auto cursor=bank.graph->cursor();
+    if(cursor.sim!=action.sim || cursor.generation!=action.generation ||
+       !((action.source==bank.entryOwner&&action.target==bank.partner)||(action.source==bank.partner&&action.target==bank.entryOwner)) ||
+       state.pairRequests.size()>=32768 || !state.pairRequests.insert(action.request).second)
+        throw std::runtime_error("Pair action is stale, outside the current pair or already consumed.");
+    state.pairResult={{"request_id",action.request},{"sim_id",std::to_string(action.sim)},
+        {"operation",action.copy?"copy":"link"},{"source_owner_id",action.source},{"target_owner_id",action.target},
+        {"scope","whole-appearance"},{"ok",false},{"appearance_written",false}};
+    try {
+        if(action.copy) {
+            Sync(controller);if(bank.viewFault)throw std::runtime_error("Outgoing form synchronization failed.");
+            // Capture edits before reading the source. The destination stays
+            // inactive until its explicit graph copy, so rebinding cannot
+            // harvest an older visible destination over the requested copy.
+            if(bank.graph->cursor().owner!=action.source && !NativeUiView(controller,action.source))
+                throw std::runtime_error("Copy source did not bind.");
+            bank.graph->copy(bank.graph->cursor(),action.source,action.target);
+            state.pairResult["appearance_written"]=true;
+            if(!NativeUiView(controller,cursor.owner))throw std::runtime_error("Copied pair did not rebind its original selected form.");
+        } else {
+            if(action.enabled) {Sync(controller);if(bank.viewFault)throw std::runtime_error("Pre-link synchronization failed.");}
+            bank.graph->linkPair(bank.graph->cursor(),action.source,action.target,action.enabled);
+            state.pairResult["enabled"]=action.enabled;
+        }
+        state.pairResult["ok"]=true;state.pairResult["generation"]=bank.graph->cursor().generation;
+        return "PAIRDONE|"+action.request;
+    } catch(const std::exception& error) {state.pairResult["message"]=error.what();return "PAIRFAILED|"+action.request;}
+}
 inline bool GetOccultService(const void* arguments) {
     auto& state=Runtime();
     const auto parameter=Read<const void*>(arguments,8);
@@ -802,7 +965,10 @@ inline bool GetOccultService(const void* arguments) {
             if(!group||Read<std::uint64_t>(group,0xb8)!=number||!state.scope.members.count(number))
                 throw std::runtime_error("Native CAS pipe cannot open for another selected Sim.");
             response=pipe::Open(state.scope.id);
-        } else if(action=="READ"&&end==std::string::npos)response=pipe::Channel().Poll(number,state.scope.id);
+        } else if(action=="STATE"&&end==std::string::npos)response=FastOwnerState(state,number);
+        else if(action=="PAIR"&&end==std::string::npos)response=PairState(state,number);
+        else if(action=="PAIRDO"&&end!=std::string::npos)response=ApplyPairAction(state,number,rest.substr(end+1));
+        else if(action=="READ"&&end==std::string::npos)response=pipe::Channel().Poll(number,state.scope.id);
         else if(action=="CLOSE"&&end==std::string::npos)response=pipe::Channel().Close(number,state.scope.id);
         else if(action=="WRITE"&&end!=std::string::npos)response=pipe::Channel().Send(number,state.scope.id,rest.substr(end+1));
         else throw std::runtime_error("Native CAS pipe operation differs.");
@@ -1038,9 +1204,11 @@ inline ui::Json Status() {
         {"alternate_rebind_corrections",state.rebindCorrections},
         {"blocked_existing_owner_conversions",state.blockedConversions},
         {"conversion_quarantined",true},{"independent_owner_view_ready",false},
-        {"owner_view_adapter_available",state.installed},{"owner_view_result",state.viewResult},
+        {"owner_view_adapter_available",state.installed},{"owner_view_result",state.viewResult},{"pair_action_result",state.pairResult},
         {"owner_view_staged",state.viewIntent!=nullptr},
         {"native_kind_bias_prevented",state.kindBiasPrevented},
+        {"cas_animation_membership_scopes",state.animationMembershipScopes},
+        {"last_cas_animation_scope",state.lastAnimationScope},
 #ifdef APEX_CAS_OWNER_MEMORY_DIAGNOSTICS
         {"diagnostic_owner_memory",{{"enabled",true},{"reserved_bytes",GuardedOwnerMemory::Status().reserved},
             {"live_records",GuardedOwnerMemory::Status().live},{"retired_records",GuardedOwnerMemory::Status().retired}}},
@@ -1098,6 +1266,10 @@ inline void Install() {
         {0x297630,"5c8655909952eb2f05ef98fca6e83c12d0d9d924253716373009ae2f80bec3b5"},
         {0x45c290,"c80209c8928069a2bd8fc5de7da89f1b1f8e386bc3b13f66e94f95c1cbb4d6f4"},
         {0x45c318,"943eb3933a680528b30128f30d47c187046bcd2b629fad58a47fd1ec39b4a3ee"},
+        {0x47dd40,"6c2702e1121088c172be84d8c6d1247a7f96e61b1d1c757723d3ffabfd92ad28"},
+        {0x47de93,"23e4b4ba4805ed768a18eda0a65353e083a6973df2c7afa38f2b96a5a74b4a09"},
+        {0x47e049,"87b616551199e7936bd6e69f604274ccf65527891acf2409fd8ed16a6202fff7"},
+        {0x458630,"05fb8e8a89a5bcf029cefb8dba8eaabc9871589f5ac94c566e915845a31ed300"},
         {0x323990,"e90d48dcd731ebb911f40edc9980c774a4b55836c46e82453538a02a3e76e4dc"},
         {0x617780,"7551fbeac222a844a6bbcba8332a9795e40da3d486ee4339a8d924d26f8e39d7"},
         {0x63f470,"6322b81000b364019e148ec50a47751e090f93e5000ff266f2e403fdd8bca0bc"},
@@ -1139,6 +1311,7 @@ inline void Install() {
         throw std::runtime_error("Native form hook registry is unavailable.");
     struct Hook {void* target;void* detour;void** original;};
     Hook hooks[]={
+        {at(0x47dd40),reinterpret_cast<void*>(&AnimationGenus),reinterpret_cast<void**>(&state.api.animationGenus)},
         {at(0x330a40),reinterpret_cast<void*>(&OutfitHair),reinterpret_cast<void**>(&state.api.outfitHair)},
         {at(0x327640),reinterpret_cast<void*>(&Import),reinterpret_cast<void**>(&state.api.import)},
         {at(0x3f0af0),reinterpret_cast<void*>(&History),reinterpret_cast<void**>(&state.api.history)},

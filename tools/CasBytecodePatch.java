@@ -481,7 +481,68 @@ public class CasBytecodePatch {
             require(!propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains("ApexOwnerObservation"),
                 "CAS owner observation has a caller outside the Timer snapshot.");
     }
+    static void verifyFastOwnerReadback(ABC abc, InstanceInfo instance) {
+        for(String method:Set.of("ApexFormsQueueOwner","ApexFormsReadNativeState")) {
+            int clocks=0;
+            for(var op:ownedBody(abc,instance,method).getCode().code) {
+                require(!property(abc,op,0x60,"flash"),"UI clock must not resolve flash as a dynamic scope object.");
+                if(property(abc,op,0x46,"getTimer")||property(abc,op,0x4f,"getTimer")) {
+                    var q=abc.constants.getMultiname(op.operands[0]);
+                    require(q.kind==Multiname.QNAME && q.namespace_index>0 &&
+                        abc.constants.getNamespace(q.namespace_index).kind==Namespace.KIND_PACKAGE &&
+                        "flash.utils".equals(abc.constants.getString(abc.constants.getNamespace(q.namespace_index).name_index)) &&
+                        op.operands[1]==0,"UI clock must call the actual imported flash.utils.getTimer function.");
+                    clocks++;
+                }
+            }
+            require(clocks==1,"UI clock must have one exact imported getTimer call per timing method.");
+        }
+        var queued=propertyCalls(abc,ownedBody(abc,instance,"ApexFormsQueueOwner"));
+        require(queued.containsAll(Set.of("ApexClone","addEventListener","getTimer")) &&
+            Collections.disjoint(queued,Set.of("ApexTick","CallGameService","ApexNativeExchange","ApexFormsOwnedTick")),
+            "Form click may enqueue one next-frame intent, never execute native work inline.");
+        var nextBody=ownedBody(abc,instance,"ApexFormsNextFrame");var next=propertyCalls(abc,nextBody);
+        require(next.equals(Set.of("removeEventListener","ApexFormsOwnedTick","ApexFormsObservedSim")),
+            "Next-frame form callback must detach and process its bound view without waiting for a network poll.");
+        var gates=new HashSet<String>();boolean returned=false;
+        for(var op:nextBody.getCode().code) {
+            for(String gate:Set.of("apexDisconnected","apexTicking","apexPendingFields","apexReceiving","apexPendingPhase","apexNativeConnected","apexBoundSim"))
+                if(property(abc,op,0x60,gate)||property(abc,op,0x66,gate))gates.add(gate);
+            if(opcode(op,0x47))returned=true;
+            if(property(abc,op,0x46,"ApexFormsOwnedTick")||property(abc,op,0x4f,"ApexFormsOwnedTick")) {
+                require(returned&&gates.size()==7,"Next-frame form work lacks the connected idle same-Sim/lifetime gate.");break;
+            }
+        }
+        var read=ownedBody(abc,instance,"ApexFormsReadNativeState");
+        uniqueLiteral(abc,read,"STATE|");
+        var reads=propertyCalls(abc,read);
+        require(reads.containsAll(Set.of("ApexNativeExchange","split")) &&
+            Collections.disjoint(reads,Set.of("CallGameService","CallUIService","ApexExecute","ApexAccept","ApexFormsOwnedTick")),
+            "Fast owner acknowledgement must use only the bound native read, never a CAS mutation.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsDispose")).contains("removeEventListener"),
+            "Form frame callback must be detached at widget disposal.");
+    }
+    static void verifyPairControls(ABC abc, InstanceInfo instance) {
+        var clicks=propertyCalls(abc,ownedBody(abc,instance,"ApexPairClick"));
+        require(clicks.contains("addEventListener") && Collections.disjoint(clicks,
+            Set.of("CallGameService","ApexPairExecute","ApexNativeExchange","ApexTick","ApexExecute")),
+            "Pair button callback must queue intent outside its input callback.");
+        var read=ownedBody(abc,instance,"ApexPairRead");uniqueLiteral(abc,read,"PAIR|");
+        require(Collections.disjoint(propertyCalls(abc,read),Set.of("CallGameService","ApexPairExecute","ApexExecute")),
+            "Pair state is a data-only native read.");
+        var execute=ownedBody(abc,instance,"ApexPairExecute");uniqueLiteral(abc,execute,"PAIRDO|");
+        require(propertyCalls(abc,execute).containsAll(Set.of("ApexPairRead","ApexNativeExchange","ApexFormsReadNativeState")),
+            "Pair action must validate and read back its exact native context.");
+        Set<String> callers=new HashSet<>();
+        for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter &&
+            propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains("ApexPairExecute"))
+            callers.add(name(abc,trait));
+        require(callers.equals(Set.of("ApexPairTick","ApexControlExecute")),
+            "Only deferred pair intent and typed CLI execution may apply a pair action.");
+    }
     static void verifyFormStrip(ABC abc, InstanceInfo instance) {
+        verifyFastOwnerReadback(abc,instance);
+        verifyPairControls(abc,instance);
         var expected=Map.of("ApexFormsTick",List.of("CasGetAvailableOccults","GetOccultIcon"),
             "ApexFormsClick",List.of("CASGetSimInfo"), "ApexFormsOwnedTick",List.of("SetSimOccult","GetOccultIcon"));
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex")) {
@@ -516,7 +577,7 @@ public class CasBytecodePatch {
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter &&
             propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains("ApexFormsOwnedTick"))
                 nativeOwnerCallers.add(name(abc,trait));
-        require(nativeOwnerCallers.equals(Set.of("ApexFormsTick")),"Independent form buttons may execute only on the owned strip Timer.");
+        require(nativeOwnerCallers.equals(Set.of("ApexFormsTick","ApexFormsNextFrame")),"Independent form buttons may execute only on the owned strip Timer or guarded next frame.");
         var ownerCode=ownedBody(abc,instance,"ApexFormsOwnedTick").getCode().code;
         boolean tokenLow=false,tokenHigh=false;
         for(var op:ownerCode) if(opcode(op,0x2d)) {
@@ -1090,7 +1151,9 @@ public class CasBytecodePatch {
             "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking",
             "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener", "apexMoleculeRegistered", "apexMoleculeListener", "apexMoleculeView",
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
-            "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey");
+            "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey",
+            "apexFormsFrameQueued", "apexFormsFastState", "apexFormsNativeGeneration", "apexFormsGestureStarted", "apexFormsSwitchMilliseconds",
+            "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexMoleculeChooseOccult", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame",
@@ -1098,7 +1161,9 @@ public class CasBytecodePatch {
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
-            "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips");
+            "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips",
+            "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState",
+            "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
         for (Trait trait : newClass.instance_traits.traits) {

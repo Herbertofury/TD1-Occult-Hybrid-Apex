@@ -895,6 +895,8 @@ def envelope(sim_id, request):
         state, category, index, value = cas_controls.wire(request, panel)
         request_id = uuid.uuid4().hex
         wire = '|'.join(map(str, (request_id, sim_id, op, state, category, index, value)))
+        if len(wire.split('|')) != 7:
+            raise ValueError('CAS control value contains an envelope field separator; no native frame created.')
         if len(wire) > 512 or any(not 32 <= ord(c) <= 126 for c in wire):
             raise ValueError('CAS envelope exceeds its printable transport bound.')
         return request_id, wire

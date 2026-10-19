@@ -30,10 +30,19 @@
       private var apexFormsVariantFamily:String="";
       private var apexFormsTooltips:Array=[];
       private var apexFormsGroupKey:String="";
+      private var apexFormsFrameQueued:Boolean=false;
+      private var apexFormsFastState:Boolean=false;
+      private var apexFormsNativeGeneration:String="";
+      private var apexFormsGestureStarted:int=-1;
+      private var apexFormsSwitchMilliseconds:int=-1;
 
 
       private function ApexFormsDispose() : void
       {
+         ApexPairDispose();
+         removeEventListener(flash.events.Event.ENTER_FRAME,ApexFormsNextFrame);
+         apexFormsFrameQueued=false;apexFormsFastState=false;apexFormsNativeGeneration="";
+         apexFormsGestureStarted=-1;apexFormsSwitchMilliseconds=-1;
          ApexFormsClearTooltips();
          if(apexFormsRoot!=null) {
             apexFormsRoot.stopDrag();
@@ -308,7 +317,7 @@
          var forms:Object={1:"human/shared",2:"alien/alien",4:"vampire/dark",8:"mermaid/mermaid",
             16:"witch/primary",32:"werewolf/beast",64:"fairy/primary"};
          for each(var owner:Object in apexFormsOwners) if(owner.form_id===forms[String(request.kind)]) {
-            if(owner.id!==apexFormsSelectedId) apexFormsNativeIntent=ApexClone(owner);
+            if(owner.id!==apexFormsSelectedId) ApexFormsQueueOwner(owner);
             apexFormsMessage="";apexFormsSignature="";return true;
          }
          apexFormsMessage="This occult has no captured independent appearance yet.";
@@ -351,13 +360,13 @@
             if(group.indices.length>1 || group.family=="imaginary_friend") {
                apexFormsVariantFamily=String(group.family);apexFormsPage=0;apexFormsSignature="";
             } else if(apexFormsOwners[int(group.indices[0])].id!=apexFormsSelectedId)
-               apexFormsNativeIntent=apexFormsOwners[int(group.indices[0])];
+               ApexFormsQueueOwner(apexFormsOwners[int(group.indices[0])]);
             return;
          }
          if(name.indexOf("apexOwned_")==0) {
             var ownerIndex:int=int(name.substr(10));
             if(ownerIndex<0 || ownerIndex>=apexFormsOwners.length || apexFormsDesiredId!="" || apexFormsNativeState!="bound") return;
-            if(apexFormsOwners[ownerIndex].id!=apexFormsSelectedId) apexFormsNativeIntent=apexFormsOwners[ownerIndex];
+            if(apexFormsOwners[ownerIndex].id!=apexFormsSelectedId) ApexFormsQueueOwner(apexFormsOwners[ownerIndex]);
             apexFormsVariantFamily="";apexFormsPage=0;apexFormsSignature="";return;
          }
 
@@ -385,6 +394,8 @@
             sim_id:apexBoundSim,owned_mask:apexFormsOwnedMask,session:apexOwnerSession,
             cross_kind_navigation:apexFormsNativeState=="bound",selected_owner_id:apexFormsSelectedId,owner_count:apexFormsOwners.length,
             native_owner_state:apexFormsNativeState,desired_owner_id:apexFormsDesiredId,form_conversion_called:false,gesture_pending:apexFormsIntent!=null,
+            native_fast_state:apexFormsFastState,native_generation:apexFormsNativeGeneration,switch_milliseconds:apexFormsSwitchMilliseconds,
+            pair_controls:ApexPairStatus(),
             selection_result:ApexClone(apexFormsResult),message:apexFormsMessage,
             life_states:ApexClone(apexFormsGroups),variant_family:apexFormsVariantFamily,
             layout:{scale:apexFormsScale,locked:apexFormsLocked,collapsed:apexFormsCollapsed,dragging:apexFormsDragging,
@@ -424,6 +435,12 @@
          var spanY:Number=Math.max(0,stage.stageHeight-(apexFormsCollapsed ? 34 : apexFormsPanelHeight)*apexFormsScale-28);
          var x:Number=apexFormsPosition==null ? 18 : 14+apexFormsPosition.x*spanX;
          var y:Number=apexFormsPosition==null ? stage.stageHeight-326 : 14+apexFormsPosition.y*spanY;
+         // Default placement clears the actual portrait toolbar, including
+         // EA's animation/scale. Explicit player placement remains movable.
+         if(apexFormsPosition==null && apexPairRoot!=null && apexPairRoot.visible) {
+            var pairPoint:flash.geom.Point=localToGlobal(new flash.geom.Point(apexPairRoot.x,apexPairRoot.y));
+            y=Math.min(y,pairPoint.y-(apexFormsCollapsed?34:apexFormsPanelHeight)*apexFormsScale-14);
+         }
          x=Math.max(14,Math.min(x,stage.stageWidth-apexFormsPanelWidth*apexFormsScale-14));
          y=Math.max(14,Math.min(y,stage.stageHeight-(apexFormsCollapsed ? 34 : apexFormsPanelHeight)*apexFormsScale-14));
          var point:flash.geom.Point=globalToLocal(new flash.geom.Point(x,y));
@@ -476,6 +493,8 @@
 
       private function ApexFormsOwnedTick(sim:Object) : void
       {
+         if(apexNativeChannel!="" && apexNativeConnected) ApexFormsReadNativeState();
+         ApexPairTick();
          ApexFormsBindUiKind();
          var busy:Boolean=apexPendingFields!=null || apexReceiving || apexFormsDragging || apexFormsDesiredId!="";
          var portraits:Object=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim});
@@ -497,7 +516,9 @@
             if(nativeToken<0x20000000 || nativeToken>0x2fffffff) throw new Error("Native form button lost its exact token");
             apexFormsDesiredId=String(intent.id);
             CommunicationManager.CallGameService("SetSimOccult",nativeToken);
-            busy=true;
+            ApexFormsReadNativeState();
+            ApexFormsBindUiKind();
+            busy=apexFormsDesiredId!="";
          }
          if(apexFormsCatalog==null || apexFormsCatalog.sim_id!=apexBoundSim) {
             apexFormsCatalog={sim_id:apexBoundSim,icons:{}};
@@ -525,7 +546,7 @@
          var cellHeight:int=apexFormsVariantFamily==""?44:70;
          apexFormsPanelWidth=Math.max(350,columns*cellWidth+8);apexFormsPanelHeight=rows*cellHeight+62;
          var signature:String=apexBoundSim+":"+apexFormsSelectedId+":"+apexFormsNativeState+":"+apexFormsDesiredId+":"+
-            count+":"+apexFormsPage+":"+busy+":"+apexFormsScale+":"+apexFormsLocked+":"+apexFormsCollapsed+":"+apexFormsVariantFamily;
+            count+":"+apexFormsPage+":"+busy+":"+apexFormsScale+":"+apexFormsLocked+":"+apexFormsCollapsed+":"+apexFormsVariantFamily+":"+apexPairMessage;
          if(signature==apexFormsSignature) return;apexFormsSignature=signature;
          if(apexFormsRoot==null) {
             apexFormsRoot=new flash.display.Sprite();apexFormsRoot.name="ApexHybridForms";
@@ -575,6 +596,7 @@
          var footer:String=apexFormsNativeState=="unresolved" ? "Form view unresolved; further switching is blocked." : apexFormsDesiredId!="" ? "Opening "+apexFormsDesiredId : apexFormsNativeState=="bound" ? "Each form keeps its own edits. Copy or link only when you choose." :
             apexFormsNativeState=="unresolved" ? "Form view unresolved; further switching is blocked." : "Initializing independent form owners...";
          if(apexFormsNativeState=="bound" && apexFormsDesiredId=="") footer="Each form keeps its own appearance";
+         if(apexPairMessage!="") footer=apexPairMessage;
          ApexFormsText(apexFormsRoot,footer,2,apexFormsPanelHeight-23,apexFormsPanelWidth-8,10,0x55778f);
       }
 
@@ -667,4 +689,53 @@
       {
          for each(var tooltip:TooltipObject in apexFormsTooltips) tooltip.Shutdown();
          apexFormsTooltips=[];
+      }
+
+      private function ApexFormsQueueOwner(owner:Object) : void
+      {
+         // Consume once on the next rendered UI frame, outside the click
+         // callback. The 500ms network poll is not a form-navigation scheduler.
+         if(owner==null || apexFormsNativeIntent!=null || apexFormsDesiredId!="") return;
+         apexFormsGestureStarted=getTimer();apexFormsNativeIntent=ApexClone(owner);
+         if(!apexFormsFrameQueued) {
+            apexFormsFrameQueued=true;
+            addEventListener(flash.events.Event.ENTER_FRAME,ApexFormsNextFrame,false,0,true);
+         }
+      }
+
+      private function ApexFormsNextFrame(event:flash.events.Event) : void
+      {
+         removeEventListener(flash.events.Event.ENTER_FRAME,ApexFormsNextFrame);
+         apexFormsFrameQueued=false;
+         if(apexDisconnected || apexTicking || apexPendingFields!=null || apexReceiving ||
+            apexPendingPhase!=0 || !apexNativeConnected || apexBoundSim=="") return;
+         // An outstanding network POLL must not postpone a local form click.
+         // Both operations below use only this UI thread's exact bound model.
+         apexTicking=true;
+         try {ApexFormsOwnedTick(ApexFormsObservedSim());}
+         catch(error:Error) {apexFormsMessage=error.message;apexFormsSignature="";}
+         finally {apexTicking=false;}
+      }
+
+      private function ApexFormsReadNativeState() : Boolean
+      {
+         if(apexNativeChannel=="" || !apexNativeConnected) return false;
+         var message:String=ApexNativeExchange("STATE|"+apexNativeChannel);
+         if(message=="WAIT") return false;
+         var fields:Array=message.split("|");
+         if(fields.length!=7 || fields[0]!="VIEWSTATE" || fields[1]!==apexBoundSim ||
+            !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(fields[2]) ||
+            ["1","2","4","8","16","32","64"].indexOf(String(fields[3]))<0 ||
+            !/^[01]$/.test(fields[4]) || fields[5]!="bound" || !/^[1-9][0-9]{0,19}$/.test(fields[6])) return false;
+         var known:Boolean=false;
+         for each(var owner:Object in apexFormsOwners) if(owner.id===fields[2] && int(owner.kind)==int(fields[3])) known=true;
+         if(!known) return false;
+         apexFormsFastState=true;apexFormsNativeGeneration=String(fields[6]);
+         apexFormsSelectedId=String(fields[2]);apexFormsNativeState="bound";
+         if(apexFormsDesiredId===apexFormsSelectedId) {
+            apexFormsDesiredId="";
+            if(apexFormsGestureStarted>=0) apexFormsSwitchMilliseconds=getTimer()-apexFormsGestureStarted;
+            apexFormsGestureStarted=-1;
+         }
+         return true;
       }

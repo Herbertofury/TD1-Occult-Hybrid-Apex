@@ -112,6 +112,10 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
     load_error = getattr(getattr(sim, 'occult_tracker', None), '_apex_sealed_load_observation_error', None)
     if isinstance(load_error, str):
         result['sealed_load_observation_error'] = load_error[:2048]
+    for attribute,key in (('_apex_native_pelt_patch','native_pelt_copy_patch'),
+                          ('_apex_native_pelt_policy','native_pelt_copy_policy')):
+        receipt=getattr(getattr(sim,'occult_tracker',None),attribute,None)
+        if isinstance(receipt,dict):result[key]=copy.deepcopy(receipt)
     # The game clock can advance while the simulation timeline is frozen.
     # Keep both native observations, and never infer sim progress from it.
     result.update(client_id=None, zone_running=None, sim_now=None, sim_now_ticks=None,

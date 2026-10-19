@@ -34,12 +34,13 @@ def hash_id(value):
     return isinstance(value, str) and len(value) == 64 and all(char in '0123456789abcdef' for char in value)
 
 
-def primary_navigation(client, sim_id, household_id, test_token=None):
-    """Use the shared Human owner when a hybrid has an independently bound graph.
+def primary_navigation(client, sim_id, household_id, test_token=None, native_view=None, process_id=None):
+    """Select the actual base owner of this independently bound portrait pair.
 
-    Its physical EA pair can be incomplete or describe another rendering genus.
-    A legacy layer-select is not authority for that graph. Keep the old native
-    pair path only for editors without an independently bound owner controller.
+    The legacy UI feed can be incomplete or describe another rendering genus.
+    The fresh native pair identifies its real base: shared Human for ordinary
+    pairs, Alien for its Human disguise. Legacy layer-select is kept only for
+    editors without an independently bound owner controller.
     """
     session = client.get('owner_pair_observation', {}).get('session')
     if type(session) is not int or session <= 0:
@@ -53,14 +54,43 @@ def primary_navigation(client, sim_id, household_id, test_token=None):
         mask=client.get('sim',{}).get('allOccultTypes')
         groups=strip.get('life_states')
         if (strip.get('sim_id')!=sim_id or strip.get('cross_kind_navigation') is not True or
-                type(mask) is not int or mask<=0 or not mask&1 or strip.get('owned_mask')!=mask or not isinstance(groups,list)):
+                type(mask) is not int or not 0<mask<=127 or not mask&1 or strip.get('owned_mask')!=mask or not isinstance(groups,list)):
             raise ValueError('Bound hybrid return lacks its exact current owner graph; no navigation or accept submitted.')
         human=[row for row in groups if isinstance(row,dict) and row.get('family')=='human']
         variants=human[0].get('variants') if len(human)==1 else None
         if (not isinstance(variants,list) or len(variants)!=1 or not isinstance(variants[0],dict) or
                 variants[0].get('owner_id') not in ('native/1','active/1')):
             raise ValueError('Bound hybrid return requires its one shared Human owner; no navigation or accept submitted.')
-        navigation=dict(operation='form-owner-select',owner_id=variants[0]['owner_id'],native_kind=1,
+        human=variants[0]['owner_id']
+        rendered=client.get('native_context',{}).get('rendered_form',{})
+        if (not isinstance(native_view,dict) or native_view.get('ok') is not True or
+                native_view.get('scope')!='native-form-view-status' or native_view.get('available') is not True or
+                native_view.get('state')!='bound' or type(process_id) is not int or process_id<=0 or
+                type(native_view.get('pid')) is not int or native_view.get('pid')!=process_id or native_view.get('sim_id')!=sim_id or
+                native_view.get('owner_id')!=strip.get('selected_owner_id') or
+                native_view.get('human_owner_id')!=human or type(native_view.get('generation')) is not int or
+                native_view['generation']<=0 or type(native_view.get('layer')) is not int or native_view['layer']!=1 or
+                type(client.get('sim',{}).get('occultLayer')) is not int or client['sim']['occultLayer']!=1 or
+                rendered.get('query')!='returned-value' or type(rendered.get('value')) is not int or
+                type(native_view.get('native_kind')) is not int or native_view.get('native_kind')!=rendered['value']):
+            raise ValueError('Bound hybrid return requires its fresh native portrait pair; no navigation or accept submitted.')
+        pair=native_view.get('portrait_pair')
+        if (not isinstance(pair,dict) or pair.get('alternate_owner_id')!=strip['selected_owner_id'] or
+                type(pair.get('alternate_kind')) is not int or pair['alternate_kind']!=rendered['value']):
+            raise ValueError('Native alternate owner differs from this editor; no navigation or accept submitted.')
+        base,kind=pair.get('base_owner_id'),pair.get('base_kind')
+        if base==human and type(kind) is int and kind==1 and pair['alternate_owner_id']!=human:
+            pass
+        elif (pair['alternate_owner_id']==human and pair['alternate_kind']==1 and
+                type(kind) is int and kind==2 and mask&2):
+            aliens=[row for row in groups if isinstance(row,dict) and row.get('family')=='alien']
+            choices=aliens[0].get('variants') if len(aliens)==1 else None
+            if (not isinstance(choices,list) or len(choices)!=1 or not isinstance(choices[0],dict) or
+                    choices[0].get('owner_id')!=base or base not in ('native/2','active/2')):
+                raise ValueError('Alien disguise return lacks its exact Alien base owner; no navigation or accept submitted.')
+        else:
+            raise ValueError('Native portrait orientation is not qualified; no navigation or accept submitted.')
+        navigation=dict(operation='form-owner-select',owner_id=base,native_kind=kind,
                         owned_mask=mask,household_id=household_id,expected_layer=1,native_session=session,test_token=test_token)
     return navigation
 
@@ -616,7 +646,40 @@ def _observe(state, output, identity, request, sim_id, household_id, seconds=60,
                 raise ValueError('Requested household differs from native CAS; no accept intent submitted.')
             if preflight['client']['sim'].get('occultLayer') == 1:
                 native = preflight['client']
-                navigation = primary_navigation(native,sim_id,household_id,journal['token'])
+                view = None
+                if native.get('form_strip',{}).get('native_owner_state')=='bound':
+                    view=call('test_native_cas_engine',json.dumps(dict(test_token=journal['token'],
+                        value={'operation':'view-status'})))
+                    # A native read can outlast the socket's three-second
+                    # preflight lease. Refresh only status before the one
+                    # navigation submission; never relax or extend that lease.
+                    from cas_client import _submit_status
+                    from types import SimpleNamespace
+                    def refresh_read(_state,action,*values,**options):
+                        if action not in ('cas_ui_request','cas_ui_diagnostics'):
+                            raise ValueError('Portrait refresh may only observe the native socket.')
+                        return call(action,options.get('value'))
+                    refreshed=_submit_status(SimpleNamespace(state=state,sim_id=sim_id,
+                        seconds=min(12,remaining(reserve=True))),refresh_read,monotonic,
+                        lambda value:pause(min(value,remaining(reserve=True))))
+                    refreshed_id=refreshed.get('cas_request_id')
+                    if not uuid_id(refreshed_id):
+                        raise RuntimeError('Portrait-pair status UUID was not observed; no navigation or accept submitted.')
+                    proof['primary_pair_preflight_request_id']=refreshed_id;save()
+                    while True:
+                        remaining(reserve=True)
+                        refreshed=call('cas_ui_result',refreshed_id)
+                        if refreshed.get('cas_request_id')!=refreshed_id:
+                            raise ValueError('Portrait-pair status has a different UUID; no navigation or accept submitted.')
+                        if refreshed.get('outcome')!='pending-client':break
+                        wait()
+                    if refreshed.get('ok') is not True or refreshed.get('ui_transition_verified') is not True:
+                        raise RuntimeError('Portrait-pair status remains unacknowledged; no navigation or accept submitted.')
+                    validate_client(refreshed.get('client'),sim_id,{'operation':'status'})
+                    native=refreshed['client']
+                    if native['sim']['householdId']!=household_id:
+                        raise ValueError('Portrait-pair refresh changed households; no navigation or accept submitted.')
+                navigation = primary_navigation(native,sim_id,household_id,journal['token'],view,identity['pid'])
                 from apex_core.cas_ui import envelope
                 envelope(sim_id, navigation)
                 selected = call('cas_ui_request', json.dumps(navigation))

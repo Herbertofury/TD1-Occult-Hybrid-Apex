@@ -8,7 +8,6 @@
       private var apexSelectorResetRegistered:Boolean = false;
       private var apexSelectorNavigationRegistered:Boolean = false;
       private var apexSelectorLastNavigation:String = "";
-      private var apexSelectorHybridRegistered:Boolean = false;
       private var apexSelectorHybridServiceRegistered:Boolean = false;
       private var apexSelectorHybridSim:String = "";
 
@@ -22,8 +21,6 @@
             apexSelectorResetRegistered=AddMessageListener("CASClearSimsForReset",ApexSelectorClearFeed);
          if(!apexSelectorNavigationRegistered)
             apexSelectorNavigationRegistered=RegisterServiceHandler("ApexNavigateOwnerLayer",ApexSelectorNavigate);
-         if(!apexSelectorHybridRegistered)
-            apexSelectorHybridRegistered=AddMessageListener("CASRefreshSimIcons",ApexSelectorRestorePair);
          if(!apexSelectorHybridServiceRegistered)
             apexSelectorHybridServiceRegistered=RegisterServiceHandler("ApexConfigureFormPortraits",ApexSelectorEnableHybridPair);
       }
@@ -99,29 +96,36 @@
 
       private function ApexSelectorRestorePair(message:Object) : void
       {
-         // Registered after EA's refresh listener. Restore actual delivered
-         // rows hidden by its composite-mask filter, never invented thumbnails.
-         if(apexSelectorHybridSim=="" || apexSelectorHybridSim!=mCurrSimId ||
-            mbGeneticsPaneActive || message==null || !(message.sim_data is Array) ||
+         // Called at the original typed handler's tail, while its delivered
+         // rows are valid. A separate untyped message listener loses the native
+         // SimLayerSkewerData instances. No borrowed row survives this callback.
+         if(mbGeneticsPaneActive || message==null || !(message.sim_data is Array) ||
             !(message.sim_occult_data is Array) || !(message.selected_sim is int) ||
             !(message.selected_layer is int) || message.selected_sim!=mSelectedSimIndex ||
             message.selected_sim<0 || message.selected_sim>=message.sim_data.length ||
             message.selected_sim>=message.sim_occult_data.length ||
-            message.selected_layer<0 || message.selected_layer>1) return;
-         var index:int=int(message.selected_sim);
-         var base:SimLayerSkewerData=message.sim_data[index] as SimLayerSkewerData;
-         var alternate:SimLayerSkewerData=message.sim_occult_data[index] as SimLayerSkewerData;
-         if(base==null || alternate==null || base.simId!=apexSelectorHybridSim ||
-            alternate.simId!=apexSelectorHybridSim || base.occultLayer!=0 || alternate.occultLayer!=1 ||
-            mDataFeed==null || index>=mDataFeed.length) return;
-         var row:SimSkewerData=mDataFeed.RequestItemAt(index) as SimSkewerData;
-         if(row==null || row.sim_layers.length==0 || row.sim_layers[0].simId!=apexSelectorHybridSim) return;
-         row.sim_layers=[base,alternate];
-         // Stock copy/link must not flatten these independent owners. Explicit
-         // graph-aware controls require their own qualification.
-         row.mbAllowCopyAltForm=false;
-         mDataFeed.ReplaceItemAt(index,row);
-         UpdateSelectedIndex(index,int(message.selected_layer));
+            message.selected_layer<0 || message.selected_layer>1 ||
+            message.sim_data.length>32 || message.sim_data.length!=message.sim_occult_data.length ||
+            mDataFeed==null || mDataFeed.length!=message.sim_data.length) return;
+         var changed:Boolean=false;
+         for(var index:int=0;index<message.sim_data.length;index++) {
+            var base:SimLayerSkewerData=message.sim_data[index] as SimLayerSkewerData;
+            var alternate:SimLayerSkewerData=message.sim_occult_data[index] as SimLayerSkewerData;
+            if(base==null || alternate==null || base.simId=="0" || base.simId!=alternate.simId ||
+               base.index!=index || alternate.index!=index || base.occultLayer!=0 || alternate.occultLayer!=1 ||
+               base.allOccultTypes!=alternate.allOccultTypes || base.allOccultTypes<1 ||
+               (base.allOccultTypes&~127)!=0 ||
+               ((base.allOccultTypes&~1)&((base.allOccultTypes&~1)-1))==0) continue;
+            var row:SimSkewerData=mDataFeed.RequestItemAt(index) as SimSkewerData;
+            if(row==null || row.sim_layers.length==0 || row.sim_layers[0].simId!=base.simId) continue;
+            row.sim_layers=[base,alternate];
+            // Preserve every actual delivered pair, including initial/member
+            // refreshes before the customizer registers its selected Sim.
+            // Stock copy/link must not flatten these independent owners.
+            row.mbAllowCopyAltForm=false;mDataFeed.ReplaceItemAt(index,row);changed=true;
+         }
+         if(!changed) return;
+         UpdateSelectedIndex(int(message.selected_sim),int(message.selected_layer));
          UpdateAffordable();
          UpdateLayout();
          message=null;row=null;base=null;alternate=null;
@@ -152,6 +156,13 @@
                row=null; layers=null;
             }
             if(!retained.complete) retained.error="Native selector filters unavailable/unsupported alternates; no pair was invented";
+            // Geometry only: the customizer owns its controls, while EA keeps
+            // both portraits and its existing Alien/disguise arrangement.
+            if(this.mGridView!=null && this.mGrid!=null && this.mSelectedSimIndex>=0) {
+               var anchor:flash.geom.Point=this.mGridView.localToGlobal(new flash.geom.Point(
+                  this.mGrid.GetCopyAlternativeFormXOffset(this.mSelectedSimIndex),-this.mGrid.GetCopyAlternativeFormYOffset()));
+               retained.pair_controls_anchor={x:anchor.x,y:anchor.y};
+            }
          } catch(readError:Error) {
             retained.complete=false; retained.error=readError.message;
          } finally { row=null; layers=null; raw=null; message=null; }

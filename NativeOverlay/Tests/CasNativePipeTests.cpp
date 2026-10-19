@@ -11,7 +11,14 @@ int main(){try {
     for(const auto frame:{"00000004WAITextra","00000005WAIT","0000000xWAIT"})Refuses([&]{ValidateFrame(frame);});
     Refuses([]{ValidateFrame(std::string("00000001\0",9));});
     Mailbox box;box.generation=7;box.scope="captured-scope";box.stop=false;
+    Check(!box.Matches(7,box.scope));
     Check(box.Poll(7,box.scope)=="WAIT");box.connected=true;
+    Check(box.Matches(7,box.scope));Check(!box.Matches(6,box.scope));Check(!box.Matches(7,"foreign-scope"));
+    // A fast owner read never consumes transport state or steals an in-flight
+    // command/acknowledgement. It remains independent of Python reply timing.
+    box.incoming="00000004WAIT";box.inFlight=true;
+    Check(box.Matches(7,box.scope)&&box.incoming=="00000004WAIT"&&box.inFlight&&!box.announced);
+    box.incoming.clear();box.inFlight=false;
     Check(box.Poll(7,box.scope)=="CONNECTED");Check(box.Poll(7,box.scope)=="WAIT");
     Check(box.Send(6,box.scope,"00000004WAIT")=="STALE");Check(box.outgoing.empty());
     Check(box.Send(7,"foreign-scope","00000004WAIT")=="STALE");Check(box.outgoing.empty());
@@ -27,6 +34,7 @@ int main(){try {
     Check(box.Send(7,box.scope,"00000004WAIT")=="QUEUED");
     Check(box.Close(6,box.scope)=="STALE"&&!box.stop);
     Check(box.Close(7,box.scope)=="CLOSED"&&box.stop);
+    Check(!box.Matches(7,box.scope));
     Check(box.Poll(7,box.scope)=="CLOSED");Check(box.Send(7,box.scope,"00000004WAIT")=="CLOSED");
     std::cout<<"Native CAS pipe framing, ownership and one-frame leases passed\n";return 0;
 }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}}

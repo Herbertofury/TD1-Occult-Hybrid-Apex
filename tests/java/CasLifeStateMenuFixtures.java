@@ -1,6 +1,7 @@
 import java.io.*;
 import java.util.logging.*;
 import com.jpexs.decompiler.flash.abc.*;
+import com.jpexs.decompiler.flash.abc.types.Namespace;
 import com.jpexs.helpers.MemoryInputStream;
 
 public class CasLifeStateMenuFixtures {
@@ -25,6 +26,17 @@ public class CasLifeStateMenuFixtures {
             case "tooltip-rebuild":method="ApexFormsOwnedTick";from="ApexFormsClearTooltips";break;
             case "tooltip-unload":method="ApexFormsDispose";from="ApexFormsClearTooltips";break;
             case "tooltip-shutdown":method="ApexFormsClearTooltips";from="Shutdown";break;
+            case "fast-queue-not-deferred":method="ApexFormsQueueOwner";from="addEventListener";break;
+            case "fast-frame-network-poll":method="ApexFormsNextFrame";from="ApexFormsOwnedTick";to="ApexTick";break;
+            case "fast-frame-missing-lease":method="ApexFormsNextFrame";from="apexPendingFields";to="apexFormsDesiredId";opcode=0x60;break;
+            case "fast-clock-namespace":
+                abc.constants.getMultiname(member(abc,"getTimer")).namespace_index=
+                    abc.constants.getNamespaceId(Namespace.KIND_PACKAGE,"wrong.package",0,true);break;
+            case "fast-state-not-native":method="ApexFormsReadNativeState";from="ApexNativeExchange";opcode=0x46;break;
+            case "pair-click-not-deferred":method="ApexPairClick";from="addEventListener";break;
+            case "pair-read-mutates":method="ApexPairRead";from="ApexNativeExchange";to="ApexPairExecute";opcode=0x46;break;
+            case "pair-native-action-missing":method="ApexPairExecute";from="ApexNativeExchange";opcode=0x46;break;
+            case "pair-cli-action-missing":method="ApexControlExecute";from="ApexPairExecute";to="ApexPairRead";opcode=0x46;break;
             default:throw new AssertionError("Unknown case");
         }
         if(method!=null) {

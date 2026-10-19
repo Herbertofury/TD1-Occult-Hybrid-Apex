@@ -12,6 +12,7 @@ NATIVE_SELECTOR = ROOT / '.work/research/cas-hair-cassimselector-current.swf'
 COMPILED_SELECTOR = ROOT / '.work/research/apex-cas-selector-compiled.swf'
 CASES = (
     'entry-preserves-branch', 'tail-preserves-return-branch', 'unknown-native-exception',
+    'typed-refresh-exact', 'typed-refresh-tail-argument', 'typed-refresh-tail-qname',
     'scope-prologue', 'multiple-return', 'branch-to-prologue', 'native-suffix-tamper',
     'hook-qname-tamper', 'hook-argument-tamper', 'callback-copy-only', 'callback-native-getter',
     'service-native-getter', 'callback-native-class', 'callback-retained-getter',

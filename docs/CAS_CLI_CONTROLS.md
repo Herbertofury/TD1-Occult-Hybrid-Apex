@@ -1,5 +1,59 @@
 # Native CAS CLI controls
 
+The requested final UI reuses EA's existing category checkbox panel. The current
+floating toolbar is interim whole-appearance control. Partial copy/link routing,
+pair-scoped preferences, added categories and selective undo are still open.
+
+V204 actual-game qualification: every household member completes Alien ->
+Vampire -> Alien; linked no-edit refreshes retain every field of all 195 records;
+unlinking verifies. An actual strip click measures 15 ms to native owner binding,
+not full rendered-avatar readiness. All five actual portrait pairs remain intact.
+
+V205 exposes `cas_animation_membership_scopes` and `last_cas_animation_scope`
+in native engine status. These report the exact selected preview actor's
+temporary animation mask; they do not authorize membership or appearance writes.
+Actual runtime qualification is separate from the native test pass.
+
+## Portrait pair controls (V204 development candidate)
+
+The portrait toolbar adds Link/Unlink and two explicitly directed whole-appearance
+copies. It follows EA's existing portrait anchor, including Alien's layout.
+Linking keeps both current looks and applies only to later edits; unlinking stops
+that propagation. Copy uses the exact displayed source and destination owners.
+Links currently last for this CAS session. Selective categories, saved link
+preferences and copy-specific undo remain unqualified release work.
+
+```powershell
+python tools/apex_cli.py cas pair-link --state STATE --sim-id SIM --owner-id active/2 --enabled --output NEW_LINK_JSON
+python tools/apex_cli.py cas pair-link --state STATE --sim-id SIM --owner-id active/2 --no-enabled --output NEW_UNLINK_JSON
+python tools/apex_cli.py cas pair-copy --state STATE --sim-id SIM --source-owner-id active/2 --target-owner-id native/1 --output NEW_COPY_JSON
+```
+
+Read the actual owner identities from fresh `cas status` / `form_strip.pair_controls`;
+the examples require those owners to be the currently displayed pair. A queued
+request is consumed once. Native refusal or a lost acknowledgement never permits
+replaying the copy. Real full-field and other-household-member comparisons are
+separate from the action acknowledgement.
+
+V204 processes queued form clicks on the next connected, idle UI frame and reads
+the bound native model directly, independently of an outstanding network POLL.
+V202's next-frame callback still waited for that poll in its general timer.
+V203's clock lookup throws before scheduling the frame. Neither qualifies a
+latency fix. V204 imports the clock and verifies its actual package QName in
+serialized bytecode. The 500 ms socket timer continues to serve CLI
+traffic. `form_strip.switch_milliseconds` is a proposed click-to-bound measurement;
+V202 returned -1, so that observation does not qualify end-to-end timing. Native
+diagnostics separately report `owner_view_result.native_view_elapsed_ms`: V202's
+actual Vampire binding took 12.0512 ms, excluding rendered-avatar readiness.
+
+The V203 native synchronizer compares complete serialized appearance records
+before committing an edit. A status read or unchanged model refresh cannot
+propagate through a link. A directed copy is not a new destination edit and
+cannot spread through that destination's other links on its next refresh.
+Native fixtures reproduce the previous failure and verify changed opaque fields,
+unlink isolation, and linked-third-form copy isolation. Actual game comparisons
+remain a separate release gate.
+
 ## Native CAS form strip and workspace
 
 The form strip is implemented in `ApexCASBridge.package`, inside the native
@@ -522,9 +576,14 @@ token and profile, retain current save hashes and the failed closure evidence,
 and act only on that process. This permission never covers an original-profile
 game. V197 exited normally without saving; force termination was not required.
 
-For an independently bound hybrid controller, CAS return selects its one shared
-Human owner when EA requires the primary layer. It does not depend on a complete
-legacy two-row feed for an actual Fairy or another independent appearance.
+For an independently bound hybrid controller, CAS return reads the actual native
+portrait pair before selecting its base. This is shared Human for ordinary
+pairs and Alien when Human is its alternate disguise; selecting Human again
+cannot leave Alien's layer 1. The native PID, Sim, selected owner, rendering
+kind, layer and shared Human must match the current editor. Unknown orientations
+refuse before navigation. A native read can outlast the socket preflight, so
+return refreshes status and uses the existing certified pre-queue refusal
+reconnect path. Issued/unknown requests and acceptance are never replayed.
 The navigation carries the exact disposable token, household, owner and session.
 
 `cas-return-settle --state STATE --return-proof RETURN --return-sha256 HASH

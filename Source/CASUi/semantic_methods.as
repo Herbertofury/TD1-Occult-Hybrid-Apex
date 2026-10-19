@@ -367,8 +367,12 @@
                      if(ownerState.length!=5 || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerState[1]) ||
                         !/^[0-9]+$/.test(ownerState[2]) || !/^[01]$/.test(ownerState[3]) ||
                         ["bound","unbound","unresolved"].indexOf(ownerState[4])<0) throw new Error("Invalid native owner selection metadata");
-                     apexFormsSelectedId=String(ownerState[1]);apexFormsNativeState=String(ownerState[4]);
-                     if(apexFormsDesiredId!="" && apexFormsDesiredId==apexFormsSelectedId && apexFormsNativeState=="bound") apexFormsDesiredId="";
+                     // A delayed Python heartbeat must not overwrite the UI
+                     // thread's newer bound owner or keep a finished switch busy.
+                     if(!ApexFormsReadNativeState() && !apexFormsFastState) {
+                        apexFormsSelectedId=String(ownerState[1]);apexFormsNativeState=String(ownerState[4]);
+                        if(apexFormsDesiredId!="" && apexFormsDesiredId==apexFormsSelectedId && apexFormsNativeState=="bound") apexFormsDesiredId="";
+                     }
                      // The renderer's signature already includes selection,
                      // native state and desired owner. An identical heartbeat
                      // must not tear down and reload every native image.
@@ -1066,6 +1070,17 @@
             // the staged existing owner. It never calls the kind converter.
             CommunicationManager.CallGameService("SetSimOccult",index); return;
          }
+         if(operation=="pair-link" || operation=="pair-copy") {
+            var pair:Object=ApexPairRead();
+            if(parts.length!=2 || pair==null) throw new Error("Exact native portrait pair required");
+            var pairIntent:Object={sim_id:apexBoundSim,operation:operation=="pair-copy"?"copy":"link",enabled:false};
+            if(operation=="pair-link") {
+               var other:String=pair.base_owner_id==pair.human_owner_id?pair.alternate_owner_id:pair.base_owner_id;
+               if(parts[0]!==other || !/^[01]$/.test(parts[1])) throw new Error("Link request targets another form");
+               pairIntent.source_owner_id=pair.base_owner_id;pairIntent.target_owner_id=pair.alternate_owner_id;pairIntent.enabled=parts[1]=="1";
+            } else {pairIntent.source_owner_id=String(parts[0]);pairIntent.target_owner_id=String(parts[1]);}
+            reply.mutation_started=true;context.control=ApexPairExecute(pairIntent);context.control.operation=operation;return;
+         }
          if(operation=="form-menu") {
             if(!/^[a-z0-9_][a-z0-9_-]{0,63}$/.test(value) || apexFormsRoot==null || apexFormsDragging ||
                apexFormsDesiredId!="" || apexFormsNativeIntent!=null || apexFormsNativeState!="bound")
@@ -1396,6 +1411,11 @@
       private function ApexControlResult(operation:String,state:int,category:int,index:int,value:String,context:Object,client:Object) : Object
       {
          if(operation=="form-owner-select") return {operation:operation,owner_id:String(context.owner_id)};
+         if(operation=="pair-link" || operation=="pair-copy") {
+            var currentPair:Object=ApexPairRead();
+            if(currentPair==null) throw new Error("Pair disappeared before the next-frame acknowledgement");
+            context.control.pair=currentPair;return context.control;
+         }
          if(operation=="form-menu") {
             var menu:Object=ApexFormsStatus();
             return {operation:operation,life_states:menu.life_states,variant_family:menu.variant_family,appearance_written:false};
@@ -1881,7 +1901,7 @@
                   operation=="remove" || operation=="layers" || operation=="layer-add" || operation=="layer-remove" ||
                   operation=="layer-move" || operation=="swatches" || operation=="swatch" || operation=="physique" ||
                   operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
-                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" ||
+                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" || operation=="pair-link" || operation=="pair-copy" ||
                   operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
                   operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view" || operation=="form-owner-select" || operation=="detail-status" ||
                   operation=="detail-mode" || operation=="filters" || operation=="filter-clear")

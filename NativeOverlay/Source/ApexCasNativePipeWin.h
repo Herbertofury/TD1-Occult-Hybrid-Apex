@@ -36,6 +36,10 @@ struct Mailbox {
     std::uint64_t generation=0,queued=0,received=0,delivered=0;std::string scope,outgoing,incoming,error;
     bool stop=true,connected=false,announced=false,inFlight=false;
     std::atomic<bool> finished{true};std::thread worker;
+    bool Matches(std::uint64_t expected,const std::string& currentScope) {
+        std::lock_guard<std::mutex> lock(mutex);
+        return expected==generation && currentScope==scope && !stop && connected;
+    }
     std::string Poll(std::uint64_t expected,const std::string& currentScope) {
         std::lock_guard<std::mutex> lock(mutex);
         if(expected!=generation||currentScope!=scope)return "STALE";

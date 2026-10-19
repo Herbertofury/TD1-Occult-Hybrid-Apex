@@ -379,7 +379,7 @@ def parser():
     cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
-        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu'))
+        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy'))
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
     cas.add_argument('--target-sim-id', help='Existing household member identity for semantic member-select')
@@ -392,6 +392,8 @@ def parser():
     cas.add_argument('--expected-layer', type=int, choices=(0, 1), help='Exact currently observed native CAS layer')
     cas.add_argument('--target-layer', type=int, choices=(0, 1), help='Explicit native primary/alternate layer; supports Vampire pairs with the same occult type')
     cas.add_argument('--owner-id', help='Exact named independent CAS form owner')
+    cas.add_argument('--source-owner-id', help='Exact source in the currently displayed Human/form pair')
+    cas.add_argument('--target-owner-id', help='Exact destination in the currently displayed Human/form pair')
     cas.add_argument('--native-kind', type=int, help='Rendering kind from the native owner inventory')
     cas.add_argument('--occult-type', type=int, help='Exact existing native membership for an occult-view request')
     cas.add_argument('--expected-all-occults', type=int, help='Complete membership mask from the fresh native CAS status')

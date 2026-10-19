@@ -19,7 +19,7 @@ public class CasSelectorBytecodePatch {
     static final Map<String,String> FIELDS = Map.of("apexSelectorFeed", "Object",
         "apexSelectorSequence", "int", "apexSelectorRegistered", "Boolean", "apexSelectorResetRegistered", "Boolean",
         "apexSelectorNavigationRegistered", "Boolean", "apexSelectorLastNavigation", "String",
-        "apexSelectorHybridRegistered", "Boolean", "apexSelectorHybridServiceRegistered", "Boolean",
+        "apexSelectorHybridServiceRegistered", "Boolean",
         "apexSelectorHybridSim", "String");
     static final Set<String> METHODS = Set.of("ApexSelectorInitialize", "ApexSelectorCaptureFeed",
         "ApexSelectorClearFeed", "ApexSelectorCopyRow", "ApexSelectorReadOwnerFeed", "ApexSelectorNavigate",
@@ -98,6 +98,24 @@ public class CasSelectorBytecodePatch {
         require(body.exceptions.length == 0, "Serialized selector hook gained an exception region.");
         verifyBranches(body, 0);
     }
+    static void spliceRefresh(MethodBody body,int captureName,int restoreName) {
+        nativeHookContract(body,true);
+        byte[] nativeBytes=body.getCodeBytes().clone();
+        // Both callbacks receive the same typed local1. Every original branch
+        // displacement stays unchanged: the old final return now targets the
+        // tail callback. No native branch, local or exception region is rebuilt.
+        body.setCodeBytes(join(Arrays.copyOfRange(nativeBytes,0,2),hook(captureName,true),
+            Arrays.copyOfRange(nativeBytes,2,nativeBytes.length-1),hook(restoreName,true),instruction(0x47)));
+        body.max_stack=Math.max(body.max_stack,2);
+        verifyRefresh(body,nativeBytes,captureName,restoreName);
+    }
+    static void verifyRefresh(MethodBody body,byte[] nativeBytes,int captureName,int restoreName) {
+        byte[] expected=join(Arrays.copyOfRange(nativeBytes,0,2),hook(captureName,true),
+            Arrays.copyOfRange(nativeBytes,2,nativeBytes.length-1),hook(restoreName,true),instruction(0x47));
+        require(Arrays.equals(expected,body.getCodeBytes()),"Native refresh bytes changed outside exact typed entry/tail hooks.");
+        require(body.exceptions.length==0,"Serialized selector refresh gained an exception region.");
+        verifyBranches(body,2);
+    }
     static boolean namedOperand(AVM2Instruction op) {
         return Set.of(0x04,0x05,0x45,0x46,0x4a,0x4c,0x4e,0x4f,0x59,0x5d,0x5e,0x5f,
             0x60,0x61,0x66,0x68,0x6a,0x80,0x86,0xb2).contains(op.definition.instructionCode);
@@ -105,7 +123,7 @@ public class CasSelectorBytecodePatch {
     static void verifySafeBody(ABC abc, String key, MethodBody body) {
         Set<String> calls = key.equals("ApexSelectorInitialize") ? Set.of("RegisterServiceHandler", "AddMessageListener")
             : key.equals("ApexSelectorCopyRow") ? Set.of("test", "String", "int", "Boolean")
-            : key.equals("ApexSelectorReadOwnerFeed") ? Set.of("RequestItemAt", "ApexSelectorCopyRow", "push", "String", "int", "Boolean")
+            : key.equals("ApexSelectorReadOwnerFeed") ? Set.of("RequestItemAt", "ApexSelectorCopyRow", "push", "String", "int", "Boolean", "localToGlobal", "GetCopyAlternativeFormXOffset", "GetCopyAlternativeFormYOffset")
             : key.equals("ApexSelectorCaptureFeed") ? Set.of("ApexSelectorCopyRow", "push", "String", "int", "Boolean") : Set.of();
         if(key.equals("ApexSelectorNavigate")) calls=Set.of("RequestItemAt","ApexSelectorCopyRow","test","String","int","SelectSimLayer");
         if(key.equals("ApexSelectorEnableHybridPair")) calls=Set.of("test","String");
@@ -120,7 +138,8 @@ public class CasSelectorBytecodePatch {
                 "Owned selector local scope index is out of range.");
             if (code == 0x46 || code == 0x4c || code == 0x4f)
                 require(calls.contains(member(abc, op.operands[0])), "Owned selector calls an unreviewed service/member: " + key);
-            if (code == 0x4a) require(Set.of("Error", "RegExp").contains(member(abc, op.operands[0])),
+            if (code == 0x4a) require(Set.of("Error", "RegExp").contains(member(abc, op.operands[0])) ||
+                (key.equals("ApexSelectorReadOwnerFeed") && member(abc,op.operands[0]).equals("Point") && op.operands[1]==2),
                 "Owned selector constructs an unreviewed property.");
             if (code == 0x42) require(Set.of("ApexSelectorCopyRow","ApexSelectorNavigate","ApexSelectorEnableHybridPair").contains(key) && index >= 2 && op.operands[0] == 1 &&
                 opcode(instructions.get(index-2),0x60) && member(abc,instructions.get(index-2).operands[0]).equals("RegExp") &&
@@ -186,8 +205,7 @@ public class CasSelectorBytecodePatch {
             "RegisterServiceHandler:ApexReadOwnerPairFeed","ApexSelectorReadOwnerFeed",
             "RegisterServiceHandler:ApexNavigateOwnerLayer","ApexSelectorNavigate",
             "AddMessageListener:CASClearSimsForReset","ApexSelectorClearFeed",
-            "RegisterServiceHandler:ApexConfigureFormPortraits","ApexSelectorEnableHybridPair",
-            "AddMessageListener:CASRefreshSimIcons","ApexSelectorRestorePair");
+            "RegisterServiceHandler:ApexConfigureFormPortraits","ApexSelectorEnableHybridPair");
         Set<String> seen=new HashSet<>();
         for(int index=0;index<code.size();index++) {
             var op=code.get(index);
@@ -421,7 +439,8 @@ public class CasSelectorBytecodePatch {
         compiled.bodies=new ArrayList<>(original.bodies); compiled.bodies.addAll(owned);
         nativeClass.instance_traits.traits.addAll(added);
         int initName=traitName(compiled,nativeClass,"ApexSelectorInitialize"), captureName=traitName(compiled,nativeClass,"ApexSelectorCaptureFeed");
-        splice(initialize,initName,false); splice(refresh,captureName,true);
+        int restoreName=traitName(compiled,nativeClass,"ApexSelectorRestorePair");
+        splice(initialize,initName,false); spliceRefresh(refresh,captureName,restoreName);
         ByteArrayOutputStream out=new ByteArrayOutputStream(); compiled.saveToStream(out);
         byte[] result=out.toByteArray();
         ABC saved=new ABC(new ABCInputStream(new MemoryInputStream(result)),compiled.getSwf(),null);
@@ -433,7 +452,8 @@ public class CasSelectorBytecodePatch {
             MethodBody b=saved.findBody(row.getKey()); require(b != null,"Serialized native selector body is absent.");
             boolean isInit=row.getKey() == initialize.method_info, isRefresh=row.getKey() == refresh.method_info;
             require(Arrays.equals(bodies.get(row.getKey()),bodyStructure(b,isInit || isRefresh)),"Native selector body metadata changed.");
-            if(isInit || isRefresh) verifySplice(b,row.getValue(),isInit ? initName : captureName,isRefresh);
+            if(isInit) verifySplice(b,row.getValue(),initName,false);
+            else if(isRefresh) verifyRefresh(b,row.getValue(),captureName,restoreName);
             else if(row.getKey() == copyUpdate.method_info) verifyIndependentDefaultBytes(b,row.getValue(),copyOffset);
             else require(Arrays.equals(row.getValue(),b.getCodeBytes()),"Unowned native selector body changed.");
         }
@@ -458,7 +478,7 @@ public class CasSelectorBytecodePatch {
         byte[] result=patch(original,compiled); Files.write(Path.of(args[2]),result);
         System.out.println("{\"native_method_count\":"+nativeCount+",\"apex_method_count\":"+METHODS.size()+",\"owned_field_count\":"+FIELDS.size()+","+
             "\"unchanged_native_methods\":"+(nativeCount-3)+",\"native_class_script_traits_preserved\":true,"+
-            "\"native_initialize_tail_hook_verified\":true,\"native_refresh_entry_hook_verified\":true,"+
+            "\"native_initialize_tail_hook_verified\":true,\"native_refresh_entry_hook_verified\":true,\"native_refresh_typed_tail_hook_verified\":true,"+
             "\"native_bodies_after_hook_stripping_exact\":true,\"native_lexical_scope_preserved\":true,"+
             "\"native_exception_regions\":0,\"unknown_native_exceptions_refused\":true,\"owned_local_scope_indexes_verified\":true,"+
             "\"callback_raw_copy_only_verified\":true,\"service_retained_view_read_only_verified\":true,"+

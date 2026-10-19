@@ -20,6 +20,29 @@ not establish current implementation or runtime readiness.
 
 ## Current checkpoint — 2026-10-18
 
+- [x] V204: verify actual Alien -> Vampire -> Alien on every household member,
+  retain all 195 records during linked no-edit refreshes, and verify unlinking.
+- [x] Verify all five actual native portrait pairs and measure a native strip
+  click at 15 ms to bound-owner acknowledgement; rendered readiness is separate.
+- [x] Retain the failed direct Human-paint return proof. Restore all forty
+  appearances and five named documents through the guard; unpause for 887 ticks,
+  pause again, and verify every save file and the ledger are unchanged.
+- [ ] Reuse EA's actual category checkbox link/copy panel for each independent
+  pair. Add missing category support, pair-scoped preferences and selective undo.
+- [ ] Qualify V205's CAS-only animation argument fix: other forms must not get
+  Werewolf idles, while the actual Werewolf keeps them and all memberships remain.
+- [ ] Qualify V206's first-preview correction too; V205 retains combined
+  animation flags on initial entry until a switch. Keep that failure recorded.
+- [x] V204 full regression: 2,645 passes. V205 native regression: 12 passes.
+- [x] Reproduce and fix no-edit native Sync propagating through a new link;
+  compare complete native serialized data, including unknown fields.
+- [x] Add native regressions for unlinking and directed-copy isolation when
+  the destination is also linked to a third form.
+- [x] Cold-load V203: retain forty native appearances and five named documents
+  after 740 simulation ticks, pause again, and keep the save/ledger unchanged.
+- [x] Qualify V204 next-frame switching, actual paired portraits and toolbar
+  placement in the observed viewport; verify linked no-edit full-field retention.
+- [ ] Prove actual linked edits and directional whole/partial Copy isolation.
 - [x] Replace HUM with EA's actual Human artwork; verify it visually in full CAS.
 - [x] Verify V195/V196/V197 cold loading preserves forty native appearances and five
   independent saved named documents after simulation advances; keep save/ledger unchanged.
@@ -27,7 +50,10 @@ not establish current implementation or runtime readiness.
 - [x] Reject CAS readiness when a new native UI exception occurs despite a connected inventory.
 - [x] Exercise actual native-menu Alien -> Vampire -> Alien selection in full CAS;
   retain mask 127 and the distinct Alien appearance, with the button visible after both switches.
-- [ ] Extend native-popup qualification across all forms and household members.
+- [x] Exercise all six native popup forms on all five household members;
+  compare every field of all 195 captured owners with no unintended change.
+- [ ] Correct the CAS-return Human paint merge: Werewolf/Fairy active paint
+  reaches Human before the guarded receiver restores its authoritative data.
 - [ ] Keep the strip clear of native popup cards on short viewports; qualify fresh
   geometry separately from the cached SetSimInfo observation during animations.
 - [ ] Fix and qualify grey Fairy wings, style/color editing and independent retention.
@@ -67,6 +93,14 @@ reopens all five independent named documents and retains all forty native
 appearances before and after 946 simulation ticks; save and ledger stay unchanged
 and Live is paused again. Ninety-two focused save/upgrade/return tests pass;
 the frozen V200 complete regression passes 2,616 tests in 776.817 seconds.
+The subsequent 38-selection household popup pass retains all 195 captured
+owners. All five receiver commits and forty Live appearances pass after 881
+ticks, including every independent named document, with save/ledger unchanged.
+Before those commits, Human paint alone differs on the Werewolf/Fairy members:
+it equals their active paint bytes. That return-boundary defect remains open.
+The host CLI now uses the native pair's actual base owner for acceptance,
+including Alien above its Human disguise, and refreshes/reconnects only status
+after a native read; all 83 return tests pass without changing the game build.
 The background CAS-grid fix still needs a real grid-selection check. Initial
 Fairy records with empty wing paint data and semantic wing selection remain
 open; successful stock-card editing does not qualify their separate repair/API.

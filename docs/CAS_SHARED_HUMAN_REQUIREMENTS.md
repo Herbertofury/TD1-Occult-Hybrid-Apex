@@ -7,6 +7,53 @@ and named implementation records as separate form choices.
 
 ## Current evidence: 2026-10-18
 
+V204's full regression passes 2,645 tests. In actual full CAS, all five members
+complete Alien -> Vampire -> Alien and return to their starting owners. A
+linked, no-edit export retains every field in all 195 captured records;
+unlinking is acknowledged. An actual Alien strip click measures 15 ms to the
+bound native owner, excluding rendered-avatar readiness. All five native
+portrait pairs remain complete. These passes do not qualify selective copying.
+
+The subsequent no-edit CAS exit still merges Werewolf/Fairy paint into two
+Human records. No other field changes. The installed generator patch is not
+called on that path and therefore does not fix it. The permanent guard restores
+all forty Live appearances and all five named documents after another 887
+simulation ticks; save files and the ledger stay unchanged. Preserve the failed
+direct-fix proof separately from this successful guard-only restoration.
+
+The owner clarified that Werewolf howling leaks chiefly in CAS. V205 scopes
+the inspected idle actor's animation membership to the exact selected native
+CAS preview, without changing model, owner or gameplay membership. Twelve
+native checks pass, including every native genus, ordinary/foreign contexts
+and preservation of complete owner serialization. Actual actor reads verify
+Vampire mask 4 with the Werewolf flag off and model membership still 127.
+The first preview nevertheless starts with the combined animation mask until
+a form switch. V206 also settles animation parameters at exact owner binding,
+checks the actor cache, and skips an already settled actor. Its twelve native
+targets pass, including a distinct named Ghost and foreign-member refusal.
+Full-household actor and first-preview qualification remain in progress.
+
+The requested final link/copy interface is EA's existing checkbox panel,
+extended to the independent selected pair, plus missing categories such as
+tattoos. Retain its native visuals, layout and direction; scope preferences by
+Sim AND form pair. Do not merely unhide EA's destructive stock auto-sync or
+reuse its Sim-only link state across different occults. The floating whole-copy
+toolbar remains interim. Partial copy/link isolation, undo and saved preferences
+remain release blockers.
+
+V203 checkpoint: the last frozen V202 regression passes 2,638 tests. V203
+reproduces and corrects a native Link bug in which a no-edit Sync propagated
+the whole appearance. Full native serialization now distinguishes edits from
+refreshes, including opaque fields; the native test also checks later linked
+edits, unlinking and copy isolation from a linked third form. Twelve native,
+fifty-five selector and fifteen fast/pair UI checks pass. V203 cold loading
+retains all forty native appearances and five independent named documents
+through 740 simulation ticks, with the save/ledger unchanged and Live paused.
+The pinned Human-paint patch is installed on all five members. The actual CAS
+return before guarded restoration, pair presentation, real link/copy isolation,
+complete member/category coverage and Tray/Gallery remain open gates. V203's
+full regression and game checks are in progress. It is not an actual-save release.
+
 V200 cold-load checkpoint: all five saved independent named-form documents
 reopen and all forty native appearances match before and after 946 simulation
 ticks, with the save file and seal ledger unchanged and Live paused again.

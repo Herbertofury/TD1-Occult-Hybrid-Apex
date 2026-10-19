@@ -194,6 +194,20 @@ int main() {
     auto changed=Clone(atomic.appearance(1),1);(*changed)["skin"]=99999;fail=true;
     Refuses([&]{atomic.commit(ac,changed);});
     Require(*atomic.appearance(1)==oldHuman && *atomic.appearance(4)==oldVampire && atomic.cursor().generation==ac.generation);
+    Graph paired(999,127,1,Captured(999),Clone);
+    const auto untouchedHuman=*paired.appearance(1),pairedAlienBeforeLink=*paired.appearance(2),untouchedVampire=*paired.appearance(4);
+    auto pc=paired.linkPair(paired.cursor(),"native/1","native/2",true);
+    Require(paired.linked("native/1","native/2")&&paired.linked("native/2","native/1"));
+    Require(*paired.appearance(1)==untouchedHuman&&*paired.appearance(2)==pairedAlienBeforeLink);
+    Refuses([&]{paired.linkPair(pc,"native/1","ghost/absent",true);});
+    Require(paired.cursor().generation==pc.generation&&!paired.linked("native/1","native/4"));
+    auto alienEdit=Clone(paired.appearance(2),2);(*alienEdit)["skin"]=7654321;
+    pc=paired.select(pc,2);pc=paired.commit(pc,alienEdit);
+    Require((*paired.appearance(1))["skin"]==7654321&&*paired.appearance(4)==untouchedVampire);
+    pc=paired.linkPair(pc,"native/1","native/2",false);
+    Require(!paired.linked("native/1","native/2")&&!paired.linked("native/2","native/1"));
+    auto isolated=Clone(paired.appearance(2),2);(*isolated)["skin"]=1234567;pc=paired.commit(pc,isolated);
+    Require((*paired.appearance(1))["skin"]==7654321&&(*paired.appearance(2))["skin"]==1234567);
     std::cout<<"Five Sims, seven separate form owners, every fixture field, explicit copy/link and atomic edits passed\n";
     return 0;
  } catch(const std::exception& error) {std::cerr<<error.what()<<'\n';return 1;}

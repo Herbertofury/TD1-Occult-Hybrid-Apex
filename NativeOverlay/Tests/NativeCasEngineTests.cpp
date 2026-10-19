@@ -18,6 +18,57 @@ unsigned reboundKind=0,nativeSyncCalls=0;
 unsigned nativeLayerTransitions=0;
 unsigned previewRestores=0;
 unsigned outfitHairCalls=0;
+std::array<std::uint32_t,5> animationArgument{};const void* animationPointer=nullptr;
+void NativeAnimationGenus(void* actor,const void* genus,bool notify) {
+    Require(notify);animationPointer=genus;std::memcpy(animationArgument.data(),genus,sizeof(animationArgument));
+    std::memcpy(static_cast<char*>(actor)+0xc0,genus,sizeof(animationArgument));
+}
+void ExerciseAnimationIsolation(void* controller) {
+    auto& runtime=Runtime();auto& bank=runtime.bank.at(123);auto* model=Read<char*>(controller,0x1d0);
+    const auto originalCursor=bank.graph->cursor();const auto originalGenus=std::array<std::uint32_t,5>{
+        Read<unsigned>(model,0x170),Read<unsigned>(model,0x174),Read<unsigned>(model,0x178),
+        Read<unsigned>(model,0x17c),Read<unsigned>(model,0x180)};
+    const auto oldActor=Read<void*>(model,0x48);std::array<char,0xe0> actor{};Write(model,0x48,actor.data());
+    runtime.api.animationGenus=NativeAnimationGenus;
+    const std::vector<std::string> owners={"native/1","native/2","native/4","native/8",
+        "native/16","native/32","native/64","ghost/manifested"};
+    for(const auto& owner:owners) {
+        bank.graph->select(bank.graph->cursor(),owner);const auto kind=bank.graph->cursor().kind;Write(model,0x178,kind);
+        const auto ownerBefore=SerializeOwner(runtime.api,*bank.graph->appearance(owner),123);
+        const auto count=runtime.animationMembershipScopes;
+        std::memcpy(actor.data()+0xc0,model+0x170,sizeof(animationArgument));
+        RefreshBoundAnimation(runtime,bank,controller);
+        Require(animationArgument[3]==kind && runtime.lastAnimationScope["actor_cache_verified"]==true);
+        Require(runtime.lastAnimationScope["source"]=="exact-cas-preview-bind");
+        Require(runtime.animationMembershipScopes==count+1);
+        RefreshBoundAnimation(runtime,bank,controller); // Already settled; no repeated native call.
+        Require(runtime.animationMembershipScopes==count+1);
+        RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x45864d);
+        Require(animationArgument[2]==kind && animationArgument[3]==kind);
+        Require(bool(animationArgument[3]&32u)==(kind==32)); // Vampire/Alien/Human never howl as Werewolf.
+        Require(animationArgument[0]==originalGenus[0] && animationArgument[1]==originalGenus[1] && animationArgument[4]==originalGenus[4]);
+        Require(Read<unsigned>(model,0x17c)==127 && bank.mask==127);
+        Require(SerializeOwner(runtime.api,*bank.graph->appearance(owner),123)==ownerBefore);
+        Require(runtime.animationMembershipScopes==count+2 && runtime.lastAnimationScope["owner_id"]==owner);
+        // A different call site, actor or detached record cannot authorize
+        // changing animation flags. These paths still receive the original.
+        RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x45864e);
+        Require(animationArgument[3]==127 && animationPointer==model+0x170);
+        std::array<char,0xe0> otherActor{};
+        RouteAnimationGenus(otherActor.data(),model+0x170,true,runtime.image+0x45864d);Require(animationArgument[3]==127);
+        auto detached=originalGenus;detached[2]=kind;
+        RouteAnimationGenus(actor.data(),detached.data(),true,runtime.image+0x45864d);Require(animationArgument[3]==127);
+        bank.viewFault=true;RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x45864d);
+        Require(animationArgument[3]==127);bank.viewFault=false;
+        runtime.selectionEnabled=false;RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x45864d);
+        Require(animationArgument[3]==127);runtime.selectionEnabled=true;
+        runtime.boundSim=456;RouteAnimationGenus(actor.data(),model+0x170,true,runtime.image+0x45864d);
+        Require(animationArgument[3]==127);runtime.boundSim=123;
+        Require(runtime.animationMembershipScopes==count+2);
+    }
+    bank.graph->select(bank.graph->cursor(),originalCursor.owner);
+    std::memcpy(model+0x170,originalGenus.data(),sizeof(originalGenus));Write(model,0x48,oldActor);
+}
 void OriginalOutfitHair(void* outfit,const void* genus) {
     ++outfitHairCalls;Require(genus==outfit);Write(outfit,24,148023u);
 }
@@ -398,6 +449,7 @@ int main() {
     Require(ModelKindMask(nullptr,127,runtime.image+0x45c32d)==127); // Other callers retain every membership bit.
     Require(bank.partner=="native/1" && Read<unsigned>(group.data(),0xe8)==9999);
     Require(Read<unsigned>(Read<void*>(group.data(),0x4c0),0xe8)==100);
+    ExerciseAnimationIsolation(controller.data());
     auto stageView=[&](const char* rid,const char* owner) {
         const auto cursor=bank.graph->cursor();
         auto staged=Control({{"operation","stage-view"},{"scope_id",scope.id},{"sim_id","123"},
@@ -499,6 +551,47 @@ int main() {
     Require(NativeUiView(controller.data(),"native/2"));
     Require(Read<unsigned>(currentModel.data(),0x188)==22222 && Read<UndoFixture*>(currentModel.data(),0x70)==alienUndo);
     Require(Read<unsigned>(runtime.bank.at(456).graph->appearance(2)->data(),0x18)==456456);
+    // The portrait controls act on the exact bound pair on the UI thread.
+    // A late worker response is not needed and cannot authorize another Sim.
+    auto& pairChannel=td1::nativecas::pipe::Channel();pairChannel.generation=71;pairChannel.scope=runtime.scope.id;
+    pairChannel.connected=true;pairChannel.stop=false;
+    Require(FastOwnerState(runtime,70)=="STALE");
+    Require(FastOwnerState(runtime,71).rfind("VIEWSTATE|123|native/2|2|0|bound|",0)==0);
+    Require(PairState(runtime,71).rfind("PAIR|123|native/2|native/2|native/1|native/1|0|",0)==0);
+    const auto humanBeforeLink=Read<unsigned>(bank.graph->appearance("native/1")->data(),0x18);
+    const auto vampireBeforeCopy=Read<unsigned>(bank.graph->appearance("native/4")->data(),0x18);
+    auto pairCommand=[&](char nonce,const std::string& operation,bool enabled) {
+        return std::string(32,nonce)+"|123|"+std::to_string(bank.graph->cursor().generation)+"|native/2|native/1|"+operation+"|"+(enabled?"1":"0");
+    };
+    const auto linkCommand=pairCommand('a',"link",true);
+    Require(ApplyPairAction(runtime,71,linkCommand)=="PAIRDONE|"+std::string(32,'a'));
+    Require(bank.graph->linked("native/1","native/2")&&bank.graph->linked("native/2","native/1"));
+    Require(Read<unsigned>(bank.graph->appearance("native/1")->data(),0x18)==humanBeforeLink);
+    const auto linkedGeneration=bank.graph->cursor().generation;
+    Sync(controller.data()); // Status and a no-edit view refresh are not edits.
+    Require(!bank.viewFault && bank.graph->cursor().generation==linkedGeneration);
+    Require(Read<unsigned>(bank.graph->appearance("native/1")->data(),0x18)==humanBeforeLink);
+    Refuses([&]{ApplyPairAction(runtime,71,linkCommand);}); // Original UUID is never replayed.
+    Write(currentModel.data(),0x3b0,0xabcdef12u);Sync(controller.data());
+    Require(Read<unsigned>(bank.graph->appearance("native/2")->data(),0x240)==0xabcdef12u);
+    Require(Read<unsigned>(bank.graph->appearance("native/1")->data(),0x240)==0xabcdef12u);
+    Require(Read<unsigned>(bank.graph->appearance("native/4")->data(),0x18)==vampireBeforeCopy);
+    Require(ApplyPairAction(runtime,71,pairCommand('b',"link",false))=="PAIRDONE|"+std::string(32,'b'));
+    Require(!bank.graph->linked("native/1","native/2")&&!bank.graph->linked("native/2","native/1"));
+    Write(currentModel.data(),0x3b0,0xabcdef13u);Sync(controller.data());
+    Require(Read<unsigned>(bank.graph->appearance("native/1")->data(),0x240)==0xabcdef12u);
+    // Copy has one destination even when it is linked to a third form.
+    bank.graph->linkPair(bank.graph->cursor(),"native/1","native/4",true);
+    Require(ApplyPairAction(runtime,71,pairCommand('c',"copy",false))=="PAIRDONE|"+std::string(32,'c'));
+    Sync(controller.data());
+    Require(Read<unsigned>(bank.graph->appearance("native/1")->data(),0x18)==22222);
+    Require(Read<unsigned>(bank.graph->appearance("native/4")->data(),0x18)==vampireBeforeCopy);
+    Require(bank.graph->cursor().owner=="native/2"&&Read<unsigned>(currentModel.data(),0x188)==22222);
+    Require(Read<unsigned>(runtime.bank.at(456).graph->appearance(2)->data(),0x18)==456456);
+    Refuses([&]{ParsePairAction(std::string(32,'d')+"|123|1|native/2|native/2|copy|0");});
+    Refuses([&]{ParsePairAction(std::string(32,'d')+"|123|1|native/2|native/1|copy|1");});
+    Refuses([&]{ParsePairAction(std::string(32,'d')+"|123|1|native/2|native/1|link|1|extra");});
+    pairChannel.connected=false;pairChannel.stop=true;
     Require(nativeSyncCalls==0); // Owned forms never enter the destructive two-slot synchronizer.
     runtime.selectionEnabled=false;Sync(controller.data());Require(nativeSyncCalls==1);
     runtime.selectionEnabled=true; // Unscoped CAS keeps the game's ordinary path.

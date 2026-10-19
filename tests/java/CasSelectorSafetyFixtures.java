@@ -34,9 +34,7 @@ public class CasSelectorSafetyFixtures {
             op(0xd0),op(0x66,qname(abc,"ApexSelectorNavigate")),op(0x4f,qname(abc,"RegisterServiceHandler"),2));
         byte[] hybrid=bytes(op(0xd0),op(0x2c,abc.constants.getStringId("ApexConfigureFormPortraits",true)),
             op(0xd0),op(0x66,qname(abc,"ApexSelectorEnableHybridPair")),op(0x4f,qname(abc,"RegisterServiceHandler"),2));
-        byte[] refresh=bytes(op(0xd0),op(0x2c,abc.constants.getStringId("CASRefreshSimIcons",true)),
-            op(0xd0),op(0x66,qname(abc,"ApexSelectorRestorePair")),op(0x4f,qname(abc,"AddMessageListener"),2));
-        return body(abc,bytes(op(0xd0),op(0x30),service,reset,navigate,hybrid,refresh,duplicate ? reset : new byte[0],op(0x47)));
+        return body(abc,bytes(op(0xd0),op(0x30),service,reset,navigate,hybrid,duplicate ? reset : new byte[0],op(0x47)));
     }
     static InstanceInfo owned(ABC abc) {
         var instance=new InstanceInfo(new Traits());
@@ -81,6 +79,21 @@ public class CasSelectorSafetyFixtures {
             CasSelectorBytecodePatch.verifySplice(nativeBody,original,16384,false);
             var branch=nativeBody.getCode().code.get(3);
             if(branch.getTargetAddress() != original.length-1) throw new AssertionError("Tail branch skipped hook");
+        } else if(key.startsWith("typed-refresh-")) {
+            CasSelectorBytecodePatch.spliceRefresh(nativeBody,16384,16385);
+            if(key.equals("typed-refresh-tail-argument")) {
+                byte[] changed=nativeBody.getCodeBytes().clone();
+                changed[changed.length-CasSelectorBytecodePatch.hook(16385,true).length]= (byte)0xd2;
+                nativeBody.setCodeBytes(changed);
+                refuses(()->CasSelectorBytecodePatch.verifyRefresh(nativeBody,original,16384,16385),"exact typed entry/tail hooks");
+            } else if(key.equals("typed-refresh-tail-qname")) {
+                refuses(()->CasSelectorBytecodePatch.verifyRefresh(nativeBody,original,16384,16386),"exact typed entry/tail hooks");
+            } else {
+                CasSelectorBytecodePatch.verifyRefresh(nativeBody,original,16384,16385);
+                var branch=nativeBody.getCode().code.get(6);
+                if(branch.getTargetAddress()!=original.length-1+CasSelectorBytecodePatch.hook(16384,true).length)
+                    throw new AssertionError("Refresh branch skipped typed tail");
+            }
         } else if(key.equals("unknown-native-exception")) {
             nativeBody.exceptions=new ABCException[]{new ABCException()};
             refuses(()->CasSelectorBytecodePatch.splice(nativeBody,2,true),"unreviewed exception");

@@ -153,5 +153,18 @@ public:
     Cursor link(const Cursor& expected,std::uint32_t source,std::uint32_t target,bool enabled) {
         return link(expected,NativeOwnerId(source),NativeOwnerId(target),enabled);
     }
+    Cursor linkPair(const Cursor& expected,const std::string& first,const std::string& second,bool enabled) {
+        Current(expected);Owned(first);Owned(second);
+        if(first==second) throw std::runtime_error("Linking requires two distinct form owners.");
+        // Prepare both directions before publishing either edge. Linking never
+        // copies an appearance; only later edits follow explicitly set edges.
+        auto prepared=links_;
+        if(enabled) {prepared[first].insert(second);prepared[second].insert(first);}
+        else {
+            auto a=prepared.find(first);if(a!=prepared.end())a->second.erase(second);
+            auto b=prepared.find(second);if(b!=prepared.end())b->second.erase(first);
+        }
+        links_.swap(prepared);++cursor_.generation;return cursor_;
+    }
 };
 }

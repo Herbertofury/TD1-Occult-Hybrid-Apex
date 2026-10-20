@@ -227,6 +227,9 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
         load_appearance = getattr(sim.occult_tracker, '_apex_native_load_appearance_retention', None)
         if isinstance(load_appearance, dict):
             result['native_load_appearance_retention'] = copy.deepcopy(load_appearance)
+        cas_load_extras = getattr(sim.occult_tracker, '_apex_native_cas_load_extras', None)
+        if isinstance(cas_load_extras, dict):
+            result['native_cas_load_extras'] = copy.deepcopy(cas_load_extras)
         for name in ('extension_sources', 'extension_failure'):
             detail = getattr(sim.occult_tracker, '_apex_native_load_' + name, None)
             if isinstance(detail, dict):

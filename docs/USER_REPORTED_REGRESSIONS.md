@@ -270,7 +270,10 @@ Apex is **not finished** while any of R001–R010 can still be reproduced on the
 - [x] Prevent the form-selection CLI from binding hidden canonical backup aliases that its player-facing UI cannot acknowledge. Resolve the exact visible logical owner for each member; reject hidden, duplicate and missing identities before staging native work. Retain the failed prior UUID without replay.
 - [x] Correct recovery treating a PID reused by Opera as the old Sims runtime. Use a held query-only process handle and validate its executable image. Actual Windows and in-game checks distinguish the browser from Sims; failed identity queries still refuse recovery.
 - [x] V212: load all five members, retain all forty native appearances through 2,961 simulation ticks, preserve the original profile and keep every disposable save/backup unchanged.
-- [ ] Complete the V212 five-member Human/CC/beast/Fairy matrix and full retained-data comparison.
+- [x] V212: complete thirty Human/CC/beast/Fairy/original visits across all five members. Every field in all 195 captured internal appearance records remains unchanged; this is not proof of edited-category or selective-copy retention.
+- [x] Reproduce V214's CAS-exit corruption on three members never selected in CAS. Keep the complete core comparison strict; the separate no-edit guard restores all forty native appearances and retains all 155 named looks. Every disposable save/backup remains unchanged.
+- [x] V215: pass 2,695 regression tests and reject native acceptance when complete copied-cache verification differs. Retain the failed receipt and discard the disposable session only under the owner's explicit authorization; no save is submitted.
+- [ ] Qualify V216's corrected full-shell verification and household cache settlement in the actual game. Twelve native targets and 52 seal/upgrade tests pass, but runtime acceptance is still pending.
 - [ ] Complete CAS return and Live geometry, full category/MCCC coverage, scoped link/copy/undo and household save/Tray/Gallery acceptance. The direct CAS-exit Human-paint fix remains open; the permanent guard stays enabled.
 
 These are scoped checkpoints. They do not close R001–R010 or certify actual-save use.

@@ -13,9 +13,10 @@ from apex_core import native_cas_engine as engine,overlay_loader,sim_data,form_a
 
 class NativeLayoutCaptureTests(unittest.TestCase):
     def seed(self,fail=None):
-        sim=Obj(id=123,tag='current edited shape',occult_tracker=object())
+        sim=Obj(id=123,household_id=99,tag='current edited shape',occult_tracker=object())
         owners={1:Obj(tag='human original'),2:Obj(tag='alien original')}
-        backend=Obj(__file__='fixture',services=Obj(active_household=lambda:Obj(sim_info_gen=lambda:iter([sim]))),
+        backend=Obj(__file__='fixture',services=Obj(active_household=lambda:Obj(id=99,sim_info_gen=lambda:iter([sim])),
+            get_persistence_service=lambda:Obj(get_save_slot_proto_guid=lambda:77)),
                     _form_map=lambda tracker:owners,_get_current_flags=lambda selected:2)
         def fields(owner):
             return dict(physique=appearance.encode(owner.tag),__outfits__=appearance.encode(('protobuf',b'\xa0\x06\x01')))

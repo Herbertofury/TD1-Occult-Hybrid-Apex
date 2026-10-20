@@ -41,7 +41,13 @@ def digest(value):
     try:
         encoder = json.JSONEncoder(sort_keys=True, ensure_ascii=True,
             allow_nan=False, separators=(',', ':'))
-        for chunk in encoder.iterencode(value):
+        # The ordinary iterencode path walks every token in Python, even when
+        # CPython's canonical JSON accelerator is available. Large household
+        # journals contain hundreds of thousands of tokens. Use the same
+        # one-shot path as JSONEncoder.encode, retaining chunked hashing and
+        # the identical canonical bytes. A stripped runtime falls back to the
+        # standard Python encoder; no optional package or weaker hash is used.
+        for chunk in encoder.iterencode(value, _one_shot=True):
             result.update(chunk.encode('ascii'))
     except (TypeError, ValueError, RecursionError) as error:
         raise ValueError('CAS record must contain typed JSON values: ' + str(error))

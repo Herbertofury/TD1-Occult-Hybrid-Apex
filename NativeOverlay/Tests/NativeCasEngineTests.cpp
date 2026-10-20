@@ -1,13 +1,15 @@
 #include "ApexNativeCasEngineWin.h"
 #include <functional>
 #include <iostream>
+#include <atomic>
+#include <thread>
 using namespace td1::nativecas::engine;
 using Json=td1::ui::Json;
 void Check(bool v,int line) {if(!v) throw std::runtime_error("Native owner selection regression at line "+std::to_string(line));}
 #define Require(...) Check((__VA_ARGS__),__LINE__)
 void Refuses(const std::function<void()>& call) {bool caught=false;try {call();}catch(const std::exception&) {caught=true;}Require(caught);}
 template<class T> void Write(void* p,std::size_t offset,T value) {std::memcpy(static_cast<char*>(p)+offset,&value,sizeof(value));}
-using Cache=std::map<unsigned,std::array<char,32>>;
+using Cache=std::map<unsigned,std::array<char,0x300>>;
 unsigned destroyed=0,converted=0,allocated=0,freed=0;
 const void* sourceProto=nullptr;unsigned protoDestroyed=0;
 std::map<const void*,std::string> protoExports;
@@ -122,7 +124,11 @@ void Available(void* p,std::uint32_t v) {
 }
 void Current(void* p,std::uint32_t v) {Write(p,0xd8,v);}
 void AvailableData(void* p,std::uint32_t v) {Write(p,12,v);}
-void OriginalImport(void* output,const void* proto) {Write(output,0xb8,Read<std::uint64_t>(proto,0x10));}
+std::uint64_t ImportedEntity(void* component) {return Read<std::uint64_t>(component,0xa8);}
+std::array<void*,1> importEntityTable={reinterpret_cast<void*>(&ImportedEntity)};
+void OriginalImport(void* output,const void* proto) {
+    Write(output,0xb8,Read<std::uint64_t>(proto,0x10));Write(output,0x10,importEntityTable.data());
+}
 void Fields(void* output,const void* proto,const void* record) {
     const auto initialKind=Read<unsigned>(output,0xd8),initialMask=Read<unsigned>(output,0xdc);
     Require(Kind(initialKind) && (initialMask&initialKind));
@@ -141,7 +147,7 @@ unsigned OriginalNormalize(void* data,bool alternate) {
 }
 void* Meta(void* output,const void* source) {std::memset(output,0,0x38);Write(output,8,new Cache(Map(source)));return output;}
 const void* Lookup(const void* metadata,unsigned kind) {auto& c=Map(metadata);const auto f=c.find(kind);return f==c.end()?nullptr:f->second.data();}
-void Store(void* metadata,unsigned kind,const void* data) {std::memcpy(Map(metadata)[kind].data(),data,32);}
+void Store(void* metadata,unsigned kind,const void* data) {std::memcpy(Map(metadata)[kind].data(),data,0x300);}
 void* Allocate(std::size_t n,void*,unsigned,unsigned,void*,unsigned) {++allocated;return std::malloc(n);}
 void Free(void* p,std::size_t) {++freed;std::free(p);}
 void TreeDestroy(void* p,void*) {delete *reinterpret_cast<Cache**>(p);}
@@ -154,6 +160,9 @@ void ExportProto(const void* owner,void* proto) {
     const auto id=Read<std::uint64_t>(owner,0xb8);Write(proto,0x10,exportWrongId?std::uint64_t(999):id);
     std::string bytes(1,'\x09');bytes.append(reinterpret_cast<const char*>(&id),8);
     bytes.append("\x12\x80\x06",3);bytes.append(static_cast<const char*>(owner)+0xd0,0x300);
+    // Full native serialization also contains fields outside AppearanceData.
+    // A freshly constructed model-sync shell cannot stand in for the source.
+    bytes.append("\x1a\x08",2);bytes.append(static_cast<const char*>(owner)+0x700,8);
     bytes.append(exportPadding,'\x5a');
     protoExports[proto]=std::move(bytes);
 }
@@ -251,6 +260,71 @@ void ExerciseLocalCallsite() {
     Require(page.Protect==PAGE_EXECUTE_READ);
     Require(VirtualFree(image,0,MEM_RELEASE)!=0);
 }
+void* acceptanceCaches[2]{};unsigned acceptanceCalls=0,cancellationCalls=0;int acceptanceMode=0;
+std::atomic<bool> acceptanceMutexAvailable{false};std::thread acceptanceWorker;
+void BoolValue(void* value,bool flag) {Write(value,0,2u);Write(value,8,std::uint8_t(flag));}
+int AcceptanceIndex(void*,std::uint64_t entity) {return entity==123?0:entity==456?1:-1;}
+void* AcceptanceCache(void*,std::uint64_t entity) {const auto i=AcceptanceIndex(nullptr,entity);return i<0?nullptr:acceptanceCaches[i];}
+bool OriginalCancel(const void*) {++cancellationCalls;return true;}
+bool OriginalAcceptance(const void* argument) {
+    ++acceptanceCalls;
+    if(Runtime().selectionEnabled) {
+        for(const auto& row:Runtime().bank) if(row.second.editorImported)
+            for(const auto& owner:row.second.owners)
+                Require(std::memcmp(Map(AcceptanceCache(nullptr,row.second.importedEntity)).at(owner.first).data(),
+                    row.second.graph->appearance(row.second.logicalOwners.at(owner.first))->data(),0x300)==0);
+    }
+    acceptanceMutexAvailable=false;
+    acceptanceWorker=std::thread([] {std::lock_guard<std::recursive_mutex> lock(Runtime().mutex);acceptanceMutexAvailable=true;});
+    for(int i=0;i<1000 && !acceptanceMutexAvailable;++i)Sleep(1);
+    BoolValue(Read<void*>(argument,0x10),acceptanceMode!=1);
+    if(acceptanceMode==2)Write(Read<void*>(argument,0x10),0,3u); // Handled != typed acceptance.
+    if(acceptanceMode==3)CancelCas(argument);
+    if(acceptanceMode==4) {
+        auto& graph=*Runtime().bank.at(123).graph;
+        graph.linkPair(graph.cursor(),"native/1","native/2",false);
+    }
+    return true;
+}
+void ExerciseHouseholdAcceptance(void* controller,void* metadata) {
+    auto& state=Runtime();auto& first=state.bank.at(123);auto& other=state.bank.at(456);
+    const auto previousIndex=state.api.index;const auto previousCache=viewControllerTable[0x410/8];
+    std::array<char,0x38> secondMetadata{};Cache secondCache;Write(secondMetadata.data(),8,&secondCache);
+    acceptanceCaches[0]=metadata;acceptanceCaches[1]=secondMetadata.data();
+    state.api.index=AcceptanceIndex;viewControllerTable[0x410/8]=reinterpret_cast<void*>(&AcceptanceCache);
+    state.api.saveAndExit=OriginalAcceptance;state.api.cancelCas=OriginalCancel;state.api.boolValue=BoolValue;
+    first.editorImported=other.editorImported=true;first.importedEntity=123;other.importedEntity=456;
+    first.seeded=other.seeded=true;
+    for(auto* member:{&first,&other})for(const auto& owner:member->graph->owners())
+        Write(member->graph->appearance(owner.id)->value,0x700,std::uint64_t(0x12340000+owner.nativeKind));
+    const auto otherView=other.viewBound;other.viewBound=false; // This member is never selected.
+    std::array<char,32> argument{};std::array<char,16> result{};Write(argument.data(),0x10,result.data());
+    std::map<std::string,std::string> before;
+    for(const auto& owner:other.graph->owners())before[owner.id]=SerializeOwner(state.api,*other.graph->appearance(owner.id),456);
+    for(int mode=0;mode<5;++mode) {
+        acceptanceMode=mode;
+        Require(SaveAndExit(argument.data()));
+        acceptanceWorker.join();Require(acceptanceMutexAvailable);
+        Require(state.householdAcceptance["verified"]==(mode==0));
+        Require(state.householdAcceptance["native_accepted"]==(mode!=1 && mode!=2));
+        Require(state.householdAcceptance["canonical_caches"]==2);
+        Require(!state.householdAcceptance["member_selection_submitted"].get<bool>());
+        Require(state.boundSim==123 && first.boundGroup==Read<void*>(controller,0x100));
+        for(const auto& owner:other.graph->owners())Require(SerializeOwner(state.api,*other.graph->appearance(owner.id),456)==before.at(owner.id));
+    }
+    Require(acceptanceCalls==5 && cancellationCalls==1);
+    // Reject an aliased cache before even one native acceptance call, and
+    // return a handled FALSE value rather than an unhandled service failure.
+    acceptanceCaches[1]=metadata;
+    Require(SaveAndExit(argument.data()));Require(acceptanceCalls==5 && Read<unsigned>(result.data())==2 && !Read<std::uint8_t>(result.data(),8));
+    acceptanceCaches[1]=secondMetadata.data();
+    state.selectionEnabled=false;acceptanceMode=1;
+    Require(SaveAndExit(argument.data()));acceptanceWorker.join();Require(acceptanceCalls==6);
+    Require(!state.householdAcceptance["verified"].get<bool>());
+    state.selectionEnabled=true;other.viewBound=otherView;
+    state.api.index=previousIndex;viewControllerTable[0x410/8]=previousCache;
+}
+
 int main() {
  try {
     std::array<char,16> shortText{};std::memcpy(shortText.data(),"APEXUI1|READ|7",14);shortText[15]=1;
@@ -646,6 +720,7 @@ int main() {
     Free(Read<void*>(secondGroup.data(),0x4c0),0x830);
     Require(controllerCalls==0); // No converter/controller transaction was called.
     Write(argument.data(),8,0x1fffffffu);Require(!SetOccultService(arguments.data())); // No token replay.
+    ExerciseHouseholdAcceptance(controller.data(),metadata.data());
     Free(independentChild,0x830);Write(group.data(),0x4c0,static_cast<void*>(nullptr));
     Json retire={{"operation","retire-committed-session"},{"scope_id",scope.id},{"members",Json::array()}};
     for(const auto& row:runtime.scope.members)

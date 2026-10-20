@@ -142,7 +142,23 @@
   },
   "v212": {
     "bundle_sha256": "cc26fe351e426e936c82c3c1dee8700afdc26d62dfa37142ada9f7fffa98d244",
+    "cas_return_guard_retention": {
+      "all40_native_fields_retained": true,
+      "direct_native_isolation": false,
+      "final_paused": true,
+      "named_looks_retained": 155,
+      "ok": true,
+      "retained_proof": ".work/v212-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "b85badb3ac4482361d1a20d6e5d698b8177d05f9e0950fc043acaf9d5ef9a4dd"
+    },
     "cas_return_live_save_tray_acceptance": false,
+    "ci": {
+      "both_success": true,
+      "commit": "2866ec6c02c3f8ece3248addf0009b974e1df87a",
+      "native_run": 39486181517,
+      "regression_run": 39486175276
+    },
     "complete_human_initialization": {
       "members": 5,
       "native_appearances_changed": false,
@@ -150,7 +166,31 @@
       "proof": "v212-complete-human-werewolf-initialization.json",
       "sha256": "d6f11a695c98b079229132f11c2c70dbbe74a3c8f21f6c22ea592965bdec71c4"
     },
-    "five_member_cas_matrix": "in progress; not yet claimed",
+    "direct_cas_exit_native_isolation": false,
+    "five_member_cas_matrix": {
+      "actor_evidence": "In-process native callbacks and model readbacks; external memory access denied.",
+      "appearance_edits_submitted": false,
+      "appearance_records_compared": 195,
+      "changed_records": 0,
+      "members": 5,
+      "ok": true,
+      "proof": {
+        "complete_retention": {
+          "retained_proof": ".work/native-cas-v212-animation-all195-retention.json",
+          "sha256": "cfd3de0391909e67dec19d3d24dd77b8b0be5d09471b741a2479d94c40bff236"
+        },
+        "human_body_capture": {
+          "retained_proof": ".work/v212-complete-human-body-actual.bmp",
+          "sha256": "1c5ddd321eed3ab19f44d97814f59fdef2dafd8f1b97a36baf12b370791ab047"
+        },
+        "switches": {
+          "retained_proof": ".work/v212-complete-human-fairy-switches-r2.json",
+          "sha256": "6807d24e54c4070145011bd838bea79f4f00f95e9244c5da8ac6f507ba71aba1"
+        }
+      },
+      "save_files_unchanged": true,
+      "visits": 30
+    },
     "hidden_backup_cli_selection": "Rejected before native staging using the exact fresh visible form catalog",
     "pid_reuse_recovery": {
       "in_game_five_member_load": {
@@ -175,5 +215,113 @@
       "tests": 2676
     },
     "script_sha256": "4bd6a100167be632c3aeae24a5a4037c83348f56e52c06e51ebbd170f8f4f22e"
+  },
+  "v214": {
+    "bundle_sha256": "cba637b697b3333f5644c6c52ac1b9b5741f5f4fe18e4f4f9008f460850a13b0",
+    "canonical_hash_compatibility_checks": 4,
+    "direct_cas_exit_fix_qualified": false,
+    "new_loader_checks": 10,
+    "offline_digest_benchmark": {
+      "retained_proof": ".work/v213-python37-digest-benchmark.json",
+      "scope": "Read-only Python 3.7 canonical hashing; not end-to-end game latency",
+      "sha256": "605f321ae40c124ac6a5c608743c69031d2e9dc5041b085fcc30436493965441"
+    },
+    "regression": {
+      "passed": 2690,
+      "retained_proof": ".work/v214-full-regression-r2.log",
+      "sha256": "884baa3706dabd0961f0f9e26e928f5ad5e584f24714a0394400f671b2fcfe65"
+    },
+    "runtime": {
+      "direct_isolation": false,
+      "guard_restored_all40_native": true,
+      "named_looks_retained": 155,
+      "retained_proof": ".work/v214-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "2cc9e92fcaf7883bec495972e20f7b69f9ef25823df6f66e1748869e48302d27",
+      "unselected_members_changed": 3
+    },
+    "script_sha256": "16eb8ae31790bf5c0874557af86b6459b8826ba4505e6595cd24e35762d0dfb1",
+    "shutdown": {
+      "crash_category": "0x14117dba1",
+      "normal_exit_verified": false,
+      "process_closed": true,
+      "retained_proof": ".work/v214-normal-unsaved-exit-for-v215.json",
+      "save_files_unchanged": true,
+      "sha256": "1ab045b6dc63b5295fe300e1e669bec04cf7c54c1490a5cb3fadc70563c82a75"
+    }
+  },
+  "v215": {
+    "bundle_sha256": "810de2ff5e5437cad392fff08af70dc9f6113d9f24527095d964d96ecddb1c21",
+    "closure": {
+      "explicit_user_authorized_discard": true,
+      "normal_exit": false,
+      "retained_proof": ".work/v215-explicit-discard-closure.json",
+      "save_files_unchanged": true,
+      "sha256": "0c65f1adf1c3898a797a16d24330f2c538cbb7d1dc64019d63be3b23aee3c95f"
+    },
+    "cold_load": {
+      "all40_native_retained": true,
+      "retained_proof": ".work/native-cas-v215-second-member-category-saved-reload-all40.json",
+      "sha256": "43ef3ae8a70c925b88df0fc4bb063e3a9d99447586e6bb15f47046bcd6147dc2"
+    },
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "6eaa8b07af035f62bea52214062439d6aa92315aadcc4fd7270365107afd3407",
+    "loader_acceptance_checks": {
+      "passed": 15,
+      "retained_proof": ".work/v215-load-gate-tests-r2.log",
+      "sha256": "c9e98f93c6d87f3f4bf30e2f1ff291069177cf30c9cabece4b040cdd1091d883"
+    },
+    "native_checks": {
+      "passed": 12,
+      "retained_proof": ".work/v215-native-tests.log",
+      "sha256": "2b7c75bb20ad518a1898162700a5ccba767a69d3af1262d67b2c84e4ada05140"
+    },
+    "production_ready": false,
+    "regression": {
+      "passed": 2695,
+      "retained_proof": ".work/v215-full-regression.log",
+      "seconds": 1094.086,
+      "sha256": "34d03b1de8ed3cabe311c3e9ce843826c8e49c5831b9643b1a74326a7968564e"
+    },
+    "runtime": {
+      "acceptance_rejected": true,
+      "direct_isolation_qualified": false,
+      "reason": "Complete canonical cache verification differs in the constructed serialization context; native acceptance not attempted",
+      "retained_proof": ".work/v215-rejected-native-status.json",
+      "sha256": "225e5dc8f5708a999e901372e63b348ad4310a19eab3ee9297299b49e1abec2c"
+    },
+    "script_sha256": "7352bfa8cb8b4dcd79a773ad072423264d1902d6c92644a55b94bb6e613ab7a4"
+  },
+  "v216": {
+    "bundle_sha256": "7818739ce6878b6409cb641b548e2850ec76c0ed9f38edccdacff4369c93603b",
+    "change": "Verify the complete copied native data in an exact source Sim shell, retaining all serialized fields",
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "323fbb9154697a0ed5a3428d297ea38f2101225d250c31055415f302f1a2f453",
+    "full_python_regression": "V215 2695 passed; V216 changes native verification and the recovery epoch only",
+    "native_checks": {
+      "passed": 12,
+      "retained_proof": ".work/v216-native-tests-r3.log",
+      "sha256": "379b678867d581df912afa9b105738699b2d1277edd4e0ce80416d346ce03922"
+    },
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v216-candidate-build.log",
+      "sha256": "43f45bea51f6df0632e3b950c44322dac2492ece348b673d8e72a860d329c20f"
+    },
+    "production_ready": false,
+    "runtime": "in progress; not yet claimed",
+    "script_sha256": "903aaf39239052507974b8e8d09779fee43b02c5de79a370f759115cee57962b",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v216-seal-tests.log",
+      "sha256": "64ea471a21d9987b8996b9028b69de046d0594559e35fc7f5bec81c3a3df1dd7"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v216-upgrade-migration-tests.log",
+      "sha256": "73a9955343fe2b368dca066481d2394864d1ccb9960282224e7a9211ee08195a"
+    }
   }
 }

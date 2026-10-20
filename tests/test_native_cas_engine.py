@@ -105,9 +105,10 @@ class NativeEngineTests(unittest.TestCase):
     def test_entry_supplies_complete_source_bytes_before_native_activation_without_disk_exports(self):
         import base64, hashlib
         from apex_core import overlay_loader, sim_data, form_appearance, lifestate_forms,cas_owner_payload,cas_bank_transaction
-        sims=[Obj(id=123,forms={1:Obj(id=1),2:Obj(id=2)}),Obj(id=456,forms={1:Obj(id=3),2:Obj(id=4)})]
+        sims=[Obj(id=123,household_id=99,forms={1:Obj(id=1),2:Obj(id=2)}),Obj(id=456,household_id=99,forms={1:Obj(id=3),2:Obj(id=4)})]
         backend=Obj(__file__='matching-script',_form_map=lambda sim:sim.forms,_get_current_flags=lambda sim:2,
-            services=Obj(active_household=lambda:Obj(sim_info_gen=lambda:iter(sims))))
+            services=Obj(active_household=lambda:Obj(id=99,sim_info_gen=lambda:iter(sims)),
+                get_persistence_service=lambda:Obj(get_save_slot_proto_guid=lambda:77)))
         for sim in sims:sim.occult_tracker=sim
         status=dict(ok=True,armed=True,scope_id='a'*32,members=[dict(sim_id=str(s.id),owned_mask=3,imported_mask=0,kinds=[]) for s in sims])
         calls=[]

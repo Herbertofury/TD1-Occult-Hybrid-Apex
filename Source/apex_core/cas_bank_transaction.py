@@ -251,9 +251,11 @@ def _context(backend, sim, fresh=True):
 
 
 def _record_guard(record):
-    value = copy.deepcopy(record)
-    value.pop('pending', None)
-    value.pop('cas_transaction', None)
+    # This is a pure hash of a receiver-owned JSON document. Do not first clone
+    # megabytes of pending/journal data which the guard deliberately excludes.
+    # No nested object is changed, and every unrelated field remains included.
+    value = {key: row for key, row in record.items()
+             if key not in ('pending', 'cas_transaction')}
     return primitive.digest(value)
 
 

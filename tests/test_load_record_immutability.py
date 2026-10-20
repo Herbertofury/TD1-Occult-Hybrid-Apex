@@ -29,7 +29,7 @@ class LoadRecordImmutabilityTests(unittest.TestCase):
         self.data = Obj(occult_types=3, current_occult_types=2, pending_occult_type=None,
                         occult_form_available=True, occult_sim_infos=[self.incoming])
         self.sim = Obj(occult_types=3, current_occult_types=2, _base=Obj(raw=b'distinct active genetics'))
-        self.form = Obj(load_outfits=Mock())
+        self.form = Obj(_base=Obj(raw=b'independent stored native base'), load_outfits=Mock())
         self.tracker = Obj(sim_info=self.sim, _sim_info=self.sim, _sim_info_map={1: Obj(), 2: self.form, 4: Obj()},
             OCCULT_DATA={2: Obj()}, _generate_sim_info=Mock(return_value=self.form), has_occult_type=lambda kind: True)
         self.cache = Obj(OccultDataCache=Obj(process_custom_occults=lambda: None))
@@ -55,6 +55,7 @@ class LoadRecordImmutabilityTests(unittest.TestCase):
         self.assertIsNot(source, self.destinations[0])
         self.assertEqual(self.destinations[0].raw, b'distinct active genetics')
         self.assertEqual(self.sim._base.raw, b'distinct active genetics')
+        self.assertEqual(self.form._base.raw, b'independent stored native base')
         self.assertTrue(self.tracker._apex_native_load_pending)
 
     def test_native_exception_does_not_publish_a_mutated_load_authority(self):

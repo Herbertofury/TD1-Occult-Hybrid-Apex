@@ -7,6 +7,82 @@ and named implementation records as separate form choices.
 
 ## Current evidence: 2026-10-20
 
+V215's full regression passes 2,695 tests. Its cold Live pass retains all forty
+native appearances, but actual CAS acceptance is rejected by the new complete
+cache-copy check. It never reaches the original native acceptance service or
+the Live comparison; do not record this as a successful direct fix. The owner
+authorized discarding test edits and reloading. The exact disposable process
+was ended, and all twenty save/backup files remained unchanged.
+
+V216 corrects the verification context: the complete native serializer includes
+the Sim shell as well as AppearanceData. Its witness now copies the exact source
+shell before assigning the cache's copied data. No serialized field is excluded
+from the comparison. A native regression includes differing shell metadata,
+and twelve native targets pass. Twenty-six seal and twenty-six upgrade checks
+pass; seven packages, 105 Python 3.7 modules and 208 independently Rust-validated
+resources build. Actual household acceptance is still being qualified.
+
+V214's untouched-member acceptance test fails direct isolation: members two,
+three and four return changed Human genetics and/or active outfits/paint.
+The final-graph loader refuses their mismatched incoming cores. The separate
+no-edit disposition restores all forty native appearances and retains all 155
+named looks after simulation advances, with every save unchanged. This extends
+the open regression to members never selected in the editor. Do not weaken
+the core comparison or classify these changes as user edits. V214's corrected
+full fixture run passes 2,690 tests; that does not override the runtime failure.
+
+The subsequent unsaved exit produces crash category `0x14117dba1`. The process
+is closed and all disposable save/backup files are unchanged. The report is
+retained, and the installer stops rather than labeling this a normal exit.
+Shutdown stability is a release gate alongside form persistence.
+
+V215 adds a pinned native SaveAndExitCAS adapter that synchronizes the selected
+model and settles every materialized household member's canonical cache without
+selecting other members. Complete serialized readbacks precede the original
+service call. The native graph mutex is released around EA's handler. The GFx
+Boolean result, not its separate handled return value, qualifies acceptance;
+the native CancelCAS handler invalidates it. Fresh accepted generations gate
+the loader, so Cancel cannot accept paint-only edits. Twelve native targets
+and fifteen loader/acceptance checks pass. The actual acceptance failure above
+keeps these fixes unqualified despite the full regression pass.
+
+V214 implements a load-time schema completion for native CAS: the current
+unfinished session's final native owner graph can supply pelt/custom-texture
+fields omitted from OccultSimInfo. The save GUID, household, Sim, session and
+logical owner must agree; every incoming core field is compared before a
+detached record receives extras. Unknown native fields remain intact. Ordinary
+loads do not query the graph. Stale/foreign sessions, changed cores, missing
+owners and occupied extension fields refuse the entire projection. Decoding
+these two fields during native form creation is separate from the always-on
+preservation guard. Ten new loader checks pass; actual CAS-exit qualification
+is running in the single disposable profile and is not yet claimed.
+
+The same candidate accelerates canonical transaction hashing while preserving
+the existing complete SHA-256 identities. Four compatibility checks cover
+Unicode, uint64, floats, unknown fields, invalid/cyclic input and the Python
+encoder fallback. An offline read-only Python 3.7 benchmark on the roughly
+24 MB test bank measures the old encoder at 0.71–0.73 seconds and the accelerated
+path at 0.10–0.11 seconds, with identical hashes. This is not an in-game commit
+latency measurement. V212's real review operations still held the game thread
+for 20–61 seconds; end-to-end responsiveness remains a release gate.
+
+V212's five-member CAS matrix now passes all thirty visits: each member selects
+the complete Human/CC Werewolf appearance, beast, Fairy, beast, Fairy and its
+original owner. In-process native callbacks and model readbacks agree on the
+selected rendering genus; the Werewolf animation flag is set only for the beast.
+A reviewed game capture shows a full Human head and body. A subsequent export
+compares every field of all 195 captured records against the pre-entry reference;
+none changed, and all save files remain unchanged. Those are internal records,
+not 195 player-facing choices or proof of edits, copying or save/Tray retention.
+
+The subsequent CAS exit reproduces the unresolved direct-isolation failure:
+the Werewolf and Fairy members' Human paint changes. The separate no-edit
+household disposition and guard restore all forty native appearances and
+retain all 155 named looks after simulation advances; every save file remains
+unchanged and Live ends paused. This is a guard pass, not a direct-fix pass. Both V212 CI
+workflows pass. These scoped passes do not make the candidate an actual-save
+release or complete the selective EA checkbox-panel requirement.
+
 V212 passes all 2,676 local regression tests. It adds two recovery/CLI
 corrections found during actual household QA. A
 hidden canonical preimage can share the rendering genus of a Sim's visible

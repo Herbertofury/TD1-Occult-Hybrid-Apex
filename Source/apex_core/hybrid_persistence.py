@@ -950,6 +950,78 @@ def save_with_retention(original, tracker, occult_utils, *args, **kwargs):
             # independent appearance rollback failure is retained on the owner.
 
 
+def _cas_load_records(tracker, records):
+    """Complete native CAS's schema at the loader, using final owned records.
+
+    OccultSimInfo omits pelt/texture fields. CAS has the final independent
+    values; a pre-entry bank or an indexed earlier save cannot supply edits.
+    Match every incoming core field before attaching the missing fields to
+    detached records. Refusal leaves all native input and every record intact.
+    """
+    from . import native_cas_engine, occult_appearance_extension as extension, form_appearance as appearance
+    backend = _appearance_backend()
+    if backend is None:
+        return records
+    try:
+        returned = native_cas_engine.load_owners(backend, tracker.sim_info)
+        if returned is None:
+            return records
+        logical = returned['logical_owner_ids']
+        owners = {row['owner_id']: row for row in returned['owners']}
+        if len(owners) != len(returned['owners']) or set(logical) != {str(key) for key in records}:
+            raise ValueError('CAS load record roster differs from its exact final form graph.')
+        prepared = {}
+        for key, record in records.items():
+            row = owners[logical[str(key)]]
+            if row['native_kind'] != key or int(record.occult_type) != key:
+                raise ValueError('CAS load form genus differs from its logical owner.')
+            fields = row['fields']
+            expected = _record_payload(record, fields)
+            actual = {name: fields[name] for name in expected}
+            if 'genetic_data' in actual:
+                raw = appearance.decode(actual['genetic_data'])
+                if isinstance(raw, tuple) and raw[0] == 'protobuf':
+                    raw = raw[1]
+                if not isinstance(raw, bytes) or len(raw) > 8*1024*1024:
+                    raise ValueError('CAS load genetics lacks bounded complete protobuf bytes.')
+                parsed = type(record.genetic_data)()
+                parsed.ParseFromString(raw)
+                canonical = parsed.SerializeToString()
+                actual['genetic_data'] = appearance.encode(canonical if actual['genetic_data']['kind'] == 'bytes'
+                                                         else ('protobuf', canonical))
+            if appearance.fingerprint(actual) != appearance.fingerprint(expected):
+                raise ValueError('CAS load core differs from its final independent owner: '+str(key))
+            if not extension.EXTRA_FIELDS <= set(fields):
+                raise ValueError('Final CAS owner omits a required paint/texture getter.')
+            clone = type(record)(); clone.CopyFrom(record)
+            extension.write(clone, {name: fields[name] for name in extension.EXTRA_FIELDS})
+            prepared[key] = clone
+        tracker._apex_native_cas_load_extras = dict(verified=True,
+            scope_id=returned['identity']['scope_id'], generation=returned['identity']['generation'],
+            stored_owners=sorted(prepared), source='final-native-cas-owner-graph',
+            bank_read=False, indexed_save_read=False, original_records_written=False)
+        return prepared
+    except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as error:
+        tracker._apex_native_cas_load_extras = dict(verified=False, error=str(error)[:2048],
+            original_records_written=False, bank_read=False)
+        return records
+
+
+def _load_record_extras(tracker, owner, record):
+    """Decode typed omitted fields during load, before gameplay can see them."""
+    from . import occult_appearance_extension as extension, form_appearance as appearance
+    try:
+        extra = extension.read(record)
+        values = {name: appearance.decode(value) for name, value in extra.items()}
+        for name, value in values.items():
+            setattr(owner, name, value)
+        if any(getattr(owner, name) != value for name, value in values.items()):
+            raise ValueError('Native load paint/texture decoder failed its exact readback.')
+    except (ValueError, TypeError, AttributeError, RuntimeError) as error:
+        tracker._apex_native_load_extension_failure = dict(form_flags=int(record.occult_type),
+            error=str(error)[:2048], extension_applied=False)
+
+
 def load_with_retention(original, tracker, data, occult_cache, occult_utils, occult_enum, base_wrapper):
     from .native_pelt_copy import install as install_pelt_copy
     tracker._apex_native_pelt_patch = install_pelt_copy(type(tracker))
@@ -969,6 +1041,7 @@ def load_with_retention(original, tracker, data, occult_cache, occult_utils, occ
         if key not in known:
             unresolved.append(clone)
     tracker._apex_unresolved_occult_records = tuple(unresolved)
+    records = _cas_load_records(tracker, records)
     tracker._sim_info.occult_types = data.occult_types or occult_enum.HUMAN
     tracker._sim_info.current_occult_types = data.current_occult_types or occult_enum.HUMAN
     tracker._pending_occult_type = data.pending_occult_type
@@ -991,11 +1064,16 @@ def load_with_retention(original, tracker, data, occult_cache, occult_utils, occ
             else:
                 form.load_outfits(item.outfits)
                 base_wrapper.copy_physical_attributes(form._base, item)
+            _load_record_extras(tracker, form._base, item)
         if kind != occult_enum.HUMAN and tracker.has_occult_type(kind) and kind == tracker._sim_info.current_occult_types:
             tracker._generate_sim_info(kind, generate_new=False)
     result = original(tracker, data)
     tracker._sim_info.occult_types = int(tracker._sim_info.occult_types) | (int(data.occult_types) & ~_known_mask(tracker))
     _load_witch(tracker, records.get(_WITCH), base_wrapper, sim_before, map_before, tuning_before)
+    for key, record in records.items():
+        owner = getattr(tracker, '_sim_info_map', {}).get(key)
+        if owner is not None and key in known:
+            _load_record_extras(tracker, getattr(owner, '_base', owner), record)
     if install_transition_guard(tracker) and isinstance(tracker._sim_info_map, dict) and len(tracker._sim_info_map) >= 3:
         _remember_load_owners(tracker, records)
         tracker._apex_native_load_pending = True

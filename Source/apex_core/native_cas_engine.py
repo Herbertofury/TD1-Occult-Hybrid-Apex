@@ -346,6 +346,12 @@ def seed_members(backend):
     members = {str(sim.id): sim for sim in household.sim_info_gen()}
     if not set(row['sim_id'] for row in status['members']) <= set(members):
         raise ValueError('Native form scope does not belong to the current household.')
+    load_identity = dict(household_id=str(household.id),
+        save_guid=str(backend.services.get_persistence_service().get_save_slot_proto_guid()))
+    if (not all(_identity(value) for value in load_identity.values()) or
+            any(str(members[row['sim_id']].household_id) != load_identity['household_id']
+                for row in status['members'])):
+        raise ValueError('Native CAS load scope requires the exact household and save identity.')
     receipts = [];layouts={}; expected={};epochs={}
     import base64
     for row in status['members']:
@@ -420,6 +426,7 @@ def seed_members(backend):
         raise ValueError('Complete native owner selection did not activate.')
     verification = _verify_imported_owners(call,result,expected)
     _LAYOUT_SCOPE=dict(pid=os.getpid(),scope_id=status['scope_id'],owners=layouts,epochs=epochs,
+        load_identity=load_identity,
         logical_owners={row['sim_id']:dict(logical_owner_ids=row['logical_owner_ids'],human_owner_id=row['human_owner_id'])
                         for row in result['members']})
     return dict(enabled=True, scope_id=status['scope_id'], members=receipts, existing_appearances_unchanged=True,
@@ -432,6 +439,54 @@ def owns_return(sim_id,epoch):
     if scope['pid']!=os.getpid() or scope.get('epochs',{}).get(sim_id)!=epoch:
         raise ValueError('Native CAS return belongs to a different process or member checkpoint.')
     return True
+
+
+def load_owners(backend, sim):
+    """Fresh final CAS owners for the native loader's omitted paint fields.
+
+    This capability exists only for the currently captured native session.
+    Ordinary loads, other households and another save never consult a prior
+    bank or an appearance snapshot. The caller must also match the incoming
+    record's complete core before using any extra field.
+    """
+    scope = _LAYOUT_SCOPE
+    sid = str(getattr(sim, 'id', ''))
+    if scope is None or sid not in scope.get('epochs', {}):
+        return None
+    identity = scope.get('load_identity')
+    if (scope.get('pid') != os.getpid() or not isinstance(identity, dict) or
+            str(getattr(sim, 'household_id', '')) != identity.get('household_id') or
+            str(backend.services.get_persistence_service().get_save_slot_proto_guid()) != identity.get('save_guid') or
+            sid in scope.get('completions', {}) or scope.get('retirement_attempted')):
+        raise ValueError('CAS load extras lack their exact unfinished household/save capability.')
+    generation = _accepted_load_generation(backend, scope, sid)
+    if generation is None:
+        return None  # Cancel/ordinary reload is never an acceptance of CAS paint edits.
+    result = returned_owners(backend, sim, scope['epochs'][sid])
+    if result is None or _LAYOUT_SCOPE is not scope:
+        raise ValueError('CAS load owner capability changed during its readback.')
+    if result['identity']['generation'] != generation:
+        raise ValueError('CAS load graph changed after the exact native acceptance.')
+    return result
+
+
+def _accepted_load_generation(backend, scope, sid):
+    from . import overlay_loader
+    import paths
+    value = overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, dict(operation='status'))
+    if (value.get('ok') is not True or value.get('pid') != scope['pid'] or
+            value.get('scope_id') != scope['scope_id']):
+        raise ValueError('CAS load acceptance belongs to another native scope.')
+    proof = value.get('household_acceptance')
+    if not isinstance(proof, dict) or proof.get('verified') is not True:
+        return None
+    generations = proof.get('generations')
+    if (value.get('selection_enabled') is not True or proof.get('scope_id') != scope['scope_id'] or
+            proof.get('native_accepted') is not True or
+            not isinstance(generations, dict) or set(generations) != set(scope['epochs']) or
+            any(type(n) is not int or not 0 < n < 2**64 for n in generations.values())):
+        raise ValueError('CAS load lacks its complete native accepted generations.')
+    return generations[sid]
 
 
 def complete_return(backend,sim,transaction):

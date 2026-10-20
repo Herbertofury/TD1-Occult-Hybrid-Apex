@@ -38,6 +38,7 @@ using NormalizeFn=std::uint32_t(*)(void*,bool);
 using AssignDataFn=void(*)(void*,const void*);
 using ServiceFn=bool(*)(const void*);
 using StringValueFn=void(*)(void*,const char*);
+using BoolValueFn=void(*)(void*,bool);
 using AvatarFn=void*(*)();
 using RefreshFn=void(*)(void*);
 using RebindFn=void(*)(void*,const void*,std::uint32_t);
@@ -74,7 +75,8 @@ struct Api {
     ProtoConstructFn protoConstruct=nullptr;DestroyFn protoDestroy=nullptr;ProtoParseFn protoParse=nullptr;
     AlternateFn alternate=nullptr;
     NormalizeFn normalize=nullptr;AssignDataFn assignData=nullptr;MetaFn copySim=nullptr;
-    ServiceFn service=nullptr,getOccultService=nullptr;StringValueFn stringValue=nullptr;
+    ServiceFn service=nullptr,getOccultService=nullptr,saveAndExit=nullptr,cancelCas=nullptr;
+    StringValueFn stringValue=nullptr;BoolValueFn boolValue=nullptr;
     HistoryFn controller=nullptr;AvatarFn avatar=nullptr;
     RebindFn rebind=nullptr;SyncFn sync=nullptr;BindFn bind=nullptr;
     ModelBindFn modelBind=nullptr;CoreBindFn coreBind=nullptr;ContextFn context=nullptr;IndexFn index=nullptr;LayerFn layer=nullptr;
@@ -126,6 +128,14 @@ struct NativeOwner {
 #else
         value=_aligned_malloc(0x830,16);if(!value) throw std::bad_alloc();
         api.construct(value,id);
+#endif
+    }
+    NativeOwner(const Api& api,const NativeOwner& source):destroy(api.destroy) {
+#ifdef APEX_CAS_OWNER_MEMORY_DIAGNOSTICS
+        value=memory.get();api.copySim(value,source.value);memory.Validate();
+#else
+        value=_aligned_malloc(0x830,16);if(!value) throw std::bad_alloc();
+        api.copySim(value,source.value);
 #endif
     }
     NativeOwner(const NativeOwner&)=delete;NativeOwner& operator=(const NativeOwner&)=delete;
@@ -195,6 +205,7 @@ struct Imported {
     std::map<std::uint32_t,std::string> logicalOwners;
     std::map<std::string,std::unique_ptr<NativeUndo>> undoOwners;
     bool initialImport=true,viewBound=false,viewFault=false,activeSourceSeeded=false;void* boundGroup=nullptr;void* boundContext=nullptr;std::string entryOwner=NativeOwnerId(1),partner=NativeOwnerId(2),humanOwner=NativeOwnerId(1);std::map<std::string,std::uint32_t> uiTokens;
+    std::uint64_t importedEntity=0;bool editorImported=false;
     std::uint32_t mask=0,preferred=0,canonicalSourceMask=0;unsigned imports=0,switches=0,skippedPackets=0;bool seeded=false;std::string error;
 };
 struct ViewIntent {
@@ -216,6 +227,9 @@ struct State {
     unsigned kindBiasPrevented=0,importOutfitFillsPrevented=0,sessionsRetired=0;
     unsigned animationMembershipScopes=0,animationConstructionScopes=0;
     ui::Json lastAnimationScope=nullptr;
+    bool acceptingHousehold=false;
+    std::uint64_t cancelSerial=0;
+    ui::Json householdAcceptance={{"verified",false},{"native_accepted",false}};
     void* kindRelay=nullptr;std::int32_t originalKindCall=0,patchedKindCall=0;bool kindCallPatched=false,kindRelayReady=false;
     std::uintptr_t image=0;bool installed=false,armed=false,selectionEnabled=false;unsigned intercepted=0,converted=0,alternateOverrides=0,normalizationsPrevented=0,initialOwnersImported=0,serviceSelections=0,rebindCorrections=0,blockedConversions=0;
 };
@@ -554,6 +568,136 @@ inline void Sync(void* controller) {
     }
 }
 
+inline bool SaveAndExit(const void* argument) {
+    auto& state=Runtime();std::string scope;unsigned session=0;std::uint64_t cancel=0;
+    ui::Json generations=ui::Json::object();std::size_t caches=0;
+    {
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);
+        const auto controller=(state.armed && state.selectionEnabled && state.image)?
+            Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00)):nullptr;
+        const auto group=controller?Read<void*>(controller,0x100):nullptr;
+        const auto id=group?Read<std::uint64_t>(group,0xb8):0;
+        if(state.armed && state.selectionEnabled && state.scope.members.count(id)) {
+            if(state.acceptingHousehold) {
+                state.api.boolValue(Read<void*>(argument,0x10),false);return true;
+            }
+            state.householdAcceptance={{"verified",false},{"native_accepted",false}};
+            try {
+                auto& selectedBank=state.bank.at(id);
+                if(binding || !selectedBank.viewBound || selectedBank.viewFault ||
+                   state.boundSim!=id || state.boundController!=controller || selectedBank.boundGroup!=group)
+                    throw std::runtime_error("CAS acceptance lacks its exact settled selected model.");
+                Sync(controller);
+                if(selectedBank.viewFault)throw std::runtime_error("CAS acceptance could not retain the current edit.");
+                using CacheFn=void*(*)(void*,std::uint64_t);
+                const auto getCache=Read<CacheFn>(Read<void*>(controller),0x410);
+                struct Target {std::uint64_t sim;void* metadata;Imported* bank;};
+                std::vector<Target> targets;std::set<int> indices;std::set<void*> metadataOwners;
+                for(const auto& member:state.scope.members) {
+                    auto& bank=state.bank.at(member.first);
+                    if(!bank.seeded || !bank.graph || bank.graph->cursor().sim!=member.first ||
+                       bank.graph->mask()!=member.second.mask || bank.viewFault)
+                        throw std::runtime_error("CAS acceptance lacks a complete captured household member.");
+                    generations[std::to_string(member.first)]=bank.graph->cursor().generation;
+                    // A single-member editor can leave captured companions
+                    // unmaterialized. Never manufacture or select their UI.
+                    if(!bank.editorImported)continue;
+                    if(!bank.importedEntity)throw std::runtime_error("Imported CAS entity identity remains unavailable.");
+                    const auto index=state.api.index(controller,bank.importedEntity);
+                    if(index<0 || index>7 || !indices.insert(index).second)
+                        throw std::runtime_error("Imported CAS household entity is stale or duplicated.");
+                    auto* metadata=getCache(controller,bank.importedEntity);
+                    if(!metadata && bank.mask==1)continue;
+                    if(!metadata || !metadataOwners.insert(metadata).second)
+                        throw std::runtime_error("CAS household appearance caches are absent or aliased.");
+                    targets.push_back({member.first,metadata,&bank});
+                }
+                if(!selectedBank.importedEntity)throw std::runtime_error("Selected CAS entity lacks its original import identity.");
+                // The normal current-view Sync covers only one Sim. Settle
+                // every materialized member's canonical cache without moving
+                // selection, constructing outfits or changing another graph.
+                for(const auto& target:targets) {
+                    auto& bank=*target.bank;
+                    for(const auto& owner:bank.owners) {
+                        const auto& source=bank.graph->appearance(bank.logicalOwners.at(owner.first));
+                        state.api.store(target.metadata,owner.first,source->data());
+                        const auto copied=state.api.lookup(target.metadata,owner.first);
+                        if(!copied)throw std::runtime_error("Canonical CAS acceptance cache lost a form.");
+                        // Compare the copied AppearanceData in the same full
+                        // serialization context. A model-sync scratch has a
+                        // different constructed Sim shell; its unrelated root
+                        // metadata cannot prove a cache copy lost a field.
+                        // Retain every source byte outside AppearanceData and
+                        // replace only that data through the inspected API.
+                        NativeOwner witness(state.api,*source);
+                        state.api.assignData(const_cast<void*>(witness.data()),copied);
+                        const auto expected=SerializeOwner(state.api,*source,target.sim);
+                        const auto actual=SerializeOwner(state.api,witness,target.sim);
+                        if(actual!=expected) {
+                            state.householdAcceptance={{"cache_failure",{{"sim_id",std::to_string(target.sim)},
+                                {"native_kind",owner.first},{"expected_sha256",resource::HashBytes(expected)},
+                                {"actual_sha256",resource::HashBytes(actual)},
+                                {"expected_bytes",expected.size()},{"actual_bytes",actual.size()}}}};
+                            throw std::runtime_error("Canonical CAS acceptance cache changed an appearance field.");
+                        }
+                    }
+                    ++bank.canonicalWrites;++caches;
+                }
+                scope=state.scope.id;session=state.sessionsRetired;cancel=state.cancelSerial;
+                state.acceptingHousehold=true;
+                state.householdAcceptance={{"verified",false},{"native_accepted",false},
+                    {"scope_id",scope},{"generations",generations},{"canonical_caches",caches}};
+            } catch(const std::exception& error) {
+                const auto diagnostic=state.householdAcceptance.value("cache_failure",ui::Json(nullptr));
+                state.householdAcceptance={{"verified",false},{"native_accepted",false},
+                    {"scope_id",state.scope.id},{"message",error.what()},{"cache_failure",diagnostic}};
+                state.api.boolValue(Read<void*>(argument,0x10),false);
+                return true; // Handled, with an explicit false GFx result. No native acceptance attempted.
+            }
+        } else {
+            state.householdAcceptance={{"verified",false},{"native_accepted",false}};
+        }
+    }
+    // EA may dispatch messages/Source work during transition. Never retain the
+    // native graph mutex while calling the real service.
+    bool handled=false,accepted=false;
+    try {handled=state.api.saveAndExit(argument);}
+    catch(...) {
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);state.acceptingHousehold=false;
+        state.householdAcceptance={{"verified",false},{"native_accepted",false},{"message","Native acceptance raised; not replayed."}};
+        throw;
+    }
+    // The callback returns "handled", even when its actual GFx result is
+    // false. Read the same Boolean value the CAS room receives.
+    try {
+        const auto result=Read<const void*>(argument,0x10);
+        accepted=handled && Read<std::uint32_t>(result)==2 && Read<std::uint8_t>(result,8)==1;
+    } catch(const std::exception&) {accepted=false;}
+    if(!scope.empty()) {
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);state.acceptingHousehold=false;
+        bool same=state.selectionEnabled && state.scope.id==scope && state.sessionsRetired==session &&
+                  state.cancelSerial==cancel && cancel!=UINT64_MAX &&
+                  state.bank.size()==generations.size();
+        for(const auto& row:state.bank)
+            same=same && row.second.graph && generations.contains(std::to_string(row.first)) &&
+                 generations.at(std::to_string(row.first))==row.second.graph->cursor().generation;
+        state.householdAcceptance={{"verified",accepted&&same},{"native_accepted",accepted},
+            {"scope_id",scope},{"generations",generations},{"canonical_caches",caches},
+            {"other_sim_graphs_written",false},{"member_selection_submitted",false}};
+    }
+    return handled;
+}
+
+inline bool CancelCas(const void* argument) {
+    auto& state=Runtime();
+    {
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);
+        if(state.cancelSerial!=UINT64_MAX)++state.cancelSerial;
+        state.householdAcceptance={{"verified",false},{"native_accepted",false},{"cancelled",true}};
+    }
+    return state.api.cancelCas(argument);
+}
+
 inline void BindSelected(void* controller,bool notify) {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
     if(!binding || binding->controller!=controller) {
@@ -580,7 +724,8 @@ inline void BindSelected(void* controller,bool notify) {
             }
             state.api.assignData(static_cast<char*>(group)+0xd0,bank.graph->appearance(bank.entryOwner)->data());
             state.api.assignData(static_cast<char*>(child)+0xd0,bank.graph->appearance(bank.partner)->data());
-            bank.boundGroup=group;std::memcpy(static_cast<char*>(controller)+0x242,&layer,1);
+            bank.boundGroup=group;bank.editorImported=true;bank.importedEntity=GroupId(group);
+            std::memcpy(static_cast<char*>(controller)+0x242,&layer,1);
             StoreCanonical(state,bank,controller);
             ViewBinding current{controller,&bank,owner};binding=&current;
             BindSelected(controller,notify);binding=previous;bank.viewBound=true;
@@ -815,6 +960,10 @@ inline void Import(void* output,const void* proto) {
         if(state.selectionEnabled && found!=state.bank.end() && found->second.seeded &&
            found->second.initialImport && found->second.active && found->second.mask) {
             auto& bank=found->second;
+            // Retain the game's entity key while the imported object is live.
+            // Later acceptance looks it up afresh; no raw group pointer is kept.
+            bank.editorImported=true;
+            try {bank.importedEntity=GroupId(output);} catch(const std::exception&) {bank.importedEntity=0;}
             // The Source producer supplies the actual active owner separately
             // from its seven stored forms. Apply it at native import, before
             // the client constructs CAS. Never replay it after CAS is ready.
@@ -1192,6 +1341,8 @@ inline ui::Json Status() {
             {"imported_mask",found==state.bank.end()?0:found->second.mask},{"kinds",kinds},{"imported_genus",genus},
             {"imports",found==state.bank.end()?0:found->second.imports},{"switches",found==state.bank.end()?0:found->second.switches},
             {"source_seeded",found!=state.bank.end() && found->second.seeded},
+            {"editor_materialized",found!=state.bank.end() && found->second.editorImported},
+            {"imported_entity_id",found==state.bank.end()?"0":std::to_string(found->second.importedEntity)},
             {"active_entry_captured",found!=state.bank.end() && found->second.active!=nullptr},
             {"active_entry_source_seeded",found!=state.bank.end() && found->second.activeSourceSeeded},
             {"canonical_source_seeded_mask",found==state.bank.end()?0u:found->second.canonicalSourceMask},
@@ -1225,6 +1376,7 @@ inline ui::Json Status() {
         {"ui_transport",pipeStatus},
         {"scope_id",state.scope.id},{"selection_enabled",state.selectionEnabled},{"members",rows},{"existing_owner_selections",state.intercepted},
         {"sessions_retired",state.sessionsRetired},
+        {"household_acceptance",state.householdAcceptance},
         {"native_converter_calls",state.converted},{"game_files_written",false},
         {"alternate_kind_overrides",state.alternateOverrides},
         {"normalizations_prevented",state.normalizationsPrevented},{"initial_active_owners_imported",state.initialOwnersImported},
@@ -1306,7 +1458,10 @@ inline void Install() {
         {0x45c070,"28bd4e82a8fb688e0addc2808f300afb4aa44068945992641826e703528b5424"},
         {0x44ba00,"e06169b5e5330e8cfe47b23d840e0545987eea134bfaeb82dafdc2dfeee5f431"},
         {0x44bbe0,"c2cf12e18d5385311fc573702461234512a6ddac9e77eeef0ccd1b08e0930f1d"},
-        {0x330a40,"acfc08b49e61ba88dc09feea22142fe9dae5368ecc0ca0ba53d209965c4a6e7c"}
+        {0x330a40,"acfc08b49e61ba88dc09feea22142fe9dae5368ecc0ca0ba53d209965c4a6e7c"},
+        {0x207400,"73257cf51e227b37aeb0470bbba68ebfc5c607563d1f48ba6aea33449df18b23"},
+        {0x205c10,"41f55c97889157b758f388a8fe0a140204045101808f060fc88d3472633b160b"},
+        {0xda67b0,"46cb06a9233b8fdc9258c2449b4d8fbd69c1e7a7c25bddf5dc9adb493e3d0126"}
     };
     for(const auto& pin:pins)
         if(resource::HashBytes(OwnImageRead(pinned.module,pin.rva,32))!=pin.hash)
@@ -1314,6 +1469,7 @@ inline void Install() {
     auto at=[&](std::uint32_t rva){return reinterpret_cast<void*>(state.image+rva);};
     state.api.fields=reinterpret_cast<FieldsFn>(at(0x325640));
     state.api.stringValue=reinterpret_cast<StringValueFn>(at(0xda6540));
+    state.api.boolValue=reinterpret_cast<BoolValueFn>(at(0xda67b0));
     state.api.construct=reinterpret_cast<ConstructFn>(at(0x321f00));
     state.api.destroy=reinterpret_cast<DestroyFn>(at(0x3221c0));
     state.api.available=reinterpret_cast<SetFn>(at(0x343ea0));state.api.current=reinterpret_cast<SetFn>(at(0x343f30));
@@ -1341,6 +1497,8 @@ inline void Install() {
         throw std::runtime_error("Native form hook registry is unavailable.");
     struct Hook {void* target;void* detour;void** original;};
     Hook hooks[]={
+        {at(0x207400),reinterpret_cast<void*>(&SaveAndExit),reinterpret_cast<void**>(&state.api.saveAndExit)},
+        {at(0x205c10),reinterpret_cast<void*>(&CancelCas),reinterpret_cast<void**>(&state.api.cancelCas)},
         {at(0x47dd40),reinterpret_cast<void*>(&AnimationGenus),reinterpret_cast<void**>(&state.api.animationGenus)},
         {at(0x330a40),reinterpret_cast<void*>(&OutfitHair),reinterpret_cast<void**>(&state.api.outfitHair)},
         {at(0x327640),reinterpret_cast<void*>(&Import),reinterpret_cast<void**>(&state.api.import)},
@@ -1455,6 +1613,7 @@ inline ui::Json Control(const ui::Json& request) {
         state.selectionEnabled=false;state.boundSim=0;state.boundController=nullptr;
         state.observedNative={{"available",false}};state.viewResult=nullptr;
         state.uiOwners.clear();state.viewTokens.clear();state.bank.clear();++state.sessionsRetired;
+        state.householdAcceptance={{"verified",false},{"native_accepted",false}};
         return Status();
     }
     if(request.is_object() && request.size()==5 && request.value("operation","")=="export-owner-page") {
@@ -1659,6 +1818,7 @@ inline ui::Json Control(const ui::Json& request) {
                !found->second.active || !found->second.activeSourceSeeded || found->second.canonicalSourceMask!=row.second.mask)
                 throw std::runtime_error("Every scoped Sim requires all stored and separate active native owners before selection.");
         }
+        state.householdAcceptance={{"verified",false},{"native_accepted",false}};
         state.selectionEnabled=true;return Status();
     }
     const auto scope=ParseScope(request);
@@ -1672,6 +1832,7 @@ inline ui::Json Control(const ui::Json& request) {
         }
         return Status();
     }
-    Install();state.scope=scope;state.armed=true;return Status();
+    Install();state.scope=scope;state.armed=true;
+    state.householdAcceptance={{"verified",false},{"native_accepted",false}};return Status();
 }
 }

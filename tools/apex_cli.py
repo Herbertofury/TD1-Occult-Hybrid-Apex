@@ -290,7 +290,7 @@ def parser():
     request.add_argument('--occult')
     request.add_argument('--value')
     life = commands.add_parser('lifestate', help='Named independent life-state appearances; game-thread CLI, no screen input')
-    life.add_argument('operation', choices=('catalog','list','capture','bind','select','revalidate','resume-draft'))
+    life.add_argument('operation', choices=('catalog','list','capture','bind','select','human-look','revalidate','resume-draft'))
     life.add_argument('--state', required=True, type=Path)
     life.add_argument('--sim-id', required=True)
     life.add_argument('--output', required=True, type=Path)
@@ -334,7 +334,7 @@ def parser():
     poll.add_argument('request_id')
     poll.add_argument('--seconds', type=float, default=30)
     game = commands.add_parser('game', help='Real in-game test controls; requires the marked disposable profile')
-    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown', 'exit', 'resume', 'load', 'map-select', 'map-play', 'live-observe', 'main-menu', 'native-human', 'growth-probe', 'native-cas-probe', 'native-cas-code', 'native-cas-engine'))
+    game.add_argument('operation', choices=('status', 'focus', 'capture', 'key', 'click', 'move', 'all-data', 'pause', 'play', 'speed2', 'speed3', 'create-sim', 'cas', 'outfit', 'save', 'snapshot', 'quit', 'shutdown', 'exit', 'resume', 'load', 'map-select', 'map-play', 'live-observe', 'main-menu', 'native-human', 'growth-probe', 'native-cas-probe', 'native-cas-code', 'native-cas-engine', 'profile'))
     game.add_argument('--state', required=True, type=Path)
     game.add_argument('--sim-id')
     game.add_argument('--value')
@@ -1189,7 +1189,8 @@ def execute(args):
             argument = {'command': 4 if args.background else 2 if args.operation == 'key' else 3 if args.operation == 'move' else 1, 'x': x, 'y': y,
                         'width': args.width, 'height': args.height}
             return receipt(owned_request(args.state, 'test_input', value=json.dumps({'test_token': data['token'], 'value': argument})))
-        value = json.dumps({'test_token': data['token'], 'value': args.value})
+        argument = json.loads(args.value or '{"operation":"status"}') if args.operation == 'profile' else args.value
+        value = json.dumps({'test_token': data['token'], 'value': argument})
         if args.operation == 'all-data':
             if not args.sim_id:
                 raise ValueError('An explicit Sim ID is required for complete data capture.')

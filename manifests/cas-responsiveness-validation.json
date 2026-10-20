@@ -1,0 +1,121 @@
+{
+  "interpretation": "Single cProfile samples; not unprofiled click-to-visible latency, p95, FPS, or a universal speed guarantee.",
+  "live_menu_checks_retained": true,
+  "measured_game": "1.128.90.1030",
+  "native_present_regression": {
+    "after": {
+      "native_targets_passed": 12,
+      "proof": "v209-present-lock-after-tests.log",
+      "sha256": "c79cfc590a08ce7585e2645ef8b05bda13ba8c12e6efeabdf668301b0bf942f0"
+    },
+    "before": {
+      "expected_result": "fails message-thread completion while Present holds render mutex",
+      "proof": "v209-present-lock-before-test.log",
+      "sha256": "2d250a4537d0a2713597528ee1278306dc1e81bf5a53a29de0541ad57097d22e"
+    },
+    "explanation": "Real DXGI Present, Present1 and ResizeBuffers run outside the overlay renderer mutex; production hook tests require another thread to enter WndProc before the simulated DXGI call returns."
+  },
+  "original_profile_written": false,
+  "production_ready": false,
+  "sample_count_per_build": 1,
+  "samples": [
+    {
+      "functions": {
+        "admission": {
+          "calls": 7,
+          "cumulative_ms": 76.3644,
+          "self_ms": 0.8767
+        },
+        "generate_choices": {
+          "calls": 1,
+          "cumulative_ms": 228.38899999999998,
+          "self_ms": 0.0537
+        },
+        "get_save_lock_tooltip": {
+          "calls": 7,
+          "cumulative_ms": 81.2866,
+          "self_ms": 4.9136
+        },
+        "is_valid_aop": {
+          "calls": 525,
+          "cumulative_ms": 183.57949999999997,
+          "self_ms": 2.0476
+        }
+      },
+      "game_thread_only": true,
+      "retained_proof": "v208-live-pie-profile.json",
+      "sha256": "b83acd664fac763b660782e0ebeec7aaee0a813063ea4724c81ead4211713d74",
+      "version": "v208"
+    },
+    {
+      "functions": {
+        "admission": {
+          "calls": 7,
+          "cumulative_ms": 76.5798,
+          "self_ms": 1.1418
+        },
+        "generate_choices": {
+          "calls": 1,
+          "cumulative_ms": 215.2072,
+          "self_ms": 0.059
+        },
+        "get_save_lock_tooltip": {
+          "calls": 7,
+          "cumulative_ms": 81.0307,
+          "self_ms": 4.443499999999999
+        },
+        "is_valid_aop": {
+          "calls": 525,
+          "cumulative_ms": 172.58859999999999,
+          "self_ms": 1.8316
+        }
+      },
+      "game_thread_only": true,
+      "retained_proof": "v209-live-pie-profile.json",
+      "sha256": "fece7b83c3ef4556e68d83e439aa2e2539505ab1870db53b2319cd022159a179",
+      "version": "v209"
+    },
+    {
+      "functions": {
+        "admission": {
+          "calls": 7,
+          "cumulative_ms": 8.724599999999999,
+          "self_ms": 0.1953
+        },
+        "generate_choices": {
+          "calls": 1,
+          "cumulative_ms": 134.1037,
+          "self_ms": 0.0542
+        },
+        "get_save_lock_tooltip": {
+          "calls": 7,
+          "cumulative_ms": 8.755799999999999,
+          "self_ms": 0.0248
+        },
+        "is_valid_aop": {
+          "calls": 525,
+          "cumulative_ms": 95.623,
+          "self_ms": 1.6685999999999999
+        }
+      },
+      "game_thread_only": true,
+      "retained_proof": "v210-live-pie-profile.json",
+      "sha256": "e1aacf80eab1d271c2a09dc0521da6001de2723474d75f5fea208dcc91626cc0",
+      "version": "v210"
+    }
+  ],
+  "save_files_unchanged": true,
+  "schema": 1,
+  "scope": "instrumented disposable Live pie-menu generation and scoped native input regression",
+  "v211": {
+    "actual_fairy_picker_and_human_werewolf_verification": "pending",
+    "bundle_sha256": "155d755a22a870262cbb39b98e0cf03aa4a9c9f972c2d0f77feba58e7ec8c6b8",
+    "compiled_ui_checks": 134,
+    "regression": {
+      "passed": true,
+      "proof": "v211-full-regression.log",
+      "sha256": "4d01b743be5c3f85933d92600b93dff21cad2f7da86b20713589024e2b3b6c68",
+      "tests": 2671
+    }
+  }
+}

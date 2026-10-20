@@ -602,12 +602,28 @@ int main() {
     const auto linkedGeneration=bank.graph->cursor().generation;
     Sync(controller.data()); // Status and a no-edit view refresh are not edits.
     Require(!bank.viewFault && bank.graph->cursor().generation==linkedGeneration);
+    const auto scratchCount=bank.scratchAllocations,cacheWrites=bank.canonicalWrites,comparisonBuilds=bank.comparisonBuilds;
+    const auto noEditBytes=SerializeOwner(api,*bank.graph->appearance(bank.graph->cursor().owner),123);
+    for(unsigned n=0;n<100;++n)Sync(controller.data());
+    Require(!bank.viewFault && bank.scratchAllocations==scratchCount && scratchCount==1);
+    Require(bank.canonicalWrites==cacheWrites+100 && bank.comparisonBuilds==comparisonBuilds && bank.comparisonReuses>=100);
+    Require(bank.graph->cursor().generation==linkedGeneration);
+    Require(SerializeOwner(api,*bank.graph->appearance(bank.graph->cursor().owner),123)==noEditBytes);
     Require(Read<unsigned>(bank.graph->appearance("native/1")->data(),0x18)==humanBeforeLink);
+    // An external cache edit with the same metadata address and graph
+    // generation must still be repaired. It cannot poison the graph baseline.
+    const auto canonicalAlienBefore=Read<unsigned>(Map(metadata.data()).at(2).data(),0x18);
+    Write(Map(metadata.data()).at(2).data(),0x18,0xdeadbeefu);
+    Sync(controller.data());
+    Require(Read<unsigned>(Map(metadata.data()).at(2).data(),0x18)==canonicalAlienBefore);
+    Require(bank.graph->cursor().generation==linkedGeneration && bank.comparisonBuilds==comparisonBuilds);
     Refuses([&]{ApplyPairAction(runtime,71,linkCommand);}); // Original UUID is never replayed.
     Write(currentModel.data(),0x3b0,0xabcdef12u);Sync(controller.data());
     Require(Read<unsigned>(bank.graph->appearance("native/2")->data(),0x240)==0xabcdef12u);
     Require(Read<unsigned>(bank.graph->appearance("native/1")->data(),0x240)==0xabcdef12u);
     Require(Read<unsigned>(bank.graph->appearance("native/4")->data(),0x18)==vampireBeforeCopy);
+    Sync(controller.data());
+    Require(bank.comparisonBuilds==comparisonBuilds+1); // Edited graph invalidates the entire serialized baseline.
     Require(ApplyPairAction(runtime,71,pairCommand('b',"link",false))=="PAIRDONE|"+std::string(32,'b'));
     Require(!bank.graph->linked("native/1","native/2")&&!bank.graph->linked("native/2","native/1"));
     Write(currentModel.data(),0x3b0,0xabcdef13u);Sync(controller.data());

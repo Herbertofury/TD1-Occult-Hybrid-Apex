@@ -27,6 +27,15 @@ class LifeStateCliTests(unittest.TestCase):
             for digest in (None,'','a'*63,'A'*64):
                 with self.assertRaises(ValueError):lifestate_cli.argument(self.args(op,id='original',expected_sha256=digest))
 
+    def test_whole_body_human_look_requires_exact_builtin_identity_and_checksum(self):
+        route,value=lifestate_cli.argument(self.args('human-look',id='werewolf_human_cc',expected_sha256='b'*64))
+        self.assertEqual(route,'lifestate_form_human_look')
+        self.assertEqual(value,dict(id='werewolf_human_cc',expected_sha256='b'*64))
+        for args in (self.args('human-look',id='other',expected_sha256='b'*64),
+                     self.args('human-look',id='werewolf_human_cc'),
+                     self.args('human-look',id='werewolf_human_cc',expected_sha256='b'*64,base_form=32)):
+            with self.assertRaises(ValueError):lifestate_cli.argument(args)
+
     def test_invalid_native_ids_boolean_flags_or_whole_sim_payloads_are_refused(self):
         for sid in ('0','01','-1',str(1<<64)):
             args=self.args('list');args.sim_id=sid

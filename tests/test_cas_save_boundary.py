@@ -67,6 +67,7 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         self.game.setUp()
         self.addCleanup(self.game.doCleanups)
         self.backend = self.game.backend
+        self.enterContext(patch.object(gate, '_READ_INDEX', None))
         self.cls = native_service_type()
         self.service = self.cls()
         self.backend.services.get_persistence_service = lambda: self.service
@@ -93,14 +94,14 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         except StopIteration as ended:
             return ended.value, steps
 
-    def test_idle_getters_reuse_validated_bank_but_atomic_replacement_invalidates_cache(self):
+    def test_install_warms_first_menu_getters_but_atomic_replacement_invalidates_cache(self):
         import os
         self.install()
         with patch.object(gate.json, 'loads', wraps=json.loads) as parse:
             for _ in range(10):
                 self.assertFalse(self.service.is_save_locked())
                 self.assertIsNone(self.service.get_save_lock_tooltip())
-            self.assertEqual(parse.call_count, 1)
+            self.assertEqual(parse.call_count, 0)
         before = self.game.path.stat()
         temp = self.game.path.with_suffix('.replacement')
         temp.write_bytes(self.game.path.read_bytes())
@@ -119,6 +120,43 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         self.assertEqual(gate.admission(self.backend)['pending_sim_ids'], ['10'])
         self.finish_unchanged()
         self.assertFalse(gate.admission(self.backend)['locked'])
+
+    def test_verified_bank_read_primes_first_menu_query_without_read_parse_or_hash(self):
+        self.install();self.game.begin()
+        data, digest = bank._read(self.game.path)
+        self.assertIsNotNone(gate._READ_INDEX)
+        # Mutating the caller's parsed mapping cannot change indexed decisions.
+        data['records'].clear()
+        with patch.object(Path, 'open', side_effect=AssertionError('menu must not open the bank')), \
+                patch.object(gate.json, 'loads', side_effect=AssertionError('menu must not parse JSON')), \
+                patch.object(gate.hashlib, 'sha256', side_effect=AssertionError('menu must not hash appearance history')):
+            result=gate.admission(self.backend)
+        self.assertTrue(result['locked']);self.assertEqual(result['pending_sim_ids'],['10'])
+        self.assertEqual(result['bank_sha256'],digest)
+
+    def test_index_does_not_bypass_new_writer_lease_or_changed_revision(self):
+        self.install();bank._read(self.game.path)
+        lease=bank._lease_path(self.game.path);lease.write_bytes(b'unresolved writer')
+        self.assertTrue(gate.admission(self.backend)['locked'])
+        lease.unlink()
+        self.game.begin()
+        self.assertEqual(gate.admission(self.backend)['pending_sim_ids'],['10'])
+        self.finish_unchanged()
+        self.assertFalse(gate.admission(self.backend)['locked'])
+
+    def test_external_atomic_replacement_invalidates_primed_index_even_with_restored_mtime(self):
+        import os
+        self.install();self.game.begin();pending=self.game.path.read_bytes()
+        self.finish_unchanged();bank._read(self.game.path)
+        self.assertFalse(gate.admission(self.backend)['locked'])
+        prior=self.game.path.stat()
+        external=self.game.path.with_suffix('.external')
+        external.write_bytes(pending)
+        os.utime(external,ns=(prior.st_atime_ns,prior.st_mtime_ns));external.replace(self.game.path)
+        with patch.object(gate.json,'loads',wraps=json.loads) as parse:
+            result=gate.admission(self.backend)
+        self.assertEqual(parse.call_count,1)
+        self.assertTrue(result['locked']);self.assertEqual(result['pending_sim_ids'],['10'])
 
     def test_native_ui_is_notified_after_commit_and_existing_native_locks_remain(self):
         self.install()
@@ -313,13 +351,14 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         self.assertEqual(self.game.native_writes, [])
         self.assertEqual(self.game.snapshot_calls, [])
 
-    def test_localized_reason_required_and_install_is_idempotent_with_no_periodic_scan(self):
+    def test_localized_reason_required_and_install_primes_once_without_periodic_scan(self):
         with self.assertRaisesRegex(ValueError, 'localized'):
             gate.install(self.backend, reason_factory=lambda _text: None)
-        with patch.object(gate, 'admission', side_effect=AssertionError('install must not scan')):
+        with patch.object(gate, 'admission', wraps=gate.admission) as admission:
             self.assertTrue(self.install())
             locked, tooltip = self.cls.is_save_locked, self.cls.get_save_lock_tooltip
             self.assertTrue(gate.require_installed(self.backend))
+            self.assertEqual(admission.call_count, 1)
         self.assertIs(self.cls.is_save_locked, locked)
         self.assertIs(self.cls.get_save_lock_tooltip, tooltip)
         self.assertIs(self.cls._save_game_gen._apex_original, self.original_generator)

@@ -39,7 +39,7 @@ def _validated(record,returned):
     changed=set()
     for oid,original in expected.items():
         row=rows[oid]
-        if row['native_kind']!=original['base_form'] or set(row['fields'])!=set(original['fields']):
+        if row['native_kind']!=lifestate_forms.visual_form(original) or set(row['fields'])!=set(original['fields']):
             raise ValueError('A named form changed its rendering owner or captured field set.')
         if appearance.fingerprint(row['fields'])['appearance_sha256']!=original['appearance_sha256']:changed.add(oid)
     return document,rows,expected,changed
@@ -51,7 +51,8 @@ def changes(record,returned):
     for oid in sorted(changed):
         before=appearance.fingerprint(expected[oid]['fields']);after=appearance.fingerprint(rows[oid]['fields'])
         result.append(dict(owner_id=oid,label=expected[oid]['label'],lifestate=expected[oid]['lifestate'],
-            native_kind=expected[oid]['base_form'],before_sha256=before['appearance_sha256'],
+            native_kind=lifestate_forms.visual_form(expected[oid]),gameplay_form=expected[oid]['base_form'],
+            before_sha256=before['appearance_sha256'],
             after_sha256=after['appearance_sha256'],fields=sorted(name for name in before['field_sha256']
                 if before['field_sha256'][name]!=after['field_sha256'].get(name))))
     return result

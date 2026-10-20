@@ -123,7 +123,7 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
                 '62ECC59A:00000000:7D5FA9E0C2A4F038'}:
             raise ValueError('CAS bridge must contain exactly the four verified native UI resources.')
         molecule = ui_info.get('molecule_native_bytecode_contract', {})
-        if (molecule.get('ok') is not True or molecule.get('edited_method_count') != 4 or
+        if (molecule.get('ok') is not True or molecule.get('edited_method_count') != 5 or
                 molecule.get('unrelated_native_methods_preserved') is not True or
                 molecule.get('native_lexical_scope_preserved') is not True or
                 molecule.get('base_resource_sha256') != '3124ed12ea50140da6f072d16ab0703e6154e448974edb1c3f6f7d05f7c24524'):

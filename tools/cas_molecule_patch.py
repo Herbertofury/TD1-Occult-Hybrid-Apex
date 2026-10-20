@@ -7,8 +7,10 @@ import re
 
 ICON_CLASS = 'widgets.TraitsMolecule.OccultSelectionButton'
 MOLECULE_CLASS = 'widgets.CAS.Molecule.EquippedTraitsAsp'
+PANEL_CLASS = 'widgets.TraitsMolecule.OccultSelectionPanel'
 METHODS = {ICON_CLASS: ('UpdateIconDisplay',),
-           MOLECULE_CLASS: ('SetSimInfo', 'OnOccultClick', 'OnOccultSelected')}
+           MOLECULE_CLASS: ('SetSimInfo', 'OnOccultClick', 'OnOccultSelected'),
+           PANEL_CLASS: ('OnItemClick',)}
 
 
 def replace_once(source, old, new):
@@ -18,6 +20,8 @@ def replace_once(source, old, new):
 
 
 def inject(source, target):
+    if 'ApexMolecule' in source:
+        raise ValueError('CAS molecule source is already patched.')
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     full = 'Boolean(CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled"))'
     if target == ICON_CLASS:
@@ -25,6 +29,15 @@ def inject(source, target):
         # GetOccultIcon expects ONE genus and otherwise hides the whole button.
         source = replace_once(source, 'int(OccultTypes.GetRealOccultType(param1.allOccultTypes))',
             '(int(CommunicationManager.CallGameService("GetSimOccult")) & ~OccultTypes.OCCULT_HUMAN)')
+    elif target == PANEL_CLASS:
+        source = replace_once(source, '   import gamedata.shared.OccultTypes;',
+            '   import olympus.io.CommunicationManager;\n   import gamedata.shared.OccultTypes;')
+        source = replace_once(source,
+            'this.SelectionDataAsOccult.SelectOccult(_loc2_.occult_type.toString());',
+            'var apexSelected:Object=CommunicationManager.CallUIService("ApexMoleculeReadSelection",null);\n'
+            '         if(apexSelected && apexSelected.protocol===1)\n'
+            '            this.SelectionDataAsOccult.SelectOccult(apexSelected.kind==1 ? null : String(apexSelected.kind));\n'
+            '         else this.SelectionDataAsOccult.SelectOccult(_loc2_.occult_type.toString());')
     elif target == MOLECULE_CLASS:
         # HouseholdSimData is the molecule's presentation model. Later native
         # redraws reuse it after SetSimInfo returns, so fixing button.visible
@@ -52,6 +65,7 @@ def inject(source, target):
             'this.mcTraitSelector.mcTraitsMolecule.btnPreferences.SetMaskVisibility(true);\n         }\n'
             '         var apexButton:Object=this.mcTraitSelector.mcTraitsMolecule.mcSpeciesDisplay;\n'
             '         var apexKind:int=int(CommunicationManager.CallGameService("GetSimOccult"));\n'
+            '         this.mOccultSelectionData.SelectOccult(apexKind==1 ? null : String(apexKind));\n'
             '         if('+full+' && !TutorialMode.IsFTUE() && param1.speciesType==1 && this.mOccultSelectionData.length>0) {\n'
             '            apexButton.visible=!this.mcTraitSelector.mcTraitsMolecule.WaitingForSimReveal;\n'
             '            apexButton.enabled=true;apexButton.mCurrOccult=apexKind & ~OccultTypes.OCCULT_HUMAN;\n'

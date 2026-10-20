@@ -115,13 +115,16 @@ def _contrast_candidate(observation):
             not any(item in labels for item in forbidden))
 
 
-def _partial_home_candidate(observation):
+def _partial_home_candidate(observation, preprocessing_only=False):
     """Permit another pixel observation, never permission to click a control."""
     labels = _home_labels(observation)
     forbidden = ('save game?', 'cannot save', 'buy now', 'expansion pack', 'game pack', 'stuff pack',
                  'get missing packs?', 'get missing packs', 'play save with missing content',
                  'this game requires permissions', 'you don’t have access', "you don't have access", 'cancel')
-    return (labels.count('marketplace') == 1 and labels.count('resume game') == 1 and
+    # These observed glyph errors permit only a second read of actual pixels.
+    # The transformed result and lifecycle button still require exact labels.
+    resumes = ('resume game', 'iresume game', 'resume came') if preprocessing_only else ('resume game',)
+    return (labels.count('marketplace') == 1 and sum(labels.count(item) for item in resumes) == 1 and
             all(labels.count(item) <= 1 for item in ('home', 'load game', 'new game', 'gallery')) and
             not any(item in labels for item in forbidden))
 
@@ -199,11 +202,11 @@ def recognize(path, scale=2):
             # pixel-only fallback. Both prior observations must independently
             # exclude duplicate controls and known dialogs. The transformed
             # frame must still recognize every exact Home control on its own.
-            if _partial_home_candidate(primary) and _partial_home_candidate(unscaled):
+            if _partial_home_candidate(primary, True) and _partial_home_candidate(unscaled, True):
                 return _white_home_observation(path, source, incomplete, scale, started)
             return incomplete
     if not _contrast_candidate(primary):
-        if _partial_home_candidate(primary) and not _home_scale_candidate(primary, require_load=True):
+        if _partial_home_candidate(primary, True) and not _home_scale_candidate(primary, require_load=True):
             return _white_home_observation(path, source, primary, scale, started)
         return primary
     if path.read_bytes() != source:

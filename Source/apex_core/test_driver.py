@@ -611,6 +611,9 @@ def _submit_existing_save(backend, sim, client, argument):
 
 
 def dispatch(backend, action, sim_id, value):
+    if action == 'test_profile':
+        from .runtime_profile import control
+        return control(backend, guard(backend, value))
     global _LAST_CLIENT_ID
     argument = guard(backend, value)
     if action == 'test_native_cas_probe':

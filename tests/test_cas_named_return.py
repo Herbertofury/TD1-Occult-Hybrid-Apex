@@ -26,7 +26,7 @@ class NamedReturnTests(unittest.TestCase):
                 original=fields('old-'+identity)
                 forms[identity]=dict(id=identity,lifestate=state,label=identity,base_form=kind,
                     fields=original,appearance_sha256=appearance.fingerprint(original)['appearance_sha256'])
-                owners.append(row(owner_id(state,identity),kind,'edit-'+identity))
+                owners.append(row(owner_id(state,identity),lifestate_forms.visual_form(forms[identity]),'edit-'+identity))
         # Additional user-created variants are not limited to the defaults.
         original=copy.deepcopy(forms['ghost_ghost']);original.update(id='ghost_user_variant',label='My ghost')
         forms[original['id']]=original;owners.append(row('ghost/ghost_user_variant',1,'edit-user-variant'))
@@ -38,6 +38,19 @@ class NamedReturnTests(unittest.TestCase):
 
     def decisions(self,returned,action='accept-returned'):
         return [dict(owner_id=row['owner_id'],action=action) for row in returned['owners'] if not row['owner_id'].startswith(('native/','active/'))]
+
+    def test_human_werewolf_rendering_returns_to_its_own_gameplay_lane_without_merging(self):
+        record,returned,native=self.fixture()
+        document,_=cas_named_return.prepare(record,returned,native,self.decisions(returned))
+        human=document['forms']['werewolf_human_cc'];beast=document['forms']['werewolf_beast']
+        self.assertEqual((human['base_form'],beast['base_form']),(32,32))
+        self.assertNotEqual(human['fields'],beast['fields'])
+        changes=cas_named_return.changes(record,returned)
+        human_change=next(r for r in changes if r['owner_id']=='werewolf/werewolf_human_cc')
+        self.assertEqual((human_change['native_kind'],human_change['gameplay_form']),(1,32))
+        next(r for r in returned['owners'] if r['owner_id']=='werewolf/werewolf_human_cc')['native_kind']=32
+        with self.assertRaisesRegex(ValueError,'rendering owner'):
+            cas_named_return.prepare(record,returned,native,self.decisions(returned))
 
     def test_every_native_special_alternate_and_extra_form_keeps_its_own_fields(self):
         record,returned,native=self.fixture();before=copy.deepcopy(record)

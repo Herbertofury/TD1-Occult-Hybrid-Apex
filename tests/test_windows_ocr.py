@@ -301,6 +301,28 @@ class ContrastTests(unittest.TestCase):
     def reply(self, value):
         return SimpleNamespace(returncode=0, stdout=json.dumps(value), stderr='')
 
+    def test_damaged_resume_glyphs_allow_pixel_retry_but_only_exact_complete_result_authorizes_button(self):
+        primary=home_observation()
+        primary['lines'][-1]['text']='RESUME CAME'
+        primary['lines'][1]['text']='GAME'
+        exact=home_observation()
+        with patch.object(windows_ocr.subprocess,'run',side_effect=[self.reply(primary),self.reply(exact)]) as read:
+            result=windows_ocr.recognize(self.image)
+        self.assertEqual(read.call_count,2);self.assertTrue(result['white_text_fallback']['accepted'])
+        self.assertEqual(game_lifecycle.button(result,'resume')['command'],1)
+        self.assertEqual(self.image.read_bytes(),self.original)
+        with patch.object(windows_ocr.subprocess,'run',side_effect=[self.reply(primary),self.reply(primary)]):
+            result=windows_ocr.recognize(self.image)
+        self.assertFalse(result['white_text_fallback']['accepted'])
+        with self.assertRaises(ValueError):game_lifecycle.button(result,'resume')
+
+    def test_damaged_resume_retry_refuses_duplicate_resume_or_dialog(self):
+        primary=home_observation();primary['lines'][-1]['text']='RESUME CAME'
+        for label in ('RESUME GAME','RESUME CAME','Cancel','Get Missing Packs?','This game requires permissions'):
+            sample=copy.deepcopy(primary);sample['lines'].append(dict(text=label,words=[]))
+            with self.subTest(label=label):
+                self.assertFalse(windows_ocr._partial_home_candidate(sample,True))
+
     def test_full_frame_grayscale_keeps_real_pixels_geometry_and_source_read_only(self):
         from PIL import Image, ImageOps
         paths = []

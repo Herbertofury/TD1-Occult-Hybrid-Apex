@@ -7,6 +7,41 @@ and named implementation records as separate form choices.
 
 ## Current evidence: 2026-10-18
 
+V211 checkpoint (reviewed 2026-10-20): the frozen candidate passes all 2,671
+local regression tests and 134 compiled-UI checks. The owner's Fairy picker
+report exposed a dropped-click path: the hybrid handler refused input during
+a pending readback while the stock panel still highlighted the requested card.
+The corrected package retains the latest explicit choice for the same Sim and
+CAS session, applies it only after the current operation completes, and uses
+the actual bound native genus for the stock selection highlight. Negative
+bytecode fixtures reject lost intents, foreign sessions, missing command
+leases and inline native work. Actual picker verification remains open.
+
+The retained built-in Human/CC Werewolf capture contained the beast's complete
+outfit, physique and genetics. New captures seed every appearance field from
+the one shared Human. This named look uses Human rendering in CAS and Studio,
+while retaining its independent Werewolf gameplay lane and stored identity.
+The explicit `lifestate human-look --id werewolf_human_cc --expected-sha256 ...`
+repair retains the prior complete look in recovery history; inventory and CAS
+entry never silently replace existing edits. Tests cover whole-body fields,
+ordinary beast isolation, stale checksums and named CAS return to lane 32.
+Visible CAS and Live geometry, repeated switches and save/Tray retention still
+require actual-game proof before this is an actual-save release.
+
+Menu work preserves the permanent guard. Save admission is validated during
+zone setup and reuses a stamp-checked compact index until a file revision;
+writer leases and external replacements still invalidate it. One paused Live
+pie-menu cProfile sample per build measures generation at 228.4 ms in V208,
+215.2 ms in V209 and 134.1 ms in V210. The seven save-lock tooltip checks fall
+from 81.3 ms to 8.8 ms; all 525 AOP validity calls remain. These instrumented
+samples do not establish unprofiled click latency, p95 or FPS. The native DLL
+also releases its render mutex before real DXGI Present/Present1/ResizeBuffers;
+an actual-hook regression reproduces the old message-thread stall and passes
+with the correction. CAS Sync reuses one scratch graph and an exclusively
+owned comparison baseline, while continuing full mutable-model comparisons
+and canonical-cache repair. See the scoped
+[responsiveness record](../manifests/cas-responsiveness-validation.json).
+
 V204's full regression passes 2,645 tests. In actual full CAS, all five members
 complete Alien -> Vampire -> Alien and return to their starting owners. A
 linked, no-edit export retains every field in all 195 captured records;

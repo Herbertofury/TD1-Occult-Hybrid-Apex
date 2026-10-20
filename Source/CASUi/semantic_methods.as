@@ -38,6 +38,7 @@
       private var apexOwnerFeedListener:Boolean = false;
       private var apexOwnerResetListener:Boolean = false;
       private var apexMoleculeRegistered:Boolean = false;
+      private var apexMoleculeReadRegistered:Boolean = false;
       private var apexMoleculeListener:Boolean = false;
       private var apexMoleculeView:Object;
 
@@ -64,6 +65,8 @@
             apexOwnerResetListener=AddMessageListener("CASClearSimsForReset",ApexInvalidateOwnerFeed);
             if(!apexMoleculeRegistered)
                apexMoleculeRegistered=RegisterServiceHandler("ApexMoleculeChooseOccult",ApexMoleculeChooseOccult);
+            if(!apexMoleculeReadRegistered)
+               apexMoleculeReadRegistered=RegisterServiceHandler("ApexMoleculeReadSelection",ApexMoleculeReadSelection);
             ApexMoleculeListen(true);
             apexTimer=new flash.utils.Timer(500);
             apexTimer.addEventListener(flash.events.TimerEvent.TIMER,ApexTick);

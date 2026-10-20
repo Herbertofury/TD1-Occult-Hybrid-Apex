@@ -15,6 +15,17 @@ from . import form_appearance as appearance, form_bank, lifestates
 KEY = 'lifestate_forms'
 _ID = re.compile(r'[a-z][a-z0-9_]{0,63}\Z')
 MAX_FORMS = 1024
+HUMAN_WEREWOLF = 'werewolf_human_cc'
+
+
+def human_werewolf_variant(row):
+    """The built-in Human/CC look has Human geometry, Werewolf gameplay."""
+    return (row['id'] == HUMAN_WEREWOLF and row['lifestate'] == 'WEREWOLF'
+            and row['base_form'] == 32)
+
+
+def visual_form(row):
+    return 1 if human_werewolf_variant(row) else row['base_form']
 
 
 def _bind_runtime(record, sim):
@@ -83,7 +94,7 @@ def native_cas_owners(backend, sim):
         raise ValueError('Named CAS owners require their current native capture runtime.')
     data = document(record)
     from .cas_owner_payload import owner_id
-    return [dict(owner_id=owner_id(row['lifestate'], row['id']), native_kind=row['base_form'],
+    return [dict(owner_id=owner_id(row['lifestate'], row['id']), native_kind=visual_form(row),
                  fields=copy.deepcopy(row['fields']), appearance_sha256=row['appearance_sha256'])
             for row in data['forms'].values()]
 
@@ -143,7 +154,11 @@ def capture(backend, sim, argument):
         raise ValueError('That independent appearance already exists; no user edit was replaced.')
     if len(data['forms']) >= MAX_FORMS:
         raise ValueError('Life-state appearance capacity reached; no prior form was discarded.')
-    fields = _fields(backend, sim, argument['base_form'])
+    # Initializing the built-in Human look must read the COMPLETE Human
+    # appearance, including its outfits, shape, genetics and body paint. Its
+    # gameplay lane remains Werewolf; no trait or native owner is changed.
+    prototype = dict(argument, lifestate=state)
+    fields = _fields(backend, sim, 1 if human_werewolf_variant(prototype) else argument['base_form'])
     data['forms'][argument['id']] = dict(argument, lifestate=state, fields=fields,
         appearance_sha256=appearance.fingerprint(fields)['appearance_sha256'])
     validate(data)
@@ -210,6 +225,42 @@ def update(backend, sim, identity, fields, expected):
     validate(data)
     record[KEY] = data
     form_bank.save(path, bank)
+
+
+def initialize_human_werewolf(backend, sim, argument):
+    """Explicit whole-body reset; archive the prior CC look before replacing it.
+
+    Old captures incorrectly seeded this option from the beast. Never repair an
+    existing player's look merely by opening the inventory or starting CAS.
+    """
+    if (not isinstance(argument, dict) or set(argument) != {'id', 'expected_sha256'}
+            or argument['id'] != HUMAN_WEREWOLF):
+        raise ValueError('Choose the built-in Human/CC Werewolf look and its inspected checksum.')
+    path, _, bank, record = _context(backend, sim)
+    data = document(record or {})
+    row = data['forms'].get(HUMAN_WEREWOLF)
+    if (row is None or not human_werewolf_variant(row)
+            or row['appearance_sha256'] != argument['expected_sha256']):
+        raise ValueError('Human/CC Werewolf appearance changed after inspection; no look replaced.')
+    if data['active'].get('32') == HUMAN_WEREWOLF:
+        raise ValueError('Leave this active appearance before initializing its stored Human/CC look.')
+    fields = _fields(backend, sim, 1)
+    if set(fields) != set(row['fields']):
+        raise ValueError('Whole-body initialization must preserve every captured appearance field.')
+    digest = appearance.fingerprint(fields)['appearance_sha256']
+    if digest == row['appearance_sha256']:
+        return dict(ok=True, changed=False, appearance_sha256=digest, native_appearance_modified=False)
+    history = record.setdefault('human_werewolf_look_history', [])
+    if not isinstance(history, list) or len(history) >= 256:
+        raise ValueError('Human/CC appearance recovery history is full or invalid; no look replaced.')
+    history.append(dict(operation='initialize-complete-human-look', before=copy.deepcopy(row),
+                        after_sha256=digest, runtime_pid=os.getpid()))
+    row['fields'] = copy.deepcopy(fields)
+    row['appearance_sha256'] = digest
+    record[KEY] = validate(data)
+    form_bank.save(path, bank)
+    return dict(ok=True, changed=True, appearance_sha256=digest, native_appearance_modified=False,
+                previous_look_retained=True, visual_form=1, gameplay_form=32, save_file_written=False)
 
 
 def select(backend, sim, argument):
@@ -396,7 +447,8 @@ def dispatch(backend, sim, action, value):
     argument = backend._apex_cas_transaction_argument(value)
     operation = {'lifestate_form_capture': capture, 'lifestate_form_bind': bind,
                  'lifestate_form_select': select, 'lifestate_form_revalidate': revalidate,
-                 'lifestate_form_resume_draft': resume_draft}.get(action)
+                 'lifestate_form_resume_draft': resume_draft,
+                 'lifestate_form_human_look': initialize_human_werewolf}.get(action)
     if operation is None:
         raise ValueError('Unknown independent life-state form operation.')
     return operation(backend, sim, argument)

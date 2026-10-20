@@ -76,13 +76,23 @@ def _read(path):
         return {'schema': 1, 'records': {}}, None
     if not path.is_file():
         raise ValueError('Form bank is not a regular file.')
+    before = path.stat()
     raw = path.read_bytes()
     value = json.loads(raw.decode('utf-8'), object_pairs_hook=_pairs)
     if (not isinstance(value, dict) or type(value.get('schema')) is not int or value['schema'] != 1 or
             not isinstance(value.get('records'), dict)):
         raise ValueError('Invalid form bank; no metadata replaced.')
     primitive.digest(value)
-    return value, hashlib.sha256(raw).hexdigest()
+    file_hash = hashlib.sha256(raw).hexdigest()
+    # Feed the menu's compact lock index from work this reader already did,
+    # rather than hashing/parsing the whole bank again on a player's first
+    # click. A changing file cannot prime a decision for another revision.
+    from . import cas_save_boundary
+    stamp = lambda info: (info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino)
+    after = path.stat()
+    if stamp(before) == stamp(after):
+        cas_save_boundary.remember_read(path, value, file_hash, stamp(after))
+    return value, file_hash
 
 
 class AtomicBankDocument(dict):

@@ -20,6 +20,14 @@ class MoleculePatchTests(unittest.TestCase):
         self.assertNotIn('GetRealOccultType(param1.allOccultTypes)',s)
         self.assertIn('HUMAN_ICON',s)
 
+    def test_click_highlight_follows_actual_native_form_instead_of_unacknowledged_choice(self):
+        s=patch.inject(self.source(patch.PANEL_CLASS),patch.PANEL_CLASS)
+        self.assertIn('import olympus.io.CommunicationManager;',s)
+        self.assertIn('ApexMoleculeReadSelection',s)
+        self.assertLess(s.index('dispatchEvent(_loc3_)'),s.index('ApexMoleculeReadSelection'))
+        self.assertIn('apexSelected.kind==1 ? null : String(apexSelected.kind)',s)
+        self.assertIn('else this.SelectionDataAsOccult.SelectOccult(_loc2_.occult_type.toString())',s)
+
     def test_existing_household_full_edit_restores_the_native_panel(self):
         s=patch.inject(self.source(patch.MOLECULE_CLASS),patch.MOLECULE_CLASS)
         self.assertEqual(s.count('CasIsForcedFullEditingEnabled'),5)

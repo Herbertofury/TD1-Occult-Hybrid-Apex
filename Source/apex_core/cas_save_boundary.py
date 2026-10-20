@@ -16,6 +16,7 @@ from . import cas_bank_transaction as bank
 from .overlay_loader import _unlinked
 
 MAX_BANK = 48 * 1024 * 1024
+_READ_INDEX = None
 _CONTRACT = {
     'is_save_locked': ('8bd090ba573ef92a49809650864640cc7e39ff3282a4a6a1440cfdc98c88e45e',
                        'a862376bc569a4afdce54a66d474d1f3c1085b843f845b0e760334b36f257a8b'),
@@ -59,6 +60,41 @@ def _stamp(path):
     return (stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_ino)
 
 
+def remember_read(path, data, file_hash, stamp):
+    """Retain only lock decisions from a complete, stable bank-reader result.
+
+    The bank reader/writer already paid for full JSON validation and hashing.
+    Never repeat that work for the first interaction-menu save-lock test. This
+    compact index owns no mutable bank records and grants no appearance writes.
+    Admission still checks the path, current save, writer lease and file stamp.
+    """
+    global _READ_INDEX
+    _READ_INDEX = None
+    try:
+        if (not isinstance(file_hash, str) or len(file_hash) != 64 or
+                any(c not in '0123456789abcdef' for c in file_hash) or
+                not isinstance(data, dict) or type(data.get('schema')) is not int or data['schema'] != 1 or
+                not isinstance(data.get('records'), dict) or len(data['records']) > 20000 or
+                not isinstance(stamp, tuple) or len(stamp) != 4 or not 0 < stamp[0] <= MAX_BANK):
+            return False
+        decisions = {}
+        for owner_key, record in data['records'].items():
+            parts = owner_key.split(':') if isinstance(owner_key, str) else []
+            if len(parts) != 2 or not all(_id(value) for value in parts) or not isinstance(record, dict):
+                return False
+            pending = decisions.setdefault(parts[0], [])
+            if bank._blocked(record, owner_key):
+                pending.append(parts[1])
+        _READ_INDEX = dict(path=str(path), stamp=stamp, bank_sha256=file_hash,
+            by_save_guid={guid: tuple(sorted(pending, key=int)) for guid, pending in decisions.items()})
+        return True
+    except Exception:
+        # This optimization is optional. A malformed/unindexable document
+        # follows admission's existing full read and fail-closed validation.
+        _READ_INDEX = None
+        return False
+
+
 def admission(backend):
     """Read all current-save records, including unloaded/old-runtime owners."""
     result = {'locked': True, 'pending_sim_ids': [], 'appearance_written': False,
@@ -85,6 +121,12 @@ def admission(backend):
             if isinstance(cached, dict) and cached.get('key') == cache_key:
                 result = dict(cached['result'])
                 result['pending_sim_ids'] = list(result['pending_sim_ids'])
+                return result
+            index = _READ_INDEX
+            if isinstance(index, dict) and index['path'] == str(path) and index['stamp'] == before:
+                pending = list(index['by_save_guid'].get(guid, ()))
+                result.update(pending_sim_ids=pending, bank_sha256=index['bank_sha256'], save_guid=guid,
+                    locked=bool(pending), reason='retained-cas-review-required' if pending else 'retained-owners-idle')
                 return result
             with path.open('rb') as stream:
                 raw = stream.read(MAX_BANK + 1)
@@ -166,6 +208,12 @@ def install(backend, service_type=None, reason_factory=None):
     wrapped_generator = named_save_boundary.wrap(backend, candidates['_save_game_gen'], reason)
     cls.is_save_locked, cls.get_save_lock_tooltip, cls._save_game_gen = is_save_locked, get_save_lock_tooltip, wrapped_generator
     backend._APEX_CAS_SAVE_BOUNDARY_READY = True
+    # This hook is installed during zone initialization, before player menus
+    # need its predicate. A fresh process has no bank-reader index yet: pay
+    # the one complete read here, not inside the first interaction test.
+    # Unavailable/corrupt authority remains locked; later revisions still
+    # invalidate both caches and retain the ordinary full validation path.
+    admission(backend)
     return True
 
 

@@ -186,6 +186,11 @@ struct NativeUndo {
 struct Imported {
     std::map<std::uint32_t,std::unique_ptr<NativeOwner>> owners;
     std::unique_ptr<NativeOwner> active;
+    std::unique_ptr<NativeOwner> syncScratch;
+    std::string comparisonOwner,comparisonBytes;
+    std::uint64_t comparisonGeneration=0;
+    bool comparisonReady=false;
+    unsigned scratchAllocations=0,canonicalWrites=0,comparisonBuilds=0,comparisonReuses=0;
     std::unique_ptr<OwnerGraph<std::unique_ptr<NativeOwner>>> graph;
     std::map<std::uint32_t,std::string> logicalOwners;
     std::map<std::string,std::unique_ptr<NativeUndo>> undoOwners;
@@ -436,9 +441,10 @@ inline std::uint64_t GroupId(void* group) {
     using IdFn=std::uint64_t(*)(void*);
     return Read<IdFn>(Read<void*>(static_cast<char*>(group)+0x10))(static_cast<char*>(group)+0x10);
 }
-inline std::unique_ptr<NativeOwner> CloneModel(State& state,Imported& bank,void* controller) {
+inline const std::unique_ptr<NativeOwner>& CloneModel(State& state,Imported& bank,void* controller) {
     const auto model=Read<void*>(controller,0x1d0);
-    auto copy=std::make_unique<NativeOwner>(state.api,bank.graph->cursor().sim);
+    if(!bank.syncScratch) {bank.syncScratch=std::make_unique<NativeOwner>(state.api,bank.graph->cursor().sim);++bank.scratchAllocations;}
+    const auto& copy=bank.syncScratch;
     state.api.assignData(const_cast<void*>(copy->data()),static_cast<char*>(model)+0x170);
     state.api.current(copy->value,bank.graph->cursor().kind);
     state.api.availableData(const_cast<void*>(copy->data()),bank.mask);return copy;
@@ -448,8 +454,23 @@ inline void StoreCanonical(State& state,Imported& bank,void* controller) {
     const auto group=Read<void*>(controller,0x100);
     auto* metadata=Read<CacheFn>(Read<void*>(controller),0x410)(controller,GroupId(group));
     if(!metadata) throw std::runtime_error("Native view lacks its complete appearance cache.");
+    // EA and other mods can write this cache without advancing our graph.
+    // A matching pointer/generation alone cannot authorize skipping its repair.
     for(const auto& owner:bank.owners)
         state.api.store(metadata,owner.first,bank.graph->appearance(bank.logicalOwners.at(owner.first))->data());
+    ++bank.canonicalWrites;
+}
+inline const std::string& ComparisonBytes(State& state,Imported& bank) {
+    const auto cursor=bank.graph->cursor();
+    // These detached graph records are owned exclusively by Apex. Every graph
+    // edit, link, copy and selection advances its generation. Cache only this
+    // immutable baseline, never the mutable EA model or its canonical cache.
+    if(!bank.comparisonReady || bank.comparisonGeneration!=cursor.generation || bank.comparisonOwner!=cursor.owner) {
+        auto bytes=SerializeOwner(state.api,*bank.graph->appearance(cursor.owner),cursor.sim);
+        bank.comparisonBytes=std::move(bytes);bank.comparisonOwner=cursor.owner;
+        bank.comparisonGeneration=cursor.generation;bank.comparisonReady=true;++bank.comparisonBuilds;
+    } else ++bank.comparisonReuses;
+    return bank.comparisonBytes;
 }
 inline void FinishPreview(State& state,void* controller) {
     const auto model=Read<void*>(controller,0x1d0);
@@ -507,7 +528,7 @@ inline void Sync(void* controller) {
         // outfit's four body-hair swatches without an edit. Persist the actual
         // current model through the game's deep-copy API instead. No prior
         // appearance, field whitelist or regenerated outfit is substituted.
-        auto edited=CloneModel(state,bank,controller);
+        const auto& edited=CloneModel(state,bank,controller);
         const auto selected=layer?Read<void*>(group,0x4c0):group;
         if(!selected) throw std::runtime_error("Selected native form has no exact appearance slot.");
         state.api.assignData(static_cast<char*>(selected)+0xd0,edited->data());
@@ -518,7 +539,7 @@ inline void Sync(void* controller) {
         // records, including opaque/future fields; never compare pointer bytes
         // or a subset of appearance fields.
         const auto cursor=bank.graph->cursor();
-        if(SerializeOwner(state.api,*edited,id)!=SerializeOwner(state.api,*bank.graph->appearance(cursor.owner),id))
+        if(SerializeOwner(state.api,*edited,id)!=ComparisonBytes(state,bank))
             bank.graph->commit(cursor,edited);
         // The explicit graph, not EA's copied inactive fields, owns the other
         // form. This also honors intentional links while keeping defaults apart.
@@ -1182,6 +1203,10 @@ inline ui::Json Status() {
             {"graph_selected_kind",found!=state.bank.end() && found->second.graph?found->second.graph->cursor().kind:0},
             {"graph_generation",found!=state.bank.end() && found->second.graph?found->second.graph->cursor().generation:0},
             {"native_view_bound",found!=state.bank.end() && found->second.viewBound},
+            {"sync_scratch_allocations",found==state.bank.end()?0u:found->second.scratchAllocations},
+            {"canonical_cache_writes",found==state.bank.end()?0u:found->second.canonicalWrites},
+            {"comparison_baseline_builds",found==state.bank.end()?0u:found->second.comparisonBuilds},
+            {"comparison_baseline_reuses",found==state.bank.end()?0u:found->second.comparisonReuses},
             {"native_view_fault",found!=state.bank.end() && found->second.viewFault},
             {"undo_owner_count",found==state.bank.end()?0:found->second.undoOwners.size()},
             {"graph_selected_owner_id",found!=state.bank.end() && found->second.graph?found->second.graph->cursor().owner:""},

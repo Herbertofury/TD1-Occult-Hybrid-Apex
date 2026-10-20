@@ -4091,34 +4091,52 @@ struct PresentDepth {
 };
 
 static HRESULT STDMETHODCALLTYPE HookPresent(IDXGISwapChain* sc, UINT sync, UINT flags) {
-    std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
     const bool outer = g_presentDepth == 0;
     PresentDepth depth;
-    if (outer && !(flags & DXGI_PRESENT_TEST) && SelectSwapChain(sc)) RenderOverlayFrame(sc);
+    {
+        std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
+        if (outer && !(flags & DXGI_PRESENT_TEST) && SelectSwapChain(sc)) RenderOverlayFrame(sc);
+    }
+    // DXGI may wait for the window's message thread. That thread enters our
+    // WndProc and needs g_renderMutex, so holding it across Present can stall
+    // every game click even while the overlay is hidden. Protect our render
+    // state, never DXGI's GPU/message-pump wait.
     const HRESULT result = g_realPresent(sc, sync, flags);
-    if (result == DXGI_ERROR_DEVICE_REMOVED || result == DXGI_ERROR_DEVICE_RESET) ResetRenderer();
+    if (result == DXGI_ERROR_DEVICE_REMOVED || result == DXGI_ERROR_DEVICE_RESET) {
+        std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
+        if(sc==g_swapChain) ResetRenderer();
+    }
     return result;
 }
 
 static HRESULT STDMETHODCALLTYPE HookPresent1(IDXGISwapChain1* sc, UINT sync, UINT flags,
                                                const DXGI_PRESENT_PARAMETERS* parameters) {
-    std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
     const bool outer = g_presentDepth == 0;
     PresentDepth depth;
-    const bool selected = outer && !(flags & DXGI_PRESENT_TEST) && SelectSwapChain(sc);
-    if (selected) RenderOverlayFrame(sc);
+    bool fullPresentation=false;
+    {
+        std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
+        const bool selected = outer && !(flags & DXGI_PRESENT_TEST) && SelectSwapChain(sc);
+        if (selected) RenderOverlayFrame(sc);
+        fullPresentation=selected && g_visible.load() && parameters;
+    }
     // An overlay can paint beyond the caller's dirty region. Request a full
     // presentation only while visible; hidden/test calls keep exact parameters.
     DXGI_PRESENT_PARAMETERS fullFrame{};
-    const auto* forwarded = selected && g_visible.load() && parameters ? &fullFrame : parameters;
+    const auto* forwarded = fullPresentation ? &fullFrame : parameters;
     const HRESULT result = g_realPresent1(sc, sync, flags, forwarded);
-    if (result == DXGI_ERROR_DEVICE_REMOVED || result == DXGI_ERROR_DEVICE_RESET) ResetRenderer();
+    if (result == DXGI_ERROR_DEVICE_REMOVED || result == DXGI_ERROR_DEVICE_RESET) {
+        std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
+        if(sc==g_swapChain) ResetRenderer();
+    }
     return result;
 }
 
 static HRESULT STDMETHODCALLTYPE HookResizeBuffers(IDXGISwapChain* sc, UINT count, UINT width, UINT height, DXGI_FORMAT format, UINT flags) {
-    std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
-    if (sc == g_swapChain) CleanupRenderTarget();
+    {
+        std::lock_guard<std::recursive_mutex> renderLock(g_renderMutex);
+        if (sc == g_swapChain) CleanupRenderTarget();
+    }
     return g_realResizeBuffers ? g_realResizeBuffers(sc, count, width, height, format, flags) : E_FAIL;
 }
 
@@ -4736,8 +4754,58 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID) {
 #ifdef APEX_NATIVE_SMOKE
 // Compiled only into the independent test EXE. No network worker, console
 // input, game processes, files, or exports that bypass the production guard.
+struct ApexPresentMessageProbe {
+    HANDLE delivered=CreateEventW(nullptr,TRUE,FALSE,nullptr);
+    std::thread messageThread;
+    bool progressed=false,argumentsExact=false;
+    const DXGI_PRESENT_PARAMETERS* parameters=nullptr;
+    HRESULT WaitForMessage() {
+        messageThread=std::thread([this] {
+            // Exercise the actual message-handler lock on a second thread,
+            // as DXGI can do while Present/ResizeBuffers waits for its window.
+            td1::WndProc(nullptr,WM_NULL,0,0);SetEvent(delivered);
+        });
+        progressed=WaitForSingleObject(delivered,2000)==WAIT_OBJECT_0;
+        return S_FALSE;
+    }
+    ~ApexPresentMessageProbe() {
+        if(messageThread.joinable()) messageThread.join();
+        if(delivered) CloseHandle(delivered);
+    }
+};
+static ApexPresentMessageProbe* g_smokeMessageProbe=nullptr;
+static HRESULT STDMETHODCALLTYPE ApexProbePresent(IDXGISwapChain* sc,UINT sync,UINT flags) {
+    g_smokeMessageProbe->argumentsExact=sc==nullptr && sync==3 && flags==DXGI_PRESENT_TEST;
+    return g_smokeMessageProbe->WaitForMessage();
+}
+static HRESULT STDMETHODCALLTYPE ApexProbePresent1(IDXGISwapChain1* sc,UINT sync,UINT flags,const DXGI_PRESENT_PARAMETERS* parameters) {
+    g_smokeMessageProbe->argumentsExact=sc==nullptr && sync==3 && flags==DXGI_PRESENT_TEST && parameters==g_smokeMessageProbe->parameters;
+    return g_smokeMessageProbe->WaitForMessage();
+}
+static HRESULT STDMETHODCALLTYPE ApexProbeResize(IDXGISwapChain* sc,UINT count,UINT width,UINT height,DXGI_FORMAT format,UINT flags) {
+    g_smokeMessageProbe->argumentsExact=sc==nullptr && count==2 && width==640 && height==480 && format==DXGI_FORMAT_R8G8B8A8_UNORM && flags==0;
+    return g_smokeMessageProbe->WaitForMessage();
+}
 extern "C" int ApexRunNativeSmoke() {
     using namespace td1;
+    for(int operation=0;operation<3;++operation) {
+        ApexPresentMessageProbe probe;g_smokeMessageProbe=&probe;
+        if(!probe.delivered) return 89;
+        HRESULT result=E_FAIL;
+        if(operation==0) {
+            const auto original=g_realPresent;g_realPresent=ApexProbePresent;
+            result=HookPresent(nullptr,3,DXGI_PRESENT_TEST);g_realPresent=original;
+        } else if(operation==1) {
+            DXGI_PRESENT_PARAMETERS parameters{};probe.parameters=&parameters;
+            const auto original=g_realPresent1;g_realPresent1=ApexProbePresent1;
+            result=HookPresent1(nullptr,3,DXGI_PRESENT_TEST,&parameters);g_realPresent1=original;
+        } else {
+            const auto original=g_realResizeBuffers;g_realResizeBuffers=ApexProbeResize;
+            result=HookResizeBuffers(nullptr,2,640,480,DXGI_FORMAT_R8G8B8A8_UNORM,0);g_realResizeBuffers=original;
+        }
+        if(!probe.progressed || !probe.argumentsExact || result!=S_FALSE || g_presentDepth!=0) return 90+operation;
+    }
+    g_smokeMessageProbe=nullptr;
     // The debugger export rejects malformed requests and this foreign test
     // executable without reading a game process or accepting a write claim.
     for(const auto* raw:std::array<const char*,4>{{nullptr,"{}","{\"rva\":1,\"bytes\":8193}","{\"rva\":1,\"bytes\":1}"}}) {

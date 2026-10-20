@@ -28,6 +28,61 @@ class LifeStateFormsTests(unittest.TestCase):
         return forms.capture(self.backend, self.sim, dict(id=identity, lifestate=state,
             label=identity.replace('_', ' '), base_form=base))['form']
 
+    def wolf_fixture(self):
+        self.forms[32]=copy.deepcopy(self.vampire)
+        self.sim.occult_types=37
+        for owner,tag in ((self.sim,'Human'),(self.human,'Human'),(self.forms[32],'Wolf')):
+            owner.facial_attributes=(tag+' head').encode()
+            owner.genetic_data=(tag+' body genetics').encode()
+            owner.pelt_layers=(tag+' body paint').encode()
+            owner.custom_texture=123 if tag=='Human' else 987
+            owner.skin_tone=111 if tag=='Human' else 999
+            owner.parts_custom_tattoos={1:(tag+' tattoos').encode()}
+
+    def test_builtin_human_werewolf_seeds_every_field_from_human_not_beast(self):
+        self.wolf_fixture()
+        before=form_bank.capture(self.backend,self.sim)
+        row=self.capture('werewolf_human_cc','WEREWOLF',32)
+        self.assertEqual(row['fields'],appearance.packed(self.backend,self.sim))
+        self.assertNotEqual(row['fields'],appearance.packed(self.backend,self.forms[32]))
+        self.assertEqual(row['base_form'],32)
+        projected=next(r for r in forms.native_cas_owners(self.backend,self.sim) if r['owner_id']=='werewolf/werewolf_human_cc')
+        self.assertEqual(projected['native_kind'],1)
+        self.assertEqual(projected['fields'],row['fields'])
+        self.assertEqual(form_bank.capture(self.backend,self.sim),before)
+        ordinary=self.capture('my_wolf','WEREWOLF',32)
+        self.assertEqual(forms.visual_form(ordinary),32)
+
+    def test_explicit_legacy_human_look_repair_retains_old_full_look_and_all_native_owners(self):
+        self.wolf_fixture()
+        row=self.capture('werewolf_human_cc','WEREWOLF',32)
+        wolf=appearance.packed(self.backend,self.forms[32])
+        forms.update(self.backend,self.sim,row['id'],wolf,row['appearance_sha256'])
+        old=forms.stored(self.backend,self.sim,row['id'])
+        before=form_bank.capture(self.backend,self.sim)
+        # Inventory and CAS projection alone must never overwrite a prior look.
+        forms.native_cas_owners(self.backend,self.sim)
+        self.assertEqual(forms.stored(self.backend,self.sim,row['id']),old)
+        result=forms.initialize_human_werewolf(self.backend,self.sim,dict(id=row['id'],expected_sha256=old['appearance_sha256']))
+        self.assertTrue(result['previous_look_retained'])
+        self.assertEqual(self.record()['human_werewolf_look_history'][0]['before'],old)
+        self.assertEqual(forms.stored(self.backend,self.sim,row['id'])['fields'],appearance.packed(self.backend,self.sim))
+        self.assertEqual(form_bank.capture(self.backend,self.sim),before)
+        self.assertEqual((self.sim.occult_types,self.sim.perks,self.sim.fury),(37,(10,20),45))
+
+    def test_human_look_repair_rejects_changed_checksum_and_active_look_without_writes(self):
+        self.wolf_fixture();row=self.capture('werewolf_human_cc','WEREWOLF',32)
+        before=copy.deepcopy(self.record())
+        with self.assertRaisesRegex(ValueError,'changed after inspection'):
+            forms.initialize_human_werewolf(self.backend,self.sim,dict(id=row['id'],expected_sha256='f'*64))
+        self.assertEqual(self.record(),before)
+        path,key=form_bank.context(self.backend,self.sim);bank=form_bank.load(path)
+        bank['records'][key][forms.KEY]['active']['32']=row['id'];form_bank.save(path,bank)
+        before=copy.deepcopy(self.record())
+        with self.assertRaisesRegex(ValueError,'active appearance'):
+            forms.initialize_human_werewolf(self.backend,self.sim,dict(id=row['id'],expected_sha256=row['appearance_sha256']))
+        self.assertEqual(self.record(),before)
+
     def record(self):
         path, key = form_bank.context(self.backend, self.sim)
         return form_bank.load(path)['records'][key]

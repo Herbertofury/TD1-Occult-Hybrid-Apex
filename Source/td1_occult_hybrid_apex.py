@@ -4273,6 +4273,7 @@ def _process_pending(_handle=None):
 
 _APEX_CORE_TICK_READY = False
 _APEX_CORE_TICKS = 0
+_APEX_PROFILE_PULSE = None
 
 
 def _apex_install_core_tick():
@@ -4289,6 +4290,8 @@ def _apex_install_core_tick():
             if threading.current_thread().ident == _APEX_GAME_THREAD_IDENT:
                 _APEX_CORE_TICK_READY = True
                 _APEX_CORE_TICKS += 1
+                if _APEX_PROFILE_PULSE is not None:
+                    _APEX_PROFILE_PULSE()
                 if _SERVER_START_RETRY.take_due(time.monotonic()):
                     start_server()
                 if _APEX_COMMANDS.pending:
@@ -8430,7 +8433,8 @@ def run_action(action, sim_id=None, occult=None, value=None):
     if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
         return {'ok': False, 'message': 'Sim inspection and mutation require the canonical Sims game-thread owner.'}
     if action in ('lifestate_catalog', 'lifestate_form_list', 'lifestate_form_capture',
-                  'lifestate_form_bind', 'lifestate_form_select', 'lifestate_form_revalidate', 'lifestate_form_resume_draft'):
+                  'lifestate_form_bind', 'lifestate_form_select', 'lifestate_form_revalidate', 'lifestate_form_resume_draft',
+                  'lifestate_form_human_look'):
         from apex_core.lifestate_forms import dispatch
         import sys
         try:

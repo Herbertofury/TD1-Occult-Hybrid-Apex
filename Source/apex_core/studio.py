@@ -290,6 +290,10 @@ def _form_inventory(backend, sim):
 
 def _visual_form(backend, journal):
     variant = journal.lifestate_variant
+    if variant is not None:
+        from .lifestate_forms import human_werewolf_variant
+        if human_werewolf_variant(variant):
+            return 1
     flags = variant['base_form'] if variant is not None else journal.form_flags
     return human_werewolf.preview_form(backend, journal.primary_sim, flags)
 

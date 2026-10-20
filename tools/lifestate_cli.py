@@ -34,12 +34,14 @@ def argument(args):
                 not isinstance(options['label'],str) or not 0<len(options['label'].strip())<=128):
             raise ValueError('Capture requires life state, label and existing native base; no guessed checksum.')
         return 'lifestate_form_capture', {key:options[key] for key in ('id','lifestate','label','base_form')}
-    if operation not in ('bind','select'):
+    if operation not in ('bind','select','human-look'):
         raise ValueError('Unknown life-state appearance operation.')
     if (any(options[name] is not None for name in ('lifestate','label','base_form')) or
             not isinstance(options['expected_sha256'],str) or re.fullmatch(r'[0-9a-f]{64}',options['expected_sha256']) is None):
         raise ValueError('Bind/Select requires the inspected appearance checksum and no replacement data.')
-    return 'lifestate_form_'+operation, dict(id=options['id'],expected_sha256=options['expected_sha256'])
+    if operation=='human-look' and options['id']!='werewolf_human_cc':
+        raise ValueError('Whole-body Human initialization targets only the built-in Werewolf Human/CC look.')
+    return 'lifestate_form_'+operation.replace('-','_'), dict(id=options['id'],expected_sha256=options['expected_sha256'])
 
 
 def run(args, request):

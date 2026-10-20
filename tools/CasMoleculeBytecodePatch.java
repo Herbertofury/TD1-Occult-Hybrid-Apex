@@ -1,4 +1,4 @@
-// Transplant four explicitly edited molecule handlers, preserving all others.
+// Transplant five explicitly edited molecule handlers, preserving all others.
 // Input SWFs and decompiled sources stay private; no process/game-file writes.
 import java.io.*;
 import java.nio.file.*;
@@ -13,7 +13,8 @@ public class CasMoleculeBytecodePatch {
     static final String PIN="3124ed12ea50140da6f072d16ab0703e6154e448974edb1c3f6f7d05f7c24524";
     static final Map<String,Set<String>> TARGETS=Map.of(
         "widgets.TraitsMolecule.OccultSelectionButton",Set.of("UpdateIconDisplay"),
-        "widgets.CAS.Molecule.EquippedTraitsAsp",Set.of("SetSimInfo","OnOccultClick","OnOccultSelected"));
+        "widgets.CAS.Molecule.EquippedTraitsAsp",Set.of("SetSimInfo","OnOccultClick","OnOccultSelected"),
+        "widgets.TraitsMolecule.OccultSelectionPanel",Set.of("OnItemClick"));
     static void require(boolean b,String s){CasBytecodePatch.require(b,s);}
     static String sha(byte[] b)throws Exception{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(b));}
     static MethodBody body(ABC a,InstanceInfo i,String n){return CasBytecodePatch.ownedBody(a,i,n);}
@@ -54,6 +55,6 @@ public class CasMoleculeBytecodePatch {
         for(var b:saved.bodies) require(Arrays.equals(b.getCodeBytes(),edits.containsKey(b.method_info)?edits.get(b.method_info).getCodeBytes():before.get(b.method_info)),
             "Molecule serialized handler differs or another native handler changed.");
         Files.write(Path.of(args[2]),out.toByteArray());
-        System.out.println("{\"ok\":true,\"unrelated_native_methods_preserved\":true,\"native_lexical_scope_preserved\":true,\"edited_method_count\":4,\"base_resource_sha256\":\""+PIN+"\"}");
+        System.out.println("{\"ok\":true,\"unrelated_native_methods_preserved\":true,\"native_lexical_scope_preserved\":true,\"edited_method_count\":5,\"base_resource_sha256\":\""+PIN+"\"}");
     }
 }

@@ -498,11 +498,13 @@ public class CasBytecodePatch {
             require(clocks==1,"UI clock must have one exact imported getTimer call per timing method.");
         }
         var queued=propertyCalls(abc,ownedBody(abc,instance,"ApexFormsQueueOwner"));
-        require(queued.containsAll(Set.of("ApexClone","addEventListener","getTimer")) &&
+        require(queued.containsAll(Set.of("ApexClone","ApexFormsScheduleFrame","getTimer")) &&
             Collections.disjoint(queued,Set.of("ApexTick","CallGameService","ApexNativeExchange","ApexFormsOwnedTick")),
             "Form click may enqueue one next-frame intent, never execute native work inline.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsScheduleFrame")).equals(Set.of("addEventListener")),
+            "Scheduling a deferred form click must only register the next frame callback.");
         var nextBody=ownedBody(abc,instance,"ApexFormsNextFrame");var next=propertyCalls(abc,nextBody);
-        require(next.equals(Set.of("removeEventListener","ApexFormsOwnedTick","ApexFormsObservedSim")),
+        require(next.equals(Set.of("removeEventListener","ApexFormsOwnedTick","ApexFormsObservedSim","ApexFormsScheduleFrame")),
             "Next-frame form callback must detach and process its bound view without waiting for a network poll.");
         var gates=new HashSet<String>();boolean returned=false;
         for(var op:nextBody.getCode().code) {
@@ -543,6 +545,7 @@ public class CasBytecodePatch {
     static void verifyFormStrip(ABC abc, InstanceInfo instance) {
         verifyFastOwnerReadback(abc,instance);
         verifyPairControls(abc,instance);
+        verifyMoleculeSelection(abc,instance);
         var expected=Map.of("ApexFormsTick",List.of("CasGetAvailableOccults","GetOccultIcon"),
             "ApexFormsClick",List.of("CASGetSimInfo"), "ApexFormsOwnedTick",List.of("SetSimOccult","GetOccultIcon"));
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex")) {
@@ -598,6 +601,31 @@ public class CasBytecodePatch {
         require(groupCode.stream().anyMatch(op->property(abc,op,0x66,"family")) &&
             groupCode.stream().noneMatch(op->property(abc,op,0x66,"native_kind")),
             "Life-state menu must group exact named families, never native rendering genera.");
+    }
+    static void verifyMoleculeSelection(ABC abc,InstanceInfo instance) {
+        var choose=ownedBody(abc,instance,"ApexMoleculeChooseOccult");
+        var calls=propertyCalls(abc,choose);
+        require(calls.contains("ApexFormsScheduleFrame") && Collections.disjoint(calls,
+            Set.of("ApexFormsOwnedTick","ApexExecute","ApexAccept","ApexPairExecute","ApexFormsQueueOwner")),
+            "Molecule click must retain its own deferred intent, never lose it to a busy form queue.");
+        boolean retained=false;
+        for(var op:choose.getCode().code)if(property(abc,op,0x61,"apexMoleculeIntent"))retained=true;
+        require(retained,"Molecule choice must survive a pending CLI readback.");
+        var drain=ownedBody(abc,instance,"ApexMoleculeDrain");
+        require(propertyCalls(abc,drain).equals(Set.of("getTimer","ApexClone")),
+            "Draining a molecule choice must only queue its exact owner, never mutate native CAS directly.");
+        var gates=new HashSet<String>();
+        for(var op:drain.getCode().code)for(String gate:Set.of("apexBoundSim","apexOwnerSession",
+            "apexPendingFields","apexPendingPhase","apexReceiving","apexFormsDesiredId",
+            "apexFormsNativeIntent","apexFormsNativeState"))
+            if(property(abc,op,0x60,gate)||property(abc,op,0x66,gate))gates.add(gate);
+        require(gates.size()==8,"Deferred molecule selection must validate its exact session and idle native owner.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsOwnedTick")).contains("ApexMoleculeDrain"),
+            "The selected molecule choice must be consumed by the owned UI lifecycle.");
+        var read=ownedBody(abc,instance,"ApexMoleculeReadSelection");
+        uniqueLiteral(abc,read,"GetSimOccult");
+        require(Collections.disjoint(propertyCalls(abc,read),Set.of("ApexExecute","ApexAccept","ApexPairExecute","ApexFormsOwnedTick")),
+            "Molecule highlight observation must not mutate a form.");
     }
     static void verifyQueuedHandshake(ABC abc, InstanceInfo instance) {
         var callback=ownedBody(abc,instance,"ApexSocketConnect").getCode().code;
@@ -1149,12 +1177,12 @@ public class CasBytecodePatch {
             "apexAwaiting", "apexAckId", "apexDisconnected", "apexSocketActive", "apexHelloPending", "apexSocketError",
             "apexSocketResetPending", "apexOutboundFrame", "apexOutboundPending",
             "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking",
-            "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener", "apexMoleculeRegistered", "apexMoleculeListener", "apexMoleculeView",
+            "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener", "apexMoleculeRegistered", "apexMoleculeReadRegistered", "apexMoleculeListener", "apexMoleculeView", "apexMoleculeIntent",
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
             "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey",
             "apexFormsFrameQueued", "apexFormsFastState", "apexFormsNativeGeneration", "apexFormsGestureStarted", "apexFormsSwitchMilliseconds",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage");
-        Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexMoleculeChooseOccult", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
+        Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
@@ -1162,7 +1190,7 @@ public class CasBytecodePatch {
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
             "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips",
-            "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState",
+            "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame",
             "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;

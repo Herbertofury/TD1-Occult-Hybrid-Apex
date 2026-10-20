@@ -26,7 +26,7 @@ public class CasLifeStateMenuFixtures {
             case "tooltip-rebuild":method="ApexFormsOwnedTick";from="ApexFormsClearTooltips";break;
             case "tooltip-unload":method="ApexFormsDispose";from="ApexFormsClearTooltips";break;
             case "tooltip-shutdown":method="ApexFormsClearTooltips";from="Shutdown";break;
-            case "fast-queue-not-deferred":method="ApexFormsQueueOwner";from="addEventListener";break;
+            case "fast-queue-not-deferred":method="ApexFormsScheduleFrame";from="addEventListener";break;
             case "fast-frame-network-poll":method="ApexFormsNextFrame";from="ApexFormsOwnedTick";to="ApexTick";break;
             case "fast-frame-missing-lease":method="ApexFormsNextFrame";from="apexPendingFields";to="apexFormsDesiredId";opcode=0x60;break;
             case "fast-clock-namespace":
@@ -37,6 +37,12 @@ public class CasLifeStateMenuFixtures {
             case "pair-read-mutates":method="ApexPairRead";from="ApexNativeExchange";to="ApexPairExecute";opcode=0x46;break;
             case "pair-native-action-missing":method="ApexPairExecute";from="ApexNativeExchange";opcode=0x46;break;
             case "pair-cli-action-missing":method="ApexControlExecute";from="ApexPairExecute";to="ApexPairRead";opcode=0x46;break;
+            case "molecule-click-drops-intent":method="ApexMoleculeChooseOccult";from="apexMoleculeIntent";to="apexFormsIntent";opcode=0x61;break;
+            case "molecule-click-inline":method="ApexMoleculeChooseOccult";from="ApexFormsScheduleFrame";to="ApexFormsOwnedTick";break;
+            case "molecule-drain-other-session":method="ApexMoleculeDrain";from="apexOwnerSession";to="apexFormsGestureSequence";opcode=0x60;break;
+            case "molecule-drain-active-command":method="ApexMoleculeDrain";from="apexPendingFields";to="apexFormsResult";opcode=0x60;break;
+            case "molecule-drain-inline":method="ApexMoleculeDrain";from="ApexClone";to="ApexFormsOwnedTick";opcode=0x46;break;
+            case "molecule-not-consumed":method="ApexFormsOwnedTick";from="ApexMoleculeDrain";to="ApexFormsReadNativeState";break;
             default:throw new AssertionError("Unknown case");
         }
         if(method!=null) {

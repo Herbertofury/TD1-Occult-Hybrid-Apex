@@ -615,6 +615,7 @@ inline void CanonicalizeHouseholdRoots(State& state,const std::vector<HouseholdR
     struct Stage {
         State& state;HouseholdRootTarget target;NativePacket before,desired;NativeOwner dataBefore;
         std::string original,projected;void* attributesOwner=nullptr;void* attributesVtable=nullptr;bool attempted=false,activeReplaced=false;
+        ui::Json differences=ui::Json::array();
         Stage(State& s,HouseholdRootTarget t):state(s),target(t),before(s.api),desired(s.api),dataBefore(s.api,t.sim) {
             auto& bank=*t.bank;
             if(!s.api.assignAttributes || !bank.graph || !bank.seeded || bank.viewFault ||
@@ -656,8 +657,13 @@ inline void CanonicalizeHouseholdRoots(State& state,const std::vector<HouseholdR
             if(Read<void*>(attributesOwner)!=attributesVtable)
                 throw std::runtime_error("CAS root changed its attributes owner during appearance preparation.");
             state.api.assignAttributes(attributesOwner,Read<void*>(desired.data.data(),0xc0));
-            if(!wire::Equivalent(projected,readback()))
+            const auto actual=readback();
+            if(!wire::Equivalent(projected,actual)) {
+                for(const auto& delta:wire::Differences(projected,actual))differences.push_back({
+                    {"path",delta.path},{"expected_bytes",delta.expected.size()},{"actual_bytes",delta.actual.size()},
+                    {"expected_sha256",resource::HashBytes(delta.expected)},{"actual_sha256",resource::HashBytes(delta.actual)}});
                 throw std::runtime_error("CAS household root changed a projected or unrelated field.");
+            }
         }
         bool rollback() {
             if(!attempted)return true;
@@ -696,7 +702,9 @@ inline void CanonicalizeHouseholdRoots(State& state,const std::vector<HouseholdR
         bool restored=true;
         for(auto at=stages.rbegin();at!=stages.rend();++at)restored=(*at)->rollback()&&restored;
         for(auto& stage:stages)stage->target.bank->householdCanonical={{"verified",false},
-            {"message",error.what()},{"all_original_roots_restored",restored},{"other_sim_graphs_written",false}};
+            {"message",error.what()},{"all_original_roots_restored",restored},{"other_sim_graphs_written",false},
+            {"differences",stage->differences},{"scope_id",state.scope.id},
+            {"generation",stage->target.bank->graph->cursor().generation}};
         if(!restored)throw std::runtime_error("CAS root projection failed and original root rollback is unresolved; acceptance blocked.");
         throw;
     }

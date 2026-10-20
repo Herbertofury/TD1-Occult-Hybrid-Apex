@@ -470,17 +470,67 @@
     },
     "permanent_guard_retained": true,
     "production_ready": false,
-    "runtime": "Five-member CAS acceptance in progress; not yet qualified",
+    "runtime": {
+      "all_five_original_roots_restored": true,
+      "native_acceptance_attempted": false,
+      "native_accepted": false,
+      "other_sim_graphs_written": false,
+      "reason": "Prepared CAS household root differs on complete readback; acceptance blocked",
+      "retained_proof": ".work/v219-rejected-native-status.json",
+      "sha256": "9cbd1ed47444ad4d76e38359f7bd55b6efc774679a62c3eb4d7e957c336b3d9f"
+    },
     "script_sha256": "9292da02ce6641c68e63106bb6e82769e5453a26350b0cef7b8bbb481dfc1928",
     "seal_checks": {
       "passed": 26,
       "retained_proof": ".work/v219-seal-tests.log",
       "sha256": "f4818b7f10e460605c685fed65db9a6c79613de1f5b1b43ba565b3dcd223bf54"
     },
+    "shutdown": {
+      "process_closed": true,
+      "retained_proof": ".work/v219-rejected-cas-normal-discard.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "f8c99f0c2b0e7e002e69e25465145fe46ff44183aaa543839aa07f441f21f068",
+      "shutdown_stability_qualified": false
+    },
     "upgrade_checks": {
       "passed": 26,
       "retained_proof": ".work/v219-upgrade-tests.log",
       "sha256": "610eeda937c69372e6eee611fef32c9938330ede66778b154d1a460965372144"
+    }
+  },
+  "v220": {
+    "all_verification_fields_retained": true,
+    "bundle_sha256": "fb1cbc95a1664b590357264325ca14771c3cd00bd33097afb9fb0ea3641f09e6",
+    "change": "Bounded field-path, byte-count and digest diagnostics for complete native root rejection; no validation exclusions",
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "1b0bf35ccfb622b852b1f45a780e7f35c4927ea5ee483c12009ca969a2cdf356",
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v220-native-tests.log",
+      "sha256": "90a8e07d423a32f477ae15e417085124799433d0a291bd84bfaf8b93c2ead6e7"
+    },
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v220-candidate-build.log",
+      "sha256": "542ac9e9a4515463a3e74a76c6763d6e020eccf0a004d50d998c94814fdadcce"
+    },
+    "permanent_guard_retained": true,
+    "private_status_appearance_bytes_exported": false,
+    "production_ready": false,
+    "runtime": "Diagnosis in progress; no direct-fix pass claimed",
+    "script_sha256": "ec3ecb0874704ca6b49bbe6fd43778a416c3978c0234b12ec7215941a147e2aa",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v220-seal-tests.log",
+      "sha256": "aa4717b588456b5f1dd58b224a8800de2232cf0ad49e6cbb9ac7681f0e276a70"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v220-upgrade-tests.log",
+      "sha256": "e0a34c5d13f5898574525b636c6f7a4cb6a47c7ce27b2335af4a967a41f312d0"
     }
   }
 }

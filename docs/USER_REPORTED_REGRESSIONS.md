@@ -17,7 +17,11 @@ stages and verifies the actual CAS household roots before native acceptance,
 with whole-household rollback on failure. V218 was withdrawn before CAS entry
 or arming after an inline-object ABI mistake was found. V219 corrects the
 adapter and fixture; thirteen native targets plus 26 seal and 26 upgrade checks
-pass. Its actual household acceptance test remains open. R001/R002 remain open,
+pass. Its actual acceptance is rejected because a prepared root differs on
+complete readback. All five original roots are restored, EA's handler is not
+called, and the session is canceled without saving. V220 reports bounded
+field-path/size/hash differences to isolate that failure while keeping every
+verification field and the rollback. R001/R002 remain open,
 as do selective EA linking/copying, edited save/Tray round trips and measured
 end-to-end responsiveness; fixture passes do not authorize actual-save use.
 

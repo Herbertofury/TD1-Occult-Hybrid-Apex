@@ -167,4 +167,38 @@ inline bool Equivalent(const std::string& expected,const std::string& actual) {
     const auto at=Fields(One(aa,17,2).value),bt=Fields(One(ba,17,2).value);
     return Bag(at,3)==Bag(bt,3) && RecordBags(at)==RecordBags(bt);
 }
+struct Difference {std::string path,expected,actual;};
+inline void FieldDifferences(const std::vector<Field>& a,const std::vector<Field>& b,
+                             const std::string& path,unsigned exclude,std::vector<Difference>& out) {
+    std::map<unsigned,std::multiset<std::string>> left,right;
+    for(const auto& f:a)if(f.number!=exclude)left[f.number].insert(f.raw);
+    for(const auto& f:b)if(f.number!=exclude)right[f.number].insert(f.raw);
+    std::set<unsigned> numbers;for(const auto& f:left)numbers.insert(f.first);for(const auto& f:right)numbers.insert(f.first);
+    for(auto n:numbers)if(left[n]!=right[n]) {
+        if(out.size()>=128)throw std::runtime_error("Native root difference count exceeds its diagnostic bound.");
+        std::string x,y;for(const auto& f:left[n])x+=f;for(const auto& f:right[n])y+=f;
+        out.push_back({path+"/"+std::to_string(n),std::move(x),std::move(y)});
+    }
+}
+inline std::vector<Difference> Differences(const std::string& expected,const std::string& actual) {
+    std::vector<Difference> out;const auto a=Fields(expected),b=Fields(actual);
+    FieldDifferences(a,b,"root",30,out);
+    const auto aa=Fields(One(a,30,2).value),ba=Fields(One(b,30,2).value);
+    FieldDifferences(aa,ba,"attributes",17,out);
+    const auto at=Fields(One(aa,17,2).value),bt=Fields(One(ba,17,2).value);
+    FieldDifferences(at,bt,"tracker",3,out);
+    const auto records=[](const std::vector<Field>& fields) {
+        std::map<std::uint64_t,std::string> result;
+        for(const auto& f:fields)if(f.number==3) {
+            if(f.type!=2)throw std::runtime_error("Diagnostic occult record changed wire type.");
+            const auto kind=Scalar(One(Fields(f.value),1,0));
+            if(!result.emplace(kind,f.value).second)throw std::runtime_error("Diagnostic occult record identity is duplicated.");
+        }
+        return result;
+    };
+    auto ar=records(at),br=records(bt);std::set<std::uint64_t> kinds;
+    for(const auto& f:ar)kinds.insert(f.first);for(const auto& f:br)kinds.insert(f.first);
+    for(auto kind:kinds)FieldDifferences(Fields(ar[kind]),Fields(br[kind]),"occult/"+std::to_string(kind),0,out);
+    return out;
+}
 } // namespace td1::nativecas::wire

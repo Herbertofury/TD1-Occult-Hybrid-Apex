@@ -85,6 +85,7 @@ void Exercise() {
             }
         }
         if(mode==1)Require(copies==0); // Every root stages before the first write.
+        if(mode==3)Require(state.bank.at(123).householdCanonical["differences"][0]["path"]=="attributes/502");
         for(const auto& member:state.bank)for(const auto& owner:member.second.graph->owners())
             Require(SerializeOwner(state.api,*member.second.graph->appearance(owner.id),member.first)==graphBefore.at({member.first,owner.id}));
     }

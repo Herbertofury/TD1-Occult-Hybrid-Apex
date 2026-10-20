@@ -69,9 +69,21 @@ with a shared vtable and rejects a vtable address as a copy destination. All
 thirteen native targets pass, including complete selected/unselected readbacks,
 parser failures and multi-member rollback. Twenty-six seal and twenty-six
 upgrade checks pass. Seven packages, 105 Python 3.7 modules and 208 independently
-Rust-validated resources build. The actual five-member CAS/Live test is running;
-direct isolation, edited-category persistence and actual-save readiness are
-not yet claimed.
+Rust-validated resources build. The actual five-member V219 run rejects native
+acceptance: a complete prepared root readback differs from its projected packet.
+Every original root is restored and read back, and EA's acceptance handler is
+not called. The same middle three members remain unselected. The test session
+is canceled and closed without saving; all save/backup files stay unchanged.
+Do not classify the rejection as a direct isolation or Live-return pass.
+
+V220 adds bounded field-level diagnostics at this exact rejection boundary.
+They cover root fields, attributes, tracker fields and each independently keyed
+occult record, reporting field paths, byte counts and SHA-256 values. No field
+is excluded from verification and no private appearance bytes are exported in
+the status report. The original-root rollback remains mandatory. Thirteen
+native targets, 26 seal and 26 upgrade checks pass; actual diagnosis is running.
+Direct isolation, edited-category persistence and actual-save readiness remain
+open.
 
 V214's untouched-member acceptance test fails direct isolation: members two,
 three and four return changed Human genetics and/or active outfits/paint.

@@ -58,6 +58,9 @@ int main(int argc,char** argv) {
     Require(count==2 && projected.find(unknown)!=std::string::npos && original==Packet());
     Require(Household(projected,123,3,owners,&owners.at(2))==projected);
     Require(Equivalent(projected,projected));
+    Require(Differences(projected,projected).empty());
+    const auto delta=Differences(projected,projected+Number(501,1));
+    Require(delta.size()==1 && delta[0].path=="root/501" && delta[0].expected.empty());
     Require(!Equivalent(projected,projected+Number(501,1))); // Unknowns are part of qualification, not excluded.
     Require(One(Fields(Household(original,123,3,owners)),12,2).value=="wrong active body"); // Selected root stays EA-owned.
     for(const auto& broken:std::vector<std::string>{std::string(1,'\0'),std::string(1,char(0x80)),Var((4<<3)|2)+Var(99),

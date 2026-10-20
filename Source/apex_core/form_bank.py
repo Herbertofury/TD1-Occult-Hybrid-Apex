@@ -8,7 +8,7 @@ import hashlib
 import os
 import copy
 import uuid
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from . import form_appearance as appearance
 from .overlay_loader import _unlinked
 
@@ -202,7 +202,12 @@ def assert_idle(backend, sim):
 
 
 def _old_process_absent(pid):
-    """Query one exact PID through fixed Win32 functions; never send a signal."""
+    """Query a held handle; a PID reused by another app is no Sims runtime.
+
+    Legacy captures have a PID rather than a creation-time identity. Keep any
+    live Sims executable conservative, but do not block recovery merely because
+    Windows assigned the old PID to Opera or another unrelated process.
+    """
     if type(pid) is not int or not 0 < pid <= 0xffffffff or pid == os.getpid():
         raise ValueError('Use one valid different prior Windows PID.')
     import paths
@@ -212,6 +217,8 @@ def _old_process_absent(pid):
         _type_ = 'I'
     class Handle(native._SimpleCData):
         _type_ = 'P'
+    class Wchar(native._SimpleCData):
+        _type_ = 'u'
     class Library:
         _handle = native.LoadLibrary('kernel32.dll')
     def bind(name, result, arguments):
@@ -232,7 +239,19 @@ def _old_process_absent(pid):
         result = bind('GetExitCodeProcess', Dword, (Handle, native.POINTER(Dword)))(handle, native.byref(code))
         if not int(getattr(result, 'value', result)):
             raise ValueError('Prior PID exit observation failed.')
-        return code.value != 259
+        if code.value != 259:
+            return True
+        name = (Wchar * 32768)()
+        length = Dword(32768)
+        result = bind('QueryFullProcessImageNameW', Dword,
+            (Handle, Dword, native.POINTER(Wchar), native.POINTER(Dword)))(handle, 0, name, native.byref(length))
+        if not int(getattr(result, 'value', result)):
+            raise ValueError('Prior PID executable identity could not be verified.')
+        image = name.value
+        if (not isinstance(image, str) or not 0 < length.value < 32768 or
+                len(image.encode('utf-16-le')) // 2 != length.value or not PureWindowsPath(image).is_absolute()):
+            raise ValueError('Prior PID executable identity is incomplete or malformed.')
+        return PureWindowsPath(image).name.casefold() not in ('ts4_x64.exe', 'ts4_dx9_x64.exe', 'ts4.exe')
     finally:
         try:
             if handle:

@@ -14,11 +14,13 @@ from test_cas_occult_view import client
 REFUSAL='Read fresh CAS status before selecting an independent form.'
 
 class PreflightRefreshTests(unittest.TestCase):
-    def run_case(self,refusals=None,changed_layer=False,transport_error=False,settling_statuses=0,never_settles=False):
+    def run_case(self,refusals=None,changed_layer=False,transport_error=False,settling_statuses=0,never_settles=False,hidden_owner=False):
         calls=[];status_count=0;mutation_count=0
         initial=client(2,127);initial['sim']['occultLayer']=0
         initial['form_strip']=dict(sim_id=fixture.SIM,selected_owner_id='native/2',
-                                   native_owner_state='bound',desired_owner_id='')
+                                   native_owner_state='bound',desired_owner_id='',
+                                   life_states=[dict(family='alien',variants=[dict(owner_id='native/2')]),
+                                                dict(family='vampire',variants=[dict(owner_id='active/4' if hidden_owner else 'native/4')])])
         args=SimpleNamespace(operation='form-owner-select',state=Path('fixture'),output=None,
             seconds=10,sim_id=fixture.SIM,owner_id='native/4',native_kind=4,owned_mask=127,
             household_id=fixture.HH,native_session=1,expected_layer=0)
@@ -31,6 +33,7 @@ class PreflightRefreshTests(unittest.TestCase):
                 if operation=='status':
                     status_count+=1
                     return dict(ok=False,cas_request_id=str(status_count)*32,outcome='pending-client')
+                if hidden_owner:raise AssertionError('Hidden backup reached native selection dispatch')
                 mutation_count+=1
                 if transport_error:raise OSError('Response lost after dispatch')
                 if mutation_count<=len(rejections):return copy.deepcopy(rejections[mutation_count-1])
@@ -50,6 +53,19 @@ class PreflightRefreshTests(unittest.TestCase):
         self.assertTrue(result['ok']);self.assertEqual((statuses,submissions),(2,2))
         self.assertEqual(result['preflight_refresh']['refresh_count'],1)
         self.assertFalse(result['preflight_refresh']['native_request_created'])
+
+    def test_hidden_canonical_backup_is_rejected_before_native_dispatch(self):
+        with self.assertRaisesRegex(ValueError,'hidden backup aliases'):
+            self.run_case(hidden_owner=True)
+
+    def test_visible_form_inventory_requires_unique_exact_owner_ids(self):
+        base=dict(form_strip=dict(life_states=[dict(variants=[dict(owner_id='active/32')])]))
+        cas_client._require_visible_form_owner(base,'active/32')
+        for client in ({},dict(form_strip=dict(life_states=[])),
+                       dict(form_strip=dict(life_states=[dict(variants=[dict(owner_id='active/32')]*2)])),
+                       dict(form_strip=dict(life_states=[dict(variants=[dict(owner_id='../32')])]))):
+            with self.subTest(client=client),self.assertRaises(ValueError):
+                cas_client._require_visible_form_owner(client,'active/32')
 
     def test_second_expiration_stops_without_a_loop(self):
         refusal=dict(ok=False,message=REFUSAL,request_state='failed')

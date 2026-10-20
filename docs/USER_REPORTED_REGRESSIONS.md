@@ -1,6 +1,6 @@
 # User-Reported Original Mod Regressions — Non-Negotiable Fix Ledger
 
-Last reconciled: 2026-10-06
+Last reconciled: 2026-10-20
 
 This is not a wishlist. These are concrete failure modes experienced with the original/older hybrid-occult workflow and are **release-blocking regressions for Apex**.
 
@@ -262,3 +262,15 @@ Then fix the shared state model and keep these failures as permanent regressions
 # Release blocker
 
 Apex is **not finished** while any of R001–R010 can still be reproduced on the current supported Sims 4 build.
+
+## October 20: observed CAS/recovery corrections, partial qualification
+
+- [x] R003: reproduce Fairy highlighted while Werewolf remains rendered. Retain a busy picker choice for the exact Sim/session and drive the stock highlight from the actual native form. An actual EA Fairy-card click now loads its independent Fairy owner, rendered kind and icon; membership stays 127.
+- [x] R004: identify the built-in Human/CC look seeded from the beast's complete outfit/genetic/body data. Seed new looks from the shared Human, render that named look as Human, and archive a prior look before an explicit full-body initialization. An actual CAS capture verifies a complete Human head/body and a separate normal beast view on the first household member.
+- [x] Prevent the form-selection CLI from binding hidden canonical backup aliases that its player-facing UI cannot acknowledge. Resolve the exact visible logical owner for each member; reject hidden, duplicate and missing identities before staging native work. Retain the failed prior UUID without replay.
+- [x] Correct recovery treating a PID reused by Opera as the old Sims runtime. Use a held query-only process handle and validate its executable image. Actual Windows and in-game checks distinguish the browser from Sims; failed identity queries still refuse recovery.
+- [x] V212: load all five members, retain all forty native appearances through 2,961 simulation ticks, preserve the original profile and keep every disposable save/backup unchanged.
+- [ ] Complete the V212 five-member Human/CC/beast/Fairy matrix and full retained-data comparison.
+- [ ] Complete CAS return and Live geometry, full category/MCCC coverage, scoped link/copy/undo and household save/Tray/Gallery acceptance. The direct CAS-exit Human-paint fix remains open; the permanent guard stays enabled.
+
+These are scoped checkpoints. They do not close R001–R010 or certify actual-save use.

@@ -5,7 +5,37 @@ checklist, not a claim that the current candidate meets these requirements.
 It supersedes the earlier user-facing layout that exposed canonical, active
 and named implementation records as separate form choices.
 
-## Current evidence: 2026-10-18
+## Current evidence: 2026-10-20
+
+V212 passes all 2,676 local regression tests. It adds two recovery/CLI
+corrections found during actual household QA. A
+hidden canonical preimage can share the rendering genus of a Sim's visible
+active form. Requesting that backup through the form-selection CLI stranded
+V211's UI acknowledgement. The CLI now requires one exact owner in the fresh
+player-facing form catalog before staging a native selection; unknown,
+duplicate and hidden owner IDs are rejected without a mutation. The household
+test resolves each member's own logical form bindings rather than assuming
+`native/32` or `native/64` is always the player-facing record. The failed request
+is retained separately and is not replayed.
+
+The following load exposed a real Windows PID-reuse bug: the old Sims PID
+belonged to Opera, so the old PID-only check blocked saved-look admission.
+Recovery now queries the executable image through the same held, query-only
+handle. Live Sims names and failed/ambiguous queries remain conservative;
+unrelated applications no longer count as the old Sims runtime. UTF-16 length,
+64-bit handles, denial and cleanup are tested. A real Windows read-only probe
+distinguishes Opera from the running Sims process. In-game V212 admission now
+succeeds for all five members; all forty native appearances remain identical
+through 2,961 simulation ticks. The stored Human/CC initialization again
+preserves every native appearance and other named look, with save files unchanged.
+
+V211's actual EA Fairy-card click now selects the independent Fairy owner,
+renders genus 64 and updates the occult icon, retaining membership 127. A game
+capture verifies the Werewolf model is gone. Another actual CAS capture verifies
+the Human/CC Werewolf look has a full Human head and body; the separate beast
+view remains available. One member completes Human/CC, beast, Fairy and original
+form visits. That is distinct from the still-running five-member V212 matrix,
+CAS return, Live geometry and save/Tray release gates.
 
 V211 checkpoint (reviewed 2026-10-20): the frozen candidate passes all 2,671
 local regression tests and 134 compiled-UI checks. The owner's Fairy picker

@@ -67,6 +67,30 @@ def _owner_strip_settled(client):
             strip.get('gesture_pending') is not True)
 
 
+def _require_visible_form_owner(client, owner_id):
+    """Only select a form the UI can acknowledge, not a hidden backup alias.
+
+    The native graph retains canonical/active preimages in addition to the
+    player's logical forms. Those are export/recovery records, not extra CAS
+    forms. Binding one can strand the UI waiting for an unknown owner ID.
+    """
+    groups=client.get('form_strip',{}).get('life_states')
+    if not isinstance(groups,list) or not 1<=len(groups)<=64:
+        raise ValueError('Fresh native CAS form catalog is incomplete; no form selection sent.')
+    owners=[]
+    for group in groups:
+        variants=group.get('variants') if isinstance(group,dict) else None
+        if not isinstance(variants,list) or not 1<=len(variants)<=1024:
+            raise ValueError('Fresh native CAS form variants are incomplete; no form selection sent.')
+        for row in variants:
+            identity=row.get('owner_id') if isinstance(row,dict) else None
+            if not isinstance(identity,str) or re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',identity) is None:
+                raise ValueError('Fresh native CAS form identity is invalid; no form selection sent.')
+            owners.append(identity)
+    if len(owners)!=len(set(owners)) or owners.count(owner_id)!=1:
+        raise ValueError('Choose an exact visible CAS form owner from the current catalog; hidden backup aliases cannot be selected. No form selection sent.')
+
+
 class IntentEvidence:
     """Retain exact owner UUIDs before dispatch, independently of the final ACK."""
     def __init__(self, args):
@@ -336,6 +360,8 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep, allow_pr
                 raise ValueError('Fresh native CAS context differs from the requested session/layer/household; no form selection sent.')
             if args.operation in ('occult-view', 'occult-cache-view', 'occult-owner-view') and selected.get('allOccultTypes') != value['expected_all_occults']:
                 raise ValueError('Fresh native membership differs from the requested full mask; no occult view sent.')
+            if args.operation=='form-owner-select':
+                _require_visible_form_owner(preflight['client'],value['owner_id'])
         submitted = (_submit_status(args, request, monotonic, pause) if args.operation == 'status'
                      else request(args.state, 'cas_ui_request', args.sim_id, value=json.dumps(value)))
         request_id = submitted.get('cas_request_id')

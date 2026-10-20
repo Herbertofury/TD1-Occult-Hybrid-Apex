@@ -334,7 +334,8 @@ class AbandonTests(SealFixture):
 
 
 class PriorProcessTests(unittest.TestCase):
-    def native(self, opened=0x12345678000000aa, error=0, exit_code=259, query=1, close=1):
+    def native(self, opened=0x12345678000000aa, error=0, exit_code=259, query=1, close=1,
+               image='C:\\Games\\The Sims 4\\Game\\Bin\\TS4_x64.exe', image_query=1, image_length=None):
         calls = []; bindings = []
         class Call:
             def __init__(self, binding):
@@ -347,6 +348,10 @@ class PriorProcessTests(unittest.TestCase):
                 elif self.name == 'GetExitCodeProcess':
                     ctypes.cast(args[1], ctypes.POINTER(ctypes.c_uint32)).contents.value = exit_code
                     value = query
+                elif self.name == 'QueryFullProcessImageNameW':
+                    args[2].value=image
+                    ctypes.cast(args[3],ctypes.POINTER(ctypes.c_uint32)).contents.value=len(image.encode('utf-16-le'))//2 if image_length is None else image_length
+                    value=image_query
                 elif self.name == 'CloseHandle': value = close
                 else: raise AssertionError('Unexpected Win32 function: ' + self.name)
                 return self._restype_(value)
@@ -366,13 +371,34 @@ class PriorProcessTests(unittest.TestCase):
             with self.subTest(code=code):
                 result, native, calls, bindings = self.check(exit_code=code)
                 self.assertIs(result, expected)
-                self.assertEqual([name for name, args in calls], ['OpenProcess', 'GetExitCodeProcess', 'CloseHandle'])
+                self.assertEqual([name for name, args in calls], ['OpenProcess', 'GetExitCodeProcess']+
+                    (['QueryFullProcessImageNameW'] if code==259 else [])+['CloseHandle'])
                 self.assertEqual(calls[0][1], (0x1000, 0, 12345))
                 self.assertEqual(calls[1][1][0], 0x12345678000000aa)
-                self.assertEqual(calls[2][1], (0x12345678000000aa,))
+                self.assertEqual(calls[-1][1], (0x12345678000000aa,))
                 self.assertEqual(ctypes.sizeof(bindings[0][1]), ctypes.sizeof(ctypes.c_void_p))
                 self.assertEqual(ctypes.sizeof(bindings[0][2][2]), 4)
                 native.FreeLibrary.assert_called_once_with(222)
+
+    def test_pid_reused_by_other_application_does_not_block_prior_sims_recovery(self):
+        result,native,calls,bindings=self.check(image='C:\\Users\\Owner\\AppData\\Local\\Programs\\Opera\\opera.exe')
+        self.assertTrue(result)
+        image=next(row for row in calls if row[0]=='QueryFullProcessImageNameW')
+        self.assertEqual(image[1][0],0x12345678000000aa)
+        self.assertEqual(image[1][1],0)
+        self.assertEqual([name for name,args in calls],['OpenProcess','GetExitCodeProcess','QueryFullProcessImageNameW','CloseHandle'])
+        native.FreeLibrary.assert_called_once_with(222)
+
+    def test_live_sims_names_remain_conservative_across_case_and_supported_renderers(self):
+        for name in ('TS4_X64.EXE','TS4_DX9_x64.exe','TS4.exe'):
+            with self.subTest(name=name):self.assertFalse(self.check(image='D:\\Game\\'+name)[0])
+        self.assertFalse(self.check(image='D:\\Games ✨U0001f43a\\TS4_x64.exe')[0])
+
+    def test_unknown_or_malformed_process_image_never_grants_recovery(self):
+        for config in (dict(image_query=0),dict(image=''),dict(image='opera.exe'),
+                       dict(image_length=32768),dict(image_length=1)):
+            with self.subTest(config=config),self.assertRaisesRegex(ValueError,'executable identity'):
+                self.check(**config)
 
     def test_only_invalid_parameter_means_absent_denied_and_failed_query_refuse(self):
         result, native, calls, _bindings = self.check(opened=0, error=87)

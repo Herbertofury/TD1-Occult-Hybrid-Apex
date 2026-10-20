@@ -108,7 +108,29 @@
   "schema": 1,
   "scope": "instrumented disposable Live pie-menu generation and scoped native input regression",
   "v211": {
-    "actual_fairy_picker_and_human_werewolf_verification": "pending",
+    "actual_fairy_picker_and_human_werewolf_verification": {
+      "actual_ea_fairy_card": {
+        "membership": 127,
+        "passed": true,
+        "proof": "v211-actual-ea-fairy-picker.json",
+        "rendered_kind": 64,
+        "sha256": "ced062398f69d64ce9fadf997dd52c41dc6e7b2d9f7642e551a07dd64d0a7daf"
+      },
+      "all_five_members": false,
+      "complete_human_head_and_body": {
+        "image_sha256": "3c06ea62348744c800f4cc4b926c9a5b4eebafa7eb4c02c023c9d351a3cf26fe",
+        "independent_werewolf_view": true,
+        "members_visually_verified": 1,
+        "rendered_kind": 1,
+        "visually_verified": true
+      },
+      "failed_bulk_proof": {
+        "proof": "v211-complete-human-fairy-switches-r2.json",
+        "reason": "Requested hidden native/32 backup instead of member two visible active/32; original UUID retained without replay",
+        "sha256": "b655eff65c31c57e6ee39af2002632e6293072bfb45ec9cff799af85b40c88fd"
+      },
+      "first_member_completed_visits": 6
+    },
     "bundle_sha256": "155d755a22a870262cbb39b98e0cf03aa4a9c9f972c2d0f77feba58e7ec8c6b8",
     "compiled_ui_checks": 134,
     "regression": {
@@ -117,5 +139,41 @@
       "sha256": "4d01b743be5c3f85933d92600b93dff21cad2f7da86b20713589024e2b3b6c68",
       "tests": 2671
     }
+  },
+  "v212": {
+    "bundle_sha256": "cc26fe351e426e936c82c3c1dee8700afdc26d62dfa37142ada9f7fffa98d244",
+    "cas_return_live_save_tray_acceptance": false,
+    "complete_human_initialization": {
+      "members": 5,
+      "native_appearances_changed": false,
+      "other_named_looks_changed": false,
+      "proof": "v212-complete-human-werewolf-initialization.json",
+      "sha256": "d6f11a695c98b079229132f11c2c70dbbe74a3c8f21f6c22ea592965bdec71c4"
+    },
+    "five_member_cas_matrix": "in progress; not yet claimed",
+    "hidden_backup_cli_selection": "Rejected before native staging using the exact fresh visible form catalog",
+    "pid_reuse_recovery": {
+      "in_game_five_member_load": {
+        "native_appearances_retained": 40,
+        "proof": "native-cas-v212-second-member-category-saved-reload-all40.json",
+        "save_files_unchanged": true,
+        "sha256": "6c80567e5d0bd3bbc9602d94c309cc48d74994ca9330b27df5d5b43f60abf1a8",
+        "simulation_ticks": 2961
+      },
+      "query_only": true,
+      "real_windows_probe": {
+        "proof": "v212-real-held-handle-image-query.log",
+        "sha256": "def080b6133a8a66f18f6a2f3a2484b4e5d895d6e62ef2e8f3f752766a3d1178"
+      },
+      "signals_sent": false,
+      "unknown_or_live_sims_identity_refuses": true
+    },
+    "regression": {
+      "passed": true,
+      "proof": "v212-full-regression.log",
+      "sha256": "f55cb83cbd9d8c077aaa072202060ed1d4226169632a15f85ca769298c9c6d97",
+      "tests": 2676
+    },
+    "script_sha256": "4bd6a100167be632c3aeae24a5a4037c83348f56e52c06e51ebbd170f8f4f22e"
   }
 }

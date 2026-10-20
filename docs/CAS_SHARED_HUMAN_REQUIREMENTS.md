@@ -20,7 +20,58 @@ shell before assigning the cache's copied data. No serialized field is excluded
 from the comparison. A native regression includes differing shell metadata,
 and twelve native targets pass. Twenty-six seal and twenty-six upgrade checks
 pass; seven packages, 105 Python 3.7 modules and 208 independently Rust-validated
-resources build. Actual household acceptance is still being qualified.
+resources build. Actual V216 acceptance now verifies all five complete caches
+at generation 42, without selecting other members or writing their appearance
+graphs. Direct isolation nevertheless fails for the same three unselected
+members: their incoming cores differ from their own independent final owners.
+The loader refuses those cores. The separate no-edit disposition restores all
+forty native appearances, retains all 155 named looks and leaves every save
+unchanged after simulation advances. A subsequent normal unsaved exit succeeds;
+that single exit does not close the shutdown-stability gate.
+
+V217 addresses the later household serialization boundary rather than weakening
+the loader comparison. Only the pinned CAS household caller may project each
+form's own final native appearance into its matching outgoing record. A member
+never bound to the editor also retains its own entry appearance at the root.
+The game's own parser validates a detached result; a complete field comparison
+includes unrelated and unknown data before the actual output is replaced and
+read back. Failures restore the original output and invalidate acceptance.
+Thirteen native targets pass, including foreign identities, caller/generation
+gates, parser rejection and rollback. An independent oracle using the installed
+game's schema verifies all seven native genera, unknown fields, defaults and
+unchanged gameplay metadata. This is not actual-game acceptance proof; the
+five-member CAS/Live qualification fails the direct fix. All five export
+receipts are absent, and the observed call paths never reach the targeted
+caller. The same three unselected members change. The separate no-edit
+disposition still retains all forty native appearances and 155 named looks,
+with every save unchanged. The owner's earlier process exit was confirmed as
+an intentional restart, not an observed crash.
+
+V218 therefore prepares the actual CAS household roots immediately before
+native acceptance. It resolves each imported entity from the controller's
+bounded member list and stages every complete packet before writing any root.
+Each occult record comes from its own final graph owner; never-selected members
+also retain their own active appearance. The native attributes copy service
+receives only a detached, game-parser-validated packet. Complete readbacks
+check unknown fields and unrelated gameplay data. A failure restores every
+attempted root and blocks acceptance. The unused outgoing-export hook is
+removed. Native fixtures cover selected and unselected roots, duplicate and
+foreign members, aliased attributes, parser rejection and multi-member rollback.
+V218 is withdrawn before actual CAS entry or native arming: a final inspection
+of the installed export service identifies an embedded attributes object where
+the adapter and its original fixture assumed a pointer. The unarmed native
+status is retained; no household acceptance or save was submitted. This is an
+adapter defect caught before exercising that path, not a qualified game pass.
+
+V219 corrects the inline object address and pins the inspected export/copy
+boundary. The regression fixture now uses distinct embedded attributes objects
+with a shared vtable and rejects a vtable address as a copy destination. All
+thirteen native targets pass, including complete selected/unselected readbacks,
+parser failures and multi-member rollback. Twenty-six seal and twenty-six
+upgrade checks pass. Seven packages, 105 Python 3.7 modules and 208 independently
+Rust-validated resources build. The actual five-member CAS/Live test is running;
+direct isolation, edited-category persistence and actual-save readiness are
+not yet claimed.
 
 V214's untouched-member acceptance test fails direct isolation: members two,
 three and four return changed Human genetics and/or active outfits/paint.

@@ -2,6 +2,25 @@
 
 Last reconciled: 2026-10-20
 
+Current household checkpoint: V216 verifies all five complete native caches
+before CAS acceptance, yet three members never selected in the editor still
+return mismatched appearance cores. The strict loader refuses those records;
+the distinct no-edit disposition and permanent guard retain all forty native
+appearances and 155 named looks, with every save unchanged. V217 targets the
+pinned household serialization boundary, projecting each outgoing form from its
+own independent native owner and validating the complete packet with the game
+parser. Thirteen native targets and an independent game-schema oracle pass.
+Actual V217 household acceptance still fails: the targeted export caller is
+absent and the same three unselected members change. Guard retention passes all
+forty native appearances and 155 named looks without save writes. V218 instead
+stages and verifies the actual CAS household roots before native acceptance,
+with whole-household rollback on failure. V218 was withdrawn before CAS entry
+or arming after an inline-object ABI mistake was found. V219 corrects the
+adapter and fixture; thirteen native targets plus 26 seal and 26 upgrade checks
+pass. Its actual household acceptance test remains open. R001/R002 remain open,
+as do selective EA linking/copying, edited save/Tray round trips and measured
+end-to-end responsiveness; fixture passes do not authorize actual-save use.
+
 This is not a wishlist. These are concrete failure modes experienced with the original/older hybrid-occult workflow and are **release-blocking regressions for Apex**.
 
 Codex must reproduce, isolate the earliest causal owner, fix the shared cause, add regression protection, and prove the real workflow on the current Sims 4 build. Do not paper over them with “repair all,” repeated cache deletion, forced form resets, or destructive reconstruction of a Sim.

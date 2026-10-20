@@ -5,6 +5,7 @@
 #include "ApexCasOwnerGraph.h"
 #include "ApexCasFormPair.h"
 #include "ApexCasPairAction.h"
+#include "ApexCasHouseholdWire.h"
 #include "ApexNativeOwnerMemory.h"
 #include "ApexNativeCasProbeWin.h"
 #include "ApexCasNativePipeWin.h"
@@ -59,6 +60,7 @@ using ProtoArrayFn=char*(*)(const void*,char*);
 using PreviewFn=void(*)(void*,bool);
 using OutfitHairFn=void(*)(void*,const void*);
 using AnimationGenusFn=void(*)(void*,const void*,bool);
+using PrepareHouseholdFn=void(*)(void*);
 inline thread_local const void* detachedTarget=nullptr;
 struct DetachedTarget {
     const void* previous;
@@ -84,6 +86,7 @@ struct Api {
     KindMaskFn kindMask=nullptr;
     ExportProtoFn exportProto=nullptr;ProtoSizeFn protoSize=nullptr;ProtoArrayFn protoArray=nullptr;
     PreviewFn hairPreview=nullptr,clothingPreview=nullptr,wingsPreview=nullptr;
+    AssignDataFn assignAttributes=nullptr;PrepareHouseholdFn prepareHousehold=nullptr;
 };
 inline void Span(const void* value,std::size_t count) {
     const auto start=reinterpret_cast<std::uintptr_t>(value);
@@ -173,6 +176,15 @@ inline std::string SerializeOwner(const Api& api,const NativeOwner& owner,std::u
         api.protoDestroy(proto.data());return result;
     } catch(...) {api.protoDestroy(proto.data());throw;}
 }
+inline std::string SerializeMessage(const Api& api,const void* proto) {
+    const auto size=api.protoSize(proto);
+    if(size<=0 || size>static_cast<int>(wire::Limit))throw std::runtime_error("Native household message exceeds its complete bound.");
+    std::vector<char> bytes(static_cast<std::size_t>(size)+32,char(0x5a));
+    if(api.protoArray(proto,bytes.data())!=bytes.data()+size ||
+       !std::all_of(bytes.begin()+size,bytes.end(),[](char value){return value==char(0x5a);}))
+        throw std::runtime_error("Native household message serialization changed its measured size.");
+    return std::string(bytes.data(),static_cast<std::size_t>(size));
+}
 // Native undo contexts use consuming intrusive references. Own one reference
 // per exact form, independently of EA's (Sim, primary/alternate) map.
 struct NativeUndo {
@@ -205,7 +217,7 @@ struct Imported {
     std::map<std::uint32_t,std::string> logicalOwners;
     std::map<std::string,std::unique_ptr<NativeUndo>> undoOwners;
     bool initialImport=true,viewBound=false,viewFault=false,activeSourceSeeded=false;void* boundGroup=nullptr;void* boundContext=nullptr;std::string entryOwner=NativeOwnerId(1),partner=NativeOwnerId(2),humanOwner=NativeOwnerId(1);std::map<std::string,std::uint32_t> uiTokens;
-    std::uint64_t importedEntity=0;bool editorImported=false;
+    std::uint64_t importedEntity=0;bool editorImported=false;ui::Json householdCanonical;
     std::uint32_t mask=0,preferred=0,canonicalSourceMask=0;unsigned imports=0,switches=0,skippedPackets=0;bool seeded=false;std::string error;
 };
 struct ViewIntent {
@@ -568,6 +580,130 @@ inline void Sync(void* controller) {
     }
 }
 
+struct NativePacket {
+    const Api& api;alignas(16) std::array<char,0x400> data{};
+    explicit NativePacket(const Api& functions):api(functions) {api.protoConstruct(data.data());}
+    ~NativePacket() {api.protoDestroy(data.data());}
+    NativePacket(const NativePacket&)=delete;
+};
+struct HouseholdRootTarget {std::uint64_t sim;void* group;Imported* bank;};
+inline std::vector<HouseholdRootTarget> EditorHouseholdRoots(State& state,void* controller) {
+    // Same bounded list/entity lookup as the pinned native index service.
+    // Resolve every group now: never retain a CAS object across transitions.
+    const auto sentinel=static_cast<char*>(controller)+0x108;
+    auto* node=Read<void*>(sentinel);std::set<void*> nodes;std::set<std::uint64_t> entities;
+    std::map<std::uint64_t,void*> groups;
+    while(node!=sentinel) {
+        if(nodes.size()>=8 || !nodes.insert(node).second)throw std::runtime_error("CAS household list is cyclic or exceeds eight members.");
+        auto* group=Read<void*>(node,0x10);const auto entity=GroupId(group);
+        const auto sim=Read<std::uint64_t>(group,0xb8);
+        if(!entity || !entities.insert(entity).second || !groups.emplace(sim,group).second)
+            throw std::runtime_error("CAS household groups have duplicate identities.");
+        node=Read<void*>(node);
+    }
+    std::vector<HouseholdRootTarget> targets;
+    for(auto& row:state.bank)if(row.second.editorImported) {
+        auto at=groups.find(row.first);
+        if(at==groups.end() || GroupId(at->second)!=row.second.importedEntity ||
+           !state.scope.members.count(row.first) || !row.second.graph || !row.second.seeded || row.second.viewFault)
+            throw std::runtime_error("CAS household root lacks its exact captured entity and graph.");
+        targets.push_back({row.first,at->second,&row.second});
+    }
+    return targets;
+}
+inline void CanonicalizeHouseholdRoots(State& state,const std::vector<HouseholdRootTarget>& targets) {
+    struct Stage {
+        State& state;HouseholdRootTarget target;NativePacket before,desired;NativeOwner dataBefore;
+        std::string original,projected;void* attributesOwner=nullptr;void* attributesVtable=nullptr;bool attempted=false,activeReplaced=false;
+        Stage(State& s,HouseholdRootTarget t):state(s),target(t),before(s.api),desired(s.api),dataBefore(s.api,t.sim) {
+            auto& bank=*t.bank;
+            if(!s.api.assignAttributes || !bank.graph || !bank.seeded || bank.viewFault ||
+               bank.graph->cursor().sim!=t.sim || Read<std::uint64_t>(t.group,0xb8)!=t.sim)
+                throw std::runtime_error("CAS root projection lacks its exact independent owner.");
+            s.api.assignData(const_cast<void*>(dataBefore.data()),static_cast<char*>(t.group)+0xd0);
+            s.api.exportProto(t.group,before.data.data());original=SerializeMessage(s.api,before.data.data());
+            std::map<std::uint32_t,std::string> owners;
+            for(const auto& owner:bank.logicalOwners)
+                owners.emplace(owner.first,SerializeOwner(s.api,*bank.graph->appearance(owner.second),t.sim));
+            std::string active;
+            if(!bank.viewBound) {
+                if(!bank.active)throw std::runtime_error("Unselected CAS root has no captured active owner.");
+                active=owners.at(Read<std::uint32_t>(bank.active->data(),8));activeReplaced=true;
+            }
+            projected=wire::Household(original,t.sim,bank.mask,owners,activeReplaced?&active:nullptr);
+            const ByteView input{projected.data(),projected.size()};
+            if(!s.api.protoParse(desired.data.data(),&input) ||
+               !wire::Equivalent(projected,SerializeMessage(s.api,desired.data.data())))
+                throw std::runtime_error("Game parser changed a staged CAS root field.");
+            if(!Read<void*>(t.group,0x4c8) || !Read<void*>(before.data.data(),0xc0) || !Read<void*>(desired.data.data(),0xc0))
+                throw std::runtime_error("CAS root attributes are not materialized.");
+            // The native exporter passes LEA(group+0x4c8), not the vtable
+            // stored there. SimData's attributes at +0xc0 are a pointer.
+            attributesOwner=static_cast<char*>(t.group)+0x4c8;Span(attributesOwner,sizeof(void*));
+            attributesVtable=Read<void*>(attributesOwner);
+        }
+        std::string readback() {
+            NativePacket result(state.api);state.api.exportProto(target.group,result.data.data());
+            return SerializeMessage(state.api,result.data.data());
+        }
+        void apply() {
+            attempted=true;auto& bank=*target.bank;
+            if(activeReplaced) {
+                const auto kind=Read<std::uint32_t>(bank.active->data(),8);
+                state.api.assignData(static_cast<char*>(target.group)+0xd0,
+                    bank.graph->appearance(bank.logicalOwners.at(kind))->data());
+            }
+            if(Read<void*>(attributesOwner)!=attributesVtable)
+                throw std::runtime_error("CAS root changed its attributes owner during appearance preparation.");
+            state.api.assignAttributes(attributesOwner,Read<void*>(desired.data.data(),0xc0));
+            if(!wire::Equivalent(projected,readback()))
+                throw std::runtime_error("CAS household root changed a projected or unrelated field.");
+        }
+        bool rollback() {
+            if(!attempted)return true;
+            try {
+                state.api.assignData(static_cast<char*>(target.group)+0xd0,dataBefore.data());
+                if(Read<void*>(attributesOwner)!=attributesVtable)return false;
+                state.api.assignAttributes(attributesOwner,Read<void*>(before.data.data(),0xc0));
+                return wire::Equivalent(original,readback());
+            }catch(...) {return false;}
+        }
+    };
+    std::vector<std::unique_ptr<Stage>> stages;
+    try {
+        std::set<std::uint64_t> identities;std::set<void*> groups,attributes;
+        for(const auto& target:targets) {
+            const auto found=state.bank.find(target.sim);
+            if(found==state.bank.end() || &found->second!=target.bank || !state.scope.members.count(target.sim) ||
+               target.bank->mask!=state.scope.members.at(target.sim).mask || !identities.insert(target.sim).second ||
+               !groups.insert(target.group).second)
+                throw std::runtime_error("CAS root preparation contains a duplicate or foreign member.");
+            target.bank->householdCanonical={{"verified",false}};
+            if(IndependentHybridGenus(target.bank->mask,Read<std::uint32_t>(target.group,0xd8))) {
+                if(!attributes.insert(static_cast<char*>(target.group)+0x4c8).second)
+                    throw std::runtime_error("CAS household roots alias one attributes object.");
+                stages.push_back(std::make_unique<Stage>(state,target));
+            }
+        }
+        for(auto& stage:stages)stage->apply();
+        for(auto& stage:stages)stage->target.bank->householdCanonical={
+            {"verified",true},{"scope_id",state.scope.id},{"generation",stage->target.bank->graph->cursor().generation},
+            {"source","exact-cas-household-root"},{"native_forms",stage->target.bank->logicalOwners.size()},
+            {"unselected_active_replaced",stage->activeReplaced},{"member_selection_submitted",false},
+            {"other_sim_graphs_written",false},{"before_sha256",resource::HashBytes(stage->original)},
+            {"after_sha256",resource::HashBytes(stage->projected)}};
+    }catch(const std::exception& error) {
+        bool restored=true;
+        for(auto at=stages.rbegin();at!=stages.rend();++at)restored=(*at)->rollback()&&restored;
+        for(auto& stage:stages)stage->target.bank->householdCanonical={{"verified",false},
+            {"message",error.what()},{"all_original_roots_restored",restored},{"other_sim_graphs_written",false}};
+        if(!restored)throw std::runtime_error("CAS root projection failed and original root rollback is unresolved; acceptance blocked.");
+        throw;
+    }
+}
+inline void PrepareHouseholdRoots(void* controller) {
+    auto& state=Runtime();CanonicalizeHouseholdRoots(state,EditorHouseholdRoots(state,controller));
+}
 inline bool SaveAndExit(const void* argument) {
     auto& state=Runtime();std::string scope;unsigned session=0;std::uint64_t cancel=0;
     ui::Json generations=ui::Json::object();std::size_t caches=0;
@@ -642,6 +778,14 @@ inline bool SaveAndExit(const void* argument) {
                         }
                     }
                     ++bank.canonicalWrites;++caches;
+                }
+                if(!state.api.prepareHousehold)throw std::runtime_error("Native household root preparation is unavailable.");
+                state.api.prepareHousehold(controller);
+                for(const auto& target:targets)if(IndependentHybridGenus(target.bank->mask,target.bank->graph->cursor().kind)) {
+                    const auto& receipt=target.bank->householdCanonical;
+                    if(!receipt.value("verified",false) || receipt.at("scope_id")!=state.scope.id ||
+                       receipt.at("generation")!=target.bank->graph->cursor().generation)
+                        throw std::runtime_error("Native household root preparation lacks a fresh complete receipt.");
                 }
                 scope=state.scope.id;session=state.sessionsRetired;cancel=state.cancelSerial;
                 state.acceptingHousehold=true;
@@ -1343,6 +1487,7 @@ inline ui::Json Status() {
             {"source_seeded",found!=state.bank.end() && found->second.seeded},
             {"editor_materialized",found!=state.bank.end() && found->second.editorImported},
             {"imported_entity_id",found==state.bank.end()?"0":std::to_string(found->second.importedEntity)},
+            {"household_canonical",found==state.bank.end()?ui::Json(nullptr):found->second.householdCanonical},
             {"active_entry_captured",found!=state.bank.end() && found->second.active!=nullptr},
             {"active_entry_source_seeded",found!=state.bank.end() && found->second.activeSourceSeeded},
             {"canonical_source_seeded_mask",found==state.bank.end()?0u:found->second.canonicalSourceMask},
@@ -1453,6 +1598,10 @@ inline void Install() {
         {0x458630,"05fb8e8a89a5bcf029cefb8dba8eaabc9871589f5ac94c566e915845a31ed300"},
         {0x449020,"eb3a3892153e14cf66c4cb13918fd2850c9482f6a94054db1b22cc4118172586"},
         {0x323990,"e90d48dcd731ebb911f40edc9980c774a4b55836c46e82453538a02a3e76e4dc"},
+        {0x4103ea,"30bd234b1656fecf4f7886432b1dd6ccbcf2b4b413b0ab43f97a430cc5a22a89"},
+        {0x48ae60,"18e24cec017509e7328a076722fb2c38686180f19fb2510cffaf636bcf21719d"},
+        {0x7ae500,"8f78ef8bdd8b8b57954bc76403fe9f039d713503ed1f62f76a233d0cb94d14f9"},
+        {0x323e7b,"66198be24229ca6d1b809fd9aa912709e2ce139bcaa72a68d47ec5d272791e89"},
         {0x617780,"7551fbeac222a844a6bbcba8332a9795e40da3d486ee4339a8d924d26f8e39d7"},
         {0x63f470,"6322b81000b364019e148ec50a47751e090f93e5000ff266f2e403fdd8bca0bc"},
         {0x45c070,"28bd4e82a8fb688e0addc2808f300afb4aa44068945992641826e703528b5424"},
@@ -1480,6 +1629,7 @@ inline void Install() {
     state.api.protoConstruct=reinterpret_cast<ProtoConstructFn>(at(0x60fac0));
     state.api.protoParse=reinterpret_cast<ProtoParseFn>(at(0x48af80));state.api.protoDestroy=reinterpret_cast<DestroyFn>(at(0x6115a0));
     state.api.assignData=reinterpret_cast<AssignDataFn>(at(0x1b1c70));state.api.copySim=reinterpret_cast<MetaFn>(at(0x321c50));
+    state.api.assignAttributes=reinterpret_cast<AssignDataFn>(at(0x7ae500));state.api.prepareHousehold=PrepareHouseholdRoots;
     state.api.controller=reinterpret_cast<HistoryFn>(at(0x3f5c30));state.api.avatar=reinterpret_cast<AvatarFn>(at(0x2039c0));
     state.api.modelBind=reinterpret_cast<ModelBindFn>(at(0x44a0a0));
     state.api.coreBind=reinterpret_cast<CoreBindFn>(at(0x3ebfd0));

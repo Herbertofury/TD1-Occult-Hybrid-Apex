@@ -311,17 +311,176 @@
       "sha256": "43f45bea51f6df0632e3b950c44322dac2492ece348b673d8e72a860d329c20f"
     },
     "production_ready": false,
-    "runtime": "in progress; not yet claimed",
+    "runtime": {
+      "canonical_caches": 5,
+      "direct_isolation": false,
+      "guard_restored_all40_native": true,
+      "named_looks_retained": 155,
+      "native_acceptance_verified": true,
+      "retained_proof": ".work/v216r2-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "8541d7f3bc8e51bf161e093313783791bb22284ae416a7c86735693a7a2300f6",
+      "unselected_members_changed": 3
+    },
     "script_sha256": "903aaf39239052507974b8e8d09779fee43b02c5de79a370f759115cee57962b",
     "seal_checks": {
       "passed": 26,
       "retained_proof": ".work/v216-seal-tests.log",
       "sha256": "64ea471a21d9987b8996b9028b69de046d0594559e35fc7f5bec81c3a3df1dd7"
     },
+    "shutdown": {
+      "normal_exit_verified": true,
+      "repeat_shutdown_gate_closed": false,
+      "retained_proof": ".work/v216-normal-unsaved-exit-for-v217.json",
+      "save_files_unchanged": true,
+      "sha256": "2db820242bf345db4a03cd2bb6bc0f2d678aebe5da38fd500ccbb9cc69e5a2ac"
+    },
     "upgrade_checks": {
       "passed": 26,
       "retained_proof": ".work/v216-upgrade-migration-tests.log",
       "sha256": "73a9955343fe2b368dca066481d2394864d1ccb9960282224e7a9211ee08195a"
+    }
+  },
+  "v217": {
+    "bundle_sha256": "182e435783659d4ee7bb2d24666b65a5bfe1ca6c5483bf2c75525b8d4ca97ab1",
+    "change": "Project each independent native owner at the pinned CAS household serializer; validate detached game parse and complete readback",
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "7786e7ed1d724d1e3a4d33edc6418471005fa401a67a2b82c9263508f60e861f",
+    "full_python_regression": "V215 2695 passed; V217 changes native household serialization and the recovery epoch only",
+    "game_schema_oracle": {
+      "flags_and_gameplay_preserved": true,
+      "native_genera": 7,
+      "passed": true,
+      "retained_proof": ".work/v217r2-game-schema-wire-projection.json",
+      "sha256": "26c8764aff3040c08d93e5f02cd04db6189b783cf6bbb371df23bfa7afe841a4",
+      "unknown_fields_retained": true,
+      "whole_message_compared": true
+    },
+    "launch_observation": {
+      "duplicate_launch_submitted": false,
+      "new_pid": 95272,
+      "prior_exit_owner_confirmed_intentional": true,
+      "retained_proof": ".work/v217-reconnected-live.json",
+      "save_files_unchanged": true,
+      "sha256": "c110d023b067f08411d01ef6701ddbff3d4804092cee686e04445d0d8f44e162"
+    },
+    "layout_checks": {
+      "passed": 3,
+      "retained_proof": ".work/v217-layout-tests.log",
+      "sha256": "330eb602cbacc8889d927c9671c7b4d1a4cdfb8a7640706ee324fa1ba751bcfb"
+    },
+    "loader_checks": {
+      "passed": 15,
+      "retained_proof": ".work/v217-loader-tests.log",
+      "sha256": "a4657d9384eabe108599e2e360b5cc5194fefe8d4313ba7816353a12879f3eda"
+    },
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v217-native-tests-r2.log",
+      "sha256": "76fed852160476865a2a9b425f042d3eb2dcff9baf4b4be73a3fcd6aa4f8a8b5"
+    },
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v217-candidate-build.log",
+      "sha256": "6c808375f3d64fe00e17892ed78ddb5ec60e23f14d4b03661c5de46ff37e90ac"
+    },
+    "permanent_guard_retained": true,
+    "production_ready": false,
+    "runtime": {
+      "direct_isolation": false,
+      "guard_restored_all40_native": true,
+      "named_looks_retained": 155,
+      "native_acceptance_verified": true,
+      "native_export_receipts": 0,
+      "retained_proof": ".work/v217r2-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "ff5cb7e68d121ef6c2c96df3639468cd7944d256bc6f62e1e82307a07a1dfeaf",
+      "targeted_caller_observed": false,
+      "unselected_members_changed": 3
+    },
+    "script_sha256": "cd0f9d7a4bc3241f3c3fd1b600d4950b5883e381272d9b1cae1a4ccf8cb2f363",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v217-seal-tests.log",
+      "sha256": "ec340629e13f559b2efc4af0a68535809867e282b093da6b178c9bf5d385590c"
+    },
+    "shutdown": {
+      "normal_exit_verified": true,
+      "retained_proof": ".work/v217-normal-unsaved-exit-for-v218.json",
+      "save_files_unchanged": true,
+      "sha256": "03933f9b67bd74a17fbc898dafca7b843b9372c69dca94e54e09021dd92fe170"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v217-upgrade-tests.log",
+      "sha256": "d2eef40e8b8d6cf61c95397a29feb2d6b0768661d4e6349f702784af083e83dd"
+    }
+  },
+  "v218": {
+    "closure": {
+      "normal_exit_verified": false,
+      "process_closed": true,
+      "retained_proof": ".work/v218-explicit-discard-closure.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "cb9f764e98dc8ac04fecb0a3ff760d83fef5a55036ec437bca5bc68f5cf2726c",
+      "termination_attempt_denied": true
+    },
+    "direct_cas_exit_fix_qualified": false,
+    "native_unarmed": {
+      "armed": false,
+      "members": 0,
+      "retained_proof": ".work/v218-unarmed-native-status.json",
+      "selection_enabled": false,
+      "sha256": "3bbdfb9d25f46ef78fef33c4b0654eae44cce219116c395e47a514922955bd90"
+    },
+    "production_ready": false,
+    "reason": "Embedded native attributes object was incorrectly modeled as a pointer; adapter and fixture corrected in V219",
+    "status": "withdrawn-before-CAS-entry-or-arming"
+  },
+  "v219": {
+    "bundle_sha256": "6fb162464a92fc54af84c4b13a2a7c074e29a7f3885f9ce3ef884b809714f642",
+    "change": "Prepare exact CAS household roots before native acceptance, using embedded attributes objects and independent appearance owners",
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "b424bc5101332d5c34671b3ccb6dd6d03303d8c9eed48d35400c006ef2e4aaf0",
+    "full_python_regression": "V215 2695 passed; V219 changes native household preparation and the recovery epoch only",
+    "game_schema_oracle": {
+      "flags_and_gameplay_preserved": true,
+      "native_genera": 7,
+      "passed": true,
+      "retained_proof": ".work/v217r2-game-schema-wire-projection.json",
+      "sha256": "26c8764aff3040c08d93e5f02cd04db6189b783cf6bbb371df23bfa7afe841a4",
+      "unknown_fields_retained": true,
+      "whole_message_compared": true
+    },
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v219-native-tests-r2.log",
+      "sha256": "f3123d87a6fb792fdaa5a1a8722f67096da415a734ef7b0f0706c9be3ecacebd"
+    },
+    "outgoing_export_hook_installed": false,
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v219-candidate-build.log",
+      "sha256": "9e9888dac7f276ee5add49919eed7477e33776627d092f92e97bcb0507ae8ba5"
+    },
+    "permanent_guard_retained": true,
+    "production_ready": false,
+    "runtime": "Five-member CAS acceptance in progress; not yet qualified",
+    "script_sha256": "9292da02ce6641c68e63106bb6e82769e5453a26350b0cef7b8bbb481dfc1928",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v219-seal-tests.log",
+      "sha256": "f4818b7f10e460605c685fed65db9a6c79613de1f5b1b43ba565b3dcd223bf54"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v219-upgrade-tests.log",
+      "sha256": "610eeda937c69372e6eee611fef32c9938330ede66778b154d1a460965372144"
     }
   }
 }

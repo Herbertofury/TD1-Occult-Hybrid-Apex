@@ -260,7 +260,11 @@ void ExerciseLocalCallsite() {
     Require(page.Protect==PAGE_EXECUTE_READ);
     Require(VirtualFree(image,0,MEM_RELEASE)!=0);
 }
-void* acceptanceCaches[2]{};unsigned acceptanceCalls=0,cancellationCalls=0;int acceptanceMode=0;
+void* acceptanceCaches[2]{};unsigned acceptanceCalls=0,cancellationCalls=0,rootPreparations=0;int acceptanceMode=0;
+void PrepareAcceptanceRoots(void* controller) {
+    auto& state=Runtime();Require(controller==state.boundController);++rootPreparations;
+    for(auto& row:state.bank)row.second.householdCanonical={{"verified",true},{"scope_id",state.scope.id},{"generation",row.second.graph->cursor().generation}};
+}
 std::atomic<bool> acceptanceMutexAvailable{false};std::thread acceptanceWorker;
 void BoolValue(void* value,bool flag) {Write(value,0,2u);Write(value,8,std::uint8_t(flag));}
 int AcceptanceIndex(void*,std::uint64_t entity) {return entity==123?0:entity==456?1:-1;}
@@ -293,6 +297,7 @@ void ExerciseHouseholdAcceptance(void* controller,void* metadata) {
     acceptanceCaches[0]=metadata;acceptanceCaches[1]=secondMetadata.data();
     state.api.index=AcceptanceIndex;viewControllerTable[0x410/8]=reinterpret_cast<void*>(&AcceptanceCache);
     state.api.saveAndExit=OriginalAcceptance;state.api.cancelCas=OriginalCancel;state.api.boolValue=BoolValue;
+    state.api.prepareHousehold=PrepareAcceptanceRoots;
     first.editorImported=other.editorImported=true;first.importedEntity=123;other.importedEntity=456;
     first.seeded=other.seeded=true;
     for(auto* member:{&first,&other})for(const auto& owner:member->graph->owners())
@@ -312,7 +317,7 @@ void ExerciseHouseholdAcceptance(void* controller,void* metadata) {
         Require(state.boundSim==123 && first.boundGroup==Read<void*>(controller,0x100));
         for(const auto& owner:other.graph->owners())Require(SerializeOwner(state.api,*other.graph->appearance(owner.id),456)==before.at(owner.id));
     }
-    Require(acceptanceCalls==5 && cancellationCalls==1);
+    Require(acceptanceCalls==5 && cancellationCalls==1 && rootPreparations==5);
     // Reject an aliased cache before even one native acceptance call, and
     // return a handled FALSE value rather than an unhandled service failure.
     acceptanceCaches[1]=metadata;
@@ -324,7 +329,7 @@ void ExerciseHouseholdAcceptance(void* controller,void* metadata) {
     state.selectionEnabled=true;other.viewBound=otherView;
     state.api.index=previousIndex;viewControllerTable[0x410/8]=previousCache;
 }
-
+#include "CasHouseholdRootFixture.h"
 int main() {
  try {
     std::array<char,16> shortText{};std::memcpy(shortText.data(),"APEXUI1|READ|7",14);shortText[15]=1;
@@ -721,6 +726,7 @@ int main() {
     Require(controllerCalls==0); // No converter/controller transaction was called.
     Write(argument.data(),8,0x1fffffffu);Require(!SetOccultService(arguments.data())); // No token replay.
     ExerciseHouseholdAcceptance(controller.data(),metadata.data());
+    householdroots::Exercise();
     Free(independentChild,0x830);Write(group.data(),0x4c0,static_cast<void*>(nullptr));
     Json retire={{"operation","retire-committed-session"},{"scope_id",scope.id},{"members",Json::array()}};
     for(const auto& row:runtime.scope.members)

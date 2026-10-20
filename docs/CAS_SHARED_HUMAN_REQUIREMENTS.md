@@ -81,9 +81,30 @@ They cover root fields, attributes, tracker fields and each independently keyed
 occult record, reporting field paths, byte counts and SHA-256 values. No field
 is excluded from verification and no private appearance bytes are exported in
 the status report. The original-root rollback remains mandatory. Thirteen
-native targets, 26 seal and 26 upgrade checks pass; actual diagnosis is running.
-Direct isolation, edited-category persistence and actual-save readiness remain
-open.
+native targets, 26 seal and 26 upgrade checks pass. Actual V220 diagnosis isolates
+the unselected Werewolf member: root field 63 (pelt layers) disappears, and
+occult record 1 field 17 (Human genetics) changes. Both full original roots and
+all other roots are restored. Independent owner exports retain the expected
+Human genetics and Werewolf pelt, so those captures are not the failing source.
+
+Inspection confirms that the stock serializer regenerates paired form records
+after copying attributes and chooses pelt data from its paired child. V221
+therefore preflights complete detached packets, then projects the final native
+serialized output for the exact prepared CAS roots. It verifies the current
+controller, imported entity, scope and owner generation; ordinary Live/save
+exporters are excluded. Root memory is not rewritten. The game parser and full
+output readback qualify each actual projection; failures restore the original
+output and invalidate acceptance. Fresh per-member receipts and bounded caller
+traces distinguish preparation from an actual export. Cancellation and scope
+retirement clear the authority. Thirteen native targets, 26 seal and 26 upgrade
+checks pass, including lost pelt/Human genetics, root immutability, stale scope
+and output rejection/rollback. Actual five-member acceptance succeeds, but all
+fifteen observed exports use copied objects rather than the prepared editor
+roots. No output projection receipt qualifies. The same three never-selected
+members change before the guard; direct isolation fails. The controller matches
+throughout, so the missing authority is the native copy lifetime, not the Sim
+identity. Do not widen the hook to identities alone. Edited-category persistence
+and actual-save readiness remain open.
 
 V214's untouched-member acceptance test fails direct isolation: members two,
 three and four return changed Human genetics and/or active outfits/paint.

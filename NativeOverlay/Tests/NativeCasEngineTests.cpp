@@ -263,7 +263,7 @@ void ExerciseLocalCallsite() {
 void* acceptanceCaches[2]{};unsigned acceptanceCalls=0,cancellationCalls=0,rootPreparations=0;int acceptanceMode=0;
 void PrepareAcceptanceRoots(void* controller) {
     auto& state=Runtime();Require(controller==state.boundController);++rootPreparations;
-    for(auto& row:state.bank)row.second.householdCanonical={{"verified",true},{"scope_id",state.scope.id},{"generation",row.second.graph->cursor().generation}};
+    for(auto& row:state.bank)row.second.householdCanonical={{"prepared",true},{"verified",false},{"scope_id",state.scope.id},{"generation",row.second.graph->cursor().generation}};
 }
 std::atomic<bool> acceptanceMutexAvailable{false};std::thread acceptanceWorker;
 void BoolValue(void* value,bool flag) {Write(value,0,2u);Write(value,8,std::uint8_t(flag));}

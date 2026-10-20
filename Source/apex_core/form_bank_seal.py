@@ -38,9 +38,9 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                'cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd',
                                'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-20-cas-root-diagnostics-v220'
+UPGRADE_EPOCH = '2026-10-20-cas-household-output-v221'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '92dee5674c14ecff027a054d572d92ec829080237838d04e0fb91adac74ea0d2'
+UPGRADE_SELF_BODY_SHA = 'f08d930bf3cccba00eeef9bffe66a27fd06dedde1f7d0ffff1b85a5395b80380'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',

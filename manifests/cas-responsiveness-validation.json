@@ -520,17 +520,97 @@
     "permanent_guard_retained": true,
     "private_status_appearance_bytes_exported": false,
     "production_ready": false,
-    "runtime": "Diagnosis in progress; no direct-fix pass claimed",
+    "runtime": {
+      "affected_sim": "349336084686110946",
+      "all_original_roots_restored": true,
+      "changed_paths": [
+        "root/63",
+        "occult/1/17"
+      ],
+      "changed_stored_human_genetics": true,
+      "independent_sources_correct": true,
+      "missing_root_pelt": true,
+      "native_acceptance_attempted": false,
+      "retained_proof": ".work/v220-root-diagnostic-status.json",
+      "sha256": "417e37e4e6bd71561d3a408cacf10c4046a32e04854397923d2eaa4827382cd0"
+    },
     "script_sha256": "ec3ecb0874704ca6b49bbe6fd43778a416c3978c0234b12ec7215941a147e2aa",
     "seal_checks": {
       "passed": 26,
       "retained_proof": ".work/v220-seal-tests.log",
       "sha256": "aa4717b588456b5f1dd58b224a8800de2232cf0ad49e6cbb9ac7681f0e276a70"
     },
+    "shutdown": {
+      "process_closed": true,
+      "retained_proof": ".work/v220-rejected-cas-normal-discard.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "30687dbec1a98e3a3e25551e4e2c0a1e394441271aabecf8e6d2160d9961b488"
+    },
+    "source_owner_dtos": [
+      {
+        "native_kind": 1,
+        "private_appearance_payload": true,
+        "retained_proof": ".work/v220-sim2-owner-1-native-dto.json",
+        "sha256": "7c374d056f637601817a9fd1ec3d02c94ae07651c44f1d6e3d0b192a75c075b0"
+      },
+      {
+        "native_kind": 32,
+        "private_appearance_payload": true,
+        "retained_proof": ".work/v220-sim2-owner-32-native-dto.json",
+        "sha256": "a247c1130ec0d9c63e0aa8e50b51a8250300eafc8495aa62abdebe788b43e5d3"
+      }
+    ],
     "upgrade_checks": {
       "passed": 26,
       "retained_proof": ".work/v220-upgrade-tests.log",
       "sha256": "e0a34c5d13f5898574525b636c6f7a4cb6a47c7ce27b2335af4a967a41f312d0"
+    }
+  },
+  "v221": {
+    "all_verification_fields_retained": true,
+    "bundle_sha256": "04167332a7f41bb6cd29c1bc348c1c66b0cf57ae552390e66f80bc9a28875333",
+    "change": "Project final serialized CAS output after stock pair reconstruction, scoped to fresh prepared roots/entities/generations",
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "da0c5672cfd909439348ba784c5c96e6ff8a5c5a59b5a074c8a655b15ced0bc3",
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v221-native-tests.log",
+      "sha256": "2f4f1f019f918754d38559d2ade89d8704240574c0ebd902eddd49af2e98bc02"
+    },
+    "native_root_memory_written": false,
+    "ordinary_exporters_excluded": true,
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v221-candidate-build.log",
+      "sha256": "22102efe95b710cd4d908a69aca747e14bde46ce5bd18e5d979a7d4844425836"
+    },
+    "permanent_guard_retained": true,
+    "prepared_receipt_distinct_from_verified_output": true,
+    "production_ready": false,
+    "runtime": {
+      "actual_output_receipts_verified": 0,
+      "all_controllers_match": true,
+      "all_export_sources_differ_from_prepared_roots": true,
+      "direct_cas_exit_fix_qualified": false,
+      "guard_disposition": "running",
+      "native_acceptance_verified": true,
+      "observed_export_calls": 15,
+      "retained_proof": ".work/v221-actual-output-status.json",
+      "sha256": "6b2441a987fe67cb91905bec12575478ef9f0d8c3d4a78fd5577cbe416408411"
+    },
+    "script_sha256": "8180418e0355cdc9611cc75ce94c4de62c5d7c33d6e4d5ad0e04e0cebb31f696",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v221-seal-tests.log",
+      "sha256": "a3a1940e1fd77b070cb3339439a00c53bd462c4db9e20773206ddbad47013f44"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v221-upgrade-tests.log",
+      "sha256": "13d5b798ba641de22a79822cb70386c1c9538ea5c91015c58403e6ce644436c6"
     }
   }
 }

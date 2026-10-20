@@ -86,7 +86,7 @@ struct Api {
     KindMaskFn kindMask=nullptr;
     ExportProtoFn exportProto=nullptr;ProtoSizeFn protoSize=nullptr;ProtoArrayFn protoArray=nullptr;
     PreviewFn hairPreview=nullptr,clothingPreview=nullptr,wingsPreview=nullptr;
-    AssignDataFn assignAttributes=nullptr;PrepareHouseholdFn prepareHousehold=nullptr;
+    PrepareHouseholdFn prepareHousehold=nullptr;
 };
 inline void Span(const void* value,std::size_t count) {
     const auto start=reinterpret_cast<std::uintptr_t>(value);
@@ -223,6 +223,7 @@ struct Imported {
 struct ViewIntent {
     std::string request,owner;std::uint64_t sim=0,generation=0;std::uint32_t token=0;std::uint8_t layer=0;
 };
+struct PreparedHouseholdRoot {void* group=nullptr;std::uint64_t entity=0,generation=0;};
 inline std::uint8_t ConfigurePortraitPair(Imported& bank,const std::string& owner) {
     const auto pair=SelectFormPair(bank.humanOwner,owner,
         Read<std::uint32_t>(bank.graph->appearance(owner)->data(),8),{bank.entryOwner,bank.partner,0});
@@ -242,6 +243,10 @@ struct State {
     bool acceptingHousehold=false;
     std::uint64_t cancelSerial=0;
     ui::Json householdAcceptance={{"verified",false},{"native_accepted",false}};
+    std::map<std::uint64_t,PreparedHouseholdRoot> preparedRoots;
+    void* exportController=nullptr;std::string preparedScope;
+    std::uint64_t householdOutputFaults=0;
+    std::map<std::pair<std::uintptr_t,std::uint64_t>,ui::Json> householdOutputCalls;
     void* kindRelay=nullptr;std::int32_t originalKindCall=0,patchedKindCall=0;bool kindCallPatched=false,kindRelayReady=false;
     std::uintptr_t image=0;bool installed=false,armed=false,selectionEnabled=false;unsigned intercepted=0,converted=0,alternateOverrides=0,normalizationsPrevented=0,initialOwnersImported=0,serviceSelections=0,rebindCorrections=0,blockedConversions=0;
 };
@@ -611,109 +616,131 @@ inline std::vector<HouseholdRootTarget> EditorHouseholdRoots(State& state,void* 
     }
     return targets;
 }
-inline void CanonicalizeHouseholdRoots(State& state,const std::vector<HouseholdRootTarget>& targets) {
-    struct Stage {
-        State& state;HouseholdRootTarget target;NativePacket before,desired;NativeOwner dataBefore;
-        std::string original,projected;void* attributesOwner=nullptr;void* attributesVtable=nullptr;bool attempted=false,activeReplaced=false;
-        ui::Json differences=ui::Json::array();
-        Stage(State& s,HouseholdRootTarget t):state(s),target(t),before(s.api),desired(s.api),dataBefore(s.api,t.sim) {
-            auto& bank=*t.bank;
-            if(!s.api.assignAttributes || !bank.graph || !bank.seeded || bank.viewFault ||
-               bank.graph->cursor().sim!=t.sim || Read<std::uint64_t>(t.group,0xb8)!=t.sim)
-                throw std::runtime_error("CAS root projection lacks its exact independent owner.");
-            s.api.assignData(const_cast<void*>(dataBefore.data()),static_cast<char*>(t.group)+0xd0);
-            s.api.exportProto(t.group,before.data.data());original=SerializeMessage(s.api,before.data.data());
-            std::map<std::uint32_t,std::string> owners;
-            for(const auto& owner:bank.logicalOwners)
-                owners.emplace(owner.first,SerializeOwner(s.api,*bank.graph->appearance(owner.second),t.sim));
-            std::string active;
-            if(!bank.viewBound) {
-                if(!bank.active)throw std::runtime_error("Unselected CAS root has no captured active owner.");
-                active=owners.at(Read<std::uint32_t>(bank.active->data(),8));activeReplaced=true;
-            }
-            projected=wire::Household(original,t.sim,bank.mask,owners,activeReplaced?&active:nullptr);
-            const ByteView input{projected.data(),projected.size()};
-            if(!s.api.protoParse(desired.data.data(),&input) ||
-               !wire::Equivalent(projected,SerializeMessage(s.api,desired.data.data())))
-                throw std::runtime_error("Game parser changed a staged CAS root field.");
-            if(!Read<void*>(t.group,0x4c8) || !Read<void*>(before.data.data(),0xc0) || !Read<void*>(desired.data.data(),0xc0))
-                throw std::runtime_error("CAS root attributes are not materialized.");
-            // The native exporter passes LEA(group+0x4c8), not the vtable
-            // stored there. SimData's attributes at +0xc0 are a pointer.
-            attributesOwner=static_cast<char*>(t.group)+0x4c8;Span(attributesOwner,sizeof(void*));
-            attributesVtable=Read<void*>(attributesOwner);
-        }
-        std::string readback() {
-            NativePacket result(state.api);state.api.exportProto(target.group,result.data.data());
-            return SerializeMessage(state.api,result.data.data());
-        }
-        void apply() {
-            attempted=true;auto& bank=*target.bank;
-            if(activeReplaced) {
-                const auto kind=Read<std::uint32_t>(bank.active->data(),8);
-                state.api.assignData(static_cast<char*>(target.group)+0xd0,
-                    bank.graph->appearance(bank.logicalOwners.at(kind))->data());
-            }
-            if(Read<void*>(attributesOwner)!=attributesVtable)
-                throw std::runtime_error("CAS root changed its attributes owner during appearance preparation.");
-            state.api.assignAttributes(attributesOwner,Read<void*>(desired.data.data(),0xc0));
-            const auto actual=readback();
-            if(!wire::Equivalent(projected,actual)) {
-                for(const auto& delta:wire::Differences(projected,actual))differences.push_back({
-                    {"path",delta.path},{"expected_bytes",delta.expected.size()},{"actual_bytes",delta.actual.size()},
-                    {"expected_sha256",resource::HashBytes(delta.expected)},{"actual_sha256",resource::HashBytes(delta.actual)}});
-                throw std::runtime_error("CAS household root changed a projected or unrelated field.");
-            }
-        }
-        bool rollback() {
-            if(!attempted)return true;
-            try {
-                state.api.assignData(static_cast<char*>(target.group)+0xd0,dataBefore.data());
-                if(Read<void*>(attributesOwner)!=attributesVtable)return false;
-                state.api.assignAttributes(attributesOwner,Read<void*>(before.data.data(),0xc0));
-                return wire::Equivalent(original,readback());
-            }catch(...) {return false;}
-        }
-    };
-    std::vector<std::unique_ptr<Stage>> stages;
-    try {
-        std::set<std::uint64_t> identities;std::set<void*> groups,attributes;
-        for(const auto& target:targets) {
-            const auto found=state.bank.find(target.sim);
-            if(found==state.bank.end() || &found->second!=target.bank || !state.scope.members.count(target.sim) ||
-               target.bank->mask!=state.scope.members.at(target.sim).mask || !identities.insert(target.sim).second ||
-               !groups.insert(target.group).second)
-                throw std::runtime_error("CAS root preparation contains a duplicate or foreign member.");
-            target.bank->householdCanonical={{"verified",false}};
-            if(IndependentHybridGenus(target.bank->mask,Read<std::uint32_t>(target.group,0xd8))) {
-                if(!attributes.insert(static_cast<char*>(target.group)+0x4c8).second)
-                    throw std::runtime_error("CAS household roots alias one attributes object.");
-                stages.push_back(std::make_unique<Stage>(state,target));
-            }
-        }
-        for(auto& stage:stages)stage->apply();
-        for(auto& stage:stages)stage->target.bank->householdCanonical={
-            {"verified",true},{"scope_id",state.scope.id},{"generation",stage->target.bank->graph->cursor().generation},
-            {"source","exact-cas-household-root"},{"native_forms",stage->target.bank->logicalOwners.size()},
-            {"unselected_active_replaced",stage->activeReplaced},{"member_selection_submitted",false},
-            {"other_sim_graphs_written",false},{"before_sha256",resource::HashBytes(stage->original)},
-            {"after_sha256",resource::HashBytes(stage->projected)}};
-    }catch(const std::exception& error) {
-        bool restored=true;
-        for(auto at=stages.rbegin();at!=stages.rend();++at)restored=(*at)->rollback()&&restored;
-        for(auto& stage:stages)stage->target.bank->householdCanonical={{"verified",false},
-            {"message",error.what()},{"all_original_roots_restored",restored},{"other_sim_graphs_written",false},
-            {"differences",stage->differences},{"scope_id",state.scope.id},
-            {"generation",stage->target.bank->graph->cursor().generation}};
-        if(!restored)throw std::runtime_error("CAS root projection failed and original root rollback is unresolved; acceptance blocked.");
-        throw;
+inline std::string ProjectHouseholdPacket(State& state,const HouseholdRootTarget& target,const std::string& packet) {
+    auto& bank=*target.bank;
+    if(!bank.graph || !bank.seeded || bank.viewFault || bank.graph->cursor().sim!=target.sim ||
+       Read<std::uint64_t>(target.group,0xb8)!=target.sim)
+        throw std::runtime_error("CAS output projection lacks its exact independent owner.");
+    std::map<std::uint32_t,std::string> owners;
+    for(const auto& owner:bank.logicalOwners)
+        owners.emplace(owner.first,SerializeOwner(state.api,*bank.graph->appearance(owner.second),target.sim));
+    std::string active;
+    if(!bank.viewBound) {
+        if(!bank.active)throw std::runtime_error("Unselected CAS output has no captured active owner.");
+        active=owners.at(Read<std::uint32_t>(bank.active->data(),8));
     }
+    return wire::Household(packet,target.sim,bank.mask,owners,bank.viewBound?nullptr:&active);
+}
+inline std::string CheckedHouseholdPacket(State& state,const std::string& projected) {
+    NativePacket checked(state.api);const ByteView input{projected.data(),projected.size()};
+    if(!state.api.protoParse(checked.data.data(),&input))throw std::runtime_error("Game parser rejected a projected CAS output.");
+    const auto result=SerializeMessage(state.api,checked.data.data());
+    if(!wire::Equivalent(projected,result))throw std::runtime_error("Game parser changed a projected or unrelated CAS output field.");
+    return result;
+}
+inline void CanonicalizeHouseholdRoots(State& state,const std::vector<HouseholdRootTarget>& targets) {
+    // Preflight every packet. Native CAS roots/children cannot themselves hold
+    // every independent form: EA's exporter regenerates records from its pair.
+    // Apply the projection only to the final serialized output below.
+    state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;state.householdOutputCalls.clear();
+    std::set<std::uint64_t> identities;std::set<void*> groups;
+    std::map<std::uint64_t,PreparedHouseholdRoot> prepared;
+    for(const auto& target:targets) {
+        const auto found=state.bank.find(target.sim);
+        if(found==state.bank.end() || &found->second!=target.bank || !state.scope.members.count(target.sim) ||
+           target.bank->mask!=state.scope.members.at(target.sim).mask || !identities.insert(target.sim).second ||
+           !groups.insert(target.group).second)
+            throw std::runtime_error("CAS output preparation contains a duplicate or foreign member.");
+        target.bank->householdCanonical={{"verified",false},{"prepared",false}};
+        if(!IndependentHybridGenus(target.bank->mask,Read<std::uint32_t>(target.group,0xd8)))continue;
+        NativePacket before(state.api);state.api.exportProto(target.group,before.data.data());
+        CheckedHouseholdPacket(state,ProjectHouseholdPacket(state,target,SerializeMessage(state.api,before.data.data())));
+        prepared.emplace(target.sim,PreparedHouseholdRoot{target.group,target.bank->importedEntity,target.bank->graph->cursor().generation});
+    }
+    state.preparedRoots=std::move(prepared);state.preparedScope=state.scope.id;
+    for(const auto& row:state.preparedRoots)state.bank.at(row.first).householdCanonical={
+        {"verified",false},{"prepared",true},{"scope_id",state.scope.id},{"generation",row.second.generation},
+        {"native_root_memory_written",false},{"other_sim_graphs_written",false}};
 }
 inline void PrepareHouseholdRoots(void* controller) {
-    auto& state=Runtime();CanonicalizeHouseholdRoots(state,EditorHouseholdRoots(state,controller));
+    auto& state=Runtime();CanonicalizeHouseholdRoots(state,EditorHouseholdRoots(state,controller));state.exportController=controller;
+}
+inline void ProjectHouseholdOutput(State& state,const void* source,void* proto,void* controller) {
+    if(!state.armed || !state.selectionEnabled || state.preparedScope!=state.scope.id ||
+       (!state.acceptingHousehold && !(state.householdAcceptance.value("verified",false) && state.householdAcceptance.value("native_accepted",false))))return;
+    auto target=state.preparedRoots.end();
+    for(auto at=state.preparedRoots.begin();at!=state.preparedRoots.end();++at)if(at->second.group==source) {target=at;break;}
+    if(target==state.preparedRoots.end())return; // Includes all ordinary Live/save exporters.
+    auto& bank=state.bank.at(target->first);std::string original;bool attempted=false;
+    try {
+        if(!controller || controller!=state.exportController || !bank.graph || bank.viewFault ||
+           bank.graph->cursor().generation!=target->second.generation)
+            throw std::runtime_error("CAS output scope, controller or accepted owner generation changed.");
+        const auto roots=EditorHouseholdRoots(state,controller);
+        const auto current=std::find_if(roots.begin(),roots.end(),[&](const auto& root) {
+            return root.sim==target->first && root.group==source && GroupId(root.group)==target->second.entity;
+        });
+        if(current==roots.end())throw std::runtime_error("CAS output source is no longer the exact imported household entity.");
+        original=SerializeMessage(state.api,proto);
+        const auto checked=CheckedHouseholdPacket(state,ProjectHouseholdPacket(state,*current,original));
+        const ByteView input{checked.data(),checked.size()};attempted=true;
+        if(!state.api.protoParse(proto,&input))throw std::runtime_error("Native output rejected its validated independent forms.");
+        const auto actual=SerializeMessage(state.api,proto);
+        if(!wire::Equivalent(checked,actual)) {
+            auto differences=ui::Json::array();
+            for(const auto& delta:wire::Differences(checked,actual))differences.push_back({
+                {"path",delta.path},{"expected_bytes",delta.expected.size()},{"actual_bytes",delta.actual.size()},
+                {"expected_sha256",resource::HashBytes(delta.expected)},{"actual_sha256",resource::HashBytes(delta.actual)}});
+            bank.householdCanonical["differences"]=differences;
+            throw std::runtime_error("Native output changed a projected or unrelated field on readback.");
+        }
+        bank.householdCanonical={{"prepared",true},{"verified",true},{"scope_id",state.scope.id},{"generation",target->second.generation},
+            {"source","exact-cas-household-serialized-output"},{"native_forms",bank.logicalOwners.size()},
+            {"unselected_active_replaced",!bank.viewBound},{"native_root_memory_written",false},
+            {"other_sim_graphs_written",false},{"before_sha256",resource::HashBytes(original)},{"after_sha256",resource::HashBytes(checked)}};
+    }catch(const std::exception& error) {
+        bool restored=!attempted;
+        if(attempted && !original.empty()) {
+            try {const ByteView before{original.data(),original.size()};
+                 restored=state.api.protoParse(proto,&before) && wire::Equivalent(original,SerializeMessage(state.api,proto));}
+            catch(...) {restored=false;}
+        }
+        const auto differences=bank.householdCanonical.value("differences",ui::Json::array());
+        bank.householdCanonical={{"prepared",true},{"verified",false},{"scope_id",state.scope.id},
+            {"generation",target->second.generation},{"message",error.what()},{"original_output_restored",restored},
+            {"native_root_memory_written",false},{"other_sim_graphs_written",false},{"differences",differences}};
+        if(state.householdOutputFaults!=UINT64_MAX)++state.householdOutputFaults;
+        state.householdAcceptance["verified"]=false;
+    }
+}
+inline void HouseholdOutput(const void* source,void* proto) {
+    const auto caller=reinterpret_cast<std::uintptr_t>(_ReturnAddress());
+    auto& state=Runtime();state.api.exportProto(source,proto);
+    std::lock_guard<std::recursive_mutex> lock(state.mutex);
+    if(state.preparedRoots.empty())return;
+    void* controller=nullptr;
+    try {if(state.image)controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));}
+    catch(const std::exception&) {}
+    try {
+        const auto id=Read<std::uint64_t>(source,0xb8);
+        if(state.scope.members.count(id) && caller>=state.image && caller-state.image<0x4000000 &&
+           (state.acceptingHousehold || state.householdAcceptance.value("native_accepted",false))) {
+            const auto key=std::make_pair(caller-state.image,id);auto at=state.householdOutputCalls.find(key);
+            if(at!=state.householdOutputCalls.end() || state.householdOutputCalls.size()<64) {
+                auto& trace=state.householdOutputCalls[key];if(!trace.is_object())trace=ui::Json::object();
+                const auto count=trace.value("calls",std::uint64_t(0));trace["calls"]=count==UINT64_MAX?count:count+1;
+                trace["return_rva"]=key.first;trace["sim_id"]=std::to_string(id);
+                const auto root=state.preparedRoots.find(id);
+                trace["source_matches_prepared_root"]=root!=state.preparedRoots.end() && root->second.group==source;
+                trace["controller_matches"]=controller && controller==state.exportController;
+                trace["during_acceptance"]=state.acceptingHousehold;
+            }
+        }
+    }catch(const std::exception&) {}
+    ProjectHouseholdOutput(state,source,proto,controller);
 }
 inline bool SaveAndExit(const void* argument) {
-    auto& state=Runtime();std::string scope;unsigned session=0;std::uint64_t cancel=0;
+    auto& state=Runtime();std::string scope;unsigned session=0;std::uint64_t cancel=0,outputFaults=0;
     ui::Json generations=ui::Json::object();std::size_t caches=0;
     {
         std::lock_guard<std::recursive_mutex> lock(state.mutex);
@@ -791,11 +818,11 @@ inline bool SaveAndExit(const void* argument) {
                 state.api.prepareHousehold(controller);
                 for(const auto& target:targets)if(IndependentHybridGenus(target.bank->mask,target.bank->graph->cursor().kind)) {
                     const auto& receipt=target.bank->householdCanonical;
-                    if(!receipt.value("verified",false) || receipt.at("scope_id")!=state.scope.id ||
+                    if(!receipt.value("prepared",false) || receipt.at("scope_id")!=state.scope.id ||
                        receipt.at("generation")!=target.bank->graph->cursor().generation)
                         throw std::runtime_error("Native household root preparation lacks a fresh complete receipt.");
                 }
-                scope=state.scope.id;session=state.sessionsRetired;cancel=state.cancelSerial;
+                scope=state.scope.id;session=state.sessionsRetired;cancel=state.cancelSerial;outputFaults=state.householdOutputFaults;
                 state.acceptingHousehold=true;
                 state.householdAcceptance={{"verified",false},{"native_accepted",false},
                     {"scope_id",scope},{"generations",generations},{"canonical_caches",caches}};
@@ -828,7 +855,7 @@ inline bool SaveAndExit(const void* argument) {
     if(!scope.empty()) {
         std::lock_guard<std::recursive_mutex> lock(state.mutex);state.acceptingHousehold=false;
         bool same=state.selectionEnabled && state.scope.id==scope && state.sessionsRetired==session &&
-                  state.cancelSerial==cancel && cancel!=UINT64_MAX &&
+                  state.cancelSerial==cancel && cancel!=UINT64_MAX && outputFaults!=UINT64_MAX && state.householdOutputFaults==outputFaults &&
                   state.bank.size()==generations.size();
         for(const auto& row:state.bank)
             same=same && row.second.graph && generations.contains(std::to_string(row.first)) &&
@@ -846,6 +873,7 @@ inline bool CancelCas(const void* argument) {
         std::lock_guard<std::recursive_mutex> lock(state.mutex);
         if(state.cancelSerial!=UINT64_MAX)++state.cancelSerial;
         state.householdAcceptance={{"verified",false},{"native_accepted",false},{"cancelled",true}};
+        state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;
     }
     return state.api.cancelCas(argument);
 }
@@ -1468,6 +1496,7 @@ inline ui::Json ViewStatus() {
 }
 inline ui::Json Status() {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);auto rows=ui::Json::array();
+    auto outputCalls=ui::Json::array();for(const auto& row:state.householdOutputCalls)outputCalls.push_back(row.second);
     for(const auto& member:state.scope.members) {
         const auto found=state.bank.find(member.first);auto kinds=ui::Json::array();
         auto genus=ui::Json::array();
@@ -1530,6 +1559,8 @@ inline ui::Json Status() {
         {"scope_id",state.scope.id},{"selection_enabled",state.selectionEnabled},{"members",rows},{"existing_owner_selections",state.intercepted},
         {"sessions_retired",state.sessionsRetired},
         {"household_acceptance",state.householdAcceptance},
+        {"household_output_faults",state.householdOutputFaults},
+        {"household_output_calls",outputCalls},
         {"native_converter_calls",state.converted},{"game_files_written",false},
         {"alternate_kind_overrides",state.alternateOverrides},
         {"normalizations_prevented",state.normalizationsPrevented},{"initial_active_owners_imported",state.initialOwnersImported},
@@ -1637,7 +1668,7 @@ inline void Install() {
     state.api.protoConstruct=reinterpret_cast<ProtoConstructFn>(at(0x60fac0));
     state.api.protoParse=reinterpret_cast<ProtoParseFn>(at(0x48af80));state.api.protoDestroy=reinterpret_cast<DestroyFn>(at(0x6115a0));
     state.api.assignData=reinterpret_cast<AssignDataFn>(at(0x1b1c70));state.api.copySim=reinterpret_cast<MetaFn>(at(0x321c50));
-    state.api.assignAttributes=reinterpret_cast<AssignDataFn>(at(0x7ae500));state.api.prepareHousehold=PrepareHouseholdRoots;
+    state.api.prepareHousehold=PrepareHouseholdRoots;
     state.api.controller=reinterpret_cast<HistoryFn>(at(0x3f5c30));state.api.avatar=reinterpret_cast<AvatarFn>(at(0x2039c0));
     state.api.modelBind=reinterpret_cast<ModelBindFn>(at(0x44a0a0));
     state.api.coreBind=reinterpret_cast<CoreBindFn>(at(0x3ebfd0));
@@ -1655,6 +1686,7 @@ inline void Install() {
         throw std::runtime_error("Native form hook registry is unavailable.");
     struct Hook {void* target;void* detour;void** original;};
     Hook hooks[]={
+        {at(0x323990),reinterpret_cast<void*>(&HouseholdOutput),reinterpret_cast<void**>(&state.api.exportProto)},
         {at(0x207400),reinterpret_cast<void*>(&SaveAndExit),reinterpret_cast<void**>(&state.api.saveAndExit)},
         {at(0x205c10),reinterpret_cast<void*>(&CancelCas),reinterpret_cast<void**>(&state.api.cancelCas)},
         {at(0x47dd40),reinterpret_cast<void*>(&AnimationGenus),reinterpret_cast<void**>(&state.api.animationGenus)},
@@ -1771,6 +1803,7 @@ inline ui::Json Control(const ui::Json& request) {
         state.selectionEnabled=false;state.boundSim=0;state.boundController=nullptr;
         state.observedNative={{"available",false}};state.viewResult=nullptr;
         state.uiOwners.clear();state.viewTokens.clear();state.bank.clear();++state.sessionsRetired;
+        state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;state.householdOutputCalls.clear();
         state.householdAcceptance={{"verified",false},{"native_accepted",false}};
         return Status();
     }
@@ -1991,6 +2024,7 @@ inline ui::Json Control(const ui::Json& request) {
         return Status();
     }
     Install();state.scope=scope;state.armed=true;
+    state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;state.householdOutputCalls.clear();
     state.householdAcceptance={{"verified",false},{"native_accepted",false}};return Status();
 }
 }

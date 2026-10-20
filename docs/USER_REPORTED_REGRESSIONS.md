@@ -21,7 +21,11 @@ pass. Its actual acceptance is rejected because a prepared root differs on
 complete readback. All five original roots are restored, EA's handler is not
 called, and the session is canceled without saving. V220 reports bounded
 field-path/size/hash differences to isolate that failure while keeping every
-verification field and the rollback. R001/R002 remain open,
+verification field and the rollback. V220 isolates missing Werewolf pelt data
+and changed Human genetics on an unselected member; the independent captures
+remain correct. V221 scopes the correction to final CAS serialization, with
+fresh root/entity/generation checks and complete packet validation. It does not
+rewrite native roots. Its actual household test is still open. R001/R002 remain open,
 as do selective EA linking/copying, edited save/Tray round trips and measured
 end-to-end responsiveness; fixture passes do not authorize actual-save use.
 

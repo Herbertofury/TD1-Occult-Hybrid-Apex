@@ -26,10 +26,17 @@ bool Parse(void* packet,const ByteView* input) {
     return true;
 }
 std::uint64_t Entity(void* p) {return Read<std::uint64_t>(p,0xa8);}
+void* Clone(void* destination,const void* source) {
+    std::memcpy(destination,source,0x830);
+    const auto at=attrs.find(source);if(at!=attrs.end())attrs[destination]=at->second;else attrs.erase(destination);
+    return destination;
+}
+void Release(void* value) {attrs.erase(value);std::memset(value,0,0x830);}
 void Exercise() {
     auto& state=Runtime();const auto api=state.api;const auto oldRoots=state.preparedRoots;
     const auto oldScope=state.preparedScope;auto* oldController=state.exportController;
     const auto acceptance=state.householdAcceptance;const bool accepting=state.acceptingHousehold;
+    const auto oldCopies=state.householdCopies;const bool copiesEnabled=state.householdCopiesEnabled.load();
     const auto firstView=state.bank.at(123).viewBound,secondView=state.bank.at(456).viewBound;
     auto firstActive=std::move(state.bank.at(123).active),secondActive=std::move(state.bank.at(456).active);
     state.api.protoConstruct=ConstructPacket;state.api.protoDestroy=DestroyPacket;
@@ -96,9 +103,47 @@ void Exercise() {
     const auto unchangedFaults=state.householdOutputFaults;
     ProjectHouseholdOutput(state,state.bank.at(123).graph->appearance("native/1")->value,ordinary.data.data(),controller.data());
     Require(state.householdOutputFaults==unchangedFaults && protoExports.at(ordinary.data.data())==original[0]);
+    // EA builds a separate outgoing household and deep-copies it through the
+    // dispatch queue. Identity alone must never authorize one of those objects.
+    CanonicalizeHouseholdRoots(state,targets);state.exportController=controller.data();
+    state.householdCopiesEnabled.store(true);state.api.copySim=Clone;state.api.assignSim=Clone;state.api.destroy=Release;
+    std::array<char,0x830> outgoing{},queued{},unrelated{};
+    Clone(unrelated.data(),roots[0].data());state.acceptingHousehold=true;
+    Export(unrelated.data(),ordinary.data.data());const auto untouched=protoExports.at(ordinary.data.data());
+    ProjectHouseholdOutput(state,unrelated.data(),ordinary.data.data(),controller.data());
+    Require(protoExports.at(ordinary.data.data())==untouched && state.householdCopies.empty());
+    HouseholdCopyAssign(outgoing.data(),roots[0].data());Require(state.householdCopies.at(outgoing.data()).depth==1);
+    state.acceptingHousehold=false;state.householdAcceptance={{"verified",true},{"native_accepted",true}};
+    HouseholdCopyConstruct(queued.data(),outgoing.data());Require(state.householdCopies.at(queued.data()).depth==2);
+    Export(queued.data(),ordinary.data.data());ProjectHouseholdOutput(state,queued.data(),ordinary.data.data(),controller.data());
+    Require(state.bank.at(123).householdCanonical["verified"]==true && state.bank.at(123).householdCanonical["copy_depth"]==2);
+    const auto projected=protoExports.at(ordinary.data.data());
+    Require(!w::Equivalent(projected,untouched));
+    HouseholdCopyAssign(queued.data(),unrelated.data());Require(!state.householdCopies.count(queued.data()));
+    Export(queued.data(),ordinary.data.data());ProjectHouseholdOutput(state,queued.data(),ordinary.data.data(),controller.data());
+    Require(w::Equivalent(protoExports.at(ordinary.data.data()),untouched));
+    HouseholdCopyConstruct(queued.data(),outgoing.data());HouseholdCopyDestroy(queued.data());
+    Require(!state.householdCopies.count(queued.data()));
+    Clone(queued.data(),roots[0].data());Export(queued.data(),ordinary.data.data());
+    ProjectHouseholdOutput(state,queued.data(),ordinary.data.data(),controller.data());Require(w::Equivalent(protoExports.at(ordinary.data.data()),untouched));
+    state.householdAcceptance={{"verified",false},{"native_accepted",false}};
+    HouseholdCopyConstruct(queued.data(),outgoing.data());Require(!state.householdCopies.count(queued.data()));
+    state.acceptingHousehold=true;state.preparedRoots.at(123).generation++;
+    HouseholdCopyConstruct(queued.data(),outgoing.data());Require(!state.householdCopies.count(queued.data()));
+    state.preparedRoots.at(123).generation--;
+    state.acceptingHousehold=false;state.householdAcceptance={{"verified",true},{"native_accepted",true}};
+    HouseholdCopyConstruct(queued.data(),roots[0].data());Require(!state.householdCopies.count(queued.data()));
+    state.acceptingHousehold=true;
+    HouseholdCopyConstruct(queued.data(),outgoing.data());Require(state.householdCopies.count(queued.data())==1);
+    const auto faultsBeforeRetire=state.householdOutputFaults;
+    ForgetHouseholdObject(state,roots[0].data());
+    Require(state.householdCopies.empty() && state.preparedRoots.empty() && state.preparedScope.empty() &&
+        !state.exportController && !state.householdCopiesEnabled.load() && state.householdOutputFaults==faultsBeforeRetire+1 &&
+        state.householdAcceptance["verified"]==false);
     state.bank.at(123).active=std::move(firstActive);state.bank.at(456).active=std::move(secondActive);
     state.bank.at(123).viewBound=firstView;state.bank.at(456).viewBound=secondView;
     state.preparedRoots=oldRoots;state.preparedScope=oldScope;state.exportController=oldController;
+    state.householdCopies=oldCopies;state.householdCopiesEnabled.store(copiesEnabled);
     state.householdAcceptance=acceptance;state.acceptingHousehold=accepting;attrs.clear();state.api=api;
 }
 }

@@ -106,6 +106,21 @@ throughout, so the missing authority is the native copy lifetime, not the Sim
 identity. Do not widen the hook to identities alone. Edited-category persistence
 and actual-save readiness remain open.
 
+V221's separate no-edit disposition and guard retain all forty native
+appearances and 155 named looks after simulation advances; all twenty save
+files remain unchanged. Its normal unsaved exit also succeeds. V222 follows
+the inspected native constructor/assignment chain instead of treating the
+copied household as the original editor roots. A copy inherits authority only
+from a currently prepared root during acceptance or an already authenticated
+copy in that accepted scope. Sim identity, native entity and final owner
+generation must all match. Reassignment and destruction revoke the old proof;
+prepared-root destruction retires the authority. Unrelated exporters with the
+same Sim identity are still excluded. The lifetime map and propagation depth
+are bounded; copy/destructor hooks take an atomic disabled path outside this
+short CAS scope. Thirteen native targets, 26 seal and 26 upgrade checks pass,
+including copied output, propagation, overwrite, reuse and source retirement.
+The actual five-member V222 qualification is running; it is not a release pass.
+
 V214's untouched-member acceptance test fails direct isolation: members two,
 three and four return changed Human genetics and/or active outfits/paint.
 The final-graph loader refuses their mismatched incoming cores. The separate

@@ -573,6 +573,15 @@
     "change": "Project final serialized CAS output after stock pair reconstruction, scoped to fresh prepared roots/entities/generations",
     "direct_cas_exit_fix_qualified": false,
     "dll_sha256": "da0c5672cfd909439348ba784c5c96e6ff8a5c5a59b5a074c8a655b15ced0bc3",
+    "guard_retention": {
+      "all40_native_appearances_retained": true,
+      "direct_fix_qualified": false,
+      "named_looks_retained": 155,
+      "retained_proof": ".work/v221-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "8ca8a00107b08a9ee170951fc31b056ccfb5fcc72497d162e29041a210cf7c48",
+      "simulation_advanced": true
+    },
     "native_checks": {
       "passed": 13,
       "retained_proof": ".work/v221-native-tests.log",
@@ -595,7 +604,7 @@
       "all_controllers_match": true,
       "all_export_sources_differ_from_prepared_roots": true,
       "direct_cas_exit_fix_qualified": false,
-      "guard_disposition": "running",
+      "guard_disposition": "passed separately; direct failure retained",
       "native_acceptance_verified": true,
       "observed_export_calls": 15,
       "retained_proof": ".work/v221-actual-output-status.json",
@@ -607,10 +616,53 @@
       "retained_proof": ".work/v221-seal-tests.log",
       "sha256": "a3a1940e1fd77b070cb3339439a00c53bd462c4db9e20773206ddbad47013f44"
     },
+    "shutdown": {
+      "normal_exit_verified": true,
+      "retained_proof": ".work/v221-normal-unsaved-exit-for-v222.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "cb45bc6339f0d5648d5efbe5d83e34e58d74101ddc20accd2bb528f035259d50"
+    },
     "upgrade_checks": {
       "passed": 26,
       "retained_proof": ".work/v221-upgrade-tests.log",
       "sha256": "13d5b798ba641de22a79822cb70386c1c9538ea5c91015c58403e6ce644436c6"
+    }
+  },
+  "v222": {
+    "bundle_sha256": "17c0a8a3fbb0a99ab49a628eba8729261b17c27aa82eff1cc371ba0c729de566",
+    "change": "Authenticate native outgoing household copies through constructor/assignment/destructor lifetimes",
+    "copy_depth_bounded": 16,
+    "copy_lifetimes_bounded": 128,
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "1aa24c953fd8733604d95a4e07424db6f0395389cf0b28124051fb4e9a332abc",
+    "identity_alone_never_authorizes_projection": true,
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v222-native-tests.log",
+      "sha256": "2c0d79595884426bc5692b2fff3a78c4193575c7312025b5bd23198efeed9bfa"
+    },
+    "native_root_memory_written": false,
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v222-candidate-build.log",
+      "sha256": "9bb5eb955106f4e863e9bd84b16f24e490faa0ab4d7b61ddf504b1b6811e57e3"
+    },
+    "permanent_guard_retained": true,
+    "production_ready": false,
+    "runtime": "Actual five-member qualification running",
+    "script_sha256": "f2325edfb40f847f73e56083aa0e14028109c9bc229ce721961a7f8f94bccd17",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v222-seal-tests.log",
+      "sha256": "4495db638ff57fadbdc2bc85c0e26f97f79c89724b95478634838515b321e623"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v222-upgrade-tests.log",
+      "sha256": "1355ce26cc18a53fb3938753ff142a3c61ebb67556e25f676a78184304f3704a"
     }
   }
 }

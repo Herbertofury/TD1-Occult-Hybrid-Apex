@@ -25,7 +25,16 @@ verification field and the rollback. V220 isolates missing Werewolf pelt data
 and changed Human genetics on an unselected member; the independent captures
 remain correct. V221 scopes the correction to final CAS serialization, with
 fresh root/entity/generation checks and complete packet validation. It does not
-rewrite native roots. Its actual household test is still open. R001/R002 remain open,
+rewrite native roots. V221's actual acceptance succeeds, but all fifteen
+observed exports use copied objects rather than the prepared editor roots;
+none qualifies for projection, and the same three members change. The guard
+again retains all forty native appearances and 155 named looks, with every save
+unchanged; the subsequent normal unsaved exit succeeds. V222 tracks exact
+native constructor/assignment provenance and destruction so legitimate output
+copies can retain their original scope, entity and generation. Unrelated
+objects, overwritten destinations and reused addresses cannot inherit authority
+from a matching Sim ID. All thirteen native targets and 26 seal/26 upgrade
+checks pass. Actual five-member V222 qualification is running. R001/R002 remain open,
 as do selective EA linking/copying, edited save/Tray round trips and measured
 end-to-end responsiveness; fixture passes do not authorize actual-save use.
 

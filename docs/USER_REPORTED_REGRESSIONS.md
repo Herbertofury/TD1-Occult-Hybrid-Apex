@@ -34,7 +34,14 @@ native constructor/assignment provenance and destruction so legitimate output
 copies can retain their original scope, entity and generation. Unrelated
 objects, overwritten destinations and reused addresses cannot inherit authority
 from a matching Sim ID. All thirteen native targets and 26 seal/26 upgrade
-checks pass. Actual five-member V222 qualification is running. R001/R002 remain open,
+checks pass. Actual V222 qualification remains a direct-fix failure: three late
+copies verify, two unselected members still differ, and one native fault
+invalidates acceptance qualification. Its guard retains all forty appearances
+and 155 named looks; every save remains unchanged and normal unsaved exit
+succeeds. V223 authenticates the earlier complete native CAS household dispatch
+before its copies are queued, and preserves bounded fault history across later
+successes. Its thirteen native, 26 seal and 26 upgrade checks pass; actual
+household qualification is running. R001/R002 remain open,
 as do selective EA linking/copying, edited save/Tray round trips and measured
 end-to-end responsiveness; fixture passes do not authorize actual-save use.
 

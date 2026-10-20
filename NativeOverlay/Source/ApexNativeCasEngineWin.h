@@ -62,6 +62,8 @@ using PreviewFn=void(*)(void*,bool);
 using OutfitHairFn=void(*)(void*,const void*);
 using AnimationGenusFn=void(*)(void*,const void*,bool);
 using PrepareHouseholdFn=void(*)(void*);
+using HouseholdDispatchFn=bool(*)(const void*,std::int64_t,const void*);
+using TreeNextFn=void*(*)(const void*);
 inline thread_local const void* detachedTarget=nullptr;
 struct DetachedTarget {
     const void* previous;
@@ -88,6 +90,7 @@ struct Api {
     ExportProtoFn exportProto=nullptr;ProtoSizeFn protoSize=nullptr;ProtoArrayFn protoArray=nullptr;
     PreviewFn hairPreview=nullptr,clothingPreview=nullptr,wingsPreview=nullptr;
     PrepareHouseholdFn prepareHousehold=nullptr;
+    HouseholdDispatchFn dispatchHousehold=nullptr;TreeNextFn treeNext=nullptr;
 };
 inline void Span(const void* value,std::size_t count) {
     const auto start=reinterpret_cast<std::uintptr_t>(value);
@@ -225,7 +228,7 @@ struct ViewIntent {
     std::string request,owner;std::uint64_t sim=0,generation=0;std::uint32_t token=0;std::uint8_t layer=0;
 };
 struct PreparedHouseholdRoot {void* group=nullptr;std::uint64_t entity=0,generation=0;};
-struct HouseholdCopy {std::uint64_t sim=0,entity=0,generation=0;unsigned depth=0;};
+struct HouseholdCopy {std::uint64_t sim=0,entity=0,generation=0;unsigned depth=0;bool dispatchOrigin=false;};
 inline std::uint8_t ConfigurePortraitPair(Imported& bank,const std::string& owner) {
     const auto pair=SelectFormPair(bank.humanOwner,owner,
         Read<std::uint32_t>(bank.graph->appearance(owner)->data(),8),{bank.entryOwner,bank.partner,0});
@@ -250,6 +253,8 @@ struct State {
     std::atomic<bool> householdCopiesEnabled{false};
     void* exportController=nullptr;std::string preparedScope;
     std::uint64_t householdOutputFaults=0;
+    std::uint64_t preparedHouseholdId=0;
+    ui::Json householdFaults=ui::Json::array(),householdDispatch={{"verified",false}};
     std::map<std::pair<std::uintptr_t,std::uint64_t>,ui::Json> householdOutputCalls;
     void* kindRelay=nullptr;std::int32_t originalKindCall=0,patchedKindCall=0;bool kindCallPatched=false,kindRelayReady=false;
     std::uintptr_t image=0;bool installed=false,armed=false,selectionEnabled=false;unsigned intercepted=0,converted=0,alternateOverrides=0,normalizationsPrevented=0,initialOwnersImported=0,serviceSelections=0,rebindCorrections=0,blockedConversions=0;
@@ -647,6 +652,7 @@ inline void CanonicalizeHouseholdRoots(State& state,const std::vector<HouseholdR
     // every independent form: EA's exporter regenerates records from its pair.
     // Apply the projection only to the final serialized output below.
     state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
+    state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
     state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;state.householdOutputCalls.clear();
     std::set<std::uint64_t> identities;std::set<void*> groups;
     std::map<std::uint64_t,PreparedHouseholdRoot> prepared;
@@ -669,11 +675,73 @@ inline void CanonicalizeHouseholdRoots(State& state,const std::vector<HouseholdR
 }
 inline void PrepareHouseholdRoots(void* controller) {
     auto& state=Runtime();CanonicalizeHouseholdRoots(state,EditorHouseholdRoots(state,controller));state.exportController=controller;
+    state.preparedHouseholdId=Read<std::uint64_t>(controller,0xb0);
+    if(!state.preparedHouseholdId)throw std::runtime_error("CAS preparation lacks its native household identity.");
     state.householdCopiesEnabled.store(!state.preparedRoots.empty(),std::memory_order_release);
 }
 inline bool HouseholdScopeCurrent(const State& state) {
     return state.armed && state.selectionEnabled && state.preparedScope==state.scope.id &&
         (state.acceptingHousehold || (state.householdAcceptance.value("verified",false) && state.householdAcceptance.value("native_accepted",false)));
+}
+inline void HouseholdFault(State& state,const char* phase,const std::string& message,std::uint64_t sim=0) {
+    if(state.householdOutputFaults!=UINT64_MAX)++state.householdOutputFaults;
+    auto row=ui::Json{{"serial",state.householdOutputFaults},{"phase",phase},{"message",message.substr(0,1024)},
+        {"scope_id",state.scope.id},{"during_acceptance",state.acceptingHousehold}};
+    if(sim)row["sim_id"]=std::to_string(sim);
+    if(state.householdFaults.size()>=8)state.householdFaults.erase(state.householdFaults.begin());
+    state.householdFaults.push_back(row);state.householdAcceptance["verified"]=false;
+}
+inline void SeedHouseholdDispatch(State& state,const void* household,void* controller) {
+    if(!HouseholdScopeCurrent(state) || !state.acceptingHousehold || !controller || controller!=state.exportController ||
+       !state.preparedHouseholdId || Read<std::uint64_t>(controller,0xb0)!=state.preparedHouseholdId ||
+       Read<std::uint64_t>(household,0xc8)!=state.preparedHouseholdId || !state.api.treeNext)
+        throw std::runtime_error("Native CAS dispatch lacks its prepared household/controller scope.");
+    const auto roots=EditorHouseholdRoots(state,controller);
+    for(const auto& prepared:state.preparedRoots) {
+        const auto at=std::find_if(roots.begin(),roots.end(),[&](const auto& root) {
+            return root.sim==prepared.first && root.group==prepared.second.group && GroupId(root.group)==prepared.second.entity &&
+                root.bank->graph && root.bank->graph->cursor().generation==prepared.second.generation && !root.bank->viewFault;
+        });
+        if(at==roots.end())throw std::runtime_error("Native CAS dispatch lost a prepared member generation/entity.");
+    }
+    const auto sentinel=static_cast<const char*>(household)+0x88;
+    auto* node=Read<void*>(household,0x90);std::set<const void*> seenNodes;std::set<std::uint64_t> ids,entities;
+    std::map<const void*,HouseholdCopy> seeds;
+    while(node!=sentinel) {
+        if(seenNodes.size()>=8 || !seenNodes.insert(node).second)throw std::runtime_error("Native CAS dispatch has a cyclic or oversized household.");
+        auto* value=static_cast<char*>(node)+0x30;const auto id=Read<std::uint64_t>(value,0xb8);const auto entity=GroupId(value);
+        const auto member=state.scope.members.find(id);const auto bank=state.bank.find(id);
+        if(member==state.scope.members.end() || bank==state.bank.end() || !bank->second.editorImported ||
+           bank->second.importedEntity!=entity || !ids.insert(id).second || !entities.insert(entity).second)
+            throw std::runtime_error("Native CAS dispatch contains a foreign, missing or duplicate entity.");
+        const auto prepared=state.preparedRoots.find(id);
+        if(prepared!=state.preparedRoots.end())seeds.emplace(value,HouseholdCopy{id,entity,prepared->second.generation,1,true});
+        node=state.api.treeNext(node);
+    }
+    if(ids.size()!=state.scope.members.size() || Read<unsigned>(household,0xa8)!=ids.size() || seeds.size()!=state.preparedRoots.size())
+        throw std::runtime_error("Native CAS dispatch does not contain the complete captured household.");
+    auto staged=state.householdCopies;
+    for(const auto& seed:seeds)staged[seed.first]=seed.second;
+    if(staged.size()>128)throw std::runtime_error("Native CAS dispatch copy provenance exceeds its lifetime bound.");
+    state.householdCopies.swap(staged);
+    state.householdDispatch={{"verified",true},{"scope_id",state.scope.id},{"household_id",std::to_string(state.preparedHouseholdId)},
+        {"members",ids.size()},{"hybrid_outputs_seeded",seeds.size()},{"native_root_memory_written",false}};
+}
+inline bool HouseholdDispatch(const void* household,std::int64_t context,const void* extra) {
+    const auto caller=reinterpret_cast<std::uintptr_t>(_ReturnAddress());auto& state=Runtime();
+    if(caller==state.image+0x3f43ef && state.householdCopiesEnabled.load(std::memory_order_acquire)) {
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);
+        try {
+            auto* controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
+            SeedHouseholdDispatch(state,household,controller);
+        }catch(const std::exception& error) {
+            HouseholdFault(state,"household-dispatch",error.what());
+            state.householdDispatch={{"verified",false},{"message",error.what()}};return false;
+        }
+    }
+    // EA may enqueue/copy the packet here. Native constructor hooks inherit
+    // only the just-validated dispatch roots; no graph mutex is held.
+    return state.api.dispatchHousehold(household,context,extra);
 }
 inline void ObserveHouseholdCopy(State& state,const void* destination,const void* source) {
     if(destination==source)return;
@@ -701,10 +769,9 @@ inline void RecordHouseholdCopy(const void* destination,const void* source) {
     auto& state=Runtime();if(!state.householdCopiesEnabled.load(std::memory_order_acquire))return;
     std::lock_guard<std::recursive_mutex> lock(state.mutex);
     try {ObserveHouseholdCopy(state,destination,source);}
-    catch(const std::exception&) {
+    catch(const std::exception& error) {
         state.householdCopies.erase(destination);
-        if(state.householdOutputFaults!=UINT64_MAX)++state.householdOutputFaults;
-        state.householdAcceptance["verified"]=false;
+        HouseholdFault(state,"copy-lifetime",error.what());
     }
 }
 inline void* HouseholdCopyConstruct(void* destination,const void* source) {
@@ -718,11 +785,12 @@ inline void* HouseholdCopyAssign(void* destination,const void* source) {
 inline void ForgetHouseholdObject(State& state,const void* value) {
     state.householdCopies.erase(value);
     for(const auto& root:state.preparedRoots)if(root.second.group==value) {
+        const auto retiredSim=root.first;
         // A reused address is not a continuation of a prepared editor entity.
         state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
         state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;
-        if(state.householdOutputFaults!=UINT64_MAX)++state.householdOutputFaults;
-        state.householdAcceptance["verified"]=false;break;
+        state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
+        HouseholdFault(state,"prepared-root-retired","Prepared CAS editor root was destroyed before its scope retired.",retiredSim);break;
     }
 }
 inline void HouseholdCopyDestroy(void* value) {
@@ -771,6 +839,7 @@ inline void ProjectHouseholdOutput(State& state,const void* source,void* proto,v
         bank.householdCanonical={{"prepared",true},{"verified",true},{"scope_id",state.scope.id},{"generation",target->second.generation},
             {"source","exact-cas-household-serialized-output"},{"native_forms",bank.logicalOwners.size()},
             {"copied_output",copied!=state.householdCopies.end()},{"copy_depth",copied==state.householdCopies.end()?0:copied->second.depth},
+            {"dispatch_origin",copied!=state.householdCopies.end() && copied->second.dispatchOrigin},
             {"unselected_active_replaced",!bank.viewBound},{"native_root_memory_written",false},
             {"other_sim_graphs_written",false},{"before_sha256",resource::HashBytes(original)},{"after_sha256",resource::HashBytes(checked)}};
     }catch(const std::exception& error) {
@@ -784,8 +853,7 @@ inline void ProjectHouseholdOutput(State& state,const void* source,void* proto,v
         bank.householdCanonical={{"prepared",true},{"verified",false},{"scope_id",state.scope.id},
             {"generation",target->second.generation},{"message",error.what()},{"original_output_restored",restored},
             {"native_root_memory_written",false},{"other_sim_graphs_written",false},{"differences",differences}};
-        if(state.householdOutputFaults!=UINT64_MAX)++state.householdOutputFaults;
-        state.householdAcceptance["verified"]=false;
+        HouseholdFault(state,"output-projection",error.what(),target->first);
     }
 }
 inline void HouseholdOutput(const void* source,void* proto) {
@@ -951,6 +1019,7 @@ inline bool CancelCas(const void* argument) {
         if(state.cancelSerial!=UINT64_MAX)++state.cancelSerial;
         state.householdAcceptance={{"verified",false},{"native_accepted",false},{"cancelled",true}};
         state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
+        state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
         state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;
     }
     return state.api.cancelCas(argument);
@@ -1639,6 +1708,7 @@ inline ui::Json Status() {
         {"household_acceptance",state.householdAcceptance},
         {"household_output_faults",state.householdOutputFaults},
         {"household_copy_lifetimes",state.householdCopies.size()},
+        {"household_faults",state.householdFaults},{"household_dispatch",state.householdDispatch},
         {"household_output_calls",outputCalls},
         {"native_converter_calls",state.converted},{"game_files_written",false},
         {"alternate_kind_overrides",state.alternateOverrides},
@@ -1692,6 +1762,9 @@ inline void Install() {
         {0x1b1c70,"2b226667354985830fd9d6f425b8558cd2cb133eb900bd254d771e0c5747d978"},
         {0x321c50,"ef90d19307dceb58d454d3d184f69a27c4e80033cebab3d888ac39a9a1f3bb95"},
         {0x322290,"76f877b1c8f9399463a8b827c77e7461eb67a70b39b02cf13b1e6526dc95182d"},
+        {0x115d550,"a7f3744704b5db3be429762806413023a061779cc7aa9e2bf32e8c3a5143c722"},
+        {0x3f43d5,"adb9b3c2fd2f7d4254005ac341d559385d3e520bd51be623cbe23f1ed596cc94"},
+        {0x13dd8d0,"934c0bd18e7ffdf8da24cc4f2ae2fbef7e6972edb81a371ea187b106e0e00982"},
         {0x2096a0,"66ceb6da5d2cbedf26ec3fa013dd0f585c8c72e374deb60d93b49ce9358b785e"},
         {0x2044b0,"0eab5a8c74abfe0d2bb578b8a04f6c37269041d9bc3a8fc7db16ff91450393fc"},
         {0xda6540,"cc712023ad1285bb00a89e1b4901620637bf088a813e59800a28477d1e84bab0"},
@@ -1749,6 +1822,7 @@ inline void Install() {
     state.api.protoParse=reinterpret_cast<ProtoParseFn>(at(0x48af80));state.api.protoDestroy=reinterpret_cast<DestroyFn>(at(0x6115a0));
     state.api.assignData=reinterpret_cast<AssignDataFn>(at(0x1b1c70));state.api.copySim=reinterpret_cast<MetaFn>(at(0x321c50));
     state.api.assignSim=reinterpret_cast<MetaFn>(at(0x322290));
+    state.api.dispatchHousehold=reinterpret_cast<HouseholdDispatchFn>(at(0x115d550));state.api.treeNext=reinterpret_cast<TreeNextFn>(at(0x13dd8d0));
     state.api.prepareHousehold=PrepareHouseholdRoots;
     state.api.controller=reinterpret_cast<HistoryFn>(at(0x3f5c30));state.api.avatar=reinterpret_cast<AvatarFn>(at(0x2039c0));
     state.api.modelBind=reinterpret_cast<ModelBindFn>(at(0x44a0a0));
@@ -1767,6 +1841,7 @@ inline void Install() {
         throw std::runtime_error("Native form hook registry is unavailable.");
     struct Hook {void* target;void* detour;void** original;};
     Hook hooks[]={
+        {at(0x115d550),reinterpret_cast<void*>(&HouseholdDispatch),reinterpret_cast<void**>(&state.api.dispatchHousehold)},
         {at(0x321c50),reinterpret_cast<void*>(&HouseholdCopyConstruct),reinterpret_cast<void**>(&state.api.copySim)},
         {at(0x322290),reinterpret_cast<void*>(&HouseholdCopyAssign),reinterpret_cast<void**>(&state.api.assignSim)},
         {at(0x3221c0),reinterpret_cast<void*>(&HouseholdCopyDestroy),reinterpret_cast<void**>(&state.api.destroy)},
@@ -1887,6 +1962,7 @@ inline ui::Json Control(const ui::Json& request) {
         state.selectionEnabled=false;state.boundSim=0;state.boundController=nullptr;
         state.observedNative={{"available",false}};state.viewResult=nullptr;
         state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
+        state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
         state.uiOwners.clear();state.viewTokens.clear();state.bank.clear();++state.sessionsRetired;
         state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;state.householdOutputCalls.clear();
         state.householdAcceptance={{"verified",false},{"native_accepted",false}};
@@ -2110,6 +2186,7 @@ inline ui::Json Control(const ui::Json& request) {
     }
     Install();state.scope=scope;state.armed=true;
     state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
+    state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
     state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;state.householdOutputCalls.clear();
     state.householdAcceptance={{"verified",false},{"native_accepted",false}};return Status();
 }

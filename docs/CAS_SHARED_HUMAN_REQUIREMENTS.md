@@ -119,7 +119,26 @@ same Sim identity are still excluded. The lifetime map and propagation depth
 are bounded; copy/destructor hooks take an atomic disabled path outside this
 short CAS scope. Thirteen native targets, 26 seal and 26 upgrade checks pass,
 including copied output, propagation, overwrite, reuse and source retirement.
-The actual five-member V222 qualification is running; it is not a release pass.
+Actual V222 qualification still fails. Three late outgoing copies have verified
+projection receipts, but the earlier exports and the two selected members have
+no copy provenance. Two unselected members still differ before the guard. One
+native fault invalidates the acceptance qualification; later successful member
+receipts do not establish its cause. The separate guard retains all forty native
+appearances and 155 named looks after simulation advances. All twenty save files
+remain unchanged, and normal unsaved exit succeeds.
+
+V223 validates the earlier native CAS household dispatch before EA queues its
+copies. Only the pinned CAS caller may seed it, during prepared acceptance.
+The native household/controller identity, complete bounded roster, unique Sim
+and entity identities and every prepared owner generation must agree. Staging
+publishes all output roots together; malformed, foreign, incomplete or stale
+dispatches are blocked before the original dispatch call. Subsequent native
+copies inherit that scope; unrelated matching IDs do not qualify. A bounded
+eight-entry fault history retains phase, scope and message even after later
+successful exports. Thirteen native targets, 26 seal and 26 upgrade checks pass;
+seven packages/105 Python 3.7 modules and 208 Rust-validated resources build.
+Actual V223 qualification is running; direct isolation and actual-save readiness
+remain open.
 
 V214's untouched-member acceptance test fails direct isolation: members two,
 three and four return changed Human genetics and/or active outfits/paint.

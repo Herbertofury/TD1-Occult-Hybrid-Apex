@@ -582,6 +582,15 @@
       "sha256": "8ca8a00107b08a9ee170951fc31b056ccfb5fcc72497d162e29041a210cf7c48",
       "simulation_advanced": true
     },
+    "load_performance_findings": {
+      "full_sidecar_read_calls": 382,
+      "instrumentation_present": true,
+      "note_loaded_calls": 377,
+      "outfit_hair_status_calls": 17,
+      "retained_proof": ".work/v221-load-sidecar-performance-findings.json",
+      "sha256": "bdf09c38c977b285be38c7d23007059e0fdec80eb845bc90c799526330a41429",
+      "unprofiled_latency_claimed": false
+    },
     "native_checks": {
       "passed": 13,
       "retained_proof": ".work/v221-native-tests.log",
@@ -636,6 +645,14 @@
     "copy_lifetimes_bounded": 128,
     "direct_cas_exit_fix_qualified": false,
     "dll_sha256": "1aa24c953fd8733604d95a4e07424db6f0395389cf0b28124051fb4e9a332abc",
+    "guard_retention": {
+      "all40_native_appearances_retained": true,
+      "named_looks_retained": 155,
+      "retained_proof": ".work/v222-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "852ed282b3f168fbd099bf5426a578892bfa8c065dbfa20f0fd7efc06df0a534",
+      "simulation_advanced": true
+    },
     "identity_alone_never_authorizes_projection": true,
     "native_checks": {
       "passed": 13,
@@ -652,17 +669,69 @@
     },
     "permanent_guard_retained": true,
     "production_ready": false,
-    "runtime": "Actual five-member qualification running",
+    "runtime": {
+      "actual_output_receipts_verified": 3,
+      "direct_fix_qualified": false,
+      "earlier_exports_unproven": true,
+      "native_acceptance_qualified": false,
+      "native_fault_count": 1,
+      "retained_proof": ".work/v222-cas-live-retention.json",
+      "sha256": "852ed282b3f168fbd099bf5426a578892bfa8c065dbfa20f0fd7efc06df0a534",
+      "unselected_members_changed": 2
+    },
     "script_sha256": "f2325edfb40f847f73e56083aa0e14028109c9bc229ce721961a7f8f94bccd17",
     "seal_checks": {
       "passed": 26,
       "retained_proof": ".work/v222-seal-tests.log",
       "sha256": "4495db638ff57fadbdc2bc85c0e26f97f79c89724b95478634838515b321e623"
     },
+    "shutdown": {
+      "normal_exit_verified": true,
+      "retained_proof": ".work/v222-normal-unsaved-exit-for-v223.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "82e4884e6406abb6d65e079f97619d556eb038e4fd1b774622e1a4197d33216c"
+    },
     "upgrade_checks": {
       "passed": 26,
       "retained_proof": ".work/v222-upgrade-tests.log",
       "sha256": "1355ce26cc18a53fb3938753ff142a3c61ebb67556e25f676a78184304f3704a"
+    }
+  },
+  "v223": {
+    "bundle_sha256": "1ef24bd862f24b965c5f975db8dcf5d0621d312bb3dcc696af465f04e83bdfb9",
+    "change": "Authenticate complete native CAS dispatch before queued copying; preserve bounded independent fault history",
+    "complete_household_roster_required": true,
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "c52b7e8369999e3af920314a062693ff2616b8d98fc9cee002aa53f3c14bcd58",
+    "failure_history_bounded": 8,
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v223-native-tests.log",
+      "sha256": "929801ab67fb87a100210e14a0f97649471a1cc5adc3b84b66b78e6f13393fdd"
+    },
+    "native_root_memory_written": false,
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v223-candidate-build.log",
+      "sha256": "24fe94ef9080e1777f7bf283ad14d6653860c7ff40648c4003fe32cb39a50e8a"
+    },
+    "permanent_guard_retained": true,
+    "pinned_dispatch_caller": true,
+    "production_ready": false,
+    "runtime": "Actual five-member qualification running",
+    "script_sha256": "18ed0cd32d93f00598fd8bd38bef404e3fd7ea337c493ad319a3197e6e7b6b86",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v223-seal-tests.log",
+      "sha256": "a703ac0ee4afb7186b67166fcd0284dbb6921cf200da03491bcac73c26da07d2"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v223-upgrade-tests.log",
+      "sha256": "dc6f669b249b9424317a8c5681e81bd51d80669ace5ba9d9fa42ef7ad64666b8"
     }
   }
 }

@@ -32,11 +32,13 @@ void* Clone(void* destination,const void* source) {
     return destination;
 }
 void Release(void* value) {attrs.erase(value);std::memset(value,0,0x830);}
+void* Next(const void* node) {return Read<void*>(node);}
 void Exercise() {
     auto& state=Runtime();const auto api=state.api;const auto oldRoots=state.preparedRoots;
     const auto oldScope=state.preparedScope;auto* oldController=state.exportController;
     const auto acceptance=state.householdAcceptance;const bool accepting=state.acceptingHousehold;
     const auto oldCopies=state.householdCopies;const bool copiesEnabled=state.householdCopiesEnabled.load();
+    const auto oldHousehold=state.preparedHouseholdId;const auto oldDispatch=state.householdDispatch;
     const auto firstView=state.bank.at(123).viewBound,secondView=state.bank.at(456).viewBound;
     auto firstActive=std::move(state.bank.at(123).active),secondActive=std::move(state.bank.at(456).active);
     state.api.protoConstruct=ConstructPacket;state.api.protoDestroy=DestroyPacket;
@@ -133,8 +135,39 @@ void Exercise() {
     state.preparedRoots.at(123).generation--;
     state.acceptingHousehold=false;state.householdAcceptance={{"verified",true},{"native_accepted",true}};
     HouseholdCopyConstruct(queued.data(),roots[0].data());Require(!state.householdCopies.count(queued.data()));
+    // The accepted household is first copied from EA's stored household. Its
+    // members can be unchanged/unselected and never copied from editor roots.
+    // Seed only the complete, exact native CAS dispatch; identity alone fails.
+    std::array<char,0x500> household{};std::array<char,0x860> treeNodes[2]{};
+    Write(controller.data(),0xb0,std::uint64_t(777));state.preparedHouseholdId=777;state.api.treeNext=Next;
+    Write(household.data(),0xc8,std::uint64_t(777));Write(household.data(),0xa8,2u);
+    auto* treeSentinel=household.data()+0x88;Write(household.data(),0x90,treeNodes[0].data());
+    Write(treeNodes[0].data(),0,treeNodes[1].data());Write(treeNodes[1].data(),0,treeSentinel);
+    for(unsigned n=0;n<2;++n)Clone(treeNodes[n].data()+0x30,roots[n].data());
+    state.householdCopies.clear();state.acceptingHousehold=true;
+    SeedHouseholdDispatch(state,household.data(),controller.data());
+    Require(state.householdDispatch["verified"]==true && state.householdDispatch["members"]==2 && state.householdCopies.size()==2);
+    for(unsigned n=0;n<2;++n)Require(state.householdCopies.at(treeNodes[n].data()+0x30).dispatchOrigin);
+    const auto seedCount=state.householdCopies.size();
+    Write(household.data(),0xc8,std::uint64_t(778));Refuses([&]{SeedHouseholdDispatch(state,household.data(),controller.data());});Write(household.data(),0xc8,std::uint64_t(777));
+    Write(treeNodes[1].data(),0,treeNodes[0].data());Refuses([&]{SeedHouseholdDispatch(state,household.data(),controller.data());});Write(treeNodes[1].data(),0,treeSentinel);
+    Write(treeNodes[1].data()+0x30,0xb8,std::uint64_t(999));Refuses([&]{SeedHouseholdDispatch(state,household.data(),controller.data());});Write(treeNodes[1].data()+0x30,0xb8,std::uint64_t(456));
+    Write(household.data(),0xa8,1u);Refuses([&]{SeedHouseholdDispatch(state,household.data(),controller.data());});Write(household.data(),0xa8,2u);
+    Require(state.householdCopies.size()==seedCount); // Failed stages publish no partial authority.
+    state.acceptingHousehold=false;state.householdAcceptance={{"verified",true},{"native_accepted",true}};
+    Refuses([&]{SeedHouseholdDispatch(state,household.data(),controller.data());});
+    HouseholdCopyConstruct(queued.data(),treeNodes[1].data()+0x30);
+    Require(state.householdCopies.at(queued.data()).dispatchOrigin && state.householdCopies.at(queued.data()).depth==2);
+    Export(queued.data(),ordinary.data.data());ProjectHouseholdOutput(state,queued.data(),ordinary.data.data(),controller.data());
+    Require(state.bank.at(456).householdCanonical["verified"]==true && state.bank.at(456).householdCanonical["dispatch_origin"]==true);
+    // Later successes cannot erase a prior native failure's diagnostic.
+    const auto serial=state.householdOutputFaults;
+    for(unsigned n=0;n<10;++n)HouseholdFault(state,"fixture","retained failure "+std::to_string(n),456);
+    Require(state.householdFaults.size()==8 && state.householdFaults.front()["serial"]==serial+3 &&
+        state.householdFaults.back()["serial"]==serial+10 && state.householdFaults.back()["sim_id"]=="456");
+    state.householdAcceptance={{"verified",true},{"native_accepted",true}};
     state.acceptingHousehold=true;
-    HouseholdCopyConstruct(queued.data(),outgoing.data());Require(state.householdCopies.count(queued.data())==1);
+    HouseholdCopyConstruct(queued.data(),roots[0].data());Require(state.householdCopies.count(queued.data())==1);
     const auto faultsBeforeRetire=state.householdOutputFaults;
     ForgetHouseholdObject(state,roots[0].data());
     Require(state.householdCopies.empty() && state.preparedRoots.empty() && state.preparedScope.empty() &&
@@ -144,6 +177,7 @@ void Exercise() {
     state.bank.at(123).viewBound=firstView;state.bank.at(456).viewBound=secondView;
     state.preparedRoots=oldRoots;state.preparedScope=oldScope;state.exportController=oldController;
     state.householdCopies=oldCopies;state.householdCopiesEnabled.store(copiesEnabled);
+    state.preparedHouseholdId=oldHousehold;state.householdDispatch=oldDispatch;
     state.householdAcceptance=acceptance;state.acceptingHousehold=accepting;attrs.clear();state.api=api;
 }
 }

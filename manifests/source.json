@@ -521,6 +521,12 @@
       "sha256": "6238ebd0dd26ec9c48eb76d6054a0f76cd72b7b19f84ab866f95fb61419dd8dc"
     },
     {
+      "bytes": 70769,
+      "mode": "100644",
+      "path": "Source/apex_core/form_bank_seal.py",
+      "sha256": "915458f1ffa3199ddc0ee17bb911df31d14cad36e342ac382a8798a671bd6d80"
+    },
+    {
       "bytes": 32902,
       "mode": "100644",
       "path": "tests/test_native_witch_persistence.py",
@@ -977,6 +983,12 @@
       "sha256": "8f578c668e05b8370aad4137c982a9438f2ab13553270f8bb9aec28c2e3bffb4"
     },
     {
+      "bytes": 15808,
+      "mode": "100644",
+      "path": "NativeOverlay/Tests/CasHouseholdRootFixture.h",
+      "sha256": "9593020fde5a4175f3a28242e4ccb88597da97655ecab7fed1a6f306ae25a87d"
+    },
+    {
       "bytes": 8264,
       "mode": "100644",
       "path": "Source/apex_core/human_werewolf.py",
@@ -1307,12 +1319,6 @@
       "sha256": "e91cedc374353240e8a5abdde6ab6e99d2313de9158a3846b5a74e1f1fe0c8ca"
     },
     {
-      "bytes": 70769,
-      "mode": "100644",
-      "path": "Source/apex_core/form_bank_seal.py",
-      "sha256": "c3629bd65454541734653684b503708fe25c44c1bfc30688289263d39a9233de"
-    },
-    {
       "bytes": 3234,
       "mode": "100644",
       "path": "tests/test_cas_read_reconnect.py",
@@ -1365,6 +1371,12 @@
       "mode": "100644",
       "path": "Source/apex_core/cas_save_boundary.py",
       "sha256": "57b393f876c3e9aaa1d483d80e5b1193618429947ba1543ec900ba0a6c253e79"
+    },
+    {
+      "bytes": 17422,
+      "mode": "100644",
+      "path": "docs/USER_REPORTED_REGRESSIONS.md",
+      "sha256": "e3c477343f63c7a353897b818235da90f0a7eef2d450751a19b9b3e98278f169"
     },
     {
       "bytes": 3885,
@@ -1533,12 +1545,6 @@
       "mode": "100644",
       "path": "Source/apex_core/native_pelt_copy.py",
       "sha256": "4076c1193634c138e095e86f6c45c042dd6a6050e83c3236706bda54a1100191"
-    },
-    {
-      "bytes": 16910,
-      "mode": "100644",
-      "path": "docs/USER_REPORTED_REGRESSIONS.md",
-      "sha256": "09d17d8d97cf06ea8c05833204d8c38b9373cc793374b9066621beb84f7bdb40"
     },
     {
       "bytes": 1659,
@@ -1785,6 +1791,12 @@
       "mode": "100644",
       "path": "Reports/Continued-Build-Research-Summary.txt",
       "sha256": "ba807c87a41a553528de134360ea3f13fc4a0acdfd39c21fa31ff7a5ab2ea805"
+    },
+    {
+      "bytes": 55880,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "1e25bfe1397971abb3ea4ae6758137fa6f24c78eb4175f2ae8734a822bc0cef1"
     },
     {
       "bytes": 36415,
@@ -2243,12 +2255,6 @@
       "sha256": "f046c4da771cef8ad7d1cc2fe540d55b2703de2d96be8e74f194d8f9633bd64e"
     },
     {
-      "bytes": 54561,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "ab9fa472d2145fba3ae288a2e1714daec5bbf08a32b33948545c0136799c0fa7"
-    },
-    {
       "bytes": 8034,
       "mode": "100644",
       "path": "tests/test_studio_catalog.py",
@@ -2289,6 +2295,12 @@
       "mode": "100644",
       "path": "tests/test_cas_history_ack.py",
       "sha256": "cee99103807cf48af036ce1f9185dc2f821069be551f33746469e17a8e6b59e7"
+    },
+    {
+      "bytes": 152652,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/ApexNativeCasEngineWin.h",
+      "sha256": "9a00df8f9d90598c8f0e63a03ecf404181f4161b9687738ed9e33656633f14f6"
     },
     {
       "bytes": 4125,
@@ -2777,12 +2789,6 @@
       "sha256": "d97ffe8c9713b51c2526c738fd6113c6b9c9991ca7d3dbb15d7bbb3a8dedb428"
     },
     {
-      "bytes": 146445,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/ApexNativeCasEngineWin.h",
-      "sha256": "331b6747b97ff2e311a63c643f901b821706de5bf67356e6168bd8b95d774ce8"
-    },
-    {
       "bytes": 588,
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexPointerGate.h",
@@ -3255,12 +3261,6 @@
       "mode": "100644",
       "path": "tests/test_tray_browser.py",
       "sha256": "2ad735d2ee9d30be8955cc50cc1aceb1d09bb1bf69a4e03a93ca14f3c7ff8f8b"
-    },
-    {
-      "bytes": 12405,
-      "mode": "100644",
-      "path": "NativeOverlay/Tests/CasHouseholdRootFixture.h",
-      "sha256": "db1af676fee28ec00b9b4eb9ef39b4d0eab8eafd6311c1d12d3ae89bd8386034"
     },
     {
       "bytes": 11266,

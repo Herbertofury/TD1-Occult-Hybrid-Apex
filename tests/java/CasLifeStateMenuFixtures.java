@@ -33,7 +33,24 @@ public class CasLifeStateMenuFixtures {
                 abc.constants.getMultiname(member(abc,"getTimer")).namespace_index=
                     abc.constants.getNamespaceId(Namespace.KIND_PACKAGE,"wrong.package",0,true);break;
             case "fast-state-not-native":method="ApexFormsReadNativeState";from="ApexNativeExchange";opcode=0x46;break;
-            case "pair-click-not-deferred":method="ApexPairClick";from="addEventListener";break;
+            case "pair-click-not-deferred": {
+                // The floating callback is retired. Prove that adding any
+                // inline pair action is rejected rather than looking for a
+                // listener which correctly no longer exists.
+                var retired=CasBytecodePatch.ownedBody(abc,abc.instance_info.get(
+                    abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain")),"ApexPairClick");
+                if(!CasBytecodePatch.propertyCalls(abc,retired).isEmpty())
+                    throw new AssertionError("Retired pair callback is not empty.");
+                var code=retired.getCode().code;int at=-1;
+                for(int i=0;i<code.size();i++)if(code.get(i).definition.instructionCode==0x47)at=i;
+                if(at<0)throw new AssertionError("Retired callback return missing.");
+                retired.insertAll(at,java.util.List.of(
+                    new com.jpexs.decompiler.flash.abc.avm2.instructions.AVM2Instruction(0,0xd0,new int[0]),
+                    new com.jpexs.decompiler.flash.abc.avm2.instructions.AVM2Instruction(0,0x20,new int[0]),
+                    new com.jpexs.decompiler.flash.abc.avm2.instructions.AVM2Instruction(0,0x4f,new int[]{member(abc,"ApexPairExecute"),1})));
+                retired.max_stack=Math.max(retired.max_stack,2);retired.setModified();break;
+            }
+            case "pair-panel-not-deferred":method="ApexPairPanel";from="ApexFormsScheduleFrame";to="ApexPairExecute";break;
             case "pair-read-mutates":method="ApexPairRead";from="ApexNativeExchange";to="ApexPairExecute";opcode=0x46;break;
             case "pair-native-action-missing":method="ApexPairExecute";from="ApexNativeExchange";opcode=0x46;break;
             case "pair-cli-action-missing":method="ApexControlExecute";from="ApexPairExecute";to="ApexPairRead";opcode=0x46;break;

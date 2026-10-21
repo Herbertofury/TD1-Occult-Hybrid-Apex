@@ -107,11 +107,12 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
             'form_select_timer_owned_verified', 'form_select_exact_same_original_pair_verified',
             'form_select_native_argument_order_verified', 'form_select_next_tick_readback_verified',
             'earrings_exact_bodytype_and_swatch_guard_verified',
+            'card_height_marker_adapter_verified',
         )
         if (ui_info.get('target_game') != '1.128.90.1030' or
                 ui_info.get('sha256') != digest(ui_path.read_bytes()) or
                 ui_info.get('non_script_tags_preserved') is not True or
-                contract.get('unchanged_native_methods') != 1785 or
+                contract.get('unchanged_native_methods') != 1784 or
                 selector_contract.get('native_method_count') != 462 or
                 selector_contract.get('unchanged_native_methods') != 453 or
                 selector_contract.get('native_pair_panel_adapter_methods') != 7 or

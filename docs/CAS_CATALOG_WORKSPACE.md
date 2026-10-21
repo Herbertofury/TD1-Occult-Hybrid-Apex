@@ -128,3 +128,93 @@ with a recovery receipt, then launched the verified account content ID 1015806
 and loaded the disposable household. The rejected handoff was not silently
 replayed. This is a verified recovery path, not proof every EA dialog can be
 automated.
+
+## Adjustable cards, V247
+
+The Card layout tab adds proportional card size (65–160%), independent horizontal
+and vertical spacing (0–32 logical pixels), and an EA card-size/spacing reset.
+Columns and size fit the available viewport; the requested size can be reduced
+on a narrow screen so at least two cards remain accessible. Selection styling
+stays separate. Native thumbnails, swatches, hover removal and hit areas scale
+together. EA still owns the recycled cells and on-demand thumbnail loading.
+Only cells carrying Apex's empty marker use the scaled-height getter. The other
+1,784 native Customizer methods retain their original bytecode and all native
+non-code tags remain unchanged.
+
+F11 exposes the same values. Semantic CLI controls are:
+
+```
+cas catalog-cards --card-scale 0.85 --gap-x 2 --gap-y 8 ...
+cas catalog-view --view layout ...
+cas catalog-slider --control card_scale --fraction 0.4 ...
+cas catalog-card-reset ...
+```
+
+The selection outline anchors to the actual thumbnail, with the whole stroke
+inside its mask. V247 draws each edge and corner explicitly, closing the path
+instead of relying on GFx's incomplete stroked rounded-rectangle primitive.
+Runtime status reports actual cell scales, positions, native heights and hit-area
+bounds, instead of treating requested settings as rendered geometry. Layout
+controls sit clear of the native catalog, so changes can be previewed while
+dragging. Fresh semantic panel navigation also sends EA's radial state message
+to establish its model attachment.
+
+### Row-cache regression
+
+V241's acknowledged settings and correct panel widths did not prove row spacing:
+independent coordinates rejected its overlapping rows. V242's native height
+readback was correct, but ordinary positioning still failed. V243 patched a
+dormant library copy; V244 found the active ClassLibrary, yet its placement also
+failed. V245's separate calculated/cache/display readbacks finally identify the
+cause: the first cached Y value is not finite. Arithmetic propagates that invalid
+anchor, and the native display objects retain their previous positions.
+
+V246 uses EA's existing `ResetAndPositionCells` operation when changing layout
+or correcting stale rows. The native reset seeds the cache before positioning
+and drawing recycled cells. No shared ClassLibrary/OlympusLibrary override or
+replacement layout algorithm ships. The compiled gate rejects replacing reset
+with ordinary positioning. Failed convergence is bounded and restores the native
+layout; it cannot become an endless idle relayout loop.
+
+V246 passes all four actual layouts and eighteen controls at 1278×1376. Its
+spaced and large layouts show distinct second rows at 204.45 and 267.2 units.
+The EA reset and independent sliders pass, all 39 retained appearances remain
+unchanged, and no save is written. Separate pixel review rejects its selector:
+three edges have full central coverage, while the right edge has zero at every
+size. V247 requires explicit path segments in compiled bytecode; V247 actual captured
+pixels confirm full central coverage of all four edges at every tested size. Glow, pulse and flash remain separate checks.
+
+The failed UI-only runs retain all 39 committed selected-Sim appearance records,
+with every save/backup file unchanged. Their forced disposable-session closures
+are recorded as forced termination. V245's two startup promo cards were closed
+through individually observed background CLI input; its rejected Resume request
+submitted no click. Fresh Home and subsequent Live observations are retained
+separately from that refusal.
+
+- [x] Build bounded card size, separate gaps, reset and CAS/F11/CLI controls.
+- [x] Preserve native art, recycling and unrelated native bytecode.
+- [x] Require the native Margin binding, scaled height and row-cache reset.
+- [x] Qualify four sizes/gaps against actual cell positions and viewport (V246).
+- [x] Inspect all four selection-outline edges in the actual captures (V247).
+- [x] Verify all 39 retained appearances after the complete control pass (V246).
+
+V247 also qualifies actual native pointer delivery: window-addressed background
+CLI clicks change the three visible sliders independently to 112.5%, 6.4 and
+25.6, then the visible EA reset returns 100% and gaps 4/4. Every request has a
+fresh receipt, the game is never asked to take focus, and all twenty save files
+remain unchanged. This verifies clicks through the real controls in addition to
+the semantic shared-handler tests. It does not qualify a continuous physical
+mouse drag or another viewport. See [the scoped report](../Reports/CAS_CARD_LAYOUT_V247.json).
+
+The equipped-item text list remains interim; it is not the requested native
+thumbnail category. Persistence, animated border visibility,
+large-catalog hitch measurements and the direct outfit-normalization fix remain
+separate open gates. These controls do not qualify actual-save use.
+
+Validation also passes 171 focused Python cases and fourteen native targets.
+The broader 2,732-case run passes 2,731 cases and finds one obsolete fixture
+looking for a listener in a callback which was deliberately retired. The fixture
+now injects prohibited input into that empty callback, adds a separate inline
+mutation of the active EA panel, and requires both serialized regressions to be
+rejected. All 23 affected bytecode cases pass. No production validator or field
+comparison was relaxed to obtain that result.

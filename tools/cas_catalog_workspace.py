@@ -64,7 +64,7 @@ def inject_plan(source):
     added = '''         if(_loc2_ && typeof param1.apex_view_x_offset=="number" &&
             typeof param1.apex_screen_x_offset=="number" && typeof param1.apex_screen_x_max=="number" &&
             isFinite(param1.apex_view_x_offset) && isFinite(param1.apex_screen_x_offset) &&
-            isFinite(param1.apex_screen_x_max) && this.mWidth>=262 && this.mWidth<=1372)
+            isFinite(param1.apex_screen_x_max) && this.mWidth>=262 && this.mWidth<=LayoutAPI.StageWidth*0.53)
          {
             this.BindPanelToSim(this.m3dBindLayer,Number(param1.apex_view_x_offset),
                Number(param1.apex_screen_x_offset)+CASPlanOutfitTunables.PANEL_SCREEN_OFFSET_X,
@@ -125,3 +125,21 @@ def native_catalog_clamp(columns,stage_width,original_maximum):
         raise ValueError('Native context-menu clamp is unavailable.')
     layout=viewport_layout(columns,stage_width)
     return stage_width-max(original_maximum,layout['width']+12)
+
+
+def card_layout(columns,stage_width,scale,gap_x,gap_y,base_width=107,base_height=148):
+    """Independent geometry oracle for fitted, proportional native tiles."""
+    import math
+    if (type(columns) is not int or not 2<=columns<=12 or
+            any(type(v) not in (int,float) or not math.isfinite(v) for v in
+                (stage_width,scale,gap_x,gap_y,base_width,base_height)) or
+            stage_width<640 or not .65<=scale<=1.6 or not 0<=gap_x<=32 or not 0<=gap_y<=32 or
+            base_width<=0 or base_height<=0):
+        raise ValueError('Use bounded cards and the actual native tile dimensions.')
+    available=stage_width*.53
+    actual_scale=min(scale,(available-40-2*gap_x)/(2*base_width))
+    pitch=base_width*actual_scale+gap_x
+    actual_columns=min(columns,max(2,min(12,int((available-40)/pitch))))
+    return dict(scale=actual_scale,gap_x=gap_x,gap_y=gap_y,card_width=base_width*actual_scale,
+        card_height=base_height*actual_scale,pitch_x=pitch,pitch_y=base_height*actual_scale+gap_y,
+        columns=actual_columns,width=max(262,40+actual_columns*pitch))

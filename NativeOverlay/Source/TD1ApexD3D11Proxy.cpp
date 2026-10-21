@@ -3100,15 +3100,21 @@ static void DrawNativeCas(const std::string& reply, ULONGLONG replyMs, bool hist
         const auto prefs=workspace.value("preferences",ui::Json::object());
         static bool initialized=false;static int columns=6,animation=0;
         static float rgb[3]={0,0.79f,0.92f},glow=0,border=3,strength=1,period=1.4f;
+        static float cardScale=1,gapX=4,gapY=4;
         const bool load=ImGui::SmallButton("Load current settings");
         if((!initialized || load) && prefs.is_object() && prefs.contains("color")) {
             const auto color=prefs.value("color",0x00c9ebu);
             rgb[0]=((color>>16)&255)/255.0f;rgb[1]=((color>>8)&255)/255.0f;rgb[2]=(color&255)/255.0f;
             columns=prefs.value("columns",6);glow=prefs.value("glow",0.0f);border=prefs.value("border",3.0f);
             strength=prefs.value("strength",1.0f);period=prefs.value("period",1.4f);
+            const auto cards=workspace.value("card_preferences",ui::Json::object());
+            cardScale=cards.value("scale",1.0f);gapX=cards.value("gap_x",4.0f);gapY=cards.value("gap_y",4.0f);
             const auto mode=prefs.value("animation",std::string("none"));animation=mode=="pulse"?1:mode=="flash"?2:0;initialized=true;
         }
         ImGui::SliderInt("Columns",&columns,2,12);
+        ImGui::SliderFloat("Card size",&cardScale,.65f,1.6f,"%.2fx");
+        ImGui::SliderFloat("Horizontal card spacing",&gapX,0,32,"%.1f");
+        ImGui::SliderFloat("Vertical card spacing",&gapY,0,32,"%.1f");
         ImGui::ColorEdit3("Selected item color",rgb);
         ImGui::SliderFloat("Border width",&border,1,8,"%.1f");
         ImGui::SliderFloat("Glow radius",&glow,0,12,"%.1f");
@@ -3116,6 +3122,9 @@ static void DrawNativeCas(const std::string& reply, ULONGLONG replyMs, bool hist
         ImGui::SliderFloat("Effect opacity",&strength,.25f,1,"%.2f");
         if(animation)ImGui::SliderFloat("Effect period",&period,.8f,4,"%.1f s");
         ImGui::BeginDisabled(g_casSubmissionBusy.load() || g_ownerBlocked.load() || g_casPendingId[0]);
+        if(ImGui::Button("Apply card layout"))QueueCasAction({{"operation","catalog-cards"},{"card_scale",cardScale},{"gap_x",gapX},{"gap_y",gapY}});
+        ImGui::SameLine();
+        if(ImGui::Button("Reset EA cards"))QueueCasAction({{"operation","catalog-card-reset"}});
         if(ImGui::Button("Apply catalog appearance")) {
             const auto channel=[](float x){return static_cast<unsigned>(std::lround(std::clamp(x,0.0f,1.0f)*255));};
             QueueCasAction({{"operation","catalog-style"},{"columns",columns},{"color",(channel(rgb[0])<<16)|(channel(rgb[1])<<8)|channel(rgb[2])},
@@ -3124,7 +3133,7 @@ static void DrawNativeCas(const std::string& reply, ULONGLONG replyMs, bool hist
         ImGui::SameLine();
         if(ImGui::Button("All equipped items in CAS"))QueueCasAction({{"operation","catalog-open"}});
         ImGui::EndDisabled();
-        ImGui::TextDisabled("Requested %d columns; visible catalog fits %d. Native thumbnails keep their size.",columns,workspace.value("actual_columns",0));
+        ImGui::TextDisabled("Requested %d columns; visible catalog fits %d. Card proportions and native controls stay together.",columns,workspace.value("actual_columns",0));
         if(!workspace.value("error",std::string()).empty())ImGui::TextWrapped("%s",workspace["error"].get_ref<const std::string&>().c_str());
     }
     const auto snapshotAge = (GetTickCount64() - g_casSnapshotMs) / 1000.0;

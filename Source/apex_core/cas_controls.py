@@ -14,12 +14,14 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
 PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'))
 SCHEMAS = {
+    'catalog-cards': {'operation','card_scale','gap_x','gap_y'},
+    'catalog-card-reset': {'operation'},
     'catalog-style': {'operation','columns','color','glow','animation','strength','period','border'},
     'catalog-open': {'operation'},
     'catalog-view': {'operation','view'},
@@ -83,13 +85,21 @@ def wire(request, panel):
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
-    if op == 'catalog-open':
+    if op in ('catalog-open','catalog-card-reset'):
         return 0,0,0,''
+    if op == 'catalog-cards':
+        values=[]
+        for name,low,high in (('card_scale',.65,1.6),('gap_x',0,32),('gap_y',0,32)):
+            n=request[name]
+            if type(n) not in (int,float) or not math.isfinite(n) or not low<=n<=high:
+                raise ValueError('Invalid bounded catalog '+name+'.')
+            values.append(format(n,'.9f').rstrip('0').rstrip('.'))
+        return 0,0,0,','.join(values)
     if op == 'catalog-view':
-        if request['view'] not in ('items','style','closed'):raise ValueError('Use items, style or closed catalog view.')
+        if request['view'] not in ('items','style','layout','closed'):raise ValueError('Use items, style, layout or closed catalog view.')
         return 0,0,0,request['view']
     if op == 'catalog-slider':
-        if request['control'] not in ('columns','red','green','blue','glow','border','period','strength'):
+        if request['control'] not in ('columns','red','green','blue','glow','border','period','strength','card_scale','gap_x','gap_y'):
             raise ValueError('Choose one exact catalog slider.')
         n=request['fraction']
         if type(n) not in (int,float) or not math.isfinite(n) or not 0<=n<=1:
@@ -237,11 +247,19 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
-    if op in ('catalog-style','catalog-open','catalog-view','catalog-slider'):
+    if op in ('catalog-style','catalog-open','catalog-view','catalog-slider','catalog-cards','catalog-card-reset'):
         workspace=control.get('workspace')
         if not isinstance(workspace,dict) or control.get('appearance_written') is not False:
             raise PostconditionMismatch('Catalog preferences lack an acknowledged UI-only result.')
-        if op=='catalog-style':
+        if op in ('catalog-cards','catalog-card-reset'):
+            prefs=workspace.get('card_preferences')
+            if not isinstance(prefs,dict):raise PostconditionMismatch('Card layout has no returned preferences.')
+            expected=({'scale':1,'gap_x':4,'gap_y':4} if op=='catalog-card-reset' else
+                {'scale':request['card_scale'],'gap_x':request['gap_x'],'gap_y':request['gap_y']})
+            for name,value in expected.items():
+                if type(prefs.get(name)) not in (int,float) or abs(prefs[name]-value)>.000001:
+                    raise PostconditionMismatch('Card layout did not retain '+name+'.')
+        elif op=='catalog-style':
             prefs=workspace.get('preferences')
             if not isinstance(prefs,dict):raise PostconditionMismatch('Catalog style has no returned preferences.')
             for name in SCHEMAS[op]-{'operation'}:
@@ -252,7 +270,8 @@ def validate(client, request):
         elif op=='catalog-slider':
             thumbs=workspace.get('slider_thumbs',{})
             actual=thumbs.get(request['control']) if isinstance(thumbs,dict) else None
-            if (workspace.get('visible') is not True or workspace.get('view')!='style' or
+            view='layout' if request['control'] in ('card_scale','gap_x','gap_y') else 'style'
+            if (workspace.get('visible') is not True or workspace.get('view')!=view or
                     type(actual) not in (int,float) or abs(actual-request['fraction'])>0.000001):
                 raise PostconditionMismatch('The actual catalog slider thumb did not acknowledge its requested fraction.')
             name=request['control'];n=request['fraction'];prefs=workspace.get('preferences',{})
@@ -261,10 +280,12 @@ def validate(client, request):
                 if type(color) is not int or (color>>shift)&255!=math.floor(n*255+.5):
                     raise PostconditionMismatch('Catalog RGB slider value did not read back.')
             else:
-                low,high={'columns':(2,12),'glow':(0,12),'border':(1,8),'period':(.8,4),'strength':(.25,1)}[name]
+                low,high={'columns':(2,12),'glow':(0,12),'border':(1,8),'period':(.8,4),'strength':(.25,1),
+                    'card_scale':(.65,1.6),'gap_x':(0,32),'gap_y':(0,32)}[name]
                 expected=low+n*(high-low)
                 if name=='columns':expected=math.floor(expected+.5)
-                actual=prefs.get(name)
+                actual=(workspace.get('card_preferences',{}).get('scale' if name=='card_scale' else name)
+                    if name in ('card_scale','gap_x','gap_y') else prefs.get(name))
                 if type(actual) not in (int,float) or abs(actual-expected)>.000001:
                     raise PostconditionMismatch('Catalog slider value did not read back.')
         elif op=='catalog-view':

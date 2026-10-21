@@ -1198,6 +1198,8 @@ public class CasBytecodePatch {
         var selected=propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogSelection"));
         require(selected.contains("GetAllDisplayObjectCells") && Collections.disjoint(selected,Set.of("CallGameService","CallUIService","ApexNativeExchange")),
             "Selection animation must only inspect native recycled cells, without game queries.");
+        require(selected.containsAll(Set.of("moveTo","lineTo","curveTo")) && !selected.contains("drawRoundRect"),
+            "Selection outline must explicitly close all four edges in GFx.");
         var equipped=ownedBody(abc,instance,"ApexCatalogReadEquipped");
         uniqueLiteral(abc,equipped,"EQUIPPED|");
         int nativeReads=0;
@@ -1208,9 +1210,65 @@ public class CasBytecodePatch {
         var slide=propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogSlide"));
         require(Collections.disjoint(slide,Set.of("CallGameService","CallUIService","ApexNativeExchange","PositionCells","ApexCatalogDraw")),
             "Catalog slider input cannot rebuild the grid, panel or perform native requests.");
+        boolean margin=false;
+        var layoutCalls=propertyCalls(abc,ownedBody(abc,instance,"ApexCardApply"));
+        require(layoutCalls.contains("ResetAndPositionCells") && !layoutCalls.contains("PositionCells"),
+            "Card layout must reset the native row cache; ordinary positioning can retain NaN.");
+        for(var op:ownedBody(abc,instance,"ApexCardApply").getCode().code)
+            if(op.definition.instructionCode==0x5d || op.definition.instructionCode==0x60) {
+                String member=abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index);
+                require(!member.equals("olympus"),"Card spacing uses an unresolved package root instead of the native Margin class.");
+                if(member.equals("Margin")) {
+                    var qname=abc.constants.getMultiname(op.operands[0]);
+                    require(qname.kind==Multiname.QNAME && qname.namespace_index>0 &&
+                        abc.constants.getNamespace(qname.namespace_index).kind==Namespace.KIND_PACKAGE &&
+                        abc.constants.getString(abc.constants.getNamespace(qname.namespace_index).name_index).equals("olympus.core.widget"),
+                        "Card spacing Margin does not bind the actual native package class.");
+                    margin=true;
+                }
+            }
+        require(margin,"Card spacing has no native Margin class binding.");
+        var execute=ownedBody(abc,instance,"ApexExecute");
+        int rebind=uniqueLiteral(abc,execute,"CASChangeMenuState");boolean notified=false;
+        for(int i=rebind+1;i<Math.min(rebind+8,execute.getCode().code.size());i++) {
+            var op=execute.getCode().code.get(i);
+            if(property(abc,op,0x46,"SendUIMessage") || property(abc,op,0x4f,"SendUIMessage")) {
+                require(op.operands[1]==2,"Native radial navigation needs its exact message/state pair.");notified=true;break;
+            }
+        }
+        require(notified,"Semantic panel navigation does not notify the native radial binding.");
         for(String method:Set.of("ApexCatalogSlide","ApexCatalogValidate"))
             for(var op:ownedBody(abc,instance,method).getCode().code)
                 require(!property(abc,op,0x61,"apexCatalogSignature"),"Color/style changes must not invalidate native grid layout.");
+    }
+    static MethodBody classMethod(ABC abc,String type,String method) {
+        int index=abc.findClassByName(type);
+        require(index>=0,"Native adapter class absent: "+type);
+        MethodBody found=null;
+        for(var trait:abc.instance_info.get(index).instance_traits.traits)
+            if(name(abc,trait).equals(method) && trait instanceof TraitMethodGetterSetter) {
+                require(found==null,"Ambiguous native adapter: "+method);
+                found=abc.findBody(((TraitMethodGetterSetter)trait).method_info);
+            }
+        require(found!=null,"Native adapter body absent: "+method);return found;
+    }
+    static MethodBody cardHeightAdapter(ABC original,ABC compiled) {
+        String type="widgets.CAS.controls.CASClothingPanelCellViewMain";
+        var before=classMethod(original,type,"height");var after=classMethod(compiled,type,"height");
+        require(before.exceptions.length==0 && after.exceptions.length==0,"Unreviewed card getter exceptions.");
+        uniqueLiteral(compiled,after,"apexCatalogCardScale");
+        require(propertyCalls(compiled,after).equals(Set.of("getChildByName")),"Card getter must only inspect its owned marker.");
+        boolean scale=false,height=false,multiply=false;
+        for(var op:after.getCode().code) {
+            scale|=property(compiled,op,0x66,"scaleY") || property(compiled,op,0x60,"scaleY");
+            height|=property(compiled,op,0x66,"height");multiply|=opcode(op,0xa2);
+            require(!opcode(op,0x40) && !opcode(op,0x44) && !opcode(op,0x67),"Card getter has an unreviewed function/scope reference.");
+        }
+        require(scale&&height&&multiply,"Card getter does not apply native height times owned scale.");
+        var body=after.clone();body.method_info=before.method_info;
+        int delta=before.init_scope_depth-after.init_scope_depth;
+        require(delta>=0 && delta<=16,"Card getter lexical scope differs.");
+        body.init_scope_depth+=delta;body.max_scope_depth+=delta;body.setCode(body.getCode());return body;
     }
     public static void main(String[] args) throws Exception {
         require(args.length == 3, "Use original SWF, compiler SWF, output ABC.");
@@ -1237,6 +1295,7 @@ public class CasBytecodePatch {
             "apexInputSamples", "apexInputOverBudget", "apexInputMaxMs", "apexInputTotalMs",
             "apexCatalogPrefs","apexCatalogStore","apexCatalogUi","apexCatalogRows","apexCatalogIntent","apexCatalogSignature","apexCatalogEffects","apexCatalogPage","apexCatalogItems","apexCatalogContext","apexCatalogError","apexCatalogRegistered","apexCatalogDrag","apexCatalogSaved",
             "apexCatalogTab", "apexCatalogSelectionFrames", "apexCatalogSelectionMaxMs", "apexCatalogSelectionOverBudget", "apexCatalogStyleSignature", "apexCatalogLayoutChanges", "apexCatalogRefreshRegistered", "apexCatalogDirty", "apexCatalogSlot", "apexCatalogBinding", "apexCatalogBindingRegistered", "apexCatalogBindingDirty", "apexCatalogBoundWidth", "apexCatalogHeaderSignature",
+            "apexCardPrefs","apexCardGeometry","apexCardLayout","apexCardReflowAttempts",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
@@ -1249,6 +1308,7 @@ public class CasBytecodePatch {
             "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming",
             "ApexCatalogInitialize","ApexCatalogValidate","ApexCatalogPersist","ApexCatalogStyle","ApexCatalogDispose","ApexCatalogOpen","ApexCatalogFrame","ApexCatalogClearEffects","ApexCatalogSelection","ApexCatalogReadEquipped","ApexCatalogMenu","ApexCatalogButton","ApexCatalogSlider","ApexCatalogDraw","ApexCatalogClick","ApexCatalogSlideStart","ApexCatalogSlide","ApexCatalogSlideEnd","ApexCatalogStatus",
             "ApexCatalogView", "ApexCatalogSliderCommand", "ApexCatalogInvalidate", "ApexCatalogObserveBinding", "ApexCatalogApplyBinding",
+            "ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback",
             "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus", "ApexPairPanel");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
@@ -1354,12 +1414,16 @@ public class CasBytecodePatch {
             }
             body.setCode(code);
         }
+        MethodBody heightAdapter=cardHeightAdapter(original,compiled);
         compiled.instance_info = original.instance_info;
         compiled.method_info = methods;
         compiled.class_info = original.class_info;
         compiled.script_info = original.script_info;
         compiled.metadata_info = original.metadata_info;
         compiled.bodies = new ArrayList<>(original.bodies);
+        int heightIndex=-1;
+        for(int i=0;i<compiled.bodies.size();i++)if(compiled.bodies.get(i).method_info==heightAdapter.method_info)heightIndex=i;
+        require(heightIndex>=0,"Native card getter index absent.");compiled.bodies.set(heightIndex,heightAdapter);
         compiled.bodies.addAll(newBodies);
         for (Trait trait : added) if (trait instanceof TraitMethodGetterSetter) {
             var method = (TraitMethodGetterSetter)trait; method.method_info = remap.get(method.method_info);
@@ -1392,12 +1456,14 @@ public class CasBytecodePatch {
         verifyCatalogVariantReadback(serialized,serialized.instance_info.get(oi));
         verifySettledOwnerBootstrap(serialized,serialized.instance_info.get(oi));
         verifyCatalogWorkspace(serialized,serialized.instance_info.get(oi));
-        for (MethodBody body : original.bodies) if (body != nativeInit && body != nativeUnload)
+        require(Arrays.equals(heightAdapter.getCodeBytes(),serialized.findBody(heightAdapter.method_info).getCodeBytes()),
+            "Serialized owned card getter changed.");
+        for (MethodBody body : original.bodies) if (body != nativeInit && body != nativeUnload && body.method_info!=heightAdapter.method_info)
             require(Arrays.equals(nativeCode.get(body.method_info), serialized.findBody(body.method_info).getCodeBytes()),
                 "Serialized unowned native method bytecode changed.");
         Files.write(Path.of(args[2]), saved.toByteArray());
         System.out.println("{\"native_method_count\":" + original.bodies.size() + ",\"apex_method_count\":" + ownedMethods.size() +
-            ",\"native_lexical_scope_preserved\":true,\"unchanged_native_methods\":" + (nativeCode.size()-2) +
+            ",\"native_lexical_scope_preserved\":true,\"card_height_marker_adapter_verified\":true,\"unchanged_native_methods\":" + (nativeCode.size()-3) +
             ",\"native_initializer_bytecode_extended\":true,\"native_unload_bytecode_extended\":true,\"native_unload_cleanup_precedes_teardown\":true,\"owned_local_scope_indexes_verified\":true,\"serialized_lifecycle_hooks_verified\":true,\"socket_callbacks_data_only_verified\":true,\"timer_command_phases_verified\":true,\"accept_commit_timer_owned_verified\":true,\"accept_native_class_linkage_verified\":true,\"accept_expected_household_bound_verified\":true,\"accept_primary_layer_only_verified\":true,\"catalog_metadata_localization_linkage_verified\":true,\"owner_pair_callback_data_only_verified\":true,\"owner_pair_listener_cleanup_verified\":true,\"owner_pair_timer_read_only_verified\":true,\"socket_connect_queue_only_verified\":true,\"socket_handshake_exact_constructor_timer_verified\":true,\"form_select_timer_owned_verified\":true,\"form_select_exact_same_original_pair_verified\":true,\"form_select_native_argument_order_verified\":true,\"form_select_next_tick_readback_verified\":true,\"earrings_exact_bodytype_and_swatch_guard_verified\":true}");
     }
 }

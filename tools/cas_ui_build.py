@@ -35,6 +35,7 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'Source/CASUi/form_strip_methods.as',
                   'Source/CASUi/pair_controls_methods.as',
                   'Source/CASUi/catalog_workspace_methods.as',
+                  'Source/CASUi/catalog_cards_methods.as', 'tools/cas_equipped_catalog.py',
                   'tools/cas_catalog_workspace.py', 'tools/CasCatalogBytecodePatch.java',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
                   'tools/cas_pair_panel_patch.py',
@@ -182,7 +183,7 @@ def inject(source, methods):
         raise ValueError('Installed CAS initializer does not match the inspected contract.')
     source = source.replace(anchor, anchor + '\n         ApexInitialize();')
     # Resolve external QNames at compilation, avoiding dotted runtime lookups.
-    source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import flash.utils.getTimer;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
+    source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.widget.Margin;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import flash.utils.getTimer;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
     if end < 0: raise ValueError('CAS class end is missing.')
@@ -218,6 +219,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     import cas_catalog_workspace
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_workspace_methods.as').read_text(encoding='utf-8').replace(
         '__APEX_EQUIPPED_MENUS__',json.dumps(cas_catalog_workspace.equipped_menus(),sort_keys=True,separators=(',', ':')))
+    semantic += '\n' + (ROOT / 'Source/CASUi/catalog_cards_methods.as').read_text(encoding='utf-8')
     control_dispatch = verify_control_dispatch(semantic)
     detached_snapshot_getters = verify_snapshot_ownership(semantic)
     household_acceptance = verify_household_acceptance(semantic)
@@ -238,6 +240,13 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         semantic), encoding='utf-8')
     compiled = work / 'apex-cas-compiled.swf'
     run([ffdec, '-importAssets', 'yes,local', '-replace', input_swf, compiled, CLASS, patched])
+    import cas_equipped_catalog
+    cell_source = work / 'current-cas/scripts/scripts/widgets/CAS/controls/CASClothingPanelCellViewMain.as'
+    cell_owned = work / 'ApexCASClothingPanelCellViewMain.as'
+    cell_owned.write_text(cas_equipped_catalog.inject_cell(cell_source.read_text(encoding='utf-8')),encoding='utf-8')
+    cards_compiled = work / 'apex-cas-cards-compiled.swf'
+    run([ffdec,'-importAssets','yes,local','-replace',compiled,cards_compiled,cas_equipped_catalog.CELL_CLASS,cell_owned])
+    compiled = cards_compiled
     # The general AS compiler changes native methods' lexical scope. It is
     # used only to obtain Apex methods; original game bytecode stays intact.
     retained = work / 'apex-cas-retained.abc'
@@ -363,7 +372,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'base_resources': {dbpf_build.tgi(KEY): PIN, dbpf_build.tgi(SELECTOR_KEY): SELECTOR_PIN, dbpf_build.tgi(VOICE_KEY): VOICE_PIN,
                            dbpf_build.tgi(MOLECULE_KEY): MOLECULE_PIN,dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY):context_pin,
                            dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY):cas_catalog_workspace.PLAN_PIN},
-        'unmodified_dependency_resources': {dbpf_build.tgi(CLEANUP_KEY): CLEANUP_PIN},
+        'unmodified_dependency_resources': {dbpf_build.tgi(CLEANUP_KEY):CLEANUP_PIN},
         'patched_resources': {dbpf_build.tgi(KEY): hashlib.sha256(payload).hexdigest(),
                               dbpf_build.tgi(SELECTOR_KEY): hashlib.sha256(selector_payload).hexdigest(),
                               dbpf_build.tgi(VOICE_KEY): hashlib.sha256(voice_payload).hexdigest(),

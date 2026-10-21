@@ -967,3 +967,14 @@ V233 adds the catalog workspace described in
 and exact current-outfit inventory do not establish household/save/Tray
 qualification. Keep the broader all-category, MCCC, save/cold-load,
 Tray/Gallery, player-input latency and compatibility gates open until tested.
+
+## CAS catalog addition, October 21
+
+V247 separately qualifies card size, independent spacing, native row-cache reset
+and a complete static selection outline in the disposable CAS session. Four
+layouts, eighteen semantic controls and actual background clicks on three
+sliders plus EA reset pass. All 39 committed selected-Sim appearance records
+remain unchanged after the semantic pass; every save/backup file is unchanged.
+See [the scoped card report](../Reports/CAS_CARD_LAYOUT_V247.json). This is a UI
+qualification only: the direct outfit/genetics normalization and full edited
+household/save/Tray release gates above remain open.

@@ -63,6 +63,7 @@ class SourcePinsTests(unittest.TestCase):
         native = '   import olympus.io.CommunicationManager;\n   class Fixture {\n      AddMessageListener("CASContextMenuSetMenuState",this.HandleContextMenuSetMenuState);\n   }'
         patched = cas_ui_build.inject(native, 'private function Owned() : void {}')
         self.assertIn('import gamedata.Exchange.ExchangeData;', patched)
+        self.assertIn('import olympus.core.widget.Margin;', patched)
 
 
 if __name__ == '__main__':

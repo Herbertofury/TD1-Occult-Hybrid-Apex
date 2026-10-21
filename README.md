@@ -6,7 +6,7 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Current development checkpoint — October 20:**
+**Current development checkpoint — October 21:**
 The native EA category link/copy panel now works on independently bound Alien
 and Vampire views. V232 qualifies voice-only copying, linked propagation and
 unlink isolation in game, followed by an unpaused five-member Live return.
@@ -24,6 +24,16 @@ outfit categories fit on screen. Style persistence remains session-only. Native 
 still normalize unrelated genetics before the guard; that direct fix is open.
 See the [catalog workspace](docs/CAS_CATALOG_WORKSPACE.md)
 and [current hybrid acceptance gates](docs/CAS_SHARED_HUMAN_REQUIREMENTS.md).
+V246 qualifies proportional CAS card size, independent horizontal/vertical
+spacing and the EA size/spacing reset: four layouts and eighteen shared controls
+pass actual geometry checks, retaining all 39 committed selected-Sim appearances
+and every save file. The stock recycling-cache reset fixes invalid row anchors;
+no shared-library layout override ships. Its actual captures still reject a
+missing right selection edge. V247 fixes it with an explicit closed path: actual pixels confirm all four
+edges at every tested size. Background CLI clicks also verify the three visible
+sliders and EA reset, without requesting focus. See the
+[card validation](Reports/CAS_CARD_LAYOUT_V247.json).
+Native equipped-thumbnail integration and broad catalog performance remain open.
 Full edited household, MCCC, save/cold-load and native Tray/Gallery coverage
 remain open; this is a development candidate.
 

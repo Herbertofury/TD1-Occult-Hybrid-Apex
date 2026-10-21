@@ -10,7 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 JAR=ROOT/'.work/research/ffdec/ffdec.jar'
 COMPILED=ROOT/'.work/research/apex-cas-compiled.swf'
 CASES=('exact','grouping','rendering-kind','tooltip-create','tooltip-rebuild','tooltip-unload','tooltip-shutdown',
-       'fast-queue-not-deferred','fast-state-not-native','fast-frame-network-poll','fast-frame-missing-lease','fast-clock-namespace','pair-click-not-deferred',
+       'fast-queue-not-deferred','fast-state-not-native','fast-frame-network-poll','fast-frame-missing-lease','fast-clock-namespace','pair-click-not-deferred','pair-panel-not-deferred',
        'pair-read-mutates','pair-native-action-missing','pair-cli-action-missing',
        'molecule-click-drops-intent','molecule-click-inline','molecule-drain-other-session',
        'molecule-drain-active-command','molecule-drain-inline','molecule-not-consumed')

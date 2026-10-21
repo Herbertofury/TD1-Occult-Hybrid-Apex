@@ -35,11 +35,45 @@ public class CasCatalogBytecodeFixtures {
             var slide=CasBytecodePatch.ownedBody(abc,instance,"ApexCatalogSlide");
             slide.insertAll(2,List.of(new AVM2Instruction(0,0xd0,new int[0]),new AVM2Instruction(0,0x2c,new int[]{0}),
                 new AVM2Instruction(0,0x61,new int[]{member})));
+        } else if(mode.equals("missing-closed-outline")) {
+            int member=-1;
+            for(int i=1;i<abc.constants.getMultinameCount();i++) {
+                var n=abc.constants.getMultiname(i);
+                if(n.name_index>0 && abc.constants.getString(n.name_index).equals("moveTo")) {member=i;break;}
+            }
+            CasBytecodePatch.require(member>0,"Native outline fixture binding missing.");boolean changed=false;
+            for(var op:CasBytecodePatch.ownedBody(abc,instance,"ApexCatalogSelection").getCode().code)
+                if(CasBytecodePatch.property(abc,op,0x4f,"lineTo") || CasBytecodePatch.property(abc,op,0x46,"lineTo"))
+                    {op.operands[0]=member;changed=true;}
+            CasBytecodePatch.require(changed,"Fixture did not remove the outline's line segments.");
+        } else if(mode.equals("missing-cache-reset")) {
+            int member=-1;
+            for(int i=1;i<abc.constants.getMultinameCount();i++) {
+                var n=abc.constants.getMultiname(i);
+                if(n.name_index>0 && abc.constants.getString(n.name_index).equals("PositionCells")) {member=i;break;}
+            }
+            CasBytecodePatch.require(member>0,"Native position fixture binding missing.");boolean changed=false;
+            for(var op:CasBytecodePatch.ownedBody(abc,instance,"ApexCardApply").getCode().code)
+                if(CasBytecodePatch.property(abc,op,0x4f,"ResetAndPositionCells") ||
+                   CasBytecodePatch.property(abc,op,0x46,"ResetAndPositionCells")) {op.operands[0]=member;changed=true;}
+            CasBytecodePatch.require(changed,"Fixture did not remove stock cache reset.");
+        } else if(mode.equals("missing-native-margin")) {
+            int member=-1;
+            for(var trait:instance.instance_traits.traits)
+                if(CasBytecodePatch.name(abc,trait).equals("apexCatalogPrefs"))member=trait.name_index;
+            CasBytecodePatch.require(member>=0,"Missing fixture field.");boolean changed=false;
+            for(var op:CasBytecodePatch.ownedBody(abc,instance,"ApexCardApply").getCode().code)
+                if((op.definition.instructionCode==0x5d || op.definition.instructionCode==0x60) &&
+                        compiledMember(abc,op).equals("Margin")) {op.operands[0]=member;changed=true;}
+            CasBytecodePatch.require(changed,"Fixture did not remove the actual native Margin binding.");
         } else if(!mode.equals("valid"))throw new IllegalArgumentException("Unknown fixture.");
         boolean refused=false;
         try {CasBytecodePatch.verifyCatalogWorkspace(abc,instance);}
         catch(IllegalArgumentException expected){refused=true;}
         CasBytecodePatch.require(refused!=mode.equals("valid"),"Compiled catalog gate accepted a regression or rejected the valid build.");
         System.out.println("PASS "+mode);
+    }
+    static String compiledMember(com.jpexs.decompiler.flash.abc.ABC abc,AVM2Instruction op) {
+        return abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index);
     }
 }

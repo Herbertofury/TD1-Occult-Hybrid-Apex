@@ -131,6 +131,12 @@
       "sha256": "49890d37204b1840047e4fa8f9d96a67ba063c57749e7752afe078a46d94bcb5"
     },
     {
+      "bytes": 25463,
+      "mode": "100644",
+      "path": "tools/cas_ui_build.py",
+      "sha256": "e81b5863e4e798f2dc9b5fffe128e35373ee51e9c607e4bf54a22fbe1945e69e"
+    },
+    {
       "bytes": 21266,
       "mode": "100644",
       "path": "tools/cas_household_commit.py",
@@ -155,6 +161,12 @@
       "sha256": "049d4cf78ed9bbfdc05f66eb06ac8f88d18d41b24075382c8a08c483f244cce7"
     },
     {
+      "bytes": 1470,
+      "mode": "100644",
+      "path": "tests/CasCardBytecodeFixtures.java",
+      "sha256": "560eb83d4c3e9b8e5ecd7b77a7df53b11275c9731f05cbe77d9fee49b2664f14"
+    },
+    {
       "bytes": 3337,
       "mode": "100644",
       "path": "tests/test_test_addons.py",
@@ -177,6 +189,12 @@
       "mode": "100644",
       "path": "Reports/Glory-Build-V4.1-UI-Performance-Validation.txt",
       "sha256": "64de3e4582df91595e9ac8453d297bc9119853dfd34cda9d0e35eb26215dcf6b"
+    },
+    {
+      "bytes": 2428,
+      "mode": "100644",
+      "path": "tests/test_cas_catalog_bytecode.py",
+      "sha256": "0d8d7a9097e041cc853a3e36f12f340988b584889994706572703800d3628582"
     },
     {
       "bytes": 19733,
@@ -425,12 +443,6 @@
       "sha256": "9769702bd625249e59a19ede05c84365fcc7707e1fa0e5df08df42227cee13e3"
     },
     {
-      "bytes": 7380,
-      "mode": "100644",
-      "path": "tools/cas_pair_panel_patch.py",
-      "sha256": "acebdb5117a77a31609f315dae4996a4785a64d213711fb01a00a75dc1ee330c"
-    },
-    {
       "bytes": 4622,
       "mode": "100644",
       "path": "tools/verify_mccc_port.py",
@@ -483,12 +495,6 @@
       "mode": "100644",
       "path": "tests/test_ea_permission_timeout.py",
       "sha256": "d9e64b5f17bad8f98353d27146923b828927aadf82a039b365e960be352dd1f0"
-    },
-    {
-      "bytes": 18072,
-      "mode": "100644",
-      "path": "tools/build_candidate.py",
-      "sha256": "5ec550a16e7783442a6b3a88418f8b1fba77988804cdfdae4dc0f35c5d427063"
     },
     {
       "bytes": 6465,
@@ -725,16 +731,16 @@
       "sha256": "5872550246a244f060b8129bf5012e97ad2f2a9e365c9e71cecb7f4ea2635e46"
     },
     {
-      "bytes": 4820,
-      "mode": "100644",
-      "path": "tools/CasCatalogBytecodePatch.java",
-      "sha256": "4c798b17799f4b16b35f34caab33ceb00486f60e0f97b96374730114fe20c43e"
-    },
-    {
       "bytes": 5972,
       "mode": "100644",
       "path": "tests/test_cas_rejected_entry_recovery.py",
       "sha256": "cbafde2019d2fb5f0213da914274a8fc5d2134351b0cd0b512121e15a956549f"
+    },
+    {
+      "bytes": 7500,
+      "mode": "100644",
+      "path": "tools/cas_pair_panel_patch.py",
+      "sha256": "758279f2aa879bb3f592d3a6962533d5d77ccd28a26905b95e9ef23d0430c9e7"
     },
     {
       "bytes": 3942,
@@ -791,6 +797,12 @@
       "sha256": "058f1013e11bdb74ee8ffc77b043637d64af248c426d90576e21ab58034baa24"
     },
     {
+      "bytes": 6103,
+      "mode": "100644",
+      "path": "tests/java/CasLifeStateMenuFixtures.java",
+      "sha256": "8ef6aa72c03f2dbc9102cc93e016400fd57480d8223fa9327b6d4dadba8fd5ea"
+    },
+    {
       "bytes": 6814,
       "mode": "100644",
       "path": "Reports/AUTHORIZED_CANDIDATE_2026-10-07.md",
@@ -803,6 +815,12 @@
       "sha256": "4ad9d5b4ce4bf57b0a6543f2e0d8cb2e14a7465e56b9163468317c2838bd0b4e"
     },
     {
+      "bytes": 2043,
+      "mode": "100644",
+      "path": "tests/test_cas_lifestate_menu_bytecode.py",
+      "sha256": "92077e5cb9398ed3b9c98c2541f98ed0961de9a893b39233e87774f9642151bc"
+    },
+    {
       "bytes": 4985,
       "mode": "100644",
       "path": "Source/apex_core/cas_native_return.py",
@@ -813,12 +831,6 @@
       "mode": "100644",
       "path": "Source/apex_core/cas_socket.py",
       "sha256": "64d4723984ac135b686e55ca2b481e988bc63e80547de5a68f49830d83cd9482"
-    },
-    {
-      "bytes": 4703,
-      "mode": "100644",
-      "path": "tests/java/CasLifeStateMenuFixtures.java",
-      "sha256": "66b1d06707a776099fafc582d5645da8abd8ae0f746db44af3f8306b05397496"
     },
     {
       "bytes": 5374,
@@ -887,10 +899,10 @@
       "sha256": "8e0951caa2832289aa16ae8d2ce306e61a10721a00091d92835cdbfd06f723a4"
     },
     {
-      "bytes": 989,
+      "bytes": 34122,
       "mode": "100644",
-      "path": ".gitattributes",
-      "sha256": "5880ddec66d91e5039838ca22e6b74e166cb20c12035aeb010ef748591ded7c3"
+      "path": "Source/CASUi/catalog_workspace_methods.as",
+      "sha256": "b1e626ffccff097789a136377ce756da5496957c64469ec1b1282aaf7ab89e10"
     },
     {
       "bytes": 8839,
@@ -917,10 +929,22 @@
       "sha256": "0c12a72a6b141d16b0346ca7055bddd443ce72198422dc9b3d021a062fd3e812"
     },
     {
+      "bytes": 4882,
+      "mode": "100644",
+      "path": "tools/CasCatalogBytecodePatch.java",
+      "sha256": "8970ddc44b037c8873cd4e727ac9ddf7efae276a1501a69b5163532104f34333"
+    },
+    {
       "bytes": 39429,
       "mode": "100644",
       "path": "tools/cas_resource_catalog.py",
       "sha256": "35f91f24e862827fe9803241b1b949ab0c8c2f33d5cebb39fcefd03bddeb066e"
+    },
+    {
+      "bytes": 117260,
+      "mode": "100644",
+      "path": "tools/CasBytecodePatch.java",
+      "sha256": "edde0b9d43e9dfbef2fbb010f7ac1c7dfc41996913b52d56c9791961cd20b200"
     },
     {
       "bytes": 10904,
@@ -963,12 +987,6 @@
       "mode": "100644",
       "path": "tests/test_save_intent_archive.py",
       "sha256": "95591c5276db2fccdba80c063d166c1fee531291b1316ae8a464deab0f7dceb8"
-    },
-    {
-      "bytes": 34575,
-      "mode": "100644",
-      "path": "Source/apex_core/cas_controls.py",
-      "sha256": "dd80a5a5e2eac7d820b518dab3effcc33e5d5a1d6bd401c590f64f25ea5a2998"
     },
     {
       "bytes": 51828,
@@ -1145,6 +1163,12 @@
       "sha256": "3dff19214d24119caa20bf3b0849e16e1c006a73a5a9e8f0c167ca5c0a080453"
     },
     {
+      "bytes": 14075,
+      "mode": "100644",
+      "path": "docs/CAS_CATALOG_WORKSPACE.md",
+      "sha256": "735aca718c943583396c9797b8b94dc511fa636f66b2c7fd39d41f98084ae4cd"
+    },
+    {
       "bytes": 24156,
       "mode": "100644",
       "path": "tools/game_capture.py",
@@ -1265,6 +1289,12 @@
       "sha256": "876da5855ce1ab191d31c047600b4834dbab941e8e087ca3e5462d2a54c73e1a"
     },
     {
+      "bytes": 91435,
+      "mode": "100644",
+      "path": "tools/apex_cli.py",
+      "sha256": "b9bb875c0e1057bd55f1ce6073954908af51b07cea8efcf94b39b86295d2ef1e"
+    },
+    {
       "bytes": 12399,
       "mode": "100644",
       "path": "tests/test_overlay_configuration.py",
@@ -1307,22 +1337,10 @@
       "sha256": "af5a57787853a66e81b9a25c9f6dbd90c690d45ad2886c4336cdd043b1d31b1f"
     },
     {
-      "bytes": 70768,
-      "mode": "100644",
-      "path": "Source/apex_core/form_bank_seal.py",
-      "sha256": "c59b7703409a6f60d36b9e2ef77bde3017fdb6885484cba6f395a50af36f1325"
-    },
-    {
       "bytes": 7404,
       "mode": "100644",
       "path": "tests/test_cas_review_cli.py",
       "sha256": "3d674219f8baec90e14addf9ea44fbbea0f7991c86f95f6a646b69b4d24f5c89"
-    },
-    {
-      "bytes": 48020,
-      "mode": "100644",
-      "path": "README.md",
-      "sha256": "4e7e0fa48bdba7890dadab960a1784c951966e858221045eb123a3a3b2fea191"
     },
     {
       "bytes": 6122,
@@ -1451,6 +1469,12 @@
       "sha256": "fd93b465c45ba6e9defa305042d3868a0f0d2c7aecd9f953cf84a2be93f928bd"
     },
     {
+      "bytes": 18123,
+      "mode": "100644",
+      "path": "tools/build_candidate.py",
+      "sha256": "b40b94d369c359ba187778f93f19a80df2f75b230ec5b2d7bc4b94033d097a51"
+    },
+    {
       "bytes": 2300,
       "mode": "100644",
       "path": "tests/test_dresser_parts.py",
@@ -1485,12 +1509,6 @@
       "mode": "100644",
       "path": "tests/test_canonical_digest.py",
       "sha256": "32315694e03cbb31134b82557f408fa7c0cd76ab95628cc413b09f61e3e3d965"
-    },
-    {
-      "bytes": 157317,
-      "mode": "100644",
-      "path": "Source/CASUi/semantic_methods.as",
-      "sha256": "8d0c97bd24b9a1e269f04a6cdd19c199c0574e14c2221eba954b769464514438"
     },
     {
       "bytes": 758,
@@ -1541,12 +1559,6 @@
       "sha256": "63fce529f5fde2e8e180dddd59d843a16c8181b1b5f5dcc36397dd0d01942f65"
     },
     {
-      "bytes": 7808,
-      "mode": "100644",
-      "path": "tools/cas_catalog_workspace.py",
-      "sha256": "f7b0a9f5df85ed12f4981c4579a49e67629e60cf8bf34d7677032e14dd671552"
-    },
-    {
       "bytes": 4571,
       "mode": "100644",
       "path": "tests/test_body_hair_load_dispatch.py",
@@ -1557,12 +1569,6 @@
       "mode": "100644",
       "path": "tests/test_native_cas_import_readback.py",
       "sha256": "234071de6bdd1ddbc8182da7b4ae6798f8c5cd32b43efe83881f6ba479af53ab"
-    },
-    {
-      "bytes": 91043,
-      "mode": "100644",
-      "path": "tools/apex_cli.py",
-      "sha256": "6c801817c3b4c44b2d10a0f3789d8956b9196ebea710c072e5b92ebb7fd77b3a"
     },
     {
       "bytes": 6719,
@@ -1707,12 +1713,6 @@
       "mode": "100644",
       "path": "tests/test_cas_owner_record_payload.py",
       "sha256": "2c6d3ff877e9ba17bef39d135f26fd8b08b4d9ad269254d1751752f211d1c3b1"
-    },
-    {
-      "bytes": 7903,
-      "mode": "100644",
-      "path": "tests/test_cas_catalog_workspace.py",
-      "sha256": "bea20b9c0ba42a47b8102e4b4f497a321acf7635f54b376dacefbfe154ad6bd0"
     },
     {
       "bytes": 190,
@@ -1895,10 +1895,10 @@
       "sha256": "c798c692a6cb49b0f3d5ff8539c70789bc18e65ed825bbe070358c5f174289fd"
     },
     {
-      "bytes": 2842,
+      "bytes": 48789,
       "mode": "100644",
-      "path": "tests/CasCatalogBytecodeFixtures.java",
-      "sha256": "02e56d5e3f1ff467d92387da1607ee73973c90074860081d9e63f99a73944add"
+      "path": "README.md",
+      "sha256": "f71bb461a590dd222cd0f41d8a036a7e15b64e0fcf63efb18dd7aa954c5074c3"
     },
     {
       "bytes": 953436,
@@ -2021,6 +2021,12 @@
       "sha256": "ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443"
     },
     {
+      "bytes": 71843,
+      "mode": "100644",
+      "path": "Source/apex_core/form_bank_seal.py",
+      "sha256": "d7f9a02e1bf68ed54077a70206cc07ef3ab66e65866ee0a4e8f9d56444ee785b"
+    },
+    {
       "bytes": 26729,
       "mode": "100644",
       "path": "Reports/HOUSEHOLD_CAS_2026-10-15.md",
@@ -2075,12 +2081,6 @@
       "sha256": "05e174b62870cda26ec410ee799fb3e8afdd09a270f0c985acc0dbc1dc278717"
     },
     {
-      "bytes": 8660,
-      "mode": "100644",
-      "path": "docs/CAS_CATALOG_WORKSPACE.md",
-      "sha256": "2731ed06ca85df2f6cab8c695f65a7e9887a74bad1c2c44f98fd35d8cb8b0e71"
-    },
-    {
       "bytes": 4278,
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexTrayView.h",
@@ -2093,10 +2093,22 @@
       "sha256": "5c0cfaa3e8c5a3fa27e1230d8ccb174624d4782d65b646743dfca561d9d99cbd"
     },
     {
+      "bytes": 8919,
+      "mode": "100644",
+      "path": "tools/cas_catalog_workspace.py",
+      "sha256": "6364b704b4e587ccbbafd38fa947fb5910fb1097b5218ed75de6804b2d7af163"
+    },
+    {
       "bytes": 10854,
       "mode": "100644",
       "path": "tests/test_game_discard.py",
       "sha256": "860f2e53f17a4663f4958d02eae987c0b2d17fe13cfd060110aa0758f98d1933"
+    },
+    {
+      "bytes": 9779,
+      "mode": "100644",
+      "path": "Source/CASUi/catalog_cards_methods.as",
+      "sha256": "f495db4671261003fe93a9fe7a8878d7c19ce9f18b08a6f43c49b16a7a422a3a"
     },
     {
       "bytes": 8734,
@@ -2133,6 +2145,12 @@
       "mode": "100644",
       "path": "Source/apex_core/appearance_transfer.py",
       "sha256": "d6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63"
+    },
+    {
+      "bytes": 36208,
+      "mode": "100644",
+      "path": "Source/apex_core/cas_controls.py",
+      "sha256": "5c515ae6d2591daab1917023e0b970956a19f4f1c83cdd8c0797dd93e3871e20"
     },
     {
       "bytes": 8633,
@@ -2267,12 +2285,6 @@
       "sha256": "25309f0ebb2f1638232d1a5e364f3aa7f3b4992d3192224f70b3b3b1c1ba4650"
     },
     {
-      "bytes": 66023,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "6744f87097f22801dc195b5cc462dd946d68f04330296e1f84f447bee6293b96"
-    },
-    {
       "bytes": 7785,
       "mode": "100644",
       "path": "tools/CasOwnerObservationTests.java",
@@ -2289,6 +2301,12 @@
       "mode": "100644",
       "path": "NativeOverlay/Source/OverlayInput.h",
       "sha256": "724f8c74e29740d59dbd40ea373b6dcf6247de69495dca6dfa847eebffb7dd84"
+    },
+    {
+      "bytes": 362731,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "80a8588ed737f1772b222124173f6a0d7a5d90b68777bf8c6f1adfcc18ceee1a"
     },
     {
       "bytes": 80300,
@@ -2319,12 +2337,6 @@
       "mode": "100644",
       "path": "tools/launch_compatibility.py",
       "sha256": "bf46af2b7217a3666e716c4d0701e17ae98c9f4be4913acc91915a377acdb514"
-    },
-    {
-      "bytes": 112025,
-      "mode": "100644",
-      "path": "tools/CasBytecodePatch.java",
-      "sha256": "56785eced0d8ab066de24faf6c8288cf7b90ba54b81cb0a6feae973b2c5b5996"
     },
     {
       "bytes": 19243,
@@ -2519,12 +2531,6 @@
       "sha256": "9f590bcbdd6a17d1c0ffa1c876abee6f00af067f541f50428cc900492adbf7e7"
     },
     {
-      "bytes": 1496,
-      "mode": "100644",
-      "path": "tests/test_cas_catalog_bytecode.py",
-      "sha256": "0b98e80410f98f80dd75a3c038aa93b2038b63314cb75f46941a551b2f5152dd"
-    },
-    {
       "bytes": 1518,
       "mode": "100644",
       "path": "Reports/ImGui-DX11-Overlay-Research-V5.txt",
@@ -2541,12 +2547,6 @@
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexUiData.h",
       "sha256": "0b53b74ff850012abd7e9da4c1e1d3d6ff44e6aae00b6ec6d0cba940e226e561"
-    },
-    {
-      "bytes": 30760,
-      "mode": "100644",
-      "path": "Source/CASUi/catalog_workspace_methods.as",
-      "sha256": "e288fd4d13eb80596df3e98575b6d44c115ac78309317dd1a13dc0d85931f762"
     },
     {
       "bytes": 25676,
@@ -2759,6 +2759,12 @@
       "sha256": "125f5cbdf33eae312cf161502980aa3bcb0763743b520debd5838cbab59b8e51"
     },
     {
+      "bytes": 1795,
+      "mode": "100644",
+      "path": ".gitattributes",
+      "sha256": "8ae98490980004eaac0319b490d09d4b6e79a5ff06db5dc4974688ef9d02f029"
+    },
+    {
       "bytes": 19013,
       "mode": "100644",
       "path": "tools/test_script_upgrade.py",
@@ -2769,6 +2775,12 @@
       "mode": "100644",
       "path": "Reports/RECOVERY_2026-10-06.md",
       "sha256": "ef38217b42b8001d1e44a05772b59647fe236caeb5a7e1dfbeadb34d8ecb17c1"
+    },
+    {
+      "bytes": 8687,
+      "mode": "100644",
+      "path": "Source/CASUi/pair_controls_methods.as",
+      "sha256": "5c145cd32254460c4f236f741279e03e845337d8525a4e3ae25098b992272185"
     },
     {
       "bytes": 5136,
@@ -2945,6 +2957,12 @@
       "sha256": "45362b1409bb65d62cb7e71d036bcda334aaf1846b441618285fcbd5c50716da"
     },
     {
+      "bytes": 3699,
+      "mode": "100644",
+      "path": "tests/test_cas_ui_source_pins.py",
+      "sha256": "b3f87faeb74fcd4ab10c6235229148f9486a91da854925f5accec72186ceb14e"
+    },
+    {
       "bytes": 2510,
       "mode": "100644",
       "path": "tests/test_cas_observation_batch.py",
@@ -3017,6 +3035,12 @@
       "sha256": "0898eeb66948504fcf29f776e6d7b527d283308e5b07cc7b655e29a10914ac28"
     },
     {
+      "bytes": 13343,
+      "mode": "100644",
+      "path": "tests/test_cas_catalog_workspace.py",
+      "sha256": "07540af165e163bce0d7f62eb794bc1b0c2cf7a8f803a98acd16f57f7b6056a4"
+    },
+    {
       "bytes": 2516,
       "mode": "100644",
       "path": "docs/UPSTREAM_1.13.7_DELTA.md",
@@ -3033,6 +3057,12 @@
       "mode": "100644",
       "path": "Reports/LIVE_APPEARANCE_ROOM_2026-10-11.md",
       "sha256": "e76534958b758e258abea38779ffc410a3626e1ceba707bf8e0d298bdbad3c41"
+    },
+    {
+      "bytes": 5654,
+      "mode": "100644",
+      "path": "tools/cas_equipped_catalog.py",
+      "sha256": "9263586481f42396b97f3c35ce864e000a54050c1cadc3efb1dd646d03d14c48"
     },
     {
       "bytes": 7920,
@@ -3063,12 +3093,6 @@
       "mode": "100644",
       "path": "Reports/LIVE_CAS_LIBRARY_2026-10-10.md",
       "sha256": "5d40b478a4cd285f934ab0881b717b519951d2a0e17f8db045bda22fb340c641"
-    },
-    {
-      "bytes": 24702,
-      "mode": "100644",
-      "path": "tools/cas_ui_build.py",
-      "sha256": "ea6efe4b18cfe0d3ebb05838631196e0005662d63538137b845f49ba834a6bfe"
     },
     {
       "bytes": 21116,
@@ -3125,16 +3149,16 @@
       "sha256": "12316399a6acd772a2ec376df7a6eeb138b385f0e00c2dc4d48776a25cc81794"
     },
     {
+      "bytes": 6676,
+      "mode": "100644",
+      "path": "Reports/CAS_CARD_LAYOUT_V247.json",
+      "sha256": "f2c2161aad0e8f3dabdc65ffcd038d06b3f7cf4176401a660ec299ab28644998"
+    },
+    {
       "bytes": 8163,
       "mode": "100644",
       "path": "tests/java/CasWingSafetyFixtures.java",
       "sha256": "3a24ffb204065da92c9ba9269c6a9d9c1b4db1dc92bce5c622004c402973830e"
-    },
-    {
-      "bytes": 8566,
-      "mode": "100644",
-      "path": "Source/CASUi/pair_controls_methods.as",
-      "sha256": "a7287067fbdc010d56cd87f1dcf8b3074886337c5396582332a6d17c321a069f"
     },
     {
       "bytes": 3769,
@@ -3209,12 +3233,6 @@
       "sha256": "cd40224eb38ce12034144e4155435cf1ab9056eb974db48a4507be239041b878"
     },
     {
-      "bytes": 2017,
-      "mode": "100644",
-      "path": "tests/test_cas_lifestate_menu_bytecode.py",
-      "sha256": "e06168041bddc091648e05ff27ba7663b951e9bb89faef64e9d31004d047f3ca"
-    },
-    {
       "bytes": 28732,
       "mode": "100644",
       "path": "tests/test_game_map.py",
@@ -3255,6 +3273,12 @@
       "mode": "100644",
       "path": "Reports/ALTERNATE_CAS_2026-10-08.md",
       "sha256": "cb99603868d17f4b60753e1baadce5985ef8adbc7ece7b8297aebc263d62c616"
+    },
+    {
+      "bytes": 157840,
+      "mode": "100644",
+      "path": "Source/CASUi/semantic_methods.as",
+      "sha256": "b81aff03088a8ecfce95d852f4a74d9f1f42c32f81ab13036d545ea5106b78d5"
     },
     {
       "bytes": 2651,
@@ -3449,12 +3473,6 @@
       "sha256": "c51a0f7e7ea760f2366bd3752635ec58e21fccfec4a832501639990ba6ce0528"
     },
     {
-      "bytes": 3630,
-      "mode": "100644",
-      "path": "tests/test_cas_ui_source_pins.py",
-      "sha256": "2d9ae78f16479c3263a67062afd8fec56e1c5e46f2ddbb1ba626aee5d4d84700"
-    },
-    {
       "bytes": 2602,
       "mode": "100644",
       "path": "NativeOverlay/third_party/minhook/src/hde/hde64.h",
@@ -3489,6 +3507,12 @@
       "mode": "100644",
       "path": "tests/test_native_pelt_copy.py",
       "sha256": "550f53be59f121eafab806559ea65ededa33acb26955c05c5e8bd6645fbb5e57"
+    },
+    {
+      "bytes": 66659,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "eda0f70509fcf54d6a8fa1ce6ab348d3b340ff0f458f33c02381ccc6d3877805"
     },
     {
       "bytes": 215,
@@ -3539,12 +3563,6 @@
       "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
     },
     {
-      "bytes": 361982,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "44e82a0a94729dfb764f3dd155ace272b07933a3fbac60c1e0db80fb913d0c84"
-    },
-    {
       "bytes": 30313,
       "mode": "100644",
       "path": "tools/ea_restart.py",
@@ -3561,6 +3579,12 @@
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexLiveCatalog.h",
       "sha256": "d08a714e1bb44376680a5b9cbbadd02faa122f9f3588da9fd541e0a3792bdad4"
+    },
+    {
+      "bytes": 5450,
+      "mode": "100644",
+      "path": "tests/CasCatalogBytecodeFixtures.java",
+      "sha256": "67466a0553bab2b2c72588209ab1c5f0bc90cff749967bb5eb194d1839cab554"
     },
     {
       "bytes": 12180,

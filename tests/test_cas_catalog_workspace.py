@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'tools'),str(ROOT/'Source')]
-from cas_catalog_workspace import viewport_layout,native_catalog_clamp,equipped_menus,inject_context,inject_plan
+from cas_catalog_workspace import viewport_layout,native_catalog_clamp,equipped_menus,inject_context,inject_plan,card_layout
 from apex_core import cas_ui,cas_controls
 
 
@@ -80,7 +80,7 @@ class CatalogWorkspaceTests(unittest.TestCase):
         self.assertIn('Math.max(param4,this.mWidth + 12)',made)
         self.assertIn('typeof param1.apex_view_x_offset=="number"',made)
         self.assertIn('isFinite(param1.apex_screen_x_max)',made)
-        self.assertIn('this.mWidth>=262 && this.mWidth<=1372',made)
+        self.assertIn('this.mWidth>=262 && this.mWidth<=LayoutAPI.StageWidth*0.53',made)
         self.assertNotIn('CasSelectPlannedOutfit',made)
         self.assertTrue(made.endswith('if(_loc2_ == this.mAnimExtension.IsVisible())'))
         with self.assertRaises(ValueError):inject_plan(made)
@@ -96,7 +96,8 @@ class CatalogWorkspaceTests(unittest.TestCase):
 
     def test_selection_styling_keeps_native_layout_and_thumb_motion_separate(self):
         source=(ROOT/'Source/CASUi/catalog_workspace_methods.as').read_text(encoding='utf-8')
-        signature=source.split('var signature:String=',1)[1].split(';',1)[0]
+        cards=(ROOT/'Source/CASUi/catalog_cards_methods.as').read_text(encoding='utf-8')
+        signature=cards.split('var signature:String=',1)[1].split(';',1)[0]
         self.assertNotIn('color',signature)
         self.assertNotIn('glow',signature)
         self.assertNotIn('border',signature)
@@ -120,13 +121,90 @@ class CatalogWorkspaceTests(unittest.TestCase):
             with self.assertRaises(ValueError):cas_ui.envelope('12',dict(operation='catalog-slider',control='red',fraction=fraction))
 
     def test_catalog_view_acknowledges_the_exact_tab(self):
-        for view in ('items','style','closed'):
+        for view in ('items','style','layout','closed'):
             request=dict(operation='catalog-view',view=view);cas_ui.envelope('12',request)
             workspace=dict(visible=view!='closed',view=view)
             client={'control':dict(operation='catalog-view',appearance_written=False,workspace=workspace)}
             cas_controls.validate(client,request)
             workspace['visible']=not workspace['visible']
             with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+
+    def test_card_geometry_keeps_proportions_gaps_and_viewport_fit(self):
+        for viewport in (640,1024,1278,1920,2560,3840):
+            for size in (.65,1,1.6):
+                for gap_x,gap_y in ((0,32),(32,0),(4,4),(32,32)):
+                    for columns in (2,6,12):
+                        made=card_layout(columns,viewport,size,gap_x,gap_y)
+                        self.assertLessEqual(made['columns'],columns)
+                        self.assertLessEqual(made['width'],viewport*.53+1e-8)
+                        self.assertAlmostEqual(made['card_width']/made['card_height'],107/148)
+                        self.assertAlmostEqual(made['pitch_x']-made['card_width'],gap_x)
+                        self.assertAlmostEqual(made['pitch_y']-made['card_height'],gap_y)
+        self.assertEqual(card_layout(6,1920,1,4,4)['width'],706)
+
+    def test_card_commands_reject_nonfinite_bool_missing_and_foreign_fields(self):
+        request=dict(operation='catalog-cards',card_scale=1,gap_x=4,gap_y=4)
+        cas_ui.envelope('12',request)
+        for name,values in {'card_scale':[True,float('nan'),.64,1.61],
+                'gap_x':[False,-1,33,float('inf')],'gap_y':[-1,33,float('nan')]}.items():
+            for value in values:
+                with self.subTest(field=name,value=value),self.assertRaises(ValueError):
+                    cas_ui.envelope('12',dict(request,**{name:value}))
+        for altered in (dict(request,unknown=1),{k:v for k,v in request.items() if k!='gap_y'}):
+            with self.assertRaises(ValueError):cas_ui.envelope('12',altered)
+
+    def test_card_readback_requires_all_preferences_and_ui_only_receipt(self):
+        request=dict(operation='catalog-cards',card_scale=.8,gap_x=0,gap_y=32)
+        prefs=dict(scale=.8,gap_x=0,gap_y=32)
+        client={'control':dict(operation='catalog-cards',appearance_written=False,workspace={'card_preferences':prefs})}
+        cas_controls.validate(client,request)
+        for name in prefs:
+            altered=copy.deepcopy(client);altered['control']['workspace']['card_preferences'][name]=None
+            with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(altered,request)
+        client['control']['appearance_written']=True
+        with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+
+    def test_card_sliders_acknowledge_exact_thumb_and_independent_values(self):
+        for name,key,n in (('card_scale','scale',1.03),('gap_x','gap_x',12.8),('gap_y','gap_y',12.8)):
+            request=dict(operation='catalog-slider',control=name,fraction=.4);cas_ui.envelope('12',request)
+            workspace=dict(visible=True,view='layout',card_preferences={key:n},slider_thumbs={name:.4})
+            client={'control':dict(operation='catalog-slider',appearance_written=False,workspace=workspace)}
+            cas_controls.validate(client,request)
+            workspace['card_preferences'][key]=n+.1
+            with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+
+    def test_selection_outline_stays_inside_real_thumbnail(self):
+        source=(ROOT/'Source/CASUi/catalog_workspace_methods.as').read_text(encoding='utf-8')
+        selected=source.split('private function ApexCatalogSelection(',1)[1].split('private function ApexCatalogReadEquipped(',1)[0]
+        self.assertIn('cell.mcIconAndMask',selected)
+        self.assertIn('stroke*0.5+1',selected)
+        self.assertIn('bounds.width-inset*2',selected)
+        self.assertIn('bounds.height-inset*2',selected)
+        self.assertNotIn('effect.graphics.drawRoundRect(',selected)
+        self.assertIn('effect.graphics.lineTo(right,bottom-radius)',selected)
+        self.assertIn('effect.graphics.lineTo(left,top+radius)',selected)
+        self.assertIn('effect.graphics.curveTo(left,top,left+radius,top)',selected)
+
+    def test_card_adapter_does_not_read_native_write_only_num_lines(self):
+        source=(ROOT/'Source/CASUi/catalog_cards_methods.as').read_text(encoding='utf-8')
+        self.assertIn('grid.GetGridDimensions()',source)
+        self.assertIn('grid.Horizontal ? 0 : 1',source)
+        self.assertNotIn('columns:grid.NumLines',source)
+        self.assertIn('Number(nativeCell.width)/Number(nativeCell.scaleX)',source)
+        self.assertIn('naturalWidth*scale+Number(apexCardPrefs.gap_x)',source)
+        self.assertIn('new flash.geom.Rectangle(base.x,base.y,naturalWidth*scale,0)',source)
+        self.assertIn('CalculateCellViewHeight(cell as flash.display.DisplayObject)',source)
+
+    def test_layout_resets_the_stock_recycling_cache_instead_of_preserving_nan(self):
+        source=(ROOT/'Source/CASUi/catalog_cards_methods.as').read_text(encoding='utf-8')
+        self.assertIn('grid.ResetAndPositionCells()',source)
+        self.assertNotIn('grid.PositionCells()',source)
+        self.assertNotIn('ApexCatalogGridPlaced',source)
+
+    def test_semantic_panel_navigation_notifies_the_native_radial_binding(self):
+        source=(ROOT/'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')
+        branch=source.split('} else if(operation=="panel") {',1)[1].split('} else if(operation=="outfit"',1)[0]
+        self.assertLess(branch.index('HandleContextMenuSetMenuState('),branch.index('SendUIMessage("CASChangeMenuState",state)'))
 
 
 if __name__=='__main__':unittest.main()

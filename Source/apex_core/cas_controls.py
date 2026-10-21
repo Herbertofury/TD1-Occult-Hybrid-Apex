@@ -14,7 +14,7 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
@@ -22,6 +22,8 @@ PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'
 SCHEMAS = {
     'catalog-style': {'operation','columns','color','glow','animation','strength','period','border'},
     'catalog-open': {'operation'},
+    'catalog-view': {'operation','view'},
+    'catalog-slider': {'operation','control','fraction'},
     'pair-link': {'operation','owner_id','enabled'},
     'pair-copy': {'operation','source_owner_id','target_owner_id'},
     'form-menu': {'operation', 'family'},
@@ -83,6 +85,16 @@ def wire(request, panel):
     category, index, value = 0, 0, ''
     if op == 'catalog-open':
         return 0,0,0,''
+    if op == 'catalog-view':
+        if request['view'] not in ('items','style','closed'):raise ValueError('Use items, style or closed catalog view.')
+        return 0,0,0,request['view']
+    if op == 'catalog-slider':
+        if request['control'] not in ('columns','red','green','blue','glow','border','period','strength'):
+            raise ValueError('Choose one exact catalog slider.')
+        n=request['fraction']
+        if type(n) not in (int,float) or not math.isfinite(n) or not 0<=n<=1:
+            raise ValueError('Catalog slider fraction must be finite and bounded 0-1.')
+        return 0,0,0,request['control']+','+format(n,'.9f').rstrip('0').rstrip('.')
     if op == 'catalog-style':
         values=[str(integer(request['columns'],2,12,'catalog columns')),str(integer(request['color'],0,0xffffff,'selection RGB'))]
         for name,low,high in (('glow',0,12),('strength',.25,1),('period',.8,4),('border',1,8)):
@@ -225,7 +237,7 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
-    if op in ('catalog-style','catalog-open'):
+    if op in ('catalog-style','catalog-open','catalog-view','catalog-slider'):
         workspace=control.get('workspace')
         if not isinstance(workspace,dict) or control.get('appearance_written') is not False:
             raise PostconditionMismatch('Catalog preferences lack an acknowledged UI-only result.')
@@ -237,8 +249,31 @@ def validate(client, request):
                 if (isinstance(expected,str) and actual!=expected or not isinstance(expected,str) and
                         (type(actual) not in (int,float) or abs(actual-expected)>0.000001)):
                     raise PostconditionMismatch('Catalog style did not retain '+name+'.')
+        elif op=='catalog-slider':
+            thumbs=workspace.get('slider_thumbs',{})
+            actual=thumbs.get(request['control']) if isinstance(thumbs,dict) else None
+            if (workspace.get('visible') is not True or workspace.get('view')!='style' or
+                    type(actual) not in (int,float) or abs(actual-request['fraction'])>0.000001):
+                raise PostconditionMismatch('The actual catalog slider thumb did not acknowledge its requested fraction.')
+            name=request['control'];n=request['fraction'];prefs=workspace.get('preferences',{})
+            if name in ('red','green','blue'):
+                color=prefs.get('color');shift={'red':16,'green':8,'blue':0}[name]
+                if type(color) is not int or (color>>shift)&255!=math.floor(n*255+.5):
+                    raise PostconditionMismatch('Catalog RGB slider value did not read back.')
+            else:
+                low,high={'columns':(2,12),'glow':(0,12),'border':(1,8),'period':(.8,4),'strength':(.25,1)}[name]
+                expected=low+n*(high-low)
+                if name=='columns':expected=math.floor(expected+.5)
+                actual=prefs.get(name)
+                if type(actual) not in (int,float) or abs(actual-expected)>.000001:
+                    raise PostconditionMismatch('Catalog slider value did not read back.')
+        elif op=='catalog-view':
+            if (workspace.get('visible') is not (request['view']!='closed') or
+                    request['view']!='closed' and workspace.get('view')!=request['view']):
+                raise PostconditionMismatch('Catalog view did not acknowledge the exact requested tab/visibility.')
         elif (workspace.get('visible') is not True or workspace.get('error') or
                 workspace.get('context')!=str(client['sim']['simId'])+'|'+client['form_strip']['selected_owner_id'] or
+                workspace.get('outfit')!={'category':client.get('outfit',{}).get('outfit_type'),'index':client.get('outfit',{}).get('outfit_index')} or
                 not isinstance(workspace.get('items'),list) or len(workspace['items'])>256):
             raise PostconditionMismatch('Equipped catalog lacks the exact current Sim/form inventory.')
         return

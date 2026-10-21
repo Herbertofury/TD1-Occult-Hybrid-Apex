@@ -1184,6 +1184,10 @@ public class CasBytecodePatch {
     static void verifyCatalogWorkspace(ABC abc,InstanceInfo instance) {
         var click=propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogOpen"));
         require(click.equals(Set.of("getTimer","ApexInputTiming")),"Catalog radial click must only queue and record timing.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogInvalidate")).isEmpty(),
+            "Outfit/part catalog invalidation must only mark dirty, without native work.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogObserveBinding")).equals(Set.of("isFinite")),
+            "Native catalog alignment observer must only detach primitive parameters.");
         var frame=ownedBody(abc,instance,"ApexCatalogFrame");boolean pending=false,receiving=false;
         for(var op:frame.getCode().code)if(op.definition.instructionCode==0x66 || op.definition.instructionCode==0x60) {
             final String member=abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index);
@@ -1201,6 +1205,12 @@ public class CasBytecodePatch {
             require(op.operands[1]==1,"Equipped inventory must encode its complete channel/outfit in one native pipe argument.");nativeReads++;
         }
         require(nativeReads==1,"Equipped inventory requires exactly one bounded native read.");
+        var slide=propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogSlide"));
+        require(Collections.disjoint(slide,Set.of("CallGameService","CallUIService","ApexNativeExchange","PositionCells","ApexCatalogDraw")),
+            "Catalog slider input cannot rebuild the grid, panel or perform native requests.");
+        for(String method:Set.of("ApexCatalogSlide","ApexCatalogValidate"))
+            for(var op:ownedBody(abc,instance,method).getCode().code)
+                require(!property(abc,op,0x61,"apexCatalogSignature"),"Color/style changes must not invalidate native grid layout.");
     }
     public static void main(String[] args) throws Exception {
         require(args.length == 3, "Use original SWF, compiler SWF, output ABC.");
@@ -1226,7 +1236,7 @@ public class CasBytecodePatch {
             "apexFormsFrameQueued", "apexFormsFastState", "apexFormsNativeGeneration", "apexFormsGestureStarted", "apexFormsSwitchMilliseconds",
             "apexInputSamples", "apexInputOverBudget", "apexInputMaxMs", "apexInputTotalMs",
             "apexCatalogPrefs","apexCatalogStore","apexCatalogUi","apexCatalogRows","apexCatalogIntent","apexCatalogSignature","apexCatalogEffects","apexCatalogPage","apexCatalogItems","apexCatalogContext","apexCatalogError","apexCatalogRegistered","apexCatalogDrag","apexCatalogSaved",
-            "apexCatalogTab", "apexCatalogSelectionFrames", "apexCatalogSelectionMaxMs", "apexCatalogSelectionOverBudget",
+            "apexCatalogTab", "apexCatalogSelectionFrames", "apexCatalogSelectionMaxMs", "apexCatalogSelectionOverBudget", "apexCatalogStyleSignature", "apexCatalogLayoutChanges", "apexCatalogRefreshRegistered", "apexCatalogDirty", "apexCatalogSlot", "apexCatalogBinding", "apexCatalogBindingRegistered", "apexCatalogBindingDirty", "apexCatalogBoundWidth", "apexCatalogHeaderSignature",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
@@ -1238,6 +1248,7 @@ public class CasBytecodePatch {
             "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips",
             "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming",
             "ApexCatalogInitialize","ApexCatalogValidate","ApexCatalogPersist","ApexCatalogStyle","ApexCatalogDispose","ApexCatalogOpen","ApexCatalogFrame","ApexCatalogClearEffects","ApexCatalogSelection","ApexCatalogReadEquipped","ApexCatalogMenu","ApexCatalogButton","ApexCatalogSlider","ApexCatalogDraw","ApexCatalogClick","ApexCatalogSlideStart","ApexCatalogSlide","ApexCatalogSlideEnd","ApexCatalogStatus",
+            "ApexCatalogView", "ApexCatalogSliderCommand", "ApexCatalogInvalidate", "ApexCatalogObserveBinding", "ApexCatalogApplyBinding",
             "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus", "ApexPairPanel");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;

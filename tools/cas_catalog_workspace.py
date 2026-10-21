@@ -10,6 +10,9 @@ from pathlib import Path
 CONTEXT_KEY = (0x62ECC59A, 0, 0xCAEE355CE0B704F7)
 CONTEXT_CLASS = 'widgets.CAS.controls.CASContextMenu'
 CONTEXT_METHODS = ('UpdateMenu', 'HandleItemSelection')
+PLAN_KEY = (0x62ECC59A, 0, 0x3E752EBCB41E7298)
+PLAN_CLASS = 'widgets.CAS.PlanOutfit.CASPlanOutfitMain'
+PLAN_PIN = '060ced2b95e5cc25aaba4b30f0b850d2b0ce992139c68311dc4110f510200f35'
 DONOR_SHA256 = '7df4290426fdfeca458b873c7c38626c124b5756314467cc87146d215944c79e'
 
 
@@ -45,6 +48,30 @@ def inject_context(source):
             return;
          }''')
     return source
+
+
+def inject_plan(source):
+    """Reserve the current width in EA's separate outfit-header attachment.
+
+    The optional detached coordinates come from the existing native binding
+    event. Ordinary EA visibility messages retain their original behavior.
+    No new fields, game service, appearance setter or exported art is needed.
+    """
+    source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
+    source = replace_once(source, '"clampX":{"max":LayoutAPI.StageWidth - param4}',
+        '"clampX":{"max":LayoutAPI.StageWidth - Math.max(param4,this.mWidth + 12)}')
+    anchor = '         if(_loc2_ == this.mAnimExtension.IsVisible())'
+    added = '''         if(_loc2_ && typeof param1.apex_view_x_offset=="number" &&
+            typeof param1.apex_screen_x_offset=="number" && typeof param1.apex_screen_x_max=="number" &&
+            isFinite(param1.apex_view_x_offset) && isFinite(param1.apex_screen_x_offset) &&
+            isFinite(param1.apex_screen_x_max) && this.mWidth>=262 && this.mWidth<=1372)
+         {
+            this.BindPanelToSim(this.m3dBindLayer,Number(param1.apex_view_x_offset),
+               Number(param1.apex_screen_x_offset)+CASPlanOutfitTunables.PANEL_SCREEN_OFFSET_X,
+               Number(param1.apex_screen_x_max)+CASPlanOutfitTunables.PANEL_SCREEN_OFFSET_X*0.5);
+         }
+''' + anchor
+    return replace_once(source, anchor, added)
 
 
 def equipped_menus():
@@ -89,3 +116,12 @@ def viewport_layout(columns, stage_width):
         raise ValueError('Use bounded columns and a supported viewport.')
     actual=min(columns,max(2,min(12,int((stage_width*.53-40)/111))))
     return {'requested':columns,'columns':actual,'width':262+(actual-2)*111}
+
+
+def native_catalog_clamp(columns,stage_width,original_maximum):
+    """Preserve EA's attachment; reserve enough width at its native max clamp."""
+    import math
+    if not math.isfinite(original_maximum) or not 0<=original_maximum<=stage_width:
+        raise ValueError('Native context-menu clamp is unavailable.')
+    layout=viewport_layout(columns,stage_width)
+    return stage_width-max(original_maximum,layout['width']+12)

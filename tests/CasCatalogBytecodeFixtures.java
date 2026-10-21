@@ -27,6 +27,14 @@ public class CasCatalogBytecodeFixtures {
             CasBytecodePatch.require(member>=0,"Missing native transport field.");
             var frame=CasBytecodePatch.ownedBody(abc,instance,"ApexCatalogFrame");
             frame.insertAll(2,List.of(new AVM2Instruction(0,0x60,new int[]{member}),new AVM2Instruction(0,0x29,new int[0])));
+        } else if(mode.equals("style-regrids")) {
+            int member=-1;
+            for(var trait:instance.instance_traits.traits)
+                if(CasBytecodePatch.name(abc,trait).equals("apexCatalogSignature"))member=trait.name_index;
+            CasBytecodePatch.require(member>=0,"Missing native layout signature.");
+            var slide=CasBytecodePatch.ownedBody(abc,instance,"ApexCatalogSlide");
+            slide.insertAll(2,List.of(new AVM2Instruction(0,0xd0,new int[0]),new AVM2Instruction(0,0x2c,new int[]{0}),
+                new AVM2Instruction(0,0x61,new int[]{member})));
         } else if(!mode.equals("valid"))throw new IllegalArgumentException("Unknown fixture.");
         boolean refused=false;
         try {CasBytecodePatch.verifyCatalogWorkspace(abc,instance);}

@@ -14,10 +14,15 @@ All 40 Live appearance views and 155 named looks match their logical owners;
 all 20 save/backup files remain unchanged. One shared Human remains distinct
 from every actual occult and alternate form.
 
-V234 builds a configurable native CAS catalog from the supplied six-column
+V237 builds a configurable native CAS catalog from the supplied six-column
 layout: viewport-bound columns, selected-item RGB/border/glow/pulse settings,
-an equipped-item radial entry, and shared CAS/F11/CLI controls. Runtime UI
-qualification is in progress. See the [catalog workspace](docs/CAS_CATALOG_WORKSPACE.md)
+an equipped-item radial entry, and shared CAS/F11/CLI controls. V236 verifies
+20 equipped rows against an independent native-outfit decode, shared slider
+handlers, no RGB-triggered grid rebuild and 39 unchanged selected-Sim records.
+V237 qualifies the separate native outfit-header clamp in game; all eight
+outfit categories fit on screen. Style persistence remains session-only. Native outfit selection can
+still normalize unrelated genetics before the guard; that direct fix is open.
+See the [catalog workspace](docs/CAS_CATALOG_WORKSPACE.md)
 and [current hybrid acceptance gates](docs/CAS_SHARED_HUMAN_REQUIREMENTS.md).
 Full edited household, MCCC, save/cold-load and native Tray/Gallery coverage
 remain open; this is a development candidate.

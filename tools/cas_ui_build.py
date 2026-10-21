@@ -324,11 +324,28 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     context_tag = next(t[3] for t in tags(unpack(original_context)[1]) if t[0]==82)
     context_boundary = context_tag.index(b'\0',4)+1
     context_payload = replace_payload(original_context,context_tag[:context_boundary]+context_retained.read_bytes())
+    plan_swf = work / 'current-cas-plan.swf'
+    original_plan = plan_swf.read_bytes()
+    if hashlib.sha256(original_plan).hexdigest()!=cas_catalog_workspace.PLAN_PIN:
+        raise ValueError('CAS outfit header differs from the inspected 1.128.90 build.')
+    plan_source = work / 'current-cas-plan/scripts/widgets/CAS/PlanOutfit/CASPlanOutfitMain.as'
+    plan_owned = work / 'ApexCASPlanOutfitMain.as'
+    plan_owned.write_text(cas_catalog_workspace.inject_plan(plan_source.read_text(encoding='utf-8')),encoding='utf-8')
+    plan_compiled = work / 'apex-cas-plan-compiled.swf'
+    run([ffdec, '-importAssets','yes,local','-replace',plan_swf,plan_compiled,
+         cas_catalog_workspace.PLAN_CLASS,plan_owned])
+    plan_retained = work / 'apex-cas-plan-retained.abc'
+    plan_contract = json.loads(run(['java','-cp',str(Path(ffdec).parent / 'ffdec.jar')+os.pathsep+str(java_classes),
+        'CasCatalogBytecodePatch',plan_swf,plan_compiled,plan_retained,'plan']).stdout)
+    plan_tag = next(t[3] for t in tags(unpack(original_plan)[1]) if t[0]==82)
+    plan_boundary = plan_tag.index(b'\0',4)+1
+    plan_payload = replace_payload(original_plan,plan_tag[:plan_boundary]+plan_retained.read_bytes())
     if source_pins() != expected_sources:
         raise ValueError('CAS bridge source changed during compilation; no package was written.')
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     Path(output).write_bytes(dbpf_build.build({KEY: payload, SELECTOR_KEY: selector_payload, VOICE_KEY: voice_payload,
-                                              MOLECULE_KEY: molecule_payload,cas_catalog_workspace.CONTEXT_KEY:context_payload}))
+                                              MOLECULE_KEY: molecule_payload,cas_catalog_workspace.CONTEXT_KEY:context_payload,
+                                              cas_catalog_workspace.PLAN_KEY:plan_payload}))
     info = {'schema': 1, 'artifact': Path(output).name, 'scope': 'native-CAS-semantic-bridge',
         'source_pins': expected_sources,
         'typed_control_dispatch_verified': control_dispatch,
@@ -342,16 +359,19 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'voice_native_bytecode_contract': voice_contract,
         'molecule_native_bytecode_contract': molecule_contract,
         'catalog_native_bytecode_contract': context_contract,
+        'catalog_header_native_bytecode_contract': plan_contract,
         'base_resources': {dbpf_build.tgi(KEY): PIN, dbpf_build.tgi(SELECTOR_KEY): SELECTOR_PIN, dbpf_build.tgi(VOICE_KEY): VOICE_PIN,
-                           dbpf_build.tgi(MOLECULE_KEY): MOLECULE_PIN,dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY):context_pin},
+                           dbpf_build.tgi(MOLECULE_KEY): MOLECULE_PIN,dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY):context_pin,
+                           dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY):cas_catalog_workspace.PLAN_PIN},
         'unmodified_dependency_resources': {dbpf_build.tgi(CLEANUP_KEY): CLEANUP_PIN},
         'patched_resources': {dbpf_build.tgi(KEY): hashlib.sha256(payload).hexdigest(),
                               dbpf_build.tgi(SELECTOR_KEY): hashlib.sha256(selector_payload).hexdigest(),
                               dbpf_build.tgi(VOICE_KEY): hashlib.sha256(voice_payload).hexdigest(),
                               dbpf_build.tgi(MOLECULE_KEY): hashlib.sha256(molecule_payload).hexdigest(),
-                              dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY):hashlib.sha256(context_payload).hexdigest()},
+                              dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY):hashlib.sha256(context_payload).hexdigest(),
+                              dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY):hashlib.sha256(plan_payload).hexdigest()},
         'resources': [dbpf_build.tgi(KEY), dbpf_build.tgi(SELECTOR_KEY), dbpf_build.tgi(VOICE_KEY), dbpf_build.tgi(MOLECULE_KEY),
-                      dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
+                      dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY),dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
         'socket_protocol': {'host': '127.0.0.1', 'port': 8021, 'length_digits': 8,
             'encoding': 'utf-8', 'maximum_frame_bytes': 131072, 'poll_interval_ms': 500}}
     write_json(Path(str(output) + '.manifest.json'), info)

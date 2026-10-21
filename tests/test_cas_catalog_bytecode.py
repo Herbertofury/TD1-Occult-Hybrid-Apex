@@ -22,7 +22,7 @@ class CatalogBytecodeTests(unittest.TestCase):
             check=True,capture_output=True,timeout=60)
 
     def test_compiled_input_and_inventory_contract(self):
-        for case in ('valid','extra-argument','missing-outfit-prefix','transport-wait'):
+        for case in ('valid','extra-argument','missing-outfit-prefix','transport-wait','style-regrids'):
             with self.subTest(case=case):
                 result=subprocess.run(['java','-cp',str(JAR)+os.pathsep+self.directory.name,
                     'CasCatalogBytecodeFixtures',str(COMPILED),case],capture_output=True,text=True,timeout=30)

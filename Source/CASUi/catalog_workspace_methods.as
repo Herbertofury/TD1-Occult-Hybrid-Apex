@@ -4,6 +4,16 @@
       private var apexCatalogRows:flash.display.Sprite;
       private var apexCatalogIntent:Object;
       private var apexCatalogSignature:String = "";
+      private var apexCatalogStyleSignature:String = "";
+      private var apexCatalogLayoutChanges:int = 0;
+      private var apexCatalogRefreshRegistered:Boolean = false;
+      private var apexCatalogDirty:Boolean = false;
+      private var apexCatalogSlot:Object;
+      private var apexCatalogBinding:Object;
+      private var apexCatalogBindingRegistered:Boolean = false;
+      private var apexCatalogBindingDirty:Boolean = false;
+      private var apexCatalogBoundWidth:Number = -1;
+      private var apexCatalogHeaderSignature:String = "";
       private var apexCatalogEffects:Array;
       private var apexCatalogPage:int = 0;
       private var apexCatalogItems:Array;
@@ -21,6 +31,9 @@
       {
          apexCatalogPrefs={columns:6,color:0x00c9eb,glow:0,animation:"none",strength:1,period:1.4,border:3};
          apexCatalogEffects=[];apexCatalogItems=[];
+         apexCatalogSaved=false;apexCatalogLayoutChanges=0;apexCatalogStyleSignature="";
+         apexCatalogDirty=false;apexCatalogSlot=null;
+         apexCatalogBinding=null;apexCatalogBindingDirty=false;apexCatalogBoundWidth=-1;apexCatalogHeaderSignature="";
          apexCatalogTab="items";
          apexCatalogSelectionFrames=0;apexCatalogSelectionMaxMs=0;apexCatalogSelectionOverBudget=0;
          try {
@@ -30,6 +43,12 @@
          } catch(storageError:Error) { apexCatalogStore=null; }
          if(!apexCatalogRegistered)
             apexCatalogRegistered=RegisterServiceHandler("ApexOpenEquippedCatalog",ApexCatalogOpen);
+         if(!apexCatalogRefreshRegistered)
+            apexCatalogRefreshRegistered=AddMessageListener("CASRefreshActiveCatalog",ApexCatalogInvalidate);
+         // CommunicationObject keeps multiple functions per widget/event.
+         // Retain EA's original alignment callback and observe its primitives.
+         if(!apexCatalogBindingRegistered)
+            apexCatalogBindingRegistered=AddMessageListener("CASBindingSimContextMenu",ApexCatalogObserveBinding);
          addEventListener(flash.events.Event.ENTER_FRAME,ApexCatalogFrame,false,0,true);
       }
 
@@ -45,7 +64,7 @@
             throw new Error("Invalid bounded CAS catalog preferences");
          apexCatalogPrefs={columns:int(p.columns),color:uint(p.color),glow:Number(p.glow),animation:String(p.animation),
             strength:Number(p.strength),period:Number(p.period),border:Number(p.border)};
-         apexCatalogSignature="";apexCatalogSaved=false;
+         apexCatalogSaved=false;
       }
 
       private function ApexCatalogPersist() : void
@@ -67,6 +86,26 @@
          if(apexCatalogUi!=null && apexCatalogUi.visible) ApexCatalogDraw();
       }
 
+      private function ApexCatalogView(view:String) : void
+      {
+         if(view!="items" && view!="style" && view!="closed") throw new Error("Invalid catalog tab");
+         if(view=="closed") {if(apexCatalogUi!=null) apexCatalogUi.visible=false;return;}
+         if(apexCatalogUi==null || apexCatalogContext=="" || mCurrSimInfo==null ||
+            apexCatalogContext!=String(mCurrSimInfo.simId)+"|"+apexFormsSelectedId) ApexCatalogReadEquipped();
+         apexCatalogTab=view;ApexCatalogDraw();
+      }
+
+      private function ApexCatalogSliderCommand(value:String) : void
+      {
+         var parts:Array=value.split(",");
+         if(parts.length!=2 || ["columns","red","green","blue","glow","border","period","strength"].indexOf(parts[0])<0 ||
+            !isFinite(Number(parts[1])) || Number(parts[1])<0 || Number(parts[1])>1 || apexCatalogDrag!="")
+            throw new Error("Use an exact idle catalog slider and bounded fraction");
+         ApexCatalogView("style");apexCatalogDrag=String(parts[0]);
+         try {ApexCatalogSlide(null,Number(parts[1]));} finally {apexCatalogDrag="";}
+         ApexCatalogPersist();
+      }
+
       private function ApexCatalogDispose() : void
       {
          removeEventListener(flash.events.Event.ENTER_FRAME,ApexCatalogFrame);
@@ -75,11 +114,15 @@
             stage.removeEventListener(flash.events.MouseEvent.MOUSE_UP,ApexCatalogSlideEnd);
          }
          if(apexCatalogRegistered) UnregisterServiceHandler("ApexOpenEquippedCatalog",ApexCatalogOpen);
+         if(apexCatalogRefreshRegistered) RemoveMessageListener("CASRefreshActiveCatalog",ApexCatalogInvalidate);
+         if(apexCatalogBindingRegistered) RemoveMessageListener("CASBindingSimContextMenu",ApexCatalogObserveBinding);
          apexCatalogRegistered=false;
+         apexCatalogBindingRegistered=false;apexCatalogBinding=null;apexCatalogBoundWidth=-1;apexCatalogHeaderSignature="";
+         apexCatalogRefreshRegistered=false;apexCatalogDirty=false;apexCatalogSlot=null;
          ApexCatalogClearEffects();
          if(apexCatalogUi!=null && apexCatalogUi.parent!=null) apexCatalogUi.parent.removeChild(apexCatalogUi);
          apexCatalogUi=null;apexCatalogRows=null;apexCatalogItems=[];apexCatalogIntent=null;apexCatalogStore=null;
-         apexCatalogContext="";apexCatalogSignature="";apexCatalogDrag="";apexCatalogTab="items";
+         apexCatalogContext="";apexCatalogSignature="";apexCatalogStyleSignature="";apexCatalogDrag="";apexCatalogTab="items";
       }
 
       private function ApexCatalogOpen(value:Object=null) : Object
@@ -87,6 +130,43 @@
          // The native radial button only queues. No game calls in its click.
          var started:int=flash.utils.getTimer();
          apexCatalogIntent={operation:"open"};ApexInputTiming(started);return {protocol:1,queued:true};
+      }
+
+      private function ApexCatalogInvalidate(value:Object=null) : void
+      {
+         // Outfit/part changes only mark the list dirty; read it on a later
+         // idle frame if visible, with no background scan when it is closed.
+         apexCatalogDirty=true;
+      }
+
+      private function ApexCatalogObserveBinding(value:Object) : void
+      {
+         if(value==null || typeof value.view_x_offset!="number" || typeof value.screen_x_offset!="number" ||
+            typeof value.screen_x_max!="number" || !isFinite(value.view_x_offset) ||
+            !isFinite(value.screen_x_offset) || !isFinite(value.screen_x_max)) return;
+         apexCatalogBinding={view:Number(value.view_x_offset),screen:Number(value.screen_x_offset),maximum:Number(value.screen_x_max)};
+         apexCatalogBindingDirty=true;
+      }
+
+      private function ApexCatalogApplyBinding(width:Number) : void
+      {
+         if(apexCatalogBinding==null || stage==null) return;
+         if(apexCatalogBindingDirty || width!=apexCatalogBoundWidth) {
+            // Correct the native container's right-edge clamp, not a child's
+            // x coordinate. EA's view/screen attachment and min clamp survive.
+            BindDisplayObjectToSim(this.mLayerPanels,apexCatalogBinding.view,
+               apexCatalogBinding.screen+CASCustomizerTunables.PANEL_SCREEN_OFFSET_X,
+               Math.max(apexCatalogBinding.maximum,width+12));
+            apexCatalogBoundWidth=width;apexCatalogBindingDirty=false;
+         }
+         var header:String=String(mCurrState)+":"+width;
+         if(mCurrentPanel is ClothingPanel && mCurrentPanel.visible &&
+            !CASConfiguration.IsFashionMode && MenuState.SupportsPlanOutfit(mCurrState) && header!=apexCatalogHeaderSignature) {
+            apexCatalogHeaderSignature=header;
+            CommunicationManager.SendUIMessage("CASSetPlanOutfitVisible",{visible:true,width:width,skipAnim:true,
+               apex_view_x_offset:apexCatalogBinding.view,apex_screen_x_offset:apexCatalogBinding.screen,
+               apex_screen_x_max:apexCatalogBinding.maximum});
+         }
       }
 
       private function ApexCatalogFrame(event:flash.events.Event=null) : void
@@ -98,8 +178,7 @@
             var grid:Object=panel.mcTileList.mGridLayout;
             var maximum:int=Math.max(2,Math.min(12,int((stage.stageWidth*0.53-40)/111)));
             var columns:int=Math.min(int(apexCatalogPrefs.columns),maximum);
-            var signature:String=String(mCurrState)+":"+columns+":"+stage.stageWidth+":"+apexCatalogPrefs.color+":"+
-               apexCatalogPrefs.glow+":"+apexCatalogPrefs.border;
+            var signature:String=String(mCurrState)+":"+columns+":"+stage.stageWidth;
             if(signature!=apexCatalogSignature) {
                ApexCatalogClearEffects();apexCatalogSignature=signature;
                // The donor uses 262 + (columns - 2) * 111. Preserve EA cell
@@ -109,13 +188,27 @@
                // EA owns the model-bound container's placement. Offsetting a
                // child here feeds back into native binding bounds and drifts.
                grid.PositionCells();
+               if(apexCatalogLayoutChanges<int.MAX_VALUE) apexCatalogLayoutChanges++;
+            }
+            ApexCatalogApplyBinding(262+(columns-2)*111);
+            var styleSignature:String=apexCatalogPrefs.color+":"+apexCatalogPrefs.glow+":"+apexCatalogPrefs.border;
+            if(styleSignature!=apexCatalogStyleSignature) {
+               ApexCatalogClearEffects();apexCatalogStyleSignature=styleSignature;
             }
             ApexCatalogSelection(grid);
-         } else if(apexCatalogEffects!=null && apexCatalogEffects.length>0) ApexCatalogClearEffects();
+         } else {
+            if(apexCatalogEffects!=null && apexCatalogEffects.length>0) ApexCatalogClearEffects();
+            ApexCatalogApplyBinding(262);apexCatalogHeaderSignature="";
+         }
          if(apexCatalogUi!=null && apexCatalogUi.visible) {
             if(apexCatalogContext!="" && mCurrSimInfo!=null &&
                apexCatalogContext!=String(mCurrSimInfo.simId)+"|"+apexFormsSelectedId) {
                apexCatalogItems=[];apexCatalogContext="";apexCatalogError="Sim or form changed. Refresh equipped items.";ApexCatalogDraw();
+            }
+            if(apexCatalogDirty && apexPendingFields==null && !apexReceiving) {
+               apexCatalogDirty=false;
+               try {ApexCatalogReadEquipped();ApexCatalogDraw();}
+               catch(refreshError:Error) {apexCatalogError=refreshError.message;}
             }
             apexCatalogUi.x=Math.max(12,stage.stageWidth-apexCatalogUi.width-20);
             apexCatalogUi.y=75;
@@ -200,7 +293,7 @@
       private function ApexCatalogReadEquipped() : void
       {
          if(mCurrSimInfo==null || apexNativeChannel=="" || apexFormsSelectedId=="") throw new Error("No exact active CAS form");
-         var slot:Object=CommunicationManager.CallGameService("CasGetCurrSimOutfitSlot");
+         var slot:Object=ApexClone(CommunicationManager.CallGameService("CasGetCurrSimOutfitSlot"));
          if(slot==null || !(slot.outfit_type is int) || !(slot.outfit_index is int)) throw new Error("Current outfit is unavailable");
          var response:String=ApexNativeExchange("EQUIPPED|"+apexNativeChannel+"|"+slot.outfit_type+"|"+slot.outfit_index);
          var lines:Array=response.split("\n");var header:Array=String(lines.shift()).split("|");
@@ -219,6 +312,7 @@
                label:(names[body] || "Body type "+body)+(int(fields[3])>0 ? " / layer "+fields[3] : ""),menu_state:state});
          }
          apexCatalogItems=rows;apexCatalogPage=0;apexCatalogError="";
+         apexCatalogSlot={category:int(slot.outfit_type),index:int(slot.outfit_index)};apexCatalogDirty=false;
          apexCatalogContext=String(mCurrSimInfo.simId)+"|"+apexFormsSelectedId;
       }
 
@@ -238,10 +332,11 @@
 
       private function ApexCatalogSlider(parent:flash.display.Sprite,name:String,label:String,value:Number,low:Number,high:Number,y:Number) : void
       {
-         ApexFormsText(parent,label,15,y,200,11,0x275273);
+         var caption:flash.text.TextField=ApexFormsText(parent,label,15,y,300,11,0x275273);caption.name="label_"+name;
          var track:flash.display.Sprite=new flash.display.Sprite();track.name="slider_"+name;track.y=y+20;track.x=15;
          track.graphics.beginFill(0xb8d7e8);track.graphics.drawRoundRect(0,-3,300,12,8,8);track.graphics.endFill();
-         track.graphics.beginFill(uint(apexCatalogPrefs.color));track.graphics.drawCircle(300*(value-low)/(high-low),3,7);track.graphics.endFill();
+         var thumb:flash.display.Sprite=new flash.display.Sprite();thumb.name="thumb";thumb.x=300*(value-low)/(high-low);thumb.y=3;
+         thumb.mouseEnabled=false;thumb.graphics.beginFill(uint(apexCatalogPrefs.color));thumb.graphics.drawCircle(0,0,7);thumb.graphics.endFill();track.addChild(thumb);
          track.buttonMode=true;parent.addChild(track);
       }
 
@@ -309,10 +404,11 @@
          event.stopPropagation();
       }
 
-      private function ApexCatalogSlide(event:flash.events.MouseEvent=null) : void
+      private function ApexCatalogSlide(event:flash.events.MouseEvent=null,fraction:Number=-1) : void
       {
          if(apexCatalogDrag=="" || apexCatalogUi==null) return;
-         var ratio:Number=Math.max(0,Math.min(1,(apexCatalogUi.mouseX-15)/300));var c:uint=uint(apexCatalogPrefs.color);
+         var started:int=flash.utils.getTimer();
+         var ratio:Number=fraction<0 ? Math.max(0,Math.min(1,(apexCatalogUi.mouseX-15)/300)) : fraction;var c:uint=uint(apexCatalogPrefs.color);
          if(apexCatalogDrag=="columns") apexCatalogPrefs.columns=2+Math.round(ratio*10);
          else if(apexCatalogDrag=="glow") apexCatalogPrefs.glow=ratio*12;
          else if(apexCatalogDrag=="border") apexCatalogPrefs.border=1+ratio*7;
@@ -321,8 +417,25 @@
          else if(apexCatalogDrag=="red") apexCatalogPrefs.color=(c&0xffff)|(Math.round(ratio*255)<<16);
          else if(apexCatalogDrag=="green") apexCatalogPrefs.color=(c&0xff00ff)|(Math.round(ratio*255)<<8);
          else if(apexCatalogDrag=="blue") apexCatalogPrefs.color=(c&0xffff00)|Math.round(ratio*255);
-         apexCatalogSignature="";apexCatalogSaved=false;
-         // Coalesce pointer motion; redraw once when the drag ends.
+         apexCatalogSaved=false;
+         var track:flash.display.Sprite=apexCatalogUi.getChildByName("slider_"+apexCatalogDrag) as flash.display.Sprite;
+         if(track!=null) {
+            var thumb:flash.display.DisplayObject=track.getChildByName("thumb");
+            if(thumb!=null) thumb.x=300*ratio;
+         }
+         var caption:flash.text.TextField=apexCatalogUi.getChildByName("label_"+apexCatalogDrag) as flash.text.TextField;
+         if(caption!=null) {
+            c=uint(apexCatalogPrefs.color);
+            if(apexCatalogDrag=="columns") caption.text="Columns: "+apexCatalogPrefs.columns+" (fits your screen)";
+            else if(apexCatalogDrag=="red") caption.text="Selection red: "+((c>>16)&255);
+            else if(apexCatalogDrag=="green") caption.text="Selection green: "+((c>>8)&255);
+            else if(apexCatalogDrag=="blue") caption.text="Selection blue: "+(c&255);
+            else if(apexCatalogDrag=="glow") caption.text="Glow: "+Number(apexCatalogPrefs.glow).toFixed(1);
+            else if(apexCatalogDrag=="border") caption.text="Border: "+Number(apexCatalogPrefs.border).toFixed(1);
+            else if(apexCatalogDrag=="period") caption.text="Animation period: "+Number(apexCatalogPrefs.period).toFixed(1)+" seconds";
+            else if(apexCatalogDrag=="strength") caption.text="Border opacity: "+Number(apexCatalogPrefs.strength).toFixed(2);
+         }
+         ApexInputTiming(started);
       }
 
       private function ApexCatalogSlideEnd(event:flash.events.MouseEvent=null) : void
@@ -337,14 +450,22 @@
       private function ApexCatalogStatus() : Object
       {
          var layout:Object=null;
+         var thumbs:Object={};
+         if(apexCatalogUi!=null && apexCatalogTab=="style")
+            for each(var control:String in ["columns","red","green","blue","glow","border","period","strength"]) {
+               var track:flash.display.DisplayObjectContainer=apexCatalogUi.getChildByName("slider_"+control) as flash.display.DisplayObjectContainer;
+               if(track!=null && track.getChildByName("thumb")!=null) thumbs[control]=track.getChildByName("thumb").x/300;
+            }
          if(stage!=null && mCurrentPanel!=null && mCurrentPanel.visible) {
             var bounds:flash.geom.Rectangle=mCurrentPanel.mcPanelBackground.getBounds(stage);
             layout={x:bounds.x,y:bounds.y,width:bounds.width,height:bounds.height,
                local_x:mCurrentPanel.x,stage_width:stage.stageWidth,stage_height:stage.stageHeight};
          }
-         return {preferences:apexCatalogPrefs,visible:apexCatalogUi!=null && apexCatalogUi.visible,items:apexCatalogItems,
-            catalog_bounds:layout,
+         return {preferences:apexCatalogPrefs,visible:apexCatalogUi!=null && apexCatalogUi.visible,view:apexCatalogTab,items:apexCatalogItems,
+            catalog_bounds:layout,outfit:apexCatalogSlot,inventory_dirty:apexCatalogDirty,
             actual_columns:apexCatalogSignature=="" ? 0 : int(apexCatalogSignature.split(":")[1]),
+            layout_changes:apexCatalogLayoutChanges,
+            slider_thumbs:thumbs,
             equipped_count:apexCatalogItems==null ? 0 : apexCatalogItems.length,context:apexCatalogContext,
             error:apexCatalogError,persisted:apexCatalogSaved,selection_effect_count:apexCatalogEffects==null ? 0 : apexCatalogEffects.length,
             selection_timing:{samples:apexCatalogSelectionFrames,max_ms:apexCatalogSelectionMaxMs,

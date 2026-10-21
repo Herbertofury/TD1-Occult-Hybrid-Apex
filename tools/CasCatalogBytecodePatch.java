@@ -17,12 +17,16 @@ public class CasCatalogBytecodePatch {
     static String sha(byte[] b)throws Exception{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(b));}
     static MethodBody body(ABC a,InstanceInfo i,String n){return CasBytecodePatch.ownedBody(a,i,n);}
     public static void main(String[] args)throws Exception {
-        require(args.length==3,"Use original catalog SWF, compiled catalog SWF and output ABC.");
-        require(sha(Files.readAllBytes(Path.of(args[0]))).equals(PIN),"Installed CAS catalog differs from inspected build.");
+        require(args.length==3 || (args.length==4 && args[3].equals("plan")),"Use original catalog SWF, compiled catalog SWF and output ABC, optionally plan.");
+        boolean plan=args.length==4;
+        String pin=plan?"060ced2b95e5cc25aaba4b30f0b850d2b0ce992139c68311dc4110f510200f35":PIN;
+        Map<String,Set<String>> targets=plan?Map.of("widgets.CAS.PlanOutfit.CASPlanOutfitMain",
+            Set.of("BindPanelToSim","HandleSetPlanOutfitVisible")):TARGETS;
+        require(sha(Files.readAllBytes(Path.of(args[0]))).equals(pin),"Installed CAS catalog differs from inspected build.");
         ABC a=CasBytecodePatch.load(args[0]),c=CasBytecodePatch.load(args[1]);CasBytecodePatch.prefix(a,c);
         Map<Integer,byte[]> before=new HashMap<>();for(var b:a.bodies)before.put(b.method_info,b.getCodeBytes().clone());
         Map<Integer,MethodBody> edits=new HashMap<>();Map<String,String> hashes=new TreeMap<>();
-        for(var entry:TARGETS.entrySet()) {
+        for(var entry:targets.entrySet()) {
             int ai=a.findClassByName(entry.getKey()),ci=c.findClassByName(entry.getKey());
             require(ai>=0 && ai==ci,"Catalog class inventory/order differs.");
             var ia=a.instance_info.get(ai);var ic=c.instance_info.get(ci);
@@ -53,6 +57,6 @@ public class CasCatalogBytecodePatch {
         for(var b:saved.bodies) require(Arrays.equals(b.getCodeBytes(),edits.containsKey(b.method_info)?edits.get(b.method_info).getCodeBytes():before.get(b.method_info)),
             "Catalog serialized handler differs or another native handler changed.");
         Files.write(Path.of(args[2]),out.toByteArray());
-        System.out.println("{\"ok\":true,\"unrelated_native_methods_preserved\":true,\"native_lexical_scope_preserved\":true,\"edited_method_count\":2,\"base_resource_sha256\":\""+PIN+"\"}");
+        System.out.println("{\"ok\":true,\"unrelated_native_methods_preserved\":true,\"native_lexical_scope_preserved\":true,\"edited_method_count\":"+edits.size()+",\"base_resource_sha256\":\""+pin+"\"}");
     }
 }

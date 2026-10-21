@@ -379,7 +379,7 @@ def parser():
     cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
-        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open'))
+        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider'))
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
     cas.add_argument('--target-sim-id', help='Existing household member identity for semantic member-select')
@@ -406,6 +406,9 @@ def parser():
     cas.add_argument('--y', type=float, help='CAS strip vertical position, 0 top to 1 bottom, within the available viewport')
     cas.add_argument('--scale', type=float, help='CAS strip scale, 0.7 to 1.5')
     cas.add_argument('--columns', type=int, help='CAS catalog columns, 2-12; fits the available viewport')
+    cas.add_argument('--view', choices=('items','style','closed'), help='Catalog tab or close it without pointer input')
+    cas.add_argument('--control', choices=('columns','red','green','blue','glow','border','period','strength'), help='Exact catalog slider to adjust without pointer input')
+    cas.add_argument('--fraction', type=float, help='Catalog slider position, 0-1')
     cas.add_argument('--color', type=lambda value:int(value,0), help='Selection RGB integer, e.g. 0x00c9eb')
     cas.add_argument('--glow', type=float, help='Selection glow radius, 0-12')
     cas.add_argument('--animation', choices=('none','pulse','flash'), help='Optional selection effect; static by default')

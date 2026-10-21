@@ -1,10 +1,10 @@
 {
-  "build_epoch": "2026-10-21-retained-genetics-post-v261",
+  "build_epoch": "2026-10-21-saved-named-upgrade-v263",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-21-retained-genetics-post-v261.zip",
-    "bytes": 3874091,
+    "artifact": "Apex_Development_Candidate_2026-10-21-saved-named-upgrade-v263.zip",
+    "bytes": 3879892,
     "members": 28,
-    "sha256": "187bb569f3adb43ce218f990f8a8555df570722625d462cf4058a4b0907a2771"
+    "sha256": "7d2486888ed59338b72b90e576f105ff28c02cbccb5844070c0f0d111fd0691d"
   },
   "compiled_script_modules": 105,
   "deployed": false,
@@ -53,7 +53,7 @@
     {
       "bytes": 56557,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "9589b7ef4598a8b4cc6284c23a2dcc4dcbafa9122a2de76d20ebe851f6c86b9d"
+      "sha256": "9e52c194ba1cc1f607ac5ffcaee9c4a0d51c7dfa3dab20d1f123f07f8832dbea"
     },
     {
       "bytes": 1506,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 1021367,
+      "bytes": 1024894,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4"
+      "sha256": "36fa7f3d9db30dc13502c1b3b16a939055a649b8f419c2b18bb589892cb9307d"
     },
     {
-      "bytes": 2463744,
+      "bytes": 2468352,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "3de82a91634eadc431b7c33a9fe4b81ebb4949c7a568e1f6a60c7eb60b1e31f6"
+      "sha256": "c88ff1e3c8807dbd8f5fd1f0c48025ca1f7f30854af04bfed84d98bbe7d6391d"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "12cef0a13280145226fa8e69f700e13b545c9cce71f22b1039b4e78c9529fb77"
+      "sha256": "8c8fd11c8ddba317d742361cb8c25ca0f5a7ded1719f56ff98efef83bad1f014"
     },
     {
       "bytes": 424,

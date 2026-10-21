@@ -38,9 +38,9 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                'cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd',
                                'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-21-equipped-category-v252'
+UPGRADE_EPOCH = '2026-10-21-equipped-stream-v253'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '206d36c72eca03f4c34a9cae722a0cc97db515bd5bdaa10b05d4997eb8be3148'
+UPGRADE_SELF_BODY_SHA = '86800f3516b81a695d0a2d17cd2c92589bb8587bc1fc0bbf585b6340e48b91ff'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -49,7 +49,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_bank_transaction.py': '0ad4ccd183084cf42fc938b6d213592e34e33a3f99ce949d603ec068acc7f083',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '032ebc4a20e711db9ae359874b923c6cadd72eceec05277f85bfae3f935fe0c4',
-    'apex_core/cas_controls.py': '0cee7ac624aeba67eff9ed0fe6e4645d2df5e39ce50309efa91216cc9084a1a9',
+    'apex_core/cas_controls.py': 'd2c503bc3ca9e8ab64e5af2993bc9e0fdd020c1144819c4d53451602e1b92e52',
     'apex_core/cas_entry_context.py': '9474f7dbb6251318e908676ac7ba8b4479c99b9d2bead59ae706eb023726140b',
     'apex_core/cas_form_catalog.py': 'c7c7efc7925691ed2712d9ee0d1047c1368e3e68ddd49cc5fde84402076da32c',
     'apex_core/cas_frontdoor.py': 'cc749e4d5f4e3f05fcfe16b8c92a80296e84a4a9ebfb30b7e9cbaa6980e82f95',

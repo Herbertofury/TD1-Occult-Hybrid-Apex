@@ -254,6 +254,42 @@ equipped view inactive on the other member, and all twenty equipped slots
 resolved again on return. All twenty save/backup files remain unchanged.
 This qualifies UI navigation and peer continuity, not edited-form persistence.
 
+## Progressive equipped thumbnails, V253
+
+The combined category previously resolved one slot per frame, then handed every
+product to the native renderer in one synchronous ADD event. Resolving gradually
+did not bound rendering: the twenty-card event still took about 150 ms.
+V253 publishes at most one product per idle frame, appending to the existing
+native feed. Selection updates only the newly appended index. Existing cards,
+variation popups and layout are retained until a real inventory reset. No
+installed-library scan or per-Sim resource export is introduced.
+
+Publication is committed only after native binding, selection and layout finish.
+The title shows loading progress; the CLI reports resolved and published counts
+separately and rejects a purported complete grid with missing cards. A new
+Sim/form/outfit or dirty inventory resets the publication, and the existing
+retirement and stale-product refusals still apply. The optional text list remains.
+
+The actual five-member cycle resolves 12, 14, 12 and 23 items on the other Sims,
+then all 20 on return to the first. Each destination peer and exact view context
+are checked; leaving for the same Shoes anchor restores its five native items.
+The optional text list and all twenty save/backup files remain intact. Before
+CAS navigation, all 40 saved native appearances also match after a cold Live
+reload and simulation progress. These are view-isolation checks, not new edits
+or a CAS-exit persistence claim.
+
+The first twenty-card pass peaks at 71 ms per publication. Same-member warm
+reopening peaks at 10 ms, with at most 5 ms native binding in each step, compared
+with the previous 149 ms bulk bind. Member changes still cost 49–80 ms per native
+publication. The first geometry fit is 135 ms in this run; later category changes
+retain the same geometry. Full regression tests run concurrently, so these are
+observations rather than a controlled latency distribution or FPS benchmark.
+All 2,737 local regression tests pass. See
+[the scoped report](../Reports/CAS_EQUIPPED_CATALOG_V253.json).
+
+Large-library browsing, cold assets and edited-form persistence remain separate
+release gates; bounded ADD events do not establish whole-game latency or zero bugs.
+
 Validation also passes 171 focused Python cases and fourteen native targets.
 The broader 2,732-case run passes 2,731 cases and finds one obsolete fixture
 looking for a listener in a callback which was deliberately retired. The fixture

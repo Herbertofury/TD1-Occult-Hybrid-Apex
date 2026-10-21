@@ -294,6 +294,12 @@ def validate(client, request):
                     workspace.get('context')!=str(client['sim']['simId'])+'|'+client['form_strip']['selected_owner_id'] or
                     workspace.get('outfit')!={'category':client.get('outfit',{}).get('outfit_type'),'index':client.get('outfit',{}).get('outfit_index')}):
                     raise PostconditionMismatch('Native equipped category lacks its exact current Sim/form/outfit.')
+                category=workspace['equipped_category']
+                counts=[category.get('resolved'),category.get('published')]
+                if (type(category.get('pending')) is not bool or
+                    any(type(n) is not int or not 0<=n<=256 for n in counts) or counts[1]>counts[0] or
+                    category['pending'] is False and (counts[0]!=counts[1] or workspace.get('clothing_grid_item_count')!=counts[1])):
+                    raise PostconditionMismatch('Equipped thumbnails have not acknowledged a coherent publication state.')
             elif (workspace.get('visible') is not (request['view']!='closed') or
                     request['view']!='closed' and workspace.get('view')!=request['view']):
                 raise PostconditionMismatch('Catalog view did not acknowledge the exact requested tab/visibility.')

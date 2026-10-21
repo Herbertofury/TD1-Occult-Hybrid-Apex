@@ -72,7 +72,8 @@ class CatalogWorkspaceTests(unittest.TestCase):
 
     def test_native_category_ack_is_distinct_from_optional_text_list(self):
         request=dict(operation='catalog-view',view='category');cas_ui.envelope('12',request)
-        workspace=dict(visible=False,error='',context='12|native/2',outfit=dict(category=0,index=1),equipped_category=dict(active=True))
+        workspace=dict(visible=False,error='',context='12|native/2',outfit=dict(category=0,index=1),
+            equipped_category=dict(active=True,pending=False,resolved=20,published=20),clothing_grid_item_count=20)
         client=dict(sim=dict(simId='12'),form_strip=dict(selected_owner_id='native/2'),outfit=dict(outfit_type=0,outfit_index=1),
             control=dict(operation='catalog-view',appearance_written=False,workspace=workspace))
         cas_controls.validate(client,request)
@@ -81,6 +82,19 @@ class CatalogWorkspaceTests(unittest.TestCase):
             with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(bad,request)
         text=copy.deepcopy(client);text['control']['workspace'].update(visible=True,view='items')
         cas_controls.validate(text,dict(operation='catalog-view',view='items'))
+
+    def test_partial_publication_cannot_claim_a_complete_thumbnail_grid(self):
+        request=dict(operation='catalog-view',view='category')
+        workspace=dict(visible=False,error='',context='12|native/2',outfit=dict(category=0,index=1),
+            equipped_category=dict(active=True,pending=True,resolved=20,published=3),clothing_grid_item_count=3)
+        client=dict(sim=dict(simId='12'),form_strip=dict(selected_owner_id='native/2'),outfit=dict(outfit_type=0,outfit_index=1),
+            control=dict(operation='catalog-view',appearance_written=False,workspace=workspace))
+        cas_controls.validate(client,request)
+        for changes in (dict(pending=False),dict(published=21),dict(published=True),dict(resolved=257),dict(pending=None)):
+            bad=copy.deepcopy(client);bad['control']['workspace']['equipped_category'].update(changes)
+            with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(bad,request)
+        workspace['equipped_category'].update(pending=False,published=20)
+        with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
 
     def test_different_ui_contract_is_rejected_before_patching(self):
         with self.assertRaises(ValueError):inject_context('native UI changed')

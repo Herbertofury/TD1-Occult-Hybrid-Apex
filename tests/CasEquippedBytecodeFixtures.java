@@ -11,8 +11,8 @@ public class CasEquippedBytecodeFixtures {
                 if(q.name_index>0 && compiled.constants.getString(q.name_index).equals("SetSelectionState")) {member=i;break;}
             }
             CasBytecodePatch.require(member>0,"Native per-item selection method absent.");boolean changed=false;
-            for(var op:body.getCode().code)if(CasBytecodePatch.property(compiled,op,0x4f,"SelectAll") ||
-                CasBytecodePatch.property(compiled,op,0x46,"SelectAll")) {op.operands[0]=member;changed=true;}
+            for(var op:body.getCode().code)if(CasBytecodePatch.property(compiled,op,0x4f,"SetSelectionStateMultiple") ||
+                CasBytecodePatch.property(compiled,op,0x46,"SetSelectionStateMultiple")) {op.operands[0]=member;changed=true;}
             CasBytecodePatch.require(changed,"Fixture did not regress the native batch.");body.setModified();
         } else if(mode.equals("clock-package")) {
             var body=CasBytecodePatch.classMethod(compiled,"widgets.CAS.data.CatalogDataFeed","RequestData");boolean changed=false;

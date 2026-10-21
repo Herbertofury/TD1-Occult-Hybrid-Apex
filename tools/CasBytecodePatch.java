@@ -1293,8 +1293,9 @@ public class CasBytecodePatch {
             var after=classMethod(compiled,entry.getKey(),method.getKey());
             uniqueLiteral(compiled,after,method.getValue());
             if(method.getKey().equals("Refresh"))
-                require(propertyCalls(compiled,after).contains("SelectAll") && !propertyCalls(compiled,after).contains("SetSelectionState"),
-                    "Equipped selection must use one native batch, not rebuild the grid once per item.");
+                require(propertyCalls(compiled,after).contains("SetSelectionStateMultiple") &&
+                    !propertyCalls(compiled,after).contains("SelectAll") && !propertyCalls(compiled,after).contains("SetSelectionState"),
+                    "Progressive equipped selection must update only the newly appended index, not redraw all previous cards.");
             if(method.getKey().equals("RequestData")) {
                 boolean timer=false;
                 for(var op:after.getCode().code)if(op.definition.instructionCode==0x5d || op.definition.instructionCode==0x60) {
@@ -1353,6 +1354,7 @@ public class CasBytecodePatch {
             "apexCatalogPerformance","apexCatalogFrameTiming",
             "apexEquippedTiming",
             "apexEquippedRetirePending",
+            "apexEquippedPublication",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",

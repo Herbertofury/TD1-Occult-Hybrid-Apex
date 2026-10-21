@@ -13,6 +13,7 @@
       private var apexCatalogFrameTiming:Object;
       private var apexEquippedTiming:Object;
       private var apexEquippedRetirePending:Boolean=false;
+      private var apexEquippedPublication:Object;
 
       private function ApexEquippedInitialize() : void
       {
@@ -74,16 +75,27 @@
          }
          if(mCurrSimInfo==null || apexCatalogContext!=String(mCurrSimInfo.simId)+"|"+apexFormsSelectedId) {
             apexEquippedActive=false;apexEquippedInteraction=null;apexEquippedRetirePending=true;
-            return {active:true,products:[],timing:apexEquippedTiming};
+            return {active:true,products:[],reset:true,complete:true,timing:apexEquippedTiming,commit:{}};
          }
-         return {active:true,products:apexEquippedProducts,timing:apexEquippedTiming};
+         // Publish at most ONE native card per frame. The native ADD event
+         // draws thumbnails synchronously; one bulk event stalled the UI.
+         // Only the adapter commits after the native feed and layout succeed.
+         var reset:Boolean=apexEquippedPublication.reset===true ||
+            apexEquippedPublication.feed!==value.feed || int(value.feed.length)!=int(apexEquippedPublication.count);
+         var start:int=reset ? 0 : int(apexEquippedPublication.count);
+         var end:int=Math.min(start+1,apexEquippedProducts.length);
+         return {active:true,products:apexEquippedProducts.slice(start,end),reset:reset,
+            complete:apexEquippedIndex>=apexCatalogItems.length && end>=apexEquippedProducts.length,
+            total:apexCatalogItems.length,timing:apexEquippedTiming,commit:apexEquippedPublication};
       }
 
       private function ApexEquippedOpen() : void
       {
          var started:int=flash.utils.getTimer();
          ApexCatalogReadEquipped();
-         apexEquippedTiming={read_ms:flash.utils.getTimer()-started,resolve_max_ms:0,clear_ms:0,bind_ms:0,selected_ms:0,layout_ms:0};
+         apexEquippedTiming={read_ms:flash.utils.getTimer()-started,resolve_max_ms:0,clear_ms:0,bind_ms:0,selected_ms:0,layout_ms:0,
+            chunks:0,bind_total_ms:0,bind_max_ms:0,publish_max_ms:0,chunk_max_count:0};
+         apexEquippedPublication={reset:true,count:0,feed:null};
          apexEquippedProducts=[];apexEquippedBindings=[];apexEquippedUnresolved=[];
          apexEquippedIndex=0;apexEquippedInteraction=null;apexEquippedActive=true;apexEquippedDirty=false;apexEquippedRetirePending=false;
          if(apexCatalogUi!=null) apexCatalogUi.visible=false;
@@ -113,6 +125,7 @@
          if(apexEquippedDirty) {
             ApexCatalogReadEquipped();apexEquippedProducts=[];apexEquippedBindings=[];
             apexEquippedUnresolved=[];apexEquippedIndex=0;apexEquippedRefreshPending=true;apexEquippedDirty=false;
+            apexEquippedPublication={reset:true,count:0,feed:null};apexEquippedInteraction=null;
          }
          // Resolve one EQUIPPED slot per idle frame, never scan the installed CC
          // library or construct thousands of products on the radial click.
@@ -125,9 +138,10 @@
             apexEquippedTiming.resolve_max_ms=Math.max(apexEquippedTiming.resolve_max_ms,flash.utils.getTimer()-resolveStarted);
             apexEquippedRefreshPending=true;
          }
-         if(apexEquippedRefreshPending && apexEquippedIndex>=apexCatalogItems.length) {
-            apexEquippedRefreshPending=false;
+         if(apexEquippedRefreshPending) {
             mcClothingPanel.Refresh(MenuState.CLOTHING_SHOES);
+            apexEquippedRefreshPending=apexEquippedIndex<apexCatalogItems.length ||
+               apexEquippedPublication.reset===true || int(apexEquippedPublication.count)<apexEquippedProducts.length;
          }
       }
 

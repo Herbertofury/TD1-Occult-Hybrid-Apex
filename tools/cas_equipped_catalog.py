@@ -37,29 +37,41 @@ def inject_clothing(source):
     source=replace_once(source,'   import gamedata.CAS.CASAPI;',
         '   import flash.utils.getTimer;\n   import gamedata.CAS.CASAPI;')
     source=prepend(source,'      override public function Refresh(param1:int) : void',
-        '''         var apexView:Object=CommunicationManager.CallUIService("ApexEquippedRefresh",{panel:this,state:param1});
+        '''         var apexView:Object=CommunicationManager.CallUIService("ApexEquippedRefresh",{panel:this,state:param1,feed:mDataFeed});
          if(apexView!=null && apexView.active===true) {
             var apexStart:int=getTimer();
-            super.Refresh(param1);
-            this.mVariationGridController.RemoveVariationPopups();
+            if(apexView.reset===true) {
+               super.Refresh(param1);
+               this.mVariationGridController.RemoveVariationPopups();
+               mDataFeed.RemoveAllItems();
+            }
             this.btnRandomize.visible=false;this.mcHairGrowthPanel.visible=false;
             this.mcApplyToAllPanel.visible=false;this.mcBodyTypePanel.visible=false;
             this.SetLayerComponentVisibility(false);
             if(this.mcFilterPane!=null) this.mcFilterPane.visible=false;
-            txtTitle.text="All equipped CAS items";
-            mDataFeed.RemoveAllItems();
             var apexCleared:int=getTimer();
-            mDataFeed.AddItemsFromIterable(apexView.products);
+            var apexFirst:int=mDataFeed.length;
+            if(apexView.products.length>1) return;
+            if(apexView.products.length>0) mDataFeed.AddItemsFromIterable(apexView.products);
             var apexBound:int=getTimer();
-            mDataFeed.SelectAll();
+            if(apexView.products.length>0) mDataFeed.SetSelectionStateMultiple([apexFirst],true);
             var apexSelected:int=getTimer();
-            this.txtNoResults.visible=mDataFeed.length==0;
-            this.RefreshLayout();
+            this.txtNoResults.visible=apexView.complete===true && mDataFeed.length==0;
+            txtTitle.text="All equipped CAS items"+(apexView.complete===true ? "" : " ("+mDataFeed.length+"/"+apexView.total+")");
+            if(apexView.reset===true) this.RefreshLayout();
             if(this.mcFilterPane!=null) this.mcFilterPane.visible=false;
+            apexView.commit.count=mDataFeed.length;apexView.commit.feed=mDataFeed;apexView.commit.reset=false;
             apexView.timing.clear_ms=apexCleared-apexStart;
             apexView.timing.bind_ms=apexBound-apexCleared;
             apexView.timing.selected_ms=apexSelected-apexBound;
             apexView.timing.layout_ms=getTimer()-apexSelected;
+            if(apexView.products.length>0) {
+               apexView.timing.chunks++;
+               apexView.timing.bind_total_ms+=apexBound-apexCleared;
+               apexView.timing.bind_max_ms=Math.max(apexView.timing.bind_max_ms,apexBound-apexCleared);
+               apexView.timing.chunk_max_count=Math.max(apexView.timing.chunk_max_count,apexView.products.length);
+            }
+            apexView.timing.publish_max_ms=Math.max(apexView.timing.publish_max_ms,getTimer()-apexStart);
             return;
          }
 ''')

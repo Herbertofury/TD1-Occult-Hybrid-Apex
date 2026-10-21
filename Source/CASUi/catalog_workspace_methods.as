@@ -523,6 +523,7 @@
             selection_timing:{samples:apexCatalogSelectionFrames,max_ms:apexCatalogSelectionMaxMs,
                over_1ms:apexCatalogSelectionOverBudget,clock_resolution_ms:1},
             equipped_category:{active:apexEquippedActive,resolved:apexEquippedProducts==null ? 0 : apexEquippedProducts.length,
-               pending:apexEquippedActive && apexEquippedIndex<apexCatalogItems.length,unresolved:apexEquippedUnresolved,timing:apexEquippedTiming},
+               published:apexEquippedPublication==null ? 0 : int(apexEquippedPublication.count),
+               pending:apexEquippedActive && apexEquippedRefreshPending,unresolved:apexEquippedUnresolved,timing:apexEquippedTiming},
             native_catalog_timing:apexCatalogPerformance,owned_frame_timing:apexCatalogFrameTiming};
       }

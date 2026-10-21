@@ -137,8 +137,27 @@ copies inherit that scope; unrelated matching IDs do not qualify. A bounded
 eight-entry fault history retains phase, scope and message even after later
 successful exports. Thirteen native targets, 26 seal and 26 upgrade checks pass;
 seven packages/105 Python 3.7 modules and 208 Rust-validated resources build.
-Actual V223 qualification is running; direct isolation and actual-save readiness
-remain open.
+Actual V223 verifies all five outgoing packets, each with dispatch provenance
+and generation 42. The retained fault identifies an adapter lifetime error:
+normal destruction of the first editor root invalidates the already completed
+handoff. The strict load extension consequently does not run, two appearances
+still differ before the guard, and direct qualification fails. The separate
+guard retains all forty appearances and 155 named looks; every save file stays
+unchanged and normal unsaved exit succeeds.
+
+V224 tombstones retired editor addresses while retaining the independently
+owned, authenticated dispatch copies and their verified receipts. A queued
+dispatch copy may outlive its editor/controller; Sim/entity, scope and final
+generation checks still apply, as do complete parser/readback verification and
+output rollback. An unauthenticated handoff still fails. A reused retired
+address cannot enroll a new object by matching IDs. Once all actual outputs
+verify and their copies are destroyed, tracking disables and every editor
+authority retires; the strict loader can still use the captured graphs and
+receipts. Thirteen native targets, 26 seal and 26 upgrade checks pass, including
+freed editor/controller, surviving descendants, reuse and failed handoff cases.
+Seven packages/105 Python 3.7 modules and 208 Rust-validated resources build.
+Actual V224 household qualification is running. No core comparator or
+preservation guard is weakened; actual-save readiness remains open.
 
 V214's untouched-member acceptance test fails direct isolation: members two,
 three and four return changed Human genetics and/or active outfits/paint.

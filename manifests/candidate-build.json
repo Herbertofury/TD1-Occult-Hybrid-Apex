@@ -1,10 +1,10 @@
 {
-  "build_epoch": "2026-10-20-cas-dispatch-output-v223",
+  "build_epoch": "2026-10-20-cas-handoff-lifetime-v224",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-20-cas-dispatch-output-v223.zip",
-    "bytes": 3737670,
+    "artifact": "Apex_Development_Candidate_2026-10-20-cas-handoff-lifetime-v224.zip",
+    "bytes": 3739092,
     "members": 28,
-    "sha256": "1ef24bd862f24b965c5f975db8dcf5d0621d312bb3dcc696af465f04e83bdfb9"
+    "sha256": "b22e0031627107cf05b373c38979956f443cb1174158771c841a0ca59077bfed"
   },
   "compiled_script_modules": 105,
   "deployed": false,
@@ -53,7 +53,7 @@
     {
       "bytes": 56556,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "8905312d737cf3b19ca256278390dfccc90f3c01e4822915a6e466a8d504dd29"
+      "sha256": "a36d5c4e6b2f0a7e69a101006c7cae85197f88dc9e313e98f3f393521abe0df6"
     },
     {
       "bytes": 1506,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 1013078,
+      "bytes": 1013072,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "18ed0cd32d93f00598fd8bd38bef404e3fd7ea337c493ad319a3197e6e7b6b86"
+      "sha256": "18152a6421bc0906e6ee27193852669b86da6256d3b297dee2b31fdbb6dbbfe9"
     },
     {
-      "bytes": 2358272,
+      "bytes": 2360832,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "c52b7e8369999e3af920314a062693ff2616b8d98fc9cee002aa53f3c14bcd58"
+      "sha256": "33deb7bed4f4df0c175eaf29f69cf424cfce6b19f10b706c0ea6fec5a164f4a6"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "392cb2328c21c5b433127dbb3dba23bd52e3d784587196a5c1722e407fde3645"
+      "sha256": "34fbdefdd3aa717ee88a2e4a3cbd27de409d5474cfe31d2c664804f8f15bb9c7"
     },
     {
       "bytes": 424,

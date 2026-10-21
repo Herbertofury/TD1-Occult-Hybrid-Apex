@@ -227,7 +227,7 @@ struct Imported {
 struct ViewIntent {
     std::string request,owner;std::uint64_t sim=0,generation=0;std::uint32_t token=0;std::uint8_t layer=0;
 };
-struct PreparedHouseholdRoot {void* group=nullptr;std::uint64_t entity=0,generation=0;};
+struct PreparedHouseholdRoot {void* group=nullptr;std::uint64_t entity=0,generation=0;bool retired=false;};
 struct HouseholdCopy {std::uint64_t sim=0,entity=0,generation=0;unsigned depth=0;bool dispatchOrigin=false;};
 inline std::uint8_t ConfigurePortraitPair(Imported& bank,const std::string& owner) {
     const auto pair=SelectFormPair(bank.humanOwner,owner,
@@ -696,11 +696,13 @@ inline void SeedHouseholdDispatch(State& state,const void* household,void* contr
        !state.preparedHouseholdId || Read<std::uint64_t>(controller,0xb0)!=state.preparedHouseholdId ||
        Read<std::uint64_t>(household,0xc8)!=state.preparedHouseholdId || !state.api.treeNext)
         throw std::runtime_error("Native CAS dispatch lacks its prepared household/controller scope.");
+    for(const auto& prepared:state.preparedRoots)if(prepared.second.retired)
+        throw std::runtime_error("Native CAS dispatch cannot reuse a retired editor authority.");
     const auto roots=EditorHouseholdRoots(state,controller);
     for(const auto& prepared:state.preparedRoots) {
         const auto at=std::find_if(roots.begin(),roots.end(),[&](const auto& root) {
             return root.sim==prepared.first && root.group==prepared.second.group && GroupId(root.group)==prepared.second.entity &&
-                root.bank->graph && root.bank->graph->cursor().generation==prepared.second.generation && !root.bank->viewFault;
+                !prepared.second.retired && root.bank->graph && root.bank->graph->cursor().generation==prepared.second.generation && !root.bank->viewFault;
         });
         if(at==roots.end())throw std::runtime_error("Native CAS dispatch lost a prepared member generation/entity.");
     }
@@ -751,7 +753,7 @@ inline void ObserveHouseholdCopy(State& state,const void* destination,const void
     HouseholdCopy proof;bool found=false;
     const auto inherited=state.householdCopies.find(source);
     if(inherited!=state.householdCopies.end()) {proof=inherited->second;found=true;}
-    else if(state.acceptingHousehold)for(const auto& root:state.preparedRoots)if(root.second.group==source) {
+    else if(state.acceptingHousehold)for(const auto& root:state.preparedRoots)if(!root.second.retired && root.second.group==source) {
         proof={root.first,root.second.entity,root.second.generation,0};found=true;break;
     }
     if(!found)return;
@@ -784,13 +786,29 @@ inline void* HouseholdCopyAssign(void* destination,const void* source) {
 }
 inline void ForgetHouseholdObject(State& state,const void* value) {
     state.householdCopies.erase(value);
-    for(const auto& root:state.preparedRoots)if(root.second.group==value) {
+    for(auto& root:state.preparedRoots)if(root.second.group==value) {
         const auto retiredSim=root.first;
-        // A reused address is not a continuation of a prepared editor entity.
-        state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
-        state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;
-        state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
-        HouseholdFault(state,"prepared-root-retired","Prepared CAS editor root was destroyed before its scope retired.",retiredSim);break;
+        // A valid queued copy owns its own lifetime. Tombstone the old editor
+        // address without invalidating the authenticated accepted handoff.
+        root.second.retired=true;
+        if(!state.householdDispatch.value("verified",false) || state.householdDispatch.value("scope_id","")!=state.scope.id) {
+            state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
+            state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;
+            state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
+            HouseholdFault(state,"prepared-root-retired","CAS editor root retired without an authenticated household handoff.",retiredSim);
+        }
+        break;
+    }
+    // Once every real output has verified and its copies are gone, no later
+    // object can inherit this scope. Keep graph/receipts for the strict loader.
+    if(state.householdCopies.empty() && !state.preparedRoots.empty() && state.householdDispatch.value("verified",false) &&
+       std::all_of(state.preparedRoots.begin(),state.preparedRoots.end(),[&](const auto& root) {
+           const auto& receipt=state.bank.at(root.first).householdCanonical;
+           return receipt.value("verified",false) && receipt.value("dispatch_origin",false) &&
+               receipt.value("scope_id","")==state.scope.id && receipt.at("generation")==root.second.generation;
+       })) {
+        for(auto& root:state.preparedRoots)root.second.retired=true;
+        state.householdCopiesEnabled.store(false,std::memory_order_release);
     }
 }
 inline void HouseholdCopyDestroy(void* value) {
@@ -803,7 +821,7 @@ inline void HouseholdCopyDestroy(void* value) {
 inline void ProjectHouseholdOutput(State& state,const void* source,void* proto,void* controller) {
     if(!HouseholdScopeCurrent(state))return;
     auto target=state.preparedRoots.end();
-    for(auto at=state.preparedRoots.begin();at!=state.preparedRoots.end();++at)if(at->second.group==source) {target=at;break;}
+    for(auto at=state.preparedRoots.begin();at!=state.preparedRoots.end();++at)if(!at->second.retired && at->second.group==source) {target=at;break;}
     const auto copied=state.householdCopies.find(source);
     if(target==state.preparedRoots.end() && copied!=state.householdCopies.end()) {
         target=state.preparedRoots.find(copied->second.sim);
@@ -811,20 +829,26 @@ inline void ProjectHouseholdOutput(State& state,const void* source,void* proto,v
            target->second.generation!=copied->second.generation))return;
     }
     if(target==state.preparedRoots.end())return; // Unrelated Live/save objects have no copy provenance.
+    const bool dispatchedCopy=copied!=state.householdCopies.end() && copied->second.dispatchOrigin &&
+        state.householdDispatch.value("verified",false) && state.householdDispatch.value("scope_id","")==state.scope.id;
+    if(target->second.retired && !dispatchedCopy)return;
     auto& bank=state.bank.at(target->first);std::string original;bool attempted=false;
     try {
-        if(!controller || controller!=state.exportController || !bank.graph || bank.viewFault ||
+        if(((!controller || controller!=state.exportController) && !dispatchedCopy) || !bank.graph || bank.viewFault ||
            bank.graph->cursor().generation!=target->second.generation)
             throw std::runtime_error("CAS output scope, controller or accepted owner generation changed.");
-        const auto roots=EditorHouseholdRoots(state,controller);
-        const auto current=std::find_if(roots.begin(),roots.end(),[&](const auto& root) {
-            return root.sim==target->first && root.group==target->second.group && GroupId(root.group)==target->second.entity;
-        });
-        if(current==roots.end())throw std::runtime_error("CAS output source is no longer the exact imported household entity.");
+        if(!dispatchedCopy) {
+            const auto roots=EditorHouseholdRoots(state,controller);
+            const auto current=std::find_if(roots.begin(),roots.end(),[&](const auto& root) {
+                return root.sim==target->first && root.group==target->second.group && GroupId(root.group)==target->second.entity;
+            });
+            if(current==roots.end())throw std::runtime_error("CAS output source is no longer the exact imported household entity.");
+        }
         if(Read<std::uint64_t>(source,0xb8)!=target->first || GroupId(const_cast<void*>(source))!=target->second.entity)
             throw std::runtime_error("CAS output copy changed its native Sim or entity identity.");
         original=SerializeMessage(state.api,proto);
-        const auto checked=CheckedHouseholdPacket(state,ProjectHouseholdPacket(state,*current,original));
+        const HouseholdRootTarget current{target->first,const_cast<void*>(source),&bank};
+        const auto checked=CheckedHouseholdPacket(state,ProjectHouseholdPacket(state,current,original));
         const ByteView input{checked.data(),checked.size()};attempted=true;
         if(!state.api.protoParse(proto,&input))throw std::runtime_error("Native output rejected its validated independent forms.");
         const auto actual=SerializeMessage(state.api,proto);
@@ -1644,6 +1668,7 @@ inline ui::Json ViewStatus() {
 inline ui::Json Status() {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);auto rows=ui::Json::array();
     auto outputCalls=ui::Json::array();for(const auto& row:state.householdOutputCalls)outputCalls.push_back(row.second);
+    auto retiredRoots=ui::Json::array();for(const auto& root:state.preparedRoots)if(root.second.retired)retiredRoots.push_back(std::to_string(root.first));
     for(const auto& member:state.scope.members) {
         const auto found=state.bank.find(member.first);auto kinds=ui::Json::array();
         auto genus=ui::Json::array();
@@ -1708,6 +1733,7 @@ inline ui::Json Status() {
         {"household_acceptance",state.householdAcceptance},
         {"household_output_faults",state.householdOutputFaults},
         {"household_copy_lifetimes",state.householdCopies.size()},
+        {"editor_root_authorities_retired",retiredRoots},{"household_copy_tracking_active",state.householdCopiesEnabled.load(std::memory_order_acquire)},
         {"household_faults",state.householdFaults},{"household_dispatch",state.householdDispatch},
         {"household_output_calls",outputCalls},
         {"native_converter_calls",state.converted},{"game_files_written",false},

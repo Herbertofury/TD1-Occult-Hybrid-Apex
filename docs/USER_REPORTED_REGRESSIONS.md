@@ -40,8 +40,14 @@ invalidates acceptance qualification. Its guard retains all forty appearances
 and 155 named looks; every save remains unchanged and normal unsaved exit
 succeeds. V223 authenticates the earlier complete native CAS household dispatch
 before its copies are queued, and preserves bounded fault history across later
-successes. Its thirteen native, 26 seal and 26 upgrade checks pass; actual
-household qualification is running. R001/R002 remain open,
+successes. Actual V223 verifies all five dispatch-derived outputs but exposes
+an adapter lifetime error: normal editor destruction invalidates the completed
+handoff. Direct qualification fails; the separate guard and normal unsaved exit
+pass with all saves unchanged. V224 tombstones retired editor addresses while
+retaining valid dispatch descendants, final generations and complete readbacks.
+Reused addresses and unauthenticated handoffs still refuse. Its thirteen native,
+26 seal and 26 upgrade checks pass; actual household qualification is running.
+R001/R002 remain open,
 as do selective EA linking/copying, edited save/Tray round trips and measured
 end-to-end responsiveness; fixture passes do not authorize actual-save use.
 

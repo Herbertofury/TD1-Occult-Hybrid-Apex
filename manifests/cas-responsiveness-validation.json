@@ -705,6 +705,14 @@
     "direct_cas_exit_fix_qualified": false,
     "dll_sha256": "c52b7e8369999e3af920314a062693ff2616b8d98fc9cee002aa53f3c14bcd58",
     "failure_history_bounded": 8,
+    "guard_retention": {
+      "all40_native_appearances_retained": true,
+      "named_looks_retained": 155,
+      "retained_proof": ".work/v223-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "b2c3b8f7d3ed8166c7603af85ab62a8b44136c612165b0334a7bdc208bd2f652",
+      "simulation_advanced": true
+    },
     "native_checks": {
       "passed": 13,
       "retained_proof": ".work/v223-native-tests.log",
@@ -721,17 +729,70 @@
     "permanent_guard_retained": true,
     "pinned_dispatch_caller": true,
     "production_ready": false,
-    "runtime": "Actual five-member qualification running",
+    "runtime": {
+      "actual_output_receipts_verified": 5,
+      "all_outputs_dispatch_derived": true,
+      "direct_fix_qualified": false,
+      "fault_phase": "prepared-root-retired",
+      "native_acceptance_qualified": false,
+      "native_fault_count": 1,
+      "retained_proof": ".work/v223-actual-output-status.json",
+      "sha256": "9a24b7c0793e0de944f4582d249528ce04fc5b87454c04caab6cf2978927771d"
+    },
     "script_sha256": "18ed0cd32d93f00598fd8bd38bef404e3fd7ea337c493ad319a3197e6e7b6b86",
     "seal_checks": {
       "passed": 26,
       "retained_proof": ".work/v223-seal-tests.log",
       "sha256": "a703ac0ee4afb7186b67166fcd0284dbb6921cf200da03491bcac73c26da07d2"
     },
+    "shutdown": {
+      "normal_exit_verified": true,
+      "retained_proof": ".work/v223-normal-unsaved-exit-for-v224.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "036ef1abc4d3956a888707c49bf0f72962c0d76c585a09d3ddf70f64b03fa62b"
+    },
     "upgrade_checks": {
       "passed": 26,
       "retained_proof": ".work/v223-upgrade-tests.log",
       "sha256": "dc6f669b249b9424317a8c5681e81bd51d80669ace5ba9d9fa42ef7ad64666b8"
+    }
+  },
+  "v224": {
+    "authenticated_copies_may_outlive_editor_and_controller": true,
+    "bundle_sha256": "b22e0031627107cf05b373c38979956f443cb1174158771c841a0ca59077bfed",
+    "change": "Retire editor addresses without invalidating independently authenticated native CAS dispatch copies",
+    "complete_core_comparison_unchanged": true,
+    "copy_tracking_disables_after_verified_delivery_and_destruction": true,
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "33deb7bed4f4df0c175eaf29f69cf424cfce6b19f10b706c0ea6fec5a164f4a6",
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v224-native-tests.log",
+      "sha256": "f7ea9f3c57dac1930f399f8384ba4b27cf99e5014fa01739f5cf24176028a166"
+    },
+    "native_root_memory_written": false,
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v224-candidate-build.log",
+      "sha256": "ebeddbc0e0c290e9b3e1cc927864eb349be82b4b27792fe9600a837a03cbe8ef"
+    },
+    "permanent_guard_retained": true,
+    "production_ready": false,
+    "retired_address_reuse_refused": true,
+    "runtime": "Actual five-member qualification running",
+    "script_sha256": "18152a6421bc0906e6ee27193852669b86da6256d3b297dee2b31fdbb6dbbfe9",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v224-seal-tests.log",
+      "sha256": "dd84795a6884d483b00e7d23a6f7dced1b238f3b799e60d17e29bb2021fc112c"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v224-upgrade-tests.log",
+      "sha256": "edde7e3ed472ccb26e92dedbc70195c70d9334ba2d44ca323d5a3f254892ac3e"
     }
   }
 }

@@ -166,13 +166,30 @@ void Exercise() {
     Require(state.householdFaults.size()==8 && state.householdFaults.front()["serial"]==serial+3 &&
         state.householdFaults.back()["serial"]==serial+10 && state.householdFaults.back()["sim_id"]=="456");
     state.householdAcceptance={{"verified",true},{"native_accepted",true}};
-    state.acceptingHousehold=true;
-    HouseholdCopyConstruct(queued.data(),roots[0].data());Require(state.householdCopies.count(queued.data())==1);
+    state.acceptingHousehold=false;
+    HouseholdCopyConstruct(queued.data(),treeNodes[0].data()+0x30);Require(state.householdCopies.at(queued.data()).dispatchOrigin);
     const auto faultsBeforeRetire=state.householdOutputFaults;
+    ForgetHouseholdObject(state,roots[0].data());Release(roots[0].data());
+    Require(state.preparedRoots.at(123).retired && state.householdCopies.count(queued.data())==1 &&
+        state.householdOutputFaults==faultsBeforeRetire && state.householdDispatch["verified"]==true && state.householdAcceptance["verified"]==true);
+    // The editor and its controller may disappear; the authenticated native
+    // dispatch copy still owns its full data and final generation.
+    Export(queued.data(),ordinary.data.data());ProjectHouseholdOutput(state,queued.data(),ordinary.data.data(),nullptr);
+    Require(state.bank.at(123).householdCanonical["verified"]==true && state.bank.at(123).householdCanonical["dispatch_origin"]==true);
+    HouseholdCopyConstruct(roots[0].data(),unrelated.data()); // Reused address, matching ID/entity, no provenance.
+    Require(!state.householdCopies.count(roots[0].data()));
+    Export(roots[0].data(),ordinary.data.data());const auto reused=protoExports.at(ordinary.data.data());
+    ProjectHouseholdOutput(state,roots[0].data(),ordinary.data.data(),controller.data());Require(protoExports.at(ordinary.data.data())==reused);
+    state.acceptingHousehold=true;HouseholdCopyConstruct(outgoing.data(),roots[0].data());
+    Require(!state.householdCopies.count(outgoing.data()));state.acceptingHousehold=false;
+    HouseholdCopyDestroy(treeNodes[0].data()+0x30);HouseholdCopyDestroy(treeNodes[1].data()+0x30);HouseholdCopyDestroy(queued.data());
+    Require(state.householdCopies.empty() && !state.householdCopiesEnabled.load() && state.preparedRoots.at(456).retired &&
+        state.householdAcceptance["verified"]==true && state.householdDispatch["verified"]==true);
+    // Before an authenticated handoff, losing the source still blocks scope.
+    Clone(treeNodes[1].data()+0x30,roots[1].data());CanonicalizeHouseholdRoots(state,targets);state.exportController=controller.data();
     ForgetHouseholdObject(state,roots[0].data());
-    Require(state.householdCopies.empty() && state.preparedRoots.empty() && state.preparedScope.empty() &&
-        !state.exportController && !state.householdCopiesEnabled.load() && state.householdOutputFaults==faultsBeforeRetire+1 &&
-        state.householdAcceptance["verified"]==false);
+    Require(state.preparedRoots.empty() && state.preparedScope.empty() && !state.exportController &&
+        state.householdOutputFaults==faultsBeforeRetire+1 && state.householdAcceptance["verified"]==false);
     state.bank.at(123).active=std::move(firstActive);state.bank.at(456).active=std::move(secondActive);
     state.bank.at(123).viewBound=firstView;state.bank.at(456).viewBound=secondView;
     state.preparedRoots=oldRoots;state.preparedScope=oldScope;state.exportController=oldController;

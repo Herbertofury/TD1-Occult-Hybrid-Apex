@@ -7,7 +7,12 @@ public class CasCatalogBytecodeFixtures {
         var abc=CasBytecodePatch.load(args[0]);
         var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
         final String mode=args[1];
-        if(mode.equals("extra-argument") || mode.equals("missing-outfit-prefix")) {
+        if(mode.equals("category-regrids")) {
+            var body=CasBytecodePatch.ownedBody(abc,instance,"ApexCardApply");boolean changed=false;
+            for(var op:body.getCode().code)if(op.definition.instructionCode==0x2c &&
+                abc.constants.getString(op.operands[0]).equals("cards:")) {op.operands[0]=0;changed=true;}
+            CasBytecodePatch.require(changed,"Fixture did not regress category-independent geometry.");body.setModified();
+        } else if(mode.equals("extra-argument") || mode.equals("missing-outfit-prefix")) {
             var body=CasBytecodePatch.ownedBody(abc,instance,"ApexCatalogReadEquipped");
             boolean changed=false;
             for(var op:body.getCode().code) {

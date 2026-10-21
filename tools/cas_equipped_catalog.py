@@ -34,8 +34,34 @@ def prepare(product, action):
 def inject_clothing(source):
     if 'ApexEquippedPrepare' in source:raise ValueError('Equipped adapter already present.')
     source=re.sub(r'\s*\[Embed\([^\n]*\)\]','',source)
+    source=replace_once(source,'   import gamedata.CAS.CASAPI;',
+        '   import flash.utils.getTimer;\n   import gamedata.CAS.CASAPI;')
     source=prepend(source,'      override public function Refresh(param1:int) : void',
-        '''         if(CommunicationManager.CallUIService("ApexEquippedRefresh",{panel:this,state:param1})===true) return;
+        '''         var apexView:Object=CommunicationManager.CallUIService("ApexEquippedRefresh",{panel:this,state:param1});
+         if(apexView!=null && apexView.active===true) {
+            var apexStart:int=getTimer();
+            super.Refresh(param1);
+            this.mVariationGridController.RemoveVariationPopups();
+            this.btnRandomize.visible=false;this.mcHairGrowthPanel.visible=false;
+            this.mcApplyToAllPanel.visible=false;this.mcBodyTypePanel.visible=false;
+            this.SetLayerComponentVisibility(false);
+            if(this.mcFilterPane!=null) this.mcFilterPane.visible=false;
+            txtTitle.text="All equipped CAS items";
+            mDataFeed.RemoveAllItems();
+            var apexCleared:int=getTimer();
+            mDataFeed.AddItemsFromIterable(apexView.products);
+            var apexBound:int=getTimer();
+            mDataFeed.SelectAll();
+            var apexSelected:int=getTimer();
+            this.txtNoResults.visible=mDataFeed.length==0;
+            this.RefreshLayout();
+            if(this.mcFilterPane!=null) this.mcFilterPane.visible=false;
+            apexView.timing.clear_ms=apexCleared-apexStart;
+            apexView.timing.bind_ms=apexBound-apexCleared;
+            apexView.timing.selected_ms=apexSelected-apexBound;
+            apexView.timing.layout_ms=getTimer()-apexSelected;
+            return;
+         }
 ''')
     source=prepend(source,'      protected function OnCatalogClick(param1:GridEvent) : void',
         '''         if(CommunicationManager.CallUIService("ApexEquippedClick",{panel:this,product:param1.mData})===true) {
@@ -49,7 +75,7 @@ def inject_clothing(source):
     anchor='         var _loc2_:Object = param1.product;'
     source=replace_once(source,anchor,anchor+'\n'+prepare('_loc2_','remove'))
     anchor='         CommunicationManager.AddMessageListener("CASItemCannotBeRemoved",this.ItemFailedToRemove,this);'
-    source=replace_once(source,anchor,'''         if(apex!=null && apex.active===true) _loc4_=int(apex.layer_index);
+    source=replace_once(source,anchor,'''         if(apex!=null && apex.active===true && apex.layer!=null) _loc4_=int(apex.layer_index);
 '''+anchor)
     source=prepend(source,'      protected function SelectCatalogProduct(param1:CASCatalogProduct, param2:ColorSwatchData = null) : void',prepare('param1','select'))
     anchor='         var _loc6_:Object = MenuState.GetBodyTypeFixedLayerIndexAndId(mCurrState,param1.body_type,_loc5_);'
@@ -78,6 +104,8 @@ def inject_feed(source):
     product construction is retained while identifying the expensive boundary.
     """
     if 'ApexCatalogPerformance' in source:raise ValueError('Catalog profiler already present.')
+    source=replace_once(source,'   import gamedata.CAS.CASAPI;',
+        '   import flash.utils.getTimer;\n   import gamedata.CAS.CASAPI;')
     source=prepend(source,'      public function RequestData(param1:CASCatalogFilter, param2:Boolean = true, param3:Object = null) : void',
         '         var apexStarted:int=flash.utils.getTimer();\n')
     anchor='         var _loc4_:Array = CASAPI.GetCatalogBaseItemsUsingFilter(param1,param3);'
@@ -96,4 +124,4 @@ def inject_feed(source):
             construct_ms:apexConstructed-apexNative,bind_ms:apexBound-apexConstructed,
             selected_ms:flash.utils.getTimer()-apexBound});
       }''')
-    return source
+    return source.replace('flash.utils.getTimer()','getTimer()')

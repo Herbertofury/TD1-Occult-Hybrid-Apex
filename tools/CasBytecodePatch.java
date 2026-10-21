@@ -1195,9 +1195,19 @@ public class CasBytecodePatch {
             pending|="apexPendingFields".equals(member);receiving|="apexReceiving".equals(member);
         }
         require(pending&&receiving,"Catalog player input lacks active CAS command guards.");
+        int restores=0;
+        for(var op:frame.getCode().code)if(property(abc,op,0x46,"ApexCardRestore") || property(abc,op,0x4f,"ApexCardRestore"))restores++;
+        require(restores==1,"Hidden clothing grids must retain geometry; only the error path may restore in a frame.");
         var selected=propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogSelection"));
-        require(selected.contains("GetAllDisplayObjectCells") && Collections.disjoint(selected,Set.of("CallGameService","CallUIService","ApexNativeExchange")),
+        require(selected.contains("ApexCatalogCells") && Collections.disjoint(selected,Set.of("CallGameService","CallUIService","ApexNativeExchange")),
             "Selection animation must only inspect native recycled cells, without game queries.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogCells")).equals(Set.of("GetAllDisplayObjectCells")),
+            "The per-frame cell cache may only enumerate the actual recycled grid.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexEquippedNavigation")).isEmpty(),
+            "Leaving equipped view cannot fetch or mutate native data.");
+        var resolver=propertyCalls(abc,ownedBody(abc,instance,"ApexEquippedResolve"));
+        require(Collections.disjoint(resolver,Set.of("ApexNativeExchange","SetCatalogSlotSelected","ClearSelectedBodyType","GetCatalogBaseItems")),
+            "Equipped resolution must read selected slots, without scanning or changing the catalog.");
         require(selected.containsAll(Set.of("moveTo","lineTo","curveTo")) && !selected.contains("drawRoundRect"),
             "Selection outline must explicitly close all four edges in GFx.");
         var equipped=ownedBody(abc,instance,"ApexCatalogReadEquipped");
@@ -1212,6 +1222,7 @@ public class CasBytecodePatch {
             "Catalog slider input cannot rebuild the grid, panel or perform native requests.");
         boolean margin=false;
         var layoutCalls=propertyCalls(abc,ownedBody(abc,instance,"ApexCardApply"));
+        uniqueLiteral(abc,ownedBody(abc,instance,"ApexCardApply"),"cards:");
         require(layoutCalls.contains("ResetAndPositionCells") && !layoutCalls.contains("PositionCells"),
             "Card layout must reset the native row cache; ordinary positioning can retain NaN.");
         for(var op:ownedBody(abc,instance,"ApexCardApply").getCode().code)
@@ -1270,6 +1281,47 @@ public class CasBytecodePatch {
         require(delta>=0 && delta<=16,"Card getter lexical scope differs.");
         body.init_scope_depth+=delta;body.max_scope_depth+=delta;body.setCode(body.getCode());return body;
     }
+    static List<MethodBody> equippedAdapters(ABC original,ABC compiled) {
+        var result=new ArrayList<MethodBody>();
+        var routes=Map.of(
+            "widgets.CAS.Customizer.ClothingPanel",Map.of("Refresh","ApexEquippedRefresh",
+                "OnCatalogClick","ApexEquippedClick","OnToggleVariationGrid","ApexEquippedPrepare",
+                "RemoveSelectedItem","ApexEquippedPrepare","SelectCatalogProduct","ApexEquippedPrepare"),
+            "widgets.CAS.data.CatalogDataFeed",Map.of("RequestData","ApexCatalogPerformance"));
+        for(var entry:routes.entrySet())for(var method:entry.getValue().entrySet()) {
+            var before=classMethod(original,entry.getKey(),method.getKey());
+            var after=classMethod(compiled,entry.getKey(),method.getKey());
+            uniqueLiteral(compiled,after,method.getValue());
+            if(method.getKey().equals("Refresh"))
+                require(propertyCalls(compiled,after).contains("SelectAll") && !propertyCalls(compiled,after).contains("SetSelectionState"),
+                    "Equipped selection must use one native batch, not rebuild the grid once per item.");
+            if(method.getKey().equals("RequestData")) {
+                boolean timer=false;
+                for(var op:after.getCode().code)if(op.definition.instructionCode==0x5d || op.definition.instructionCode==0x60) {
+                    var q=compiled.constants.getMultiname(op.operands[0]);
+                    String member=compiled.constants.getString(q.name_index);
+                    require(!member.equals("flash"),"Catalog profiler uses an unresolved Flash package root.");
+                    if(member.equals("getTimer")) {
+                        require(q.kind==Multiname.QNAME && q.namespace_index>0 &&
+                            compiled.constants.getNamespace(q.namespace_index).kind==Namespace.KIND_PACKAGE &&
+                            compiled.constants.getString(compiled.constants.getNamespace(q.namespace_index).name_index).equals("flash.utils"),
+                            "Catalog profiler clock does not bind the actual Flash utility function.");timer=true;
+                    }
+                }
+                require(timer,"Native catalog profiler has no bound clock.");
+            }
+            require(propertyCalls(compiled,after).containsAll(propertyCalls(original,before)),
+                "Equipped adapter removed a native call: "+method.getKey());
+            require(before.exceptions.length==0 && after.exceptions.length==0,"Unreviewed equipped adapter exceptions.");
+            for(var op:after.getCode().code)
+                require(!opcode(op,0x40) && !opcode(op,0x44) && !opcode(op,0x67),"Equipped adapter has unreviewed scope/function references.");
+            var body=after.clone();body.method_info=before.method_info;
+            int delta=before.init_scope_depth-after.init_scope_depth;
+            require(delta>=0 && delta<=16,"Equipped adapter lexical scope differs.");
+            body.init_scope_depth+=delta;body.max_scope_depth+=delta;body.setCode(body.getCode());result.add(body);
+        }
+        require(result.size()==6,"Equipped adapter inventory differs.");return result;
+    }
     public static void main(String[] args) throws Exception {
         require(args.length == 3, "Use original SWF, compiler SWF, output ABC.");
         ABC original = load(args[0]), compiled = load(args[1]);
@@ -1296,8 +1348,13 @@ public class CasBytecodePatch {
             "apexCatalogPrefs","apexCatalogStore","apexCatalogUi","apexCatalogRows","apexCatalogIntent","apexCatalogSignature","apexCatalogEffects","apexCatalogPage","apexCatalogItems","apexCatalogContext","apexCatalogError","apexCatalogRegistered","apexCatalogDrag","apexCatalogSaved",
             "apexCatalogTab", "apexCatalogSelectionFrames", "apexCatalogSelectionMaxMs", "apexCatalogSelectionOverBudget", "apexCatalogStyleSignature", "apexCatalogLayoutChanges", "apexCatalogRefreshRegistered", "apexCatalogDirty", "apexCatalogSlot", "apexCatalogBinding", "apexCatalogBindingRegistered", "apexCatalogBindingDirty", "apexCatalogBoundWidth", "apexCatalogHeaderSignature",
             "apexCardPrefs","apexCardGeometry","apexCardLayout","apexCardReflowAttempts",
+            "apexCatalogFrameCells","apexEquippedActive","apexEquippedOpening","apexEquippedProducts","apexEquippedBindings","apexEquippedDirty",
+            "apexEquippedIndex","apexEquippedRefreshPending","apexEquippedInteraction","apexEquippedServices","apexEquippedUnresolved",
+            "apexCatalogPerformance","apexCatalogFrameTiming",
+            "apexEquippedTiming",
+            "apexEquippedRetirePending",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
-        Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
+        Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
@@ -1309,6 +1366,8 @@ public class CasBytecodePatch {
             "ApexCatalogInitialize","ApexCatalogValidate","ApexCatalogPersist","ApexCatalogStyle","ApexCatalogDispose","ApexCatalogOpen","ApexCatalogFrame","ApexCatalogClearEffects","ApexCatalogSelection","ApexCatalogReadEquipped","ApexCatalogMenu","ApexCatalogButton","ApexCatalogSlider","ApexCatalogDraw","ApexCatalogClick","ApexCatalogSlideStart","ApexCatalogSlide","ApexCatalogSlideEnd","ApexCatalogStatus",
             "ApexCatalogView", "ApexCatalogSliderCommand", "ApexCatalogInvalidate", "ApexCatalogObserveBinding", "ApexCatalogApplyBinding",
             "ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback",
+            "ApexCatalogCells","ApexEquippedInitialize","ApexEquippedDispose","ApexEquippedNavigation","ApexCatalogPerformance",
+            "ApexEquippedRefresh","ApexEquippedOpen","ApexEquippedFrame","ApexEquippedResolve","ApexEquippedKey","ApexEquippedDecimal","ApexEquippedPrepare","ApexEquippedClick",
             "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus", "ApexPairPanel");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
@@ -1331,6 +1390,8 @@ public class CasBytecodePatch {
         require(added.size() == ownedFields.size() + ownedNames.size() && initializeName >= 0 && disconnectName >= 0,
             "Unexpected Apex trait inventory.");
         verifyTimerPipeline(compiled, newClass);
+        require(propertyCalls(compiled,ownedBody(compiled,newClass,"ApexIdleMemberChanged")).equals(Set.of("test")),
+            "Idle member observation must validate retained primitives without native queries or selection.");
         verifyOwnerObservation(compiled, newClass);
         verifyFormSelection(compiled, newClass);
         verifyFormStrip(compiled, newClass);
@@ -1415,6 +1476,9 @@ public class CasBytecodePatch {
             body.setCode(code);
         }
         MethodBody heightAdapter=cardHeightAdapter(original,compiled);
+        var equippedBodies=equippedAdapters(original,compiled);
+        var adapterIds=new HashSet<Integer>();adapterIds.add(heightAdapter.method_info);
+        for(var body:equippedBodies)adapterIds.add(body.method_info);
         compiled.instance_info = original.instance_info;
         compiled.method_info = methods;
         compiled.class_info = original.class_info;
@@ -1424,6 +1488,10 @@ public class CasBytecodePatch {
         int heightIndex=-1;
         for(int i=0;i<compiled.bodies.size();i++)if(compiled.bodies.get(i).method_info==heightAdapter.method_info)heightIndex=i;
         require(heightIndex>=0,"Native card getter index absent.");compiled.bodies.set(heightIndex,heightAdapter);
+        for(var body:equippedBodies) {
+            int index=-1;for(int i=0;i<compiled.bodies.size();i++)if(compiled.bodies.get(i).method_info==body.method_info)index=i;
+            require(index>=0,"Equipped native method index absent.");compiled.bodies.set(index,body);
+        }
         compiled.bodies.addAll(newBodies);
         for (Trait trait : added) if (trait instanceof TraitMethodGetterSetter) {
             var method = (TraitMethodGetterSetter)trait; method.method_info = remap.get(method.method_info);
@@ -1458,12 +1526,14 @@ public class CasBytecodePatch {
         verifyCatalogWorkspace(serialized,serialized.instance_info.get(oi));
         require(Arrays.equals(heightAdapter.getCodeBytes(),serialized.findBody(heightAdapter.method_info).getCodeBytes()),
             "Serialized owned card getter changed.");
-        for (MethodBody body : original.bodies) if (body != nativeInit && body != nativeUnload && body.method_info!=heightAdapter.method_info)
+        for(var body:equippedBodies)require(Arrays.equals(body.getCodeBytes(),serialized.findBody(body.method_info).getCodeBytes()),
+            "Serialized equipped adapter changed.");
+        for (MethodBody body : original.bodies) if (body != nativeInit && body != nativeUnload && !adapterIds.contains(body.method_info))
             require(Arrays.equals(nativeCode.get(body.method_info), serialized.findBody(body.method_info).getCodeBytes()),
                 "Serialized unowned native method bytecode changed.");
         Files.write(Path.of(args[2]), saved.toByteArray());
         System.out.println("{\"native_method_count\":" + original.bodies.size() + ",\"apex_method_count\":" + ownedMethods.size() +
-            ",\"native_lexical_scope_preserved\":true,\"card_height_marker_adapter_verified\":true,\"unchanged_native_methods\":" + (nativeCode.size()-3) +
+            ",\"native_lexical_scope_preserved\":true,\"card_height_marker_adapter_verified\":true,\"native_equipped_category_adapters_verified\":true,\"unchanged_native_methods\":" + (nativeCode.size()-9) +
             ",\"native_initializer_bytecode_extended\":true,\"native_unload_bytecode_extended\":true,\"native_unload_cleanup_precedes_teardown\":true,\"owned_local_scope_indexes_verified\":true,\"serialized_lifecycle_hooks_verified\":true,\"socket_callbacks_data_only_verified\":true,\"timer_command_phases_verified\":true,\"accept_commit_timer_owned_verified\":true,\"accept_native_class_linkage_verified\":true,\"accept_expected_household_bound_verified\":true,\"accept_primary_layer_only_verified\":true,\"catalog_metadata_localization_linkage_verified\":true,\"owner_pair_callback_data_only_verified\":true,\"owner_pair_listener_cleanup_verified\":true,\"owner_pair_timer_read_only_verified\":true,\"socket_connect_queue_only_verified\":true,\"socket_handshake_exact_constructor_timer_verified\":true,\"form_select_timer_owned_verified\":true,\"form_select_exact_same_original_pair_verified\":true,\"form_select_native_argument_order_verified\":true,\"form_select_next_tick_readback_verified\":true,\"earrings_exact_bodytype_and_swatch_guard_verified\":true}");
     }
 }

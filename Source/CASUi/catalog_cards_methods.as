@@ -2,9 +2,16 @@
       private var apexCardGeometry:Object;
       private var apexCardLayout:Object;
       private var apexCardReflowAttempts:int = 0;
+      private var apexCatalogFrameCells:Object;
+      private function ApexCatalogCells(grid:Object) : Object
+      {
+         if(apexCatalogFrameCells==null || apexCatalogFrameCells.grid!==grid)
+            apexCatalogFrameCells={grid:grid,cells:grid.GetAllDisplayObjectCells()};
+         return apexCatalogFrameCells.cells;
+      }
       private function ApexCardRowsAligned(grid:Object,columns:int,pitch:Number) : Boolean
       {
-         var cells:Object=grid.GetAllDisplayObjectCells();
+         var cells:Object=ApexCatalogCells(grid);
          if(cells==null || cells.length==0) return true;
          var start:Number=Number(cells[0].y);
          for(var i:int=0;i<Math.min(cells.length,columns*2);i++)
@@ -47,7 +54,7 @@
          var geometry:Object=apexCardGeometry;apexCardGeometry=null;apexCardLayout=null;apexCardReflowAttempts=0;
          var grid:Object=geometry.grid;
          // Stop applying our marker before restoring stock dimensions.
-         for each(var cell:Object in grid.GetAllDisplayObjectCells()) {
+         for each(var cell:Object in ApexCatalogCells(grid)) {
             var marker:flash.display.DisplayObject=cell.getChildByName("apexCatalogCardScale");
             if(marker!=null) cell.removeChild(marker);
          }
@@ -56,7 +63,7 @@
          // The inherited DisplayObject height setter conflicts with EA's
          // specialised getter. Uniform scale owns height; never write it.
          grid.SetCellBounds(new flash.geom.Rectangle(geometry.bounds.x,geometry.bounds.y,geometry.bounds.width,0));
-         for each(cell in grid.GetAllDisplayObjectCells()) {cell.scaleX=1;cell.scaleY=1;}
+         for each(cell in ApexCatalogCells(grid)) {cell.scaleX=1;cell.scaleY=1;}
          grid.SetCellPadding(geometry.padding);
          geometry.panel.width=geometry.width;
       }
@@ -64,7 +71,7 @@
       private function ApexCardScaleCells(grid:Object,scale:Number) : Boolean
       {
          var changed:Boolean=false;
-         for each(var cell:Object in grid.GetAllDisplayObjectCells()) {
+         for each(var cell:Object in ApexCatalogCells(grid)) {
             if(cell.getChildByName("apexCatalogCardScale")==null) {
                var marker:flash.display.Sprite=new flash.display.Sprite();
                marker.name="apexCatalogCardScale";marker.mouseEnabled=false;marker.mouseChildren=false;
@@ -86,7 +93,7 @@
             var nativePadding:Object=grid.GetCellPadding();
             var dimensions:Array=grid.GetGridDimensions();
             var nativeCell:Object=null;
-            for each(var candidate:Object in grid.GetAllDisplayObjectCells()) {
+            for each(var candidate:Object in ApexCatalogCells(grid)) {
                if(candidate!=null && candidate.scaleX>0 && candidate.width>0) {nativeCell=candidate;break;}
             }
             if(nativeCell==null) return 262;
@@ -107,7 +114,9 @@
          var maximum:int=Math.max(2,Math.min(12,int((available-40)/pitch)));
          var columns:int=Math.min(int(apexCatalogPrefs.columns),maximum);
          var width:Number=Math.max(262,40+columns*pitch);
-         var signature:String=String(mCurrState)+":"+columns+":"+stage.stageWidth+":"+scale+":"+
+         // Category identity is not geometry. Retain the fitted pool across
+         // category changes; newly recycled cells are still scaled below.
+         var signature:String="cards:"+columns+":"+stage.stageWidth+":"+scale+":"+
             apexCardPrefs.gap_x+":"+apexCardPrefs.gap_y;
          if(signature!=apexCatalogSignature) {
             ApexCatalogClearEffects();apexCatalogSignature=signature;

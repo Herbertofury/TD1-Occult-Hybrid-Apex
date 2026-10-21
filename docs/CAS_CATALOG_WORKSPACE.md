@@ -12,18 +12,26 @@ viewport automatically; tiles keep their native dimensions and lazy loading.
 
 The native body arc gets an **All equipped CAS items** entry after Shoes.
 It uses EA's existing circular renderer, native Show All icons and tooltip.
-The Items and Catalog Style tabs share one CAS panel. F11 exposes the same
-style preferences and opens that same inventory.
+It opens a native equipped-thumbnail category. The text list remains an
+additional view, as the owner requested; it is not removed. F11's inventory
+opens the optional list, whose Thumbnails button returns to the native grid.
+CLI: `cas catalog-view --view category` opens thumbnails;
+`cas catalog-view --view items` opens the list. Card layout and Selection tabs
+remain available in that list/settings panel.
 
-The current Items tab is an interim text list. The owner's clarified target is
-a full native CAS category: EA thumbnail tiles, swatches, native selected/hover
-states and precise per-item removal. That replacement remains in development.
-The reported missing right outline edge is also open; thumbnail geometry and
-stroke inset must replace the current hit-area rectangle. A fixed-viewport
-animation test was rejected when the window changed to 2560×1417; preferences
-were restored and all 39 records still compared unchanged. Visible pulse/flash
-qualification must use fresh geometry. Large-catalog category and thumbnail
-costs also require measurement before any performance claim.
+V250 resolves and displays all twenty current equipped slots in actual CAS,
+including grouped ring/skin-detail selections and hidden default nail parts.
+It ignores active catalog filters when resolving already-equipped items.
+Exact native product/variation identities retain all 64 bits. Structural and
+default parts cannot be removed through the combined view. Other slots keep
+EA's native swatch/removal handlers with exact body/layer routing. A real
+background click on the forehead-detail thumbnail opens the native skin-detail
+category and retains the selected Alien form. Swatch/removal mutations and
+every layered duplication remain separate runtime qualification gates.
+
+The four-sided static outline is pixel-qualified in V247. Visible pulse/flash
+qualification still needs fresh geometry. The initial fixed-viewport animation
+test was rejected when the viewport changed; it is not treated as a pass.
 
 The selected-item frame supports RGB sliders, border width, optional glow,
 opacity, static/pulse/flash modes and animation period. Static is the default.
@@ -39,9 +47,10 @@ model, including unsaved edits. It does not synchronize or commit an owner,
 query inactive panels, export thumbnails or export complete Sims to disk.
 Each row retains its exact 64-bit part key, body type, color and layer.
 Unknown future body types remain visible without a guessed navigation target.
-The current implementation labels these native categories and exact part
-keys; CC marketing names and thumbnails in this CAS panel are not yet
-qualified. Changing Sim/form invalidates the displayed list before navigation.
+The optional list labels native categories and exact part keys. The category
+uses the game's own EA/CC thumbnails rather than exporting a thumbnail library.
+CC marketing-name resolution remains a separate feature. Changing Sim/form
+invalidates the previous inventory before an owned action can apply.
 
 CLI examples, using the marked disposable state and actual selected Sim ID:
 
@@ -206,10 +215,44 @@ remain unchanged. This verifies clicks through the real controls in addition to
 the semantic shared-handler tests. It does not qualify a continuous physical
 mouse drag or another viewport. See [the scoped report](../Reports/CAS_CARD_LAYOUT_V247.json).
 
-The equipped-item text list remains interim; it is not the requested native
-thumbnail category. Persistence, animated border visibility,
-large-catalog hitch measurements and the direct outfit-normalization fix remain
-separate open gates. These controls do not qualify actual-save use.
+The text list is now an optional companion to the native thumbnail category.
+Persistence, animated border visibility, large-catalog performance and the
+direct outfit-normalization fix remain separate gates. These controls do not
+qualify actual-save use.
+
+## Category responsiveness, V249-V251
+
+The profiler retains at most 32 native lookup/construction/binding samples and
+constant-sized owned-frame counters. V249's actual Body/Tattoos cycle identifies
+a 1,444 ms owned-frame spike after leaving Tattoos. Restoring the hidden
+clothing grid destroyed its fitted pool, which then had to be rebuilt.
+V250 retains that pool while hidden, keys geometry by actual dimensions rather
+than category identity, and shares one cell enumeration within each frame.
+The same cycle performs one fitted layout instead of repeating it. After its
+initial 65 ms fit, the Body/Tattoos return adds no owned frame above 1 ms in
+that pass. This is not a 0–1 ms end-to-end game claim: native first-load item
+binding still takes 20–35 ms, and the first combined twenty-item bind takes
+159 ms. A native batch replaces repeated per-item selection events.
+
+V248 is withdrawn after actual CAS initialization catches an unresolved Flash
+clock import. V249 corrects it; a serialized negative fixture now reproduces
+and rejects that binding error. V251 additionally retires the combined feed
+when native category/Sim/form ownership changes, refuses stale owned products,
+and restores the native Shoes catalog when leaving the combined view for its
+existing anchor state. Whole-head previews use the installed FacePanel's
+thumbnail prefix. Actual V251 exit/owner qualification is recorded separately.
+
+V251's member selection completes but loses the destination peer. The idle
+observer rejects a changed Sim and falls back to the previous bound identity,
+masking the need to reconnect. V252 detects that retained UI identity change
+without a native getter, retires the old connection, and performs the normal
+fresh native handshake. It retains the consumed request UUID and never repeats
+selection. Serialized regressions reject removal of this idle path and native
+queries inside its read-only observer. Actual V252 selects member two and then
+returns to member one with both destination peers verified, the previous
+equipped view inactive on the other member, and all twenty equipped slots
+resolved again on return. All twenty save/backup files remain unchanged.
+This qualifies UI navigation and peer continuity, not edited-form persistence.
 
 Validation also passes 171 focused Python cases and fourteen native targets.
 The broader 2,732-case run passes 2,731 cases and finds one obsolete fixture

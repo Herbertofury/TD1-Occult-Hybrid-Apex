@@ -406,7 +406,7 @@ def parser():
     cas.add_argument('--y', type=float, help='CAS strip vertical position, 0 top to 1 bottom, within the available viewport')
     cas.add_argument('--scale', type=float, help='CAS strip scale, 0.7 to 1.5')
     cas.add_argument('--columns', type=int, help='CAS catalog columns, 2-12; fits the available viewport')
-    cas.add_argument('--view', choices=('items','style','layout','closed'), help='Catalog tab or close it without pointer input')
+    cas.add_argument('--view', choices=('category','items','style','layout','closed'), help='Native equipped thumbnails, optional text list, layout, selection, or close')
     cas.add_argument('--control', choices=('columns','red','green','blue','glow','border','period','strength','card_scale','gap_x','gap_y'), help='Exact catalog slider to adjust without pointer input')
     cas.add_argument('--card-scale', type=float, help='Proportional native CAS card size, 0.65-1.6')
     cas.add_argument('--gap-x', type=float, help='Horizontal native CAS card spacing, 0-32 logical pixels')

@@ -1,0 +1,130 @@
+{
+  "actual_game": {
+    "all20_save_backup_files_unchanged": true,
+    "appearance_edit_requested": false,
+    "original_profile_written": false,
+    "profile": "single disposable profile",
+    "save_submitted": false,
+    "version": "1.128.90.1030",
+    "viewport": [
+      1278,
+      1376
+    ]
+  },
+  "actual_save_ready": false,
+  "candidate": {
+    "packages": 7,
+    "python37_modules": 105,
+    "rust_verified_resources": 210,
+    "sha256": "a1d9b8264d3e942ccc02a44863fd8a60b788368a56fa0edd522cd0926266f216"
+  },
+  "epoch": "2026-10-21-equipped-category-v252",
+  "equipped": {
+    "exact_current_equipped_slots": 20,
+    "first_bind_timing_ms": {
+      "bind_ms": 149,
+      "clear_ms": 0,
+      "layout_ms": 1,
+      "read_ms": 2,
+      "resolve_max_ms": 1,
+      "selected_ms": 10
+    },
+    "includes": [
+      "hair",
+      "head and face components",
+      "clothing",
+      "shoes",
+      "earrings",
+      "necklace",
+      "ring",
+      "makeup",
+      "eyebrows",
+      "eyes",
+      "eyelashes",
+      "skin details",
+      "fingernails",
+      "toenails",
+      "body hair"
+    ],
+    "native_category_visible_in_actual_captures": true,
+    "optional_text_list_retained": true,
+    "real_background_thumbnail_click": "forehead detail -> exact native skin-details category; active Alien owner retained",
+    "resolved": 20,
+    "return_bind_timing_ms": {
+      "bind_ms": 150,
+      "clear_ms": 0,
+      "layout_ms": 0,
+      "read_ms": 2,
+      "resolve_max_ms": 1,
+      "selected_ms": 13
+    },
+    "thumbnail_source": "native game product metadata and renderer; no thumbnail library export",
+    "unresolved": []
+  },
+  "evidence": [
+    {
+      "file": "v252-equipped-category-runtime.json",
+      "sha256": "2f97422e6ca701e0ef6cd3a6eb45452b4cd08f86f86d092ad2b3bf9d192c41cc"
+    },
+    {
+      "file": "v252-category-retirement.json",
+      "sha256": "50a52a7706834e8b434b2e23e73266ec2d5412e8bb1bf8d8d403d99220fed488"
+    },
+    {
+      "file": "v249-equipped-category-runtime.json",
+      "sha256": "6062561c32058a4abab016ef59241d7ee7533438f2151505e7cc9f6f09f37ebe"
+    },
+    {
+      "file": "v250-equipped-category-runtime.json",
+      "sha256": "a5eb0750e77b357d5b7740ee5b0173d02fa7d9c80c9a48b2983d2a1f8279b517"
+    },
+    {
+      "file": "v250-native-category-click.json",
+      "sha256": "045ab5fcce483971adb27dbb7086f55b52788329d4e40e0571663314ea6128e8"
+    },
+    {
+      "file": "native-cas-v252-second-member-category-saved-reload-all40.json",
+      "sha256": "66c60b745af929c38bdf04003779f4591e6bb700c081f5ed0085b34037feeffe"
+    },
+    {
+      "file": "v252-retire-10-status.json",
+      "sha256": "54d5f24e1551272cf366856bd7cd70a9aa792c8a771b58fb20fb16849e1334d6"
+    }
+  ],
+  "navigation": {
+    "appearance_persistence_claimed": false,
+    "consumed_selection_replayed": false,
+    "first_second_first_member_peer_handoff": true,
+    "foreign_clothing_pool_can_remain_cached_while_hidden": true,
+    "old_owned_products_refused_after_retirement": true,
+    "same_shoes_anchor_restores_native_items": 5
+  },
+  "open_gates": [
+    "cold catalog thumbnail binding still exceeds 1 ms",
+    "large-catalog and FPS benchmarking",
+    "direct outfit/genetic normalization fix",
+    "edited full-household CAS/MCCC/save/cold/Tray/Gallery persistence",
+    "swatch/removal mutations and duplicate layered CASP runtime coverage",
+    "preference persistence and animated border qualification"
+  ],
+  "responsiveness": {
+    "after_initial_fit_additional_owned_frames_over_1ms_in_that_return": 0,
+    "after_initial_fit_max_ms": 65,
+    "before_owned_frame_max_ms": 1444,
+    "body_tattoos_body_tattoos_reflows": [
+      0,
+      1,
+      1,
+      1
+    ],
+    "clock_resolution_ms": 1,
+    "first_load_native_item_binding_ms": [
+      20,
+      35
+    ],
+    "large_10000_item_catalog_qualified": false,
+    "measurement": "small actual CAS sequence, not an end-to-end latency distribution or FPS benchmark"
+  },
+  "schema": 1,
+  "scope": "equipped CAS view, category layout retention and member peer handoff"
+}

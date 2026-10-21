@@ -36,6 +36,7 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'Source/CASUi/pair_controls_methods.as',
                   'Source/CASUi/catalog_workspace_methods.as',
                   'Source/CASUi/catalog_cards_methods.as', 'tools/cas_equipped_catalog.py',
+                  'Source/CASUi/equipped_category_methods.as',
                   'tools/cas_catalog_workspace.py', 'tools/CasCatalogBytecodePatch.java',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
                   'tools/cas_pair_panel_patch.py',
@@ -183,6 +184,8 @@ def inject(source, methods):
         raise ValueError('Installed CAS initializer does not match the inspected contract.')
     source = source.replace(anchor, anchor + '\n         ApexInitialize();')
     # Resolve external QNames at compilation, avoiding dotted runtime lookups.
+    source = source.replace('   import gamedata.CAS.CASAPI;',
+        '   import gamedata.shared.SimGenderTypes;\n   import gamedata.CAS.shared.CASCatalogProduct;\n   import gamedata.CAS.CASAPI;')
     source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.widget.Margin;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import flash.utils.getTimer;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
@@ -220,6 +223,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_workspace_methods.as').read_text(encoding='utf-8').replace(
         '__APEX_EQUIPPED_MENUS__',json.dumps(cas_catalog_workspace.equipped_menus(),sort_keys=True,separators=(',', ':')))
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_cards_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/equipped_category_methods.as').read_text(encoding='utf-8')
     control_dispatch = verify_control_dispatch(semantic)
     detached_snapshot_getters = verify_snapshot_ownership(semantic)
     household_acceptance = verify_household_acceptance(semantic)
@@ -247,6 +251,16 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     cards_compiled = work / 'apex-cas-cards-compiled.swf'
     run([ffdec,'-importAssets','yes,local','-replace',compiled,cards_compiled,cas_equipped_catalog.CELL_CLASS,cell_owned])
     compiled = cards_compiled
+    for kind, relative, inject_method in (
+        ('clothing','Customizer/ClothingPanel.as',cas_equipped_catalog.inject_clothing),
+        ('feed','data/CatalogDataFeed.as',cas_equipped_catalog.inject_feed)):
+        native_source=work / ('current-cas/scripts/scripts/widgets/CAS/'+relative)
+        owned_source=work / ('ApexCAS-'+kind+'.as')
+        owned_source.write_text(inject_method(native_source.read_text(encoding='utf-8')),encoding='utf-8')
+        next_compiled=work / ('apex-cas-'+kind+'-compiled.swf')
+        class_name=cas_equipped_catalog.CLOTHING_CLASS if kind=='clothing' else cas_equipped_catalog.FEED_CLASS
+        run([ffdec,'-importAssets','yes,local','-replace',compiled,next_compiled,class_name,owned_source])
+        compiled=next_compiled
     # The general AS compiler changes native methods' lexical scope. It is
     # used only to obtain Apex methods; original game bytecode stays intact.
     retained = work / 'apex-cas-retained.abc'

@@ -96,7 +96,7 @@ def wire(request, panel):
             values.append(format(n,'.9f').rstrip('0').rstrip('.'))
         return 0,0,0,','.join(values)
     if op == 'catalog-view':
-        if request['view'] not in ('items','style','layout','closed'):raise ValueError('Use items, style, layout or closed catalog view.')
+        if request['view'] not in ('category','items','style','layout','closed'):raise ValueError('Use category, items, style, layout or closed catalog view.')
         return 0,0,0,request['view']
     if op == 'catalog-slider':
         if request['control'] not in ('columns','red','green','blue','glow','border','period','strength','card_scale','gap_x','gap_y'):
@@ -289,7 +289,12 @@ def validate(client, request):
                 if type(actual) not in (int,float) or abs(actual-expected)>.000001:
                     raise PostconditionMismatch('Catalog slider value did not read back.')
         elif op=='catalog-view':
-            if (workspace.get('visible') is not (request['view']!='closed') or
+            if request['view']=='category':
+                if (workspace.get('equipped_category',{}).get('active') is not True or workspace.get('error') or
+                    workspace.get('context')!=str(client['sim']['simId'])+'|'+client['form_strip']['selected_owner_id'] or
+                    workspace.get('outfit')!={'category':client.get('outfit',{}).get('outfit_type'),'index':client.get('outfit',{}).get('outfit_index')}):
+                    raise PostconditionMismatch('Native equipped category lacks its exact current Sim/form/outfit.')
+            elif (workspace.get('visible') is not (request['view']!='closed') or
                     request['view']!='closed' and workspace.get('view')!=request['view']):
                 raise PostconditionMismatch('Catalog view did not acknowledge the exact requested tab/visibility.')
         elif (workspace.get('visible') is not True or workspace.get('error') or

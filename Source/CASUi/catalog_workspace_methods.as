@@ -37,6 +37,7 @@
          apexCatalogBinding=null;apexCatalogBindingDirty=false;apexCatalogBoundWidth=-1;apexCatalogHeaderSignature="";
          apexCatalogTab="items";
          apexCatalogSelectionFrames=0;apexCatalogSelectionMaxMs=0;apexCatalogSelectionOverBudget=0;
+         ApexEquippedInitialize();
          try {
             apexCatalogStore=flash.net.SharedObject.getLocal("TD1ApexCASCatalog");
             if(apexCatalogStore!=null && (apexCatalogStore.data.version===1 || apexCatalogStore.data.version===2))
@@ -91,6 +92,7 @@
 
       private function ApexCatalogView(view:String) : void
       {
+         if(view=="category") {ApexEquippedOpen();return;}
          if(view!="items" && view!="style" && view!="layout" && view!="closed") throw new Error("Invalid catalog tab");
          if(view=="closed") {if(apexCatalogUi!=null) apexCatalogUi.visible=false;return;}
          if(apexCatalogUi==null || apexCatalogContext=="" || mCurrSimInfo==null ||
@@ -111,6 +113,7 @@
 
       private function ApexCatalogDispose() : void
       {
+         ApexEquippedDispose();
          removeEventListener(flash.events.Event.ENTER_FRAME,ApexCatalogFrame);
          if(stage!=null) {
             stage.removeEventListener(flash.events.MouseEvent.MOUSE_MOVE,ApexCatalogSlide);
@@ -140,6 +143,7 @@
          // Outfit/part changes only mark the list dirty; read it on a later
          // idle frame if visible, with no background scan when it is closed.
          apexCatalogDirty=true;
+         apexEquippedDirty=true;
       }
 
       private function ApexCatalogObserveBinding(value:Object) : void
@@ -175,12 +179,18 @@
       private function ApexCatalogFrame(event:flash.events.Event=null) : void
       {
          if(apexCatalogPrefs==null || stage==null || apexDisconnected) return;
+         var frameStarted:int=flash.utils.getTimer();
+         apexCatalogFrameCells=null;
          try {
          var panel:Object=this.mCurrentPanel;
          if(panel!=null && panel.visible && panel.mcTileList!=null && panel.mcTileList.mGridLayout!=null && panel is ClothingPanel) {
             var grid:Object=panel.mcTileList.mGridLayout;
+            var layoutStarted:int=flash.utils.getTimer();
             var width:Number=ApexCardApply(panel,grid);
+            apexCatalogFrameTiming.layout_max_ms=Math.max(apexCatalogFrameTiming.layout_max_ms,flash.utils.getTimer()-layoutStarted);
+            var bindingStarted:int=flash.utils.getTimer();
             ApexCatalogApplyBinding(width);
+            apexCatalogFrameTiming.binding_max_ms=Math.max(apexCatalogFrameTiming.binding_max_ms,flash.utils.getTimer()-bindingStarted);
             var styleSignature:String=apexCatalogPrefs.color+":"+apexCatalogPrefs.glow+":"+apexCatalogPrefs.border;
             if(styleSignature!=apexCatalogStyleSignature) {
                ApexCatalogClearEffects();apexCatalogStyleSignature=styleSignature;
@@ -188,7 +198,10 @@
             ApexCatalogSelection(grid);
          } else {
             if(apexCatalogEffects!=null && apexCatalogEffects.length>0) ApexCatalogClearEffects();
-            ApexCardRestore();apexCatalogSignature="";
+            // The hidden clothing panel retains its fitted recycled pool.
+            // Restoring it to two columns here rebuilt every card when the
+            // player returned from Body to Tattoos, then fitted it again.
+            // Restore only on disposal, replacement grid, or a display fault.
             ApexCatalogApplyBinding(262);apexCatalogHeaderSignature="";
          }
          if(apexCatalogUi!=null && apexCatalogUi.visible) {
@@ -209,21 +222,31 @@
          if(apexCatalogIntent!=null && apexPendingFields==null && !apexReceiving) {
             var intent:Object=apexCatalogIntent;apexCatalogIntent=null;
             try {
-               if(intent.operation=="open") { ApexCatalogReadEquipped();ApexCatalogDraw(); }
+               if(intent.operation=="open") ApexEquippedOpen();
                else if(intent.operation=="navigate") {
                   if(String(mCurrSimInfo.simId)!=intent.sim_id || apexFormsSelectedId!=intent.owner_id)
                      throw new Error("The Sim or form changed; refresh equipped items");
                   var target:int=int(intent.state);
+                  apexEquippedActive=false;apexEquippedInteraction=null;
+                  apexEquippedRetirePending=true;
                   if(apexCatalogUi!=null) apexCatalogUi.visible=false;
                   HandleContextMenuSetMenuState({menuState:target,skipAnim:true,setZoomState:true});
+                  CommunicationManager.SendUIMessage("CASChangeMenuState",target);
                }
             } catch(catalogError:Error) {apexCatalogError=catalogError.message;ApexCatalogDraw();}
          }
+         if(apexPendingFields==null && !apexReceiving) ApexEquippedFrame();
          } catch(frameError:Error) {
             apexCatalogError="Catalog display paused: "+frameError.message;
             removeEventListener(flash.events.Event.ENTER_FRAME,ApexCatalogFrame);
             ApexCatalogClearEffects();ApexCardRestore();
          }
+         var frameElapsed:int=flash.utils.getTimer()-frameStarted;
+         if(apexCatalogFrameTiming.samples<int.MAX_VALUE) apexCatalogFrameTiming.samples++;
+         apexCatalogFrameTiming.total_ms+=frameElapsed;
+         apexCatalogFrameTiming.max_ms=Math.max(apexCatalogFrameTiming.max_ms,frameElapsed);
+         if(frameElapsed>1 && apexCatalogFrameTiming.over_1ms<int.MAX_VALUE) apexCatalogFrameTiming.over_1ms++;
+         apexCatalogFrameCells=null;
       }
 
       private function ApexCatalogClearEffects() : void
@@ -240,7 +263,7 @@
          var started:int=flash.utils.getTimer();
          // Only EA's recycled visible cells are inspected. No catalog scan,
          // game query, thumbnail export or per-Sim appearance copy is needed.
-         var cells:Object=grid.GetAllDisplayObjectCells();var kept:Array=[];
+         var cells:Object=ApexCatalogCells(grid);var kept:Array=[];
          for each(var cell:Object in cells) {
             if(cell==null || !cell.visible || !cell.Selected) continue;
             var effect:flash.display.Sprite=cell.getChildByName("apexSelectedBorder") as flash.display.Sprite;
@@ -359,7 +382,7 @@
          apexCatalogUi.graphics.lineStyle(2,0xffffff);apexCatalogUi.graphics.beginFill(0xeef8ff,0.99);apexCatalogUi.graphics.drawRoundRect(0,0,350,620,16,16);apexCatalogUi.graphics.endFill();
          ApexFormsText(apexCatalogUi,"All equipped CAS items",15,12,280,17,0x235a80);
          ApexCatalogButton(apexCatalogUi,"close","Close",270,10,64);
-         ApexCatalogButton(apexCatalogUi,"tab_items","Equipped",15,46,100);
+         ApexCatalogButton(apexCatalogUi,"tab_items","Text list",15,46,100);
          ApexCatalogButton(apexCatalogUi,"tab_layout","Card layout",125,46,100);
          ApexCatalogButton(apexCatalogUi,"tab_style","Selection",235,46,100);
          if(apexCatalogTab=="style") {
@@ -384,7 +407,8 @@
          ApexCatalogButton(apexCatalogUi,"reset_cards","Reset EA card size / spacing",15,329,320);
          ApexFormsText(apexCatalogUi,"Native thumbnails and controls resize together. Columns fit the available screen.",15,380,320,11,0x47708b);
          } else {
-         ApexCatalogButton(apexCatalogUi,"refresh","Refresh items",15,86,128);
+         ApexCatalogButton(apexCatalogUi,"category","Thumbnails",15,86,110);
+         ApexCatalogButton(apexCatalogUi,"refresh","Refresh",130,86,95);
          ApexCatalogButton(apexCatalogUi,"previous","<",235,86,43);ApexCatalogButton(apexCatalogUi,"next",">",290,86,43);
          var start:int=apexCatalogPage*12;var finish:int=Math.min(start+12,apexCatalogItems.length);
          for(var i:int=start;i<finish;i++) {
@@ -401,6 +425,7 @@
       {
          var name:String=event.target.name;
          if(name=="close") apexCatalogUi.visible=false;
+         else if(name=="category") apexCatalogIntent={operation:"open"};
          else if(name=="tab_items" || name=="tab_style" || name=="tab_layout") {apexCatalogTab=name.substr(4);ApexCatalogDraw();}
          else if(name=="reset_cards") ApexCardReset();
          else if(name=="refresh") apexCatalogIntent={operation:"open"};
@@ -493,7 +518,11 @@
             layout_changes:apexCatalogLayoutChanges,
             slider_thumbs:thumbs,
             equipped_count:apexCatalogItems==null ? 0 : apexCatalogItems.length,context:apexCatalogContext,
+            clothing_grid_item_count:apexCardGeometry==null ? 0 : apexCardGeometry.grid.GetDataFeed().length,
             error:apexCatalogError,persisted:apexCatalogSaved,selection_effect_count:apexCatalogEffects==null ? 0 : apexCatalogEffects.length,
             selection_timing:{samples:apexCatalogSelectionFrames,max_ms:apexCatalogSelectionMaxMs,
-               over_1ms:apexCatalogSelectionOverBudget,clock_resolution_ms:1}};
+               over_1ms:apexCatalogSelectionOverBudget,clock_resolution_ms:1},
+            equipped_category:{active:apexEquippedActive,resolved:apexEquippedProducts==null ? 0 : apexEquippedProducts.length,
+               pending:apexEquippedActive && apexEquippedIndex<apexCatalogItems.length,unresolved:apexEquippedUnresolved,timing:apexEquippedTiming},
+            native_catalog_timing:apexCatalogPerformance,owned_frame_timing:apexCatalogFrameTiming};
       }

@@ -133,6 +133,16 @@
          apexReadbackTick=-1; apexPendingPhase=0; apexClaimNonce="";
       }
 
+      private function ApexIdleMemberChanged(nativeNeeded:Boolean) : Boolean
+      {
+         // A strict bound-form observer rejects a different Sim. Detect that
+         // change separately, without hiding it behind the old bound identity.
+         // Reconnection still requires a fresh native identity; never select.
+         if(nativeNeeded || apexBoundSim=="" || this.mCurrSimInfo==null ||
+            !(this.mCurrSimInfo.simId is String) || !/^[1-9][0-9]{0,19}$/.test(this.mCurrSimInfo.simId)) return false;
+         return this.mCurrSimInfo.simId!==apexBoundSim;
+      }
+
       private function ApexTick(message:Object=null) : void
       {
          if(apexDisconnected || apexTicking) return;
@@ -168,6 +178,7 @@
             var nativeNeeded:Boolean=!physiqueOpen && (apexSocket==null && apexNativeChannel=="" || apexHelloPending || apexReceiving ||
                apexPendingFields!=null || apexFormsIntent!=null ||
                apexFormsResult!=null && apexFormsResult.pending===true);
+            if(ApexIdleMemberChanged(nativeNeeded)) {ApexResetSocket();return;}
             var native:Object=nativeNeeded ? CommunicationManager.CallGameService("CASGetSimInfo",null,true) : null;
             var formsSim:Object=nativeNeeded ? ApexClone(native) : ApexFormsObservedSim();
             var simId:String=formsSim ? String(formsSim.simId) : apexBoundSim;

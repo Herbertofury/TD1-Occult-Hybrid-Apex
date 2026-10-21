@@ -910,3 +910,34 @@ The earlier Human-looking Werewolf test recipe with non-genetic parts in its
 genetic-data list was retained in history; only disposable fixtures were
 explicitly rebuilt from current Human appearances. This does not qualify
 arbitrary legacy recipes or weaken strict native-import comparison.
+
+
+## Input latency and native tooltip contract, V230-V231 (2026-10-20)
+
+V230 diagnostics identify the repeated connection reset: the native tooltip
+`SetText` method takes a LocKey, while the hybrid adapter supplied a String.
+The actual GFx Error 1034 names the directional copy tooltip. V231 uses EA's
+existing String `Text` setter. Its bytecode gate requires both directional text
+writes and rejects a regression to SetText; a compiler-tampering fixture tests
+that contract. All 61 selector bytecode checks pass.
+
+The owned command dispatchers now stop after one transaction with a 1 ms
+scheduling budget, rather than batching four within a 20 ms allowance. The
+queue records execution counts, command/drain maxima and budget overruns in
+constant storage. A running native game transaction is not preempted or
+reported as a fictitious 1 ms completion. Deterministic regressions cover
+budget yielding, a measured 25 ms overrun, retained pending UUIDs and the
+actual alarm dispatcher yielding after one transaction. Eight queue tests and
+ten backend ownership tests pass. Empty-queue host Python timing over 10,000
+samples has p99 0.0008 ms and maximum 0.0056 ms; this is not game/UI proof.
+
+Occult-choice input now only queues; its full-edit permission read is deferred
+to the UI frame that consumes the choice. Navigation uses the Customizer's
+retained selected-Sim primitives instead of allocating the complete household
+and native category-panel feed on every frame. Exact native Sim/owner/session
+validation still precedes writes. Accepted input timings expose sample count,
+maximum, total and over-budget count separately from complete model binding.
+The UI clock has 1 ms resolution; a zero reading is below that resolution,
+not proof of zero processing time. Runtime latency distribution, actual panel
+checkbox/copy/link qualification, edited household return, cold save reload
+and Tray/Gallery gates remain open. The candidate is not actual-save ready.

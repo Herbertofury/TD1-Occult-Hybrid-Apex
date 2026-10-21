@@ -404,6 +404,11 @@ public class CasSelectorBytecodePatch {
         int a=original.findClassByName(COPY_TARGET),b=compiled.findClassByName(COPY_TARGET);
         require(a>=0 && a==b,"EA pair-panel class inventory differs.");
         var before=original.instance_info.get(a);var after=compiled.instance_info.get(b);
+        var panelUpdate=body(compiled,after,"UpdateSimInfo");
+        int textWrites=0;
+        for(var op:panelUpdate.getCode().code) if(CasBytecodePatch.property(compiled,op,0x61,"Text"))textWrites++;
+        require(textWrites==2 && !CasBytecodePatch.propertyCalls(compiled,panelUpdate).contains("SetText"),
+            "EA pair-panel directional tooltips require the native String Text setter; SetText requires LocKey.");
         require(sha(body(original,before,"UpdateSimInfo").getCodeBytes()).equals(COPY_UPDATE_PIN),
             "EA pair-panel update differs from its pinned installed contract.");
         Map<Integer,MethodBody> result=new HashMap<>();

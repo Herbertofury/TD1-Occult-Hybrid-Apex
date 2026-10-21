@@ -674,7 +674,9 @@ def diagnostics():
                   'ready': copy.deepcopy(_READY), 'last_reply': copy.deepcopy(_LAST_REPLY),
                   'observed_connection': None if _CONNECTION is None else str(_CONNECTION), 'requests': rows,
                   'ui_transition_verified': False}
-        result['native_peers'] = [{'sim_id': peer['sim_id'], 'age_seconds': max(0, time.monotonic() - peer['observed_at'])} for peer in _PEERS.values()]
+        result['native_peers'] = [{'sim_id': peer['sim_id'], 'age_seconds': max(0, time.monotonic() - peer['observed_at']),
+                                  'catalog_rows': len(peer.get('owner_catalog', ())),
+                                  'catalog_offset': peer.get('owner_catalog_offset', 0)} for peer in _PEERS.values()]
     from .cas_socket import status as socket_status
     result['socket_transport'] = socket_status()
     result['socket_transport']['native_connection_verified'] = any(peer['age_seconds'] <= 3 for peer in result['native_peers'])

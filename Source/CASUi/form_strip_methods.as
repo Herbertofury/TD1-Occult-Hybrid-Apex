@@ -36,6 +36,10 @@
       private var apexFormsGestureStarted:int=-1;
       private var apexFormsSwitchMilliseconds:int=-1;
       private var apexMoleculeIntent:Object;
+      private var apexInputSamples:int=0;
+      private var apexInputOverBudget:int=0;
+      private var apexInputMaxMs:int=0;
+      private var apexInputTotalMs:Number=0;
 
 
       private function ApexFormsDispose() : void
@@ -282,24 +286,20 @@
 
       private function ApexFormsObservedSim() : Object
       {
-         var selector:Object=CommunicationManager.CallUIService("ApexReadOwnerPairFeed",null);
-         if(selector==null || selector.protocol!==1 || selector.scope!="native-selector-owner-pair-view" ||
-            selector.service_registered!==true || selector.retained==null) return null;
-         var feed:Object=selector.retained;
-         if(feed.available!==true || !(feed.pairs is Array) || !(feed.selected_index is int) ||
-            feed.selected_index<0 || feed.selected_index>=feed.pairs.length ||
-            !(feed.selected_layer is int) || (feed.selected_layer!=0 && feed.selected_layer!=1)) return null;
-         var pair:Object=feed.pairs[int(feed.selected_index)];
-         var row:Object=pair==null ? null : feed.selected_layer==0 ? pair.base : pair.alternate;
-         if(row==null || !(row.sim_id is String) || !/^[1-9][0-9]{0,19}$/.test(row.sim_id) ||
-            row.sim_id!=feed.selected_sim_id || !(row.occult_type is int) || !(row.occult_layer is int) ||
-            !(row.all_occult_types is int) || row.occult_layer!=feed.selected_layer) return null;
-         return {simId:String(row.sim_id),householdId:apexFormsHousehold,occultType:int(row.occult_type),
-            occultLayer:int(row.occult_layer),allOccultTypes:int(row.all_occult_types)};
+         // Identity only. Do not serialize all household pairs and the category
+         // panel every rendered frame. Native state revalidates before writes.
+         var row:Object=this.mCurrSimInfo;
+         if(row==null || !(row.simId is String) || row.simId!==apexBoundSim ||
+            !/^[1-9][0-9]{0,19}$/.test(row.simId) || !(row.occultType is int) ||
+            !(row.occultLayer is int) || (row.occultLayer!=0 && row.occultLayer!=1) ||
+            !(row.allOccultTypes is int)) return null;
+         return {simId:String(row.simId),householdId:apexFormsHousehold,occultType:int(row.occultType),
+            occultLayer:int(row.occultLayer),allOccultTypes:int(row.allOccultTypes)};
       }
 
       private function ApexMoleculeChooseOccult(request:Object) : Boolean
       {
+         var inputStarted:int=getTimer();
          // The EA molecule's choice is an appearance selection for a retained
          // hybrid, never a destructive native genus conversion. Only enqueue;
          // the existing UI timer revalidates and consumes the exact owner token.
@@ -311,8 +311,7 @@
          if(apexFormsOwners.length==0 && (mask==0 || (mask&(mask-1))==0)) return false;
          if(apexDisconnected || request==null || !(request.sim_id is String) ||
             request.sim_id!==apexBoundSim || String(sim.simId)!==apexBoundSim ||
-            !(request.kind is int) || [1,2,4,8,16,32,64].indexOf(int(request.kind))<0 ||
-            !Boolean(CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled"))) return true;
+            !(request.kind is int) || [1,2,4,8,16,32,64].indexOf(int(request.kind))<0) return true;
          var forms:Object={1:"human/shared",2:"alien/alien",4:"vampire/dark",8:"mermaid/mermaid",
             16:"witch/primary",32:"werewolf/beast",64:"fairy/primary"};
          for each(var owner:Object in apexFormsOwners) if(owner.form_id===forms[String(request.kind)]) {
@@ -322,7 +321,7 @@
             apexMoleculeIntent={sim_id:apexBoundSim,session:apexOwnerSession,
                owner_id:String(owner.id),token:int(owner.token),queued_at:getTimer()};
             apexFormsMessage="Switching to "+String(owner.label)+"...";
-            apexFormsSignature="";ApexFormsScheduleFrame();return true;
+            apexFormsSignature="";ApexFormsScheduleFrame();ApexInputTiming(inputStarted);return true;
          }
          apexFormsMessage="This occult has no captured independent appearance yet.";
          apexFormsSignature="";return true;
@@ -345,6 +344,9 @@
          if(apexPendingFields!=null || apexReceiving || apexPendingPhase!=0 ||
             apexFormsDesiredId!="" || apexFormsNativeIntent!=null || apexFormsNativeState!="bound") return;
          var intent:Object=apexMoleculeIntent;apexMoleculeIntent=null;
+         if(!Boolean(CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled"))) {
+            apexFormsMessage="Open full CAS to change the selected occult appearance.";apexFormsSignature="";return;
+         }
          for each(var owner:Object in apexFormsOwners) if(owner.id===intent.owner_id && int(owner.token)==int(intent.token)) {
             if(owner.id!==apexFormsSelectedId) {
                apexFormsGestureStarted=int(intent.queued_at);apexFormsNativeIntent=ApexClone(owner);
@@ -430,6 +432,11 @@
             selection_result:ApexClone(apexFormsResult),message:apexFormsMessage,
             molecule_pending:ApexClone(apexMoleculeIntent),command_pending:apexPendingFields!=null,
             command_phase:apexPendingPhase,receiving:apexReceiving,
+            input_timing:{scope:"accepted-form-input-handler",clock_resolution_ms:1,target_ms:1,
+               samples:apexInputSamples,over_budget:apexInputOverBudget,max_ms:apexInputMaxMs,total_ms:apexInputTotalMs},
+            transport:{error:apexSocketError,reset_pending:apexSocketResetPending,
+               stage:apexAwaiting.split("|")[0],native_connected:apexNativeConnected,
+               catalog_expected:apexFormsOwnerTotal,catalog_received:apexFormsOwners.length},
             life_states:ApexClone(apexFormsGroups),variant_family:apexFormsVariantFamily,
             layout:{scale:apexFormsScale,locked:apexFormsLocked,collapsed:apexFormsCollapsed,dragging:apexFormsDragging,
                x:apexFormsPosition==null ? null : apexFormsPosition.x,y:apexFormsPosition==null ? null : apexFormsPosition.y}};
@@ -740,6 +747,16 @@
          apexMoleculeIntent={sim_id:apexBoundSim,session:apexOwnerSession,
             owner_id:String(owner.id),token:int(owner.token),queued_at:apexFormsGestureStarted};
          ApexFormsScheduleFrame();
+         ApexInputTiming(apexFormsGestureStarted);
+      }
+
+      private function ApexInputTiming(started:int) : void
+      {
+         var elapsed:int=getTimer()-started;
+         if(elapsed<0 || apexInputSamples>=2147483647) return;
+         apexInputSamples++;apexInputTotalMs+=elapsed;
+         if(elapsed>apexInputMaxMs) apexInputMaxMs=elapsed;
+         if(elapsed>1) apexInputOverBudget++;
       }
 
       private function ApexFormsScheduleFrame() : void

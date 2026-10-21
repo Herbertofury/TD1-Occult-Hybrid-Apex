@@ -38,9 +38,9 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                'cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd',
                                'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-20-native-pair-fixed64-v229'
+UPGRADE_EPOCH = '2026-10-20-budgeted-cas-native-tooltip-v231'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '689fbd8a0af3ea31e5ad0c3c79aba8edc408da6efd5237949625feae6a415fc4'
+UPGRADE_SELF_BODY_SHA = 'b96e8022bea961159f8ca0a21095566be7d414323663e519c541c84db2eedbc6'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -61,7 +61,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_save_boundary.py': '57b393f876c3e9aaa1d483d80e5b1193618429947ba1543ec900ba0a6c253e79',
-    'apex_core/cas_ui.py': '17b54088f34ed3d1ef372cb2d48200b6bd5149bd9f2e4b8c5fcf6bb95c7f1d11',
+    'apex_core/cas_ui.py': '393d47a161deeb8aa3b5eee42163ed9a851ec4d9c78dc8a63e0993694c6df0fc',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
@@ -102,7 +102,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
     'apex_core/test_driver.py': 'b5d1b8d35bd136e3a7a7755385c12da383f71e8b63bc6fbc5d33deb23e75b494',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
-    'td1_occult_hybrid_apex.py': 'cd652d6d8687219da5159d46b8b2b20b59c471d0801b2527cfca6ed070bcc454',
+    'td1_occult_hybrid_apex.py': '8ad7deaa598e549ffa0d2ddd355b36a07bc14281d01ba61b5ae83fd24076e04c',
 }
 _SEAL_FIELDS = ('intent_id', 'identity', 'contract_sha256', 'target',
                 'bank_record_sha256', 'appearances', 'file_sha256')

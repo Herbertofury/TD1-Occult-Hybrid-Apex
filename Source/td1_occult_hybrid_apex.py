@@ -4295,7 +4295,7 @@ def _apex_install_core_tick():
                 if _SERVER_START_RETRY.take_due(time.monotonic()):
                     start_server()
                 if _APEX_COMMANDS.pending:
-                    _APEX_COMMANDS.drain(_execute_owned_command, max_commands=4, budget_seconds=0.02)
+                    _APEX_COMMANDS.drain(_execute_owned_command, max_commands=1, budget_seconds=0.001)
             return result
         tick._apex_core_tick = True
         core.on_tick = tick
@@ -8580,7 +8580,9 @@ def _execute_owned_command(item):
 
 def _process_pending(_handle=None):
     # Empty ticks perform no Sim reads/scans/HTTP and no disk writes.
-    count = _APEX_COMMANDS.drain(_execute_owned_command, max_commands=4, budget_seconds=0.02)
+    # Yield after one native transaction. Its game API cannot be preempted;
+    # never stack several expensive transactions into the same menu frame.
+    count = _APEX_COMMANDS.drain(_execute_owned_command, max_commands=1, budget_seconds=0.001)
     if _AUTO_REPAIR:
         _auto_repair_tick()
     if _MCCC_CAS_SHIELD_ENABLED:

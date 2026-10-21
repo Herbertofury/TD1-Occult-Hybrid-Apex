@@ -256,6 +256,15 @@ public class CasSelectorSafetyFixtures {
     public static void main(String[] args) throws Exception {
         if(args[0].startsWith("panel-")) {
             ABC reference=CasBytecodePatch.load(args[1]),source=CasBytecodePatch.load(args[1]),compiled=CasBytecodePatch.load(args[2]);
+            if(args[0].equals("panel-tooltip-type")) {
+                var panel=compiled.instance_info.get(compiled.findClassByName(CasSelectorBytecodePatch.COPY_TARGET));
+                var update=CasSelectorBytecodePatch.body(compiled,panel,"UpdateSimInfo");
+                var text=property(compiled,update,"Text",0x61,0);
+                text.operands[0]=compiled.constants.getMultinameId(Multiname.createQName(false,
+                    compiled.constants.getStringId("SetText",true),compiled.constants.getMultiname(text.operands[0]).namespace_index),true);
+                refuses(()->CasSelectorBytecodePatch.patch(source,compiled),"EA pair-panel");
+                System.out.println("PASS "+args[0]);return;
+            }
             ABC candidate=new ABC(new ABCInputStream(new MemoryInputStream(CasSelectorBytecodePatch.patch(source,compiled))),compiled.getSwf(),null);
             CasSelectorBytecodePatch.verifyPairPanel(reference,compiled,candidate);
             var copy=candidate.instance_info.get(candidate.findClassByName(CasSelectorBytecodePatch.COPY_TARGET));

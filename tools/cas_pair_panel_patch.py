@@ -38,8 +38,8 @@ def inject(source):
             this.ApplyFilter(this.mCopyFilters,true,true);
             this.SetRandomizationFlagsToFeed();this.RefreshBackground();
             this.SetCopyMode(!Boolean(apexPair.linked));
-            this.btnCopy.TooltipExt.SetText("Copy "+apexPair.source_label+" to "+apexPair.target_label+". Only checked details are copied; other forms and Sims stay separate.");
-            this.btnLink.TooltipExt.SetText("Link or unlink "+apexPair.source_label+" and "+apexPair.target_label+". Only checked details follow later edits. Linking keeps both current appearances.");
+            this.btnCopy.TooltipExt.Text="Copy "+apexPair.source_label+" to "+apexPair.target_label+". Only checked details are copied; other forms and Sims stay separate.";
+            this.btnLink.TooltipExt.Text="Link or unlink "+apexPair.source_label+" and "+apexPair.target_label+". Only checked details follow later edits. Linking keeps both current appearances.";
             this.visible=true;return;
          }
          delete this.mCopyModeData["apexPair"];

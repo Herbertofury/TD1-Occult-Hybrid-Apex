@@ -15,6 +15,7 @@ IDLE_SECONDS = 3
 CLAIM_SECONDS = 25
 _SERVER = None
 _START_ERROR = None
+_LAST_CLIENT_ERROR = None
 _CLIENT_LIMIT = threading.BoundedSemaphore(4)
 
 
@@ -107,7 +108,8 @@ def packet(value, peer, attach, poll, acknowledge, owner_mask=None):
 
 def status():
     return {'bound': _SERVER is not None, 'host': HOST, 'port': PORT,
-            'startup_error': _START_ERROR, 'native_connection_verified': False}
+            'startup_error': _START_ERROR, 'last_client_error': _LAST_CLIENT_ERROR,
+            'native_connection_verified': False}
 
 
 def start(acknowledge, backend=None):
@@ -124,6 +126,7 @@ def start(acknowledge, backend=None):
         return False
     _SERVER = listener
     def client(connection):
+        global _LAST_CLIENT_ERROR
         from .cas_ui import attach_client, poll_client, detach_client, client_owned_mask, owner_metadata
         def poll(token):
             command = poll_client(token)
@@ -149,8 +152,10 @@ def start(acknowledge, backend=None):
                 connection.settimeout(IDLE_SECONDS)
                 connection.sendall(frame(response))
                 wait_seconds = response_wait(value, response)
-        except (OSError, EOFError, ValueError, UnicodeError):
-            pass  # An ambiguous claimed request remains pending; never replay.
+        except Exception as exc:
+            # Keep one bounded diagnostic across reconnects. An ambiguous
+            # claimed request stays pending; reporting a failure never replays it.
+            _LAST_CLIENT_ERROR = {'type': type(exc).__name__, 'message': str(exc)[:256]}
         finally:
             if peer is not None:
                 detach_client(peer)

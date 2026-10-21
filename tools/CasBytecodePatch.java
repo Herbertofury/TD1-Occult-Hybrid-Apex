@@ -482,7 +482,7 @@ public class CasBytecodePatch {
                 "CAS owner observation has a caller outside the Timer snapshot.");
     }
     static void verifyFastOwnerReadback(ABC abc, InstanceInfo instance) {
-        for(String method:Set.of("ApexFormsQueueOwner","ApexFormsReadNativeState")) {
+        for(String method:Set.of("ApexFormsQueueOwner","ApexFormsReadNativeState","ApexInputTiming")) {
             int clocks=0;
             for(var op:ownedBody(abc,instance,method).getCode().code) {
                 require(!property(abc,op,0x60,"flash"),"UI clock must not resolve flash as a dynamic scope object.");
@@ -501,6 +501,10 @@ public class CasBytecodePatch {
         require(queued.containsAll(Set.of("ApexFormsScheduleFrame","getTimer")) &&
             Collections.disjoint(queued,Set.of("ApexTick","CallGameService","ApexNativeExchange","ApexFormsOwnedTick")),
             "Form click may enqueue one next-frame intent, never execute native work inline.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexInputTiming")).equals(Set.of("getTimer")),
+            "Input timing must only read the clock and update scalar counters.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsObservedSim")).equals(Set.of("test")),
+            "Per-frame retained identity must not query or serialize the full household/panel.");
         require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsScheduleFrame")).equals(Set.of("addEventListener")),
             "Scheduling a deferred form click must only register the next frame callback.");
         var nextBody=ownedBody(abc,instance,"ApexFormsNextFrame");var next=propertyCalls(abc,nextBody);
@@ -616,8 +620,13 @@ public class CasBytecodePatch {
         for(var op:choose.getCode().code)if(property(abc,op,0x61,"apexMoleculeIntent"))retained=true;
         require(retained,"Molecule choice must survive a pending CLI readback.");
         var drain=ownedBody(abc,instance,"ApexMoleculeDrain");
-        require(propertyCalls(abc,drain).equals(Set.of("ApexClone")),
-            "Draining a molecule choice must only queue its exact owner, never mutate native CAS directly.");
+        require(propertyCalls(abc,drain).equals(Set.of("ApexClone","CallGameService")),
+            "Draining a molecule choice may only check full-edit permission and queue its exact owner.");
+        for(var op:choose.getCode().code) require(!property(abc,op,0x46,"CallGameService") && !property(abc,op,0x4f,"CallGameService"),
+            "Occult input must not call any native game service inline.");
+        int permissions=0;
+        for(var op:drain.getCode().code) if(opcode(op,0x2c) && "CasIsForcedFullEditingEnabled".equals(abc.constants.getString(op.operands[0]))) permissions++;
+        require(permissions==1,"Deferred occult selection must retain its one native full-edit permission check.");
         for(var op:choose.getCode().code)if(opcode(op,0x2c))require(!"CASGetSimInfo".equals(abc.constants.getString(op.operands[0])),
             "Occult input callback must not synchronize/serialize the native Sim model.");
         var gates=new HashSet<String>();
@@ -1194,6 +1203,7 @@ public class CasBytecodePatch {
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
             "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey",
             "apexFormsFrameQueued", "apexFormsFastState", "apexFormsNativeGeneration", "apexFormsGestureStarted", "apexFormsSwitchMilliseconds",
+            "apexInputSamples", "apexInputOverBudget", "apexInputMaxMs", "apexInputTotalMs",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
@@ -1203,7 +1213,7 @@ public class CasBytecodePatch {
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
             "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips",
-            "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame",
+            "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming",
             "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus", "ApexPairPanel");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;

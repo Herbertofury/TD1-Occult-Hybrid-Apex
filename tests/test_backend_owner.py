@@ -12,6 +12,21 @@ import td1_occult_hybrid_apex as backend
 
 
 class BackendOwnerTests(unittest.TestCase):
+    def test_alarm_yields_after_one_queued_native_transaction(self):
+        from apex_core.command_queue import CommandQueue
+        queue = CommandQueue(clock=lambda: 0.0)
+        ids = [queue.submit({'action': str(i)})['request_id'] for i in range(3)]
+        calls = []
+        with patch.object(backend, '_APEX_COMMANDS', queue), \
+                patch.object(backend, '_AUTO_REPAIR', False), \
+                patch.object(backend, '_MCCC_CAS_SHIELD_ENABLED', False), \
+                patch.object(backend, '_execute_owned_command', side_effect=lambda item: (calls.append(item['action']) or {'ok': True})):
+            backend._process_pending()
+        self.assertEqual(calls, ['0'])
+        self.assertEqual(queue.status(ids[0])['state'], 'completed')
+        self.assertEqual(queue.status(ids[1])['state'], 'pending')
+        self.assertEqual(queue.status(ids[2])['state'], 'pending')
+
     def test_review_http_never_waits_or_cancels_before_owner_and_retains_same_uuid(self):
         from apex_core.command_queue import CommandQueue
         queue = CommandQueue()

@@ -30,7 +30,7 @@ ACTUAL_CASES = ('actual-default-exact', 'actual-default-reverted', 'actual-remem
     'actual-explicit-link-memory', 'actual-sync-zero', 'actual-sync-service',
     'actual-sync-payload', 'actual-copy-handler', 'actual-copy-exception',
     'actual-copy-trait', 'actual-native-already-patched')
-PAIR_CASES=('panel-exact','panel-wrong-service','panel-wrong-destination','panel-native-handler-tamper','panel-extra-trait')
+PAIR_CASES=('panel-exact','panel-wrong-service','panel-wrong-destination','panel-native-handler-tamper','panel-extra-trait','panel-tooltip-type')
 
 
 class SelectorBytecodeSafetyTests(unittest.TestCase):

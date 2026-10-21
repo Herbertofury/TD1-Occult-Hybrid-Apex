@@ -16,6 +16,10 @@ class CommandQueue:
         self.pending = deque()
         self.records = OrderedDict()
         self.closed = False
+        self.executed = 0
+        self.over_budget = 0
+        self.command_max_ms = 0.0
+        self.drain_max_ms = 0.0
 
     def bind_owner(self):
         with self.lock:
@@ -86,7 +90,7 @@ class CommandQueue:
             result.update({'ok': False, 'message': 'Execution already started; outcome is pending. Query this request ID; do not retry the mutation.'})
         return result
 
-    def drain(self, execute, max_commands=4, budget_seconds=0.02):
+    def drain(self, execute, max_commands=4, budget_seconds=0.001):
         if threading.current_thread().ident != self.owner:
             raise RuntimeError('Command execution is restricted to the bound game thread.')
         start = self.clock()
@@ -103,6 +107,7 @@ class CommandQueue:
                     self._prune()
                     continue
                 row['state'] = 'running'
+            command_start = self.clock()
             try:
                 result = execute(copy.deepcopy(row['payload']))
                 if not isinstance(result, dict) or 'ok' not in result:
@@ -114,7 +119,14 @@ class CommandQueue:
                 row['state'] = 'completed' if result['ok'] else 'failed'
                 row['event'].set()
                 self._prune()
+                elapsed_ms = max(0.0, self.clock() - command_start) * 1000.0
+                self.executed += 1
+                self.command_max_ms = max(self.command_max_ms, elapsed_ms)
+                self.over_budget += elapsed_ms > budget_seconds * 1000.0
             count += 1
+        if count:
+            with self.lock:
+                self.drain_max_ms = max(self.drain_max_ms, max(0.0, self.clock() - start) * 1000.0)
         return count
 
     def shutdown(self):
@@ -126,4 +138,6 @@ class CommandQueue:
     def metrics(self):
         with self.lock:
             return {'pending': len(self.pending), 'retained': len(self.records),
-                    'capacity': self.capacity, 'completed_limit': self.completed_limit, 'closed': self.closed}
+                    'capacity': self.capacity, 'completed_limit': self.completed_limit, 'closed': self.closed,
+                    'executed': self.executed, 'over_budget': self.over_budget,
+                    'command_max_ms': self.command_max_ms, 'drain_max_ms': self.drain_max_ms}

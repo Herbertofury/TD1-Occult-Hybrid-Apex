@@ -78,6 +78,38 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(queue.status(identifiers[-1])['state'], 'cancelled')
         self.assertEqual(queue.submit({'action': 'new'})['state'], 'rejected')
 
+    def test_one_millisecond_budget_yields_without_losing_or_replaying_work(self):
+        now = [0.0]
+        queue = CommandQueue(clock=lambda: now[0])
+        ids = [queue.submit({'action': str(i)})['request_id'] for i in range(3)]
+        calls = []
+        def execute(value):
+            calls.append(value['action'])
+            now[0] += .0006
+            return {'ok': True}
+        self.assertEqual(queue.drain(execute), 2)
+        self.assertEqual(calls, ['0', '1'])
+        self.assertEqual(queue.status(ids[2])['state'], 'pending')
+        self.assertEqual(queue.drain(execute), 1)
+        self.assertEqual(calls, ['0', '1', '2'])
+        self.assertEqual(queue.metrics()['over_budget'], 0)
+
+    def test_nonpreemptible_overrun_is_measured_instead_of_reported_as_one_ms(self):
+        now = [0.0]
+        queue = CommandQueue(clock=lambda: now[0])
+        ids = [queue.submit({'action': str(i)})['request_id'] for i in range(2)]
+        def execute(value):
+            now[0] += .025
+            return {'ok': True}
+        self.assertEqual(queue.drain(execute), 1)
+        self.assertEqual(queue.status(ids[0])['state'], 'completed')
+        self.assertEqual(queue.status(ids[1])['state'], 'pending')
+        metrics = queue.metrics()
+        self.assertEqual(metrics['executed'], 1)
+        self.assertEqual(metrics['over_budget'], 1)
+        self.assertEqual(metrics['command_max_ms'], 25)
+        self.assertEqual(metrics['drain_max_ms'], 25)
+
 
 if __name__ == '__main__':
     unittest.main()

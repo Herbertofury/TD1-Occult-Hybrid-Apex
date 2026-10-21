@@ -6,6 +6,7 @@
 #include "ApexCasFormPair.h"
 #include "ApexCasPairAction.h"
 #include "ApexCasHouseholdWire.h"
+#include "ApexCasSelectiveAppearance.h"
 #include "ApexNativeOwnerMemory.h"
 #include "ApexNativeCasProbeWin.h"
 #include "ApexCasNativePipeWin.h"
@@ -189,6 +190,8 @@ inline std::string SerializeMessage(const Api& api,const void* proto) {
         throw std::runtime_error("Native household message serialization changed its measured size.");
     return std::string(bytes.data(),static_cast<std::size_t>(size));
 }
+struct State;
+inline std::unique_ptr<NativeOwner> ReadAppearanceRecord(State&,std::uint64_t,std::uint32_t,std::uint32_t,const std::string&);
 // Native undo contexts use consuming intrusive references. Own one reference
 // per exact form, independently of EA's (Sim, primary/alternate) map.
 struct NativeUndo {
@@ -1284,6 +1287,17 @@ inline bool Capture(std::uint64_t id,const void* proto,bool sourceSeed) {
                 if(Read<std::uint64_t>(clone->value,0xb8)!=id || Read<std::uint32_t>(clone->data(),8)!=destination)
                     throw std::runtime_error("Cloned appearance changed its exact Sim/form identity.");
                 return clone;
+            },
+            [&state,id,mask=member->second.mask](const std::unique_ptr<NativeOwner>& to,
+                const std::unique_ptr<NativeOwner>& from,std::uint32_t destination,std::uint32_t flags) {
+                const auto original=SerializeOwner(state.api,*to,id);
+                const auto source=SerializeOwner(state.api,*from,id);
+                const auto merged=selective::MirrorRecord(selective::Merge(original,source,flags),destination);
+                auto result=ReadAppearanceRecord(state,id,destination,mask,merged);
+                const auto actual=SerializeOwner(state.api,*result,id);
+                if(!selective::Equivalent(merged,actual))
+                    throw std::runtime_error("Game readback changed selected or retained appearance fields; scoped copy refused.");
+                return result;
             });
         replacement.entryOwner=NativeOwnerId(activeKind);
         for(const auto& owner:replacement.owners) replacement.logicalOwners.emplace(owner.first,NativeOwnerId(owner.first));
@@ -1434,10 +1448,12 @@ inline std::string PairState(State& state,std::uint64_t channel) {
     void* controller=nullptr;auto& bank=PairBank(state,channel,controller);const auto cursor=bank.graph->cursor();
     const auto linked=bank.graph->linked(bank.entryOwner,bank.partner)&&bank.graph->linked(bank.partner,bank.entryOwner);
     return "PAIR|"+std::to_string(cursor.sim)+"|"+cursor.owner+"|"+bank.entryOwner+"|"+bank.partner+"|"+
-        bank.humanOwner+"|"+(linked?"1":"0")+"|"+std::to_string(cursor.generation);
+        bank.humanOwner+"|"+(linked?"1":"0")+"|"+std::to_string(cursor.generation)+"|"+
+        std::to_string(bank.graph->linkScope(bank.entryOwner,bank.partner));
 }
 inline std::string ApplyPairAction(State& state,std::uint64_t channel,const std::string& payload) {
     const auto action=ParsePairAction(payload);void* controller=nullptr;auto& bank=PairBank(state,channel,controller);
+    if(action.flags!=UINT32_MAX)selective::Validate(action.flags);
     const auto cursor=bank.graph->cursor();
     if(cursor.sim!=action.sim || cursor.generation!=action.generation ||
        !((action.source==bank.entryOwner&&action.target==bank.partner)||(action.source==bank.partner&&action.target==bank.entryOwner)) ||
@@ -1445,7 +1461,8 @@ inline std::string ApplyPairAction(State& state,std::uint64_t channel,const std:
         throw std::runtime_error("Pair action is stale, outside the current pair or already consumed.");
     state.pairResult={{"request_id",action.request},{"sim_id",std::to_string(action.sim)},
         {"operation",action.copy?"copy":"link"},{"source_owner_id",action.source},{"target_owner_id",action.target},
-        {"scope","whole-appearance"},{"ok",false},{"appearance_written",false}};
+        {"scope",action.flags==UINT32_MAX?"whole-appearance":"selected-categories"},{"category_flags",action.flags},
+        {"ok",false},{"appearance_written",false}};
     try {
         if(action.copy) {
             Sync(controller);if(bank.viewFault)throw std::runtime_error("Outgoing form synchronization failed.");
@@ -1454,12 +1471,12 @@ inline std::string ApplyPairAction(State& state,std::uint64_t channel,const std:
             // harvest an older visible destination over the requested copy.
             if(bank.graph->cursor().owner!=action.source && !NativeUiView(controller,action.source))
                 throw std::runtime_error("Copy source did not bind.");
-            bank.graph->copy(bank.graph->cursor(),action.source,action.target);
+            bank.graph->copySelected(bank.graph->cursor(),action.source,action.target,action.flags);
             state.pairResult["appearance_written"]=true;
             if(!NativeUiView(controller,cursor.owner))throw std::runtime_error("Copied pair did not rebind its original selected form.");
         } else {
             if(action.enabled) {Sync(controller);if(bank.viewFault)throw std::runtime_error("Pre-link synchronization failed.");}
-            bank.graph->linkPair(bank.graph->cursor(),action.source,action.target,action.enabled);
+            bank.graph->linkPairSelected(bank.graph->cursor(),action.source,action.target,action.enabled,action.flags);
             state.pairResult["enabled"]=action.enabled;
         }
         state.pairResult["ok"]=true;state.pairResult["generation"]=bank.graph->cursor().generation;

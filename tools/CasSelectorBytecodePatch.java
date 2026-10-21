@@ -14,6 +14,8 @@ public class CasSelectorBytecodePatch {
     static final String TARGET = "widgets.CAS.SimSelector.CASSimSelectorMain";
     static final String COPY_TARGET = "widgets.CAS.SimSelector.CASSimSelectorCopyOptionPanel";
     static final String COPY_UPDATE_PIN = "fba1b85704b12cf1d8d9a15964b1639d52a2dbf3e086db498b5499792ab182f4";
+    static final Set<String> PAIR_METHODS=Set.of("UpdateSimInfo","SetOccultData","GetSelectedBitValues",
+        "OnCopy","SendLinkUpdate","OnRandomizeBitChanged","UpdateCopyFiltersAndRandomizationFlags");
     static final String PIN = "420eb0f8417bfc6935ffb4126086f19b72f2cae98a853d34abf6d59a94d454f1";
     static final String CLEANUP_PIN = "e79b3b65c8b6234c54d4a76f4c7a671f46ece7ddb9f6940bc5db312850fdef91";
     static final Map<String,String> FIELDS = Map.of("apexSelectorFeed", "Object",
@@ -123,10 +125,10 @@ public class CasSelectorBytecodePatch {
     static void verifySafeBody(ABC abc, String key, MethodBody body) {
         Set<String> calls = key.equals("ApexSelectorInitialize") ? Set.of("RegisterServiceHandler", "AddMessageListener")
             : key.equals("ApexSelectorCopyRow") ? Set.of("test", "String", "int", "Boolean")
-            : key.equals("ApexSelectorReadOwnerFeed") ? Set.of("RequestItemAt", "ApexSelectorCopyRow", "push", "String", "int", "Boolean", "localToGlobal", "GetCopyAlternativeFormXOffset", "GetCopyAlternativeFormYOffset")
+            : key.equals("ApexSelectorReadOwnerFeed") ? Set.of("RequestItemAt", "ApexSelectorCopyRow", "push", "String", "int", "Boolean", "Number", "localToGlobal", "GetCopyAlternativeFormXOffset", "GetCopyAlternativeFormYOffset", "GetSelectedBitValues")
             : key.equals("ApexSelectorCaptureFeed") ? Set.of("ApexSelectorCopyRow", "push", "String", "int", "Boolean") : Set.of();
         if(key.equals("ApexSelectorNavigate")) calls=Set.of("RequestItemAt","ApexSelectorCopyRow","test","String","int","SelectSimLayer");
-        if(key.equals("ApexSelectorEnableHybridPair")) calls=Set.of("test","String");
+        if(key.equals("ApexSelectorEnableHybridPair")) calls=Set.of("test","String","UpdateCopyAlternativeFormClip");
         if(key.equals("ApexSelectorRestorePair")) calls=Set.of("RequestItemAt","ReplaceItemAt","UpdateSelectedIndex","UpdateAffordable","UpdateLayout","int");
         var instructions=body.getCode().code;
         for (int index=0;index<instructions.size();index++) {
@@ -398,7 +400,58 @@ public class CasSelectorBytecodePatch {
         if(embedded >= 0) require(CasBytecodePatch.propertyCalls(abc,body(abc,abc.instance_info.get(embedded),"Unload")).contains("RemoveWidgetFunctions"),
             "Embedded WidgetBase cleanup no longer removes widget registrations.");
     }
-    static byte[] patch(ABC original, ABC compiled) throws Exception {
+    static Map<Integer,MethodBody> pairMethods(ABC original,ABC compiled) throws Exception {
+        int a=original.findClassByName(COPY_TARGET),b=compiled.findClassByName(COPY_TARGET);
+        require(a>=0 && a==b,"EA pair-panel class inventory differs.");
+        var before=original.instance_info.get(a);var after=compiled.instance_info.get(b);
+        require(sha(body(original,before,"UpdateSimInfo").getCodeBytes()).equals(COPY_UPDATE_PIN),
+            "EA pair-panel update differs from its pinned installed contract.");
+        Map<Integer,MethodBody> result=new HashMap<>();
+        for(String name:PAIR_METHODS) {
+            var old=body(original,before,name);var made=body(compiled,after,name);var replacement=made.clone();
+            require(old.exceptions.length==0 && made.exceptions.length==0 && old.traits.traits.isEmpty() && made.traits.traits.isEmpty(),
+                "EA pair-panel adapter has unreviewed exception/activation regions.");
+            int delta=old.init_scope_depth-made.init_scope_depth;
+            require(delta>=0 && delta<=16,"EA pair-panel lexical scope differs.");
+            for(var op:replacement.getCode().code) {
+                require(!Set.of(0x40,0x44,0x67).contains(op.definition.instructionCode),
+                    "EA pair-panel adapter contains an unreviewed function/outer-scope dependency.");
+                if(opcode(op,0x65))require(op.operands[0]<made.max_scope_depth-made.init_scope_depth,
+                    "EA pair-panel adapter local scope index differs.");
+            }
+            replacement.method_info=old.method_info;replacement.init_scope_depth+=delta;replacement.max_scope_depth+=delta;
+            replacement.getCode().checkValidOffsets(replacement);result.put(old.method_info,replacement);
+        }
+        // All added behavior lives inside these existing methods: no native
+        // class, embedded artwork, signature, slot or event binding is replaced.
+        require(before.instance_traits.traits.size()==after.instance_traits.traits.size(),
+            "EA pair-panel adapter unexpectedly adds/removes class traits.");
+        return result;
+    }
+    static void verifyPairPanel(ABC reference,ABC compiled,ABC saved) throws Exception {
+        CasBytecodePatch.prefix(reference,saved);CasBytecodePatch.prefix(compiled,saved);
+        var expected=pairMethods(reference,compiled);
+        int index=reference.findClassByName(COPY_TARGET);
+        require(index==saved.findClassByName(COPY_TARGET),"EA pair-panel class moved.");
+        var original=reference.instance_info.get(index);var actual=saved.instance_info.get(index);
+        ByteArrayOutputStream a=new ByteArrayOutputStream(),b=new ByteArrayOutputStream();
+        new ABCOutputStream(a).writeInstanceInfo(original);new ABCOutputStream(b).writeInstanceInfo(actual);
+        require(Arrays.equals(a.toByteArray(),b.toByteArray()),"EA pair-panel native class/traits changed.");
+        Set<Integer> methods=new HashSet<>(List.of(original.iinit_index,reference.class_info.get(index).cinit_index));
+        for(var trait:original.instance_traits.traits)if(trait instanceof TraitMethodGetterSetter)
+            methods.add(((TraitMethodGetterSetter)trait).method_info);
+        for(int id:methods) {
+            var wanted=expected.containsKey(id)?expected.get(id):reference.findBody(id);var found=saved.findBody(id);
+            require(found!=null && wanted!=null && Arrays.equals(wanted.getCodeBytes(),found.getCodeBytes()) &&
+                Arrays.equals(bodyStructure(wanted,false),bodyStructure(found,false)),
+                "EA pair-panel selected adapter or untouched native method differs.");
+        }
+    }
+    static byte[] patch(ABC original, ABC suppliedCompiler) throws Exception {
+        // Keep an independent compiler reference for the final selected-panel
+        // verification; transplanting native class tables must not mutate it.
+        ByteArrayOutputStream compilerBytes=new ByteArrayOutputStream();suppliedCompiler.saveToStream(compilerBytes);
+        ABC compiled=new ABC(new ABCInputStream(new MemoryInputStream(compilerBytes.toByteArray())),suppliedCompiler.getSwf(),null);
         CasBytecodePatch.prefix(original,compiled);
         int target=original.findClassByName(TARGET);
         require(target >= 0 && target == compiled.findClassByName(TARGET) && original.instance_info.size() == compiled.instance_info.size(),
@@ -412,7 +465,7 @@ public class CasSelectorBytecodePatch {
         int copyIndex=original.findClassByName(COPY_TARGET);
         require(copyIndex >= 0 && copyIndex == compiled.findClassByName(COPY_TARGET),"Native copy-panel class layout differs.");
         var copyClass=original.instance_info.get(copyIndex); MethodBody copyUpdate=body(original,copyClass,"UpdateSimInfo");
-        int copyOffset=independentDefaultOffset(original,copyUpdate);
+        var pairEdits=pairMethods(original,compiled);
         nativeHookContract(initialize,false); nativeHookContract(refresh,true);
         int scopeDelta=initialize.init_scope_depth-body(compiled,compilerClass,"Initialize").init_scope_depth;
         require(initialize.init_scope_depth == 12 && refresh.init_scope_depth == 12 && scopeDelta == 9 &&
@@ -423,7 +476,6 @@ public class CasSelectorBytecodePatch {
         Map<Integer,byte[]> code=new HashMap<>(), bodies=new HashMap<>();
         for(var b:original.bodies) { require(code.put(b.method_info,b.getCodeBytes().clone()) == null,"Duplicate native selector body.");
             bodies.put(b.method_info,bodyStructure(b,b == initialize || b == refresh)); }
-        patchIndependentDefault(original,copyClass);
         List<MethodInfo> methods=new ArrayList<>(original.method_info); List<MethodBody> owned=new ArrayList<>();
         Map<Integer,Integer> remap=new HashMap<>();
         for(Trait trait:added) if(trait instanceof TraitMethodGetterSetter) {
@@ -437,13 +489,17 @@ public class CasSelectorBytecodePatch {
         compiled.instance_info=original.instance_info; compiled.class_info=original.class_info;
         compiled.script_info=original.script_info; compiled.metadata_info=original.metadata_info; compiled.method_info=methods;
         compiled.bodies=new ArrayList<>(original.bodies); compiled.bodies.addAll(owned);
+        for(int i=0;i<compiled.bodies.size();++i) {
+            var replacement=pairEdits.get(compiled.bodies.get(i).method_info);
+            if(replacement!=null)compiled.bodies.set(i,replacement);
+        }
         nativeClass.instance_traits.traits.addAll(added);
         int initName=traitName(compiled,nativeClass,"ApexSelectorInitialize"), captureName=traitName(compiled,nativeClass,"ApexSelectorCaptureFeed");
         int restoreName=traitName(compiled,nativeClass,"ApexSelectorRestorePair");
         splice(initialize,initName,false); spliceRefresh(refresh,captureName,restoreName);
         ByteArrayOutputStream out=new ByteArrayOutputStream(); compiled.saveToStream(out);
         byte[] result=out.toByteArray();
-        ABC saved=new ABC(new ABCInputStream(new MemoryInputStream(result)),compiled.getSwf(),null);
+        ABC saved=new ABC(new ABCInputStream(new MemoryInputStream(result)),suppliedCompiler.getSwf(),null);
         CasBytecodePatch.prefix(original,saved);
         require(Arrays.equals(structure,nativeStructure(saved,nativeMethods,target,nativeTraits)), "Native selector class/script/traits/signatures changed.");
         require(saved.bodies.size() == code.size()+METHODS.size() && saved.method_info.size() == nativeMethods+METHODS.size(),
@@ -451,13 +507,19 @@ public class CasSelectorBytecodePatch {
         for(var row:code.entrySet()) {
             MethodBody b=saved.findBody(row.getKey()); require(b != null,"Serialized native selector body is absent.");
             boolean isInit=row.getKey() == initialize.method_info, isRefresh=row.getKey() == refresh.method_info;
+            if(pairEdits.containsKey(row.getKey())) {
+                var expected=pairEdits.get(row.getKey());
+                require(Arrays.equals(bodyStructure(expected,false),bodyStructure(b,false)) &&
+                    Arrays.equals(expected.getCodeBytes(),b.getCodeBytes()),"Serialized EA pair-panel adapter differs.");
+                continue;
+            }
             require(Arrays.equals(bodies.get(row.getKey()),bodyStructure(b,isInit || isRefresh)),"Native selector body metadata changed.");
             if(isInit) verifySplice(b,row.getValue(),initName,false);
             else if(isRefresh) verifyRefresh(b,row.getValue(),captureName,restoreName);
-            else if(row.getKey() == copyUpdate.method_info) verifyIndependentDefaultBytes(b,row.getValue(),copyOffset);
             else require(Arrays.equals(row.getValue(),b.getCodeBytes()),"Unowned native selector body changed.");
         }
         ownedTraits(saved,saved.instance_info.get(target)); verifyCleanup(saved,saved.instance_info.get(target));
+        verifyPairPanel(original,suppliedCompiler,saved);
         return result;
     }
     static String nameForMethod(List<Trait> traits,int index,ABC abc) {
@@ -477,14 +539,15 @@ public class CasSelectorBytecodePatch {
         }
         byte[] result=patch(original,compiled); Files.write(Path.of(args[2]),result);
         System.out.println("{\"native_method_count\":"+nativeCount+",\"apex_method_count\":"+METHODS.size()+",\"owned_field_count\":"+FIELDS.size()+","+
-            "\"unchanged_native_methods\":"+(nativeCount-3)+",\"native_class_script_traits_preserved\":true,"+
+            "\"unchanged_native_methods\":"+(nativeCount-2-PAIR_METHODS.size())+",\"native_class_script_traits_preserved\":true,"+
             "\"native_initialize_tail_hook_verified\":true,\"native_refresh_entry_hook_verified\":true,\"native_refresh_typed_tail_hook_verified\":true,"+
             "\"native_bodies_after_hook_stripping_exact\":true,\"native_lexical_scope_preserved\":true,"+
             "\"native_exception_regions\":0,\"unknown_native_exceptions_refused\":true,\"owned_local_scope_indexes_verified\":true,"+
             "\"callback_raw_copy_only_verified\":true,\"service_retained_view_read_only_verified\":true,"+
             "\"exact_widget_registration_linkage_verified\":true,\"initialize_preserves_captured_feed_verified\":true,"+
+            "\"native_pair_panel_adapter_methods\":"+PAIR_METHODS.size()+",\"hybrid_pair_scoped_transport\":true,"+
             "\"independent_occult_sync_default_verified\":true,\"independent_occult_sync_default_scope\":"+
-            "\"Unseen base Sim in this selector widget instance only; in-memory explicit choices retained; no cross-session persistence or runtime native-effect proof\","+
+            "\"Independent by default; hybrid panel uses exact Sim/form-pair scope, never stock global autosync. Runtime qualification required.\","+
             "\"selector_has_no_unload_override\":true,\"inherited_cleanup_bytecode_verified\":"+embedded+","+
             "\"inherited_cleanup_contract\":\"olympus.core.widget.WidgetBase.Unload -> RemoveWidgetFunctions (external native dependency when not embedded)\","+cleanup+"}");
     }

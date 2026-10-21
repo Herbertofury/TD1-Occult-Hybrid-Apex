@@ -35,6 +35,7 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'Source/CASUi/form_strip_methods.as',
                   'Source/CASUi/pair_controls_methods.as',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
+                  'tools/cas_pair_panel_patch.py',
                   'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py',
                   'tools/CasVoiceBytecodePatch.java', 'tools/cas_molecule_patch.py',
                   'tools/CasMoleculeBytecodePatch.java')
@@ -245,6 +246,14 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         (ROOT / 'Source/CASUi/selector_methods.as').read_text(encoding='utf-8')), encoding='utf-8')
     selector_compiled = work / 'apex-cas-selector-compiled.swf'
     run([ffdec, '-importAssets', 'yes,local', '-replace', selector_swf, selector_compiled, SELECTOR_CLASS, selector_source])
+    import cas_pair_panel_patch
+    pair_source = work / 'ApexCASPairPanel.as'
+    pair_native = selector_decompiled.parent / 'CASSimSelectorCopyOptionPanel.as'
+    pair_source.write_text(cas_pair_panel_patch.inject(pair_native.read_text(encoding='utf-8')), encoding='utf-8')
+    pair_compiled = work / 'apex-cas-pair-panel-compiled.swf'
+    run([ffdec, '-importAssets', 'yes,local', '-replace', selector_compiled, pair_compiled,
+         cas_pair_panel_patch.CLASS, pair_source])
+    selector_compiled = pair_compiled
     java_classes = work / 'cas-build-java'
     java_classes.mkdir(parents=True, exist_ok=True)
     run(['javac', '-cp', Path(ffdec).parent / 'ffdec.jar', '-d', java_classes,

@@ -23,6 +23,7 @@ inline std::string NativeOwnerId(std::uint32_t kind) {
 template<class Appearance> class OwnerGraph {
 public:
     using Clone=std::function<Appearance(const Appearance&,std::uint32_t)>;
+    using Merge=std::function<Appearance(const Appearance&,const Appearance&,std::uint32_t,std::uint32_t)>;
     struct Capture {std::uint32_t nativeKind;const Appearance* appearance;};
     using Captures=std::map<std::string,Capture>;
     struct Cursor {std::uint64_t sim;std::uint32_t kind;std::uint64_t generation;std::string owner;};
@@ -33,8 +34,10 @@ private:
     std::uint64_t sim_;
     std::uint32_t mask_;
     Clone clone_;
+    Merge merge_;
     std::map<std::string,Entry> entries_;
     std::map<std::string,std::set<std::string>> links_;
+    std::map<std::pair<std::string,std::string>,std::uint32_t> scopes_;
     Cursor cursor_;
     const Entry& Owned(const std::string& id) const {
         const auto at=entries_.find(id);
@@ -52,8 +55,8 @@ private:
         return result;
     }
 public:
-    OwnerGraph(std::uint64_t sim,std::uint32_t mask,const std::string& initialOwner,const Captures& captured,Clone clone)
-        :sim_(sim),mask_(mask),clone_(std::move(clone)),cursor_{sim,0,1,initialOwner} {
+    OwnerGraph(std::uint64_t sim,std::uint32_t mask,const std::string& initialOwner,const Captures& captured,Clone clone,Merge merge={})
+        :sim_(sim),mask_(mask),clone_(std::move(clone)),merge_(std::move(merge)),cursor_{sim,0,1,initialOwner} {
         if(!sim || !clone_ || (mask&~127u) || !(mask&1) || captured.empty())
             throw std::runtime_error("A complete Sim and appearance roster is required.");
         std::uint32_t observed=0;
@@ -68,8 +71,8 @@ public:
         cursor_.kind=Owned(initialOwner).nativeKind;
     }
     OwnerGraph(std::uint64_t sim,std::uint32_t mask,std::uint32_t initialKind,
-               const std::map<std::uint32_t,Appearance>& captured,Clone clone)
-        :OwnerGraph(sim,mask,NativeOwnerId(initialKind),NativeCaptures(captured),std::move(clone)) {}
+               const std::map<std::uint32_t,Appearance>& captured,Clone clone,Merge merge={})
+        :OwnerGraph(sim,mask,NativeOwnerId(initialKind),NativeCaptures(captured),std::move(clone),std::move(merge)) {}
     Cursor cursor() const {return cursor_;}
     std::uint32_t mask() const {return mask_;}
     const Appearance& appearance(const std::string& id) const {return Owned(id).appearance;}
@@ -90,6 +93,10 @@ public:
         Owned(source);const auto at=links_.find(source);
         static const std::set<std::string> empty;
         return at==links_.end()?empty:at->second;
+    }
+    std::uint32_t linkScope(const std::string& source,const std::string& target) const {
+        Owned(source);Owned(target);const auto at=scopes_.find({source,target});
+        return at==scopes_.end()?UINT32_MAX:at->second;
     }
     Cursor capture(const Cursor& expected,const std::string& id,std::uint32_t kind,const Appearance& appearance) {
         Current(expected);
@@ -127,7 +134,11 @@ public:
         for(const auto& id:destinations) {
             const auto& entry=entries_.at(id);
             if(entry.revision==UINT64_MAX) throw std::runtime_error("Appearance revision is exhausted.");
-            prepared.emplace(id,clone_(edited,entry.nativeKind));
+            const auto flags=linkScope(cursor_.owner,id);
+            if(id!=cursor_.owner && flags!=UINT32_MAX) {
+                if(!merge_)throw std::runtime_error("Selective appearance merger is unavailable.");
+                prepared.emplace(id,merge_(entry.appearance,edited,entry.nativeKind,flags));
+            } else prepared.emplace(id,clone_(edited,entry.nativeKind));
         }
         for(auto& row:prepared) {using std::swap;swap(entries_.at(row.first).appearance,row.second);++entries_.at(row.first).revision;}
         ++cursor_.generation;return cursor_;
@@ -141,6 +152,15 @@ public:
         ++cursor_.generation;return cursor_;
     }
     Cursor copy(const Cursor& expected,std::uint32_t source,std::uint32_t target) {return copy(expected,NativeOwnerId(source),NativeOwnerId(target));}
+    Cursor copySelected(const Cursor& expected,const std::string& source,const std::string& target,std::uint32_t flags) {
+        if(flags==UINT32_MAX)return copy(expected,source,target);
+        Current(expected);const auto& from=Owned(source);const auto& to=Owned(target);
+        if(source==target || !flags || !merge_ || to.revision==UINT64_MAX)
+            throw std::runtime_error("Selective copy needs two owners, a nonempty scope and a merger.");
+        auto prepared=merge_(to.appearance,from.appearance,to.nativeKind,flags);
+        using std::swap;swap(entries_.at(target).appearance,prepared);++entries_.at(target).revision;
+        ++cursor_.generation;return cursor_;
+    }
     Cursor link(const Cursor& expected,const std::string& source,const std::string& target,bool enabled) {
         Current(expected);Owned(source);Owned(target);
         if(source==target) throw std::runtime_error("A form cannot link to itself.");
@@ -154,17 +174,22 @@ public:
         return link(expected,NativeOwnerId(source),NativeOwnerId(target),enabled);
     }
     Cursor linkPair(const Cursor& expected,const std::string& first,const std::string& second,bool enabled) {
+        return linkPairSelected(expected,first,second,enabled,UINT32_MAX);
+    }
+    Cursor linkPairSelected(const Cursor& expected,const std::string& first,const std::string& second,bool enabled,std::uint32_t flags) {
         Current(expected);Owned(first);Owned(second);
         if(first==second) throw std::runtime_error("Linking requires two distinct form owners.");
         // Prepare both directions before publishing either edge. Linking never
         // copies an appearance; only later edits follow explicitly set edges.
-        auto prepared=links_;
+        if(enabled && !flags)throw std::runtime_error("A linked pair requires selected categories.");
+        auto prepared=links_;auto scopes=scopes_;
+        scopes[{first,second}]=flags;scopes[{second,first}]=flags;
         if(enabled) {prepared[first].insert(second);prepared[second].insert(first);}
         else {
             auto a=prepared.find(first);if(a!=prepared.end())a->second.erase(second);
             auto b=prepared.find(second);if(b!=prepared.end())b->second.erase(first);
         }
-        links_.swap(prepared);++cursor_.generation;return cursor_;
+        links_.swap(prepared);scopes_.swap(scopes);++cursor_.generation;return cursor_;
     }
 };
 }

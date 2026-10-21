@@ -498,7 +498,7 @@ public class CasBytecodePatch {
             require(clocks==1,"UI clock must have one exact imported getTimer call per timing method.");
         }
         var queued=propertyCalls(abc,ownedBody(abc,instance,"ApexFormsQueueOwner"));
-        require(queued.containsAll(Set.of("ApexClone","ApexFormsScheduleFrame","getTimer")) &&
+        require(queued.containsAll(Set.of("ApexFormsScheduleFrame","getTimer")) &&
             Collections.disjoint(queued,Set.of("ApexTick","CallGameService","ApexNativeExchange","ApexFormsOwnedTick")),
             "Form click may enqueue one next-frame intent, never execute native work inline.");
         require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsScheduleFrame")).equals(Set.of("addEventListener")),
@@ -526,9 +526,13 @@ public class CasBytecodePatch {
     }
     static void verifyPairControls(ABC abc, InstanceInfo instance) {
         var clicks=propertyCalls(abc,ownedBody(abc,instance,"ApexPairClick"));
-        require(clicks.contains("addEventListener") && Collections.disjoint(clicks,
+        require(clicks.isEmpty() && Collections.disjoint(clicks,
             Set.of("CallGameService","ApexPairExecute","ApexNativeExchange","ApexTick","ApexExecute")),
-            "Pair button callback must queue intent outside its input callback.");
+            "Retired floating pair controls must not draw or handle input.");
+        var panel=propertyCalls(abc,ownedBody(abc,instance,"ApexPairPanel"));
+        require(panel.containsAll(Set.of("ApexPairRead","ApexFormsScheduleFrame")) &&
+            Collections.disjoint(panel,Set.of("CallGameService","ApexPairExecute","ApexExecute","ApexAccept")),
+            "EA pair-panel callback must only validate and queue its exact pair action.");
         var read=ownedBody(abc,instance,"ApexPairRead");uniqueLiteral(abc,read,"PAIR|");
         require(Collections.disjoint(propertyCalls(abc,read),Set.of("CallGameService","ApexPairExecute","ApexExecute")),
             "Pair state is a data-only native read.");
@@ -612,8 +616,10 @@ public class CasBytecodePatch {
         for(var op:choose.getCode().code)if(property(abc,op,0x61,"apexMoleculeIntent"))retained=true;
         require(retained,"Molecule choice must survive a pending CLI readback.");
         var drain=ownedBody(abc,instance,"ApexMoleculeDrain");
-        require(propertyCalls(abc,drain).equals(Set.of("getTimer","ApexClone")),
+        require(propertyCalls(abc,drain).equals(Set.of("ApexClone")),
             "Draining a molecule choice must only queue its exact owner, never mutate native CAS directly.");
+        for(var op:choose.getCode().code)if(opcode(op,0x2c))require(!"CASGetSimInfo".equals(abc.constants.getString(op.operands[0])),
+            "Occult input callback must not synchronize/serialize the native Sim model.");
         var gates=new HashSet<String>();
         for(var op:drain.getCode().code)for(String gate:Set.of("apexBoundSim","apexOwnerSession",
             "apexPendingFields","apexPendingPhase","apexReceiving","apexFormsDesiredId",
@@ -758,8 +764,15 @@ public class CasBytecodePatch {
             for(var op:body.getCode().code)
                 if(property(abc,op,0x46,"CallGameService") || property(abc,op,0x4f,"CallGameService")) calls++;
             require(calls==entry.getValue(), "Typed CAS native service call inventory changed: "+entry.getKey()+" "+calls);
-            require(Collections.disjoint(propertyCalls(abc,body), Set.of("CallUIService","PostServerCommand","connect","SaveAndExitCAS")),
+            require(Collections.disjoint(propertyCalls(abc,body), Set.of("PostServerCommand","connect","SaveAndExitCAS")),
                 "Typed CAS control reaches an unrelated transport or native accept path.");
+            int uiCalls=0;
+            for(var op:body.getCode().code)if(property(abc,op,0x46,"CallUIService") || property(abc,op,0x4f,"CallUIService")) {
+                uiCalls++;require(entry.getKey().equals("ApexControlExecute") && op.operands[1]==2,
+                    "Typed CAS control has an unreviewed UI service call.");
+            }
+            require(uiCalls==(entry.getKey().equals("ApexControlExecute")?1:0),"Typed pair-panel refresh inventory differs.");
+            if(uiCalls==1)uniqueLiteral(abc,body,"ApexConfigureFormPortraits");
         }
         require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,"ApexClone")),
             Set.of("CallGameService","CallUIService","SendUIMessage")), "Detached native data copier performs native work.");
@@ -1181,7 +1194,7 @@ public class CasBytecodePatch {
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
             "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey",
             "apexFormsFrameQueued", "apexFormsFastState", "apexFormsNativeGeneration", "apexFormsGestureStarted", "apexFormsSwitchMilliseconds",
-            "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage");
+            "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame",
@@ -1191,7 +1204,7 @@ public class CasBytecodePatch {
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
             "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips",
             "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame",
-            "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus");
+            "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus", "ApexPairPanel");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
         for (Trait trait : newClass.instance_traits.traits) {

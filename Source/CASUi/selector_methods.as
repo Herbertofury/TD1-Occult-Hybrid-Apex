@@ -91,6 +91,7 @@
          // Presentation only. The native graph owns actual slot data and
          // navigation; no appearance, conversion or membership is written.
          apexSelectorHybridSim=String(request.sim_id);
+         if(request.refresh_pair===true) UpdateCopyAlternativeFormClip();
          return {protocol:1,enabled:true,sim_id:apexSelectorHybridSim};
       }
 
@@ -121,8 +122,9 @@
             row.sim_layers=[base,alternate];
             // Preserve every actual delivered pair, including initial/member
             // refreshes before the customizer registers its selected Sim.
-            // Stock copy/link must not flatten these independent owners.
-            row.mbAllowCopyAltForm=false;mDataFeed.ReplaceItemAt(index,row);changed=true;
+            // EA owns its real portrait panel. Its hybrid handlers now route
+            // only to the exact scoped owner graph, never global autosync.
+            row.mbAllowCopyAltForm=true;mDataFeed.ReplaceItemAt(index,row);changed=true;
          }
          if(!changed) return;
          UpdateSelectedIndex(int(message.selected_sim),int(message.selected_layer));
@@ -163,6 +165,11 @@
                   this.mGrid.GetCopyAlternativeFormXOffset(this.mSelectedSimIndex),-this.mGrid.GetCopyAlternativeFormYOffset()));
                retained.pair_controls_anchor={x:anchor.x,y:anchor.y};
             }
+            if(this.mcSelectorOptionsPanel!=null && this.mcSelectorOptionsPanel.mcAlternativeFormCopy!=null) retained.native_pair_panel={
+               visible:Boolean(this.mcSelectorOptionsPanel.visible && this.mcSelectorOptionsPanel.mcAlternativeFormCopy.visible),linked:Boolean(this.mcSelectorOptionsPanel.mcAlternativeFormCopy.btnLink.Selected),
+               copy_enabled:Boolean(this.mcSelectorOptionsPanel.mcAlternativeFormCopy.btnCopy.enabled),
+               category_flags:this.mcSelectorOptionsPanel.mcAlternativeFormCopy.visible?Number(this.mcSelectorOptionsPanel.mcAlternativeFormCopy.GetSelectedBitValues()):0,
+               x:Number(this.mcSelectorOptionsPanel.x),y:Number(this.mcSelectorOptionsPanel.y)};
          } catch(readError:Error) {
             retained.complete=false; retained.error=readError.message;
          } finally { row=null; layers=null; raw=null; message=null; }

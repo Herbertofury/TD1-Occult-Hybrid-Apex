@@ -90,6 +90,7 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
             'exact_widget_registration_linkage_verified', 'initialize_preserves_captured_feed_verified',
             'selector_has_no_unload_override', 'inherited_cleanup_bytecode_verified',
             'independent_occult_sync_default_verified',
+            'hybrid_pair_scoped_transport',
         )
         required_contract = (
             'native_lexical_scope_preserved', 'owned_local_scope_indexes_verified',
@@ -112,7 +113,8 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
                 ui_info.get('non_script_tags_preserved') is not True or
                 contract.get('unchanged_native_methods') != 1785 or
                 selector_contract.get('native_method_count') != 462 or
-                selector_contract.get('unchanged_native_methods') != 459 or
+                selector_contract.get('unchanged_native_methods') != 453 or
+                selector_contract.get('native_pair_panel_adapter_methods') != 7 or
                 any(selector_contract.get(flag) is not True for flag in required_selector_contract) or
                 any(contract.get(flag) is not True for flag in required_contract)):
             raise ValueError('CAS bridge package does not match its build evidence.')

@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 JAR = ROOT / '.work/research/ffdec/ffdec.jar'
 NATIVE_SELECTOR = ROOT / '.work/research/cas-hair-cassimselector-current.swf'
 COMPILED_SELECTOR = ROOT / '.work/research/apex-cas-selector-compiled.swf'
+PAIR_SELECTOR = ROOT / '.work/research/apex-cas-pair-panel-compiled.swf'
 CASES = (
     'entry-preserves-branch', 'tail-preserves-return-branch', 'unknown-native-exception',
     'typed-refresh-exact', 'typed-refresh-tail-argument', 'typed-refresh-tail-qname',
@@ -29,6 +30,7 @@ ACTUAL_CASES = ('actual-default-exact', 'actual-default-reverted', 'actual-remem
     'actual-explicit-link-memory', 'actual-sync-zero', 'actual-sync-service',
     'actual-sync-payload', 'actual-copy-handler', 'actual-copy-exception',
     'actual-copy-trait', 'actual-native-already-patched')
+PAIR_CASES=('panel-exact','panel-wrong-service','panel-wrong-destination','panel-native-handler-tamper','panel-extra-trait')
 
 
 class SelectorBytecodeSafetyTests(unittest.TestCase):
@@ -47,17 +49,18 @@ class SelectorBytecodeSafetyTests(unittest.TestCase):
             raise AssertionError(result.stdout + result.stderr)
 
     def fixture(self, case):
-        actual = case in ACTUAL_CASES
-        if actual and (not NATIVE_SELECTOR.is_file() or not COMPILED_SELECTOR.is_file()):
+        actual = case in ACTUAL_CASES or case in PAIR_CASES
+        compiled = PAIR_SELECTOR if case in PAIR_CASES else COMPILED_SELECTOR
+        if actual and (not NATIVE_SELECTOR.is_file() or not compiled.is_file()):
             self.skipTest('Actual selector fixtures require the locally extracted native and compiled resources.')
         result = subprocess.run(['java', '-cp', os.pathsep.join((str(JAR), str(self.classes))),
-            'CasSelectorSafetyFixtures', case] + ([str(NATIVE_SELECTOR), str(COMPILED_SELECTOR)] if actual else []),
+            'CasSelectorSafetyFixtures', case] + ([str(NATIVE_SELECTOR), str(compiled)] if actual else []),
             capture_output=True, text=True, encoding='utf-8', timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(result.stdout.strip(), 'PASS ' + case)
 
 
-for _case in CASES + ACTUAL_CASES:
+for _case in CASES + ACTUAL_CASES + PAIR_CASES:
     setattr(SelectorBytecodeSafetyTests, 'test_' + _case.replace('-', '_'),
             lambda self, case=_case: self.fixture(case))
 

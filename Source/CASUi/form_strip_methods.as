@@ -303,7 +303,9 @@
          // The EA molecule's choice is an appearance selection for a retained
          // hybrid, never a destructive native genus conversion. Only enqueue;
          // the existing UI timer revalidates and consumes the exact owner token.
-         var sim:Object=ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true));
+         // Input callbacks use the UI's retained Sim record. CASGetSimInfo
+         // synchronizes/serializes the native model and belongs off this path.
+         var sim:Object=this.mCurrSimInfo;
          if(sim==null) return true;
          var mask:int=int(sim.allOccultTypes)&~1;
          if(apexFormsOwners.length==0 && (mask==0 || (mask&(mask-1))==0)) return false;
@@ -318,7 +320,7 @@
             // completed. A status/readback lease must not silently eat a click.
             // Bind it to this exact Sim/session, never carry it to a new editor.
             apexMoleculeIntent={sim_id:apexBoundSim,session:apexOwnerSession,
-               owner_id:String(owner.id),token:int(owner.token)};
+               owner_id:String(owner.id),token:int(owner.token),queued_at:getTimer()};
             apexFormsMessage="Switching to "+String(owner.label)+"...";
             apexFormsSignature="";ApexFormsScheduleFrame();return true;
          }
@@ -345,7 +347,7 @@
          var intent:Object=apexMoleculeIntent;apexMoleculeIntent=null;
          for each(var owner:Object in apexFormsOwners) if(owner.id===intent.owner_id && int(owner.token)==int(intent.token)) {
             if(owner.id!==apexFormsSelectedId) {
-               apexFormsGestureStarted=getTimer();apexFormsNativeIntent=ApexClone(owner);
+               apexFormsGestureStarted=int(intent.queued_at);apexFormsNativeIntent=ApexClone(owner);
             } else apexFormsMessage="";
             apexFormsSignature="";return;
          }
@@ -379,23 +381,23 @@
          if(event!=null && event.target!=null && String(event.target.name).indexOf("apexTool_")==0) {
             ApexFormsToolbarClick(String(event.target.name).substr(9)); return;
          }
-         if(event==null || event.target==null || apexFormsIntent!=null || apexFormsNativeIntent!=null || apexPendingFields!=null || apexReceiving ||
+         if(event==null || event.target==null || apexFormsIntent!=null ||
             apexFormsResult!=null && apexFormsResult.verified!==true) return;
          var name:String=String(event.target.name);
          if(name.indexOf("apexGroup_")==0) {
             var groupIndex:int=int(name.substr(10));
-            if(groupIndex<0 || groupIndex>=apexFormsGroups.length || apexFormsDesiredId!="" || apexFormsNativeState!="bound") return;
+            if(groupIndex<0 || groupIndex>=apexFormsGroups.length) return;
             var group:Object=apexFormsGroups[groupIndex];
             if(group.indices.length>1 || group.family=="imaginary_friend") {
                apexFormsVariantFamily=String(group.family);apexFormsPage=0;apexFormsSignature="";
-            } else if(apexFormsOwners[int(group.indices[0])].id!=apexFormsSelectedId)
+            } else if(apexFormsOwners[int(group.indices[0])].id!=apexFormsSelectedId || apexMoleculeIntent!=null || apexFormsNativeIntent!=null || apexFormsDesiredId!="")
                ApexFormsQueueOwner(apexFormsOwners[int(group.indices[0])]);
             return;
          }
          if(name.indexOf("apexOwned_")==0) {
             var ownerIndex:int=int(name.substr(10));
-            if(ownerIndex<0 || ownerIndex>=apexFormsOwners.length || apexFormsDesiredId!="" || apexFormsNativeState!="bound") return;
-            if(apexFormsOwners[ownerIndex].id!=apexFormsSelectedId) ApexFormsQueueOwner(apexFormsOwners[ownerIndex]);
+            if(ownerIndex<0 || ownerIndex>=apexFormsOwners.length) return;
+            if(apexFormsOwners[ownerIndex].id!=apexFormsSelectedId || apexMoleculeIntent!=null || apexFormsNativeIntent!=null || apexFormsDesiredId!="") ApexFormsQueueOwner(apexFormsOwners[ownerIndex]);
             apexFormsVariantFamily="";apexFormsPage=0;apexFormsSignature="";return;
          }
 
@@ -529,9 +531,12 @@
          ApexFormsBindUiKind();
          ApexMoleculeDrain();
          var busy:Boolean=apexPendingFields!=null || apexReceiving || apexFormsDragging || apexFormsDesiredId!="";
-         var portraits:Object=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim});
+         var pairSignature:String=apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration;
+         var refreshPair:Boolean=apexFormsNativeState=="bound" && apexFormsDesiredId=="" && pairSignature!==apexPairSignature;
+         var portraits:Object=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:refreshPair});
          if(portraits==null || portraits.protocol!==1 || portraits.enabled!==true || portraits.sim_id!==apexBoundSim)
             return;
+         if(refreshPair) apexPairSignature=pairSignature;
          if(!apexFormsBootstrap && !busy) {
             // Member navigation may already have bound the exact native owner.
             // Rebinding it again can strand an identical-state UI lease and
@@ -551,6 +556,7 @@
             ApexFormsReadNativeState();
             ApexFormsBindUiKind();
             busy=apexFormsDesiredId!="";
+            if(!busy) CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:true});
          }
          if(apexFormsCatalog==null || apexFormsCatalog.sim_id!=apexBoundSim) {
             apexFormsCatalog={sim_id:apexBoundSim,icons:{}};
@@ -727,9 +733,12 @@
       {
          // Consume once on the next rendered UI frame, outside the click
          // callback. The 500ms network poll is not a form-navigation scheduler.
-         if(owner==null || apexFormsNativeIntent!=null || apexFormsDesiredId!="") return;
-         apexMoleculeIntent=null;
-         apexFormsGestureStarted=getTimer();apexFormsNativeIntent=ApexClone(owner);
+         if(owner==null) return;
+         // One bounded latest-choice slot, tied to the exact Sim and editor.
+         // Never discard a click simply because the previous frame is busy.
+         apexFormsGestureStarted=getTimer();
+         apexMoleculeIntent={sim_id:apexBoundSim,session:apexOwnerSession,
+            owner_id:String(owner.id),token:int(owner.token),queued_at:apexFormsGestureStarted};
          ApexFormsScheduleFrame();
       }
 
@@ -747,7 +756,7 @@
          apexFormsFrameQueued=false;
          if(apexDisconnected || !apexNativeConnected || apexBoundSim=="" || apexPendingPhase>=7) return;
          if(apexTicking || apexPendingFields!=null || apexReceiving || apexPendingPhase!=0) {
-            if(apexMoleculeIntent!=null || apexFormsNativeIntent!=null) ApexFormsScheduleFrame();
+            if(apexMoleculeIntent!=null || apexFormsNativeIntent!=null || apexFormsDesiredId!="" || apexPairIntent!=null) ApexFormsScheduleFrame();
             return;
          }
          // An outstanding network POLL must not postpone a local form click.
@@ -755,7 +764,13 @@
          apexTicking=true;
          try {ApexFormsOwnedTick(ApexFormsObservedSim());}
          catch(error:Error) {apexFormsMessage=error.message;apexFormsSignature="";}
-         finally {apexTicking=false;}
+         finally {
+            apexTicking=false;
+            // Continue an outstanding transition on UI frames, not the
+            // unrelated 500 ms network polling timer. Idle UI does no work.
+            if(apexMoleculeIntent!=null || apexFormsNativeIntent!=null || apexFormsDesiredId!="" || apexPairIntent!=null)
+               ApexFormsScheduleFrame();
+         }
       }
 
       private function ApexFormsReadNativeState() : Boolean

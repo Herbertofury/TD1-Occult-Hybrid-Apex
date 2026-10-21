@@ -839,3 +839,74 @@ A large count of duplicated form records does not prove any acceptance test.
 Body markers, fixture results and preserved post-initialization bytes alone do
 not prove full-category editing, correct UI, CAS return, save or Tray retention.
 Keep unproved acceptance items open and retain evidence for failures.
+
+
+## V225 native portrait panel and responsiveness work (2026-10-20)
+
+The owner requested EA's real Vampire-style category link/copy panel in the
+existing portrait toolbar, including Alien's existing portrait arrangement,
+without Vampire identity substitution or a new floating toolbar. The seven
+selected native panel methods now adapt only the hybrid branch to the exact
+Sim/shared-Human/selected-form graph. EA's embedded artwork, buttons, checkbox
+component, native placement and other selector methods remain intact. Stock
+controller-wide autosync is never used by that hybrid branch. Category masks
+include tattoos, skin details/scars, accessories, makeup, eyes/eyebrows, body
+hair and wings; unselected fields and opaque destination data are retained.
+Links are direct pair edges: an Alien edit cannot relay through Human into a
+separately linked Vampire. Linking does not copy either current appearance.
+The same masks are available through the semantic CLI.
+
+The replacement floating link/arrow controls and their idle native/feed reads
+are retired. Local form clicks retain one latest desired selection for the
+exact Sim/editor, including while an earlier transition/readback is pending.
+Outstanding transitions continue on UI frames rather than waiting for the
+500 ms network polling timer; EA's pair panel refreshes after the actual bind.
+A 0-1 ms click-handler budget is a target, not a claim that complete game
+binding, asset loading or rendering can finish within that time. Runtime
+latency distribution and native-panel player-visible qualification remain open.
+
+V224's interrupted edited-category run completed twelve real item edits and
+six Alien/Vampire switch visits across the first two household members. Its
+automated driver was stopped to avoid competing with the owner's input. The
+last read-only request was later observed complete, without replay. The
+remaining members, edited CAS return, selective checkbox actions, save and
+Tray/Gallery round trips remain unqualified; no save or CAS acceptance was
+submitted by that interrupted run. V224's earlier five-member no-edit return
+proof remains a separate, qualified result.
+
+
+## Native panel integration, V226-V229 (2026-10-20)
+
+The native panel adapter retains EA's options container and its inner
+`mcAlternativeFormCopy` widget. Reading the outer container as if it were the
+copy widget caused an Error 1010 in retained-feed diagnostics; V229 addresses
+the actual inner widget. Read-only panel status can run during CLI readback;
+mutations still require the exact idle Sim/pair/generation. A changed bound
+owner/generation refreshes the EA panel, including initial binding.
+
+Form input uses the retained UI Sim instead of synchronizing/serializing a
+complete native Sim inside the click callback. The latest choice survives a
+busy transition, including clicking the previously active form again. Timing
+retains the original queued timestamp. The observed V228 native Vampire bind
+was 10.0329 ms; it is not a 0-1 ms end-to-end result.
+
+V228 opened full CAS after verifying all 195 stored appearances. Its first
+panel qualification stopped on the diagnostic/visibility error. A separate
+voice-only copy failed before writing an appearance: outfit IdList identifiers
+are packed fixed64, while body types/colors/object/layer arrays use their own
+varint encodings. V229 corrects that distinction, accepts an omitted default
+outfit category, and avoids parsing/copying unselected outfit/morph data for
+scalar-only operations. Native fixtures include fixed64 boundaries and voice
+copy retaining complete outfit/morph bytes. Runtime checkbox/selective-copy,
+link/unlink, household return and save/Tray gates remain open.
+
+A stale unresolved preflight from a closed process also blocked retry. The
+Source recovery path now archives that exact old preparation only after the
+prior process is absent and the same save/household, complete actual native
+appearances, traits, current kinds and requested memberships match. It retains
+its raw hashed preimage and does not replay a CAS return or restore old data.
+Sixteen entry-context tests pass, including changed-data/live-process refusal.
+The earlier Human-looking Werewolf test recipe with non-genetic parts in its
+genetic-data list was retained in history; only disposable fixtures were
+explicitly rebuilt from current Human appearances. This does not qualify
+arbitrary legacy recipes or weaken strict native-import comparison.

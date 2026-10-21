@@ -1,6 +1,8 @@
 """All-member CAS availability must preserve appearances, traits and identity."""
 from pathlib import Path
 import json
+import copy
+import os
 import sys
 import tempfile
 from types import SimpleNamespace as Obj
@@ -55,6 +57,43 @@ class CasEntryContextTests(unittest.TestCase):
         self.assertTrue(proof['all_appearances_and_traits_unchanged'])
         self.assertTrue(proof['complete_existing_membership_required'])
         self.assertFalse(proof['crash_fix_verified'])
+
+    def closed_preparation(self):
+        rows=[];members=[]
+        for sim in self.sims:
+            forms=sim.occult_tracker._sim_info_map
+            packed=self.before[sim.id]
+            before={key:{'current':sim.current_occult_types if key=='active' else int(key),'available':127} for key in packed}
+            traits={'traits':[11,22,33]}
+            rows.append((sim,forms,dict(forms),dict(forms,active=sim),before,packed,traits,127))
+            members.append(dict(sim_id=str(sim.id),original_appearances=copy.deepcopy(packed),original_traits=traits,
+                                before_context=copy.deepcopy(before),requested_available=127))
+        prior=dict(schema=1,stage='unresolved',runtime_pid=12345 if os.getpid()!=12345 else 12346,
+                   household_id='55',save_guid='77',members=members,current_kind_written=False,
+                   trait_written=False,appearance_written=False,forms_created=False,save_written=False)
+        return prior,rows
+
+    def test_closed_preflight_archival_requires_every_original_and_a_dead_process(self):
+        prior,rows=self.closed_preparation()
+        with patch('apex_core.form_bank._old_process_absent',return_value=True) as gone:
+            self.assertTrue(entry._closed_preparation_matches(prior,rows,'55','77'))
+            gone.assert_called_once_with(prior['runtime_pid'])
+        with patch('apex_core.form_bank._old_process_absent',return_value=False):
+            self.assertFalse(entry._closed_preparation_matches(prior,rows,'55','77'))
+
+    def test_changed_or_unproved_preflight_never_becomes_a_return_or_replay(self):
+        prior,rows=self.closed_preparation()
+        changes=[('runtime_pid',os.getpid()),('runtime_pid',True),('stage','native-write-intent'),
+                 ('appearance_written',True),('trait_written',True),('forms_created',True),
+                 ('household_id','56'),('save_guid','78'),('members',prior['members'][:1])]
+        with patch('apex_core.form_bank._old_process_absent',return_value=True):
+            for field,value in changes:
+                changed=copy.deepcopy(prior);changed[field]=value
+                self.assertFalse(entry._closed_preparation_matches(changed,rows,'55','77'),field)
+            changed=copy.deepcopy(prior);changed['members'][1]['original_traits']={'traits':[99]}
+            self.assertFalse(entry._closed_preparation_matches(changed,rows,'55','77'))
+            changed=copy.deepcopy(prior);changed['members'][1]['original_appearances']['active']['physique']=appearance.encode('different')
+            self.assertFalse(entry._closed_preparation_matches(changed,rows,'55','77'))
 
     def test_single_selected_scope_does_not_change_other_household_member(self):
         entry.prepare(self.backend, self.sims[0], False)

@@ -74,7 +74,8 @@ def integer(value, low, high, name):
 
 def wire(request, panel):
     op = request['operation']
-    if set(request) != SCHEMAS[op]:
+    expected=SCHEMAS[op] | ({'category_flags'} if op in ('pair-link','pair-copy') and 'category_flags' in request else set())
+    if set(request) != expected:
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
@@ -90,6 +91,10 @@ def wire(request, panel):
         else:
             if request['source_owner_id']==request['target_owner_id']:raise ValueError('Copy requires two distinct owners.')
             value=request['source_owner_id']+','+request['target_owner_id']
+        if 'category_flags' in request:
+            flags=integer(request['category_flags'],0,2**32-1,'pair category flags')
+            if not flags and (op=='pair-copy' or request['enabled']):raise ValueError('Select at least one linked/copied category.')
+            value+=','+str(flags)
         return 0,0,0,value
     if op == 'form-menu':
         import re
@@ -209,7 +214,9 @@ def validate(client, request):
     if op in ('pair-link','pair-copy'):
         import re
         pair=control.get('pair')
-        if (control.get('acknowledged') is not True or control.get('scope')!='whole-appearance' or
+        flags=request.get('category_flags',2**32-1)
+        if (control.get('acknowledged') is not True or control.get('scope')!=('whole-appearance' if flags==2**32-1 else 'selected-categories') or
+            control.get('category_flags',2**32-1)!=flags or
             not isinstance(control.get('request_id'),str) or re.fullmatch('[0-9a-f]{32}',control['request_id']) is None or
             control.get('sim_id')!=client.get('sim',{}).get('simId') or not isinstance(pair,dict) or
             pair.get('sim_id')!=control['sim_id'] or pair.get('base_owner_id')==pair.get('alternate_owner_id') or
@@ -217,7 +224,7 @@ def validate(client, request):
             raise PostconditionMismatch('Native pair action lacks its exact completed Sim and shared-Human pair.')
         if op=='pair-link':
             other=pair['alternate_owner_id'] if pair['base_owner_id']==pair['human_owner_id'] else pair['base_owner_id']
-            if other!=request['owner_id'] or control.get('enabled') is not request['enabled'] or pair.get('linked') is not request['enabled']:
+            if other!=request['owner_id'] or control.get('enabled') is not request['enabled'] or pair.get('linked') is not request['enabled'] or pair.get('category_flags',2**32-1)!=flags:
                 raise PostconditionMismatch('The requested actual form link state did not read back.')
         elif (control.get('source_owner_id')!=request['source_owner_id'] or control.get('target_owner_id')!=request['target_owner_id'] or
               {request['source_owner_id'],request['target_owner_id']}!={pair['base_owner_id'],pair['alternate_owner_id']}):

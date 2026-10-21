@@ -814,5 +814,43 @@
       "retained_proof": ".work/v224-upgrade-tests.log",
       "sha256": "edde7e3ed472ccb26e92dedbc70195c70d9334ba2d44ca323d5a3f254892ac3e"
     }
+  },
+  "v225_native_pair_panel": {
+    "actual_save_ready": false,
+    "cas_control_tests_passed": 20,
+    "category_scoped_direct_links": true,
+    "click_handler_target_ms": [
+      0,
+      1
+    ],
+    "epoch": "2026-10-20-native-pair-categories-v225",
+    "floating_controls_retired": true,
+    "latest_choice_scoped_to_sim_and_editor": true,
+    "native_panel_adapter_methods": 7,
+    "native_tests_passed": 14,
+    "runtime_click_handler_ms": null,
+    "runtime_model_bind_ms": null,
+    "runtime_verified": false,
+    "selector_bytecode_tests_passed": 60,
+    "ui_frame_transition_continuation": true,
+    "untouched_original": true
+  },
+  "v229_native_pair_runtime": {
+    "actual_save_ready": false,
+    "changed_owner_refresh": true,
+    "copy_panel_inner_widget_readback": true,
+    "entry_context_tests_passed": 16,
+    "epoch": "2026-10-20-native-pair-fixed64-v229",
+    "native_tests_passed": 14,
+    "original_profile_written": false,
+    "outfit_identifiers_packed_fixed64": true,
+    "read_only_status_allowed_during_cli_readback": true,
+    "runtime_pair_controls_verified": false,
+    "scalar_only_copy_preserves_unselected_raw_fields": true,
+    "selector_tests_passed": 60,
+    "v228_all195_entry_verified": true,
+    "v228_vampire_bind_ms": 10.0329,
+    "v228_voice_copy_appearance_written": false,
+    "v228_voice_copy_error": "Misaligned part/body arrays."
   }
 }

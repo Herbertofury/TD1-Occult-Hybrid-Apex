@@ -67,6 +67,8 @@
                apexMoleculeRegistered=RegisterServiceHandler("ApexMoleculeChooseOccult",ApexMoleculeChooseOccult);
             if(!apexMoleculeReadRegistered)
                apexMoleculeReadRegistered=RegisterServiceHandler("ApexMoleculeReadSelection",ApexMoleculeReadSelection);
+            if(!apexPairRegistered)
+               apexPairRegistered=RegisterServiceHandler("ApexFormPairPanel",ApexPairPanel);
             ApexMoleculeListen(true);
             apexTimer=new flash.utils.Timer(500);
             apexTimer.addEventListener(flash.events.TimerEvent.TIMER,ApexTick);
@@ -1075,14 +1077,20 @@
          }
          if(operation=="pair-link" || operation=="pair-copy") {
             var pair:Object=ApexPairRead();
-            if(parts.length!=2 || pair==null) throw new Error("Exact native portrait pair required");
+            if((parts.length!=2 && parts.length!=3) || pair==null) throw new Error("Exact native portrait pair required");
             var pairIntent:Object={sim_id:apexBoundSim,operation:operation=="pair-copy"?"copy":"link",enabled:false};
+            if(parts.length==3) {
+               if(!/^(0|[1-9][0-9]{0,9})$/.test(parts[2]) || Number(parts[2])>4294967295)
+                  throw new Error("Exact typed pair category flags required");
+               pairIntent.category_flags=Number(parts[2]);
+            }
             if(operation=="pair-link") {
                var other:String=pair.base_owner_id==pair.human_owner_id?pair.alternate_owner_id:pair.base_owner_id;
                if(parts[0]!==other || !/^[01]$/.test(parts[1])) throw new Error("Link request targets another form");
                pairIntent.source_owner_id=pair.base_owner_id;pairIntent.target_owner_id=pair.alternate_owner_id;pairIntent.enabled=parts[1]=="1";
             } else {pairIntent.source_owner_id=String(parts[0]);pairIntent.target_owner_id=String(parts[1]);}
-            reply.mutation_started=true;context.control=ApexPairExecute(pairIntent);context.control.operation=operation;return;
+            reply.mutation_started=true;context.control=ApexPairExecute(pairIntent);context.control.operation=operation;
+            CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:true});return;
          }
          if(operation=="form-menu") {
             if(!/^[a-z0-9_][a-z0-9_-]{0,63}$/.test(value) || apexFormsRoot==null || apexFormsDragging ||

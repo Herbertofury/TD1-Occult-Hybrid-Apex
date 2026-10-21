@@ -289,6 +289,8 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep, allow_pr
                 raise ValueError('Native occult cache conversion is quarantined after the V141 crash; no request sent.')
         if args.operation in cas_controls.OPERATIONS:
             value.update({name: getattr(args, name, None) for name in cas_controls.SCHEMAS[args.operation] - {'operation'}})
+        if args.operation in ('pair-link','pair-copy') and getattr(args,'category_flags',None) is not None:
+            value['category_flags']=args.category_flags
         if args.operation in ('panel', 'select'): value['panel'] = args.panel
         if args.operation == 'outfit': value.update(category=args.category, index=args.index)
         if args.operation == 'outfit-add': value['category'] = args.category

@@ -331,3 +331,49 @@ Apex is **not finished** while any of R001–R010 can still be reproduced on the
 - [ ] Complete CAS return and Live geometry, full category/MCCC coverage, scoped link/copy/undo and household save/Tray/Gallery acceptance. The direct CAS-exit Human-paint fix remains open; the permanent guard stays enabled.
 
 These are scoped checkpoints. They do not close R001–R010 or certify actual-save use.
+
+
+## V225 native portrait panel and responsiveness work (2026-10-20)
+
+The owner requested EA's real Vampire-style category link/copy panel in the
+existing portrait toolbar, including Alien's existing portrait arrangement,
+without Vampire identity substitution or a new floating toolbar. The seven
+selected native panel methods now adapt only the hybrid branch to the exact
+Sim/shared-Human/selected-form graph. EA's embedded artwork, buttons, checkbox
+component, native placement and other selector methods remain intact. Stock
+controller-wide autosync is never used by that hybrid branch. Category masks
+include tattoos, skin details/scars, accessories, makeup, eyes/eyebrows, body
+hair and wings; unselected fields and opaque destination data are retained.
+Links are direct pair edges: an Alien edit cannot relay through Human into a
+separately linked Vampire. Linking does not copy either current appearance.
+The same masks are available through the semantic CLI.
+
+The replacement floating link/arrow controls and their idle native/feed reads
+are retired. Local form clicks retain one latest desired selection for the
+exact Sim/editor, including while an earlier transition/readback is pending.
+Outstanding transitions continue on UI frames rather than waiting for the
+500 ms network polling timer; EA's pair panel refreshes after the actual bind.
+A 0-1 ms click-handler budget is a target, not a claim that complete game
+binding, asset loading or rendering can finish within that time. Runtime
+latency distribution and native-panel player-visible qualification remain open.
+
+V224's interrupted edited-category run completed twelve real item edits and
+six Alien/Vampire switch visits across the first two household members. Its
+automated driver was stopped to avoid competing with the owner's input. The
+last read-only request was later observed complete, without replay. The
+remaining members, edited CAS return, selective checkbox actions, save and
+Tray/Gallery round trips remain unqualified; no save or CAS acceptance was
+submitted by that interrupted run. V224's earlier five-member no-edit return
+proof remains a separate, qualified result.
+
+
+V229 development checkpoint: the real EA copy panel is the inner
+`mcAlternativeFormCopy` of its native options container. Corrected readback
+and refresh avoid an Error 1010 and hiding it during CLI observation. A
+real V228 native voice copy was refused before writing because IdList IDs
+are packed fixed64; V229 fixes that encoding and leaves outfits/morphs
+entirely untouched for voice-only operations. All 14 native tests, 60
+selector-bytecode tests and 16 entry-context tests pass. The V228 actual
+Vampire bind measured 10.0329 ms, not 0-1 ms. The current runtime panel,
+selective copy/link/unlink, edited CAS return, save and Tray qualifications
+remain open. The protected original has not been written.

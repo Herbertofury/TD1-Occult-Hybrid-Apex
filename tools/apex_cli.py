@@ -394,6 +394,7 @@ def parser():
     cas.add_argument('--owner-id', help='Exact named independent CAS form owner')
     cas.add_argument('--source-owner-id', help='Exact source in the currently displayed Human/form pair')
     cas.add_argument('--target-owner-id', help='Exact destination in the currently displayed Human/form pair')
+    cas.add_argument('--category-flags', type=int, help='Exact native pair category mask; omit for whole appearance')
     cas.add_argument('--native-kind', type=int, help='Rendering kind from the native owner inventory')
     cas.add_argument('--occult-type', type=int, help='Exact existing native membership for an occult-view request')
     cas.add_argument('--expected-all-occults', type=int, help='Complete membership mask from the fresh native CAS status')

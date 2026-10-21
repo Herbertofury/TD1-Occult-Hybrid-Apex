@@ -19,6 +19,40 @@ from .overlay_loader import _unlinked
 from .hybrid_persistence import _export_memberships
 
 
+def _closed_preparation_matches(previous, rows, household_id, save_guid):
+    """An aborted preflight may be archived, never replayed as a CAS return.
+
+    Verify every actual native preimage and trait in the new process. Named
+    appearance recipes are not native appearances and cannot authorize this.
+    """
+    from .form_bank import _old_process_absent
+    if (not isinstance(previous, dict) or type(previous.get('schema')) is not int or previous['schema'] != 1 or
+            previous.get('stage') != 'unresolved' or
+            type(previous.get('runtime_pid')) is not int or not 0 < previous['runtime_pid'] <= 0xffffffff or previous['runtime_pid'] == os.getpid() or
+            previous.get('household_id') != household_id or previous.get('save_guid') != save_guid or
+            any(previous.get(key) is not False for key in ('current_kind_written','trait_written',
+                'appearance_written','forms_created','save_written')) or
+            not isinstance(previous.get('members'), list) or len(previous['members']) != len(rows)):
+        return False
+    originals = {item.get('sim_id'): item for item in previous['members'] if isinstance(item, dict)}
+    if len(originals) != len(rows) or set(originals) != {str(row[0].id) for row in rows}:
+        return False
+    canonical = lambda value: json.dumps(value, sort_keys=True, ensure_ascii=True, allow_nan=False, separators=(',', ':'))
+    for sim, _forms, _identities, _owners, before, packed, traits, available in rows:
+        old = originals[str(sim.id)]
+        fields = old.get('original_appearances')
+        if (not isinstance(fields, dict) or set(fields) != set(packed) or
+                canonical(old.get('original_traits')) != canonical(traits) or
+                old.get('requested_available') != available or
+                not isinstance(old.get('before_context'), dict) or set(old['before_context']) != set(before)):
+            return False
+        for key, value in packed.items():
+            if appearance.fingerprint(fields[key]) != appearance.fingerprint(value):return False
+        for key, value in before.items():
+            if old['before_context'][key].get('current') != value.get('current'):return False
+    return _old_process_absent(previous['runtime_pid']) is True
+
+
 def checkpoint_members(backend, selected, selected_checkpoint):
     """Checkpoint companions before any household availability projection.
 
@@ -111,7 +145,8 @@ def prepare(backend, selected, full_household):
         if len(raw) > 32 * 1024 * 1024:
             raise ValueError('Prior CAS preparation exceeds its recovery bound.')
         previous = json.loads(raw.decode('utf-8'))
-        if previous.get('stage') not in ('verified',):
+        if previous.get('stage') != 'verified' and not _closed_preparation_matches(previous, rows,
+                str(household.id), str(backend.services.get_persistence_service().get_save_slot_proto_guid())):
             raise ValueError('A prior CAS pair preparation is unresolved; no replay authorized.')
         archive = _unlinked(path.with_name('household_cas_entry.' + hashlib.sha256(raw).hexdigest() + '.json'))
         if archive.exists():

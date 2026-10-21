@@ -184,8 +184,12 @@ public class CasSelectorSafetyFixtures {
     static void actual(String key,String sourcePath,String compiledPath) throws Exception {
         ABC reference=CasBytecodePatch.load(sourcePath), source=CasBytecodePatch.load(sourcePath);
         ABC compiled=CasBytecodePatch.load(compiledPath);
-        byte[] patched=CasSelectorBytecodePatch.patch(source,compiled);
-        ABC candidate=new ABC(new ABCInputStream(new MemoryInputStream(patched)),compiled.getSwf(),null);
+        // These cases specifically audit the older one-byte independent
+        // default patch. The current category-panel adapter has its own
+        // retained-bytecode verification, not this legacy byte offset.
+        CasSelectorBytecodePatch.patchIndependentDefault(source,
+            source.instance_info.get(source.findClassByName(CasSelectorBytecodePatch.COPY_TARGET)));
+        ABC candidate=serialized(source,source.getSwf());
         CasSelectorBytecodePatch.verifyIndependentDefault(reference,candidate);
         var copy=candidate.instance_info.get(candidate.findClassByName(CasSelectorBytecodePatch.COPY_TARGET));
         MethodBody update=CasSelectorBytecodePatch.body(candidate,copy,"UpdateSimInfo");
@@ -250,7 +254,28 @@ public class CasSelectorSafetyFixtures {
         else refuses(()->CasSelectorBytecodePatch.verifyIndependentDefault(reference,saved),"Native");
     }
     public static void main(String[] args) throws Exception {
-        if(args[0].startsWith("actual-")) actual(args[0],args[1],args[2]); else test(args[0]);
+        if(args[0].startsWith("panel-")) {
+            ABC reference=CasBytecodePatch.load(args[1]),source=CasBytecodePatch.load(args[1]),compiled=CasBytecodePatch.load(args[2]);
+            ABC candidate=new ABC(new ABCInputStream(new MemoryInputStream(CasSelectorBytecodePatch.patch(source,compiled))),compiled.getSwf(),null);
+            CasSelectorBytecodePatch.verifyPairPanel(reference,compiled,candidate);
+            var copy=candidate.instance_info.get(candidate.findClassByName(CasSelectorBytecodePatch.COPY_TARGET));
+            if(args[0].equals("panel-wrong-service"))
+                literal(candidate,CasSelectorBytecodePatch.body(candidate,copy,"SendLinkUpdate"),"ApexFormPairPanel").operands[0]=candidate.constants.getStringId("CasEnableAutoSyncOccultForm",true);
+            else if(args[0].equals("panel-wrong-destination"))
+                literal(candidate,CasSelectorBytecodePatch.body(candidate,copy,"OnCopy"),"alternate_owner_id").operands[0]=candidate.constants.getStringId("base_owner_id",true);
+            else if(args[0].equals("panel-native-handler-tamper"))
+                property(candidate,CasSelectorBytecodePatch.body(candidate,copy,"OnLink"),"mCurrentBaseSimId",0x66,0).operands[0]=
+                    property(candidate,CasSelectorBytecodePatch.body(candidate,copy,"OnLink"),"btnLink",0x66,0).operands[0];
+            else if(args[0].equals("panel-extra-trait"))copy.instance_traits.traits.add(copy.instance_traits.traits.get(0).clone());
+            else if(!args[0].equals("panel-exact"))throw new AssertionError("Unknown pair-panel fixture.");
+            for(String name:CasSelectorBytecodePatch.PAIR_METHODS) {
+                var method=CasSelectorBytecodePatch.body(candidate,copy,name);method.getCode();method.setModified();
+            }
+            var unchanged=CasSelectorBytecodePatch.body(candidate,copy,"OnLink");unchanged.getCode();unchanged.setModified();
+            ABC saved=serialized(candidate,reference.getSwf());
+            if(args[0].equals("panel-exact"))CasSelectorBytecodePatch.verifyPairPanel(reference,compiled,saved);
+            else refuses(()->CasSelectorBytecodePatch.verifyPairPanel(reference,compiled,saved),"EA pair-panel");
+        } else if(args[0].startsWith("actual-")) actual(args[0],args[1],args[2]); else test(args[0]);
         System.out.println("PASS "+args[0]);
     }
 }

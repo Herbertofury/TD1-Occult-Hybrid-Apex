@@ -26,6 +26,28 @@ class CasControlsTests(unittest.TestCase):
             self.assertEqual(wire.split('|')[3],str(cas_ui.PANELS[name]))
             self.assertEqual(wire.split('|')[6],'18446744073709551615')
 
+    def test_pair_categories_are_explicit_bounded_and_retain_legacy_whole_copy(self):
+        request={'operation':'pair-copy','source_owner_id':'native/2','target_owner_id':'native/1'}
+        self.assertEqual(cas_ui.envelope('12',request)[1].split('|')[-1],'native/2,native/1')
+        self.assertEqual(cas_ui.envelope('12',dict(request,category_flags=4096))[1].split('|')[-1],
+                         'native/2,native/1,4096')
+        for flags in (True,-1,2**32,0,1.5):
+            with self.assertRaises(ValueError):cas_ui.envelope('12',dict(request,category_flags=flags))
+        unlink={'operation':'pair-link','owner_id':'native/2','enabled':False,'category_flags':0}
+        cas_ui.envelope('12',unlink)
+        with self.assertRaises(ValueError):cas_ui.envelope('12',dict(unlink,enabled=True))
+
+    def test_pair_category_acknowledgement_cannot_silently_expand_to_whole(self):
+        request={'operation':'pair-link','owner_id':'native/2','enabled':True,'category_flags':4096}
+        client=self.client();client['control']={'operation':'pair-link','acknowledged':True,'scope':'selected-categories',
+            'category_flags':4096,'request_id':'a'*32,'sim_id':'12','enabled':True,
+            'pair':{'sim_id':'12','base_owner_id':'native/2','alternate_owner_id':'native/1',
+                    'human_owner_id':'native/1','linked':True,'category_flags':4096}}
+        cas_ui.validate_client(client,'12',request)
+        for field,value in (('scope','whole-appearance'),('category_flags',2**32-1)):
+            bad=copy.deepcopy(client);bad['control'][field]=value
+            with self.assertRaises(ValueError):cas_ui.validate_client(bad,'12',request)
+
     def test_every_panel_has_paged_discovery_without_total_catalog_cutoff(self):
         for name in cas_ui.PANELS:
             request={'operation':'catalog','panel':name,'offset':100000,'limit':32}

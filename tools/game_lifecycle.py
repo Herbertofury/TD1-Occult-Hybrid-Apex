@@ -65,7 +65,11 @@ def button(observation, phase):
         # In a retained native Home capture, the New Game icon joined its
         # label as "eNEW GAME". Recognize that exact artifact only. Keep
         # duplicate-control detection and the other Home/modal checks intact.
-        controls = ['new game' if item == 'enew game' else item for item in text]
+        # Retained 1278x1376 Home captures also read LOAD as "LeD" and
+        # join a decorative apostrophe to NEW. Normalize only these observed
+        # artifacts; all controls, uniqueness, headers and modal checks remain.
+        aliases = {'enew game':'new game', "'new game":'new game', 'led game':'load game'}
+        controls = [aliases.get(item,item) for item in text]
         forbidden = ('save game?', 'buy now', 'expansion pack', 'game pack', 'stuff pack',
                      'get missing packs?', 'get missing packs', 'play save with missing content',
                      'this game requires permissions', 'you don’t have access',

@@ -527,6 +527,6 @@
             equipped_category:{active:apexEquippedActive,resolved:apexEquippedProducts==null ? 0 : apexEquippedProducts.length,
                published:apexEquippedPublication==null ? 0 : int(apexEquippedPublication.count),
                pending:apexEquippedActive && apexEquippedRefreshPending,unresolved:apexEquippedUnresolved,timing:apexEquippedTiming},
-            keyboard:{index:apexKeyIndex,context:apexKeyContext,pending:apexKeyIntent,queued:apexKeyQueue==null ? 0 : apexKeyQueue.length,receipt:ApexClone(apexKeyReceipt),message:apexKeyMessage},
+            keyboard:{received:apexKeyReceived,last_code:apexKeyLastCode,rejected:apexKeyRejected,visibility:ApexCatalogKeyboardVisibility(),typing:ApexCatalogKeyboardTyping(),focused_name:stage==null || stage.focus==null ? "" : String(stage.focus.name),index:apexKeyIndex,context:apexKeyContext,pending:apexKeyIntent,queued:apexKeyQueue==null ? 0 : apexKeyQueue.length,receipt:ApexClone(apexKeyReceipt),message:apexKeyMessage},
             native_catalog_timing:apexCatalogPerformance,owned_frame_timing:apexCatalogFrameTiming};
       }

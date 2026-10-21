@@ -53,6 +53,13 @@ On a 539,005-row schema-4 snapshot, the recorded 50-repeat warm-query medians we
 
 These measurements cover the metadata worker only. They exclude transport, native UI layout, thumbnail rendering and gameplay frame times. The older snapshot did not contain the new split-name aliases; tests of the alias feature use newly built schema-5 fixtures. A real large-library alias-index benchmark and in-game search qualification are still required.
 
+The real-CC transport probe also passed against five copied packages (62 parts,
+five swatch families). The DLL worker's `lipstik` query, filtered to Magic Hand,
+makeup body type 29 and CC origin, returned the correct lipstick package as one
+30-swatch family and suggested **lipstick**. The retained worker measurement was
+1.323 ms including transport, with 0.406 ms in the metadata query. This small
+snapshot and one request do not measure a large-library UI or game frame time.
+
 ## Content actions must tell the truth
 
 An item's image should come from its actual resource or a properly identified generated preview. The game wins on age/species/body eligibility and actual loaded content. A missing image is not permission to show an unrelated thumbnail.
@@ -84,18 +91,69 @@ send actual window-addressed keyboard messages with `game key --background
 not provide an alternate equip path. A background delivery receipt establishes
 window-message acceptance only; the changed UI must be observed separately.
 
-The candidate package and DLL are built. Physical keys, scrolling, Enter,
-partial rows, equipped items, text fields and modal isolation still require
-actual-game qualification; fixture passes alone do not close that gate.
+The actual runtime pass below covers main hair/face cards and the equipped
+category. Text fields, modals, variation popups, held repeat and specialized
+palette/painter contexts still need separate qualification.
 
-The full regression passed 2,748 tests before the final keyboard queue/readback and asset-lock separation edits. Subsequent focused suites passed 128 cases; fourteen native test targets passed separately. Actual-game keyboard qualification remains open.
+### Runtime corrections through V257
+
+V254's actual Home command moved to the right card but exposed an uninitialized
+page-step register. V255 initializes it explicitly; all eleven navigation
+receipts then pass on the actual five-column, 436-item hair catalog. These are
+index/movement receipts, not a complete visibility or physical-key pass.
+
+The captures expose a Page Down target below the mask, despite an existing
+recycled view. V257 measures the actual scroller mask, computes page size from
+visible cells and places the outline inside the masked grid. A readback now
+requires the focused card to be visibly inside that region.
+
+Windows' acceptance of a posted key did not establish a CAS response. V256's
+synthetic event also failed to reach its listener. V257 registers the native
+stage listener for capture and target/bubble phases and adds
+`cas catalog-input --key right --focus-catalog`. That invokes the same keyboard
+handler inside the CAS movie. Enter is an explicit supported input and reports
+the possibility of an appearance change; a dispatched card click alone does
+not prove which part was equipped. The optional focus flag changes the game
+UI's focus only. Text fields and modals retain their guards, and received-key,
+rejection and visibility diagnostics are retained. Actual V257 qualification
+is recorded below.
+
+Validation also passes 171 focused Python cases and fourteen native targets.
+The broader 2,732-case run passes 2,731 cases and finds one obsolete fixture
+looking for a listener in a callback which was deliberately retired. The fixture
+now injects prohibited input into that empty callback, adds a separate inline
+mutation of the active EA panel, and requires both serialized regressions to be
+rejected. All 23 affected bytecode cases pass. No production validator or field
+comparison was relaxed to obtain that result.
+
+### Actual V257 qualification
+
+Eleven navigation steps pass on the current Alien's 436-item, five-column Hair
+catalog, including the partial last row. The actual mask and focus rectangles
+are checked, with End/Page Down captures reviewed. The native Face/Nose grid
+separately confirms two-column Up/Down movement. A background Windows RIGHT
+message reaches the stage listener and changes the index from 2 to 3.
+
+Enter uses the native card handler to change hair from 272449 to 272455, and
+native Undo restores 272449. The recorded desktop foreground remains unchanged.
+Enter on the first of twenty equipped cards opens Hair without changing its
+worn part. That navigation executes in the next idle UI phase: the retained
+initial assertion is followed by a fresh read, never a replayed Enter.
+
+All twenty save/backup files remain unchanged. This selected-form pass does not
+qualify edited-household persistence or actual-save use. The movable form strip
+also overlaps lower cards in this narrow viewport; layout QA remains open. See
+[the exact scoped report](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_KEYBOARD_V257.json).
 
 ## Remaining proof
 
 - [ ] Complete and visually qualify the native CAS search bar and native result cards.
-- [ ] Test fuzzy, creator, type, EA/CC and filename searches against copied real CC.
+- [x] Verify a copied real-CC typo query with creator/type/origin filters through the native transport.
+- [ ] Qualify the complete native CAS search UI, including filename and EA searches.
 - [ ] Resolve exact native resource provenance before claiming a package is the active winner.
-- [ ] Confirm keyboard navigation, focus, scrolling, Enter and text-field/modal isolation.
+- [x] Qualify main-card navigation, scrolling, Enter/Undo and native two/five-column layouts in CAS.
+- [x] Verify background Windows-key delivery and equipped-card category navigation.
+- [ ] Qualify text fields, modals, variation popups, held repeat and specialized palettes.
 - [ ] Verify changing members/forms during a search cannot publish or apply stale results.
 - [ ] Add incremental invalidation for added/changed/deleted packages without full per-query rescans.
 - [ ] Compare cold startup, memory use, tail frame times and large-category responsiveness.

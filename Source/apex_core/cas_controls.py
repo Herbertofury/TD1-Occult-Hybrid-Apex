@@ -14,7 +14,7 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
@@ -23,6 +23,7 @@ SCHEMAS = {
     'catalog-cards': {'operation','card_scale','gap_x','gap_y'},
     'catalog-card-reset': {'operation'},
     'catalog-key': {'operation','key'},
+    'catalog-input': {'operation','key','focus_catalog'},
     'catalog-style': {'operation','columns','color','glow','animation','strength','period','border'},
     'catalog-open': {'operation'},
     'catalog-view': {'operation','view'},
@@ -96,9 +97,13 @@ def wire(request, panel):
                 raise ValueError('Invalid bounded catalog '+name+'.')
             values.append(format(n,'.9f').rstrip('0').rstrip('.'))
         return 0,0,0,','.join(values)
-    if op == 'catalog-key':
-        if request['key'] not in ('left','right','up','down','home','end','pageup','pagedown'):
+    if op in ('catalog-key','catalog-input'):
+        allowed=('left','right','up','down','home','end','pageup','pagedown')+(('enter',) if op=='catalog-input' else ())
+        if request['key'] not in allowed:
             raise ValueError('Choose one catalog navigation key.')
+        if op=='catalog-input':
+            if type(request['focus_catalog']) is not bool:raise ValueError('Choose explicit catalog UI focus.')
+            return 0,0,0,request['key']+(','+'1' if request['focus_catalog'] else ',0')
         return 0,0,0,request['key']
     if op == 'catalog-view':
         if request['view'] not in ('category','items','style','layout','closed'):raise ValueError('Use category, items, style, layout or closed catalog view.')
@@ -252,15 +257,19 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
-    if op == 'catalog-key':
+    if op in ('catalog-key','catalog-input'):
+        injected=op=='catalog-input';enter=injected and request['key']=='enter'
         workspace=control.get('workspace',{});keyboard=workspace.get('keyboard',{})
-        receipt=keyboard.get('receipt');keys={'left':37,'up':38,'right':39,'down':40,'home':36,'end':35,'pageup':33,'pagedown':34}
+        receipt=keyboard.get('receipt');keys={'left':37,'up':38,'right':39,'down':40,'home':36,'end':35,'pageup':33,'pagedown':34,'enter':13}
         if (not isinstance(receipt,dict) or receipt.get('key')!=keys[request['key']] or
                 receipt.get('sim_id')!=client.get('sim',{}).get('simId') or
                 receipt.get('owner_id')!=client.get('form_strip',{}).get('selected_owner_id') or
                 client.get('form_strip',{}).get('native_owner_state')!='bound' or
                 receipt.get('menu_state')!=client.get('menu_state') or
-                control.get('appearance_written') is not False or receipt.get('click_dispatched') is not False or
+                (not injected and control.get('appearance_written') is not False) or
+                (injected and (control.get('handler_invoked') is not True or control.get('focus_requested') is not request['focus_catalog'] or
+                    control.get('appearance_write_possible') is not enter or receipt.get('source_route')!='shared-keyboard-handler')) or
+                receipt.get('click_dispatched') is not enter or
                 type(keyboard.get('pending')) is not int or keyboard['pending']!=0 or
                 type(keyboard.get('queued')) is not int or keyboard['queued']!=0):
             raise PostconditionMismatch('Catalog key lacks an exact settled Sim/form navigation receipt.')
@@ -272,9 +281,13 @@ def validate(client, request):
         if before>=count or request['key'] in ('pageup','pagedown') and page<1:
             raise PostconditionMismatch('Catalog key starts outside its native feed.')
         wanted={'left':before-1,'right':before+1,'up':before-columns,'down':before+columns,
-                'home':0,'end':count-1,'pageup':before-page,'pagedown':before+page}[request['key']]
-        if receipt['index_after']!=max(0,min(count-1,wanted)) or keyboard.get('index')!=receipt['index_after']:
+                'home':0,'end':count-1,'pageup':before-page,'pagedown':before+page,'enter':before}[request['key']]
+        if receipt['index_after']!=max(0,min(count-1,wanted)) or (not enter and keyboard.get('index')!=receipt['index_after']):
             raise PostconditionMismatch('Catalog key did not move to its requested native card.')
+        if not enter:
+            visible=keyboard.get('visibility',{})
+            if visible.get('available') is not True or visible.get('fully_visible') is not True or visible.get('focus_visible') is not True:
+                raise PostconditionMismatch('Catalog focus is not visibly inside its native scrolling region.')
         return
     if op in ('catalog-style','catalog-open','catalog-view','catalog-slider','catalog-cards','catalog-card-reset'):
         workspace=control.get('workspace')

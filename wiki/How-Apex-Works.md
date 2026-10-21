@@ -74,6 +74,8 @@ A first real Alien → Vampire → Alien run read back distinct eyebrow, skin-de
 
 The second household member then passed six actual Alien/Vampire category edits and three repeated form visits. All 193 other retained appearance records and all 20 save/backup files remained unchanged. This covers three categories on that member, not the full release matrix.
 
+Members three and four also passed their six selections and repeated Alien/Vampire visits. The later fifth-member handoff nevertheless changed member four's Alien outfits and genetics after its earlier export. The added eyebrow/skin-detail parts match member four's own approved choices, and its genetic physique then matches its already stored scalar physique. This is consistent with delayed outgoing-model synchronization; it does not prove a cross-member merge. The controlled follow-up then explicitly flushed member five while still unlinked: all 39 of its complete records remained identical after leaving it. This qualifies that one settled handoff. It does not convert the earlier failed baseline into a pass or qualify the whole edited CAS/Live/save/Tray matrix. No CAS acceptance or save was sent.
+
 A separate Bald eyebrow swatch still returned a different native swatch. CAS acceptance and saving were withheld for these tests.
 
 Counts such as 195 retained internal records are useful audit coverage, but do not prove 195 real forms or successful editing. Release requires visually distinct actual forms, all supported categories, all household members, CAS/Live/MCCC/F11 routes, normal save/cold-load and Tray/Gallery round trips.

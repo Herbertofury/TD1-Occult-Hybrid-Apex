@@ -290,7 +290,7 @@ All 2,737 local regression tests pass. See
 Large-library browsing, cold assets and edited-form persistence remain separate
 release gates; bounded ADD events do not establish whole-game latency or zero bugs.
 
-## Keyboard browsing, V254 candidate
+## Keyboard browsing, V257
 
 Arrow keys move a separate white focus outline through the native item cards.
 Up/Down use that panel's actual column count, including a different count in
@@ -312,9 +312,32 @@ send actual window-addressed keyboard messages with `game key --background
 not provide an alternate equip path. A background delivery receipt establishes
 window-message acceptance only; the changed UI must be observed separately.
 
-The candidate package and DLL are built. Physical keys, scrolling, Enter,
-partial rows, equipped items, text fields and modal isolation still require
-actual-game qualification; fixture passes alone do not close that gate.
+The actual runtime pass below covers main hair/face cards and the equipped
+category. Text fields, modals, variation popups, held repeat and specialized
+palette/painter contexts still need separate qualification.
+
+### Runtime corrections through V257
+
+V254's actual Home command moved to the right card but exposed an uninitialized
+page-step register. V255 initializes it explicitly; all eleven navigation
+receipts then pass on the actual five-column, 436-item hair catalog. These are
+index/movement receipts, not a complete visibility or physical-key pass.
+
+The captures expose a Page Down target below the mask, despite an existing
+recycled view. V257 measures the actual scroller mask, computes page size from
+visible cells and places the outline inside the masked grid. A readback now
+requires the focused card to be visibly inside that region.
+
+Windows' acceptance of a posted key did not establish a CAS response. V256's
+synthetic event also failed to reach its listener. V257 registers the native
+stage listener for capture and target/bubble phases and adds
+`cas catalog-input --key right --focus-catalog`. That invokes the same keyboard
+handler inside the CAS movie. Enter is an explicit supported input and reports
+the possibility of an appearance change; a dispatched card click alone does
+not prove which part was equipped. The optional focus flag changes the game
+UI's focus only. Text fields and modals retain their guards, and received-key,
+rejection and visibility diagnostics are retained. Actual V257 qualification
+is recorded below.
 
 Validation also passes 171 focused Python cases and fourteen native targets.
 The broader 2,732-case run passes 2,731 cases and finds one obsolete fixture
@@ -323,3 +346,22 @@ now injects prohibited input into that empty callback, adds a separate inline
 mutation of the active EA panel, and requires both serialized regressions to be
 rejected. All 23 affected bytecode cases pass. No production validator or field
 comparison was relaxed to obtain that result.
+
+### Actual V257 qualification
+
+Eleven navigation steps pass on the current Alien's 436-item, five-column Hair
+catalog, including the partial last row. The actual mask and focus rectangles
+are checked, with End/Page Down captures reviewed. The native Face/Nose grid
+separately confirms two-column Up/Down movement. A background Windows RIGHT
+message reaches the stage listener and changes the index from 2 to 3.
+
+Enter uses the native card handler to change hair from 272449 to 272455, and
+native Undo restores 272449. The recorded desktop foreground remains unchanged.
+Enter on the first of twenty equipped cards opens Hair without changing its
+worn part. That navigation executes in the next idle UI phase: the retained
+initial assertion is followed by a fresh read, never a replayed Enter.
+
+All twenty save/backup files remain unchanged. This selected-form pass does not
+qualify edited-household persistence or actual-save use. The movable form strip
+also overlaps lower cards in this narrow viewport; layout QA remains open. See
+[the exact scoped report](../Reports/CAS_KEYBOARD_V257.json).

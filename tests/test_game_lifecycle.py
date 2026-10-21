@@ -45,6 +45,15 @@ class LifecycleTests(unittest.TestCase):
     def resume_surface(self):
         return observed(['HOME', 'MARKETPLACE', 'RESUME GAME', 'LOAD GAME', 'NEW GAME', 'GALLERY'])
 
+    def test_tall_native_home_capture_ocr_artifacts_keep_complete_menu_guards(self):
+        labels=['MARKETPLACE','RESUME GAME','LeD GAME',"'NEW GAME",'GALLERY']
+        self.assertEqual(game_lifecycle.button(observed(labels),'resume')['command'],1)
+        for changed in (labels+['LOAD GAME'],labels+['NEW GAME'],labels+['Cancel'],
+                        [s for s in labels if s!='GALLERY'],
+                        ['MARKETPLACE','RESUME GAME','Lead Game',"'NEW GAME",'GALLERY']):
+            with self.subTest(labels=changed),self.assertRaises(ValueError):
+                game_lifecycle.button(observed(changed),'resume')
+
     def loaded_snapshot(self, sim_id='285159751289798669'):
         return {'ok': True, 'save_slot': 2, 'save_guid': '1841692672',
                 'zone_id': '285159751312710719', 'household_id': '285159751289798668',

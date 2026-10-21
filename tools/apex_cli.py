@@ -379,7 +379,7 @@ def parser():
     cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
-        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key'))
+        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input'))
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
     cas.add_argument('--target-sim-id', help='Existing household member identity for semantic member-select')
@@ -401,7 +401,8 @@ def parser():
     cas.add_argument('--owned-mask', type=int, help='Research-only: actual pre-entry membership mask; requires marked disposable profile')
     cas.add_argument('--native-session', type=int, help='Exact owner observation session from a fresh CAS status')
     cas.add_argument('--panel')
-    cas.add_argument('--key',choices=('left','right','up','down','home','end','pageup','pagedown'))
+    cas.add_argument('--key',choices=('left','right','up','down','home','end','pageup','pagedown','enter'))
+    cas.add_argument('--focus-catalog',action=argparse.BooleanOptionalAction,default=False,help='Focus the visible CAS card grid inside the game UI; never changes OS foreground')
     cas.add_argument('--family', help='Life-state family from form_strip.life_states; all returns to the main menu')
     cas.add_argument('--x', type=float, help='CAS strip horizontal position, 0 left to 1 right, within the available viewport')
     cas.add_argument('--y', type=float, help='CAS strip vertical position, 0 top to 1 bottom, within the available viewport')

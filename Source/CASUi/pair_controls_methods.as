@@ -65,6 +65,7 @@
 
       private function ApexPairPanel(request:Object) : Object
       {
+         var inputStarted:int=getTimer();
          if(request==null || request.sim_id!==apexBoundSim || apexFormsOwners.length==0) return null;
          if(apexFormsDesiredId!="" || apexFormsNativeIntent!=null)
             return {blocked:true,enabled:false};
@@ -80,13 +81,19 @@
             request.generation!==pair.generation || request.base_owner_id!==pair.base_owner_id ||
             request.alternate_owner_id!==pair.alternate_owner_id || !(request.enabled is Boolean) ||
             !(request.category_flags is Number) || request.category_flags<0 || request.category_flags>4294967295 ||
-            request.category_flags!=Math.floor(request.category_flags) || apexPairIntent!=null)
+            request.category_flags!=Math.floor(request.category_flags))
             return {blocked:true,enabled:false,message:"The selected pair changed or an action is pending"};
+         // Consecutive checkbox/link changes on this exact pair keep the last
+         // requested state. A Copy remains a distinct one-shot operation.
+         if(apexPairIntent!=null && (request.operation!="link" || apexPairIntent.operation!="link" ||
+            apexPairIntent.sim_id!==apexBoundSim || apexPairIntent.session!==apexOwnerSession ||
+            apexPairIntent.generation!==pair.generation))
+            return {blocked:true,enabled:false,message:"A separate pair action is pending"};
          apexPairIntent={sim_id:pair.sim_id,session:apexOwnerSession,generation:pair.generation,
             operation:request.operation,enabled:request.enabled,category_flags:request.category_flags,
             source_owner_id:pair.selected_owner_id,
             target_owner_id:pair.selected_owner_id===pair.base_owner_id?pair.alternate_owner_id:pair.base_owner_id};
-         ApexFormsScheduleFrame();return {queued:true,enabled:true};
+         ApexFormsScheduleFrame();ApexInputTiming(inputStarted);return {queued:true,enabled:true};
       }
 
       // No replacement floating buttons. Keep these retired entry points for

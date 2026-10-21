@@ -8,6 +8,19 @@ struct PairAction {
     bool copy,enabled;
     std::uint32_t flags=UINT32_MAX;
 };
+template<class Graph,class Flush> void ApplyPairLink(Graph& graph,const PairAction& action,Flush flush) {
+    const auto before=graph.cursor();
+    if(action.copy || before.sim!=action.sim || before.generation!=action.generation)
+        throw std::runtime_error("Link change lacks its exact current model generation.");
+    // Finish pending edits through the OLD scope before changing that scope.
+    // In particular unlink must not strand an edit that was made while linked.
+    // Enabling a link also must not retroactively copy earlier unlinked edits.
+    flush();
+    const auto after=graph.cursor();
+    if(after.sim!=before.sim || after.owner!=before.owner || after.kind!=before.kind)
+        throw std::runtime_error("The selected owner changed during link synchronization.");
+    graph.linkPairSelected(after,action.source,action.target,action.enabled,action.flags);
+}
 inline PairAction ParsePairAction(const std::string& text) {
     if(text.size()>512)throw std::runtime_error("Pair action exceeds its bound.");
     std::vector<std::string> parts;std::size_t start=0;

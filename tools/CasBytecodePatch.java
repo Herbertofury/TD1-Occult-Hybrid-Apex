@@ -1181,6 +1181,27 @@ public class CasBytecodePatch {
         for(int i=guard-33;i<=publish+17;i++) require(!property(abc,rows.get(i),0x46,"CallGameService") &&
             !property(abc,rows.get(i),0x4f,"CallGameService"),"Wing compound refusal performs a native service after raw observation.");
     }
+    static void verifyCatalogWorkspace(ABC abc,InstanceInfo instance) {
+        var click=propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogOpen"));
+        require(click.equals(Set.of("getTimer","ApexInputTiming")),"Catalog radial click must only queue and record timing.");
+        var frame=ownedBody(abc,instance,"ApexCatalogFrame");boolean pending=false,receiving=false;
+        for(var op:frame.getCode().code)if(op.definition.instructionCode==0x66 || op.definition.instructionCode==0x60) {
+            final String member=abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index);
+            require(!"apexAwaiting".equals(member),"Catalog player input waits for the transport poll.");
+            pending|="apexPendingFields".equals(member);receiving|="apexReceiving".equals(member);
+        }
+        require(pending&&receiving,"Catalog player input lacks active CAS command guards.");
+        var selected=propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogSelection"));
+        require(selected.contains("GetAllDisplayObjectCells") && Collections.disjoint(selected,Set.of("CallGameService","CallUIService","ApexNativeExchange")),
+            "Selection animation must only inspect native recycled cells, without game queries.");
+        var equipped=ownedBody(abc,instance,"ApexCatalogReadEquipped");
+        uniqueLiteral(abc,equipped,"EQUIPPED|");
+        int nativeReads=0;
+        for(var op:equipped.getCode().code)if(property(abc,op,0x46,"ApexNativeExchange")) {
+            require(op.operands[1]==1,"Equipped inventory must encode its complete channel/outfit in one native pipe argument.");nativeReads++;
+        }
+        require(nativeReads==1,"Equipped inventory requires exactly one bounded native read.");
+    }
     public static void main(String[] args) throws Exception {
         require(args.length == 3, "Use original SWF, compiler SWF, output ABC.");
         ABC original = load(args[0]), compiled = load(args[1]);
@@ -1204,6 +1225,8 @@ public class CasBytecodePatch {
             "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey",
             "apexFormsFrameQueued", "apexFormsFastState", "apexFormsNativeGeneration", "apexFormsGestureStarted", "apexFormsSwitchMilliseconds",
             "apexInputSamples", "apexInputOverBudget", "apexInputMaxMs", "apexInputTotalMs",
+            "apexCatalogPrefs","apexCatalogStore","apexCatalogUi","apexCatalogRows","apexCatalogIntent","apexCatalogSignature","apexCatalogEffects","apexCatalogPage","apexCatalogItems","apexCatalogContext","apexCatalogError","apexCatalogRegistered","apexCatalogDrag","apexCatalogSaved",
+            "apexCatalogTab", "apexCatalogSelectionFrames", "apexCatalogSelectionMaxMs", "apexCatalogSelectionOverBudget",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
@@ -1214,6 +1237,7 @@ public class CasBytecodePatch {
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
             "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips",
             "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming",
+            "ApexCatalogInitialize","ApexCatalogValidate","ApexCatalogPersist","ApexCatalogStyle","ApexCatalogDispose","ApexCatalogOpen","ApexCatalogFrame","ApexCatalogClearEffects","ApexCatalogSelection","ApexCatalogReadEquipped","ApexCatalogMenu","ApexCatalogButton","ApexCatalogSlider","ApexCatalogDraw","ApexCatalogClick","ApexCatalogSlideStart","ApexCatalogSlide","ApexCatalogSlideEnd","ApexCatalogStatus",
             "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus", "ApexPairPanel");
         Set<String> seenNames = new HashSet<>();
         int initializeName = -1, disconnectName = -1;
@@ -1255,6 +1279,7 @@ public class CasBytecodePatch {
         verifyOwnerMetadataReadback(compiled,newClass);
         verifyCatalogVariantReadback(compiled,newClass);
         verifySettledOwnerBootstrap(compiled,newClass);
+        verifyCatalogWorkspace(compiled,newClass);
         MethodBody nativeInit = null, compilerInit = null, nativeUnload = null, compilerUnload = null;
         for (Trait trait : nativeClass.instance_traits.traits) {
             String key = name(original, trait);
@@ -1355,6 +1380,7 @@ public class CasBytecodePatch {
         verifyOwnerMetadataReadback(serialized,serialized.instance_info.get(oi));
         verifyCatalogVariantReadback(serialized,serialized.instance_info.get(oi));
         verifySettledOwnerBootstrap(serialized,serialized.instance_info.get(oi));
+        verifyCatalogWorkspace(serialized,serialized.instance_info.get(oi));
         for (MethodBody body : original.bodies) if (body != nativeInit && body != nativeUnload)
             require(Arrays.equals(nativeCode.get(body.method_info), serialized.findBody(body.method_info).getCodeBytes()),
                 "Serialized unowned native method bytecode changed.");

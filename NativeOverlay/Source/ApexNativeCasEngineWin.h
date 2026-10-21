@@ -18,6 +18,7 @@
 #include <cmath>
 #include <intrin.h>
 #include <atomic>
+#include <cstdio>
 
 namespace td1::nativecas::engine {
 using ImportFn=void(*)(void*,const void*);
@@ -1451,6 +1452,31 @@ inline std::string PairState(State& state,std::uint64_t channel) {
         bank.humanOwner+"|"+(linked?"1":"0")+"|"+std::to_string(cursor.generation)+"|"+
         std::to_string(bank.graph->linkScope(bank.entryOwner,bank.partner));
 }
+inline std::string EquippedItems(State& state,std::uint64_t channel,const std::string& payload) {
+    if(FastOwnerState(state,channel).rfind("VIEWSTATE|",0)!=0)throw std::runtime_error("Equipped items lack an exact selected native model.");
+    const auto split=payload.find('|');
+    if(split==std::string::npos || payload.find('|',split+1)!=std::string::npos)throw std::runtime_error("Invalid equipped outfit selection.");
+    const auto parse=[](const std::string& n) {
+        if(n.empty() || n.size()>3 || !std::all_of(n.begin(),n.end(),[](char c){return c>='0'&&c<='9';}))
+            throw std::runtime_error("Invalid bounded outfit index.");
+        return static_cast<std::uint64_t>(std::stoul(n));
+    };
+    const auto category=parse(payload.substr(0,split)),ordinal=parse(payload.substr(split+1));
+    const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
+    const auto group=Read<void*>(controller,0x100);const auto id=Read<std::uint64_t>(group,0xb8);
+    auto& bank=state.bank.at(id);const auto cursor=bank.graph->cursor();
+    // Read a detached copy of the CURRENT model, including unsaved CAS edits.
+    // Do not synchronize, commit a graph revision, or read an inactive panel.
+    const auto parts=selective::Equipped(SerializeOwner(state.api,*CloneModel(state,bank,controller),id),category,ordinal);
+    if(parts.rows.size()>256)throw std::runtime_error("Equipped item list exceeds its UI bound.");
+    std::string result="EQUIPPED|"+std::to_string(id)+"|"+cursor.owner+"|"+std::to_string(category)+"|"+
+        std::to_string(ordinal)+"|"+std::to_string(cursor.generation);
+    for(const auto& row:parts.rows) {
+        char key[19]{};std::snprintf(key,sizeof(key),"0x%016llx",static_cast<unsigned long long>(row[0]));
+        result+='\n'+std::string(key)+"|"+std::to_string(row[1])+"|"+std::to_string(row[2])+"|"+std::to_string(row[4]);
+    }
+    return result;
+}
 inline std::string ApplyPairAction(State& state,std::uint64_t channel,const std::string& payload) {
     const auto action=ParsePairAction(payload);void* controller=nullptr;auto& bank=PairBank(state,channel,controller);
     if(action.flags!=UINT32_MAX)selective::Validate(action.flags);
@@ -1475,8 +1501,10 @@ inline std::string ApplyPairAction(State& state,std::uint64_t channel,const std:
             state.pairResult["appearance_written"]=true;
             if(!NativeUiView(controller,cursor.owner))throw std::runtime_error("Copied pair did not rebind its original selected form.");
         } else {
-            if(action.enabled) {Sync(controller);if(bank.viewFault)throw std::runtime_error("Pre-link synchronization failed.");}
-            bank.graph->linkPairSelected(bank.graph->cursor(),action.source,action.target,action.enabled,action.flags);
+            ApplyPairLink(*bank.graph,action,[&] {
+                Sync(controller);
+                if(bank.viewFault)throw std::runtime_error("Pre-link-change synchronization failed.");
+            });
             state.pairResult["enabled"]=action.enabled;
         }
         state.pairResult["ok"]=true;state.pairResult["generation"]=bank.graph->cursor().generation;
@@ -1509,6 +1537,7 @@ inline bool GetOccultService(const void* arguments) {
         } else if(action=="STATE"&&end==std::string::npos)response=FastOwnerState(state,number);
         else if(action=="PAIR"&&end==std::string::npos)response=PairState(state,number);
         else if(action=="PAIRDO"&&end!=std::string::npos)response=ApplyPairAction(state,number,rest.substr(end+1));
+        else if(action=="EQUIPPED"&&end!=std::string::npos)response=EquippedItems(state,number,rest.substr(end+1));
         else if(action=="READ"&&end==std::string::npos)response=pipe::Channel().Poll(number,state.scope.id);
         else if(action=="CLOSE"&&end==std::string::npos)response=pipe::Channel().Close(number,state.scope.id);
         else if(action=="WRITE"&&end!=std::string::npos)response=pipe::Channel().Send(number,state.scope.id,rest.substr(end+1));

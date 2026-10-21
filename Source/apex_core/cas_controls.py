@@ -14,12 +14,14 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
 PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'))
 SCHEMAS = {
+    'catalog-style': {'operation','columns','color','glow','animation','strength','period','border'},
+    'catalog-open': {'operation'},
     'pair-link': {'operation','owner_id','enabled'},
     'pair-copy': {'operation','source_owner_id','target_owner_id'},
     'form-menu': {'operation', 'family'},
@@ -79,6 +81,18 @@ def wire(request, panel):
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
+    if op == 'catalog-open':
+        return 0,0,0,''
+    if op == 'catalog-style':
+        values=[str(integer(request['columns'],2,12,'catalog columns')),str(integer(request['color'],0,0xffffff,'selection RGB'))]
+        for name,low,high in (('glow',0,12),('strength',.25,1),('period',.8,4),('border',1,8)):
+            n=request[name]
+            if type(n) not in (int,float) or not math.isfinite(n) or not low<=n<=high:
+                raise ValueError('Invalid bounded catalog '+name+'.')
+            values.append(format(n,'.9f').rstrip('0').rstrip('.'))
+        if request['animation'] not in ('none','pulse','flash'):
+            raise ValueError('Use static, pulse or flash selection styling.')
+        return 0,0,0,','.join(values+[request['animation']])
     if op in ('pair-link','pair-copy'):
         import re
         names=('owner_id',) if op=='pair-link' else ('source_owner_id','target_owner_id')
@@ -211,6 +225,23 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
+    if op in ('catalog-style','catalog-open'):
+        workspace=control.get('workspace')
+        if not isinstance(workspace,dict) or control.get('appearance_written') is not False:
+            raise PostconditionMismatch('Catalog preferences lack an acknowledged UI-only result.')
+        if op=='catalog-style':
+            prefs=workspace.get('preferences')
+            if not isinstance(prefs,dict):raise PostconditionMismatch('Catalog style has no returned preferences.')
+            for name in SCHEMAS[op]-{'operation'}:
+                actual=prefs.get(name);expected=request[name]
+                if (isinstance(expected,str) and actual!=expected or not isinstance(expected,str) and
+                        (type(actual) not in (int,float) or abs(actual-expected)>0.000001)):
+                    raise PostconditionMismatch('Catalog style did not retain '+name+'.')
+        elif (workspace.get('visible') is not True or workspace.get('error') or
+                workspace.get('context')!=str(client['sim']['simId'])+'|'+client['form_strip']['selected_owner_id'] or
+                not isinstance(workspace.get('items'),list) or len(workspace['items'])>256):
+            raise PostconditionMismatch('Equipped catalog lacks the exact current Sim/form inventory.')
+        return
     if op in ('pair-link','pair-copy'):
         import re
         pair=control.get('pair')

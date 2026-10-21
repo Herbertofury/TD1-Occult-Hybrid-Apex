@@ -122,8 +122,15 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
                 '62ECC59A:00000000:DF09D526F4C77B95',
                 '62ECC59A:00000000:26DF5B0A7B97963E',
                 '62ECC59A:00000000:E36BA403351FFE60',
-                '62ECC59A:00000000:7D5FA9E0C2A4F038'}:
-            raise ValueError('CAS bridge must contain exactly the four verified native UI resources.')
+                '62ECC59A:00000000:7D5FA9E0C2A4F038',
+                '62ECC59A:00000000:CAEE355CE0B704F7'}:
+            raise ValueError('CAS bridge must contain exactly the five verified native UI resources.')
+        catalog=ui_info.get('catalog_native_bytecode_contract',{})
+        if (catalog.get('ok') is not True or catalog.get('edited_method_count')!=2 or
+                catalog.get('unrelated_native_methods_preserved') is not True or
+                catalog.get('native_lexical_scope_preserved') is not True or
+                catalog.get('base_resource_sha256')!='2f09c674e42b87a09d21a7ef76c194967520c9ab93174d460df9f0c7b57ca52c'):
+            raise ValueError('CAS equipped-item radial entry lacks its retained native bytecode contract.')
         molecule = ui_info.get('molecule_native_bytecode_contract', {})
         if (molecule.get('ok') is not True or molecule.get('edited_method_count') != 5 or
                 molecule.get('unrelated_native_methods_preserved') is not True or

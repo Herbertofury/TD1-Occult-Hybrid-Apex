@@ -34,6 +34,8 @@ MOLECULE_PIN = '3124ed12ea50140da6f072d16ab0703e6154e448974edb1c3f6f7d05f7c24524
 PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.java',
                   'Source/CASUi/form_strip_methods.as',
                   'Source/CASUi/pair_controls_methods.as',
+                  'Source/CASUi/catalog_workspace_methods.as',
+                  'tools/cas_catalog_workspace.py', 'tools/CasCatalogBytecodePatch.java',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
                   'tools/cas_pair_panel_patch.py',
                   'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py',
@@ -213,6 +215,9 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     semantic = (ROOT / 'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/form_strip_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/pair_controls_methods.as').read_text(encoding='utf-8')
+    import cas_catalog_workspace
+    semantic += '\n' + (ROOT / 'Source/CASUi/catalog_workspace_methods.as').read_text(encoding='utf-8').replace(
+        '__APEX_EQUIPPED_MENUS__',json.dumps(cas_catalog_workspace.equipped_menus(),sort_keys=True,separators=(',', ':')))
     control_dispatch = verify_control_dispatch(semantic)
     detached_snapshot_getters = verify_snapshot_ownership(semantic)
     household_acceptance = verify_household_acceptance(semantic)
@@ -300,11 +305,30 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     molecule_tag = next(t[3] for t in tags(unpack(original_molecule)[1]) if t[0] == 82)
     molecule_boundary = molecule_tag.index(b'\0', 4) + 1
     molecule_payload = replace_payload(original_molecule, molecule_tag[:molecule_boundary] + molecule_retained.read_bytes())
+    context_swf = work / 'more-cas-columns-donor/context-candidate-CAEE355CE0B704F7.swf'
+    original_context = context_swf.read_bytes()
+    context_pin = '2f09c674e42b87a09d21a7ef76c194967520c9ab93174d460df9f0c7b57ca52c'
+    if hashlib.sha256(original_context).hexdigest()!=context_pin:
+        raise ValueError('CAS radial menu differs from the inspected 1.128.90 build.')
+    context_source = work / 'more-cas-columns-donor/context-menu/scripts/widgets/CAS/controls/CASContextMenu.as'
+    context_owned = work / 'ApexCASContextMenu.as'
+    context_owned.write_text(cas_catalog_workspace.inject_context(context_source.read_text(encoding='utf-8')),encoding='utf-8')
+    context_compiled = work / 'apex-cas-context-compiled.swf'
+    run([ffdec, '-importAssets','yes,local','-replace',context_swf,context_compiled,
+         cas_catalog_workspace.CONTEXT_CLASS,context_owned])
+    run(['javac','-cp',Path(ffdec).parent / 'ffdec.jar','-d',java_classes,
+         ROOT / 'tools/CasBytecodePatch.java',ROOT / 'tools/CasCatalogBytecodePatch.java'])
+    context_retained = work / 'apex-cas-context-retained.abc'
+    context_contract = json.loads(run(['java','-cp',str(Path(ffdec).parent / 'ffdec.jar')+os.pathsep+str(java_classes),
+        'CasCatalogBytecodePatch',context_swf,context_compiled,context_retained]).stdout)
+    context_tag = next(t[3] for t in tags(unpack(original_context)[1]) if t[0]==82)
+    context_boundary = context_tag.index(b'\0',4)+1
+    context_payload = replace_payload(original_context,context_tag[:context_boundary]+context_retained.read_bytes())
     if source_pins() != expected_sources:
         raise ValueError('CAS bridge source changed during compilation; no package was written.')
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     Path(output).write_bytes(dbpf_build.build({KEY: payload, SELECTOR_KEY: selector_payload, VOICE_KEY: voice_payload,
-                                              MOLECULE_KEY: molecule_payload}))
+                                              MOLECULE_KEY: molecule_payload,cas_catalog_workspace.CONTEXT_KEY:context_payload}))
     info = {'schema': 1, 'artifact': Path(output).name, 'scope': 'native-CAS-semantic-bridge',
         'source_pins': expected_sources,
         'typed_control_dispatch_verified': control_dispatch,
@@ -317,14 +341,17 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'selector_native_bytecode_contract': selector_contract,
         'voice_native_bytecode_contract': voice_contract,
         'molecule_native_bytecode_contract': molecule_contract,
+        'catalog_native_bytecode_contract': context_contract,
         'base_resources': {dbpf_build.tgi(KEY): PIN, dbpf_build.tgi(SELECTOR_KEY): SELECTOR_PIN, dbpf_build.tgi(VOICE_KEY): VOICE_PIN,
-                           dbpf_build.tgi(MOLECULE_KEY): MOLECULE_PIN},
+                           dbpf_build.tgi(MOLECULE_KEY): MOLECULE_PIN,dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY):context_pin},
         'unmodified_dependency_resources': {dbpf_build.tgi(CLEANUP_KEY): CLEANUP_PIN},
         'patched_resources': {dbpf_build.tgi(KEY): hashlib.sha256(payload).hexdigest(),
                               dbpf_build.tgi(SELECTOR_KEY): hashlib.sha256(selector_payload).hexdigest(),
                               dbpf_build.tgi(VOICE_KEY): hashlib.sha256(voice_payload).hexdigest(),
-                              dbpf_build.tgi(MOLECULE_KEY): hashlib.sha256(molecule_payload).hexdigest()},
-        'resources': [dbpf_build.tgi(KEY), dbpf_build.tgi(SELECTOR_KEY), dbpf_build.tgi(VOICE_KEY), dbpf_build.tgi(MOLECULE_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
+                              dbpf_build.tgi(MOLECULE_KEY): hashlib.sha256(molecule_payload).hexdigest(),
+                              dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY):hashlib.sha256(context_payload).hexdigest()},
+        'resources': [dbpf_build.tgi(KEY), dbpf_build.tgi(SELECTOR_KEY), dbpf_build.tgi(VOICE_KEY), dbpf_build.tgi(MOLECULE_KEY),
+                      dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
         'socket_protocol': {'host': '127.0.0.1', 'port': 8021, 'length_digits': 8,
             'encoding': 'utf-8', 'maximum_frame_bytes': 131072, 'poll_interval_ms': 500}}
     write_json(Path(str(output) + '.manifest.json'), info)

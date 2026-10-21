@@ -153,6 +153,46 @@ class LauncherTests(unittest.TestCase):
         self.image = Path(self.temporary.name) / 'image.bmp'
         self.image.write_bytes(b'bounded capture fixture')
 
+    def test_missed_both_colored_tabs_requires_independent_complete_contrast_frame(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376),(30,95,70)).save(self.image)
+        primary=windows_ocr.original_viewport(home_observation(),2)
+        primary['lines']=[row for row in primary['lines'] if row['text'].casefold() not in ('home','marketplace')]
+        primary['lines'].append(dict(text='PLAY SCENARIO',words=[]))
+        fallback=windows_ocr.original_viewport(home_observation(),2)
+        if not any(row['text'].casefold()=='home' for row in fallback['lines']):
+            fallback['lines'].append(dict(text='HOME',words=[]))
+        with patch.object(windows_ocr,'_native_observation',side_effect=[primary,fallback]) as read:
+            result=windows_ocr.recognize(self.image)
+        self.assertEqual(read.call_count,2)
+        self.assertEqual(result['lines'],fallback['lines'])
+        self.assertEqual(result['raw_observation'],primary)
+        self.assertEqual(game_lifecycle.button(result,'resume')['command'],1)
+        broken=copy.deepcopy(fallback)
+        broken['lines']=[row for row in broken['lines'] if row['text'].casefold()!='marketplace']
+        broken['lines'].append(dict(text='PLAY SCENARIO',words=[]))
+        with patch.object(windows_ocr,'_native_observation',side_effect=[primary,broken,broken]):
+            rejected=windows_ocr.recognize(self.image)
+        self.assertFalse(rejected['contrast_fallback']['accepted'])
+        with self.assertRaises(ValueError):game_lifecycle.button(rejected,'resume')
+
+    def test_failed_colored_tab_read_can_use_complete_independent_white_glyph_frame(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376),(30,95,70)).save(self.image)
+        primary=windows_ocr.original_viewport(home_observation(),2)
+        primary['lines']=[row for row in primary['lines'] if row['text'].casefold() not in ('home','marketplace')]
+        primary['lines'].append(dict(text='PLAY SCENARIO',words=[]))
+        white=windows_ocr.original_viewport(home_observation(),2)
+        gray=copy.deepcopy(white)
+        for row in gray['lines']:
+            if row['text'].casefold()=='load game':row['text']='LOAD GABE'
+        with patch.object(windows_ocr,'_native_observation',side_effect=[primary,gray,white]) as read:
+            result=windows_ocr.recognize(self.image)
+        self.assertEqual(read.call_count,3)
+        self.assertTrue(result['white_text_fallback']['accepted'])
+        self.assertEqual(result['lines'],white['lines'])
+        self.assertEqual(game_lifecycle.button(result,'resume')['command'],1)
+
     def test_default_scale_two_is_sent_only_over_stdin_and_source_is_read_only(self):
         original = self.image.read_bytes()
         result = SimpleNamespace(returncode=0, stdout=json.dumps(observation()), stderr='')

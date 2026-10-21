@@ -432,7 +432,7 @@
             selection_result:ApexClone(apexFormsResult),message:apexFormsMessage,
             molecule_pending:ApexClone(apexMoleculeIntent),command_pending:apexPendingFields!=null,
             command_phase:apexPendingPhase,receiving:apexReceiving,
-            input_timing:{scope:"accepted-form-input-handler",clock_resolution_ms:1,target_ms:1,
+            input_timing:{scope:"accepted-CAS-input-queue-handler",clock_resolution_ms:1,target_ms:1,
                samples:apexInputSamples,over_budget:apexInputOverBudget,max_ms:apexInputMaxMs,total_ms:apexInputTotalMs},
             transport:{error:apexSocketError,reset_pending:apexSocketResetPending,
                stage:apexAwaiting.split("|")[0],native_connected:apexNativeConnected,

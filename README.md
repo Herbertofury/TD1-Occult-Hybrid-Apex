@@ -6,7 +6,23 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Current development checkpoint — October 15:**
+**Current development checkpoint — October 20:**
+The native EA category link/copy panel now works on independently bound Alien
+and Vampire views. V232 qualifies voice-only copying, linked propagation and
+unlink isolation in game, followed by an unpaused five-member Live return.
+All 40 Live appearance views and 155 named looks match their logical owners;
+all 20 save/backup files remain unchanged. One shared Human remains distinct
+from every actual occult and alternate form.
+
+V234 builds a configurable native CAS catalog from the supplied six-column
+layout: viewport-bound columns, selected-item RGB/border/glow/pulse settings,
+an equipped-item radial entry, and shared CAS/F11/CLI controls. Runtime UI
+qualification is in progress. See the [catalog workspace](docs/CAS_CATALOG_WORKSPACE.md)
+and [current hybrid acceptance gates](docs/CAS_SHARED_HUMAN_REQUIREMENTS.md).
+Full edited household, MCCC, save/cold-load and native Tray/Gallery coverage
+remain open; this is a development candidate.
+
+**Historical development checkpoint — October 15:**
 V126 cold-loads the mixed five-hybrid save with all 35 stored and five active
 appearances exact. The actual installed MCCC full-CAS/Library visit captures
 every member. The phone/F11 Source review actors complete all five reviews

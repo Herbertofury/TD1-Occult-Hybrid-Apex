@@ -148,6 +148,17 @@ inline std::string Outfits(const std::string& target,const std::string& source,s
 inline std::uint64_t OutfitCategory(const std::string& outfit) {
     const auto rows=w::Fields(outfit);const auto f=Optional(rows,2,0);return f?w::Scalar(*f):0;
 }
+inline OutfitParts Equipped(const std::string& packet,std::uint64_t category,std::uint64_t ordinal) {
+    if(category>255 || ordinal>255)throw std::runtime_error("Outfit selection exceeds its bound.");
+    const auto root=w::Fields(packet);const auto outfits=Optional(root,21);
+    if(!outfits)throw std::runtime_error("The current appearance has no outfit list.");
+    std::uint64_t seen=0;
+    for(const auto& f:w::Fields(outfits->value))if(f.number==1) {
+        if(f.type!=2)throw std::runtime_error("Invalid equipped outfit encoding.");
+        if(OutfitCategory(f.value)==category && seen++==ordinal)return Parts(f.value);
+    }
+    throw std::runtime_error("The exact requested outfit is absent.");
+}
 inline std::string Merge(const std::string& target,const std::string& source,std::uint32_t flags) {
     Validate(flags);const auto a=w::Fields(target),b=w::Fields(source);
     if(w::Scalar(w::One(a,1,1))!=w::Scalar(w::One(b,1,1)))throw std::runtime_error("Pair copy crossed Sim identity.");

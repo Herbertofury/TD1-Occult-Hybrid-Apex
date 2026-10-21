@@ -106,11 +106,16 @@ def _contrast_candidate(observation):
     labels = _home_labels(observation)
     # A full native Home observation missing only its selected colored label
     # can benefit from one color-only transform. Other surfaces stay untouched.
-    anchors = ('marketplace', 'load game', 'new game', 'gallery')
+    anchors = ('load game', 'new game', 'gallery')
     forbidden = ('save game?', 'buy now', 'expansion pack', 'game pack', 'stuff pack',
                  'this game requires permissions', 'you don’t have access',
                  "you don't have access", 'cancel')
-    return ('home' not in labels and all(labels.count(item) == 1 for item in anchors) and
+    # At 720p WinRT can miss both colored tab labels. This permits another
+    # full-frame pixel read only. Its result must independently recognize both
+    # tabs and every actionable control; no labels or coordinates are merged.
+    header_context = (labels.count('marketplace') == 1 or
+                      labels.count('marketplace') == 0 and labels.count('play scenario') == 1)
+    return ('home' not in labels and header_context and all(labels.count(item) == 1 for item in anchors) and
             sum(labels.count(item) for item in ('resume game', 'resume')) == 1 and
             not any(item in labels for item in forbidden))
 
@@ -234,9 +239,13 @@ def recognize(path, scale=2):
     labels = _home_labels(fallback)
     # Preserve a complete independently recognized frame. Raw duplicates or
     # forbidden dialog labels never enter this fallback in the first place.
-    if labels.count('home') != 1 or _contrast_candidate(dict(fallback, lines=[
+    if labels.count('home') != 1 or labels.count('marketplace') != 1 or _contrast_candidate(dict(fallback, lines=[
             line for line in fallback['lines'] if ' '.join(line['text'].split()).casefold() != 'home'])) is not True:
-        return dict(primary, contrast_fallback={'attempted': True, 'accepted': False,
-                    'transform': 'full-frame-grayscale-autocontrast', 'observation': fallback})
+        incomplete = dict(primary, contrast_fallback={'attempted': True, 'accepted': False,
+                          'transform': 'full-frame-grayscale-autocontrast', 'observation': fallback})
+        original_labels = _home_labels(primary)
+        if original_labels.count('marketplace') == 0 and original_labels.count('play scenario') == 1:
+            return _white_home_observation(path, source, incomplete, scale, started)
+        return incomplete
     return dict(fallback, raw_observation=primary, preprocessing=dict(fallback['preprocessing'],
         color_transform='full-frame-grayscale-autocontrast', source_sha256=hashlib.sha256(source).hexdigest()))

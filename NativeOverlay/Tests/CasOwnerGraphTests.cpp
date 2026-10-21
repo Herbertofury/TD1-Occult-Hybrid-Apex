@@ -1,5 +1,6 @@
 #include "ApexCasOwnerGraph.h"
 #include "ApexCasFormPair.h"
+#include "ApexCasPairAction.h"
 #include <iostream>
 #include <memory>
 using namespace td1::nativecas::engine;
@@ -208,6 +209,29 @@ int main() {
     Require(!paired.linked("native/1","native/2")&&!paired.linked("native/2","native/1"));
     auto isolated=Clone(paired.appearance(2),2);(*isolated)["skin"]=1234567;pc=paired.commit(pc,isolated);
     Require((*paired.appearance(1))["skin"]==7654321&&(*paired.appearance(2))["skin"]==1234567);
+    // Real model edits can remain pending until a native synchronization.
+    // Unlink must flush them through the old selective scope first.
+    Graph pending(999,127,2,Captured(999),Clone,
+        [](const Data& target,const Data& source,unsigned kind,unsigned flags) {
+            auto result=Clone(target,kind);
+            if(flags&128)(*result)["voice"]=source->at("voice");
+            return result;
+        });
+    const auto vampireBefore=*pending.appearance(4);
+    PairAction change{999,pending.cursor().generation,std::string(32,'a'),"native/2","native/1",false,true,128};
+    auto model=Clone(pending.appearance(2),2);(*model)["voice"]=.11;
+    ApplyPairLink(pending,change,[&]{pending.commit(pending.cursor(),model);});
+    Require(!pending.appearance(1)->contains("voice")); // Enabling never copies the prior edit.
+    (*model)["voice"]=.23;change.enabled=false;change.generation=pending.cursor().generation;
+    ApplyPairLink(pending,change,[&]{pending.commit(pending.cursor(),model);});
+    Require((*pending.appearance(1))["voice"]==.23 && !pending.linked("native/2","native/1"));
+    (*model)["voice"]=.77;pending.commit(pending.cursor(),model);
+    Require((*pending.appearance(1))["voice"]==.23 && (*pending.appearance(2))["voice"]==.77);
+    Require(*pending.appearance(4)==vampireBefore);
+    change.enabled=true;change.generation=pending.cursor().generation;
+    const auto generation=pending.cursor().generation;
+    Refuses([&]{ApplyPairLink(pending,change,[]{throw std::runtime_error("Native flush failed");});});
+    Require(pending.cursor().generation==generation && !pending.linked("native/2","native/1"));
     std::cout<<"Five Sims, seven separate form owners, every fixture field, explicit copy/link and atomic edits passed\n";
     return 0;
  } catch(const std::exception& error) {std::cerr<<error.what()<<'\n';return 1;}

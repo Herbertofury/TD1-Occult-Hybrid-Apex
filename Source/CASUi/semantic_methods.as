@@ -70,6 +70,7 @@
             if(!apexPairRegistered)
                apexPairRegistered=RegisterServiceHandler("ApexFormPairPanel",ApexPairPanel);
             ApexMoleculeListen(true);
+            ApexCatalogInitialize();
             apexTimer=new flash.utils.Timer(500);
             apexTimer.addEventListener(flash.events.TimerEvent.TIMER,ApexTick);
             apexTimer.start();
@@ -111,6 +112,7 @@
       private function ApexDisconnect() : void
       {
          apexDisconnected=true;
+         ApexCatalogDispose();
          ApexMoleculeListen(false);
          if(apexOwnerFeedListener) {
             RemoveMessageListener("CASRefreshSimIcons",ApexObserveOwnerFeed);
@@ -911,7 +913,7 @@
             hair_color:hairSelected,hair_selected_swatch_id:hairSelected,hair_swatches:hairSwatches,
             hair_swatch_query:hairQuery,planned_outfits:plannedOutfits,planned_outfits_scope:"selected-category-only",
             native_context:nativeContext,catalogs:catalogs,catalog_metadata:catalogMetadata,
-            owner_pair_observation:ApexOwnerObservation(),form_strip:ApexFormsStatus(),
+            owner_pair_observation:ApexOwnerObservation(),form_strip:ApexFormsStatus(),catalog_workspace:ApexCatalogStatus(),
             catalog_metadata_complete:catalogMetadataComplete,catalog_metadata_scope:"native-catalog-identities-only",
             catalog_metadata_query:includeCatalogMetadata ? "explicit-lookup" : "disabled-pending-native-contract-proof"};
       }
@@ -1057,6 +1059,12 @@
 
       private function ApexControlExecute(operation:String,state:int,category:int,index:int,value:String,reply:Object,context:Object) : void
       {
+         if(operation=="catalog-style") { ApexCatalogStyle(value);return; }
+         if(operation=="catalog-open") {
+            ApexCatalogReadEquipped();
+            CommunicationManager.SendMessage("CASContextMenuUpdate",CASContextMenuState.BODY);
+            ApexCatalogDraw();return;
+         }
          var data:Object=null; var rows:Array=null; var row:Object=null; var n:int=0;
          var parts:Array=value.split(","); var layerId:int=0; var target:int=0;
          if(operation=="form-owner-select") {
@@ -1421,6 +1429,8 @@
 
       private function ApexControlResult(operation:String,state:int,category:int,index:int,value:String,context:Object,client:Object) : Object
       {
+         if(operation=="catalog-style" || operation=="catalog-open")
+            return {operation:operation,workspace:ApexCatalogStatus(),appearance_written:false};
          if(operation=="form-owner-select") return {operation:operation,owner_id:String(context.owner_id)};
          if(operation=="pair-link" || operation=="pair-copy") {
             var currentPair:Object=ApexPairRead();
@@ -1912,7 +1922,7 @@
                   operation=="remove" || operation=="layers" || operation=="layer-add" || operation=="layer-remove" ||
                   operation=="layer-move" || operation=="swatches" || operation=="swatch" || operation=="physique" ||
                   operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
-                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" || operation=="pair-link" || operation=="pair-copy" ||
+                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" || operation=="pair-link" || operation=="pair-copy" || operation=="catalog-style" || operation=="catalog-open" ||
                   operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
                   operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view" || operation=="form-owner-select" || operation=="detail-status" ||
                   operation=="detail-mode" || operation=="filters" || operation=="filter-clear")

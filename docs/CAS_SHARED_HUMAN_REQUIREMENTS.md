@@ -941,3 +941,29 @@ The UI clock has 1 ms resolution; a zero reading is below that resolution,
 not proof of zero processing time. Runtime latency distribution, actual panel
 checkbox/copy/link qualification, edited household return, cold save reload
 and Tray/Gallery gates remain open. The candidate is not actual-save ready.
+
+## Linked edits and catalog workspace, V232-V233 (2026-10-20)
+
+V231's real Alien/Human voice-link test exposed an unflushed model on unlink:
+the last linked voice edit had not reached Human. V232 flushes through the old
+link scope before either enabling or disabling a link, then validates the same
+Sim/owner and uses the resulting generation. Its native regression covers
+edits before linking, the last edit before unlinking, subsequent isolation and
+a failed flush leaving the link unchanged. Rapid checkbox changes coalesce
+only within the same unsubmitted pair; explicit Copy remains one-shot.
+
+V232's in-game selective voice test passed. Human retains 0.23 while Alien
+retains its subsequent unlinked 0.77; the other 193 internal records match
+their pre-entry captures. The household returned to Live and was unpaused:
+all 40 Live appearance views and 155 named looks match their logical owners.
+The selected active Alien maps to the native Alien slot on return, rather
+than remaining an extra player-visible form. The initial comparison script
+incorrectly treated that internal preimage as a second Alien; its original
+failed evidence is retained beside the explicit alias comparison. All 20
+save/backup files remain unchanged. The session closed normally by CLI.
+
+V233 adds the catalog workspace described in
+[CAS_CATALOG_WORKSPACE.md](CAS_CATALOG_WORKSPACE.md). Its UI-only style changes
+and exact current-outfit inventory do not establish household/save/Tray
+qualification. Keep the broader all-category, MCCC, save/cold-load,
+Tray/Gallery, player-input latency and compatibility gates open until tested.

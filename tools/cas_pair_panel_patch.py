@@ -96,6 +96,7 @@ def inject(source):
                var apexFlag:uint=uint(apexItem.data.flags);
                if(apexFlag==_loc1_.allFlags) {apexAll=apexItem;continue;}
                apexFlag&=apexSupported;
+               if((apexFlag&6)!=0) apexFlag|=6;
                if(apexFlag==0 || (apexCovered&apexFlag)==apexFlag) continue;
                apexItem.data.flags=apexFlag;apexItem.data.required_flags=0;
                apexCovered|=apexFlag;apexFilters.push(apexItem);

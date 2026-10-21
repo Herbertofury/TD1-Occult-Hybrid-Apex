@@ -31,6 +31,12 @@ std::string Packet(unsigned seed){
 std::string F(const std::string& p,unsigned n){return w::One(w::Fields(p),n,2).value;}
 int main(){try{
     const auto target=Packet(1000),source=Packet(2000);
+    const auto equipped=s::Equipped(target,0,1);
+    Check(equipped.rows.size()==5 && equipped.rows[0][0]==1002 && equipped.rows[3][1]==45 && equipped.rows[4][4]==2);
+    Check(s::Equipped(target,1,0).rows.size()==5);
+    Refuses([&]{s::Equipped(target,0,2);});
+    Refuses([&]{s::Equipped(target,256,0);});
+    Refuses([&]{s::Equipped(w::Bytes(21,w::Bytes(1,w::Bytes(5,Container({1,2},true)))),0,0);});
     Check(s::Numbers(Container({UINT64_MAX,0,256},true),true)==std::vector<std::uint64_t>({UINT64_MAX,0,256}));
     Refuses([&]{s::Numbers(w::Bytes(1,"invalid"),true);});
     const auto voice=s::Merge(target,source,128);

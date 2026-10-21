@@ -1097,3 +1097,22 @@ Normal hybrid-household preparation previously imported native owners only after
 Active native CAS calls reuse the fixed export bound to the already authenticated loaded handle, checking the caller archive and retaining native scope/Sim/owner/generation checks. They no longer hash the entire on-disk DLL or create ctypes function classes at every heartbeat. An explicit start still checks the manifest/disk bytes and refuses to relabel a different build. This is not mapped-instruction tamper detection or measured player-latency proof.
 
 Eighty focused Python checks, fifty-two final frozen recovery checks, fifteen rebuilt native targets and the private Python 3.7 ABI/packaged-loader checks pass. The matching immutable candidate contains seven packages, 105 compiled modules and 210 Rust-validated resources. The initial full run caught stale recovery hashes; those checks pass after the final source freeze, with a new complete CI run still required. Actual automatic entry without research arming and repeated retirement/reentry require fresh qualification. Mixed ordinary/single-occult companions, all-Human/new-Sim main-menu CAS, cancellation and complete responsiveness remain open; the five-hybrid path is not universal coverage. See [the scoped report](../Reports/CAS_PLAYER_ENTRY_V262.json).
+
+
+## V263: saved named metadata after a code update
+
+The real V262 upgrade retains all forty native appearances and every save file, but saved named-form admission refuses the V261 script because its exact producer was not yet in the reviewed metadata-only list. No CAS entry is submitted. V263 adds only that reviewed V261 producer after its actual five-member edited save/cold-load qualification. It retains immutable seal, file, owner and native/load checks; unknown producers and native restoration remain subject to their original restrictions. No seal or save is repinned to bypass the failure.
+
+Sixty-six frozen recovery/named tests and the private Python 3.7 ABI/packaged-loader checks pass. The final fourteen named tests independently preserve the prior producer regressions and reject native restoration from the newly reviewed metadata producer. The matching candidate is built; actual named admission, normal automatic CAS entry, repeated retirement/reentry and the full release matrix still require qualification. See [the scoped report](../Reports/CAS_SAVED_NAMED_UPGRADE_V263.json).
+
+
+### V263 actual matching-build qualification
+
+V263 admits the reviewed V261 saved named looks without native restoration. The matching game retains all 40 native appearances and 155 exact named looks. Full CAS opens without manual research arming and preserves all 195 captured internal records; returning to Live preserves all 40 before explicit disposition. After review, the native scope retires, and a second same-process entry creates a fresh scope with every captured field unchanged. Saved files remain unchanged. This is same-household lifecycle proof, not every requested form/category/edit route or production readiness.
+
+The first return harness incorrectly treated the expected explicit-review outcome as a failed transition. The continuation verifies that original acceptance/Live receipt and does not resend Accept. The earlier pointer test remains incomplete/failed. A new complete CI run, every-category/form/route, other-household and Tray/Gallery coverage, native search UI and responsiveness remain open.
+
+
+### V263 quiet native portrait presentation
+
+A quiet V263 pass verifies actual background portrait switches from member one to five and back, with no semantic claims during each settling interval. EA link/copy controls become ready 1,066 and 1,166 ms after CASSetSimInfo notification. All 195 fields and saved files remain unchanged, desktop focus stays fixed, and idle setup frames stop. Click-to-notification time is not measured. These samples do not form an A/B comparison with the earlier contaminated 21–23 second observations, and they do not meet the responsiveness goal. See [the scoped timing report](../Reports/CAS_MEMBER_QUIET_V263.json).

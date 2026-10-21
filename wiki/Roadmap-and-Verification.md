@@ -7,8 +7,9 @@
 
 - **V261 edited household/save/cold load:** 30 actual Alien/Vampire selections across five members and three categories pass; all five native outputs verify and all 40 Live fields match before disposition. Normal save/exit/reload retains all 40 appearances and 155 named looks without native restoration.
 - **V260 exact routing and V261 genetic import:** qualified in this edited V261 return. The earlier V260 import rejection remains historical evidence. Complete comparisons and the permanent guard remain enabled.
-- **UI responsiveness:** native portrait probe is incomplete/failed; three selections have contaminated 21–23 second upper bounds and the fourth posted click did not select the target. No instant-response claim.
-- **Current open proof:** normal automatic entry/repeated scopes, every requested form/category/edit route, full Tray/Gallery, native search UI, Ghost colors and the remaining release requirements.
+- **UI responsiveness:** the earlier portrait probe remains incomplete/failed. A separate quiet V263 test verifies first ↔ fifth background switches and unchanged fields/focus. Notification-to-controls times are 1,066 and 1,166 ms; physical click-to-notification is unmeasured. This still fails the responsiveness target.
+- **V263 automatic lifecycle:** reviewed V261 names reopen, all 40/155 remain exact, normal CAS arms itself, and verified return/retirement permits a fresh same-process entry with all 195 fields retained. This covers the same five-hybrid household.
+- **Current open proof:** other/mixed/new CAS households, every requested form/category/edit route, full Tray/Gallery, native search UI, Ghost colors, player responsiveness and the remaining release requirements.
 - **Search placement:** use the existing **Filter Items…** bar below the category title, preserving native chips, ordinary filters, cards and swatches. The metadata backend is not proof of an editable native search bar.
 
 ### Earlier scoped evidence

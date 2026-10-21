@@ -68,7 +68,7 @@ Native layout work is guarded by actual geometry/context changes. Progressive pu
 
 ## Current evidence and open failures
 
-**V261 · current candidate.** Fresh full CAS entry passes the complete pre-entry comparison for all five Sims and 195 internal appearance records. A no-edit cycle through their shared Human appearances and household handoffs leaves every captured field unchanged. These records include stored variants; the count is audit coverage, not 195 distinct player forms.
+**V261 · edited-save baseline.** Fresh full CAS entry passes the complete pre-entry comparison for all five Sims and 195 internal appearance records. A no-edit cycle through their shared Human appearances and household handoffs leaves every captured field unchanged. These records include stored variants; the count is audit coverage, not 195 distinct player forms.
 
 **Correct the native destination.** The game's inspected household export writer chooses Human versus the first non-Human record. For a hybrid whose first stored occult differs from the form being exported, that can overwrite the wrong record and create a duplicate. V260 routes only authenticated CAS exports to the exact existing record during that native call, then restores the original record order. Ordinary exports, malformed rosters and other native callers remain outside the patch. The matching V261 edited return qualifies all five exact outgoing records, including the three previously failing tracker orders. Normal save and cold-load proof is recorded below. [Implementation and limits](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_EXACT_OCCULT_RECORD_V260.json).
 
@@ -83,6 +83,16 @@ Native layout work is guarded by actual geometry/context changes. Progressive pu
 V261 now completes 30 real Alien/Vampire eyebrow, skin-detail and earring selections across all five household members, including repeated Alien → Vampire → Alien and member revisits. Complete comparisons retain the other 185 internal records. Native acceptance verifies all five exact outputs without root memory writes or faults, and all 40 Live appearances match before explicit disposition. The edited household survives a normal save, normal exit and same-candidate cold reload: all 40 native appearances remain exact before and after simulation advances, and all 155 named looks are admitted from saved metadata without native restore or draft resumption. This is scoped persistence proof, not a full release qualification.
 
 The separate native portrait-input probe remains failed/incomplete: three selections completed with observer-contaminated 21–23 second timings; the fourth accepted window message did not select the target Sim. A metadata query measurement or successful typed command does not close that responsiveness gate.
+
+### V263 normal entry and saved-name upgrades
+
+V263 admits the reviewed V261 saved named looks without native restoration. The matching game retains all 40 native appearances and 155 exact named looks. Full CAS opens without manual research arming and preserves all 195 captured internal records; returning to Live preserves all 40 before explicit disposition. After review, the native scope retires, and a second same-process entry creates a fresh scope with every captured field unchanged. Saved files remain unchanged. This is same-household lifecycle proof, not every requested form/category/edit route or production readiness.
+
+Active CAS RPCs reuse the export bound to the authenticated loaded DLL instead of hashing disk inputs on each heartbeat. That change is code-level removal of repeated I/O, not measured end-to-end player latency. Initial preparation also performed a game-thread command exceeding 35 seconds in this five-member fixture; profile that separately from native menu input. Mixed/new CAS, other households, all editing categories and Tray/Gallery remain unqualified.
+
+### V263 quiet member presentation
+
+A quiet V263 pass verifies actual background portrait switches from member one to five and back, with no semantic claims during each settling interval. EA link/copy controls become ready 1,066 and 1,166 ms after CASSetSimInfo notification. All 195 fields and saved files remain unchanged, desktop focus stays fixed, and idle setup frames stop. Click-to-notification time is not measured. These samples do not form an A/B comparison with the earlier contaminated 21–23 second observations, and they do not meet the responsiveness goal.
 
 ### Earlier test history
 

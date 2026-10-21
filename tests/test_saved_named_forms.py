@@ -165,6 +165,22 @@ class SavedNamedFormsTests(SealFixture):
         self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
         self.assertEqual(self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['metadata_source_authority'],
             'named-metadata-only:'+old_source)
+
+        with self.assertRaisesRegex(ValueError,'another source'):
+            seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
+        self.assertEqual(self.writes,[])
+
+    def test_v261_edited_household_save_reopens_after_code_upgrade_without_native_restore(self):
+        old_source='30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4'
+        self.assertIn(old_source,seal.NAMED_METADATA_PREDECESSORS)
+        self.identity['script_sha256']=old_source
+        certified=self.certify();self.identity['script_sha256']='c'*64
+        sealed_bytes=self.path.read_bytes()
+        self.loaded();forms.list_forms(self.backend,self.sim)
+        self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
+        self.assertEqual(self.path.read_bytes(),sealed_bytes)
+        self.assertEqual(self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['metadata_source_authority'],
+            'named-metadata-only:'+old_source)
         with self.assertRaisesRegex(ValueError,'another source'):
             seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
         self.assertEqual(self.writes,[])

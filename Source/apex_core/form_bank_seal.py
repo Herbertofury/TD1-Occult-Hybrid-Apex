@@ -29,18 +29,21 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     'outfits': 'complete-category-normalized-protobuf', 'ownership': 'stored-and-active-separate'},
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
-# Metadata-only compatibility: V187/V188/V192/V198 captured complete schema-1 named
-# documents in household seals. V198's saved household was checked across all 40
-# native appearances and all five named-form seals. This never authorizes a
-# native appearance restoration.
+# Metadata-only compatibility: these reviewed builds captured complete schema-1
+# named documents in household seals. V261's distinct five-member Alien/Vampire
+# edits, all 40 native appearances and 155 named looks passed save/cold-load.
+# Every admission still verifies its immutable seal, current file, exact owner
+# coverage and native appearance/load observation. This never authorizes native
+# restoration or changes the separate A0 recovery-source restrictions.
 NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c2039d895fc0cd8363e',
                                'a534570689a04e48ea6d90cb26d9727cdaf369806ae950898ffacbf4fc0fa8d1',
                                'cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd',
-                               'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770')
+                               'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770',
+                               '30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-21-player-entry-cached-rpc-v262'
+UPGRADE_EPOCH = '2026-10-21-saved-named-upgrade-v263'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '267e66d453b4359ca96a7876b1f9a7d10bbdc660f08d8e95610a2fe26d9e5b19'
+UPGRADE_SELF_BODY_SHA = '48564652cb4e032078c6ce936d4fc9e413262f275f2f325408f54fc5346ee60a'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',

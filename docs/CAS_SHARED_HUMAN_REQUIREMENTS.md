@@ -1059,3 +1059,25 @@ refuses before opening the editor: the game filters five unique genetic part
 entries from an existing Human/CC Werewolf look. The stored look is retained
 and is not reinitialized to bypass this gate. Exact-record exit repair remains
 runtime-unproved until this import defect is resolved.
+
+
+## V261: retained genetic entries and native control transport
+
+The native import now admits an existing genetic body type only while the
+exact captured message is being imported into its exact native temporary and
+genus. The shared predicate remains unchanged. Native tests execute the relay
+ABI and refuse foreign messages, destinations, genera and threads. Fresh full
+CAS entry verifies all 195 captured appearance records across five members
+without resetting the stored Human/CC Werewolf look or excluding genetic data.
+This does not establish edited exit or production readiness.
+
+Creator-data field 76/24 is included in exact whole-form export and copy. A real
+detached game-codec probe retains populated creator data while all eight actual
+Sim owners and all twenty save files remain unchanged. Native ghost-color
+channels 73/74 do not round-trip through this codec; no complete per-form Ghost
+color claim is made. Their unrelated incoming wire fields are preserved.
+
+Full appearance CLI inputs use bounded POST with the matching game guard; lost
+responses are not resubmitted. The CLI retains explicit HTTP error reasons. A
+compact real POST codec probe passes; the fresh full-size input qualification
+and actual native portrait timing remain pending.

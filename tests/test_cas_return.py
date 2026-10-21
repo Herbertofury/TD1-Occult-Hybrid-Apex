@@ -115,6 +115,12 @@ class CasReturnTests(unittest.TestCase):
                     'native_peers': [{'sim_id': SIM, 'age_seconds': .2}] if cas_ui._PEERS else []}
         if action == 'cas_ui_request':
             operation = json.loads(value)
+            # This fixture represents an active CAS client. File setup can
+            # exceed the real peer TTL on a busy Windows runner; supply the
+            # same idle poll the actual client sends before submitting work.
+            # Keep production freshness checks and intentionally detached peers.
+            if self.peer in cas_ui._PEERS:
+                cas_ui.poll_client(self.peer)
             result = cas_ui.submit(SIM, operation)
             self.assertIsNotNone(cas_ui.poll_client(self.peer))
             if operation['operation'] == 'accept':
@@ -421,6 +427,15 @@ class CasReturnTests(unittest.TestCase):
         self.assertEqual((self.tree(self.profile), self.tree(self.original)), before)
         self.assertTrue(proof['owner_requests'])
         self.assertEqual(cas_ui.result(self.accept_id)['outcome'], 'live-return')
+
+    def test_slow_setup_keeps_the_simulated_active_client_polling_without_real_distributor(self):
+        self.modern_handler()
+        cas_ui._PEERS[self.peer]['observed_at'] -= 30
+        result, proof = self.run_observer(settle_ticks=30)
+        self.assertEqual(result['outcome'], 'live-return-explicit-cas-decisions-required')
+        self.assertTrue(result['clock_progress_verified'])
+        self.assertTrue(result['cas_bank_observation_verified'])
+        self.assertTrue(proof['accept_submitted'])
 
     def test_schema2_raw_return_is_observed_once_after_unpause_pause_without_edit_inference(self):
         before = self.tree(self.profile), self.tree(self.original)

@@ -329,6 +329,7 @@ void ExerciseHouseholdAcceptance(void* controller,void* metadata) {
     state.selectionEnabled=true;other.viewBound=otherView;
     state.api.index=previousIndex;viewControllerTable[0x410/8]=previousCache;
 }
+#include "CasGeneticImportFixture.h"
 #include "CasExactRecordLookupFixture.h"
 #include "CasHouseholdRootFixture.h"
 int main() {
@@ -346,6 +347,7 @@ int main() {
     Write(stringValue.data(),0,5u);Refuses([&]{UiString(stringValue.data());});
     ExerciseLocalCallsite();
     recordlookup::Exercise();
+    geneticimport::Exercise();
     Json request={{"operation","arm"},{"scope_id",std::string(32,'a')},
         {"members",Json::array({{{"sim_id","123"},{"owned_mask",127u}}})}};
     const auto scope=ParseScope(request);Require(scope.members.size()==1 && scope.members.at(123).mask==127);

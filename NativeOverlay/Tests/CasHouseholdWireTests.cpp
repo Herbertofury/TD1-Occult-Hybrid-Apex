@@ -1,5 +1,6 @@
 #include "../Source/ApexCasHouseholdWire.h"
 #include <iostream>
+#include <algorithm>
 #include <functional>
 #include <fstream>
 #include <filesystem>
@@ -14,11 +15,11 @@ const std::string unknown=Var((500000000ull<<3)|3)+Number(6,123)+Var((500000000u
 std::string Record(unsigned kind) {return Number(1,kind)+Bytes(11,"wrong merged body")+Number(16,99)+Number(18,kind+300)+unknown;}
 std::string Packet() {
     const auto tracker=Number(1,2)+Number(2,2)+Bytes(3,Record(1))+Bytes(3,Record(2))+Number(5,1)+unknown;
-    return Identity(123)+Number(8,42)+Bytes(12,"wrong active body")+Bytes(30,Bytes(11,"gameplay progression")+Bytes(17,tracker)+unknown)+unknown;
+    return Identity(123)+Number(8,42)+Bytes(12,"wrong active body")+Bytes(30,Bytes(11,"gameplay progression")+Bytes(17,tracker)+unknown)+unknown+Number(73,404)+Number(74,505);
 }
 std::map<std::uint32_t,std::string> Owners() {
     return {{1,Identity(123)+Bytes(12,"Human body")+Bytes(18,"Human face")+Bytes(21,"Human clothing")},
-            {2,Identity(123)+Bytes(12,"Alien body")+Number(10,987)+Bytes(21,"Alien clothing")+Bytes(63,"Alien pelt")}};
+            {2,Identity(123)+Bytes(12,"Alien body")+Number(10,987)+Bytes(21,"Alien clothing")+Bytes(63,"Alien pelt")+Number(73,112)+Number(74,223)+Bytes(76,"Alien creator data")+Bytes(76,"Second creator record")}};
 }
 std::string Unhex(const std::string& hex) {
     if(hex.size()%2 || hex.size()>Limit*2)throw std::runtime_error("Invalid bounded native packet hex.");
@@ -43,6 +44,8 @@ int main(int argc,char** argv) {
     const auto projected=Household(original,123,3,owners,&owners.at(2));
     const auto root=Fields(projected);Require(One(root,12,2).value=="Alien body" && Scalar(One(root,8,0))==42);
     Require(One(root,63,2).value=="Alien pelt");
+    Require(Scalar(One(root,73,0))==404 && Scalar(One(root,74,0))==505);
+    Require(std::count_if(root.begin(),root.end(),[](const auto& f){return f.number==76;})==2);
     const auto attrs=Fields(One(root,30,2).value);Require(One(attrs,11,2).value=="gameplay progression");
     const auto tracker=Fields(One(attrs,17,2).value);Require(Scalar(One(tracker,1,0))==2 && Scalar(One(tracker,2,0))==2);
     unsigned count=0;
@@ -52,6 +55,7 @@ int main(int argc,char** argv) {
         Require(One(row,21,2).value==(kind==1?"Human clothing":"Alien clothing"));
         Require(Scalar(One(row,18,0))==kind+300); // Unproven/nonappearance flags stay on their actual record.
         Require(f.value.find(unknown)!=std::string::npos);
+        if(kind==2)Require(std::count_if(row.begin(),row.end(),[](const auto& f){return f.number==24;})==2);
         if(kind==1) {for(const auto& item:row)Require(item.number!=16);} // Absent source defaults clear stale fields.
         else Require(Scalar(One(row,16,0))==987);
     }

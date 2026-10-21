@@ -60,6 +60,8 @@ using UndoBindFn=void(*)(void*,void**);
 using KindMaskFn=std::uint32_t(*)(const void*);
 using ExportProtoFn=void(*)(const void*,void*);
 using OccultRecordFn=void(*)(void*,std::uint32_t,const void*);
+using GeneticImportFn=bool(*)(const void*,const void*,void*);
+using GeneticBodyAllowedFn=bool(*)(std::uint32_t,const void*);
 using ProtoSizeFn=int(*)(const void*);
 using ProtoArrayFn=char*(*)(const void*,char*);
 using PreviewFn=void(*)(void*,bool);
@@ -91,6 +93,7 @@ struct Api {
     ModelBindFn modelBind=nullptr;CoreBindFn coreBind=nullptr;ContextFn context=nullptr;IndexFn index=nullptr;LayerFn layer=nullptr;
     UndoSelectFn undoSelect=nullptr;UndoCreateFn undoCreate=nullptr;UndoBindFn undoBind=nullptr;
     KindMaskFn kindMask=nullptr;
+    GeneticImportFn geneticImport=nullptr;GeneticBodyAllowedFn geneticBodyAllowed=nullptr;
     OccultRecordFn occultRecord=nullptr;
     ExportProtoFn exportProto=nullptr;ProtoSizeFn protoSize=nullptr;ProtoArrayFn protoArray=nullptr;
     PreviewFn hairPreview=nullptr,clothingPreview=nullptr,wingsPreview=nullptr;
@@ -259,6 +262,7 @@ struct State {
     std::map<const void*,HouseholdCopy> householdCopies;
     std::atomic<bool> householdCopiesEnabled{false};
     void* exportController=nullptr;std::string preparedScope;
+    void* geneticInsertRelay=nullptr;void* geneticInsertTrampoline=nullptr;std::uint64_t geneticPartsRetained=0;
     std::uint64_t householdOutputFaults=0;
     std::uint64_t preparedHouseholdId=0;
     ui::Json householdFaults=ui::Json::array(),householdDispatch={{"verified",false}};
@@ -270,6 +274,7 @@ struct State {
 // from CRT/DllMain teardown after the game's native services have gone away.
 inline State& Runtime() {static auto* state=new State;return *state;}
 #include "ApexCasExactRecordLookupWin.h"
+#include "ApexCasGeneticImportWin.h"
 inline void ImportOutfitHair(void* outfit,const void* genus,std::uintptr_t caller) {
     auto& state=Runtime();
     // The inspected helper explicitly inserts 0x24236/0x24237 into an outfit
@@ -1854,6 +1859,7 @@ inline ui::Json Status() {
         {"diagnostic_owner_memory",{{"enabled",false}}},
 #endif
         {"import_outfit_fills_prevented",state.importOutfitFillsPrevented},
+        {"captured_genetic_parts_retained",state.geneticPartsRetained},
         {"selection_route","quarantined-kind-conversion"},
         {"selected_native",selectedNative},
         {"native_patch_qualified",false},{"production_ready",false}};
@@ -1916,6 +1922,9 @@ inline void Install() {
         {0x323990,"e90d48dcd731ebb911f40edc9980c774a4b55836c46e82453538a02a3e76e4dc"},
         {0x322a90,"05cb6b6a96c3c701530acfd0a8fe103331bac8ae938e756ded345cc440d01a6d"},
         {0x322ad0,"3ce6a0e2ee859a682962315f2b0b65e036215475489f4b2e0d8fac56790ef808"},
+        {0x321340,"726ace75a11e62f4116b820e1f18b923520423fe8dd9b750994f5b11098e6fed"},
+        {0x364d90,"a01d1247f2164acfaecd107618cda98d25c652fb19a49e0a286c0c2744db72f9"},
+        {0x35fbee,"21f147c04536c59a355f7f51bcd482323c96ea15097e2428fbb7706bd073f198"},
         {0x4103ea,"30bd234b1656fecf4f7886432b1dd6ccbcf2b4b413b0ab43f97a430cc5a22a89"},
         {0x48ae60,"18e24cec017509e7328a076722fb2c38686180f19fb2510cffaf636bcf21719d"},
         {0x7ae500,"8f78ef8bdd8b8b57954bc76403fe9f039d713503ed1f62f76a233d0cb94d14f9"},
@@ -1935,6 +1944,9 @@ inline void Install() {
             throw std::runtime_error("Native form implementation differs from its inspected function pins.");
     auto at=[&](std::uint32_t rva){return reinterpret_cast<void*>(state.image+rva);};
     state.api.fields=reinterpret_cast<FieldsFn>(at(0x325640));
+    state.api.geneticBodyAllowed=reinterpret_cast<GeneticBodyAllowedFn>(at(0x364d90));
+    if(!state.geneticInsertRelay)state.geneticInsertRelay=MakeGeneticInsertRelay(
+        reinterpret_cast<const void*>(&GeneticBodyAtInsert),at(0x35fbf3));
     state.api.stringValue=reinterpret_cast<StringValueFn>(at(0xda6540));
     state.api.boolValue=reinterpret_cast<BoolValueFn>(at(0xda67b0));
     state.api.construct=reinterpret_cast<ConstructFn>(at(0x321f00));
@@ -1973,6 +1985,8 @@ inline void Install() {
         {at(0x3221c0),reinterpret_cast<void*>(&HouseholdCopyDestroy),reinterpret_cast<void**>(&state.api.destroy)},
         {at(0x323990),reinterpret_cast<void*>(&HouseholdOutput),reinterpret_cast<void**>(&state.api.exportProto)},
         {at(0x322a90),reinterpret_cast<void*>(&ExportOccultRecord),reinterpret_cast<void**>(&state.api.occultRecord)},
+        {at(0x321340),reinterpret_cast<void*>(&ImportCapturedGenetics),reinterpret_cast<void**>(&state.api.geneticImport)},
+        {at(0x35fbee),state.geneticInsertRelay,&state.geneticInsertTrampoline},
         {at(0x207400),reinterpret_cast<void*>(&SaveAndExit),reinterpret_cast<void**>(&state.api.saveAndExit)},
         {at(0x205c10),reinterpret_cast<void*>(&CancelCas),reinterpret_cast<void**>(&state.api.cancelCas)},
         {at(0x47dd40),reinterpret_cast<void*>(&AnimationGenus),reinterpret_cast<void**>(&state.api.animationGenus)},
@@ -2049,7 +2063,9 @@ inline std::unique_ptr<NativeOwner> ReadAppearanceRecord(State& state,std::uint6
         state.api.available(owner->value,mask);state.api.current(owner->value,kind);
         // The primary/null-record path regenerates genetics and omits Fairy
         // wings. The record path imports the complete supplied genetic payload.
+        GeneticImportRequest genetic(selectedRecord);
         state.api.fields(owner->value,proto.data(),selectedRecord);
+        state.geneticPartsRetained+=genetic.admitted;
         state.api.current(owner->value,kind);state.api.availableData(const_cast<void*>(owner->data()),mask);
         if(Read<std::uint64_t>(owner->value,0xb8)!=id || Read<std::uint32_t>(owner->data(),8)!=kind ||
            Read<std::uint32_t>(owner->data(),12)!=mask)

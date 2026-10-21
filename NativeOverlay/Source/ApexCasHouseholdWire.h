@@ -104,13 +104,13 @@ inline std::string Replace(const std::string& original,const std::string& source
 // pinned 1.128.90 build. These are schema field numbers, never memory offsets.
 inline const std::vector<std::pair<std::uint32_t,std::uint32_t>>& OccultFields() {
     static const std::vector<std::pair<std::uint32_t,std::uint32_t>> value={
-        {12,11},{18,12},{9,13},{11,14},{54,15},{10,16},{28,17},{21,21},{67,22},{75,23}};
+        {12,11},{18,12},{9,13},{11,14},{54,15},{10,16},{28,17},{21,21},{67,22},{75,23},{76,24}};
     return value;
 }
 inline const std::vector<std::pair<std::uint32_t,std::uint32_t>>& RootFields() {
     static const std::vector<std::pair<std::uint32_t,std::uint32_t>> value={
         {9,9},{10,10},{11,11},{12,12},{18,18},{21,21},{28,28},{54,54},
-        {62,62},{63,63},{67,67},{75,75}};
+        {62,62},{63,63},{67,67},{75,75},{76,76}};
     return value;
 }
 inline std::string Household(const std::string& packet,std::uint64_t sim,std::uint32_t mask,

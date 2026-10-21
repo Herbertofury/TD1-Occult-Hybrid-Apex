@@ -114,21 +114,28 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
                 raise ValueError('Game identity changed after focus; no native input submitted.')
         if submission_observer is not None:
             submission_observer(action, request_id)
-        if action == 'test_preview':
+        if action in ('test_preview', 'test_native_cas_engine'):
             raw = json.dumps(query, ensure_ascii=True, allow_nan=False, separators=(',', ':')).encode('utf-8')
-            if len(raw) > 4 * 1024 * 1024: raise ValueError('Native preview request exceeds bound.')
+            if len(raw) > 4 * 1024 * 1024: raise ValueError('Native control request exceeds bound.')
             request = urllib.request.Request('http://127.0.0.1:8017/api/native', data=raw,
                                              headers={'Content-Type': 'application/json'}, method='POST')
             opener = local_opener()
-            with opener.open(request, timeout=12) as response:
-                try:
-                    review = json.loads(value).get('value', {}).get('operation') == 'cas-review'
-                except (ValueError, TypeError, AttributeError):
-                    review = False
-                limit = 4 * 1024 * 1024 if review else 32768
-                reply = response.read(limit + 1)
-                if len(reply) > limit: raise ValueError('Native preview response exceeds bound.')
-                return json.loads(reply)
+            try:
+                with opener.open(request, timeout=12) as response:
+                    try:
+                        review = json.loads(value).get('value', {}).get('operation') == 'cas-review'
+                    except (ValueError, TypeError, AttributeError):
+                        review = False
+                    limit = (8 * 1024 * 1024 if action == 'test_native_cas_engine' else
+                             4 * 1024 * 1024 if review else 32768)
+                    reply = response.read(limit + 1)
+                    if len(reply) > limit: raise ValueError('Native control response exceeds bound.')
+                    return json.loads(reply)
+            except urllib.error.HTTPError as error:
+                detail = error.read(16384)
+                try: message = json.loads(detail.decode("utf-8")).get("message", "No error detail")
+                except (ValueError, UnicodeError, AttributeError): message = "Unreadable native error response"
+                raise RuntimeError("Native control HTTP " + str(error.code) + ": " + str(message)[:2048]) from error
         try:
             result = transport('/api/native', query)
         except (OSError, urllib.error.URLError) as error:

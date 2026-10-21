@@ -874,5 +874,13 @@
     "production_ready": false,
     "report": "Reports/CAS_EXACT_OCCULT_RECORD_V260.json",
     "runtime_verified": false
+  },
+  "v261_retained_genetics_and_native_post": {
+    "build_verified": true,
+    "full_runtime_qualified": false,
+    "pre_entry_195_fields_verified": true,
+    "production_ready": false,
+    "report": "Reports/CAS_RETAINED_GENETICS_V261.json",
+    "stored_look_reset": false
   }
 }

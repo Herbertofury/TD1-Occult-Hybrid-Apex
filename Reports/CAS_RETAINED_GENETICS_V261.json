@@ -1,0 +1,59 @@
+{
+  "build_verified": true,
+  "candidate_epoch": "2026-10-21-retained-genetics-post-v261",
+  "candidate_sha256": "187bb569f3adb43ce218f990f8a8555df570722625d462cf4058a4b0907a2771",
+  "checks": {
+    "cas_return_fixture_tests": 69,
+    "current_game_schema_oracle_passed": true,
+    "current_native_engine_and_wire_targets": 2,
+    "current_native_targets": 15,
+    "fixture_peer_freshness_repair_pending": false,
+    "fixture_ttl_regression_passed": true,
+    "focused_python_tests": 186
+  },
+  "creator_data": {
+    "all20_save_files_unchanged": true,
+    "all8_actual_sim_owners_unchanged": true,
+    "occult_record_field": 24,
+    "real_detached_codec_roundtrip": true,
+    "simdata_field": 76,
+    "unknown_child_fields_in_game_schema_oracle": true
+  },
+  "dll_sha256": "3de82a91634eadc431b7c33a9fe4b81ebb4949c7a568e1f6a60c7eb60b1e31f6",
+  "full_runtime_qualified": false,
+  "limitations": [
+    "The count is internal records, not 195 distinct player forms.",
+    "Full edited CAS return, normal save/cold reload, Tray/Gallery and broader release gates remain open.",
+    "Native codec omits ghost color fields 73/74. They are preserved as unrelated fields in wire projection, with no claim that the codec or per-form Ghost editing is complete.",
+    "Native member-switch latency still requires actual portrait-input timing; initial room setup is not a latency guarantee."
+  ],
+  "native_cli_transport": {
+    "body_limit": 4194304,
+    "complete_native_appearance_requests_use_post": true,
+    "matching_in_game_guard": true,
+    "post_automatically_replayed": false,
+    "real_compact_post_codec_passed": true,
+    "real_full_size_incoming_request_pending": true,
+    "response_limit": 8388608,
+    "server_error_reason_retained": true
+  },
+  "native_genetic_import": {
+    "actual_fresh_full_cas_entry_passed": true,
+    "actual_pre_entry_fields_verified": 195,
+    "comparison_weakened": false,
+    "fix": "Allow only body types present in the exact supplied genetic message, during that message's native import into its exact temporary destination and genus. Only the pinned insertion callsite is redirected; the shared predicate is unchanged.",
+    "household_members": 5,
+    "other_threads_and_destinations_excluded": true,
+    "problem": "Automatic-inheritance body-type filtering removed five unique existing entries from the stored Human/CC Werewolf look.",
+    "relay_abi_executed_in_native_tests": true,
+    "stored_human_cc_look_reinitialized": false
+  },
+  "production_ready": false,
+  "runtime_no_edit_household": {
+    "all195_captured_fields_unchanged": true,
+    "appearance_edits_pending": true,
+    "shared_human_visits_and_member_handoffs": true
+  },
+  "schema": 1,
+  "script_sha256": "30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4"
+}

@@ -16,7 +16,7 @@ def dispatch(backend, action, value, request_id):
     if action not in ACTIONS or not isinstance(request_id, str) or len(request_id) != 32 or any(c not in '0123456789abcdef' for c in request_id):
         raise ValueError('Unsupported native control or request identity.')
     from .test_driver import guard
-    argument = guard(backend, value, limit=4 * 1024 * 1024) if action == 'test_preview' else guard(backend, value)
+    argument = guard(backend, value, limit=4 * 1024 * 1024) if action in ('test_preview','test_native_cas_engine') else guard(backend, value)
     signature = (action, value)
     with _LOCK:
         prior = _RESULTS.get(request_id)

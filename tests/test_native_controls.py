@@ -33,6 +33,19 @@ class NativeControlTests(unittest.TestCase):
                 native_controls.dispatch(self.backend, 'add_all', 'typed', 'c' * 32)
             start.assert_not_called()
 
+    def test_complete_native_owner_uses_the_bounded_large_guard_and_one_identity(self):
+        argument={'operation':'seed-appearance','native_hex':'ab'*50000}
+        value='full owner transport'
+        with patch.object(test_driver,'guard',return_value=argument) as guard, \
+             patch.dict(sys.modules,{'paths':Obj(DLL_PATH='game-dlls')}), \
+             patch.object(overlay_loader,'native_cas_engine_control',return_value={'ok':True}) as control:
+            first=native_controls.dispatch(self.backend,'test_native_cas_engine',value,'1'*32)
+            self.assertEqual(first,native_controls.dispatch(self.backend,'test_native_cas_engine',value,'1'*32))
+            guard.assert_called_with(self.backend,value,limit=4*1024*1024)
+            control.assert_called_once_with('fixed-script','game-dlls',argument)
+            self.assertTrue(first['sim_data_read'])
+            self.backend.services.assert_not_called()
+
     def test_read_only_code_probe_works_before_live_and_deduplicates_its_exact_uuid(self):
         with patch.object(test_driver,'guard',return_value=None),\
                 patch.dict(sys.modules,{'paths':Obj(DLL_PATH='game-dlls')}),\

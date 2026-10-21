@@ -59,6 +59,7 @@ using UndoCreateFn=void(*)(void*,std::uint64_t,bool,bool);
 using UndoBindFn=void(*)(void*,void**);
 using KindMaskFn=std::uint32_t(*)(const void*);
 using ExportProtoFn=void(*)(const void*,void*);
+using OccultRecordFn=void(*)(void*,std::uint32_t,const void*);
 using ProtoSizeFn=int(*)(const void*);
 using ProtoArrayFn=char*(*)(const void*,char*);
 using PreviewFn=void(*)(void*,bool);
@@ -90,6 +91,7 @@ struct Api {
     ModelBindFn modelBind=nullptr;CoreBindFn coreBind=nullptr;ContextFn context=nullptr;IndexFn index=nullptr;LayerFn layer=nullptr;
     UndoSelectFn undoSelect=nullptr;UndoCreateFn undoCreate=nullptr;UndoBindFn undoBind=nullptr;
     KindMaskFn kindMask=nullptr;
+    OccultRecordFn occultRecord=nullptr;
     ExportProtoFn exportProto=nullptr;ProtoSizeFn protoSize=nullptr;ProtoArrayFn protoArray=nullptr;
     PreviewFn hairPreview=nullptr,clothingPreview=nullptr,wingsPreview=nullptr;
     PrepareHouseholdFn prepareHousehold=nullptr;
@@ -226,7 +228,7 @@ struct Imported {
     std::map<std::uint32_t,std::string> logicalOwners;
     std::map<std::string,std::unique_ptr<NativeUndo>> undoOwners;
     bool initialImport=true,viewBound=false,viewFault=false,activeSourceSeeded=false;void* boundGroup=nullptr;void* boundContext=nullptr;std::string entryOwner=NativeOwnerId(1),partner=NativeOwnerId(2),humanOwner=NativeOwnerId(1);std::map<std::string,std::uint32_t> uiTokens;
-    std::uint64_t importedEntity=0;bool editorImported=false;ui::Json householdCanonical;
+    std::uint64_t importedEntity=0;bool editorImported=false;ui::Json householdCanonical,exactRecordExport;
     std::uint32_t mask=0,preferred=0,canonicalSourceMask=0;unsigned imports=0,switches=0,skippedPackets=0;bool seeded=false;std::string error;
 };
 struct ViewIntent {
@@ -267,6 +269,7 @@ struct State {
 // The DLL remains loaded for the entire process. Never run game destructors
 // from CRT/DllMain teardown after the game's native services have gone away.
 inline State& Runtime() {static auto* state=new State;return *state;}
+#include "ApexCasExactRecordLookupWin.h"
 inline void ImportOutfitHair(void* outfit,const void* genus,std::uintptr_t caller) {
     auto& state=Runtime();
     // The inspected helper explicitly inserts 0x24236/0x24237 into an outfit
@@ -669,7 +672,7 @@ inline void CanonicalizeHouseholdRoots(State& state,const std::vector<HouseholdR
             throw std::runtime_error("CAS output preparation contains a duplicate or foreign member.");
         target.bank->householdCanonical={{"verified",false},{"prepared",false}};
         if(!IndependentHybridGenus(target.bank->mask,Read<std::uint32_t>(target.group,0xd8)))continue;
-        NativePacket before(state.api);state.api.exportProto(target.group,before.data.data());
+        NativePacket before(state.api);target.bank->exactRecordExport=ExportExactHouseholdPacket(state,target.group,before.data.data(),target.sim,target.bank->mask);
         CheckedHouseholdPacket(state,ProjectHouseholdPacket(state,target,SerializeMessage(state.api,before.data.data())));
         prepared.emplace(target.sim,PreparedHouseholdRoot{target.group,target.bank->importedEntity,target.bank->graph->cursor().generation});
     }
@@ -885,10 +888,45 @@ inline void ProjectHouseholdOutput(State& state,const void* source,void* proto,v
         HouseholdFault(state,"output-projection",error.what(),target->first);
     }
 }
+inline Imported* ExactHouseholdOutputBank(State& state,const void* source,void* controller) {
+    if(!HouseholdScopeCurrent(state))return nullptr;
+    auto target=state.preparedRoots.end();
+    for(auto at=state.preparedRoots.begin();at!=state.preparedRoots.end();++at)
+        if(!at->second.retired && at->second.group==source) {target=at;break;}
+    const auto copy=state.householdCopies.find(source);
+    if(target==state.preparedRoots.end() && copy!=state.householdCopies.end()) {
+        target=state.preparedRoots.find(copy->second.sim);
+        if(target==state.preparedRoots.end() || target->second.entity!=copy->second.entity ||
+           target->second.generation!=copy->second.generation)return nullptr;
+    }
+    if(target==state.preparedRoots.end())return nullptr;
+    const bool dispatched=copy!=state.householdCopies.end() && copy->second.dispatchOrigin &&
+        state.householdDispatch.value("verified",false) && state.householdDispatch.value("scope_id","")==state.scope.id;
+    auto& bank=state.bank.at(target->first);
+    if((target->second.retired && !dispatched) || ((!controller || controller!=state.exportController) && !dispatched) ||
+       !bank.graph || bank.viewFault || bank.graph->cursor().generation!=target->second.generation)return nullptr;
+    try {
+        if(Read<std::uint64_t>(source,0xb8)!=target->first || GroupId(const_cast<void*>(source))!=target->second.entity)return nullptr;
+        if(!dispatched) {
+            const auto roots=EditorHouseholdRoots(state,controller);
+            if(std::none_of(roots.begin(),roots.end(),[&](const auto& root) {
+                return root.sim==target->first && root.group==target->second.group && GroupId(root.group)==target->second.entity;
+            }))return nullptr;
+        }
+    } catch(const std::exception&) {return nullptr;}
+    return &bank;
+}
 inline void HouseholdOutput(const void* source,void* proto) {
     const auto caller=reinterpret_cast<std::uintptr_t>(_ReturnAddress());
-    auto& state=Runtime();state.api.exportProto(source,proto);
+    auto& state=Runtime();
+    if(!state.householdCopiesEnabled.load(std::memory_order_acquire)) {state.api.exportProto(source,proto);return;}
     std::lock_guard<std::recursive_mutex> lock(state.mutex);
+    void* exactController=nullptr;try {if(state.image)exactController=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));} catch(const std::exception&) {}
+    auto* exactBank=ExactHouseholdOutputBank(state,source,exactController);
+    if(exactBank) {
+        try {exactBank->exactRecordExport=ExportExactHouseholdPacket(state,source,proto,exactBank->graph->cursor().sim,exactBank->mask);}
+        catch(const std::exception& error) {HouseholdFault(state,"exact-record-export",error.what(),exactBank->graph->cursor().sim);return;}
+    } else state.api.exportProto(source,proto);
     if(state.preparedRoots.empty())return;
     void* controller=nullptr;
     try {if(state.image)controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));}
@@ -1756,6 +1794,7 @@ inline ui::Json Status() {
             {"editor_materialized",found!=state.bank.end() && found->second.editorImported},
             {"imported_entity_id",found==state.bank.end()?"0":std::to_string(found->second.importedEntity)},
             {"household_canonical",found==state.bank.end()?ui::Json(nullptr):found->second.householdCanonical},
+            {"exact_record_export",found==state.bank.end()?ui::Json(nullptr):found->second.exactRecordExport},
             {"active_entry_captured",found!=state.bank.end() && found->second.active!=nullptr},
             {"active_entry_source_seeded",found!=state.bank.end() && found->second.activeSourceSeeded},
             {"canonical_source_seeded_mask",found==state.bank.end()?0u:found->second.canonicalSourceMask},
@@ -1875,6 +1914,8 @@ inline void Install() {
         {0x458630,"05fb8e8a89a5bcf029cefb8dba8eaabc9871589f5ac94c566e915845a31ed300"},
         {0x449020,"eb3a3892153e14cf66c4cb13918fd2850c9482f6a94054db1b22cc4118172586"},
         {0x323990,"e90d48dcd731ebb911f40edc9980c774a4b55836c46e82453538a02a3e76e4dc"},
+        {0x322a90,"05cb6b6a96c3c701530acfd0a8fe103331bac8ae938e756ded345cc440d01a6d"},
+        {0x322ad0,"3ce6a0e2ee859a682962315f2b0b65e036215475489f4b2e0d8fac56790ef808"},
         {0x4103ea,"30bd234b1656fecf4f7886432b1dd6ccbcf2b4b413b0ab43f97a430cc5a22a89"},
         {0x48ae60,"18e24cec017509e7328a076722fb2c38686180f19fb2510cffaf636bcf21719d"},
         {0x7ae500,"8f78ef8bdd8b8b57954bc76403fe9f039d713503ed1f62f76a233d0cb94d14f9"},
@@ -1931,6 +1972,7 @@ inline void Install() {
         {at(0x322290),reinterpret_cast<void*>(&HouseholdCopyAssign),reinterpret_cast<void**>(&state.api.assignSim)},
         {at(0x3221c0),reinterpret_cast<void*>(&HouseholdCopyDestroy),reinterpret_cast<void**>(&state.api.destroy)},
         {at(0x323990),reinterpret_cast<void*>(&HouseholdOutput),reinterpret_cast<void**>(&state.api.exportProto)},
+        {at(0x322a90),reinterpret_cast<void*>(&ExportOccultRecord),reinterpret_cast<void**>(&state.api.occultRecord)},
         {at(0x207400),reinterpret_cast<void*>(&SaveAndExit),reinterpret_cast<void**>(&state.api.saveAndExit)},
         {at(0x205c10),reinterpret_cast<void*>(&CancelCas),reinterpret_cast<void**>(&state.api.cancelCas)},
         {at(0x47dd40),reinterpret_cast<void*>(&AnimationGenus),reinterpret_cast<void**>(&state.api.animationGenus)},

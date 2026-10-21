@@ -867,5 +867,12 @@
     "production_ready": false,
     "report": "Reports/CAS_MEMBER_PRESENTATION_V259.json",
     "runtime_verified": false
+  },
+  "v260_exact_occult_record_export": {
+    "build_verified": true,
+    "candidate_sha256": "fae1f757c0e8f57a1d01b77a9d97ee7ae70a5fc6f99638bfe526136d7a1e212b",
+    "production_ready": false,
+    "report": "Reports/CAS_EXACT_OCCULT_RECORD_V260.json",
+    "runtime_verified": false
   }
 }

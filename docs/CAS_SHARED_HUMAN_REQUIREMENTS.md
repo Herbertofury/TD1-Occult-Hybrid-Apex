@@ -1032,3 +1032,30 @@ These are scoped passes. Keep all-category edited-household return, the observed
 Human genetic-cache normalization, save/cold-load, Tray/Gallery, compatibility
 and actual-save readiness gates open. Duplicate internal preimages are never
 counted as additional playable forms.
+
+
+## V260: exact native occult record export (runtime pending)
+
+V258 retains thirty distinct native selections across five household members
+and Alien/Vampire revisits. All 195 internal records are compared, with only
+the ten deliberately edited owners changing. These counts do not establish
+all requested forms or categories. Native CAS acceptance is rejected before
+EA's actual handler; no game save is submitted.
+
+Read-only native inspection identifies the writer's Human/non-Human bucket
+lookup: on a Werewolf-, Mermaid- or Fairy-first tracker, exporting Alien
+replaces the wrong occult and leaves duplicate Alien records. V260 routes
+the pinned native writer to the exact existing record only in a qualified
+detached CAS household output, then restores record order. Original roots,
+unrelated callers and strict complete-field/roster/parser checks stay intact.
+The permanent guard remains active. Forty-nine genus/order cases, nine
+invalid-input refusals, exception restoration, 114 focused Python checks and
+two rebuilt native targets pass. Actual edited return, normal save/cold load,
+Tray/Gallery and visible member-switch latency remain unqualified.
+
+V260 installs and launches through the CLI. All forty saved native appearances
+remain unchanged after simulation advances. Fresh CAS preparation nevertheless
+refuses before opening the editor: the game filters five unique genetic part
+entries from an existing Human/CC Werewolf look. The stored look is retained
+and is not reinitialized to bypass this gate. Exact-record exit repair remains
+runtime-unproved until this import defect is resolved.

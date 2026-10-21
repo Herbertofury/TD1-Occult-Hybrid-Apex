@@ -376,3 +376,18 @@ timings and end-to-end CLI times remain separate; the latter include artifact
 checks, transport and durable evidence. This fixes the observed pending request,
 not the broader household persistence gates. See
 [the runtime report](../Reports/CAS_OWNER_REFRESH_V258.json).
+
+## Native search placement: owner requirement, October 21
+
+Use the existing **Filter Items...** bar directly below the native category
+title (the owner's Shoes example) as the place to type and filter searches.
+Integrate item names, package filenames, creator/author queries, fuzzy matching
+and type filters there, with an obvious clear action. Keep EA's existing filter
+chips and access to its ordinary filter options, native item cards and swatches.
+Typing and keyboard editing must retain focus instead of triggering catalog
+arrow navigation. A separate floating search window does not fulfill this
+placement requirement.
+
+The metadata broker/native worker already has separate scoped evidence. The
+editable native bar, eligible native result mapping and visible result cards
+remain unfinished; that backend evidence does not qualify the requested UI.

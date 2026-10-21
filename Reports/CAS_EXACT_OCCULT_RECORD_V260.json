@@ -1,0 +1,123 @@
+{
+  "actual_v258_evidence": {
+    "acceptance_replayed": false,
+    "all195_internal_records_compared": true,
+    "categories": [
+      "eyebrows",
+      "skin_details",
+      "earrings"
+    ],
+    "complete_five_member_edit_and_revisit_passed": true,
+    "distinct_player_forms_not_established_by_internal_count": true,
+    "edited_native_owners": 10,
+    "inspected_record_orders": [
+      [
+        1,
+        2,
+        4,
+        8,
+        32,
+        64,
+        16
+      ],
+      [
+        1,
+        32,
+        2,
+        4,
+        8,
+        64,
+        16
+      ],
+      [
+        1,
+        8,
+        2,
+        4,
+        32,
+        64,
+        16
+      ],
+      [
+        1,
+        64,
+        2,
+        4,
+        8,
+        32,
+        16
+      ],
+      [
+        1,
+        2,
+        4,
+        8,
+        32,
+        64,
+        16
+      ]
+    ],
+    "native_acceptance_handler_called": false,
+    "native_cas_return": "accept-rejected",
+    "native_edits": 30,
+    "native_forms": [
+      "Alien",
+      "Vampire"
+    ],
+    "save_submitted": false
+  },
+  "build_verified": true,
+  "candidate_epoch": "2026-10-21-exact-occult-record-v260",
+  "candidate_sha256": "fae1f757c0e8f57a1d01b77a9d97ee7ae70a5fc6f99638bfe526136d7a1e212b",
+  "checks": {
+    "exact_record_kind_and_order_combinations": 49,
+    "focused_python_tests": 114,
+    "full_proxy_and_smoke_rebuild_after_closure_passed": true,
+    "invalid_scope_or_roster_refusals": 9,
+    "legacy_collision_reproduced": true,
+    "native_regression_targets_passed": 15,
+    "native_writer_failure_restores_order": true,
+    "proxy_relink_blocked_by_loaded_file": false,
+    "rebuilt_native_targets_passed": 2
+  },
+  "dll_sha256": "fd4ffb283fb81e83f5bd5dd3543287a1d02ae7474b601c25fdafd54df7ae1c91",
+  "fix": {
+    "authorized_sources": "Complete captured CAS root at preflight, or current prepared root/authenticated dispatch copy at output; exact Sim/entity/generation/controller scope retained.",
+    "complete_roster_required": true,
+    "detached_output_pointer_order_restored": true,
+    "exact_kind_routing": true,
+    "malformed_roster_repair_allowed": false,
+    "native_record_writer_hook": true,
+    "native_root_written": false,
+    "permanent_guard_retained": true,
+    "unknown_and_nonappearance_fields_still_compared": true,
+    "unrelated_callers_unchanged": true
+  },
+  "problem": "EA native occult-record writer groups all non-Human kinds into one bucket. A valid Werewolf-first tracker can export duplicate Alien records after actual Alien editing.",
+  "production_ready": false,
+  "remaining": [
+    "Fix native genetic import filtering for retained named looks; preserve the old look and strict import comparison.",
+    "Install matching candidate and repeat real full-CAS household edits and native return.",
+    "Verify all native fields before the guard, then explicit disposition, simulation advance, normal save/cold reload and Tray/Gallery.",
+    "Measure native household portrait UI startup with V259 scheduling included; no latency claim from fixtures.",
+    "Full requested categories/forms/edit routes and other release requirements remain open.",
+    "Complete the current-schema creator-data mapping (SimData 76 to OccultSimData 24) and unselected active ghost colors (SimData 73/74), with populated-field oracle cases."
+  ],
+  "runtime_attempt": {
+    "cli_launch_and_resume_passed": true,
+    "cold_all40_native_fields_retained": true,
+    "entered_cas": false,
+    "entry_rejected_before_ui": true,
+    "entry_replayed": false,
+    "failed_entry_request_id": "410e25b76d9442e49cd8e0e47d134ae8",
+    "installed_matching_candidate": true,
+    "pid": 117148,
+    "reason": "Complete pre-entry readback detects five unique genetic part entries lost from the existing Human/CC Werewolf appearance.",
+    "save_submitted": false,
+    "simulation_progress_ticks": 871,
+    "stored_look_reinitialized": false
+  },
+  "runtime_verified": false,
+  "schema": 1,
+  "script_sha256": "593573fda828d63d51452c5805207141063dba0fbc648e9145ca287eade5f3f8"
+}

@@ -8,6 +8,7 @@ std::string Number(unsigned field,unsigned value) {return w::Var(std::uint64_t(f
 void* ConstructPacket(void* p) {std::memset(p,0,0x400);return p;}
 void DestroyPacket(void* p) {protoExports.erase(p);}
 void Export(const void* root,void* packet) {
+    recordlookup::Visit(root,packet);
     const auto id=Read<std::uint64_t>(root,0xb8);Write(packet,0x10,id);
     const auto at=attrs.find(root);const auto attributes=at==attrs.end()?std::string():*at->second;
     auto raw=w::Var(9)+std::string(reinterpret_cast<const char*>(&id),8)+
@@ -42,7 +43,7 @@ void Exercise() {
     const auto firstView=state.bank.at(123).viewBound,secondView=state.bank.at(456).viewBound;
     auto firstActive=std::move(state.bank.at(123).active),secondActive=std::move(state.bank.at(456).active);
     state.api.protoConstruct=ConstructPacket;state.api.protoDestroy=DestroyPacket;
-    state.api.protoParse=Parse;state.api.exportProto=Export;
+    state.api.protoParse=Parse;state.api.exportProto=Export;state.api.occultRecord=recordlookup::Legacy;
     std::array<char,0x830> roots[2]{};std::string attributes[2],original[2];
     std::array<char,0x400> controller{};std::array<char,0x20> nodes[2]{};
     void* interfaces[]={reinterpret_cast<void*>(&Entity)};

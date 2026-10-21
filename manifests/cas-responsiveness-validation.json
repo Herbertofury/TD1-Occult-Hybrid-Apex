@@ -764,8 +764,17 @@
     "change": "Retire editor addresses without invalidating independently authenticated native CAS dispatch copies",
     "complete_core_comparison_unchanged": true,
     "copy_tracking_disables_after_verified_delivery_and_destruction": true,
-    "direct_cas_exit_fix_qualified": false,
+    "direct_cas_exit_fix_qualified": true,
     "dll_sha256": "33deb7bed4f4df0c175eaf29f69cf424cfce6b19f10b706c0ea6fec5a164f4a6",
+    "edited_category_qualification": "Next same-process five-member Alien/Vampire pass is starting; not yet claimed",
+    "guard_retention": {
+      "all40_native_appearances_retained": true,
+      "named_looks_retained": 155,
+      "retained_proof": ".work/v224-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "a2654e1c0149fdf48ecb5737a929bbd4abfe735dea78e6e08ab6051a8ca404b8",
+      "simulation_advanced": true
+    },
     "native_checks": {
       "passed": 13,
       "retained_proof": ".work/v224-native-tests.log",
@@ -781,8 +790,19 @@
     },
     "permanent_guard_retained": true,
     "production_ready": false,
+    "qualification_scope": "Five-member no-edit CAS acceptance; only first and last members selected; no edited-category or MCCC/save/Tray claim",
     "retired_address_reuse_refused": true,
-    "runtime": "Actual five-member qualification running",
+    "runtime": {
+      "actual_no_edit_household_cycle_passed": true,
+      "actual_output_receipts_verified": 5,
+      "all40_fields_match_before_guard": true,
+      "all_five_editor_authorities_retired": true,
+      "copy_tracking_active_after_delivery": false,
+      "native_fault_count": 0,
+      "retained_proof": ".work/v224-cycle.json",
+      "sha256": "962af132dcb84dafda4692cf746b50d15d49d06b56eb68b71f40032ff26a6772",
+      "strict_load_receipts_verified": 5
+    },
     "script_sha256": "18152a6421bc0906e6ee27193852669b86da6256d3b297dee2b31fdbb6dbbfe9",
     "seal_checks": {
       "passed": 26,

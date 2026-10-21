@@ -156,8 +156,17 @@ authority retires; the strict loader can still use the captured graphs and
 receipts. Thirteen native targets, 26 seal and 26 upgrade checks pass, including
 freed editor/controller, surviving descendants, reuse and failed handoff cases.
 Seven packages/105 Python 3.7 modules and 208 Rust-validated resources build.
-Actual V224 household qualification is running. No core comparator or
-preservation guard is weakened; actual-save readiness remains open.
+Actual V224 passes the five-member no-edit household cycle. All forty native
+appearances match before the guard, including the three never-selected members.
+All five dispatched output receipts and strict native-load extension receipts
+verify at generation 42; native acceptance remains qualified after all editor
+authorities retire, copy tracking disables and no native fault is recorded.
+The separate no-edit disposition retains all forty native appearances and 155
+named looks after simulation advances, with every save/backup file unchanged.
+This qualifies the previously failing no-edit path, not edited-category, MCCC
+or save/Tray round trips. Those remain open. The next same-process CAS session
+tests distinct Alien/Vampire category edits across all five members. No core
+comparator or preservation guard is weakened; actual-save readiness remains open.
 
 V214's untouched-member acceptance test fails direct isolation: members two,
 three and four return changed Human genetics and/or active outfits/paint.

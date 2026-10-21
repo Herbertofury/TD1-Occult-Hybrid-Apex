@@ -359,6 +359,12 @@
       "sha256": "23369d541d07d5c678c1a6b704cc0f9c918ded18052af36089bc7a915ef6fac1"
     },
     {
+      "bytes": 18256,
+      "mode": "100644",
+      "path": "docs/USER_REPORTED_REGRESSIONS.md",
+      "sha256": "271fab62dab7cd543a53eb825e3c142d12868d8593cd3ebef75c3c52e7c987e9"
+    },
+    {
       "bytes": 7817,
       "mode": "100644",
       "path": "tests/test_cas_form_catalog.py",
@@ -1541,6 +1547,12 @@
       "sha256": "4076c1193634c138e095e86f6c45c042dd6a6050e83c3236706bda54a1100191"
     },
     {
+      "bytes": 58001,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "8493115bfb5b73e0aae477c297cb11508846133e7148d39bf005afc0f88533c6"
+    },
+    {
       "bytes": 1659,
       "mode": "100644",
       "path": "Reports/Glorious-UI-V4-Performance-Design.txt",
@@ -1791,12 +1803,6 @@
       "mode": "100644",
       "path": "wiki/TODO.md",
       "sha256": "ee6ceb0d6ac5fd7e1feee6f789e52152160153c40d7b0c42f3be8aba1cd8796a"
-    },
-    {
-      "bytes": 57278,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "b6e87f7cd3847a376a18d23007375804aa946edaafd320991f0e363e93a19ca1"
     },
     {
       "bytes": 2270,
@@ -2295,12 +2301,6 @@
       "mode": "100644",
       "path": "tests/test_cas_history_ack.py",
       "sha256": "cee99103807cf48af036ce1f9185dc2f821069be551f33746469e17a8e6b59e7"
-    },
-    {
-      "bytes": 17866,
-      "mode": "100644",
-      "path": "docs/USER_REPORTED_REGRESSIONS.md",
-      "sha256": "3cdc1004e04960c153e5162abee8ab57b35e2f1a99e5f678e451881a8bee664f"
     },
     {
       "bytes": 4125,

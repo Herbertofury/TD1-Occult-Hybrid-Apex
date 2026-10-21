@@ -46,7 +46,12 @@ handoff. Direct qualification fails; the separate guard and normal unsaved exit
 pass with all saves unchanged. V224 tombstones retired editor addresses while
 retaining valid dispatch descendants, final generations and complete readbacks.
 Reused addresses and unauthenticated handoffs still refuse. Its thirteen native,
-26 seal and 26 upgrade checks pass; actual household qualification is running.
+26 seal and 26 upgrade checks pass. Actual V224 now passes the no-edit household
+cycle: all forty appearances match before the guard, all five output/load
+receipts verify and no native fault remains after editor teardown. The separate
+guard retains all forty appearances and 155 named looks after simulation,
+without changing any save. Edited-category, MCCC and save/Tray workflows still
+require qualification; the next five-member Alien/Vampire edit pass is starting.
 R001/R002 remain open,
 as do selective EA linking/copying, edited save/Tray round trips and measured
 end-to-end responsiveness; fixture passes do not authorize actual-save use.

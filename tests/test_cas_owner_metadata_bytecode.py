@@ -4,7 +4,7 @@ ROOT=Path(__file__).resolve().parents[1]
 JAR=ROOT/'.work/research/ffdec/ffdec.jar'
 COMPILED=ROOT/'.work/research/apex-cas-compiled.swf'
 CASES=('exact','frame-lease','lease-branch','nonce','send','stage','wire','deadline','palette-source','palette-slot',
-       'bootstrap-state','bootstrap-guard')
+       'bootstrap-state','bootstrap-guard','bound-owner-refresh')
 
 class OwnerMetadataBytecodeTests(unittest.TestCase):
     @classmethod

@@ -33,6 +33,15 @@ public class CasOwnerMetadataFixtures {
             case "stage":rows.get(p-6).operands[0]=abc.constants.getStringId("readback|",true);break;
             case "wire":rows.get(p).operands[0]=abc.constants.getStringId("ACK|",true);break;
             case "deadline":rows.get(p-13).operands[0]=member(abc,"owner_id");break;
+            case "bound-owner-refresh": {
+                int changes=0;
+                for(var row:rows) if(CasBytecodePatch.property(abc,row,0x4f,"ApexFormsReadNativeState") ||
+                    CasBytecodePatch.property(abc,row,0x46,"ApexFormsReadNativeState")) {
+                    row.operands[0]=member(abc,"ApexFormsObservedSim");changes++;
+                }
+                if(changes!=1)throw new AssertionError("Expected one direct bound-owner readback");
+                break;
+            }
             case "palette-source": case "palette-slot": {
                 int palette=CasBytecodePatch.uniqueLiteral(abc,body,"CasGetSwatchColorList"),at=-1;
                 for(int i=0;i+3<palette;i++) if(CasBytecodePatch.property(abc,rows.get(i),0x66,"selection_variant_id") &&

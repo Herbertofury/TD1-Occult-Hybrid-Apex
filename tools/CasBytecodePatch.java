@@ -688,6 +688,8 @@ public class CasBytecodePatch {
     }
     static void verifyOwnerMetadataReadback(ABC abc, InstanceInfo instance) {
         var body=ownedBody(abc,instance,"ApexReadback");
+        require(propertyCalls(abc,body).contains("ApexFormsReadNativeState"),
+            "Owner readback must reconcile the bound native owner without waiting for a changed-owner heartbeat.");
         var code=body.getCode();code.markOffsets();var rows=code.code;
         int p=uniqueLiteral(abc,body,"POLL|");
         require(p>=18 && p+9<rows.size(),"Owner metadata readback is truncated.");

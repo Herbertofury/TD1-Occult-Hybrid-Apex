@@ -25,12 +25,24 @@ class LocalRedirectGuard(urllib.request.HTTPRedirectHandler):
         raise ValueError('Local game bridge redirects are not allowed.')
 
 
+def local_opener():
+    # This endpoint is exclusively loopback HTTP. build_opener's unrelated
+    # HTTPS handler loads the Windows certificate stores on every poll.
+    # Register only the protocol used here, with the same redirect/error policy.
+    opener = urllib.request.OpenerDirector()
+    for handler in (urllib.request.ProxyHandler({}), urllib.request.HTTPHandler(),
+                    urllib.request.HTTPDefaultErrorHandler(), LocalRedirectGuard(),
+                    urllib.request.HTTPErrorProcessor()):
+        opener.add_handler(handler)
+    return opener
+
+
 def get(path, query=None, timeout=12):
     url = 'http://127.0.0.1:8017' + path
     if query:
         url += '?' + urllib.parse.urlencode({key: value for key, value in query.items() if value is not None})
     # No remote endpoint option: this command controls only the local game bridge.
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), LocalRedirectGuard())
+    opener = local_opener()
     with opener.open(url, timeout=timeout) as response:
         if response.headers.get_content_type() != 'application/json':
             raise ValueError('Bridge returned non-JSON content.')
@@ -107,7 +119,7 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
             if len(raw) > 4 * 1024 * 1024: raise ValueError('Native preview request exceeds bound.')
             request = urllib.request.Request('http://127.0.0.1:8017/api/native', data=raw,
                                              headers={'Content-Type': 'application/json'}, method='POST')
-            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), LocalRedirectGuard())
+            opener = local_opener()
             with opener.open(request, timeout=12) as response:
                 try:
                     review = json.loads(value).get('value', {}).get('operation') == 'cas-review'
@@ -695,6 +707,16 @@ def parser():
 
 
 def execute(args):
+    # Keep preflight and all nested status/result requests in the same checked
+    # artifact lease. Profile installation/renaming commands never share it.
+    if args.command in ('cas', 'game'):
+        from cli_identity_cache import session
+        with session(args.state):
+            return _execute(args)
+    return _execute(args)
+
+
+def _execute(args):
     if args.command == 'cas-owner-export':
         from cas_owner_export import run
         return run(args.state,args.output,args.sim_id)

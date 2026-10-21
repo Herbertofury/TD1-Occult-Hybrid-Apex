@@ -1875,6 +1875,10 @@
             // CASGetSimInfo reports the Sim's family metadata. GetSimOccult
             // reads the current native model's genus, including its alt view.
             var renderedKind:* = operation=="form-owner-select" ? CommunicationManager.CallGameService("GetSimOccult") : null;
+            // A same-owner native bind need not send a changed-owner heartbeat.
+            // Reconcile our pending desired ID from the current bound native
+            // model on this readback; do not await an unrelated socket poll.
+            if(operation=="form-owner-select") ApexFormsReadNativeState();
             if(selectedSimMatches && operation=="form-owner-select" && !("message" in reply) &&
                 (!(renderedKind is int) || int(renderedKind)!=state || (int(native.allOccultTypes) | 1)!=category ||
                  apexFormsSelectedId!=String(context.owner_id) || apexFormsNativeState!="bound" || apexFormsDesiredId!="")) {

@@ -365,3 +365,14 @@ All twenty save/backup files remain unchanged. This selected-form pass does not
 qualify edited-household persistence or actual-save use. The movable form strip
 also overlaps lower cards in this narrow viewport; layout QA remains open. See
 [the exact scoped report](../Reports/CAS_KEYBOARD_V257.json).
+
+### V258 native-owner acknowledgement
+
+A same-form refresh can complete natively without sending a changed-owner
+heartbeat. The CLI now reconciles its pending desired form from the current
+bound native owner during readback. Seven actual bindings pass, including
+same-owner Alien/Human/Vampire and Alien → Vampire → Alien. Native binding
+timings and end-to-end CLI times remain separate; the latter include artifact
+checks, transport and durable evidence. This fixes the observed pending request,
+not the broader household persistence gates. See
+[the runtime report](../Reports/CAS_OWNER_REFRESH_V258.json).

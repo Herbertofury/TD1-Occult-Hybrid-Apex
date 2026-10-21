@@ -147,6 +147,19 @@ also overlaps lower cards in this narrow viewport; layout QA remains open. See
 
 ## Remaining proof
 
+**Native owner acknowledgement · V258.** A same-form refresh previously completed
+in the native engine but waited for a changed-owner heartbeat in its UI readback.
+The readback now consults the bound native owner directly. Seven actual bindings
+pass, including same-owner Alien, Human and Vampire, and Alien → Vampire → Alien.
+The original unresolved request remains retained and was never replayed. This
+does not qualify edited-household/save/Tray retention. See
+[the scoped runtime evidence](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_OWNER_REFRESH_V258.json).
+
+The host CLI also avoids repeated API binding, duplicate inventory traversal and
+unrelated certificate-store setup. File identities, USNs and per-request change
+checks remain intact. Its measured inventory median falls from 278.4 ms to
+109.3 ms; this is not a game frame-time claim.
+
 - [ ] Complete and visually qualify the native CAS search bar and native result cards.
 - [x] Verify a copied real-CC typo query with creator/type/origin filters through the native transport.
 - [ ] Qualify the complete native CAS search UI, including filename and EA searches.

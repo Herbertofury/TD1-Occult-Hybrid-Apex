@@ -2,9 +2,10 @@
 from contextlib import contextmanager
 import hashlib
 import os
+import stat
 from pathlib import Path
 import threading
-from functools import wraps
+from functools import wraps, lru_cache
 
 import reusable_profile
 
@@ -22,11 +23,9 @@ def scoped(function):
     return wrapped
 
 
-def change_time(path, data):
-    # Windows st_ctime is creation time. ChangeTime can coalesce fast writes;
-    # pair it with the file USN. A filesystem without that contract must hash
-    # the content, never silently trust a restored LastWriteTime.
-    if os.name != 'nt': return data.st_ctime_ns
+@lru_cache(maxsize=1)
+def _windows_api():
+    """Bind the read-only metadata API once, not for every installed package."""
     import ctypes
     from ctypes import wintypes as W
     class Basic(ctypes.Structure):
@@ -41,6 +40,15 @@ def change_time(path, data):
                                     ctypes.POINTER(W.DWORD),W.LPVOID]
     kernel.DeviceIoControl.restype=W.BOOL
     kernel.CloseHandle.argtypes=[W.HANDLE];kernel.CloseHandle.restype=W.BOOL
+    return ctypes, W, Basic, kernel
+
+
+def change_time(path, data):
+    # Windows st_ctime is creation time. ChangeTime can coalesce fast writes;
+    # pair it with the file USN. A filesystem without that contract must hash
+    # the content, never silently trust a restored LastWriteTime.
+    if os.name != 'nt': return data.st_ctime_ns
+    ctypes, W, Basic, kernel = _windows_api()
     handle=kernel.CreateFileW(str(path),0x80,7,None,3,0x02200000,None)
     if handle==W.HANDLE(-1).value:raise ctypes.WinError(ctypes.get_last_error())
     try:
@@ -66,14 +74,14 @@ def change_time(path, data):
 
 def stamp(state):
     state, journal, profile, original = reusable_profile.load(state)
-    def identity(path):
-        data = path.lstat()
-        if path.is_symlink() or getattr(data, 'st_file_attributes', 0) & 0x400:
+    def identity(path, data=None):
+        if data is None: data = path.lstat()
+        if stat.S_ISLNK(data.st_mode) or getattr(data, 'st_file_attributes', 0) & 0x400:
             raise ValueError('A profile lease cannot follow links or reparse points.')
         # Coarse/coalesced ctime on non-NTFS CI filesystems cannot certify a
         # same-size edit followed by utime. Keep the fast ChangeTime lease on
         # Windows; verify file content on platforms without that contract.
-        content = hashlib.sha256(path.read_bytes()).hexdigest() if os.name != 'nt' and path.is_file() else None
+        content = hashlib.sha256(path.read_bytes()).hexdigest() if os.name != 'nt' and stat.S_ISREG(data.st_mode) else None
         return (data.st_dev, data.st_ino, data.st_size, data.st_mtime_ns, data.st_ctime_ns,
                 getattr(data, 'st_file_attributes', 0),change_time(path,data),content)
     # Normal Live/CAS operations create cache/log/save entries in this folder.
@@ -81,7 +89,7 @@ def stamp(state):
     # size are not mod or journal authority. Still enumerate and stamp every
     # Mods entry below, including unknown names and each file's USN/content.
     profile_data = profile.lstat()
-    if profile.is_symlink() or getattr(profile_data, 'st_file_attributes', 0) & 0x400:
+    if stat.S_ISLNK(profile_data.st_mode) or getattr(profile_data, 'st_file_attributes', 0) & 0x400:
         raise ValueError('A profile lease cannot follow links or reparse points.')
     profile_identity = (profile_data.st_dev, profile_data.st_ino,
                         getattr(profile_data, 'st_file_attributes', 0))
@@ -90,25 +98,30 @@ def stamp(state):
     pinned = {str(row.get('relative', '')).replace('\\', '/').casefold()
               for row in journal.get('artifacts', [])}
     mods = profile / 'Mods'
-    def entry(path):
-        data = path.lstat()
-        if path.is_symlink() or getattr(data, 'st_file_attributes', 0) & 0x400:
+    def entry(path, data):
+        if stat.S_ISLNK(data.st_mode) or getattr(data, 'st_file_attributes', 0) & 0x400:
             raise ValueError('A profile lease cannot follow links or reparse points.')
         relative = str(path.relative_to(mods)).replace('\\', '/').casefold()
         if relative in _RUNTIME_LOGS and relative not in pinned:
-            if not path.is_file():
+            if not stat.S_ISREG(data.st_mode):
                 raise ValueError('Known MCCC runtime log is not an ordinary file.')
             return  # Content/rotation of these two diagnostic files is expected.
         # Directory writes are not executable content. All children are still
         # enumerated; additions/removals and replaced directories remain gated.
         value = ((data.st_dev, data.st_ino, getattr(data, 'st_file_attributes', 0))
-                 if path.is_dir() else identity(path))
+                 if stat.S_ISDIR(data.st_mode) else identity(path, data))
         rows.append((str(path.relative_to(profile)), value))
-    for root, dirs, files in os.walk(mods, followlinks=False):
-        root = Path(root)
-        entry(root)
-        for name in sorted(dirs + files):
-            entry(root / name)
+    def directory(path):
+        with os.scandir(path) as stream:
+            for child in stream:
+                child_path = Path(child.path)
+                # Windows DirEntry.stat() supplies zero st_dev/st_ino. Read
+                # lstat once there so replacement-file identity remains exact.
+                data = child_path.lstat() if os.name == 'nt' else child.stat(follow_symlinks=False)
+                entry(child_path, data)
+                if stat.S_ISDIR(data.st_mode): directory(child_path)
+    entry(mods, mods.lstat())
+    directory(mods)
     return tuple(sorted(rows,key=lambda row:row[0]))
 
 

@@ -978,3 +978,33 @@ remain unchanged after the semantic pass; every save/backup file is unchanged.
 See [the scoped card report](../Reports/CAS_CARD_LAYOUT_V247.json). This is a UI
 qualification only: the direct outfit/genetics normalization and full edited
 household/save/Tray release gates above remain open.
+
+## Keyboard and same-form acknowledgement, V257-V258 (October 21)
+
+V257 qualifies arrows, Home/End, Page Up/Down, native Enter/Undo and equipped-card
+category navigation in actual Alien CAS. It covers five-column Hair and
+two-column Face grids, viewport masking and background Windows-key delivery.
+The twenty save/backup files remain unchanged. Specialized palettes, modals,
+typing and layout overlap still need their own runtime qualification. See
+[the keyboard report](../Reports/CAS_KEYBOARD_V257.json).
+
+The next household preparation exposed a same-form CLI acknowledgement defect:
+the native Human bind completed in 11.5 ms, but its UI readback waited for a
+changed-owner heartbeat. The original request and native applied receipt are
+retained; no mutation was replayed. V258 reads the current bound native owner
+during readback. Seven actual bindings now pass, including same-owner Alien,
+Human and Vampire, and Alien → Vampire → Alien. Native times and the separate
+3–5 second host/transport/evidence times are retained. Thirteen serialized
+bytecode cases include rejection of a missing bound-owner refresh. See
+[the acknowledgement report](../Reports/CAS_OWNER_REFRESH_V258.json).
+
+The host's repeated inventory scans also retain exactly the same device/file
+identities, USNs and content checks while avoiding duplicate traversal, repeated
+Windows API binding and unrelated TLS setup. Six paired local samples reduce
+median inventory-check time from 278.4 ms to 109.3 ms. This is a host-tool result,
+not a gameplay frame-time claim. See [the host report](../Reports/CLI_HOST_INVENTORY_V257.json).
+
+These are scoped passes. Keep all-category edited-household return, the observed
+Human genetic-cache normalization, save/cold-load, Tray/Gallery, compatibility
+and actual-save readiness gates open. Duplicate internal preimages are never
+counted as additional playable forms.

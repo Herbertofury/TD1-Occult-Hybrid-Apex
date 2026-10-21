@@ -19,6 +19,11 @@ class IdentityBatchTests(unittest.TestCase):
         self.mock.start();self.addCleanup(self.mock.stop);self.calls=0
     def full(self):
         self.calls+=1;return {'ready_to_launch':True}
+    def test_each_enumerated_file_retains_real_device_and_file_identity(self):
+        expected=self.part.lstat()
+        rows={row[0]:row[1] for row in cache.stamp(self.state)}
+        actual=rows[str(self.part.relative_to(self.profile))]
+        self.assertEqual(actual[:2],(expected.st_dev,expected.st_ino))
     def test_cache_is_only_alive_within_one_batch(self):
         with cache.session(self.state):
             for _ in range(3):self.assertTrue(cache.validate(self.state,self.full)['ready_to_launch'])

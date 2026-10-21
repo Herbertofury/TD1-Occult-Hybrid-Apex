@@ -83,6 +83,48 @@ class OverlayLoaderTests(unittest.TestCase):
         self.assertFalse(result['ok'])
         self.assertIn('already loaded', result['message'])
 
+    def test_active_engine_calls_use_frozen_loaded_binding_without_disk_or_rebinding(self):
+        import os
+        reply = dict(ok=True, pid=os.getpid(), installed=True, armed=False,
+            selection_enabled=False, members=[], game_files_written=False,
+            native_patch_qualified=False, production_ready=False)
+        seen = []
+        def engine(raw):
+            seen.append(json.loads(raw)); return json.dumps(reply).encode('ascii')
+        with patch.object(loader, '_CALLS', {'bound': True}), patch.object(loader, '_ENGINE_CALL', engine), \
+                patch.object(loader, '_HANDLE', object()), \
+                patch.object(loader, '_LOADED_ARCHIVE', os.path.normcase(loader._archive_name(self.module))), \
+                patch.object(loader, 'sidecar_paths', side_effect=AssertionError('active RPC rehashed DLL')), \
+                patch.object(loader, '_game_ctypes', side_effect=AssertionError('active RPC rebuilt ctypes')):
+            for _ in range(3):
+                self.assertEqual(loader.native_cas_engine_control(self.module, 'unused', {'operation': 'status'}), reply)
+            with self.assertRaisesRegex(ValueError, 'archive that authenticated'):
+                loader.native_cas_engine_control(self.module.replace(str(self.apex), str(self.apex.with_name('Other'))),
+                                                'unused', {'operation': 'status'})
+        self.assertEqual(seen, [{'operation': 'status'}]*3)
+
+    def test_frozen_engine_caller_cannot_adopt_new_disk_bytes_or_hide_explicit_start_failure(self):
+        import os
+        reply = dict(ok=True, pid=os.getpid(), installed=True, armed=False,
+            selection_enabled=False, members=[], game_files_written=False,
+            native_patch_qualified=False, production_ready=False)
+        digest = json.loads(self.manifest.read_text())['sha256']
+        seen = []
+        with patch.object(loader, '_CALLS', {'bound': True}), \
+                patch.object(loader, '_ENGINE_CALL', lambda raw:
+                (seen.append(json.loads(raw)) or json.dumps(reply).encode('ascii'))), \
+                patch.object(loader, '_HANDLE', object()), patch.object(loader, '_LOADED_SHA', digest), \
+                patch.object(loader, '_LOADED_PATH', str(self.dll)), \
+                patch.object(loader, '_LOADED_ARCHIVE', os.path.normcase(loader._archive_name(self.module))), \
+                patch.object(loader, '_game_ctypes', side_effect=AssertionError('replacement DLL loaded')):
+            self.dll.write_bytes(b'MZ'+b'changed disk input'*300)
+            self.assertTrue(loader.native_cas_engine_control(self.module, 'unused', {'operation': 'status'})['ok'])
+            # An explicit re-start checks installation bytes and must not
+            # relabel/reload the handle that continues to serve the session.
+            self.assertFalse(loader.start(self.module, 'unused')['ok'])
+            self.assertEqual(loader._LOADED_SHA, digest)
+        self.assertEqual(seen, [{'operation': 'status'}])
+
     def test_input_rejects_unbounded_or_malformed_values_before_native_binding(self):
         with patch.object(loader, '_CALLS', object()), patch.object(loader, '_bind_input') as native:
             for value in ({'arbitrary': 'function'}, {'command': 1, 'x': True, 'y': 0, 'width': 100, 'height': 100},

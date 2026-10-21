@@ -1081,3 +1081,19 @@ Full appearance CLI inputs use bounded POST with the matching game guard; lost
 responses are not resubmitted. The CLI retains explicit HTTP error reasons. A
 compact real POST codec probe passes; the fresh full-size input qualification
 and actual native portrait timing remain pending.
+
+
+## V261: actual edited household save and cold-load qualification
+
+V261 now completes 30 real Alien/Vampire eyebrow, skin-detail and earring selections across all five household members, including repeated Alien → Vampire → Alien and member revisits. Complete comparisons retain the other 185 internal records. Native acceptance verifies all five exact outputs without root memory writes or faults, and all 40 Live appearances match before explicit disposition. The edited household survives a normal save, normal exit and same-candidate cold reload: all 40 native appearances remain exact before and after simulation advances, and all 155 named looks are admitted from saved metadata without native restore or draft resumption. This is scoped persistence proof, not a full release qualification.
+
+The separate native portrait-input test remains incomplete/failed. Three selections completed with status-observer-contaminated 21–23 second timings; the fourth posted window click did not select its target. Core data was independently re-exported and compared before the single CAS acceptance. Core persistence success does not qualify pointer reliability or responsiveness. Normal automatic engine arming and a fresh scope after retirement are subsequent V262 source work; neither is installed in V261. Keep all remaining release gates open.
+
+
+## V262: normal entry scope and resident native calls
+
+Normal hybrid-household preparation previously imported native owners only after a research CLI arm command. It now validates every live member and fresh raw transaction before arming the matching engine itself. A complete retired scope can receive a fresh identity and roster only after native owner, controller, copy and transport authority have been released. Active or partially imported scopes remain nonreplaceable. The native entry protocol is explicit so an older DLL cannot silently acknowledge this lifecycle.
+
+Active native CAS calls reuse the fixed export bound to the already authenticated loaded handle, checking the caller archive and retaining native scope/Sim/owner/generation checks. They no longer hash the entire on-disk DLL or create ctypes function classes at every heartbeat. An explicit start still checks the manifest/disk bytes and refuses to relabel a different build. This is not mapped-instruction tamper detection or measured player-latency proof.
+
+Eighty focused Python checks, fifty-two final frozen recovery checks, fifteen rebuilt native targets and the private Python 3.7 ABI/packaged-loader checks pass. The matching immutable candidate contains seven packages, 105 compiled modules and 210 Rust-validated resources. The initial full run caught stale recovery hashes; those checks pass after the final source freeze, with a new complete CI run still required. Actual automatic entry without research arming and repeated retirement/reentry require fresh qualification. Mixed ordinary/single-occult companions, all-Human/new-Sim main-menu CAS, cancellation and complete responsiveness remain open; the five-hybrid path is not universal coverage. See [the scoped report](../Reports/CAS_PLAYER_ENTRY_V262.json).

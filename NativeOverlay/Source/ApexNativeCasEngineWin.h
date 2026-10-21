@@ -253,6 +253,7 @@ struct State {
     std::uint64_t boundSim=0;void* boundController=nullptr;
     ui::Json observedNative={{"available",false}};std::uint64_t observationSequence=0;
     unsigned kindBiasPrevented=0,importOutfitFillsPrevented=0,sessionsRetired=0;
+    bool scopeRetired=false;
     unsigned animationMembershipScopes=0,animationConstructionScopes=0;
     ui::Json lastAnimationScope=nullptr;
     bool acceptingHousehold=false;
@@ -1832,7 +1833,7 @@ inline ui::Json Status() {
     return {{"ok",true},{"pid",GetCurrentProcessId()},{"installed",state.installed},{"armed",state.armed},
         {"ui_transport",pipeStatus},
         {"scope_id",state.scope.id},{"selection_enabled",state.selectionEnabled},{"members",rows},{"existing_owner_selections",state.intercepted},
-        {"sessions_retired",state.sessionsRetired},
+        {"sessions_retired",state.sessionsRetired},{"scope_retired",state.scopeRetired},{"entry_scope_protocol",1u},
         {"household_acceptance",state.householdAcceptance},
         {"household_output_faults",state.householdOutputFaults},
         {"household_copy_lifetimes",state.householdCopies.size()},
@@ -2077,6 +2078,8 @@ inline ui::Json Control(const ui::Json& request) {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
     if(request.is_object() && request.size()==1 && request.value("operation","")=="status") return Status();
     if(request.is_object() && request.size()==1 && request.value("operation","")=="view-status") return ViewStatus();
+    if(state.scopeRetired && (!request.is_object() || request.value("operation","")!="arm"))
+        throw std::runtime_error("A retired CAS session requires a fresh captured scope; old intents cannot import or mutate it.");
     if(request.is_object() && request.size()==3 && request.value("operation","")=="retire-committed-session") {
         // Internal Source completion only; not part of the public research
         // argument API. Every member's exact graph generation is required.
@@ -2107,6 +2110,7 @@ inline ui::Json Control(const ui::Json& request) {
         state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
         state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
         state.uiOwners.clear();state.viewTokens.clear();state.bank.clear();++state.sessionsRetired;
+        state.scopeRetired=true;
         state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;state.householdOutputCalls.clear();
         state.householdAcceptance={{"verified",false},{"native_accepted",false}};
         return Status();
@@ -2317,7 +2321,7 @@ inline ui::Json Control(const ui::Json& request) {
         state.selectionEnabled=true;return Status();
     }
     const auto scope=ParseScope(request);
-    if(state.armed) {
+    if(state.armed && !state.scopeRetired) {
         if(scope.id!=state.scope.id || request["members"].size()!=state.scope.members.size())
             throw std::runtime_error("A different native form scope is already armed for this process.");
         for(const auto& row:scope.members) {
@@ -2327,7 +2331,17 @@ inline ui::Json Control(const ui::Json& request) {
         }
         return Status();
     }
-    Install();state.scope=scope;state.armed=true;
+    if(state.scopeRetired) {
+        if(scope.id==state.scope.id || state.selectionEnabled || !state.bank.empty() ||
+           state.boundSim || state.boundController || state.viewIntent || binding ||
+           !state.uiOwners.empty() || !state.viewTokens.empty() || !state.preparedRoots.empty() ||
+           state.householdCopiesEnabled.load(std::memory_order_acquire) || !state.householdCopies.empty())
+            throw std::runtime_error("A fresh CAS scope cannot replace retained native owners or reuse a retired identity.");
+        auto& channel=pipe::Channel();std::lock_guard<std::mutex> channelLock(channel.mutex);
+        if(!channel.finished.load(std::memory_order_acquire) || !channel.stop || channel.connected)
+            throw std::runtime_error("The retired CAS transport has not released its session.");
+    }
+    Install();state.scope=scope;state.armed=true;state.scopeRetired=false;
     state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
     state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
     state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;state.householdOutputCalls.clear();

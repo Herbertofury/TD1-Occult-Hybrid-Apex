@@ -732,6 +732,10 @@ int main() {
     ExerciseHouseholdAcceptance(controller.data(),metadata.data());
     householdroots::Exercise();
     Free(independentChild,0x830);Write(group.data(),0x4c0,static_cast<void*>(nullptr));
+    Json nextScope={{"operation","arm"},{"scope_id",std::string(32,'b')},
+        {"members",Json::array({{{"sim_id","123"},{"owned_mask",127u}},{{"sim_id","999"},{"owned_mask",5u}}})}};
+    runtime.installed=true; // The fixture supplies APIs directly; a real armed scope already installed its pinned hooks.
+    Refuses([&]{Control(nextScope);}); // Another household cannot replace an active CAS session.
     Json retire={{"operation","retire-committed-session"},{"scope_id",scope.id},{"members",Json::array()}};
     for(const auto& row:runtime.scope.members)
         retire["members"].push_back({{"sim_id",std::to_string(row.first)},
@@ -743,11 +747,22 @@ int main() {
     {auto& channel=td1::nativecas::pipe::Channel();channel.connected=true;channel.stop=false;
      Refuses([&]{Control(retire);});channel.connected=false;channel.stop=true;}
     const auto retired=Control(retire);
-    Require(retired["armed"]==true && retired["selection_enabled"]==false && runtime.bank.empty());
+    Require(retired["armed"]==true && retired["selection_enabled"]==false && runtime.bank.empty() && retired["scope_retired"]==true);
     Require(runtime.sessionsRetired==1 && runtime.uiOwners.empty() && runtime.boundController==nullptr);
     Refuses([&]{Control(retire);});Require(runtime.sessionsRetired==1); // No retirement replay.
+    Refuses([&]{Control(seed);}); // Old imports cannot reopen retired authority.
+    auto sameScope=nextScope;sameScope["scope_id"]=scope.id;
+    Refuses([&]{Control(sameScope);}); // Even a new roster cannot reuse the old identity.
+    {auto& channel=td1::nativecas::pipe::Channel();channel.connected=true;channel.stop=false;
+     Refuses([&]{Control(nextScope);});channel.connected=false;channel.stop=true;}
+    Require(runtime.scope.id==scope.id && runtime.bank.empty() && runtime.scopeRetired);
+    const auto rearmed=Control(nextScope);
+    Require(rearmed["armed"]==true && rearmed["selection_enabled"]==false && rearmed["scope_retired"]==false);
+    Require(runtime.scope.id==std::string(32,'b') && runtime.scope.members.count(999)==1 && runtime.scope.members.count(456)==0);
+    Refuses([&]{Control(seed);}); // The prior scope stays stale after another household is armed.
     Write(proto.data(),0x10,std::uint64_t(123));
-    const auto reopened=Control(seed); // A later checkpoint can import fresh owners in this process.
+    auto freshSeed=seed;freshSeed["scope_id"]=std::string(32,'b');
+    const auto reopened=Control(freshSeed);
     Require(reopened.value("ok",false) && runtime.bank.at(123).mask==127 && !runtime.selectionEnabled);
     std::cout<<"Native existing-owner capture and selection contracts passed\n";return 0;
  } catch(const std::exception& e) {std::cerr<<e.what()<<'\n';return 1;}

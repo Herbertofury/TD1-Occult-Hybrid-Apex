@@ -1,8 +1,78 @@
 """Typed development controls for the native existing-owner selection patch."""
 import os
 import copy
+import uuid
 
 _LAYOUT_SCOPE = None  # Fresh pre-entry representations, never prior appearance values.
+
+
+def _entry_scope(backend, call, status, household):
+    """Arm the normal player frontdoor from its live, captured household.
+
+    A fresh/retired engine receives a new identity. An explicitly pre-armed
+    development scope is reusable only before import and for this exact roster.
+    No research command, test token, or remembered appearance grants ownership.
+    """
+    from . import cas_bank_transaction
+    members = list(household.sim_info_gen())
+    if not 1 <= len(members) <= 8 or len({sim.id for sim in members}) != len(members):
+        raise ValueError('Native CAS entry needs the complete unique live household.')
+    rows, checkpoints = [], {}
+    for sim in members:
+        sid = str(sim.id)
+        forms = backend._form_map(sim.occult_tracker)
+        current = backend._get_current_flags(sim)
+        if (not _identity(sid) or sim.household_id != household.id or
+                not isinstance(forms, dict) or 1 not in forms or current not in forms or
+                any(isinstance(kind, bool) or not isinstance(kind, int) or
+                    int(kind) not in (1,2,4,8,16,32,64) for kind in forms)):
+            raise ValueError('Native CAS entry member has incomplete captured appearance owners.')
+        available = backend._get_occult_flags(sim)
+        if type(available) is not int or not 0 <= available <= 127:
+            raise ValueError('Native CAS entry memberships are untyped or unsupported.')
+        mask = available | 1
+        if mask != sum(int(kind) for kind in forms):
+            raise ValueError('Native CAS memberships differ from the complete captured appearance roster.')
+        if type(current) is not int or current not in (1,2,4,8,16,32,64):
+            raise ValueError('Native CAS entry member has no exact current appearance.')
+        checkpoint = cas_bank_transaction.status(backend, sim)
+        epoch = checkpoint.get('expected_pending_sha256')
+        if checkpoint.get('phase') != 'captured' or not cas_bank_transaction.primitive._hash(epoch):
+            raise ValueError('Every native CAS entry member needs its fresh captured transaction.')
+        checkpoints[sid] = epoch
+        rows.append(dict(sim_id=sid, owned_mask=mask))
+    rows.sort(key=lambda row: int(row['sim_id']))
+    if status.get('ok') is not True or type(status.get('armed')) is not bool:
+        raise ValueError('Native CAS entry engine readiness is unverified.')
+    if type(status.get('entry_scope_protocol')) is not int or status['entry_scope_protocol'] != 1:
+        raise ValueError('The installed native CAS engine lacks the matching automatic-entry scope protocol.')
+    retired = status.get('scope_retired', False)
+    if (type(retired) is not bool or type(status.get('selection_enabled')) is not bool or
+            not status['armed'] and (retired or status['selection_enabled'] or status.get('members') != []) or
+            retired and status['selection_enabled']):
+        raise ValueError('Native CAS entry retirement state is untyped.')
+    if status['armed'] and not retired:
+        observed = sorted((dict(sim_id=row['sim_id'], owned_mask=row['owned_mask'])
+                           for row in status.get('members', ())), key=lambda row: int(row['sim_id']))
+        if (observed != rows or status.get('selection_enabled') is True or
+                any(row.get('imported_mask') != 0 for row in status['members'])):
+            raise ValueError('An active or partially imported native CAS scope cannot be replaced.')
+        scope = status.get('scope_id')
+        argument(dict(operation='arm', scope_id=scope, members=rows))
+    else:
+        request = dict(operation='arm', scope_id=uuid.uuid4().hex, members=rows)
+        argument(request)
+        status = call(request)
+        if (status.get('ok') is not True or status.get('armed') is not True or
+                status.get('scope_id') != request['scope_id'] or
+                status.get('entry_scope_protocol') != 1 or
+                status.get('selection_enabled') is not False or
+                status.get('scope_retired', False) is not False or
+                sorted((dict(sim_id=row['sim_id'], owned_mask=row['owned_mask'])
+                        for row in status.get('members', ())), key=lambda row: int(row['sim_id'])) != rows or
+                any(row.get('imported_mask') != 0 for row in status['members'])):
+            raise ValueError('Automatic native CAS scope did not acknowledge its exact fresh roster.')
+    return status, checkpoints
 
 
 def _identity(value):
@@ -137,7 +207,8 @@ def reply(value, pid=None):
                     value.get('state') not in ('bound','unbound','unresolved')):
                 raise ValueError('Native form view identity is incomplete.')
         return value
-    if any(type(value.get(key)) is not bool for key in ('installed', 'armed', 'selection_enabled')):
+    if (any(type(value.get(key)) is not bool for key in ('installed', 'armed', 'selection_enabled')) or
+            'scope_retired' in value and type(value['scope_retired']) is not bool):
         raise ValueError('Native form patch readiness is untyped.')
     rows = value.get('members')
     if not isinstance(rows, list) or len(rows) > 8:
@@ -331,36 +402,41 @@ def seed_members(backend):
     global _LAYOUT_SCOPE
     from . import overlay_loader, sim_data, form_appearance as appearance, lifestate_forms, cas_owner_payload, cas_owner_decode
     if not overlay_loader._CALLS:
-        return {'enabled': False}
+        module_file = getattr(backend, '__file__', None)
+        if module_file is None:
+            return {'enabled': False}
+        try:
+            enabled = overlay_loader.auto_start_enabled(module_file)
+        except (FileNotFoundError, overlay_loader.SidecarNotInstalled):
+            return {'enabled': False}  # Script-only installation; guard remains.
+        if not enabled:
+            return {'enabled': False}
+        import paths
+        startup = overlay_loader.start(module_file, paths.DLL_PATH)
+        if startup.get('ok') is not True or not overlay_loader._CALLS:
+            raise ValueError('Native CAS startup did not acknowledge the installed sidecar.')
     if (_LAYOUT_SCOPE is not None and _LAYOUT_SCOPE.get('completions') and
             set(_LAYOUT_SCOPE['completions'])==set(_LAYOUT_SCOPE['epochs'])):
         _retire_completed_scope(backend,_LAYOUT_SCOPE)
     import paths
     call = lambda value: overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, value)
     status = call({'operation': 'status'})
-    if status.get('ok') is not True or status.get('armed') is not True:
-        return {'enabled': False}
     household = backend.services.active_household()
     if household is None:
         raise ValueError('Native form import requires the exact loaded household.')
     members = {str(sim.id): sim for sim in household.sim_info_gen()}
-    if not set(row['sim_id'] for row in status['members']) <= set(members):
-        raise ValueError('Native form scope does not belong to the current household.')
     load_identity = dict(household_id=str(household.id),
         save_guid=str(backend.services.get_persistence_service().get_save_slot_proto_guid()))
     if (not all(_identity(value) for value in load_identity.values()) or
-            any(str(members[row['sim_id']].household_id) != load_identity['household_id']
-                for row in status['members'])):
+            any(str(sim.household_id) != load_identity['household_id']
+                for sim in members.values())):
         raise ValueError('Native CAS load scope requires the exact household and save identity.')
+    status, checkpoints = _entry_scope(backend, call, status, household)
     receipts = [];layouts={}; expected={};epochs={}
     import base64
     for row in status['members']:
         sim = members[row['sim_id']]
-        from . import cas_bank_transaction
-        checkpoint=cas_bank_transaction.status(backend,sim)
-        epoch=checkpoint.get('expected_pending_sha256')
-        if checkpoint.get('phase')!='captured' or not cas_bank_transaction.primitive._hash(epoch):
-            raise ValueError('Native owners require this member\'s fresh captured CAS transaction.')
+        epoch=checkpoints[row['sim_id']]
         epochs[row['sim_id']]=epoch
         owners = dict(backend._form_map(sim.occult_tracker), active=sim)
         fields = {str(kind): appearance.packed(backend, owner) for kind, owner in owners.items()}

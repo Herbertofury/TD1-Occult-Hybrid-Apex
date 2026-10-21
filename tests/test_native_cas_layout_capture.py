@@ -17,7 +17,7 @@ class NativeLayoutCaptureTests(unittest.TestCase):
         owners={1:Obj(tag='human original'),2:Obj(tag='alien original')}
         backend=Obj(__file__='fixture',services=Obj(active_household=lambda:Obj(id=99,sim_info_gen=lambda:iter([sim])),
             get_persistence_service=lambda:Obj(get_save_slot_proto_guid=lambda:77)),
-                    _form_map=lambda tracker:owners,_get_current_flags=lambda selected:2)
+                    _form_map=lambda tracker:owners,_get_current_flags=lambda selected:2,_get_occult_flags=lambda selected:3)
         def fields(owner):
             return dict(physique=appearance.encode(owner.tag),__outfits__=appearance.encode(('protobuf',b'\xa0\x06\x01')))
         named=dict(owner_id='ghost/manifested',native_kind=1,fields=fields(Obj(tag='ghost original')),appearance_sha256='a'*64)
@@ -26,7 +26,8 @@ class NativeLayoutCaptureTests(unittest.TestCase):
         calls=[]
         def call(module,dll,value):
             op=value['operation'];calls.append(op)
-            if op=='status':return dict(ok=True,armed=True,scope_id='a'*32,members=[dict(sim_id='123',owned_mask=3)])
+            if op=='status':return dict(ok=True,armed=True,selection_enabled=False,entry_scope_protocol=1,
+                scope_id='a'*32,members=[dict(sim_id='123',owned_mask=3,imported_mask=0)])
             if op=='activate':return dict(ok=fail!='activate',selection_enabled=fail!='activate',
                 members=[dict(sim_id='123',logical_owner_ids={'1':'native/1','2':'active/2'},human_owner_id='native/1')])
             imported=dict(sim_id='123',imported_mask=3,kinds=[1,2],active_entry_source_seeded=True,canonical_source_seeded_mask=3,separate_owners=[

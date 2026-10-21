@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CODE = '''
 import json, sys, _ctypes
 sys.path.insert(0, sys.argv[1])
-from apex_core.overlay_loader import _bind, _bind_input, _integer
+from apex_core.overlay_loader import _bind, _bind_input, _bind_engine, _integer
 handle = _ctypes.LoadLibrary(sys.argv[2])
 try:
     calls = _bind(_ctypes, handle)
@@ -34,7 +34,7 @@ try:
     guarded = json.loads(getattr(raw, 'value', raw).decode('utf-8'))
     assert guarded.get('ok') is False and guarded.get('read_only') is True
     assert guarded.get('game_memory_written') is False and guarded.get('sim_data_read') is False
-    engine = WindowCall(('ApexNativeCasEngineControl', Library()))
+    engine = _bind_engine(_ctypes, handle)
     status_raw = engine(b'{"operation":"status"}')
     status = json.loads(getattr(status_raw, 'value', status_raw).decode('utf-8'))
     assert status['ok'] and not status['installed'] and not status['armed']
@@ -84,7 +84,7 @@ def run():
     # Production loader retains its handle, as required for game hooks. The
     # host guard installed none, so releasing here permits temporary cleanup.
     sys.modules['_ctypes'].FreeLibrary(overlay_loader._HANDLE)
-    overlay_loader._CALLS = None; overlay_loader._HANDLE = None
+    overlay_loader._CALLS = None; overlay_loader._ENGINE_CALL = None; overlay_loader._HANDLE = None
 run()
 '''
 

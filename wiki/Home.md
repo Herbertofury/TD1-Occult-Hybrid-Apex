@@ -14,7 +14,7 @@ Apex is a Sims 4 hybrid-occult project combining stable forms, a polished F11 Li
 
 **[Dynamic CAS Companion Merge](Dynamic-CAS-Companion-Merge)** — read-only donor audit, every identified convenience, which implementation to retain, compatibility and integration gates.
 
-> **Release check · V261:** Fresh full CAS entry now verifies every captured appearance across the five-member household without resetting its saved Human/CC Werewolf look. The no-edit Human/form/member cycle also preserves all captured fields. A new distinct Alien/Vampire edit pass is running. Edited CAS → Live, actual portrait-switch latency, normal save/cold-load and Tray/Gallery proof remain open; this is not an actual-save release.
+> **Release check · V261:** V261 now completes 30 real Alien/Vampire eyebrow, skin-detail and earring selections across all five household members, including repeated Alien → Vampire → Alien and member revisits. Complete comparisons retain the other 185 internal records. Native acceptance verifies all five exact outputs without root memory writes or faults, and all 40 Live appearances match before explicit disposition. The edited household survives a normal save, normal exit and same-candidate cold reload: all 40 native appearances remain exact before and after simulation advances, and all 155 named looks are admitted from saved metadata without native restore or draft resumption. This is scoped persistence proof, not a full release qualification. Native portrait responsiveness, normal automatic entry, complete Tray/Gallery and broader feature gates remain open.
 
 ## Explore Apex
 

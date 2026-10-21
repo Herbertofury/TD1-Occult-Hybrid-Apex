@@ -1,0 +1,67 @@
+{
+  "active_native_calls": {
+    "active_call_dll_hash_or_ctypes_rebinding": false,
+    "caller_archive_identity_checked": true,
+    "explicit_start_rechecks_disk_manifest_and_refuses_hot_relabelling": true,
+    "fixed_engine_export_bound_once_to_authenticated_loaded_handle": true,
+    "mapped_instruction_tamper_detection_claimed": false,
+    "measured_player_latency_improvement": false,
+    "scope_sim_owner_generation_checks_retained": true
+  },
+  "actual_runtime": {
+    "automatic_entry_without_research_arm_qualified": false,
+    "installed": false,
+    "portrait_input_and_responsiveness_qualified": false,
+    "repeated_retirement_and_fresh_entry_qualified": false
+  },
+  "build_verified": true,
+  "candidate_epoch": "2026-10-21-player-entry-cached-rpc-v262",
+  "candidate_sha256": "9397728888053a55a5b16dc2777024e2f1de674eae19eb7cd8ab324c32b10bd2",
+  "checks": {
+    "compiled_python37_modules": 105,
+    "complete_native_proxy_build_passed": true,
+    "focused_python_tests_passed": 80,
+    "frozen_recovery_tests_passed": 52,
+    "full_python_regression_pending": true,
+    "packages": 7,
+    "pre_freeze_full_run": {
+      "affected_module_rerun_after_final_freeze_passed": true,
+      "all_failures_module": "test_script_upgrade_migration",
+      "errors": 13,
+      "failures": 4,
+      "new_full_ci_pending": true,
+      "reason": "Changed recovery sources still had the previous frozen module hashes. No candidate installed from that source state.",
+      "tests": 2797
+    },
+    "private_python37_native_abi_and_packaged_loader_passed": true,
+    "rebuilt_native_targets_passed": 15,
+    "recovery_epoch_freeze_and_bundle_pending": false,
+    "rust_validated_resources": 210
+  },
+  "dll_sha256": "c88ff1e3c8807dbd8f5fd1f0c48025ca1f7f30854af04bfed84d98bbe7d6391d",
+  "normal_entry": {
+    "active_partial_or_foreign_scope_replacement_refused": true,
+    "entry_scope_protocol": 1,
+    "exact_live_memberships_and_captured_owner_roster_required": true,
+    "fresh_complete_household_checkpoints_precede_arm": true,
+    "malformed_or_partial_native_installation_not_silently_disabled": true,
+    "manual_research_arm_required": false,
+    "matching_optional_sidecar_autostart_respected": true,
+    "new_scope_id_after_verified_retirement": true,
+    "retired_scope_cannot_reuse_its_identity_or_seed_old_commands": true,
+    "retirement_requires_completed_member_generations_and_released_native_transport": true,
+    "script_only_installation_retains_guard": true
+  },
+  "problem": "Complete native owner import previously required a research CLI arm operation. A retired engine also retained its former scope, preventing a fresh household session.",
+  "production_ready": false,
+  "recovery_self_body_sha256": "267e66d453b4359ca96a7876b1f9a7d10bbdc660f08d8e95610a2fe26d9e5b19",
+  "remaining": [
+    "Qualify the matching candidate in the real five-member household without manual research arming, preserving every captured field.",
+    "Verify actual return, completed retirement and a fresh same-process CAS session with a different scope identity.",
+    "Finish mixed ordinary/single-occult companions, all-Human/new-Sim main-menu CAS and cancellation paths; the current complete-checkpoint path is not universal coverage.",
+    "Measure real UI responsiveness without semantic status requests contaminating the bootstrap interval; fix unreliable background portrait delivery.",
+    "Finish native Filter Items search, full Tray/Gallery, all requested categories/forms/edit routes and the other release gates."
+  ],
+  "schema": 1,
+  "script_sha256": "24ad10991aedf74f42d3bb5cb521ad77ed97765c62380e8861c2cca4dd3050ab"
+}

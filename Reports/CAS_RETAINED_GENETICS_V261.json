@@ -9,7 +9,10 @@
     "current_native_targets": 15,
     "fixture_peer_freshness_repair_pending": false,
     "fixture_ttl_regression_passed": true,
-    "focused_python_tests": 186
+    "focused_python_tests": 186,
+    "windows_ci_native_targets": 15,
+    "windows_ci_python_tests": 2600,
+    "windows_ci_run": 39682112458
   },
   "creator_data": {
     "all20_save_files_unchanged": true,
@@ -22,10 +25,12 @@
   "dll_sha256": "3de82a91634eadc431b7c33a9fe4b81ebb4949c7a568e1f6a60c7eb60b1e31f6",
   "full_runtime_qualified": false,
   "limitations": [
-    "The count is internal records, not 195 distinct player forms.",
-    "Full edited CAS return, normal save/cold reload, Tray/Gallery and broader release gates remain open.",
-    "Native codec omits ghost color fields 73/74. They are preserved as unrelated fields in wire projection, with no claim that the codec or per-form Ghost editing is complete.",
-    "Native member-switch latency still requires actual portrait-input timing; initial room setup is not a latency guarantee."
+    "Internal records are not distinct playable forms. This runtime pass covers three categories on Alien and Vampire across five Sims, not every requested category/form/edit route.",
+    "Complete Tray/Gallery, every-category/outfit/member and CAS/MCCC/F11/Live proof, native search presentation, Ghost colors and other release gates remain open.",
+    "Native codec omits ghost color fields 73/74. Wire preservation does not establish complete per-form Ghost editing.",
+    "The native pointer timing probe completed three selections with contaminated 21-23 second observer timings; its fourth window message did not select the requested Sim. Responsiveness and reliable background portrait input remain unqualified.",
+    "A cold-reload harness failed after successful normal exit by reading a field absent from the compact receipt. The continuation verified the full receipt and did not repeat exit or save.",
+    "Normal player entry previously depended on manual research arming. Its correction and loaded-call caching are V262 source work, not part of installed V261."
   ],
   "native_cli_transport": {
     "body_limit": 4194304,
@@ -49,9 +54,73 @@
     "stored_human_cc_look_reinitialized": false
   },
   "production_ready": false,
+  "runtime_edited_household": {
+    "actual_forms": [
+      "Alien",
+      "Vampire"
+    ],
+    "all195_internal_fields_compared": true,
+    "all40_after_explicit_disposition_and_simulation_retained": true,
+    "all40_cold_fields_before_and_after_simulation_retained": true,
+    "all40_direct_live_fields_before_disposition_retained": true,
+    "all5_exact_output_receipts_verified": true,
+    "all_saved_files_and_ledger_unchanged_by_reload": true,
+    "categories": [
+      "eyebrows",
+      "skin_details",
+      "earrings"
+    ],
+    "cold_simulation_progress_ticks": 245,
+    "evidence": {
+      "cold_load": {
+        "file": "v261-edited-saved-cold-reload-r2.json",
+        "sha256": "1e9c546eff35471ac9070906731a0192ce55a8692b9e0ec77b7b9225b7fcf240"
+      },
+      "direct_return": {
+        "file": "v261-edited-cas-live-retention.json",
+        "sha256": "3b707cde48a9c2852fd769dbef284061064efa913dff77d081c8f79bd38d66ba"
+      },
+      "edits": {
+        "file": "v261-five-member-actual-form-edits.json",
+        "sha256": "f158ffb06118714ee67172e1cadbbefaf08752a16df5c3c1b8c32dd5d7440423"
+      },
+      "genetic_scope": {
+        "file": "v261-edited-genetic-scope.json",
+        "sha256": "e2d8da879410c6d385331a8a67df69bebb61025c7360e91a12a5af07fa06f669"
+      },
+      "save": {
+        "file": "v261-household-disposition-save.json",
+        "sha256": "1651d73b67fd2f4506b1c6326920fcbeeff5d1d8836f07e639adbfb2fb09393d"
+      }
+    },
+    "exact_detached_record_routes": [
+      0,
+      1,
+      1,
+      1,
+      0
+    ],
+    "full_release_matrix_qualified": false,
+    "guard_and_complete_comparisons_retained": true,
+    "household_members": 5,
+    "named_looks_admitted_from_saved_metadata": 155,
+    "native_acceptance_verified": true,
+    "native_output_faults": 0,
+    "native_restore_or_draft_resume_used": false,
+    "native_selections": 30,
+    "normal_exit_verified": true,
+    "normal_save_verified": true,
+    "only_ten_edited_owners_changed": true,
+    "other185_internal_owners_unchanged": true,
+    "performance_qualified": false,
+    "repeated_alien_vampire_alien_and_member_revisits": true,
+    "same_candidate_cold_load_verified": true,
+    "save_simulation_progress_ticks": 239,
+    "saved_slot_sha256": "dff5ce15b6800452122c5d939515d2a0cfc39cc3cdfa111e743c1205f77db57f"
+  },
   "runtime_no_edit_household": {
     "all195_captured_fields_unchanged": true,
-    "appearance_edits_pending": true,
+    "appearance_edits_pending": false,
     "shared_human_visits_and_member_handoffs": true
   },
   "schema": 1,

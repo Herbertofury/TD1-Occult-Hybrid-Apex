@@ -5,10 +5,10 @@
 
 ## Current evidence, without shortcuts
 
-- **V261 now installed in the disposable profile:** fresh full CAS entry verifies all captured appearances across five Sims, including the retained Human/CC Werewolf look. The no-edit Human/member cycle leaves all captured fields unchanged; the distinct Alien/Vampire edit pass is running.
-- **V260 native record routing:** corrects the inspected Human/non-Human export bucket at the exact authenticated CAS boundary. Edited native acceptance and before-guard Live comparison remain unqualified.
-- **V261 genetic import:** restricts the exception to body types already captured in the exact supplied message and its exact native temporary target/genus. The shared whitelist is not globally relaxed.
-- **Current open proof:** actual native portrait-click responsiveness; edited CAS → Live; normal save/cold-load; complete Tray/Gallery round trips. Creator metadata has a detached codec pass; per-form Ghost colors remain unfinished.
+- **V261 edited household/save/cold load:** 30 actual Alien/Vampire selections across five members and three categories pass; all five native outputs verify and all 40 Live fields match before disposition. Normal save/exit/reload retains all 40 appearances and 155 named looks without native restoration.
+- **V260 exact routing and V261 genetic import:** qualified in this edited V261 return. The earlier V260 import rejection remains historical evidence. Complete comparisons and the permanent guard remain enabled.
+- **UI responsiveness:** native portrait probe is incomplete/failed; three selections have contaminated 21–23 second upper bounds and the fourth posted click did not select the target. No instant-response claim.
+- **Current open proof:** normal automatic entry/repeated scopes, every requested form/category/edit route, full Tray/Gallery, native search UI, Ghost colors and the remaining release requirements.
 - **Search placement:** use the existing **Filter Items…** bar below the category title, preserving native chips, ordinary filters, cards and swatches. The metadata backend is not proof of an editable native search bar.
 
 ### Earlier scoped evidence

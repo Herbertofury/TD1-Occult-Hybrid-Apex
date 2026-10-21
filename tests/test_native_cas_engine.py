@@ -107,10 +107,11 @@ class NativeEngineTests(unittest.TestCase):
         from apex_core import overlay_loader, sim_data, form_appearance, lifestate_forms,cas_owner_payload,cas_bank_transaction
         sims=[Obj(id=123,household_id=99,forms={1:Obj(id=1),2:Obj(id=2)}),Obj(id=456,household_id=99,forms={1:Obj(id=3),2:Obj(id=4)})]
         backend=Obj(__file__='matching-script',_form_map=lambda sim:sim.forms,_get_current_flags=lambda sim:2,
+            _get_occult_flags=lambda sim:3,
             services=Obj(active_household=lambda:Obj(id=99,sim_info_gen=lambda:iter(sims)),
                 get_persistence_service=lambda:Obj(get_save_slot_proto_guid=lambda:77)))
         for sim in sims:sim.occult_tracker=sim
-        status=dict(ok=True,armed=True,scope_id='a'*32,members=[dict(sim_id=str(s.id),owned_mask=3,imported_mask=0,kinds=[]) for s in sims])
+        status=dict(ok=True,armed=True,selection_enabled=False,entry_scope_protocol=1,scope_id='a'*32,members=[dict(sim_id=str(s.id),owned_mask=3,imported_mask=0,kinds=[]) for s in sims])
         calls=[]
         def native(module, path, argument):
             engine.argument(argument);calls.append(argument['operation'])

@@ -16,6 +16,10 @@ import threading
 _LOAD_LOCK = threading.RLock()
 
 
+class SidecarNotInstalled(ValueError):
+    """The optional Native files are both absent, rather than mismatched."""
+
+
 def serialized(function):
     def wrapped(*args, **kwargs):
         with _LOAD_LOCK:
@@ -25,8 +29,10 @@ def serialized(function):
 PROTOCOL = 1
 _HANDLE = None
 _CALLS = None
+_ENGINE_CALL = None
 _LOADED_SHA = None
 _LOADED_PATH = None
+_LOADED_ARCHIVE = None
 _STATUS = {'ok': False, 'message': 'F11 sidecar has not been started.'}
 _ERRORS = {-1: 'Native start refused: requires the actual x64 Sims 4 process and game Python/Simulation modules.',
            -2: 'DX11 is not active. Select DirectX 11 and load a household before starting the overlay.',
@@ -47,15 +53,19 @@ def _unlinked(path):
     return absolute
 
 
+def _archive_name(module_file):
+    """Lexical owner identity; no filesystem work in an active native RPC."""
+    filename = os.path.abspath(str(module_file))
+    boundary = filename.casefold().find('.ts4script')
+    if boundary < 0 or filename[boundary + 10:boundary + 11] not in ('/', '\\'):
+        raise ValueError('F11 requires the installed script archive, not a loose source checkout.')
+    return filename[:boundary + 10]
+
+
 def sidecar_paths(module_file):
     # zipimport assigns module.__file__ relative to the actual archive even
     # though checked bytecode embeds a portable, machine-independent filename.
-    filename = os.path.abspath(str(module_file))
-    marker = '.ts4script'
-    boundary = filename.casefold().find(marker)
-    if boundary < 0 or filename[boundary + len(marker):boundary + len(marker) + 1] not in ('/', '\\'):
-        raise ValueError('F11 requires the installed script archive, not a loose source checkout.')
-    archive = _unlinked(filename[:boundary + len(marker)])
+    archive = _unlinked(_archive_name(module_file))
     if archive.name.casefold() != 'apexocculthybrid.ts4script' or not archive.is_file():
         raise ValueError('The shipped ApexOccultHybrid.ts4script archive was not found.')
     directory = archive.parent
@@ -63,6 +73,8 @@ def sidecar_paths(module_file):
         raise ValueError('Keep the script and Native folder together under Mods/Apex.')
     native = _unlinked(directory / 'Native' / 'ApexOverlay.dll')
     manifest = _unlinked(native.parent / 'overlay-manifest.json')
+    if not native.is_file() and not manifest.is_file():
+        raise SidecarNotInstalled('The matching Native/ApexOverlay.dll and overlay-manifest.json are missing.')
     if not native.is_file() or not manifest.is_file():
         raise ValueError('The matching Native/ApexOverlay.dll and overlay-manifest.json are missing.')
     if not 4096 <= native.stat().st_size <= 16 * 1024 * 1024 or manifest.stat().st_size > 16384:
@@ -118,6 +130,19 @@ def _bind(native, handle):
              'ApexCaptureOverlay', 'ApexGameInputVersion', 'ApexGameInputState', 'ApexGameCursorX', 'ApexGameCursorY')}
 
 
+def _bind_engine(native, handle):
+    """Keep the one-argument engine ABI separate from integer status exports."""
+    class String(native._SimpleCData):
+        _type_ = 'z'
+    class EngineCall(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL
+        _restype_ = String
+        _argtypes_ = (String,)
+    class Library:
+        _handle = handle
+    return EngineCall(('ApexNativeCasEngineControl', Library()))
+
+
 def _bind_input(native, handle):
     class Integer(native._SimpleCData):
         _type_ = 'i'
@@ -163,7 +188,7 @@ def _integer(call):
 
 @serialized
 def start(module_file, dll_path):
-    global _HANDLE, _CALLS, _STATUS, _LOADED_SHA, _LOADED_PATH
+    global _HANDLE, _CALLS, _ENGINE_CALL, _STATUS, _LOADED_SHA, _LOADED_PATH, _LOADED_ARCHIVE
     try:
         native_path, info = sidecar_paths(module_file)
         if _HANDLE is not None and (_LOADED_SHA != info['sha256'] or _LOADED_PATH != str(native_path)):
@@ -175,11 +200,13 @@ def start(module_file, dll_path):
                 calls = _bind(native, handle)
                 if _integer(calls['ApexOverlayProtocolVersion']) != PROTOCOL:
                     raise ValueError('Native export protocol differs from the script.')
+                engine_call = _bind_engine(native, handle)
             except Exception:
                 native.FreeLibrary(handle)
                 raise
-            _HANDLE, _CALLS = handle, calls
+            _HANDLE, _CALLS, _ENGINE_CALL = handle, calls, engine_call
             _LOADED_SHA, _LOADED_PATH = info['sha256'], str(native_path)
+            _LOADED_ARCHIVE = os.path.normcase(_archive_name(module_file))
         result = _integer(_CALLS['ApexOverlayStart'])
         _STATUS = {'ok': result == 0, 'native_code': result, 'protocol': PROTOCOL,
             'dll_sha256': info['sha256'], 'message':
@@ -418,19 +445,19 @@ def native_cas_engine_control(module_file, dll_path, argument, _retirement_capab
 
 def _native_cas_engine_call(module_file,dll_path,argument):
     from . import native_cas_engine
-    if not _CALLS:
+    if (_CALLS is None or not callable(_ENGINE_CALL) or
+            _HANDLE is None or _LOADED_ARCHIVE is None):
         raise ValueError('The matching game-owned native sidecar is not loaded.')
-    path, info = sidecar_paths(module_file)
-    if info['sha256'] != _LOADED_SHA or str(path) != _LOADED_PATH:
-        raise ValueError('The native build changed while the game runs.')
-    native = _game_ctypes(dll_path)
-    class String(native._SimpleCData): _type_ = 'z'
-    class EngineCall(native.CFuncPtr):
-        _flags_ = native.FUNCFLAG_STDCALL
-        _restype_ = String
-        _argtypes_ = (String,)
-    class Library: _handle = _HANDLE
-    result = EngineCall(('ApexNativeCasEngineControl', Library()))(json.dumps(argument).encode('ascii'))
+    if os.path.normcase(_archive_name(module_file)) != _LOADED_ARCHIVE:
+        raise ValueError('Native CAS caller differs from the archive that authenticated this loaded module.')
+    # start() hashes the complete DLL, verifies its fixed protocol, and binds
+    # this exact loaded handle once. Active calls use that process-resident
+    # code, not a replacement on disk. A later explicit start still verifies
+    # disk inputs and refuses relabelling/hot replacement. Rehashing the DLL
+    # and creating ctypes classes on each CAS heartbeat only adds file I/O;
+    # it does not attest the already mapped instructions. Native per-operation
+    # scope/member/owner/generation and appearance checks remain unchanged.
+    result = _ENGINE_CALL(json.dumps(argument).encode('ascii'))
     raw = getattr(result, 'value', result)
     if not isinstance(raw, bytes) or len(raw) > 2 * 1024 * 1024:
         raise ValueError('Native form patch returned invalid bounded JSON.')

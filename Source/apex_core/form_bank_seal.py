@@ -38,9 +38,9 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                'cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd',
                                'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-21-retained-genetics-post-v261'
+UPGRADE_EPOCH = '2026-10-21-player-entry-cached-rpc-v262'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'ab982ce2806d625ce50fcab67ef5dd69676db39835286e163487df0b67837b65'
+UPGRADE_SELF_BODY_SHA = '267e66d453b4359ca96a7876b1f9a7d10bbdc660f08d8e95610a2fe26d9e5b19'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -79,7 +79,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/lifestates.py': 'c45a4c6f621b75c055e91f55fdb0b767ac15418cff649dcc90801e1bee355ac7',
     'apex_core/morph_controls.py': 'd144ebd7a8dcbff5695b1a2747f641b17017b60a6c39bd904e467602d4c7f876',
     'apex_core/named_save_boundary.py': 'e91cedc374353240e8a5abdde6ab6e99d2313de9158a3846b5a74e1f1fe0c8ca',
-    'apex_core/native_cas_engine.py': 'ff7959aaef2594a4418fd06fcf57ac9ad5c4c1433fb5baf47b7dcbfe97c66fd3',
+    'apex_core/native_cas_engine.py': '44755f3b8c5304e3e9b22a8a900fbab0d86d4a035ecb076a94cbae45fb32e9d3',
     'apex_core/native_controls.py': 'b9d63713fb02f73245ed6febbafd4b641e33b06120a7a5123977d670741fd80d',
     'apex_core/native_form_isolation.py': '8b543ee251da890e30df2f96a961d4d7d76519816376617330f5136de414bb33',
     'apex_core/native_form_select.py': '5c3c9b28d82df3e6515169f3bb653f94ed9c9505d7745673514d85ed79744c44',
@@ -91,7 +91,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/occult_icons.py': '8d2cf390a254bba09d98928da9863f3980782bc4429786c3b0f2781ae4e76589',
     'apex_core/outfit_hair.py': '127059656a2dd5ea10d8998c7a5c0f6b8e5353b8d166c4c25cb60dfea8666910',
     'apex_core/outfit_snapshot.py': '76d2feeb0104a8bba9dc341ba7276c1357475781d17b33749a81df5adb123a56',
-    'apex_core/overlay_loader.py': '8259dbc92e14c7cc45e99c65d7642f6e7cd1adb42b9a8bf67a13758897eedd33',
+    'apex_core/overlay_loader.py': '21ba456e3c6f26817ff224e40a26b099cca10f4baaba60ed0649c2d1f9ece1a1',
     'apex_core/phone_cas.py': 'dfa10301eaecde9d92282ebab19fceccfb2599be1e08cd9ebd8db6983a4138b6',
     'apex_core/phone_interactions.py': '05778ddb4e9e764ee4899cca39e5143bf3a4bd7d3bf61d4890c3e0466b72f025',
     'apex_core/profile_save_identity.py': '3dff19214d24119caa20bf3b0849e16e1c006a73a5a9e8f0c167ca5c0a080453',

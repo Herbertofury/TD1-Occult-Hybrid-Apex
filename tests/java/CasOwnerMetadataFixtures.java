@@ -17,6 +17,8 @@ public class CasOwnerMetadataFixtures {
         CasBytecodePatch.verifyOwnerMetadataReadback(abc,instance);
         CasBytecodePatch.verifyCatalogVariantReadback(abc,instance);
         CasBytecodePatch.verifySettledOwnerBootstrap(abc,instance);
+        CasBytecodePatch.verifyPresentationBootstrap(abc,instance);
+        CasBytecodePatch.verifyOwnerObservation(abc,instance);
     }
     public static void main(String[] args) throws Exception {
         Logger.getLogger("com.jpexs.decompiler.flash.SWFInputStream").setLevel(Level.OFF);
@@ -26,6 +28,36 @@ public class CasOwnerMetadataFixtures {
         var rows=body.getCode().code;int p=CasBytecodePatch.uniqueLiteral(abc,body,"POLL|");
         switch(key) {
             case "exact":break;
+            case "frame-call":case "frame-gate":case "frame-write":case "frame-ready":case "frame-cleanup":case "frame-deadline":case "frame-cli-event":case "frame-cli-yield":
+            case "frame-native-ready":case "frame-target-ready":case "notify-call":case "notify-lifetime":case "notify-write":case "notify-listener":case "notify-restart":case "notify-bound-return": {
+                var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
+                String method=key.startsWith("notify-")?(key.equals("notify-listener")?"ApexInitialize":"ApexPresentationNotify"):
+                    (key.equals("frame-ready")||key.equals("frame-native-ready")||key.equals("frame-target-ready"))?"ApexPresentationReady":key.equals("frame-cleanup")?"ApexPresentationStop":
+                    key.equals("frame-deadline")?"ApexPresentationSchedule":key.startsWith("frame-cli-")?"ApexTick":"ApexPresentationFrame";
+                var target=CasBytecodePatch.ownedBody(abc,instance,method);int changes=0;boolean inGuard=false,firstNotifyReturn=false;
+                for(var row:target.getCode().code) {
+                    if(CasBytecodePatch.property(abc,row,0x66,"ENTER_FRAME"))inGuard=true;
+                    if(key.equals("frame-native-ready")&&(CasBytecodePatch.property(abc,row,0x60,"mCurrSimInfo")||CasBytecodePatch.property(abc,row,0x66,"mCurrSimInfo"))) {row.operands[0]=member(abc,"apexLastId");changes++;}
+                    if(key.equals("frame-target-ready")&&(CasBytecodePatch.property(abc,row,0x60,"apexPresentationSim")||CasBytecodePatch.property(abc,row,0x66,"apexPresentationSim"))) {row.operands[0]=member(abc,"apexLastId");changes++;}
+                    if(CasBytecodePatch.opcode(row,0x47))firstNotifyReturn=true;
+                    if(key.equals("notify-bound-return")&&!firstNotifyReturn&&(CasBytecodePatch.property(abc,row,0x60,"apexPresentationSim")||CasBytecodePatch.property(abc,row,0x66,"apexPresentationSim"))) {row.operands[0]=member(abc,"apexLastId");changes++;}
+                    if(key.equals("notify-restart")&&(CasBytecodePatch.property(abc,row,0x60,"apexPresentationStarted")||CasBytecodePatch.property(abc,row,0x66,"apexPresentationStarted"))) {row.operands[0]=member(abc,"apexLastId");changes++;}
+                    if(key.equals("notify-call")&&(CasBytecodePatch.property(abc,row,0x4f,"ApexPresentationSchedule")||CasBytecodePatch.property(abc,row,0x46,"ApexPresentationSchedule"))) {row.operands[0]=member(abc,"ApexExecute");changes++;}
+                    if(key.equals("notify-lifetime")&&(CasBytecodePatch.property(abc,row,0x60,"apexPresentationListener")||CasBytecodePatch.property(abc,row,0x66,"apexPresentationListener"))) {row.operands[0]=member(abc,"apexLastId");changes++;}
+                    if(key.equals("notify-write")&&CasBytecodePatch.property(abc,row,0x61,"apexPresentationSim")) {row.operands[0]=member(abc,"apexBoundSim");changes++;}
+                    if(key.equals("notify-listener")&&CasBytecodePatch.stringLiteral(abc,row,"CASSetSimInfo")) {row.operands[0]=abc.constants.getStringId("CASUnexpectedMember",true);changes++;}
+                    if(key.equals("frame-call")&&(CasBytecodePatch.property(abc,row,0x4f,"ApexTick")||CasBytecodePatch.property(abc,row,0x46,"ApexTick"))) {row.operands[0]=member(abc,"ApexExecute");changes++;}
+                    if(key.equals("frame-gate")&&(CasBytecodePatch.property(abc,row,0x60,"apexPendingFields")||CasBytecodePatch.property(abc,row,0x66,"apexPendingFields"))) {row.operands[0]=member(abc,"apexLastId");changes++;}
+                    if(key.equals("frame-write")&&CasBytecodePatch.property(abc,row,0x61,"apexPresentationMilliseconds")) {row.operands[0]=member(abc,"apexClaimNonce");changes++;}
+                    if(key.equals("frame-ready")&&(CasBytecodePatch.property(abc,row,0x60,"apexFormsSelectedId")||CasBytecodePatch.property(abc,row,0x66,"apexFormsSelectedId"))) {row.operands[0]=member(abc,"apexLastId");changes++;}
+                    if(key.equals("frame-cleanup")&&(CasBytecodePatch.property(abc,row,0x4f,"removeEventListener")||CasBytecodePatch.property(abc,row,0x46,"removeEventListener"))) {row.operands[0]=member(abc,"addEventListener");changes++;}
+                    if(key.equals("frame-deadline")&&CasBytecodePatch.opcode(row,0x25)&&row.operands[0]==2000) {row.operands[0]=20000;changes++;}
+                    if(key.equals("frame-cli-event")&&CasBytecodePatch.property(abc,row,0x66,"ENTER_FRAME")) {row.operands[0]=member(abc,"CONNECT");changes++;}
+                    if(key.equals("frame-cli-yield")&&inGuard&&(CasBytecodePatch.property(abc,row,0x60,"apexReceiving")||CasBytecodePatch.property(abc,row,0x66,"apexReceiving"))) {row.operands[0]=member(abc,"apexLastId");changes++;}
+                }
+                if(changes<1)throw new AssertionError("No bootstrap fixture mutation: "+key);
+                target.setModified();break;
+            }
             case "frame-lease":rows.get(p-10).operands[0]=member(abc,"apexFormsBootstrap");break;
             case "lease-branch":rows.set(p-8,new AVM2Instruction(0,0x11,rows.get(p-8).operands.clone()));break;
             case "nonce":rows.get(p+1).operands[0]=member(abc,"apexBoundSim");break;

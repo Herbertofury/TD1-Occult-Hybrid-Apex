@@ -32,6 +32,81 @@
       private var apexPendingPhase:int = 0;
       private var apexClaimNonce:String = "";
       private var apexTicking:Boolean = false;
+      private var apexPresentationQueued:Boolean=false;
+      private var apexPresentationStarted:int=-1;
+      private var apexPresentationMilliseconds:int=-1;
+      private var apexPresentationFrames:int=0;
+      private var apexPresentationListener:Boolean=false;
+      private var apexPresentationSim:String="";
+
+      private function ApexPresentationReady() : Boolean
+      {
+         return apexNativeConnected && apexNonce.length==64 && apexBoundSim!="" &&
+            this.mCurrSimInfo!=null && this.mCurrSimInfo.simId===apexBoundSim &&
+            (apexPresentationSim=="" || apexPresentationSim===apexBoundSim) &&
+            apexFormsRoot!=null && apexFormsSelectedId!="" && apexFormsNativeState=="bound" &&
+            apexFormsDesiredId=="" && apexFormsOwnerTotal>=0 &&
+            apexFormsOwners.length==apexFormsOwnerTotal &&
+            apexPairSignature==apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration;
+      }
+
+      private function ApexPresentationNotify(message:Object) : void
+      {
+         // EA's own typed delivery remains authoritative. This observer only
+         // queues a later frame; no native calls or mutation in the callback.
+         if(apexDisconnected || !apexPresentationListener || message==null ||
+            !(message.simId is String) || !/^[1-9][0-9]{0,19}$/.test(message.simId) ||
+            message.simId===apexBoundSim && (apexPresentationSim=="" || apexPresentationSim===apexBoundSim)) return;
+         // Repeated deliveries of the same incoming member retain the first
+         // timestamp, including time spent waiting for an existing CLI claim.
+         if(apexPresentationSim!==message.simId || apexPresentationStarted<0 || apexPresentationMilliseconds>=0) {
+            apexPresentationStarted=getTimer();apexPresentationMilliseconds=-1;apexPresentationFrames=0;
+         }
+         apexPresentationSim=String(message.simId);
+         // Returning to the still-bound member cancels the older pending
+         // target; its existing controls need no rebuild or delayed handshake.
+         if(ApexPresentationReady()) {
+            apexPresentationMilliseconds=0;ApexPresentationStop();return;
+         }
+         ApexPresentationSchedule();
+      }
+
+      private function ApexPresentationStop() : void
+      {
+         removeEventListener(flash.events.Event.ENTER_FRAME,ApexPresentationFrame);
+         apexPresentationQueued=false;
+      }
+
+      private function ApexPresentationSchedule() : void
+      {
+         if(apexDisconnected || apexPresentationQueued || ApexPresentationReady()) return;
+         if(apexPresentationStarted<0) {
+            apexPresentationStarted=getTimer();apexPresentationMilliseconds=-1;apexPresentationFrames=0;
+         }
+         // The ordinary timer remains the fallback for slow/loading peers.
+         // Never turn a hidden/idle CAS movie into an unbounded frame poller.
+         var elapsed:int=getTimer()-apexPresentationStarted;
+         if(elapsed<0 || elapsed>2000) return;
+         apexPresentationQueued=true;
+         addEventListener(flash.events.Event.ENTER_FRAME,ApexPresentationFrame,false,0,true);
+      }
+
+      private function ApexPresentationFrame(event:flash.events.Event) : void
+      {
+         ApexPresentationStop();
+         if(apexDisconnected) return;
+         if(ApexPresentationReady()) { apexPresentationMilliseconds=getTimer()-apexPresentationStarted;return; }
+         if(!apexTicking && apexPendingFields==null && !apexReceiving && apexPendingPhase==0 &&
+            this.mCurrSimInfo!=null && this.mCurrSimInfo.simId is String &&
+            /^[1-9][0-9]{0,19}$/.test(this.mCurrSimInfo.simId)) {
+            // Advance the existing checked handshake and native pair renderer.
+            // No new navigation, copy, link or CLI mutation is manufactured.
+            apexPresentationFrames++;ApexTick(event);
+         }
+         if(ApexPresentationReady()) apexPresentationMilliseconds=getTimer()-apexPresentationStarted;
+         else ApexPresentationSchedule();
+      }
+
       private var apexOwnerFeed:Object;
       private var apexOwnerFeedSequence:int = 0;
       private var apexOwnerSession:int = 0;
@@ -63,6 +138,7 @@
             // replace that mapping or manufacture a native refresh/delivery.
             apexOwnerFeedListener=AddMessageListener("CASRefreshSimIcons",ApexObserveOwnerFeed);
             apexOwnerResetListener=AddMessageListener("CASClearSimsForReset",ApexInvalidateOwnerFeed);
+            apexPresentationListener=AddMessageListener("CASSetSimInfo",ApexPresentationNotify);
             if(!apexMoleculeRegistered)
                apexMoleculeRegistered=RegisterServiceHandler("ApexMoleculeChooseOccult",ApexMoleculeChooseOccult);
             if(!apexMoleculeReadRegistered)
@@ -75,6 +151,7 @@
             apexTimer.addEventListener(flash.events.TimerEvent.TIMER,ApexTick);
             apexTimer.start();
             ApexTick();
+            ApexPresentationSchedule();
          } catch(startError:Error) {
             apexSocketError=String(startError);
             ApexDisconnect();
@@ -105,6 +182,10 @@
          ApexFormsDispose();
          apexAwaiting=""; apexAckId=""; apexFrame=""; apexExpected=-1;
          apexReceiving=false; apexWire="";
+         ApexPresentationStop();
+         // Keep the notification timestamp through the new member handshake.
+         if(apexPresentationMilliseconds>=0) apexPresentationStarted=-1;
+         ApexPresentationSchedule();
          // Keep the last UUID/reply across connection failures. A lost ACK
          // never makes a delivered mutation eligible for blind execution again.
       }
@@ -112,6 +193,11 @@
       private function ApexDisconnect() : void
       {
          apexDisconnected=true;
+         if(apexPresentationListener) {
+            RemoveMessageListener("CASSetSimInfo",ApexPresentationNotify);
+            apexPresentationListener=false;
+         }
+         apexPresentationSim="";apexPresentationStarted=-1;apexPresentationMilliseconds=-1;
          ApexCatalogDispose();
          ApexMoleculeListen(false);
          if(apexOwnerFeedListener) {
@@ -152,6 +238,10 @@
             // A failure records intent only; this later Timer owns closure.
             if(apexSocketResetPending) { ApexResetSocket();return; }
             if(apexNativeChannel!="") ApexNativeReceive();
+            // A bootstrap frame may receive an existing CLI claim, but only
+            // the ordinary owned Timer executes that claim and its readback.
+            if(message is flash.events.Event && message.type==flash.events.Event.ENTER_FRAME &&
+               (apexPendingFields!=null || apexReceiving)) return;
             if(apexPendingPhase==7 || apexPendingPhase==8) return;
             // GFx implements Timer.currentCount, but explicitly does not support
             // Socket.securityError. Bound every outstanding stage using the
@@ -234,7 +324,11 @@
                ApexSocketSend("POLL|"+apexNonce);
             }
          } catch(tickError:Error) { ApexSocketFailure(tickError); }
-         finally { apexTicking=false; }
+         finally {
+            if(apexPresentationStarted>=0 && apexPresentationMilliseconds<0 && ApexPresentationReady())
+               apexPresentationMilliseconds=getTimer()-apexPresentationStarted;
+            apexTicking=false;
+         }
       }
 
       private function ApexSocketConnect(message:Object=null) : void

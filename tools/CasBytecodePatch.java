@@ -420,15 +420,16 @@ public class CasBytecodePatch {
                 for (int prior=Math.max(0,index-4); prior<index; prior++) {
                     var op=code.get(prior);
                     if (op.definition.instructionCode==0x2c) event=abc.constants.getString(op.operands[0]);
-                    for(String candidate:List.of("ApexObserveOwnerFeed","ApexInvalidateOwnerFeed"))
+                    for(String candidate:List.of("ApexObserveOwnerFeed","ApexInvalidateOwnerFeed","ApexPresentationNotify"))
                         if(property(abc,op,0x66,candidate) || property(abc,op,0x60,candidate)) callback=candidate;
                 }
                 require(call.operands[1]==2 && (("CASRefreshSimIcons".equals(event) && "ApexObserveOwnerFeed".equals(callback)) ||
-                    ("CASClearSimsForReset".equals(event) && "ApexInvalidateOwnerFeed".equals(callback))) && events.add(event),
+                    ("CASClearSimsForReset".equals(event) && "ApexInvalidateOwnerFeed".equals(callback)) ||
+                    ("CASSetSimInfo".equals(event) && "ApexPresentationNotify".equals(callback))) && events.add(event),
                     "CAS owner listener does not use the exact callback without a class remapping.");
                 listeners++;
             }
-            require(listeners==2, "CAS owner listener registration/cleanup inventory differs.");
+            require(listeners==3, "CAS owner listener registration/cleanup inventory differs.");
         }
         var body=ownedBody(abc,instance,"ApexOwnerObservation");
         Set<String> calls=propertyCalls(abc,body);
@@ -685,6 +686,65 @@ public class CasBytecodePatch {
         for(int i=2;i<tick.size();i++) if(property(abc,tick.get(i),0x61,"apexBoundSim") && slotLoad(tick,i-2,simSlot)) originalBound=true;
         require(getter>=0 && constructor>getter && listener>constructor && consumed>listener && hello>consumed && hello-consumed<=16 && originalBound,
             "CAS handshake native identity/constructor/queued Timer ordering differs.");
+    }
+    static void verifyPresentationBootstrap(ABC abc,InstanceInfo instance) {
+        var frame=ownedBody(abc,instance,"ApexPresentationFrame");
+        var calls=propertyCalls(abc,frame);
+        require(calls.equals(Set.of("ApexPresentationStop","ApexPresentationReady","getTimer","test","ApexTick","ApexPresentationSchedule")),
+            "Member presentation may only advance its checked bootstrap, never navigate or execute a new mutation.");
+        var required=new HashSet<String>();
+        for(var row:frame.getCode().code) {
+            for(String key:Set.of("apexDisconnected","apexTicking","apexPendingFields","apexReceiving","apexPendingPhase","mCurrSimInfo"))
+                if(property(abc,row,0x60,key)||property(abc,row,0x66,key))required.add(key);
+            if(opcode(row,0x61))require(Set.of("apexPresentationFrames","apexPresentationMilliseconds").contains(
+                abc.constants.getString(abc.constants.getMultiname(row.operands[0]).name_index)),
+                "Member presentation cannot overwrite a command, owner or transport state.");
+            if(property(abc,row,0x4f,"ApexTick")||property(abc,row,0x46,"ApexTick"))
+                require(row.operands[1]==1,"Bootstrap must identify its frame event to the checked dispatcher.");
+        }
+        require(required.size()==6,"Member presentation lacks its idle/lifetime/exact native-Sim gate.");
+        var ready=ownedBody(abc,instance,"ApexPresentationReady");var identity=new HashSet<String>();
+        for(var row:ready.getCode().code)for(String key:Set.of("apexNativeConnected","apexNonce","apexBoundSim","apexFormsRoot",
+            "apexFormsSelectedId","apexFormsNativeState","apexFormsDesiredId","apexFormsOwnerTotal","apexFormsOwners","apexPairSignature","apexFormsNativeGeneration","mCurrSimInfo","apexPresentationSim"))
+            if(property(abc,row,0x60,key)||property(abc,row,0x66,key))identity.add(key);
+        require(identity.size()==13&&propertyCalls(abc,ready).isEmpty(),"Member UI readiness must match its complete bound owner/catalog/pair identity.");
+        uniqueLiteral(abc,ready,"bound");
+        var notify=ownedBody(abc,instance,"ApexPresentationNotify");
+        require(propertyCalls(abc,notify).equals(Set.of("test","getTimer","ApexPresentationReady","ApexPresentationStop","ApexPresentationSchedule")),
+            "Native member notification may only validate identity and queue the bounded presentation frame.");
+        var notificationGuards=new HashSet<String>();boolean pendingTargetBeforeReturn=false,firstNotifyReturn=false;
+        for(var row:notify.getCode().code) {
+            if(!firstNotifyReturn&&(property(abc,row,0x60,"apexPresentationSim")||property(abc,row,0x66,"apexPresentationSim")))pendingTargetBeforeReturn=true;
+            if(opcode(row,0x47)&&!firstNotifyReturn) {
+                firstNotifyReturn=true;require(pendingTargetBeforeReturn,"Returning to the already-bound member must not retain a stale incoming target.");
+            }
+            if(property(abc,row,0x46,"getTimer")||property(abc,row,0x4f,"getTimer"))
+                require(notificationGuards.size()==7,"Repeated incoming notifications must retain their original start timestamp.");
+            for(String key:Set.of("apexDisconnected","apexPresentationListener","simId","apexBoundSim","apexPresentationSim","apexPresentationStarted","apexPresentationMilliseconds"))
+                if(property(abc,row,0x60,key)||property(abc,row,0x66,key))notificationGuards.add(key);
+            if(opcode(row,0x61))require(Set.of("apexPresentationSim","apexPresentationStarted","apexPresentationMilliseconds","apexPresentationFrames").contains(
+                abc.constants.getString(abc.constants.getMultiname(row.operands[0]).name_index)),
+                "Native member notification must not replace owner, command or transport state.");
+        }
+        require(notificationGuards.size()==7,"Native member notification lost its delivered identity/lifetime/timestamp gates.");
+        var schedule=ownedBody(abc,instance,"ApexPresentationSchedule");boolean budget=false;
+        for(var row:schedule.getCode().code)if(opcode(row,0x25)&&row.operands[0]==2000)budget=true;
+        require(budget&&propertyCalls(abc,schedule).equals(Set.of("ApexPresentationReady","getTimer","addEventListener")),
+            "Fast member setup must be bounded and leave slow/loading peers on the ordinary timer.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexPresentationStop")).equals(Set.of("removeEventListener")),
+            "Completed/closed member setup must detach its frame listener.");
+        var tick=ownedBody(abc,instance,"ApexTick");var rows=tick.getCode().code;int at=-1;
+        for(int i=0;i<rows.size();i++)if(property(abc,rows.get(i),0x66,"ENTER_FRAME")){require(at<0,"Ambiguous bootstrap event guard.");at=i;}
+        require(at>=0,"Bootstrap must not execute a queued CLI mutation/readback on its frame.");
+        var guards=new HashSet<String>();boolean returned=false;
+        for(int i=at+1;i<rows.size();i++) {
+            for(String key:Set.of("apexPendingFields","apexReceiving"))
+                if(property(abc,rows.get(i),0x60,key)||property(abc,rows.get(i),0x66,key))guards.add(key);
+            if(opcode(rows.get(i),0x47)){returned=true;break;}
+            require(!property(abc,rows.get(i),0x4f,"ApexExecute")&&!property(abc,rows.get(i),0x4f,"ApexReadback"),
+                "Bootstrap event can reach a command before its yield guard.");
+        }
+        require(returned&&guards.size()==2,"Bootstrap must yield received or outstanding CLI work to its owning Timer.");
     }
     static void verifyOwnerMetadataReadback(ABC abc, InstanceInfo instance) {
         var body=ownedBody(abc,instance,"ApexReadback");
@@ -1343,6 +1403,7 @@ public class CasBytecodePatch {
             "apexAwaiting", "apexAckId", "apexDisconnected", "apexSocketActive", "apexHelloPending", "apexSocketError",
             "apexSocketResetPending", "apexOutboundFrame", "apexOutboundPending",
             "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking",
+            "apexPresentationQueued", "apexPresentationStarted", "apexPresentationMilliseconds", "apexPresentationFrames", "apexPresentationListener", "apexPresentationSim",
             "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener", "apexMoleculeRegistered", "apexMoleculeReadRegistered", "apexMoleculeListener", "apexMoleculeView", "apexMoleculeIntent",
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
             "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey",
@@ -1362,6 +1423,7 @@ public class CasBytecodePatch {
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame",
+            "ApexPresentationReady", "ApexPresentationStop", "ApexPresentationSchedule", "ApexPresentationFrame", "ApexPresentationNotify",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
@@ -1415,6 +1477,7 @@ public class CasBytecodePatch {
         verifyEyebrowPaletteWidget(compiled, newClass);
         verifyWingSelection(compiled, newClass);
         verifyOwnerMetadataReadback(compiled,newClass);
+        verifyPresentationBootstrap(compiled,newClass);
         verifyCatalogVariantReadback(compiled,newClass);
         verifySettledOwnerBootstrap(compiled,newClass);
         verifyCatalogWorkspace(compiled,newClass);
@@ -1527,6 +1590,7 @@ public class CasBytecodePatch {
         verifyTypedControls(serialized, serialized.instance_info.get(oi));
         verifyWingSelection(serialized, serialized.instance_info.get(oi));
         verifyOwnerMetadataReadback(serialized,serialized.instance_info.get(oi));
+        verifyPresentationBootstrap(serialized,serialized.instance_info.get(oi));
         verifyCatalogVariantReadback(serialized,serialized.instance_info.get(oi));
         verifySettledOwnerBootstrap(serialized,serialized.instance_info.get(oi));
         verifyCatalogWorkspace(serialized,serialized.instance_info.get(oi));

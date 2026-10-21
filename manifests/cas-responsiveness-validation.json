@@ -852,5 +852,20 @@
     "v228_vampire_bind_ms": 10.0329,
     "v228_voice_copy_appearance_written": false,
     "v228_voice_copy_error": "Misaligned part/body arrays."
+  },
+  "v259_member_presentation": {
+    "bounded_ui_frames": true,
+    "build_verified": true,
+    "candidate_sha256": "d5a97200789ec609e145e60309be7ef4d9a47ece9a909850e8ad4bcc897c0bb8",
+    "cli_mutation_timer_ownership_retained": true,
+    "detached_when_idle": true,
+    "epoch": "2026-10-21-member-ui-frames-v259-r3",
+    "exact_current_member_gate": true,
+    "fast_bootstrap_budget_ms": 2000,
+    "focused_checks_passed": 146,
+    "native_notification": true,
+    "production_ready": false,
+    "report": "Reports/CAS_MEMBER_PRESENTATION_V259.json",
+    "runtime_verified": false
   }
 }

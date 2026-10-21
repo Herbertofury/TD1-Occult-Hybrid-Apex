@@ -1004,6 +1004,30 @@ Windows API binding and unrelated TLS setup. Six paired local samples reduce
 median inventory-check time from 278.4 ms to 109.3 ms. This is a host-tool result,
 not a gameplay frame-time claim. See [the host report](../Reports/CLI_HOST_INVENTORY_V257.json).
 
+## Member presentation scheduling, V259 (October 21)
+
+The new candidate addresses the wait between selecting a household member and
+seeing its native link/copy controls. The prior customizer advances member
+detection, connection and owner/pair setup through separate 500 ms timer waits.
+V259 listens to EA's existing `CASSetSimInfo` notification and queues later UI
+frames to advance that same checked setup. It retains EA's typed handler and
+portrait/category panel. The frame listener detaches when ready or closed; its
+two-second budget leaves slow/loading peers on the ordinary timer. An existing
+CLI claim retains its original timer-owned execution and readback.
+
+Readiness requires the current Sim, complete owner catalog, bound selection and
+matching pair generation. Repeated incoming notifications retain their first
+timestamp; returning quickly to the still-bound member clears the superseded
+target. Twenty-nine serialized owner/presentation cases, thirty-nine native form
+selection cases, twenty typed controls, six raw source-pin cases and both
+twenty-six-case seal/migration suites pass: 146 focused checks. Seven packages,
+105 Python 3.7 modules and 210 independently Rust-verified resources build.
+
+Actual member-click latency, visible EA link/copy controls, idle frame cleanup
+and complete appearance preservation still need qualification in the installed
+candidate. These build checks do not establish a universal timing guarantee or
+actual-save readiness. See [the scoped report](../Reports/CAS_MEMBER_PRESENTATION_V259.json).
+
 These are scoped passes. Keep all-category edited-household return, the observed
 Human genetic-cache normalization, save/cold-load, Tray/Gallery, compatibility
 and actual-save readiness gates open. Duplicate internal preimages are never

@@ -428,7 +428,7 @@
             cross_kind_navigation:apexFormsNativeState=="bound",selected_owner_id:apexFormsSelectedId,owner_count:apexFormsOwners.length,
             native_owner_state:apexFormsNativeState,desired_owner_id:apexFormsDesiredId,form_conversion_called:false,gesture_pending:apexFormsIntent!=null,
             native_fast_state:apexFormsFastState,native_generation:apexFormsNativeGeneration,switch_milliseconds:apexFormsSwitchMilliseconds,
-            pair_controls:ApexPairStatus(),
+            pair_controls:ApexPairStatus(), member_ui_ready:ApexPresentationReady(),member_ui_milliseconds:apexPresentationMilliseconds,member_ui_frames:apexPresentationFrames,
             selection_result:ApexClone(apexFormsResult),message:apexFormsMessage,
             molecule_pending:ApexClone(apexMoleculeIntent),command_pending:apexPendingFields!=null,
             command_phase:apexPendingPhase,receiving:apexReceiving,

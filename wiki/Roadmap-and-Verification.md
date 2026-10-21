@@ -5,6 +5,14 @@
 
 ## Current evidence, without shortcuts
 
+- **V261 now installed in the disposable profile:** fresh full CAS entry verifies all captured appearances across five Sims, including the retained Human/CC Werewolf look. The no-edit Human/member cycle leaves all captured fields unchanged; the distinct Alien/Vampire edit pass is running.
+- **V260 native record routing:** corrects the inspected Human/non-Human export bucket at the exact authenticated CAS boundary. Edited native acceptance and before-guard Live comparison remain unqualified.
+- **V261 genetic import:** restricts the exception to body types already captured in the exact supplied message and its exact native temporary target/genus. The shared whitelist is not globally relaxed.
+- **Current open proof:** actual native portrait-click responsiveness; edited CAS → Live; normal save/cold-load; complete Tray/Gallery round trips. Creator metadata has a detached codec pass; per-form Ghost colors remain unfinished.
+- **Search placement:** use the existing **Filter Items…** bar below the category title, preserving native chips, ordinary filters, cards and swatches. The metadata backend is not proof of an editable native search bar.
+
+### Earlier scoped evidence
+
 - V253: five-member native equipped-thumbnail category and return to the first member qualified; optional text list retained.
 - New search work: pinned metadata cache, typo planning, camel-case aliases and a latest-request DLL transport are implemented. Native CAS search presentation and exact card-selection proof remain open.
 - Keyboard card navigation is being built with native click routing, actual column geometry and background CLI key delivery; runtime proof is pending.

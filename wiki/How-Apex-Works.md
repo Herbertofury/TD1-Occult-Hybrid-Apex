@@ -68,6 +68,18 @@ Native layout work is guarded by actual geometry/context changes. Progressive pu
 
 ## Current evidence and open failures
 
+**V261 · current candidate.** Fresh full CAS entry passes the complete pre-entry comparison for all five Sims and 195 internal appearance records. A no-edit cycle through their shared Human appearances and household handoffs leaves every captured field unchanged. These records include stored variants; the count is audit coverage, not 195 distinct player forms.
+
+**Correct the native destination.** The game's inspected household export writer chooses Human versus the first non-Human record. For a hybrid whose first stored occult differs from the form being exported, that can overwrite the wrong record and create a duplicate. V260 routes only authenticated CAS exports to the exact existing record during that native call, then restores the original record order. Ordinary exports, malformed rosters and other native callers remain outside the patch. The full edited return still needs runtime qualification. [Implementation and limits](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_EXACT_OCCULT_RECORD_V260.json).
+
+**Retain captured custom genetics.** V260's fresh-entry verifier caught five unique genetic part types disappearing from the stored Human/CC Werewolf appearance. V261 allows only types already present in that exact supplied genetic message, only while it imports into its exact temporary native destination and genus. The shared game predicate and unrelated imports are unchanged. The corrected fresh-entry and no-edit household passes use the retained look, with no reset that could hide the defect. [V261 evidence and remaining gates](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_RETAINED_GENETICS_V261.json).
+
+**Preservation limits remain explicit.** Creator metadata now has an exact root/occult wire mapping and passes the real detached native codec probe. The same codec omits Ghost color fields; preserving unrelated incoming wire fields does not establish per-form Ghost color support. That work remains open. Complete native CLI packets use bounded POST requests and retain their original request identity without automatic mutation replay.
+
+**Responsiveness is measured separately.** V259's bounded member bootstrap is included, but the actual native portrait-click timing run is pending. Semantic CLI operation duration and cold room initialization cannot establish player click latency or a universal 0–1 ms guarantee.
+
+### Earlier test history
+
 The V253 equipped-category qualification covered five household members and a return to the first, publishing complete native thumbnail views without unresolved slots. Its recorded same-member publication maximum was 10 ms and native binding maximum 5 ms. Cold/member changes were slower; this is not a 0–1 ms end-to-end claim.
 
 A first real Alien → Vampire → Alien run read back distinct eyebrow, skin-detail and earring edits but failed its strict comparison because Human genetic data changed. Forensics found the updated physique already present in that Human's own scalar data, and the updated hairstyle already present in its ordinary outfits. Other genetic root chunks, other part rows and unknown fields remained identical. This supports genetic-cache reconciliation, not a demonstrated Alien-to-Human appearance merge. Controlled initialization qualification remains open; the comparison was not weakened.

@@ -8,7 +8,7 @@
 
 ## The intended workspace
 
-Search belongs in CAS, beside the native catalog. Type a recognizable item name, part of a `.package` filename or internal code; narrow by creator, CAS type and EA/CC origin. Keep ordinary native cards and swatches, a visible result count, an obvious clear action and a clear explanation when fuzzy matching corrected a term.
+Search belongs in the existing **Filter Items…** bar immediately below the native category title, as requested in the Shoes example. Keep native filter chips and their ordinary filter-panel access alongside the editable query; do not move this into another floating window. Typing, cursor keys, selection and clearing must remain owned by the text field while it has focus. Type a recognizable item name, part of a `.package` filename or internal code; narrow by creator, CAS type and EA/CC origin. Keep ordinary native cards and swatches, a visible result count, an obvious clear action and a clear explanation when fuzzy matching corrected a term.
 
 Arrow keys are being added for actual card navigation: Left/Right, Up/Down using the actual column count, Home/End, Page Up/Down and Enter through the native card-click route. A focus outline is distinct from the equipped selection. Input fields retain normal cursor behavior. Keyboard handling must not steal a dialog's keys, change a different Sim or equip an item merely because the focus moved.
 

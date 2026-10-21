@@ -1355,6 +1355,7 @@ public class CasBytecodePatch {
             "apexEquippedTiming",
             "apexEquippedRetirePending",
             "apexEquippedPublication",
+              "apexKeyStage","apexKeyIntent","apexKeyIndex","apexKeyFeed","apexKeyContext","apexKeyFocus","apexKeyMessage","apexKeyBounds","apexKeyItem","apexKeyQueue","apexKeyReceipt",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
@@ -1368,7 +1369,8 @@ public class CasBytecodePatch {
             "ApexCatalogInitialize","ApexCatalogValidate","ApexCatalogPersist","ApexCatalogStyle","ApexCatalogDispose","ApexCatalogOpen","ApexCatalogFrame","ApexCatalogClearEffects","ApexCatalogSelection","ApexCatalogReadEquipped","ApexCatalogMenu","ApexCatalogButton","ApexCatalogSlider","ApexCatalogDraw","ApexCatalogClick","ApexCatalogSlideStart","ApexCatalogSlide","ApexCatalogSlideEnd","ApexCatalogStatus",
             "ApexCatalogView", "ApexCatalogSliderCommand", "ApexCatalogInvalidate", "ApexCatalogObserveBinding", "ApexCatalogApplyBinding",
             "ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback",
-            "ApexCatalogCells","ApexEquippedInitialize","ApexEquippedDispose","ApexEquippedNavigation","ApexCatalogPerformance",
+            "ApexCatalogKeyboardCommand","ApexCatalogKeyboardInitialize","ApexCatalogKeyboardDispose","ApexCatalogKeyDown","ApexCatalogKeyboardFrame",
+              "ApexCatalogCells","ApexEquippedInitialize","ApexEquippedDispose","ApexEquippedNavigation","ApexCatalogPerformance",
             "ApexEquippedRefresh","ApexEquippedOpen","ApexEquippedFrame","ApexEquippedResolve","ApexEquippedKey","ApexEquippedDecimal","ApexEquippedPrepare","ApexEquippedClick",
             "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus", "ApexPairPanel");
         Set<String> seenNames = new HashSet<>();

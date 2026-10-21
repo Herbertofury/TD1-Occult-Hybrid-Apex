@@ -1,4 +1,5 @@
 #include "ApexBackgroundPointer.h"
+#include "ApexBackgroundKeyboard.h"
 #include <vector>
 #include <stdexcept>
 #include <iostream>
@@ -36,5 +37,15 @@ int main() {
         Driver failed; failed.failPost = event; require(failed.run() == -5);
         require(failed.messages.size() == static_cast<size_t>(event + 1));
     }
+    std::vector<int> keys;bool viewport=true;
+    const auto post=[&](int key,bool down){keys.push_back(down?key:-key);return true;};
+    require(td1::RunBackgroundKey(39,[]{return true;},[]{return true;},post,[](int){})==4);
+    require(keys==std::vector<int>({39,-39}));keys.clear();
+    require(td1::RunBackgroundKey(40,[&]{return viewport;},[]{return true;},post,[&](int){viewport=false;})==-8);
+    require(keys==std::vector<int>({40,-40}));keys.clear();
+    require(td1::RunBackgroundKey(38,[]{return false;},[]{return false;},post,[](int){})==-8);
+    require(keys.empty());
+    require(td1::RunBackgroundKey(65,[]{return true;},[]{return true;},post,[](int){})==-4);
+    require(keys.empty());
     std::cout << "Background pointer delivery, frame settling, refusal and release checks passed\n";
 }

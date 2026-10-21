@@ -27,6 +27,7 @@ class Browser:
             raise ValueError('Browser assets must stay in the external CAS resource cache.')
         resources.ensure_directory(self.cache, '')
         self.lock = threading.RLock()
+        self.preference_lock = threading.RLock()
         self.assets = {}
         self.asset_sources = {}
         self.tray_root = tray_root
@@ -63,23 +64,27 @@ class Browser:
 
     def query(self, request):
         fields = {'text', 'body_type', 'origin', 'name_mode', 'offset', 'limit', 'view'}
-        if (not isinstance(request, dict) or set(request) not in (fields, fields | {'author', 'sort'}, fields | {'author', 'sort', 'grouped'}) or
+        if (not isinstance(request, dict) or set(request) - {'fuzzy'} not in (fields, fields | {'author', 'sort'}, fields | {'author', 'sort', 'grouped'}) or
                 request['view'] not in ('all', 'favorites', 'recent')):
             raise ValueError('Catalog query fields differ.')
-        with self.lock:
-            ids = (sorted(self.favorites) if request['view'] == 'favorites' else
-                   list(self.recent) if request['view'] == 'recent' else None)
-            result = self.index.query(text=request['text'], body_type=request['body_type'], origin=request['origin'],
-                name_mode=request['name_mode'], offset=request['offset'], limit=request['limit'], part_ids=ids,
-                author=request.get('author', ''), sort=request.get('sort', 'name'), grouped=request.get('grouped', False))
-            # Native pages do not disclose host paths or carry arbitrary SQL.
-            for row in result['items']:
-                row.pop('package_path')
-                row['favorite'] = row['part_id'] in self.favorites
-            result['query'] = request
-            if len(resources.canonical(result)) > resources.MAX_RESPONSE:
-                raise ValueError('Catalog page exceeds its transport bound; request fewer items.')
-            return result
+        with self.preference_lock:
+            favorites = frozenset(self.favorites)
+            recent = tuple(self.recent)
+        ids = (sorted(favorites) if request['view'] == 'favorites' else
+               list(recent) if request['view'] == 'recent' else None)
+        # Asset preparation can read/hash/decode whole packages. Its lock must
+        # never prevent a cached metadata search from returning immediately.
+        result = self.index.query(text=request['text'], body_type=request['body_type'], origin=request['origin'],
+            name_mode=request['name_mode'], offset=request['offset'], limit=request['limit'], part_ids=ids,
+            author=request.get('author', ''), sort=request.get('sort', 'name'), grouped=request.get('grouped', False),
+            fuzzy=request.get('fuzzy', False))
+        for row in result['items']:
+            row.pop('package_path')
+            row['favorite'] = row['part_id'] in favorites
+        result['query'] = request
+        if len(resources.canonical(result)) > resources.MAX_RESPONSE:
+            raise ValueError('Catalog page exceeds its transport bound; request fewer items.')
+        return result
 
     def tray(self, operation, request):
         if self.tray_root is None: raise ValueError('Start the browser with its explicit read-only --tray-root.')
@@ -111,9 +116,11 @@ class Browser:
                 del self.assets[oldest]
                 del self.asset_sources[oldest]
             ident = selected['item']['part_id']
-            self.recent = [ident] + [old for old in self.recent if old != ident][:199]
-            self._save()
-            item = dict(selected['item']); item.pop('package_path'); item['favorite']=ident in self.favorites
+            with self.preference_lock:
+                self.recent = [ident] + [old for old in self.recent if old != ident][:199]
+                self._save()
+                favorite = ident in self.favorites
+            item = dict(selected['item']); item.pop('package_path'); item['favorite']=favorite
             return {'ok': True, 'index_sha256': self.index.expected, 'item': item, 'resource': row,
                     'swatches': self.index.swatches(item['part_id'], request.get('swatch_offset', 0)),
                     'request': selected['request'], 'game_contacted': False,
@@ -159,7 +166,7 @@ class Browser:
                 request['index_sha256'] != self.index.expected or type(request['enabled']) is not bool):
             raise ValueError('Favorite must use this exact item snapshot and a boolean.')
         ident = resources.sha(request['part_id'])
-        with self.lock:
+        with self.preference_lock:
             if not self.index.query(part_ids=[ident], limit=1)['items']:
                 raise ValueError('Favorite item is absent from this snapshot.')
             if request['enabled']:

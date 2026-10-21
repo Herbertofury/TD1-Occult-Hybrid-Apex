@@ -162,8 +162,9 @@ class MemberSelectionTests(unittest.TestCase):
 
 
 class MemberPeerHandoffTests(unittest.TestCase):
-    def run_command(self, lost=False, wrong=False):
+    def run_command(self, lost=False, wrong=False, transient=False):
         now=[0.0]; calls=[]; queued={}; counter=[0]; diagnostic=[0]
+        target_reads=[0]
         def transport(state,action,sim_id=None,value=None):
             calls.append((action,sim_id,value))
             if action=='cas_ui_request':
@@ -175,7 +176,14 @@ class MemberPeerHandoffTests(unittest.TestCase):
                     return dict(protocol=1,ok=True,cas_request_id=value,client=household(TARGET),member_selection=dict(
                         native_session=1,household_id=HH,source_sim_id=SIM,target_sim_id=TARGET,source_index=0,target_index=1,
                         target_form_flags=1,selection_verified=True,appearance_persistence_verified=False))
-                return dict(protocol=1,ok=True,cas_request_id=value,client=household(SIM if wrong else selected))
+                client=household(SIM if wrong else selected)
+                client['form_strip']=dict(sim_id=client['sim']['simId'],selected_owner_id='native/1',
+                    native_owner_state='bound',desired_owner_id='',gesture_pending=False)
+                if selected==TARGET:
+                    target_reads[0]+=1
+                    if transient and target_reads[0]==1:
+                        client['form_strip'].update(selected_owner_id='',native_owner_state='')
+                return dict(protocol=1,ok=True,cas_request_id=value,client=client)
             if action=='cas_ui_diagnostics':
                 diagnostic[0]+=1
                 return dict(ok=True,native_peers=[] if lost or diagnostic[0]<3 else [dict(sim_id=TARGET,age_seconds=.1)])
@@ -197,3 +205,9 @@ class MemberPeerHandoffTests(unittest.TestCase):
         self.assertEqual(sum(c[0]=='cas_ui_request' and json.loads(c[2])['operation']=='member-select' for c in calls),1)
     def test_changed_destination_refuses_before_any_next_edit(self):
         with self.assertRaisesRegex(ValueError,'destination changed'):self.run_command(wrong=True)
+    def test_initial_peer_without_bound_owner_is_observed_again_without_reselecting(self):
+        result,calls=self.run_command(transient=True)
+        self.assertTrue(result['next_native_commands_ready'])
+        self.assertEqual(result['destination_status']['client']['form_strip']['native_owner_state'],'bound')
+        self.assertEqual(sum(c[0]=='cas_ui_request' and json.loads(c[2])['operation']=='member-select' for c in calls),1)
+        self.assertEqual(sum(c[0]=='cas_ui_request' and c[1]==TARGET and json.loads(c[2])['operation']=='status' for c in calls),2)

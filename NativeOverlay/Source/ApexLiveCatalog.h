@@ -30,6 +30,10 @@ inline bool ImagesPage(const Json& p,const Json& request,const Json& page) {
     return p.dump().size()<=512*1024;
 }
 inline bool Query(const Json& q) {
+    if(q.is_object()&&q.contains("fuzzy")) {
+        if(!q["fuzzy"].is_boolean())return false;
+        auto legacy=q;legacy.erase("fuzzy");return Query(legacy);
+    }
     if(q.is_object()&&q.contains("grouped")) {
         if(!q["grouped"].is_boolean())return false;
         auto legacy=q;legacy.erase("grouped");return Query(legacy);

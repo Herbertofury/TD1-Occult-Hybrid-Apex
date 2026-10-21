@@ -2,6 +2,8 @@ import copy
 from pathlib import Path
 from types import SimpleNamespace as Obj
 import unittest
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 from cas_client import observation_batch,_remember_observation,_recent_observation
 
 
@@ -39,6 +41,14 @@ class ObservationBatchTests(unittest.TestCase):
             _remember_observation(self.args,dict(self.row,destination_status=target),lambda:10)
             self.assertIsNone(_recent_observation(self.args,lambda:10.1))
             self.assertEqual(_recent_observation(Obj(state=self.args.state,sim_id='456'),lambda:10.1)['client'],target['client'])
+
+    def test_successful_peer_status_without_a_bound_form_is_not_reused(self):
+        with observation_batch(self.args.state):
+            _remember_observation(self.args,self.row,lambda:10)
+            pending=copy.deepcopy(self.row)
+            pending['client']['form_strip']={'sim_id':'123','selected_owner_id':'','native_owner_state':'','desired_owner_id':''}
+            _remember_observation(self.args,pending,lambda:10.1)
+            self.assertIsNone(_recent_observation(self.args,lambda:10.2))
 
 
 if __name__=='__main__':unittest.main()

@@ -3,8 +3,8 @@ import struct
 
 
 def casp(version=52, body=7, step=0.05, age_gender=0, species=1, layer=17, flags=0, flags2=0,
-         outfit_id=0, swatch_order=0, colors=(0xFF00FF00, 0xFF112233)):
-    name = 'Apex test part'.encode('utf-16-be')
+         outfit_id=0, swatch_order=0, colors=(0xFF00FF00, 0xFF112233), name='Apex test part'):
+    name = name.encode('utf-16-be')
     raw = bytearray(struct.pack('<IIi', version, 0, 0))
     raw += bytes([len(name)]) + name
     raw += struct.pack('<fHIIBB', 0, swatch_order, outfit_id, 0, flags, flags2)

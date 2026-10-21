@@ -32,3 +32,5 @@ Source/apex_core/cas_controls.py -text whitespace=cr-at-eol
 tools/CasVoiceBytecodePatch.java -text whitespace=cr-at-eol
 tools/cas_molecule_patch.py -text whitespace=cr-at-eol
 tools/CasMoleculeBytecodePatch.java -text whitespace=cr-at-eol
+
+Source/CASUi/catalog_keyboard_methods.as -text whitespace=cr-at-eol

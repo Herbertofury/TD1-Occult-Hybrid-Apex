@@ -290,6 +290,32 @@ All 2,737 local regression tests pass. See
 Large-library browsing, cold assets and edited-form persistence remain separate
 release gates; bounded ADD events do not establish whole-game latency or zero bugs.
 
+## Keyboard browsing, V254 candidate
+
+Arrow keys move a separate white focus outline through the native item cards.
+Up/Down use that panel's actual column count, including a different count in
+Face and Clothing panels. Home/End reach the first/last item; Page Up/Down move
+by the visible rows. An off-screen target scrolls into view. Enter dispatches
+the original card-click event: ordinary catalogs select the item, while an
+equipped-item card opens its own category. Browsing alone does not equip a part.
+
+Text fields retain their keys. Loading screens, modal dialogs and pending
+semantic commands do not consume catalog navigation. A bounded FIFO retains
+rapid Arrow-then-Enter order; changing the Sim, form, panel or native feed
+invalidates old queued input and focus. The idle handler consumes one key per
+frame and redraws the outline only when its bounds change. It does not scan
+packages, call the metadata broker or rebuild the native catalog.
+
+The CLI can exercise movement directly with `cas catalog-key --key down`, or
+send actual window-addressed keyboard messages with `game key --background
+--key DOWN`. The semantic command checks the native movement receipt and does
+not provide an alternate equip path. A background delivery receipt establishes
+window-message acceptance only; the changed UI must be observed separately.
+
+The candidate package and DLL are built. Physical keys, scrolling, Enter,
+partial rows, equipped items, text fields and modal isolation still require
+actual-game qualification; fixture passes alone do not close that gate.
+
 Validation also passes 171 focused Python cases and fourteen native targets.
 The broader 2,732-case run passes 2,731 cases and finds one obsolete fixture
 looking for a listener in a callback which was deliberately retired. The fixture

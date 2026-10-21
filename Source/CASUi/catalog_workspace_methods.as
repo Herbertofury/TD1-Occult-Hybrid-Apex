@@ -38,6 +38,7 @@
          apexCatalogTab="items";
          apexCatalogSelectionFrames=0;apexCatalogSelectionMaxMs=0;apexCatalogSelectionOverBudget=0;
          ApexEquippedInitialize();
+         ApexCatalogKeyboardInitialize();
          try {
             apexCatalogStore=flash.net.SharedObject.getLocal("TD1ApexCASCatalog");
             if(apexCatalogStore!=null && (apexCatalogStore.data.version===1 || apexCatalogStore.data.version===2))
@@ -114,6 +115,7 @@
       private function ApexCatalogDispose() : void
       {
          ApexEquippedDispose();
+         ApexCatalogKeyboardDispose();
          removeEventListener(flash.events.Event.ENTER_FRAME,ApexCatalogFrame);
          if(stage!=null) {
             stage.removeEventListener(flash.events.MouseEvent.MOUSE_MOVE,ApexCatalogSlide);
@@ -235,7 +237,7 @@
                }
             } catch(catalogError:Error) {apexCatalogError=catalogError.message;ApexCatalogDraw();}
          }
-         if(apexPendingFields==null && !apexReceiving) ApexEquippedFrame();
+         if(apexPendingFields==null && !apexReceiving) {ApexEquippedFrame();ApexCatalogKeyboardFrame();}
          } catch(frameError:Error) {
             apexCatalogError="Catalog display paused: "+frameError.message;
             removeEventListener(flash.events.Event.ENTER_FRAME,ApexCatalogFrame);
@@ -525,5 +527,6 @@
             equipped_category:{active:apexEquippedActive,resolved:apexEquippedProducts==null ? 0 : apexEquippedProducts.length,
                published:apexEquippedPublication==null ? 0 : int(apexEquippedPublication.count),
                pending:apexEquippedActive && apexEquippedRefreshPending,unresolved:apexEquippedUnresolved,timing:apexEquippedTiming},
+            keyboard:{index:apexKeyIndex,context:apexKeyContext,pending:apexKeyIntent,queued:apexKeyQueue==null ? 0 : apexKeyQueue.length,receipt:ApexClone(apexKeyReceipt),message:apexKeyMessage},
             native_catalog_timing:apexCatalogPerformance,owned_frame_timing:apexCatalogFrameTiming};
       }

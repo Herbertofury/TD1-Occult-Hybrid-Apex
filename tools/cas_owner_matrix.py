@@ -67,6 +67,74 @@ def appearance_view(client):
         hair_selected_swatch_id=client.get('hair_selected_swatch_id')))
 
 
+def visible_inventory(member, client):
+    """Navigate player-visible forms; keep hidden preimages in the byte audit.
+
+    Rendering kind alone is not a form identity. In particular, a canonical
+    native/2 backup must not be visited when CAS exposes active/2 as Alien.
+    Discover each member separately rather than assuming identical form menus.
+    """
+    if not isinstance(client,dict):raise ValueError('A native CAS client observation is required.')
+    strip=client.get('form_strip',{})
+    if (client.get('sim',{}).get('simId')!=member['sim_id'] or strip.get('sim_id')!=member['sim_id'] or
+            strip.get('native_owner_state')!='bound' or strip.get('desired_owner_id') or
+            strip.get('gesture_pending') is True):
+        raise ValueError('Visible forms require the exact settled household member.')
+    groups=strip.get('life_states');captured={o['owner_id']:o for o in member['owners']}
+    if not isinstance(groups,list) or not 1<=len(groups)<=64:
+        raise ValueError('The current member has no complete visible form catalog.')
+    families=set();seen=set();primary=set();owners=[];human=None
+    native_families={'human':1,'alien':2,'vampire':4,'mermaid':8,'witch':16,'spellcaster':16,'werewolf':32,'fairy':64}
+    for group in groups:
+        family=group.get('family') if isinstance(group,dict) else None
+        variants=group.get('variants') if isinstance(group,dict) else None
+        if (not isinstance(family,str) or not family or family in families or
+                not isinstance(variants,list) or not 1<=len(variants)<=1024):
+            raise ValueError('Visible form families are missing, duplicated or incomplete.')
+        families.add(family)
+        if family=='human' and len(variants)!=1:
+            raise ValueError('CAS must expose exactly one shared Human form.')
+        for variant in variants:
+            oid=variant.get('owner_id') if isinstance(variant,dict) else None
+            if not isinstance(oid,str) or oid not in captured or oid in seen:
+                raise ValueError('A visible form is duplicated or outside this member\'s captured graph.')
+            seen.add(oid);owner=captured[oid];kind=owner['native_kind']
+            if oid.startswith(('native/','active/')):
+                if oid not in ('native/'+str(kind),'active/'+str(kind)) or kind in primary or native_families.get(family)!=kind:
+                    raise ValueError('A native backup alias or another family was exposed as a player form.')
+                primary.add(kind)
+            if family=='human':
+                if kind!=1 or oid not in ('native/1','active/1'):
+                    raise ValueError('The shared Human is not its exact native appearance.')
+                human=oid
+            owners.append(copy.deepcopy(owner))
+    if human is None or any(member['owned_mask'] & kind and kind not in primary for kind in (2,4,8,16,32,64)):
+        raise ValueError('The visible catalog omits the shared Human or an owned actual occult.')
+    if strip.get('selected_owner_id') not in seen:
+        raise ValueError('The current selected appearance is absent from its visible form catalog.')
+    return dict(sim_id=member['sim_id'],owned_mask=member['owned_mask'],owners=owners)
+
+
+def member_selection_context(client):
+    """Use the actual native selector layer, not a rendering-layer alias."""
+    if not isinstance(client,dict):raise ValueError('A native CAS client observation is required.')
+    sid=client.get('sim',{}).get('simId');observation=client.get('owner_pair_observation',{})
+    found=[]
+    def walk(value):
+        if isinstance(value,dict):
+            if value.get('source')=='native-selector-retained-filtered-feed' and value.get('selected_sim_id')==sid:
+                if value.get('complete') is not True or type(value.get('selected_layer')) is not int or value['selected_layer'] not in (0,1):
+                    raise ValueError('Native member selector is incomplete; no selection sent.')
+                found.append(value['selected_layer'])
+            for child in value.values():walk(child)
+        elif isinstance(value,list):
+            for child in value:walk(child)
+    walk(observation)
+    if not found or len(set(found))!=1 or type(observation.get('session')) is not int or observation['session']<=0:
+        raise ValueError('One exact native member-selector capability is required.')
+    return found[0],observation['session']
+
+
 def physique_markers(members):
     # Observed native CAS readback quantizes the saved three-decimal muscle
     # coefficient, then maps it into the UI range (1/1500 increments).
@@ -233,10 +301,23 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=F
                 requested=set(member_ids)
                 if not requested<={m['sim_id'] for m in members}:raise ValueError('Requested member is absent from the native roster.')
                 members=[m for m in members if m['sim_id'] in requested]
-            proof['targets']=copy.deepcopy(members);write_json(output,proof)
-            marker_values=physique_markers(members) if edit_markers else {}
             current,_=command(['cas','status','--sim-id',sid,'--seconds','20'])
             household=current['client']['sim']['householdId']; baselines={}; native_baselines={}
+            # Capture remains complete (including backup aliases), but the
+            # navigation/edit matrix must match each actual CAS form menu.
+            visible=[];proof['captured_owner_count']=sum(len(m['owners']) for m in all_members)
+            for member in members:
+                target=member['sim_id']
+                if sid!=target:
+                    layer,native_session=member_selection_context(current['client'])
+                    current,_=command(['cas','member-select','--sim-id',sid,'--target-sim-id',target,
+                        '--household-id',household,'--expected-layer',str(layer),
+                        '--native-session',str(native_session),'--seconds','25'])
+                    sid=target
+                visible.append(visible_inventory(member,current['client']))
+            members=visible;proof['targets']=copy.deepcopy(members)
+            proof['selectable_owner_count']=sum(len(m['owners']) for m in members);write_json(output,proof)
+            marker_values=physique_markers(members) if edit_markers else {}
             completed=0
             if resume is not None:
                 previous,baselines,continuity=resume_prefix(resume,native,members,cycles,edit_markers,verify_native,verify_pages)
@@ -253,10 +334,10 @@ def run(state,output,cycles=2,member_ids=None,edit_markers=False,verify_native=F
                     if not pending:continue
                     target=member['sim_id']
                     if sid!=target:
-                        c=current['client']
+                        layer,native_session=member_selection_context(current['client'])
                         current,_=command(['cas','member-select','--sim-id',sid,'--target-sim-id',target,
-                            '--household-id',household,'--expected-layer',str(c['sim']['occultLayer']),
-                            '--native-session',str(c['owner_pair_observation']['session']),'--seconds','25'])
+                            '--household-id',household,'--expected-layer',str(layer),
+                            '--native-session',str(native_session),'--seconds','25'])
                         sid=target
                     for owner in pending:
                         c=current['client']

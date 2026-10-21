@@ -10,6 +10,7 @@
 #include "ApexNativeOwnerMemory.h"
 #include "ApexNativeCasProbeWin.h"
 #include "ApexCasNativePipeWin.h"
+#include "ApexCasSearchWin.h"
 #include "MinHook.h"
 #include <mutex>
 #include <array>
@@ -1538,6 +1539,18 @@ inline bool GetOccultService(const void* arguments) {
         else if(action=="PAIR"&&end==std::string::npos)response=PairState(state,number);
         else if(action=="PAIRDO"&&end!=std::string::npos)response=ApplyPairAction(state,number,rest.substr(end+1));
         else if(action=="EQUIPPED"&&end!=std::string::npos)response=EquippedItems(state,number,rest.substr(end+1));
+        else if((action=="SEARCH"||action=="SEARCHREAD")&&end!=std::string::npos) {
+            const auto owner=FastOwnerState(state,number);
+            if(owner.rfind("VIEWSTATE|",0)!=0)throw std::runtime_error("Search needs the exact bound CAS appearance.");
+            const auto context=state.scope.id+"|"+std::to_string(number)+"|"+owner;
+            if(action=="SEARCH") {
+                const auto query=ui::Json::parse(rest.substr(end+1));
+                response="SEARCH|"+std::to_string(search::MetadataWorker().Submit(context,query));
+            } else {
+                const auto ticket=SimId(ui::Json(rest.substr(end+1)));
+                response="SEARCHRESULT|"+*search::MetadataWorker().PollWire(context,ticket);
+            }
+        }
         else if(action=="READ"&&end==std::string::npos)response=pipe::Channel().Poll(number,state.scope.id);
         else if(action=="CLOSE"&&end==std::string::npos)response=pipe::Channel().Close(number,state.scope.id);
         else if(action=="WRITE"&&end!=std::string::npos)response=pipe::Channel().Send(number,state.scope.id,rest.substr(end+1));

@@ -14,7 +14,7 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
@@ -22,6 +22,7 @@ PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'
 SCHEMAS = {
     'catalog-cards': {'operation','card_scale','gap_x','gap_y'},
     'catalog-card-reset': {'operation'},
+    'catalog-key': {'operation','key'},
     'catalog-style': {'operation','columns','color','glow','animation','strength','period','border'},
     'catalog-open': {'operation'},
     'catalog-view': {'operation','view'},
@@ -95,6 +96,10 @@ def wire(request, panel):
                 raise ValueError('Invalid bounded catalog '+name+'.')
             values.append(format(n,'.9f').rstrip('0').rstrip('.'))
         return 0,0,0,','.join(values)
+    if op == 'catalog-key':
+        if request['key'] not in ('left','right','up','down','home','end','pageup','pagedown'):
+            raise ValueError('Choose one catalog navigation key.')
+        return 0,0,0,request['key']
     if op == 'catalog-view':
         if request['view'] not in ('category','items','style','layout','closed'):raise ValueError('Use category, items, style, layout or closed catalog view.')
         return 0,0,0,request['view']
@@ -247,6 +252,30 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
+    if op == 'catalog-key':
+        workspace=control.get('workspace',{});keyboard=workspace.get('keyboard',{})
+        receipt=keyboard.get('receipt');keys={'left':37,'up':38,'right':39,'down':40,'home':36,'end':35,'pageup':33,'pagedown':34}
+        if (not isinstance(receipt,dict) or receipt.get('key')!=keys[request['key']] or
+                receipt.get('sim_id')!=client.get('sim',{}).get('simId') or
+                receipt.get('owner_id')!=client.get('form_strip',{}).get('selected_owner_id') or
+                client.get('form_strip',{}).get('native_owner_state')!='bound' or
+                receipt.get('menu_state')!=client.get('menu_state') or
+                control.get('appearance_written') is not False or receipt.get('click_dispatched') is not False or
+                type(keyboard.get('pending')) is not int or keyboard['pending']!=0 or
+                type(keyboard.get('queued')) is not int or keyboard['queued']!=0):
+            raise PostconditionMismatch('Catalog key lacks an exact settled Sim/form navigation receipt.')
+        for name,low,high in (('count',1,2000000),('columns',1,64),('page_step',0,4096),
+                              ('index_before',0,1999999),('index_after',0,1999999)):
+            if type(receipt.get(name)) is not int or not low<=receipt[name]<=high:
+                raise PostconditionMismatch('Catalog key has invalid native geometry or index.')
+        before,count,columns,page=(receipt[k] for k in ('index_before','count','columns','page_step'))
+        if before>=count or request['key'] in ('pageup','pagedown') and page<1:
+            raise PostconditionMismatch('Catalog key starts outside its native feed.')
+        wanted={'left':before-1,'right':before+1,'up':before-columns,'down':before+columns,
+                'home':0,'end':count-1,'pageup':before-page,'pagedown':before+page}[request['key']]
+        if receipt['index_after']!=max(0,min(count-1,wanted)) or keyboard.get('index')!=receipt['index_after']:
+            raise PostconditionMismatch('Catalog key did not move to its requested native card.')
+        return
     if op in ('catalog-style','catalog-open','catalog-view','catalog-slider','catalog-cards','catalog-card-reset'):
         workspace=control.get('workspace')
         if not isinstance(workspace,dict) or control.get('appearance_written') is not False:

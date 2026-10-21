@@ -23,6 +23,7 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include "ApexBackgroundKeyboard.h"
 #include <deque>
 #include <string>
 #include <vector>
@@ -4632,14 +4633,30 @@ extern "C" __declspec(dllexport) int WINAPI ApexGameInput(int command, int x, in
     if (!td1::g_hooked.load() || !hwnd || !IsWindow(hwnd) || !IsWindowVisible(hwnd)) return -1;
     GetWindowThreadProcessId(hwnd, &owner);
     if (owner != GetCurrentProcessId()) return -2;
-    if (command != 4 && GetAncestor(GetForegroundWindow(), GA_ROOT) != GetAncestor(hwnd, GA_ROOT)) return -2;
+    if (command != 4 && command != 5 && GetAncestor(GetForegroundWindow(), GA_ROOT) != GetAncestor(hwnd, GA_ROOT)) return -2;
     if (!GetClientRect(hwnd, &rect) || rect.right != width || rect.bottom != height) return -3;
-    if (command == 2) {
-        if (x != VK_F11 && x != VK_ESCAPE && x != VK_RETURN && x != VK_TAB && x != VK_SPACE) return -4;
+    if (command == 2 || command == 5) {
+        if (!td1::NavigationKey(x) || y!=0) return -4;
     } else if ((command != 1 && command != 3 && command != 4) || x < 0 || y < 0 || x >= width || y >= height) return -4;
     bool idle = false;
     if (!td1::g_inputBusy.compare_exchange_strong(idle, true)) return -6;
     td1::g_inputState = 1; td1::g_cursorX = -1; td1::g_cursorY = -1;
+    if(command==5) {
+        try {
+            std::thread([hwnd,x,width,height] {
+                const auto owned=[&]{DWORD pid=0;return IsWindow(hwnd)&&GetWindowThreadProcessId(hwnd,&pid)&&pid==GetCurrentProcessId();};
+                const auto valid=[&]{RECT current{};return owned()&&IsWindowVisible(hwnd)&&GetClientRect(hwnd,&current)&&current.right==width&&current.bottom==height;};
+                const auto post=[&](int key,bool down){
+                    const auto scan=MapVirtualKeyW(static_cast<UINT>(key),MAPVK_VK_TO_VSC);
+                    const auto bits=1u|(scan<<16)|((key>=33&&key<=40)?1u<<24:0u)|(down?0u:0xc0000000u);
+                    return PostMessageW(hwnd,down?WM_KEYDOWN:WM_KEYUP,static_cast<WPARAM>(key),static_cast<LPARAM>(bits))!=0;
+                };
+                td1::g_inputState=td1::RunBackgroundKey(x,valid,owned,post,[](int milliseconds){Sleep(static_cast<DWORD>(milliseconds));});
+                td1::g_inputBusy=false;
+            }).detach();
+        }catch(...){td1::g_inputState=-5;td1::g_inputBusy=false;return -5;}
+        return 0;
+    }
     if (command == 4) {
         // Address the verified game's event queue only. No SetForegroundWindow,
         // physical cursor movement or SendInput; acceptance is not UI proof.

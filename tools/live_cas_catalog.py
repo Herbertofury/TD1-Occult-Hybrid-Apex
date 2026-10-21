@@ -11,6 +11,9 @@ import sqlite3
 import tempfile
 import time
 import threading
+from collections import OrderedDict
+from copy import deepcopy
+from cas_search import Vocabulary, aliases, terms as search_terms
 
 from cas_resource_catalog import (CASP, STBL, CAS_THUMB, CACHE_ROOT, Package, canonical,
                                   casp_metadata, digest, file_hash, key,
@@ -18,7 +21,7 @@ from cas_resource_catalog import (CASP, STBL, CAS_THUMB, CACHE_ROOT, Package, ca
                                   stbl_strings, tgi)
 
 INDEX_ROOT = CACHE_ROOT.parent / 'live-cas-catalog'
-SCHEMA = 4
+SCHEMA = 5
 MAX_SOURCES = 100000
 MAX_PARTS = 2000000
 
@@ -41,7 +44,7 @@ def _connect(index, expected):
     connection = sqlite3.connect(path.as_uri() + '?mode=ro&immutable=1', uri=True)
     connection.row_factory = sqlite3.Row
     try:
-        if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2, 3, SCHEMA):
+        if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2, 3, 4, SCHEMA):
             raise ValueError('Unsupported Live CAS catalog schema.')
         connection.execute('PRAGMA query_only=ON')
         connection.create_function('creator_hint', 3, creator_hint, deterministic=True)
@@ -150,13 +153,13 @@ def build(sources, index, locale=0):
     started, count, errors, signatures = time.perf_counter(), 0, [], []
     try:
         connection.executescript('''
-            PRAGMA user_version=4;
+            PRAGMA user_version=5;
             CREATE TABLE parts(part_id TEXT PRIMARY KEY, body_type INTEGER,
                 origin TEXT, status TEXT, row_json TEXT NOT NULL,
                 family_id TEXT NOT NULL, variant_key TEXT NOT NULL, swatch_order INTEGER NOT NULL);
             CREATE INDEX parts_filter ON parts(body_type, origin, status, part_id);
             CREATE INDEX parts_family ON parts(family_id,swatch_order,variant_key,part_id);
-            CREATE VIRTUAL TABLE names USING fts5(preferred_name, package_name, code_name);
+            CREATE VIRTUAL TABLE names USING fts5(preferred_name, package_name, code_name, search_aliases);
             CREATE TABLE snapshot(value TEXT NOT NULL);
             CREATE TABLE thumbnails(resource_tgi TEXT,package_path TEXT,package_sha256 TEXT,
                                     PRIMARY KEY(resource_tgi,package_path));
@@ -175,8 +178,9 @@ def build(sources, index, locale=0):
                     row.update(family_id=family, variant_key=variant)
                     cursor = connection.execute('INSERT INTO parts VALUES(?,?,?,?,?,?,?,?)',
                         (row['part_id'], row['body_type'], row['origin'], row['status'], canonical(row).decode('utf-8'), family, variant, order))
-                    connection.execute('INSERT INTO names(rowid,preferred_name,package_name,code_name) VALUES(?,?,?,?)',
-                        (cursor.lastrowid, row['preferred_name'], row['package_name'], row['code_name'] or ''))
+                    connection.execute('INSERT INTO names(rowid,preferred_name,package_name,code_name,search_aliases) VALUES(?,?,?,?,?)',
+                        (cursor.lastrowid, row['preferred_name'], row['package_name'], row['code_name'] or '',
+                         aliases(row['preferred_name'], row['package_name'], row['code_name'], row['creator_hint'])))
             except (OSError, ValueError, UnicodeError) as error:
                 if count > MAX_PARTS:
                     raise
@@ -201,20 +205,21 @@ def build(sources, index, locale=0):
 
 
 def _query(connection, expected, text='', body_type=None, origin=None, name_mode='preferred', offset=0, limit=60,
-           part_ids=None, author='', sort='name', grouped=False):
+           part_ids=None, author='', sort='name', grouped=False, search_expression=None):
     if (not isinstance(text, str) or len(text) > 200 or name_mode not in ('preferred', 'package', 'code') or
             origin not in (None, 'mod', 'ea') or type(offset) is not int or not 0 <= offset <= MAX_PARTS or
             type(limit) is not int or not 1 <= limit <= 240 or
             (body_type is not None and (type(body_type) is not int or not 0 <= body_type <= 0xffffffff)) or
             not isinstance(author, str) or len(author) > 80 or sort not in ('name', 'package', 'creator', 'id') or type(grouped) is not bool):
         raise ValueError('Invalid catalog filter/page.')
-    tokens = re.findall(r'\w+', text, flags=re.UNICODE)
+    tokens = search_terms(text)
     if len(tokens) > 16 or (text.strip() and not tokens):
         raise ValueError('Search needs one to sixteen name terms.')
     clauses, parameters = [], []
     if tokens:
         clauses.append('rowid IN (SELECT rowid FROM names WHERE names MATCH ?)')
-        parameters.append(' AND '.join('"' + token + '"*' for token in tokens))
+        parameters.append(search_expression if search_expression is not None else
+                          ' AND '.join('"' + token + '"*' for token in tokens))
     for column, value in (('body_type', body_type), ('origin', origin)):
         if value is not None:
             clauses.append(column + '=?')
@@ -301,9 +306,15 @@ class PinnedIndex:
                 raise ValueError('Index changed while opening browser.')
             self.connection = sqlite3.connect(self.path.as_uri() + '?mode=ro&immutable=1', uri=True,
                                              check_same_thread=False)
+            # This is a TEMP virtual view of the existing FTS index. No source
+            # package or immutable database is modified or reparsed. Build it
+            # once on broker startup, never in a CAS click/render handler.
+            self.connection.execute("CREATE VIRTUAL TABLE temp.apex_name_vocab USING fts5vocab(main,names,'row')")
+            self.vocabulary = Vocabulary(row[0] for row in self.connection.execute('SELECT term FROM apex_name_vocab'))
             self.connection.execute('PRAGMA query_only=ON')
             self.connection.create_function('creator_hint', 3, creator_hint, deterministic=True)
             self.lock = threading.RLock()
+            self.pages, self.page_bytes = OrderedDict(), 0
             grouped=self.connection.execute('PRAGMA user_version').fetchone()[0]>=3
             self.facets = [{'body_type': body, 'count': count} for body, count in self.connection.execute(
                 'SELECT body_type,count('+('DISTINCT family_id' if grouped else '*')+') FROM parts GROUP BY body_type ORDER BY body_type')]
@@ -326,13 +337,41 @@ class PinnedIndex:
         if getattr(self, 'handle', None) is not None:
             self._release()
 
-    def query(self, **filters):
+    def query(self, fuzzy=False, **filters):
+        if type(fuzzy) is not bool:
+            raise ValueError('Fuzzy search must be a boolean.')
+        started = time.perf_counter()
         with self.lock:
             if (signature(self.path) != self.before or
                     os.name != 'nt' and file_hash(self.path) != self.expected):
                 raise ValueError('Index path changed; restart with a verified snapshot.')
-            return dict(_query(self.connection, self.expected, **filters), categories=self.facets,
-                        creators=self.creators, creator_facets_truncated=self.creators_truncated)
+            # Cache keys include every filter, saved-item list and page. A
+            # favorite change or different author cannot reuse an old result.
+            cache_key = canonical(dict(filters, fuzzy=fuzzy))
+            hit = cache_key in self.pages
+            if hit:
+                self.pages.move_to_end(cache_key)
+                result = deepcopy(self.pages[cache_key][0])
+            else:
+                result = _query(self.connection, self.expected, **filters)
+                result.update(search_mode='prefix', corrections=[])
+                # Prefer exact/prefix matches. Never silently mix a different
+                # creator into results that already satisfy the actual query.
+                if fuzzy and not result['total'] and filters.get('text', '').strip():
+                    expression, corrections = self.vocabulary.plan(filters['text'])
+                    if corrections:
+                        result = _query(self.connection, self.expected, **filters, search_expression=expression)
+                        result.update(search_mode='fuzzy', corrections=corrections)
+                size = len(canonical(result))
+                if size <= 2 * 1024 * 1024:
+                    self.pages[cache_key] = (deepcopy(result), size)
+                    self.page_bytes += size
+                    while len(self.pages) > 128 or self.page_bytes > 16 * 1024 * 1024:
+                        _, (_, removed) = self.pages.popitem(last=False)
+                        self.page_bytes -= removed
+            return dict(result, categories=deepcopy(self.facets), creators=deepcopy(self.creators),
+                        creator_facets_truncated=self.creators_truncated, cache_hit=hit,
+                        worker_elapsed_seconds=round(time.perf_counter() - started, 6))
 
     def close(self):
         with self.lock:

@@ -73,7 +73,7 @@ def validate(request, now, pins, identity, process, state_digest):
                 any(type(number) is not int for number in argument.values()) or
                 argument['command'] not in (1, 2, 3) or
                 not all(1 <= argument[name] <= 8192 for name in ('width', 'height')) or
-                (argument['command'] == 2 and (argument['x'] not in (122, 27, 13, 9, 32) or argument['y'] != 0)) or
+                (argument['command'] == 2 and (argument['x'] not in (122, 27, 13, 9, 32, 33, 34, 35, 36, 37, 38, 39, 40) or argument['y'] != 0)) or
                 (argument['command'] != 2 and not (0 <= argument['x'] < argument['width'] and 0 <= argument['y'] < argument['height']))):
             raise ValueError('Input helper requires the bounded native game-input contract.')
     return binding

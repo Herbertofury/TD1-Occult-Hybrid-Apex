@@ -93,7 +93,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0][0], '/api/native')
 
-    def test_public_background_click_emits_fixed_command_and_rejects_background_keys(self):
+    def test_public_background_click_and_navigation_key_use_window_only_commands(self):
         with patch.object(apex_cli, 'require_isolated'), \
                 patch.object(apex_cli.reusable_profile, 'load', return_value=(None, {'token': 'a'*32}, None, None)), \
                 patch.object(apex_cli, 'owned_request', return_value={'ok': True}) as request:
@@ -104,9 +104,14 @@ class CliTests(unittest.TestCase):
             request.reset_mock()
             args = apex_cli.parser().parse_args(['game', 'key', '--state', 'state.json',
                 '--background', '--key', 'ESC', '--width', '100', '--height', '100'])
-            with self.assertRaises(ValueError):
-                apex_cli.execute(args)
-            request.assert_not_called()
+            self.assertTrue(apex_cli.execute(args)['ok'])
+            self.assertEqual(json.loads(request.call_args.kwargs['value'])['value'],
+                             {'command':5,'x':27,'y':0,'width':100,'height':100})
+            for name,code in [('LEFT',37),('RIGHT',39),('UP',38),('DOWN',40),('HOME',36),('END',35),('PAGEUP',33),('PAGEDOWN',34)]:
+                args=apex_cli.parser().parse_args(['game','key','--state','state.json','--background',
+                    '--key',name,'--width','100','--height','100'])
+                self.assertTrue(apex_cli.execute(args)['ok'])
+                self.assertEqual(json.loads(request.call_args.kwargs['value'])['value']['x'],code)
     def test_studio_open_and_failed_preview_output_are_durable(self):
         import tempfile
         with tempfile.TemporaryDirectory() as folder:

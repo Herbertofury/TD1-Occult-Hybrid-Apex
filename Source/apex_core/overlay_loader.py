@@ -264,12 +264,12 @@ def input_event(module_file, dll_path, argument):
             'input_version': _integer(_CALLS['ApexGameInputVersion']),
             'cursor_client': {'x': _integer(_CALLS['ApexGameCursorX']), 'y': _integer(_CALLS['ApexGameCursorY'])},
             'pointer_verified': completed and argument['command'] in (1, 3),
-            'window_messages_accepted': completed if argument['command'] == 4 else None,
-            'foreground_required': argument['command'] != 4,
-            'os_cursor_moved': False if argument['command'] == 4 else None,
+            'window_messages_accepted': completed if argument['command'] in (4, 5) else None,
+            'foreground_required': argument['command'] not in (4, 5),
+            'os_cursor_moved': False if argument['command'] in (4, 5) else None,
             'input_submitted': completed, 'ui_transition_verified': False,
-            'message': ('Window-addressed click queued without moving the OS cursor or changing foreground. Verify the UI transition separately.'
-            if argument['command'] == 4 else 'Game-owned input released; cursor readback verified for pointer commands. Verify the UI transition separately.')
+            'message': ('Window-addressed navigation input queued without moving the OS cursor or changing foreground. Verify the UI transition separately.'
+            if argument['command'] in (4, 5) else 'Game-owned input released; cursor readback verified for pointer commands. Verify the UI transition separately.')
             if completed else 'Native input did not complete (code {}, state {}); no UI completion claimed.'.format(code, state)}
 
 

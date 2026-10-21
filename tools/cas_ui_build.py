@@ -36,7 +36,7 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'Source/CASUi/pair_controls_methods.as',
                   'Source/CASUi/catalog_workspace_methods.as',
                   'Source/CASUi/catalog_cards_methods.as', 'tools/cas_equipped_catalog.py',
-                  'Source/CASUi/equipped_category_methods.as',
+                  'Source/CASUi/equipped_category_methods.as', 'Source/CASUi/catalog_keyboard_methods.as',
                   'tools/cas_catalog_workspace.py', 'tools/CasCatalogBytecodePatch.java',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
                   'tools/cas_pair_panel_patch.py',
@@ -185,7 +185,7 @@ def inject(source, methods):
     source = source.replace(anchor, anchor + '\n         ApexInitialize();')
     # Resolve external QNames at compilation, avoiding dotted runtime lookups.
     source = source.replace('   import gamedata.CAS.CASAPI;',
-        '   import gamedata.shared.SimGenderTypes;\n   import gamedata.CAS.shared.CASCatalogProduct;\n   import gamedata.CAS.CASAPI;')
+        '   import olympus.events.GridEvent;\n   import olympus.events.PushButtonEvent;\n   import gamedata.shared.SimGenderTypes;\n   import gamedata.CAS.shared.CASCatalogProduct;\n   import gamedata.CAS.CASAPI;')
     source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.widget.Margin;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import flash.utils.getTimer;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
@@ -224,6 +224,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         '__APEX_EQUIPPED_MENUS__',json.dumps(cas_catalog_workspace.equipped_menus(),sort_keys=True,separators=(',', ':')))
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_cards_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/equipped_category_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/catalog_keyboard_methods.as').read_text(encoding='utf-8')
     control_dispatch = verify_control_dispatch(semantic)
     detached_snapshot_getters = verify_snapshot_ownership(semantic)
     household_acceptance = verify_household_acceptance(semantic)

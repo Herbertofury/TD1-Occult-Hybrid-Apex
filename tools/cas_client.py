@@ -49,6 +49,9 @@ def _remember_observation(args,result,clock):
     if lease is None:return result
     lease['result']=None
     observed=result.get('destination_status',result) if isinstance(result,dict) else {}
+    if (isinstance(observed,dict) and isinstance(observed.get('client'),dict) and
+            'form_strip' in observed['client'] and not _owner_strip_settled(observed['client'])):
+        return result
     if (isinstance(result,dict) and result.get('ok') is True and observed.get('ok') is True and
             isinstance(observed.get('client'),dict) and isinstance(observed['client'].get('sim'),dict) and
             isinstance(observed['client']['sim'].get('simId'),str) and
@@ -436,9 +439,10 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep, allow_pr
                 if remaining <= 0: break
                 rebound = execute(SimpleNamespace(operation='status', state=args.state, sim_id=target,
                     seconds=min(60, remaining), output=None), request, monotonic=monotonic, pause=pause)
-                break
+                if rebound.get('ok') is True and _owner_strip_settled(rebound.get('client')):
+                    break
             pause(.15)
-        if rebound is not None and rebound.get('ok') is True:
+        if rebound is not None and rebound.get('ok') is True and _owner_strip_settled(rebound.get('client')):
             selected = rebound['client']['sim']
             observation = rebound['client'].get('owner_pair_observation', {})
             if (selected.get('simId') != target or selected.get('householdId') != receipt['household_id'] or

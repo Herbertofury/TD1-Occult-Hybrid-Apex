@@ -83,7 +83,7 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
                 argument = json.loads(value)['value']
                 background_click = (isinstance(argument, dict) and
                     set(argument) == {'command', 'x', 'y', 'width', 'height'} and
-                    type(argument.get('command')) is int and argument['command'] == 4)
+                    type(argument.get('command')) is int and argument['command'] in (4, 5))
             except (ValueError, TypeError, KeyError):
                 pass
         if action == 'test_input' and not background_click:
@@ -343,7 +343,7 @@ def parser():
     game.add_argument('--byte-count', type=int, default=2048, help='Development code window length, 1..8192 bytes')
     game.add_argument('--with-overlay', action='store_true')
     game.add_argument('--elevate-once', action='store_true', help='One normal Windows elevation for authenticated game focus only')
-    game.add_argument('--key', choices=('F11', 'ESC', 'ENTER', 'TAB', 'SPACE'))
+    game.add_argument('--key', choices=('F11', 'ESC', 'ENTER', 'TAB', 'SPACE', 'LEFT', 'UP', 'RIGHT', 'DOWN', 'HOME', 'END', 'PAGEUP', 'PAGEDOWN'))
     game.add_argument('--background', action='store_true',
                       help='Capture, Resume, normal exit and clicks without foreground handoffs or OS cursor movement')
     game.add_argument('--x', type=int)
@@ -379,7 +379,7 @@ def parser():
     cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
-        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset'))
+        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key'))
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
     cas.add_argument('--target-sim-id', help='Existing household member identity for semantic member-select')
@@ -401,6 +401,7 @@ def parser():
     cas.add_argument('--owned-mask', type=int, help='Research-only: actual pre-entry membership mask; requires marked disposable profile')
     cas.add_argument('--native-session', type=int, help='Exact owner observation session from a fresh CAS status')
     cas.add_argument('--panel')
+    cas.add_argument('--key',choices=('left','right','up','down','home','end','pageup','pagedown'))
     cas.add_argument('--family', help='Life-state family from form_strip.life_states; all returns to the main menu')
     cas.add_argument('--x', type=float, help='CAS strip horizontal position, 0 left to 1 right, within the available viewport')
     cas.add_argument('--y', type=float, help='CAS strip vertical position, 0 top to 1 bottom, within the available viewport')
@@ -1188,19 +1189,19 @@ def execute(args):
             write_json(direct_output, result)
             return dict(result, proof=str(direct_output), proof_sha256=sha256(direct_output))
         if args.operation in ('key', 'click', 'move'):
-            if args.background and args.operation != 'click':
-                raise ValueError('Background input currently supports window-addressed clicks only.')
+            if args.background and args.operation not in ('click', 'key'):
+                raise ValueError('Background input supports window-addressed clicks and navigation keys.')
             if args.width is None or args.height is None or not 1 <= args.width <= 8192 or not 1 <= args.height <= 8192:
                 raise ValueError('Supply the observed client viewport width/height.')
             if args.operation == 'key':
                 if args.key is None:
                     raise ValueError('A supported key is required.')
-                x, y = {'F11': 122, 'ESC': 27, 'ENTER': 13, 'TAB': 9, 'SPACE': 32}[args.key], 0
+                x, y = {'F11': 122, 'ESC': 27, 'ENTER': 13, 'TAB': 9, 'SPACE': 32, 'LEFT': 37, 'UP': 38, 'RIGHT': 39, 'DOWN': 40, 'HOME': 36, 'END': 35, 'PAGEUP': 33, 'PAGEDOWN': 34}[args.key], 0
             else:
                 x, y = args.x, args.y
                 if x is None or y is None or not 0 <= x < args.width or not 0 <= y < args.height:
                     raise ValueError('Click must be inside the observed game viewport.')
-            argument = {'command': 4 if args.background else 2 if args.operation == 'key' else 3 if args.operation == 'move' else 1, 'x': x, 'y': y,
+            argument = {'command': (5 if args.operation == 'key' else 4) if args.background else 2 if args.operation == 'key' else 3 if args.operation == 'move' else 1, 'x': x, 'y': y,
                         'width': args.width, 'height': args.height}
             return receipt(owned_request(args.state, 'test_input', value=json.dumps({'test_token': data['token'], 'value': argument})))
         argument = json.loads(args.value or '{"operation":"status"}') if args.operation == 'profile' else args.value

@@ -1070,6 +1070,7 @@
 
       private function ApexControlExecute(operation:String,state:int,category:int,index:int,value:String,reply:Object,context:Object) : void
       {
+         if(operation=="catalog-key") { ApexCatalogKeyboardCommand(value);return; }
          if(operation=="catalog-cards") { ApexCardCommand(value);return; }
          if(operation=="catalog-card-reset") { ApexCardReset();return; }
          if(operation=="catalog-style") { ApexCatalogStyle(value);return; }
@@ -1444,7 +1445,7 @@
 
       private function ApexControlResult(operation:String,state:int,category:int,index:int,value:String,context:Object,client:Object) : Object
       {
-         if(operation=="catalog-style" || operation=="catalog-open" || operation=="catalog-view" || operation=="catalog-slider" || operation=="catalog-cards" || operation=="catalog-card-reset")
+         if(operation=="catalog-style" || operation=="catalog-open" || operation=="catalog-view" || operation=="catalog-slider" || operation=="catalog-cards" || operation=="catalog-card-reset" || operation=="catalog-key")
             return {operation:operation,workspace:ApexCatalogStatus(),appearance_written:false};
          if(operation=="form-owner-select") return {operation:operation,owner_id:String(context.owner_id)};
          if(operation=="pair-link" || operation=="pair-copy") {
@@ -1940,7 +1941,7 @@
                   operation=="remove" || operation=="layers" || operation=="layer-add" || operation=="layer-remove" ||
                   operation=="layer-move" || operation=="swatches" || operation=="swatch" || operation=="physique" ||
                   operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
-                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" || operation=="pair-link" || operation=="pair-copy" || operation=="catalog-style" || operation=="catalog-open" || operation=="catalog-view" || operation=="catalog-slider" || operation=="catalog-cards" || operation=="catalog-card-reset" ||
+                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" || operation=="pair-link" || operation=="pair-copy" || operation=="catalog-style" || operation=="catalog-open" || operation=="catalog-view" || operation=="catalog-slider" || operation=="catalog-cards" || operation=="catalog-card-reset" || operation=="catalog-key" ||
                   operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
                   operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view" || operation=="form-owner-select" || operation=="detail-status" ||
                   operation=="detail-mode" || operation=="filters" || operation=="filter-clear")

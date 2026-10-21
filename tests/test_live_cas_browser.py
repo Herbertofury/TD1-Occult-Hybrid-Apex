@@ -20,6 +20,21 @@ class BrowserTests(unittest.TestCase):
     package = fixtures.LiveCatalogTests.package
     build = fixtures.LiveCatalogTests.build
 
+    def test_metadata_query_does_not_wait_for_the_asset_preparation_lock(self):
+        done=threading.Event();result={}
+        def query():
+            try:result['page']=self.browser.query(self.query)
+            except Exception as error:result['error']=error
+            finally:done.set()
+        thread=threading.Thread(target=query)
+        with self.browser.lock:
+            thread.start()
+            completed_while_assets_locked=done.wait(2)
+        thread.join(2)
+        self.assertTrue(completed_while_assets_locked,'Typing was blocked behind package/thumbnail preparation.')
+        self.assertNotIn('error',result)
+        self.assertEqual(result['page']['total'],1)
+
     def setUp(self):
         fixtures.LiveCatalogTests.setUp(self)
         self.resource_root = self.root / 'resource-cache'

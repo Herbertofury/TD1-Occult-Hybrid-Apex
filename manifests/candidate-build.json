@@ -1,10 +1,10 @@
 {
-  "build_epoch": "2026-10-21-offline-catalog-companion-v270",
+  "build_epoch": "2026-10-21-equipped-search-v271",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-21-offline-catalog-companion-v270.zip",
-    "bytes": 9108578,
+    "artifact": "Apex_Development_Candidate_2026-10-21-equipped-search-v271.zip",
+    "bytes": 9111416,
     "members": 31,
-    "sha256": "8aea79d3af23f8122e151c6c32ce63fbcea9569690b420e23b64edae70de4413"
+    "sha256": "f280ed6ccbe3edf1388321dd59612c777b5ac62d9462c19eb725d361fdbff343"
   },
   "compiled_script_modules": 106,
   "deployed": false,
@@ -53,7 +53,7 @@
     {
       "bytes": 56884,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "7eb75b3a79d83ed49eff1ab22befaa106b4fb5182c251b4671092c759315f839"
+      "sha256": "3e9984f79350e64237c81de9b4841cb280816093d46966514574d24a9b5588e7"
     },
     {
       "bytes": 1506,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 1030494,
+      "bytes": 1030479,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "e031d28b3ae36fe8acc7717021c77c849460704f86e05c55598a70846334b368"
+      "sha256": "7166055077f5e73921bfbd51f2c54d04659daef971851aae3277e7710233cfcc"
     },
     {
-      "bytes": 4724736,
+      "bytes": 4731392,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "7b13be6737101b8c630a32ba493c5351d934e2c76cef2abf53a0f7f965dbdeef"
+      "sha256": "1d5a130c27575f0f2c13567dfea28ab165569d660a7c594ab873e944ab9a93a3"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "934f9eb81c142225aeb1566a087fa65b5aaac287727b564e97affe04f9426914"
+      "sha256": "57afad25030b3f48c1331461b77cf9a42b7bc29d2b86902e09917a6aa514a677"
     },
     {
       "bytes": 424,
@@ -151,14 +151,14 @@
       "sha256": "2dea2aad764f95dd2b6fd2b54e10fbb691464485409fbc3c861f57969d8849b8"
     },
     {
-      "bytes": 9674752,
+      "bytes": 9681920,
       "file": "Tools/apex-catalog.exe",
-      "sha256": "220e5fdb6050757e9b6486422c2450e6c8b2b4c59ade19aa57bc0d5d250ddb19"
+      "sha256": "8cc78f28c53f3db017614ee8190228d3742568250a794f6848d3f21d9e1cffb1"
     },
     {
       "bytes": 1915,
       "file": "Tools/apex-catalog.manifest.json",
-      "sha256": "f1d3bd2b77cd9c1a1fad122ebb879e3d16d873538407b6ac552ee1410e9154e5"
+      "sha256": "9659a1b16f8cd8d2611bf26933b57e2fcde16cce796a8e0e2a07a651c9fc248f"
     }
   ],
   "package_verification": [

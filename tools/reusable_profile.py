@@ -22,6 +22,7 @@ BUNDLE_PATHS = {
     'Apex/ApexOccultHybrid.package', 'Apex/ApexOccultHybrid.ts4script',
     'Apex/ApexCASUnlocks.package', 'Apex/Native/ApexOverlay.dll',
     'Apex/Native/ApexOverlay.ini', 'Apex/Native/overlay-manifest.json',
+    'Apex/Native/apex-catalog.snapshot.json',
     'Apex/ApexColorStudio.package', 'Apex/ApexCASBridge.package', 'Apex/ApexPlantSimPermanent.package',
     'Apex/ApexPlantSimNoVampireThirst.package', 'Apex/ApexServoNoVampireThirst.package',
 }
@@ -44,6 +45,57 @@ def artifact_relative(row):
 def recovery_path(state, row, incoming=False):
     return writable(state.parent / 'artifact-recovery' /
                     (row['sha256'] + ('.incoming' if incoming else '') + Path(row['name']).suffix))
+
+
+def register_catalog_snapshot(state, source, expected_previous=None):
+    """Track one explicit nonexecutable config without relaxing mod identity.
+
+    A runtime metadata refresh can replace this config, never a package/DLL.
+    All other unexpected or changed files still prevent launch/control.
+    """
+    relative='Apex/Native/apex-catalog.snapshot.json'
+    with mutation_lock(state):
+        state,data,profile,_=load(state)
+        source=writable(source);raw=source.read_bytes()
+        if not 0<len(raw)<=4096:raise ValueError('Bounded offline catalogue config required.')
+        value=json.loads(raw.decode('utf-8'))
+        required={'schema','index','index_sha256','network_at_runtime'}
+        def pin(row):
+            return (isinstance(row,dict) and isinstance(row.get('index'),str) and
+                    isinstance(row.get('index_sha256'),str) and len(row['index_sha256'])==64 and
+                    all(c in '0123456789abcdef' for c in row['index_sha256']))
+        if (not isinstance(value,dict) or set(value) not in (required,required|{'equipped'}) or
+                type(value['schema']) is not int or value['schema']!=1 or value['network_at_runtime'] is not False or not pin(value)):
+            raise ValueError('Exact offline snapshot configuration required.')
+        if 'equipped' in value:
+            equipped=value['equipped'];guid=equipped.get('save_guid') if isinstance(equipped,dict) else None
+            if (not pin(equipped) or set(equipped)!={'index','index_sha256','save_guid'} or
+                    not isinstance(guid,str) or not guid.isascii() or not guid.isdecimal() or
+                    not 0<int(guid)<2**64 or str(int(guid))!=guid):
+                raise ValueError('Exact equipped snapshot/save binding required.')
+        digest=sha256(source);target=writable(profile/'Mods'/relative)
+        prior=next((r for r in data['artifacts'] if artifact_relative(r)==relative),None)
+        if (prior is None and expected_previous is not None or
+                prior is not None and expected_previous!=prior['sha256']):
+            raise ValueError('The prior tracked config digest is required exactly.')
+        observed=status(state)
+        allowed=[relative] if prior is None and target.exists() else []
+        # Replacing a previously published config is an explicit metadata-only
+        # operation; executable mod identities remain fully checked.
+        if (observed['unexpected_mod_files']!=allowed or any(not r['matches'] and r['path']!=relative
+                for r in observed['artifacts'])):
+            raise ValueError('Other unexpected/changed mods prevent config registration.')
+        if target.exists() and sha256(target) not in ({digest} if prior is None else {digest,prior['sha256']}):
+            raise ValueError('Config changed outside this explicit publication.')
+        if not target.exists() or sha256(target)!=digest:
+            target.parent.mkdir(parents=True,exist_ok=True)
+            from build_packages import atomic_bytes
+            atomic_bytes(target,raw)
+        row=dict(name=target.name,relative=relative,source=str(source),sha256=digest,bytes=target.stat().st_size)
+        data['artifacts']=[r for r in data['artifacts'] if artifact_relative(r)!=relative]+[row]
+        data['generation']=data.get('generation',0)+1;write_json(state,data)
+        if not status(state)['ready_to_launch']:raise ValueError('Config registration did not qualify the profile.')
+        return dict(ok=True,sha256=digest,relative=relative,executable_changed=False,game_closed_required=False)
 
 
 @contextmanager

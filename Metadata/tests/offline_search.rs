@@ -442,6 +442,19 @@ fn prepared_family_pages_keep_general_query_order_scope_and_pagination() {
 }
 
 #[test]
+fn offline_f11_creator_picker_retains_installed_names_without_padding_native_cas_pages() {
+    let f = fixture();
+    let c = Catalog::open(&f.index, &file_sha256(&f.index).unwrap()).unwrap();
+    let mut q = query("");
+    q.limit = 60;
+    let result = c.query(&q).unwrap();
+    assert_eq!(result["creators"][0]["name"], "Magic Hand");
+    assert_eq!(result["creators_complete"], true);
+    q.limit = 24;
+    assert_eq!(c.query(&q).unwrap()["creators"], json!([]));
+}
+
+#[test]
 fn folder_exact_includes_descendants_but_not_similar_sibling() {
     let f = fixture();
     let r = run(&f, "folder:Makeup");

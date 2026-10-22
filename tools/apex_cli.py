@@ -287,6 +287,10 @@ def parser():
     sliders.add_argument('--state', required=True, type=Path)
     sliders.add_argument('--install', action='store_true')
     autostart = profile_commands.add_parser('overlay-autostart', help='Toggle automatic native overlay load with the game closed')
+    catalog_config = profile_commands.add_parser('catalog-snapshot', help='Track an exact offline metadata config while preserving every other mod identity check')
+    catalog_config.add_argument('--state', required=True, type=Path)
+    catalog_config.add_argument('--source', required=True, type=Path)
+    catalog_config.add_argument('--expected-previous-sha256')
     autostart.add_argument('operation', choices=('on', 'off'))
     autostart.add_argument('--state', required=True, type=Path)
     cleanup = profile_commands.add_parser('consolidate', help='Recover retired disposable profile contents then keep one test profile')
@@ -847,6 +851,8 @@ def _execute(args):
         return game_launch.launch(args.game_root, args.state, args.execute, args.headless, offer_id=args.offer_id,
                                   elevate_permission_once=args.elevate_permission_once, **options)
     if args.command == 'profile':
+        if args.profile_command == 'catalog-snapshot':
+            return reusable_profile.register_catalog_snapshot(args.state,args.source,args.expected_previous_sha256)
         if args.profile_command == 'sliders-presets':
             import owner_slider_addons
             return (owner_slider_addons.install if args.install else owner_slider_addons.plan)(args.state)

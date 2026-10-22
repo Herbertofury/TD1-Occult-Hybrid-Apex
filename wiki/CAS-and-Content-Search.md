@@ -30,15 +30,25 @@ the database. A separate 1,000-Sim fixture passes household isolation, item
 deduplication and bounded provenance checks. These are worker/fixture results,
 not a claim that the new UI path has been tested in the running game.
 
-**Still pending:** the new native capture command and F11/native CAS search need
-an actual-game pass after loading the candidate. Capture currently uses the
-marked test profile, committed CAS graphs and persisted names; automatic
+**Actual V271 check:** the five-member capture and native Sim, household, type,
+form and outfit queries run in full CAS. The active Sim and every save remain
+unchanged. Two CC references used by other members are indexed but their
+swatches fail to map to the visible parent card in native CAS; that defect is
+still open. F11 global browsing needs its separate actual-game pass.
+
+Capture currently uses the marked test profile, committed CAS graphs and persisted names; automatic
 production refresh after CAS/Live/Tray edits and an integrated capture button
 remain unfinished. Pending try-ons and unsaved renames are not advertised as
 current indexed data. Ambiguous resource identities remain unresolved rather
 than being assigned to an arbitrary package. Most EA equipped attribution in
 the older full catalogue still needs effective-resource hashes. The permanent
 appearance guards and actual-save release gates remain in place.
+
+The direct CAS-exit service also rejects after the body-hair pass. The actual
+EA checkmark works through the background CLI: all forty appearances and 155
+named looks remain intact after returning to Live, and saves are unchanged.
+The existing household review journal must be resolved before Studio opens.
+This is a retained regression, not a qualified direct-exit pass.
 
 The full EA catalogue check also exposed a separate grouping bottleneck. A
 metadata-only preparation job now builds swatch-family lookup tables and

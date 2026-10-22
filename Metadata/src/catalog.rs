@@ -97,6 +97,8 @@ pub struct Catalog {
     snapshot: Value,
     version: i64,
     categories: Value,
+    creators: Value,
+    creators_complete: bool,
     path: PathBuf,
     length: u64,
     modified: SystemTime,
@@ -137,6 +139,14 @@ impl Catalog {
         );
         let after = path.metadata()?;
         let fast_families: bool=connection.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='catalog_families')",[],|r|r.get(0))?;
+        let mut creators: Vec<Value> = if version >= 6 {
+            connection.prepare(&format!("SELECT creator,count(*) FROM {} WHERE origin='mod' AND creator<>'' GROUP BY creator ORDER BY creator COLLATE NOCASE LIMIT 513",if fast_families{"catalog_families"}else{"parts"}))?
+                .query_map([],|r|Ok(json!({"name":r.get::<_,String>(0)?,"count":r.get::<_,i64>(1)?})))?.collect::<rusqlite::Result<_>>()?
+        } else {
+            Vec::new()
+        };
+        let creators_complete = creators.len() <= 512;
+        creators.truncate(512);
         ensure!(
             before.len() == after.len() && before.modified()? == after.modified()?,
             "Offline catalogue changed during opening"
@@ -147,6 +157,8 @@ impl Catalog {
             snapshot,
             version,
             categories: json!(categories),
+            creators: json!(creators),
+            creators_complete,
             path: path.into(),
             length: after.len(),
             modified: after.modified()?,
@@ -454,6 +466,7 @@ impl Catalog {
         Ok(
             json!({"ok":true,"index_sha256":self.sha256,"query":original,"snapshot":self.snapshot,
             "grouped":query.grouped,"items":items,"categories":self.categories,"total":total,"offset":query.offset,
+            "creators":if query.limit>=60{self.creators.clone()}else{json!([])},"creators_complete":self.creators_complete,
             "next_offset":if next<total{Some(next)}else{None},"search_mode":if corrections.is_empty(){"prefix"}else{"fuzzy"},
             "corrections":corrections,"folder_matches":folders.suggestions,"folder_corrected":folders.corrected,
             "added_clock":"first indexed content; initial baseline excluded from added: filters",

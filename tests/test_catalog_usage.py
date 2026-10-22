@@ -9,6 +9,8 @@ import unittest
 
 sys.path[:0] = [str(Path(__file__).resolve().parents[1]/'Source')]
 from apex_core import catalog_usage
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
+import catalog_usage as collector
 
 
 class CatalogUsageRosterTests(unittest.TestCase):
@@ -37,6 +39,43 @@ class CatalogUsageRosterTests(unittest.TestCase):
         self.assertEqual('persisted-household-metadata',r['names_source'])
         self.assertFalse(r['appearance_written']);self.assertFalse(r['save_submitted'])
         self.assertEqual(before,self.sims)
+
+    def test_transport_uuids_do_not_invalidate_identical_roster_reads(self):
+        row=catalog_usage.roster(self.backend,self.request)
+        a=dict(row,request_id='a'*32,request_state='completed')
+        b=dict(row,request_id='b'*32,request_state='completed')
+        self.assertEqual(collector.roster_identity(a),collector.roster_identity(b))
+        b['members']=[dict(row['members'][0],name='Changed')]
+        self.assertNotEqual(collector.roster_identity(a),collector.roster_identity(b))
+
+    def test_human_rendered_special_variants_keep_their_actual_family(self):
+        self.assertEqual(collector.form_label('werewolf/human_cc',1),'Werewolf')
+        self.assertEqual(collector.form_label('imaginary_friend/real',1),'Imaginary Friend')
+        self.assertEqual(collector.form_label('native/1',1),'Human')
+
+    def test_compact_projection_preserves_uint64_layers_empty_slots_and_unknown_fields(self):
+        import struct
+        from apex_core.form_appearance import encode
+        def var(v):
+            result=bytearray()
+            while v>127:result.append((v&127)|128);v>>=7
+            result.append(v);return bytes(result)
+        def scalar(n,v):return var(n<<3)+var(v)
+        def blob(n,b):return var(n<<3|2)+var(len(b))+b
+        parts=blob(5,blob(1,struct.pack('<QQ',12,2**64-1)))
+        body=blob(7,blob(1,var(45)+var(45)))
+        layers=blob(15,blob(1,var(0)+var(2)))
+        objects=blob(14,blob(1,var(105)+var(106)))
+        outfit=scalar(1,2**64-1)+scalar(2,0)+parts+body+layers+objects+blob(999,b'unknown')
+        raw=blob(1,outfit)+blob(1,scalar(2,0))
+        fields={'__outfits__':encode(('protobuf',raw))};before=copy.deepcopy(fields)
+        result=collector.equipped_outfits(fields)
+        self.assertEqual(result[0]['outfit_id'],str(2**64-1))
+        self.assertEqual(result[0]['parts'][1],dict(instance=str(2**64-1),body_type=45,layer=2))
+        self.assertEqual(result[1],dict(outfit_id='0',category=0,ordinal=1,parts=[]))
+        self.assertEqual(fields,before)
+        malformed={'__outfits__':encode(('protobuf',blob(1,parts+blob(7,blob(1,var(45))))))}
+        with self.assertRaises(ValueError):collector.equipped_outfits(malformed)
 
     def test_wrong_save_foreign_member_missing_sim_or_duplicate_roster_reject(self):
         for change in ('save','household','foreign','missing','duplicate','empty','bad-name'):

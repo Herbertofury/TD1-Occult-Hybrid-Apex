@@ -74,6 +74,15 @@ class CandidateTests(unittest.TestCase):
         self.assertFalse((self.profile / 'Mods' / 'ApexTest' / 'old.package').exists())
         self.assert_preserved()
 
+    def test_catalog_snapshot_survives_replacement_as_an_exact_tracked_metadata_file(self):
+        config=self.root/'catalog.json'
+        write_json(config,dict(schema=1,index='catalog.sqlite',index_sha256='a'*64,network_at_runtime=False))
+        profiles.register_catalog_snapshot(self.state,config)
+        result=installer.install(self.state,self.bundle,guard=lambda:None)
+        self.assertTrue(result['ready_to_launch'])
+        self.assertEqual((self.profile/'Mods/Apex/Native/apex-catalog.snapshot.json').read_bytes(),config.read_bytes())
+        self.assert_preserved()
+
     def test_tampered_manifest_wrong_native_pair_and_zip_traversal_refuse_before_writes(self):
         for kwargs in ({'corrupt': True}, {'mismatch': True}, {'unsafe': True}):
             self.make_bundle(**kwargs)

@@ -76,7 +76,9 @@ def install(state, bundle, experimental_ui=False, optional=False, guard=test_pro
     cc_recipes = {CC_ADDON: CC_ASSETS, COLOR_ADDON: COLOR_ASSETS}
     addons = []
     for row in data['artifacts']:
-        if row.get('test_addon') == 'mccc-2026.5.0':
+        if row.get('relative') == 'Apex/Native/apex-catalog.snapshot.json':
+            addons.append(row)
+        elif row.get('test_addon') == 'mccc-2026.5.0':
             addons.append(row)
         elif row.get('test_addon') == 'owner-sliders-presets-v1':
             if ('relative' in row or Path(row['name']).suffix.lower() != '.package' or

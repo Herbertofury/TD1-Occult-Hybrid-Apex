@@ -53,6 +53,30 @@ class ReusableTests(unittest.TestCase):
     def assert_original_untouched(self):
         self.assertEqual(legacy.inventory(self.original), self.original_inventory)
 
+    def test_catalog_config_is_explicitly_hashed_without_ignoring_other_mods(self):
+        self.adopt();source=self.root/'catalog.json'
+        config=dict(schema=1,index=str(self.root/'metadata.sqlite'),index_sha256='a'*64,network_at_runtime=False)
+        write_json(source,config)
+        first=reusable.register_catalog_snapshot(self.state,source)
+        self.assertTrue(first['ok']);self.assertFalse(first['executable_changed'])
+        self.assertTrue(reusable.status(self.state)['ready_to_launch'])
+        self.assertEqual((self.profile/'Mods/Apex/Native/apex-catalog.snapshot.json').read_bytes(),source.read_bytes())
+        config['index_sha256']='b'*64;write_json(source,config)
+        with self.assertRaises(ValueError):reusable.register_catalog_snapshot(self.state,source)
+        second=reusable.register_catalog_snapshot(self.state,source,first['sha256'])
+        self.assertNotEqual(first['sha256'],second['sha256'])
+        bad=self.profile/'Mods'/'unknown.package';bad.write_bytes(b'DBPF unexpected')
+        with self.assertRaises(ValueError):reusable.register_catalog_snapshot(self.state,source,second['sha256'])
+        self.assert_original_untouched()
+
+    def test_catalog_config_cannot_acknowledge_network_fields_or_restore_payloads(self):
+        self.adopt();source=self.root/'catalog.json'
+        config=dict(schema=1,index='catalog.sqlite',index_sha256='a'*64,network_at_runtime=False)
+        for extra in ({'network_at_runtime':True},{'schema':True},{'appearance':{}},{'equipped':{'save_guid':'0'}}):
+            write_json(source,dict(config,**extra))
+            with self.assertRaises(ValueError):reusable.register_catalog_snapshot(self.state,source)
+        self.assert_original_untouched()
+
     def test_adopt_reuse_install_and_read_only_original(self):
         before = legacy.inventory(self.retained)
         self.assertTrue(self.adopt()['ready_to_launch'])

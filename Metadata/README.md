@@ -121,10 +121,12 @@ A search never selects, transforms or equips another Sim.
 
 The separate sidecar stores labels and references, without meshes, images,
 textures, packages, restore payloads or complete Sim exports. Explicit capture
-reads one committed native form per bounded page without activating inactive
+uses the existing validated native owner pages without activating inactive
 forms or generating absent outfits. Every graph generation and the complete
 household roster must remain unchanged through the final check. Valid empty
 native outfits with ID zero are retained. Partial/stale jobs publish no capture.
+The CLI projects detached metadata in memory; complete DTOs are never written
+to the capture file. Its disk output contains compact references only.
 
 ```powershell
 python tools/apex_cli.py catalog-usage --state SESSION.json `
@@ -140,6 +142,11 @@ uses **committed** CAS graphs and persisted names; a pending try-on or unsaved
 rename is not included. Refresh after committing edits. Automatic capture on
 production CAS/Live/Tray changes and an integrated refresh button remain
 unfinished. No hidden service or watcher is installed.
+Track the generated config in that profile with `apex_cli.py profile
+catalog-snapshot --state SESSION.json --source CONFIG.json`. Replacing it
+requires `--expected-previous-sha256` of the tracked config. Other unknown or
+changed mod files still block launch/control. Candidate updates preserve this
+explicit config; changing metadata requires no additional game reload.
 
 `usage-import --previous equipped.sqlite --previous-sha256 SHA256` retains other
 captured households in the same save while atomically replacing the complete
@@ -163,7 +170,19 @@ query work is 0.368–0.783 ms after opening the index. These worker measurement
 do not establish end-to-end CAS latency. Most EA references in this older
 catalogue have competing source entries and remain unqualified for equipped
 attribution until effective-resource hashes are captured. Actual-game use of
-the new capture command/search UI remains a separate pending gate.
+the capture command and native Sim/household/type/form/outfit searches now
+passes on the five-member household. Names remain readable and the selected
+Sim and save files remain unchanged. Native CAS retains its current category
+feed: two CC references used by other members are indexed but their swatches
+do not yet map to a visible parent card. That mapping is an open defect;
+unrestricted F11 browsing remains a separate actual-game qualification gate.
+
+V271 also exposes a direct CAS-exit service failure after browsing body hair.
+The actual EA checkmark, activated once through window-addressed background
+input, returns to Live. All forty appearances and 155 named looks are retained,
+with every save/backup unchanged. The pending household journal must still be
+completed through the normal checked review path before Studio can edit. Do
+not bypass that guard or treat the failed direct-service return as a pass.
 
 ### Other catalogue checks
 

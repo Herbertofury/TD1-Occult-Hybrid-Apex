@@ -1116,3 +1116,25 @@ The first return harness incorrectly treated the expected explicit-review outcom
 ### V263 quiet native portrait presentation
 
 A quiet V263 pass verifies actual background portrait switches from member one to five and back, with no semantic claims during each settling interval. EA link/copy controls become ready 1,066 and 1,166 ms after CASSetSimInfo notification. All 195 fields and saved files remain unchanged, desktop focus stays fixed, and idle setup frames stop. Click-to-notification time is not measured. These samples do not form an A/B comparison with the earlier contaminated 21–23 second observations, and they do not meet the responsiveness goal. See [the scoped timing report](../Reports/CAS_MEMBER_QUIET_V263.json).
+
+### V264–V266: pair acknowledgement and native search placement
+
+V263's complete CI run 39696227324 passes 2,614 Python checks and all fifteen
+native targets at bfe3ae7. This supersedes its earlier pending-CI note; it does
+not qualify later source changes. V264 checks the exact immediate pair-renderer
+acknowledgement. Its two quiet actual switches retain all 195 captured fields,
+but readiness remains 1,105 and 1,100 ms. Do not claim that this resolves lag.
+The no-edit return retains all forty native appearances before and after
+disposition and all 155 named looks, followed by a normal unsaved exit.
+
+V265 builds an editable field at the native Filter Items location, with the
+existing toggle/chips and native cards. The matching game retains all forty
+native appearances after reload and all 195 records on normal full-CAS entry.
+A backbuffer capture confirms the bar's visible placement. The first search
+test fails before submitting a query: the initial native source rows are not
+admitted. V266 queues that UI-owned source, then checks Sim, form, generation,
+category and actual visible feed in the idle phase. It keeps native eligibility,
+card/swatches and appearance setters unchanged. Corrected actual search, input,
+selection, context transitions, broker startup and large-library tests remain
+open. See [V264 timing](../Reports/CAS_MEMBER_QUIET_V264.json) and the
+[V265 search failure](../Reports/CAS_NATIVE_SEARCH_V265.json).

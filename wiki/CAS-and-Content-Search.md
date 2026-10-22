@@ -4,13 +4,49 @@
 ### Find the item you recognize. Keep the identity you can verify.
 
 > **Development reference · October 21, 2026**<br>
-> The metadata backend, typo planning and native background transport are implemented. A schema-5 real-CC lookup through the native worker also passed: five packages, 62 CASPs and five item families; typo + creator + type + CC filtering returned the correct lipstick package with 30 grouped swatches. The new native CAS search presentation and its real card-selection proof remain unfinished. Do not interpret this design as a shipped search bar.
+> The metadata backend, typo planning and native background transport are implemented. A schema-5 real-CC lookup through the native worker also passed: five packages, 62 CASPs and five item families; typo + creator + type + CC filtering returned the correct lipstick package with 30 grouped swatches. V265 builds the editable field in the native filter pane and connects it to the existing eligible card feed. Actual field placement, typing, result selection and large-library qualification remain open. This is development evidence, not a release claim.
 
 ## The intended workspace
 
 Search belongs in the existing **Filter Items…** bar immediately below the native category title, as requested in the Shoes example. Keep native filter chips and their ordinary filter-panel access alongside the editable query; do not move this into another floating window. Typing, cursor keys, selection and clearing must remain owned by the text field while it has focus. Type a recognizable item name, part of a `.package` filename or internal code; narrow by creator, CAS type and EA/CC origin. Keep ordinary native cards and swatches, a visible result count, an obvious clear action and a clear explanation when fuzzy matching corrected a term.
 
 Arrow keys are being added for actual card navigation: Left/Right, Up/Down using the actual column count, Home/End, Page Up/Down and Enter through the native card-click route. A focus outline is distinct from the equipped selection. Input fields retain normal cursor behavior. Keyboard handling must not steal a dialog's keys, change a different Sim or equip an item merely because the focus moved.
+
+### Native filter-pane implementation under qualification
+
+The editable field is attached to the native category's filter pane, immediately
+above its existing chips. Its clear button restores the original native feed.
+The normal filter toggle and chips keep their original handlers. Enter submits
+the current search intent; Escape clears it. Cursor movement and text selection
+belong to the input while it has focus.
+
+Search accepts readable/internal names and package-name terms. Optional fields
+include `author:"Magic Hand"`, `type:29` and `origin:cc` or `origin:ea`.
+The current native category, filters and eligibility still determine which
+cards can appear. A metadata hit is resolved through the game's catalog, then
+intersected with the exact current native feed. Apex does not construct a new
+product from a filename or introduce another equip path. Native cards retain
+their original thumbnails, swatches, selection and undo handlers.
+
+Typing records one latest intent with a short debounce. The DLL worker performs
+metadata queries; the UI resolves at most one returned resource per idle frame.
+Changing the Sim, appearance, generation, category or feed invalidates old
+results. Replacing the visible result list clears queued card navigation so an
+old Enter cannot select a new item at the previous index. A missing metadata
+broker reports an unavailable search and leaves the native cards intact.
+
+`cas catalog-search --text 'lipstik author:"Magic Hand" origin:cc'` controls the same
+field. Its acknowledgement proves the text/intent only; use subsequent status
+to verify completed results. Search does not edit a Sim. The development broker
+currently needs a separately started, verified metadata index; automatic
+distribution/startup and the full EA/CC-library UI test remain release gaps.
+
+The first V265 game test confirms the field's location beside the native filter
+toggle, above the native chips and cards. It fails before submitting a query:
+the source rows are not admitted during the initial panel transition. V266
+defers that admission and checks the exact visible feed and Sim/form context.
+The failed test is retained in the [scoped report](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_NATIVE_SEARCH_V265.json);
+search completion remains unqualified until the corrected build passes.
 
 ## Why an index is necessary
 

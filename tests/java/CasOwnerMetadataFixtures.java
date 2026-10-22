@@ -17,6 +17,7 @@ public class CasOwnerMetadataFixtures {
         CasBytecodePatch.verifyOwnerMetadataReadback(abc,instance);
         CasBytecodePatch.verifyCatalogVariantReadback(abc,instance);
         CasBytecodePatch.verifySettledOwnerBootstrap(abc,instance);
+        CasBytecodePatch.verifyImmediatePairAcknowledgement(abc,instance);
         CasBytecodePatch.verifyPresentationBootstrap(abc,instance);
         CasBytecodePatch.verifyOwnerObservation(abc,instance);
     }
@@ -28,6 +29,26 @@ public class CasOwnerMetadataFixtures {
         var rows=body.getCode().code;int p=CasBytecodePatch.uniqueLiteral(abc,body,"POLL|");
         switch(key) {
             case "exact":break;
+            case "pair-refresh-read":case "pair-refresh-generation":case "pair-refresh-identity":
+            case "pair-refresh-protocol":case "pair-refresh-enabled":case "pair-refresh-signature": {
+                var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
+                var target=CasBytecodePatch.ownedBody(abc,instance,"ApexFormsOwnedTick");
+                boolean afterBind=false,afterRefresh=false;int changes=0;
+                String replaced=key.equals("pair-refresh-generation")?"apexFormsNativeGeneration":
+                    key.equals("pair-refresh-identity")?"sim_id":key.equals("pair-refresh-protocol")?"protocol":"enabled";
+                for(var row:target.getCode().code) {
+                    if(CasBytecodePatch.stringLiteral(abc,row,"SetSimOccult"))afterBind=true;
+                    if(afterBind&&(CasBytecodePatch.property(abc,row,0x46,"CallUIService")||CasBytecodePatch.property(abc,row,0x4f,"CallUIService")))afterRefresh=true;
+                    if(!afterRefresh)continue;
+                    boolean read=key.equals("pair-refresh-read")&&(CasBytecodePatch.property(abc,row,0x46,"ApexFormsReadNativeState")||CasBytecodePatch.property(abc,row,0x4f,"ApexFormsReadNativeState"));
+                    boolean signature=key.equals("pair-refresh-signature")&&CasBytecodePatch.property(abc,row,0x61,"apexPairSignature");
+                    boolean guard=!key.equals("pair-refresh-read")&&!key.equals("pair-refresh-signature")&&
+                        (CasBytecodePatch.property(abc,row,0x60,replaced)||CasBytecodePatch.property(abc,row,0x66,replaced));
+                    if(read||signature||guard) {row.operands[0]=member(abc,read?"ApexFormsObservedSim":signature?"apexFormsSignature":"apexLastId");changes++;}
+                }
+                if(changes<1)throw new AssertionError("No immediate pair acknowledgement mutation: "+key);
+                target.setModified();break;
+            }
             case "frame-call":case "frame-gate":case "frame-write":case "frame-ready":case "frame-cleanup":case "frame-deadline":case "frame-cli-event":case "frame-cli-yield":
             case "frame-native-ready":case "frame-target-ready":case "notify-call":case "notify-lifetime":case "notify-write":case "notify-listener":case "notify-restart":case "notify-bound-return": {
                 var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));

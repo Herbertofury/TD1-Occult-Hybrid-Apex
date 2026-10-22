@@ -39,6 +39,7 @@
          apexCatalogSelectionFrames=0;apexCatalogSelectionMaxMs=0;apexCatalogSelectionOverBudget=0;
          ApexEquippedInitialize();
          ApexCatalogKeyboardInitialize();
+         ApexSearchInitialize();
          try {
             apexCatalogStore=flash.net.SharedObject.getLocal("TD1ApexCASCatalog");
             if(apexCatalogStore!=null && (apexCatalogStore.data.version===1 || apexCatalogStore.data.version===2))
@@ -116,6 +117,7 @@
       {
          ApexEquippedDispose();
          ApexCatalogKeyboardDispose();
+         ApexSearchDispose();
          removeEventListener(flash.events.Event.ENTER_FRAME,ApexCatalogFrame);
          if(stage!=null) {
             stage.removeEventListener(flash.events.MouseEvent.MOUSE_MOVE,ApexCatalogSlide);
@@ -237,7 +239,7 @@
                }
             } catch(catalogError:Error) {apexCatalogError=catalogError.message;ApexCatalogDraw();}
          }
-         if(apexPendingFields==null && !apexReceiving) {ApexEquippedFrame();ApexCatalogKeyboardFrame();}
+         if(apexPendingFields==null && !apexReceiving) {ApexEquippedFrame();ApexSearchFrame();ApexCatalogKeyboardFrame();}
          } catch(frameError:Error) {
             apexCatalogError="Catalog display paused: "+frameError.message;
             removeEventListener(flash.events.Event.ENTER_FRAME,ApexCatalogFrame);
@@ -528,5 +530,5 @@
                published:apexEquippedPublication==null ? 0 : int(apexEquippedPublication.count),
                pending:apexEquippedActive && apexEquippedRefreshPending,unresolved:apexEquippedUnresolved,timing:apexEquippedTiming},
             keyboard:{received:apexKeyReceived,last_code:apexKeyLastCode,rejected:apexKeyRejected,visibility:ApexCatalogKeyboardVisibility(),typing:ApexCatalogKeyboardTyping(),focused_name:stage==null || stage.focus==null ? "" : String(stage.focus.name),index:apexKeyIndex,context:apexKeyContext,pending:apexKeyIntent,queued:apexKeyQueue==null ? 0 : apexKeyQueue.length,receipt:ApexClone(apexKeyReceipt),message:apexKeyMessage},
-            native_catalog_timing:apexCatalogPerformance,owned_frame_timing:apexCatalogFrameTiming};
+            search:ApexSearchStatus(),native_catalog_timing:apexCatalogPerformance,owned_frame_timing:apexCatalogFrameTiming};
       }

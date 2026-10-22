@@ -563,7 +563,18 @@
             ApexFormsReadNativeState();
             ApexFormsBindUiKind();
             busy=apexFormsDesiredId!="";
-            if(!busy) CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:true});
+            if(!busy) {
+               // A synchronous bind already refreshed EA's real pair here.
+               // Acknowledge that exact pair now instead of leaving its old
+               // generation to wait for the next network/timer-owned tick.
+               pairSignature=apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration;
+               portraits=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:true});
+               if(portraits!=null && portraits.protocol===1 && portraits.enabled===true &&
+                  portraits.sim_id===apexBoundSim && ApexFormsReadNativeState() &&
+                  apexFormsNativeState=="bound" && apexFormsDesiredId=="" &&
+                  pairSignature===apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration)
+                  apexPairSignature=pairSignature;
+            }
          }
          if(apexFormsCatalog==null || apexFormsCatalog.sim_id!=apexBoundSim) {
             apexFormsCatalog={sim_id:apexBoundSim,icons:{}};

@@ -1,10 +1,10 @@
 {
-  "build_epoch": "2026-10-21-saved-named-upgrade-v263",
+  "build_epoch": "2026-10-21-deferred-search-feed-v266",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-21-saved-named-upgrade-v263.zip",
-    "bytes": 3879892,
+    "artifact": "Apex_Development_Candidate_2026-10-21-deferred-search-feed-v266.zip",
+    "bytes": 3884462,
     "members": 28,
-    "sha256": "7d2486888ed59338b72b90e576f105ff28c02cbccb5844070c0f0d111fd0691d"
+    "sha256": "a84bb7198019eefad91dac15dcbc8a3ca69cd22bfe61eed4af339ae63b9b18df"
   },
   "compiled_script_modules": 105,
   "deployed": false,
@@ -31,9 +31,9 @@
       "sha256": "c0d068392ea65358b798b8c165103560f06e9e3b38c4ab4e2d8810a7b931af86"
     },
     {
-      "bytes": 9954,
+      "bytes": 10090,
       "file": "Manifests/ApexCASBridge.package.manifest.json",
-      "sha256": "0c998905140ba50004924aa4a786d89cd21c02c6fd791db75f888233df8be3e8"
+      "sha256": "0699913f6fb2ca023cd5fb3c265a4baaae9cec0de2dc792eb1d2fad36aec469e"
     },
     {
       "bytes": 18738,
@@ -53,7 +53,7 @@
     {
       "bytes": 56557,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "9e52c194ba1cc1f607ac5ffcaee9c4a0d51c7dfa3dab20d1f123f07f8832dbea"
+      "sha256": "1c491e5c1d4b46c1fda065e0b3c175327485abdbbabc7f4226d1d8e97c9f3403"
     },
     {
       "bytes": 1506,
@@ -86,9 +86,9 @@
       "sha256": "eecf46ce7850a439dd8f7f78d7ca1bc2cbabe2a0a222225c210151a2ad3d955f"
     },
     {
-      "bytes": 402379,
+      "bytes": 406179,
       "file": "Mods/Apex/ApexCASBridge.package",
-      "sha256": "59e420dbc85c97f17e1873a7de8bc14e1939dc4386b9cb1b4c8b9b7927479c68"
+      "sha256": "fab1d62a1957b11408be51a816cf530cf5b75866b28798eed5c6a9e5167f8a8a"
     },
     {
       "bytes": 16550,
@@ -101,9 +101,9 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 1024894,
+      "bytes": 1025555,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "36fa7f3d9db30dc13502c1b3b16a939055a649b8f419c2b18bb589892cb9307d"
+      "sha256": "e36b11156543b1fb5242299193f3f9929c2cbac8b31493d3bf7187454712ce98"
     },
     {
       "bytes": 2468352,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "8c8fd11c8ddba317d742361cb8c25ca0f5a7ded1719f56ff98efef83bad1f014"
+      "sha256": "8239ccdda80259bf9021af3ab8e2100f7def4131e1a6702d480c3302aa745219"
     },
     {
       "bytes": 424,

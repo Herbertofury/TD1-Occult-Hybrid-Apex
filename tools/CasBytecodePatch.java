@@ -794,6 +794,25 @@ public class CasBytecodePatch {
         require(property(abc,rows.get(i+1),0x60,"apexFormsBootstrap") && opcode(rows.get(i+2),0x96) &&
             opcode(rows.get(i+3),0x12),"Native bootstrap rebinds an already-bound owner.");
     }
+    static void verifyImmediatePairAcknowledgement(ABC abc,InstanceInfo instance) {
+        var rows=ownedBody(abc,instance,"ApexFormsOwnedTick").getCode().code;
+        int bind=-1,refresh=-1,read=-1,assignment=-1;
+        for(int i=0;i<rows.size();i++) {
+            var row=rows.get(i);
+            if(stringLiteral(abc,row,"SetSimOccult"))bind=i;
+            if(bind>=0&&i>bind&&(property(abc,row,0x46,"CallUIService")||property(abc,row,0x4f,"CallUIService")))refresh=i;
+            if(refresh>=0&&i>refresh&&(property(abc,row,0x46,"ApexFormsReadNativeState")||property(abc,row,0x4f,"ApexFormsReadNativeState")))read=i;
+            if(refresh>=0&&i>refresh&&property(abc,row,0x61,"apexPairSignature"))assignment=i;
+        }
+        require(bind>=0&&refresh>bind&&read>refresh&&assignment>read,
+            "Immediate native pair refresh must acknowledge its fresh bound state without another polling tick.");
+        var required=Set.of("protocol","enabled","sim_id","apexBoundSim","apexFormsNativeState",
+            "apexFormsDesiredId","apexFormsSelectedId","apexFormsNativeGeneration");
+        var observed=new HashSet<String>();
+        for(int i=refresh+1;i<assignment;i++) for(String name:required)
+            if(property(abc,rows.get(i),0x60,name)||property(abc,rows.get(i),0x66,name))observed.add(name);
+        require(observed.equals(required),"Immediate pair readiness lacks its typed exact-Sim/owner/generation acknowledgement.");
+    }
     static void verifyExactItemSelection(ABC abc, InstanceInfo instance) {
         var code=ownedBody(abc,instance,"ApexExecute").getCode().code;
         boolean earrings=false, expectedBody=false, exactSwatch=false;
@@ -1359,6 +1378,7 @@ public class CasBytecodePatch {
                     !propertyCalls(compiled,after).contains("SelectAll") && !propertyCalls(compiled,after).contains("SetSelectionState"),
                     "Progressive equipped selection must update only the newly appended index, not redraw all previous cards.");
             if(method.getKey().equals("RequestData")) {
+                uniqueLiteral(compiled,after,"ApexCatalogSearchSource");
                 boolean timer=false;
                 for(var op:after.getCode().code)if(op.definition.instructionCode==0x5d || op.definition.instructionCode==0x60) {
                     var q=compiled.constants.getMultiname(op.operands[0]);
@@ -1384,6 +1404,39 @@ public class CasBytecodePatch {
             body.init_scope_depth+=delta;body.max_scope_depth+=delta;body.setCode(body.getCode());result.add(body);
         }
         require(result.size()==6,"Equipped adapter inventory differs.");return result;
+    }
+    static void verifyNativeCatalogSearch(ABC abc,InstanceInfo instance) {
+        var forbidden=Set.of("CallGameService","CallUIService","ApexNativeExchange","ApexSearchPublish",
+            "RemoveAllItems","AddItemsFromIterable","Refresh","RequestData");
+        for(String method:List.of("ApexSearchChanged","ApexSearchText","ApexSearchClear","ApexSearchKey","ApexSearchSource"))
+            require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,method)),forbidden),
+                "Search input/source callbacks perform catalog or native work: "+method);
+        var publish=ownedBody(abc,instance,"ApexSearchPublish");
+        require(Collections.disjoint(propertyCalls(abc,publish),Set.of("CallGameService","CallUIService","ApexNativeExchange")) &&
+            propertyCalls(abc,publish).containsAll(Set.of("ApexSearchContext","RemoveAllItems","AddItemsFromIterable","UpdateSelections")),
+            "Search publication must only filter the original native feed and its selection display.");
+        for(String member:List.of("context","panel","rows","feed","matches","body_type","data_id","apexEquippedActive")) {
+            boolean found=false;
+            for(var op:publish.getCode().code) found|=property(abc,op,0x66,member)||property(abc,op,0x60,member);
+            require(found,"Search publication lost its eligibility/context gate: "+member);
+        }
+        for(String member:List.of("apexKeyQueue","apexKeyIntent","apexKeyIndex","apexKeyItem")) {
+            boolean found=false;
+            for(var op:publish.getCode().code) found|=property(abc,op,0x61,member)||property(abc,op,0x68,member);
+            require(found,"Search publication retains a stale keyboard selection: "+member);
+        }
+        var adopt=ownedBody(abc,instance,"ApexSearchAdopt");
+        require(Collections.disjoint(propertyCalls(abc,adopt),Set.of("CallGameService","CallUIService","ApexNativeExchange")),
+            "Deferred source adoption cannot perform native queries or writes.");
+        for(String member:List.of("feed","state","sim","owner","generation","apexBoundSim","apexFormsSelectedId","apexFormsNativeGeneration")) {
+            boolean found=false;
+            for(var op:adopt.getCode().code)found|=property(abc,op,0x66,member)||property(abc,op,0x60,member);
+            require(found,"Deferred source adoption lost its exact native context: "+member);
+        }
+        var frame=ownedBody(abc,instance,"ApexSearchFrame");
+        uniqueLiteral(abc,frame,"GetCatalogItem");
+        require(propertyCalls(abc,frame).containsAll(Set.of("ApexSearchContext","ApexNativeExchange","ApexEquippedDecimal","ApexSearchPublish")),
+            "Search worker lacks exact owner/resource resolution or native feed publication.");
     }
     public static void main(String[] args) throws Exception {
         require(args.length == 3, "Use original SWF, compiler SWF, output ABC.");
@@ -1414,7 +1467,7 @@ public class CasBytecodePatch {
             "apexCardPrefs","apexCardGeometry","apexCardLayout","apexCardReflowAttempts",
             "apexCatalogFrameCells","apexEquippedActive","apexEquippedOpening","apexEquippedProducts","apexEquippedBindings","apexEquippedDirty",
             "apexEquippedIndex","apexEquippedRefreshPending","apexEquippedInteraction","apexEquippedServices","apexEquippedUnresolved",
-            "apexCatalogPerformance","apexCatalogFrameTiming",
+            "apexCatalogPerformance","apexCatalogFrameTiming","apexSearch",
             "apexEquippedTiming",
             "apexEquippedRetirePending",
             "apexEquippedPublication",
@@ -1434,6 +1487,9 @@ public class CasBytecodePatch {
             "ApexCatalogView", "ApexCatalogSliderCommand", "ApexCatalogInvalidate", "ApexCatalogObserveBinding", "ApexCatalogApplyBinding",
             "ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback",
             "ApexCatalogKeyboardVisibility","ApexCatalogKeyboardTyping","ApexCatalogKeyboardInput","ApexCatalogKeyboardCommand","ApexCatalogKeyboardInitialize","ApexCatalogKeyboardDispose","ApexCatalogKeyDown","ApexCatalogKeyboardFrame",
+            "ApexSearchInitialize","ApexSearchContext","ApexSearchRestore","ApexSearchDispose","ApexSearchReset","ApexSearchSource","ApexSearchAdopt",
+            "ApexSearchText","ApexSearchChanged","ApexSearchClear","ApexSearchKey","ApexSearchLabels","ApexSearchFocus",
+            "ApexSearchAttach","ApexSearchQuery","ApexSearchPublish","ApexSearchFrame","ApexSearchStatus",
               "ApexCatalogCells","ApexEquippedInitialize","ApexEquippedDispose","ApexEquippedNavigation","ApexCatalogPerformance",
             "ApexEquippedRefresh","ApexEquippedOpen","ApexEquippedFrame","ApexEquippedResolve","ApexEquippedKey","ApexEquippedDecimal","ApexEquippedPrepare","ApexEquippedClick",
             "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus", "ApexPairPanel");
@@ -1480,7 +1536,9 @@ public class CasBytecodePatch {
         verifyPresentationBootstrap(compiled,newClass);
         verifyCatalogVariantReadback(compiled,newClass);
         verifySettledOwnerBootstrap(compiled,newClass);
+        verifyImmediatePairAcknowledgement(compiled,newClass);
         verifyCatalogWorkspace(compiled,newClass);
+        verifyNativeCatalogSearch(compiled,newClass);
         MethodBody nativeInit = null, compilerInit = null, nativeUnload = null, compilerUnload = null;
         for (Trait trait : nativeClass.instance_traits.traits) {
             String key = name(original, trait);
@@ -1593,7 +1651,9 @@ public class CasBytecodePatch {
         verifyPresentationBootstrap(serialized,serialized.instance_info.get(oi));
         verifyCatalogVariantReadback(serialized,serialized.instance_info.get(oi));
         verifySettledOwnerBootstrap(serialized,serialized.instance_info.get(oi));
+        verifyImmediatePairAcknowledgement(serialized,serialized.instance_info.get(oi));
         verifyCatalogWorkspace(serialized,serialized.instance_info.get(oi));
+        verifyNativeCatalogSearch(serialized,serialized.instance_info.get(oi));
         require(Arrays.equals(heightAdapter.getCodeBytes(),serialized.findBody(heightAdapter.method_info).getCodeBytes()),
             "Serialized owned card getter changed.");
         for(var body:equippedBodies)require(Arrays.equals(body.getCodeBytes(),serialized.findBody(body.method_info).getCodeBytes()),

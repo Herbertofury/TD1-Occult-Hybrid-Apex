@@ -119,9 +119,17 @@ def inject_feed(source):
     source=replace_once(source,'   import gamedata.CAS.CASAPI;',
         '   import flash.utils.getTimer;\n   import gamedata.CAS.CASAPI;')
     source=prepend(source,'      public function RequestData(param1:CASCatalogFilter, param2:Boolean = true, param3:Object = null) : void',
-        '         var apexStarted:int=flash.utils.getTimer();\n')
+        '         var apexStarted:int=flash.utils.getTimer();\n         var apexSearchService:String="ApexCatalogSearchSource";\n')
     anchor='         var _loc4_:Array = CASAPI.GetCatalogBaseItemsUsingFilter(param1,param3);'
     source=replace_once(source,anchor,'         var apexFetchStarted:int=flash.utils.getTimer();\n'+anchor)
+    source=replace_once(source,'''         if(_loc4_ == null || _loc4_.length == 0)
+         {
+            return;
+         }''','''         if(_loc4_ == null || _loc4_.length == 0)
+         {
+            if(_loc4_ != null) CommunicationManager.CallUIService(apexSearchService,{state:param1.menuState,feed:this,rows:[],selected:[]});
+            return;
+         }''')
     source=replace_once(source,'         OlympusObject.ConstructArrayInPlace(_loc4_,CASCatalogProduct);',
         '         var apexNative:int=flash.utils.getTimer();\n         OlympusObject.ConstructArrayInPlace(_loc4_,CASCatalogProduct);\n         var apexConstructed:int=flash.utils.getTimer();')
     source=replace_once(source,'         AddItemsFromIterable(_loc4_);',
@@ -131,6 +139,7 @@ def inject_feed(source):
       }'''
     source=replace_once(source,anchor,'''            this.RequestSelectedItem(param1);
          }
+         CommunicationManager.CallUIService(apexSearchService,{state:param1.menuState,feed:this,rows:_loc4_,selected:GetSelectedIndices()});
          CommunicationManager.CallUIService("ApexCatalogPerformance",{state:param1.menuState,count:_loc4_.length,
             clear_ms:apexFetchStarted-apexStarted,native_ms:apexNative-apexFetchStarted,
             construct_ms:apexConstructed-apexNative,bind_ms:apexBound-apexConstructed,

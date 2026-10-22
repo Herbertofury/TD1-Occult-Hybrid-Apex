@@ -4,6 +4,7 @@ Pagination bounds each transport packet, not the complete catalog or history.
 Native null, refusal and unresolved writes remain explicit outcomes.
 """
 import math
+from urllib.parse import quote
 
 
 class PostconditionMismatch(ValueError):
@@ -14,12 +15,13 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
 PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'))
 SCHEMAS = {
+    'catalog-search': {'operation','text'},
     'catalog-cards': {'operation','card_scale','gap_x','gap_y'},
     'catalog-card-reset': {'operation'},
     'catalog-key': {'operation','key'},
@@ -87,6 +89,14 @@ def wire(request, panel):
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
+    if op == 'catalog-search':
+        text=request['text']
+        if not isinstance(text,str) or len(text)>160 or any(ord(c)<32 or ord(c)==127 for c in text):
+            raise ValueError('Search accepts up to 160 printable characters.')
+        value=quote(text,safe='')
+        if len(value)>350:
+            raise ValueError('Encoded search exceeds the bounded CLI frame.')
+        return 0,0,0,value
     if op in ('catalog-open','catalog-card-reset'):
         return 0,0,0,''
     if op == 'catalog-cards':
@@ -257,6 +267,13 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
+    if op == 'catalog-search':
+        search=control.get('workspace',{}).get('search',{})
+        if (control.get('appearance_written') is not False or search.get('available') is not True or
+                search.get('text')!=request['text'] or search.get('appearance_written') is not False):
+            raise PostconditionMismatch('Native search field did not acknowledge the exact query.')
+        # This acknowledges the field/intent, not completed asynchronous results.
+        return
     if op in ('catalog-key','catalog-input'):
         injected=op=='catalog-input';enter=injected and request['key']=='enter'
         workspace=control.get('workspace',{});keyboard=workspace.get('keyboard',{})

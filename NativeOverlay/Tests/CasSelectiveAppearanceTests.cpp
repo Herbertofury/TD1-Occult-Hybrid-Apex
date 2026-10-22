@@ -31,6 +31,13 @@ std::string Packet(unsigned seed){
 std::string F(const std::string& p,unsigned n){return w::One(w::Fields(p),n,2).value;}
 int main(){try{
     const auto target=Packet(1000),source=Packet(2000);
+    const auto inventory=s::EquippedInventory(target);
+    Check(inventory.size()==3 && inventory[0].category==0 && inventory[1].ordinal==1 &&
+        inventory[1].id==10001 && inventory[2].category==1 && inventory[2].ordinal==0 &&
+        inventory[0].parts.rows[4][4]==2 && inventory[0].parts.rows[4][3]==105);
+    const auto empty=s::EquippedInventory(w::Bytes(21,w::Bytes(1,V(2,0))));
+    Check(empty.size()==1 && empty[0].id==0 && empty[0].parts.rows.empty());
+    Refuses([&]{s::EquippedInventory(w::Bytes(21,w::Bytes(1,V(2,256))));});
     const auto equipped=s::Equipped(target,0,1);
     Check(equipped.rows.size()==5 && equipped.rows[0][0]==1002 && equipped.rows[3][1]==45 && equipped.rows[4][4]==2);
     Check(s::Equipped(target,1,0).rows.size()==5);

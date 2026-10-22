@@ -28,6 +28,22 @@ The following assessment comes from that package inspection. The [author's featu
 
 ## Why this is a merge rather than another installed override
 
+### V270 code now implemented; gameplay qualification pending
+
+Apex now includes a native-category companion toolbar and the donor's inspected
+right-button interaction pattern: favorite toggles, favorite-only browsing,
+reversible hiding, hidden-only browsing, recent choices and random eligible
+favorites. Preferences store stable catalogue keys, never Sim appearance data.
+They flush after idle rather than inside an input event. Badges touch recycled
+visible cells; queued actions retain their exact Sim, form, generation and feed.
+
+CAS animation pause/play, a typing-aware Space shortcut, edge dragging for the
+existing Apex column layout and Ctrl+Shift+2 reset are also implemented. Apex's
+card size, spacing and selection styling remain in place. The text inventory
+remains an additional view. These code paths are not yet equivalent to a full
+donor merge: saved outfits, background/alpha controls, additional panel coverage,
+eye/swatches and numeric skin brightness still need implementation/qualification.
+
 The donor changes the CAS Customizer and shared UI library resources that Apex also depends on. Loading both wholesale would leave resource order to choose a winner. It would not combine independent appearance handling, column work and the donor's drawers.
 
 Apex's build process grafts inspected changes into the exact installed UI and checks that unrelated methods remain intact. Useful donor behavior should enter through that process, with narrow additions and explicit native service contracts. Raw shared-library replacement is not evidence of a correct integration.

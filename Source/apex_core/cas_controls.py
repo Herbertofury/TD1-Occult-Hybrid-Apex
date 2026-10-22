@@ -4,6 +4,7 @@ Pagination bounds each transport packet, not the complete catalog or history.
 Native null, refusal and unresolved writes remain explicit outcomes.
 """
 import math
+import re
 from urllib.parse import quote
 
 
@@ -15,13 +16,14 @@ READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'm
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
 PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'))
 SCHEMAS = {
     'catalog-search': {'operation','text'},
+    'catalog-companion': {'operation','action','data_id'},
     'catalog-cards': {'operation','card_scale','gap_x','gap_y'},
     'catalog-card-reset': {'operation'},
     'catalog-key': {'operation','key'},
@@ -89,6 +91,16 @@ def wire(request, panel):
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
+    if op == 'catalog-companion':
+        action=request['action'];data=request['data_id']
+        if action not in ('all','favorites','recent','hidden','hide-mode','toggle-favorite','toggle-hidden','random-favorite','pause','play','refresh-search','columns-reset'):
+            raise ValueError('Choose an explicit native companion action.')
+        if action in ('toggle-favorite','toggle-hidden'):
+            if not isinstance(data,str) or not re.fullmatch(r'[1-9][0-9]{0,19}',data) or int(data)>0xffffffffffffffff:
+                raise ValueError('Choose an exact native item identity.')
+        elif data is not None:
+            raise ValueError('Only an item toggle accepts a catalogue identity.')
+        return 0,0,0,action+','+(data or '')
     if op == 'catalog-search':
         text=request['text']
         if not isinstance(text,str) or len(text)>160 or any(ord(c)<32 or ord(c)==127 for c in text):
@@ -136,7 +148,6 @@ def wire(request, panel):
             raise ValueError('Use static, pulse or flash selection styling.')
         return 0,0,0,','.join(values+[request['animation']])
     if op in ('pair-link','pair-copy'):
-        import re
         names=('owner_id',) if op=='pair-link' else ('source_owner_id','target_owner_id')
         for name in names:
             if not isinstance(request[name],str) or re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',request[name]) is None:
@@ -153,13 +164,11 @@ def wire(request, panel):
             value+=','+str(flags)
         return 0,0,0,value
     if op == 'form-menu':
-        import re
         family = request['family']
         if not isinstance(family, str) or re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}', family) is None:
             raise ValueError('Choose all or one exact returned life-state family.')
         return 0, 0, 0, family
     if op == 'form-owner-select':
-        import re
         owner = request['owner_id']
         if not isinstance(owner, str) or re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}', owner) is None:
             raise ValueError('Use the exact existing independent form owner identity.')
@@ -267,6 +276,30 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
+    if op == 'catalog-companion':
+        companion=control.get('workspace',{}).get('companion',{})
+        appearance=request['action']=='random-favorite'
+        if (companion.get('available') is not True or companion.get('pending') is not False or
+                companion.get('appearance_written') is not False or control.get('appearance_write_possible') is not appearance):
+            raise PostconditionMismatch('Companion action lacks an exact settled native catalogue result.')
+        receipt=companion.get('receipt',{})
+        if (not isinstance(receipt,dict) or not isinstance(client.get('sim',{}).get('simId'),str) or
+                not isinstance(client.get('form_strip',{}).get('selected_owner_id'),str) or
+                receipt.get('action')!=request['action'] or
+                receipt.get('data_id')!=(str(request.get('data_id')) if request.get('data_id') is not None else '') or
+                receipt.get('sim_id')!=client.get('sim',{}).get('simId') or
+                receipt.get('owner_id')!=client.get('form_strip',{}).get('selected_owner_id')):
+            raise PostconditionMismatch('Companion acknowledgement belongs to another action, item or appearance.')
+        if request['action'] in ('toggle-favorite','toggle-hidden'):
+            key=receipt.get('key','');inventory=companion.get('favorites' if request['action']=='toggle-favorite' else 'hidden',[])
+            if (not isinstance(key,str) or not key.endswith('/'+str(request['data_id'])) or type(receipt.get('enabled')) is not bool or
+                    (key in inventory) is not receipt['enabled']):
+                raise PostconditionMismatch('Companion preference toggle lacks its exact resulting membership.')
+        if request['action'] in ('all','favorites','recent','hidden') and companion.get('mode')!=request['action']:
+            raise PostconditionMismatch('The requested native catalogue view was not selected.')
+        if request['action']=='play' and companion.get('paused') is not False:
+            raise PostconditionMismatch('CAS playback did not resume.')
+        return
     if op == 'catalog-search':
         search=control.get('workspace',{}).get('search',{})
         if (control.get('appearance_written') is not False or search.get('available') is not True or
@@ -369,7 +402,6 @@ def validate(client, request):
             raise PostconditionMismatch('Equipped catalog lacks the exact current Sim/form inventory.')
         return
     if op in ('pair-link','pair-copy'):
-        import re
         pair=control.get('pair')
         flags=request.get('category_flags',2**32-1)
         if (control.get('acknowledged') is not True or control.get('scope')!=('whole-appearance' if flags==2**32-1 else 'selected-categories') or

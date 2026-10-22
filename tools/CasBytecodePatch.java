@@ -1470,6 +1470,27 @@ public class CasBytecodePatch {
         require(propertyCalls(abc,frame).containsAll(Set.of("ApexSearchContext","ApexNativeExchange","ApexEquippedDecimal","ApexSearchPublish")),
             "Search worker lacks exact owner/resource resolution or native feed publication.");
     }
+    static void verifyCatalogCompanion(ABC abc,InstanceInfo instance) {
+        var forbidden=Set.of("CallGameService","CallUIService","ApexNativeExchange","RemoveAllItems","AddItemsFromIterable","flush");
+        for(String method:List.of("ApexCompanionCard","ApexCompanionIntent","ApexCompanionButton","ApexCompanionKeyDown","ApexCompanionResizeStart","ApexCompanionResizeEnd"))
+            require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,method)),forbidden),"Companion input performs native, catalogue or disk work: "+method);
+        var card=ownedBody(abc,instance,"ApexCompanionCard");
+        require(propertyCalls(abc,card).containsAll(Set.of("stopImmediatePropagation","ApexCompanionIntent","ApexCompanionKey")),"Right-click companion input must intercept equip and queue its own intent.");
+        for(String member:List.of("buttonIdx","mCellEvent","currentTarget","grid")) {
+            boolean found=false;for(var op:card.getCode().code)found|=property(abc,op,0x66,member);
+            require(found,"Companion right-click lost its native event or owner gate: "+member);
+        }
+        var intent=ownedBody(abc,instance,"ApexCompanionIntent");
+        require(propertyCalls(abc,intent).contains("ApexSearchContext"),"Companion intent must capture exact appearance context.");
+        var apply=ownedBody(abc,instance,"ApexCompanionApply");
+        require(Collections.disjoint(propertyCalls(abc,apply),Set.of("CallGameService","SetCASPart","SetPreset","SetOccultType")),"Companion preference routes cannot write native appearance.");
+        require(propertyCalls(abc,apply).containsAll(Set.of("indexOf","ApexCompanionKey","dispatchEvent")),"Companion apply lacks source membership or its native random-favorite route.");
+        var badges=ownedBody(abc,instance,"ApexCompanionBadges");
+        require(propertyCalls(abc,badges).containsAll(Set.of("ApexCatalogCells","GetGridIndexOfCell","RequestItemAt")) &&
+            Collections.disjoint(propertyCalls(abc,badges),Set.of("CallGameService","ApexNativeExchange","flush")),"Badges must use recycled visible cells without native or disk work.");
+        var dispose=ownedBody(abc,instance,"ApexCompanionDispose");
+        require(propertyCalls(abc,dispose).containsAll(Set.of("removeEventListener","Shutdown","removeChild")),"Companion must retire native listeners, tooltips and display ownership.");
+    }
     public static void main(String[] args) throws Exception {
         require(args.length == 3, "Use original SWF, compiler SWF, output ABC.");
         ABC original = load(args[0]), compiled = load(args[1]);
@@ -1499,7 +1520,7 @@ public class CasBytecodePatch {
             "apexCardPrefs","apexCardGeometry","apexCardLayout","apexCardReflowAttempts",
             "apexCatalogFrameCells","apexEquippedActive","apexEquippedOpening","apexEquippedProducts","apexEquippedBindings","apexEquippedDirty",
             "apexEquippedIndex","apexEquippedRefreshPending","apexEquippedInteraction","apexEquippedServices","apexEquippedUnresolved",
-            "apexCatalogPerformance","apexCatalogFrameTiming","apexSearch",
+            "apexCatalogPerformance","apexCatalogFrameTiming","apexSearch","apexCompanion",
             "apexEquippedTiming",
             "apexEquippedRetirePending",
             "apexEquippedPublication",
@@ -1521,7 +1542,12 @@ public class CasBytecodePatch {
             "ApexCatalogKeyboardVisibility","ApexCatalogKeyboardTyping","ApexCatalogKeyboardInput","ApexCatalogKeyboardCommand","ApexCatalogKeyboardInitialize","ApexCatalogKeyboardDispose","ApexCatalogKeyDown","ApexCatalogKeyboardFrame",
             "ApexSearchInitialize","ApexSearchContext","ApexSearchRestore","ApexSearchDispose","ApexSearchReset","ApexSearchSource","ApexSearchAdopt",
             "ApexSearchText","ApexSearchChanged","ApexSearchClear","ApexSearchKey","ApexSearchLabels","ApexSearchFocus",
-            "ApexSearchAttach","ApexSearchQuery","ApexSearchPublish","ApexSearchFrame","ApexSearchStatus",
+            "ApexSearchAttach","ApexSearchQuery","ApexSearchPublish","ApexSearchFrame","ApexSearchStatus","ApexSearchChooseFolder","ApexSearchSuggestions","ApexSearchOrder",
+            "ApexCompanionInitialize","ApexCompanionValidKey","ApexCompanionKey","ApexCompanionAllows","ApexCompanionSave","ApexCompanionRecentOrder","ApexCompanionReceipt",
+            "ApexCompanionChanged","ApexCompanionIntent","ApexCompanionCard","ApexCompanionButton","ApexCompanionGlyph",
+            "ApexCompanionAttach","ApexCompanionApply","ApexCompanionBadges","ApexCompanionFrame","ApexCompanionCommand",
+            "ApexCompanionStatus","ApexCompanionDispose",
+            "ApexCompanionKeyDown","ApexCompanionResizeStart","ApexCompanionResizeEnd",
               "ApexCatalogCells","ApexEquippedInitialize","ApexEquippedDispose","ApexEquippedNavigation","ApexCatalogPerformance",
             "ApexEquippedRefresh","ApexEquippedOpen","ApexEquippedFrame","ApexEquippedResolve","ApexEquippedKey","ApexEquippedDecimal","ApexEquippedPrepare","ApexEquippedClick",
             "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus", "ApexPairPanel");
@@ -1571,6 +1597,7 @@ public class CasBytecodePatch {
         verifyImmediatePairAcknowledgement(compiled,newClass);
         verifyCatalogWorkspace(compiled,newClass);
         verifyNativeCatalogSearch(compiled,newClass);
+        verifyCatalogCompanion(compiled,newClass);
         MethodBody nativeInit = null, compilerInit = null, nativeUnload = null, compilerUnload = null;
         for (Trait trait : nativeClass.instance_traits.traits) {
             String key = name(original, trait);
@@ -1686,6 +1713,7 @@ public class CasBytecodePatch {
         verifyImmediatePairAcknowledgement(serialized,serialized.instance_info.get(oi));
         verifyCatalogWorkspace(serialized,serialized.instance_info.get(oi));
         verifyNativeCatalogSearch(serialized,serialized.instance_info.get(oi));
+        verifyCatalogCompanion(serialized,serialized.instance_info.get(oi));
         require(Arrays.equals(heightAdapter.getCodeBytes(),serialized.findBody(heightAdapter.method_info).getCodeBytes()),
             "Serialized owned card getter changed.");
         for(var body:equippedBodies)require(Arrays.equals(body.getCodeBytes(),serialized.findBody(body.method_info).getCodeBytes()),

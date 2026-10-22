@@ -18,6 +18,14 @@ using Fetch = std::function<Json(const Json&)>;
 inline std::string UiError(const std::string& message) {
     return "SEARCHERROR|"+message.substr(0,512);
 }
+inline std::string UiText(const std::string& text) {
+    constexpr char hex[]="0123456789ABCDEF";std::string encoded;
+    for(unsigned char c:text) {
+        if((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='-'||c=='_'||c=='.'||c=='~')encoded+=c;
+        else {encoded+='%';encoded+=hex[c>>4];encoded+=hex[c&15];}
+    }
+    return encoded;
+}
 
 // GFx in the game has no JSON class. Build the small UI projection here on
 // the metadata thread, after validating the complete broker reply. No labels,
@@ -40,6 +48,18 @@ inline std::string UiPage(const Json& reply,const Json& query,std::uint64_t tick
             throw std::runtime_error("UI metadata body type is outside its integer range.");
         if(!first)result+=';';first=false;
         result+=row["resource_tgi"].get<std::string>()+","+(row["body_type"].is_null()?"-":row["body_type"].dump());
+    }
+    if(reply.contains("folder_matches")) {
+        if(!reply["folder_matches"].is_array()||reply["folder_matches"].size()>8||!reply.contains("folder_corrected")||!reply["folder_corrected"].is_boolean())
+            throw std::runtime_error("Invalid folder suggestion metadata.");
+        result+='|';unsigned count=0;size_t bytes=0;
+        for(const auto& value:reply["folder_matches"]) {
+            if(!value.is_string()||value.get<std::string>().size()>2048)throw std::runtime_error("Invalid folder suggestion.");
+            const auto encoded=UiText(value.get<std::string>());
+            if(count==5||bytes+encoded.size()>1200)break;
+            if(count++)result+=';';result+=encoded;bytes+=encoded.size();
+        }
+        result+='|';result+=reply["folder_corrected"].get<bool>()?'1':'0';
     }
     if(result.size()>4096)throw std::runtime_error("UI metadata projection exceeds its bound.");
     return result;
@@ -73,6 +93,12 @@ class Worker {
             std::string uiEncoded;
             try {
                 reply=fetch_(job.query);
+                if(reply.contains("equipped_snapshot")&&reply["equipped_snapshot"].is_object()) {
+                    const auto& equipped=reply["equipped_snapshot"];
+                    const auto separator=job.context.find('|');
+                    if(separator==std::string::npos || equipped.value("source_epoch",std::string())!=job.context.substr(0,separator))
+                        throw std::runtime_error("Refresh equipped references for this CAS session; the captured household belongs to another session.");
+                }
                 if(!library::Page(reply,job.query)||reply.dump().size()>120*1024)
                     throw std::runtime_error("Metadata page does not match this query or exceeds its bound.");
                 uiEncoded=UiPage(reply,job.query,job.ticket);

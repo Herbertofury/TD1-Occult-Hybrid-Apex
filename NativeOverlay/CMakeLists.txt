@@ -3,6 +3,20 @@ project(TD1ApexD3D11Overlay LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+find_program(APEX_CARGO cargo REQUIRED)
+set(APEX_CATALOG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../Metadata")
+set(APEX_CATALOG_TARGET "${CMAKE_CURRENT_BINARY_DIR}/rust-catalog")
+set(APEX_CATALOG_LIB "${APEX_CATALOG_TARGET}/release/apex_catalog.lib")
+file(GLOB APEX_CATALOG_SOURCES CONFIGURE_DEPENDS "${APEX_CATALOG_ROOT}/src/*.rs")
+add_custom_command(OUTPUT "${APEX_CATALOG_LIB}"
+    COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${APEX_CATALOG_TARGET}" "RUSTFLAGS=-C target-feature=+crt-static"
+        "${APEX_CARGO}" build --manifest-path "${APEX_CATALOG_ROOT}/Cargo.toml" --release --locked --no-default-features --lib
+    DEPENDS ${APEX_CATALOG_SOURCES} "${APEX_CATALOG_ROOT}/Cargo.toml" "${APEX_CATALOG_ROOT}/Cargo.lock"
+    COMMENT "Build offline Rust catalogue (no network/CLI features)" VERBATIM)
+add_custom_target(ApexCatalogRust DEPENDS "${APEX_CATALOG_LIB}")
+add_library(ApexCatalogNative STATIC IMPORTED GLOBAL)
+set_target_properties(ApexCatalogNative PROPERTIES IMPORTED_LOCATION "${APEX_CATALOG_LIB}")
+add_dependencies(ApexCatalogNative ApexCatalogRust)
 option(APEX_CAS_OWNER_MEMORY_DIAGNOSTICS "Guard and quarantine Apex-owned CAS records in diagnostic candidates" OFF)
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "Apex requires the x64 game and x64 native build")
@@ -23,13 +37,14 @@ set(APEX_OVERLAY_SOURCES
     third_party/imgui/backends/imgui_impl_dx11.cpp
 )
 function(apex_overlay_target name)
+    add_dependencies(${name} ApexCatalogRust)
     target_include_directories(${name} PRIVATE Source third_party/imgui third_party/imgui/backends third_party)
     target_compile_definitions(${name} PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
     if(APEX_CAS_OWNER_MEMORY_DIAGNOSTICS)
         target_compile_definitions(${name} PRIVATE APEX_CAS_OWNER_MEMORY_DIAGNOSTICS)
     endif()
     target_compile_options(${name} PRIVATE /W4 /permissive- /EHsc /O2 /utf-8)
-    target_link_libraries(${name} PRIVATE ApexMinHook d3d11 d3dcompiler dxgi user32 ws2_32 windowscodecs ole32 bcrypt winhttp)
+    target_link_libraries(${name} PRIVATE ApexCatalogNative ApexMinHook d3d11 d3dcompiler dxgi user32 ws2_32 windowscodecs ole32 bcrypt winhttp userenv advapi32 ntdll)
 endfunction()
 # The mod-folder sidecar is the default distribution. Keep the older proxy
 # build available for independently verified import surfaces, never required.
@@ -51,9 +66,10 @@ target_compile_options(ApexPermissionCapture PRIVATE /W4 /permissive- /EHsc /utf
 target_link_libraries(ApexPermissionCapture PRIVATE windowsapp d3d11 dxgi dwmapi user32)
 if(BUILD_TESTING)
     add_executable(ApexCasSearchTests Tests/CasSearchTests.cpp)
+    add_dependencies(ApexCasSearchTests ApexCatalogRust)
     target_include_directories(ApexCasSearchTests PRIVATE Source third_party)
     target_compile_definitions(ApexCasSearchTests PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
-    target_link_libraries(ApexCasSearchTests PRIVATE windowscodecs ole32 bcrypt winhttp)
+    target_link_libraries(ApexCasSearchTests PRIVATE ApexCatalogNative windowscodecs ole32 bcrypt userenv advapi32 ntdll ws2_32)
     target_compile_options(ApexCasSearchTests PRIVATE /W4 /permissive- /EHsc /utf-8)
     add_test(NAME native-cas-search-worker COMMAND ApexCasSearchTests)
     add_executable(ApexCasHouseholdWireTests Tests/CasHouseholdWireTests.cpp)

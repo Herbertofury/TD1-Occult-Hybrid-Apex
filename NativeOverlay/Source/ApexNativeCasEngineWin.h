@@ -1570,7 +1570,7 @@ inline bool GetOccultService(const void* arguments) {
         const auto command=text.substr(8);const auto split=command.find('|');
         if(split==std::string::npos)throw std::runtime_error("Native CAS pipe command is incomplete.");
         const auto action=command.substr(0,split);const auto rest=command.substr(split+1);
-        searchRequest=action=="SEARCH"||action=="SEARCHREAD"||action=="SEARCHPAGE";
+        searchRequest=action=="SEARCH"||action=="SEARCHREAD"||action=="SEARCHPAGE"||action=="SEARCHRELOAD";
         const auto end=rest.find('|');const auto identity=rest.substr(0,end);
         const auto number=SimId(ui::Json(identity));
         if(action=="OPEN") {
@@ -1584,6 +1584,10 @@ inline bool GetOccultService(const void* arguments) {
         else if(action=="PAIR"&&end==std::string::npos)response=PairState(state,number);
         else if(action=="PAIRDO"&&end!=std::string::npos)response=ApplyPairAction(state,number,rest.substr(end+1));
         else if(action=="EQUIPPED"&&end!=std::string::npos)response=EquippedItems(state,number,rest.substr(end+1));
+        else if(action=="SEARCHRELOAD"&&end==std::string::npos) {
+            if(FastOwnerState(state,number).rfind("VIEWSTATE|",0)!=0)throw std::runtime_error("Reload needs the exact bound CAS appearance.");
+            search::ReloadOfflineMetadata();response="SEARCHRELOADED";
+        }
         else if((action=="SEARCH"||action=="SEARCHREAD"||action=="SEARCHPAGE")&&end!=std::string::npos) {
             const auto owner=FastOwnerState(state,number);
             if(owner.rfind("VIEWSTATE|",0)!=0)throw std::runtime_error("Search needs the exact bound CAS appearance.");
@@ -2117,7 +2121,9 @@ inline ui::Json Control(const ui::Json& request) {
         state.householdAcceptance={{"verified",false},{"native_accepted",false}};
         return Status();
     }
-    if(request.is_object() && request.size()==5 && request.value("operation","")=="export-owner-page") {
+    if(request.is_object() && request.size()==5 &&
+       (request.value("operation","")=="export-owner-page" || request.value("operation","")=="usage-owner-page")) {
+        const bool compact=request.value("operation","")=="usage-owner-page";
         if(!request.contains("scope_id") || !request["scope_id"].is_string() ||
            request["scope_id"].get<std::string>()!=state.scope.id || !state.selectionEnabled ||
            !request.contains("sim_id") || !request["sim_id"].is_string() ||
@@ -2142,8 +2148,23 @@ inline ui::Json Control(const ui::Json& request) {
         auto rows=ui::Json::array();std::size_t used=0,wire=0,index=start;
         // Bound both work and wire bytes. A single serializer result is already
         // capped at 512 KiB; hexadecimal expansion stays below the 2 MiB ABI.
-        for(;index<ids.size() && rows.size()<8;++index) {
+        for(;index<ids.size() && rows.size()<(compact?1u:8u);++index) {
             const auto& captured=graph.appearance(ids[index]);const auto bytes=SerializeOwner(state.api,*captured,id);
+            if(compact) {
+                auto outfits=ui::Json::array();
+                for(const auto& outfit:selective::EquippedInventory(bytes)) {
+                    auto equipped=ui::Json::array();
+                    for(const auto& part:outfit.parts.rows)equipped.push_back({
+                        {"instance",std::to_string(part[0])},{"body_type",part[1]},
+                        {"layer",outfit.parts.present[4]?ui::Json(part[4]):ui::Json(nullptr)}});
+                    outfits.push_back({{"category",outfit.category},{"ordinal",outfit.ordinal},
+                        {"outfit_id",std::to_string(outfit.id)},{"parts",equipped}});
+                }
+                rows.push_back({{"owner_id",ids[index]},{"native_kind",Read<std::uint32_t>(captured->data(),8)},
+                    {"revision",graph.revision(ids[index])},{"outfits",outfits}});
+                if(rows.dump().size()>1536*1024)throw std::runtime_error("Compact equipped owner exceeds its page bound.");
+                continue;
+            }
             if(!rows.empty() && used+bytes.size()>512*1024) break;
             auto links=ui::Json::array();for(const auto& target:graph.linkedTargets(ids[index])) links.push_back(target);
             auto row=ui::Json{{"owner_id",ids[index]},
@@ -2163,7 +2184,7 @@ inline ui::Json Control(const ui::Json& request) {
             {"next_owner_id",index==ids.size()?ui::Json(nullptr):ui::Json(ids[index-1])},
             {"appearance_written",false},{"model_harvested",false},{"game_files_written",false},
             {"native_patch_qualified",false},{"production_ready",false},
-            {"source","committed-native-appearance"}};
+            {"source",compact?"committed-equipped-references":"committed-native-appearance"}};
     }
     if(request.is_object() && request.size()==5 && request.value("operation","")=="export-owner") {
         if(!request.contains("scope_id") || !request["scope_id"].is_string() ||

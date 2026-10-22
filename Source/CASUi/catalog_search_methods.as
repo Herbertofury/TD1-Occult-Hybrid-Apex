@@ -8,7 +8,8 @@
          apexSearch={text:"",context:"",ticket:"",due:0,poll:0,rows:null,feed:null,panel:null,
             matches:{},offset:0,total:0,resolved:0,shown:0,ready:false,pending:false,error:"",page:null,index:0,
             root:null,input:null,placeholder:null,count:null,clear:null,bubble:null,list:null,geometry:null,
-            registered:false,revision:0,started:0,elapsed_ms:0,sources:[],query:null,native_response:"",publish_ms:0,rebuilds:0,index_sha256:""};
+            registered:false,revision:0,started:0,elapsed_ms:0,sources:[],query:null,native_response:"",publish_ms:0,rebuilds:0,index_sha256:"",
+            folder_matches:[],folder_corrected:false,suggestions:null,suggestion_signature:"",order:{},rank:0};
          apexSearch.registered=RegisterServiceHandler("ApexCatalogSearchSource",ApexSearchSource);
       }
 
@@ -23,14 +24,15 @@
          if(apexSearch==null) return;
          var g:Object=apexSearch.geometry;
          if(g!=null) {
-            if(apexSearch.bubble!=null && apexSearch.bubble.y==g.bubble_y+26) apexSearch.bubble.y=g.bubble_y;
-            if(apexSearch.list!=null && apexSearch.list.y==g.list_y+26) {
+            if(apexSearch.bubble!=null && apexSearch.bubble.y==g.bubble_y+52) apexSearch.bubble.y=g.bubble_y;
+            if(apexSearch.list!=null && apexSearch.list.y==g.list_y+52) {
                apexSearch.list.y=g.list_y;
-               if(apexSearch.list.height==g.list_height-26) apexSearch.list.height=g.list_height;
+               if(apexSearch.list.height==g.list_height-52) apexSearch.list.height=g.list_height;
             }
          }
          if(apexSearch.root!=null && apexSearch.root.parent!=null) apexSearch.root.parent.removeChild(apexSearch.root);
          apexSearch.root=null;apexSearch.input=null;apexSearch.geometry=null;apexSearch.bubble=null;apexSearch.list=null;apexSearch.width=-1;
+         apexSearch.suggestions=null;apexSearch.suggestion_signature="";
       }
 
       private function ApexSearchDispose() : void
@@ -43,9 +45,11 @@
       private function ApexSearchReset(context:String) : void
       {
          apexSearch.context=context;apexSearch.ticket="";apexSearch.matches={};apexSearch.page=null;
+         apexSearch.order={};apexSearch.rank=0;
          apexSearch.index=0;apexSearch.offset=0;apexSearch.total=0;apexSearch.resolved=0;apexSearch.shown=0;
          apexSearch.ready=false;apexSearch.pending=apexSearch.text!="";apexSearch.error="";
          apexSearch.query=null;apexSearch.native_response="";apexSearch.index_sha256="";
+         apexSearch.folder_matches=[];apexSearch.folder_corrected=false;
          apexSearch.due=flash.utils.getTimer()+180;apexSearch.revision++;apexSearch.started=flash.utils.getTimer();
       }
 
@@ -124,6 +128,48 @@
          var caption:String=apexSearch.error!="" ? "!" : apexSearch.pending ? "…" :
             apexSearch.text=="" ? "" : String(apexSearch.shown);
          if(apexSearch.count.text!=caption) apexSearch.count.text=caption;
+         ApexSearchSuggestions();
+      }
+
+      private function ApexSearchChooseFolder(event:flash.events.MouseEvent) : void
+      {
+         var at:int=int(String(event.currentTarget.name).substr(16));
+         if(at<0 || at>=apexSearch.folder_matches.length) return;
+         var folder:String=String(apexSearch.folder_matches[at]);
+         if(folder.indexOf('"')>=0) return;
+         var text:String=String(apexSearch.text);var match:Array=/\bfolder:(?:"[^"]*"|[^\s]+)/i.exec(text);
+         if(match==null) return;
+         var position:int=int(match.index);
+         var next:String=text.substr(0,position)+'folder:"'+folder+'"'+text.substr(position+String(match[0]).length);
+         if(next.length>160) {
+            apexSearch.error="Use a shorter folder qualifier with this query";ApexSearchLabels();
+            event.preventDefault();event.stopImmediatePropagation();return;
+         }
+         ApexSearchText(next);
+         if(stage!=null) {stage.focus=apexSearch.input;apexSearch.input.setSelection(apexSearch.input.length,apexSearch.input.length);}
+         event.preventDefault();event.stopImmediatePropagation();
+      }
+
+      private function ApexSearchSuggestions() : void
+      {
+         if(apexSearch.root==null) return;
+         var show:Boolean=stage!=null && stage.focus===apexSearch.input && /\bfolder:/i.test(String(apexSearch.text)) && apexSearch.folder_matches.length>0;
+         if(apexSearch.suggestions!=null) apexSearch.suggestions.visible=show;
+         if(!show) return;
+         var signature:String=apexSearch.folder_matches.join("\n")+"|"+apexSearch.width;
+         if(signature==apexSearch.suggestion_signature) return;
+         apexSearch.suggestion_signature=signature;
+         if(apexSearch.suggestions!=null && apexSearch.suggestions.parent!=null) apexSearch.suggestions.parent.removeChild(apexSearch.suggestions);
+         var root:flash.display.Sprite=new flash.display.Sprite();root.name="ApexFolderSuggestions";root.y=25;
+         root.graphics.lineStyle(1,0x9dc6da);root.graphics.beginFill(0xf4fbff,0.99);
+         root.graphics.drawRoundRect(0,0,Number(apexSearch.width),apexSearch.folder_matches.length*25+5,8,8);root.graphics.endFill();
+         apexSearch.root.addChild(root);apexSearch.suggestions=root;
+         for(var i:int=0;i<apexSearch.folder_matches.length;i++) {
+            var row:flash.display.Sprite=new flash.display.Sprite();row.name="ApexFolderChoice"+i;row.y=3+i*25;row.buttonMode=true;row.mouseChildren=false;
+            row.graphics.beginFill(0xffffff,0.01);row.graphics.drawRect(0,0,Number(apexSearch.width),25);row.graphics.endFill();
+            ApexFormsText(row,String(apexSearch.folder_matches[i]),8,3,Number(apexSearch.width)-16,11,0x17527b);
+            row.addEventListener(flash.events.MouseEvent.MOUSE_DOWN,ApexSearchChooseFolder,false,30,true);root.addChild(row);
+         }
       }
 
       private function ApexSearchFocus(event:flash.events.FocusEvent) : void {ApexSearchLabels();}
@@ -146,7 +192,7 @@
             input.addEventListener(flash.events.KeyboardEvent.KEY_DOWN,ApexSearchKey,false,30,true);
             input.addEventListener(flash.events.FocusEvent.FOCUS_IN,ApexSearchFocus,false,0,true);
             input.addEventListener(flash.events.FocusEvent.FOCUS_OUT,ApexSearchFocus,false,0,true);
-            apexSearch.placeholder=ApexFormsText(root,"Search items / packages…",8,4,180,12,0x376681);
+            apexSearch.placeholder=ApexFormsText(root,"Search / folder: / author: / added:7d",8,4,180,11,0x376681);
             apexSearch.count=ApexFormsText(root,"",0,4,42,11,0x376681);
             var clear:flash.display.Sprite=new flash.display.Sprite();clear.name="ApexClearCatalogSearch";clear.buttonMode=true;
             clear.graphics.beginFill(0xffffff,0.01);clear.graphics.drawRect(0,0,23,24);clear.graphics.endFill();
@@ -157,14 +203,14 @@
          // Native RefreshLayout may reset these coordinates. Never accumulate
          // another row on top of a previously applied offset.
          if(g==null) {g={bubble_y:bubble.y,list_y:list.y,list_height:list.height};apexSearch.geometry=g;}
-         if(bubble.y!=g.bubble_y+26) g.bubble_y=bubble.y;
-         if(list.y!=g.list_y+26) {g.list_y=list.y;g.list_height=list.height;}
-         if(bubble.y!=g.bubble_y+26) bubble.y=g.bubble_y+26;
-         if(list.y!=g.list_y+26) list.y=g.list_y+26;
-         var height:Number=Math.max(32,g.list_height-26);
+         if(bubble.y!=g.bubble_y+52) g.bubble_y=bubble.y;
+         if(list.y!=g.list_y+52) {g.list_y=list.y;g.list_height=list.height;}
+         if(bubble.y!=g.bubble_y+52) bubble.y=g.bubble_y+52;
+         if(list.y!=g.list_y+52) list.y=g.list_y+52;
+         var height:Number=Math.max(32,g.list_height-52);
          if(list.height!=height) list.height=height;
          var width:Number=Math.max(180,Number(bubble.mcBackground.width));
-         apexSearch.root.x=bubble.x;apexSearch.root.y=g.bubble_y;
+         apexSearch.root.x=bubble.x;apexSearch.root.y=g.bubble_y+26;
          if(apexSearch.width!==width) {
             apexSearch.width=width;apexSearch.root.graphics.clear();apexSearch.root.graphics.lineStyle(1,0xc5e2e4,0.8);
             apexSearch.root.graphics.beginFill(0xe7f6f5,0.88);apexSearch.root.graphics.drawRoundRect(0,0,width,24,8,8);apexSearch.root.graphics.endFill();
@@ -175,15 +221,15 @@
 
       private function ApexSearchQuery() : Object
       {
-         var text:String=String(apexSearch.text);var author:String="";var origin:Object=null;var body:Object=null;
-         var match:Array=/\bauthor:(?:"([^"]{1,80})"|([^\s]{1,80}))/i.exec(text);
-         if(match!=null) {author=match[1]!=null ? match[1] : match[2];text=text.replace(match[0]," ");}
-         match=/\btype:([0-9]{1,4})\b/i.exec(text);
-         if(match!=null) {body=int(match[1]);text=text.replace(match[0]," ");}
-         match=/\borigin:(cc|ea)\b/i.exec(text);
-         if(match!=null) {origin=String(match[1]).toLowerCase()=="cc" ? "mod" : "ea";text=text.replace(match[0]," ");}
-         return {text:text,author:author,sort:"name",body_type:body,origin:origin,name_mode:"preferred",
+         // One parser in the offline worker handles quoted filters, exclusions,
+         // wildcard filenames and dates. Typing never parses/scans packages.
+         return {text:String(apexSearch.text),author:"",sort:"name",body_type:null,origin:null,name_mode:"preferred",
             offset:int(apexSearch.offset),limit:24,view:"all",grouped:false,fuzzy:true};
+      }
+
+      private function ApexSearchOrder(left:Object,right:Object) : Number
+      {
+         return Number(apexSearch.order[String(left.body_type)+"|"+String(left.data_id)])-Number(apexSearch.order[String(right.body_type)+"|"+String(right.data_id)]);
       }
 
       private function ApexSearchPublish() : void
@@ -193,7 +239,9 @@
             mCurrentPanel==null || mCurrentPanel.mcTileList.mGridLayout.GetDataFeed()!==apexSearch.feed || apexEquippedActive) return;
          var products:Array=[];
          for each(var product:CASCatalogProduct in apexSearch.rows)
-            if(apexSearch.text=="" || apexSearch.matches[String(product.body_type)+"|"+product.data_id]===true) products.push(product);
+            if((apexSearch.text=="" || apexSearch.matches[String(product.body_type)+"|"+product.data_id]===true) && ApexCompanionAllows(product)) products.push(product);
+         if(apexCompanion!=null && apexCompanion.mode=="recent") products.sort(ApexCompanionRecentOrder);
+         else if(apexSearch.text!="") products.sort(ApexSearchOrder);
          apexKeyQueue=[];apexKeyIntent=0;apexKeyIndex=-1;apexKeyItem=null;apexKeyBounds="";
          // A failed query leaves native cards intact. Clearing it, or a warm
          // query with identical results, must not tear down/rebind every card.
@@ -219,8 +267,8 @@
       {
          if(apexSearch==null) return;
          var panel:Object=mCurrentPanel;
-         if(panel==null || !panel.visible || panel.mcFilterPane==null || !panel.mcFilterPane.visible ||
-            panel.mcTileList==null || !panel.mcTileList.visible || apexEquippedActive) {ApexSearchRestore();return;}
+         if(panel==null || !panel.visible || !("mcFilterPane" in panel) || panel.mcFilterPane==null || !panel.mcFilterPane.visible ||
+            !("mcTileList" in panel) || panel.mcTileList==null || !panel.mcTileList.visible || apexEquippedActive) {ApexSearchRestore();return;}
          ApexSearchAttach(panel);
          ApexSearchAdopt(panel);
          if(apexSearch.context!=ApexSearchContext() || apexSearch.panel!==panel ||
@@ -237,18 +285,23 @@
          try {
             if(apexSearch.page!=null) {
                var rows:Array=apexSearch.page.items;
-               if(int(apexSearch.index)<rows.length) {
-                  // One native metadata resolution per idle frame. Preserve all
-                  // 64 instance bits and confirm the game's actual base identity.
+               var sliceStart:int=flash.utils.getTimer();var sliceCount:int=0;
+               while(int(apexSearch.index)<rows.length && sliceCount<8 && flash.utils.getTimer()-sliceStart<2) {
+                  // Bounded idle slices avoid a frame of latency per swatch.
+                  // Preserve all 64 bits and confirm the actual native base.
                   var row:Object=rows[int(apexSearch.index)];apexSearch.index++;
                   var tgi:Array=String(row.resource_tgi).split(":");
                   if(tgi.length!=3 || String(tgi[0]).toUpperCase()!="034AEECB" || !/^[0-9a-f]{16}$/i.test(tgi[2])) throw new Error("Invalid indexed CAS resource key");
                   var exact:String=ApexEquippedDecimal("0x"+tgi[2]);
                   var raw:Object=CommunicationManager.CallGameService("GetCatalogItem",exact);
-                  if(raw!=null && row.body_type!=null && (String(raw.data_id)==exact || String(raw.variation_id)==exact) && int(raw.body_type)==int(row.body_type))
-                     apexSearch.matches[String(raw.body_type)+"|"+String(raw.data_id)]=true;
-                  apexSearch.resolved++;return;
+                  if(raw!=null && row.body_type!=null && (String(raw.data_id)==exact || String(raw.variation_id)==exact) && int(raw.body_type)==int(row.body_type)) {
+                     var resolvedKey:String=String(raw.body_type)+"|"+String(raw.data_id);
+                     if(apexSearch.matches[resolvedKey]!==true) apexSearch.order[resolvedKey]=apexSearch.rank++;
+                     apexSearch.matches[resolvedKey]=true;
+                  }
+                  apexSearch.resolved++;sliceCount++;
                }
+               if(int(apexSearch.index)<rows.length) return;
                var next:Object=apexSearch.page.next_offset;apexSearch.page=null;apexSearch.ticket="";
                if(next==null) {apexSearch.pending=false;apexSearch.ready=true;ApexSearchPublish();return;}
                apexSearch.offset=int(next);
@@ -267,11 +320,21 @@
             if(wire.indexOf("SEARCHERROR|")==0) throw new Error("Search unavailable: "+wire.substr(12));
             if(wire.length>4096) throw new Error("Search reply exceeds its bound");
             var fields:Array=wire.split("|");
-            if(fields.length!=7 || fields[0]!="SEARCHPAGE" || fields[1]!=apexSearch.ticket ||
+            if((fields.length!=7 && fields.length!=9) || fields[0]!="SEARCHPAGE" || fields[1]!=apexSearch.ticket ||
                !/^[0-9a-f]{64}$/i.test(fields[2]) || !/^[0-9]{1,7}$/.test(fields[3]) ||
                !/^[0-9]{1,7}$/.test(fields[4]) || int(fields[4])!=int(apexSearch.offset) ||
                int(fields[3])>2000000 || int(fields[4])>int(fields[3]))
                throw new Error("Search reply does not match the current query");
+            if(fields.length==9) {
+               if(fields[8]!="0" && fields[8]!="1") throw new Error("Invalid folder suggestion flag");
+               var folders:Array=fields[7]=="" ? [] : String(fields[7]).split(";");
+               if(folders.length>5) throw new Error("Too many folder suggestions");
+               for(var folderAt:int=0;folderAt<folders.length;folderAt++) {
+                  folders[folderAt]=decodeURIComponent(String(folders[folderAt]));
+                  if(String(folders[folderAt]).length>512 || /[\x00-\x1f\x7f]/.test(String(folders[folderAt]))) throw new Error("Invalid indexed folder name");
+               }
+               apexSearch.folder_matches=folders;apexSearch.folder_corrected=fields[8]=="1";ApexSearchLabels();
+            }
             if(apexSearch.index_sha256!="" && apexSearch.index_sha256!=fields[2])
                throw new Error("Search index changed; clear or repeat the query");
             var items:Array=[];var encoded:Array=fields[6]=="" ? [] : String(fields[6]).split(";");
@@ -297,6 +360,7 @@
          return {available:apexSearch.root!=null,text:apexSearch.text,context:apexSearch.context,ticket:apexSearch.ticket,
             pending:apexSearch.pending,ready:apexSearch.ready,error:apexSearch.error,matched:apexSearch.shown,
             indexed_matches:apexSearch.total,resolved:apexSearch.resolved,elapsed_ms:apexSearch.elapsed_ms,
+            folder_matches:apexSearch.folder_matches,folder_corrected:apexSearch.folder_corrected,
             source_count:apexSearch.rows==null ? 0 : apexSearch.rows.length,query:apexSearch.query,
             native_response:apexSearch.native_response,publish_ms:apexSearch.publish_ms,rebuilds:apexSearch.rebuilds,
             index_sha256:apexSearch.index_sha256,input_font:apexSearch.input==null ? "" : apexSearch.input.defaultTextFormat.font,

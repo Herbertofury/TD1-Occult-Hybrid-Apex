@@ -591,6 +591,21 @@ static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) 
     if (operation == 4 && !library::Query(row) || operation == 5 && !library::Selection(row) ||
         operation == 6 && !library::Selection(row, true) || operation == 7 && !library::ImagesRequest(row)) return false;
     if(operation==8&&!tray::Query(row)||operation==9&&!tray::Selection(row)||operation==10&&!tray::Selection(row,true))return false;
+    if(operation==4 && row.value("view","")=="all") {
+        // ResourceHttp is called by the resource worker. Main library search
+        // shares the local Rust index with native CAS; image/preview and
+        // existing favorites/inspect endpoints retain their separate paths.
+        try {
+            const auto result=td1::search::FetchMetadata(row);
+            if(result.contains("equipped_snapshot")&&result["equipped_snapshot"].is_object()) {
+                std::string lane;{std::lock_guard<std::mutex> lock(g_dataMutex);lane=ui::Scalar(g_studioData,"history_lane");}
+                if(lane.empty()||lane.substr(0,lane.find(':'))!=result["equipped_snapshot"].value("save_guid",std::string()))
+                    throw std::runtime_error("Open a Sim from the captured save before searching equipped references.");
+            }
+            if(!library::Page(result,row))return false;
+            body=result.dump();return true;
+        }catch(const std::exception& error){body=ui::Json({{"ok",false},{"message",error.what()}}).dump();return true;}
+    }
     if (!g_wsStarted) {
         WSADATA wsa{};
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return false;
@@ -2699,7 +2714,7 @@ static void DrawLiveLibrary() {
     ImGui::TextColored(ImVec4(.35f, .88f, .77f, 1), "LIVE CAS LIBRARY");
     ImGui::TextDisabled("Every indexed part / independent form and outfit / no CAS room");
     ImGui::SetNextItemWidth(-1);
-    if (ImGui::InputTextWithHint("##library-search", "Search CC names, filenames or internal codes", g_librarySearch, sizeof(g_librarySearch), ImGuiInputTextFlags_EnterReturnsTrue) || ImGui::IsItemDeactivatedAfterEdit()) {
+    if (ImGui::InputTextWithHint("##library-search", "Name, author:, folder:, sim: or household:", g_librarySearch, sizeof(g_librarySearch), ImGuiInputTextFlags_EnterReturnsTrue) || ImGui::IsItemDeactivatedAfterEdit()) {
         g_libraryOffset = 0; g_libraryQueryNeeded = true;
     }
     ImGui::SetNextItemWidth(220);
@@ -2795,7 +2810,14 @@ static void DrawLiveLibrary() {
             draw->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(at.x + 5, at.y + cardHeight-18), IM_COL32(94, 195, 177, 255), footer.c_str(), nullptr, 0, &footerClip);
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
                 std::string imageReason;{std::lock_guard<std::mutex> lock(g_dataMutex);const auto found=g_libraryImageErrors.find(id);if(found!=g_libraryImageErrors.end())imageReason=found->second;}
-                ImGui::SetTooltip("%s\nPackage: %s\nCode: %s\n%s\n%s\n%s", ui::Scalar(item, "preferred_name").c_str(), ui::Scalar(item, "package_name").c_str(), ui::Scalar(item, "code_name").c_str(), ui::Scalar(item, "resource_tgi").c_str(), available ? "Select to inspect and try on this actual item." : ui::Scalar(item, "reason").c_str(),imageReason.c_str());
+                ImGui::BeginTooltip();ImGui::PushTextWrapPos(500);
+                ImGui::TextWrapped("%s\nPackage: %s\nCode: %s\n%s\n%s\n%s", ui::Scalar(item, "preferred_name").c_str(), ui::Scalar(item, "package_name").c_str(), ui::Scalar(item, "code_name").c_str(), ui::Scalar(item, "resource_tgi").c_str(), available ? "Select to inspect and try on this actual item." : ui::Scalar(item, "reason").c_str(),imageReason.c_str());
+                if(item.contains("used_by")&&item["used_by"].is_object()&&item["used_by"].contains("rows")&&item["used_by"]["rows"].is_array()) {
+                    ImGui::Separator();ImGui::TextUnformatted("Equipped in captured appearances");
+                    for(const auto& use:item["used_by"]["rows"])ImGui::TextWrapped("%s / %s\n%s / outfit %s:%s",ui::Scalar(use,"sim").c_str(),ui::Scalar(use,"household").c_str(),ui::Scalar(use,"form").c_str(),ui::Scalar(use,"outfit_category").c_str(),ui::Scalar(use,"outfit_number").c_str());
+                    if(item["used_by"].value("complete",false)!=true)ImGui::TextDisabled("More matching uses are retained in the reference index.");
+                }
+                ImGui::PopTextWrapPos();ImGui::EndTooltip();
             }
             ImGui::PopID();
         }

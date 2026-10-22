@@ -156,7 +156,7 @@ def owned_request(state, action, sim_id=None, occult=None, value=None, seconds=3
     if not identity.get('alarm_ready') and not (action in (
             'test_quit', 'test_capture', 'test_input', 'test_studio_ui', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start',
             'test_snapshot', 'test_status',
-            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack')
+            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack', 'catalog_actor_roster')
             and identity.get('core_tick_ready')):
         raise ValueError('Load the disposable household before in-game commands.')
     request_id = uuid.uuid4().hex
@@ -394,11 +394,17 @@ def parser():
     owner_export.add_argument('--state', required=True, type=Path)
     owner_export.add_argument('--output', required=True, type=Path)
     owner_export.add_argument('--sim-id', help='Optional exact member; defaults to the complete scoped household')
+    usage = commands.add_parser('catalog-usage', help='Read compact equipped references without exporting Sim assets')
+    usage.add_argument('--state', required=True, type=Path)
+    usage.add_argument('--output', required=True, type=Path)
+    usage.add_argument('--save-guid', required=True)
+    usage.add_argument('--household-id', required=True)
+    usage.add_argument('--catalog-sha256', required=True)
     cas = commands.add_parser('cas', help='Semantic native CAS controls; no mouse input')
     cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
-        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search'))
+        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion'))
     cas.add_argument('--text', help='Native Filter Items search, including package names and author/type/origin filters')
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
@@ -445,6 +451,7 @@ def parser():
     cas.add_argument('--category', type=int)
     cas.add_argument('--index', type=int, help='Zero-based existing outfit number')
     cas.add_argument('--data-id', help='Exact decimal native CAS catalog data identity')
+    cas.add_argument('--action', choices=('all','favorites','recent','hidden','hide-mode','toggle-favorite','toggle-hidden','random-favorite','pause','play','refresh-search','columns-reset'), help='Explicit companion catalogue action')
     cas.add_argument('--base-data-id', help='Exact item returned by this filtered panel, bound to a color data ID from its variants')
     cas.add_argument('--offset', type=int, default=0, help='Catalog page offset; every page remains accessible')
     cas.add_argument('--limit', type=int, default=8, help='Items per transport packet, 1-32')
@@ -881,6 +888,13 @@ def _execute(args):
     if args.command == 'capabilities':
         return owned_request(args.state, 'overlay_capabilities')
     profile = require_isolated(args.state)
+    if args.command == 'catalog-usage':
+        output = reusable_profile.writable(args.output)
+        roots = [Path(profile[key]) for key in ('profile', 'original')]
+        if any(output == root or root in output.parents for root in roots):
+            raise ValueError('Compact catalogue captures must be outside both game profiles.')
+        from catalog_usage import collect
+        return collect(args.state, output, args.save_guid, args.household_id, args.catalog_sha256)
     if args.command == 'cas-bank':
         from cas_bank_cli import run
         return run(args, owned_request)

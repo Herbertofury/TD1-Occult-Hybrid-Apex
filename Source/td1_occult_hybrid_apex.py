@@ -126,7 +126,7 @@ _NATIVE = None
 _NATIVE_PATH = None
 _NATIVE_STATUS = 'not loaded'
 _BUILD_VERSION = '2026.05.28-imgui-overlay-v6.0-mccc-savedforms'
-_READ_ONLY_ACTIONS = set(('status', 'diagnostics', 'list_sims', 'clear_logs', 'list_saved_forms', 'saved_forms', 'mccc_status', 'clipboard_status', 'overlay', 'overlay_capabilities'))
+_READ_ONLY_ACTIONS = set(('status', 'diagnostics', 'list_sims', 'clear_logs', 'list_saved_forms', 'saved_forms', 'mccc_status', 'clipboard_status', 'overlay', 'overlay_capabilities', 'catalog_actor_roster'))
 _PERF_STATS = {}
 _LAST_COMMAND = None
 
@@ -8432,6 +8432,13 @@ def run_action(action, sim_id=None, occult=None, value=None):
     action = (action or 'status').strip().lower()
     if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
         return {'ok': False, 'message': 'Sim inspection and mutation require the canonical Sims game-thread owner.'}
+    if action == 'catalog_actor_roster':
+        from apex_core.catalog_usage import roster
+        import sys
+        try:
+            return roster(sys.modules[__name__], value)
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'appearance_written': False}
     if action in ('lifestate_catalog', 'lifestate_form_list', 'lifestate_form_capture',
                   'lifestate_form_bind', 'lifestate_form_select', 'lifestate_form_revalidate', 'lifestate_form_resume_draft',
                   'lifestate_form_human_look'):
@@ -8643,7 +8650,7 @@ def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.
         return {'ok': False, 'state': 'rejected', 'message': 'Invalid command request identity.'}
     if not _ALARM_READY and not (_APEX_CORE_TICK_READY and safe_action in (
             'test_quit', 'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start',
-            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack')):
+            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack', 'catalog_actor_roster')):
         return {'ok': False, 'state': 'rejected', 'message':
                 'Game-thread bridge is not ready. Load a disposable household or run apex.bridge.start from the game console.',
                 'bootstrap_status': _APEX_BOOTSTRAP_STATUS}

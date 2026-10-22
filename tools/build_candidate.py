@@ -222,6 +222,11 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
     payloads['Mods/Apex/Native/ApexOverlay.dll'] = native_bytes
     payloads['Mods/Apex/Native/ApexOverlay.ini'] = (ROOT / 'NativeOverlay' / 'ApexOverlay.ini').read_bytes()
     payloads['Mods/Apex/Native/overlay-manifest.json'] = (output / 'overlay-manifest.json').read_bytes()
+    from build_metadata_companion import verify as verify_metadata, OUTPUT as metadata_exe, MANIFEST as metadata_manifest
+    verify_metadata()
+    payloads['Tools/apex-catalog.exe'] = metadata_exe.read_bytes()
+    payloads['Tools/apex-catalog.manifest.json'] = metadata_manifest.read_bytes()
+    payloads['Tools/Catalogue-README.md'] = (ROOT / 'Metadata/README.md').read_bytes()
     payloads['README.md'] = (ROOT / 'docs' / 'CANDIDATE_INSTALL_AND_TEST.md').read_bytes()
     payloads['THIRD_PARTY_NOTICES.md'] = (ROOT / 'THIRD_PARTY_NOTICES.md').read_bytes()
     payloads['Licenses/ImGui-LICENSE.txt'] = (ROOT / 'NativeOverlay' / 'third_party' / 'imgui' / 'LICENSE.txt').read_bytes()

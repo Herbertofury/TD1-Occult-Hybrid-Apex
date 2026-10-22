@@ -6,7 +6,82 @@
 > **Development reference · October 21, 2026**<br>
 > **V269: readable native search and real card selection verified.** In full CAS, `lipstick` displays readable text and the matching CC card. Typo + creator + type + CC filtering also passes; 30 indexed variants map to one eligible native card. No-match returns zero cards and clearing restores all 41 original cards. Selecting that filtered card through the native click route changes the lipstick; Undo restores its exact original part and color modifiers. This scoped test uses five copied CC packages and 62 CASPs. Full-library qualification and automatic broker distribution/startup remain open; this is not a release claim.
 
+## Search by the Sim who wears it
+
+The offline catalogue now supports `sim:"Bella Goth"` and
+`household:"Goth Family"`, combining equipped CC across captured forms and
+outfits. Add `form:Alien outfit:everyday/2` to narrow the look, or combine
+`author:`, `folder:` and normal item text. Outfit numbers are one-based.
+Matching names can include several Sims; `sim-id:` and `household-id:` select
+one identity precisely. These searches never change the selected Sim or equip
+anything. F11 item tooltips identify matching Sims, forms and outfits.
+
+An explicit paged capture builds a separate immutable reference index, without
+exporting Sim meshes, textures or complete Sim records. Replacing a household
+capture updates names, membership and moved Sims atomically, while retaining
+other captured households in the same save. Wrong save/catalogue pins and stale
+captures are rejected. Native CAS also checks the capture's session. Empty
+native outfits with ID zero remain empty.
+
+**Measured, with limits:** retained native appearances from the real five-Sim
+household produce a 90 KB reference index. Its four distinct CC resources are
+found in the 539,005-item catalogue in 0.368–0.783 ms of query work after opening
+the database. A separate 1,000-Sim fixture passes household isolation, item
+deduplication and bounded provenance checks. These are worker/fixture results,
+not a claim that the new UI path has been tested in the running game.
+
+**Still pending:** the new native capture command and F11/native CAS search need
+an actual-game pass after loading the candidate. Capture currently uses the
+marked test profile, committed CAS graphs and persisted names; automatic
+production refresh after CAS/Live/Tray edits and an integrated capture button
+remain unfinished. Pending try-ons and unsaved renames are not advertised as
+current indexed data. Ambiguous resource identities remain unresolved rather
+than being assigned to an arbitrary package. Most EA equipped attribution in
+the older full catalogue still needs effective-resource hashes. The permanent
+appearance guards and actual-save release gates remain in place.
+
+The full EA catalogue check also exposed a separate grouping bottleneck. A
+metadata-only preparation job now builds swatch-family lookup tables and
+category/origin/name indexes. The same real 60-card Hair page falls from
+1,314.656 ms to 2.024 ms of worker query time, retaining all 1,423 families and
+the exact card ordering. Custom text, folder, author and equipped predicates
+retain their filtered grouping semantics. No game package is rewritten.
+
 ## The intended workspace
+
+### V270 development: offline search and full creator metadata
+
+The new Rust catalogue library reads a pinned local SQLite/FTS snapshot on the
+native metadata worker. Its game build excludes the CLI and HTTP dependencies.
+Indexing, S4MM cache import and provider downloads are explicit jobs that exit.
+The current developer build still needs actual-game qualification; V269's
+earlier scoped gameplay evidence below is not proof of these new changes.
+
+The search language adds `folder:"Makeup"`, typo correction and indexed folder
+suggestions, `package:*lipstick*.package`, quoted names, `-gloss` exclusions,
+`added:7d`, `sort:newest` and `sort:modified`. Combine these with creator, type
+and EA/CC filters. An exact folder includes descendants and excludes similarly
+named siblings. “Added” uses recorded first observation of package content;
+the initial baseline and moving an identical file do not create fake new CC.
+
+The owner-requested WCIF import has stored all **757 creator objects**, including
+their complete social, site and specialty data, and **336,719 item objects**.
+Its attachment index contains **181,822 package filename/size records**.
+Separate WCIF observations link to **50,604 distinct CurseForge URLs** and
+**104,886 distinct TSR URLs**, with other platforms retained as well.
+These are source links, not claims of independently fetched provider inventories.
+
+One source discrepancy remains explicit: creator `8981` (`unidentifiedsims`)
+declares 670 items, while search reports 674 and returns only 670. Reverse-order
+paging returns the same identities. Coverage therefore remains 756/757 fully
+qualified creators. Available metadata can feed the catalogue with that source
+gap attached; the importer does not label the archive complete.
+
+Complete objects and each source's evidence are retained separately. Strong
+content hashes, attachment/fingerprint hints and filename-prefix hints have
+different confidence. No installed package is renamed or edited. See the
+[catalogue implementation and commands](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/tree/apex/recover-and-harden/Metadata)
+for the supported jobs and remaining integration gates.
 
 Search belongs in the existing **Filter Items…** bar immediately below the native category title, as requested in the Shoes example. Keep native filter chips and their ordinary filter-panel access alongside the editable query; do not move this into another floating window. Typing, cursor keys, selection and clearing must remain owned by the text field while it has focus. Type a recognizable item name, part of a `.package` filename or internal code; narrow by creator, CAS type and EA/CC origin. Keep ordinary native cards and swatches, a visible result count, an obvious clear action and a clear explanation when fuzzy matching corrected a term.
 

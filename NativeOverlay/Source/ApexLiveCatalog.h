@@ -30,6 +30,14 @@ inline bool ImagesPage(const Json& p,const Json& request,const Json& page) {
     return p.dump().size()<=512*1024;
 }
 inline bool Query(const Json& q) {
+    if(q.is_object()&&q.contains("folder")) {
+        if(!q["folder"].is_string()||q["folder"].get<std::string>().size()>2048)return false;
+        auto legacy=q;legacy.erase("folder");return Query(legacy);
+    }
+    if(q.is_object()&&q.contains("added_days")) {
+        if(!q["added_days"].is_null()&&!ui::CasInt(q["added_days"],1,36500))return false;
+        auto legacy=q;legacy.erase("added_days");return Query(legacy);
+    }
     if(q.is_object()&&q.contains("fuzzy")) {
         if(!q["fuzzy"].is_boolean())return false;
         auto legacy=q;legacy.erase("fuzzy");return Query(legacy);
@@ -38,7 +46,7 @@ inline bool Query(const Json& q) {
         if(!q["grouped"].is_boolean())return false;
         auto legacy=q;legacy.erase("grouped");return Query(legacy);
     }
-    if (!q.is_object() || !(q.size() == 7 || q.size() == 9 && q.contains("author") && q["author"].is_string() && q["author"].get<std::string>().size() <= 320 && q.contains("sort") && (q["sort"]=="name"||q["sort"]=="package"||q["sort"]=="creator"||q["sort"]=="id")) || !q.contains("text") || !q["text"].is_string() ||
+    if (!q.is_object() || !(q.size() == 7 || q.size() == 9 && q.contains("author") && q["author"].is_string() && q["author"].get<std::string>().size() <= 320 && q.contains("sort") && (q["sort"]=="name"||q["sort"]=="package"||q["sort"]=="creator"||q["sort"]=="id"||q["sort"]=="newest"||q["sort"]=="modified")) || !q.contains("text") || !q["text"].is_string() ||
         q["text"].get<std::string>().size() > 800 || !q.contains("body_type") ||
         !(q["body_type"].is_null() || q["body_type"].is_number_integer() && q["body_type"] >= 0 && q["body_type"] <= 0xffffffffULL) ||
         !q.contains("origin") || !(q["origin"].is_null() || q["origin"] == "mod" || q["origin"] == "ea") ||

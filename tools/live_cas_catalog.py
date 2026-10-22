@@ -44,7 +44,7 @@ def _connect(index, expected):
     connection = sqlite3.connect(path.as_uri() + '?mode=ro&immutable=1', uri=True)
     connection.row_factory = sqlite3.Row
     try:
-        if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2, 3, 4, SCHEMA):
+        if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2, 3, 4, SCHEMA, 6, 7):
             raise ValueError('Unsupported Live CAS catalog schema.')
         connection.execute('PRAGMA query_only=ON')
         connection.create_function('creator_hint', 3, creator_hint, deterministic=True)

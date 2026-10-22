@@ -8,9 +8,20 @@ using td1::ui::Json;
 void Check(bool value,const char* message){if(!value)throw std::runtime_error(message);}
 int main(int argc,char** argv) {
     try {
-        if(argc==3) {
+        if((argc==6&&std::string(argv[5])=="catalog")||argc==9) {
             std::ifstream input(std::filesystem::u8path(argv[1]));Json query;input>>query;
-            td1::search::Worker worker(td1::search::FetchMetadata);
+            std::unique_ptr<td1::search::OfflineMetadata> offline;
+            if(argc==9)offline=std::make_unique<td1::search::OfflineMetadata>(argv[3],argv[4],argv[5],argv[6],argv[7]);
+            else offline=std::make_unique<td1::search::OfflineMetadata>(argv[3],argv[4]);
+            const auto result=offline->Read(query);Check(td1::library::Page(result,query),"F11 local metadata page differs from its exact query.");
+            std::ofstream output(std::filesystem::u8path(argv[2]));output<<result.dump(2);output.flush();
+            Check(output.good(),"F11 catalogue probe output could not be retained.");return 0;
+        }
+        if(argc==3||argc==5) {
+            std::ifstream input(std::filesystem::u8path(argv[1]));Json query;input>>query;
+            std::unique_ptr<td1::search::OfflineMetadata> offline;
+            if(argc==5)offline=std::make_unique<td1::search::OfflineMetadata>(argv[3],argv[4]);
+            td1::search::Worker worker([&](const Json& q){return offline?offline->Read(q):td1::search::FetchMetadata(q);});
             const auto ticket=worker.Submit("read-only-native-metadata-probe",query);
             const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(10);
             std::shared_ptr<const Json> result;
@@ -38,6 +49,15 @@ int main(int argc,char** argv) {
         page["items"]=Json::array({row});page["total"]=1;
         Check(td1::search::UiPage(page,query,18)=="SEARCHPAGE|18|"+hash+"|1|0|-|034AEECB:00000000:123456789ABCDEF0,34",
             "UI projection changed an exact 64-bit key or leaked labels.");
+        auto folders=page;folders["folder_matches"]=Json::array({"Makeup/Lips","Unicode \xE4\xB8\xAD | ; %"});folders["folder_corrected"]=true;
+        Check(td1::search::UiPage(folders,query,18).find("|Makeup%2FLips;Unicode%20%E4%B8%AD%20%7C%20%3B%20%25|1")!=std::string::npos,
+            "Folder labels can inject delimiters or lose Unicode.");
+        folders["folder_matches"]=Json::array({17});bool refusedFolder=false;
+        try{td1::search::UiPage(folders,query,18);}catch(const std::exception&){refusedFolder=true;}
+        Check(refusedFolder,"Untyped folder suggestions accepted.");
+        auto folderQuery=query;folderQuery["folder"]="Makeup";folderQuery["added_days"]=7;folderQuery["sort"]="newest";
+        Check(td1::library::Query(folderQuery),"Bounded folder/date query rejected.");
+        folderQuery["added_days"]=-1;Check(!td1::library::Query(folderQuery),"Negative added-date query accepted.");
         page["total"]=2;page["next_offset"]=1;
         Check(td1::search::UiPage(page,query,19).find("|2|0|1|")!=std::string::npos,"UI continuation was lost.");
         auto lastQuery=query;lastQuery["offset"]=1;page["query"]=lastQuery;page["offset"]=1;page["next_offset"]=nullptr;
@@ -64,6 +84,13 @@ int main(int argc,char** argv) {
         Check(successful.PollUiWire("memberC/alien",goodTicket)==goodWire,"Ready UI projection was rebuilt on poll.");
         Check(successful.PollUiWire("memberD/fairy",goodTicket)->rfind("SEARCHERROR|",0)==0,"UI page leaked to another owner.");
         successful.Stop();
+        td1::search::Worker foreign([&](const Json&){auto other=page;other["equipped_snapshot"]={{"source_epoch","another-session"}};return other;});
+        const auto foreignTicket=foreign.Submit("current-session|memberC|alien",lastQuery);
+        const auto foreignDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+        std::shared_ptr<const std::string> foreignWire;
+        do{foreignWire=foreign.PollUiWire("current-session|memberC|alien",foreignTicket);std::this_thread::yield();}
+        while(foreignWire->rfind("SEARCHWAIT|",0)==0&&std::chrono::steady_clock::now()<foreignDeadline);
+        Check(foreignWire->rfind("SEARCHERROR|Refresh equipped references",0)==0,"Another CAS session's usage snapshot was published.");foreign.Stop();
         Check(successful.PollUiWire("memberC/alien",goodTicket)->rfind("SEARCHERROR|",0)==0,"Closed UI worker retained a page.");
         auto invalid=query;invalid["fuzzy"]="yes";
         Check(!td1::library::Query(invalid),"Untyped fuzzy flag accepted.");

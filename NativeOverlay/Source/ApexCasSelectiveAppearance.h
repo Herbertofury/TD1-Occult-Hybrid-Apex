@@ -159,6 +159,24 @@ inline OutfitParts Equipped(const std::string& packet,std::uint64_t category,std
     }
     throw std::runtime_error("The exact requested outfit is absent.");
 }
+struct EquippedOutfit {std::uint64_t id=0,category=0,ordinal=0;OutfitParts parts;};
+inline std::vector<EquippedOutfit> EquippedInventory(const std::string& packet) {
+    const auto root=w::Fields(packet);const auto list=Optional(root,21);
+    if(!list)throw std::runtime_error("Equipped owner has no complete outfit list.");
+    std::vector<EquippedOutfit> result;std::map<std::uint64_t,unsigned> ordinals;std::size_t count=0;
+    for(const auto& f:w::Fields(list->value))if(f.number==1) {
+        if(f.type!=2 || result.size()>=128)throw std::runtime_error("Equipped outfit inventory exceeds its bound.");
+        const auto fields=w::Fields(f.value);const auto identity=Optional(fields,1,0);
+        const auto id=identity?w::Scalar(*identity):0;
+        const auto category=OutfitCategory(f.value);
+        if(category>255)throw std::runtime_error("Equipped outfit identity differs.");
+        auto parts=Parts(f.value);
+        for(const auto& part:parts.rows)if(!part[0] || part[1]>0xffffffff || part[4]>0xffffffff || ++count>16384)
+            throw std::runtime_error("Equipped part identity exceeds its bound.");
+        result.push_back({id,category,ordinals[category]++,std::move(parts)});
+    }
+    return result;
+}
 inline std::string Merge(const std::string& target,const std::string& source,std::uint32_t flags) {
     Validate(flags);const auto a=w::Fields(target),b=w::Fields(source);
     if(w::Scalar(w::One(a,1,1))!=w::Scalar(w::One(b,1,1)))throw std::runtime_error("Pair copy crossed Sim identity.");

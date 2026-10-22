@@ -96,3 +96,28 @@ The final Apex release does not require the original Color Sliders mod. Preserve
 ### JPEXS Free Flash Decompiler (development-only CAS builder)
 
 The local CAS UI builder invokes separately installed FFDec 26.3.0 and its public ABC API; FFDec is GPL-3.0 licensed and is not redistributed in Apex's candidate. Our Java adapter contains original build logic. Sources and command reference: https://github.com/jindrapetrik/jpexs-decompiler and https://github.com/jindrapetrik/jpexs-decompiler/wiki/Commandline-arguments . Installed EA UI resources and private decompiled exports remain local build inputs and are not committed to this repository.
+
+### Dynamic CAS Companion — maru
+
+The owner supplied `maru_Dynamic_CAS_Companion.package` (SHA-256
+`12cd97eedb4283330e89c898518bc21ff7542c938e1b0c63564d13d04d2b2d86`).
+Its CC BY 4.0 notice and author credit apply to adapted interaction patterns:
+native right-click favorites/hiding, stable catalogue preference keys, recent
+choices, edge resizing and CAS clock controls. Apex integrates those patterns
+with its own eligible-feed/context checks, deferred input, visible-cell badges,
+existing card layout and search; it does not substitute the donor's full SWF.
+Source: [maru's Dynamic CAS project](https://www.curseforge.com/sims4/mods/dynamic-cas-columns).
+License: [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
+Other donor features remain tracked separately; this credit is not a full-port claim.
+
+### Catalogue provider data
+
+Creator and item metadata retain their provider source URLs and evidence level.
+WCIF objects are preserved in a separate explicit owner-requested local archive;
+packages, images and attachment downloads are not fetched. Public metadata
+does not imply permission to redistribute a creator's CC. GameTimeDev's public
+creator directory and the owner's installed S4MM catalogue cache provide names
+and content identity hints. No embedded S4MM API key or account/session token
+is extracted or reused. CurseForge online discovery requires the user's own
+explicit API-key configuration. The Rust dependency identities are pinned in
+`Metadata/Cargo.lock`; the game build excludes the CLI/network feature.

@@ -1449,8 +1449,23 @@ public class CasBytecodePatch {
             if(property(abc,op,0x66,"apexNativeChannel")||property(abc,op,0x60,"apexNativeChannel"))channels++;
             require(!property(abc,op,0x66,"apexBoundSim")&&!property(abc,op,0x60,"apexBoundSim"),
                 "Native search commands require the opaque transport channel, not the Sim ID.");
+            require(!property(abc,op,0x60,"JSON")&&!property(abc,op,0x5d,"JSON")&&!property(abc,op,0x66,"JSON"),
+                "The game's GFx runtime has no JSON class; search must use the bounded worker projection.");
         }
         require(channels==2,"Search submit/read must each carry their native channel.");
+        uniqueLiteral(abc,frame,"SEARCHPAGE|");
+        for(String member:List.of("index_sha256","offset","ticket")) {
+            boolean found=false;
+            for(var op:frame.getCode().code)found|=property(abc,op,0x66,member);
+            require(found,"Compact search page lost its current ticket/index/page check: "+member);
+        }
+        var attach=ownedBody(abc,instance,"ApexSearchAttach");
+        uniqueLiteral(abc,attach,"$TextFont");
+        for(String member:List.of("embedFonts","displayAsPassword")) {
+            boolean found=false;
+            for(var op:attach.getCode().code)found|=property(abc,op,0x61,member)||property(abc,op,0x68,member);
+            require(found,"Search field lost its readable game font setting: "+member);
+        }
         uniqueLiteral(abc,frame,"GetCatalogItem");
         require(propertyCalls(abc,frame).containsAll(Set.of("ApexSearchContext","ApexNativeExchange","ApexEquippedDecimal","ApexSearchPublish")),
             "Search worker lacks exact owner/resource resolution or native feed publication.");

@@ -16,6 +16,13 @@ public class CasSearchBytecodeFixtures {
             body.insertAll(2,List.of(new AVM2Instruction(0,0xd0,new int[0]),
                 new AVM2Instruction(0,0x4f,new int[]{member(abc,"ApexNativeExchange"),0})));
             body.max_stack=Math.max(body.max_stack,1);body.setModified();
+        } else if(mode.equals("search-runtime-json")) {
+            var body=CasBytecodePatch.ownedBody(abc,instance,"ApexSearchFrame");
+            body.insertAll(2,List.of(new AVM2Instruction(0,0x60,new int[]{abc.constants.getMultinameId(
+                com.jpexs.decompiler.flash.abc.types.Multiname.createQName(false,abc.constants.getStringId("JSON",true),
+                abc.constants.getNamespaceId(0x16,"",0,true)),true)}),
+                new AVM2Instruction(0,0x29,new int[0])));
+            body.max_stack=Math.max(body.max_stack,1);body.setModified();
         } else if(mode.equals("search-sim-instead-of-channel")) {
             var body=CasBytecodePatch.ownedBody(abc,instance,"ApexSearchFrame");boolean changed=false;
             for(var op:body.getCode().code)if(CasBytecodePatch.property(abc,op,0x66,"apexNativeChannel") ||

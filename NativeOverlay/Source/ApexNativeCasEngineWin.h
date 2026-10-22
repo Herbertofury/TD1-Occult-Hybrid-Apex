@@ -1570,7 +1570,7 @@ inline bool GetOccultService(const void* arguments) {
         const auto command=text.substr(8);const auto split=command.find('|');
         if(split==std::string::npos)throw std::runtime_error("Native CAS pipe command is incomplete.");
         const auto action=command.substr(0,split);const auto rest=command.substr(split+1);
-        searchRequest=action=="SEARCH"||action=="SEARCHREAD";
+        searchRequest=action=="SEARCH"||action=="SEARCHREAD"||action=="SEARCHPAGE";
         const auto end=rest.find('|');const auto identity=rest.substr(0,end);
         const auto number=SimId(ui::Json(identity));
         if(action=="OPEN") {
@@ -1584,7 +1584,7 @@ inline bool GetOccultService(const void* arguments) {
         else if(action=="PAIR"&&end==std::string::npos)response=PairState(state,number);
         else if(action=="PAIRDO"&&end!=std::string::npos)response=ApplyPairAction(state,number,rest.substr(end+1));
         else if(action=="EQUIPPED"&&end!=std::string::npos)response=EquippedItems(state,number,rest.substr(end+1));
-        else if((action=="SEARCH"||action=="SEARCHREAD")&&end!=std::string::npos) {
+        else if((action=="SEARCH"||action=="SEARCHREAD"||action=="SEARCHPAGE")&&end!=std::string::npos) {
             const auto owner=FastOwnerState(state,number);
             if(owner.rfind("VIEWSTATE|",0)!=0)throw std::runtime_error("Search needs the exact bound CAS appearance.");
             const auto context=state.scope.id+"|"+std::to_string(number)+"|"+owner;
@@ -1593,7 +1593,8 @@ inline bool GetOccultService(const void* arguments) {
                 response="SEARCH|"+std::to_string(search::MetadataWorker().Submit(context,query));
             } else {
                 const auto ticket=SimId(ui::Json(rest.substr(end+1)));
-                response="SEARCHRESULT|"+*search::MetadataWorker().PollWire(context,ticket);
+                response=action=="SEARCHPAGE" ? *search::MetadataWorker().PollUiWire(context,ticket) :
+                    "SEARCHRESULT|"+*search::MetadataWorker().PollWire(context,ticket);
             }
         }
         else if(action=="READ"&&end==std::string::npos)response=pipe::Channel().Poll(number,state.scope.id);

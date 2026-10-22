@@ -27,6 +27,44 @@ int main(int argc,char** argv) {
         Check(td1::library::Query(query),"Fuzzy native query must be accepted.");
         Check(td1::search::UiError("Typed refusal")=="SEARCHERROR|Typed refusal","Read-only UI refusal lost its reason.");
         Check(td1::search::UiError(std::string(2000,'x')).size()==524,"UI refusal diagnostic is not bounded.");
+        const std::string hash(64,'a');
+        Json page={{"ok",true},{"index_sha256",hash},{"query",query},{"grouped",true},
+            {"items",Json::array()},{"categories",Json::array()},{"total",0},{"offset",0},{"next_offset",nullptr},
+            {"snapshot",{{"parts",0},{"complete",true}}}};
+        Check(td1::search::UiPage(page,query,17)=="SEARCHPAGE|17|"+hash+"|0|0|-|","Empty UI page differs.");
+        Json row={{"part_id",hash},{"resource_sha256",hash},{"package_sha256",hash},
+            {"resource_tgi","034AEECB:00000000:123456789ABCDEF0"},{"body_type",34},{"favorite",false},
+            {"name","Unicode label \xE4\xB8\xAD | ; ,"},{"package_name","Creator.package"},{"status","indexed"},{"origin","mod"}};
+        page["items"]=Json::array({row});page["total"]=1;
+        Check(td1::search::UiPage(page,query,18)=="SEARCHPAGE|18|"+hash+"|1|0|-|034AEECB:00000000:123456789ABCDEF0,34",
+            "UI projection changed an exact 64-bit key or leaked labels.");
+        page["total"]=2;page["next_offset"]=1;
+        Check(td1::search::UiPage(page,query,19).find("|2|0|1|")!=std::string::npos,"UI continuation was lost.");
+        auto lastQuery=query;lastQuery["offset"]=1;page["query"]=lastQuery;page["offset"]=1;page["next_offset"]=nullptr;
+        page["items"][0]["body_type"]=nullptr;
+        Check(td1::search::UiPage(page,lastQuery,20).find("ABCDEF0,-")!=std::string::npos,"Unknown body type was invented.");
+        for(unsigned mode=0;mode<6;mode++) {
+            auto bad=page;
+            if(mode==0)bad["index_sha256"]="invalid";
+            if(mode==1)bad["items"][0]["resource_tgi"]="034AEECB:00000000:1|injection";
+            if(mode==2)bad["items"][0]["body_type"]=0x80000000ULL;
+            if(mode==3)bad["total"]=0;
+            if(mode==4)bad["next_offset"]=2;
+            if(mode==5)bad["query"]["text"]="another query";
+            bool rejected=false;try{td1::search::UiPage(bad,lastQuery,20);}catch(const std::exception&){rejected=true;}
+            Check(rejected,"Malformed compact UI page accepted.");
+        }
+        td1::search::Worker successful([&](const Json&){return page;});
+        const auto goodTicket=successful.Submit("memberC/alien",lastQuery);
+        const auto goodDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(2);
+        std::shared_ptr<const std::string> goodWire;
+        do {goodWire=successful.PollUiWire("memberC/alien",goodTicket);std::this_thread::yield();}
+        while(goodWire->rfind("SEARCHWAIT|",0)==0&&std::chrono::steady_clock::now()<goodDeadline);
+        Check(*goodWire==td1::search::UiPage(page,lastQuery,goodTicket),"Background UI publication differs.");
+        Check(successful.PollUiWire("memberC/alien",goodTicket)==goodWire,"Ready UI projection was rebuilt on poll.");
+        Check(successful.PollUiWire("memberD/fairy",goodTicket)->rfind("SEARCHERROR|",0)==0,"UI page leaked to another owner.");
+        successful.Stop();
+        Check(successful.PollUiWire("memberC/alien",goodTicket)->rfind("SEARCHERROR|",0)==0,"Closed UI worker retained a page.");
         auto invalid=query;invalid["fuzzy"]="yes";
         Check(!td1::library::Query(invalid),"Untyped fuzzy flag accepted.");
         std::promise<void> entered, release;
@@ -38,6 +76,7 @@ int main(int argc,char** argv) {
         const auto first=worker.Submit("memberA/alien",query);
         Check(entered.get_future().wait_for(std::chrono::seconds(2))==std::future_status::ready,"Worker did not start.");
         Check(worker.Poll("memberA/alien",first)->value("state","")=="pending","Polling blocked behind network.");
+        Check(*worker.PollUiWire("memberA/alien",first)=="SEARCHWAIT|"+std::to_string(first),"UI polling blocked or lost the ticket.");
         const auto second=worker.Submit("memberA/alien",query);
         const auto third=worker.Submit("memberB/fairy",query);
         Check(worker.Poll("memberA/alien",second)->value("state","")=="stale","Old member ticket leaked.");
@@ -51,6 +90,7 @@ int main(int argc,char** argv) {
         Check(result->value("ticket",0ULL)==third,"Latest result lost its ticket.");
         const auto wire=worker.PollWire("memberB/fairy",third);
         Check(Json::parse(*wire)==*result,"Worker-encoded wire differs from its exact result.");
+        Check(*worker.PollUiWire("memberB/fairy",third)=="SEARCHERROR|Typed transport failure","UI worker lost the bounded error.");
         Check(worker.PollWire("memberB/fairy",third)==wire,"UI poll re-encoded a ready metadata page.");
         Check(calls==2,"Typing created an unbounded request queue.");
         Check(worker.Metrics()["superseded"]==1,"Superseded read published.");

@@ -8,7 +8,7 @@
          apexSearch={text:"",context:"",ticket:"",due:0,poll:0,rows:null,feed:null,panel:null,
             matches:{},offset:0,total:0,resolved:0,shown:0,ready:false,pending:false,error:"",page:null,index:0,
             root:null,input:null,placeholder:null,count:null,clear:null,bubble:null,list:null,geometry:null,
-            registered:false,revision:0,started:0,elapsed_ms:0,sources:[],query:null,native_response:"",publish_ms:0,rebuilds:0};
+            registered:false,revision:0,started:0,elapsed_ms:0,sources:[],query:null,native_response:"",publish_ms:0,rebuilds:0,index_sha256:""};
          apexSearch.registered=RegisterServiceHandler("ApexCatalogSearchSource",ApexSearchSource);
       }
 
@@ -45,7 +45,7 @@
          apexSearch.context=context;apexSearch.ticket="";apexSearch.matches={};apexSearch.page=null;
          apexSearch.index=0;apexSearch.offset=0;apexSearch.total=0;apexSearch.resolved=0;apexSearch.shown=0;
          apexSearch.ready=false;apexSearch.pending=apexSearch.text!="";apexSearch.error="";
-         apexSearch.query=null;apexSearch.native_response="";
+         apexSearch.query=null;apexSearch.native_response="";apexSearch.index_sha256="";
          apexSearch.due=flash.utils.getTimer()+180;apexSearch.revision++;apexSearch.started=flash.utils.getTimer();
       }
 
@@ -87,7 +87,10 @@
       {
          if(text.length>160 || /[\x00-\x1f\x7f]/.test(text)) throw new Error("Search accepts up to 160 printable characters");
          if(apexSearch==null || apexSearch.input==null) throw new Error("Open a native item category with a filter bar first");
-         apexSearch.text=text;apexSearch.input.text=text;
+         apexSearch.text=text;
+         // Assigning text again during CHANGE resets the caret/selection. Let
+         // native typing keep its edit position; only CLI/clear replaces it.
+         if(apexSearch.input.text!=text) apexSearch.input.text=text;
          ApexSearchReset(ApexSearchContext());
          if(text=="") {apexSearch.pending=true;apexSearch.due=0;}
          ApexSearchLabels();
@@ -134,7 +137,10 @@
             bubble.parent.addChild(root);apexSearch.root=root;
             var input:flash.text.TextField=new flash.text.TextField();input.name="ApexFilterItemsInput";
             input.type=flash.text.TextFieldType.INPUT;input.selectable=true;input.maxChars=160;
-            input.defaultTextFormat=new flash.text.TextFormat("Arial",12,0x17527b);
+            // Use the same embedded game font as the other readable Apex CAS
+            // labels. GFx cannot render system Arial in this game process.
+            input.embedFonts=true;input.displayAsPassword=false;
+            input.defaultTextFormat=new flash.text.TextFormat("$TextFont",12,0x17527b);
             input.height=23;input.x=8;input.y=2;input.text=apexSearch.text;root.addChild(input);apexSearch.input=input;
             input.addEventListener(flash.events.Event.CHANGE,ApexSearchChanged,false,0,true);
             input.addEventListener(flash.events.KeyboardEvent.KEY_DOWN,ApexSearchKey,false,30,true);
@@ -239,7 +245,7 @@
                   if(tgi.length!=3 || String(tgi[0]).toUpperCase()!="034AEECB" || !/^[0-9a-f]{16}$/i.test(tgi[2])) throw new Error("Invalid indexed CAS resource key");
                   var exact:String=ApexEquippedDecimal("0x"+tgi[2]);
                   var raw:Object=CommunicationManager.CallGameService("GetCatalogItem",exact);
-                  if(raw!=null && (String(raw.data_id)==exact || String(raw.variation_id)==exact) && int(raw.body_type)==int(row.body_type))
+                  if(raw!=null && row.body_type!=null && (String(raw.data_id)==exact || String(raw.variation_id)==exact) && int(raw.body_type)==int(row.body_type))
                      apexSearch.matches[String(raw.body_type)+"|"+String(raw.data_id)]=true;
                   apexSearch.resolved++;return;
                }
@@ -256,16 +262,32 @@
                apexSearch.ticket=submitted.substr(7);apexSearch.poll=now+50;return;
             }
             if(now<int(apexSearch.poll)) return;apexSearch.poll=now+50;
-            var wire:String=ApexNativeExchange("SEARCHREAD|"+apexNativeChannel+"|"+apexSearch.ticket);
-            if(wire.indexOf("SEARCHRESULT|")!=0) throw new Error("Search context changed; native items unchanged");
-            var reply:Object=JSON.parse(wire.substr(13));
-            if(String(reply.ticket)!=apexSearch.ticket || reply.ok!==true) throw new Error("Search unavailable; native items unchanged");
-            if(reply.state=="pending") return;
-            if(!(reply.items is Array) || reply.items.length>24 || reply.query==null) throw new Error("Search reply does not match the current query");
-            var query:Object=ApexSearchQuery();
-            for(var key:String in query) if(!reply.query.hasOwnProperty(key) || reply.query[key]!==query[key])
+            var wire:String=ApexNativeExchange("SEARCHPAGE|"+apexNativeChannel+"|"+apexSearch.ticket);
+            if(wire=="SEARCHWAIT|"+apexSearch.ticket) return;
+            if(wire.indexOf("SEARCHERROR|")==0) throw new Error("Search unavailable: "+wire.substr(12));
+            if(wire.length>4096) throw new Error("Search reply exceeds its bound");
+            var fields:Array=wire.split("|");
+            if(fields.length!=7 || fields[0]!="SEARCHPAGE" || fields[1]!=apexSearch.ticket ||
+               !/^[0-9a-f]{64}$/i.test(fields[2]) || !/^[0-9]{1,7}$/.test(fields[3]) ||
+               !/^[0-9]{1,7}$/.test(fields[4]) || int(fields[4])!=int(apexSearch.offset) ||
+               int(fields[3])>2000000 || int(fields[4])>int(fields[3]))
                throw new Error("Search reply does not match the current query");
-            apexSearch.page=reply;apexSearch.index=0;apexSearch.total=int(reply.total);
+            if(apexSearch.index_sha256!="" && apexSearch.index_sha256!=fields[2])
+               throw new Error("Search index changed; clear or repeat the query");
+            var items:Array=[];var encoded:Array=fields[6]=="" ? [] : String(fields[6]).split(";");
+            if(encoded.length>24) throw new Error("Search reply has too many items");
+            for each(var resource:String in encoded) {
+               var parts:Array=resource.split(",");
+               if(parts.length!=2 || !/^034AEECB:[0-9a-f]{8}:[0-9a-f]{16}$/i.test(parts[0]) ||
+                  !(parts[1]=="-" || /^[0-9]{1,10}$/.test(parts[1]) && Number(parts[1])<=2147483647))
+                  throw new Error("Search reply contains an invalid resource");
+               items.push({resource_tgi:parts[0],body_type:parts[1]=="-" ? null : int(parts[1])});
+            }
+            var nextOffset:int=int(fields[4])+items.length;
+            if(nextOffset>int(fields[3]) || (nextOffset==int(fields[3]) ? fields[5]!="-" :
+               items.length==0 || String(nextOffset)!=fields[5])) throw new Error("Search reply pagination differs");
+            apexSearch.index_sha256=fields[2];apexSearch.index=0;apexSearch.total=int(fields[3]);
+            apexSearch.page={items:items,next_offset:fields[5]=="-" ? null : nextOffset};
          } catch(error:Error) {apexSearch.pending=false;apexSearch.ready=false;apexSearch.error=error.message;ApexSearchLabels();}
       }
 
@@ -276,5 +298,10 @@
             pending:apexSearch.pending,ready:apexSearch.ready,error:apexSearch.error,matched:apexSearch.shown,
             indexed_matches:apexSearch.total,resolved:apexSearch.resolved,elapsed_ms:apexSearch.elapsed_ms,
             source_count:apexSearch.rows==null ? 0 : apexSearch.rows.length,query:apexSearch.query,
-            native_response:apexSearch.native_response,publish_ms:apexSearch.publish_ms,rebuilds:apexSearch.rebuilds,appearance_written:false};
+            native_response:apexSearch.native_response,publish_ms:apexSearch.publish_ms,rebuilds:apexSearch.rebuilds,
+            index_sha256:apexSearch.index_sha256,input_font:apexSearch.input==null ? "" : apexSearch.input.defaultTextFormat.font,
+            input_embedded:apexSearch.input!=null && apexSearch.input.embedFonts,
+            input_password:apexSearch.input!=null && apexSearch.input.displayAsPassword,
+            input_text:apexSearch.input==null ? "" : apexSearch.input.text,
+            input_text_width:apexSearch.input==null ? 0 : apexSearch.input.textWidth,appearance_written:false};
       }

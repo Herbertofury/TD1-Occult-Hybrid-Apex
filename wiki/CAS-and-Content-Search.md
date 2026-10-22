@@ -4,7 +4,7 @@
 ### Find the item you recognize. Keep the identity you can verify.
 
 > **Development reference · October 21, 2026**<br>
-> The metadata backend, typo planning and native background transport are implemented. A schema-5 real-CC lookup through the native worker also passed: five packages, 62 CASPs and five item families; typo + creator + type + CC filtering returned the correct lipstick package with 30 grouped swatches. V265 builds the editable field in the native filter pane and connects it to the existing eligible card feed. Actual field placement, typing, result selection and large-library qualification remain open. This is development evidence, not a release claim.
+> **V269: readable native search and real card selection verified.** In full CAS, `lipstick` displays readable text and the matching CC card. Typo + creator + type + CC filtering also passes; 30 indexed variants map to one eligible native card. No-match returns zero cards and clearing restores all 41 original cards. Selecting that filtered card through the native click route changes the lipstick; Undo restores its exact original part and color modifiers. This scoped test uses five copied CC packages and 62 CASPs. Full-library qualification and automatic broker distribution/startup remain open; this is not a release claim.
 
 ## The intended workspace
 
@@ -55,6 +55,35 @@ protocol requires its opaque channel ID. V268 corrects those two calls without
 relaxing the ownership gate. It also avoids rebinding unchanged result cards.
 See [the follow-up evidence](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_NATIVE_SEARCH_V266.json).
 The matching actual query/result test remains pending.
+
+V268 successfully submits a query but exposes a second runtime incompatibility:
+the game's GFx runtime does not provide the `JSON` class. Its raw Arial input
+font also renders typed letters as blocks. V269 uses the same embedded
+`$TextFont` as the readable CAS labels and leaves the native caret/selection
+alone during typing. The metadata worker now validates and prepares a bounded
+resource-only page on its background thread. The UI reads that small page
+without a JSON decoder, checks its ticket, index and pagination, then resolves
+only eligible native products. The existing rich JSON endpoint remains available
+to its other clients.
+
+The V269 game capture confirms readable `lipstick`, a result count of one and
+the native CC thumbnail. Both plain and typo/creator/type queries traverse two
+metadata pages and resolve all 30 indexed variants into that one native card.
+The actual filtered-card click and exact Undo also pass. The plain asynchronous
+query completes in 1,744 ms in this run, with 3 ms spent publishing the card list;
+this is not a 0–1 ms response claim. The no-match query produces zero cards,
+and clearing restores the complete 41-card feed. Five search/transport tests,
+including nine serialized bytecode cases, and all fifteen native targets pass.
+Physical typing/editing-key coverage, larger libraries and index/broker startup
+still need qualification. CLI text acknowledgement alone does not prove those
+remaining behaviors.
+
+After the filtered-card selection and Undo, a fresh complete owner export
+matches all 195 compared records across the five-member household. All save
+files remain unchanged. These records include internal preservation entries;
+their count does not mean there are 195 playable forms. The retained
+[V269 report](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_NATIVE_SEARCH_V269.json)
+separates these actual results from the remaining release checks.
 
 ## Why an index is necessary
 

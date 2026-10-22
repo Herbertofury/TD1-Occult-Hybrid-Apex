@@ -1138,3 +1138,20 @@ card/swatches and appearance setters unchanged. Corrected actual search, input,
 selection, context transitions, broker startup and large-library tests remain
 open. See [V264 timing](../Reports/CAS_MEMBER_QUIET_V264.json) and the
 [V265 search failure](../Reports/CAS_NATIVE_SEARCH_V265.json).
+
+V266's deferred admission receives all 41 native lip cards; exact query intent
+and clearing are observed, but metadata submission is refused. Its complete
+CI at 0028587 passes 2,619 Python checks and fifteen native targets. V267's
+bounded read-only diagnostic identifies the protocol error: SEARCH/SEARCHREAD
+were sent the Sim ID instead of the native channel. V268 corrects those two
+calls and adds a serialized regression rejecting that substitution. The native
+ownership check remains intact. Actual corrected results and selection still
+need qualification. See [the follow-up report](../Reports/CAS_NATIVE_SEARCH_V266.json).
+
+A game-thread disposition profile separately records repeated complete-bank
+reads, JSON encoding and SHA work. V268 removes an ignored canonical digest
+used only for JSON validity: duplicate-key checking remains, finite numbers
+are validated during parsing, and the full raw-file SHA is still computed.
+Unknown fields, finite extremes, negative zero and malformed JSON are covered;
+the targeted transaction/commit regressions pass. This is not yet a measured
+gameplay-speed improvement or a reason to relax the permanent guard.

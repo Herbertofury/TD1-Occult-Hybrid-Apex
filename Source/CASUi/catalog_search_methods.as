@@ -8,7 +8,7 @@
          apexSearch={text:"",context:"",ticket:"",due:0,poll:0,rows:null,feed:null,panel:null,
             matches:{},offset:0,total:0,resolved:0,shown:0,ready:false,pending:false,error:"",page:null,index:0,
             root:null,input:null,placeholder:null,count:null,clear:null,bubble:null,list:null,geometry:null,
-            registered:false,revision:0,started:0,elapsed_ms:0,sources:[]};
+            registered:false,revision:0,started:0,elapsed_ms:0,sources:[],query:null,native_response:"",publish_ms:0,rebuilds:0};
          apexSearch.registered=RegisterServiceHandler("ApexCatalogSearchSource",ApexSearchSource);
       }
 
@@ -45,6 +45,7 @@
          apexSearch.context=context;apexSearch.ticket="";apexSearch.matches={};apexSearch.page=null;
          apexSearch.index=0;apexSearch.offset=0;apexSearch.total=0;apexSearch.resolved=0;apexSearch.shown=0;
          apexSearch.ready=false;apexSearch.pending=apexSearch.text!="";apexSearch.error="";
+         apexSearch.query=null;apexSearch.native_response="";
          apexSearch.due=flash.utils.getTimer()+180;apexSearch.revision++;apexSearch.started=flash.utils.getTimer();
       }
 
@@ -181,19 +182,30 @@
 
       private function ApexSearchPublish() : void
       {
+         var started:int=flash.utils.getTimer();
          if(apexSearch.context!=ApexSearchContext() || apexSearch.panel!==mCurrentPanel || apexSearch.rows==null ||
             mCurrentPanel==null || mCurrentPanel.mcTileList.mGridLayout.GetDataFeed()!==apexSearch.feed || apexEquippedActive) return;
          var products:Array=[];
          for each(var product:CASCatalogProduct in apexSearch.rows)
             if(apexSearch.text=="" || apexSearch.matches[String(product.body_type)+"|"+product.data_id]===true) products.push(product);
+         apexKeyQueue=[];apexKeyIntent=0;apexKeyIndex=-1;apexKeyItem=null;apexKeyBounds="";
+         // A failed query leaves native cards intact. Clearing it, or a warm
+         // query with identical results, must not tear down/rebind every card.
+         var unchanged:Boolean=int(apexSearch.feed.length)==products.length;
+         if(unchanged) for(var position:int=0;position<products.length;position++)
+            if(apexSearch.feed.RequestItemAt(position)!==products[position]) {unchanged=false;break;}
+         if(unchanged) {
+            apexSearch.shown=products.length;apexSearch.elapsed_ms=flash.utils.getTimer()-int(apexSearch.started);
+            apexSearch.publish_ms=flash.utils.getTimer()-started;ApexSearchLabels();return;
+         }
          var selected:Array=apexSearch.feed.GetSelectedIndices();var selectedIds:Array=[];
          for each(var index:int in selected) {var item:Object=apexSearch.feed.RequestItemAt(index);if(item!=null) selectedIds.push(String(item.data_id));}
          if(apexSearch.selected!=null) for each(var id:String in apexSearch.selected) if(selectedIds.indexOf(id)<0) selectedIds.push(id);
          // A queued Enter must not select a different item after the same feed
          // object publishes a new search result at that old numeric index.
-         apexKeyQueue=[];apexKeyIntent=0;apexKeyIndex=-1;apexKeyItem=null;apexKeyBounds="";
          apexSearch.feed.RemoveAllItems();apexSearch.feed.AddItemsFromIterable(products);
          apexSearch.feed.UpdateSelections(selectedIds,true);apexSearch.shown=products.length;
+         apexSearch.rebuilds++;apexSearch.publish_ms=flash.utils.getTimer()-started;
          apexSearch.elapsed_ms=flash.utils.getTimer()-int(apexSearch.started);ApexSearchLabels();
       }
 
@@ -236,12 +248,15 @@
                apexSearch.offset=int(next);
             }
             if(apexSearch.ticket=="") {
-               var submitted:String=ApexNativeExchange("SEARCH|"+apexBoundSim+"|"+ApexEncode(ApexSearchQuery()));
+               apexSearch.query=ApexSearchQuery();
+               var submitted:String=ApexNativeExchange("SEARCH|"+apexNativeChannel+"|"+ApexEncode(apexSearch.query));
+               apexSearch.native_response=submitted.substr(0,900);
+               if(submitted.indexOf("SEARCHERROR|")==0) throw new Error("Search unavailable: "+submitted.substr(12));
                if(!/^SEARCH\|[1-9][0-9]*$/.test(submitted)) throw new Error("Search worker unavailable; native items unchanged");
                apexSearch.ticket=submitted.substr(7);apexSearch.poll=now+50;return;
             }
             if(now<int(apexSearch.poll)) return;apexSearch.poll=now+50;
-            var wire:String=ApexNativeExchange("SEARCHREAD|"+apexBoundSim+"|"+apexSearch.ticket);
+            var wire:String=ApexNativeExchange("SEARCHREAD|"+apexNativeChannel+"|"+apexSearch.ticket);
             if(wire.indexOf("SEARCHRESULT|")!=0) throw new Error("Search context changed; native items unchanged");
             var reply:Object=JSON.parse(wire.substr(13));
             if(String(reply.ticket)!=apexSearch.ticket || reply.ok!==true) throw new Error("Search unavailable; native items unchanged");
@@ -260,5 +275,6 @@
          return {available:apexSearch.root!=null,text:apexSearch.text,context:apexSearch.context,ticket:apexSearch.ticket,
             pending:apexSearch.pending,ready:apexSearch.ready,error:apexSearch.error,matched:apexSearch.shown,
             indexed_matches:apexSearch.total,resolved:apexSearch.resolved,elapsed_ms:apexSearch.elapsed_ms,
-            source_count:apexSearch.rows==null ? 0 : apexSearch.rows.length,appearance_written:false};
+            source_count:apexSearch.rows==null ? 0 : apexSearch.rows.length,query:apexSearch.query,
+            native_response:apexSearch.native_response,publish_ms:apexSearch.publish_ms,rebuilds:apexSearch.rebuilds,appearance_written:false};
       }

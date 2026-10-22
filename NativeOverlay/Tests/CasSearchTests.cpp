@@ -25,6 +25,8 @@ int main(int argc,char** argv) {
                           {"offset",0},{"limit",24},{"view","all"},{"author",""},{"sort","name"},
                           {"grouped",true},{"fuzzy",true}};
         Check(td1::library::Query(query),"Fuzzy native query must be accepted.");
+        Check(td1::search::UiError("Typed refusal")=="SEARCHERROR|Typed refusal","Read-only UI refusal lost its reason.");
+        Check(td1::search::UiError(std::string(2000,'x')).size()==524,"UI refusal diagnostic is not bounded.");
         auto invalid=query;invalid["fuzzy"]="yes";
         Check(!td1::library::Query(invalid),"Untyped fuzzy flag accepted.");
         std::promise<void> entered, release;

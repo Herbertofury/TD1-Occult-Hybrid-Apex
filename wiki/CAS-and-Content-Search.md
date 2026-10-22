@@ -48,6 +48,14 @@ defers that admission and checks the exact visible feed and Sim/form context.
 The failed test is retained in the [scoped report](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_NATIVE_SEARCH_V265.json);
 search completion remains unqualified until the corrected build passes.
 
+V266 admits the 41-item native lip feed and acknowledges the exact CLI query.
+Clearing restores all 41 cards. Metadata submission still fails. V267's retained
+refusal identifies a transport ownership error: search sent a Sim ID where the
+protocol requires its opaque channel ID. V268 corrects those two calls without
+relaxing the ownership gate. It also avoids rebinding unchanged result cards.
+See [the follow-up evidence](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_NATIVE_SEARCH_V266.json).
+The matching actual query/result test remains pending.
+
 ## Why an index is necessary
 
 CAS catalog identifiers alone do not supply reliable package filenames or creator names. Apex bridges the game's catalog to a resource index instead of inventing that missing information.

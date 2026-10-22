@@ -13,6 +13,12 @@ namespace td1::search {
 using Json = ui::Json;
 using Fetch = std::function<Json(const Json&)>;
 
+// Read-only UI requests must retain a bounded reason for refusing a query.
+// They never acquire write authority or fall through to an equip operation.
+inline std::string UiError(const std::string& message) {
+    return "SEARCHERROR|"+message.substr(0,512);
+}
+
 class Worker {
     struct Job { std::uint64_t ticket=0; std::string context; Json query; };
     std::mutex mutex_;

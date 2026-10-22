@@ -41,15 +41,15 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770',
                                '30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-21-deferred-search-feed-v266'
+UPGRADE_EPOCH = '2026-10-21-channel-search-strict-read-v268'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'f6520693a2cf6ae293804e2f329a6a5bc8c68c62a4216353db49314b5df9d0ff'
+UPGRADE_SELF_BODY_SHA = 'f31d0b6db8d325f31c1f6559359878218df9aacdfc9ab4d9e530b294c258096a'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
     'apex_core/body_hair_initialization.py': 'b90fd14e840ae90de087b647519ef39208e3488dc72b5ab41d4389855f7b0592',
     'apex_core/bridge_startup.py': '0aa605cb1671a198571381ee51aa729082630faffbac657529a2ada385a9bee2',
-    'apex_core/cas_bank_transaction.py': '0ad4ccd183084cf42fc938b6d213592e34e33a3f99ce949d603ec068acc7f083',
+    'apex_core/cas_bank_transaction.py': 'a476f51ed48944f472ed20ee6f7754c0115e65723bb55d4272a77474f99f2b07',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '032ebc4a20e711db9ae359874b923c6cadd72eceec05277f85bfae3f935fe0c4',
     'apex_core/cas_controls.py': '1d8497925dc27da266460319079fba40f03f2187e8a9379bcf344c13cebd807e',

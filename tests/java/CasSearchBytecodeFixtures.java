@@ -16,6 +16,24 @@ public class CasSearchBytecodeFixtures {
             body.insertAll(2,List.of(new AVM2Instruction(0,0xd0,new int[0]),
                 new AVM2Instruction(0,0x4f,new int[]{member(abc,"ApexNativeExchange"),0})));
             body.max_stack=Math.max(body.max_stack,1);body.setModified();
+        } else if(mode.equals("search-sim-instead-of-channel")) {
+            var body=CasBytecodePatch.ownedBody(abc,instance,"ApexSearchFrame");boolean changed=false;
+            for(var op:body.getCode().code)if(CasBytecodePatch.property(abc,op,0x66,"apexNativeChannel") ||
+                CasBytecodePatch.property(abc,op,0x60,"apexNativeChannel")) {
+                op.operands[0]=member(abc,"apexBoundSim");changed=true;
+            }
+            CasBytecodePatch.require(changed,"Fixture did not replace the native channel");body.setModified();
+        } else if(mode.equals("publish-rebuilds-unchanged")) {
+            var body=CasBytecodePatch.ownedBody(abc,instance,"ApexSearchPublish");var rows=body.getCode().code;
+            boolean compared=false,changed=false;
+            for(int i=0;i<rows.size();i++) {
+                var op=rows.get(i);
+                if(CasBytecodePatch.property(abc,op,0x46,"RequestItemAt"))compared=true;
+                if(compared && op.definition.instructionCode==0x47) {
+                    rows.set(i,new AVM2Instruction(0,0x02,new int[0]));changed=true;break;
+                }
+            }
+            CasBytecodePatch.require(changed,"Fixture did not remove the unchanged-results return");body.setModified();
         } else if(!mode.equals("valid")) {
             String old,replacement;int opcode;
             switch(mode) {

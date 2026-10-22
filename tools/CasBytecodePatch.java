@@ -1415,6 +1415,16 @@ public class CasBytecodePatch {
         require(Collections.disjoint(propertyCalls(abc,publish),Set.of("CallGameService","CallUIService","ApexNativeExchange")) &&
             propertyCalls(abc,publish).containsAll(Set.of("ApexSearchContext","RemoveAllItems","AddItemsFromIterable","UpdateSelections")),
             "Search publication must only filter the original native feed and its selection display.");
+        int compare=-1,clear=-1;var publication=publish.getCode().code;
+        for(int i=0;i<publication.size();i++) {
+            var op=publication.get(i);
+            if(compare<0 && property(abc,op,0x46,"RequestItemAt"))compare=i;
+            if(property(abc,op,0x4f,"RemoveAllItems")||property(abc,op,0x46,"RemoveAllItems")) {clear=i;break;}
+        }
+        boolean unchangedReturn=false;
+        for(int i=compare+1;i<clear;i++)unchangedReturn|=opcode(publication.get(i),0x47);
+        require(compare>=0 && clear>compare && unchangedReturn,
+            "Unchanged search results must return before native card removal/rebinding.");
         for(String member:List.of("context","panel","rows","feed","matches","body_type","data_id","apexEquippedActive")) {
             boolean found=false;
             for(var op:publish.getCode().code) found|=property(abc,op,0x66,member)||property(abc,op,0x60,member);
@@ -1434,6 +1444,13 @@ public class CasBytecodePatch {
             require(found,"Deferred source adoption lost its exact native context: "+member);
         }
         var frame=ownedBody(abc,instance,"ApexSearchFrame");
+        int channels=0;
+        for(var op:frame.getCode().code) {
+            if(property(abc,op,0x66,"apexNativeChannel")||property(abc,op,0x60,"apexNativeChannel"))channels++;
+            require(!property(abc,op,0x66,"apexBoundSim")&&!property(abc,op,0x60,"apexBoundSim"),
+                "Native search commands require the opaque transport channel, not the Sim ID.");
+        }
+        require(channels==2,"Search submit/read must each carry their native channel.");
         uniqueLiteral(abc,frame,"GetCatalogItem");
         require(propertyCalls(abc,frame).containsAll(Set.of("ApexSearchContext","ApexNativeExchange","ApexEquippedDecimal","ApexSearchPublish")),
             "Search worker lacks exact owner/resource resolution or native feed publication.");

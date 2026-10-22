@@ -1563,13 +1563,14 @@ inline bool GetOccultService(const void* arguments) {
     std::string text;
     try {text=UiString(parameter);}catch(const std::exception&){return state.api.getOccultService(arguments);}
     if(text.rfind("APEXUI1|",0)!=0)return state.api.getOccultService(arguments);
-    std::string response="UNAVAILABLE";
+    std::string response="UNAVAILABLE";bool searchRequest=false;
     try {
         std::lock_guard<std::recursive_mutex> lock(state.mutex);
         if(!state.armed||!state.selectionEnabled||state.scope.id.empty())throw std::runtime_error("Native CAS pipe lacks its exact scope.");
         const auto command=text.substr(8);const auto split=command.find('|');
         if(split==std::string::npos)throw std::runtime_error("Native CAS pipe command is incomplete.");
         const auto action=command.substr(0,split);const auto rest=command.substr(split+1);
+        searchRequest=action=="SEARCH"||action=="SEARCHREAD";
         const auto end=rest.find('|');const auto identity=rest.substr(0,end);
         const auto number=SimId(ui::Json(identity));
         if(action=="OPEN") {
@@ -1599,7 +1600,7 @@ inline bool GetOccultService(const void* arguments) {
         else if(action=="CLOSE"&&end==std::string::npos)response=pipe::Channel().Close(number,state.scope.id);
         else if(action=="WRITE"&&end!=std::string::npos)response=pipe::Channel().Send(number,state.scope.id,rest.substr(end+1));
         else throw std::runtime_error("Native CAS pipe operation differs.");
-    } catch(const std::exception&) {response="REFUSED";}
+    } catch(const std::exception& error) {response=searchRequest?search::UiError(error.what()):"REFUSED";}
     state.api.stringValue(Read<void*>(arguments,0x10),response.c_str());return true;
 }
 inline bool SetOccultService(const void* arguments) {

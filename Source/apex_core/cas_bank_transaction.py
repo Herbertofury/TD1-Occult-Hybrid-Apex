@@ -21,6 +21,7 @@ writes are outside this receiver's scope.
 import copy
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import threading
@@ -70,6 +71,17 @@ def _pairs(items):
     return result
 
 
+def _finite_float(text):
+    value = float(text)
+    if not math.isfinite(value):
+        raise ValueError('Non-finite form-bank JSON number; no transaction authorized.')
+    return value
+
+
+def _invalid_constant(text):
+    raise ValueError('Non-finite form-bank JSON constant; no transaction authorized.')
+
+
 def _read(path):
     path = _unlinked(path)
     if not path.exists():
@@ -78,11 +90,15 @@ def _read(path):
         raise ValueError('Form bank is not a regular file.')
     before = path.stat()
     raw = path.read_bytes()
-    value = json.loads(raw.decode('utf-8'), object_pairs_hook=_pairs)
+    value = json.loads(raw.decode('utf-8'), object_pairs_hook=_pairs,
+                       parse_float=_finite_float, parse_constant=_invalid_constant)
     if (not isinstance(value, dict) or type(value.get('schema')) is not int or value['schema'] != 1 or
             not isinstance(value.get('records'), dict)):
         raise ValueError('Invalid form bank; no metadata replaced.')
-    primitive.digest(value)
+    # JSON already supplies only JSON types. The strict number callbacks and
+    # duplicate-key hook validate the complete document during parsing. The
+    # formerly ignored canonical digest encoded/hashed the whole bank again
+    # merely to reject non-finite values. Keep the exact whole-file SHA below.
     file_hash = hashlib.sha256(raw).hexdigest()
     # Feed the menu's compact lock index from work this reader already did,
     # rather than hashing/parsing the whole bank again on a player's first

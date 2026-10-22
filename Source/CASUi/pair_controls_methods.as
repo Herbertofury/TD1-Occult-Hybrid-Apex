@@ -73,6 +73,8 @@
          if(pair==null) return {blocked:true,enabled:false};
          if(request.operation=="status") {
             pair.enabled=true;pair.source_label=ApexPairLabel(pair.selected_owner_id);
+            for each(var owner:Object in apexFormsOwners) if(owner.id===pair.selected_owner_id)
+               pair.native_kind=int(owner.kind);
             pair.target_label=ApexPairLabel(pair.selected_owner_id===pair.base_owner_id?pair.alternate_owner_id:pair.base_owner_id);
             return pair;
          }

@@ -128,7 +128,7 @@ public class CasSelectorBytecodePatch {
             : key.equals("ApexSelectorReadOwnerFeed") ? Set.of("RequestItemAt", "ApexSelectorCopyRow", "push", "String", "int", "Boolean", "Number", "localToGlobal", "GetCopyAlternativeFormXOffset", "GetCopyAlternativeFormYOffset", "GetSelectedBitValues")
             : key.equals("ApexSelectorCaptureFeed") ? Set.of("ApexSelectorCopyRow", "push", "String", "int", "Boolean") : Set.of();
         if(key.equals("ApexSelectorNavigate")) calls=Set.of("RequestItemAt","ApexSelectorCopyRow","test","String","int","SelectSimLayer");
-        if(key.equals("ApexSelectorEnableHybridPair")) calls=Set.of("test","String","UpdateCopyAlternativeFormClip");
+        if(key.equals("ApexSelectorEnableHybridPair")) calls=Set.of("test","String","UpdateCopyAlternativeFormClip","RequestItemAt","ReplaceItemAt");
         if(key.equals("ApexSelectorRestorePair")) calls=Set.of("RequestItemAt","ReplaceItemAt","UpdateSelectedIndex","UpdateAffordable","UpdateLayout","int");
         var instructions=body.getCode().code;
         for (int index=0;index<instructions.size();index++) {
@@ -431,6 +431,26 @@ public class CasSelectorBytecodePatch {
         // class, embedded artwork, signature, slot or event binding is replaced.
         require(before.instance_traits.traits.size()==after.instance_traits.traits.size(),
             "EA pair-panel adapter unexpectedly adds/removes class traits.");
+        int cell=original.findClassByName("widgets.CAS.controls.CASSimSelectorCellView");
+        require(cell>=0 && cell==compiled.findClassByName("widgets.CAS.controls.CASSimSelectorCellView"),
+            "Native portrait cell inventory differs.");
+        var nativeCell=original.instance_info.get(cell);var compiledCell=compiled.instance_info.get(cell);
+        var oldTooltip=body(original,nativeCell,"UpdateTooltips");
+        var madeTooltip=body(compiled,compiledCell,"UpdateTooltips");var tooltip=madeTooltip.clone();
+        require(oldTooltip.exceptions.length==0 && madeTooltip.exceptions.length==0 &&
+            oldTooltip.traits.traits.isEmpty() && madeTooltip.traits.traits.isEmpty() &&
+            nativeCell.instance_traits.traits.size()==compiledCell.instance_traits.traits.size(),
+            "Portrait tooltip adapter has unreviewed regions or traits.");
+        int tooltipDelta=oldTooltip.init_scope_depth-madeTooltip.init_scope_depth;
+        require(tooltipDelta>=0 && tooltipDelta<=16,"Portrait tooltip lexical scope differs.");
+        for(var op:tooltip.getCode().code) {
+            require(!Set.of(0x40,0x44,0x67).contains(op.definition.instructionCode),
+                "Portrait tooltip contains an unreviewed function/outer-scope dependency.");
+            if(opcode(op,0x65))require(op.operands[0]<madeTooltip.max_scope_depth-madeTooltip.init_scope_depth,
+                "Portrait tooltip local scope index differs.");
+        }
+        tooltip.method_info=oldTooltip.method_info;tooltip.init_scope_depth+=tooltipDelta;tooltip.max_scope_depth+=tooltipDelta;
+        tooltip.getCode().checkValidOffsets(tooltip);result.put(oldTooltip.method_info,tooltip);
         return result;
     }
     static void verifyPairPanel(ABC reference,ABC compiled,ABC saved) throws Exception {
@@ -544,13 +564,14 @@ public class CasSelectorBytecodePatch {
         }
         byte[] result=patch(original,compiled); Files.write(Path.of(args[2]),result);
         System.out.println("{\"native_method_count\":"+nativeCount+",\"apex_method_count\":"+METHODS.size()+",\"owned_field_count\":"+FIELDS.size()+","+
-            "\"unchanged_native_methods\":"+(nativeCount-2-PAIR_METHODS.size())+",\"native_class_script_traits_preserved\":true,"+
+            "\"unchanged_native_methods\":"+(nativeCount-3-PAIR_METHODS.size())+",\"native_class_script_traits_preserved\":true,"+
             "\"native_initialize_tail_hook_verified\":true,\"native_refresh_entry_hook_verified\":true,\"native_refresh_typed_tail_hook_verified\":true,"+
             "\"native_bodies_after_hook_stripping_exact\":true,\"native_lexical_scope_preserved\":true,"+
             "\"native_exception_regions\":0,\"unknown_native_exceptions_refused\":true,\"owned_local_scope_indexes_verified\":true,"+
             "\"callback_raw_copy_only_verified\":true,\"service_retained_view_read_only_verified\":true,"+
             "\"exact_widget_registration_linkage_verified\":true,\"initialize_preserves_captured_feed_verified\":true,"+
             "\"native_pair_panel_adapter_methods\":"+PAIR_METHODS.size()+",\"hybrid_pair_scoped_transport\":true,"+
+            "\"native_portrait_tooltip_adapter_methods\":1,"+
             "\"independent_occult_sync_default_verified\":true,\"independent_occult_sync_default_scope\":"+
             "\"Independent by default; hybrid panel uses exact Sim/form-pair scope, never stock global autosync. Runtime qualification required.\","+
             "\"selector_has_no_unload_override\":true,\"inherited_cleanup_bytecode_verified\":"+embedded+","+

@@ -455,6 +455,17 @@
 
       private function ApexFormsToolbarClick(action:String) : void
       {
+         if(action=="humanbase") {
+            if(apexFormsSelectedId!=="werewolf/werewolf_human_cc" || apexPendingFields!=null || apexReceiving ||
+               apexFormsDesiredId!="" || apexFormsNativeIntent!=null || apexPairIntent!=null) return;
+            var pair:Object=ApexPairRead();
+            if(pair==null || pair.selected_owner_id!==apexFormsSelectedId ||
+               pair.human_owner_id===apexFormsSelectedId) return;
+            apexPairIntent={sim_id:apexBoundSim,session:apexOwnerSession,generation:pair.generation,
+               operation:"copy",enabled:false,category_flags:4294967295,
+               source_owner_id:pair.human_owner_id,target_owner_id:apexFormsSelectedId};
+            ApexFormsScheduleFrame();return;
+         }
          if(action=="smaller") apexFormsScale=Math.max(0.7,Math.round((apexFormsScale-0.1)*10)/10);
          else if(action=="larger") apexFormsScale=Math.min(1.5,Math.round((apexFormsScale+0.1)*10)/10);
          else if(action=="previous") apexFormsPage=Math.max(0,apexFormsPage-1);
@@ -540,7 +551,10 @@
          var busy:Boolean=apexPendingFields!=null || apexReceiving || apexFormsDragging || apexFormsDesiredId!="";
          var pairSignature:String=apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration;
          var refreshPair:Boolean=apexFormsNativeState=="bound" && apexFormsDesiredId=="" && pairSignature!==apexPairSignature;
-         var portraits:Object=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:refreshPair});
+         var pairLabels:Object=ApexPairRead();
+         var portraits:Object=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:refreshPair,
+            base_label:pairLabels==null?"":ApexPairLabel(pairLabels.base_owner_id),
+            alternate_label:pairLabels==null?"":ApexPairLabel(pairLabels.alternate_owner_id)});
          if(portraits==null || portraits.protocol!==1 || portraits.enabled!==true || portraits.sim_id!==apexBoundSim)
             return;
          if(refreshPair) apexPairSignature=pairSignature;
@@ -568,7 +582,10 @@
                // Acknowledge that exact pair now instead of leaving its old
                // generation to wait for the next network/timer-owned tick.
                pairSignature=apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration;
-               portraits=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:true});
+               pairLabels=ApexPairRead();
+               portraits=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:true,
+                  base_label:pairLabels==null?"":ApexPairLabel(pairLabels.base_owner_id),
+                  alternate_label:pairLabels==null?"":ApexPairLabel(pairLabels.alternate_owner_id)});
                if(portraits!=null && portraits.protocol===1 && portraits.enabled===true &&
                   portraits.sim_id===apexBoundSim && ApexFormsReadNativeState() &&
                   apexFormsNativeState=="bound" && apexFormsDesiredId=="" &&
@@ -601,6 +618,8 @@
          var cellWidth:int=apexFormsVariantFamily==""?44:82;
          var cellHeight:int=apexFormsVariantFamily==""?44:70;
          apexFormsPanelWidth=Math.max(350,columns*cellWidth+8);apexFormsPanelHeight=rows*cellHeight+62;
+         var humanBase:Boolean=apexFormsSelectedId==="werewolf/werewolf_human_cc" && apexFormsNativeState=="bound";
+         if(humanBase) apexFormsPanelHeight+=30;
          var signature:String=apexBoundSim+":"+apexFormsSelectedId+":"+apexFormsNativeState+":"+apexFormsDesiredId+":"+
             count+":"+apexFormsPage+":"+busy+":"+apexFormsScale+":"+apexFormsLocked+":"+apexFormsCollapsed+":"+apexFormsVariantFamily+":"+apexPairMessage;
          if(signature==apexFormsSignature) return;apexFormsSignature=signature;
@@ -648,6 +667,12 @@
                owner.description=owner.label+". "+owner.description;
                button=ApexFormsCompactButton(owner,exactIndex,((i-start)%columns)*cellWidth,32+Math.floor((i-start)/columns)*cellHeight,!busy,true);
             }
+         }
+         if(humanBase) {
+            ApexFormsToolbar("humanbase","Reset Human/CC from Human",6,210);
+            var resetBase:flash.display.Sprite=apexFormsRoot.getChildByName("apexTool_humanbase") as flash.display.Sprite;
+            resetBase.y=apexFormsPanelHeight-53;
+            ApexFormsTooltip(resetBase,"Replace only this Werewolf Human/CC appearance with the complete shared Human look, including head, body, skin and outfits. Use this to repair an older beast-based CC look. Other forms are kept.");
          }
          var footer:String=apexFormsNativeState=="unresolved" ? "Form view unresolved; further switching is blocked." : apexFormsDesiredId!="" ? "Opening "+apexFormsDesiredId : apexFormsNativeState=="bound" ? "Each form keeps its own edits. Copy or link only when you choose." :
             apexFormsNativeState=="unresolved" ? "Form view unresolved; further switching is blocked." : "Initializing independent form owners...";

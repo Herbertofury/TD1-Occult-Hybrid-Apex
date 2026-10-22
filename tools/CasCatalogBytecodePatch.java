@@ -12,7 +12,7 @@ import com.jpexs.helpers.MemoryInputStream;
 public class CasCatalogBytecodePatch {
     static final String PIN="2f09c674e42b87a09d21a7ef76c194967520c9ab93174d460df9f0c7b57ca52c";
     static final Map<String,Set<String>> TARGETS=Map.of(
-        "widgets.CAS.controls.CASContextMenu",Set.of("UpdateMenu","HandleItemSelection"));
+        "widgets.CAS.controls.CASContextMenu",Set.of("UpdateMenu","HandleItemSelection","Refresh"));
     static void require(boolean b,String s){CasBytecodePatch.require(b,s);}
     static String sha(byte[] b)throws Exception{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(b));}
     static MethodBody body(ABC a,InstanceInfo i,String n){return CasBytecodePatch.ownedBody(a,i,n);}

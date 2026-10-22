@@ -10,7 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 JAR=ROOT/'.work/research/ffdec/ffdec.jar'
 COMPILED=ROOT/'.work/research/apex-cas-compiled.swf'
 CARDS_COMPILED=ROOT/'.work/research/apex-cas-cards-compiled.swf'
-EQUIPPED_COMPILED=ROOT/'.work/research/apex-cas-feed-compiled.swf'
+EQUIPPED_COMPILED=ROOT/'.work/research/apex-cas-pelt-button-compiled.swf'
 ORIGINAL=ROOT/'.work/research/current-cas-customizer.swf'
 
 
@@ -54,7 +54,7 @@ class CatalogBytecodeTests(unittest.TestCase):
 
     @unittest.skipUnless(EQUIPPED_COMPILED.exists() and ORIGINAL.exists(),'Compiled native equipped adapters required')
     def test_native_equipped_and_profiler_adapters_keep_original_game_calls(self):
-        for case in ('valid','Refresh','OnCatalogClick','OnToggleVariationGrid','RemoveSelectedItem','SelectCatalogProduct','RequestData','clock-package','selection-batch'):
+        for case in ('valid','Refresh','OnCatalogClick','OnToggleVariationGrid','RemoveSelectedItem','SelectCatalogProduct','RequestData','clock-package','selection-batch','pelt-parent','pelt-paint','pelt-tooltip'):
             with self.subTest(case=case):
                 result=subprocess.run(['java','-cp',str(JAR)+os.pathsep+self.directory.name,
                     'CasEquippedBytecodeFixtures',str(ORIGINAL),str(EQUIPPED_COMPILED),case],

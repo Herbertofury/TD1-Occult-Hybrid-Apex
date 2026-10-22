@@ -1155,3 +1155,25 @@ are validated during parsing, and the full raw-file SHA is still computed.
 Unknown fields, finite extremes, negative zero and malformed JSON are covered;
 the targeted transaction/commit regressions pass. This is not yet a measured
 gameplay-speed improvement or a reason to relax the permanent guard.
+
+### V276: legacy Human/CC Werewolf and form-specific UI repairs
+
+The reported black Human/CC Werewolf retains beast head genetics and pelt data
+inside an older named look. New captures already seed the complete shared
+Human appearance. An explicit **Reset Human/CC from Human** button now repairs
+an older look through the same exact-pair whole-appearance copy transaction.
+Its tooltip explains that head, body, skin and outfits are replaced only in
+that chosen CC variant. Opening CAS does not reset a player's saved CC edits.
+
+EA's wing header and radial menu can query the physical alternate's Vampire
+display type after the native model binds Fairy. The three wing-header methods
+now resolve the exact selected owner before choosing paint mode, enabling the
+paint header or displaying its tooltip. The radial also retains the selected
+owner's UI context across refreshes, copying every public SimInfo slot.
+These UI changes retain the complete membership mask and independent owners.
+
+Expanded portrait tooltips now describe each displayed owner separately while
+preserving EA's disabled-state warnings and relationship text. Original class
+construction, artwork, unrelated methods and inherited cleanup remain retained
+by the serialized build checks. See [the scoped form-repair report](../Reports/CAS_FORM_REPAIRS_V276.json)
+for actual runtime results; these repairs do not close the broader release checklist.

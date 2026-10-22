@@ -113,10 +113,12 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
         if (ui_info.get('target_game') != '1.128.90.1030' or
                 ui_info.get('sha256') != digest(ui_path.read_bytes()) or
                 ui_info.get('non_script_tags_preserved') is not True or
-                contract.get('unchanged_native_methods') != 1778 or
+                contract.get('unchanged_native_methods') != 1775 or
+                contract.get('native_wing_paint_owner_adapters') != 3 or
                 selector_contract.get('native_method_count') != 462 or
-                selector_contract.get('unchanged_native_methods') != 453 or
+                selector_contract.get('unchanged_native_methods') != 452 or
                 selector_contract.get('native_pair_panel_adapter_methods') != 7 or
+                selector_contract.get('native_portrait_tooltip_adapter_methods') != 1 or
                 any(selector_contract.get(flag) is not True for flag in required_selector_contract) or
                 any(contract.get(flag) is not True for flag in required_contract)):
             raise ValueError('CAS bridge package does not match its build evidence.')
@@ -129,7 +131,7 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
                 '62ECC59A:00000000:3E752EBCB41E7298'}:
             raise ValueError('CAS bridge must contain exactly the six verified native UI resources.')
         catalog=ui_info.get('catalog_native_bytecode_contract',{})
-        if (catalog.get('ok') is not True or catalog.get('edited_method_count')!=2 or
+        if (catalog.get('ok') is not True or catalog.get('edited_method_count')!=3 or
                 catalog.get('unrelated_native_methods_preserved') is not True or
                 catalog.get('native_lexical_scope_preserved') is not True or
                 catalog.get('base_resource_sha256')!='2f09c674e42b87a09d21a7ef76c194967520c9ab93174d460df9f0c7b57ca52c'):

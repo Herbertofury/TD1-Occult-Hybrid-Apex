@@ -1,0 +1,146 @@
+{
+  "candidate_epoch": "2026-10-22-wing-paint-owner-v276",
+  "candidate_sha256": "550d36b0249eb57834be15701bda1c0aea132de25227f00ad0ae7e5b1b748b76",
+  "fairy": {
+    "back_of_wings_paint_camera_observed": true,
+    "changed_fields": [
+      "__outfits__",
+      "custom_texture",
+      "genetic_data",
+      "pelt_layers"
+    ],
+    "fix": "The wing header, paint button and radial resolve the bound independent owner instead of the physical alternate backing slot. Membership is retained.",
+    "native_wing_paint_mode_title_observed": true,
+    "orange_brush_marks_actual_input_verified": true,
+    "other_194_captured_appearance_records_unchanged": true,
+    "paint_retained_after_actual_werewolf_round_trip": true,
+    "repaired_cc_look_unchanged": true
+  },
+  "final_cleanup": {
+    "complete_human_cc_reset_verified": true,
+    "no_new_ui_exception": true,
+    "ok": true,
+    "other_194_captured_appearances_unchanged": true,
+    "painted_fairy_retained": true,
+    "proof_sha256": "d519211e8f196f2f0f0c77e40d2803e074472334393d44b6e762c887b6c67b33",
+    "save_files_unchanged": true
+  },
+  "human_cc_werewolf": {
+    "catalogs": {
+      "clothing_face_makeup_paint": 44,
+      "profile_head_ears": 72,
+      "profile_head_whole_heads": 19
+    },
+    "complete_human_appearance_verified": true,
+    "legacy_cause": "Older Human/CC look contains beast facial/genetic data, outfits and fur paint while rendering with a Human genus.",
+    "other_194_captured_appearance_records_unchanged": true,
+    "real_beast_then_cc_round_trip_verified": true,
+    "repair": "Explicit complete shared-Human copy into only the selected Human/CC Werewolf owner. Opening CAS does not reset existing CC edits.",
+    "reset_button_actual_click_verified": true
+  },
+  "open_gaps": [
+    {
+      "automatic_replay": false,
+      "exact_cli_acknowledgement": false,
+      "failure": "Native preset did not read back the exact requested catalog index",
+      "kind": "cc-preset-confirmation",
+      "native_visual_application_observed": true,
+      "panel": "profile_head_ears",
+      "requested_preset": "15800120639184224045",
+      "returned_native_selection": {
+        "index": -1,
+        "presetId": "0"
+      }
+    },
+    {
+      "complete_appearance_return": false,
+      "differing_fields": [
+        "facial_attributes"
+      ],
+      "kind": "cc-preset-undo",
+      "recovery": "Explicit complete Human reset; all 195 owners compared again. Repaired CC look matches Human and the other 194 owners are unchanged from their expected appearances.",
+      "scope": "Only the explicitly edited Human/CC Werewolf; other forms remained independent.",
+      "undo_acknowledged": true
+    },
+    {
+      "kind": "release-matrix",
+      "scope": "Current-candidate edited CAS/Live/save/cold-load/Tray/Gallery routes, every CC preset, and responsiveness remain subject to the existing release gates."
+    }
+  ],
+  "private_evidence": [
+    {
+      "file": ".work/v276-repair-qa.json",
+      "sha256": "509d949f3618fd18d785eb083ea0bd3a1e3b7a99d324ec3cc6934b170f380d3c"
+    },
+    {
+      "file": ".work/v276-wing-isolation-qa.json",
+      "sha256": "394b6894c064774edd2eabd31650915d0508b11c81cb4da1639deb7fb624796e"
+    },
+    {
+      "file": ".work/v276-fairy-return-tooltip-view.bmp",
+      "sha256": "398f962348b002091f11c801fe35bec3cfa11940b4985a67c3e7e02e95af7e35"
+    },
+    {
+      "file": ".work/v276-wing-paint-open-view.bmp",
+      "sha256": "2a4480112422079eb1f8729bbee5060b6b25e59afe5525e72672855c4ea32602"
+    },
+    {
+      "file": ".work/v276-wing-painted-view.bmp",
+      "sha256": "f2dd7ccb2e5c05049fd60a1b6fabdc8d81e9f20f1d209ea66f7ed2fab7126719"
+    },
+    {
+      "file": ".work/v276-human-cc-repaired-view.bmp",
+      "sha256": "6832ae690cc5b6315036bf9d32eec84c34efa8f225b13cfe058d1a362243d625"
+    },
+    {
+      "file": ".work/v276-cc-ear-preset-edit.json",
+      "sha256": "8acf7b0541c8c5f708d09d3e4d4fe63e1b027c72b6de437a16954ae2ffa092d5"
+    },
+    {
+      "file": ".work/v276-ear-preset-undo.json",
+      "sha256": "9449dcbf5f8b457bae588cba27e0688d50b089c8e9fa916156228599ec2c6633"
+    },
+    {
+      "file": ".work/v276-final-isolation-qa.json",
+      "sha256": "000808e6984aaa27139ae92cf7809c8c4088ba9cb55ba32d62af9ccec49978b3"
+    },
+    {
+      "file": ".work/v276-final-human-reset.json",
+      "sha256": "4d108b92e44ef7f742dad66f0c614fa46837c397ef58aff51662ea5cfae19727"
+    },
+    {
+      "file": ".work/v276-cleanup-isolation-qa.json",
+      "sha256": "d519211e8f196f2f0f0c77e40d2803e074472334393d44b6e762c887b6c67b33"
+    }
+  ],
+  "production_ready": false,
+  "schema": 1,
+  "script_sha256": "99ec33916e8b795238fdaf418ccf5e1492aabcd89f9264b976d29a38583a5261",
+  "status": "scoped-ui-repairs-validated-development-candidate",
+  "target_game": "1.128.90.1030",
+  "tooltips": {
+    "actual_fairy_hover_verified": true,
+    "actual_human_cc_hover_verified": true,
+    "fix": "Separate exact-owner labels in the existing EA paired portraits; disabled warnings and relationship content retained.",
+    "ordinary_sim_fallback_retained": true
+  },
+  "validation": {
+    "all195_captured_appearance_records_retained_on_automatic_full_cas_entry": true,
+    "all40_native_appearance_fields_retained_after_upgrade": true,
+    "catalog_contract_test_methods": 4,
+    "catalog_serialized_fixture_cases": 27,
+    "compiled_python37_modules": 106,
+    "form_seal_tests": 26,
+    "household_members": 5,
+    "independent_rust_validated_resources": 210,
+    "live_cas_exit_tested_for_this_candidate": false,
+    "new_ui_exceptions": false,
+    "original_profile_written": false,
+    "packages": 7,
+    "records_are_audit_owners_not_195_playable_forms": true,
+    "save_files_changed": false,
+    "selector_tests": 61,
+    "upgrade_tests": 26,
+    "wing_contract_tests": 30
+  }
+}

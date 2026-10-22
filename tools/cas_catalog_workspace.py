@@ -9,7 +9,7 @@ from pathlib import Path
 
 CONTEXT_KEY = (0x62ECC59A, 0, 0xCAEE355CE0B704F7)
 CONTEXT_CLASS = 'widgets.CAS.controls.CASContextMenu'
-CONTEXT_METHODS = ('UpdateMenu', 'HandleItemSelection')
+CONTEXT_METHODS = ('UpdateMenu', 'HandleItemSelection', 'Refresh')
 PLAN_KEY = (0x62ECC59A, 0, 0x3E752EBCB41E7298)
 PLAN_CLASS = 'widgets.CAS.PlanOutfit.CASPlanOutfitMain'
 PLAN_PIN = '060ced2b95e5cc25aaba4b30f0b850d2b0ce992139c68311dc4110f510200f35'
@@ -27,7 +27,7 @@ def inject_context(source):
         raise ValueError('CAS context menu is already adapted.')
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     source = replace_once(source, '   import flash.display.DisplayObjectContainer;',
-        '   import olympus.localization.LocKey;\n   import flash.display.DisplayObjectContainer;')
+        '   import flash.utils.describeType;\n   import olympus.localization.LocKey;\n   import flash.display.DisplayObjectContainer;')
     anchor = 'this.dataProvider = new DataProvider(_loc9_);\n               this.SetupArc(this.ARC_MAIN);'
     added = '''_loc9_=_loc9_.concat();
                var apexEquipped:CASContextMenuItem=new CASContextMenuItem();
@@ -46,6 +46,31 @@ def inject_context(source):
          if(_loc6_!=null && _loc6_.action=="ApexEquippedCatalog") {
             CommunicationManager.CallUIService("ApexOpenEquippedCatalog",null);
             return;
+         }''')
+    # The physical alternate may be a Vampire backing slot. The radial menu
+    # already holds the exact selected owner's display kind; asking for fresh
+    # SimInfo here selects pelt painting for Fairy wings.
+    source = replace_once(source,
+        '_loc9_ = CASStateData.GetCurrentSimInfo(true).occultType == OccultTypes.OCCULT_FAIRY;',
+        '''var apexPaintOwner:Object=CommunicationManager.CallUIService("ApexFormPairPanel",{operation:"status",sim_id:this.mCurrSimId});
+               _loc9_ = apexPaintOwner!=null && apexPaintOwner.enabled===true && apexPaintOwner.native_kind is int ?
+                  int(apexPaintOwner.native_kind)==OccultTypes.OCCULT_FAIRY : this.mCurrOccultType==OccultTypes.OCCULT_FAIRY;''')
+    source = replace_once(source, 'public function Refresh(param1:SimInfo) : void\n      {',
+        '''public function Refresh(param1:SimInfo) : void
+      {
+         // A display-only copy follows the actual bound owner even when EA
+         // refreshes this radial from the physical alternate backing slot.
+         var apexOwner:Object=CommunicationManager.CallUIService("ApexFormPairPanel",{operation:"status",sim_id:String(param1.simId)});
+         if(apexOwner!=null && apexOwner.enabled===true && apexOwner.native_kind is int &&
+            [1,2,4,8,16,32,64].indexOf(int(apexOwner.native_kind))>=0) {
+            // SimInfo's public slots are sealed, not for-in enumerable.
+            // OlympusObject.ParseObject expects an ordinary detached object.
+            var apexInfo:Object={};var apexDefinition:XML=describeType(param1);
+            for each(var apexSlot:XML in apexDefinition.variable) {
+               var apexName:String=String(apexSlot.@name);apexInfo[apexName]=param1[apexName];
+            }
+            param1=new SimInfo(apexInfo);param1.occultType=int(apexOwner.native_kind);
+            param1.occultLayer=apexOwner.selected_owner_id===apexOwner.base_owner_id?0:1;
          }''')
     return source
 

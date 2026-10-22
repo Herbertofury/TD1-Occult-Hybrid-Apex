@@ -91,6 +91,21 @@
          // Presentation only. The native graph owns actual slot data and
          // navigation; no appearance, conversion or membership is written.
          apexSelectorHybridSim=String(request.sim_id);
+         // Labels describe the displayed independent owners, not the combined
+         // membership mask (which has no single EA OccultStaticData row).
+         if(request.base_label is String && request.alternate_label is String &&
+            request.base_label.length>0 && request.base_label.length<=160 &&
+            request.alternate_label.length>0 && request.alternate_label.length<=160 && mbPurchaseAffordable) {
+            var row:SimSkewerData=mDataFeed.RequestItemAt(mSelectedSimIndex) as SimSkewerData;
+            if(row!=null && row.sim_layers.length==2 && row.sim_layers[0].simId===apexSelectorHybridSim &&
+               row.sim_layers[1].simId===apexSelectorHybridSim &&
+               (row.sim_layers[0].alternativeTooltipText!==request.base_label ||
+                row.sim_layers[1].alternativeTooltipText!==request.alternate_label)) {
+               row.sim_layers[0].alternativeTooltipText=request.base_label;
+               row.sim_layers[1].alternativeTooltipText=request.alternate_label;
+               mDataFeed.ReplaceItemAt(mSelectedSimIndex,row);
+            }
+         }
          if(request.refresh_pair===true) UpdateCopyAlternativeFormClip();
          return {protocol:1,enabled:true,sim_id:apexSelectorHybridSim};
       }

@@ -23,6 +23,14 @@ public class CasEquippedBytecodeFixtures {
                 }
             }
             CasBytecodePatch.require(changed,"Fixture did not regress the Flash binding.");body.setModified();
+        } else if(mode.startsWith("pelt-")) {
+            String type="widgets.CAS.Customizer.Panes.PeltMarkings."+
+                (mode.equals("pelt-tooltip")?"PeltPaintLayerButton":"PeltMarkingsPane");
+            String method=mode.equals("pelt-tooltip")?"Refresh":mode.equals("pelt-parent")?"ParentVisible":"OnPaintLayerPressed";
+            var body=CasBytecodePatch.classMethod(compiled,type,method);boolean changed=false;
+            for(var op:body.getCode().code)if(op.definition.instructionCode==0x2c &&
+                compiled.constants.getString(op.operands[0]).equals("ApexFormPairPanel")) {op.operands[0]=0;changed=true;}
+            CasBytecodePatch.require(changed,"Fixture did not remove the exact displayed-owner lookup.");body.setModified();
         } else if(!mode.equals("valid")) {
             String type=mode.equals("RequestData")?"widgets.CAS.data.CatalogDataFeed":"widgets.CAS.Customizer.ClothingPanel";
             var body=CasBytecodePatch.classMethod(compiled,type,mode);boolean changed=false;

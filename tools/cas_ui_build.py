@@ -42,6 +42,7 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'tools/cas_catalog_workspace.py', 'tools/CasCatalogBytecodePatch.java',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
                   'tools/cas_pair_panel_patch.py',
+                  'tools/cas_pelt_patch.py',
                   'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py',
                   'tools/CasVoiceBytecodePatch.java', 'tools/cas_molecule_patch.py',
                   'tools/CasMoleculeBytecodePatch.java')
@@ -266,6 +267,14 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         class_name=cas_equipped_catalog.CLOTHING_CLASS if kind=='clothing' else cas_equipped_catalog.FEED_CLASS
         run([ffdec,'-importAssets','yes,local','-replace',compiled,next_compiled,class_name,owned_source])
         compiled=next_compiled
+    import cas_pelt_patch
+    for kind, type_name, button in (('pane', cas_pelt_patch.PANE, False), ('button', cas_pelt_patch.BUTTON, True)):
+        native_source=work / ('current-cas/scripts/scripts/'+type_name.replace('.', '/')+'.as')
+        owned_source=work / ('ApexCAS-pelt-'+kind+'.as')
+        owned_source.write_text(cas_pelt_patch.inject(native_source.read_text(encoding='utf-8'), button),encoding='utf-8')
+        next_compiled=work / ('apex-cas-pelt-'+kind+'-compiled.swf')
+        run([ffdec,'-importAssets','yes,local','-replace',compiled,next_compiled,type_name,owned_source])
+        compiled=next_compiled
     # The general AS compiler changes native methods' lexical scope. It is
     # used only to obtain Apex methods; original game bytecode stays intact.
     retained = work / 'apex-cas-retained.abc'
@@ -287,6 +296,22 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     run([ffdec, '-importAssets', 'yes,local', '-replace', selector_compiled, pair_compiled,
          cas_pair_panel_patch.CLASS, pair_source])
     selector_compiled = pair_compiled
+    cell_native = selector_decompiled.parent.parent / 'controls/CASSimSelectorCellView.as'
+    cell_source = work / 'ApexCASSimSelectorCellView.as'
+    cell_text = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', cell_native.read_text(encoding='utf-8'))
+    cell_anchor = '         var _loc9_:String = "";'
+    if cell_text.count(cell_anchor) != 1:
+        raise ValueError('Native portrait tooltip anchor differs from inspected build.')
+    cell_text = cell_text.replace(cell_anchor, '''         // A restored hybrid pair has independently named portraits. Preserve
+         // EA's disabled/affordability tooltip and relationship content.
+         if(_loc2_.enabled && _loc3_ && _loc3_.alternativeTooltipText)
+            _loc5_ = _loc3_.alternativeTooltipText;
+''' + cell_anchor)
+    cell_source.write_text(cell_text, encoding='utf-8')
+    cell_compiled = work / 'apex-cas-selector-cell-compiled.swf'
+    run([ffdec, '-importAssets', 'yes,local', '-replace', selector_compiled, cell_compiled,
+         'widgets.CAS.controls.CASSimSelectorCellView', cell_source])
+    selector_compiled = cell_compiled
     java_classes = work / 'cas-build-java'
     java_classes.mkdir(parents=True, exist_ok=True)
     run(['javac', '-cp', Path(ffdec).parent / 'ffdec.jar', '-d', java_classes,

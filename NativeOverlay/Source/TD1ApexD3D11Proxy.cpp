@@ -896,7 +896,8 @@ static void RunResourceCommand(const QueuedCommand& command) {
             if (valid && operation == 4) g_libraryPage = value;
             if (valid && operation == 5) g_libraryInspection = value;
             g_libraryStatus = valid ? (operation == 5 ? "Selected package and CASP bytes verified. Compatibility is checked in the game before preview." : "Catalog page received. Browsing has not changed the Sim.") :
-                "Catalog unavailable or request refused. " + ui::Scalar(value, "reason");
+                "Catalog unavailable or request refused. " +
+                (ui::Scalar(value, "reason").empty() ? ui::Scalar(value, "message") : ui::Scalar(value, "reason"));
         }
         g_libraryBusy = false;
         return;
@@ -4638,6 +4639,10 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
                 {"swatch_count",g_libraryInspection.value("swatches",ui::Json::object()).value("total",ui::Json())},{"swatch_offset",g_libraryInspection.value("swatches",ui::Json::object()).value("offset",ui::Json())},
                 {"swatch_colors_argb",g_libraryInspection.value("item",ui::Json::object()).value("metadata",ui::Json::object()).value("swatch_colors_argb",ui::Json::array())}}},
             {"gallery",{{"busy",g_galleryBusy.load()},{"ready",!g_galleryPage.empty()},{"library_sha256",g_galleryPage.value("library_sha256",ui::Json())},{"total",g_galleryPage.value("total",ui::Json())},{"selected_item",g_gallerySelected},{"source_ready",g_galleryInspection.value("item_id",ui::Json())==g_gallerySelected},{"source_sim_count",g_galleryInspection.value("preview_sims",ui::Json::array()).size()},{"image_count",g_galleryTextures.size()},{"status",g_galleryStatus}}},
+            {"owner_state",{{"unresolved",g_ownerBlocked.load()},{"delivery_busy",g_ownerNativeDeliveryBusy.load()},{"submission_busy",g_ownerSubmissionBusy.load()},
+                {"cas_submission_busy",g_casSubmissionBusy.load()},{"cas_bank_busy",g_casBankBusy.load()},{"cas_request_id",g_casPendingId},
+                {"cas_refresh_unresolved",g_casRefreshClock.unresolved},{"studio_document_ready",ui::StudioDocument(g_studioData)},
+                {"history_lane",ui::Scalar(g_studioData,"history_lane")}}},
             {"workspace",{{"layout",std::array<const char*,4>{"balanced","character","catalog","custom"}[std::clamp(g_studioLayout,0,3)]},{"preview_share",g_studioPreviewShare},{"columns",g_libraryColumns},{"sidebar",g_studioEquippedSidebar},{"thumbnails",g_libraryShowImages},{"gender",g_libraryImageGender==0?"male":"female"},{"query",CurrentLibraryQuery()},
                 {"catalog_ready",!g_libraryPage.empty()&&g_libraryPage.value("query",ui::Json())==CurrentLibraryQuery()}, {"catalog_total",g_libraryPage.value("total",ui::Json())},{"catalog_index_sha256",g_libraryPage.value("index_sha256",ui::Json())},{"thumbnail_ready_count",g_libraryImageTextures.size()},{"catalog_status",g_libraryStatus}}},
             {"view",{{"yaw",v.yaw},{"pitch",v.pitch},{"distance",v.distance},{"height",v.height},{"pan",v.pan},{"pan_depth",v.panDepth},{"roll",v.roll},{"fov",v.fov},{"ortho_scale",v.orthoScale},{"projection",v.orthographic?"orthographic":"perspective"},{"controls",v.blenderControls?"blender":"simple"},{"time",v.time},

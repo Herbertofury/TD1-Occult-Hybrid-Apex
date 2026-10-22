@@ -9,7 +9,8 @@
             matches:{},offset:0,total:0,resolved:0,shown:0,ready:false,pending:false,error:"",page:null,index:0,
             root:null,input:null,placeholder:null,count:null,clear:null,bubble:null,list:null,geometry:null,
             registered:false,revision:0,started:0,elapsed_ms:0,sources:[],query:null,native_response:"",publish_ms:0,rebuilds:0,index_sha256:"",
-            folder_matches:[],folder_corrected:false,suggestions:null,suggestion_signature:"",order:{},rank:0};
+            folder_matches:[],folder_corrected:false,suggestions:null,suggestion_signature:"",order:{},rank:0,
+            eligible:{},families:{},unresolved_resources:[]};
          apexSearch.registered=RegisterServiceHandler("ApexCatalogSearchSource",ApexSearchSource);
       }
 
@@ -46,6 +47,7 @@
       {
          apexSearch.context=context;apexSearch.ticket="";apexSearch.matches={};apexSearch.page=null;
          apexSearch.order={};apexSearch.rank=0;
+         apexSearch.unresolved_resources=[];
          apexSearch.index=0;apexSearch.offset=0;apexSearch.total=0;apexSearch.resolved=0;apexSearch.shown=0;
          apexSearch.ready=false;apexSearch.pending=apexSearch.text!="";apexSearch.error="";
          apexSearch.query=null;apexSearch.native_response="";apexSearch.index_sha256="";
@@ -83,6 +85,9 @@
             if(source.sim!=String(mCurrSimInfo.simId) || source.sim!=apexBoundSim || source.owner!=apexFormsSelectedId ||
                source.generation!=apexFormsNativeGeneration) continue;
             apexSearch.rows=source.rows;apexSearch.feed=feed;apexSearch.panel=panel;apexSearch.selected=source.selected;
+            apexSearch.eligible={};apexSearch.families={};
+            for each(var product:CASCatalogProduct in source.rows)
+               apexSearch.eligible[String(product.body_type)+"|"+String(product.data_id)]=true;
             ApexSearchReset(ApexSearchContext());return;
          }
       }
@@ -294,10 +299,13 @@
                   if(tgi.length!=3 || String(tgi[0]).toUpperCase()!="034AEECB" || !/^[0-9a-f]{16}$/i.test(tgi[2])) throw new Error("Invalid indexed CAS resource key");
                   var exact:String=ApexEquippedDecimal("0x"+tgi[2]);
                   var raw:Object=CommunicationManager.CallGameService("GetCatalogItem",exact);
-                  if(raw!=null && row.body_type!=null && (String(raw.data_id)==exact || String(raw.variation_id)==exact) && int(raw.body_type)==int(row.body_type)) {
-                     var resolvedKey:String=String(raw.body_type)+"|"+String(raw.data_id);
+                  var resolvedKey:String=ApexSearchNativeKey(raw,exact,row.body_type);
+                  if(resolvedKey!="") {
                      if(apexSearch.matches[resolvedKey]!==true) apexSearch.order[resolvedKey]=apexSearch.rank++;
                      apexSearch.matches[resolvedKey]=true;
+                  } else if(apexSearch.unresolved_resources.length<8) {
+                     apexSearch.unresolved_resources.push({resource:exact,body_type:row.body_type,
+                        native_base:raw==null ? "" : String(raw.data_id),native_variant:raw==null ? "" : String(raw.variation_id)});
                   }
                   apexSearch.resolved++;sliceCount++;
                }
@@ -354,6 +362,33 @@
          } catch(error:Error) {apexSearch.pending=false;apexSearch.ready=false;apexSearch.error=error.message;ApexSearchLabels();}
       }
 
+      private function ApexSearchNativeKey(raw:Object,exact:String,bodyType:Object) : String
+      {
+         if(raw==null || bodyType==null || int(raw.body_type)!=int(bodyType)) return "";
+         var key:String=String(raw.body_type)+"|"+String(raw.data_id);
+         if(apexSearch.eligible[key]===true && (String(raw.data_id)==exact || String(raw.variation_id)==exact)) return key;
+         // The native getter can return the worn swatch itself. Its color
+         // family contains the separate base used by the visible native feed.
+         // Intersect that exact family with eligible cards; an ambiguous or
+         // absent parent cannot synthesize a card. Cache detached IDs only.
+         if(apexSearch.families[key]==null) {
+            var family:Object=CommunicationManager.CallGameService("GetCatalogColorFamilies",
+               {base:String(raw.data_id),simId:"0",targetSimId:"0"});
+            var ids:Object={};var parent:String="";var count:int=0;
+            if(family!=null && family.mItems is Array && family.mItems.length<=8192)
+               for each(var variant:Object in family.mItems) if(variant!=null) {
+                  var id:String=String(variant.dataID);var candidate:String=String(raw.body_type)+"|"+id;
+                  if(ids[id]!==true && apexSearch.eligible[candidate]===true) {parent=candidate;count++;}
+                  ids[id]=true;
+               }
+            var resolved:Object={ids:ids,parent:count==1 ? parent : ""};
+            apexSearch.families[key]=resolved;
+            for(var alias:String in ids) apexSearch.families[String(raw.body_type)+"|"+alias]=resolved;
+         }
+         var cached:Object=apexSearch.families[key];
+         return cached.ids[exact]===true ? String(cached.parent) : "";
+      }
+
       private function ApexSearchStatus() : Object
       {
          if(apexSearch==null) return {available:false};
@@ -362,6 +397,7 @@
             indexed_matches:apexSearch.total,resolved:apexSearch.resolved,elapsed_ms:apexSearch.elapsed_ms,
             folder_matches:apexSearch.folder_matches,folder_corrected:apexSearch.folder_corrected,
             source_count:apexSearch.rows==null ? 0 : apexSearch.rows.length,query:apexSearch.query,
+            unresolved_resources:apexSearch.unresolved_resources,
             native_response:apexSearch.native_response,publish_ms:apexSearch.publish_ms,rebuilds:apexSearch.rebuilds,
             index_sha256:apexSearch.index_sha256,input_font:apexSearch.input==null ? "" : apexSearch.input.defaultTextFormat.font,
             input_embedded:apexSearch.input!=null && apexSearch.input.embedFonts,

@@ -177,6 +177,22 @@ feed: two CC references used by other members are indexed but their swatches
 do not yet map to a visible parent card. That mapping is an open defect;
 unrestricted F11 browsing remains a separate actual-game qualification gate.
 
+V272 subsequently qualifies F11 actor search in the running game: household
+name returns three CC families, Sim name two, an exact second-member ID one,
+and an unknown name zero. Compact HTTP encoding fixes the 5.83 MB pretty-print
+overflow while retaining the complete 3.19 MB document and the 4 MB native
+bound. All twenty save/backup files remain unchanged.
+
+V273 then qualifies native CAS swatch mapping: the two worn eyelash variants
+used by other members resolve to one actual eligible Hollywood Eyelashes card.
+The game's color family is intersected with the current native feed, requiring
+one unambiguous parent; detached IDs are cached for sibling swatches. Clearing
+restores all five original cards. The compact capture's transient DTO pages
+also support a complete 195-record field comparison without writing full DTO
+files or assets; all fields and all twenty save/backup files are unchanged.
+Automatic production refresh and F11 saved/favorite/recent views remain open
+qualification gates. See `Reports/CAS_ACTOR_SEARCH_V273.json` for exact scope.
+
 V271 also exposes a direct CAS-exit service failure after browsing body hair.
 The actual EA checkmark, activated once through window-addressed background
 input, returns to Live. All forty appearances and 155 named looks are retained,

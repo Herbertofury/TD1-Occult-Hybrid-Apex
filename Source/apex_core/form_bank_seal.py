@@ -41,9 +41,9 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770',
                                '30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-21-equipped-search-v271'
+UPGRADE_EPOCH = '2026-10-21-native-swatch-parent-v273'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '5843036a45c41de1c07fb74c74100dfdf526ff5aad6af41a2b1431ed4476d9e8'
+UPGRADE_SELF_BODY_SHA = '2442cf78d0ab3298468361995c71ac0fb9b6925280c522aa2cd4293c364d2f6a'
 UPGRADE_MODULE_PINS = {
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
@@ -106,7 +106,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
     'apex_core/test_driver.py': 'b5d1b8d35bd136e3a7a7755385c12da383f71e8b63bc6fbc5d33deb23e75b494',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
-    'td1_occult_hybrid_apex.py': 'c30a161c8ff90db35ac60febc76c54c9e0d333cb1d3efb6f6658c6eea822156d',
+    'td1_occult_hybrid_apex.py': '42ff0a2e252f9c31873f54b48d1cdf208dfbd89ba50c6d3a6d52e5bc92f88701',
 }
 _SEAL_FIELDS = ('intent_id', 'identity', 'contract_sha256', 'target',
                 'bank_record_sha256', 'appearances', 'file_sha256')

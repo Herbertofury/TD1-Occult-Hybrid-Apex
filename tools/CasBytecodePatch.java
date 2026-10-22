@@ -1406,7 +1406,7 @@ public class CasBytecodePatch {
         require(result.size()==6,"Equipped adapter inventory differs.");return result;
     }
     static void verifyNativeCatalogSearch(ABC abc,InstanceInfo instance) {
-        var forbidden=Set.of("CallGameService","CallUIService","ApexNativeExchange","ApexSearchPublish",
+        var forbidden=Set.of("CallGameService","CallUIService","ApexNativeExchange","ApexSearchPublish","ApexSearchNativeKey",
             "RemoveAllItems","AddItemsFromIterable","Refresh","RequestData");
         for(String method:List.of("ApexSearchChanged","ApexSearchText","ApexSearchClear","ApexSearchKey","ApexSearchSource"))
             require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,method)),forbidden),
@@ -1467,6 +1467,16 @@ public class CasBytecodePatch {
             require(found,"Search field lost its readable game font setting: "+member);
         }
         uniqueLiteral(abc,frame,"GetCatalogItem");
+        require(propertyCalls(abc,frame).contains("ApexSearchNativeKey"),"Native search must verify the exact swatch against an eligible parent card.");
+        var nativeKey=ownedBody(abc,instance,"ApexSearchNativeKey");
+        uniqueLiteral(abc,nativeKey,"GetCatalogColorFamilies");
+        require(propertyCalls(abc,nativeKey).equals(Set.of("CallGameService")),
+            "Swatch resolution may only read the native family; never equip, publish or request worker data.");
+        for(String member:List.of("eligible","families","body_type","data_id","variation_id","mItems","dataID")) {
+            boolean found=false;
+            for(var op:nativeKey.getCode().code)found|=property(abc,op,0x66,member);
+            require(found,"Swatch resolution lost its native eligibility, body or family cache gate: "+member);
+        }
         require(propertyCalls(abc,frame).containsAll(Set.of("ApexSearchContext","ApexNativeExchange","ApexEquippedDecimal","ApexSearchPublish")),
             "Search worker lacks exact owner/resource resolution or native feed publication.");
     }
@@ -1542,7 +1552,7 @@ public class CasBytecodePatch {
             "ApexCatalogKeyboardVisibility","ApexCatalogKeyboardTyping","ApexCatalogKeyboardInput","ApexCatalogKeyboardCommand","ApexCatalogKeyboardInitialize","ApexCatalogKeyboardDispose","ApexCatalogKeyDown","ApexCatalogKeyboardFrame",
             "ApexSearchInitialize","ApexSearchContext","ApexSearchRestore","ApexSearchDispose","ApexSearchReset","ApexSearchSource","ApexSearchAdopt",
             "ApexSearchText","ApexSearchChanged","ApexSearchClear","ApexSearchKey","ApexSearchLabels","ApexSearchFocus",
-            "ApexSearchAttach","ApexSearchQuery","ApexSearchPublish","ApexSearchFrame","ApexSearchStatus","ApexSearchChooseFolder","ApexSearchSuggestions","ApexSearchOrder",
+            "ApexSearchAttach","ApexSearchQuery","ApexSearchPublish","ApexSearchFrame","ApexSearchNativeKey","ApexSearchStatus","ApexSearchChooseFolder","ApexSearchSuggestions","ApexSearchOrder",
             "ApexCompanionInitialize","ApexCompanionValidKey","ApexCompanionKey","ApexCompanionAllows","ApexCompanionSave","ApexCompanionRecentOrder","ApexCompanionReceipt",
             "ApexCompanionChanged","ApexCompanionIntent","ApexCompanionCard","ApexCompanionButton","ApexCompanionGlyph",
             "ApexCompanionAttach","ApexCompanionApply","ApexCompanionBadges","ApexCompanionFrame","ApexCompanionCommand",

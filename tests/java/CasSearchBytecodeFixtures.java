@@ -48,9 +48,11 @@ public class CasSearchBytecodeFixtures {
                 case "publish-no-membership":old="matches";replacement="text";opcode=0x66;break;
                 case "publish-stale-key":old="apexKeyIndex";replacement="apexKeyIntent";opcode=0x68;break;
                 case "adopt-wrong-owner":old="owner";replacement="sim";opcode=0x66;break;
+                case "swatch-no-membership":old="eligible";replacement="matches";opcode=0x66;break;
+                case "swatch-no-family-cache":old="families";replacement="matches";opcode=0x66;break;
                 default:throw new IllegalArgumentException("Unknown fixture");
             }
-            var body=CasBytecodePatch.ownedBody(abc,instance,mode.startsWith("adopt-") ? "ApexSearchAdopt" : "ApexSearchPublish");boolean changed=false;
+            var body=CasBytecodePatch.ownedBody(abc,instance,mode.startsWith("swatch-") ? "ApexSearchNativeKey" : mode.startsWith("adopt-") ? "ApexSearchAdopt" : "ApexSearchPublish");boolean changed=false;
             for(var op:body.getCode().code)if(CasBytecodePatch.property(abc,op,opcode,old) ||
                 opcode==0x68 && CasBytecodePatch.property(abc,op,0x61,old)) {
                 op.operands[0]=member(abc,replacement);changed=true;

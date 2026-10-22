@@ -57,7 +57,7 @@ class NativeSearchBytecodeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='apex-search-bytecode-') as work:
             subprocess.run(['javac','-cp',str(JAR),'-d',work,str(ROOT/'tools/CasBytecodePatch.java'),
                 str(ROOT/'tests/java/CasSearchBytecodeFixtures.java')],check=True,capture_output=True,timeout=60)
-            for case in ('valid','input-native-work','publish-no-context','publish-no-membership','publish-stale-key','adopt-wrong-owner','publish-rebuilds-unchanged','search-sim-instead-of-channel','search-runtime-json'):
+            for case in ('valid','input-native-work','publish-no-context','publish-no-membership','publish-stale-key','adopt-wrong-owner','publish-rebuilds-unchanged','search-sim-instead-of-channel','search-runtime-json','swatch-no-membership','swatch-no-family-cache'):
                 with self.subTest(case=case):
                     result=subprocess.run(['java','-cp',str(JAR)+os.pathsep+work,'CasSearchBytecodeFixtures',str(COMPILED),case],
                         capture_output=True,text=True,timeout=30)

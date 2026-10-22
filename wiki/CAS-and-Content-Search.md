@@ -32,9 +32,37 @@ not a claim that the new UI path has been tested in the running game.
 
 **Actual V271 check:** the five-member capture and native Sim, household, type,
 form and outfit queries run in full CAS. The active Sim and every save remain
-unchanged. Two CC references used by other members are indexed but their
-swatches fail to map to the visible parent card in native CAS; that defect is
-still open. F11 global browsing needs its separate actual-game pass.
+unchanged. Two CC references used by other members were indexed but their
+swatches failed to map to the visible parent card in native CAS. The subsequent
+V273 pass below corrects that failure; V271 itself remains a failed retest.
+
+**V272 F11 pass:** the running game now returns three CC families for
+`household:"Sim"`, two for `sim:"Test Sim"`, one for the exact ID of a second
+member, and zero for an unknown name. The complete Studio document remains
+intact: compact bridge encoding reduces it from 5,831,131 to 3,192,463 bytes,
+below the existing native transport limit. Whitespace had prevented the old
+build from delivering the document. No limit or appearance check was relaxed.
+The game remains paused and all twenty save/backup files are unchanged.
+These counts qualify the main F11 search path. Automatic capture refresh and
+the saved/favorite/recent F11 views remain separate qualification gates.
+
+**V273 native CAS pass:** searching `sim:"Apex Test"` while Test Sim remains
+selected displays one actual Hollywood Eyelashes card for the two worn
+swatches used by other household members. The native color-family service
+provides the relationship between those exact swatches and the visible base;
+Apex requires exactly one eligible parent and caches only detached IDs.
+Ordinary card and swatch handlers remain in control. Clearing the search
+restores all five original category cards. The query takes 626 ms through the
+background game UI, with 1 ms spent publishing the feed; this is not an
+end-to-end 0–1 ms claim.
+
+The same five-member pass compares all 195 internal appearance records while
+collecting equipped references in memory. Every compared field is unchanged;
+no full appearance DTO files or render assets are exported by that pass. The
+compact capture is 1.44 MB and its reference SQLite database is 90,112 bytes.
+All twenty save/backup files remain unchanged. Internal records include
+retained preimages and named looks; they do not establish 195 playable forms.
+See the [scoped validation report](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/apex/recover-and-harden/Reports/CAS_ACTOR_SEARCH_V273.json).
 
 Capture currently uses the marked test profile, committed CAS graphs and persisted names; automatic
 production refresh after CAS/Live/Tray edits and an integrated capture button
@@ -44,9 +72,11 @@ than being assigned to an arbitrary package. Most EA equipped attribution in
 the older full catalogue still needs effective-resource hashes. The permanent
 appearance guards and actual-save release gates remain in place.
 
-The direct CAS-exit service also rejects after the body-hair pass. The actual
-EA checkmark works through the background CLI: all forty appearances and 155
-named looks remain intact after returning to Live, and saves are unchanged.
+The direct CAS-exit service also rejects after the body-hair pass. In V272,
+the first actual EA checkmark closes that panel and finishes an outfit
+precommit while native acceptance explicitly returns false. The subsequently
+enabled checkmark returns to Live through the background CLI: all forty
+appearances and 155 named looks remain intact, and saves are unchanged.
 The existing household review journal must be resolved before Studio opens.
 This is a retained regression, not a qualified direct-exit pass.
 

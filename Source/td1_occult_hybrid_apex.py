@@ -4551,7 +4551,10 @@ def _http_payload(payload, content_type='application/json; charset=utf-8', statu
     elif isinstance(payload, str):
         body = payload.encode('utf-8')
     else:
-        body = json.dumps(payload, default=str, indent=2).encode('utf-8')
+        # The wire is data, not a pretty-printed report. A complete hybrid
+        # inventory can cross the native transport bound on whitespace alone.
+        # Keep every field while avoiding that cost on both bridge threads.
+        body = json.dumps(payload, default=str, separators=(',', ':')).encode('utf-8')
     headers = [
         'HTTP/1.1 {}'.format(status),
         'Content-Type: {}'.format(content_type),

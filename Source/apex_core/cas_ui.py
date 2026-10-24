@@ -539,6 +539,31 @@ def poll_client(token, clock=time.monotonic):
     return None
 
 
+def poll_transport(token, backend=None):
+    """Finish this peer's bounded form bootstrap before claiming CLI work.
+
+    A status claim suspends the movie's bootstrap frame until its timer-owned
+    readback. Let the initial owner page/state arrive first; subsequent polls
+    retain command priority, so changing owner generations cannot starve work.
+    """
+    with _LOCK:
+        peer = _PEERS.get(token)
+        if peer is None:
+            raise ValueError('Native CAS peer is not bound.')
+        catalog = peer.get('owner_catalog')
+        bootstrap = (catalog is None or peer.get('owner_catalog_offset', 0) < len(catalog) or
+                     peer.get('owner_state_identity') is None)
+    attempted = backend is not None and bootstrap
+    if attempted:
+        metadata = owner_metadata(token, backend)
+        if metadata is not None:
+            return metadata
+    command = poll_client(token)
+    if command is not None:
+        return command
+    return owner_metadata(token, backend) if backend is not None and not attempted else None
+
+
 def owner_metadata(token, backend):
     """Paged, data-only owner catalog and actual native selection for the strip."""
     from . import overlay_loader

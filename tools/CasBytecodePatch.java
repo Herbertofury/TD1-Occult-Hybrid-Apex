@@ -1486,12 +1486,24 @@ public class CasBytecodePatch {
                 "RemoveSelectedItem","ApexEquippedPrepare","SelectCatalogProduct","ApexEquippedPrepare"),
             "widgets.CAS.data.CatalogDataFeed",Map.of("RequestData","ApexCatalogPerformance"),
             "widgets.CAS.Customizer.Panes.PeltMarkings.PeltMarkingsPane",Map.of(
-                "ParentVisible","ApexFormPairPanel","OnPaintLayerPressed","ApexFormPairPanel"),
+                "ParentVisible","ApexFormPairPanel","OnPaintLayerPressed","ApexFormPairPanel",
+                "GetPeltColors","CasGetSwatchColorList"),
             "widgets.CAS.Customizer.Panes.PeltMarkings.PeltPaintLayerButton",Map.of("Refresh","ApexFormPairPanel"));
         for(var entry:routes.entrySet())for(var method:entry.getValue().entrySet()) {
             var before=classMethod(original,entry.getKey(),method.getKey());
             var after=classMethod(compiled,entry.getKey(),method.getKey());
             uniqueLiteral(compiled,after,method.getValue());
+            if(method.getKey().equals("GetPeltColors")) {
+                require(propertyCalls(compiled,after).equals(propertyCalls(original,before)),
+                    "Palette enable recovery must retain exactly the native read calls.");
+                var code=after.getCode().code;int enable=-1,color=-1,count=0;
+                for(int n=0;n<code.size();n++) {
+                    if(property(compiled,code.get(n),0x61,"enabled")&&n>0&&opcode(code.get(n-1),0x26)) {enable=n;count++;}
+                    if(property(compiled,code.get(n),0x61,"color"))color=n;
+                }
+                require(count==1&&enable>=0&&color>enable,
+                    "An exact resolved native pelt color must re-enable its layer before painting the color.");
+            }
             if(method.getKey().equals("Refresh") && entry.getKey().equals("widgets.CAS.Customizer.ClothingPanel"))
                 require(propertyCalls(compiled,after).contains("SetSelectionStateMultiple") &&
                     !propertyCalls(compiled,after).contains("SelectAll") && !propertyCalls(compiled,after).contains("SetSelectionState"),
@@ -1522,7 +1534,7 @@ public class CasBytecodePatch {
             require(delta>=0 && delta<=16,"Equipped adapter lexical scope differs.");
             body.init_scope_depth+=delta;body.max_scope_depth+=delta;body.setCode(body.getCode());result.add(body);
         }
-        require(result.size()==9,"Equipped/wing owner adapter inventory differs.");return result;
+        require(result.size()==10,"Equipped/wing owner adapter inventory differs.");return result;
     }
     static void verifyNativeCatalogSearch(ABC abc,InstanceInfo instance) {
         var forbidden=Set.of("CallGameService","CallUIService","ApexNativeExchange","ApexSearchPublish","ApexSearchNativeKey",
@@ -1881,7 +1893,7 @@ public class CasBytecodePatch {
                 "Serialized unowned native method bytecode changed.");
         Files.write(Path.of(args[2]), saved.toByteArray());
         System.out.println("{\"native_method_count\":" + original.bodies.size() + ",\"apex_method_count\":" + ownedMethods.size() +
-            ",\"native_lexical_scope_preserved\":true,\"card_height_marker_adapter_verified\":true,\"native_equipped_category_adapters_verified\":true,\"native_wing_paint_owner_adapters\":3,\"companion_named_form_adapters\":"+companionBodies.size()+",\"unchanged_native_methods\":" + (nativeCode.size()-12-companionBodies.size()) +
+            ",\"native_lexical_scope_preserved\":true,\"card_height_marker_adapter_verified\":true,\"native_equipped_category_adapters_verified\":true,\"native_wing_paint_owner_adapters\":3,\"native_pelt_palette_reenable_verified\":true,\"companion_named_form_adapters\":"+companionBodies.size()+",\"unchanged_native_methods\":" + (nativeCode.size()-2-adapterIds.size()) +
             ",\"native_initializer_bytecode_extended\":true,\"native_unload_bytecode_extended\":true,\"native_unload_cleanup_precedes_teardown\":true,\"owned_local_scope_indexes_verified\":true,\"serialized_lifecycle_hooks_verified\":true,\"socket_callbacks_data_only_verified\":true,\"timer_command_phases_verified\":true,\"accept_commit_timer_owned_verified\":true,\"accept_native_class_linkage_verified\":true,\"accept_expected_household_bound_verified\":true,\"accept_primary_layer_only_verified\":true,\"catalog_metadata_localization_linkage_verified\":true,\"owner_pair_callback_data_only_verified\":true,\"owner_pair_listener_cleanup_verified\":true,\"owner_pair_timer_read_only_verified\":true,\"socket_connect_queue_only_verified\":true,\"socket_handshake_exact_constructor_timer_verified\":true,\"form_select_timer_owned_verified\":true,\"form_select_exact_same_original_pair_verified\":true,\"form_select_native_argument_order_verified\":true,\"form_select_next_tick_readback_verified\":true,\"earrings_exact_bodytype_and_swatch_guard_verified\":true}");
     }
 }

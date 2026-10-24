@@ -56,6 +56,12 @@ class LiteralMergeTests(unittest.TestCase):
         changed=copy.deepcopy(self.info);changed['native_bytecode_contract']['native_method_count']=1787
         with self.assertRaises(ValueError):maru_companion.verify_merged(changed,self.resources)
 
+    def test_palette_recovery_requires_the_reviewed_additional_native_adapter(self):
+        for key,value in [('unchanged_native_methods',2633),('native_pelt_palette_reenable_verified',False)]:
+            changed=copy.deepcopy(self.info);changed['native_bytecode_contract'][key]=value
+            with self.subTest(field=key):
+                with self.assertRaises(ValueError):maru_companion.verify_merged(changed,self.resources)
+
 
 @unittest.skipUnless((ROOT/'.work/research/apex-companion-context-3.swf').exists() and shutil.which('javac'),
                      'Private compiled Companion adapters required')

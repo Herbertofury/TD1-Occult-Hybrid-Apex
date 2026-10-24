@@ -28,6 +28,12 @@ def inject(source, button=False):
             'if(CASStateData.GetCurrentSimInfo(true).occultType == OccultTypes.OCCULT_FAIRY)',
             CONTEXT+'if(apexInfo.occultType == OccultTypes.OCCULT_FAIRY)')
     source = replace(source, 'CASStateData.PetPaintMode = param1;', CONTEXT+'CASStateData.PetPaintMode = param1;')
+    # An empty imported palette disables the five native layer controls. EA's
+    # later valid-color path updates their colors but never enables them again.
+    # Recover only a layer whose exact selected color resolved in EA's palette.
+    source = replace(source, '                  this.mLayerComponents[_loc3_].color = _loc6_["color"];',
+        '                  this.mLayerComponents[_loc3_].enabled = true;\n'
+        '                  this.mLayerComponents[_loc3_].color = _loc6_["color"];')
     return replace(source,
         'var _loc2_:Boolean = CASStateData.GetCurrentSimInfo(true).occultType == OccultTypes.OCCULT_FAIRY;',
         CONTEXT+'var _loc2_:Boolean = apexInfo.occultType == OccultTypes.OCCULT_FAIRY;')

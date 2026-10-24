@@ -117,8 +117,9 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
         if (ui_info.get('target_game') != '1.128.90.1030' or
                 ui_info.get('sha256') != digest(ui_path.read_bytes()) or
                 ui_info.get('non_script_tags_preserved') is not True or
-                contract.get('unchanged_native_methods') != (2633 if merged_companion else 1775) or
+                contract.get('unchanged_native_methods') != (2632 if merged_companion else 1774) or
                 contract.get('native_wing_paint_owner_adapters') != 3 or
+                contract.get('native_pelt_palette_reenable_verified') is not True or
                 selector_contract.get('native_method_count') != 462 or
                 selector_contract.get('unchanged_native_methods') != 452 or
                 selector_contract.get('native_pair_panel_adapter_methods') != 7 or

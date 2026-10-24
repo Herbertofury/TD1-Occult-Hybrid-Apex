@@ -1334,3 +1334,19 @@ callers remain native. Seventeen native targets pass, including the exact hair
 case, unknown-data retention and foreign-context refusals. Matching actual-game
 hair edits, undo and complete retention remain required. See
 [the captured-genetics report](../Reports/CAS_CAPTURED_GENETICS_V295.json).
+
+
+V297 re-enables an EA pelt/wing color layer only when its exact selected native
+color resolves in the available palette. The native GetPeltColors method keeps
+all original native reads and unknown-entry handling. This fixes the observed
+empty-palette-to-valid-palette disabled control state without choosing colors
+for a player. The literal Companion merge now retains 2,632 of 2,650 original
+method bodies; the eighteenth reviewed adapter is this native palette UI fix.
+
+Initial owner catalogue/state metadata also precedes a queued CLI claim, so a
+read-only status cannot suspend the member bootstrap behind timer readback.
+After that first bootstrap, ordinary command priority returns; missing metadata
+falls back without re-claiming or replaying work. No polling or appearance
+write authority is added. Five transport regressions pass. Matching member
+latency and palette UI qualification remain required. See
+[the palette/bootstrap report](../Reports/CAS_PALETTE_AND_BOOTSTRAP_V297.json).

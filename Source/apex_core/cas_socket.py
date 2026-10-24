@@ -127,10 +127,9 @@ def start(acknowledge, backend=None):
     _SERVER = listener
     def client(connection):
         global _LAST_CLIENT_ERROR
-        from .cas_ui import attach_client, poll_client, detach_client, client_owned_mask, owner_metadata
+        from .cas_ui import attach_client, poll_transport, detach_client, client_owned_mask
         def poll(token):
-            command = poll_client(token)
-            return command or (owner_metadata(token, backend) if backend is not None else None)
+            return poll_transport(token, backend)
         def attach(sim_id):
             token=attach_client(sim_id)
             try:

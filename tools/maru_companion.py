@@ -84,7 +84,8 @@ def verify_merged(info, resources):
         if key != dbpf_build.tgi(CUSTOMIZER) and actual.get(key) != digest:
             raise ValueError('A retained Dynamic CAS dependency changed or is absent: ' + key)
     contract = info.get('native_bytecode_contract', {})
-    if (contract.get('native_method_count') != 2650 or contract.get('unchanged_native_methods') != 2633 or
-            contract.get('companion_named_form_adapters') != 5):
+    if (contract.get('native_method_count') != 2650 or contract.get('unchanged_native_methods') != 2632 or
+            contract.get('companion_named_form_adapters') != 5 or
+            contract.get('native_pelt_palette_reenable_verified') is not True):
         raise ValueError('The complete donor ABC did not pass retained-method verification.')
     return True

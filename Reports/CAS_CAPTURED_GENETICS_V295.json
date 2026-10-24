@@ -1,45 +1,19 @@
 {
-  "schema": 1,
-  "candidate_epoch": "2026-10-24-captured-genetics-bind-v295",
-  "candidate_sha256": "a27bcb06308d92a07a47d05aa41ea44c79d5f3effc09d59f54c986839357efc2",
-  "production_ready": false,
   "actual_failure": {
-    "previous_candidate": "V292",
-    "form_selections_completed": 191,
-    "directed_native_pairs_on_one_member": 42,
-    "all_exposed_forms_on_each_of_five_members": true,
-    "complete_field_comparison_passed": false,
-    "changed_owner": "Member five shared Human",
-    "changed_field": "genetic_data.parts_list: body type 2 inherited hair",
-    "before": 277692,
     "after": 306960,
+    "all_exposed_forms_on_each_of_five_members": true,
+    "before": 277692,
+    "changed_field": "genetic_data.parts_list: body type 2 inherited hair",
+    "changed_owner": "Member five shared Human",
+    "complete_field_comparison_passed": false,
+    "directed_native_pairs_on_one_member": 42,
     "every_human_outfit_already_used": 306960,
+    "form_selections_completed": 191,
     "human_hair_edit_submitted": false,
     "other_genetic_rows_unchanged": true,
     "other_native_appearance_fields_unchanged": true,
+    "previous_candidate": "V292",
     "save_submitted": false
-  },
-  "native_fix": {
-    "automatic_genetics_from_outfit_function_rva": "0x35ffc0",
-    "reviewed_setup_return_rva": "0x457559",
-    "new_function_and_caller_canaries": true,
-    "only_exact_independent_model_binding": true,
-    "selected_owner_genus_group_sim_and_addresses_checked": true,
-    "skip_automatic_regeneration_without_replacing_captured_data": true,
-    "ordinary_hair_outfit_and_foreign_calls_remain_native": true,
-    "permanent_preservation_guard_retained": true,
-    "background_polling_added": false
-  },
-  "validation": {
-    "native_ctest_targets_passed": 17,
-    "exact_inherited_hair_regression_fixture": true,
-    "unknown_genetics_unchanged_in_fixture": true,
-    "foreign_sim_model_genus_caller_and_pointer_refusals": true,
-    "ordinary_edit_path_calls_original_once_in_fixture": true,
-    "compiled_python37_modules": 108,
-    "packages": 7,
-    "independently_rust_validated_resources": 275,
-    "matching_runtime_qualified": false
   },
   "actual_game_validation_required": [
     "Load the matching candidate and retain all forty cold native appearances.",
@@ -47,5 +21,59 @@
     "Make an actual hair edit and verify its genetics/outfits update normally; test undo and form round trips.",
     "Repeat complete all-owner field comparison, actual edited acceptance and save/Tray gates."
   ],
-  "protected_original_written": false
+  "actual_runtime": {
+    "all195_after_edits_qualified": false,
+    "automatic_view_regenerations_prevented": 10,
+    "cold_native_appearances_retained": 40,
+    "complete_human_field_comparisons": 8,
+    "entry_appearance_records_retained": 195,
+    "evidence_sha256": {
+      "actual_hair_edit": "c96c027ce6f27d51b8c4ed9004bbad87562255b80399acff31243d89ee4f6d3f",
+      "genetic_regression": "ab8ca226c48e9a85963bc22cf236e7725e8b1945c8137f59faf0cd003aaa392d"
+    },
+    "hair_edit_changed_fields": [
+      "genetic_data",
+      "__outfits__"
+    ],
+    "hair_edit_survives_vampire_and_alien_round_trips": true,
+    "human_vampire_alien_fairy_round_trips_keep_original_genetics": true,
+    "inherited_hair_after": [
+      "272449"
+    ],
+    "inherited_hair_before": [
+      "277692"
+    ],
+    "native_diagnostic_error": "",
+    "real_hair_edit_updates_inherited_hair": true,
+    "save_tray_qualified": false,
+    "scope": "Matching V295, initial full-CAS entry and targeted Human inheritance regression; this does not qualify every form or save/Tray cycle.",
+    "undo_qualified": false
+  },
+  "candidate_epoch": "2026-10-24-captured-genetics-bind-v295",
+  "candidate_sha256": "a27bcb06308d92a07a47d05aa41ea44c79d5f3effc09d59f54c986839357efc2",
+  "native_fix": {
+    "automatic_genetics_from_outfit_function_rva": "0x35ffc0",
+    "background_polling_added": false,
+    "new_function_and_caller_canaries": true,
+    "only_exact_independent_model_binding": true,
+    "ordinary_hair_outfit_and_foreign_calls_remain_native": true,
+    "permanent_preservation_guard_retained": true,
+    "reviewed_setup_return_rva": "0x457559",
+    "selected_owner_genus_group_sim_and_addresses_checked": true,
+    "skip_automatic_regeneration_without_replacing_captured_data": true
+  },
+  "production_ready": false,
+  "protected_original_written": false,
+  "schema": 1,
+  "validation": {
+    "compiled_python37_modules": 108,
+    "exact_inherited_hair_regression_fixture": true,
+    "foreign_sim_model_genus_caller_and_pointer_refusals": true,
+    "independently_rust_validated_resources": 275,
+    "matching_runtime_qualified": true,
+    "native_ctest_targets_passed": 17,
+    "ordinary_edit_path_calls_original_once_in_fixture": true,
+    "packages": 7,
+    "unknown_genetics_unchanged_in_fixture": true
+  }
 }

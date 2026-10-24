@@ -409,19 +409,36 @@ def acknowledge_exact(target, work, deadline, launch_context=None, clock=time.ti
     script = script.replace('$pattern.Invoke()',
         "if ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() -ge " + str(int(deadline * 1000)) + ") { throw 'EA acknowledgement lease expired; no input sent.' }; $pattern.Invoke()")
     # The worker is already elevated by the normal runas request. This is not UAC.
-    # A Sims handoff uses pixel recognition followed by a fresh log-ownership
-    # check immediately before input; its generic EA dialog exposes no game ID.
-    if launch_context is None:
+    # Qt can expose the exact UIA controls while its compositor is blank. The
+    # read-only pre-Invoke helper revalidates the pinned Sims launch immediately
+    # before input, without taking foreground focus to obtain usable pixels.
+    if launch_context is not None:
+        context_path = work / ('ea-uia-context-' + uuid.uuid4().hex + '.json')
+        _json_exclusive(context_path, {'schema': 1, 'nonce': uuid.uuid4().hex,
+            'expires_at': deadline, 'ea': target, 'source_sha256': source_identity(),
+            'launch_context': launch_context})
+        arguments = [sys.executable, '-I', '-B', str(Path(__file__).resolve()),
+            '--verify-context-only', str(context_path), '--source-hash', _digest(context_path)]
+        quote = lambda value: "'" + value.replace("'", "''") + "'"
+        guard = "$contextCheck = & " + ' '.join(quote(value) for value in arguments)
+        guard += "; if ($LASTEXITCODE -ne 0) { throw 'Exact Sims launch ownership changed; no input sent.' }; "
+        marker = "[Console]::Out.WriteLine('{\"phase\":\"invoke-intent\"}')"
+        if script.count(marker) != 1:
+            raise ValueError('Exact UIA intent marker changed; no input sent.')
+        script = script.replace(marker, guard + marker, 1)
+    try:
         response = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script],
             capture_output=True, text=True, timeout=min(15, max(1, deadline - clock())),
             creationflags=subprocess.CREATE_NO_WINDOW)
-        messages, receipt = ea_permission._messages(response.stdout)
-        if response.returncode == 0 and receipt is not None and receipt.get('acknowledged') is True:
-            return receipt
-        if any(row.get('phase') == 'invoke-intent' for row in messages):
-            # Invoke may already have approved the pending launch. A missing
-            # final receipt must never send a second click through the fallback.
-            return ea_permission._uncertain()
+    except subprocess.TimeoutExpired:
+        return ea_permission._uncertain()
+    messages, receipt = ea_permission._messages(response.stdout)
+    if response.returncode == 0 and receipt is not None and receipt.get('acknowledged') is True:
+        return receipt
+    if any(row.get('phase') == 'invoke-intent' for row in messages):
+        # Invoke may already have approved the pending launch. A missing final
+        # receipt must never send a second click through the native fallback.
+        return ea_permission._uncertain()
     native = native_module.NativeEA([target['pid']])
     restored = []
     # A minimized Qt dialog exposes a 160x28 client, so the ordinary captured
@@ -469,6 +486,22 @@ def acknowledge_exact(target, work, deadline, launch_context=None, clock=time.ti
             'restored_windows': restored,
             'capture_sha256': image_hash, 'fresh_capture_sha256': fresh_hash,
             'message': 'Delivered OK to the exact EA permission dialog; game readiness is unverified.'}
+
+
+def verify_context_only(path, expected_hash):
+    """Read-only pre-Invoke validation; never creates a broker or sends input."""
+    path = Path(path).resolve()
+    evidence_directory(path.parent)
+    if (not re.fullmatch(r'ea-uia-context-[0-9a-f]{32}\.json', path.name) or
+            not path.is_file() or not 0 < path.stat().st_size <= MAX_BYTES or
+            not isinstance(expected_hash, str) or not re.fullmatch('[0-9a-f]{64}', expected_hash) or
+            _digest(path) != expected_hash):
+        raise ValueError('UIA launch-context proof is missing, changed or unbounded.')
+    request = json.loads(path.read_text(encoding='utf-8'))
+    if request.get('launch_context') is None:
+        raise ValueError('UIA launch-context proof requires its exact Sims handoff.')
+    validate_request(request, path.parent, time.time())
+    return {'ok': True, 'input_sent': False, 'launch_context_verified': True}
 
 
 def _json_exclusive(path, value):
@@ -623,10 +656,13 @@ def main():
     group.add_argument('--diagnose', action='store_true')
     group.add_argument('--elevate-once', action='store_true', help='Request normal UAC approval for one exact EA dialog.')
     group.add_argument('--worker', type=Path, help=argparse.SUPPRESS)
+    group.add_argument('--verify-context-only', type=Path, help=argparse.SUPPRESS)
     parser.add_argument('--work', type=Path)
     parser.add_argument('--source-hash', help=argparse.SUPPRESS)
     args = parser.parse_args()
-    if args.worker:
+    if args.verify_context_only:
+        result = verify_context_only(args.verify_context_only, args.source_hash)
+    elif args.worker:
         result = worker(args.worker, args.source_hash)
     elif args.elevate_once:
         if args.work is None:

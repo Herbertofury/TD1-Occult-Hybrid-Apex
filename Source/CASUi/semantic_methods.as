@@ -38,6 +38,14 @@
       private var apexPresentationFrames:int=0;
       private var apexPresentationListener:Boolean=false;
       private var apexPresentationSim:String="";
+      private var apexPresentationFirstFrameDelay:int=-1;
+      private var apexPresentationPrimeMs:int=0;
+      private var apexPresentationCatalogMs:int=0;
+      private var apexPresentationMenuMs:int=0;
+      private var apexPresentationStateMs:int=0;
+      private var apexPresentationPairMs:int=0;
+      private var apexPresentationIconsMs:int=0;
+      private var apexPresentationGraphicsMs:int=0;
 
       private function ApexPresentationReady() : Boolean
       {
@@ -61,6 +69,8 @@
          // timestamp, including time spent waiting for an existing CLI claim.
          if(apexPresentationSim!==message.simId || apexPresentationStarted<0 || apexPresentationMilliseconds>=0) {
             apexPresentationStarted=getTimer();apexPresentationMilliseconds=-1;apexPresentationFrames=0;
+            apexPresentationFirstFrameDelay=-1;apexPresentationPrimeMs=0;apexPresentationCatalogMs=0;apexPresentationMenuMs=0;
+            apexPresentationStateMs=0;apexPresentationPairMs=0;apexPresentationIconsMs=0;apexPresentationGraphicsMs=0;
          }
          apexPresentationSim=String(message.simId);
          // Returning to the still-bound member cancels the older pending
@@ -103,19 +113,25 @@
             !(this.mCurrSimInfo.householdId is String) || !/^[1-9][0-9]{0,19}$/.test(this.mCurrSimInfo.householdId)) return false;
          if(apexBoundSim!="" && apexBoundSim!==this.mCurrSimInfo.simId) {ApexResetSocket();return false;}
          if(apexNativeChannel=="") ApexNativeOpen(String(this.mCurrSimInfo.simId));
-         if(apexNativeChannel=="" || !ApexFormsTryLocalCatalog()) return false;
+         if(apexNativeChannel=="") return false;
+         var catalogStarted:int=getTimer();var catalogReady:Boolean=ApexFormsTryLocalCatalog();
+         apexPresentationCatalogMs+=getTimer()-catalogStarted;
+         if(!catalogReady) return false;
          apexFormsHousehold=String(this.mCurrSimInfo.householdId);
          var delivered:Object=ApexFormsObservedSim();if(delivered==null) return false;
-         ApexFormsOwnedTick(delivered);return ApexPresentationReady();
+         var menuStarted:int=getTimer();ApexFormsOwnedTick(delivered);
+         apexPresentationMenuMs+=getTimer()-menuStarted;return ApexPresentationReady();
       }
 
       private function ApexPresentationFrame(event:flash.events.Event) : void
       {
          ApexPresentationStop();
          if(apexDisconnected) return;
+         if(apexPresentationFirstFrameDelay<0 && apexPresentationStarted>=0) apexPresentationFirstFrameDelay=getTimer()-apexPresentationStarted;
          if(ApexPresentationReady()) { apexPresentationMilliseconds=getTimer()-apexPresentationStarted;return; }
          try {
-            if(ApexPresentationPrime()) {apexPresentationFrames++;apexPresentationMilliseconds=getTimer()-apexPresentationStarted;return;}
+            var primeStarted:int=getTimer();var primed:Boolean=ApexPresentationPrime();apexPresentationPrimeMs+=getTimer()-primeStarted;
+            if(primed) {apexPresentationFrames++;apexPresentationMilliseconds=getTimer()-apexPresentationStarted;return;}
          } catch(primeFailure:Error) {ApexSocketFailure(primeFailure);return;}
          if(!apexTicking &&
             this.mCurrSimInfo!=null && this.mCurrSimInfo.simId is String &&

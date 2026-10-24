@@ -1433,3 +1433,21 @@ Vampire round trips while Human stays exact. Existing empty wing palettes still
 start gray; explicit native swatches enable all five working color layers.
 Initial default-color repair and complete paint history remain open. See
 [the actual palette/history evidence](../Reports/CAS_PALETTE_HISTORY_V306.json).
+
+V307's complete repeat also passes 191 selections and retains every one of the
+195 complete records, with all twenty save files unchanged. V308's bounded
+publication counters show 700–1,504 ms before the first frame in four measured
+member changes, plus 205–319 ms publishing the native pair panel. Icon lookup
+and drawing cost only 0–2 ms. The fifth member again misses the bounded bootstrap;
+this is a failed speed gate. Concurrent regression tests were running. The
+actual native selector filters valid hybrid portrait rows and its observer then
+restores and relayouts them; prevent that filtering and avoid rebuilding unchanged
+copy-filter definitions before measuring again. See
+[the publication profile](../Reports/CAS_PUBLICATION_PROFILE_V308.json).
+
+V308 passes all 2,915 Python tests. Native DLL bytes are unchanged from the
+nineteen-target pass. A blank Qt permission surface no longer forces the launcher
+to depend on captured pixels: the exact EA UIA control can be invoked after a
+read-only child revalidates the pinned Sims launch immediately before input.
+All 73 permission tests pass, and the actual V308 launch succeeds on its first
+handoff. No UAC approval or foreground activation is automated.

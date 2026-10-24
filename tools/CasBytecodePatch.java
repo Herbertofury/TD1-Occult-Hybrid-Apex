@@ -756,7 +756,7 @@ public class CasBytecodePatch {
             for(String key:Set.of("apexPendingFields","apexReceiving","apexPendingPhase"))
                 require((!property(abc,row,0x60,key)&&!property(abc,row,0x66,key))||drainAt>=0,
                     "Member bootstrap must drain owned ACKs; command execution remains gated inside ApexTick.");
-            if(opcode(row,0x61))require(Set.of("apexPresentationFrames","apexPresentationMilliseconds").contains(
+            if(opcode(row,0x61))require(Set.of("apexPresentationFrames","apexPresentationMilliseconds","apexPresentationFirstFrameDelay","apexPresentationPrimeMs").contains(
                 abc.constants.getString(abc.constants.getMultiname(row.operands[0]).name_index)),
                 "Member presentation cannot overwrite a command, owner or transport state.");
             if(property(abc,row,0x4f,"ApexTick")||property(abc,row,0x46,"ApexTick"))
@@ -777,7 +777,7 @@ public class CasBytecodePatch {
             if(property(abc,op,0x46,"ApexNativeOpen")||property(abc,op,0x4f,"ApexNativeOpen")) {
                 require(primeGuards.size()==12,"Local presentation cannot bypass a claimed command, queued gesture or exact delivered identity.");nativeOpen=true;
             }
-            if(opcode(op,0x61)) require(property(abc,op,0x61,"apexFormsHousehold"),"Local presentation may only cache the validated delivered household label.");
+            if(opcode(op,0x61)) require(property(abc,op,0x61,"apexFormsHousehold")||property(abc,op,0x61,"apexPresentationCatalogMs")||property(abc,op,0x61,"apexPresentationMenuMs"),"Local presentation may only cache the validated household and bounded read-only timing counters.");
         }
         require(nativeOpen,"Local presentation lost its exact native opening check.");
         var open=ownedBody(abc,instance,"ApexNativeOpen");
@@ -803,7 +803,7 @@ public class CasBytecodePatch {
                 require(notificationGuards.size()==7,"Repeated incoming notifications must retain their original start timestamp.");
             for(String key:Set.of("apexDisconnected","apexPresentationListener","simId","apexBoundSim","apexPresentationSim","apexPresentationStarted","apexPresentationMilliseconds"))
                 if(property(abc,row,0x60,key)||property(abc,row,0x66,key))notificationGuards.add(key);
-            if(opcode(row,0x61))require(Set.of("apexPresentationSim","apexPresentationStarted","apexPresentationMilliseconds","apexPresentationFrames").contains(
+            if(opcode(row,0x61))require(Set.of("apexPresentationSim","apexPresentationStarted","apexPresentationMilliseconds","apexPresentationFrames","apexPresentationFirstFrameDelay","apexPresentationPrimeMs","apexPresentationCatalogMs","apexPresentationMenuMs","apexPresentationStateMs","apexPresentationPairMs","apexPresentationIconsMs","apexPresentationGraphicsMs").contains(
                 abc.constants.getString(abc.constants.getMultiname(row.operands[0]).name_index)),
                 "Native member notification must not replace owner, command or transport state.");
         }
@@ -1759,7 +1759,7 @@ public class CasBytecodePatch {
             "apexAwaiting", "apexAckId", "apexDisconnected", "apexSocketActive", "apexHelloPending", "apexSocketError",
             "apexSocketResetPending", "apexOutboundFrame", "apexOutboundPending",
             "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking",
-            "apexPresentationQueued", "apexPresentationStarted", "apexPresentationMilliseconds", "apexPresentationFrames", "apexPresentationListener", "apexPresentationSim",
+            "apexPresentationQueued", "apexPresentationStarted", "apexPresentationMilliseconds", "apexPresentationFrames", "apexPresentationListener", "apexPresentationSim","apexPresentationFirstFrameDelay","apexPresentationPrimeMs","apexPresentationCatalogMs","apexPresentationMenuMs","apexPresentationStateMs","apexPresentationPairMs","apexPresentationIconsMs","apexPresentationGraphicsMs",
             "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener", "apexMoleculeRegistered", "apexMoleculeReadRegistered", "apexMoleculeListener", "apexMoleculeView", "apexMoleculeIntent",
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
             "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey",

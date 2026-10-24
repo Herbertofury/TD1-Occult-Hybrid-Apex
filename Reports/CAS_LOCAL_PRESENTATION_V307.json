@@ -147,8 +147,12 @@
     "previous_all42_native_directed_pairs": true,
     "previous_all20_exposed_forms_each_of_five_members": true,
     "previous_all195_complete_records_retained": true,
-    "v307_repeat": "running",
-    "full_visual_mesh_and_shader_qualification": false
+    "v307_repeat": "passed",
+    "full_visual_mesh_and_shader_qualification": false,
+    "v307_actual_selections": 191,
+    "v307_members": 5,
+    "v307_all195_complete_records_retained": true,
+    "v307_all20_save_files_unchanged": true
   },
   "remaining_performance_gate": "Member setup still takes 737-854 ms despite completing on a single frame. Instrument the delay before that frame and the local menu/pair/icon publication cost before choosing another optimization. Complete form switches are not 0-1 ms.",
   "phone_f11_inventory_labels": {

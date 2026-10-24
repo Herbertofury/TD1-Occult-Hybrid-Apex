@@ -433,7 +433,7 @@
             cross_kind_navigation:apexFormsNativeState=="bound",selected_owner_id:apexFormsSelectedId,owner_count:apexFormsOwners.length,
             native_owner_state:apexFormsNativeState,desired_owner_id:apexFormsDesiredId,form_conversion_called:false,gesture_pending:apexFormsIntent!=null,
             native_fast_state:apexFormsFastState,native_generation:apexFormsNativeGeneration,switch_milliseconds:apexFormsSwitchMilliseconds,
-            pair_controls:ApexPairStatus(), member_ui_ready:ApexPresentationReady(),member_ui_milliseconds:apexPresentationMilliseconds,member_ui_frames:apexPresentationFrames,local_catalog:apexFormsLocalCatalog,local_catalog_offset:apexFormsLocalOffset,
+            pair_controls:ApexPairStatus(), member_ui_ready:ApexPresentationReady(),member_ui_milliseconds:apexPresentationMilliseconds,member_ui_frames:apexPresentationFrames,member_ui_timing:{first_frame_delay_ms:apexPresentationFirstFrameDelay,prime_ms:apexPresentationPrimeMs,catalog_ms:apexPresentationCatalogMs,menu_ms:apexPresentationMenuMs,state_ms:apexPresentationStateMs,pair_ms:apexPresentationPairMs,icons_ms:apexPresentationIconsMs,graphics_ms:apexPresentationGraphicsMs},local_catalog:apexFormsLocalCatalog,local_catalog_offset:apexFormsLocalOffset,
             selection_result:ApexClone(apexFormsResult),message:apexFormsMessage,
             molecule_pending:ApexClone(apexMoleculeIntent),command_pending:apexPendingFields!=null,
             command_phase:apexPendingPhase,receiving:apexReceiving,
@@ -561,10 +561,15 @@
 
       private function ApexFormsOwnedTick(sim:Object) : void
       {
+         // Time only bounded incoming-member publication. An idle or already
+         // ready CAS frame performs no extra clock calls or profiling work.
+         var measuring:Boolean=apexPresentationStarted>=0 && apexPresentationMilliseconds<0;
+         var phaseStarted:int=measuring?getTimer():0;
          if(apexNativeChannel!="" && (apexNativeConnected || apexFormsLocalCatalog)) ApexFormsReadNativeState();
          ApexPairTick();
          ApexFormsBindUiKind();
          ApexMoleculeDrain();
+         if(measuring) {apexPresentationStateMs+=getTimer()-phaseStarted;phaseStarted=getTimer();}
          var busy:Boolean=ApexFormsCommandBlocksInput() || apexFormsDragging || apexFormsDesiredId!="";
          var pairSignature:String=apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration;
          var refreshPair:Boolean=apexFormsNativeState=="bound" && apexFormsDesiredId=="" && pairSignature!==apexPairSignature;
@@ -572,6 +577,7 @@
          var portraits:Object=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:refreshPair,
             base_label:pairLabels==null?"":ApexPairLabel(pairLabels.base_owner_id),
             alternate_label:pairLabels==null?"":ApexPairLabel(pairLabels.alternate_owner_id)});
+         if(measuring) {apexPresentationPairMs+=getTimer()-phaseStarted;phaseStarted=getTimer();}
          if(portraits==null || portraits.protocol!==1 || portraits.enabled!==true || portraits.sim_id!==apexBoundSim)
             return;
          if(refreshPair) apexPairSignature=pairSignature;
@@ -600,11 +606,22 @@
          }
          if(apexFormsCatalog==null || apexFormsCatalog.sim_id!=apexBoundSim) {
             apexFormsCatalog={sim_id:apexBoundSim,icons:{}};
-            for each(var kind:int in [1,2,4,8,16,32,64]) {
+            // Prepared descriptors already contain exact game asset IDs. Only
+            // ask EA for an icon when an actually displayed family lacks one.
+            var preparedIconKinds:Object={human:1,alien:2,vampire:4,mermaid:8,witch:16,werewolf:32,fairy:64};
+            var neededIcons:Object={};
+            for each(var iconOwner:Object in apexFormsOwners) if(preparedIconKinds.hasOwnProperty(String(iconOwner.family))) {
+               var iconKind:String=String(preparedIconKinds[String(iconOwner.family)]);neededIcons[iconKind]=true;
+               var preparedIcon:String=String(iconOwner.family_icon);
+               if(preparedIcon=="") preparedIcon=String(iconOwner.icon);
+               if(preparedIcon!="" && !apexFormsCatalog.icons.hasOwnProperty(iconKind)) apexFormsCatalog.icons[iconKind]=preparedIcon;
+            }
+            for each(var kind:int in [1,2,4,8,16,32,64]) if(neededIcons.hasOwnProperty(String(kind)) && !apexFormsCatalog.icons.hasOwnProperty(String(kind))) {
                var iconData:Object=ApexClone(CommunicationManager.CallGameService("GetOccultIcon",kind));
                if(iconData && iconData.icon && iconData.icon.instance is String) apexFormsCatalog.icons[String(kind)]=String(iconData.icon.instance);
             }
          }
+         if(measuring) {apexPresentationIconsMs+=getTimer()-phaseStarted;phaseStarted=getTimer();}
          ApexFormsGroupCatalog();
          var entries:Array=[];
          if(apexFormsVariantFamily!="") {
@@ -627,7 +644,7 @@
          if(humanBase) apexFormsPanelHeight+=30;
          var signature:String=apexBoundSim+":"+apexFormsSelectedId+":"+apexFormsNativeState+":"+apexFormsDesiredId+":"+
             count+":"+apexFormsPage+":"+busy+":"+apexFormsScale+":"+apexFormsLocked+":"+apexFormsCollapsed+":"+apexFormsVariantFamily+":"+apexPairMessage;
-         if(signature==apexFormsSignature) return;apexFormsSignature=signature;
+         if(signature==apexFormsSignature) {if(measuring) apexPresentationGraphicsMs+=getTimer()-phaseStarted;return;}apexFormsSignature=signature;
          if(apexFormsRoot==null) {
             apexFormsRoot=new flash.display.Sprite();apexFormsRoot.name="ApexHybridForms";
             apexFormsRoot.addEventListener(flash.events.MouseEvent.CLICK,ApexFormsClick,false,0,true);
@@ -652,7 +669,7 @@
          ApexFormsToolbar("smaller","-",apexFormsPanelWidth-190);ApexFormsToolbar("larger","+",apexFormsPanelWidth-163);
          ApexFormsToolbar("lock",apexFormsLocked?"Unlock":"Lock",apexFormsPanelWidth-134,49);
          ApexFormsToolbar("reset","Reset",apexFormsPanelWidth-82,47);ApexFormsToolbar("collapse",apexFormsCollapsed?"+":"-",apexFormsPanelWidth-32);
-         ApexFormsPlace();if(apexFormsCollapsed) return;
+         ApexFormsPlace();if(apexFormsCollapsed) {if(measuring) apexPresentationGraphicsMs+=getTimer()-phaseStarted;return;}
          var nativeNames:Object={"1":"Human","2":"Alien","4":"Vampire","8":"Mermaid","16":"Spellcaster","32":"Werewolf","64":"Fairy"};
          for(var i:int=start;i<end;++i) {
             var owner:Object;
@@ -687,6 +704,7 @@
          if(apexFormsNativeState=="bound" && apexFormsDesiredId=="") footer="Each form keeps its own appearance";
          if(apexPairMessage!="") footer=apexPairMessage;
          ApexFormsText(apexFormsRoot,footer,2,apexFormsPanelHeight-23,apexFormsPanelWidth-8,10,0x55778f);
+         if(measuring) apexPresentationGraphicsMs+=getTimer()-phaseStarted;
       }
 
       private function ApexFormsCompactButton(owner:Object,index:int,x:Number,y:Number,enabled:Boolean,wide:Boolean=false) : flash.display.Sprite

@@ -46,6 +46,7 @@ class PermissionBrokerTests(unittest.TestCase):
                 point = Mock(side_effect=ValueError('wrong permission wording') if variant == 'wrong-wording' else None, return_value=(468, 206))
                 with patch.object(broker, 'process_identity', return_value=target), \
                      patch.object(broker, 'validate_launch_context', validation), \
+                     patch.object(broker.subprocess, 'run', return_value=SimpleNamespace(returncode=0,stdout='{"ok":false,"acknowledged":false}')), \
                      patch.object(native_module, 'NativeEA', return_value=native), \
                      patch.object(native_module, 'recognize', return_value={'exact': True}), \
                      patch.object(native_module, 'dialog_button', point):

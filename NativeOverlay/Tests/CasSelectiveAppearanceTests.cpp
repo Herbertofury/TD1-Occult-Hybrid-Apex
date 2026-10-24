@@ -47,6 +47,39 @@ int main(){try{
     Check(s::Numbers(Container({UINT64_MAX,0,256},true),true)==std::vector<std::uint64_t>({UINT64_MAX,0,256}));
     Refuses([&]{s::Numbers(w::Bytes(1,"invalid"),true);});
     const auto voice=s::Merge(target,source,128);
+    const auto furTarget=target+V(62,900)+w::Bytes(63,"retained fur paint");
+    const auto furSource=source+V(62,800)+w::Bytes(63,"chosen fur paint");
+    const auto withoutFur=s::Merge(furTarget,furSource,s::ClearFur|16);
+    Check(w::Scalar(w::One(w::Fields(withoutFur),62,0))==0 && !s::Optional(w::Fields(withoutFur),63));
+    Check(w::One(w::Fields(withoutFur),10,0).raw==w::One(w::Fields(furSource),10,0).raw);
+    Check(F(withoutFur,18)==F(furTarget,18) && s::Canonical(F(withoutFur,28),s::Schema::Genetics)==s::Canonical(F(furTarget,28),s::Schema::Genetics) &&
+        s::Canonical(F(withoutFur,21),s::Schema::Outfits)==s::Canonical(F(furTarget,21),s::Schema::Outfits) && F(withoutFur,75)==F(furTarget,75));
+    const auto withFur=s::Merge(withoutFur,furSource,s::Fur|16);
+    Check(F(withFur,63)==F(furSource,63) && w::Scalar(w::One(w::Fields(withFur),62,0))==800);
+    Check(F(withFur,18)==F(furTarget,18) && s::Canonical(F(withFur,28),s::Schema::Genetics)==s::Canonical(F(furTarget,28),s::Schema::Genetics));
+    const auto furParts=w::Bytes(1,V(1,111)+V(2,3))+w::Bytes(1,V(1,222)+V(2,60))+w::Bytes(1,V(1,333)+V(2,59));
+    Check(s::PartList(furParts,furParts,s::ClearFur)==w::Bytes(1,V(1,111)+V(2,3))+w::Bytes(1,V(1,222)+V(2,60)));
+    const std::uint64_t bodyDefaults[][3]={{6,0x4c9e1,0x198c},{7,0x4c9d1,0x1990},{8,0x4c9d7,0x198f},
+        {6,0x4cbc0,0x19a2},{7,0x4c9d3,0x19ae},{8,0x4c9df,0x19a3}};
+    for(const auto& row:bodyDefaults) {
+        Check(s::FurNudePart(row[1],row[0],s::ClearFur)==row[2]);
+        Check(s::FurNudePart(row[2],row[0],s::Fur,row[1])==row[1]);
+        Check(s::FurNudePart(0xabcd1234567890ULL,row[0],s::ClearFur)==0xabcd1234567890ULL);
+        const auto original=w::Bytes(1,V(1,row[1])+V(2,row[0])+V(99,17))+furParts;
+        const auto changed=s::PartList(original,"",s::ClearFur);
+        Check(changed==w::Bytes(1,V(2,row[0])+V(99,17)+V(1,row[2]))+
+            w::Bytes(1,V(1,111)+V(2,3))+w::Bytes(1,V(1,222)+V(2,60)));
+        const auto nudeOutfit=w::Bytes(5,Container({row[1],777},true))+w::Bytes(7,Container({row[0],3}));
+        const auto clean=s::Parts(s::Outfit(nudeOutfit,"",s::ClearFur)).rows;
+        const auto clothingDefault=row[1]==0x4c9e1?0x5f69:row[1]==0x4c9d1?0x5f71:row[2];
+        Check(clean.size()==2 && clean[0][0]==777 && clean[1][0]==clothingDefault);
+        Check(s::Parts(s::Outfit(s::Outfit(nudeOutfit,"",s::ClearFur),nudeOutfit,s::Fur)).rows[1][0]==clothingDefault);
+    }
+    for(auto id:{0x5f69ULL,0x5f71ULL,0xabcd1234567890ULL})for(auto body:{6u,7u,8u}) {
+        Check(s::FurOutfitPart(id,body,s::Fur)==id);
+        Check(s::FurOutfitPart(id,body,s::ClearFur)==id);
+    }
+    Check(s::FurNudePart(0x4c9e1,3,s::ClearFur)==0x4c9e1); // Never reinterpret a chosen head by its ID alone.
     Check(F(voice,21)==F(target,21) && F(voice,18)==F(target,18));
     auto skin=s::Merge(target,source,4096);auto a=w::Fields(target),b=w::Fields(skin);
     Check(w::One(a,99,0).raw==w::One(b,99,0).raw && w::One(a,10,0).raw==w::One(b,10,0).raw);
@@ -68,6 +101,45 @@ int main(){try{
     Refuses([&]{s::Merge(target,source,1);});
     auto foreign=source;foreign.replace(1,8,std::string(8,'x'));Refuses([&]{s::Merge(target,foreign,32);});
     Check(s::Equivalent(target,target) && !s::Equivalent(target,skin));
+    Check(s::DifferenceFields(target,skin)=="21,28");
+    Check(s::DifferenceFields(target,target).empty());
+    Check(s::OutfitDifference(target,target).empty());
+    const auto changedId=s::SwapFields(Outfit(1000,0,0),V(1,99999),{1});
+    Check(s::OutfitDifference(w::Bytes(21,w::Bytes(1,Outfit(1000,0,0))),
+        w::Bytes(21,w::Bytes(1,changedId)))=="0.1(10000/99999)");
+    Check(s::OutfitDifference(w::Bytes(21,""),target)=="outfit-count:0/3");
+    // The actual importer may repack fixed64 CASP IDs. All values, ordering
+    // and unknown metadata must still match; a wire-layout difference alone
+    // cannot reject a correct detached copy.
+    const auto packedIds=Container({7,UINT64_MAX,2000000000000ULL},true);
+    const auto unpackedIds=Fixed(1,7)+Fixed(1,UINT64_MAX)+Fixed(1,2000000000000ULL)+V(90,777);
+    const auto mixedIds=Fixed(1,7)+w::Bytes(1,std::string(8,char(255)))+Fixed(1,2000000000000ULL)+V(90,777);
+    const auto withIds=[&](const std::string& ids){return w::Bytes(21,w::Bytes(1,
+        s::SwapFields(Outfit(1000,0,0),w::Bytes(5,ids),{5})));};
+    Check(s::Equivalent(withIds(packedIds),withIds(unpackedIds)));
+    Check(s::Equivalent(withIds(packedIds),withIds(mixedIds)));
+    Check(!s::Equivalent(withIds(packedIds),withIds(Container({8,UINT64_MAX,2000000000000ULL},true))));
+    Check(!s::Equivalent(withIds(packedIds),withIds(Container({UINT64_MAX,7,2000000000000ULL},true))));
+    Check(!s::Equivalent(withIds(packedIds),withIds(unpackedIds+V(91,1))));
+    Refuses([&]{s::Canonical(w::Bytes(1,"misaligned"),s::Schema::FixedArray);});
+    Check(s::Canonical(V(1,5)+V(1,130)+V(90,777),s::Schema::Array)==
+        s::Canonical(Container({5,130}),s::Schema::Array));
+    const auto furPacket=target+V(62,1234)+w::Bytes(63,
+        w::Bytes(1,V(1,9001)+V(2,0xff887766))+w::Bytes(1,V(1,9002)+V(2,0)));
+    const auto material=s::ReadFurMaterial(furPacket);std::vector<std::string> applied;
+    Check(material.texture==1234 && material.layers.size()==2 && material.layers[0].second==0xff887766);
+    s::ApplyFurMaterial(material,[&]{applied.push_back("clear");},
+        [&](auto id,auto color){applied.push_back(std::to_string(id)+":"+std::to_string(color));},
+        [&](auto texture){applied.push_back("texture:"+std::to_string(texture));});
+    Check(applied.size()==4 && applied.front()=="clear" && applied.back()=="texture:1234");
+    Check(s::ReadFurMaterial(withoutFur).layers.empty());
+    Refuses([&]{s::ReadFurMaterial(target+w::Bytes(63,w::Bytes(2,"future")));});
+    Refuses([&]{s::ReadFurMaterial(target+w::Bytes(63,w::Bytes(1,V(1,1)+V(1,2))));});
+    Refuses([&]{s::ReadFurMaterial(target+w::Bytes(63,w::Bytes(1,V(2,UINT64_MAX))));});
+    // A fur-only removal leaves outfits without a fur part byte-identical,
+    // including unsorted parallel arrays and optional empty containers.
+    const auto noFurOutfit=s::SwapFields(Outfit(1000,0,0),w::Bytes(15,""),{15});
+    Check(s::Outfit(noFurOutfit,Outfit(2000,0,0),s::ClearFur)==noFurOutfit);
     // Selective linking does not relay Human edits from an Alien operation
     // into the separately configured Human/Vampire edge, nor another Sim.
     using D=std::unique_ptr<J>;std::map<unsigned,D> captured;

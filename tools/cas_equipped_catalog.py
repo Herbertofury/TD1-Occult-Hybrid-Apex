@@ -122,6 +122,20 @@ def inject_feed(source):
         '         var apexStarted:int=flash.utils.getTimer();\n         var apexSearchService:String="ApexCatalogSearchSource";\n')
     anchor='         var _loc4_:Array = CASAPI.GetCatalogBaseItemsUsingFilter(param1,param3);'
     source=replace_once(source,anchor,'         var apexFetchStarted:int=flash.utils.getTimer();\n'+anchor)
+    source=replace_once(source,anchor,anchor+'''
+         var apexCanine:Object=CommunicationManager.CallUIService(apexSearchService,
+            {operation:"canine-context",state:param1.menuState});
+         if(apexCanine!=null && apexCanine.enabled===true) {
+            var apexWolf:Array=CASAPI.GetCatalogBaseItemsUsingFilter(param1,{occult:32});
+            if(apexWolf!=null && apexWolf.length>0) {
+               if(_loc4_==null) _loc4_=[];
+               var apexIds:Object={};var apexPart:Object;
+               for each(apexPart in _loc4_) if(apexPart!=null) apexIds["$"+String(apexPart.data_id)]=true;
+               for each(apexPart in apexWolf) if(apexPart!=null && apexIds["$"+String(apexPart.data_id)]!==true) {
+                  apexIds["$"+String(apexPart.data_id)]=true;_loc4_.push(apexPart);
+               }
+            }
+         }''')
     source=replace_once(source,'''         if(_loc4_ == null || _loc4_.length == 0)
          {
             return;

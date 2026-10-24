@@ -6,7 +6,33 @@
 **Recovered source archive SHA-256:** `5bae3bfdb0f7aef8fde94f3e1058d74bdc80fb79fdcbd33c12fed78beae83249`  
 **Historical behavioral reference:** Occult Hybrid Unlocker & Stabilizer **1.13.7 (FIXE)** — May 16, 2026 — **not a runtime dependency**
 
-**Current development checkpoint — October 21:**
+**Current development checkpoint — October 23:**
+Human/CC Werewolf keeps its selected canine parts and Human geometry. A narrowly
+bound native texture-composition correction fixes the black fur material in
+actual CAS without replacing the appearance. Canine head/ear catalog queries
+are available alongside Human choices. V287's actual **Human skin / no fur**
+and **Use Werewolf fur** actions retain the selected canine parts, CC and
+unrelated shape fields through Werewolf/Fairy round trips, with all other 194
+records unchanged. Fur removal uses the verified EA underwear defaults only
+for default beast body meshes; enabling fur retains existing clothing. Ear/eye
+distortion, male defaults and Live rendering remain unqualified.
+
+The optional Dynamic CAS Companion build now retains the supplied mod's actual
+compiled code and 65 dependent resources. Actual CAS detects the donor controls
+and disables Apex's duplicate companion handlers. V287 exercises the donor's
+actual add/remove favorite and Favorites/All handlers with all 195 appearances
+unchanged. Right-click input, restart persistence and other donor tools remain
+open. The two supplied SpinningPlumbobs animation bases cold-load successfully;
+the tagged attachment adapter installs without polling. Actual combined
+animation and CAS/F11 selectors are still unqualified. V287's full-CAS entry
+exceeds the timing gate, although its later readback retains all 195 records.
+The frozen V280 Python suite passes 2,835 checks; the current native suite
+passes sixteen targets. The full V288 Python suite passes 2,848 checks.
+This remains a development candidate with explicit open release gates.
+See [the latest scoped validation](Reports/CAS_FUR_FAVORITES_V287.json) and
+[the active player checklist](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/wiki/Active-Player-Checklist).
+
+**Earlier development checkpoint — October 21:**
 The native EA category link/copy panel now works on independently bound Alien
 and Vampire views. V232 qualifies voice-only copying, linked propagation and
 unlink isolation in game, followed by an unpaused five-member Live return.

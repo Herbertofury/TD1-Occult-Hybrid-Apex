@@ -1,5 +1,5 @@
 {
-  "bytes": 4731904,
+  "bytes": 4758016,
   "file": "ApexOverlay.dll",
   "game_files_modified": false,
   "game_runtime_verified": false,
@@ -36,6 +36,6 @@
     "ApexOverlayVisible": 0
   },
   "schema": 1,
-  "sha256": "dec2a2dd886ce33c61317d390c14f0e2cbd0adba962ea71b08398e8abf123a86",
-  "verified_script_sha256": "99ec33916e8b795238fdaf418ccf5e1492aabcd89f9264b976d29a38583a5261"
+  "sha256": "e392040ce7a9e24737c34fd209da6dcf31554d97b493cb2d65ef4becb11ddfee",
+  "verified_script_sha256": "1a8c0fceeb673643928202e7ff233f2dd5f07255737d0085b34512d30529003f"
 }

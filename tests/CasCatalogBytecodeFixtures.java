@@ -7,7 +7,17 @@ public class CasCatalogBytecodeFixtures {
         var abc=CasBytecodePatch.load(args[0]);
         var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
         final String mode=args[1];
-        if(mode.equals("category-regrids")) {
+        if(mode.equals("unload-regrids")) {
+            int member=-1;
+            for(var trait:instance.instance_traits.traits)
+                if(CasBytecodePatch.name(abc,trait).equals("ApexCardRestore"))member=trait.name_index;
+            CasBytecodePatch.require(member>=0,"Missing restore fixture binding.");boolean changed=false;
+            var body=CasBytecodePatch.ownedBody(abc,instance,"ApexCatalogDispose");
+            for(var op:body.getCode().code)
+                if(CasBytecodePatch.property(abc,op,0x4f,"ApexCardForget") || CasBytecodePatch.property(abc,op,0x46,"ApexCardForget"))
+                    {op.operands[0]=member;changed=true;}
+            CasBytecodePatch.require(changed,"Fixture did not regress unload.");body.setModified();
+        } else if(mode.equals("category-regrids")) {
             var body=CasBytecodePatch.ownedBody(abc,instance,"ApexCardApply");boolean changed=false;
             for(var op:body.getCode().code)if(op.definition.instructionCode==0x2c &&
                 abc.constants.getString(op.operands[0]).equals("cards:")) {op.operands[0]=0;changed=true;}

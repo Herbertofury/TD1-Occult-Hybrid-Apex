@@ -1,0 +1,170 @@
+{
+  "candidate_epoch": "2026-10-22-human-cc-fur-body-v283",
+  "canine_catalog": {
+    "canine_head_edit_persisted_after_werewolf_and_fairy_switches": true,
+    "ear_presets": 82,
+    "head_presets": 25,
+    "native_human_and_werewolf_query_union": true,
+    "native_preset_index_acknowledgement": false,
+    "other194_appearance_fingerprints_unchanged": true,
+    "previous_ear_presets": 72,
+    "previous_head_presets": 19,
+    "remaining_head_ear_shape_distortion": true
+  },
+  "companion_merge": {
+    "all_features_runtime_qualified": false,
+    "byte_identical_dependencies": 65,
+    "byte_identical_method_bodies": 2633,
+    "corrected_discovery_runtime_qualified": true,
+    "donor_class_discovery_fixed_in_build": true,
+    "donor_method_bodies": 2650,
+    "donor_resources": 66,
+    "duplicate_handlers_installed": false,
+    "named_form_context_adapters": 5,
+    "native_controls_detected": true,
+    "owner_package_sha256": "054ca6a189a587063290df004a42072c5381e59404d33e58ddb737ab821cf9c3"
+  },
+  "evidence_sha256": {
+    ".work/v278-canine-head-preset-apply.json": "0c4d1cde661e9346e8c438ecabb9bea77b549030bfe8f7266c44da5bcc7dccc1",
+    ".work/v278-canine-preset-retention-retention.json": "b6fe16cbfc5a840b5c422e8fe0c1cc05843ef60acfb82a4864ee2ada0928204a",
+    ".work/v278-install-launch-live.json": "ed56cde8741c31a4e8f7b9eef67bce8e5453feb74c6d4b9f2e7d4701d653665c",
+    ".work/v278-normal-automatic-entry.json": "40273b153a52de7ac7d1359f238e0756c5c720f57a3c450ba73514c28f6c2e31",
+    ".work/v278-retained-canine-qa.json": "31656c1e9bbd949d860d3a855e857988298f8c5317185e3730bb1ea480a0fd6b",
+    ".work/v278-retained-canine-view.bmp": "f1f9d26612e67f998ce9af256299a0c2eb374e07ec3199933a71e4da406dc296",
+    ".work/v280-after-fur-failure-native-status.json": "b61ce7b4ad24607602421feea0256f947de6c886faadedc29d84cf6f21a1a0cb",
+    ".work/v280-full-python-tests.log": "49faabf37efb108dc8ab736484f5b8031d7e8b60c6dd6b617f28bd19f0cec590",
+    ".work/v280-fur-options-qa.json": "d4b489738789e9f7ad268afc0fe59611cc6f01f16efb47c0963fcb18eadbc23b",
+    ".work/v280-native-tests.log": "d5f2e8e03242186d259c10205ca5c6c653ca16747d623cf1fba0636f39aa2117",
+    ".work/v280-normal-automatic-entry.json": "244200fdb7a44717638bd39a9ac65140ff2a6eecf41555ab58d6799725949009",
+    ".work/v280-pair-controls-tests.log": "7a14a6b7a78ab0c73959601709b293818678a1cfb496728a9dcd17340f008027",
+    ".work/v280-seal-tests.log": "a703ac0ee4afb7186b67166fcd0284dbb6921cf200da03491bcac73c26da07d2",
+    ".work/v280-upgrade-tests.log": "bb09040168bd652bdacadc44251b4e73fb57c9b55db0451a54ff239b71bf8ad3",
+    ".work/v281-native-tests.log": "86d01347b472b725f1e68f83d81deb960716380a37c9c6bf43765e7dfff4ed8e",
+    ".work/v282-fur-options-qa.json": "8203b5bd0937e82adab86b2ce02d39d3c0e1247682c2f6afd482db7d3de07a9b",
+    ".work/v282-fur-removed.bmp": "2675b10a54ec1b373e86f5558cb26d05be8bf0e0f2f1497c679d576339d63257",
+    ".work/v282-fur-restored.bmp": "58cbe090d7520f3f098716ddd322fac097cf0741b220a60ab6de175e1d70a834",
+    ".work/v282-human-nude-body.bmp": "1b707b58b96b3ccaa0e5741bc0b48641ea8c78cc1cd447d5aaae149adee01793",
+    ".work/v283-candidate-build.log": "8ad34244c029bfe86de5571bdf52221bd9aeb0ff350a09f0a12f2a3302f29e5a",
+    ".work/v283-native-tests-r2.log": "fb90465f1044dc7b0d98aca07dcecf4e847432e5b332acf7b6dbb126b0e8d975"
+  },
+  "fur_options": {
+    "actual_runtime_qualified": false,
+    "default_body_substitutions": [
+      {
+        "body_type": 6,
+        "human_casp": "0x000000000000198c",
+        "werewolf_casp": "0x000000000004c9e1"
+      },
+      {
+        "body_type": 7,
+        "human_casp": "0x0000000000001990",
+        "werewolf_casp": "0x000000000004c9d1"
+      },
+      {
+        "body_type": 8,
+        "human_casp": "0x000000000000198f",
+        "werewolf_casp": "0x000000000004c9d7"
+      },
+      {
+        "body_type": 6,
+        "human_casp": "0x00000000000019a2",
+        "werewolf_casp": "0x000000000004cbc0"
+      },
+      {
+        "body_type": 7,
+        "human_casp": "0x00000000000019ae",
+        "werewolf_casp": "0x000000000004c9d3"
+      },
+      {
+        "body_type": 8,
+        "human_casp": "0x00000000000019a3",
+        "werewolf_casp": "0x000000000004c9df"
+      }
+    ],
+    "human_skin_no_fur": "Copy shared Human skin tone, remove pelt/paint and replace only reviewed EA Werewolf nude body components with their Human counterparts; retain chosen canine head/ears, CC/clothing, shape and tattoos.",
+    "native_and_host_scope_tests_passed": true,
+    "runtime_failure": "V280 detached import/readback refused the first no-fur action before graph publication; original one-shot failure retained, no replay.",
+    "runtime_qualified": false,
+    "use_werewolf_fur": "Copy current EA Werewolf skin tone, fur and fur paint into only the selected Human/CC owner. This uses that form's current colours, not an archived previous CC fur look.",
+    "v282_material_and_roundtrip_checks_passed": true,
+    "v282_other194_unchanged_for_both_directions": true,
+    "visual_followup": "V282 removed the pelt correctly but retained EA Werewolf nude upper/lower/feet meshes. Actual native CAS removal demonstrates smooth Human components with the chosen canine head/ears intact. V283 narrowly substitutes those six EA defaults; chosen CC/clothes are retained."
+  },
+  "human_cc_material": {
+    "actual_runtime_epoch": "v278",
+    "all195_appearance_fingerprints_unchanged_after_unedited_roundtrip": true,
+    "black_material_removed_without_reset": true,
+    "live_rendering_qualified": false,
+    "retained_canine_parts": true,
+    "retained_human_geometry_kind": 1,
+    "retained_pelt_layers": true,
+    "temporary_texture_genus_only": true
+  },
+  "open_gates": [
+    "Actual fur-off and fur-on rendering and independent field preservation",
+    "Native donor favorites/history and shared geometry UI tests",
+    "Exact preset index readback for mixed-genus presets",
+    "Human/CC ear/head geometry and eye placement",
+    "Full merged-feature hybrid, reload and performance qualification",
+    "Broader actual-save release checklist remains open"
+  ],
+  "production_ready": false,
+  "schema": 1,
+  "validation": {
+    "final_native_ctest_targets": 16,
+    "final_seal_tests": 26,
+    "final_upgrade_epoch_tests": 26,
+    "form_bank_seal_tests": 26,
+    "native_ctest_targets": 16,
+    "pair_control_tests": 7,
+    "previous_mixed_epoch_full_run": "2834 tests; 5 failures and 13 errors in migration tests after source epoch changed during the run; not a pass",
+    "script_upgrade_tests": 26,
+    "stable_full_python_run": "2835 tests passed in 842.884 seconds against frozen V280 sources"
+  },
+  "v283_actual_qa": {
+    "cold_load_all40_fields_retained": true,
+    "normal_full_cas_all195_fields_unchanged": true,
+    "all5_immediate_live_fairy_vampire_mermaid_werewolf_switches": true,
+    "actual_cas_strip_fairy_vampire_ms": [
+      50,
+      46
+    ],
+    "cc_top_retained_beast_human_cc_roundtrip": true,
+    "fur_off_complete_readback": "refused: outfit root field21 changed; original selected view restored",
+    "actual_ea_live_dark_form_interaction": "owner clarified this is the failing route; still open, test after other requested work",
+    "evidence": [
+      ".work/v283-launch-recovered-live-r2.json",
+      ".work/v283-normal-automatic-entry.json",
+      ".work/v283-fairy-live-transitions.json",
+      ".work/v283-fairy-to-vampire-actual-status.json",
+      ".work/v283-fur-r3-options-qa.json",
+      ".work/v283-fur-r3-native-failure-status.json"
+    ]
+  },
+  "v284_candidate": {
+    "epoch": "2026-10-23-donor-favorites-fur-diagnostics-v284",
+    "sha256": "bbc9fe718032c75e13fd37f03f713546bfcb61cfc4f0fd2033339a0e155bcc42",
+    "actual_runtime_qualified": false,
+    "changes": [
+      "Use actual donor favorite handlers and preferences through native CLI; relocate actual buttons above search when EA title is absent",
+      "Bounded outfit mismatch diagnostics preserve complete readback refusal"
+    ],
+    "validation": {
+      "native_targets_passed": 16,
+      "cas_control_tests": 20,
+      "donor_control_tests": 3,
+      "catalog_bytecode_tests": 4,
+      "pair_controls_tests": 7,
+      "seal_tests": 26,
+      "upgrade_tests": 26,
+      "donor_merge_tests": 5
+    }
+  },
+  "v284_actual_qa": {
+    "cold_live_all40_retained": true,
+    "normal_full_cas_all195_retained": true,
+    "favorites_qa": "failed: new bridge queried the ScrollableObjectGrid instead of its mGridLayout; no CAS item equipped or removed",
+    "evidence": ".work/v284-donor-favorites-qa.json",
+    "v285_change": "enumerate exact card layout for donor command and status, with a compiled regression fixture for both paths"
+  }
+}

@@ -292,7 +292,10 @@ def validate(client, request):
             raise PostconditionMismatch('Companion acknowledgement belongs to another action, item or appearance.')
         if request['action'] in ('toggle-favorite','toggle-hidden'):
             key=receipt.get('key','');inventory=companion.get('favorites' if request['action']=='toggle-favorite' else 'hidden',[])
-            if (not isinstance(key,str) or not key.endswith('/'+str(request['data_id'])) or type(receipt.get('enabled')) is not bool or
+            donor=(companion.get('source')=='Dynamic CAS Companion actual code' and companion.get('native_controls') is True)
+            exact_key=('dynamic_cas_columns.favorite.shared.'+str(request['data_id'])) if donor and request['action']=='toggle-favorite' else None
+            key_matches=(key==exact_key) if exact_key is not None else isinstance(key,str) and key.endswith('/'+str(request['data_id']))
+            if (not key_matches or not isinstance(inventory,list) or type(receipt.get('enabled')) is not bool or
                     (key in inventory) is not receipt['enabled']):
                 raise PostconditionMismatch('Companion preference toggle lacks its exact resulting membership.')
         if request['action'] in ('all','favorites','recent','hidden') and companion.get('mode')!=request['action']:
@@ -416,7 +419,11 @@ def validate(client, request):
             if other!=request['owner_id'] or control.get('enabled') is not request['enabled'] or pair.get('linked') is not request['enabled'] or pair.get('category_flags',2**32-1)!=flags:
                 raise PostconditionMismatch('The requested actual form link state did not read back.')
         elif (control.get('source_owner_id')!=request['source_owner_id'] or control.get('target_owner_id')!=request['target_owner_id'] or
-              {request['source_owner_id'],request['target_owner_id']}!={pair['base_owner_id'],pair['alternate_owner_id']}):
+              ({request['source_owner_id'],request['target_owner_id']}!={pair['base_owner_id'],pair['alternate_owner_id']} and not
+               (flags==16777232 and request['source_owner_id']=='native/32' and
+                request['target_owner_id']=='werewolf/werewolf_human_cc' and
+                client.get('form_strip',{}).get('selected_owner_id')==request['target_owner_id'] and
+                request['target_owner_id'] in (pair['base_owner_id'],pair['alternate_owner_id'])))):
             raise PostconditionMismatch('Copy did not acknowledge its exact source and destination.')
         return
     if op == 'form-menu':

@@ -110,10 +110,14 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
             'card_height_marker_adapter_verified',
             'native_equipped_category_adapters_verified',
         )
+        merged_companion = ui_info.get('companion_code_merge') is not None
+        if merged_companion:
+            from maru_companion import verify_merged
+            verify_merged(ui_info, read(ui_path.read_bytes()))
         if (ui_info.get('target_game') != '1.128.90.1030' or
                 ui_info.get('sha256') != digest(ui_path.read_bytes()) or
                 ui_info.get('non_script_tags_preserved') is not True or
-                contract.get('unchanged_native_methods') != 1775 or
+                contract.get('unchanged_native_methods') != (2633 if merged_companion else 1775) or
                 contract.get('native_wing_paint_owner_adapters') != 3 or
                 selector_contract.get('native_method_count') != 462 or
                 selector_contract.get('unchanged_native_methods') != 452 or
@@ -122,14 +126,18 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
                 any(selector_contract.get(flag) is not True for flag in required_selector_contract) or
                 any(contract.get(flag) is not True for flag in required_contract)):
             raise ValueError('CAS bridge package does not match its build evidence.')
-        if set(tgi(key) for key in read(ui_path.read_bytes())) != {
+        expected_ui_resources = {
                 '62ECC59A:00000000:DF09D526F4C77B95',
                 '62ECC59A:00000000:26DF5B0A7B97963E',
                 '62ECC59A:00000000:E36BA403351FFE60',
                 '62ECC59A:00000000:7D5FA9E0C2A4F038',
                 '62ECC59A:00000000:CAEE355CE0B704F7',
-                '62ECC59A:00000000:3E752EBCB41E7298'}:
-            raise ValueError('CAS bridge must contain exactly the six verified native UI resources.')
+                '62ECC59A:00000000:3E752EBCB41E7298'}
+        if merged_companion:
+            from maru_companion import expected_resources
+            expected_ui_resources.update(expected_resources())
+        if set(tgi(key) for key in read(ui_path.read_bytes())) != expected_ui_resources:
+            raise ValueError('CAS bridge resource inventory differs from its exact verified inputs.')
         catalog=ui_info.get('catalog_native_bytecode_contract',{})
         if (catalog.get('ok') is not True or catalog.get('edited_method_count')!=3 or
                 catalog.get('unrelated_native_methods_preserved') is not True or

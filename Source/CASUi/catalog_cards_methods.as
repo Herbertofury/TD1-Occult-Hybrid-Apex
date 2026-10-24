@@ -48,6 +48,13 @@
          if(apexCatalogUi!=null && apexCatalogUi.visible) ApexCatalogDraw();
       }
 
+      private function ApexCardForget() : void
+      {
+         // EA has already retired catalogue tuning during widget unload.
+         // The retiring widget owns these cells; do not reflow or redraw them.
+         apexCardGeometry=null;apexCardLayout=null;apexCardReflowAttempts=0;
+      }
+
       private function ApexCardRestore() : void
       {
          if(apexCardGeometry==null) return;
@@ -86,6 +93,22 @@
 
       private function ApexCardApply(panel:Object,grid:Object) : Number
       {
+         var donor:Object=apexCompanion==null ? null : apexCompanion.layout_owner;
+         if(donor!=null && apexCompanion.donor!=null) {
+            // One geometry owner. Maru's drag/scale controls change its public
+            // values; Apex applies those values with its existing gap, outline
+            // and recycled-cell layout instead of fighting the next frame.
+            var donorColumns:int=int(donor.modded_numcolumns);
+            var donorScale:Number=Number(donor.modded_thumbnail_scale);
+            if(apexCompanion.layout_seen===true) {
+               if(donorColumns!=apexCompanion.layout_columns && donorColumns>=2 && donorColumns<=12) {
+                  apexCatalogPrefs.columns=donorColumns;apexCatalogSignature="";
+               }
+               if(donorScale!=apexCompanion.layout_scale && isFinite(donorScale) && donorScale>=0.5 && donorScale<=1.6) {
+                  apexCardPrefs.scale=donorScale;apexCatalogSignature="";
+               }
+            }
+         }
          if(apexCardGeometry==null || apexCardGeometry.grid!==grid) {
             ApexCardRestore();
             var bounds:flash.geom.Rectangle=grid.GetCellBounds();
@@ -114,6 +137,10 @@
          var maximum:int=Math.max(2,Math.min(12,int((available-40)/pitch)));
          var columns:int=Math.min(int(apexCatalogPrefs.columns),maximum);
          var width:Number=Math.max(262,40+columns*pitch);
+         if(donor!=null && apexCompanion.donor!=null) {
+            donor.modded_numcolumns=columns;donor.modded_thumbnail_scale=scale;donor.modded_catalog_width=width;
+            apexCompanion.layout_seen=true;apexCompanion.layout_columns=columns;apexCompanion.layout_scale=scale;
+         }
          // Category identity is not geometry. Retain the fitted pool across
          // category changes; newly recycled cells are still scaled below.
          var signature:String="cards:"+columns+":"+stage.stageWidth+":"+scale+":"+

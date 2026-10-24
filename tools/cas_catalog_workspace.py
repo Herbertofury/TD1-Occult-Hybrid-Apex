@@ -70,6 +70,9 @@ def inject_context(source):
                var apexName:String=String(apexSlot.@name);apexInfo[apexName]=param1[apexName];
             }
             param1=new SimInfo(apexInfo);param1.occultType=int(apexOwner.native_kind);
+            // Menu capabilities only. The Human/CC owner still binds Human
+            // geometry; canine presets and fur are additional catalogue items.
+            if(apexOwner.selected_owner_id==="werewolf/werewolf_human_cc") param1.occultType=32;
             param1.occultLayer=apexOwner.selected_owner_id===apexOwner.base_owner_id?0:1;
          }''')
     return source

@@ -62,6 +62,9 @@ using ExportProtoFn=void(*)(const void*,void*);
 using OccultRecordFn=void(*)(void*,std::uint32_t,const void*);
 using GeneticImportFn=bool(*)(const void*,const void*,void*);
 using GeneticBodyAllowedFn=bool(*)(std::uint32_t,const void*);
+using PeltGenusFn=bool(*)(const void*);
+using AddPeltFn=void(*)(void*,std::uint64_t,std::uint32_t);
+using TextureFn=void(*)(void*,std::uint64_t);
 using ProtoSizeFn=int(*)(const void*);
 using ProtoArrayFn=char*(*)(const void*,char*);
 using PreviewFn=void(*)(void*,bool);
@@ -77,6 +80,8 @@ struct DetachedTarget {
     ~DetachedTarget() {detachedTarget=previous;}
 };
 struct Api {
+    PeltGenusFn peltGenus=nullptr;
+    DestroyFn clearPelt=nullptr;AddPeltFn addPelt=nullptr;TextureFn customTexture=nullptr;
     AnimationGenusFn animationGenus=nullptr;
     OutfitHairFn outfitHair=nullptr;
     ImportFn import=nullptr;FieldsFn fields=nullptr;ConstructFn construct=nullptr;DestroyFn destroy=nullptr;
@@ -276,6 +281,7 @@ struct State {
 inline State& Runtime() {static auto* state=new State;return *state;}
 #include "ApexCasExactRecordLookupWin.h"
 #include "ApexCasGeneticImportWin.h"
+#include "ApexCasHumanCCMaterialWin.h"
 inline void ImportOutfitHair(void* outfit,const void* genus,std::uintptr_t caller) {
     auto& state=Runtime();
     // The inspected helper explicitly inserts 0x24236/0x24237 into an outfit
@@ -1082,10 +1088,12 @@ inline bool SaveAndExit(const void* argument) {
             {"scope_id",scope},{"generations",generations},{"canonical_caches",caches},
             {"other_sim_graphs_written",false},{"member_selection_submitted",false}};
     }
+    if(accepted)ClearHumanCCMaterial();
     return handled;
 }
 
 inline bool CancelCas(const void* argument) {
+    ClearHumanCCMaterial();
     auto& state=Runtime();
     {
         std::lock_guard<std::recursive_mutex> lock(state.mutex);
@@ -1103,7 +1111,7 @@ inline void BindSelected(void* controller,bool notify) {
     if(!binding || binding->controller!=controller) {
         const auto group=Read<void*>(controller,0x100);const auto id=group?Read<std::uint64_t>(group,0xb8):0;
         const auto at=state.bank.find(id);
-        if(!state.selectionEnabled || at==state.bank.end() || !at->second.graph) {state.api.bind(controller,notify);return;}
+        if(!state.selectionEnabled || at==state.bank.end() || !at->second.graph) {ClearHumanCCMaterial();state.api.bind(controller,notify);return;}
         auto& bank=at->second;
         if(bank.viewFault) return;
         const auto previous=binding;
@@ -1147,7 +1155,9 @@ inline void BindSelected(void* controller,bool notify) {
     if(!context) throw std::runtime_error("Native view binding lacks its model context.");
     // This replaces the stock binder's unconditional primary-to-alternate
     // field copy. Bind this exact owned CasData through the original model API.
+    BindHumanCCMaterial(model,binding->owner);
     state.api.modelBind(model,static_cast<char*>(view)+0xd0,context,notify);
+    BindHumanCCMaterial(model,binding->owner);
     if(Read<std::uint32_t>(model,0x178)!=Read<std::uint32_t>(view,0xd8))
         throw std::runtime_error("The native model rewrote the independent form's rendering kind.");
     bank.boundContext=context;
@@ -1339,10 +1349,23 @@ inline bool Capture(std::uint64_t id,const void* proto,bool sourceSeed) {
                 const auto original=SerializeOwner(state.api,*to,id);
                 const auto source=SerializeOwner(state.api,*from,id);
                 const auto merged=selective::MirrorRecord(selective::Merge(original,source,flags),destination);
+                const bool fur=(flags&(selective::Fur|selective::ClearFur))!=0;
+                const auto material=fur?selective::ReadFurMaterial(merged):selective::FurMaterial{};
                 auto result=ReadAppearanceRecord(state,id,destination,mask,merged);
+                if(fur) {
+                    if(!state.api.clearPelt || !state.api.addPelt || !state.api.customTexture)
+                        throw std::runtime_error("The pinned fur material setters are unavailable.");
+                    // EA's record-fields loader omits the root pelt. Reuse the
+                    // same narrow setters as its full importer, on this detached
+                    // destination only. Complete readback still gates publication.
+                    selective::ApplyFurMaterial(material,[&]{state.api.clearPelt(result->value);},
+                        [&](std::uint64_t layer,std::uint32_t color){state.api.addPelt(result->value,layer,color);},
+                        [&](std::uint64_t texture){state.api.customTexture(result->value,texture);});
+                }
                 const auto actual=SerializeOwner(state.api,*result,id);
                 if(!selective::Equivalent(merged,actual))
-                    throw std::runtime_error("Game readback changed selected or retained appearance fields; scoped copy refused.");
+                    throw std::runtime_error("Game readback changed appearance fields "+selective::DifferenceFields(merged,actual)+
+                        "; outfits "+selective::OutfitDifference(merged,actual)+"; scoped copy refused.");
                 return result;
             });
         replacement.entryOwner=NativeOwnerId(activeKind);
@@ -1526,8 +1549,9 @@ inline std::string ApplyPairAction(State& state,std::uint64_t channel,const std:
     const auto action=ParsePairAction(payload);void* controller=nullptr;auto& bank=PairBank(state,channel,controller);
     if(action.flags!=UINT32_MAX)selective::Validate(action.flags);
     const auto cursor=bank.graph->cursor();
+    const bool furRestore=HumanCCFurAction(action,cursor.owner,bank.humanOwner)==HumanCCFurMode::CopyWerewolf;
     if(cursor.sim!=action.sim || cursor.generation!=action.generation ||
-       !((action.source==bank.entryOwner&&action.target==bank.partner)||(action.source==bank.partner&&action.target==bank.entryOwner)) ||
+       !((action.source==bank.entryOwner&&action.target==bank.partner)||(action.source==bank.partner&&action.target==bank.entryOwner)||furRestore) ||
        state.pairRequests.size()>=32768 || !state.pairRequests.insert(action.request).second)
         throw std::runtime_error("Pair action is stale, outside the current pair or already consumed.");
     state.pairResult={{"request_id",action.request},{"sim_id",std::to_string(action.sim)},
@@ -1554,7 +1578,14 @@ inline std::string ApplyPairAction(State& state,std::uint64_t channel,const std:
         }
         state.pairResult["ok"]=true;state.pairResult["generation"]=bank.graph->cursor().generation;
         return "PAIRDONE|"+action.request;
-    } catch(const std::exception& error) {state.pairResult["message"]=error.what();return "PAIRFAILED|"+action.request;}
+    } catch(const std::exception& error) {
+        state.pairResult["message"]=error.what();
+        // Detached validation can fail after temporarily viewing the source.
+        // Keep the failed receipt, but return the player to the chosen form.
+        if(bank.graph->cursor().owner!=cursor.owner)
+            state.pairResult["original_view_restored"]=NativeUiView(controller,cursor.owner);
+        return "PAIRFAILED|"+action.request;
+    }
 }
 inline bool GetOccultService(const void* arguments) {
     auto& state=Runtime();
@@ -1867,6 +1898,10 @@ inline ui::Json Status() {
 #endif
         {"import_outfit_fills_prevented",state.importOutfitFillsPrevented},
         {"captured_genetic_parts_retained",state.geneticPartsRetained},
+        {"human_cc_material",{{"bound",humanCCMaterialGenus.load(std::memory_order_acquire)!=nullptr},
+            {"compositions",humanCCMaterialCompositions.load(std::memory_order_relaxed)},
+            {"shader_queries",humanCCMaterialShaderQueries.load(std::memory_order_relaxed)},
+            {"appearance_written",false},{"geometry_kind_written",false},{"live_qualified",false}}},
         {"selection_route","quarantined-kind-conversion"},
         {"selected_native",selectedNative},
         {"native_patch_qualified",false},{"production_ready",false}};
@@ -1876,6 +1911,12 @@ inline void Install() {
     const auto pinned=OpenPinnedCasImage();state.image=reinterpret_cast<std::uintptr_t>(pinned.module);
     struct Pin {std::uint32_t rva;const char* hash;};
     const Pin pins[]={
+        {0x3316d0,"c8ea7d4330bf2318840371fcf19a39da3abc58d886a9c4da557eb8b66cb7267c"},
+        {0x19eee90,"26c1eb5291f6c29e4195df0a26a4392b32862b08abf706ab2e64a0095ae9dd9b"},
+        {0x1a1ab3c,"103a5f938d309d2812e354ca1c701b8572d50e81a0fe2f01dc322ba3e635ae51"},
+        {0x343b10,"822df4b98513ffe2dba9eb9820bd15da314659205850c499e2757a9d417dd5ad"},
+        {0x343b40,"4f708e6952405465879591f842ec259bcd428118bbe19e054d412b175198a57a"},
+        {0x3440f0,"714c28f2593c5e4125f2ffe5e1f192c3c43a00e013f8e4e10343a6d6f6bef115"},
         {0x327640,"60bfa3f323ea363eddffe1178a7336a7dca8e7074324d6ef96f55b13f5171147"},
         {0x325640,"bf9bc9774b8b1ef158718743cf257c578d2b88d4cd707d0469f12e7240534997"},
         {0x321f00,"7c815c60d465b48675f7263e858c889891fbec548a51ea966873249b061e5255"},
@@ -1951,7 +1992,12 @@ inline void Install() {
             throw std::runtime_error("Native form implementation differs from its inspected function pins.");
     auto at=[&](std::uint32_t rva){return reinterpret_cast<void*>(state.image+rva);};
     state.api.fields=reinterpret_cast<FieldsFn>(at(0x325640));
+    state.api.clearPelt=reinterpret_cast<DestroyFn>(at(0x343b40));
+    state.api.addPelt=reinterpret_cast<AddPeltFn>(at(0x343b10));
+    state.api.customTexture=reinterpret_cast<TextureFn>(at(0x3440f0));
     state.api.geneticBodyAllowed=reinterpret_cast<GeneticBodyAllowedFn>(at(0x364d90));
+    if(!humanCCMaterialRelay)humanCCMaterialRelay=MakeHumanCCMaterialRelay(
+        reinterpret_cast<const void*>(&ComposeHumanCCPelt),at(0x1a1ab45));
     if(!state.geneticInsertRelay)state.geneticInsertRelay=MakeGeneticInsertRelay(
         reinterpret_cast<const void*>(&GeneticBodyAtInsert),at(0x35fbf3));
     state.api.stringValue=reinterpret_cast<StringValueFn>(at(0xda6540));
@@ -1986,6 +2032,8 @@ inline void Install() {
         throw std::runtime_error("Native form hook registry is unavailable.");
     struct Hook {void* target;void* detour;void** original;};
     Hook hooks[]={
+        {at(0x3316d0),reinterpret_cast<void*>(&PeltGenus),reinterpret_cast<void**>(&state.api.peltGenus)},
+        {at(0x1a1ab40),humanCCMaterialRelay,&humanCCMaterialTrampoline},
         {at(0x115d550),reinterpret_cast<void*>(&HouseholdDispatch),reinterpret_cast<void**>(&state.api.dispatchHousehold)},
         {at(0x321c50),reinterpret_cast<void*>(&HouseholdCopyConstruct),reinterpret_cast<void**>(&state.api.copySim)},
         {at(0x322290),reinterpret_cast<void*>(&HouseholdCopyAssign),reinterpret_cast<void**>(&state.api.assignSim)},
@@ -2111,7 +2159,7 @@ inline ui::Json Control(const ui::Json& request) {
         }
         // The whole check precedes disposal. Keep the installed hooks and
         // armed roster ready for a new, freshly checkpointed import.
-        state.selectionEnabled=false;state.boundSim=0;state.boundController=nullptr;
+        ClearHumanCCMaterial();state.selectionEnabled=false;state.boundSim=0;state.boundController=nullptr;
         state.observedNative={{"available",false}};state.viewResult=nullptr;
         state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
         state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};

@@ -43,6 +43,9 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
                   'tools/cas_pair_panel_patch.py',
                   'tools/cas_pelt_patch.py',
+                  'tools/maru_companion.py',
+                  'tools/maru_companion_adapters.py',
+                  'tools/maru_companion_resources.json',
                   'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py',
                   'tools/CasVoiceBytecodePatch.java', 'tools/cas_molecule_patch.py',
                   'tools/CasMoleculeBytecodePatch.java')
@@ -189,7 +192,7 @@ def inject(source, methods):
     # Resolve external QNames at compilation, avoiding dotted runtime lookups.
     source = source.replace('   import gamedata.CAS.CASAPI;',
         '   import olympus.events.GridEvent;\n   import olympus.events.PushButtonEvent;\n   import gamedata.shared.SimGenderTypes;\n   import gamedata.CAS.shared.CASCatalogProduct;\n   import gamedata.CAS.CASAPI;')
-    source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.widget.Margin;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import flash.utils.getTimer;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
+    source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.widget.Margin;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import flash.utils.getTimer;\n   import flash.utils.getDefinitionByName;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
     if end < 0: raise ValueError('CAS class end is missing.')
@@ -217,7 +220,8 @@ def run(args):
     return proc
 
 
-def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_decompiled=None, cleanup_library=None, voice_swf=None):
+def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_decompiled=None, cleanup_library=None, voice_swf=None,
+          companion_package=None):
     expected_sources = source_pins()
     semantic = (ROOT / 'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/form_strip_methods.as').read_text(encoding='utf-8')
@@ -237,6 +241,20 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     if hashlib.sha256(original).hexdigest() != PIN:
         raise ValueError("Installed CAS resource differs from the inspected 1.128.90 build.")
     work = ROOT / '.work' / 'research'
+    companion = None
+    customizer_sources = work / 'current-cas/scripts/scripts'
+    if companion_package is not None:
+        # Compile against the actual donor ABC, including its helper classes,
+        # closures, account preferences and drawer assets. The retained-bytecode
+        # pass below still preserves every method outside the reviewed adapters.
+        import maru_companion
+        companion = maru_companion.prepare(companion_package, ffdec, work / 'maru-integrated')
+        input_swf = Path(companion['customizer'])
+        # The compiler supplies Apex methods only. Retain the donor's main
+        # methods verbatim in the ABC pass; do not recompile its source-only
+        # protected-access shortcuts (which FFDec correctly rejects).
+        customizer_sources = Path(companion['scripts'])
+        original = input_swf.read_bytes()
     selector_swf = Path(selector_swf or work / 'cas-hair-cassimselector-current.swf')
     selector_decompiled = Path(selector_decompiled or work / 'cas-hair-cassimselector-current/scripts/widgets/CAS/SimSelector/CASSimSelectorMain.as')
     original_selector = selector_swf.read_bytes()
@@ -260,7 +278,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     for kind, relative, inject_method in (
         ('clothing','Customizer/ClothingPanel.as',cas_equipped_catalog.inject_clothing),
         ('feed','data/CatalogDataFeed.as',cas_equipped_catalog.inject_feed)):
-        native_source=work / ('current-cas/scripts/scripts/widgets/CAS/'+relative)
+        native_source=customizer_sources / ('widgets/CAS/'+relative)
         owned_source=work / ('ApexCAS-'+kind+'.as')
         owned_source.write_text(inject_method(native_source.read_text(encoding='utf-8')),encoding='utf-8')
         next_compiled=work / ('apex-cas-'+kind+'-compiled.swf')
@@ -269,12 +287,20 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         compiled=next_compiled
     import cas_pelt_patch
     for kind, type_name, button in (('pane', cas_pelt_patch.PANE, False), ('button', cas_pelt_patch.BUTTON, True)):
-        native_source=work / ('current-cas/scripts/scripts/'+type_name.replace('.', '/')+'.as')
+        native_source=customizer_sources / (type_name.replace('.', '/')+'.as')
         owned_source=work / ('ApexCAS-pelt-'+kind+'.as')
         owned_source.write_text(cas_pelt_patch.inject(native_source.read_text(encoding='utf-8'), button),encoding='utf-8')
         next_compiled=work / ('apex-cas-pelt-'+kind+'-compiled.swf')
         run([ffdec,'-importAssets','yes,local','-replace',compiled,next_compiled,type_name,owned_source])
         compiled=next_compiled
+    if companion is not None:
+        import maru_companion_adapters
+        for sequence, name in enumerate(maru_companion_adapters.ROUTES):
+            stub = work / ('apex-companion-context-' + str(sequence) + '.as')
+            stub.write_text(maru_companion_adapters.source(name), encoding='utf-8')
+            destination = work / ('apex-companion-context-' + str(sequence) + '.swf')
+            run([ffdec, '-importAssets', 'yes,local', '-replace', compiled, destination, name, stub])
+            compiled = destination
     # The general AS compiler changes native methods' lexical scope. It is
     # used only to obtain Apex methods; original game bytecode stays intact.
     retained = work / 'apex-cas-retained.abc'
@@ -396,10 +422,15 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     if source_pins() != expected_sources:
         raise ValueError('CAS bridge source changed during compilation; no package was written.')
     Path(output).parent.mkdir(parents=True, exist_ok=True)
-    Path(output).write_bytes(dbpf_build.build({KEY: payload, SELECTOR_KEY: selector_payload, VOICE_KEY: voice_payload,
+    resources = {KEY: payload, SELECTOR_KEY: selector_payload, VOICE_KEY: voice_payload,
                                               MOLECULE_KEY: molecule_payload,cas_catalog_workspace.CONTEXT_KEY:context_payload,
-                                              cas_catalog_workspace.PLAN_KEY:plan_payload}))
+                                              cas_catalog_workspace.PLAN_KEY:plan_payload}
+    if companion is not None:
+        import maru_companion
+        resources = maru_companion.combine(companion_package, resources, companion)
+    Path(output).write_bytes(dbpf_build.build(resources))
     info = {'schema': 1, 'artifact': Path(output).name, 'scope': 'native-CAS-semantic-bridge',
+        'companion_code_merge': companion,
         'source_pins': expected_sources,
         'typed_control_dispatch_verified': control_dispatch,
         'detached_snapshot_getters': detached_snapshot_getters,
@@ -427,6 +458,10 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
                       dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY),dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
         'socket_protocol': {'host': '127.0.0.1', 'port': 8021, 'length_digits': 8,
             'encoding': 'utf-8', 'maximum_frame_bytes': 131072, 'poll_interval_ms': 500}}
+    if companion is not None:
+        info['resources'] = [dbpf_build.tgi(k) for k in sorted(resources)]
+        info['patched_resources'] = {dbpf_build.tgi(k): dbpf_build.digest(v) for k, v in resources.items()}
+        maru_companion.verify_merged(info, resources)
     write_json(Path(str(output) + '.manifest.json'), info)
     return info
 
@@ -441,5 +476,6 @@ if __name__ == '__main__':
     p.add_argument('--selector-decompiled', type=Path)
     p.add_argument('--cleanup-library', type=Path)
     p.add_argument('--voice-swf', type=Path)
+    p.add_argument('--companion-package', type=Path)
     a = p.parse_args()
-    print(json.dumps(build(a.input_swf, a.decompiled, a.ffdec, a.output, a.selector_swf, a.selector_decompiled, a.cleanup_library, a.voice_swf), indent=2))
+    print(json.dumps(build(a.input_swf, a.decompiled, a.ffdec, a.output, a.selector_swf, a.selector_decompiled, a.cleanup_library, a.voice_swf, a.companion_package), indent=2))

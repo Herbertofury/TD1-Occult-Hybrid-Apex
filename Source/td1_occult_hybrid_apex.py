@@ -8798,6 +8798,15 @@ if Command is not None:
 
 
 if services is not None:
+    # Install before a zone restores persistent wing/tail objects. No Sim or
+    # tuning scans run here; unknown native contracts leave the original path.
+    try:
+        from apex_core.animated_attachment_compat import install as _apex_install_animated_attachments
+        _APEX_ANIMATED_ATTACHMENT_COMPAT = _apex_install_animated_attachments()
+        _log('Animated attachment compatibility: {}'.format(_APEX_ANIMATED_ATTACHMENT_COMPAT))
+    except Exception as attachment_error:
+        _APEX_ANIMATED_ATTACHMENT_COMPAT = {'installed': False, 'message': str(attachment_error)}
+        _log('Animated attachment compatibility unavailable: {}'.format(attachment_error))
     _load_saved_forms()
     _apex_install_zone_signal()
     _apex_install_core_tick()

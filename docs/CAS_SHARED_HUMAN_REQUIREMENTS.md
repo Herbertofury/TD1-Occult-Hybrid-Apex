@@ -1177,3 +1177,85 @@ preserving EA's disabled-state warnings and relationship text. Original class
 construction, artwork, unrelated methods and inherited cleanup remain retained
 by the serialized build checks. See [the scoped form-repair report](../Reports/CAS_FORM_REPAIRS_V276.json)
 for actual runtime results; these repairs do not close the broader release checklist.
+
+### V278–V280: retain canine parts, correct pelt composition and merge Companion code
+
+The owner rejected replacing an existing Human/CC look as the fix. The retained
+canine head, ears, claws, genetics and paint must remain editable. V278 corrects
+the exact renderer genus pointer and routes only the temporary texture-composer
+copy through the pelt path. Actual CAS pixels show the former black material
+rendering as fur on Human geometry, without an appearance reset. All 195
+captured appearances stay unchanged through the unedited Werewolf round trip.
+Live rendering remains unqualified.
+
+The Human/CC catalogue now combines the native Human and Werewolf queries for
+eleven face/fur states while retaining the original age, gender and tag filters.
+The actual head catalogue expands from 19 to 25 presets and ears from 72 to 82.
+A selected canine-head edit survives Werewolf and Fairy round trips with the
+other 194 records unchanged. Its native preset-index acknowledgement still
+fails; visible editing and field retention do not turn that predicate into a
+pass. Head/ear shape distortion and eye placement remain open.
+
+The optional Maru build now starts from the owner's actual compiled Companion
+code, retaining its helper classes and 65 dependent resources. It preserves
+2,633 of 2,650 donor method bodies around Apex's reviewed adapters, including
+five named-form identity checks for cached selection, eye/skin tools and outfit
+previews. V278 exposes a broken definition-resolver binding; V279 corrects it
+and adds a serialized gate. V280 now detects the actual donor controls with
+duplicate Apex companion handlers disabled. Native favorites/history and
+shared column layout still require actual runtime checks.
+
+V280 adds explicit **Human skin / no fur** and **Use Werewolf fur** actions for
+the selected Human/CC owner. Removal copies the shared Human skin tone and
+clears only fur layers/paint and body-fur parts. The other action copies the
+current EA Werewolf form's fur settings; it does not promise to restore an
+archived former CC fur look. Both retain canine head/ears, morphs, clothing and
+tattoos. Scope and selective-field tests pass; actual toggle rendering and
+round-trip checks remain required. The first actual V280 removal is refused by
+detached game-readback validation before graph publication. Its original
+failure is retained without replay. V281 preserves byte-identical outfits when
+no selected wearable part is present, adds exact changed-field diagnostics and
+restores the chosen view after a refused copy. Those corrections do not qualify
+the fur actions until their real rendering and retention checks pass.
+
+The complete frozen V280 Python suite passes all 2,835 checks. V281's rebuilt
+native suite passes all sixteen targets, including the fur scope fixtures.
+See [the scoped validation report](../Reports/CAS_CANINE_COMPANION_V280.json).
+
+### V287–V288: actual fur/favorites qualification and unload repair
+
+V287 cold-loads all forty native appearances with the supplied Animated Tails
+and Animated Wings bases installed. The reviewed attachment adapter installs;
+it scopes EA's single-head reservation only for those two attachment tags,
+preserving original parenting, animation and persistence calls. Nine focused
+tests cover simultaneous parts, removal, restoration and failure isolation.
+Actual simultaneous animation and CAS/F11 selection remain open.
+
+The original full-CAS entry exceeds its timing gate. Read-only late observation
+qualifies that same entry with all 195 appearance records unchanged; no second
+entry is submitted. This is not a responsiveness pass. The literal Companion
+favorite click and Favorites/All button handlers now pass actual CLI invocation,
+restore their original preference, and leave all 195 records unchanged. Native
+right-click and restart persistence are still open.
+
+The fur failure was a real default-body mismatch, not permission to weaken
+verification: EA converts anatomical nude templates into CAS underwear parts.
+V287 uses independently identified female defaults for outfit substitution,
+while genetics retain their own anatomical defaults. Fur-on leaves clothing
+unchanged. Actual no-fur/fur pixels and complete scoped readbacks pass through
+Werewolf and Fairy round trips, retaining the chosen CC and other 194 records.
+The existing head/ear/eye deformation remains visible and open. Male defaults,
+Live rendering and edited save/Tray cycles are not qualified by this CAS pass.
+
+An actual teardown exception separately identifies a catalogue redraw after
+EA has retired its tuning. V288 releases owned card-layout references on unload
+without enumerating or reflowing the retiring native grid. A compiled mutation
+test rejects reintroducing that redraw. The complete V288 regression passes
+2,848 Python tests and all sixteen native targets. Its new game cold-loads all
+forty appearances and enters full CAS with all 195 captured records unchanged.
+The actual acceptance/unload and unpaused Live return also pass: all forty
+native appearances match before and after the separate no-edit disposition,
+all 155 named looks remain, all twenty save/backup files are unchanged, and
+the complete rotated UI-report inventory has no new or changed report. This
+qualifies this no-edit return, not every cancellation stall or an edited fur
+save/Tray cycle.

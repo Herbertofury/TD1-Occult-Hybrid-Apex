@@ -8,10 +8,33 @@
 
 namespace td1::nativecas::selective {
 namespace w=wire;
+constexpr std::uint32_t Fur=16777216,ClearFur=268435456;
 constexpr std::uint32_t Supported=2|4|8|16|32|64|128|256|1024|4096|16384|
-    32768|65536|131072|262144|524288|1048576|2097152|4194304|8388608|134217728;
+    32768|65536|131072|262144|524288|1048576|2097152|4194304|8388608|134217728|Fur|ClearFur;
 inline void Validate(std::uint32_t flags) {
     if(flags&~Supported)throw std::runtime_error("Unsupported pair appearance category.");
+}
+inline std::uint64_t FurNudePart(std::uint64_t id,std::uint64_t body,std::uint32_t flags,std::uint64_t source=0) {
+    // Reviewed 1.128.90 EA nude components, not clothing/CC or canine head,
+    // ears, teeth and claws. Rows are {body type, Werewolf CASP, Human CASP}.
+    static constexpr std::uint64_t defaults[][3]={
+        {6,0x4c9e1,0x198c},{7,0x4c9d1,0x1990},{8,0x4c9d7,0x198f},
+        {6,0x4cbc0,0x19a2},{7,0x4c9d3,0x19ae},{8,0x4c9df,0x19a3}};
+    for(const auto& row:defaults)if(body==row[0] && (id==row[1] || id==row[2])) {
+        if(flags&ClearFur)return row[2];
+        if((flags&Fur) && (source==row[1] || source==row[2]))return source;
+    }
+    return id;
+}
+inline std::uint64_t FurOutfitPart(std::uint64_t id,std::uint64_t body,std::uint32_t flags) {
+    // CAS uses these actual female underwear defaults, not the anatomical
+    // nude templates stored in genetics. The native importer substitutes them
+    // itself; use that same complete expected outfit rather than ignoring its
+    // readback. Existing clothing/CC is never replaced when enabling fur.
+    if(!(flags&ClearFur))return id;
+    if(body==6 && id==0x4c9e1)return 0x5f69;
+    if(body==7 && id==0x4c9d1)return 0x5f71;
+    return FurNudePart(id,body,flags);
 }
 inline bool Body(std::uint64_t body,std::uint32_t flags) {
     const bool clothes=(flags&256)!=0;
@@ -24,6 +47,7 @@ inline bool Body(std::uint64_t body,std::uint32_t flags) {
     if((body>=9 && body<=27) || body==36 || body==42 || body==73 || body==74 || body==110 || body==115 || body==117)
         return clothes || (flags&16384);
     if(body==28)return flags&(64|2097152);
+    if(body==59)return flags&(Fur|ClearFur);
     if((body>=29 && body<=33) || body==37)return flags&524288;
     if(body==34 || body==35 || body==63)return flags&4194304;
     if((body>=45 && body<=54) || body==113)return flags&1024;
@@ -41,6 +65,30 @@ inline const w::Field* Optional(const std::vector<w::Field>& rows,unsigned numbe
     }
     return found;
 }
+struct FurMaterial {
+    std::uint64_t texture=0;
+    std::vector<std::pair<std::uint64_t,std::uint32_t>> layers;
+};
+inline FurMaterial ReadFurMaterial(const std::string& packet) {
+    const auto root=w::Fields(packet);FurMaterial result;
+    if(const auto texture=Optional(root,62,0))result.texture=w::Scalar(*texture);
+    if(const auto pelt=Optional(root,63))for(const auto& layer:w::Fields(pelt->value)) {
+        if(layer.number!=1 || layer.type!=2 || result.layers.size()>=1024)
+            throw std::runtime_error("Unreviewed or excessive fur layer data.");
+        const auto fields=w::Fields(layer.value);
+        for(const auto& field:fields)if((field.number!=1 && field.number!=2) || field.type!=0)
+            throw std::runtime_error("Unreviewed fur layer field.");
+        const auto id=Optional(fields,1,0),color=Optional(fields,2,0);
+        const auto tint=color?w::Scalar(*color):0;
+        if(tint>UINT32_MAX)throw std::runtime_error("Fur layer colour exceeds its native width.");
+        result.layers.emplace_back(id?w::Scalar(*id):0,static_cast<std::uint32_t>(tint));
+    }
+    return result;
+}
+template<class Clear,class Add,class Texture>
+inline void ApplyFurMaterial(const FurMaterial& material,Clear clear,Add add,Texture texture) {
+    clear();for(const auto& layer:material.layers)add(layer.first,layer.second);texture(material.texture);
+}
 inline std::string SwapFields(const std::string& target,const std::string& source,const std::set<unsigned>& numbers) {
     std::string out;for(const auto& f:w::Fields(target))if(!numbers.count(f.number))out+=f.raw;
     for(const auto& f:w::Fields(source))if(numbers.count(f.number))out+=f.raw;
@@ -57,11 +105,28 @@ inline std::string PartList(const std::string& target,const std::string& source,
     for(const auto& f:w::Fields(target)) {
         if(f.number!=1) {out+=f.raw;continue;}
         if(f.type!=2)throw std::runtime_error("Invalid genetic part row.");
-        if(!Body(w::Scalar(w::One(w::Fields(f.value),2,0)),flags))out+=f.raw;
+        const auto fields=w::Fields(f.value);const auto body=w::Scalar(w::One(fields,2,0));
+        if(!Body(body,flags)) {
+            auto value=f.value;
+            if((flags&(Fur|ClearFur)) && body>=6 && body<=8) {
+                const auto id=w::Scalar(w::One(fields,1,0));std::uint64_t sourceId=0;unsigned seen=0;
+                if(flags&Fur)for(const auto& part:w::Fields(source))if(part.number==1 && part.type==2) {
+                    const auto other=w::Fields(part.value);
+                    if(w::Scalar(w::One(other,2,0))==body) {
+                        if(++seen>1)throw std::runtime_error("Ambiguous source nude body part.");
+                        sourceId=w::Scalar(w::One(other,1,0));
+                    }
+                }
+                const auto replacement=FurNudePart(id,body,flags,sourceId);
+                if(replacement!=id)value=SwapFields(value,w::Var(1u<<3)+w::Var(replacement),{1});
+            }
+            out+=value==f.value?f.raw:w::Bytes(1,value);
+        }
     }
     for(const auto& f:w::Fields(source))if(f.number==1) {
         if(f.type!=2)throw std::runtime_error("Invalid source genetic part row.");
-        if(Body(w::Scalar(w::One(w::Fields(f.value),2,0)),flags))out+=f.raw;
+        const auto body=w::Scalar(w::One(w::Fields(f.value),2,0));
+        if(Body(body,flags) && !(body==59 && (flags&ClearFur)))out+=f.raw;
     }
     return out;
 }
@@ -110,12 +175,22 @@ inline OutfitParts Parts(const std::string& outfit) {
 }
 inline std::string Outfit(const std::string& target,const std::string& source,std::uint32_t flags) {
     const auto a=Parts(target),b=Parts(source);std::vector<Row> rows;
-    const bool additions=std::any_of(b.rows.begin(),b.rows.end(),[&](const Row& r){return Body(r[1],flags);});
+    auto retainedRows=a.rows;bool nudeChanged=false;
+    if(flags&(Fur|ClearFur))for(auto& row:retainedRows)if(row[1]>=6 && row[1]<=8) {
+        const auto replacement=FurOutfitPart(row[0],row[1],flags);
+        nudeChanged|=replacement!=row[0];row[0]=replacement;
+    }
+    const auto added=[&](const Row& r){return Body(r[1],flags) && !(r[1]==59 && (flags&ClearFur));};
+    const bool additions=std::any_of(b.rows.begin(),b.rows.end(),added);
+    const bool removals=std::any_of(a.rows.begin(),a.rows.end(),[&](const Row& r){return Body(r[1],flags);});
+    // A fur/material action often has no wearable part in this outfit. Do
+    // not rewrite parallel arrays, their presence or their ordering then.
+    if(!additions && !removals && !nudeChanged)return target;
     const bool retained=std::any_of(a.rows.begin(),a.rows.end(),[&](const Row& r){return !Body(r[1],flags);});
     if(additions && retained)for(unsigned i=2;i<5;++i)if(a.present[i]!=b.present[i])
         throw std::runtime_error("Selected parts need incompatible optional metadata; no copy applied.");
-    for(const auto& row:a.rows)if(!Body(row[1],flags))rows.push_back(row);
-    for(const auto& row:b.rows)if(Body(row[1],flags))rows.push_back(row);
+    for(const auto& row:retainedRows)if(!Body(row[1],flags))rows.push_back(row);
+    for(const auto& row:b.rows)if(added(row))rows.push_back(row);
     std::stable_sort(rows.begin(),rows.end(),[](const Row& x,const Row& y){return x[1]<y[1];});
     if(rows.size()>4096)throw std::runtime_error("Copied outfit exceeds its part bound.");
     const unsigned keys[]={5,7,12,14,15};std::string out;
@@ -185,7 +260,10 @@ inline std::string Merge(const std::string& target,const std::string& source,std
     if(flags&16)scalars.insert({10,67});
     if(flags&128)scalars.insert({9,11,54});
     if(flags&1024)scalars.insert(75);
+    if(flags&Fur)scalars.insert({62,63});
     auto result=SwapFields(target,source,scalars);
+    // EA serializes zero layers by omitting the optional list entirely.
+    if(flags&ClearFur)result=SwapFields(result,w::Var(62u<<3)+w::Var(0),{62,63});
     for(const unsigned number:{18u,21u,28u}) {
         const bool morph=(flags&(2|4|8))!=0;
         const bool parts=(flags&(Supported&~std::uint32_t(2|4|16|128)))!=0;
@@ -223,11 +301,18 @@ inline std::string MirrorRecord(const std::string& packet,std::uint32_t kind) {
     if(found!=1)throw std::runtime_error("Scoped copy has no unique destination appearance record.");
     return SwapFields(packet,w::Bytes(30,SwapFields(attrs,w::Bytes(17,changed),{17})),{30});
 }
-enum class Schema {Root,Outfits,Outfit,Genetics,Parts,Part,Array,Morph,Opaque};
+enum class Schema {Root,Outfits,Outfit,Genetics,Parts,Part,Array,FixedArray,Morph,Opaque};
 inline std::string Canonical(const std::string& raw,Schema schema) {
     if(schema==Schema::Opaque)return raw;
     auto fields=w::Fields(raw);
     std::stable_sort(fields.begin(),fields.end(),[](const w::Field& x,const w::Field& y){return x.number<y.number;});
+    if(schema==Schema::Array || schema==Schema::FixedArray) {
+        // Protobuf permits packed, unpacked and mixed representations of
+        // the SAME repeated values. Compare every value in order, with all
+        // container extensions retained; encoding alone is not an edit.
+        std::string extensions;for(const auto& f:fields)if(f.number!=1)extensions+=f.raw;
+        return WriteNumbers(extensions,Numbers(raw,schema==Schema::FixedArray),schema==Schema::FixedArray);
+    }
     std::string out;
     for(const auto& f:fields) {
         Schema child=Schema::Opaque;
@@ -239,7 +324,8 @@ inline std::string Canonical(const std::string& raw,Schema schema) {
             if(f.number==18)child=Schema::Morph;
         }
         if(schema==Schema::Outfits && f.number==1)child=Schema::Outfit;
-        if(schema==Schema::Outfit && (f.number==5 || f.number==7 || f.number==12 || f.number==14 || f.number==15))child=Schema::Array;
+        if(schema==Schema::Outfit && f.number==5)child=Schema::FixedArray;
+        if(schema==Schema::Outfit && (f.number==7 || f.number==12 || f.number==14 || f.number==15))child=Schema::Array;
         if(schema==Schema::Genetics && (f.number==5 || f.number==6))child=Schema::Parts;
         if(schema==Schema::Genetics && f.number==1)child=Schema::Morph;
         if(schema==Schema::Parts && f.number==1)child=Schema::Part;
@@ -249,5 +335,54 @@ inline std::string Canonical(const std::string& raw,Schema schema) {
 }
 inline bool Equivalent(const std::string& expected,const std::string& actual) {
     return Canonical(expected,Schema::Root)==Canonical(actual,Schema::Root);
+}
+inline std::string DifferenceFields(const std::string& expected,const std::string& actual) {
+    const auto a=w::Fields(Canonical(expected,Schema::Root)),b=w::Fields(Canonical(actual,Schema::Root));
+    std::map<unsigned,std::string> left,right;
+    for(const auto& f:a)left[f.number]+=f.raw;
+    for(const auto& f:b)right[f.number]+=f.raw;
+    std::set<unsigned> numbers;for(const auto& f:left)numbers.insert(f.first);for(const auto& f:right)numbers.insert(f.first);
+    std::string result;
+    for(auto n:numbers)if(left[n]!=right[n]) {
+        if(!result.empty())result+=",";
+        result+=std::to_string(n);
+    }
+    return result;
+}
+inline std::string OutfitDifference(const std::string& expected,const std::string& actual) {
+    // Bounded field/number diagnostics only: no appearance packets or opaque
+    // data are exposed. Keep the complete comparator above as the gate.
+    const auto expectedFields=w::Fields(expected),actualFields=w::Fields(actual);
+    const auto a=Optional(expectedFields,21),b=Optional(actualFields,21);
+    if(!a || !b)return "outfit-list-presence";
+    std::vector<std::string> left,right;
+    for(const auto& f:w::Fields(a->value))if(f.number==1 && f.type==2)left.push_back(f.value);
+    for(const auto& f:w::Fields(b->value))if(f.number==1 && f.type==2)right.push_back(f.value);
+    if(left.size()!=right.size())return "outfit-count:"+std::to_string(left.size())+"/"+std::to_string(right.size());
+    std::string result;
+    for(std::size_t n=0;n<left.size() && result.size()<1600;++n) {
+        std::map<unsigned,std::string> x,y;
+        for(const auto& f:w::Fields(Canonical(left[n],Schema::Outfit)))x[f.number]+=f.raw;
+        for(const auto& f:w::Fields(Canonical(right[n],Schema::Outfit)))y[f.number]+=f.raw;
+        std::set<unsigned> keys;for(const auto& f:x)keys.insert(f.first);for(const auto& f:y)keys.insert(f.first);
+        for(auto k:keys)if(x[k]!=y[k]) {
+            if(!result.empty())result+=",";
+            result+=std::to_string(n)+"."+std::to_string(k);
+            if(k==5 && !x[k].empty() && !y[k].empty()) {
+                const auto xf=w::Fields(x[k]),yf=w::Fields(y[k]);
+                const auto xn=Numbers(xf.front().value,true),yn=Numbers(yf.front().value,true);
+                for(std::size_t j=0;j<std::min(xn.size(),yn.size()) && j<32;++j)if(xn[j]!=yn[j]) {
+                    result+="["+std::to_string(j)+":"+std::to_string(xn[j])+"/"+std::to_string(yn[j])+"]";
+                    if(result.size()>1500)break;
+                }
+            }
+            if(!x[k].empty() && !y[k].empty()) {
+                const auto xf=w::Fields(x[k]),yf=w::Fields(y[k]);
+                if(xf.size()==1 && yf.size()==1 && xf[0].type==0 && yf[0].type==0)
+                    result+="("+std::to_string(w::Scalar(xf[0]))+"/"+std::to_string(w::Scalar(yf[0]))+")";
+            }
+        }
+    }
+    return result;
 }
 } // namespace td1::nativecas::selective

@@ -722,6 +722,14 @@ int main() {
     Refuses([&]{ParsePairAction(std::string(32,'d')+"|123|1|native/2|native/2|copy|0");});
     Refuses([&]{ParsePairAction(std::string(32,'d')+"|123|1|native/2|native/1|copy|1");});
     Refuses([&]{ParsePairAction(std::string(32,'d')+"|123|1|native/2|native/1|link|1|extra");});
+    PairAction fur{123,1,std::string(32,'e'),"native/1","werewolf/werewolf_human_cc",true,false,td1::nativecas::selective::ClearFur|16u};
+    Require(HumanCCFurAction(fur,fur.target,"native/1")==HumanCCFurMode::Remove);
+    Refuses([&]{HumanCCFurAction(fur,"native/4","native/1");});
+    Refuses([&]{HumanCCFurAction(fur,fur.target,"native/2");});
+    fur.flags=UINT32_MAX;Require(HumanCCFurAction(fur,"native/4","native/1")==HumanCCFurMode::None);
+    fur.source="native/32";fur.flags=td1::nativecas::selective::Fur|16u;
+    Require(HumanCCFurAction(fur,fur.target,"native/1")==HumanCCFurMode::CopyWerewolf);
+    fur.target="native/4";Require(HumanCCFurAction(fur,fur.target,"native/1")==HumanCCFurMode::None);
     pairChannel.connected=false;pairChannel.stop=true;
     Require(nativeSyncCalls==0); // Owned forms never enter the destructive two-slot synchronizer.
     runtime.selectionEnabled=false;Sync(controller.data());Require(nativeSyncCalls==1);

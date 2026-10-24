@@ -57,6 +57,31 @@
 
       private function ApexSearchSource(value:Object) : Object
       {
+         if(value!=null && value.operation=="appearance-context") {
+            // A UI-only identity lease for imported Companion tools. Never
+            // let their timers mistake two named forms sharing an EA layer.
+            if(mCurrSimInfo==null || String(mCurrSimInfo.simId)!==apexBoundSim ||
+               apexFormsSelectedId=="" || apexFormsNativeGeneration=="" ||
+               apexFormsNativeState!="bound" || apexFormsDesiredId!="" ||
+               apexFormsNativeIntent!=null || apexMoleculeIntent!=null) return null;
+            var lease:String=apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration;
+            return {key:lease,sim:apexBoundSim,owner:apexFormsSelectedId,info:{
+               simId:apexBoundSim,age:int(mCurrSimInfo.age),gender:int(mCurrSimInfo.gender),
+               speciesType:int(mCurrSimInfo.speciesType),occultType:int(mCurrSimInfo.occultType),
+               occultLayer:int(mCurrSimInfo.occultLayer),apexAppearanceLease:lease}};
+         }
+         if(value!=null && value.operation=="canine-context") {
+            // A catalogue query only: preserve the actual Human geometry and
+            // exact named owner. The game still filters age, sex and CC tags.
+            var canineStates:Array=[MenuState.PROFILE_HEAD_WHOLE_HEADS,MenuState.PROFILE_HEAD_EARS,
+               MenuState.PROFILE_HEAD_EYES,MenuState.PROFILE_HEAD_NOSE,MenuState.PROFILE_HEAD_MOUTH,
+               MenuState.PROFILE_HEAD_CHEEK,MenuState.PROFILE_HEAD_CHIN,MenuState.PROFILE_HEAD_JAW,
+               MenuState.PROFILE_HEAD_FOREHEAD,MenuState.PROFILE_BODY_FUR,MenuState.PROFILE_GENERIC_PELT];
+            return {enabled:mCurrSimInfo!=null && String(mCurrSimInfo.simId)===apexBoundSim &&
+               apexFormsSelectedId==="werewolf/werewolf_human_cc" &&
+               apexFormsNativeState=="bound" && apexFormsDesiredId=="" && apexFormsNativeIntent==null &&
+               canineStates.indexOf(int(value.state))>=0};
+         }
          if(apexSearch==null || value==null || !(value.rows is Array) || value.feed==null || mCurrSimInfo==null)
             return null;
          // These are already constructed, UI-owned CASCatalogProducts from

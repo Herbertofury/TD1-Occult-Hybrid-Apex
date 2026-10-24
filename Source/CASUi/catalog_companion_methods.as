@@ -9,6 +9,14 @@
             panel:null,feed:null,context:"",intent:null,dirty:true,store:null,due:0,persist:false,
             message:"",paused:false,badges:new flash.utils.Dictionary(true),buttons:[],stage:null,
             toggles:0,revision:0,paint_ms:0,storage_error:"",drag:false,resize:null,receipt:null,favorite_count:0,hidden_count:0};
+         // A literal Dynamic CAS build owns its native favorites/history UI.
+         // Do not install a second right-click listener, clock shortcut or
+         // competing preference store over those actual donor handlers.
+         try {
+            apexCompanion.donor=getDefinitionByName("widgets.CAS.dcc.DCCFavorites");
+            apexCompanion.layout_owner=getDefinitionByName("widgets.CAS.Customizer.CASCustomizerMain");
+         } catch(donorMissing:Error) {apexCompanion.donor=null;}
+         if(apexCompanion.donor!=null) return;
          try {
             apexCompanion.store=flash.net.SharedObject.getLocal("TD1ApexCASCompanion");
             var data:Object=apexCompanion.store.data;
@@ -245,6 +253,25 @@
       private function ApexCompanionFrame() : void
       {
          if(apexCompanion==null) return;
+         if(apexCompanion.donor!=null) {
+            var donorPanel:Object=mCurrentPanel;
+            if(donorPanel==null || !donorPanel.visible || !("dccFavoriteButton" in donorPanel) || apexEquippedActive) return;
+            // The donor hides its real buttons when EA has no title. Apex's
+            // search can occupy that layout, so anchor the SAME buttons above
+            // the search bar rather than installing duplicate controls.
+            if(donorPanel.dccFavoriteButton==null) apexCompanion.donor.EnsureButton(donorPanel);
+            if(apexSearch!=null && apexSearch.panel===donorPanel && apexSearch.root!=null &&
+               (donorPanel.txtTitle==null || !donorPanel.txtTitle.visible || donorPanel.txtTitle.text.length==0)) {
+               var bounds:flash.geom.Rectangle=apexSearch.root.getBounds(donorPanel);
+               donorPanel.dccFavoriteButton.visible=true;
+               donorPanel.dccFavoriteButton.x=bounds.right-76;donorPanel.dccFavoriteButton.y=bounds.top-35;
+               if(donorPanel.dccHiddenButton!=null) {
+                  donorPanel.dccHiddenButton.visible=true;
+                  donorPanel.dccHiddenButton.x=bounds.right-38;donorPanel.dccHiddenButton.y=bounds.top-35;
+               }
+            }
+            return;
+         }
          if(stage!=null && apexCompanion.stage!==stage) {
             if(apexCompanion.stage!=null) {
                apexCompanion.stage.removeEventListener(flash.events.KeyboardEvent.KEY_DOWN,ApexCompanionKeyDown,true);
@@ -308,6 +335,50 @@
 
       private function ApexCompanionCommand(value:String) : void
       {
+         if(apexCompanion!=null && apexCompanion.donor!=null) {
+            // Exercise the retained donor's real handlers and preference store.
+            // Never maintain a parallel Apex favorites list in this build.
+            if(mCurrentPanel==null || !mCurrentPanel.visible || apexEquippedActive ||
+               apexFormsDesiredId!="" ||
+               apexMoleculeIntent!=null || apexFormsNativeIntent!=null)
+               throw new Error("Open a settled native catalogue before changing favorites");
+            // The checked semantic dispatcher already owns this command's
+            // pending/receiving lease; those flags cannot reject their owner.
+            var donor:Object=apexCompanion.donor;
+            var donorPanel:Object=mCurrentPanel;
+            if(!("dccFavoriteButton" in donorPanel) || !("mcTileList" in donorPanel))
+               throw new Error("Open a native clothing catalogue with favorites controls");
+            var donorFields:Array=value.split(",");
+            if(donorFields.length!=2) throw new Error("Typed companion action and item are required");
+            var donorType:int=int(donor.CurrentType());
+            if(donorType<0 || donor.refreshPending===true)
+               throw new Error("The native catalogue is still refreshing");
+            if(donorFields[0]=="toggle-favorite") {
+               if(!/^[1-9][0-9]{0,19}$/.test(String(donorFields[1]))) throw new Error("Choose a visible catalogue item");
+               var donorCell:Object=null;
+               for each(var candidate:Object in ApexCatalogCells(donorPanel.mcTileList.mGridLayout))
+                  if(candidate!=null && String(candidate.dccFavoriteProductId)===String(donorFields[1])) {donorCell=candidate;break;}
+               if(donorCell==null) throw new Error("The item is no longer a visible native card");
+               var previousFavorite:Boolean=Boolean(donor.Has(donorType,String(donorFields[1])));
+               donor.Click(donorCell);
+               if(Boolean(donor.Has(donorType,String(donorFields[1])))===previousFavorite)
+                  throw new Error("The donor favorite preference did not change");
+               apexCompanion.receipt={action:"toggle-favorite",key:String(donor.Key(donorType,String(donorFields[1]))),
+                  data_id:String(donorFields[1]),enabled:!previousFavorite,sim_id:String(mCurrSimInfo.simId),
+                  owner_id:apexFormsSelectedId,source:"Dynamic CAS Companion actual code",appearance_written:false};
+            } else if(donorFields[0]=="favorites" || donorFields[0]=="all") {
+               if(donorFields[1]!=="" || donorPanel.dccFavoriteButton==null)
+                  throw new Error("Use the native favorites button on an open catalogue");
+               var wantFavorites:Boolean=donorFields[0]=="favorites";
+               if(Boolean(donor.QueryMode(donorType))!==wantFavorites)
+                  donorPanel.dccFavoriteButton.dispatchEvent(new flash.events.MouseEvent(flash.events.MouseEvent.CLICK));
+               if(Boolean(donor.QueryMode(donorType))!==wantFavorites)
+                  throw new Error("The donor favorites view did not change");
+               apexCompanion.receipt={action:String(donorFields[0]),data_id:"",sim_id:String(mCurrSimInfo.simId),
+                  owner_id:apexFormsSelectedId,source:"Dynamic CAS Companion actual code",appearance_written:false};
+            } else throw new Error("Use the retained Dynamic CAS controls for this action");
+            return;
+         }
          if(apexCompanion==null || apexSearch==null || apexSearch.rows==null || apexSearch.panel!==mCurrentPanel ||
             apexSearch.context!=ApexSearchContext() || apexEquippedActive) throw new Error("Open an exact native catalogue first");
          if(apexCompanion.intent!=null) throw new Error("A previous companion gesture is pending");
@@ -327,6 +398,24 @@
       private function ApexCompanionStatus() : Object
       {
          if(apexCompanion==null) return {available:false};
+         if(apexCompanion.donor!=null) {
+            var donor:Object=apexCompanion.donor;
+            var donorPanel:Object=mCurrentPanel;
+            var type:int=int(donor.CurrentType());
+            var button:Object=donorPanel==null || !("dccFavoriteButton" in donorPanel)?null:donorPanel.dccFavoriteButton;
+            var visibleFavorites:Array=[];
+            if(donorPanel!=null && donorPanel.visible && "mcTileList" in donorPanel && donorPanel.mcTileList!=null && donorPanel.mcTileList.mGridLayout!=null)
+               for each(var cell:Object in ApexCatalogCells(donorPanel.mcTileList.mGridLayout))
+                  if(cell!=null && cell.dccFavoriteProductId!=null && donor.Has(type,String(cell.dccFavoriteProductId)))
+                     visibleFavorites.push(String(donor.Key(type,String(cell.dccFavoriteProductId))));
+            var last:Object=apexCompanion.receipt;
+            if(last!=null && last.action=="toggle-favorite" && donor.Has(type,String(last.data_id)) &&
+               visibleFavorites.indexOf(String(last.key))<0) visibleFavorites.push(String(last.key));
+            return {available:true,source:"Dynamic CAS Companion actual code",native_controls:true,
+               pending:donor.refreshPending===true,appearance_written:false,duplicate_handlers_installed:false,
+               favorite_button_present:button!=null,favorite_button_visible:button!=null && button.visible===true,
+               mode:donor.QueryMode(type)?"favorites":"all",favorites:visibleFavorites,receipt:ApexClone(apexCompanion.receipt)};
+         }
          var favorites:Array=[];var hidden:Array=[];
          for(var key:String in apexCompanion.favorites) {favorites.push(key);if(favorites.length>=64) break;}
          for(key in apexCompanion.hidden) {hidden.push(key);if(hidden.length>=64) break;}

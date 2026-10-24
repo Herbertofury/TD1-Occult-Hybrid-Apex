@@ -1,5 +1,6 @@
 #pragma once
 #include "ApexCasOwnerGraph.h"
+#include "ApexCasSelectiveAppearance.h"
 
 namespace td1::nativecas::engine {
 struct PairAction {
@@ -8,6 +9,15 @@ struct PairAction {
     bool copy,enabled;
     std::uint32_t flags=UINT32_MAX;
 };
+enum class HumanCCFurMode { None, Remove, CopyWerewolf };
+inline HumanCCFurMode HumanCCFurAction(const PairAction& action,const std::string& selected,const std::string& human) {
+    if(action.flags==UINT32_MAX)return HumanCCFurMode::None;
+    const bool target=action.copy && selected=="werewolf/werewolf_human_cc" && action.target==selected;
+    if(target && action.source==human && action.flags==(selective::ClearFur|16u))return HumanCCFurMode::Remove;
+    if(action.flags&selective::ClearFur)throw std::runtime_error("Fur removal requires the selected Human/CC Werewolf and its own shared Human skin.");
+    if(target && action.source=="native/32" && action.flags==(selective::Fur|16u))return HumanCCFurMode::CopyWerewolf;
+    return HumanCCFurMode::None;
+}
 template<class Graph,class Flush> void ApplyPairLink(Graph& graph,const PairAction& action,Flush flush) {
     const auto before=graph.cursor();
     if(action.copy || before.sim!=action.sim || before.generation!=action.generation)

@@ -1,12 +1,12 @@
 {
-  "build_epoch": "2026-10-22-wing-paint-owner-v276",
+  "build_epoch": "2026-10-23-cas-unload-release-v288",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-22-wing-paint-owner-v276.zip",
-    "bytes": 9115626,
+    "artifact": "Apex_Development_Candidate_2026-10-23-cas-unload-release-v288.zip",
+    "bytes": 10180210,
     "members": 31,
-    "sha256": "550d36b0249eb57834be15701bda1c0aea132de25227f00ad0ae7e5b1b748b76"
+    "sha256": "35c16eed4d009125d5241e960852a725514922a8a7710658844d35d703046966"
   },
-  "compiled_script_modules": 106,
+  "compiled_script_modules": 107,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -31,9 +31,9 @@
       "sha256": "c0d068392ea65358b798b8c165103560f06e9e3b38c4ab4e2d8810a7b931af86"
     },
     {
-      "bytes": 10424,
+      "bytes": 28876,
       "file": "Manifests/ApexCASBridge.package.manifest.json",
-      "sha256": "3ad5fdc8e515a8621612319264a46dcfe5147c7d40f4ed33e887f33fe705ffc1"
+      "sha256": "7ef80521d16ab02ac877dadf26a0be706d940cc64ef766dcb0c979da37920dd0"
     },
     {
       "bytes": 18738,
@@ -51,9 +51,9 @@
       "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 56884,
+      "bytes": 57237,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "60792e5dc142c143fe73b856540debd13160a1a4ad723ac8d0ce0142fa447f53"
+      "sha256": "70e8f7986a3f9ba2775e43a35d1083c11a4000bf8784dbb154a3bd439e772b31"
     },
     {
       "bytes": 1506,
@@ -86,9 +86,9 @@
       "sha256": "eecf46ce7850a439dd8f7f78d7ca1bc2cbabe2a0a222225c210151a2ad3d955f"
     },
     {
-      "bytes": 415636,
+      "bytes": 1493653,
       "file": "Mods/Apex/ApexCASBridge.package",
-      "sha256": "e2506544bb1b702e498ca0dd66a562d4040aaeaeade818c76496c7f8894a1ed6"
+      "sha256": "f888f33c1b8f8c3401d465947b2040d6f3669165266fc0ce4e55fb37ca66cbe7"
     },
     {
       "bytes": 16550,
@@ -101,14 +101,14 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 1030646,
+      "bytes": 1038850,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "99ec33916e8b795238fdaf418ccf5e1492aabcd89f9264b976d29a38583a5261"
+      "sha256": "1a8c0fceeb673643928202e7ff233f2dd5f07255737d0085b34512d30529003f"
     },
     {
-      "bytes": 4731904,
+      "bytes": 4758016,
       "file": "Mods/Apex/Native/ApexOverlay.dll",
-      "sha256": "dec2a2dd886ce33c61317d390c14f0e2cbd0adba962ea71b08398e8abf123a86"
+      "sha256": "e392040ce7a9e24737c34fd209da6dcf31554d97b493cb2d65ef4becb11ddfee"
     },
     {
       "bytes": 190,
@@ -118,7 +118,7 @@
     {
       "bytes": 1248,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "f6c6781c9820597593cdf673f0b4e7ceee978e7fbaf8b0800745f77313b846fb"
+      "sha256": "496d235e1d076309f715ba9fcff64e77695aa80ce60bb54660ab12e5df9dd633"
     },
     {
       "bytes": 424,
@@ -141,9 +141,9 @@
       "sha256": "7dfb1d70eae63e3b45f13d6e15aacaded655a85adb1bdda8bee2c57be5c3e7ca"
     },
     {
-      "bytes": 10298,
+      "bytes": 10850,
       "file": "THIRD_PARTY_NOTICES.md",
-      "sha256": "7176334dec2f6067983078f8f1a23016095a8d9ead3ec6801761d8efc78abd05"
+      "sha256": "a9502450fcbc0a652212a4821136560dce59d3adf0785cabf4dd5c69c75318ce"
     },
     {
       "bytes": 13308,
@@ -216,10 +216,10 @@
     },
     {
       "artifact": "ApexCASBridge.package",
-      "independent_resource_hashes_verified": 6,
+      "independent_resource_hashes_verified": 71,
       "independent_rust_verified": true,
       "namespace_modules_resolved": [],
-      "resources": 6
+      "resources": 71
     }
   ],
   "runtime_verified": false,

@@ -836,7 +836,7 @@ public class CasBytecodePatch {
         // The existing-member view adds five reviewed calls: current Sim,
         // available occults, full-edit permission, edit mode and SetSimOccult.
         // Its next-tick result adds one available-occults readback.
-        Map<String,Integer> counts=Map.of("ApexCatalog",1,"ApexControlExecute",35,"ApexControlResult",5,
+        Map<String,Integer> counts=Map.of("ApexCatalog",2,"ApexControlExecute",35,"ApexControlResult",5,
             "ApexBodyTypes",1,"ApexNativeLayers",2);
         var snapshot=ownedBody(abc,instance,"ApexSnapshot").getCode().code;
         int detached=0;
@@ -1263,6 +1263,7 @@ public class CasBytecodePatch {
             !property(abc,rows.get(i),0x4f,"CallGameService"),"Wing compound refusal performs a native service after raw observation.");
     }
     static void verifyCatalogWorkspace(ABC abc,InstanceInfo instance) {
+        verifyCanineCatalog(abc,instance);
         var click=propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogOpen"));
         require(click.equals(Set.of("getTimer","ApexInputTiming")),"Catalog radial click must only queue and record timing.");
         require(propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogInvalidate")).isEmpty(),
@@ -1279,6 +1280,11 @@ public class CasBytecodePatch {
         int restores=0;
         for(var op:frame.getCode().code)if(property(abc,op,0x46,"ApexCardRestore") || property(abc,op,0x4f,"ApexCardRestore"))restores++;
         require(restores==1,"Hidden clothing grids must retain geometry; only the error path may restore in a frame.");
+        var dispose=propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogDispose"));
+        require(dispose.contains("ApexCardForget") && !dispose.contains("ApexCardRestore"),
+            "CAS unload must release layout references without redrawing retired catalogue tuning.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexCardForget")).isEmpty(),
+            "Retired card geometry must not call a native grid or enumerate its cells.");
         var selected=propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogSelection"));
         require(selected.contains("ApexCatalogCells") && Collections.disjoint(selected,Set.of("CallGameService","CallUIService","ApexNativeExchange")),
             "Selection animation must only inspect native recycled cells, without game queries.");
@@ -1333,6 +1339,30 @@ public class CasBytecodePatch {
             for(var op:ownedBody(abc,instance,method).getCode().code)
                 require(!property(abc,op,0x61,"apexCatalogSignature"),"Color/style changes must not invalidate native grid layout.");
     }
+    static void verifyCanineCatalog(ABC abc,InstanceInfo instance) {
+        var source=ownedBody(abc,instance,"ApexSearchSource");
+        uniqueLiteral(abc,source,"werewolf/werewolf_human_cc");
+        uniqueLiteral(abc,source,"canine-context");
+        require(Collections.disjoint(propertyCalls(abc,source),Set.of("CallGameService","ApexNativeExchange","SetCatalogSlotSelected")),
+            "Canine catalogue context must use retained UI identity only.");
+        var categories=new HashSet<String>();var identity=new HashSet<String>();
+        for(var op:source.getCode().code)if(op.definition.instructionCode==0x66 || op.definition.instructionCode==0x60) {
+            String n=abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index);
+            if(n==null)continue;
+            if(n.startsWith("PROFILE_"))categories.add(n);
+            if(n.startsWith("apexForms"))identity.add(n);
+        }
+        require(categories.equals(Set.of("PROFILE_HEAD_WHOLE_HEADS","PROFILE_HEAD_EARS","PROFILE_HEAD_EYES",
+            "PROFILE_HEAD_NOSE","PROFILE_HEAD_MOUTH","PROFILE_HEAD_CHEEK","PROFILE_HEAD_CHIN","PROFILE_HEAD_JAW",
+            "PROFILE_HEAD_FOREHEAD","PROFILE_BODY_FUR","PROFILE_GENERIC_PELT")),"Canine catalogue escaped its reviewed categories.");
+        require(identity.containsAll(Set.of("apexFormsSelectedId","apexFormsNativeState","apexFormsDesiredId","apexFormsNativeIntent")),
+            "Canine catalogue lacks its settled exact named owner checks.");
+        var catalog=ownedBody(abc,instance,"ApexCatalog");
+        uniqueLiteral(abc,catalog,"canine-context");uniqueLiteral(abc,catalog,"occult");
+        require(propertyCalls(abc,catalog).containsAll(Set.of("ApexSearchSource","ApexClone")) &&
+            Collections.disjoint(propertyCalls(abc,catalog),Set.of("SetCatalogSlotSelected","CasSetSimOccult","SaveAndExitCAS")),
+            "Canine catalogue must detach queries without changing form or equipping a part.");
+    }
     static MethodBody classMethod(ABC abc,String type,String method) {
         int index=abc.findClassByName(type);
         require(index>=0,"Native adapter class absent: "+type);
@@ -1361,6 +1391,65 @@ public class CasBytecodePatch {
         int delta=before.init_scope_depth-after.init_scope_depth;
         require(delta>=0 && delta<=16,"Card getter lexical scope differs.");
         body.init_scope_depth+=delta;body.max_scope_depth+=delta;body.setCode(body.getCode());return body;
+    }
+    static MethodBody staticMethod(ABC abc,String type,String method) {
+        int index=abc.findClassByName(type);require(index>=0,"Companion class absent: "+type);
+        MethodBody found=null;
+        for(var trait:abc.class_info.get(index).static_traits.traits)
+            if(name(abc,trait).equals(method) && trait instanceof TraitMethodGetterSetter) {
+                require(found==null,"Ambiguous Companion adapter: "+method);
+                found=abc.findBody(((TraitMethodGetterSetter)trait).method_info);
+            }
+        require(found!=null,"Companion adapter absent: "+method);return found;
+    }
+    static List<MethodBody> companionAdapters(ABC original,ABC compiled) {
+        var result=new ArrayList<MethodBody>();
+        if(original.findClassByName("dcc.history.AgeFilter")<0)return result;
+        var routes=Map.of("dcc.history.AgeFilter",List.of("Read","Current"),
+            "dcc.history.SavedOutfitNames",List.of("EyeContext"),
+            "dcc.history.SkinAdjust",List.of("ContextKey"),
+            "dcc.history.OutfitPreview",List.of("Context"));
+        var main=compiled.instance_info.get(compiled.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
+        var provider=ownedBody(compiled,main,"ApexSearchSource");
+        uniqueLiteral(compiled,provider,"appearance-context");uniqueLiteral(compiled,provider,"apexAppearanceLease");
+        for(var field:List.of("apexBoundSim","apexFormsSelectedId","apexFormsNativeGeneration",
+            "apexFormsNativeState","apexFormsDesiredId","apexFormsNativeIntent","apexMoleculeIntent")) {
+            boolean present=false;for(var op:provider.getCode().code)
+                present|=property(compiled,op,0x66,field)||property(compiled,op,0x60,field);
+            require(present,"Companion lease lacks settled identity: "+field);
+        }
+        require(Collections.disjoint(propertyCalls(compiled,provider),Set.of("CallGameService","ApexNativeExchange")),
+            "Companion lease must use cached UI primitives only.");
+        for(var entry:routes.entrySet())for(var method:entry.getValue()) {
+            var before=staticMethod(original,entry.getKey(),method);
+            var after=staticMethod(compiled,entry.getKey(),method);
+            var calls=propertyCalls(compiled,after);
+            if(method.equals("Current"))require(calls.equals(Set.of("Read")),"Companion cached Sim must be revalidated immediately.");
+            else {
+                for(var literal:List.of("ApexCatalogSearchSource","appearance-context")) {
+                    int occurrences=0;for(var op:after.getCode().code)if(stringLiteral(compiled,op,literal))occurrences++;
+                    require(occurrences==(method.equals("Context")?2:1),"Companion lease read inventory differs: "+method);
+                }
+                require(calls.contains("CallUIService"),"Companion adapter has no named-form lease.");
+            }
+            if(method.equals("Context"))uniqueLiteral(compiled,after,"CasGetCurrSimOutfitSlot");
+            else require(!calls.contains("CallGameService"),"Companion context performs a native Sim query.");
+            if(method.equals("EyeContext")) {
+                boolean lease=false;for(var op:after.getCode().code)lease|=property(compiled,op,0x66,"apexAppearanceLease");
+                require(lease,"Companion eye context accepts a stale named form.");
+            }
+            for(var call:calls)require(!call.startsWith("Set") && !call.startsWith("CasSet") && !call.startsWith("Clear"),
+                "Companion context performs a native write: "+call);
+            require(before.exceptions.length==(method.equals("Read")?1:0) && after.exceptions.length==0,
+                "Unreviewed Companion adapter exception table.");
+            for(var op:after.getCode().code)
+                require(!opcode(op,0x40) && !opcode(op,0x44) && !opcode(op,0x67),"Companion adapter has unreviewed lexical references.");
+            var body=after.clone();body.method_info=before.method_info;
+            int delta=before.init_scope_depth-after.init_scope_depth;
+            require(delta>=0 && delta<=16,"Companion adapter scope differs.");
+            body.init_scope_depth+=delta;body.max_scope_depth+=delta;body.setCode(body.getCode());result.add(body);
+        }
+        require(result.size()==5,"Companion adapter inventory differs.");return result;
     }
     static List<MethodBody> equippedAdapters(ABC original,ABC compiled) {
         var result=new ArrayList<MethodBody>();
@@ -1484,6 +1573,33 @@ public class CasBytecodePatch {
             "Search worker lacks exact owner/resource resolution or native feed publication.");
     }
     static void verifyCatalogCompanion(ABC abc,InstanceInfo instance) {
+        for(String name:List.of("ApexCompanionCommand","ApexCompanionStatus")) {
+            var code=ownedBody(abc,instance,name).getCode().code;int checkedGrids=0;
+            for(int i=0;i<code.size();++i)if(property(abc,code.get(i),0x46,"ApexCatalogCells")) {
+                int before=i-1;
+                while(before>=0 && (opcode(code.get(before),0xf0)||opcode(code.get(before),0xf1)))--before;
+                require(before>=0 && property(abc,code.get(before),0x66,"mGridLayout"),
+                    "Donor favorites must enumerate the native card layout, not its scrolling container: "+name);
+                ++checkedGrids;
+            }
+            require(checkedGrids==1,"Donor favorites grid inventory differs: "+name);
+        }
+        for(var op:ownedBody(abc,instance,"ApexCompanionCommand").getCode().code)
+            require(!property(abc,op,0x66,"apexPendingFields") && !property(abc,op,0x66,"apexReceiving") &&
+                !property(abc,op,0x60,"apexPendingFields") && !property(abc,op,0x60,"apexReceiving"),
+                "A checked donor command cannot reject its own pending/receiving lease.");
+        var initialize=ownedBody(abc,instance,"ApexCompanionInitialize");int definitions=0;
+        for(var op:initialize.getCode().code)if(opcode(op,0x5d)||opcode(op,0x60)) {
+            var q=abc.constants.getMultiname(op.operands[0]);String member=q.name_index>0?abc.constants.getString(q.name_index):"";
+            require(!member.equals("flash"),"Companion discovery uses an unresolved Flash package root.");
+            if(member.equals("getDefinitionByName")) {
+                require(q.kind==Multiname.QNAME && q.namespace_index>0 &&
+                    abc.constants.getNamespace(q.namespace_index).kind==Namespace.KIND_PACKAGE &&
+                    abc.constants.getString(abc.constants.getNamespace(q.namespace_index).name_index).equals("flash.utils"),
+                    "Companion discovery does not bind the Flash definition resolver.");definitions++;
+            }
+        }
+        require(definitions==2,"Companion discovery resolver inventory differs.");
         var forbidden=Set.of("CallGameService","CallUIService","ApexNativeExchange","RemoveAllItems","AddItemsFromIterable","flush");
         for(String method:List.of("ApexCompanionCard","ApexCompanionIntent","ApexCompanionButton","ApexCompanionKeyDown","ApexCompanionResizeStart","ApexCompanionResizeEnd"))
             require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,method)),forbidden),"Companion input performs native, catalogue or disk work: "+method);
@@ -1551,7 +1667,7 @@ public class CasBytecodePatch {
             "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming",
             "ApexCatalogInitialize","ApexCatalogValidate","ApexCatalogPersist","ApexCatalogStyle","ApexCatalogDispose","ApexCatalogOpen","ApexCatalogFrame","ApexCatalogClearEffects","ApexCatalogSelection","ApexCatalogReadEquipped","ApexCatalogMenu","ApexCatalogButton","ApexCatalogSlider","ApexCatalogDraw","ApexCatalogClick","ApexCatalogSlideStart","ApexCatalogSlide","ApexCatalogSlideEnd","ApexCatalogStatus",
             "ApexCatalogView", "ApexCatalogSliderCommand", "ApexCatalogInvalidate", "ApexCatalogObserveBinding", "ApexCatalogApplyBinding",
-            "ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback",
+            "ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardForget","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback",
             "ApexCatalogKeyboardVisibility","ApexCatalogKeyboardTyping","ApexCatalogKeyboardInput","ApexCatalogKeyboardCommand","ApexCatalogKeyboardInitialize","ApexCatalogKeyboardDispose","ApexCatalogKeyDown","ApexCatalogKeyboardFrame",
             "ApexSearchInitialize","ApexSearchContext","ApexSearchRestore","ApexSearchDispose","ApexSearchReset","ApexSearchSource","ApexSearchAdopt",
             "ApexSearchText","ApexSearchChanged","ApexSearchClear","ApexSearchKey","ApexSearchLabels","ApexSearchFocus",
@@ -1676,6 +1792,8 @@ public class CasBytecodePatch {
         }
         MethodBody heightAdapter=cardHeightAdapter(original,compiled);
         var equippedBodies=equippedAdapters(original,compiled);
+        var companionBodies=companionAdapters(original,compiled);
+        equippedBodies.addAll(companionBodies);
         var adapterIds=new HashSet<Integer>();adapterIds.add(heightAdapter.method_info);
         for(var body:equippedBodies)adapterIds.add(body.method_info);
         compiled.instance_info = original.instance_info;
@@ -1736,7 +1854,7 @@ public class CasBytecodePatch {
                 "Serialized unowned native method bytecode changed.");
         Files.write(Path.of(args[2]), saved.toByteArray());
         System.out.println("{\"native_method_count\":" + original.bodies.size() + ",\"apex_method_count\":" + ownedMethods.size() +
-            ",\"native_lexical_scope_preserved\":true,\"card_height_marker_adapter_verified\":true,\"native_equipped_category_adapters_verified\":true,\"native_wing_paint_owner_adapters\":3,\"unchanged_native_methods\":" + (nativeCode.size()-12) +
+            ",\"native_lexical_scope_preserved\":true,\"card_height_marker_adapter_verified\":true,\"native_equipped_category_adapters_verified\":true,\"native_wing_paint_owner_adapters\":3,\"companion_named_form_adapters\":"+companionBodies.size()+",\"unchanged_native_methods\":" + (nativeCode.size()-12-companionBodies.size()) +
             ",\"native_initializer_bytecode_extended\":true,\"native_unload_bytecode_extended\":true,\"native_unload_cleanup_precedes_teardown\":true,\"owned_local_scope_indexes_verified\":true,\"serialized_lifecycle_hooks_verified\":true,\"socket_callbacks_data_only_verified\":true,\"timer_command_phases_verified\":true,\"accept_commit_timer_owned_verified\":true,\"accept_native_class_linkage_verified\":true,\"accept_expected_household_bound_verified\":true,\"accept_primary_layer_only_verified\":true,\"catalog_metadata_localization_linkage_verified\":true,\"owner_pair_callback_data_only_verified\":true,\"owner_pair_listener_cleanup_verified\":true,\"owner_pair_timer_read_only_verified\":true,\"socket_connect_queue_only_verified\":true,\"socket_handshake_exact_constructor_timer_verified\":true,\"form_select_timer_owned_verified\":true,\"form_select_exact_same_original_pair_verified\":true,\"form_select_native_argument_order_verified\":true,\"form_select_next_tick_readback_verified\":true,\"earrings_exact_bodytype_and_swatch_guard_verified\":true}");
     }
 }

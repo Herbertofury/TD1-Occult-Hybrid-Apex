@@ -131,7 +131,7 @@
          apexCatalogRegistered=false;
          apexCatalogBindingRegistered=false;apexCatalogBinding=null;apexCatalogBoundWidth=-1;apexCatalogHeaderSignature="";
          apexCatalogRefreshRegistered=false;apexCatalogDirty=false;apexCatalogSlot=null;
-         ApexCatalogClearEffects();ApexCardRestore();
+         ApexCatalogClearEffects();ApexCardForget();
          if(apexCatalogUi!=null && apexCatalogUi.parent!=null) apexCatalogUi.parent.removeChild(apexCatalogUi);
          apexCatalogUi=null;apexCatalogRows=null;apexCatalogItems=[];apexCatalogIntent=null;apexCatalogStore=null;
          apexCatalogContext="";apexCatalogSignature="";apexCatalogStyleSignature="";apexCatalogDrag="";apexCatalogTab="items";

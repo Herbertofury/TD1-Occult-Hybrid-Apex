@@ -1082,9 +1082,22 @@
             unlocks:Boolean(filter.filterByGameplayUnlocks),locked:Boolean(filter.filterLocked),
             mtx:Boolean(filter.filterPurchasedProducts),mods:Boolean(filter.filterModdedContent),
             packIds:ApexClone(filter.packIds),genusOverride:null,bodyType:bodyType}) as Array;
-         filter=null;
          if(rows==null) throw new Error("Native catalog returned null; unsupported cannot count as empty");
-         return rows;
+         var canine:Object=ApexSearchSource({operation:"canine-context",state:state});
+         if(canine!=null && canine.enabled===true) {
+            rows=ApexClone(rows) as Array;
+            var wolf:Array=ApexClone(CommunicationManager.CallGameService("GetCatalogBaseItems",{state:state,
+               tags:ApexClone(filter.tags),excludeTags:ApexClone(filter.excludeTags),
+               unlocks:Boolean(filter.filterByGameplayUnlocks),locked:Boolean(filter.filterLocked),
+               mtx:Boolean(filter.filterPurchasedProducts),mods:Boolean(filter.filterModdedContent),
+               packIds:ApexClone(filter.packIds),genusOverride:{occult:32},bodyType:bodyType})) as Array;
+            var ids:Object={};var product:Object;
+            for each(product in rows) if(product!=null) ids["$"+String(product.data_id)]=true;
+            if(wolf!=null) for each(product in wolf) if(product!=null && ids["$"+String(product.data_id)]!==true) {
+               ids["$"+String(product.data_id)]=true;rows.push(product);
+            }
+         }
+         filter=null;return rows;
       }
 
       private function ApexWingObservation() : Object

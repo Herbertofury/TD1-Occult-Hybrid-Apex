@@ -455,6 +455,17 @@
 
       private function ApexFormsToolbarClick(action:String) : void
       {
+         if(action=="humanfur" || action=="wolffur") {
+            if(apexFormsSelectedId!=="werewolf/werewolf_human_cc" || apexPendingFields!=null || apexReceiving ||
+               apexFormsDesiredId!="" || apexFormsNativeIntent!=null || apexPairIntent!=null) return;
+            var furPair:Object=ApexPairRead();
+            if(furPair==null || furPair.selected_owner_id!==apexFormsSelectedId ||
+               furPair.human_owner_id===apexFormsSelectedId) return;
+            apexPairIntent={sim_id:apexBoundSim,session:apexOwnerSession,generation:furPair.generation,
+               operation:"copy",enabled:false,category_flags:action=="humanfur"?268435472:16777232,
+               source_owner_id:action=="humanfur"?furPair.human_owner_id:"native/32",target_owner_id:apexFormsSelectedId};
+            ApexFormsScheduleFrame();return;
+         }
          if(action=="humanbase") {
             if(apexFormsSelectedId!=="werewolf/werewolf_human_cc" || apexPendingFields!=null || apexReceiving ||
                apexFormsDesiredId!="" || apexFormsNativeIntent!=null || apexPairIntent!=null) return;
@@ -669,10 +680,13 @@
             }
          }
          if(humanBase) {
-            ApexFormsToolbar("humanbase","Reset Human/CC from Human",6,210);
-            var resetBase:flash.display.Sprite=apexFormsRoot.getChildByName("apexTool_humanbase") as flash.display.Sprite;
-            resetBase.y=apexFormsPanelHeight-53;
-            ApexFormsTooltip(resetBase,"Replace only this Werewolf Human/CC appearance with the complete shared Human look, including head, body, skin and outfits. Use this to repair an older beast-based CC look. Other forms are kept.");
+            ApexFormsToolbar("humanfur","Human skin / no fur",4,168);
+            ApexFormsToolbar("wolffur","Use Werewolf fur",178,168);
+            var humanFur:flash.display.Sprite=apexFormsRoot.getChildByName("apexTool_humanfur") as flash.display.Sprite;
+            var wolfFur:flash.display.Sprite=apexFormsRoot.getChildByName("apexTool_wolffur") as flash.display.Sprite;
+            humanFur.y=wolfFur.y=apexFormsPanelHeight-53;
+            ApexFormsTooltip(humanFur,"Remove body fur and fur paint from this Human/CC look and use the shared Human skin tone. Keep canine head, ears, shape, clothes, tattoos and other forms.");
+            ApexFormsTooltip(wolfFur,"Copy skin tone, fur and fur paint from this Sim's EA Werewolf form into only this Human/CC look. Keep its head, ears, shape, clothes and tattoos. This uses the Werewolf form's current fur colours.");
          }
          var footer:String=apexFormsNativeState=="unresolved" ? "Form view unresolved; further switching is blocked." : apexFormsDesiredId!="" ? "Opening "+apexFormsDesiredId : apexFormsNativeState=="bound" ? "Each form keeps its own edits. Copy or link only when you choose." :
             apexFormsNativeState=="unresolved" ? "Form view unresolved; further switching is blocked." : "Initializing independent form owners...";

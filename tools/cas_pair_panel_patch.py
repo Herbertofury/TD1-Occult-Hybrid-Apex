@@ -8,7 +8,7 @@ import re
 CLASS = 'widgets.CAS.SimSelector.CASSimSelectorCopyOptionPanel'
 METHODS = ('UpdateSimInfo', 'SetOccultData', 'GetSelectedBitValues', 'OnCopy',
            'SendLinkUpdate', 'OnRandomizeBitChanged', 'UpdateCopyFiltersAndRandomizationFlags')
-SUPPORTED = 2|4|8|16|32|64|128|256|1024|4096|16384|32768|65536|131072|262144|524288|1048576|2097152|4194304|8388608|134217728
+SUPPORTED = 2|4|8|16|32|64|128|256|1024|4096|16384|32768|65536|131072|262144|524288|1048576|2097152|4194304|8388608|16777216|134217728
 
 
 def prepend(source, method, owned):
@@ -106,7 +106,7 @@ def inject(source):
                {name:"Voice",flags:128},{name:"Outfits",flags:256},{name:"Tattoos",flags:1024},
                {name:"Skin details and scars",flags:4096},{name:"Accessories and jewelry",flags:16384},
                {name:"Makeup and eyelashes",flags:524288},{name:"Eyes and eyebrows",flags:4194304},
-               {name:"Body hair",flags:8388608},{name:"Wings",flags:134217728}];
+               {name:"Body hair",flags:8388608},{name:"Fur and fur paint",flags:16777216},{name:"Wings",flags:134217728}];
             for each(var apexChoice:Object in apexExtra) if((apexCovered&uint(apexChoice.flags))!=uint(apexChoice.flags)) {
                var apexFilter:CASRandomizeFilter=new CASRandomizeFilter({flags:uint(apexChoice.flags),required_flags:0});
                apexFilters.push(new MenuItem(String(apexChoice.name),apexFilter));apexCovered|=uint(apexChoice.flags);

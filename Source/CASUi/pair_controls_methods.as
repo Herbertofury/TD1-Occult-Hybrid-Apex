@@ -36,11 +36,14 @@
       private function ApexPairExecute(intent:Object) : Object
       {
          var pair:Object=ApexPairRead();
+         var furRestore:Boolean=intent!=null && intent.operation=="copy" &&
+            Number(intent.category_flags)==16777232 && apexFormsSelectedId==="werewolf/werewolf_human_cc" &&
+            intent.target_owner_id===apexFormsSelectedId && intent.source_owner_id==="native/32";
          if(pair==null || intent==null || intent.sim_id!==apexBoundSim ||
             intent.hasOwnProperty("session") && intent.session!==apexOwnerSession ||
             intent.hasOwnProperty("generation") && intent.generation!==pair.generation ||
             !((intent.source_owner_id===pair.base_owner_id && intent.target_owner_id===pair.alternate_owner_id) ||
-              (intent.source_owner_id===pair.alternate_owner_id && intent.target_owner_id===pair.base_owner_id)) ||
+              (intent.source_owner_id===pair.alternate_owner_id && intent.target_owner_id===pair.base_owner_id) || furRestore) ||
             ["copy","link"].indexOf(String(intent.operation))<0 || !(intent.enabled is Boolean) ||
             intent.operation=="copy" && intent.enabled!==false || apexNonce.length!=64 || apexFormsGestureSequence>=2147483647)
             throw new Error("Pair changed before the requested link/copy; no action submitted");

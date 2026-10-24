@@ -99,16 +99,24 @@ The local CAS UI builder invokes separately installed FFDec 26.3.0 and its publi
 
 ### Dynamic CAS Companion — maru
 
-The owner supplied `maru_Dynamic_CAS_Companion.package` (SHA-256
-`12cd97eedb4283330e89c898518bc21ff7542c938e1b0c63564d13d04d2b2d86`).
-Its CC BY 4.0 notice and author credit apply to adapted interaction patterns:
-native right-click favorites/hiding, stable catalogue preference keys, recent
-choices, edge resizing and CAS clock controls. Apex integrates those patterns
-with its own eligible-feed/context checks, deferred input, visible-cell badges,
-existing card layout and search; it does not substitute the donor's full SWF.
-Source: [maru's Dynamic CAS project](https://www.curseforge.com/sims4/mods/dynamic-cas-columns).
-License: [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
-Other donor features remain tracked separately; this credit is not a full-port claim.
+The owner supplied `maru_Dynamic_CAS_Companion.package`, SHA-256
+`054ca6a189a587063290df004a42072c5381e59404d33e58ddb737ab821cf9c3`.
+The optional literal merge retains its actual compiled helper classes, closures,
+account preferences, history/saved-outfit/current-outfit tools, favorites,
+hiding, swatch controls, background tools and dependent art/localization.
+Apex's narrow adapters retain its independent form ownership, native search,
+equipped category and card layout. The complete 66-resource input is pinned;
+65 dependent resources stay byte-identical. The customizer retains 2,633 of
+2,650 input method bodies byte-identically around seventeen reviewed adapters,
+including five named-form context checks for cached selection, eye/skin tools
+and asynchronous outfit previews.
+These build checks do not establish that every donor feature passes hybrid,
+reload or performance QA. That validation remains required.
+
+Credit and license: maru, Creative Commons Attribution 4.0.
+Source: [Dynamic CAS Companion](https://www.curseforge.com/sims4/mods/dynamic-cas-columns).
+License: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Private EA-derived decompiled build inputs are not committed to the repository.
 
 ### Catalogue provider data
 

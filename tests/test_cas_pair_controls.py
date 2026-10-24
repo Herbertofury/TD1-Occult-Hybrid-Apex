@@ -65,3 +65,16 @@ class PairControlTests(unittest.TestCase):
             changed=copy.deepcopy(client);changed['control']['pair']['linked']=not enabled
             with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(changed,request)
             with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,dict(request,owner_id='native/4'))
+
+    def test_werewolf_fur_copy_exception_is_exactly_scoped_to_current_human_cc(self):
+        target='werewolf/werewolf_human_cc'
+        request=dict(operation='pair-copy',source_owner_id='native/32',target_owner_id=target,category_flags=16777232)
+        client=self.receipt();client['form_strip']={'selected_owner_id':target}
+        client['control'].update(source_owner_id='native/32',target_owner_id=target,scope='selected-categories',category_flags=16777232)
+        client['control']['pair'].update(base_owner_id='native/1',alternate_owner_id=target)
+        cas_controls.validate(client,request)
+        for selected in ('native/1','native/32',None):
+            changed=copy.deepcopy(client);changed['form_strip']['selected_owner_id']=selected
+            with self.subTest(selected=selected),self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(changed,request)
+        changed=copy.deepcopy(client);del changed['form_strip']
+        with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(changed,request)

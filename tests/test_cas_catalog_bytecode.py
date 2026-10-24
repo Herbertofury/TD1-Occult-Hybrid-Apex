@@ -1,5 +1,7 @@
 """Exercise the real compiled catalog gate when the private build exists."""
 import os
+import json
+import hashlib
 from pathlib import Path
 import shutil
 import subprocess
@@ -12,6 +14,17 @@ COMPILED=ROOT/'.work/research/apex-cas-compiled.swf'
 CARDS_COMPILED=ROOT/'.work/research/apex-cas-cards-compiled.swf'
 EQUIPPED_COMPILED=ROOT/'.work/research/apex-cas-pelt-button-compiled.swf'
 ORIGINAL=ROOT/'.work/research/current-cas-customizer.swf'
+# Private compiler fixtures must compare against their exact retained baseline.
+# The literal Maru build intentionally starts from its reviewed donor methods.
+_manifest=ROOT/'dist/candidate/ApexCASBridge.package.manifest.json'
+if _manifest.exists():
+    _merge=json.loads(_manifest.read_text(encoding='utf-8')).get('companion_code_merge')
+    if _merge is not None:
+        _donor=Path(_merge['customizer'])
+        if not _donor.is_absolute():_donor=ROOT/_donor
+        if hashlib.sha256(_donor.read_bytes()).hexdigest()!=_merge['customizer_sha256']:
+            raise ValueError('CAS fixture donor differs from its compiled baseline.')
+        ORIGINAL=_donor
 
 
 @unittest.skipUnless(JAR.exists() and COMPILED.exists() and shutil.which('javac'),'Local FFDec/JDK CAS build required')
@@ -27,7 +40,7 @@ class CatalogBytecodeTests(unittest.TestCase):
             check=True,capture_output=True,timeout=60)
 
     def test_compiled_input_and_inventory_contract(self):
-        for case in ('valid','extra-argument','missing-outfit-prefix','transport-wait','style-regrids','missing-native-margin','missing-cache-reset','missing-closed-outline','category-regrids'):
+        for case in ('valid','extra-argument','missing-outfit-prefix','transport-wait','style-regrids','missing-native-margin','missing-cache-reset','missing-closed-outline','category-regrids','unload-regrids'):
             with self.subTest(case=case):
                 result=subprocess.run(['java','-cp',str(JAR)+os.pathsep+self.directory.name,
                     'CasCatalogBytecodeFixtures',str(COMPILED),case],capture_output=True,text=True,timeout=30)

@@ -191,6 +191,9 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
             from .outfit_snapshot import normalize
             result['sim']['outfit_base64'] = base64.b64encode(blob).decode('ascii')
             result['sim']['appearance_sha256'] = hashlib.sha256(normalize(blob)).hexdigest()
+    attachment_status = getattr(backend, '_APEX_ANIMATED_ATTACHMENT_COMPAT', None)
+    if isinstance(attachment_status, dict):
+        result['animated_attachment_compat'] = dict(attachment_status)
     if sim is None and isinstance(getattr(backend, '_apex_native_load_failure', None), dict):
         result['native_load_failure'] = copy.deepcopy(backend._apex_native_load_failure)
     elif sim is not None:

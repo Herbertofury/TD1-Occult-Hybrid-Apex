@@ -41,9 +41,9 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770',
                                '30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-24-cas-pair-presentation-v293'
+UPGRADE_EPOCH = '2026-10-24-cas-input-priority-v294'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'db73322d55f50c82725665f160fa75ca054080220bfce334eaefc3e0c259d2bc'
+UPGRADE_SELF_BODY_SHA = '4ed51ee7757f4c98575e8b4d67fbf394c987562f46760dc59976c81b8da50bc9'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',

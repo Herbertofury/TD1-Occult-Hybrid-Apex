@@ -482,7 +482,26 @@ public class CasBytecodePatch {
             require(!propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains("ApexOwnerObservation"),
                 "CAS owner observation has a caller outside the Timer snapshot.");
     }
+    static void verifyReadOnlyInputGate(ABC abc,InstanceInfo instance) {
+        var body=ownedBody(abc,instance,"ApexFormsCommandBlocksInput");
+        require(propertyCalls(abc,body).isEmpty(),"Input lease classification must not call native code or mutate an appearance.");
+        uniqueLiteral(abc,body,"status");
+        var required=Set.of("apexReceiving","apexPendingFields","apexPendingPhase","apexBoundSim",
+            "apexClaimNonce","apexNonce","apexPendingReply","mutation_started","length","mCurrSimInfo","simId");
+        var found=new HashSet<String>();boolean phase=false,length=false;
+        var rows=body.getCode().code;
+        for(int i=0;i<rows.size();i++) {
+            for(String key:required) if(property(abc,rows.get(i),0x60,key)||property(abc,rows.get(i),0x66,key))found.add(key);
+            if(i+1<rows.size()&&property(abc,rows.get(i),0x60,"apexPendingPhase")&&opcode(rows.get(i+1),0x24)&&rows.get(i+1).operands[0]==1)phase=true;
+            if(i+1<rows.size()&&property(abc,rows.get(i),0x66,"length")&&opcode(rows.get(i+1),0x24)&&rows.get(i+1).operands[0]==7)length=true;
+        }
+        require(found.equals(required)&&phase&&length,"Only an exact same-Sim same-nonce unmutated status readback may release form input.");
+        for(String caller:Set.of("ApexFormsNextFrame","ApexFormsOwnedTick","ApexMoleculeDrain","ApexPairPanel","ApexPairTick"))
+            require(propertyCalls(abc,ownedBody(abc,instance,caller)).contains("ApexFormsCommandBlocksInput"),
+                "Native form and pair input must share the exact CLI write-ownership gate.");
+    }
     static void verifyFastOwnerReadback(ABC abc, InstanceInfo instance) {
+        verifyReadOnlyInputGate(abc,instance);
         for(String method:Set.of("ApexFormsQueueOwner","ApexFormsReadNativeState","ApexInputTiming")) {
             int clocks=0;
             for(var op:ownedBody(abc,instance,method).getCode().code) {
@@ -509,15 +528,15 @@ public class CasBytecodePatch {
         require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsScheduleFrame")).equals(Set.of("addEventListener")),
             "Scheduling a deferred form click must only register the next frame callback.");
         var nextBody=ownedBody(abc,instance,"ApexFormsNextFrame");var next=propertyCalls(abc,nextBody);
-        require(next.equals(Set.of("removeEventListener","ApexFormsOwnedTick","ApexFormsObservedSim","ApexFormsScheduleFrame")),
+        require(next.equals(Set.of("removeEventListener","ApexFormsOwnedTick","ApexFormsObservedSim","ApexFormsScheduleFrame","ApexFormsCommandBlocksInput")),
             "Next-frame form callback must detach and process its bound view without waiting for a network poll.");
         var gates=new HashSet<String>();boolean returned=false;
         for(var op:nextBody.getCode().code) {
-            for(String gate:Set.of("apexDisconnected","apexTicking","apexPendingFields","apexReceiving","apexPendingPhase","apexNativeConnected","apexBoundSim"))
+            for(String gate:Set.of("apexDisconnected","apexTicking","apexPendingPhase","apexNativeConnected","apexBoundSim"))
                 if(property(abc,op,0x60,gate)||property(abc,op,0x66,gate))gates.add(gate);
             if(opcode(op,0x47))returned=true;
             if(property(abc,op,0x46,"ApexFormsOwnedTick")||property(abc,op,0x4f,"ApexFormsOwnedTick")) {
-                require(returned&&gates.size()==7,"Next-frame form work lacks the connected idle same-Sim/lifetime gate.");break;
+                require(returned&&gates.size()==5,"Next-frame form work lacks the connected idle same-Sim/lifetime gate.");break;
             }
         }
         var read=ownedBody(abc,instance,"ApexFormsReadNativeState");
@@ -621,7 +640,7 @@ public class CasBytecodePatch {
         for(var op:choose.getCode().code)if(property(abc,op,0x61,"apexMoleculeIntent"))retained=true;
         require(retained,"Molecule choice must survive a pending CLI readback.");
         var drain=ownedBody(abc,instance,"ApexMoleculeDrain");
-        require(propertyCalls(abc,drain).equals(Set.of("ApexClone","CallGameService")),
+        require(propertyCalls(abc,drain).equals(Set.of("ApexClone","CallGameService","ApexFormsCommandBlocksInput")),
             "Draining a molecule choice may only check full-edit permission and queue its exact owner.");
         for(var op:choose.getCode().code) require(!property(abc,op,0x46,"CallGameService") && !property(abc,op,0x4f,"CallGameService"),
             "Occult input must not call any native game service inline.");
@@ -632,10 +651,10 @@ public class CasBytecodePatch {
             "Occult input callback must not synchronize/serialize the native Sim model.");
         var gates=new HashSet<String>();
         for(var op:drain.getCode().code)for(String gate:Set.of("apexBoundSim","apexOwnerSession",
-            "apexPendingFields","apexPendingPhase","apexReceiving","apexFormsDesiredId",
+            "apexFormsDesiredId",
             "apexFormsNativeIntent","apexFormsNativeState"))
             if(property(abc,op,0x60,gate)||property(abc,op,0x66,gate))gates.add(gate);
-        require(gates.size()==8,"Deferred molecule selection must validate its exact session and idle native owner.");
+        require(gates.size()==5,"Deferred molecule selection must validate its exact session and idle native owner.");
         require(propertyCalls(abc,ownedBody(abc,instance,"ApexFormsOwnedTick")).contains("ApexMoleculeDrain"),
             "The selected molecule choice must be consumed by the owned UI lifecycle.");
         var read=ownedBody(abc,instance,"ApexMoleculeReadSelection");
@@ -1672,7 +1691,7 @@ public class CasBytecodePatch {
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
             "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips",
-            "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming", "ApexFormsRefreshBoundPair",
+            "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming", "ApexFormsRefreshBoundPair", "ApexFormsCommandBlocksInput",
             "ApexCatalogInitialize","ApexCatalogValidate","ApexCatalogPersist","ApexCatalogStyle","ApexCatalogDispose","ApexCatalogOpen","ApexCatalogFrame","ApexCatalogClearEffects","ApexCatalogSelection","ApexCatalogReadEquipped","ApexCatalogMenu","ApexCatalogButton","ApexCatalogSlider","ApexCatalogDraw","ApexCatalogClick","ApexCatalogSlideStart","ApexCatalogSlide","ApexCatalogSlideEnd","ApexCatalogStatus",
             "ApexCatalogView", "ApexCatalogSliderCommand", "ApexCatalogInvalidate", "ApexCatalogObserveBinding", "ApexCatalogApplyBinding",
             "ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardForget","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback",

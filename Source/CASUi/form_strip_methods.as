@@ -120,7 +120,7 @@
          if(!isFinite(apexFormsScale) || apexFormsScale<0.7 || apexFormsScale>1.5) apexFormsScale=1;
          // Live entry is needed for a captured original. Other editors retain
          // their ordinary EA interface until a complete owner is available.
-         var busy:Boolean=apexPendingFields!=null || apexReceiving || apexPendingPhase>=5;
+         var busy:Boolean=ApexFormsCommandBlocksInput();
          if(apexFormsLayerButtons!=null) for each(var layerControl:Object in apexFormsLayerButtons) {
             layerControl.button.mouseEnabled=!busy && int(layerControl.layer)!=int(sim.occultLayer);
             layerControl.button.buttonMode=layerControl.button.mouseEnabled;
@@ -341,7 +341,7 @@
          if(apexMoleculeIntent.sim_id!==apexBoundSim || apexMoleculeIntent.session!==apexOwnerSession) {
             apexMoleculeIntent=null;return;
          }
-         if(apexPendingFields!=null || apexReceiving || apexPendingPhase!=0 ||
+         if(ApexFormsCommandBlocksInput() ||
             apexFormsDesiredId!="" || apexFormsNativeIntent!=null || apexFormsNativeState!="bound") return;
          var intent:Object=apexMoleculeIntent;apexMoleculeIntent=null;
          if(!Boolean(CommunicationManager.CallGameService("CasIsForcedFullEditingEnabled"))) {
@@ -559,7 +559,7 @@
          ApexPairTick();
          ApexFormsBindUiKind();
          ApexMoleculeDrain();
-         var busy:Boolean=apexPendingFields!=null || apexReceiving || apexFormsDragging || apexFormsDesiredId!="";
+         var busy:Boolean=ApexFormsCommandBlocksInput() || apexFormsDragging || apexFormsDesiredId!="";
          var pairSignature:String=apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration;
          var refreshPair:Boolean=apexFormsNativeState=="bound" && apexFormsDesiredId=="" && pairSignature!==apexPairSignature;
          var pairLabels:Object=ApexPairRead();
@@ -825,12 +825,26 @@
          }
       }
 
+      private function ApexFormsCommandBlocksInput() : Boolean
+      {
+         // Native input and the CLI run on separate UI events, never together
+         // inside a native call. A status-only claim may observe the user's
+         // newer selection on its readback; it owns no appearance write.
+         // Unknown/received commands and every mutation retain the full gate.
+         if(apexReceiving || this.mCurrSimInfo==null || this.mCurrSimInfo.simId!==apexBoundSim) return true;
+         if(apexPendingFields==null) return apexPendingPhase!=0;
+         return !(apexPendingPhase==1 && apexPendingFields.length==7 &&
+            apexPendingFields[1]===apexBoundSim && apexPendingFields[2]==="status" &&
+            apexClaimNonce===apexNonce && apexPendingReply!=null &&
+            apexPendingReply.mutation_started!==true);
+      }
+
       private function ApexFormsNextFrame(event:flash.events.Event) : void
       {
          removeEventListener(flash.events.Event.ENTER_FRAME,ApexFormsNextFrame);
          apexFormsFrameQueued=false;
          if(apexDisconnected || !apexNativeConnected || apexBoundSim=="" || apexPendingPhase>=7) return;
-         if(apexTicking || apexPendingFields!=null || apexReceiving || apexPendingPhase!=0) {
+         if(apexTicking || ApexFormsCommandBlocksInput()) {
             if(apexMoleculeIntent!=null || apexFormsNativeIntent!=null || apexFormsDesiredId!="" || apexPairIntent!=null) ApexFormsScheduleFrame();
             return;
          }

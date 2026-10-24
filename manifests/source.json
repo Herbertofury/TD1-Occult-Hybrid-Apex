@@ -83,6 +83,12 @@
       "sha256": "e31b952b385e9f184adb2a05d3e9ca3ae620ba4a52c3af4be103a8ba1062ff5c"
     },
     {
+      "bytes": 72472,
+      "mode": "100644",
+      "path": "Source/apex_core/form_bank_seal.py",
+      "sha256": "aab0a1838e82001d682f062f0aff071260e3b9b59e59697fe76e559695001b58"
+    },
+    {
       "bytes": 4545,
       "mode": "100644",
       "path": "docs/AUTHORIZED_BASELINE_STRATEGY.md",
@@ -431,6 +437,12 @@
       "sha256": "23369d541d07d5c678c1a6b704cc0f9c918ded18052af36089bc7a915ef6fac1"
     },
     {
+      "bytes": 9089,
+      "mode": "100644",
+      "path": "Source/CASUi/pair_controls_methods.as",
+      "sha256": "29efcf676c4c26a3cdb18356ca3427d516641178a0af8bebed9a2d47f1fd18f0"
+    },
+    {
       "bytes": 7817,
       "mode": "100644",
       "path": "tests/test_cas_form_catalog.py",
@@ -507,6 +519,12 @@
       "mode": "100644",
       "path": "tests/test_cas_transaction_routes.py",
       "sha256": "2d96665196fcf38be7b8296c2a27b0520e1eebc8f2d09ae949c97123b07aedca"
+    },
+    {
+      "bytes": 1795,
+      "mode": "100644",
+      "path": "Reports/CAS_INPUT_PRIORITY_V294.json",
+      "sha256": "1f48f29969cd6cfb33cdde2f2b7f9f5f44bc7b1569ee5ac4f2bf4987702faac5"
     },
     {
       "bytes": 14603,
@@ -971,12 +989,6 @@
       "sha256": "058f1013e11bdb74ee8ffc77b043637d64af248c426d90576e21ab58034baa24"
     },
     {
-      "bytes": 6103,
-      "mode": "100644",
-      "path": "tests/java/CasLifeStateMenuFixtures.java",
-      "sha256": "8ef6aa72c03f2dbc9102cc93e016400fd57480d8223fa9327b6d4dadba8fd5ea"
-    },
-    {
       "bytes": 6814,
       "mode": "100644",
       "path": "Reports/AUTHORIZED_CANDIDATE_2026-10-07.md",
@@ -993,12 +1005,6 @@
       "mode": "100644",
       "path": "tools/candidate_install.py",
       "sha256": "ef78b8595a1113d15525389ecc96c0ab4ae9177b26938c64342a17808acb1dec"
-    },
-    {
-      "bytes": 2043,
-      "mode": "100644",
-      "path": "tests/test_cas_lifestate_menu_bytecode.py",
-      "sha256": "92077e5cb9398ed3b9c98c2541f98ed0961de9a893b39233e87774f9642151bc"
     },
     {
       "bytes": 4985,
@@ -1241,16 +1247,16 @@
       "sha256": "fe8ac2e668ce179259a3b579bc4ebbaedfb6aab1aa863a2b28ff9b02c5936c80"
     },
     {
+      "bytes": 153773,
+      "mode": "100644",
+      "path": "tools/CasBytecodePatch.java",
+      "sha256": "f6503a9a787e6ce5f86007af1a59266913b6c6eb1a3703dc3967321163d0fd3a"
+    },
+    {
       "bytes": 5488,
       "mode": "100644",
       "path": "tools/switch_archive.py",
       "sha256": "72702b8e8426bc7b193d05db1f160aa2aeddd126d28c5c72aaba07327ed28ded"
-    },
-    {
-      "bytes": 57083,
-      "mode": "100644",
-      "path": "Source/CASUi/form_strip_methods.as",
-      "sha256": "2df4186109d8bb19e0142eabe7a09e2cb6413a2b4a81ac278a507d8749a1d684"
     },
     {
       "bytes": 14755,
@@ -1365,12 +1371,6 @@
       "mode": "100644",
       "path": "Source/apex_core/profile_save_identity.py",
       "sha256": "3dff19214d24119caa20bf3b0849e16e1c006a73a5a9e8f0c167ca5c0a080453"
-    },
-    {
-      "bytes": 152110,
-      "mode": "100644",
-      "path": "tools/CasBytecodePatch.java",
-      "sha256": "292d950bca5df4372b0f04eb5a109b9b97d8e2b882a1f2f796d7f5f44f14e415"
     },
     {
       "bytes": 24156,
@@ -1547,12 +1547,6 @@
       "sha256": "f108575031ef2f2b1468956db86d8310034c335c38e9ac0a9d522f50d608e151"
     },
     {
-      "bytes": 91213,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "a9e4d6b348d5a8a8daf8645306e9125317d6ad257233355d1f59342f54bc921c"
-    },
-    {
       "bytes": 7431,
       "mode": "100644",
       "path": "tests/test_cas_owner_payload.py",
@@ -1643,6 +1637,12 @@
       "sha256": "554e51728d7ec959e2cb17e2a2e3d4264b71203ff314d51f6f120218c4709b77"
     },
     {
+      "bytes": 2203,
+      "mode": "100644",
+      "path": "tests/test_cas_lifestate_menu_bytecode.py",
+      "sha256": "b49babe529f0d6690af11123df83a99f53d0a54cb05d340f6f957d2c90de67ac"
+    },
+    {
       "bytes": 5096,
       "mode": "100644",
       "path": "Reports/CAS_CATALOG_2026-10-20.json",
@@ -1677,6 +1677,12 @@
       "mode": "100644",
       "path": "wiki/Dynamic-CAS-Companion-Merge.md",
       "sha256": "7fa2c79d81d7e127224297f1cb17dd74416966c914821d95f22058430f31ad01"
+    },
+    {
+      "bytes": 91969,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "2381e6601ce92e685d05a50008674bf13797dcf9f77fd5e5dac6ab3d2fe4d812"
     },
     {
       "bytes": 5129,
@@ -2627,6 +2633,12 @@
       "sha256": "5ba7506d878c8da70c8daa3ebc3e3a17567001b2aad35ff778fb7be2e6bb87a6"
     },
     {
+      "bytes": 7958,
+      "mode": "100644",
+      "path": "tests/java/CasLifeStateMenuFixtures.java",
+      "sha256": "86784ce0d3735f8eed873e33c56082107bd72b1428c4c361461aba3131992072"
+    },
+    {
       "bytes": 59943,
       "mode": "100644",
       "path": "tests/test_cas_bank_transaction.py",
@@ -3207,12 +3219,6 @@
       "mode": "100644",
       "path": "tools/test_script_upgrade.py",
       "sha256": "9464bdcc4f6f669afc66b61672079d1385b4f99efee1b0be3016204ae8d71a95"
-    },
-    {
-      "bytes": 9134,
-      "mode": "100644",
-      "path": "Source/CASUi/pair_controls_methods.as",
-      "sha256": "a741c5a38193a26152095f16fcd9015b54335a5d12c63e589c05a74d787f457e"
     },
     {
       "bytes": 2426,
@@ -4067,12 +4073,6 @@
       "sha256": "afe9a17b66ef75d8b5338a521040f4c154b29edd7e06a164e473d217f94ac029"
     },
     {
-      "bytes": 72475,
-      "mode": "100644",
-      "path": "Source/apex_core/form_bank_seal.py",
-      "sha256": "7af5f2ba64923ec437eb9616ce9ed0ae38954486acde3356d50348551ed89e7a"
-    },
-    {
       "bytes": 2661,
       "mode": "100644",
       "path": "Reports/CAS_THIRD_MEMBER_V253.json",
@@ -4317,6 +4317,12 @@
       "mode": "100644",
       "path": "tools/source_manifest.py",
       "sha256": "c1482fd623b7d9c9006124e63ded1f1b8b4c0e4d5bd11a22b47a9e6f3d53c856"
+    },
+    {
+      "bytes": 57813,
+      "mode": "100644",
+      "path": "Source/CASUi/form_strip_methods.as",
+      "sha256": "dca8f3ad038541bdb4fcc854833287f21c2346e9eef352188dce109cf91a08b6"
     },
     {
       "bytes": 5759,

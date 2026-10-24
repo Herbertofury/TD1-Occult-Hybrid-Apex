@@ -1305,3 +1305,14 @@ also tolerates an actor retired by the completed original pipeline without
 catching or replaying the original game's/mod's exceptions. The candidate
 builds and focused checks pass; matching runtime qualification remains open.
 See [the pair-presentation report](../Reports/CAS_PAIR_PRESENTATION_V293.json).
+
+V294 separates a read-only status lease from appearance write ownership. A
+seven-field status command may coexist with same-Sim native form/pair input
+only in readback phase one, with matching visible Sim and claim nonce and no
+command mutation. Received/unknown commands and all mutating commands retain
+their block. UI input still queues to a separate rendered event; no native
+work is added inside the input callback. The compiled classifier has no calls
+and its mutation fixtures reject a wrong operation, phase, length, Sim, nonce,
+mutation flag or receiving state. This removes an avoidable timer wait in the
+code; matching runtime responsiveness qualification remains open. See
+[the input-priority report](../Reports/CAS_INPUT_PRIORITY_V294.json).

@@ -81,7 +81,7 @@
             pair.target_label=ApexPairLabel(pair.selected_owner_id===pair.base_owner_id?pair.alternate_owner_id:pair.base_owner_id);
             return pair;
          }
-         if(apexPendingFields!=null || apexReceiving || apexPendingPhase!=0) return {blocked:true,enabled:false};
+         if(ApexFormsCommandBlocksInput()) return {blocked:true,enabled:false};
          if(["copy","link"].indexOf(String(request.operation))<0 ||
             request.generation!==pair.generation || request.base_owner_id!==pair.base_owner_id ||
             request.alternate_owner_id!==pair.alternate_owner_id || !(request.enabled is Boolean) ||
@@ -112,7 +112,7 @@
       }
       private function ApexPairTick() : void
       {
-         if(apexPairIntent==null || apexPendingFields!=null || apexReceiving || apexFormsDesiredId!="" || apexFormsNativeIntent!=null) return;
+         if(apexPairIntent==null || ApexFormsCommandBlocksInput() || apexFormsDesiredId!="" || apexFormsNativeIntent!=null) return;
          var intent:Object=apexPairIntent;apexPairIntent=null;
          try {ApexPairExecute(intent);apexPairMessage="";} catch(error:Error) {apexPairMessage=error.message;}
          CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:true});

@@ -28,7 +28,22 @@ public class CasLifeStateMenuFixtures {
             case "tooltip-shutdown":method="ApexFormsClearTooltips";from="Shutdown";break;
             case "fast-queue-not-deferred":method="ApexFormsScheduleFrame";from="addEventListener";break;
             case "fast-frame-network-poll":method="ApexFormsNextFrame";from="ApexFormsOwnedTick";to="ApexTick";break;
-            case "fast-frame-missing-lease":method="ApexFormsNextFrame";from="apexPendingFields";to="apexFormsDesiredId";opcode=0x60;break;
+            case "fast-frame-missing-lease":method="ApexFormsNextFrame";from="ApexFormsCommandBlocksInput";to="ApexFormsReadNativeState";opcode=0x46;break;
+            case "readonly-operation": {
+                var b=CasBytecodePatch.ownedBody(abc,abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain")),"ApexFormsCommandBlocksInput");
+                int at=CasBytecodePatch.uniqueLiteral(abc,b,"status");b.getCode().code.get(at).operands[0]=abc.constants.getStringId("accept",true);b.setModified();break;
+            }
+            case "readonly-phase":case "readonly-length": {
+                var b=CasBytecodePatch.ownedBody(abc,abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain")),"ApexFormsCommandBlocksInput");
+                var rows=b.getCode().code;boolean changed=false;
+                for(int i=0;i+1<rows.size();i++)if(CasBytecodePatch.property(abc,rows.get(i),key.equals("readonly-phase")?0x60:0x66,key.equals("readonly-phase")?"apexPendingPhase":"length")&&CasBytecodePatch.opcode(rows.get(i+1),0x24)&&rows.get(i+1).operands[0]==(key.equals("readonly-phase")?1:7)) {rows.get(i+1).operands[0]++;changed=true;}
+                if(!changed)throw new AssertionError("Missing exact read-only lease boundary");b.setModified();break;
+            }
+            case "readonly-nonce":method="ApexFormsCommandBlocksInput";from="apexClaimNonce";to="apexLastId";opcode=0x60;break;
+            case "readonly-sim":method="ApexFormsCommandBlocksInput";from="apexBoundSim";to="apexPresentationSim";opcode=0x60;break;
+            case "readonly-display-sim":method="ApexFormsCommandBlocksInput";from="simId";to="sim_id";opcode=0x66;break;
+            case "readonly-mutated":method="ApexFormsCommandBlocksInput";from="mutation_started";to="enabled";opcode=0x66;break;
+            case "readonly-receiving":method="ApexFormsCommandBlocksInput";from="apexReceiving";to="apexFormsDesiredId";opcode=0x60;break;
             case "fast-clock-namespace":
                 abc.constants.getMultiname(member(abc,"getTimer")).namespace_index=
                     abc.constants.getNamespaceId(Namespace.KIND_PACKAGE,"wrong.package",0,true);break;
@@ -57,7 +72,7 @@ public class CasLifeStateMenuFixtures {
             case "molecule-click-drops-intent":method="ApexMoleculeChooseOccult";from="apexMoleculeIntent";to="apexFormsIntent";opcode=0x61;break;
             case "molecule-click-inline":method="ApexMoleculeChooseOccult";from="ApexFormsScheduleFrame";to="ApexFormsOwnedTick";break;
             case "molecule-drain-other-session":method="ApexMoleculeDrain";from="apexOwnerSession";to="apexFormsGestureSequence";opcode=0x60;break;
-            case "molecule-drain-active-command":method="ApexMoleculeDrain";from="apexPendingFields";to="apexFormsResult";opcode=0x60;break;
+            case "molecule-drain-active-command":method="ApexMoleculeDrain";from="ApexFormsCommandBlocksInput";to="ApexFormsReadNativeState";opcode=0x46;break;
             case "molecule-drain-inline":method="ApexMoleculeDrain";from="ApexClone";to="ApexFormsOwnedTick";opcode=0x46;break;
             case "molecule-not-consumed":method="ApexFormsOwnedTick";from="ApexMoleculeDrain";to="ApexFormsReadNativeState";break;
             default:throw new AssertionError("Unknown case");

@@ -52,7 +52,7 @@ class LaunchContextUIA(unittest.TestCase):
             with patch.object(broker,'evidence_directory'),patch.object(broker,'validate_request') as validate, \
                     patch.object(broker.time,'time',return_value=100),patch.object(broker,'acknowledge_exact') as acknowledge:
                 self.assertEqual(broker.verify_context_only(path,digest),dict(ok=True,input_sent=False,launch_context_verified=True))
-                validate.assert_called_once_with(request,root,100);acknowledge.assert_not_called()
+                validate.assert_called_once_with(request,root.resolve(),100);acknowledge.assert_not_called()
                 validate.reset_mock()
                 with self.assertRaises(ValueError):broker.verify_context_only(path,'b'*64)
                 validate.assert_not_called()

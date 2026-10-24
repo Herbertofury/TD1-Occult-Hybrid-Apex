@@ -27,6 +27,18 @@ def inject(source):
          var apexSim:String=String(param1.sim_layers[OccultTypes.OCCULT_FORM_BASE].simId);
          var apexPair:Object=CommunicationManager.CallUIService("ApexFormPairPanel",{operation:"status",sim_id:apexSim});
          if(apexPair!=null && apexPair.enabled===true) {
+            var apexPrevious:Object=this.mCopyModeData["apexPair"];
+            // Reuse EA's existing widgets only after a fresh exact native pair
+            // confirms every displayed owner, direction and category setting.
+            if(apexPrevious!=null && this.visible &&
+               apexPrevious.sim_id===apexPair.sim_id && apexPrevious.base_owner_id===apexPair.base_owner_id &&
+               apexPrevious.alternate_owner_id===apexPair.alternate_owner_id && apexPrevious.selected_owner_id===apexPair.selected_owner_id &&
+               apexPrevious.generation===apexPair.generation && apexPrevious.linked===apexPair.linked &&
+               apexPrevious.category_flags===apexPair.category_flags && apexPrevious.source_label===apexPair.source_label &&
+               apexPrevious.target_label===apexPair.target_label &&
+               this.mCurrentBaseSimId===apexSim+"|"+apexPair.base_owner_id+"|"+apexPair.alternate_owner_id) {
+               this.mCopyModeData["apexPair"]=apexPair;return;
+            }
             this.mCopyModeData["apexPair"]=apexPair;
             this.mCurrentBaseSimId=apexSim+"|"+apexPair.base_owner_id+"|"+apexPair.alternate_owner_id;
             this.UpdateCopyFiltersAndRandomizationFlags();
@@ -42,9 +54,10 @@ def inject(source):
             this.btnLink.TooltipExt.Text="Link or unlink "+apexPair.source_label+" and "+apexPair.target_label+". Only checked details follow later edits. Linking keeps both current appearances.";
             this.visible=true;return;
          }
-         delete this.mCopyModeData["apexPair"];
+         delete this.mCopyModeData["apexPair"];delete this.mCopyModeData["apexFilterCatalog"];
          var apexMask:int=int(param1.sim_layers[0].allOccultTypes)&~1;
-         if(apexPair!=null && apexPair.blocked===true || (apexMask&(apexMask-1))!=0) {
+         if(apexPair!=null && apexPair.blocked===true || (apexMask&(apexMask-1))!=0 ||
+            apexMask==0 && param1.sim_layers.length>1) {
             this.visible=false;return;
          }
 ''')
@@ -84,6 +97,14 @@ def inject(source):
             this.SendLinkUpdate();return apexChanged;
          }
 ''')
+    source = prepend(source, 'UpdateCopyFiltersAndRandomizationFlags', """
+         // Copy-filter definitions are constant for this CAS movie. Keep the
+         // exact EA/extended MenuItems; changing pairs still refreshes checks.
+         var apexCatalog:Object=this.mCopyModeData["apexFilterCatalog"];
+         if(this.mCopyModeData["apexPair"]!=null && apexCatalog!=null &&
+            apexCatalog.filters===this.mCopyFilters && apexCatalog.all_flags===this.mAllBitFlags &&
+            this.mCopyFilters.length>0) return;
+""")
     # Extend the existing EA list rather than replacing its visual component.
     anchor = 'mAllBitFlags = _loc1_.allFlags;'
     if source.count(anchor) != 1:
@@ -115,6 +136,7 @@ def inject(source):
             if(apexAll==null) apexAll=new MenuItem("All details",new CASRandomizeFilter({flags:apexCovered,required_flags:0}));
             apexAll.data.flags=apexCovered;apexAll.data.required_flags=0;apexFilters.unshift(apexAll);mItemAllIndex=0;
             this.mCopyFilters=apexFilters;mDataFeed.RemoveAllItems();mDataFeed.AddItemsFromIterable(apexFilters);
+            this.mCopyModeData["apexFilterCatalog"]={filters:this.mCopyFilters,all_flags:this.mAllBitFlags};
          }
 '''.replace('__SUPPORTED__', str(SUPPORTED)))
     return source

@@ -42,9 +42,9 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                '30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4',
                                '1eb9997146db3e2426e0acc4f847fc729f732baaf3ec1bc1f2f26dec68e39fbe')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-24-local-publication-profile-v308'
+UPGRADE_EPOCH = '2026-10-24-native-pair-widget-cache-v310'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'be8f3fb8eb6dbfce81177c95506f5be042ad0ec8846fbd43ddfdc1d1f13c2cb5'
+UPGRADE_SELF_BODY_SHA = 'aeebc5ccb6b338a1672a5853065f2e0e6cfad28d1817ce6c3fa2d5c7dd57f8a8'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',

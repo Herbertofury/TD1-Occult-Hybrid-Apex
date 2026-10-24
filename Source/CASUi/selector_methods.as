@@ -130,10 +130,12 @@
             if(base==null || alternate==null || base.simId=="0" || base.simId!=alternate.simId ||
                base.index!=index || alternate.index!=index || base.occultLayer!=0 || alternate.occultLayer!=1 ||
                base.allOccultTypes!=alternate.allOccultTypes || base.allOccultTypes<1 ||
-               (base.allOccultTypes&~127)!=0 ||
-               ((base.allOccultTypes&~1)&((base.allOccultTypes&~1)-1))==0) continue;
+               (base.allOccultTypes&~127)!=0) continue;
             var row:SimSkewerData=mDataFeed.RequestItemAt(index) as SimSkewerData;
             if(row==null || row.sim_layers.length==0 || row.sim_layers[0].simId!=base.simId) continue;
+            // Always validate delivered pairs; retain existing exact rows
+            // instead of rebuilding an already complete native pair.
+            if(row.sim_layers.length==2 && row.sim_layers[0]===base && row.sim_layers[1]===alternate && row.mbAllowCopyAltForm) continue;
             row.sim_layers=[base,alternate];
             // Preserve every actual delivered pair, including initial/member
             // refreshes before the customizer registers its selected Sim.

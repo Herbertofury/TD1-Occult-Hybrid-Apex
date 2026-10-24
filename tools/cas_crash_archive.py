@@ -39,6 +39,7 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
                 any(supplemental.get('identity', {}).get(field) != identity.get(field)
                     for field in ('pid', 'test_token', 'script_sha256', 'profile'))):
             raise ValueError('Supplemental native before packet belongs to another runtime or lacks full snapshots.')
+    early_crash_path = None
     if entry_only:
         entry = proof
         before = (supplemental['snapshots'].get(entry.get('requested_sim_id'), {}) if supplemental is not None
@@ -46,6 +47,7 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         cas_crash.entry_context(entry, identity, entry.get('requested_sim_id'), before.get('household_id'),
             before.get('save_guid'), before.get('save_slot'),
             supplemental_before=before if supplemental is not None else None, captured_metadata_only=True)
+        early_crash_path = cas_crash.captured_entry_crash(entry, profile, original)
         proof = dict(identity=identity, sim_id=entry['requested_sim_id'], household_id=before['household_id'],
             save_guid=before['save_guid'], slot_id=before['save_slot'])
     else:
@@ -148,6 +150,10 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         disk_slot_id=slot_id, expected_save_sha256=expected_save_sha256,
         native_slot_at_entry=proof['slot_id'], metadata_write_submitted=False,
         appearance_mutated=False, save_written=False, loaded_file_verified=False, save_reload_verified=False)
+    if early_crash_path is not None:
+        receipt.update(early_entry_crash_report_verified=True, early_entry_crash_report=str(early_crash_path),
+            early_entry_crash_sha256=entry['crash']['after']['sha256'],
+            causality_verified=False, report_pid_attribution_verified=False)
     if supplemental is not None:
         receipt.update(supplemental_native_before_proof=str(before_path),
             supplemental_native_before_sha256=expected_before_sha256,
@@ -169,6 +175,8 @@ def archive(state, crash_proof, expected_proof_sha256, slot_id, expected_save_sh
         record['pending'] = None
         record['cas_transaction'] = None
     reusable_profile.legacy.require_closed()
+    if early_crash_path is not None:
+        cas_crash.captured_entry_crash(entry, profile, original)
     if (sha256(path) != expected_proof_sha256 or all_save_files(profile) != before_saves or
             bank.read_bytes() != bank_bytes or supplemental is not None and sha256(before_path) != expected_before_sha256 or
             frontdoor_path is not None and sha256(frontdoor_path) != expected_frontdoor_sha256):

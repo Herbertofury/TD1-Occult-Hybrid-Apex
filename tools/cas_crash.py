@@ -69,8 +69,10 @@ def entry_context(entry, identity, sim_id, household_id, save_guid, slot_id, sup
             (captured_metadata_only and not (
                 entry.get('ok') is True and entry.get('outcome') == 'inventory' and
                 entry.get('inventory_verified') is True and entry.get('handshake_verified') is True or
-                entry.get('ok') is False and entry.get('outcome') == 'unresolved' and
-                entry.get('inventory_verified') is False and type(entry.get('handshake_verified')) is bool)) or
+                entry.get('ok') is False and entry.get('inventory_verified') is False and
+                type(entry.get('handshake_verified')) is bool and
+                (entry.get('outcome') == 'unresolved' or
+                 entry.get('outcome') == 'crash' and entry.get('process_exit_verified') is True))) or
             any(entry.get(field) is not True for field in
                 ('entry_submitted', 'entry_accepted', 'no_input_replay')) or
             entry.get('requested_sim_id') != sim_id or not isinstance(entry.get('identity'), dict) or
@@ -93,6 +95,27 @@ def entry_context(entry, identity, sim_id, household_id, save_guid, slot_id, sup
             before.get('save_slot') != slot_id or before.get('clock_speed') != 0):
         raise ValueError('CAS entry lacks its exact paused native Sim, household and save slot.')
     return before
+
+
+def captured_entry_crash(entry, profile, original):
+    """Validate the preserved early-entry crash without claiming CAS completed."""
+    if entry.get('outcome') != 'crash':
+        return None
+    crash = entry.get('crash')
+    if (entry.get('process_exit_verified') is not True or not isinstance(crash, dict) or
+            crash.get('outcome') != 'preserved' or crash.get('preserved') is not True or
+            crash.get('before') != entry.get('crash_before') or
+            not isinstance(crash.get('before'), dict) or not isinstance(crash.get('after'), dict) or
+            crash['after'].get('state') != 'read' or
+            crash['after'].get('sha256') == crash['before'].get('sha256')):
+        raise ValueError('Early CAS crash requires its changed preserved report and verified process exit.')
+    path = reusable_profile.writable(crash.get('path', ''))
+    if (any(path == root or root in path.parents for root in (profile, original)) or
+            not path.is_file() or not 1 <= path.stat().st_size <= cas_transition.MAX_CRASH_BYTES or
+            path.stat().st_size != crash['after'].get('bytes') or
+            sha256(path) != crash['after'].get('sha256')):
+        raise ValueError('Preserved early CAS crash bytes are missing, changed or unsafe.')
+    return path
 
 
 def validate(proof, identity, sim_id, household_id, save_guid, slot_id, profile, original):

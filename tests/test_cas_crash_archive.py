@@ -94,6 +94,57 @@ class ClosedCrashArchiveTests(SealFixture):
                 2,self.target['expected_save_sha256'],self.output,entry_only=True)
         self.assertEqual(self.bank_path.read_bytes(),before);self.assertFalse(self.output.exists())
 
+    def early_crash_entry(self):
+        self.entry.update(ok=False, outcome='crash', inventory_verified=False,
+            handshake_verified=False, process_exit_verified=True,
+            crash=copy.deepcopy(self.proof['crash']))
+        self.entry['crash']['after'].update(state='read', bytes=self.crash.stat().st_size)
+        write_json(self.entry_path, self.entry)
+
+    def archive_entry(self):
+        return cas_crash_archive.archive(self.root/'state.json', self.entry_path, sha256(self.entry_path),
+            2, self.target['expected_save_sha256'], self.output, entry_only=True)
+
+    def test_early_entry_crash_archives_only_captured_metadata_with_exact_preserved_report(self):
+        self.early_crash_entry(); original_entry=self.entry_path.read_bytes(); original_bank=self.bank_path.read_bytes()
+        result=self.archive_entry()
+        self.assertTrue(result['ok']); self.assertTrue(result['early_entry_crash_report_verified'])
+        self.assertFalse(result['entry_inventory_verified']); self.assertFalse(result['crash_verified'])
+        self.assertFalse(result['normal_exit_verified']); self.assertFalse(result['save_reload_verified'])
+        self.assertFalse(result['appearance_mutated']); self.assertFalse(result['causality_verified'])
+        self.assertEqual(self.entry_path.read_bytes(),original_entry)
+        self.assertEqual((self.root/'archive-bank-before.json').read_bytes(),original_bank)
+        self.assertEqual(self.writes,[])
+
+    def test_early_entry_crash_rejects_unverified_exit_replay_or_report_before_metadata_write(self):
+        self.early_crash_entry(); good=copy.deepcopy(self.entry); held=self.bank_path.read_bytes()
+        for mutation in ('exit','accepted','replay','missing','changed','unchanged','size','protected'):
+            altered=copy.deepcopy(good)
+            if mutation=='exit': altered['process_exit_verified']=False
+            elif mutation=='accepted': altered['entry_accepted']=False
+            elif mutation=='replay': altered['no_input_replay']=False
+            elif mutation=='missing': altered['crash']['path']=str(self.root/'absent.xml')
+            elif mutation=='changed': altered['crash']['after']['sha256']='a'*64
+            elif mutation=='unchanged': altered['crash_before']=altered['crash']['before']=copy.deepcopy(altered['crash']['after'])
+            elif mutation=='size': altered['crash']['after']['bytes']+=1
+            else:
+                target=self.protected/'crash.xml'; target.parent.mkdir(parents=True,exist_ok=True)
+                target.write_bytes(self.crash.read_bytes()); altered['crash']['path']=str(target)
+            write_json(self.entry_path,altered)
+            with self.subTest(mutation=mutation),self.assertRaises(ValueError):self.archive_entry()
+            self.assertEqual(self.bank_path.read_bytes(),held);self.assertFalse(self.output.exists())
+            self.assertFalse((self.root/'archive-bank-before.json').exists())
+
+    def test_early_entry_crash_report_change_during_archival_blocks_final_bank_write(self):
+        self.early_crash_entry(); held=self.bank_path.read_bytes(); count=[0]
+        def closure():
+            count[0]+=1
+            if count[0]==2:self.crash.write_bytes(b'changed during archive')
+        self.guard.side_effect=closure
+        with self.assertRaisesRegex(ValueError,'crash bytes'):self.archive_entry()
+        self.assertEqual(self.bank_path.read_bytes(),held)
+        self.assertFalse(json.loads(self.output.read_text())['metadata_write_submitted'])
+
     def scoped_entry(self, additional=()):
         row=self.entry['steps'][0]['result']
         members=[{'sim_id':SIM,'form_checkpoint':row['form_checkpoint']}] + list(additional)

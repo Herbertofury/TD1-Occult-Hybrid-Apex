@@ -42,16 +42,16 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                '30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4',
                                '1eb9997146db3e2426e0acc4f847fc729f732baaf3ec1bc1f2f26dec68e39fbe')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-24-native-pair-widget-cache-v310'
+UPGRADE_EPOCH = '2026-10-24-detached-outfit-order-v315'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'aeebc5ccb6b338a1672a5853065f2e0e6cfad28d1817ce6c3fa2d5c7dd57f8a8'
+UPGRADE_SELF_BODY_SHA = '8aabf3ced5cc3a957423354663aedd25242897a645b48eca2a9ce9afcbd6fa1d'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
-    'apex_core/bank_history.py': '3cca2e11f64f1f9bda0602984db0eda2f6b9d24abeb91b544c5353fc71034331',
+    'apex_core/bank_history.py': 'ce995a7ba97ee257b641cca8cc817fb2cff62a08e827cffcf0a50067e34a3286',
     'apex_core/body_hair_initialization.py': 'b90fd14e840ae90de087b647519ef39208e3488dc72b5ab41d4389855f7b0592',
     'apex_core/bridge_startup.py': '0aa605cb1671a198571381ee51aa729082630faffbac657529a2ada385a9bee2',
-    'apex_core/cas_bank_transaction.py': 'a476f51ed48944f472ed20ee6f7754c0115e65723bb55d4272a77474f99f2b07',
+    'apex_core/cas_bank_transaction.py': '98ce1f011f6e5712648273650774803a98b5fe29c766e4b890f1b260b7da430e',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '032ebc4a20e711db9ae359874b923c6cadd72eceec05277f85bfae3f935fe0c4',
     'apex_core/cas_controls.py': '148afd4a6876472de657fe276157c3d34e9ffea09d29e4b9eee610a8c613305d',
@@ -65,13 +65,13 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_owner_payload.py': '47134e0e2ae6b222898677d7ed80a6e9cd20ddbc2be98a771af8d0167ca94b21',
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
-    'apex_core/cas_save_boundary.py': '8e5421be2938408f972ca2ce4ee98fbab683258f9f7049919631db0649d542d7',
+    'apex_core/cas_save_boundary.py': '9685cf56db4417c4e46d00aa1611b8d94561e22662c31454c863da0cc5342836',
     'apex_core/cas_ui.py': 'e5eb11ec778891f280b002e04075218f0ba3f2feebc0688e0e481f7ba36aff3d',
     'apex_core/catalog_usage.py': '010877d055c90dad2696cc2af71608323188d1aa6f914554a41aea97433d624a',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
-    'apex_core/form_bank.py': '8f578c668e05b8370aad4137c982a9438f2ab13553270f8bb9aec28c2e3bffb4',
+    'apex_core/form_bank.py': '3b0bb323b9aa4601766c3b46233b515736b70bc147bac3e22e62e858b841448e',
     'apex_core/gameplay_qol.py': 'f58a7fd7dff9b9c532bcf08dcb1e500f5559bf8905861fd93053933ac9d95cb7',
     'apex_core/genetics_snapshot.py': 'e240b088b515015bed2ca7e77326888b0faeb5a685ee0e93684cdcc8bf0aead7',
     'apex_core/growth_parts.py': 'efca6b2b2cacf2c18171e87779b95cd3be9766809068583fd1547b5f7bd32db2',

@@ -1,5 +1,6 @@
 #include "ApexCasSelectiveAppearance.h"
 #include "ApexCasOwnerGraph.h"
+#include "ApexCasOutfitOrder.h"
 #include <iostream>
 #include <memory>
 namespace s=td1::nativecas::selective;
@@ -30,7 +31,41 @@ std::string Packet(unsigned seed){
 }
 std::string F(const std::string& p,unsigned n){return w::One(w::Fields(p),n,2).value;}
 int main(){try{
+    // EA's head insertion reverses colliding category chains during a deep
+    // copy. Restore traversal only, keeping every per-category outfit payload
+    // and the source untouched. Invalid or aliased maps must write nothing.
+    struct Category {unsigned key,next;std::string outfits;};
+    std::map<unsigned,Category> nodes{{1,{0,2,"source everyday"}},{2,{11,0,"source nude"}},
+        {3,{11,4,"complete copied nude"}},{4,{0,0,"complete copied everyday"}}};
+    const auto originals=nodes;std::vector<unsigned> heads{3};unsigned writes=0;
+    const auto preserve=[&](std::vector<unsigned> src,std::vector<unsigned> dst,unsigned count) {
+        td1::nativecas::outfitorder::Preserve(src,dst,count,count,
+            [&](unsigned n){return nodes.at(n).key;},[&](unsigned n){return nodes.at(n).next;},
+            [&](unsigned n,unsigned next){++writes;nodes.at(n).next=next;},
+            [&](std::size_t bucket,unsigned n){++writes;heads.at(bucket)=n;});
+    };
+    preserve({1},heads,2);
+    Check(heads[0]==4 && nodes[4].next==3 && nodes[3].next==0 && writes==3);
+    Check(nodes[1].next==2 && nodes[2].next==0 && nodes[3].outfits==originals.at(3).outfits &&
+        nodes[4].outfits==originals.at(4).outfits);
+    writes=0;Refuses([&]{preserve({1},{1},2);});Check(writes==0);
+    nodes[3].next=3;Refuses([&]{preserve({1},{3},2);});Check(writes==0);
+    nodes[3].next=4;nodes[4].key=1;Refuses([&]{preserve({1},{3},2);});Check(writes==0);
+    preserve({0},{0},0);Check(writes==0);
     const auto target=Packet(1000),source=Packet(2000);
+    unsigned clones=0,imports=0;
+    const auto unchanged=s::VerifiedCopy(target,target,[&]{++clones;return target;},
+        [&]()->std::string {++imports;throw std::runtime_error("Unchanged scope must not import unrelated outfits.");},
+        [](const std::string& result){return result;});
+    Check(unchanged==target && clones==1 && imports==0);
+    const auto changedVoice=s::Merge(target,source,128);
+    Check(s::VerifiedCopy(target,changedVoice,[&]{++clones;return target;},
+        [&]{++imports;return changedVoice;},[](const std::string& result){return result;})==changedVoice);
+    Check(clones==1 && imports==1);
+    Refuses([&]{s::VerifiedCopy(target,changedVoice,[&]{return target;},
+        [&]{return target;},[](const std::string& result){return result;});});
+    Refuses([&]{s::VerifiedCopy(target,target,[&]{return source;},
+        [&]{return target;},[](const std::string& result){return result;});});
     const auto inventory=s::EquippedInventory(target);
     Check(inventory.size()==3 && inventory[0].category==0 && inventory[1].ordinal==1 &&
         inventory[1].id==10001 && inventory[2].category==1 && inventory[2].ordinal==0 &&

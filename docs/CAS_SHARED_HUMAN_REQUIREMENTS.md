@@ -1451,3 +1451,12 @@ to depend on captured pixels: the exact EA UIA control can be invoked after a
 read-only child revalidates the pinned Sims launch immediately before input.
 All 73 permission tests pass, and the actual V308 launch succeeds on its first
 handoff. No UAC approval or foreground activation is automated.
+
+
+### V312 completed Live matrix; V315 verification pending
+
+V312 completes **230 Live selections**: every directed native pair separately on all five Sims, followed by extra Fairy → Vampire → Fairy return legs. Every existing appearance field and outfit row remains exact, as do all 155 named looks. Native category-9 outfit additions are retained and separately classified; this is not a claim of complete original-byte equality. Full CAS then retains all 195 captured records. Actual member clicks measure **631–749 ms** in this pass; the pair-panel update itself measures **1–2 ms**. The initial uncontended Live measurements improve to **1.47–2.04 seconds**, which still fails the speed goal.
+
+The original Spellcaster tattoo-link → hair-unlink case fails again: the no-change deep copy itself changes category traversal. Publication remains blocked. Normal CAS cancellation retains all forty complete appearances, and all twenty disk save files remain exact. The process is later observed absent before another exit-confirmation input; the exit cause is unqualified, and no input is replayed. Captured metadata is archived with the original bank preserved.
+
+V313's archive-directory batching passes **2,935 tests**; V314's complete-byte write acknowledgment and exact-type checks pass **2,942 tests**. These are combined in V315. The new native path preserves the destination's independent category-chain order after EA's head-insert copy/import, with every outfit payload unchanged. It validates the full map before linking any detached node, rejects source aliases/cycles/foreign categories and handles immutable empty buckets without writes. The original strict appearance comparator remains. All **19 native targets**, **26 seal tests** and **26 upgrade tests** pass. The next actual-game run must verify both the original failed pair operation and switching speed. Actual-save readiness and the other release gates remain open.

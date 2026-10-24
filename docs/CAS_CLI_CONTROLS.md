@@ -1,8 +1,12 @@
 # Native CAS CLI controls
 
-The requested final UI reuses EA's existing category checkbox panel. The current
-floating toolbar is interim whole-appearance control. Partial copy/link routing,
-pair-scoped preferences, added categories and selective undo are still open.
+The current candidate reuses EA's actual portrait link/copy buttons and category
+checkbox panel for independent Human/form pairs. Its exact Sim, owner pair,
+generation, selection, category mask and labels gate widget reuse. The V311
+panel update measures 0–1 ms after event delivery, while actual household-member
+clicks still take 605–1,023 ms. Full selective edit/Undo and persistence remain
+unqualified; V311 rejects Spellcaster tattoo-link → hair-unlink on unrelated
+outfit reordering. See Reports/FORM_SWITCH_RESPONSIVENESS_V311_V312.json.
 
 V204 actual-game qualification: every household member completes Alien ->
 Vampire -> Alien; linked no-edit refreshes retain every field of all 195 records;
@@ -614,3 +618,14 @@ The V199 native input candidate separates background move, down and up by
 after a viewport change and refuses replaced windows. The twelve native checks
 pass; the installed DLL completes native Resume and normal Exit through
 background window messages. Real CAS-grid selection remains a separate gate.
+
+## Background Live camera (observed 1278 × 1376 viewport)
+
+The existing background `game click` command can operate EA's camera dropdown
+without changing OS foreground. In the measured test viewport it opens at
+(1197, 21). The zoom track is at y=69, approximately x=1097–1230; clicking
+(1148, 69) zoomed out. Minus/plus are (1076, 69)/(1257, 69), and rotate controls
+are (1075, 105)/(1119, 105). Capture and inspect the current viewport first;
+these coordinates are observations, not a resolution-independent interface.
+A terrain click does not establish a route. Native Fairy Reveal was refused
+while swimming; do not call that failed enqueue a successful interaction.

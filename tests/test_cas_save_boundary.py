@@ -167,6 +167,23 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         self.finish_unchanged()
         self.assertFalse(gate.admission(self.backend)['locked'])
 
+    def test_repeated_strict_read_reuses_only_identical_whole_file_decisions(self):
+        self.game.begin()
+        bank._read(self.game.path)
+        prior=gate._READ_INDEX
+        with patch.object(bank,'_receipt_cache_key',side_effect=AssertionError('No historical encoding')):
+            bank._read(self.game.path)
+        self.assertEqual(gate._READ_INDEX['bank_sha256'],prior['bank_sha256'])
+        self.assertEqual(gate._READ_INDEX['by_save_guid'],prior['by_save_guid'])
+        self.assertEqual(gate._READ_INDEX['by_save_guid']['30'],('10',))
+
+    def test_changed_validator_invalidates_identical_file_index(self):
+        bank._read(self.game.path)
+        with patch.object(bank,'_blocked',return_value=True) as blocked:
+            bank._read(self.game.path)
+        self.assertTrue(blocked.called)
+        self.assertEqual(gate._READ_INDEX['by_save_guid']['30'],('10','99'))
+
     def test_external_atomic_replacement_invalidates_primed_index_even_with_restored_mtime(self):
         import os
         self.install();self.game.begin();pending=self.game.path.read_bytes()

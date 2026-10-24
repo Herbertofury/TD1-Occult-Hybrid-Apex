@@ -9,6 +9,7 @@
 #include "ApexCasPairAction.h"
 #include "ApexCasHouseholdWire.h"
 #include "ApexCasSelectiveAppearance.h"
+#include "ApexCasOutfitOrder.h"
 #include "ApexNativeOwnerMemory.h"
 #include "ApexNativeCasProbeWin.h"
 #include "ApexCasNativePipeWin.h"
@@ -43,6 +44,7 @@ using ProtoParseFn=bool(*)(void*,const ByteView*);
 using AlternateFn=std::uint32_t(*)(std::uint32_t,std::uint32_t);
 using NormalizeFn=std::uint32_t(*)(void*,bool);
 using AssignDataFn=void(*)(void*,const void*);
+using OutfitRehashFn=void(*)(void*,std::uint32_t);
 using ServiceFn=bool(*)(const void*);
 using StringValueFn=void(*)(void*,const char*);
 using BoolValueFn=void(*)(void*,bool);
@@ -93,7 +95,7 @@ struct Api {
     HistoryFn history=nullptr;ChangeFn change=nullptr;
     ProtoConstructFn protoConstruct=nullptr;DestroyFn protoDestroy=nullptr;ProtoParseFn protoParse=nullptr;
     AlternateFn alternate=nullptr;
-    NormalizeFn normalize=nullptr;AssignDataFn assignData=nullptr;MetaFn copySim=nullptr,assignSim=nullptr;
+    NormalizeFn normalize=nullptr;AssignDataFn assignData=nullptr;OutfitRehashFn outfitRehash=nullptr;MetaFn copySim=nullptr,assignSim=nullptr;
     ServiceFn service=nullptr,getOccultService=nullptr,saveAndExit=nullptr,cancelCas=nullptr;
     StringValueFn stringValue=nullptr;BoolValueFn boolValue=nullptr;
     HistoryFn controller=nullptr;AvatarFn avatar=nullptr;
@@ -207,7 +209,7 @@ inline std::string SerializeMessage(const Api& api,const void* proto) {
     return std::string(bytes.data(),static_cast<std::size_t>(size));
 }
 struct State;
-inline std::unique_ptr<NativeOwner> ReadAppearanceRecord(State&,std::uint64_t,std::uint32_t,std::uint32_t,const std::string&);
+inline std::unique_ptr<NativeOwner> ReadAppearanceRecord(State&,std::uint64_t,std::uint32_t,std::uint32_t,const std::string&,const NativeOwner* =nullptr);
 // Native undo contexts use consuming intrusive references. Own one reference
 // per exact form, independently of EA's (Sim, primary/alternate) map.
 struct NativeUndo {
@@ -637,6 +639,28 @@ inline void ObserveSelected(State& state,void* controller) {
         {"model_cache_present",Read<void*>(model,0x518)!=nullptr},
         {"model_avatar_present",Read<void*>(model,0x520)!=nullptr},
         {"source","native-cas-callback-observation"},{"observation_sequence",++state.observationSequence}};
+}
+inline void PreserveOutfitOrder(State& state,NativeOwner& target,const NativeOwner& source) {
+    if(&target==&source || target.data()==source.data() || !state.api.outfitRehash)
+        throw std::runtime_error("Outfit ordering requires two separate owned native appearances.");
+    const auto original=static_cast<const char*>(source.data())+0x188;
+    auto copied=const_cast<char*>(static_cast<const char*>(target.data())+0x188);
+    const auto count=Read<std::uint32_t>(original,0x10);
+    const auto rows=Read<std::uint32_t>(original,0x14);
+    if(!count || count>4096 || rows>14 || Read<std::uint32_t>(copied,0x14)!=rows)
+        throw std::runtime_error("Outfit category map exceeds its pinned detached-copy contract.");
+    if(!rows)return; // No writes to shared immutable empty bucket storage.
+    if(Read<std::uint32_t>(copied,0x10)!=count)state.api.outfitRehash(copied,count);
+    if(Read<std::uint32_t>(copied,0x10)!=count)
+        throw std::runtime_error("Native outfit rehash did not retain the source bucket count.");
+    auto before=Read<void* const*>(original,8);auto after=Read<void**>(copied,8);
+    Span(before,(static_cast<std::size_t>(count)+1)*8);Span(after,(static_cast<std::size_t>(count)+1)*8);
+    std::vector<void*> left(before,before+count),right(after,after+count);
+    outfitorder::Preserve(left,right,rows,Read<std::uint32_t>(copied,0x14),
+        [](void* node){return Read<std::uint32_t>(node);},
+        [](void* node){return Read<void*>(node,0x28);},
+        [](void* node,void* next){Span(node,0x30);std::memcpy(static_cast<char*>(node)+0x28,&next,8);},
+        [&](std::size_t bucket,void* node){after[bucket]=node;});
 }
 inline void Sync(void* controller) {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);
@@ -1422,7 +1446,18 @@ inline bool Capture(std::uint64_t id,const void* proto,bool sourceSeed) {
                 const auto merged=selective::MirrorRecord(selective::Merge(original,source,flags),destination);
                 const bool fur=(flags&(selective::Fur|selective::ClearFur))!=0;
                 const auto material=fur?selective::ReadFurMaterial(merged):selective::FurMaterial{};
-                auto result=ReadAppearanceRecord(state,id,destination,mask,merged);
+                return selective::VerifiedCopy(original,merged,[&] {
+                    auto result=std::make_unique<NativeOwner>(state.api,id);
+                    const DetachedTarget target(result->data());
+                    state.api.assignData(const_cast<void*>(result->data()),to->data());
+                    state.api.current(result->value,destination);
+                    PreserveOutfitOrder(state,*result,*to);
+                    if(Read<std::uint64_t>(result->value,0xb8)!=id || Read<std::uint32_t>(result->data(),8)!=destination ||
+                       Read<std::uint32_t>(result->data(),12)!=mask)
+                        throw std::runtime_error("Unchanged scoped appearance changed its exact native owner.");
+                    return result;
+                },[&] {
+                auto result=ReadAppearanceRecord(state,id,destination,mask,merged,to.get());
                 if(fur) {
                     if(!state.api.clearPelt || !state.api.addPelt || !state.api.customTexture)
                         throw std::runtime_error("The pinned fur material setters are unavailable.");
@@ -1433,11 +1468,8 @@ inline bool Capture(std::uint64_t id,const void* proto,bool sourceSeed) {
                         [&](std::uint64_t layer,std::uint32_t color){state.api.addPelt(result->value,layer,color);},
                         [&](std::uint64_t texture){state.api.customTexture(result->value,texture);});
                 }
-                const auto actual=SerializeOwner(state.api,*result,id);
-                if(!selective::Equivalent(merged,actual))
-                    throw std::runtime_error("Game readback changed appearance fields "+selective::DifferenceFields(merged,actual)+
-                        "; outfits "+selective::OutfitDifference(merged,actual)+"; scoped copy refused.");
                 return result;
+                },[&](const std::unique_ptr<NativeOwner>& result) {return SerializeOwner(state.api,*result,id);});
             });
         replacement.entryOwner=NativeOwnerId(activeKind);
         for(const auto& owner:replacement.owners) replacement.logicalOwners.emplace(owner.first,NativeOwnerId(owner.first));
@@ -2048,6 +2080,7 @@ inline void Install() {
         {0x342750,"cf506fb4d155e7069f24d9c29bcc62c1ed1da933ed21a50e270694fdba611dbc"},
         {0x3426c0,"23de49b683938982c4ea910bb245b66812f041cb7a5e27c7f8ff010dc4aa07d5"},
         {0x1b1c70,"2b226667354985830fd9d6f425b8558cd2cb133eb900bd254d771e0c5747d978"},
+        {0x1b2c60,"2b5b14549aecc6f2535c848b5652487d788277f59969b7f46888e99c5d274707"},
         {0x321c50,"ef90d19307dceb58d454d3d184f69a27c4e80033cebab3d888ac39a9a1f3bb95"},
         {0x322290,"76f877b1c8f9399463a8b827c77e7461eb67a70b39b02cf13b1e6526dc95182d"},
         {0x115d550,"a7f3744704b5db3be429762806413023a061779cc7aa9e2bf32e8c3a5143c722"},
@@ -2125,7 +2158,7 @@ inline void Install() {
     state.api.free=reinterpret_cast<FreeFn>(at(0xe5f4f0));state.api.treeDestroy=reinterpret_cast<TreeDestroyFn>(at(0x3ebd90));
     state.api.protoConstruct=reinterpret_cast<ProtoConstructFn>(at(0x60fac0));
     state.api.protoParse=reinterpret_cast<ProtoParseFn>(at(0x48af80));state.api.protoDestroy=reinterpret_cast<DestroyFn>(at(0x6115a0));
-    state.api.assignData=reinterpret_cast<AssignDataFn>(at(0x1b1c70));state.api.copySim=reinterpret_cast<MetaFn>(at(0x321c50));
+    state.api.assignData=reinterpret_cast<AssignDataFn>(at(0x1b1c70));state.api.outfitRehash=reinterpret_cast<OutfitRehashFn>(at(0x1b2c60));state.api.copySim=reinterpret_cast<MetaFn>(at(0x321c50));
     state.api.assignSim=reinterpret_cast<MetaFn>(at(0x322290));
     state.api.dispatchHousehold=reinterpret_cast<HouseholdDispatchFn>(at(0x115d550));state.api.treeNext=reinterpret_cast<TreeNextFn>(at(0x13dd8d0));
     state.api.prepareHousehold=PrepareHouseholdRoots;
@@ -2204,7 +2237,7 @@ inline std::string SeedAppearanceBytes(const ui::Json& request) {
     return bytes;
 }
 inline std::unique_ptr<NativeOwner> ReadAppearanceRecord(State& state,std::uint64_t id,std::uint32_t kind,
-                                                       std::uint32_t mask,const std::string& bytes) {
+                                                       std::uint32_t mask,const std::string& bytes,const NativeOwner* basis) {
     alignas(16) std::array<char,0x400> proto{};state.api.protoConstruct(proto.data());
     try {
         const ByteView view{bytes.data(),static_cast<std::uint64_t>(bytes.size())};
@@ -2230,11 +2263,21 @@ inline std::unique_ptr<NativeOwner> ReadAppearanceRecord(State& state,std::uint6
         if(!selectedRecord) throw std::runtime_error("The exact full appearance record is missing.");
         auto owner=std::make_unique<NativeOwner>(state.api,id);
         const DetachedTarget target(owner->data());
+        if(basis) {
+            if(Read<std::uint64_t>(basis->value,0xb8)!=id || Read<std::uint32_t>(basis->data(),8)!=kind ||
+               Read<std::uint32_t>(basis->data(),12)!=mask)
+                throw std::runtime_error("Scoped importer basis belongs to another Sim/form or membership.");
+            // Seed the independently owned destination, then retain its exact
+            // category chains after EA's clear/head-insert import below. The
+            // strict readback still includes every outfit and parallel array.
+            state.api.assignData(const_cast<void*>(owner->data()),basis->data());
+        }
         state.api.available(owner->value,mask);state.api.current(owner->value,kind);
         // The primary/null-record path regenerates genetics and omits Fairy
         // wings. The record path imports the complete supplied genetic payload.
         GeneticImportRequest genetic(selectedRecord);
         state.api.fields(owner->value,proto.data(),selectedRecord);
+        if(basis)PreserveOutfitOrder(state,*owner,*basis);
         state.geneticPartsRetained+=genetic.admitted;
         state.api.current(owner->value,kind);state.api.availableData(const_cast<void*>(owner->data()),mask);
         if(Read<std::uint64_t>(owner->value,0xb8)!=id || Read<std::uint32_t>(owner->data(),8)!=kind ||

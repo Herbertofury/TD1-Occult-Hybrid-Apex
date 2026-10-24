@@ -27,6 +27,7 @@ from pathlib import Path
 import threading
 import uuid
 from contextlib import contextmanager
+from collections import OrderedDict
 
 from . import cas_commit_plan as primitive
 from . import form_appearance as appearance
@@ -39,6 +40,8 @@ _ACTIVE = {}
 _CAPTURED = {}
 _WRITER_LEASES = {}
 _UNSPECIFIED = object()
+_COMPLETED_RECEIPTS = OrderedDict()
+_COMPLETED_RECEIPT_LIMIT = 32
 ACTION_NAMES = ('cas_bank_begin', 'cas_bank_observe', 'cas_bank_prepare',
                 'cas_bank_commit', 'cas_bank_status')
 
@@ -227,7 +230,8 @@ def atomic_save(path, data, expected_file_sha256=_UNSPECIFIED, _lease=None):
             not isinstance(data.get('records'), dict)):
         raise ValueError('Invalid form bank for shared atomic save.')
     raw = json.dumps(data, sort_keys=True, ensure_ascii=True, allow_nan=False).encode('utf-8')
-    _current, current_hash = _read(path)
+    _exact_json_tree(data)
+    current_hash = _write_revision(path)
     if expected_file_sha256 is _UNSPECIFIED:
         if current_hash is not None:
             raise ValueError('Existing bank writes require an exact read-bound file SHA; unspecified replacement is forbidden.')
@@ -245,10 +249,65 @@ def atomic_save(path, data, expected_file_sha256=_UNSPECIFIED, _lease=None):
     # Participating writers cannot enter this interval. An external tool that
     # ignores the lease remains outside this compare-and-swap contract.
     os.replace(str(pending), str(path))
-    observed, _observed_hash = _read(path)
-    if observed != data:
+    before = path.stat()
+    observed = path.read_bytes()
+    after = path.stat()
+    if observed != raw or _file_stamp(before) != _file_stamp(after):
         raise ValueError('Shared atomic save failed complete JSON readback.')
-    return {'durable': True, 'file_sha256': hashlib.sha256(raw).hexdigest()}
+    file_hash = hashlib.sha256(raw).hexdigest()
+    from . import cas_save_boundary
+    cas_save_boundary.remember_read(path, data, file_hash, _file_stamp(after))
+    return {'durable': True, 'file_sha256': file_hash}
+
+
+def _file_stamp(info):
+    return info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino
+
+
+def _exact_json_tree(data):
+    """Reject lossy encoder coercions before replacing any durable originals.
+
+    Exact encoded-byte readback is stronger than reparsing and Python equality,
+    provided every container/key/scalar already has its exact JSON type. The
+    root alone may carry AtomicBankDocument's out-of-band revision attributes.
+    JSON encoding above also rejects cycles and nonfinite numbers.
+    """
+    stack = [data]
+    while stack:
+        value = stack.pop(); kind = type(value)
+        if kind is dict or value is data and isinstance(value, AtomicBankDocument):
+            if any(type(key) is not str for key in value):
+                raise ValueError('Shared atomic save requires exact JSON string keys.')
+            stack.extend(value.values())
+        elif kind is list:
+            stack.extend(value)
+        elif kind not in (str, int, bool, float, type(None)):
+            raise ValueError('Shared atomic save requires exact JSON container and scalar types.')
+
+
+def _write_revision(path):
+    """Read/hash all existing bytes under the lease, without redundant parsing.
+
+    Reuse schema validation only for the exact SHA of a previously fully parsed
+    file at this same path. A different or unknown revision still passes the
+    complete strict reader. Stamps alone never establish byte identity.
+    """
+    if not path.exists():
+        return None
+    if not path.is_file():
+        raise ValueError('Form bank is not a regular file.')
+    before = path.stat(); raw = path.read_bytes(); after = path.stat()
+    if _file_stamp(before) != _file_stamp(after):
+        raise ValueError('Bank revision changed during the complete pre-write read.')
+    digest = hashlib.sha256(raw).hexdigest()
+    from . import cas_save_boundary
+    index = cas_save_boundary._READ_INDEX
+    if isinstance(index, dict) and index.get('path') == str(path) and index.get('bank_sha256') == digest:
+        return digest
+    _value, validated = _read(path)
+    if validated != digest:
+        raise ValueError('Bank revision changed during strict pre-write validation.')
+    return validated
 
 
 def _context(backend, sim, fresh=True):
@@ -291,7 +350,86 @@ def _native_context_envelope(transaction, envelope):
     return envelope
 
 
+def _receipt_cache_key(transaction):
+    # Only exact JSON types may share a canonical key. In particular, a tuple
+    # and a list encode alike but can have different validation outcomes.
+    stack, count = [transaction], 0
+    while stack:
+        value = stack.pop(); count += 1
+        if count > 100000:
+            return None
+        kind = type(value)
+        if kind is dict:
+            if any(type(key) is not str for key in value):
+                return None
+            stack.extend(value.values())
+        elif kind is list:
+            stack.extend(value)
+        elif kind not in (str, int, bool, float, type(None)) or kind is float and not math.isfinite(value):
+            return None
+    raw = json.dumps(transaction, sort_keys=True, ensure_ascii=True, allow_nan=False).encode('ascii')
+    return hashlib.sha256(raw).digest() if len(raw) <= 4 * 1024 * 1024 else None
+
+
 def _completed(transaction):
+    """Memoize pure historical validation; never authorize an appearance write.
+
+    The private snapshot includes identity, unknown fields, native returns and
+    all before/after payloads. Compare exact JSON types and values on every hit;
+    do not encode and hash megabytes of unchanged historical payloads again.
+    Pending/switch checks still run first. This grants no appearance authority.
+    """
+    with _LOCK:
+        token = transaction.get('transaction_id') if type(transaction) is dict else None
+        key = (token, _completed_uncached, appearance.fingerprint, primitive.digest,
+               _native_context_envelope, _verify_context_final) if _token(token) else None
+        cached = _COMPLETED_RECEIPTS.get(key) if key is not None else None
+        if cached is not None and _same_json_receipt(transaction, cached):
+            _COMPLETED_RECEIPTS.move_to_end(key)
+            return True
+        result = _completed_uncached(transaction)
+        if result and key is not None:
+            try:
+                eligible = _receipt_cache_key(transaction) is not None
+            except (ValueError, TypeError, OverflowError, RecursionError):
+                eligible = False
+            if not eligible:
+                return result
+            _COMPLETED_RECEIPTS[key] = copy.deepcopy(transaction)
+            while len(_COMPLETED_RECEIPTS) > _COMPLETED_RECEIPT_LIMIT:
+                _COMPLETED_RECEIPTS.popitem(last=False)
+        return result
+
+
+def _same_json_receipt(value, snapshot):
+    """Complete typed comparison against receiver-owned, validated JSON only.
+
+    Python's ordinary equality conflates bool/int and tuple/list serialization
+    can collide. Neither may inherit historical validation. Never retain a
+    caller's mutable containers or trust object identity as a revision.
+    """
+    stack, count = [(value, snapshot)], 0
+    while stack:
+        left, right = stack.pop(); count += 1
+        if count > 100000 or type(left) is not type(right):
+            return False
+        kind = type(left)
+        if kind is dict:
+            if (len(left) != len(right) or any(type(key) is not str for key in left) or
+                    left.keys() != right.keys()):
+                return False
+            stack.extend((row, right[key]) for key, row in left.items())
+        elif kind is list:
+            if len(left) != len(right):
+                return False
+            stack.extend(zip(left, right))
+        elif (kind not in (str, int, bool, float, type(None)) or left != right or
+                kind is float and left.hex() != right.hex()):
+            return False
+    return True
+
+
+def _completed_uncached(transaction):
     """Validate a complete OWNED historical receipt before opening the gate.
 
     Subsequent legitimate edits may change the current bank; those edits do not

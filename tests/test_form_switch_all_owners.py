@@ -151,6 +151,18 @@ class FormSwitchAllOwnerTests(unittest.TestCase):
         self.assertEqual(history['active_original'], self.original_live)
         self.assertEqual(history['request_id'], result['switch_request_id'])
 
+    def test_native_call_starts_only_after_complete_durable_submission_and_planned_owners(self):
+        def native():
+            pending=self.record()['switch_pending']
+            self.assertEqual(pending['state'],'native-operation-issued')
+            self.assertTrue(pending['native_operation_attempted'])
+            self.assertEqual(pending['stored_originals'],self.original_stored)
+            self.assertEqual(pending['active_original'],self.original_live)
+            self.assertEqual(pending['desired_stored'],self.expected)
+            self.assertIn('hair_policy_plan',pending)
+            return self.operation(corrupt_source=True)
+        self.invoke(native);self.assert_all();self.assertEqual(self.operation_calls,1)
+
 
     def test_untouched_fresh_native_owner_does_not_replay_old_bank(self):
         self.forms[8].physique = 'new native Mermaid since previous bank commit'
@@ -289,7 +301,7 @@ class FormSwitchAllOwnerTests(unittest.TestCase):
         count = [0]
         def save(path, data):
             count[0] += 1
-            if count[0] == 6:
+            if data['records'][self.key]['switch_pending'] is None:
                 raise OSError('fixture completion metadata storage failure')
             return real_save(path, data)
         with patch.object(form_bank, 'save', side_effect=save):
@@ -557,7 +569,7 @@ class EnabledHairSwitchTests(unittest.TestCase):
         real_save, count = form_bank.save, [0]
         def failing(path, data):
             count[0] += 1
-            if count[0] == 6:
+            if data['records'][self.key]['switch_pending'] is None:
                 raise OSError('fixture completion storage failed')
             return real_save(path, data)
         with patch.object(form_bank, 'save', side_effect=failing):

@@ -47,19 +47,35 @@ def inject(source):
                mSelectedRandomizeFlags[1<<apexBit]=(apexFlags&(1<<apexBit))!=0;
             for each(var apexItem:MenuItem in this.mCopyFilters)
                mSelectedRandomizeFlags[apexItem.data.flags]=(apexFlags&uint(apexItem.data.flags))==uint(apexItem.data.flags);
-            this.ApplyFilter(this.mCopyFilters,true,true);
-            this.SetRandomizationFlagsToFeed();this.RefreshBackground();
+            // Both native eligibility arguments were true here. ApplyFilter
+            // removes the list and adds every checkbox separately. Keep the
+            // exact existing feed, or publish the complete eligible list once.
+            var apexFeedReady:Boolean=mDataFeed.length===this.mCopyFilters.length;
+            for(var apexRow:int=0;apexFeedReady && apexRow<this.mCopyFilters.length;++apexRow)
+               if(mDataFeed.RequestItemAt(apexRow)!==this.mCopyFilters[apexRow]) apexFeedReady=false;
+            if(!apexFeedReady) {
+               mDataFeed.RemoveAllItems();mDataFeed.AddItemsFromIterable(this.mCopyFilters);
+            }
+            for(apexRow=0;apexRow<this.mCopyFilters.length;++apexRow) {
+               var apexChecked:Boolean=Boolean(mSelectedRandomizeFlags[this.mCopyFilters[apexRow].data.flags]);
+               if(Boolean(mDataFeed.GetSelectionState(apexRow))!==apexChecked)
+                  mDataFeed.SetSelectionState(apexRow,apexChecked);
+            }
+            this.RefreshBackground();
             this.SetCopyMode(!Boolean(apexPair.linked));
             this.btnCopy.TooltipExt.Text="Copy "+apexPair.source_label+" to "+apexPair.target_label+". Only checked details are copied; other forms and Sims stay separate.";
             this.btnLink.TooltipExt.Text="Link or unlink "+apexPair.source_label+" and "+apexPair.target_label+". Only checked details follow later edits. Linking keeps both current appearances.";
             this.visible=true;return;
          }
-         delete this.mCopyModeData["apexPair"];delete this.mCopyModeData["apexFilterCatalog"];
+         delete this.mCopyModeData["apexPair"];
          var apexMask:int=int(param1.sim_layers[0].allOccultTypes)&~1;
          if(apexPair!=null && apexPair.blocked===true || (apexMask&(apexMask-1))!=0 ||
             apexMask==0 && param1.sim_layers.length>1) {
             this.visible=false;return;
          }
+         // Ordinary EA state may rebuild its filters. A briefly blocked hybrid
+         // only hides the controls, retaining the read-only category catalogue.
+         delete this.mCopyModeData["apexFilterCatalog"];
 ''')
     source = prepend(source, 'SetOccultData', '''
          // Native labels and directional tooltips are supplied from the exact

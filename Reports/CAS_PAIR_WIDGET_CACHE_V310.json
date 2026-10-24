@@ -196,13 +196,18 @@
     "full_python_seconds": 553.916
   },
   "expanded_household_matrix": {
-    "status": "running",
+    "status": "passed",
     "planned_selections": 355,
     "native_directed_pairs_per_member": 42,
     "household_members": 5,
     "exposed_forms_per_member": 20,
     "includes_fairy_alternate_and_human_cc_werewolf_regression_legs": true,
-    "full_visual_qualification": false
+    "full_visual_qualification": false,
+    "selections": 355,
+    "directed_pairs_total": 210,
+    "all195_complete_fields_unchanged": true,
+    "all20_save_files_unchanged": true,
+    "comparison_scope": "Exact complete appearance field fingerprints; actual native owner/rendering kind and EA panel checks. Special-form meshes, shaders and animations remain unqualified."
   },
   "open_gates": [
     "Actual member presentation remains above the 250 ms target; no universal 0-1 ms claim.",

@@ -768,10 +768,16 @@ def switch(backend, sim, target, operation):
         pending['hair_policy_synchronized'] = False
         _switch_check_identity(backend, sim, tracker, owners, owner_ids, location, manager)
         pending['state'] = 'native-operation-armed'
-        save(path, data)
         pending['state'] = 'native-operation-issued'
         pending['native_operation_attempted'] = True
-        save(path, data)  # Durable submission intent; a crash cannot report an unarmed/no-attempt state.
+        try:
+            save(path, data)  # Durable intent precedes the one native call.
+        except Exception:
+            # This control path has not called native code. A lost storage ACK
+            # may still leave the issued WAL on disk; it continues blocking
+            # replay. Retained in-process diagnostics can state no call ran.
+            pending['native_operation_attempted'] = False
+            raise
         result = operation()  # Exactly one call. Subsequent calls encounter WAL.
         if not isinstance(result, dict) or type(result.get('ok')) is not bool:
             raise ValueError('Native switch outcome is untyped; retain unresolved original request.')
@@ -785,7 +791,9 @@ def switch(backend, sim, target, operation):
         pending['state'] = 'reconciling-existing-owners'
         pending['native_returned_stored'] = _switch_snapshots(backend, owners)
         pending['native_returned_active'] = appearance.packed(backend, sim)
-        save(path, data)
+        # The durable issued record already holds every original and intended
+        # owner. Keep observations in memory until completion or the failure
+        # writer; a crash must remain unresolved, never infer native success.
 
         def write_if_changed(owner, fields, active=False):
             _switch_check_identity(backend, sim, tracker, owners, owner_ids, location, manager)
@@ -817,7 +825,8 @@ def switch(backend, sim, target, operation):
         pending['verified_stored_hashes'] = _switch_hashes(final_stored)
         pending['verified_active_hash'] = appearance.fingerprint(final_active)['appearance_sha256']
         pending['state'] = 'immediate-native-readback-verified'
-        save(path, data)
+        # Publish the full verified receipt together with its final metadata.
+        # No native mutation occurs between this check and that atomic commit.
         record['bank'] = copy.deepcopy(expected)
         if desired_hair_policy is not None:
             record['hair_policy'] = copy.deepcopy(desired_hair_policy)

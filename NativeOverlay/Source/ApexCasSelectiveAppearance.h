@@ -385,4 +385,18 @@ inline std::string OutfitDifference(const std::string& expected,const std::strin
     }
     return result;
 }
+template<class Clone,class Import,class Serialize>
+inline auto VerifiedCopy(const std::string& original,const std::string& merged,
+                         Clone clone,Import import,Serialize serialize) {
+    // An unchanged category must remain a deep copy of its destination. EA's
+    // full record importer can reorder unrelated outfits even for an empty
+    // tattoo link. Do not run that importer when there is no appearance edit.
+    // Changed categories still use the complete import and strict readback.
+    auto result=Equivalent(original,merged)?clone():import();
+    const auto actual=serialize(result);
+    if(!Equivalent(merged,actual))
+        throw std::runtime_error("Game readback changed appearance fields "+DifferenceFields(merged,actual)+
+            "; outfits "+OutfitDifference(merged,actual)+"; scoped copy refused.");
+    return result;
+}
 } // namespace td1::nativecas::selective

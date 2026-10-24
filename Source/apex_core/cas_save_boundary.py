@@ -69,6 +69,7 @@ def remember_read(path, data, file_hash, stamp):
     Admission still checks the path, current save, writer lease and file stamp.
     """
     global _READ_INDEX
+    previous = _READ_INDEX
     _READ_INDEX = None
     try:
         if (not isinstance(file_hash, str) or len(file_hash) != 64 or
@@ -77,6 +78,17 @@ def remember_read(path, data, file_hash, stamp):
                 not isinstance(data.get('records'), dict) or len(data['records']) > 20000 or
                 not isinstance(stamp, tuple) or len(stamp) != 4 or not 0 < stamp[0] <= MAX_BANK):
             return False
+        # This SHA comes from the bank reader's complete, strictly parsed bytes,
+        # not from mtime or a caller's modified mapping. Identical whole-file
+        # content has identical lock decisions; refresh only its observed stamp.
+        # Validator replacement invalidates reuse, including diagnostic patches.
+        validator = (bank._blocked, bank._completed, bank._completed_uncached,
+                     bank.appearance.fingerprint, bank.primitive.digest,
+                     bank._native_context_envelope, bank._verify_context_final)
+        if (isinstance(previous, dict) and previous.get('path') == str(path) and
+                previous.get('bank_sha256') == file_hash and previous.get('validator') == validator):
+            _READ_INDEX = dict(previous, stamp=stamp)
+            return True
         decisions = {}
         hair_enabled = set()
         for owner_key, record in data['records'].items():
@@ -89,7 +101,7 @@ def remember_read(path, data, file_hash, stamp):
             policy = record.get('hair_policy', {})
             if isinstance(policy, dict) and policy.get('enabled') is True:
                 hair_enabled.add(owner_key)
-        _READ_INDEX = dict(path=str(path), stamp=stamp, bank_sha256=file_hash,
+        _READ_INDEX = dict(path=str(path), stamp=stamp, bank_sha256=file_hash, validator=validator,
             hair_enabled=frozenset(hair_enabled),
             by_save_guid={guid: tuple(sorted(pending, key=int)) for guid, pending in decisions.items()})
         return True

@@ -1,0 +1,114 @@
+{
+  "active_native_calls": {
+    "active_call_dll_hash_or_ctypes_rebinding": false,
+    "caller_archive_identity_checked": true,
+    "explicit_start_rechecks_disk_manifest_and_refuses_hot_relabelling": true,
+    "fixed_engine_export_bound_once_to_authenticated_loaded_handle": true,
+    "mapped_instruction_tamper_detection_claimed": false,
+    "measured_player_latency_improvement": false,
+    "scope_sim_owner_generation_checks_retained": true
+  },
+  "actual_runtime": {
+    "account_correct_cli_launch_passed": true,
+    "all40_native_fields_retained_after_upgrade": true,
+    "all_saved_files_unchanged": true,
+    "automatic_entry_without_research_arm_qualified": false,
+    "cas_entry_submitted": false,
+    "installed": true,
+    "named_metadata_admission_passed": false,
+    "native_restore_requested": false,
+    "portrait_input_and_responsiveness_qualified": false,
+    "rejection": "V261 script is absent from the reviewed metadata-only predecessor list; saved looks retained without native writes.",
+    "repeated_retirement_and_fresh_entry_qualified": false
+  },
+  "build_verified": true,
+  "candidate_epoch": "2026-10-21-player-entry-cached-rpc-v262",
+  "candidate_sha256": "9397728888053a55a5b16dc2777024e2f1de674eae19eb7cd8ab324c32b10bd2",
+  "checks": {
+    "compiled_python37_modules": 105,
+    "complete_native_proxy_build_passed": true,
+    "focused_python_tests_passed": 80,
+    "frozen_recovery_tests_passed": 52,
+    "full_python_regression_pending": true,
+    "packages": 7,
+    "pre_freeze_full_run": {
+      "affected_module_rerun_after_final_freeze_passed": true,
+      "all_failures_module": "test_script_upgrade_migration",
+      "errors": 13,
+      "failures": 4,
+      "new_full_ci_pending": true,
+      "reason": "Changed recovery sources still had the previous frozen module hashes. No candidate installed from that source state.",
+      "tests": 2797
+    },
+    "private_python37_native_abi_and_packaged_loader_passed": true,
+    "rebuilt_native_targets_passed": 15,
+    "recovery_epoch_freeze_and_bundle_pending": false,
+    "rust_validated_resources": 210
+  },
+  "dll_sha256": "c88ff1e3c8807dbd8f5fd1f0c48025ca1f7f30854af04bfed84d98bbe7d6391d",
+  "matching_v263_runtime": {
+    "all195_first_entry_fields_retained": true,
+    "all195_second_entry_fields_retained": true,
+    "all40_after_disposition_retained": true,
+    "all40_and155_named_after_upgrade_qualified": true,
+    "all40_direct_live_before_disposition_retained": true,
+    "all_saved_files_unchanged": true,
+    "evidence_sha256": {
+      "all195_second_export": "ae301caa060756e97ddc0f4a3ccfb1851d0d844511c4b57aee1b73fcef29f605",
+      "automatic_entry": "9892dbf207f3dec35def0fe780d4abd7506e8e2d34101ee12590f9739ef6b65f",
+      "return_retirement_reentry": "7bd1bb33e75539fbc76533bf296ff27212d6c5e313a3447578961d4f87431402",
+      "upgrade_live": "2e1f59edd70aa0812bda53bd89f13a7243a00f94a306f21251cdfbdb113eb65a"
+    },
+    "first_native_scope_retired": true,
+    "fresh_scope_same_process_and_household": true,
+    "installed": true,
+    "manual_arm_submitted": false,
+    "matching_script_bridge_observed": true,
+    "named_documents_155_exact_before_and_after_return": true,
+    "native_restore_requested": false,
+    "normal_acceptance_replayed": false,
+    "normal_automatic_cas_entry_qualified": true,
+    "other_household_roster_runtime_qualified": false,
+    "player_responsiveness_qualified": false,
+    "qualification_scope": "Reviewed saved-name upgrade and same-household automatic-entry/return/retirement/reentry only",
+    "qualified": true
+  },
+  "normal_entry": {
+    "active_partial_or_foreign_scope_replacement_refused": true,
+    "entry_scope_protocol": 1,
+    "exact_live_memberships_and_captured_owner_roster_required": true,
+    "fresh_complete_household_checkpoints_precede_arm": true,
+    "malformed_or_partial_native_installation_not_silently_disabled": true,
+    "manual_research_arm_required": false,
+    "matching_optional_sidecar_autostart_respected": true,
+    "new_scope_id_after_verified_retirement": true,
+    "retired_scope_cannot_reuse_its_identity_or_seed_old_commands": true,
+    "retirement_requires_completed_member_generations_and_released_native_transport": true,
+    "script_only_installation_retains_guard": true
+  },
+  "problem": "Complete native owner import previously required a research CLI arm operation. A retired engine also retained its former scope, preventing a fresh household session.",
+  "production_ready": false,
+  "quiet_member_input_v263": {
+    "all195_fields_retained": true,
+    "desktop_focus_unchanged": true,
+    "full_click_to_controls_measured": false,
+    "notification_to_controls_ms": [
+      1066,
+      1166
+    ],
+    "report": "CAS_MEMBER_QUIET_V263.json",
+    "responsiveness_target_met": false,
+    "two_switches_verified": true
+  },
+  "recovery_self_body_sha256": "267e66d453b4359ca96a7876b1f9a7d10bbdc660f08d8e95610a2fe26d9e5b19",
+  "remaining": [
+    "V263 reviews the exact V261 named-metadata producer before retrying automatic CAS entry. No native restore authority is granted.",
+    "Qualify the matching candidate in the real five-member household without manual research arming, preserving every captured field.",
+    "Verify actual return, completed retirement and a fresh same-process CAS session with a different scope identity.",
+    "Finish mixed ordinary/single-occult companions, all-Human/new-Sim main-menu CAS and cancellation paths; the current complete-checkpoint path is not universal coverage.",
+    "Measure real UI responsiveness without semantic status requests contaminating the bootstrap interval; fix unreliable background portrait delivery.",
+    "Finish native Filter Items search, full Tray/Gallery, all requested categories/forms/edit routes and the other release gates."
+  ],
+  "schema": 1,
+  "script_sha256": "24ad10991aedf74f42d3bb5cb521ad77ed97765c62380e8861c2cca4dd3050ab"
+}

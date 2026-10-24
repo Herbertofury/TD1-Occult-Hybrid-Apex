@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "index_sha256": "495fa44749a8ade5f1a49883a95e7b63c0943540e17e8b94632a4f343025929f",
+  "schema": 5,
+  "source_packages": 5,
+  "parts": 62,
+  "families": 5,
+  "native_winhttp_worker": true,
+  "native_probe_sha256": "605574f03c9a1e8f714546cb494e97cbf7adca8927574e38db12b51510326f70",
+  "query": {
+    "text": "lipstik",
+    "body_type": 29,
+    "origin": "mod",
+    "name_mode": "preferred",
+    "offset": 0,
+    "limit": 24,
+    "view": "all",
+    "author": "Magic Hand",
+    "sort": "name",
+    "grouped": true,
+    "fuzzy": true
+  },
+  "total": 1,
+  "search_mode": "fuzzy",
+  "corrections": [
+    {
+      "matched_prefixes": [
+        "lipsti"
+      ],
+      "suggestions": [
+        "lipstick"
+      ],
+      "typed": "lipstik"
+    }
+  ],
+  "matched_package": "[Magic Hand] Lipstick N91.package",
+  "swatches": 30,
+  "host_paths_disclosed": false,
+  "game_contacted": false,
+  "game_search_ui_verified": false,
+  "production_ready": false,
+  "native_worker_elapsed_ms": 1.323,
+  "metadata_query_elapsed_ms": 0.406,
+  "source_result_sha256": "bb112b3fbe8de194165764403d615cf0a991eb0d52ac73d88809184b6bf2341b"
+}

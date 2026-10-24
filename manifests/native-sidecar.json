@@ -1,0 +1,41 @@
+{
+  "bytes": 4781568,
+  "file": "ApexOverlay.dll",
+  "game_files_modified": false,
+  "game_runtime_verified": false,
+  "minhook": {
+    "commit": "c3fcafdc10146beb5919319d0683e44e3c30d537",
+    "license": "BSD-2-Clause",
+    "repository": "https://github.com/TsudaKageyu/minhook",
+    "tag": "v1.3.4"
+  },
+  "production_loader_checks": {
+    "explicit_extension_loader": true,
+    "game_files_modified": false,
+    "game_started": false,
+    "packaged_python37_import": true,
+    "production_loader_host_rejected": true,
+    "pure_ctypes_absent": true
+  },
+  "protocol": 1,
+  "python37_export_checks": {
+    "ApexCaptureCompleted": 0,
+    "ApexCaptureFull": -1,
+    "ApexCaptureOverlay": -1,
+    "ApexGameCursorX": -1,
+    "ApexGameCursorY": -1,
+    "ApexGameInputState": 0,
+    "ApexGameInputVersion": 2,
+    "ApexOverlayHide": -1,
+    "ApexOverlayProtocolVersion": 1,
+    "ApexOverlayRenderedFrames": 0,
+    "ApexOverlayShow": -1,
+    "ApexOverlayStart": -1,
+    "ApexOverlayStatus": 0,
+    "ApexOverlayToggleEvents": 0,
+    "ApexOverlayVisible": 0
+  },
+  "schema": 1,
+  "sha256": "14a18dcd15273fe6cb6301bb0d80581be8fd3b2d746f65da49bfe9d07a058624",
+  "verified_script_sha256": "e13143c4a6fe72d33ba16ab133c4d44b81c5981a6c45c0fc120a8ca084b6025b"
+}

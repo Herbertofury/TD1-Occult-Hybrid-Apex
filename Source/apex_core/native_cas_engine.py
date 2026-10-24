@@ -1,0 +1,717 @@
+"""Typed development controls for the native existing-owner selection patch."""
+import os
+import copy
+import uuid
+
+_LAYOUT_SCOPE = None  # Fresh pre-entry representations, never prior appearance values.
+
+
+def _entry_scope(backend, call, status, household):
+    """Arm the normal player frontdoor from its live, captured household.
+
+    A fresh/retired engine receives a new identity. An explicitly pre-armed
+    development scope is reusable only before import and for this exact roster.
+    No research command, test token, or remembered appearance grants ownership.
+    """
+    from . import cas_bank_transaction
+    members = list(household.sim_info_gen())
+    if not 1 <= len(members) <= 8 or len({sim.id for sim in members}) != len(members):
+        raise ValueError('Native CAS entry needs the complete unique live household.')
+    rows, checkpoints = [], {}
+    for sim in members:
+        sid = str(sim.id)
+        forms = backend._form_map(sim.occult_tracker)
+        current = backend._get_current_flags(sim)
+        if (not _identity(sid) or sim.household_id != household.id or
+                not isinstance(forms, dict) or 1 not in forms or current not in forms or
+                any(isinstance(kind, bool) or not isinstance(kind, int) or
+                    int(kind) not in (1,2,4,8,16,32,64) for kind in forms)):
+            raise ValueError('Native CAS entry member has incomplete captured appearance owners.')
+        available = backend._get_occult_flags(sim)
+        if type(available) is not int or not 0 <= available <= 127:
+            raise ValueError('Native CAS entry memberships are untyped or unsupported.')
+        mask = available | 1
+        if mask != sum(int(kind) for kind in forms):
+            raise ValueError('Native CAS memberships differ from the complete captured appearance roster.')
+        if type(current) is not int or current not in (1,2,4,8,16,32,64):
+            raise ValueError('Native CAS entry member has no exact current appearance.')
+        checkpoint = cas_bank_transaction.status(backend, sim)
+        epoch = checkpoint.get('expected_pending_sha256')
+        if checkpoint.get('phase') != 'captured' or not cas_bank_transaction.primitive._hash(epoch):
+            raise ValueError('Every native CAS entry member needs its fresh captured transaction.')
+        checkpoints[sid] = epoch
+        rows.append(dict(sim_id=sid, owned_mask=mask))
+    rows.sort(key=lambda row: int(row['sim_id']))
+    if status.get('ok') is not True or type(status.get('armed')) is not bool:
+        raise ValueError('Native CAS entry engine readiness is unverified.')
+    if type(status.get('entry_scope_protocol')) is not int or status['entry_scope_protocol'] != 1:
+        raise ValueError('The installed native CAS engine lacks the matching automatic-entry scope protocol.')
+    retired = status.get('scope_retired', False)
+    if (type(retired) is not bool or type(status.get('selection_enabled')) is not bool or
+            not status['armed'] and (retired or status['selection_enabled'] or status.get('members') != []) or
+            retired and status['selection_enabled']):
+        raise ValueError('Native CAS entry retirement state is untyped.')
+    if status['armed'] and not retired:
+        observed = sorted((dict(sim_id=row['sim_id'], owned_mask=row['owned_mask'])
+                           for row in status.get('members', ())), key=lambda row: int(row['sim_id']))
+        if (observed != rows or status.get('selection_enabled') is True or
+                any(row.get('imported_mask') != 0 for row in status['members'])):
+            raise ValueError('An active or partially imported native CAS scope cannot be replaced.')
+        scope = status.get('scope_id')
+        argument(dict(operation='arm', scope_id=scope, members=rows))
+    else:
+        request = dict(operation='arm', scope_id=uuid.uuid4().hex, members=rows)
+        argument(request)
+        status = call(request)
+        if (status.get('ok') is not True or status.get('armed') is not True or
+                status.get('scope_id') != request['scope_id'] or
+                status.get('entry_scope_protocol') != 1 or
+                status.get('selection_enabled') is not False or
+                status.get('scope_retired', False) is not False or
+                sorted((dict(sim_id=row['sim_id'], owned_mask=row['owned_mask'])
+                        for row in status.get('members', ())), key=lambda row: int(row['sim_id'])) != rows or
+                any(row.get('imported_mask') != 0 for row in status['members'])):
+            raise ValueError('Automatic native CAS scope did not acknowledge its exact fresh roster.')
+    return status, checkpoints
+
+
+def _identity(value):
+    return (isinstance(value, str) and 1 <= len(value) <= 20 and value.isascii() and
+            value.isdecimal() and value[0] != '0' and int(value) <= 0xffffffffffffffff)
+
+
+def argument(value):
+    if not isinstance(value, dict):
+        raise ValueError('Use a typed native CAS engine operation.')
+    operation = value.get('operation')
+    if operation in ('status', 'view-status') and set(value) == {'operation'}:
+        return
+    scope = value.get('scope_id')
+    if not isinstance(scope, str) or len(scope) != 32 or any(c not in '0123456789abcdef' for c in scope):
+        raise ValueError('Use the exact native form scope identity.')
+    if operation == 'activate' and set(value) == {'operation', 'scope_id'}:
+        return
+    if operation == 'menu-stage' and set(value) == {'operation','scope_id','sim_id','pages'}:
+        if (not _identity(value['sim_id']) or not isinstance(value['pages'],list) or not 1<=len(value['pages'])<=64 or
+                any(not isinstance(page,str) or not 0<len(page)<=131072 or
+                    any(ord(c)<32 or ord(c)>126 for c in page) for page in value['pages']) or
+                sum(len(page) for page in value['pages'])>2*1024*1024):
+            raise ValueError('Stage bounded escaped menu data for one exact pre-entry member.')
+        return
+    if operation == 'genetic-trace' and set(value) == {'operation', 'scope_id', 'enabled'}:
+        if type(value['enabled']) is not bool:
+            raise ValueError('Native genetics tracing requires an explicit boolean.')
+        return
+    if operation == 'entry-ready' and set(value) == {'operation', 'scope_id', 'sim_id'} and _identity(value['sim_id']):
+        return
+    if operation == 'export-owner-page' and set(value) == {'operation','scope_id','sim_id','expected_generation','after_owner_id'}:
+        from .cas_owner_export_page import OWNER
+        if (not _identity(value['sim_id']) or type(value['expected_generation']) is not int or
+                not 0<value['expected_generation']<2**64 or not isinstance(value['after_owner_id'],str) or
+                value['after_owner_id'] and OWNER.fullmatch(value['after_owner_id']) is None):
+            raise ValueError('Export one bounded page of the exact committed owner graph.')
+        return
+    if operation == 'export-owner' and set(value) == {'operation','scope_id','sim_id','owner_id','expected_generation'}:
+        import re
+        if (not _identity(value['sim_id']) or not isinstance(value['owner_id'],str) or
+                re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',value['owner_id']) is None or
+                type(value['expected_generation']) is not int or not 0<value['expected_generation']<2**64):
+            raise ValueError('Snapshot one existing exact appearance owner and graph generation.')
+        return
+    if operation == 'stage-view' and set(value) == {'operation', 'scope_id', 'sim_id', 'request_id',
+            'expected_owner_id', 'owner_id', 'expected_generation', 'expected_layer'}:
+        import re
+        pattern = r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}'
+        if (not _identity(value['sim_id']) or not isinstance(value['request_id'], str) or
+                re.fullmatch(r'[0-9a-f]{32}', value['request_id']) is None or
+                any(not isinstance(value[name], str) or re.fullmatch(pattern, value[name]) is None
+                    for name in ('expected_owner_id', 'owner_id')) or
+                type(value['expected_generation']) is not int or not 0 < value['expected_generation'] < 2**64 or
+                type(value['expected_layer']) is not int or value['expected_layer'] not in (0, 1)):
+            raise ValueError('Use an exact existing form owner, generation and one-shot view identity.')
+        return
+    if operation == 'seed' and set(value) == {'operation', 'scope_id', 'sim_id', 'native_hex', 'sha256'}:
+        encoded, digest = value['native_hex'], value['sha256']
+        if (not _identity(value['sim_id']) or not isinstance(encoded, str) or not 0 < len(encoded) <= 8*1024*1024 or
+                len(encoded) % 2 or any(c not in '0123456789abcdef' for c in encoded) or
+                not isinstance(digest, str) or len(digest) != 64 or any(c not in '0123456789abcdef' for c in digest)):
+            raise ValueError('Native full-owner import requires exact bounded serialized bytes.')
+        import hashlib
+        if hashlib.sha256(bytes.fromhex(encoded)).hexdigest() != digest:
+            raise ValueError('Native full-owner bytes differ from their captured SHA-256.')
+        return
+    if operation in ('seed-active','seed-canonical') and set(value) == {'operation','scope_id','sim_id','native_kind','native_hex','sha256'}:
+        if type(value['native_kind']) is not int or value['native_kind'] not in (1,2,4,8,16,32,64):
+            raise ValueError('An active entry requires its exact native rendering kind.')
+        argument({key:item for key,item in dict(value,operation='seed').items() if key!='native_kind'})
+        return
+    if operation == 'seed-appearance' and set(value) == {
+            'operation', 'scope_id', 'sim_id', 'owner_id', 'native_kind', 'native_hex', 'sha256'}:
+        import re
+        if (not isinstance(value['owner_id'], str) or
+                re.fullmatch(r'[a-z][a-z0-9_]{0,63}/[a-z][a-z0-9_]{0,63}', value['owner_id']) is None or
+                value['owner_id'].startswith('native/') or type(value['native_kind']) is not int or
+                value['native_kind'] not in (1, 2, 4, 8, 16, 32, 64)):
+            raise ValueError('Use an independent named form identity and existing native rendering kind.')
+        argument({key: item for key, item in dict(value, operation='seed').items()
+                  if key not in ('owner_id', 'native_kind')})
+        return
+    rows = value.get('members')
+    if operation != 'arm' or set(value) != {'operation', 'scope_id', 'members'} or not isinstance(rows, list) or not 1 <= len(rows) <= 8:
+        raise ValueError('Use the complete captured household roster to arm native form selection.')
+    ids = set()
+    for row in rows:
+        if not isinstance(row, dict) or set(row) != {'sim_id', 'owned_mask'} or not _identity(row['sim_id']):
+            raise ValueError('Native form scope has an invalid member identity.')
+        mask = row['owned_mask']
+        if type(mask) is not int or not 1 <= mask <= 127 or not mask & 1 or row['sim_id'] in ids:
+            raise ValueError('Native form scope has an invalid or duplicated existing owner.')
+        ids.add(row['sim_id'])
+
+
+def reply(value, pid=None):
+    if (not isinstance(value, dict) or type(value.get('ok')) is not bool or
+            value.get('game_files_written') is not False or value.get('native_patch_qualified') is not False or
+            value.get('production_ready') is not False):
+        raise ValueError('Native form patch returned invalid qualification evidence.')
+    if not value['ok']:
+        return value
+    if type(value.get('pid')) is not int or value['pid'] != (os.getpid() if pid is None else pid):
+        raise ValueError('Native form patch belongs to a different game process.')
+    if value.get('scope') == 'native-owner-export-page':
+        from .cas_owner_export_page import validate
+        validate(value, os.getpid() if pid is None else pid)
+        for key in ('owner_appearances','owner_appearance_error'):value.pop(key,None)
+        value['owner_appearance_query']='unavailable'
+        value['bank_commit_authorized']=False
+        scope=_LAYOUT_SCOPE
+        if scope is not None and scope['pid']==value['pid'] and scope['scope_id']==value['scope_id']:
+            try:
+                from . import cas_owner_decode,form_appearance
+                decoded=[]
+                for row in value['owners']:
+                    captured=scope['owners'][(value['sim_id'],row['owner_id'])]
+                    if captured['native_kind']!=row['native_kind']:
+                        raise ValueError('Native appearance changed its captured rendering kind.')
+                    item=cas_owner_decode.read(bytes.fromhex(row['native_hex']),value['sim_id'],captured['layout'])
+                    if item['native_sha256']!=row['sha256']:
+                        raise ValueError('Decoded native appearance differs from its complete snapshot.')
+                    decoded.append(dict(owner_id=row['owner_id'],native_kind=row['native_kind'],
+                        native_sha256=item['native_sha256'],fields=item['fields'],
+                        appearance_sha256=form_appearance.fingerprint(item['fields'])['appearance_sha256']))
+                value['owner_appearances']=decoded
+                value['owner_appearance_query']='returned-value'
+                value['bank_commit_authorized']=False
+            except Exception as error:
+                value['owner_appearance_query']='failed'
+                value['owner_appearance_error']=str(error)[:2048]
+        return value
+    if value.get('scope') == 'native-form-view-status':
+        if type(value.get('available')) is not bool:
+            raise ValueError('Native form view availability is untyped.')
+        if value['available']:
+            import re
+            if (not _identity(value.get('sim_id')) or not isinstance(value.get('owner_id'), str) or
+                    re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}', value['owner_id']) is None or
+                    type(value.get('native_kind')) is not int or value['native_kind'] not in (1,2,4,8,16,32,64) or
+                    type(value.get('layer')) is not int or value['layer'] not in (0,1) or
+                    value.get('state') not in ('bound','unbound','unresolved')):
+                raise ValueError('Native form view identity is incomplete.')
+        return value
+    if (any(type(value.get(key)) is not bool for key in ('installed', 'armed', 'selection_enabled')) or
+            'scope_retired' in value and type(value['scope_retired']) is not bool):
+        raise ValueError('Native form patch readiness is untyped.')
+    rows = value.get('members')
+    if not isinstance(rows, list) or len(rows) > 8:
+        raise ValueError('Native form patch roster is out of bounds.')
+    ids = set()
+    for row in rows:
+        if not isinstance(row, dict) or not _identity(row.get('sim_id')) or row['sim_id'] in ids:
+            raise ValueError('Native form patch member identity is invalid or duplicated.')
+        ids.add(row['sim_id'])
+        mask, imported = row.get('owned_mask'), row.get('imported_mask')
+        kinds = row.get('kinds')
+        if (type(mask) is not int or not 1 <= mask <= 127 or not mask & 1 or
+                type(imported) is not int or imported not in (0, mask) or
+                not isinstance(kinds, list) or len(kinds) > 7 or
+                any(type(k) is not int or k not in (1, 2, 4, 8, 16, 32, 64) for k in kinds) or len(set(kinds)) != len(kinds)):
+            raise ValueError('Native form patch owner capture is incomplete or untyped.')
+        if imported and sum(kinds) != imported:
+            raise ValueError('Native form patch readiness does not cover all imported kinds.')
+    exported = value.get('owner_export')
+    if exported is not None:
+        import hashlib
+        import re
+        if (not isinstance(exported,dict) or type(exported.get('schema')) is not int or exported['schema']!=1 or
+                not _identity(exported.get('sim_id')) or not isinstance(exported.get('owner_id'),str) or
+                re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',exported['owner_id']) is None or
+                type(exported.get('generation')) is not int or not 0<exported['generation']<2**64 or
+                type(exported.get('native_kind')) is not int or exported['native_kind'] not in (1,2,4,8,16,32,64) or
+                type(exported.get('bytes')) is not int or not 0<exported['bytes']<=512*1024 or
+                exported.get('appearance_written') is not False or exported.get('model_harvested') is not False or
+                exported.get('source')!='committed-native-appearance'):
+            raise ValueError('Native appearance snapshot identity or read-only scope differs.')
+        encoded=exported.get('native_hex');digest=exported.get('sha256')
+        if (not isinstance(encoded,str) or len(encoded)!=2*exported['bytes'] or
+                re.fullmatch(r'[0-9a-f]+',encoded) is None or not isinstance(digest,str) or
+                re.fullmatch(r'[0-9a-f]{64}',digest) is None):
+            raise ValueError('Native appearance snapshot is truncated or noncanonical.')
+        raw=bytes.fromhex(encoded)
+        if hashlib.sha256(raw).hexdigest()!=digest:
+            raise ValueError('Native appearance snapshot bytes differ from their SHA-256.')
+        members=[row for row in rows if row['sim_id']==exported['sim_id']]
+        if (len(members)!=1 or members[0].get('graph_generation')!=exported['generation'] or
+                not any(owner.get('owner_id')==exported['owner_id'] and owner.get('native_kind')==exported['native_kind']
+                        for owner in members[0].get('separate_owners',()))):
+            raise ValueError('Native appearance snapshot belongs to a different owner/generation.')
+        # Parsing is a detached schema read; it never reloads or writes a Sim.
+        # Keep the complete raw snapshot even if this game's Python descriptor
+        # is unavailable, rather than replacing it with partial inferred fields.
+        try:
+            from protocolbuffers import FileSerialization_pb2
+        except ImportError as error:
+            value['owner_export_catalog_query']='unavailable'
+            value['owner_export_catalog_error']=str(error)[:2048]
+        else:
+            message=FileSerialization_pb2.SimData();message.ParseFromString(raw)
+            if str(message.sim_id)!=exported['sim_id']:
+                raise ValueError('Parsed native appearance has another Sim identity.')
+            try:
+                from . import sim_data
+                catalog=sim_data.catalog(message)
+                catalog['scope']='Committed CAS appearance DTO; nonappearance fields can have construction defaults.'
+                value['owner_export_catalog']=catalog
+                value['owner_export_catalog_query']='returned-value'
+            except Exception as error:
+                value['owner_export_catalog_query']='failed'
+                value['owner_export_catalog_error']=str(error)[:2048]
+    return value
+
+
+def selection_ready(backend, sim_id, mask, kind):
+    if backend is None:
+        return False
+    from . import overlay_loader
+    import paths
+    status = overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, {'operation': 'status'})
+    if (status.get('ok') is not True or status.get('selection_enabled') is not True or
+            status.get('selection_route') != 'independent-owner-binding' or
+            status.get('independent_owner_view_ready') is not True):
+        return False
+    selected = status.get('selected_native', {})
+    if selected.get('available') is not True or selected.get('sim_id') != sim_id:
+        return False
+    rows = [row for row in status['members'] if row['sim_id'] == sim_id]
+    return len(rows) == 1 and rows[0]['owned_mask'] == mask == rows[0]['imported_mask'] and kind in rows[0]['kinds']
+
+
+def stage_view(backend, sim_id, request_id, request):
+    from . import overlay_loader
+    import paths
+    call = lambda value: overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, value)
+    status = call({'operation': 'status'})
+    rows = [row for row in status.get('members', ()) if row['sim_id'] == sim_id]
+    selected = status.get('selected_native', {})
+    if (status.get('owner_view_adapter_available') is not True or status.get('selection_enabled') is not True or
+            len(rows) != 1 or selected.get('available') is not True or selected.get('sim_id') != sim_id or
+            selected.get('layer') != request['expected_layer'] or
+            rows[0]['owned_mask'] != request['owned_mask'] or rows[0]['imported_mask'] != request['owned_mask']):
+        raise ValueError('Independent native view lacks its exact complete Sim/layer scope.')
+    row = rows[0]
+    owners = [owner for owner in row.get('separate_owners', ()) if owner.get('owner_id') == request['owner_id']]
+    if len(owners) != 1 or owners[0].get('native_kind') != request['native_kind']:
+        raise ValueError('The exact independent form owner is absent or has a different rendering kind.')
+    result = call(dict(operation='stage-view', scope_id=status['scope_id'], sim_id=sim_id,
+        request_id=request_id, expected_owner_id=row['graph_selected_owner_id'], owner_id=request['owner_id'],
+        expected_generation=row['graph_generation'], expected_layer=request['expected_layer']))
+    stage = result.get('view_stage', {})
+    if (stage.get('request_id') != request_id or stage.get('sim_id') != sim_id or
+            stage.get('owner_id') != request['owner_id'] or stage.get('staged_only') is not True or
+            type(stage.get('token')) is not int or not 0x10000000 <= stage['token'] <= 0x1fffffff):
+        raise ValueError('Independent native view staging was not acknowledged exactly; do not replay.')
+    return stage['token']
+
+
+def view_result(backend, sim_id, request_id, request):
+    from . import overlay_loader
+    import paths
+    status = overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, {'operation': 'status'})
+    result = status.get('owner_view_result', {})
+    selected = status.get('selected_native', {})
+    if (not isinstance(result, dict) or result.get('request_id') != request_id or
+            result.get('sim_id') != sim_id or result.get('owner_id') != request['owner_id'] or
+            result.get('state') != 'applied' or result.get('conversion_called') is not False or
+            result.get('independent_undo_bound') is not True or result.get('undo_owner_id') != request['owner_id'] or
+            result.get('native_kind') != request['native_kind'] or result.get('owned_mask') != request['owned_mask'] or
+            selected.get('available') is not True or selected.get('sim_id') != sim_id or
+            selected.get('occult_type') != request['native_kind'] or
+            selected.get('model_occult_type') != request['native_kind']):
+        raise ValueError('Independent native form view lacks its exact completed binding receipt.')
+    return result
+
+
+def entry_ready(backend, sim_id):
+    from . import overlay_loader
+    if not overlay_loader._CALLS:
+        return
+    import paths
+    status=overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, {'operation':'status'})
+    if status.get('ok') is True and status.get('selection_enabled') is True:
+        result=overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH,
+            dict(operation='entry-ready',scope_id=status['scope_id'],sim_id=sim_id))
+        if result.get('ok') is not True:
+            raise ValueError('Native CAS initial-import lifetime was not closed at its actual client handshake.')
+
+
+def _verify_imported_owners(call, status, expected):
+    """Read every imported DTO before the native CAS entry can begin.
+
+    This comparison uses the fresh pre-entry fields, not a post-import baseline.
+    A stable but already damaged owner must never pass entry qualification.
+    No appearance data is written by this bounded readback.
+    """
+    from .cas_owner_export_page import Collector
+    from . import cas_owner_decode, form_appearance
+    if status.get('ok') is not True or status.get('selection_enabled') is not True:
+        raise ValueError('Cannot verify an incomplete native appearance import.')
+    members = status.get('members', [])
+    if {row['sim_id'] for row in members} != {sid for sid, _owner in expected}:
+        raise ValueError('Native import readback has a different household roster.')
+    verified = []
+    for member in members:
+        sid = member['sim_id']
+        kinds = {owner: item['native_kind'] for (sim_id, owner), item in expected.items() if sim_id == sid}
+        identity = dict(pid=status['pid'], scope_id=status['scope_id'], sim_id=sid,
+            generation=member['graph_generation'], owned_mask=member['owned_mask'],
+            selected_owner_id=member['graph_selected_owner_id'])
+        collector = Collector(identity, kinds)
+        cursor = ''
+        while not collector.complete:
+            page = call(dict(operation='export-owner-page', scope_id=identity['scope_id'], sim_id=sid,
+                expected_generation=identity['generation'], after_owner_id=cursor))
+            cursor = collector.append(page)['next_owner_id']
+        for row in collector.document()['owners']:
+            original = expected[(sid, row['owner_id'])]['fields']
+            observed = cas_owner_decode.read(bytes.fromhex(row['native_hex']), sid, cas_owner_decode.layout(original))['fields']
+            before = form_appearance.fingerprint(original); after = form_appearance.fingerprint(observed)
+            changed = sorted(name for name in set(original) | set(observed)
+                if before['field_sha256'].get(name) != after['field_sha256'].get(name))
+            if changed:
+                raise ValueError('Native import changed pre-entry appearance '+sid+'/'+row['owner_id']+': '+', '.join(changed))
+            verified.append(dict(sim_id=sid, owner_id=row['owner_id'], native_kind=row['native_kind'],
+                native_sha256=row['sha256'], appearance_sha256=after['appearance_sha256']))
+    return dict(ok=True, owners=verified, appearance_written=False, pre_entry_fields_verified=True)
+
+
+def _stage_member_menus(call, status, scope_id):
+    from . import cas_form_catalog
+    import copy
+    rows=status['members'];roster={row['sim_id']:copy.deepcopy({key:row[key] for key in
+        ('graph_generation','logical_owner_ids','human_owner_id','separate_owners')}) for row in rows}
+    receipts=[]
+    for row in rows:
+        projected=cas_form_catalog.project(row['separate_owners'],row['human_owner_id'],
+            row['graph_selected_owner_id'],row['logical_owner_ids'])['forms']
+        pages=[cas_form_catalog.wire_page(projected,offset) for offset in range(0,len(projected),32)]
+        result=call(dict(operation='menu-stage',scope_id=scope_id,sim_id=row['sim_id'],pages=pages))
+        current=result.get('members',[])
+        if (result.get('ok') is not True or result.get('scope_id')!=scope_id or
+                result.get('selection_enabled') is not True or
+                {r['sim_id']:{key:r[key] for key in ('graph_generation','logical_owner_ids','human_owner_id','separate_owners')}
+                 for r in current}!=roster):
+            raise ValueError('Prepared menu changed its captured owner graph or scope.')
+        member=next(r for r in current if r['sim_id']==row['sim_id'])
+        if member.get('prepared_menu_owner_count')!=len(projected):
+            raise ValueError('Native prepared menu did not retain the complete visible form catalogue.')
+        receipts.append(dict(sim_id=row['sim_id'],owners=len(projected),pages=len(pages)))
+    return dict(protocol=1,members=receipts,appearance_written=False)
+
+
+def seed_members(backend):
+    """Extend CAS's native import with every pre-entry canonical owner.
+
+    Run on the Live game thread, before native CAS disposes its producers.
+    The client packet can narrow the occult tracker; the complete native save
+    model supplies its otherwise omitted records without exporting a file.
+    """
+    global _LAYOUT_SCOPE
+    from . import overlay_loader, sim_data, form_appearance as appearance, lifestate_forms, cas_owner_payload, cas_owner_decode
+    if not overlay_loader._CALLS:
+        module_file = getattr(backend, '__file__', None)
+        if module_file is None:
+            return {'enabled': False}
+        try:
+            enabled = overlay_loader.auto_start_enabled(module_file)
+        except (FileNotFoundError, overlay_loader.SidecarNotInstalled):
+            return {'enabled': False}  # Script-only installation; guard remains.
+        if not enabled:
+            return {'enabled': False}
+        import paths
+        startup = overlay_loader.start(module_file, paths.DLL_PATH)
+        if startup.get('ok') is not True or not overlay_loader._CALLS:
+            raise ValueError('Native CAS startup did not acknowledge the installed sidecar.')
+    if (_LAYOUT_SCOPE is not None and _LAYOUT_SCOPE.get('completions') and
+            set(_LAYOUT_SCOPE['completions'])==set(_LAYOUT_SCOPE['epochs'])):
+        _retire_completed_scope(backend,_LAYOUT_SCOPE)
+    import paths
+    call = lambda value: overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, value)
+    status = call({'operation': 'status'})
+    household = backend.services.active_household()
+    if household is None:
+        raise ValueError('Native form import requires the exact loaded household.')
+    members = {str(sim.id): sim for sim in household.sim_info_gen()}
+    load_identity = dict(household_id=str(household.id),
+        save_guid=str(backend.services.get_persistence_service().get_save_slot_proto_guid()))
+    if (not all(_identity(value) for value in load_identity.values()) or
+            any(str(sim.household_id) != load_identity['household_id']
+                for sim in members.values())):
+        raise ValueError('Native CAS load scope requires the exact household and save identity.')
+    status, checkpoints = _entry_scope(backend, call, status, household)
+    receipts = [];layouts={}; expected={};epochs={}
+    import base64
+    for row in status['members']:
+        sim = members[row['sim_id']]
+        epoch=checkpoints[row['sim_id']]
+        epochs[row['sim_id']]=epoch
+        owners = dict(backend._form_map(sim.occult_tracker), active=sim)
+        fields = {str(kind): appearance.packed(backend, owner) for kind, owner in owners.items()}
+        before = {kind: appearance.fingerprint(payload) for kind,payload in fields.items()}
+        for kind,owner in owners.items():
+            native_kind=int(backend._get_current_flags(sim)) if kind=='active' else int(kind)
+            owner_id='active/'+str(native_kind) if kind=='active' else 'native/'+str(native_kind)
+            layouts[(row['sim_id'],owner_id)]=dict(native_kind=native_kind,layout=cas_owner_decode.layout(fields[str(kind)]))
+            expected[(row['sim_id'],owner_id)]=dict(native_kind=native_kind,fields=fields[str(kind)])
+        capture = sim_data.snapshot(backend, sim)
+        raw = base64.b64decode(capture['native_base64'], validate=True)
+        result = call(dict(operation='seed', scope_id=status['scope_id'], sim_id=row['sim_id'],
+                           native_hex=raw.hex(), sha256=capture['native_sha256']))
+        if result.get('ok') is not True:
+            raise ValueError('Native full-owner import failed: ' + str(result.get('message')))
+        imported = next(item for item in result['members'] if item['sim_id'] == row['sim_id'])
+        if imported['imported_mask'] != row['owned_mask']:
+            raise ValueError('Native full-owner import did not retain every captured kind.')
+        if any(appearance.fingerprint(appearance.packed(backend, owner)) != before[str(kind)] for kind, owner in owners.items()):
+            raise ValueError('Full native serialization changed a pre-entry appearance.')
+        # EA's tracker record has no per-form pelt/custom-texture fields.
+        # Import each exact complete owner separately, with its own root fields.
+        for kind in sorted(backend._form_map(sim.occult_tracker),key=int):
+            projected=cas_owner_payload.project_record(capture,fields[str(kind)],int(kind))
+            canonical=call(dict(operation='seed-canonical',scope_id=status['scope_id'],sim_id=row['sim_id'],
+                native_kind=int(kind),native_hex=projected['native_hex'],sha256=projected['sha256']))
+            if canonical.get('ok') is not True:
+                raise ValueError('Complete canonical appearance import failed.')
+        canonical_row=next(item for item in canonical['members'] if item['sim_id']==row['sim_id'])
+        if type(canonical_row.get('canonical_source_seeded_mask')) is not int or canonical_row['canonical_source_seeded_mask']!=row['owned_mask']:
+            raise ValueError('Complete canonical appearance import omitted an existing form.')
+        active_kind=int(backend._get_current_flags(sim))
+        projected=cas_owner_payload.project_record(capture,fields['active'],active_kind)
+        active=call(dict(operation='seed-active',scope_id=status['scope_id'],sim_id=row['sim_id'],
+            native_kind=active_kind,native_hex=projected['native_hex'],sha256=projected['sha256']))
+        active_row=next(item for item in active.get('members',()) if item['sim_id']==row['sim_id'])
+        if active.get('ok') is not True or active_row.get('active_entry_source_seeded') is not True:
+            raise ValueError('The exact active appearance did not import its complete genetic record.')
+        named = []
+        for variant in lifestate_forms.native_cas_owners(backend, sim):
+            projected = cas_owner_payload.project_record(capture, variant['fields'],variant['native_kind'])
+            result = call(dict(operation='seed-appearance', scope_id=status['scope_id'], sim_id=row['sim_id'],
+                owner_id=variant['owner_id'], native_kind=variant['native_kind'],
+                native_hex=projected['native_hex'], sha256=projected['sha256']))
+            if result.get('ok') is not True:
+                raise ValueError('Independent named native appearance import failed.')
+            member = next(item for item in result['members'] if item['sim_id'] == row['sim_id'])
+            matches = [item for item in member.get('separate_owners', ()) if item.get('owner_id') == variant['owner_id']]
+            if len(matches) != 1 or matches[0].get('native_kind') != variant['native_kind']:
+                raise ValueError('Native import did not retain the exact named owner identity.')
+            named.append(dict(owner_id=variant['owner_id'], native_kind=variant['native_kind'],
+                              appearance_sha256=variant['appearance_sha256'], native_sha256=projected['sha256']))
+            layouts[(row['sim_id'],variant['owner_id'])]=dict(native_kind=variant['native_kind'],
+                layout=cas_owner_decode.layout(variant['fields']))
+            expected[(row['sim_id'],variant['owner_id'])]=dict(native_kind=variant['native_kind'],fields=variant['fields'])
+        if any(appearance.fingerprint(appearance.packed(backend,owner)) != before[str(kind)] for kind,owner in owners.items()):
+            raise ValueError('Independent full-record imports changed a pre-entry native Sim appearance.')
+        receipts.append(dict(sim_id=row['sim_id'], native_sha256=capture['native_sha256'],
+                             native_bytes=len(raw), native_message_type=capture['native_message_type'],
+                             imported_mask=imported['imported_mask'], kinds=imported['kinds'], named_owners=named))
+    result = call(dict(operation='activate', scope_id=status['scope_id']))
+    if result.get('ok') is not True or result.get('selection_enabled') is not True:
+        raise ValueError('Complete native owner selection did not activate.')
+    verification = _verify_imported_owners(call,result,expected)
+    prepared_menus = _stage_member_menus(call,result,status['scope_id'])
+    _LAYOUT_SCOPE=dict(pid=os.getpid(),scope_id=status['scope_id'],owners=layouts,epochs=epochs,
+        load_identity=load_identity,
+        logical_owners={row['sim_id']:dict(logical_owner_ids=row['logical_owner_ids'],human_owner_id=row['human_owner_id'])
+                        for row in result['members']})
+    return dict(enabled=True, scope_id=status['scope_id'], members=receipts, existing_appearances_unchanged=True,
+                import_verification=verification,prepared_menus=prepared_menus)
+
+
+def owns_return(sim_id,epoch):
+    scope=_LAYOUT_SCOPE
+    if scope is None or not any(sid==sim_id for sid,_oid in scope['owners']):return False
+    if scope['pid']!=os.getpid() or scope.get('epochs',{}).get(sim_id)!=epoch:
+        raise ValueError('Native CAS return belongs to a different process or member checkpoint.')
+    return True
+
+
+def load_owners(backend, sim):
+    """Fresh final CAS owners for the native loader's omitted paint fields.
+
+    This capability exists only for the currently captured native session.
+    Ordinary loads, other households and another save never consult a prior
+    bank or an appearance snapshot. The caller must also match the incoming
+    record's complete core before using any extra field.
+    """
+    scope = _LAYOUT_SCOPE
+    sid = str(getattr(sim, 'id', ''))
+    if scope is None or sid not in scope.get('epochs', {}):
+        return None
+    identity = scope.get('load_identity')
+    if (scope.get('pid') != os.getpid() or not isinstance(identity, dict) or
+            str(getattr(sim, 'household_id', '')) != identity.get('household_id') or
+            str(backend.services.get_persistence_service().get_save_slot_proto_guid()) != identity.get('save_guid') or
+            sid in scope.get('completions', {}) or scope.get('retirement_attempted')):
+        raise ValueError('CAS load extras lack their exact unfinished household/save capability.')
+    generation = _accepted_load_generation(backend, scope, sid)
+    if generation is None:
+        return None  # Cancel/ordinary reload is never an acceptance of CAS paint edits.
+    result = returned_owners(backend, sim, scope['epochs'][sid])
+    if result is None or _LAYOUT_SCOPE is not scope:
+        raise ValueError('CAS load owner capability changed during its readback.')
+    if result['identity']['generation'] != generation:
+        raise ValueError('CAS load graph changed after the exact native acceptance.')
+    return result
+
+
+def _accepted_load_generation(backend, scope, sid):
+    from . import overlay_loader
+    import paths
+    value = overlay_loader.native_cas_engine_control(backend.__file__, paths.DLL_PATH, dict(operation='status'))
+    if (value.get('ok') is not True or value.get('pid') != scope['pid'] or
+            value.get('scope_id') != scope['scope_id']):
+        raise ValueError('CAS load acceptance belongs to another native scope.')
+    proof = value.get('household_acceptance')
+    if not isinstance(proof, dict) or proof.get('verified') is not True:
+        return None
+    generations = proof.get('generations')
+    if (value.get('selection_enabled') is not True or proof.get('scope_id') != scope['scope_id'] or
+            proof.get('native_accepted') is not True or
+            not isinstance(generations, dict) or set(generations) != set(scope['epochs']) or
+            any(type(n) is not int or not 0 < n < 2**64 for n in generations.values())):
+        raise ValueError('CAS load lacks its complete native accepted generations.')
+    return generations[sid]
+
+
+def complete_return(backend,sim,transaction):
+    """Retire a native session only after every receiver committed its forms.
+
+    Retiring is not a form write or rollback. Complete raw graphs have already
+    been retained in each committed receiver. Partial/unresolved completion
+    keeps the graph locked; an attempted native retirement is never replayed.
+    """
+    global _LAYOUT_SCOPE
+    scope=_LAYOUT_SCOPE
+    if scope is None:return dict(enabled=False,retired=False)
+    from . import cas_bank_transaction as receiver,cas_commit_plan as primitive,cas_ui,overlay_loader
+    sid=str(sim.id);epoch=transaction.get('transaction_sha256')
+    if not owns_return(sid,epoch) or not receiver._completed(transaction):
+        raise ValueError('Native CAS retirement requires this exact completed receiver transaction.')
+    returned=transaction.get('native_owner_return');identity=returned.get('identity',{}) if isinstance(returned,dict) else {}
+    if (not isinstance(returned,dict) or primitive.digest(returned)!=transaction.get('native_owner_return_sha256') or
+            identity.get('pid')!=scope['pid'] or identity.get('sim_id')!=sid or identity.get('scope_id')!=scope['scope_id'] or
+            type(identity.get('generation')) is not int or identity['generation']<=0):
+        raise ValueError('Completed CAS receiver lacks its exact retained native graph generation.')
+    completions=scope.setdefault('completions',{})
+    retained=dict(epoch=epoch,generation=identity['generation'],native_return_sha256=transaction['native_owner_return_sha256'])
+    if sid in completions and completions[sid]!=retained:
+        raise ValueError('Native CAS completion changed; its appearance graph remains retained.')
+    completions[sid]=retained
+    if set(completions)!=set(scope['epochs']):
+        return dict(enabled=True,retired=False,completed_members=len(completions),required_members=len(scope['epochs']))
+    return _retire_completed_scope(backend,scope)
+
+
+def _retire_completed_scope(backend,scope):
+    global _LAYOUT_SCOPE
+    from . import cas_ui,overlay_loader
+    if scope is not _LAYOUT_SCOPE or scope['pid']!=os.getpid():
+        raise ValueError('Native CAS retirement requires its held current-process scope.')
+    completions=scope.get('completions',{})
+    if not completions or set(completions)!=set(scope['epochs']):
+        raise ValueError('Every scoped CAS member must complete before retirement.')
+    if cas_ui.diagnostics().get('native_peers')!=[]:
+        raise ValueError('A native CAS peer still owns this completed appearance graph.')
+    if scope.get('retirement_attempted'):
+        raise ValueError('Native CAS retirement has a retained attempt; no automatic replay.')
+    scope['retirement_attempted']=True
+    import paths
+    result=overlay_loader.native_cas_engine_control(backend.__file__,paths.DLL_PATH,dict(
+        operation='retire-committed-session',scope_id=scope['scope_id'],members=[dict(sim_id=member,
+            generation=completions[member]['generation']) for member in sorted(completions)]),_retirement_capability=scope)
+    if (result.get('ok') is not True or result.get('pid')!=scope['pid'] or result.get('scope_id')!=scope['scope_id'] or
+            result.get('armed') is not True or result.get('selection_enabled') is not False or
+            {row['sim_id'] for row in result.get('members',[])}!=set(scope['epochs']) or
+            any(row.get('imported_mask')!=0 for row in result['members'])):
+        raise ValueError('Native session retirement did not verify; retain its attempt without replay.')
+    _LAYOUT_SCOPE=None
+    return dict(enabled=True,retired=True,completed_members=len(completions),scope_id=scope['scope_id'],
+                appearance_written=False,native_write_replay_authorized=False)
+
+
+def _retirement_argument(value,capability):
+    """Only the held completion object can reach the private native operation."""
+    if (capability is not _LAYOUT_SCOPE or capability['pid']!=os.getpid() or
+            capability.get('retirement_attempted') is not True or
+            not capability.get('completions') or set(capability['completions'])!=set(capability['epochs'])):
+        raise ValueError('Native CAS retirement lacks its private completed-session capability.')
+    expected=dict(operation='retire-committed-session',scope_id=capability['scope_id'],members=[dict(
+        sim_id=sid,generation=capability['completions'][sid]['generation']) for sid in sorted(capability['completions'])])
+    if value!=expected:
+        raise ValueError('Native CAS retirement differs from its complete held member generations.')
+
+
+def returned_owners(backend,sim,epoch):
+    """Read the complete committed graph after receiver-owned Live return.
+
+    No model is harvested on a Source worker. CAS must already have completed
+    its native synchronization; this retains raw unknown bytes independently
+    for every canonical, active and named owner. It never loads a gameplay DTO.
+    """
+    sid=str(sim.id)
+    if not owns_return(sid,epoch):return None
+    from . import overlay_loader,cas_owner_decode
+    from .cas_owner_export_page import Collector
+    import paths
+    scope=_LAYOUT_SCOPE
+    call=lambda value:overlay_loader.native_cas_engine_control(backend.__file__,paths.DLL_PATH,value)
+    status=call(dict(operation='status'))
+    rows=[row for row in status.get('members',[]) if row['sim_id']==sid]
+    if (status.get('ok') is not True or status.get('pid')!=scope['pid'] or
+            status.get('scope_id')!=scope['scope_id'] or len(rows)!=1 or
+            rows[0].get('native_view_fault') is not False):
+        raise ValueError('Native CAS return has another or unresolved owner graph.')
+    member=rows[0];expected={oid:item for (owner_sid,oid),item in scope['owners'].items() if owner_sid==sid}
+    binding=scope['logical_owners'].get(sid)
+    if (not isinstance(binding,dict) or any(member.get(key)!=binding[key]
+            for key in ('logical_owner_ids','human_owner_id'))):
+        raise ValueError('Native CAS logical form bindings changed after their original capture.')
+    identity=dict(pid=scope['pid'],scope_id=scope['scope_id'],sim_id=sid,generation=member['graph_generation'],
+        owned_mask=member['owned_mask'],selected_owner_id=member['graph_selected_owner_id'])
+    collector=Collector(identity,{oid:item['native_kind'] for oid,item in expected.items()});cursor=''
+    while not collector.complete:
+        page=call(dict(operation='export-owner-page',scope_id=scope['scope_id'],sim_id=sid,
+            expected_generation=identity['generation'],after_owner_id=cursor))
+        cursor=collector.append(page)['next_owner_id']
+    document=collector.document()
+    for row in document['owners']:
+        row['fields']=cas_owner_decode.read(bytes.fromhex(row['native_hex']),sid,expected[row['owner_id']]['layout'])['fields']
+    final=call(dict(operation='status'))
+    fresh=[row for row in final.get('members',[]) if row['sim_id']==sid]
+    if (final.get('ok') is not True or final.get('pid')!=scope['pid'] or final.get('scope_id')!=scope['scope_id'] or
+            len(fresh)!=1 or fresh[0].get('graph_generation')!=identity['generation'] or
+            fresh[0].get('graph_selected_owner_id')!=identity['selected_owner_id'] or
+            fresh[0].get('native_view_fault') is not False or any(fresh[0].get(key)!=binding[key]
+                for key in ('logical_owner_ids','human_owner_id'))):
+        raise ValueError('Native CAS return changed during its complete appearance readback.')
+    return dict(schema=1,ok=True,source='receiver-native-owner-return',identity=identity,
+        checkpoint_epoch=epoch,owners=document['owners'],logical_owner_ids=copy.deepcopy(binding['logical_owner_ids']),
+        human_owner_id=binding['human_owner_id'],appearance_written=False,save_reload_verified=False)

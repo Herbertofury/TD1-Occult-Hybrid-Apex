@@ -1,0 +1,222 @@
+{
+  "actual_game": {
+    "all20_save_backup_files_unchanged": true,
+    "appearance_edit_requested": false,
+    "background_cli_only": true,
+    "original_profile_written": false,
+    "profile": "single disposable profile",
+    "save_submitted": false,
+    "version": "1.128.90.1030",
+    "viewport": [
+      1278,
+      1376
+    ]
+  },
+  "actual_save_ready": false,
+  "body_tattoo_navigation": {
+    "all_frame_times_below_1ms": false,
+    "initial_owned_frame_max_ms": 135,
+    "layout_counts": [
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "repeated_geometry_rebuilds": 0
+  },
+  "candidate": {
+    "packages": 7,
+    "python37_modules": 105,
+    "rust_verified_resources": 210,
+    "sha256": "5b99c0e4e31a9934c7f34653b294f01b7ebe1a11d7804cca5692cb9a98e11a85"
+  },
+  "cold_live": {
+    "all40_saved_native_appearances_match_reference": true,
+    "measured_before_new_cas_navigation": true,
+    "named_drafts_are_not_saved_reload_proof": true,
+    "simulation_progress_ticks": 1431
+  },
+  "epoch": "2026-10-21-equipped-stream-v253",
+  "evidence": [
+    {
+      "file": "v253-progressive-catalog-runtime.json",
+      "sha256": "95fc316a47241b10952372bf120c97eef8f455f8a7ad088133bc541cb8bcd004"
+    },
+    {
+      "file": "v253-progressive-visual-review.json",
+      "sha256": "0244cb3a3fd4d3cb80f40a603e75f3ae306b24df6ce190cbe6be96888ec929a0"
+    },
+    {
+      "file": "native-cas-v253-second-member-category-saved-reload-all40.json",
+      "sha256": "d07e34dcbb566e178defdd4cfd7760574dc830e1fcfe59470ea4df6f1b0fb52c"
+    },
+    {
+      "file": "v253-bytecode-tests.log",
+      "sha256": "29ac8b2702a22075e963d173aa2b9c39bc9dfe3b529395596e07781a46407285"
+    },
+    {
+      "file": "v253-workspace-tests-r2.log",
+      "sha256": "4c85d0be75a8811401e3c2f5b08217467f6d17fd71d9184d99c0d8bd7b042eae"
+    },
+    {
+      "file": "v253-full-tests.log",
+      "sha256": "1110daf2b1c5532fd61cd9720a8fcb5d70d0b55e0ec5129df17c6210addd8caa"
+    }
+  ],
+  "navigation": {
+    "all_five_members": true,
+    "edited_form_persistence_claimed": false,
+    "old_member_view_retired": true,
+    "original_member_restored": true,
+    "same_shoes_anchor_restores_native_items": 5,
+    "sequence": "first -> second -> third -> fourth -> fifth -> first"
+  },
+  "open_gates": [
+    "cold native asset load and first geometry fit exceed 1 ms",
+    "large-catalog/FPS benchmarking and unmeasured game pie-menu paths",
+    "direct outfit/genetic normalization fix",
+    "edited full-household CAS/MCCC/save/cold/Tray/Gallery persistence",
+    "swatch/removal mutations and duplicate layered CASP runtime coverage",
+    "preference persistence and animated border qualification"
+  ],
+  "publication": {
+    "all_current_slots_resolved": true,
+    "commit_after_native_binding": true,
+    "first_twenty_card_pass": {
+      "bind_max_ms": 69,
+      "bind_ms": 10,
+      "bind_total_ms": 224,
+      "chunk_max_count": 1,
+      "chunks": 20,
+      "clear_ms": 0,
+      "layout_ms": 0,
+      "publish_max_ms": 71,
+      "read_ms": 2,
+      "resolve_max_ms": 1,
+      "selected_ms": 2
+    },
+    "max_cards_per_native_append": 1,
+    "measurement": "Observed native ADD/publication boundaries in one actual CAS run. Warm reopen is same-member only. Cold/member-change costs persist; full tests ran concurrently. Not a 0-1 ms, end-to-end or FPS claim.",
+    "member_cycle": [
+      {
+        "equipped_count": 12,
+        "member_ordinal": 2,
+        "timing": {
+          "bind_max_ms": 76,
+          "bind_ms": 5,
+          "bind_total_ms": 247,
+          "chunk_max_count": 1,
+          "chunks": 12,
+          "clear_ms": 0,
+          "layout_ms": 0,
+          "publish_max_ms": 80,
+          "read_ms": 2,
+          "resolve_max_ms": 1,
+          "selected_ms": 4
+        }
+      },
+      {
+        "equipped_count": 14,
+        "member_ordinal": 3,
+        "timing": {
+          "bind_max_ms": 57,
+          "bind_ms": 6,
+          "bind_total_ms": 210,
+          "chunk_max_count": 1,
+          "chunks": 14,
+          "clear_ms": 0,
+          "layout_ms": 0,
+          "publish_max_ms": 59,
+          "read_ms": 2,
+          "resolve_max_ms": 1,
+          "selected_ms": 2
+        }
+      },
+      {
+        "equipped_count": 12,
+        "member_ordinal": 4,
+        "timing": {
+          "bind_max_ms": 56,
+          "bind_ms": 5,
+          "bind_total_ms": 193,
+          "chunk_max_count": 1,
+          "chunks": 12,
+          "clear_ms": 0,
+          "layout_ms": 0,
+          "publish_max_ms": 60,
+          "read_ms": 2,
+          "resolve_max_ms": 1,
+          "selected_ms": 4
+        }
+      },
+      {
+        "equipped_count": 23,
+        "member_ordinal": 5,
+        "timing": {
+          "bind_max_ms": 55,
+          "bind_ms": 9,
+          "bind_total_ms": 262,
+          "chunk_max_count": 1,
+          "chunks": 23,
+          "clear_ms": 0,
+          "layout_ms": 0,
+          "publish_max_ms": 57,
+          "read_ms": 3,
+          "resolve_max_ms": 2,
+          "selected_ms": 5
+        }
+      },
+      {
+        "equipped_count": 20,
+        "member_ordinal": 1,
+        "timing": {
+          "bind_max_ms": 48,
+          "bind_ms": 8,
+          "bind_total_ms": 212,
+          "chunk_max_count": 1,
+          "chunks": 20,
+          "clear_ms": 0,
+          "layout_ms": 0,
+          "publish_max_ms": 49,
+          "read_ms": 2,
+          "resolve_max_ms": 2,
+          "selected_ms": 3
+        }
+      }
+    ],
+    "optional_text_list_retained": true,
+    "partial_state_and_complete_grid_checked": true,
+    "previous_twenty_card_bulk_bind_ms": 149,
+    "same_member_warm_reopen": {
+      "bind_max_ms": 5,
+      "bind_ms": 4,
+      "bind_total_ms": 53,
+      "chunk_max_count": 1,
+      "chunks": 20,
+      "clear_ms": 2,
+      "layout_ms": 0,
+      "publish_max_ms": 10,
+      "read_ms": 1,
+      "resolve_max_ms": 1,
+      "selected_ms": 4
+    }
+  },
+  "schema": 1,
+  "scope": "bounded native equipped-card publication and five-member view isolation",
+  "validation": {
+    "controls_cases": 20,
+    "epoch_cases": 5,
+    "focused_native_bytecode_case_groups": 4,
+    "focused_workspace_cases": 22,
+    "full_suite": {
+      "seconds": 841.416,
+      "status": "passed",
+      "tests": 2737
+    },
+    "recovery_seal_cases": 26,
+    "source_pin_cases": 6
+  }
+}

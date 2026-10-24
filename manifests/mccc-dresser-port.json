@@ -1,0 +1,33 @@
+{
+  "archive_sha256": "5596e47a5d4dab0c4800e80426caf17d28d15508cd711848f083b9c9f63672c9",
+  "author": "Deaderpool",
+  "baseline": "MCCC 2026.5.0",
+  "functions": [
+    {
+      "function": "DresserOutfitObject.add_part_shift",
+      "instruction_sha256": "f3539ff661b8dcb58880b7c7421d09bfd966aaf00378425e955dc5fa1f7d4ff9"
+    },
+    {
+      "function": "DresserOutfitObject.remove_body_type",
+      "instruction_sha256": "ae39765b6a9b6dea126c72778d66bb69b7f53c44090376b81d10b681226d1eb6"
+    },
+    {
+      "function": "DresserOutfitObject.get_part_id",
+      "instruction_sha256": "22cdca18edfd3ef4935bd1fc8a6344091826be0a6e532ba5d49b59ca498910d0"
+    },
+    {
+      "function": "DresserOutfitObject.get_color_shift",
+      "instruction_sha256": "d0d6d88ac5d810c76dff48f9f3f246a692d74b483d2ace0241f441896d955fab"
+    }
+  ],
+  "game_modules_executed": false,
+  "limitations": [
+    "Pure helper behavior only; full MC CAS/Dresser feature parity and live persistence remain open."
+  ],
+  "matching_cases": 9,
+  "module": "mc_cmd_center.ts4script/mc_utils.pyc",
+  "module_sha256": "b4d7dc874e5ece2626ece6b8899152452e1a043951a0bfd2dc4e86ea03ea347e",
+  "port": "Source/apex_core/dresser_parts.py",
+  "port_raw_sha256": "f0c1fa1bc69e4cc67461db14fbb081c897e653c0f67b50b19dbd2c710359d71f",
+  "schema": 1
+}

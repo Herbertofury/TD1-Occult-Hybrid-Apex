@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "scope": "actual-native-CAS-Home-key-receipt",
+  "candidate_epoch": "2026-10-21-catalog-search-keyboard-v254",
+  "ok": false,
+  "native_home_moved": true,
+  "native_receipt": {
+    "key": 36,
+    "count": 436,
+    "columns": 6,
+    "index_before": 1,
+    "index_after": 0,
+    "page_step": -2,
+    "click_dispatched": false
+  },
+  "failure": "CLI rejected the uninitialized page-step register instead of accepting an invalid native acknowledgement.",
+  "correction": "V255 explicitly initializes the ActionScript page local to zero before every key branch.",
+  "regression_fixture": "test_real_home_receipt_with_uninitialized_page_register_is_refused",
+  "checks_weakened": false,
+  "appearance_written": false,
+  "cas_accept_submitted": false,
+  "save_submitted": false,
+  "save_files_unchanged": true,
+  "production_ready": false
+}

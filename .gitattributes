@@ -1,0 +1,36 @@
+* text=auto eol=lf
+Source/td1_occult_hybrid_apex.py -text whitespace=cr-at-eol
+# Recovery epoch pins bind these exact source bytes, including newlines.
+Source/apex_core/overlay_loader.py -text whitespace=cr-at-eol
+Source/apex_core/native_controls.py -text whitespace=cr-at-eol
+Source/apex_core/test_driver.py -text whitespace=cr-at-eol
+Source/apex_core/cas_panels.py -text whitespace=cr-at-eol
+Source/apex_core/switch_trace.py -text whitespace=cr-at-eol
+# The CAS bytecode manifests also pin their exact compiler input bytes.
+Source/CASUi/semantic_methods.as -text whitespace=cr-at-eol
+Source/CASUi/form_strip_methods.as -text whitespace=cr-at-eol
+Source/CASUi/selector_methods.as -text whitespace=cr-at-eol
+tools/CasBytecodePatch.java -text whitespace=cr-at-eol
+tools/CasSelectorBytecodePatch.java -text whitespace=cr-at-eol
+NativeOverlay/Source/TD1ApexD3D11Proxy.cpp -text whitespace=cr-at-eol
+NativeOverlay/third_party/** -text
+*.package -text
+*.ts4script -text
+*.dll -text
+*.lib -text
+# Preserve every audited recovery/compiler input across fresh checkouts.
+Source/apex_core/form_bank_seal.py -text whitespace=cr-at-eol
+Source/CASUi/pair_controls_methods.as -text whitespace=cr-at-eol
+Source/CASUi/catalog_workspace_methods.as -text whitespace=cr-at-eol
+Source/CASUi/catalog_cards_methods.as -text whitespace=cr-at-eol
+Source/CASUi/equipped_category_methods.as -text whitespace=cr-at-eol
+tools/cas_equipped_catalog.py -text whitespace=cr-at-eol
+tools/cas_catalog_workspace.py -text whitespace=cr-at-eol
+tools/CasCatalogBytecodePatch.java -text whitespace=cr-at-eol
+tools/cas_pair_panel_patch.py -text whitespace=cr-at-eol
+Source/apex_core/cas_controls.py -text whitespace=cr-at-eol
+tools/CasVoiceBytecodePatch.java -text whitespace=cr-at-eol
+tools/cas_molecule_patch.py -text whitespace=cr-at-eol
+tools/CasMoleculeBytecodePatch.java -text whitespace=cr-at-eol
+
+Source/CASUi/catalog_keyboard_methods.as -text whitespace=cr-at-eol

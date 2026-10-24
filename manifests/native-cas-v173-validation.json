@@ -1,0 +1,64 @@
+{
+  "all_category_edits_qualified": false,
+  "build_epoch": "2026-10-16-native-cas-preserve-empty-outfit-hair-v173",
+  "bundle_sha256": "6247e09e77dc538d4460961ebd40f732f1fd74380f7505625d69dd3b30afdd0a",
+  "cas_accept_submitted": false,
+  "epoch_migration_checks": 31,
+  "fast_host_checks": 36,
+  "gameplay_roles_qualified": false,
+  "named_owner_persistence_qualified": false,
+  "native_ctest_targets": 9,
+  "production_ready": false,
+  "runtime": {
+    "cold_originals": {
+      "ok": true,
+      "owners": 40,
+      "proof_sha256": "ef1bf139db9805655429e5cfd4cf83e2e4930ef20606543780e021578cae43db"
+    },
+    "edited_all195_matrix": {
+      "additional_outfits": 756,
+      "additional_outfits_user_authorized": false,
+      "cas_accept_submitted": false,
+      "changed_owners": 130,
+      "existing_original_records_changed": 0,
+      "first_cycle_edits": 195,
+      "members": 5,
+      "original_fields_and_outfit_records_retained": true,
+      "original_outfit_unknown_bytes_retained": true,
+      "original_record_analysis_sha256": "c85520c2d3563da661c1b52ae49e95d08dff2e68c2afaf6c075ac29ce6b3b837",
+      "passed": false,
+      "raw_first_cycle_export_sha256": "ffc3ed87a36245b9e54d5958c31f35bb3c793001b90fc5430a4a4ce8f96b0c90",
+      "save_submitted": false,
+      "state": "stopped-at-strict-field-audit",
+      "strict_original_fields_unchanged": false
+    },
+    "full_cas": {
+      "client_handshake_verified": true,
+      "entry_accepted": true,
+      "inventory_qualified": false,
+      "proof_sha256": "beb19b5f7fbf88c54c985ba72d2e69cf74ede9f5ae11c56b63f32abbec9ba553"
+    },
+    "post_initialization_revisit": {
+      "passed": false,
+      "state": "running"
+    },
+    "pre_entry_import": {
+      "empty_outfits_retained": true,
+      "fields_per_appearance": 12,
+      "genetics_match": true,
+      "independent_appearances": 195,
+      "members": 5,
+      "ok": true,
+      "pelts_match": true,
+      "proof_sha256": "5af831c9dd6cb0078847664dd06a53a18ac9c5fcde2a88688aaec6fb4a5cafe0"
+    },
+    "prior_normal_unsaved_exit": {
+      "ok": true,
+      "proof_sha256": "0e86e128301bba859435ed9d818ea90aa1728a968c1d9898f157ddb535e9656b",
+      "unchanged_save_files": 20
+    }
+  },
+  "save_submitted": false,
+  "schema": 1,
+  "tray_gallery_roundtrip_qualified": false
+}

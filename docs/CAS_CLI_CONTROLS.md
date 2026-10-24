@@ -1,0 +1,616 @@
+# Native CAS CLI controls
+
+The requested final UI reuses EA's existing category checkbox panel. The current
+floating toolbar is interim whole-appearance control. Partial copy/link routing,
+pair-scoped preferences, added categories and selective undo are still open.
+
+V204 actual-game qualification: every household member completes Alien ->
+Vampire -> Alien; linked no-edit refreshes retain every field of all 195 records;
+unlinking verifies. An actual strip click measures 15 ms to native owner binding,
+not full rendered-avatar readiness. All five actual portrait pairs remain intact.
+
+V205 exposes `cas_animation_membership_scopes` and `last_cas_animation_scope`
+in native engine status. These report the exact selected preview actor's
+temporary animation mask; they do not authorize membership or appearance writes.
+Actual runtime qualification is separate from the native test pass.
+
+V207 also reports `cas_animation_construction_scopes`. The exact preview's
+construction call and later model-update call receive the selected animation
+genus; unrelated actors and callers retain the game's original argument.
+`last_cas_animation_scope.source` distinguishes construction, update and
+binding settlement. Model membership remains complete. Verify the first
+preview before submitting a form switch: V205/V206's failed startup checks
+would otherwise be hidden by their successful later switching.
+
+Actual V207 qualification verifies the first Alien preview before any form
+switch, then thirteen visits across five members and all seven native genera.
+Werewolf animation flags appear only on Werewolf. The subsequent complete
+comparison retains every field in all 195 captured appearance records and all
+test save files. This qualifies CAS animation isolation; category link/copy,
+CAS-exit Human paint and broader release gates remain open. See the
+[validation record](../manifests/cas-animation-validation.json).
+
+## Portrait pair controls (V204 development candidate)
+
+The portrait toolbar adds Link/Unlink and two explicitly directed whole-appearance
+copies. It follows EA's existing portrait anchor, including Alien's layout.
+Linking keeps both current looks and applies only to later edits; unlinking stops
+that propagation. Copy uses the exact displayed source and destination owners.
+Links currently last for this CAS session. Selective categories, saved link
+preferences and copy-specific undo remain unqualified release work.
+
+```powershell
+python tools/apex_cli.py cas pair-link --state STATE --sim-id SIM --owner-id active/2 --enabled --output NEW_LINK_JSON
+python tools/apex_cli.py cas pair-link --state STATE --sim-id SIM --owner-id active/2 --no-enabled --output NEW_UNLINK_JSON
+python tools/apex_cli.py cas pair-copy --state STATE --sim-id SIM --source-owner-id active/2 --target-owner-id native/1 --output NEW_COPY_JSON
+```
+
+Read the actual owner identities from fresh `cas status` / `form_strip.pair_controls`;
+the examples require those owners to be the currently displayed pair. A queued
+request is consumed once. Native refusal or a lost acknowledgement never permits
+replaying the copy. Real full-field and other-household-member comparisons are
+separate from the action acknowledgement.
+
+V204 processes queued form clicks on the next connected, idle UI frame and reads
+the bound native model directly, independently of an outstanding network POLL.
+V202's next-frame callback still waited for that poll in its general timer.
+V203's clock lookup throws before scheduling the frame. Neither qualifies a
+latency fix. V204 imports the clock and verifies its actual package QName in
+serialized bytecode. The 500 ms socket timer continues to serve CLI
+traffic. `form_strip.switch_milliseconds` is a proposed click-to-bound measurement;
+V202 returned -1, so that observation does not qualify end-to-end timing. Native
+diagnostics separately report `owner_view_result.native_view_elapsed_ms`: V202's
+actual Vampire binding took 12.0512 ms, excluding rendered-avatar readiness.
+
+The V203 native synchronizer compares complete serialized appearance records
+before committing an edit. A status read or unchanged model refresh cannot
+propagate through a link. A directed copy is not a new destination edit and
+cannot spread through that destination's other links on its next refresh.
+Native fixtures reproduce the previous failure and verify changed opaque fields,
+unlink isolation, and linked-third-form copy isolation. Actual game comparisons
+remain a separate release gate.
+
+## Native CAS form strip and workspace
+
+The form strip is implemented in `ApexCASBridge.package`, inside the native
+CAS UI. It uses CAS fonts, the game's occult icons, a pale blue panel and a
+green selected state. Its header supports dragging; the toolbar provides
+scale, lock, collapse and reset controls. The current native pair is shown
+below the full captured membership list. Cross-kind cards remain disabled
+while that conversion path is quarantined.
+
+`cas workspace` changes only this panel's layout. Coordinates are normalized
+within the available viewport, and scale is bounded to 0.7–1.5. Supply all five
+layout fields; a later UI tick must return the actual layout and explicitly
+report no appearance write. The layout survives Sim/socket rebinding within
+this CAS widget; persistence across new CAS sessions is not implemented.
+
+```powershell
+python tools/apex_cli.py cas workspace --state STATE --sim-id SIM_ID --x 0.85 --y 0.14 --scale 1.1 --no-locked --no-collapsed --output NEW_WORKSPACE_JSON
+```
+
+V146's actual CAS run verifies movement and scale through this command. A
+subsequent window-addressed input attempt was followed by a native crash;
+the actual clicked target was not established. V147 routes
+both same-pair CLI navigation and strip buttons through the unchanged native
+`SelectSimLayer` handler, preserving its thumbnail cleanup, native setters,
+retained selection, link/copy UI and customizer lifecycle. The typed CLI now
+passes actual Alien layer 0 → Human disguise layer 1 → Alien layer 0, followed
+by native acceptance, simulation ticks, five independent commits and an exact
+40-owner comparison. Movement, scale, collapse, lock and expansion also have
+actual layout readbacks. This qualifies the existing pair, not cross-kind
+switching or the strip's mouse buttons. Window-addressed CAS clicks can use
+stale hit-testing; input ACKs must never establish the selected control.
+
+**V142 quarantines `occult-cache-view` after a native crash following its first
+acknowledged Alien-to-Vampire conversion. Both host CLI and game receiver refuse
+before any native request. Do not enable or replay it.**
+
+V141 introduced the research-only `occult-cache-view` command. Its contract used the same exact
+session/layer/view-mask arguments as `occult-view`, plus `--owned-mask` from
+the actual pre-entry membership capture. The CLI obtains the marked disposable
+token from its journal; normal profiles cannot authorize this operation.
+The server checks that membership and the target's existing owner before
+delivery. A successful pair-projection acknowledgement **does not** verify
+retention, edits, save/reload or release readiness. Never repeat an unresolved
+conversion UUID. This experimental path does not relax `occult-view`.
+
+V135 adds complete-membership entry preparation; V134 added typed native
+`occults` and `occult-view` controls. These extend the mod toward all owned
+occults in one native CAS visit. The actual V134 visit still reported only
+Human/Alien because Apex's entry preparation narrowed that mask. V135 removes
+that narrowing, with runtime qualification still pending. All 801 CAS tests
+and 26 source-upgrade tests pass against its frozen source. See the
+[current membership ledger](../Reports/NATIVE_CAS_HYBRID_MEMBERSHIP_2026-10-15.md)
+for actual native receipts and remaining release gates.
+
+`cas occults` returns the installed native room's available-occult inventory.
+`cas occult-view` requires a previously captured target owner, a fresh native
+status, the exact household, session and layer, and the complete observed
+membership mask. It invokes the existing native `SetSimOccult` once, then
+checks the selected occult and every original membership bit on a later UI
+tick. Human conversion, unowned kinds, stale contexts and lost memberships
+are refused. A failed postcondition retains the original UUID; do not replay
+it. A successful acknowledgement establishes selection only, never appearance
+persistence or a completed additive-membership feature.
+
+```powershell
+python tools/apex_cli.py cas occults --state STATE --sim-id SIM_ID --output NEW_OCCULTS_JSON
+python tools/apex_cli.py cas status --state STATE --sim-id SIM_ID --output NEW_STATUS_JSON
+python tools/apex_cli.py cas occult-view --state STATE --sim-id SIM_ID --household-id HOUSEHOLD_ID --native-session OBSERVED_SESSION --expected-layer OBSERVED_LAYER --expected-all-occults OBSERVED_MASK --occult-type OWNED_TARGET_FLAG --output NEW_VIEW_JSON
+```
+
+Earlier actual-game coverage includes V120. Ordinary full CAS edited the actual
+Mermaid alternate with 12 native controls, including its available eyebrow
+palette and an EA nose preset. Its Mermaid → Vampire → Mermaid round trip
+retained all 40 household owners through 5,777 simulation ticks. One later
+full-CAS visit edited six controls each on different companions' actual
+Werewolf and Fairy alternates; all 36 unselected owners stayed exact. Their
+Werewolf → Alien → Werewolf and Fairy → Vampire → Fairy round trips retained
+all 40 owners through 11,225 more ticks. The mixed household's normal save and
+after-save comparison passed; the new save is
+`271b92ca82ec38795bc0dc7102cac8a48f521c40f34bb55036ae0fd46006a9eb`.
+Cold reload of that exact mixed checkpoint is a separate pending acceptance
+step. The [household ledger](../Reports/HOUSEHOLD_CAS_2026-10-14.md) retains the
+individual proofs, historical failures and current scope.
+
+V122 development adds built phone/F11 outfit-hair pickers and compound wing
+readback. Their new current-game tests remain pending. The dedicated
+`game cas --value mccc-full` interoperability mode likewise requires actual
+MCCC entry, edits, Live review, switching and reload proof; it is not supplied
+by ordinary native-entry coverage. The full MCCC, Tray, all-panel and release
+gates remain open. A copied CC nose preset's mismatched native index remains a
+failed verification; the successful EA preset does not qualify that CC item.
+
+An accepted editor entry can take longer to load than its observation window.
+Use `cas-entry-observe --state STATE --sim-id SIM_ID --entry-proof ENTRY_JSON
+--entry-sha256 SHA256 --output NEW_JSON` to inspect that same accepted entry
+without submitting another entry or selecting a different Sim. The original
+PID, token, script, selected Sim and crash evidence must still match; a fresh
+native peer and complete typed inventory are then required. The original timeout
+proof remains immutable. A follow-up inventory read does not prove edits or save
+retention.
+
+`cas return` now navigates an exactly bound alternate layer back to primary layer
+0 before its single native acceptance. That navigation has its own retained UUID
+and must complete before acceptance is attempted. A live snapshot explicitly
+cancelled before execution at the zone boundary can be reobserved once; acceptance
+and gameplay mutations are never repeated because of a lost or cancelled read.
+
+V110 adds `cas member-select` for the full existing-household editor. Supply the
+currently selected Sim, destination Sim, household, current layer and native
+session from `cas status`. The command uses the installed `CASSelectSim` handler
+and verifies the destination on a later UI tick. It preserves the complete
+observed household roster and requires original producer captures for both
+members. It does not create Sims or certify appearance persistence.
+
+```powershell
+python tools/apex_cli.py cas status --state .work/reusable-profile-session.json --sim-id SOURCE_SIM --output .work/source-status.json
+python tools/apex_cli.py cas member-select --state .work/reusable-profile-session.json --sim-id SOURCE_SIM --target-sim-id TARGET_SIM --household-id HOUSEHOLD --expected-layer 0 --native-session SESSION --output .work/member-selection.json
+```
+
+Full-CAS entry now captures each hybrid companion's navigation identity while
+its Live producer is available, alongside its independent form checkpoint.
+Incomplete identities block entry. Native acknowledgements identify the actual
+selected Sim; a successful request for another Sim is never inferred from an
+input or requested ID. The subsequent workbench must run against that returned
+destination. Use explicit per-member/per-form decisions when returning to Live.
+
+For navigation diagnostics, `form_selection_binding` and
+`member_selection_binding` validate the fresh
+`client.owner_pair_observation`, its `selector_feed.raw_feed` and
+`selector_feed.retained`, and the actual selected native Sim. Read the native
+session from `client.owner_pair_observation.session`. The raw feed retains its
+initial selected index; household navigation can legitimately leave the
+current retained index different. The retained selection must match the fresh
+native Sim and complete raw/retained pair identities. A redundant Customizer
+listener reporting `complete=false`, or `cas_room.available=false`, can coexist
+with a valid authoritative pair. These diagnostics do not authorize refreshing
+the native selector, replaying an accepted entry, or guessing another Sim.
+
+CAS status, submission and result polling share one bounded CLI inventory
+lease. The batch first verifies all installed artifact hashes. Each subsequent
+request checks the journal and artifact identity, size, write time, NTFS
+ChangeTime and USN (or content hash when unavailable). The two recognized MCCC
+diagnostic logs may update/rotate; settings, pinned artifacts, unknown files and
+replaced directories still stop the batch. This avoids hashing the 1.1 GB
+slider/preset setup between a fresh status receipt and its three-second
+navigation deadline. Separate commands start new full verifications.
+
+V121 adds an explicit base/color binding for native Fairy wings. Obtain the
+base from `cas catalog --panel clothing_body_wings` and its exact color ID from
+`cas variants`. Use `cas select --panel clothing_body_wings --base-data-id BASE
+--data-id COLOR` with the same selected Sim. The native wing color getter may
+return a partial record without body type. The command therefore checks the
+typed base in the visible wing catalog, requires exactly one matching color in
+that base's family, and sends EA's `{data_id: BASE, color_data_id: COLOR}` shape.
+A base match alone cannot certify the requested color. Invalid, ambiguous or
+foreign bindings stop before mutation. This fixes a concrete V120 pre-mutation
+refusal. V122 additionally checks the compound native readback: exactly one
+typed selected base must match the requested base, and the independently typed
+selected color must match the requested color. A native success or a matching
+base alone cannot satisfy that postcondition. The bytecode audit checks these
+conditions in the serialized UI package. Actual wing selection and retention
+remain pending; neither built version is qualified by source/audit proof alone.
+
+V122's phone/F11 CAS-return review provides explicit hair targets when
+independent outfit hair was enabled before capture. In the phone review, keep
+the intended form edit, open its outfit picker, and choose which individual
+outfits should keep returned hair. F11 presents the same choices as per-form
+checkboxes in a scrollable list. All original outfits and added/removed returned
+outfits remain visible; unknown categories retain their native number. Only
+stable original/returned outfit identities are selectable. Neither changed
+hair nor an open panel automatically selects an outfit.
+
+`cas_bank_ui_status` exposes the receiver-owned `hair_inventory`, its
+`hair_inventory_sha256`, and explicit `hair_targets`. Each target contains only
+native `category`, zero-based `ordinal`, and decimal-string `outfit_id`. A F11
+`cas_bank_ui_prepare` supplies the exact inventory hash with its target set,
+alongside the existing checkpoint, raw-return hash, review nonce and independent
+form decisions. The receiver preserves unselected outfits' original hair while
+retaining accepted unrelated CAS edits. Stale identities, foreign UIDs and
+added/removed/reordered hair wardrobes refuse before a plan attempt; unresolved
+submitted plans still cannot be replayed. The current contract requires at
+least one explicit keep target when accepting a form with changed hair; an
+empty target set does not silently accept propagation. Eleven new native
+protobuf/receiver fixtures, 23 existing phone CAS tests, six phone-menu tests
+and all six native CTests pass. Actual in-game picker/retention proof remains
+pending; these frontends do not establish that native CAS itself has stopped
+propagating hair.
+
+V40 makes plain `game capture --background` independent of F11 initialization,
+visibility and gameplay/CAS diagnostics. It reads the selected native game's
+backbuffer with scoped device/context ownership. Actual cold startup succeeds
+with F11 hidden and zero UI frames; the public background Resume subsequently
+verifies the exact disposable household in paused Live mode. Overlay-inclusive
+capture still requires the real UI renderer and its CAS visibility guard.
+
+V39 adds `--background` to public `game capture`, `game resume`, `game shutdown`
+and `game exit`, in addition to clicks. Renderer attachment observes the unique
+visible Sims Canvas owned by the verified process. These routes never request
+foreground ownership or a focus fallback; lifecycle buttons use the existing
+window-message click protocol. Captures and normal lifecycle proof remain
+required, and unavailable/ambiguous windows stop the operation. A new DLL
+requires normal game closure before installation; cached older DLLs retain
+their previous foreground selector.
+
+V27 adds `cas layer-select --target-layer 0` (Primary) and `--target-layer 1`
+(Alternate/Dark). Supply the exact currently observed `--expected-layer`,
+`--native-session`, `--household-id` and original `--sim-id` from a fresh
+`cas status`. This navigation supports Vampire pairs in which both native
+records report type 4. It does not relabel Primary as Human or authorize
+alternate-layer acceptance. F11 exposes the same explicit native layer buttons.
+The existing `form-select --form` remains restricted to an unambiguous native
+pair; neither operation can select an arbitrary retained occult in one visit.
+Generation 62 verifies actual Dark -> Primary, Primary -> Dark and edited
+Dark -> Primary through this semantic command, without mouse input. Eleven
+Dark edits have native readback, but their subsequent reconciliation fails on
+another form's lost Mermaid genetics; navigation success is not retention.
+
+The development CLI uses native CAS methods and a later native UI tick for readback. It does not click catalog tiles or run arbitrary game services. All commands require the marked disposable profile and an explicit existing Sim ID. A failed or unresolved command is not a successful edit. Poll its returned request ID; do not repeat a mutation.
+
+The v23 candidate adds 27 typed operations to the earlier controls and five previously missing Vampire detail panels. The panel inventory contains 77 native menu states. Eyebrows and whiskers use the native face panel's string part selector; eyebrows then use a separate next-tick palette operation. They do not use the preset-index or clothing modifier-object setter. Every advertised typed control must have both execution and result dispatch before the package builder accepts it. Opening a panel and capturing every selected field are distinct from proving an edit persisted through CAS, Live, switching and disk reload. The complete per-form test matrix is still open.
+
+Use `python -B tools/apex_cli.py cas panels --state .work/reusable-profile-session.json` for exact panel names, palette types and required command fields. Use `cas --help` for arguments. Examples below are fragments after that same CLI prefix; supply `--state` and `--sim-id` for each operation.
+
+| Task | Command and exact native evidence |
+| --- | --- |
+| Open any mapped panel | `cas panel --panel skin_details`; actual visible native menu state |
+| Discover available items | `cas catalog --panel skin_details --offset 0 --limit 8`; complete native page, total count and current filters |
+| Enumerate variants | `cas variants --panel skin_details --data-id <native-base-id>`; returned native color family |
+| Select clothing, skin details, jewelry, makeup, body hair, scars or Vampire details | `cas select --panel <name> --data-id <exact-returned-variant-id>`; native filtered panel membership, exact body type and selected item readback |
+| Select head, nose, eyes, jaw, mouth, cheek, ears, chin or body presets | `cas preset --panel <name> --data-id <native-preset-id>`; exact native catalog index and preset record |
+| Select eyebrow or whisker parts | `cas select --panel eyebrows --data-id <exact-variant-id>`; exact equipped identity, rather than a preset index |
+| Discover tattoo body regions | `cas body-types --panel clothing_body_tattoos`; complete cycle of eligible native body region IDs, original region restored |
+| Select a tattoo region | `cas body-type --panel clothing_body_tattoos --body-type <native-id>`; selected native region |
+| Inspect all layers in that region | `cas layers --panel clothing_body_tattoos --body-type <native-id>`; complete native layer array, including medical entries |
+| Add a tattoo layer | `cas layer-add --panel clothing_body_tattoos --body-type <native-id>`; exactly one empty append, other rows unchanged |
+| Equip a layered tattoo | `cas select-layer --panel clothing_body_tattoos --body-type <native-id> --layer-index <index> --layer-id <identity> --data-id <exact-variant-id>`; exact item and layer identity |
+| Remove or reorder a tattoo layer | `cas layer-remove` or `cas layer-move` with the same body/index/identity arguments; move also requires `--target-index`; complete other rows must remain unchanged |
+| Remove an ordinary equipped item | `cas remove --panel <name> --data-id <equipped-id>`; exact selected identity absent afterwards |
+| Discover skin, eyes, eyebrows, facial/body hair or animal palettes | `cas swatches --swatch-type <type> --offset 0 --limit 8`; complete paged native palette |
+| Select a palette entry | `cas swatch --swatch-type <type> --data-id <native-swatch-id>`; actual selected native identity; fur also uses `--color-index` |
+| Set weight or muscle | `cas physique --physique-type 0 --value 0.5` (weight) or type `1` (muscle); exact native physique array readback |
+| Inspect a part's complete color slider records | `cas modifiers --panel <name> --data-id <equipped-id>`; complete native modifier ranges, values and unknown fields |
+| Edit a part's four native color sliders | `cas color-sliders --panel <name> --data-id <equipped-id> --hue 0.1 --opacity 1 --saturation 0 --brightness 0`; each value must fit that part's returned range, then all four values and other fields must read back |
+| Inspect or change native hair-color matching checkboxes | `cas hair-matching` or `cas hair-match --flags <0-63>`; exact native mask. This controls eyebrow/facial/body-hair matching, not independent outfit hairstyles |
+| Discover every eligible voice and its pitch bounds | `cas voices`; complete native array for the original Sim's current species/age, including icon and unknown fields |
+| Set a voice actor | `cas voice-actor --actor-index <zero-based-index>`; the game reports the resulting actor as a one-based number; primary full editor required |
+| Set voice pitch | `cas voice-pitch --value <number>`; finite value inside the selected voice's native min/max, including negative pitches; primary full editor required |
+| Discover or set a walkstyle | `cas walkstyles` or `cas walkstyle --data-id <returned-trait-id>`; complete native inventory and exactly one requested equipped trait; eligible primary full editor required |
+| Inspect, enter or leave detailed edit mode | `cas detail-status`, `cas detail-mode --enabled` or `cas detail-mode --no-enabled`; the native detail-mode component must read back the requested state. This does not yet implement direct sculpt strokes |
+| Inspect native catalog filters | `cas filters --panel <name>`; complete selected tags, excluded/context tags, pack IDs and native filter flags |
+| Clear removable catalog filters | `cas filter-clear --panel <name>`; native ClearSelections, followed by the empty native filter-bubble readback. Required context and prohibited tags remain in the native filter record |
+| Outfit category/number | `cas outfit --category <native-category> --index <existing-number>`; actual current outfit identity |
+| Add an outfit | `cas outfit-add --category <native-category>`; one native append; no random replacement of an existing outfit |
+| Native undo/redo | `cas undo` or `cas redo`; a real Sim/equipped-data difference, not only navigation |
+| Navigate the observed occult pair | `cas form-select` with exact household, current layer, native session and target form; same original Sim/pair required |
+| Return to Live | `cas return` with exact household and a new external `--output`; primary layer required, then actual simulation ticks and final pause |
+
+Catalog paging has no total item cutoff. Packet size limits require another page; they never discard items. Native null results remain unavailable rather than being converted to empty inventories. A native tattoo component currently has five ordinary layers; medical layer 127 is protected from the tattoo removal/reordering commands. This is the installed game's native layout, not a history cutoff.
+
+First-tattoo insertion into an empty native layer list remains quarantined.
+`cas layer-add` refuses that case before adding a layer; the earlier native
+crash and failed acceptance are retained. Existing tattoo discovery/layer
+controls do not qualify first insertion or complete tattoo retention.
+
+Appearance history has no edit-count or total-document cutoff. Inactive complete rows move into immutable content-addressed JSON archives, written and verified before references enter the active bank. The latest legacy completion and every active original/checkpoint/write-ahead record remain directly available. Older raw rows must verify against their length and SHA-256 when opened. No archive grants permission to replay a native mutation.
+
+`cas-workbench --state .work/reusable-profile-session.json --sim-id <id> --output .work/new-workbench.json` visits the entire panel registry by default. Repeat `--panel <name>` to use a chosen scope. Add `--edit` to exercise different exact returned catalog items in the already-open full editor. One adjacent JSONL file retains every full response; the JSON manifest binds each byte range and SHA-256. Empty and unavailable panels remain visible. An unresolved acknowledgment or uncertain mutation stops the sequence without replay, acceptance or saving. Tattoo region/layer and featured-look workflows are reported separately; a completed workbench is not complete edit-path or Live-retention proof. Normal modifier slots use layer index `-1` and identity `0`; layered modifiers require an explicit existing index and non-medical identity.
+
+If native success fails the Source postcondition, the complete rejected acknowledgment and validation error are retained under its original request ID. The request remains blocked: an invalid response cannot authorize another mutation or acceptance. This also distinguishes a rejected native reply from a reply that never arrived.
+
+Voice and walkstyle are native Sim-wide properties. These commands do not claim that they are independently owned by each appearance lane. Remaining CLI coverage includes direct face/body sculpting, tattoo/coat/wing paint strokes, featured-look workflows, arbitrary native filtering/search selection, identity/trait/aspiration editors, and every native confirmation dialog. These require their own inspected contracts and native readback; the generic item setter is not a substitute. Full custom CAS-room, MCCC/manual-entry and save/reload parity remain release gates.
+
+The installed build's read-only native UI exports are the primary contracts. Relevant public references include [S4CL outfit utilities](https://github.com/DeviantGameMods/Sims4CommunityLibrary/blob/main/Scripts/sims4communitylib/utils/cas/common_outfit_utils.py), [its appearance modifier implementation](https://github.com/DeviantGameMods/Sims4CommunityLibrary/blob/main/Scripts/sims4communitylib/classes/appearance_modifiers/common_attach_cas_parts_appearance_modifier.py), and [EditInCAS](https://github.com/Oops19/TS4-EditInCAS). None of those references establishes Apex's hybrid-form persistence or native CAS UI test results; native tests remain required.
+
+Native inventory getter records are copied immediately into owned arrays/objects before the next native call. The package builder checks this rule in source and serialized bytecode. This protects the lifetime of complete data during bulk discovery; it is not a causally proven game crash fix.
+
+
+Form selection automatically obtains a new owned native status immediately before navigation. The caller's exact household, current layer and native session must still match that observation; they are never replaced with guessed values. A pending/rejected preflight or mismatch blocks the selection. The complete preflight reply is retained in the result. This avoids expiring the Source's five-second freshness guard while an operator reads a previous status.
+
+
+Generation 59 has native proof for a Fairy alternate's exact hair, eyebrows, head skin detail and nose preset through full CAS, primary-layer acceptance, explicit Fairy-only reconciliation and unpaused Human/Fairy switching. Other six stored forms remain unchanged. A controlled disposable save/seal passes; cold reload and complete per-form/category coverage are still open. See the [alternate test ledger](../Reports/ALTERNATE_CAS_2026-10-08.md).
+
+
+`game cas --value full` now uses the native existing-household entry after
+retaining all appearance owners. This corrects the single-Sim configuration
+that hides personality and the selector even when forced full-edit is true.
+The workbench accepts observed existing-family modes 0 and 7, verifies actual
+forced full-edit and entry from Live, and never substitutes a new Sim.
+The native and Source accept guards still require the exact original identity,
+household and primary layer. All-occult same-visit navigation remains unfinished.
+Native `CASCatalogFilter` slots are copied through data-class-only reflection,
+retaining public fields and readable accessors rather than returning an empty
+object for a sealed native record. Full native retesting remains separate from
+passing the 1,546 frozen fixture checks and four native targets.
+
+Actual existing-household mode 0 now has native proof for eleven Alien creature
+panels, original-Sim Live return, explicit Alien-only decisions and unpaused
+Alien → Vampire → Alien retention. Empty body skin details and failed tattoo
+queries remain explicit. V25's accept path adds the native pending-name and
+family validation required by this editor before the single SaveAndExitCAS;
+name warnings refuse rather than selecting a dialog answer implicitly. The
+earlier failed semantic request and separate successful native confirmation
+remain distinct evidence. The host normal-quit guard now recognizes every
+public typed control, while active peers and unresolved requests still block.
+
+Cold `game load` can use the fixed native input route before the first household
+has created TimeService. This narrow admission requires the exact installed
+process/profile/script, a never-ticked bridge with no retained/pending queue
+entries, and a complete fresh Home or uniquely indexed normal-load menu.
+It provides no Sim-mutation or Live-completion authority. Normal Source CAS,
+identity and clock verification remain mandatory once a household is loaded.
+Native pre-input pointer refusals remain failed observations; they are not
+silently treated as completed clicks.
+
+For a cold start with an uninitialized hidden F11 renderer, the public native
+CLI can initialize its frames before `game load`. First verify `bridge` and
+`request overlay_status`; start only on the exact “F11 sidecar has not been
+started” response. Then focus, show, observe status 3 with submitted frames,
+and hide before capturing the ordinary menu:
+
+```powershell
+python tools/apex_cli.py request overlay_start --state .work/reusable-profile-session.json
+python tools/apex_cli.py game focus --state .work/reusable-profile-session.json
+python tools/apex_cli.py request overlay_show --state .work/reusable-profile-session.json
+python tools/apex_cli.py request overlay_status --state .work/reusable-profile-session.json
+python tools/apex_cli.py request overlay_hide --state .work/reusable-profile-session.json
+```
+
+Generation 67 verifies this sequence through the public CLI, with matching
+native DLL, actual frame submission and `sim_data_read=false`. These are native
+frame controls, not household readiness or headless-engine proof. Retain every
+request UUID; an unresolved start/show/hide is not permission to replay it.
+
+At the observed 2560×1385 Home viewport, native OCR can omit Marketplace while
+returning exact Home, Resume Game, Load Game, New Game and Gallery labels.
+The load gate admits that missing-label case only with both independent exact
+Home/Resume headers and all three gameplay controls; duplicates, partial menus
+and known blocking dialogs still refuse. The target uses fresh measured Load
+Game bounds, and the requested save still needs its indexed name/hash/GUID,
+unique normal-row Play and exact original-Sim Live readback. A completed Play
+which opens the neighborhood map remains unresolved for Live. This rule is
+covered by the 14 load tests and does not infer successful game input from OCR.
+
+## Focus-free live part colors
+
+Inspect the actual equipped row first. `studio color-live` accepts the same
+exact target/lane/part/color/appearance/resource hash envelope as `color-edit`,
+then commits it atomically on the owner thread. It keeps the inactive form
+inactive and never changes game focus or clock speed. F11's “Apply live when
+released” submits one such transaction at the end of a wheel/slider gesture.
+
+For repeatable numerical testing, put explicit numeric channels in a JSON file,
+then use the exact form and target returned by `studio status`:
+
+```powershell
+python tools/apex_cli.py test live-color --state .work/reusable-profile-session.json --sim-id 285159751289798669 --form 2 --target 9:29:9 --edits-file edits.json --seconds 120 --output new-color-proof.json
+```
+
+This command checks accepted Q14 values after actual simulation ticks, untouched
+fields/unknown outfit bytes and other forms, stale-state refusal, Undo/Redo and
+final restoration. It refuses existing evidence files and retained previews.
+The current Live Sim and its native stored wrapper are independent owners.
+An active edit changes Live plus the independent bank; normal form switching
+synchronizes its native stored wrapper. An inactive edit changes only its
+exact stored owner/bank, leaving the distinct Live appearance unchanged. The
+regression reads both owners and never substitutes one snapshot for another.
+A failed or unresolved edit remains recorded under its original UUID; no blind
+mutation or restoration replay runs. Visible rendering requires separate image
+inspection. V35's first CC probe failed resource lookup before a color write;
+see [the actual color ledger](../Reports/LIVE_COLOR_2026-10-10.md).
+
+`game click --background` addresses the verified game window with mouse
+messages and leaves the foreground/OS cursor alone. It requires freshly
+observed client width/height and coordinates. Its receipt proves message-queue
+acceptance only; verify the resulting UI separately. Semantic CAS controls
+remain the preferred path and need no clicks.
+
+## Retained CAS requests and wing observations
+
+Public semantic CAS commands with `--output` reserve both a new result file
+and an adjacent `.intent.json` before transport. Each submitted owner UUID is
+flushed before dispatch. Missing or mismatched owner/CAS UUIDs and non-boolean
+`ok` values are rejected with the original raw reply retained. An unknown
+submission is observed under its existing UUID; it is never replayed. Existing
+files, linked destinations, either profile and the profile journal are refused.
+
+The V123 UI bridge adds read-only `client.wing_observation` while the actual
+Wings panel is open. It retains detached base-query values, element types,
+color-query value/type and getter errors. `qualified_success` remains false:
+these observations explain a failed selection predicate and do not certify
+that a requested wing base/color was applied. The compound mutation predicate
+still requires exact base and color readback.
+
+## Catalog browsing outside CAS
+
+The host catalog browses every CASP in explicitly listed packages, including
+items never equipped on a Sim. Provide a JSON array of `{"path": "...package",
+"origin": "mod"}` or `"ea"` records. It writes only a new external index and
+does not contact the game:
+
+```powershell
+python tools/apex_cli.py live-cas-catalog build --input sources.json --index .work/live-cas-catalog/library.sqlite
+python tools/apex_cli.py live-cas-catalog query --index .work/live-cas-catalog/library.sqlite --expected-index-sha256 HASH_FROM_BUILD --query "lipstick" --body-type 29 --origin mod --name-mode preferred --limit 60
+python tools/apex_cli.py live-cas-catalog resolve --index .work/live-cas-catalog/library.sqlite --expected-index-sha256 HASH_FROM_BUILD --part-id ID_FROM_QUERY
+```
+
+`next_offset` pages the immutable snapshot. Names can use `preferred`, `package`
+or `code` mode. Duplicate containers and resource groups remain distinct;
+unclassified resources remain visible. Selection rechecks exact package and
+CASP bytes and returns provenance suitable for the existing resource broker.
+An index is a catalog of container candidates: effective game load order,
+Sim compatibility, successful equip and F11 grid/3D rendering remain separate
+work. Existing snapshots are preserved; use a new filename when rebuilding.
+
+The V38 candidate adds a loopback catalog service and F11 library workspace:
+
+```powershell
+python tools/apex_cli.py live-cas-catalog serve --index .work/live-cas-catalog/library.sqlite --expected-index-sha256 HASH_FROM_BUILD
+python tools/apex_cli.py studio open-library --state .work/reusable-profile-session.json --sim-id EXACT_SIM_ID
+python tools/apex_cli.py studio catalog-preview --state .work/reusable-profile-session.json --sim-id EXACT_SIM_ID --form EXACT_FORM --value-file selection.json
+python tools/apex_cli.py studio apply --state .work/reusable-profile-session.json --sim-id EXACT_SIM_ID --form EXACT_FORM --value PREVIEW_ID
+```
+
+`selection.json` has exactly `outfit_index` (integer), `outfit_id` (decimal
+string), `part_index` (integer, or null for an empty category), `body_type`
+(integer), `cas_part_id` (decimal uint64 string), `resource_tgi`,
+`resource_sha256`, `lane`, and `appearance_sha256`. Outfit/owner fields come
+from a fresh `studio status`; resource fields come from exact catalog resolve.
+An explicit form need not be active. The loaded CASP must match the full TGI,
+hash and body type, and support the Sim's age/species. Dynamic object-backed
+attachments, restricted-frame fitting and layered append still need their
+own native contracts. Failures occur before a preview changes the Sim.
+
+The service binds `127.0.0.1:8023` and provides bounded typed JSON routes for
+query, inspection and favorites. Windows keeps the immutable index open with
+a lease that denies writing/replacement. The selected source package is
+rehash-verified; browsing never calls the game. Search, all discovered
+categories, name modes, two to eight columns, 60-item pages, favorites and
+recently inspected items are available in F11. Selected items use the existing
+verified thumbnail/package-copy broker. Grid thumbnails, swatch families,
+presets and the independent 3D Sim renderer remain separate work.
+
+
+## October 15: reviewed household, native save admission and Library candidates
+
+`python tools/cas_review_cli.py --help` exposes the actual F11 review model
+through the existing Source queue. Each action binds the preceding view hash;
+choices never bypass the phone actor's real tick/Pause proof. Mutation UUIDs
+are durably recorded before submission. Poll a timed-out UUID without replay.
+Native queued refresh cancellation remains unresolved; direct Source adapter
+success is not end-to-end native F11 UI certification.
+
+`python tools/tray_complete_appearance.py --help` creates a new **external**
+candidate from an authentic native Library group, fresh reviewed canonical
+records, a current native descriptor catalog and an explicit complete identity
+bijection. It copies active appearances and complete occult/trait trackers,
+including unknown nested fields, retaining native identities, other trackers,
+household fields, metadata, images and the opaque native footer. It neither
+installs files nor claims native Gallery acceptance. Native loading and every
+imported alternate must still be tested. The unmodified native export currently
+loses visible-owner Apex metadata and changes some companion Human data.
+
+The retained account launch fallback uses the actual hashed successful launch
+receipt only while executable and installer identities match. Fresh successful
+EA Client Play evidence takes precedence. It never guesses an account edition.
+Semantic wing selection is quarantined before any request is created; read-only
+wing observation remains available. `game main-menu --background` routes menu
+clicks to the game window and opens its menu through the observed game client.
+# Installed occult artwork and sunlight protection
+
+The existing `qol_sunlight_on`/`qol_sunlight_off` actions keep per-Sim,
+per-save preferences. V127 also wraps the installed native
+`TimeService.is_in_sunlight(self, sim)` predicate for opted-in vampire Sims,
+including hybrids in other forms. Other Sims delegate unchanged; the existing
+vampire sunlight buff filter remains active. This does not revive dying Sims.
+
+The read-only `occult_icons` action accepts no external payload or resource ID.
+It resolves the six installed occult trait icons, with bounded hashed PNG/DST5/DXT5
+delivery cached for the session. Phone rows use the native resource keys
+directly; F11 decodes on its worker and creates/releases textures on its render
+thread. Missing or unsupported artwork keeps readable text controls. No game
+artwork is included in the repository or candidate archive.
+
+V128 resolves EA's PNG-to-DST image alias using the same exact instance/group,
+verified against all six installed icon resources. A read-only
+`qol.sunlight_exposure` receipt reports the installed wrapper and compares its
+effective predicate with the previous callback; it does not advance the clock.
+
+V130 handles native Python returning no client image bytes. A background worker
+reads only exact installed client DBPF keys into session memory, checks index
+and resource bounds/content, and refuses differing duplicate resources. The
+catalog returns `loading: true` until complete. F11 polls that read-only result
+at most sixty times, one second apart, without blocking other commands. It
+never exports or redistributes the game artwork. No Sim API runs on this worker.
+
+## Native capture coordinates and disposable closure
+
+WinRT OCR may report a nonzero `TextAngle` even on a horizontal game menu.
+Its word rectangles then refer to the deskewed image. The host maps all four
+rectangle corners clockwise around the image centre before undoing bitmap
+scaling, preserving the untouched capture. An observed 8.5-degree result had
+previously targeted Load Game instead of Resume; the captured regression now
+maps to the visible Resume control. See Microsoft's
+[TextAngle contract](https://learn.microsoft.com/uwp/api/windows.media.ocr.ocrresult.textangle).
+
+Native input still rejects a viewport mismatch before submission. Retain that
+failure and obtain fresh geometry rather than relabelling it successful. The
+V198 launch encountered a 720-pixel backbuffer with a 672-pixel client; a single
+verified no-activation window adjustment aligned them without changing focus.
+That adjustment remains a private diagnostic, not a shipped automatic repair.
+
+Apartment-map qualification remains open. Selecting the occupied building and
+then its unit floor exposes the household Play control; the floating plumbob
+and portrait alone did not select the unit. The existing single-marker map
+driver does not establish apartment navigation parity.
+
+The owner explicitly permits ending a stuck disposable test process after
+normal closure fails. Authenticate its exact PID, installed script, disposable
+token and profile, retain current save hashes and the failed closure evidence,
+and act only on that process. This permission never covers an original-profile
+game. V197 exited normally without saving; force termination was not required.
+
+For an independently bound hybrid controller, CAS return reads the actual native
+portrait pair before selecting its base. This is shared Human for ordinary
+pairs and Alien when Human is its alternate disguise; selecting Human again
+cannot leave Alien's layer 1. The native PID, Sim, selected owner, rendering
+kind, layer and shared Human must match the current editor. Unknown orientations
+refuse before navigation. A native read can outlast the socket preflight, so
+return refreshes status and uses the existing certified pre-queue refusal
+reconnect path. Issued/unknown requests and acceptance are never replayed.
+The navigation carries the exact disposable token, household, owner and session.
+
+`cas-return-settle --state STATE --return-proof RETURN --return-sha256 HASH
+--output NEW_JSON` finishes only an already observed, paused Live return whose
+retained native Pause receipt proves the required simulation ticks. It verifies
+a fresh matching Live snapshot and completes the original return's metadata.
+It never submits CAS acceptance, Play, appearance writes or a game save; its
+proof retains any unobserved native commit result rather than inventing one.
+
+The V199 native input candidate separates background move, down and up by
+120/100 ms so CAS grid hover state can settle. It releases a held game button
+after a viewport change and refuses replaced windows. The twelve native checks
+pass; the installed DLL completes native Resume and normal Exit through
+background window messages. Real CAS-grid selection remains a separate gate.

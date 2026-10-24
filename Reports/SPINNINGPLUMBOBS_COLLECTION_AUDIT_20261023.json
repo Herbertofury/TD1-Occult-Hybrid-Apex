@@ -1,0 +1,183 @@
+{
+  "date": "2026-10-23",
+  "read_only_sources": true,
+  "runtime_qualified": false,
+  "original_archives_modified": false,
+  "archive_count": 24,
+  "package_count": 679,
+  "archives": [
+    {
+      "archive": "Divine Ascension Trailer - Lot&Sims.zip",
+      "sha256": "22ae697c604ceffdb33b452a3b307b2e0fadf6699919494b40ab4782d142362f",
+      "package_count": 0,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AnimatedTails_08_12_2025.zip",
+      "sha256": "3e5b5acbdc446f2e3d35e4ebf054cf128a4cd724c1d847df28ce518115118cc8",
+      "package_count": 22,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AnimatedWings_MAINMOD_11_17_2025.zip",
+      "sha256": "d6251a6430328ac3dcc74decdc9417d1ec19e9e9961fe3c78529c0c8089cdb1f",
+      "package_count": 7,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AtlanticaSet_02_14_2023.zip",
+      "sha256": "f8ea5469b7d0190e115e580a56a54d9c5e8bf6a7d021d6da71787fbb3aab1e54",
+      "package_count": 6,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AW_AngelAndDemonWings_11_17_2025.zip",
+      "sha256": "c63e6f477358d5f373e80f2acb0d513b26090acc6fd07e36ccdf0038dfeccf9b",
+      "package_count": 8,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AW_BarbieWings.zip",
+      "sha256": "498ad59e4719daba5e65f5984252efb19343df0ee1ff2662f2e8c5722314c1a3",
+      "package_count": 3,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AW_DemonicAscendantWings_11_17_2025.zip",
+      "sha256": "18586fecec3ab5009b9861b3c9417166f7088902bc0c0edfee0dac3a36f06a43",
+      "package_count": 3,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AW_DisneyFairyWings.zip",
+      "sha256": "35ed20de1587b9c1be08d214ae65d7318f60d3f3300300121fd979a595311fdf",
+      "package_count": 3,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AW_InnisgreenWings.zip",
+      "sha256": "c271169b321d9104bad8ef2f8af7a6e2eb901980b1ee76360a34017caf7dda22",
+      "package_count": 18,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AW_NeopetsFaerieWings.zip",
+      "sha256": "bda5b09633a0a7c41fb0d49b75e1baff74e2c1f590cfcbc3161e4b3dec031cbc",
+      "package_count": 3,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AW_WinxClubWings.zip",
+      "sha256": "a7bff8add07798a0f00bdc3305c94fc2d6a36c67a94cbd98460342857f48d560",
+      "package_count": 3,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_AW_WITCHWings.zip",
+      "sha256": "354f7a25ba640800c675faf801df36aa0db273ccccc778ec8e03a4de7594d066",
+      "package_count": 3,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_DivineAscension_07_21_2026.zip",
+      "sha256": "4831157e40f6a661917b7437835e078139619d390c091e2c75b61a0ddad5333e",
+      "package_count": 171,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_DownUnderSet_02_14_2023.zip",
+      "sha256": "4904ac9d59bc31b8bde35f22dfb385ab62a273690d132dbaf97ad6e5754a0129",
+      "package_count": 4,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_ExpandedMermaids_10_03_2026.zip",
+      "sha256": "989822be1b63d16ebed93c90d07031e0136605cad5643b811ffec649740edf32",
+      "package_count": 106,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_ExpandedPlantSims_03_07_2026.zip",
+      "sha256": "e1a532c7e272d36f5c45f4c29a995a2a117014066f2d8c977ae89e32a7c32910",
+      "package_count": 111,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_FairiesVSWitches_03_21_2026.zip",
+      "sha256": "4d3fec66e96c0830a6c8a951f52f9804fc4f7b0896eb0910b35b023e7ea090cf",
+      "package_count": 108,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_FeralContainmentUnit_02_28_2024.zip",
+      "sha256": "8f6011920c8c524a9b07781f81fa9f12ee7577f0c5cd9cea47e7f2cc5c24718a",
+      "package_count": 3,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_NeverlandTail_04_12_2024.zip",
+      "sha256": "2ca0a664f4a51c99f5dd56596763cead77199447194f8056b7f1ab487d539cd6",
+      "package_count": 3,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_OccultPreferences_08_22_2025.zip",
+      "sha256": "ce3c42ec38c35f26c7c3f79dff641f467fc1759e6ae791cd9a008da509ef23ee",
+      "package_count": 2,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_Sea-neryStuff_10_03_2026.zip",
+      "sha256": "eb80169f56127f52b1c760f4ab4cff368482649a93719f0566feee19999dd5ff",
+      "package_count": 18,
+      "audit_errors": [
+        "SpinningPlumbobs_Sea-neryStuff/SP_Sea-neryStuff_SirenStatue.package: Duplicate resource key inside a package."
+      ]
+    },
+    {
+      "archive": "SpinningPlumbobs_UnderwaterDiving_10_21_2026.zip",
+      "sha256": "824b0ffa4842b15c3396ab7f1ccde222d109290c92172e96346b33ac9da565cf",
+      "package_count": 58,
+      "audit_errors": []
+    },
+    {
+      "archive": "SpinningPlumbobs_UnicornMod_07_28_2024.zip",
+      "sha256": "c6b57f92087b15e6ae1d008b974c854283ffdd7c09e70cf89cda183f40bb2096",
+      "package_count": 16,
+      "audit_errors": []
+    },
+    {
+      "archive": "SP_UnderwaterVFXCodes.zip",
+      "sha256": "459e3fb40b515d5eb1a1ecd663da232529e2521dedc6b5f447a0e989111f2046",
+      "package_count": 0,
+      "audit_errors": []
+    }
+  ],
+  "animated_parts": {
+    "ordinary_cas_part_resources": 0,
+    "implementation": "Object attachments with tuning, custom tags and animation resources. Catalog unlocking alone cannot produce an animated CAS preview."
+  },
+  "collision_summary": {
+    "220557DA": 18,
+    "0166038C": 202,
+    "01A527DB": 2,
+    "00B2D882": 1
+  },
+  "collision_interpretation": "Raw key overlaps include animation name-map metadata and translations; they are not automatically runtime conflicts. Review exact resource role and load order before altering packages.",
+  "maru_donor_matches_reviewed_sha256": "054ca6a189a587063290df004a42072c5381e59404d33e58ddb737ab821cf9c3",
+  "animated_base_trial": {
+    "installed_packages": 29,
+    "installed_scripts": 2,
+    "originals_modified": false,
+    "candidate": "2026-10-23-fur-outfit-wire-v286",
+    "startup_live_all40_fields_retained": true,
+    "attachment_animation_and_combined_parts_qualified": false,
+    "proof": ".work/v286-install-launch-live.json"
+  },
+  "native_attachment_constraint": {
+    "game": "1.128.90.1030",
+    "location": "objects.parenting_utils.SetAsHead.apply",
+    "behavior": "Refuses a new attachment when current_object_set_as_head references another object. Both supplied animated systems use this EA attachment path.",
+    "integration_required": "Permit concurrent tagged wing/tail attachments while preserving ordinary head objects, native components, animation and persistence; actual combined-parts test remains open."
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-live-transition-completion-v292",
+  "candidate_sha256": "fa6567822c23ce2a049dcd3d8dfd655b0aca2a6e373e37ade213ee55ba4d6e05",
+  "production_ready": false,
+  "native_interaction_cli": {
+    "actual_ea_test_and_queue_path": true,
+    "reviewed_interactions": [425308, 425311, 152200, 152201],
+    "direct_form_setter_used": false,
+    "normal_animation_and_native_tests_preserved": true,
+    "completed_native_targets_qualified_in_v290": [64, 4, 64],
+    "full_visible_transition_qualified": false
+  },
+  "observed_defects": [
+    "V288 and V290 report Vampire in server/HUD while the world retains the Fairy appearance and native wing carrier.",
+    "V291 clears the native wing carrier, but an additional sixteen-second observation reaches Human. Its intermediate Vampire result does not qualify a stable transition.",
+    "A Fairy transformation is disabled in deep water by native posture snippet 472928.",
+    "Blank-palette Fairy test records have no pelt color layers. Native CAS color selection and persistence still require qualification."
+  ],
+  "v291_colored_wing_observation": {
+    "actual_native_reveal_interaction": 425308,
+    "visible_purple_teal_wings": true,
+    "active_native_fairy_fields_match_stored_fairy": true,
+    "saved_color_layers": 5,
+    "save_submitted": false,
+    "all_cas_swatches_qualified": false
+  },
+  "v292_changes_awaiting_runtime_qualification": [
+    "Finish reviewed native transformation loot/animation cleanup before cancelling its exact stale EA Fairy wing owner.",
+    "Resend final native appearance/current-form state after trait updates and native interaction completion; do not copy appearances or reset Sims.",
+    "Use the stable bank-read index for the opt-in hair bit, avoiding repeated full-bank reads when disabled. Enabled repair still checks fresh authority.",
+    "Register one post-outfit-change hair repair and stop disabled retained callbacks before bank reads.",
+    "Cache only pure projections of at most 32 small immutable outfit/genetics byte strings per parser. Native reads, complete comparisons and unknown-byte preservation remain.",
+    "Optional explicit disposable trace retains at most 64 native form-call records without polling."
+  ],
+  "protected_original_written": false,
+  "remaining_gates": [
+    "Matching V292 cold load and actual native transformation completion, including delayed observations and full household appearance comparisons.",
+    "Every supported directed form/alternate transition and actual model/portrait/control agreement.",
+    "Native CAS wing color selection, independent paint retention and save/Tray cycles.",
+    "Complete Dynamic CAS Companion UI qualification beyond the already qualified favorite handlers and restart persistence.",
+    "Measured player-input latency, current full CI and the remaining release matrix."
+  ]
+}

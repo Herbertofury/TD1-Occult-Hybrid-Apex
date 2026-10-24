@@ -5,7 +5,10 @@ field 2. Native load/save can reorder category groups. Order *within* a category
 is outfit-index identity and must remain unchanged. Every child byte, including
 unknown fields and full uint64 colors, is retained verbatim.
 """
+from functools import lru_cache
+
 MAX_BYTES = 8 * 1024 * 1024
+NORMALIZE_CACHE_BYTES = 128 * 1024
 
 
 def varint(raw, offset):
@@ -71,6 +74,18 @@ def category(raw):
 def normalize(raw):
     if not isinstance(raw, bytes) or len(raw) > MAX_BYTES:
         raise ValueError('Outfit snapshot is not bounded bytes.')
+    # Pure byte projection only. Native owner reads and every preservation
+    # comparison still run. At most 32 small immutable inputs/results survive;
+    # a new byte or unknown field always selects a distinct entry.
+    return _small_normalize(raw) if type(raw) is bytes and len(raw) <= NORMALIZE_CACHE_BYTES else _normalize(raw)
+
+
+@lru_cache(maxsize=32)
+def _small_normalize(raw):
+    return _normalize(raw)
+
+
+def _normalize(raw):
     offset, fields, outfits = 0, [], []
     while offset < len(raw):
         start = offset

@@ -386,6 +386,8 @@ def install_transition_guard(tracker):
         return False
     from .foreign_current_trait import install as install_trait_cleanup
     install_trait_cleanup(tracker)
+    from .live_form_presentation import install as install_live_presentation
+    tracker._apex_live_form_presentation_installed = install_live_presentation(tracker)
     if getattr(original, '_apex_native_transition_guard', False):
         return True
 

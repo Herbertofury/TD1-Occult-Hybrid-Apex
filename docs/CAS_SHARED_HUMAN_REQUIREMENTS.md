@@ -1259,3 +1259,30 @@ all 155 named looks remain, all twenty save/backup files are unchanged, and
 the complete rotated UI-report inventory has no new or changed report. This
 qualifies this no-edit return, not every cancellation stall or an edited fur
 save/Tray cycle.
+
+### V289–V292: actual Live scene and transition completion
+
+The actual EA Fairy/Dark Form interactions expose a visible failure that a
+matching native flag cannot qualify: the server and portrait can select Vampire
+while the world still shows Fairy. A bounded disposable CLI now submits the
+original EA affordance test/queue path, preserving its animation and native
+tests. Read-only observations distinguish the client outfit source and actual
+back-carry owners from stored appearance records.
+
+V291 removes the stale native wing carrier, but a later observation reaches
+Human. It is not a stable Vampire pass. V292 defers carry cleanup until the
+reviewed native transformation has exited its original pipeline, preserving
+the remaining loot and transition cleanup. Its optional trace is explicit and
+bounded; no polling or blanket removal of wings/tails is introduced.
+
+Profiling also identifies repeated complete bank reads from the optional hair
+hook. A stable read index supplies only the enabled bit; actual enabled repairs
+still require fresh full authority. Immutable byte-projection caches avoid
+reparsing identical outfit/genetics values without skipping native reads or
+complete comparisons. Their size is bounded and they contain no appearance
+write authority. Runtime speed and all directed form transitions remain open.
+
+A real colored Fairy on another household member visibly retains purple/teal
+wings and all native appearance fields. Blank-palette test forms have no color
+layers; native CAS swatch selection and full color persistence still require
+qualification. See [the scoped Live report](../Reports/LIVE_FORM_PRESENTATION_V292.json).

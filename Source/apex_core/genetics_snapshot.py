@@ -8,6 +8,9 @@ appearance payloads are never rewritten by this read-only comparison.
 from .outfit_snapshot import field, MAX_BYTES
 import math
 import struct
+from functools import lru_cache
+
+NORMALIZE_CACHE_BYTES = 128 * 1024
 
 
 def _varint(value):
@@ -53,6 +56,15 @@ def normalize(raw):
     """Opaque unsupported data stays exact; only the inspected layout projects."""
     if not isinstance(raw, bytes) or len(raw) > MAX_BYTES:
         raise ValueError('Genetics snapshot must be bounded bytes.')
+    return _small_normalize(raw) if type(raw) is bytes and len(raw) <= NORMALIZE_CACHE_BYTES else _normalize(raw)
+
+
+@lru_cache(maxsize=32)
+def _small_normalize(raw):
+    return _normalize(raw)
+
+
+def _normalize(raw):
     try:
         rows = _fields(raw)
         known, contracts = {}, {1: 2, 2: 2, 3: 5, 4: 0, 5: 2, 6: 2}

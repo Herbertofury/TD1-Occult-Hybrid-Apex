@@ -80,6 +80,29 @@ class NativeSaveBoundaryTests(unittest.TestCase):
     def install(self):
         return gate.install(self.backend, reason_factory=lambda _text: self.reason)
 
+    def test_disabled_hair_event_reuses_read_index_without_loading_bank_or_hashing(self):
+        self.install()
+        bank._read(self.game.path)
+        with patch.object(bank, 'load_for_write', side_effect=AssertionError('No full bank read for disabled hair')), \
+                patch.object(gate.hashlib, 'sha256', side_effect=AssertionError('No appearance hash for disabled hair')):
+            for _ in range(20):
+                self.assertFalse(gate.hair_policy_enabled(self.backend, self.game.sim))
+
+    def test_hair_index_refreshes_on_toggle_and_cannot_authorize_under_writer_lease(self):
+        from apex_core import form_bank
+        path, key = form_bank.context(self.backend, self.game.sim)
+        data = form_bank.load(path)
+        data['records'][key]['hair_policy'] = {'enabled': True, 'forms': {}}
+        form_bank.save(path, data)
+        self.assertTrue(gate.hair_policy_enabled(self.backend, self.game.sim))
+        data['records'][key]['hair_policy']['enabled'] = False
+        form_bank.save(path, data)
+        self.assertFalse(gate.hair_policy_enabled(self.backend, self.game.sim))
+        lease = bank._lease_path(path)
+        lease.write_text('{}')
+        with patch.object(form_bank, 'load', side_effect=AssertionError('Never read under unresolved lease')):
+            self.assertFalse(gate.hair_policy_enabled(self.backend, self.game.sim))
+
     def finish_unchanged(self):
         self.game.observe()
         self.game.prepare([])

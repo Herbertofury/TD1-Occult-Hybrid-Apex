@@ -288,7 +288,9 @@ def _event(info, category_and_index, old_category_and_index):
     # An inactive SimInfoBaseWrapper can share the main Sim ID. Only the actual
     # live owner handles a Live outfit-change callback.
     if backend._get_sim_info_by_id(info.id) is not info: return
-    try: enforce(backend, info)
+    try:
+        from .cas_save_boundary import hair_policy_enabled
+        if hair_policy_enabled(backend, info):enforce(backend, info)
     except Exception as error:
         _, key = form_bank.context(backend, info)
         if len(_ERRORS) < 256 or key in _ERRORS: _ERRORS[key] = str(error)
@@ -315,8 +317,9 @@ def install(backend, wrapper_type=None):
     def changed(info, *args, **kwargs):
         if threading.current_thread().ident == backend._APEX_GAME_THREAD_IDENT:
             try:
-                if backend._get_sim_info_by_id(info.id) is info and status(backend, info)['enabled']:
-                    register(backend, info); enforce(backend, info)
+                from .cas_save_boundary import hair_policy_enabled
+                if backend._get_sim_info_by_id(info.id) is info and hair_policy_enabled(backend, info):
+                    register(backend, info)  # The original setter dispatches the one post-change repair.
             except Exception as error:
                 backend._log('Outfit hair registration retained state: ' + str(error))
         return original(info, *args, **kwargs)

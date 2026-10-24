@@ -78,6 +78,7 @@ def remember_read(path, data, file_hash, stamp):
                 not isinstance(stamp, tuple) or len(stamp) != 4 or not 0 < stamp[0] <= MAX_BANK):
             return False
         decisions = {}
+        hair_enabled = set()
         for owner_key, record in data['records'].items():
             parts = owner_key.split(':') if isinstance(owner_key, str) else []
             if len(parts) != 2 or not all(_id(value) for value in parts) or not isinstance(record, dict):
@@ -85,7 +86,11 @@ def remember_read(path, data, file_hash, stamp):
             pending = decisions.setdefault(parts[0], [])
             if bank._blocked(record, owner_key):
                 pending.append(parts[1])
+            policy = record.get('hair_policy', {})
+            if isinstance(policy, dict) and policy.get('enabled') is True:
+                hair_enabled.add(owner_key)
         _READ_INDEX = dict(path=str(path), stamp=stamp, bank_sha256=file_hash,
+            hair_enabled=frozenset(hair_enabled),
             by_save_guid={guid: tuple(sorted(pending, key=int)) for guid, pending in decisions.items()})
         return True
     except Exception:
@@ -93,6 +98,29 @@ def remember_read(path, data, file_hash, stamp):
         # follows admission's existing full read and fail-closed validation.
         _READ_INDEX = None
         return False
+
+
+def hair_policy_enabled(backend, sim):
+    """Read only the opted-in bit from the current stable bank-read index.
+
+    This grants no repair authority. The enabled path still performs its fresh
+    idle, runtime and full wardrobe checks. No bank payload is cached here.
+    """
+    from . import form_bank
+    path, key = form_bank.context(backend, sim)
+    path = _unlinked(path)
+    with bank._LOCK:
+        if bank._lease_path(path).exists() or not path.exists():
+            return False
+        before = _stamp(path)
+        index = _READ_INDEX
+        if not (isinstance(index, dict) and index['path'] == str(path) and index['stamp'] == before):
+            form_bank.load(path)  # Its validated stable read publishes a fresh compact index.
+            index = _READ_INDEX
+        if (not isinstance(index, dict) or index['path'] != str(path) or
+                index['stamp'] != before or _stamp(path) != before):
+            return False
+        return key in index.get('hair_enabled', ())
 
 
 def admission(backend):

@@ -91,6 +91,93 @@ def persistence_evidence(backend, sim, household):
     return result
 
 
+def native_transform(backend, sim, argument):
+    """Submit one reviewed EA interaction through its original test/queue path.
+
+    Disposable CLI only. No direct occult setter, test bypass, forced priority,
+    automatic clock change or retry. Completion and visible output are separate.
+    """
+    reviewed = {425308: 'fairy-reveal', 425311: 'fairy-conceal',
+                152200: 'vampire-show-dark', 152201: 'vampire-hide-dark'}
+    if (not isinstance(argument, dict) or set(argument) != {'affordance_id', 'household_id', 'save_guid'} or
+            type(argument.get('affordance_id')) is not int or argument['affordance_id'] not in reviewed):
+        raise ValueError('Use one reviewed native transformation and exact household/save identities.')
+    if (sim is None or str(sim.household_id) != argument['household_id'] or
+            str(backend.services.get_persistence_service().get_save_slot_proto_guid()) != argument['save_guid'] or
+            sim.household is not backend.services.active_household()):
+        raise ValueError('Native transformation requires the selected active household/save.')
+    instance = sim.get_sim_instance()
+    if instance is None or instance.sim_info is not sim:
+        raise ValueError('Native transformation requires the selected instanced actor.')
+    import sims4.resources
+    from interactions.context import InteractionContext
+    from interactions.priority import Priority
+    affordance = backend.services.get_instance_manager(sims4.resources.Types.INTERACTION).get(argument['affordance_id'])
+    if affordance is None or int(affordance.guid64) != argument['affordance_id']:
+        raise ValueError('The reviewed native transformation is unavailable.')
+    context = InteractionContext(instance, InteractionContext.SOURCE_PIE_MENU, Priority.High,
+                                 client=backend.services.client_manager().get_first_client())
+    result = instance.push_super_affordance(affordance, instance, context)
+    accepted = bool(result)
+    return {'ok': accepted, 'interaction_submitted': accepted,
+            'affordance_id': argument['affordance_id'], 'interaction': reviewed[argument['affordance_id']],
+            'sim_id': str(sim.id), 'native_result': str(result)[:1024],
+            'native_tests_preserved': True, 'direct_form_setter_called': False,
+            'retry_safe': False, 'transformation_completed_verified': False,
+            'clock_changed': False, 'save_submitted': False}
+
+
+def live_render_state(backend, sim):
+    """On-demand readback of the actor/client outfit and native carry owners.
+
+    A matching server appearance does not establish what the world displays.
+    Read the inspected distributor source and running native owners separately;
+    never refresh, cancel, reset or repair anything during this observation.
+    """
+    if sim is None:
+        raise ValueError('Select an instanced Sim for Live render observation.')
+    instance = sim.get_sim_instance()
+    if instance is None or instance.sim_info is not sim:
+        raise ValueError('Live actor does not belong to the selected SimInfo.')
+    from .form_appearance import evidence
+    outfit = sim.get_current_outfit()
+    displayed = sim._client_outfits
+    override = sim.appearance_tracker.appearance_override_sim_info
+    if displayed is not (sim if override is None else override):
+        raise ValueError('Native client-outfit source differs from the inspected contract.')
+    parts = tuple(displayed.get_outfit(*outfit).part_ids)
+    if len(parts) > 512:
+        raise ValueError('Native displayed outfit exceeds its observation bound.')
+    interactions = []
+    state = instance.si_state
+    if state is not None:
+        for interaction in state.sis_actor_gen():
+            if len(interactions) >= 64:
+                raise ValueError('Native running interactions exceed their observation bound.')
+            target = interaction.target
+            interactions.append({'affordance': int(interaction.get_interaction_type().guid64),
+                                 'target_id': None if target is None else str(target.id),
+                                 'finishing': bool(interaction.is_finishing)})
+    carries = []
+    posture = instance.posture_state
+    if posture is not None:
+        for track in ('left', 'right', 'back'):
+            aspect = getattr(posture, track)
+            target = None if aspect is None else aspect.target
+            carries.append({'track': track, 'object_id': None if target is None else str(target.id),
+                            'definition_id': None if target is None else int(target.definition.id)})
+    return {'ok': True, 'sim_id': str(sim.id), 'actor_id': str(instance.id),
+            'actor_owns_selected_sim_info': True, 'current_form': int(sim.current_occult_types),
+            'current_outfit': [int(x) for x in outfit], 'displayed_part_ids': [str(x) for x in parts],
+            'client_uses_appearance_override': override is not None,
+            'server_appearance': evidence(backend, sim),
+            'client_appearance_source': evidence(backend, displayed),
+            'running_interactions': interactions, 'carry_owners': carries,
+            'appearance_written': False, 'interactions_cancelled': False,
+            'background_tasks': False, 'pixels_verified': False,
+            'native_switch_trace': copy.deepcopy(getattr(sim.occult_tracker, '_apex_live_form_trace', []))}
+
+
 def snapshot(backend, sim, export_outfits=False, export_forms=False):
     persistence = backend.services.get_persistence_service()
     slot = persistence.get_save_slot_proto_buff()
@@ -212,6 +299,9 @@ def snapshot(backend, sim, export_outfits=False, export_forms=False):
         retention = getattr(sim.occult_tracker, '_apex_native_transition_retention', None)
         if isinstance(retention, dict):
             result['native_transition_retention'] = copy.deepcopy(retention)
+        presentation = getattr(sim.occult_tracker, '_apex_live_form_presentation', None)
+        if isinstance(presentation, dict):
+            result['live_form_presentation'] = copy.deepcopy(presentation)
         hair_refresh = getattr(sim.occult_tracker, '_apex_body_hair_refresh_retention', None)
         hair_installed = getattr(sim.occult_tracker, '_apex_body_hair_refresh_install', None)
         if type(hair_installed) is bool:
@@ -648,6 +738,17 @@ def dispatch(backend, action, sim_id, value):
         return {'ok': True, 'transition': 'quit-menu-requested', 'game_exit_verified': False,
                 'confirmation_required': True, 'message': 'Native quit menu requested; select Exit Game, then Save and Exit. Process exit is not yet verified.'}
     sim = backend._get_sim_info_by_id(sim_id)
+    if action == 'test_live_form_trace':
+        if sim is None or type(argument) is not bool:
+            raise ValueError('Use an explicit disposable Sim and Boolean trace state.')
+        tracker = sim.occult_tracker
+        if argument and getattr(tracker, '_apex_trace_live_forms', False) is not True:
+            tracker._apex_live_form_trace = []
+        tracker._apex_trace_live_forms = argument
+        return {'ok': True, 'enabled': argument, 'capacity': 64, 'appearance_written': False,
+                'background_tasks': False, 'save_submitted': False}
+    if action == 'test_native_transform':
+        return native_transform(backend, sim, argument)
     if action == 'test_identity_inventory':
         return native_identity_inventory(backend, sim_id, argument)
     if action == 'test_form_snapshot':
@@ -677,6 +778,8 @@ def dispatch(backend, action, sim_id, value):
         from .form_bank import abandon_unsaved
         return abandon_unsaved(backend, sim, argument)
     if action in ('test_status', 'test_snapshot'):
+        if argument == 'render':
+            return live_render_state(backend, sim)
         return snapshot(backend, sim, export_outfits=argument == 'outfits', export_forms=argument == 'forms')
     if action == 'test_cas_save_admission':
         if not isinstance(argument, dict) or set(argument) != {'exercise_locked_generator'} or type(argument['exercise_locked_generator']) is not bool:

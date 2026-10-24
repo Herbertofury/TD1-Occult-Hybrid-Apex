@@ -1316,3 +1316,21 @@ and its mutation fixtures reject a wrong operation, phase, length, Sim, nonce,
 mutation flag or receiving state. This removes an avoidable timer wait in the
 code; matching runtime responsiveness qualification remains open. See
 [the input-priority report](../Reports/CAS_INPUT_PRIORITY_V294.json).
+
+The V292 matrix completes 191 selections: all 42 directed native pairs on one
+member and all twenty exposed forms on each of five members. The final field
+comparison fails. Member five's shared Human inherited-hair entry changes
+277692 → 306960, although Human hair was not edited. All Human outfits already
+use 306960, so this identifies automatic inheritance regeneration during view
+setup rather than evidence that Fairy and Human appearances were merged.
+The other genetic rows and native appearance fields remain exact. No save or
+CAS acceptance is submitted after this failure.
+
+V295 pins the inspected outfit-to-genetics setup call and skips its regeneration
+only within the exact independent model bind, with matching Sim, group, owner,
+genus and destination addresses. It retains the incoming complete genetics
+instead of restoring or guessing it later. Ordinary hair/outfit edits and other
+callers remain native. Seventeen native targets pass, including the exact hair
+case, unknown-data retention and foreign-context refusals. Matching actual-game
+hair edits, undo and complete retention remain required. See
+[the captured-genetics report](../Reports/CAS_CAPTURED_GENETICS_V295.json).

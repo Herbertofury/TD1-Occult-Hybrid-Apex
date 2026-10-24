@@ -2,6 +2,7 @@
 // Separate editable owner graphs are captured independently of EA's pair view.
 #pragma once
 #include "ApexNativeCasEngine.h"
+#include "ApexCasGeneticBind.h"
 #include "ApexCasOwnerGraph.h"
 #include "ApexCasFormPair.h"
 #include "ApexCasPairAction.h"
@@ -62,6 +63,7 @@ using ExportProtoFn=void(*)(const void*,void*);
 using OccultRecordFn=void(*)(void*,std::uint32_t,const void*);
 using GeneticImportFn=bool(*)(const void*,const void*,void*);
 using GeneticBodyAllowedFn=bool(*)(std::uint32_t,const void*);
+using GeneticFromOutfitFn=void(*)(void*,const void*);
 using PeltGenusFn=bool(*)(const void*);
 using AddPeltFn=void(*)(void*,std::uint64_t,std::uint32_t);
 using TextureFn=void(*)(void*,std::uint64_t);
@@ -99,6 +101,7 @@ struct Api {
     UndoSelectFn undoSelect=nullptr;UndoCreateFn undoCreate=nullptr;UndoBindFn undoBind=nullptr;
     KindMaskFn kindMask=nullptr;
     GeneticImportFn geneticImport=nullptr;GeneticBodyAllowedFn geneticBodyAllowed=nullptr;
+    GeneticFromOutfitFn geneticFromOutfit=nullptr;
     OccultRecordFn occultRecord=nullptr;
     ExportProtoFn exportProto=nullptr;ProtoSizeFn protoSize=nullptr;ProtoArrayFn protoArray=nullptr;
     PreviewFn hairPreview=nullptr,clothingPreview=nullptr,wingsPreview=nullptr;
@@ -269,6 +272,7 @@ struct State {
     std::atomic<bool> householdCopiesEnabled{false};
     void* exportController=nullptr;std::string preparedScope;
     void* geneticInsertRelay=nullptr;void* geneticInsertTrampoline=nullptr;std::uint64_t geneticPartsRetained=0;
+    std::uint64_t geneticViewRegenerationsPrevented=0;std::string geneticViewError;
     std::uint64_t householdOutputFaults=0;
     std::uint64_t preparedHouseholdId=0;
     ui::Json householdFaults=ui::Json::array(),householdDispatch={{"verified",false}};
@@ -299,6 +303,37 @@ struct Selection {std::uint64_t id=0;std::uint32_t target=0;void* controller=nul
 inline thread_local Selection selected;
 struct ViewBinding {void* controller=nullptr;Imported* bank=nullptr;std::string owner;};
 inline thread_local ViewBinding* binding=nullptr;
+
+__declspec(noinline) inline void GeneticPartsFromOutfit(void* genetics,const void* outfit) {
+    auto& state=Runtime();
+    const auto caller=reinterpret_cast<std::uintptr_t>(_ReturnAddress());
+    // Only the pinned automatic setup call inside the current independent
+    // view bind. Normal hair/outfit setters and every other caller stay native.
+    if(binding && caller==state.image+0x457559) {
+        try {
+            auto& bank=*binding->bank;const auto controller=binding->controller;
+            const auto group=controller?Read<void*>(controller,0x100):nullptr;
+            const auto model=controller?Read<void*>(controller,0x1d0):nullptr;
+            const auto sim=bank.graph?bank.graph->cursor().sim:0;
+            const auto captured=bank.graph?bank.graph->appearance(binding->owner)->data():nullptr;
+            GeneticViewBinding scope;
+            scope.enabled=state.armed&&state.selectionEnabled&&!state.scope.id.empty();
+            scope.ownerPresent=captured&&state.scope.members.count(sim)!=0;
+            scope.fault=bank.viewFault;scope.image=state.image;
+            scope.controller=reinterpret_cast<std::uintptr_t>(controller);
+            scope.model=reinterpret_cast<std::uintptr_t>(model);
+            scope.group=reinterpret_cast<std::uintptr_t>(group);
+            scope.boundGroup=reinterpret_cast<std::uintptr_t>(bank.boundGroup);
+            scope.sim=sim;scope.groupSim=group?Read<std::uint64_t>(group,0xb8):0;
+            scope.capturedKind=captured?Read<std::uint32_t>(captured,8):0;
+            scope.modelKind=model?Read<std::uint32_t>(model,0x178):0;
+            if(RetainViewGenetics(scope,caller,genetics,outfit)) {
+                ++state.geneticViewRegenerationsPrevented;return;
+            }
+        } catch(const std::exception& error) {state.geneticViewError=std::string(error.what()).substr(0,2048);}
+    }
+    state.api.geneticFromOutfit(genetics,outfit);
+}
 inline void RouteAnimationGenus(void* actor,const void* data,bool notify,std::uintptr_t caller) {
     auto& state=Runtime();
     std::array<std::uint32_t,5> preview{};bool scoped=false;
@@ -1898,6 +1933,8 @@ inline ui::Json Status() {
 #endif
         {"import_outfit_fills_prevented",state.importOutfitFillsPrevented},
         {"captured_genetic_parts_retained",state.geneticPartsRetained},
+        {"view_genetic_regenerations_prevented",state.geneticViewRegenerationsPrevented},
+        {"view_genetic_error",state.geneticViewError},
         {"human_cc_material",{{"bound",humanCCMaterialGenus.load(std::memory_order_acquire)!=nullptr},
             {"compositions",humanCCMaterialCompositions.load(std::memory_order_relaxed)},
             {"shader_queries",humanCCMaterialShaderQueries.load(std::memory_order_relaxed)},
@@ -1973,6 +2010,8 @@ inline void Install() {
         {0x321340,"726ace75a11e62f4116b820e1f18b923520423fe8dd9b750994f5b11098e6fed"},
         {0x364d90,"a01d1247f2164acfaecd107618cda98d25c652fb19a49e0a286c0c2744db72f9"},
         {0x35fbee,"21f147c04536c59a355f7f51bcd482323c96ea15097e2428fbb7706bd073f198"},
+        {0x35ffc0,"09c5f10e365ea94b03a068ec0eb91efbc539cc1204e43b9fc9d6d0f86d989c39"},
+        {0x457540,"623f87c169e067182093c2ce7dc5e706bfabf1d9579686544793047d0952c9d5"},
         {0x4103ea,"30bd234b1656fecf4f7886432b1dd6ccbcf2b4b413b0ab43f97a430cc5a22a89"},
         {0x48ae60,"18e24cec017509e7328a076722fb2c38686180f19fb2510cffaf636bcf21719d"},
         {0x7ae500,"8f78ef8bdd8b8b57954bc76403fe9f039d713503ed1f62f76a233d0cb94d14f9"},
@@ -2041,6 +2080,7 @@ inline void Install() {
         {at(0x323990),reinterpret_cast<void*>(&HouseholdOutput),reinterpret_cast<void**>(&state.api.exportProto)},
         {at(0x322a90),reinterpret_cast<void*>(&ExportOccultRecord),reinterpret_cast<void**>(&state.api.occultRecord)},
         {at(0x321340),reinterpret_cast<void*>(&ImportCapturedGenetics),reinterpret_cast<void**>(&state.api.geneticImport)},
+        {at(0x35ffc0),reinterpret_cast<void*>(&GeneticPartsFromOutfit),reinterpret_cast<void**>(&state.api.geneticFromOutfit)},
         {at(0x35fbee),state.geneticInsertRelay,&state.geneticInsertTrampoline},
         {at(0x207400),reinterpret_cast<void*>(&SaveAndExit),reinterpret_cast<void**>(&state.api.saveAndExit)},
         {at(0x205c10),reinterpret_cast<void*>(&CancelCas),reinterpret_cast<void**>(&state.api.cancelCas)},

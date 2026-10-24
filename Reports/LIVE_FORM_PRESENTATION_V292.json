@@ -53,6 +53,17 @@
     "ui_queue_to_bound_owner_ms": 31,
     "zero_to_one_ms_qualified": false
   },
+  "v292_actual_form_matrix": {
+    "all_20_exposed_forms_on_five_members": true,
+    "complete_field_preservation_qualified": false,
+    "directed_native_pairs_on_one_member": 42,
+    "failed_comparison_evidence_sha256": "dbf62b5f0cce263ce3e1a26da08e59e30056056c7e583571d3299b2a14b0d76c",
+    "failure": "Human GeneticData parts_list hair on member five changes from 277692 to 306960. Every Human outfit already uses 306960; the other genetic rows and all other native appearance fields remain unchanged. This is automatic inheritance regeneration, not evidence of Fairy appearance merging.",
+    "player_edit": "One actual Fairy wing-card selection only. Human hair was not edited.",
+    "release_gate_closed": false,
+    "selection_and_ea_pair_presentation_qualified": true,
+    "switches_completed": 191
+  },
   "v292_actual_runtime": {
     "all_household_stored_native_fields_unchanged": true,
     "cold_load_native_appearances": 40,
@@ -140,5 +151,6 @@
     "Cache only pure projections of at most 32 small immutable outfit/genetics byte strings per parser. Native reads, complete comparisons and unknown-byte preservation remain.",
     "Optional explicit disposable trace retains at most 64 native form-call records without polling."
   ],
-  "v293_followup": "The typed CAS owner-selection path can finish model binding before the EA pair panel is ready. Reuse the existing synchronous strip pair refresh and require presentation readiness before readback acknowledgement. New build/runtime qualification pending."
+  "v293_followup": "The typed CAS owner-selection path can finish model binding before the EA pair panel is ready. Reuse the existing synchronous strip pair refresh and require presentation readiness before readback acknowledgement. New build/runtime qualification pending.",
+  "v295_followup": "Pin and skip only EA automatic outfit-to-genetics regeneration during an exact independent view bind. Keep ordinary hair/outfit edits native and keep the permanent guard. Native tests pass; matching runtime not qualified."
 }

@@ -215,12 +215,6 @@
       "sha256": "def5945387a841b3a056bca7720310762505cef487d5b1e481a5f70ed9d65533"
     },
     {
-      "bytes": 151384,
-      "mode": "100644",
-      "path": "tools/CasBytecodePatch.java",
-      "sha256": "f41b0f0f7673cd69171b24e3d25606bdd6629a987f5bc75ff0fa02d36f5c105c"
-    },
-    {
       "bytes": 2640,
       "mode": "100644",
       "path": "Reports/Glory-Build-V4.1-UI-Performance-Validation.txt",
@@ -623,6 +617,12 @@
       "sha256": "a6e0946055cc1d83357cc2da703792245005e1907e2fb4399949eecd273da4b6"
     },
     {
+      "bytes": 2653,
+      "mode": "100644",
+      "path": "Reports/CAS_PAIR_PRESENTATION_V293.json",
+      "sha256": "e4828d29c3ffa1b227b965c4f42a7d85de6342c5a3d5166198c49ef9afdb3b7d"
+    },
+    {
       "bytes": 6465,
       "mode": "100644",
       "path": "tests/test_profile_isolation.py",
@@ -941,12 +941,6 @@
       "sha256": "9cceea5c1001f7ebc304b64f3430b19bd6bd1463ca758eb89af072102bef86dc"
     },
     {
-      "bytes": 72480,
-      "mode": "100644",
-      "path": "Source/apex_core/form_bank_seal.py",
-      "sha256": "efd009ac06d7c2452152d12eba740c4eb60d2ad1e7a3ea6b795cdbb5e51c4063"
-    },
-    {
       "bytes": 1457,
       "mode": "100644",
       "path": "Reports/ImGui-DX11-Overlay-Validation-V5.1.txt",
@@ -1253,6 +1247,12 @@
       "sha256": "72702b8e8426bc7b193d05db1f160aa2aeddd126d28c5c72aaba07327ed28ded"
     },
     {
+      "bytes": 57083,
+      "mode": "100644",
+      "path": "Source/CASUi/form_strip_methods.as",
+      "sha256": "2df4186109d8bb19e0142eabe7a09e2cb6413a2b4a81ac278a507d8749a1d684"
+    },
+    {
       "bytes": 14755,
       "mode": "100644",
       "path": "tests/test_growth_parts.py",
@@ -1365,6 +1365,12 @@
       "mode": "100644",
       "path": "Source/apex_core/profile_save_identity.py",
       "sha256": "3dff19214d24119caa20bf3b0849e16e1c006a73a5a9e8f0c167ca5c0a080453"
+    },
+    {
+      "bytes": 152110,
+      "mode": "100644",
+      "path": "tools/CasBytecodePatch.java",
+      "sha256": "292d950bca5df4372b0f04eb5a109b9b97d8e2b882a1f2f796d7f5f44f14e415"
     },
     {
       "bytes": 24156,
@@ -1541,6 +1547,12 @@
       "sha256": "f108575031ef2f2b1468956db86d8310034c335c38e9ac0a9d522f50d608e151"
     },
     {
+      "bytes": 91213,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "a9e4d6b348d5a8a8daf8645306e9125317d6ad257233355d1f59342f54bc921c"
+    },
+    {
       "bytes": 7431,
       "mode": "100644",
       "path": "tests/test_cas_owner_payload.py",
@@ -1613,6 +1625,12 @@
       "sha256": "caf12a25e98e9d3474fd409130c8f61637f681a854789a76e25cfc8e3ab6ee8e"
     },
     {
+      "bytes": 8528,
+      "mode": "100644",
+      "path": "tests/test_live_form_presentation.py",
+      "sha256": "e6f1176bf54d815c0769a7bbde52a44e173b2e250b7a9c70f6fc788436966c27"
+    },
+    {
       "bytes": 1802,
       "mode": "100644",
       "path": "tests/test_background_lifecycle.py",
@@ -1635,12 +1653,6 @@
       "mode": "100644",
       "path": "tests/test_cas_postcondition_transport.py",
       "sha256": "d5525b4857af91341a69130ac0ff995eb5a41424d40140aa70b164f62446d7d3"
-    },
-    {
-      "bytes": 2886,
-      "mode": "100644",
-      "path": "Reports/LIVE_FORM_PRESENTATION_V292.json",
-      "sha256": "52ad53e630ac9496900fd3b7ef06c40dec4b315bc0c670be9d28ce2cc41da18d"
     },
     {
       "bytes": 8497,
@@ -1707,6 +1719,12 @@
       "mode": "100644",
       "path": "tests/test_cas_native_search.py",
       "sha256": "c21def882409177784eadd2388d29e4629df8a062fcd9c81327ff31831bbaf9c"
+    },
+    {
+      "bytes": 167013,
+      "mode": "100644",
+      "path": "Source/CASUi/semantic_methods.as",
+      "sha256": "cec3ecb567f3ae8c7167cc03a3c95d93c4b455b96effb83cbc59f8497a7b515f"
     },
     {
       "bytes": 853,
@@ -2031,12 +2049,6 @@
       "mode": "100644",
       "path": "Source/apex_core/studio.py",
       "sha256": "438ec3d9ff7b89607a6a8bfdd0e9136e39785da36e915a378d57ed6c0b759913"
-    },
-    {
-      "bytes": 166789,
-      "mode": "100644",
-      "path": "Source/CASUi/semantic_methods.as",
-      "sha256": "49b8f9b78ef09d04094f5f76a7dc359a7f9e33723cde2e5f8fdedce6353dc2a7"
     },
     {
       "bytes": 7352,
@@ -2627,6 +2639,12 @@
       "sha256": "7548865138a4e78df867a9151c784ec9620bf3ad9655d648cbb3e48102d612ea"
     },
     {
+      "bytes": 6312,
+      "mode": "100644",
+      "path": "Reports/LIVE_FORM_PRESENTATION_V292.json",
+      "sha256": "5c64753208665dbc68508c5c401b9eada0e5f8d24efa46b5e35cd80df7dfb4a2"
+    },
+    {
       "bytes": 2786,
       "mode": "100644",
       "path": "Reports/Apex-V9-Brutal-QA-Research-Validation.md",
@@ -2703,12 +2721,6 @@
       "mode": "100644",
       "path": "tests/test_cas_history_ack.py",
       "sha256": "cee99103807cf48af036ce1f9185dc2f821069be551f33746469e17a8e6b59e7"
-    },
-    {
-      "bytes": 2008,
-      "mode": "100644",
-      "path": "tests/test_cas_owner_metadata_bytecode.py",
-      "sha256": "71b4f1476c59c348c0a8b02740e8ad82857f0f2cab35448f6b15c9e74fcf4087"
     },
     {
       "bytes": 12093,
@@ -2849,6 +2861,12 @@
       "sha256": "e6989aec54e7134e2aad9c89fe26198a1b91f4d6bed509ba886fb023763e7f2a"
     },
     {
+      "bytes": 2092,
+      "mode": "100644",
+      "path": "tests/test_cas_owner_metadata_bytecode.py",
+      "sha256": "a35cd2a50cfebf744d4dee7748c72212229a79741a633a23a45ef7114bedd421"
+    },
+    {
       "bytes": 20443,
       "mode": "100644",
       "path": "tools/game_focus.py",
@@ -2913,12 +2931,6 @@
       "mode": "100644",
       "path": "tests/test_household_stress.py",
       "sha256": "474bf41fca1dca0005a3df5be78015a3c766f8bd0d9d64a014ecbc52b8712dde"
-    },
-    {
-      "bytes": 7185,
-      "mode": "100644",
-      "path": "tests/test_live_form_presentation.py",
-      "sha256": "8c260d137eb05826f20e6ed7d6fdd68ee8898f66a3468b3d3810c4849dd391d9"
     },
     {
       "bytes": 12501,
@@ -3101,12 +3113,6 @@
       "sha256": "2231d5076a64760d6f2f734ffcfb4474d53f70b80a81d8f49d839b446dba0de8"
     },
     {
-      "bytes": 56858,
-      "mode": "100644",
-      "path": "Source/CASUi/form_strip_methods.as",
-      "sha256": "be978bb49f144488e207483d0f4f84e2dfb5462c03bfe4fd8cde4043a155f637"
-    },
-    {
       "bytes": 7442,
       "mode": "100644",
       "path": "Reports/Apex-V9.2-Latest-Tech-Radar.md",
@@ -3165,12 +3171,6 @@
       "mode": "100644",
       "path": "NativeOverlay/Tests/CasOwnerGraphTests.cpp",
       "sha256": "9550c456925dd7928cf5d42dec0ac5dcecea820f0e864ed8aee13027dd6e2fad"
-    },
-    {
-      "bytes": 8332,
-      "mode": "100644",
-      "path": "Source/apex_core/live_form_presentation.py",
-      "sha256": "16bd8a6d52d3f4c54d238b918a3461fd694f15a9678fb740b7b06702eb3f4429"
     },
     {
       "bytes": 18276,
@@ -3357,12 +3357,6 @@
       "mode": "100644",
       "path": "Reports/HOUSEHOLD_CAS_2026-10-14.md",
       "sha256": "0bac46a5c3370b7507b9ef6bb14163d438ef5e66f7fd7d23f83b5cc6bb95d468"
-    },
-    {
-      "bytes": 11589,
-      "mode": "100644",
-      "path": "tests/java/CasOwnerMetadataFixtures.java",
-      "sha256": "34b5ab4798933efe408ece6d8018960da24f8f8b2383c08ed18e5291830611f5"
     },
     {
       "bytes": 97327,
@@ -3635,12 +3629,6 @@
       "sha256": "341e5a7656be0079e1aac3203d18eaea224d5a0f2b655fa88851a5f4f8c714ff"
     },
     {
-      "bytes": 89920,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "e52df260ed00744396b6d540d3ffe4a63e947436dfa940768045b6d5fe35fa88"
-    },
-    {
       "bytes": 51651,
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_win32.cpp",
@@ -3837,6 +3825,12 @@
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexBackgroundPointer.h",
       "sha256": "44261b17c45078e9117cb45227375e5ff8a17d0f5356e4e7557df631c0a84896"
+    },
+    {
+      "bytes": 12634,
+      "mode": "100644",
+      "path": "tests/java/CasOwnerMetadataFixtures.java",
+      "sha256": "4cee9ffa03957269dd906b49adb83342b763526aaf409b052cc28670d8f9e11f"
     },
     {
       "bytes": 4040,
@@ -4073,6 +4067,12 @@
       "sha256": "afe9a17b66ef75d8b5338a521040f4c154b29edd7e06a164e473d217f94ac029"
     },
     {
+      "bytes": 72475,
+      "mode": "100644",
+      "path": "Source/apex_core/form_bank_seal.py",
+      "sha256": "7af5f2ba64923ec437eb9616ce9ed0ae38954486acde3356d50348551ed89e7a"
+    },
+    {
       "bytes": 2661,
       "mode": "100644",
       "path": "Reports/CAS_THIRD_MEMBER_V253.json",
@@ -4101,6 +4101,12 @@
       "mode": "100644",
       "path": "Reports/Glorious-UI-V4-Research-Summary.txt",
       "sha256": "6f08adce2c818eea0b6f3b2755cc51fd95d8033955f1e1314dfa585f599dfa7a"
+    },
+    {
+      "bytes": 8742,
+      "mode": "100644",
+      "path": "Source/apex_core/live_form_presentation.py",
+      "sha256": "31c2fc2cf41419878f068eb201cd81a67e9bef701b4ecefff99dac6e7d6ab1cd"
     },
     {
       "bytes": 4797,

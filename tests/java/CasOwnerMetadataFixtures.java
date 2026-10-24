@@ -29,16 +29,29 @@ public class CasOwnerMetadataFixtures {
         var rows=body.getCode().code;int p=CasBytecodePatch.uniqueLiteral(abc,body,"POLL|");
         switch(key) {
             case "exact":break;
+            case "pair-strip-call":case "pair-typed-call":case "pair-typed-ready":case "pair-native-rebind": {
+                var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
+                String method=key.equals("pair-strip-call")?"ApexFormsOwnedTick":
+                    key.equals("pair-native-rebind")?"ApexFormsRefreshBoundPair":"ApexReadback";
+                String call=key.equals("pair-typed-ready")?"ApexPresentationReady":
+                    key.equals("pair-native-rebind")?"ApexFormsBindUiKind":"ApexFormsRefreshBoundPair";
+                var target=CasBytecodePatch.ownedBody(abc,instance,method);int changes=0;
+                for(var row:target.getCode().code)
+                    if(CasBytecodePatch.property(abc,row,0x46,call)||CasBytecodePatch.property(abc,row,0x4f,call)) {
+                        row.operands[0]=member(abc,key.equals("pair-native-rebind")?"ApexFormsOwnedTick":"ApexFormsObservedSim");changes++;
+                    }
+                if(changes<1)throw new AssertionError("No shared pair mutation: "+key);
+                target.setModified();break;
+            }
             case "pair-refresh-read":case "pair-refresh-generation":case "pair-refresh-identity":
             case "pair-refresh-protocol":case "pair-refresh-enabled":case "pair-refresh-signature": {
                 var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
-                var target=CasBytecodePatch.ownedBody(abc,instance,"ApexFormsOwnedTick");
-                boolean afterBind=false,afterRefresh=false;int changes=0;
+                var target=CasBytecodePatch.ownedBody(abc,instance,"ApexFormsRefreshBoundPair");
+                boolean afterRefresh=false;int changes=0;
                 String replaced=key.equals("pair-refresh-generation")?"apexFormsNativeGeneration":
                     key.equals("pair-refresh-identity")?"sim_id":key.equals("pair-refresh-protocol")?"protocol":"enabled";
                 for(var row:target.getCode().code) {
-                    if(CasBytecodePatch.stringLiteral(abc,row,"SetSimOccult"))afterBind=true;
-                    if(afterBind&&(CasBytecodePatch.property(abc,row,0x46,"CallUIService")||CasBytecodePatch.property(abc,row,0x4f,"CallUIService")))afterRefresh=true;
+                    if(CasBytecodePatch.property(abc,row,0x46,"CallUIService")||CasBytecodePatch.property(abc,row,0x4f,"CallUIService"))afterRefresh=true;
                     if(!afterRefresh)continue;
                     boolean read=key.equals("pair-refresh-read")&&(CasBytecodePatch.property(abc,row,0x46,"ApexFormsReadNativeState")||CasBytecodePatch.property(abc,row,0x4f,"ApexFormsReadNativeState"));
                     boolean signature=key.equals("pair-refresh-signature")&&CasBytecodePatch.property(abc,row,0x61,"apexPairSignature");

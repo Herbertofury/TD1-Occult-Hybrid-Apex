@@ -589,19 +589,7 @@
             ApexFormsBindUiKind();
             busy=apexFormsDesiredId!="";
             if(!busy) {
-               // A synchronous bind already refreshed EA's real pair here.
-               // Acknowledge that exact pair now instead of leaving its old
-               // generation to wait for the next network/timer-owned tick.
-               pairSignature=apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration;
-               pairLabels=ApexPairRead();
-               portraits=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{sim_id:apexBoundSim,refresh_pair:true,
-                  base_label:pairLabels==null?"":ApexPairLabel(pairLabels.base_owner_id),
-                  alternate_label:pairLabels==null?"":ApexPairLabel(pairLabels.alternate_owner_id)});
-               if(portraits!=null && portraits.protocol===1 && portraits.enabled===true &&
-                  portraits.sim_id===apexBoundSim && ApexFormsReadNativeState() &&
-                  apexFormsNativeState=="bound" && apexFormsDesiredId=="" &&
-                  pairSignature===apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration)
-                  apexPairSignature=pairSignature;
+               ApexFormsRefreshBoundPair();
             }
          }
          if(apexFormsCatalog==null || apexFormsCatalog.sim_id!=apexBoundSim) {
@@ -778,6 +766,26 @@
             HandleContextMenuUpdate(this.mContextMenuState);
             return;
          }
+      }
+
+      private function ApexFormsRefreshBoundPair() : Boolean
+      {
+         // Both actual strip clicks and typed CLI selection finish the same
+         // EA portrait/category panel before acknowledging presentation.
+         // No second model bind, polling delay or appearance copy is needed.
+         if(apexFormsNativeState!=="bound" || apexFormsDesiredId!="") return false;
+         var signature:String=apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration;
+         var pair:Object=ApexPairRead();
+         if(pair==null) return false;
+         var portraits:Object=CommunicationManager.CallUIService("ApexConfigureFormPortraits",{
+            sim_id:apexBoundSim,refresh_pair:true,
+            base_label:ApexPairLabel(pair.base_owner_id),alternate_label:ApexPairLabel(pair.alternate_owner_id)});
+         if(portraits==null || portraits.protocol!==1 || portraits.enabled!==true ||
+            portraits.sim_id!==apexBoundSim || !ApexFormsReadNativeState() ||
+            apexFormsNativeState!=="bound" || apexFormsDesiredId!="" ||
+            signature!==apexBoundSim+"|"+apexFormsSelectedId+"|"+apexFormsNativeGeneration) return false;
+         apexPairContext=pair;apexPairSignature=signature;
+         ApexFormsBindUiKind();return true;
       }
 
       private function ApexFormsClearTooltips() : void

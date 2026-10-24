@@ -136,5 +136,33 @@ class LiveFormPresentationTests(unittest.TestCase):
         self.assertFalse(tracker._apex_live_form_presentation['retry_safe'])
         self.assertEqual(self.events.count('native-switch'), 1)
 
+    def test_native_cleanup_can_retire_the_actor_without_breaking_its_completed_exit(self):
+        test = self
+        class RetiringInteraction:
+            sim = test.actor
+            def get_interaction_type(self):return Obj(guid64=152200)
+            def _exited_pipeline(self):
+                test.actor.sim_info = None
+                test.events.append('native-exited')
+                return 'retired'
+        presentation.install_completion(RetiringInteraction)
+        self.assertEqual(RetiringInteraction()._exited_pipeline(), 'retired')
+        self.assertEqual(self.events, ['native-exited'])
+        self.holder.cancel.assert_not_called()
+
+    def test_completion_does_not_catch_or_replay_original_game_or_mod_exceptions(self):
+        test = self
+        class FailedInteraction:
+            sim = test.actor
+            def get_interaction_type(self):return Obj(guid64=152200)
+            def _exited_pipeline(self):
+                test.events.append('native-exited')
+                raise RuntimeError('original cleanup failed')
+        presentation.install_completion(FailedInteraction)
+        with self.assertRaisesRegex(RuntimeError, 'original cleanup failed'):
+            FailedInteraction()._exited_pipeline()
+        self.assertEqual(self.events, ['native-exited'])
+        self.holder.cancel.assert_not_called()
+
 
 if __name__ == '__main__':unittest.main()

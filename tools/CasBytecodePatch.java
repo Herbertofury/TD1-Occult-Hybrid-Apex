@@ -795,16 +795,24 @@ public class CasBytecodePatch {
             opcode(rows.get(i+3),0x12),"Native bootstrap rebinds an already-bound owner.");
     }
     static void verifyImmediatePairAcknowledgement(ABC abc,InstanceInfo instance) {
-        var rows=ownedBody(abc,instance,"ApexFormsOwnedTick").getCode().code;
-        int bind=-1,refresh=-1,read=-1,assignment=-1;
+        for(String caller:Set.of("ApexFormsOwnedTick","ApexReadback"))
+            require(propertyCalls(abc,ownedBody(abc,instance,caller)).contains("ApexFormsRefreshBoundPair"),
+                "Both native strip and typed owner selection must finish the same EA pair presentation.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexReadback")).contains("ApexPresentationReady"),
+            "Typed owner acknowledgement must retain the final presentation readiness check.");
+        var body=ownedBody(abc,instance,"ApexFormsRefreshBoundPair");
+        require(propertyCalls(abc,body).equals(Set.of("ApexPairRead","ApexPairLabel","CallUIService",
+                "ApexFormsReadNativeState","ApexFormsBindUiKind")),
+            "Shared pair presentation must not rebind, copy, convert or poll a native model.");
+        var rows=body.getCode().code;
+        int refresh=-1,read=-1,assignment=-1;
         for(int i=0;i<rows.size();i++) {
             var row=rows.get(i);
-            if(stringLiteral(abc,row,"SetSimOccult"))bind=i;
-            if(bind>=0&&i>bind&&(property(abc,row,0x46,"CallUIService")||property(abc,row,0x4f,"CallUIService")))refresh=i;
+            if(property(abc,row,0x46,"CallUIService")||property(abc,row,0x4f,"CallUIService"))refresh=i;
             if(refresh>=0&&i>refresh&&(property(abc,row,0x46,"ApexFormsReadNativeState")||property(abc,row,0x4f,"ApexFormsReadNativeState")))read=i;
             if(refresh>=0&&i>refresh&&property(abc,row,0x61,"apexPairSignature"))assignment=i;
         }
-        require(bind>=0&&refresh>bind&&read>refresh&&assignment>read,
+        require(refresh>=0&&read>refresh&&assignment>read,
             "Immediate native pair refresh must acknowledge its fresh bound state without another polling tick.");
         var required=Set.of("protocol","enabled","sim_id","apexBoundSim","apexFormsNativeState",
             "apexFormsDesiredId","apexFormsSelectedId","apexFormsNativeGeneration");
@@ -1664,7 +1672,7 @@ public class CasBytecodePatch {
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
             "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips",
-            "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming",
+            "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming", "ApexFormsRefreshBoundPair",
             "ApexCatalogInitialize","ApexCatalogValidate","ApexCatalogPersist","ApexCatalogStyle","ApexCatalogDispose","ApexCatalogOpen","ApexCatalogFrame","ApexCatalogClearEffects","ApexCatalogSelection","ApexCatalogReadEquipped","ApexCatalogMenu","ApexCatalogButton","ApexCatalogSlider","ApexCatalogDraw","ApexCatalogClick","ApexCatalogSlideStart","ApexCatalogSlide","ApexCatalogSlideEnd","ApexCatalogStatus",
             "ApexCatalogView", "ApexCatalogSliderCommand", "ApexCatalogInvalidate", "ApexCatalogObserveBinding", "ApexCatalogApplyBinding",
             "ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardForget","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback",

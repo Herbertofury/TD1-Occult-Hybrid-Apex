@@ -86,14 +86,18 @@ def install_completion(interaction_class=None):
         actor = self.sim if kind in (425308, 425311, 152200, 152201) else None
         result = original(self, *args, **kwargs)  # All native loot/liability/transition cleanup first.
         if actor is not None:
-            sim = actor.sim_info
-            tracker = sim.occult_tracker
-            if _eligible(tracker, sim.current_occult_types) is not None:
-                try:
+            tracker = None
+            try:
+                # Native cleanup or another mod can retire this actor. That
+                # completed lifecycle must not fail on a later visual refresh.
+                sim = actor.sim_info
+                tracker = None if sim is None else sim.occult_tracker
+                if tracker is not None and _eligible(tracker, sim.current_occult_types) is not None:
                     receipt = finalize(sim, sim.current_occult_types, completed_interaction=self)
                     receipt['completed_native_interaction'] = kind
                     tracker._apex_live_form_presentation = receipt
-                except Exception as error:
+            except Exception as error:
+                if tracker is not None:
                     tracker._apex_live_form_presentation = {'error': str(error)[:2048],
                         'completed_native_interaction': kind, 'retry_safe': False, 'pixels_verified': False}
         return result
@@ -152,7 +156,10 @@ def install(tracker):
             return result
         finally:
             if trace is not None:
-                trace['observed_after'] = int(self._sim_info.current_occult_types)
+                try:
+                    trace['observed_after'] = int(self._sim_info.current_occult_types)
+                except Exception as error:
+                    trace['observation_error'] = str(error)[:2048]
             _SCOPES.trackers = outer
 
     switched._apex_live_form_presentation = True

@@ -1286,3 +1286,22 @@ A real colored Fairy on another household member visibly retains purple/teal
 wings and all native appearance fields. Blank-palette test forms have no color
 layers; native CAS swatch selection and full color persistence still require
 qualification. See [the scoped Live report](../Reports/LIVE_FORM_PRESENTATION_V292.json).
+
+V292 now completes the actual EA Fairy reveal → Vampire Dark Form → Fairy
+reveal sequence on one member. Both 8-second and 24-second observations agree,
+including the settled world model. All household stored native appearance
+fields remain unchanged and the final active fields match the selected Fairy.
+An actual EA wing-card click colors a blank-palette test Fairy; its selected
+base and visible colors survive a Vampire round trip. This does not qualify
+every swatch or save/Tray persistence. One actual strip click measures 31 ms
+from queued input to bound owner, including 16.9 ms in the native binder.
+Do not describe this sample as universal 0–1 ms switching.
+
+V293 shares that strip's checked, immediate EA pair-panel refresh with the
+typed selection path. The latter must finish presentation before acknowledging
+its owner. Serialized checks retain the exact Sim/owner/generation predicates
+and refuse another model bind or appearance copy in the helper. Native cleanup
+also tolerates an actor retired by the completed original pipeline without
+catching or replaying the original game's/mod's exceptions. The candidate
+builds and focused checks pass; matching runtime qualification remains open.
+See [the pair-presentation report](../Reports/CAS_PAIR_PRESENTATION_V293.json).

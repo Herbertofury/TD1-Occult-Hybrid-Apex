@@ -1,15 +1,23 @@
 {
-  "schema": 1,
   "candidate_epoch": "2026-10-24-live-transition-completion-v292",
   "candidate_sha256": "fa6567822c23ce2a049dcd3d8dfd655b0aca2a6e373e37ade213ee55ba4d6e05",
-  "production_ready": false,
   "native_interaction_cli": {
     "actual_ea_test_and_queue_path": true,
-    "reviewed_interactions": [425308, 425311, 152200, 152201],
+    "completed_native_targets_qualified_in_v290": [
+      64,
+      4,
+      64
+    ],
     "direct_form_setter_used": false,
+    "full_visible_transition_qualified": true,
     "normal_animation_and_native_tests_preserved": true,
-    "completed_native_targets_qualified_in_v290": [64, 4, 64],
-    "full_visible_transition_qualified": false
+    "qualification_scope": "One actual household member, Fairy reveal / Vampire dark / Fairy reveal; observations at 8 and 24 simulation seconds after each submission. This does not qualify all forms or all members.",
+    "reviewed_interactions": [
+      425308,
+      425311,
+      152200,
+      152201
+    ]
   },
   "observed_defects": [
     "V288 and V290 report Vampire in server/HUD while the world retains the Fairy appearance and native wing carrier.",
@@ -17,15 +25,114 @@
     "A Fairy transformation is disabled in deep water by native posture snippet 472928.",
     "Blank-palette Fairy test records have no pelt color layers. Native CAS color selection and persistence still require qualification."
   ],
+  "production_ready": false,
+  "protected_original_written": false,
+  "remaining_gates": [
+    "Every supported directed form/alternate transition and multiple household members; one native Fairy/Dark/Fairy case is now qualified.",
+    "Every supported directed form/alternate transition and actual model/portrait/control agreement.",
+    "Native CAS wing color selection, independent paint retention and save/Tray cycles.",
+    "Complete Dynamic CAS Companion UI qualification beyond the already qualified favorite handlers and restart persistence.",
+    "Measured player-input latency, current full CI and the remaining release matrix."
+  ],
+  "schema": 1,
   "v291_colored_wing_observation": {
-    "actual_native_reveal_interaction": 425308,
-    "visible_purple_teal_wings": true,
     "active_native_fairy_fields_match_stored_fairy": true,
-    "saved_color_layers": 5,
+    "actual_native_reveal_interaction": 425308,
+    "all_cas_swatches_qualified": false,
     "save_submitted": false,
-    "all_cas_swatches_qualified": false
+    "saved_color_layers": 5,
+    "visible_purple_teal_wings": true
   },
-  "v292_changes_awaiting_runtime_qualification": [
+  "v292_actual_cas_click": {
+    "all_transition_latency_qualified": false,
+    "conversion_called": false,
+    "evidence_sha256": "0b5f0d757eceb7d0ba466ed407fecfb551052b0389048084aaa5e9fe7830dbd8",
+    "independent_undo_bound": true,
+    "native_view_bind_ms": 16.9442,
+    "scope": "One background pointer click on the actual Vampire strip button; Fairy to Vampire. Not CLI wall time and not all-form latency.",
+    "ui_queue_to_bound_owner_ms": 31,
+    "zero_to_one_ms_qualified": false
+  },
+  "v292_actual_runtime": {
+    "all_household_stored_native_fields_unchanged": true,
+    "cold_load_native_appearances": 40,
+    "evidence_sha256": {
+      "complete_fields": "35e1052e462d5f2b35e5f84c52004ec83dac94125197949e891d815523b7e8a6",
+      "native_transitions": "97fbc1b5419e2466cc5c744d8d4e9bfc21b406c417581b0bcd13e1b7139c9336"
+    },
+    "final_active_native_fields_match_selected_form": true,
+    "full_cas_entry_appearance_records": 195,
+    "native_transitions": [
+      {
+        "interaction": 425308,
+        "observed_forms": [
+          64,
+          64
+        ],
+        "stable": true,
+        "target": 64
+      },
+      {
+        "interaction": 152200,
+        "observed_forms": [
+          4,
+          4
+        ],
+        "stable": true,
+        "target": 4
+      },
+      {
+        "interaction": 425308,
+        "observed_forms": [
+          64,
+          64
+        ],
+        "stable": true,
+        "target": 64
+      }
+    ],
+    "save_and_backup_files_unchanged": true,
+    "settled_vampire_world_pixels_correct": true,
+    "stale_ea_fairy_wing_owner_removed_after_native_completion": true
+  },
+  "v292_ci": {
+    "commit": "5122969bce28ae30d6070d4fdc321a004a8e832c",
+    "conclusion": "success",
+    "run": 40071996493
+  },
+  "v292_native_wing_card": {
+    "all_cas_swatch_selection_qualified": false,
+    "base_after_native_click": "466503",
+    "base_after_vampire_round_trip": "466503",
+    "cli_wing_write_quarantine_retained": true,
+    "intended_colored_wing_pixels_visible": true,
+    "save_tray_persistence_qualified": false,
+    "scope": "Actual EA wing-card click on a previously blank-palette Fairy in full CAS."
+  },
+  "v292_projection_component_benchmark": {
+    "modules": {
+      "__outfits__": {
+        "cache_entries": 7,
+        "cached_seconds": 0.0015103999999999118,
+        "calls": 7000,
+        "outputs_equal": true,
+        "raw_bytes": 25233,
+        "uncached_seconds": 1.0812171
+      },
+      "genetic_data": {
+        "cache_entries": 6,
+        "cached_seconds": 0.0017575000000000784,
+        "calls": 7000,
+        "outputs_equal": true,
+        "raw_bytes": 10239,
+        "uncached_seconds": 0.6309954999999998
+      }
+    },
+    "player_latency_qualified": false,
+    "python": "3.7.9 (tags/v3.7.9:13c94747c7, Aug 17 2020, 18:58:18) [MSC v.1900 64 bit (AMD64)]",
+    "scope": "Detached pure byte projection only; not player-input latency"
+  },
+  "v292_source_changes": [
     "Finish reviewed native transformation loot/animation cleanup before cancelling its exact stale EA Fairy wing owner.",
     "Resend final native appearance/current-form state after trait updates and native interaction completion; do not copy appearances or reset Sims.",
     "Use the stable bank-read index for the opt-in hair bit, avoiding repeated full-bank reads when disabled. Enabled repair still checks fresh authority.",
@@ -33,12 +140,5 @@
     "Cache only pure projections of at most 32 small immutable outfit/genetics byte strings per parser. Native reads, complete comparisons and unknown-byte preservation remain.",
     "Optional explicit disposable trace retains at most 64 native form-call records without polling."
   ],
-  "protected_original_written": false,
-  "remaining_gates": [
-    "Matching V292 cold load and actual native transformation completion, including delayed observations and full household appearance comparisons.",
-    "Every supported directed form/alternate transition and actual model/portrait/control agreement.",
-    "Native CAS wing color selection, independent paint retention and save/Tray cycles.",
-    "Complete Dynamic CAS Companion UI qualification beyond the already qualified favorite handlers and restart persistence.",
-    "Measured player-input latency, current full CI and the remaining release matrix."
-  ]
+  "v293_followup": "The typed CAS owner-selection path can finish model binding before the EA pair panel is ready. Reuse the existing synchronous strip pair refresh and require presentation readiness before readback acknowledgement. New build/runtime qualification pending."
 }

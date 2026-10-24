@@ -1988,10 +1988,14 @@
             // A same-owner native bind need not send a changed-owner heartbeat.
             // Reconcile our pending desired ID from the current bound native
             // model on this readback; do not await an unrelated socket poll.
-            if(operation=="form-owner-select") ApexFormsReadNativeState();
+            if(operation=="form-owner-select" && ApexFormsReadNativeState() &&
+               apexFormsSelectedId===String(context.owner_id) && apexFormsDesiredId=="") {
+               ApexFormsBindUiKind();ApexFormsRefreshBoundPair();
+            }
             if(selectedSimMatches && operation=="form-owner-select" && !("message" in reply) &&
                 (!(renderedKind is int) || int(renderedKind)!=state || (int(native.allOccultTypes) | 1)!=category ||
-                 apexFormsSelectedId!=String(context.owner_id) || apexFormsNativeState!="bound" || apexFormsDesiredId!="")) {
+                 apexFormsSelectedId!=String(context.owner_id) || apexFormsNativeState!="bound" || apexFormsDesiredId!="" ||
+                 !ApexPresentationReady())) {
                if(int(apexTimer.currentCount)<int(context.owner_deadline_tick)) {
                   // The normal idle poll is suspended while a command owns
                   // its readback. Poll only metadata here: Source's outstanding

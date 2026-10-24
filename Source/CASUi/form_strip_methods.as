@@ -18,6 +18,9 @@
       private var apexFormsLayerButtons:Array;
       private var apexFormsGestureSequence:int = 0;
       private var apexFormsOwners:Array=[];
+      private var apexFormsCatalogPages:Object={};
+      private var apexFormsLocalCatalog:Boolean=false;
+      private var apexFormsLocalOffset:int=0;
       private var apexFormsOwnerTotal:int=-1;
       private var apexFormsSelectedId:String="";
       private var apexFormsNativeState:String="";
@@ -66,6 +69,7 @@
          apexFormsHousehold="";
          apexFormsLayerButtons=null;
          apexFormsOwners=[];apexFormsOwnerTotal=-1;apexFormsSelectedId="";apexFormsNativeState="";
+         apexFormsCatalogPages={};apexFormsLocalCatalog=false;apexFormsLocalOffset=0;
          apexFormsDesiredId="";apexFormsNativeIntent=null;apexFormsBootstrap=false;apexFormsPage=0;apexFormsPanelHeight=146;
          apexFormsGroups=[];apexFormsVariantFamily="";apexFormsGroupKey="";
       }
@@ -392,6 +396,7 @@
             var group:Object=apexFormsGroups[groupIndex];
             if(group.indices.length>1 || group.family=="imaginary_friend") {
                apexFormsVariantFamily=String(group.family);apexFormsPage=0;apexFormsSignature="";
+               ApexFormsScheduleFrame();
             } else if(apexFormsOwners[int(group.indices[0])].id!=apexFormsSelectedId || apexMoleculeIntent!=null || apexFormsNativeIntent!=null || apexFormsDesiredId!="")
                ApexFormsQueueOwner(apexFormsOwners[int(group.indices[0])]);
             return;
@@ -400,7 +405,7 @@
             var ownerIndex:int=int(name.substr(10));
             if(ownerIndex<0 || ownerIndex>=apexFormsOwners.length) return;
             if(apexFormsOwners[ownerIndex].id!=apexFormsSelectedId || apexMoleculeIntent!=null || apexFormsNativeIntent!=null || apexFormsDesiredId!="") ApexFormsQueueOwner(apexFormsOwners[ownerIndex]);
-            apexFormsVariantFamily="";apexFormsPage=0;apexFormsSignature="";return;
+            apexFormsVariantFamily="";apexFormsPage=0;apexFormsSignature="";ApexFormsScheduleFrame();return;
          }
 
          var target:String="";
@@ -428,7 +433,7 @@
             cross_kind_navigation:apexFormsNativeState=="bound",selected_owner_id:apexFormsSelectedId,owner_count:apexFormsOwners.length,
             native_owner_state:apexFormsNativeState,desired_owner_id:apexFormsDesiredId,form_conversion_called:false,gesture_pending:apexFormsIntent!=null,
             native_fast_state:apexFormsFastState,native_generation:apexFormsNativeGeneration,switch_milliseconds:apexFormsSwitchMilliseconds,
-            pair_controls:ApexPairStatus(), member_ui_ready:ApexPresentationReady(),member_ui_milliseconds:apexPresentationMilliseconds,member_ui_frames:apexPresentationFrames,
+            pair_controls:ApexPairStatus(), member_ui_ready:ApexPresentationReady(),member_ui_milliseconds:apexPresentationMilliseconds,member_ui_frames:apexPresentationFrames,local_catalog:apexFormsLocalCatalog,local_catalog_offset:apexFormsLocalOffset,
             selection_result:ApexClone(apexFormsResult),message:apexFormsMessage,
             molecule_pending:ApexClone(apexMoleculeIntent),command_pending:apexPendingFields!=null,
             command_phase:apexPendingPhase,receiving:apexReceiving,
@@ -487,6 +492,7 @@
          else if(action=="reset") { apexFormsPosition=null; apexFormsScale=1; apexFormsCollapsed=false; apexFormsLocked=false; }
          else return;
          apexFormsSignature="";
+         ApexFormsScheduleFrame();
       }
 
       private function ApexFormsPlace() : void
@@ -555,7 +561,7 @@
 
       private function ApexFormsOwnedTick(sim:Object) : void
       {
-         if(apexNativeChannel!="" && apexNativeConnected) ApexFormsReadNativeState();
+         if(apexNativeChannel!="" && (apexNativeConnected || apexFormsLocalCatalog)) ApexFormsReadNativeState();
          ApexPairTick();
          ApexFormsBindUiKind();
          ApexMoleculeDrain();
@@ -843,7 +849,7 @@
       {
          removeEventListener(flash.events.Event.ENTER_FRAME,ApexFormsNextFrame);
          apexFormsFrameQueued=false;
-         if(apexDisconnected || !apexNativeConnected || apexBoundSim=="" || apexPendingPhase>=7) return;
+         if(apexDisconnected || !(apexNativeConnected || apexFormsLocalCatalog) || apexBoundSim=="" || apexPendingPhase>=7) return;
          if(apexTicking || ApexFormsCommandBlocksInput()) {
             if(apexMoleculeIntent!=null || apexFormsNativeIntent!=null || apexFormsDesiredId!="" || apexPairIntent!=null) ApexFormsScheduleFrame();
             return;
@@ -864,7 +870,7 @@
 
       private function ApexFormsReadNativeState() : Boolean
       {
-         if(apexNativeChannel=="" || !apexNativeConnected) return false;
+         if(apexNativeChannel=="" || !(apexNativeConnected || apexFormsLocalCatalog)) return false;
          var message:String=ApexNativeExchange("STATE|"+apexNativeChannel);
          if(message=="WAIT") return false;
          var fields:Array=message.split("|");

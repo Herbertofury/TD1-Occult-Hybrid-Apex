@@ -16,7 +16,7 @@
 
       private function ApexPairRead() : Object
       {
-         if(!apexFormsFastState || apexNativeChannel=="" || !apexNativeConnected) return null;
+         if(!apexFormsFastState || apexNativeChannel=="" || !(apexNativeConnected || apexFormsLocalCatalog)) return null;
          var fields:Array=ApexNativeExchange("PAIR|"+apexNativeChannel).split("|");
          if(fields.length!=9 || fields[0]!="PAIR" || fields[1]!==apexBoundSim ||
             !/^[01]$/.test(fields[6]) || !/^[1-9][0-9]{0,19}$/.test(fields[7]) ||
@@ -45,13 +45,25 @@
             !((intent.source_owner_id===pair.base_owner_id && intent.target_owner_id===pair.alternate_owner_id) ||
               (intent.source_owner_id===pair.alternate_owner_id && intent.target_owner_id===pair.base_owner_id) || furRestore) ||
             ["copy","link"].indexOf(String(intent.operation))<0 || !(intent.enabled is Boolean) ||
-            intent.operation=="copy" && intent.enabled!==false || apexNonce.length!=64 || apexFormsGestureSequence>=2147483647)
+            intent.operation=="copy" && intent.enabled!==false ||
+            apexNonce.length!=64 && !apexFormsLocalCatalog || apexFormsGestureSequence>=2147483647)
             throw new Error("Pair changed before the requested link/copy; no action submitted");
          var flags:Number=intent.hasOwnProperty("category_flags")?Number(intent.category_flags):4294967295;
          if(!isFinite(flags) || flags<0 || flags>4294967295 || flags!=Math.floor(flags) ||
             flags==0 && (intent.operation=="copy" || intent.enabled)) throw new Error("Select the details to copy or link");
          apexFormsGestureSequence++;
-         var nonce:String=apexNonce.substr(0,24)+("00000000"+apexFormsGestureSequence.toString(16)).substr(-8);
+         var nonce:String="";
+         if(apexNonce.length==64) nonce=apexNonce.substr(0,24)+("00000000"+apexFormsGestureSequence.toString(16)).substr(-8);
+         else {
+            // Player link/copy uses the same exact native pair while Source's
+            // independent CLI handshake finishes. The ID is replay protection,
+            // not permission: native channel/Sim/owner/generation checks stay.
+            var localRequest:Array=ApexNativeExchange("UIREQUEST|"+apexNativeChannel).split("|");
+            if(localRequest.length!=5 || localRequest[0]!=="UIREQUEST" || localRequest[1]!==apexBoundSim ||
+               localRequest[2]!==apexFormsSelectedId || localRequest[3]!==pair.generation ||
+               !/^[0-9a-f]{32}$/.test(localRequest[4])) throw new Error("Local pair request changed context; no action submitted");
+            nonce=String(localRequest[4]);
+         }
          var payload:String=nonce+"|"+apexBoundSim+"|"+pair.generation+"|"+intent.source_owner_id+"|"+intent.target_owner_id+"|"+intent.operation+"|"+(intent.enabled?"1":"0")+"|"+String(flags);
          var response:String=ApexNativeExchange("PAIRDO|"+apexNativeChannel+"|"+payload);
          if(response!=="PAIRDONE|"+nonce) throw new Error("Native pair action did not complete; do not replay it");

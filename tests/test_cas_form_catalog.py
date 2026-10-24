@@ -24,6 +24,17 @@ def rows():
 
 
 class CatalogTests(unittest.TestCase):
+    def test_paged_wire_escapes_labels_and_preserves_exact_owner_ids(self):
+        forms=catalog.project(rows(),'native/1','active/2')['forms']
+        before=copy.deepcopy(forms);wire=catalog.wire_page(forms,0)
+        self.assertTrue(wire.startswith('OWNERS|0|'+str(len(forms))+'|'))
+        values=wire.split('|')[3].split(';')
+        self.assertEqual([row.split(',')[0] for row in values],[row['owner_id'] for row in forms])
+        self.assertTrue(all(len(row.split(','))==10 for row in values))
+        self.assertTrue(all(32<=ord(c)<=126 for c in wire));self.assertEqual(forms,before)
+        for offset in (-1,1,True,len(forms)):
+            with self.subTest(offset=offset),self.assertRaises(ValueError):catalog.wire_page(forms,offset)
+
     def test_one_human_and_no_hidden_data_loss_or_input_mutation(self):
         original = rows(); before = copy.deepcopy(original)
         value = catalog.project(original, 'native/1', 'active/2')

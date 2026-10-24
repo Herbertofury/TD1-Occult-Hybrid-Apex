@@ -41,7 +41,7 @@
 
       private function ApexPresentationReady() : Boolean
       {
-         return apexNativeConnected && apexNonce.length==64 && apexBoundSim!="" &&
+         return apexNativeChannel!="" && (apexNativeConnected && apexNonce.length==64 || apexFormsLocalCatalog) && apexBoundSim!="" &&
             this.mCurrSimInfo!=null && this.mCurrSimInfo.simId===apexBoundSim &&
             (apexPresentationSim=="" || apexPresentationSim===apexBoundSim) &&
             apexFormsRoot!=null && apexFormsSelectedId!="" && apexFormsNativeState=="bound" &&
@@ -91,17 +91,47 @@
          addEventListener(flash.events.Event.ENTER_FRAME,ApexPresentationFrame,false,0,true);
       }
 
+      private function ApexPresentationPrime() : Boolean
+      {
+         // The delivered selector supplies identity only. OPEN and LOCALOWNERS
+         // revalidate the exact native group, member, scope and bound model.
+         // No CLI claim or pending player action may be advanced here.
+         if(apexDisconnected || apexTicking || apexPendingFields!=null || apexReceiving || apexPendingPhase!=0 ||
+            apexMoleculeIntent!=null || apexFormsNativeIntent!=null || apexFormsDesiredId!="" || apexPairIntent!=null ||
+            this.mCurrSimInfo==null || !(this.mCurrSimInfo.simId is String) ||
+            !/^[1-9][0-9]{0,19}$/.test(this.mCurrSimInfo.simId) ||
+            !(this.mCurrSimInfo.householdId is String) || !/^[1-9][0-9]{0,19}$/.test(this.mCurrSimInfo.householdId)) return false;
+         if(apexBoundSim!="" && apexBoundSim!==this.mCurrSimInfo.simId) {ApexResetSocket();return false;}
+         if(apexNativeChannel=="") ApexNativeOpen(String(this.mCurrSimInfo.simId));
+         if(apexNativeChannel=="" || !ApexFormsTryLocalCatalog()) return false;
+         apexFormsHousehold=String(this.mCurrSimInfo.householdId);
+         var delivered:Object=ApexFormsObservedSim();if(delivered==null) return false;
+         ApexFormsOwnedTick(delivered);return ApexPresentationReady();
+      }
+
       private function ApexPresentationFrame(event:flash.events.Event) : void
       {
          ApexPresentationStop();
          if(apexDisconnected) return;
          if(ApexPresentationReady()) { apexPresentationMilliseconds=getTimer()-apexPresentationStarted;return; }
-         if(!apexTicking && apexPendingFields==null && !apexReceiving && apexPendingPhase==0 &&
+         try {
+            if(ApexPresentationPrime()) {apexPresentationFrames++;apexPresentationMilliseconds=getTimer()-apexPresentationStarted;return;}
+         } catch(primeFailure:Error) {ApexSocketFailure(primeFailure);return;}
+         if(!apexTicking &&
             this.mCurrSimInfo!=null && this.mCurrSimInfo.simId is String &&
             /^[1-9][0-9]{0,19}$/.test(this.mCurrSimInfo.simId)) {
-            // Advance the existing checked handshake and native pair renderer.
-            // No new navigation, copy, link or CLI mutation is manufactured.
+            // Drain an already-owned transport ACK before the next 500ms tick.
+            // ApexTick's ENTER_FRAME guard still yields all command execution
+            // and readback to the Timer. A completed claim must not starve the
+            // incoming member's bounded, read-only bootstrap.
             apexPresentationFrames++;ApexTick(event);
+            // The complete menu was staged before CAS from these exact native
+            // owner graphs. Render it locally while the independent CLI nonce
+            // handshake completes. A claimed command still owns its Timer.
+            try {
+               if(!apexDisconnected && apexPendingFields==null && !apexReceiving && apexPendingPhase==0 &&
+                  ApexFormsTryLocalCatalog()) ApexFormsOwnedTick(ApexFormsObservedSim());
+            } catch(localMenuFailure:Error) {ApexSocketFailure(localMenuFailure);}
          }
          if(ApexPresentationReady()) apexPresentationMilliseconds=getTimer()-apexPresentationStarted;
          else ApexPresentationSchedule();
@@ -386,9 +416,78 @@
          return String(response);
       }
 
+      private function ApexFormsConsumeCatalog(payload:String) : void
+      {
+         var catalogFields:Array=payload.split("|");
+         if(catalogFields.length!=4 || !/^[0-9]+$/.test(catalogFields[1]) || !/^[0-9]+$/.test(catalogFields[2]))
+            throw new Error("Invalid native owner catalog page");
+         var catalogOffset:int=int(catalogFields[1]);var catalogTotal:int=int(catalogFields[2]);
+         if(catalogTotal<1 || catalogTotal>2048 || catalogOffset>apexFormsOwners.length ||
+            apexFormsOwnerTotal>=0 && apexFormsOwnerTotal!=catalogTotal) throw new Error("Native owner catalog sequence changed");
+         if(catalogOffset<apexFormsOwners.length) {
+            if(apexFormsCatalogPages[String(catalogOffset)]!==payload) throw new Error("Late peer form catalogue differs from the prepared native page");
+            return;
+         }
+         apexFormsCatalogPages[String(catalogOffset)]=payload;
+         apexFormsOwnerTotal=catalogTotal;
+         var catalogRows:Array=String(catalogFields[3]).split(";");
+         if(catalogRows.length<1 || catalogRows.length>32 || catalogOffset+catalogRows.length>catalogTotal)
+            throw new Error("Invalid native owner catalog page size");
+         for each(var catalogRow:String in catalogRows) {
+            var ownerFields:Array=catalogRow.split(",");
+            if(ownerFields.length!=10 || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[0]) ||
+               !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[3]) ||
+               String(ownerFields[4]).length>1024 ||
+               !/^[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[5]) ||
+               !/^(|[1-9][0-9]{0,19})$/.test(ownerFields[6]) || !/^(|[1-9][0-9]{0,19})$/.test(ownerFields[7]) ||
+               String(ownerFields[8]).length>4096 || String(ownerFields[9]).length>1024 ||
+               !/^[0-9]+$/.test(ownerFields[1]) || !/^[0-9]+$/.test(ownerFields[2])) throw new Error("Invalid native owner button");
+            var ownerKind:int=int(ownerFields[1]);var ownerToken:uint=uint(ownerFields[2]);
+            if(ownerKind<1 || ownerKind>64 || (ownerKind & (ownerKind-1))!=0 || ownerToken<0x20000000 || ownerToken>0x2fffffff)
+               throw new Error("Invalid native owner button rendering kind/token");
+            for each(var oldOwner:Object in apexFormsOwners) if(oldOwner.id==ownerFields[0]) throw new Error("Duplicate native owner identity");
+            var ownerLabel:String=decodeURIComponent(String(ownerFields[4]));
+            if(ownerLabel.length<1 || ownerLabel.length>192) throw new Error("Invalid form display name");
+            var ownerDescription:String=decodeURIComponent(String(ownerFields[8]));
+            var variantLabel:String=decodeURIComponent(String(ownerFields[9]));
+            if(ownerDescription.length<1 || ownerDescription.length>768 || variantLabel.length<1 || variantLabel.length>192)
+               throw new Error("Invalid form description or variant name");
+            apexFormsOwners.push({id:String(ownerFields[0]),kind:ownerKind,token:ownerToken,
+               form_id:String(ownerFields[3]),label:ownerLabel,family:String(ownerFields[5]),
+               icon:String(ownerFields[6]),family_icon:String(ownerFields[7]),description:ownerDescription,variant_label:variantLabel});
+         }
+         apexFormsSignature="";
+      }
+
+      private function ApexFormsTryLocalCatalog() : Boolean
+      {
+         if(apexFormsLocalCatalog) return true;
+         if(apexDisconnected || apexNativeChannel=="" ||
+            this.mCurrSimInfo==null || this.mCurrSimInfo.simId!==apexBoundSim) return false;
+         var payload:String=ApexNativeExchange("LOCALOWNERS|"+apexNativeChannel+"|"+apexBoundSim+"|"+apexFormsLocalOffset);
+         if(payload=="WAIT" || payload=="UNAVAILABLE") return false;
+         if(payload.indexOf("OWNERS|")!=0) throw new Error("Prepared native form catalogue refused");
+         var fields:Array=payload.split("|");
+         if(fields.length!=4 || String(apexFormsLocalOffset)!==String(fields[1])) throw new Error("Prepared native form page lost its exact continuation");
+         ApexFormsConsumeCatalog(payload);
+         apexFormsLocalOffset+=String(fields[3]).split(";").length;
+         if(apexFormsOwnerTotal>=0 && apexFormsLocalOffset===apexFormsOwnerTotal && apexFormsOwners.length===apexFormsOwnerTotal) {
+            var localMask:int=0;
+            for each(var localOwner:Object in apexFormsOwners) localMask|=int(localOwner.kind);
+            if(localMask<1 || localMask>127 || (localMask & 1)==0) throw new Error("Prepared native menu membership descriptor differs");
+            apexFormsOwnedMask=localMask;
+            apexFormsLocalCatalog=true;
+         }
+         return apexFormsLocalCatalog;
+      }
+
       private function ApexNativeOpen(simId:String) : void
       {
          var opened:String=ApexNativeExchange("OPEN|"+simId);
+         // The previous member's worker closes asynchronously. BUSY is a
+         // bounded retry on the next bootstrap frame, not a failed connection
+         // which needs another reset and ordinary Timer interval.
+         if(opened=="BUSY") return;
          if(!/^OPEN\|[1-9][0-9]{0,19}$/.test(opened)) throw new Error("Native CAS pipe opening refused");
          apexNativeChannel=opened.substr(5);apexNativeConnected=false;
          apexBoundSim=simId;apexHelloPending=false;
@@ -440,40 +539,7 @@
                } else if(stage=="poll") {
                   if(payload=="WAIT") { apexAwaiting=""; }
                   else if(payload.indexOf("OWNERS|")==0) {
-                     var catalogFields:Array=payload.split("|");
-                     if(catalogFields.length!=4 || !/^[0-9]+$/.test(catalogFields[1]) || !/^[0-9]+$/.test(catalogFields[2]))
-                        throw new Error("Invalid native owner catalog page");
-                     var catalogOffset:int=int(catalogFields[1]);var catalogTotal:int=int(catalogFields[2]);
-                     if(catalogTotal<1 || catalogTotal>2048 || catalogOffset!=apexFormsOwners.length ||
-                        apexFormsOwnerTotal>=0 && apexFormsOwnerTotal!=catalogTotal) throw new Error("Native owner catalog sequence changed");
-                     apexFormsOwnerTotal=catalogTotal;
-                     var catalogRows:Array=String(catalogFields[3]).split(";");
-                     if(catalogRows.length<1 || catalogRows.length>32 || catalogOffset+catalogRows.length>catalogTotal)
-                        throw new Error("Invalid native owner catalog page size");
-                     for each(var catalogRow:String in catalogRows) {
-                        var ownerFields:Array=catalogRow.split(",");
-                        if(ownerFields.length!=10 || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[0]) ||
-                           !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[3]) ||
-                           String(ownerFields[4]).length>1024 ||
-                           !/^[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerFields[5]) ||
-                           !/^(|[1-9][0-9]{0,19})$/.test(ownerFields[6]) || !/^(|[1-9][0-9]{0,19})$/.test(ownerFields[7]) ||
-                           String(ownerFields[8]).length>4096 || String(ownerFields[9]).length>1024 ||
-                           !/^[0-9]+$/.test(ownerFields[1]) || !/^[0-9]+$/.test(ownerFields[2])) throw new Error("Invalid native owner button");
-                        var ownerKind:int=int(ownerFields[1]);var ownerToken:uint=uint(ownerFields[2]);
-                        if(ownerKind<1 || ownerKind>64 || (ownerKind & (ownerKind-1))!=0 || ownerToken<0x20000000 || ownerToken>0x2fffffff)
-                           throw new Error("Invalid native owner button rendering kind/token");
-                        for each(var oldOwner:Object in apexFormsOwners) if(oldOwner.id==ownerFields[0]) throw new Error("Duplicate native owner identity");
-                        var ownerLabel:String=decodeURIComponent(String(ownerFields[4]));
-                        if(ownerLabel.length<1 || ownerLabel.length>192) throw new Error("Invalid form display name");
-                        var ownerDescription:String=decodeURIComponent(String(ownerFields[8]));
-                        var variantLabel:String=decodeURIComponent(String(ownerFields[9]));
-                        if(ownerDescription.length<1 || ownerDescription.length>768 || variantLabel.length<1 || variantLabel.length>192)
-                           throw new Error("Invalid form description or variant name");
-                        apexFormsOwners.push({id:String(ownerFields[0]),kind:ownerKind,token:ownerToken,
-                           form_id:String(ownerFields[3]),label:ownerLabel,family:String(ownerFields[5]),
-                           icon:String(ownerFields[6]),family_icon:String(ownerFields[7]),description:ownerDescription,variant_label:variantLabel});
-                     }
-                     apexFormsSignature="";apexAwaiting="";
+                     ApexFormsConsumeCatalog(payload);apexAwaiting="";
                   } else if(payload.indexOf("OWNERSTATE|")==0) {
                      var ownerState:Array=payload.split("|");
                      if(ownerState.length!=5 || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerState[1]) ||
@@ -1009,6 +1075,36 @@
             } catch(contextFailure:Error) { contextQuery="failed"; contextError=contextFailure.message; }
             nativeContext[contextName]={value:contextValue,query:contextQuery,error:contextError};
          }
+         var historyPalette:Object={protocol:1,query:"not-queried-outside-bound-pelt-owner",swatch_type:6,
+            sim_id:apexBoundSim,owner_id:apexFormsSelectedId,native_kind:null,selected:null};
+         if(apexFormsNativeState=="bound" && apexFormsDesiredId=="" &&
+            nativeContext.rendered_form.query=="returned-value" &&
+            (nativeContext.rendered_form.value===32 || nativeContext.rendered_form.value===64)) {
+            historyPalette.native_kind=int(nativeContext.rendered_form.value);
+            try {
+               var peltSelected:* = ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",6));
+               if(!(peltSelected is Array) || peltSelected.length>5) throw new Error("Incomplete native pelt palette");
+               var peltColors:Array=[];
+               if(peltSelected.length>0) {
+                  // EA returns selected dataID strings, not ARGB values. Mirror
+                  // PeltMarkingsPane.GetPeltColors: resolve each exact ID in the
+                  // native FURTONE palette, retaining only its uint32 color.
+                  // Detach the palette before subsequent native service calls.
+                  var peltAvailable:* = ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorList",6));
+                  if(!(peltAvailable is Array) || peltAvailable.length>16384) throw new Error("Incomplete native pelt color list");
+                  for each(var peltId:* in peltSelected) {
+                     if(!(peltId is String) || peltId.length<1 || peltId.length>128) throw new Error("Untyped native pelt swatch ID");
+                     var peltMatches:int=0;var peltColor:* = null;
+                     for each(var peltRow:* in peltAvailable)
+                        if(peltRow!=null && peltRow.dataID===peltId) {peltMatches++;peltColor=peltRow.color;}
+                     if(peltMatches!=1 || !(peltColor is Number) || !isFinite(Number(peltColor)) || peltColor<0 ||
+                        peltColor>4294967295 || peltColor!=Math.floor(peltColor)) throw new Error("Unresolved native pelt swatch color");
+                     peltColors.push(Number(peltColor));
+                  }
+               }
+               historyPalette.selected=peltColors;historyPalette.query="returned-value";
+            } catch(peltReadFailure:Error) {historyPalette.query="unavailable";}
+         }
          return {protocol:1,scope:"native-cas-client",sim:ApexClone(CommunicationManager.CallGameService("CASGetSimInfo",null,true)),
             menu_state:this.mCurrState,panel_visible:this.mCurrentPanel!=null && this.mCurrentPanel.visible,
             ui_occult_type:this.mCurrSimInfo==null ? null : int(this.mCurrSimInfo.occultType),
@@ -1017,7 +1113,7 @@
             selected:ApexClone(CommunicationManager.CallGameService("GetCatalogItemsSelectedWithModifiers",{state:this.mCurrState})),
             hair_color:hairSelected,hair_selected_swatch_id:hairSelected,hair_swatches:hairSwatches,
             hair_swatch_query:hairQuery,planned_outfits:plannedOutfits,planned_outfits_scope:"selected-category-only",
-            native_context:nativeContext,catalogs:catalogs,catalog_metadata:catalogMetadata,
+            native_context:nativeContext,history_palette:historyPalette,catalogs:catalogs,catalog_metadata:catalogMetadata,
             owner_pair_observation:ApexOwnerObservation(),form_strip:ApexFormsStatus(),catalog_workspace:ApexCatalogStatus(),
             catalog_metadata_complete:catalogMetadataComplete,catalog_metadata_scope:"native-catalog-identities-only",
             catalog_metadata_query:includeCatalogMetadata ? "explicit-lookup" : "disabled-pending-native-contract-proof"};

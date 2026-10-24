@@ -1,0 +1,3010 @@
+{
+  "schema": 1,
+  "build_epoch": "2026-10-24-native-menu-local-pair-v306",
+  "production_ready": false,
+  "actual_ui": {
+    "selected_wing_base": "469668",
+    "native_green_swatch_applied": true,
+    "all_five_color_layers_enabled": true,
+    "first_layer_picker_applied_purple": true,
+    "purple_wings_visually_verified": true,
+    "initial_empty_palette_rendered_gray": true
+  },
+  "independence": {
+    "two_vampire_round_trips_retained_complete_fairy_edit": true,
+    "only_fairy_pelt_layers_changed": true,
+    "human_complete_fields_unchanged": true
+  },
+  "readback": {
+    "native_swatch_type": 6,
+    "selected_data_ids_resolved_against_native_color_list": true,
+    "first_undo_acknowledged": true,
+    "resolved_uint32_colors_after_first_undo": [
+      4288461661,
+      4286233510,
+      4290476688,
+      4284651618,
+      4292862178
+    ]
+  },
+  "remaining_history_gate": {
+    "qualified": false,
+    "second_undo_native_acknowledgement": {
+      "cas_request_id": "eb570499aef0421caf3f055965e1ecb0",
+      "client": {
+        "catalog_metadata": [],
+        "catalog_metadata_complete": false,
+        "catalog_metadata_query": "disabled-pending-native-contract-proof",
+        "catalog_metadata_scope": "native-catalog-identities-only",
+        "catalog_workspace": {
+          "actual_columns": 5,
+          "binding_observation": {
+            "maximum": 245,
+            "screen": 298.6875,
+            "view": 0.02
+          },
+          "card_cells": [
+            {
+              "grid_height": 147,
+              "height": 147.0013427734375,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 4,
+              "root_y": 0,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001831054688,
+              "x": 10,
+              "y": 5
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013427734375,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 115,
+              "root_y": 0,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001983642578,
+              "x": 121,
+              "y": 5
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013427734375,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 226,
+              "root_y": 0,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0002136230469,
+              "x": 232,
+              "y": 5
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013427734375,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 337,
+              "root_y": 0,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0002136230469,
+              "x": 343,
+              "y": 5
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013427734375,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 448,
+              "root_y": 0,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001831054688,
+              "x": 454,
+              "y": 5
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013427734375,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 4,
+              "root_y": 151,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001831054688,
+              "x": 10,
+              "y": 156
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013427734375,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 115,
+              "root_y": 151,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001983642578,
+              "x": 121,
+              "y": 156
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013427734375,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 226,
+              "root_y": 151,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": true,
+              "width": 103.0002136230469,
+              "x": 232,
+              "y": 156
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013427734375,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 337,
+              "root_y": 151,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0002136230469,
+              "x": 343,
+              "y": 156
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013427734375,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 448,
+              "root_y": 151,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001831054688,
+              "x": 454,
+              "y": 156
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013732910156,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 4,
+              "root_y": 302,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001831054688,
+              "x": 10,
+              "y": 307
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013732910156,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 115,
+              "root_y": 302,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001983642578,
+              "x": 121,
+              "y": 307
+            },
+            {
+              "grid_height": 149.95,
+              "height": 149.932861328125,
+              "local_height": 149.95,
+              "local_width": 105.05,
+              "marker": true,
+              "reported_height": 149.95,
+              "root_width": 109.15,
+              "root_x": 226,
+              "root_y": 302,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 105.0558624267578,
+              "x": 231.0500030517578,
+              "y": 305.3500061035156
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013732910156,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 337,
+              "root_y": 302,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0002136230469,
+              "x": 343,
+              "y": 307
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0013732910156,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 448,
+              "root_y": 302,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001831054688,
+              "x": 454,
+              "y": 307
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0014038085938,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 4,
+              "root_y": 453,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001831054688,
+              "x": 10,
+              "y": 458
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0014038085938,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 115,
+              "root_y": 453,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001983642578,
+              "x": 121,
+              "y": 458
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0014038085938,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 226,
+              "root_y": 453,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0002136230469,
+              "x": 232,
+              "y": 458
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0014038085938,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 337,
+              "root_y": 453,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0002136230469,
+              "x": 343,
+              "y": 458
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0014038085938,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 448,
+              "root_y": 453,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001831054688,
+              "x": 454,
+              "y": 458
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0014038085938,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 4,
+              "root_y": 604,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001831054688,
+              "x": 10,
+              "y": 609
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0014038085938,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 115,
+              "root_y": 604,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0001983642578,
+              "x": 121,
+              "y": 609
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0014038085938,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 226,
+              "root_y": 604,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0002136230469,
+              "x": 232,
+              "y": 609
+            },
+            {
+              "grid_height": 147,
+              "height": 147.0014038085938,
+              "local_height": 147,
+              "local_width": 103,
+              "marker": true,
+              "reported_height": 147,
+              "root_width": 107,
+              "root_x": 337,
+              "root_y": 604,
+              "scale_x": 1,
+              "scale_y": 1,
+              "selected": false,
+              "width": 103.0002136230469,
+              "x": 343,
+              "y": 609
+            }
+          ],
+          "card_layout": {
+            "card_height": 147,
+            "card_width": 107,
+            "columns": 5,
+            "gap_x": 4,
+            "gap_y": 4,
+            "hit_width": 103,
+            "pitch_x": 111,
+            "pitch_y": 151,
+            "scale": 1,
+            "width": 595
+          },
+          "card_preferences": {
+            "gap_x": 4,
+            "gap_y": 4,
+            "scale": 1
+          },
+          "catalog_bounds": {
+            "height": 1249.000122070313,
+            "local_x": 0,
+            "stage_height": 1376,
+            "stage_width": 1278,
+            "width": 595,
+            "x": 651,
+            "y": 63
+          },
+          "clothing_grid_item_count": 27,
+          "companion": {
+            "appearance_written": false,
+            "available": true,
+            "duplicate_handlers_installed": false,
+            "favorite_button_present": true,
+            "favorite_button_visible": true,
+            "favorites": [],
+            "mode": "all",
+            "native_controls": true,
+            "pending": false,
+            "receipt": null,
+            "source": "Dynamic CAS Companion actual code"
+          },
+          "context": "",
+          "equipped_category": {
+            "active": false,
+            "pending": false,
+            "published": 0,
+            "resolved": 0,
+            "timing": null,
+            "unresolved": []
+          },
+          "equipped_count": 0,
+          "error": "",
+          "grid_metrics": {
+            "dimensions": [
+              5,
+              6
+            ],
+            "gap_x": 4,
+            "gap_y": 4,
+            "horizontal": true,
+            "layout_height": 906,
+            "layout_width": 0,
+            "row_reflow_attempts": 0
+          },
+          "inventory_dirty": true,
+          "items": [],
+          "keyboard": {
+            "context": "",
+            "focused_name": "",
+            "index": -1,
+            "last_code": 0,
+            "message": "",
+            "pending": 0,
+            "queued": 0,
+            "receipt": null,
+            "received": 0,
+            "rejected": "",
+            "typing": false,
+            "visibility": {
+              "available": false
+            }
+          },
+          "layout_changes": 1,
+          "native_catalog_timing": [
+            {
+              "bind_ms": 159,
+              "clear_ms": 0,
+              "construct_ms": 0,
+              "count": 27,
+              "native_ms": 1,
+              "selected_ms": 13,
+              "state": -2134374311
+            },
+            {
+              "bind_ms": 97,
+              "clear_ms": 7,
+              "construct_ms": 0,
+              "count": 27,
+              "native_ms": 1,
+              "selected_ms": 1,
+              "state": -2134374311
+            },
+            {
+              "bind_ms": 105,
+              "clear_ms": 1,
+              "construct_ms": 0,
+              "count": 27,
+              "native_ms": 2,
+              "selected_ms": 5,
+              "state": -2134374311
+            },
+            {
+              "bind_ms": 122,
+              "clear_ms": 2,
+              "construct_ms": 1,
+              "count": 27,
+              "native_ms": 1,
+              "selected_ms": 1,
+              "state": -2134374311
+            },
+            {
+              "bind_ms": 113,
+              "clear_ms": 1,
+              "construct_ms": 1,
+              "count": 27,
+              "native_ms": 1,
+              "selected_ms": 7,
+              "state": -2134374311
+            },
+            {
+              "bind_ms": 193,
+              "clear_ms": 4,
+              "construct_ms": 0,
+              "count": 27,
+              "native_ms": 2,
+              "selected_ms": 14,
+              "state": -2134374311
+            },
+            {
+              "bind_ms": 124,
+              "clear_ms": 2,
+              "construct_ms": 1,
+              "count": 27,
+              "native_ms": 3,
+              "selected_ms": 0,
+              "state": -2134374311
+            },
+            {
+              "bind_ms": 51,
+              "clear_ms": 1,
+              "construct_ms": 1,
+              "count": 27,
+              "native_ms": 2,
+              "selected_ms": 3,
+              "state": -2134374311
+            },
+            {
+              "bind_ms": 46,
+              "clear_ms": 2,
+              "construct_ms": 2,
+              "count": 27,
+              "native_ms": 0,
+              "selected_ms": 4,
+              "state": -2134374311
+            }
+          ],
+          "outfit": null,
+          "owned_frame_timing": {
+            "binding_max_ms": 2,
+            "layout_max_ms": 887,
+            "max_ms": 889,
+            "over_1ms": 111,
+            "samples": 47482,
+            "total_ms": 3673
+          },
+          "persisted": false,
+          "preferences": {
+            "animation": "none",
+            "border": 3,
+            "color": 51691,
+            "columns": 6,
+            "glow": 0,
+            "period": 1.4,
+            "strength": 1
+          },
+          "search": {
+            "appearance_written": false,
+            "available": false,
+            "context": "",
+            "elapsed_ms": 0,
+            "error": "",
+            "folder_corrected": false,
+            "folder_matches": [],
+            "index_sha256": "",
+            "indexed_matches": 0,
+            "input_embedded": false,
+            "input_font": "",
+            "input_password": false,
+            "input_text": "",
+            "input_text_width": 0,
+            "matched": 0,
+            "native_response": "",
+            "pending": false,
+            "publish_ms": 0,
+            "query": null,
+            "ready": false,
+            "rebuilds": 0,
+            "resolved": 0,
+            "source_count": 0,
+            "text": "",
+            "ticket": "",
+            "unresolved_resources": []
+          },
+          "selection_effect_count": 1,
+          "selection_timing": {
+            "clock_resolution_ms": 1,
+            "max_ms": 2,
+            "over_1ms": 17,
+            "samples": 7907
+          },
+          "slider_thumbs": {},
+          "view": "items",
+          "visible": false
+        },
+        "catalogs": [
+          {
+            "items": null,
+            "menu_state": -2134374303,
+            "panel": "clothing_body_bodyhair_torsofront",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134636525,
+            "panel": "profile_body",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2138564608,
+            "panel": "clothing_hair_none",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133851101,
+            "panel": "clothing_accessories_glasses",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134375336,
+            "panel": "clothing_accessories_horn",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134632417,
+            "panel": "profile_pet_whiskers",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134375400,
+            "panel": "vampire_mouth",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374301,
+            "panel": "clothing_body_skinspecularity",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134375403,
+            "panel": "vampire_cheeks",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134376377,
+            "panel": "clothing_shoes",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134637555,
+            "panel": "profile_head_chin",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133850037,
+            "panel": "clothing_accessories_toenail",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134637560,
+            "panel": "profile_head_eyes",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134637557,
+            "panel": "profile_head_mouth",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134370224,
+            "panel": "clothing_hair_mane",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2138044416,
+            "panel": "clothing_accessories_body",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134375401,
+            "panel": "vampire_eyesockets",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374315,
+            "panel": "clothing_bridle",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134368215,
+            "panel": "clothing_face_makeup_cheeks",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134376418,
+            "panel": "clothing_hair",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134375418,
+            "panel": "clothing_head_tattoos",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134636450,
+            "panel": "profile_body_skincolor",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134370223,
+            "panel": "clothing_hair_forelock",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134368220,
+            "panel": "clothing_face_makeup",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133850060,
+            "panel": "clothing_accessories_necklaces",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134376355,
+            "panel": "clothing_fullbody",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134637558,
+            "panel": "profile_head_cheek",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134370221,
+            "panel": "clothing_hair_horse_tail",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374373,
+            "panel": "clothing_pet_tail",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134368214,
+            "panel": "clothing_face_makeup_lips",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374305,
+            "panel": "clothing_body_bodyhair_arm",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134368212,
+            "panel": "clothing_face_makeup_eyeliner",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374394,
+            "panel": "clothing_body_tattoos",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134375399,
+            "panel": "clothing_face_teeth",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134376431,
+            "panel": "clothing_looks",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133850055,
+            "panel": "clothing_accessories_base_layer",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133850039,
+            "panel": "clothing_accessories_socks",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134368211,
+            "panel": "clothing_face_makeup_eyelashes",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134637556,
+            "panel": "profile_head_jaw",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133850058,
+            "panel": "clothing_accessories_gloves",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134376398,
+            "panel": "clothing_tops",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134632433,
+            "panel": "profile_hair_eyebrows",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374344,
+            "panel": "clothing_body_medical",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134368213,
+            "panel": "clothing_face_makeup_paint",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133850057,
+            "panel": "clothing_accessories_fingernail",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133850061,
+            "panel": "clothing_accessories_bracelets",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134628151,
+            "panel": "profile_generic_full_breed",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2138562560,
+            "panel": "clothing_face",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374302,
+            "panel": "clothing_body_bodyhair_torsoback",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133851104,
+            "panel": "clothing_accessories_hats",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134629176,
+            "panel": "profile_generic_pelt",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134375419,
+            "panel": "clothing_head_skin_details",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134375404,
+            "panel": "vampire_brows",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134368225,
+            "panel": "clothing_face_facial_hair",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133851098,
+            "panel": "clothing_accessories_headdeco",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134637561,
+            "panel": "profile_head_whole_heads",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374313,
+            "panel": "clothing_body_hoofcolor",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374316,
+            "panel": "clothing_saddle",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134370222,
+            "panel": "clothing_hair_horse_feather",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374304,
+            "panel": "clothing_body_bodyhair_leg",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134375402,
+            "panel": "vampire_eyebags",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133851103,
+            "panel": "clothing_accessories_piercings",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134637554,
+            "panel": "profile_head_ears",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133851102,
+            "panel": "clothing_accessories_earrings",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133850038,
+            "panel": "clothing_accessories_tights",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374395,
+            "panel": "clothing_body_skin_details",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134368216,
+            "panel": "clothing_face_makeup_eyes",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": [
+              {
+                "dataID": "469668",
+                "hue_range_max": 0.5,
+                "hue_range_min": -0.5,
+                "hue_range_modifier": 0,
+                "hue_range_step": 0.050000000745058,
+                "opacity_range_max": 1,
+                "opacity_range_min": 0.2000000029802322,
+                "opacity_range_modifier": 1,
+                "opacity_range_step": 0.050000000745058,
+                "saturation_range_max": 0.5,
+                "saturation_range_min": -0.5,
+                "saturation_range_modifier": 0,
+                "saturation_range_step": 0.050000000745058,
+                "value_range_max": 0.5,
+                "value_range_min": -0.5,
+                "value_range_modifier": 0,
+                "value_range_step": 0.050000000745058
+              }
+            ],
+            "menu_state": -2134374311,
+            "panel": "clothing_body_wings",
+            "preset": {
+              "index": -1,
+              "presetId": "0"
+            },
+            "preset_query": "returned-value",
+            "query": "queried-current-panel",
+            "supported": true
+          },
+          {
+            "items": null,
+            "menu_state": -2134637552,
+            "panel": "profile_head_forehead",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134637559,
+            "panel": "profile_head_nose",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374195,
+            "panel": "clothing_bodydetails",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374196,
+            "panel": "clothing_bodyscar",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2138045440,
+            "panel": "clothing_accessories_head",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134376378,
+            "panel": "clothing_bottoms",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134374314,
+            "panel": "clothing_blanket",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2133850059,
+            "panel": "clothing_accessories_rings",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          },
+          {
+            "items": null,
+            "menu_state": -2134636342,
+            "panel": "profile_body_fur",
+            "preset": null,
+            "preset_query": "not-queried-inactive-panel",
+            "query": "not-queried-inactive-panel",
+            "supported": false
+          }
+        ],
+        "form_strip": {
+          "command_pending": true,
+          "command_phase": 1,
+          "cross_kind_navigation": true,
+          "desired_owner_id": "",
+          "form_conversion_called": false,
+          "gesture_pending": false,
+          "input_timing": {
+            "clock_resolution_ms": 1,
+            "max_ms": 0,
+            "over_budget": 0,
+            "samples": 3,
+            "scope": "accepted-CAS-input-queue-handler",
+            "target_ms": 1,
+            "total_ms": 0
+          },
+          "layout": {
+            "collapsed": false,
+            "dragging": false,
+            "locked": false,
+            "scale": 1,
+            "x": null,
+            "y": null
+          },
+          "life_states": [
+            {
+              "description": "Human: the one shared Human appearance for this Sim.",
+              "family": "human",
+              "icon": "8673334624002027025",
+              "indices": [
+                0
+              ],
+              "label": "Human",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Human: the one shared Human appearance for this Sim.",
+                  "icon": "8673334624002027025",
+                  "label": "Human",
+                  "owner_id": "native/1"
+                }
+              ]
+            },
+            {
+              "description": "Alien: edit the Alien appearance independently of its shared Human disguise.",
+              "family": "alien",
+              "icon": "2775690754429031459",
+              "indices": [
+                1
+              ],
+              "label": "Alien",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Alien: edit the Alien appearance independently of its shared Human disguise.",
+                  "icon": "",
+                  "label": "Alien",
+                  "owner_id": "active/2"
+                }
+              ]
+            },
+            {
+              "description": "Vampire: edit the dark form independently of the shared Human appearance.",
+              "family": "vampire",
+              "icon": "13809920584366519067",
+              "indices": [
+                2
+              ],
+              "label": "Vampire",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Vampire: edit the dark form independently of the shared Human appearance.",
+                  "icon": "",
+                  "label": "Vampire",
+                  "owner_id": "native/4"
+                }
+              ]
+            },
+            {
+              "description": "Mermaid: customize the aquatic form separately from Human.",
+              "family": "mermaid",
+              "icon": "13897792856323541937",
+              "indices": [
+                3
+              ],
+              "label": "Mermaid",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Mermaid: customize the aquatic form separately from Human.",
+                  "icon": "",
+                  "label": "Mermaid",
+                  "owner_id": "native/8"
+                }
+              ]
+            },
+            {
+              "description": "Spellcaster: customize this magical form without changing other appearances.",
+              "family": "witch",
+              "icon": "10917391826644667265",
+              "indices": [
+                4
+              ],
+              "label": "Spellcaster",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Spellcaster: customize this magical form without changing other appearances.",
+                  "icon": "",
+                  "label": "Spellcaster",
+                  "owner_id": "native/16"
+                }
+              ]
+            },
+            {
+              "description": "Werewolf: choose the beast or human-looking Werewolf appearance.",
+              "family": "werewolf",
+              "icon": "9800199353117073294",
+              "indices": [
+                5,
+                19
+              ],
+              "label": "Werewolf",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Werewolf: choose the beast or human-looking Werewolf appearance.",
+                  "icon": "",
+                  "label": "Werewolf",
+                  "owner_id": "native/32"
+                },
+                {
+                  "description": "Werewolf: choose the beast or human-looking Werewolf appearance.",
+                  "icon": "",
+                  "label": "Human Cc",
+                  "owner_id": "werewolf/werewolf_human_cc"
+                }
+              ]
+            },
+            {
+              "description": "Fairy: choose and customize the Fairy appearances independently.",
+              "family": "fairy",
+              "icon": "1668588114211556772",
+              "indices": [
+                6,
+                7
+              ],
+              "label": "Fairy",
+              "selected": true,
+              "variants": [
+                {
+                  "description": "Fairy: choose and customize the Fairy appearances independently.",
+                  "icon": "",
+                  "label": "Fairy",
+                  "owner_id": "native/64"
+                },
+                {
+                  "description": "Fairy: choose and customize the Fairy appearances independently.",
+                  "icon": "",
+                  "label": "Alternate",
+                  "owner_id": "fairy/fairy_alternate"
+                }
+              ]
+            },
+            {
+              "description": "Ghost: customize this spectral appearance separately from living Human.",
+              "family": "ghost",
+              "icon": "1443767933742610749",
+              "indices": [
+                8
+              ],
+              "label": "Ghost",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Ghost: customize this spectral appearance separately from living Human.",
+                  "icon": "1443767933742610749",
+                  "label": "Ghost",
+                  "owner_id": "ghost/ghost_ghost"
+                }
+              ]
+            },
+            {
+              "description": "Imaginary Friend: choose Lil\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. Each keeps its own edits. The real appearance uses shared Human.",
+              "family": "imaginary_friend",
+              "icon": "11434068158097003058",
+              "indices": [
+                9,
+                10,
+                11,
+                12
+              ],
+              "label": "Imaginary Friend",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Imaginary Friend: choose Lil\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. Each keeps its own edits. The real appearance uses shared Human.",
+                  "icon": "253393667457336398",
+                  "label": "Lil Monster",
+                  "owner_id": "imaginary_friend/imaginary_friend_lil_monster"
+                },
+                {
+                  "description": "Imaginary Friend: choose Lil\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. Each keeps its own edits. The real appearance uses shared Human.",
+                  "icon": "5062037657518651746",
+                  "label": "Pegacorn",
+                  "owner_id": "imaginary_friend/imaginary_friend_pegacorn"
+                },
+                {
+                  "description": "Imaginary Friend: choose Lil\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. Each keeps its own edits. The real appearance uses shared Human.",
+                  "icon": "14300094941941926870",
+                  "label": "Spooky Kid",
+                  "owner_id": "imaginary_friend/imaginary_friend_spooky_kid"
+                },
+                {
+                  "description": "Imaginary Friend: choose Lil\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. Each keeps its own edits. The real appearance uses shared Human.",
+                  "icon": "4206598596491018995",
+                  "label": "Wild Child",
+                  "owner_id": "imaginary_friend/imaginary_friend_wild_child"
+                }
+              ]
+            },
+            {
+              "description": "PlantSim: customize the plant appearance separately from Human.",
+              "family": "plantsim",
+              "icon": "4781641083186275185",
+              "indices": [
+                13
+              ],
+              "label": "PlantSim",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "PlantSim: customize the plant appearance separately from Human.",
+                  "icon": "4781641083186275185",
+                  "label": "PlantSim",
+                  "owner_id": "plantsim/plantsim_plant"
+                }
+              ]
+            },
+            {
+              "description": "Grim Reaper: choose the robed or unrobed appearance.",
+              "family": "reaper",
+              "icon": "7146739768078268620",
+              "indices": [
+                14,
+                15
+              ],
+              "label": "Grim Reaper",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Grim Reaper: choose the robed or unrobed appearance.",
+                  "icon": "7146739768078268620",
+                  "label": "Reaper",
+                  "owner_id": "reaper/reaper_reaper"
+                },
+                {
+                  "description": "Grim Reaper: choose the robed or unrobed appearance.",
+                  "icon": "7146739768078268620",
+                  "label": "Unrobed",
+                  "owner_id": "reaper/reaper_unrobed"
+                }
+              ]
+            },
+            {
+              "description": "Scarecrow / Patchy: customize the scarecrow appearance.",
+              "family": "scarecrow",
+              "icon": "11915048362264716381",
+              "indices": [
+                16
+              ],
+              "label": "Scarecrow / Patchy",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Scarecrow / Patchy: customize the scarecrow appearance.",
+                  "icon": "11915048362264716381",
+                  "label": "Scarecrow",
+                  "owner_id": "scarecrow/scarecrow_scarecrow"
+                }
+              ]
+            },
+            {
+              "description": "Servo / Robot: customize the robotic appearance separately from Human.",
+              "family": "servo",
+              "icon": "8476245787455789040",
+              "indices": [
+                17
+              ],
+              "label": "Servo / Robot",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Servo / Robot: customize the robotic appearance separately from Human.",
+                  "icon": "8476245787455789040",
+                  "label": "Servo",
+                  "owner_id": "servo/servo_robot"
+                }
+              ]
+            },
+            {
+              "description": "Skeleton / Bonehilda: customize the skeletal appearance.",
+              "family": "skeleton",
+              "icon": "6326075673583199528",
+              "indices": [
+                18
+              ],
+              "label": "Skeleton / Bonehilda",
+              "selected": false,
+              "variants": [
+                {
+                  "description": "Skeleton / Bonehilda: customize the skeletal appearance.",
+                  "icon": "6326075673583199528",
+                  "label": "Skeleton",
+                  "owner_id": "skeleton/skeleton_skeleton"
+                }
+              ]
+            }
+          ],
+          "local_catalog": true,
+          "local_catalog_offset": 20,
+          "member_ui_frames": 11,
+          "member_ui_milliseconds": 1222,
+          "member_ui_ready": true,
+          "message": "",
+          "molecule_pending": null,
+          "native_fast_state": true,
+          "native_generation": "97",
+          "native_owner_state": "bound",
+          "owned_mask": 127,
+          "owner_count": 20,
+          "pair_controls": {
+            "message": "",
+            "native_panel": true,
+            "pair": {
+              "alternate_owner_id": "native/64",
+              "base_owner_id": "native/1",
+              "category_flags": 4294967295,
+              "generation": "97",
+              "human_owner_id": "native/1",
+              "linked": false,
+              "selected_owner_id": "native/64",
+              "sim_id": "349336084686110946"
+            },
+            "panel": {
+              "category_flags": 164124158,
+              "copy_enabled": true,
+              "linked": false,
+              "visible": true,
+              "x": 38,
+              "y": -139.85
+            },
+            "pending": false,
+            "scope": "selected-categories",
+            "selective_copy_available": true,
+            "visible": true
+          },
+          "protocol": 1,
+          "receiving": false,
+          "scope": "native-cas-hybrid-form-strip",
+          "selected_owner_id": "native/64",
+          "selection_result": null,
+          "session": 1,
+          "sim_id": "349336084686110946",
+          "switch_milliseconds": -1,
+          "transport": {
+            "catalog_expected": 20,
+            "catalog_received": 20,
+            "error": "",
+            "native_connected": true,
+            "reset_pending": false,
+            "stage": "readback"
+          },
+          "variant_family": "",
+          "visible": true
+        },
+        "hair_color": "414026",
+        "hair_selected_swatch_id": "414026",
+        "hair_swatch_query": "returned-value",
+        "hair_swatches": [
+          {
+            "color": 4262333968,
+            "dataID": "414242",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4262531345,
+            "dataID": "414027",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4265223453,
+            "dataID": "414235",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4265421348,
+            "dataID": "414248",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4267722547,
+            "dataID": "414030",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4268709188,
+            "dataID": "414241",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4272699442,
+            "dataID": "414246",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4272706355,
+            "dataID": "414026",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4274550318,
+            "dataID": "414251",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4271997014,
+            "dataID": "414243",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4273643903,
+            "dataID": "414240",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4275155792,
+            "dataID": "414029",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4275415404,
+            "dataID": "414236",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4278186696,
+            "dataID": "414244",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4276348132,
+            "dataID": "414249",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4274372794,
+            "dataID": "414250",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4272664246,
+            "dataID": "414237",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4274691530,
+            "dataID": "414245",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4276838318,
+            "dataID": "414239",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4263985840,
+            "dataID": "414032",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4264744121,
+            "dataID": "414247",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4263623483,
+            "dataID": "414238",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4269302859,
+            "dataID": "414031",
+            "icon": "0",
+            "isModded": false
+          },
+          {
+            "color": 4266807890,
+            "dataID": "414028",
+            "icon": "0",
+            "isModded": false
+          }
+        ],
+        "history_palette": {
+          "native_kind": 64,
+          "owner_id": "native/64",
+          "protocol": 1,
+          "query": "returned-value",
+          "selected": [
+            4288461661,
+            4286233510,
+            4290476688,
+            4284651618,
+            4292862178
+          ],
+          "sim_id": "349336084686110946",
+          "swatch_type": 6
+        },
+        "menu_state": -2134374311,
+        "molecule": {
+          "enabled": true,
+          "height": 45.8953857421875,
+          "kind": 64,
+          "occult_count": 6,
+          "sim_id": "349336084686110946",
+          "visible": true,
+          "width": 76.49917602539062,
+          "x": 163.1984405517578,
+          "y": 252.396240234375
+        },
+        "native_context": {
+          "edit_mode": {
+            "error": "",
+            "query": "returned-value",
+            "value": 0
+          },
+          "entered_from_play_area": {
+            "error": "",
+            "query": "returned-value",
+            "value": {
+              "result": true
+            }
+          },
+          "forced_full_edit": {
+            "error": "",
+            "query": "returned-value",
+            "value": true
+          },
+          "new_family": {
+            "error": "",
+            "query": "returned-value",
+            "value": false
+          },
+          "rendered_form": {
+            "error": "",
+            "query": "returned-value",
+            "value": 64
+          }
+        },
+        "outfit": {
+          "outfit_index": 0,
+          "outfit_type": 9
+        },
+        "owner_pair_observation": {
+          "complete": false,
+          "error": "Paired feed delivery or fresh selected/household records are incomplete",
+          "feed": {
+            "complete": true,
+            "delivered": true,
+            "error": "",
+            "pairs": [
+              {
+                "alternate": {
+                  "all_occult_types": 127,
+                  "index": 0,
+                  "occult_layer": 1,
+                  "occult_type": 4,
+                  "selected": false,
+                  "sim_id": "285159751289798669"
+                },
+                "base": {
+                  "all_occult_types": 127,
+                  "index": 0,
+                  "occult_layer": 0,
+                  "occult_type": 4,
+                  "selected": false,
+                  "sim_id": "285159751289798669"
+                },
+                "index": 0
+              },
+              {
+                "alternate": {
+                  "all_occult_types": 127,
+                  "index": 1,
+                  "occult_layer": 1,
+                  "occult_type": 4,
+                  "selected": true,
+                  "sim_id": "349336084686110946"
+                },
+                "base": {
+                  "all_occult_types": 127,
+                  "index": 1,
+                  "occult_layer": 0,
+                  "occult_type": 4,
+                  "selected": false,
+                  "sim_id": "349336084686110946"
+                },
+                "index": 1
+              },
+              {
+                "alternate": {
+                  "all_occult_types": 127,
+                  "index": 2,
+                  "occult_layer": 1,
+                  "occult_type": 4,
+                  "selected": false,
+                  "sim_id": "349336084686110947"
+                },
+                "base": {
+                  "all_occult_types": 127,
+                  "index": 2,
+                  "occult_layer": 0,
+                  "occult_type": 4,
+                  "selected": false,
+                  "sim_id": "349336084686110947"
+                },
+                "index": 2
+              },
+              {
+                "alternate": {
+                  "all_occult_types": 127,
+                  "index": 3,
+                  "occult_layer": 1,
+                  "occult_type": 4,
+                  "selected": false,
+                  "sim_id": "450667075246031054"
+                },
+                "base": {
+                  "all_occult_types": 127,
+                  "index": 3,
+                  "occult_layer": 0,
+                  "occult_type": 4,
+                  "selected": false,
+                  "sim_id": "450667075246031054"
+                },
+                "index": 3
+              },
+              {
+                "alternate": {
+                  "all_occult_types": 127,
+                  "index": 4,
+                  "occult_layer": 1,
+                  "occult_type": 4,
+                  "selected": false,
+                  "sim_id": "450667075246031055"
+                },
+                "base": {
+                  "all_occult_types": 127,
+                  "index": 4,
+                  "occult_layer": 0,
+                  "occult_type": 4,
+                  "selected": false,
+                  "sim_id": "450667075246031055"
+                },
+                "index": 4
+              }
+            ],
+            "selected_index": 1,
+            "selected_layer": 1,
+            "sequence": 213
+          },
+          "household": [],
+          "household_primitives": [
+            {
+              "field_names": [
+                "simId",
+                "isNew",
+                "age",
+                "speciesType",
+                "lastName",
+                "breedName",
+                "isPregnant",
+                "firstName",
+                "allOccultTypes",
+                "occultType"
+              ],
+              "field_names_truncated": false,
+              "fields": {
+                "age": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 16
+                },
+                "allOccultTypes": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 127
+                },
+                "householdId": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "household_id": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "isNew": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "boolean",
+                  "value": true
+                },
+                "occultLayer": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "occultType": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 1
+                },
+                "simId": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "string",
+                  "value": "285159751289798669"
+                },
+                "sim_id": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "speciesType": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 1
+                }
+              }
+            },
+            {
+              "field_names": [
+                "simId",
+                "isNew",
+                "age",
+                "speciesType",
+                "lastName",
+                "breedName",
+                "isPregnant",
+                "firstName",
+                "allOccultTypes",
+                "occultType"
+              ],
+              "field_names_truncated": false,
+              "fields": {
+                "age": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 16
+                },
+                "allOccultTypes": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 127
+                },
+                "householdId": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "household_id": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "isNew": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "boolean",
+                  "value": true
+                },
+                "occultLayer": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "occultType": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 1
+                },
+                "simId": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "string",
+                  "value": "349336084686110946"
+                },
+                "sim_id": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "speciesType": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 1
+                }
+              }
+            },
+            {
+              "field_names": [
+                "simId",
+                "isNew",
+                "age",
+                "speciesType",
+                "lastName",
+                "breedName",
+                "isPregnant",
+                "firstName",
+                "allOccultTypes",
+                "occultType"
+              ],
+              "field_names_truncated": false,
+              "fields": {
+                "age": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 16
+                },
+                "allOccultTypes": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 127
+                },
+                "householdId": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "household_id": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "isNew": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "boolean",
+                  "value": true
+                },
+                "occultLayer": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "occultType": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 1
+                },
+                "simId": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "string",
+                  "value": "349336084686110947"
+                },
+                "sim_id": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "speciesType": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 1
+                }
+              }
+            },
+            {
+              "field_names": [
+                "simId",
+                "isNew",
+                "age",
+                "speciesType",
+                "lastName",
+                "breedName",
+                "isPregnant",
+                "firstName",
+                "allOccultTypes",
+                "occultType"
+              ],
+              "field_names_truncated": false,
+              "fields": {
+                "age": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 16
+                },
+                "allOccultTypes": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 127
+                },
+                "householdId": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "household_id": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "isNew": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "boolean",
+                  "value": true
+                },
+                "occultLayer": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "occultType": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 1
+                },
+                "simId": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "string",
+                  "value": "450667075246031054"
+                },
+                "sim_id": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "speciesType": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 1
+                }
+              }
+            },
+            {
+              "field_names": [
+                "simId",
+                "isNew",
+                "age",
+                "speciesType",
+                "lastName",
+                "breedName",
+                "isPregnant",
+                "firstName",
+                "allOccultTypes",
+                "occultType"
+              ],
+              "field_names_truncated": false,
+              "fields": {
+                "age": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 16
+                },
+                "allOccultTypes": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 127
+                },
+                "householdId": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "household_id": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "isNew": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "boolean",
+                  "value": true
+                },
+                "occultLayer": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "occultType": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 1
+                },
+                "simId": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "string",
+                  "value": "450667075246031055"
+                },
+                "sim_id": {
+                  "bounded": true,
+                  "present": false,
+                  "primitive": true,
+                  "type": "undefined",
+                  "value": null
+                },
+                "speciesType": {
+                  "bounded": true,
+                  "present": true,
+                  "primitive": true,
+                  "type": "number",
+                  "value": 1
+                }
+              }
+            }
+          ],
+          "household_query": "invalid-record",
+          "listener_registered": true,
+          "protocol": 1,
+          "scope": "native-cas-paired-feed-read-only",
+          "selected": {
+            "all_occult_types": 127,
+            "household_id": "285159751289798668",
+            "occult_layer": 1,
+            "occult_type": 4,
+            "sim_id": "349336084686110946"
+          },
+          "selected_query": "returned-value",
+          "selector_feed": {
+            "alternate_accept_authorized": false,
+            "mapping_verified": false,
+            "navigation_service_registered": true,
+            "protocol": 1,
+            "raw_feed": {
+              "alternate_row_count": 5,
+              "base_row_count": 5,
+              "before_native_handler": true,
+              "complete": true,
+              "delivered": true,
+              "error": "",
+              "pairs": [
+                {
+                  "alternate": {
+                    "all_occult_types": 127,
+                    "index": 0,
+                    "occult_layer": 1,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "285159751289798669"
+                  },
+                  "base": {
+                    "all_occult_types": 127,
+                    "index": 0,
+                    "occult_layer": 0,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "285159751289798669"
+                  },
+                  "index": 0
+                },
+                {
+                  "alternate": {
+                    "all_occult_types": 127,
+                    "index": 1,
+                    "occult_layer": 1,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "349336084686110946"
+                  },
+                  "base": {
+                    "all_occult_types": 127,
+                    "index": 1,
+                    "occult_layer": 0,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "349336084686110946"
+                  },
+                  "index": 1
+                },
+                {
+                  "alternate": {
+                    "all_occult_types": 127,
+                    "index": 2,
+                    "occult_layer": 1,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "349336084686110947"
+                  },
+                  "base": {
+                    "all_occult_types": 127,
+                    "index": 2,
+                    "occult_layer": 0,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "349336084686110947"
+                  },
+                  "index": 2
+                },
+                {
+                  "alternate": {
+                    "all_occult_types": 127,
+                    "index": 3,
+                    "occult_layer": 1,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "450667075246031054"
+                  },
+                  "base": {
+                    "all_occult_types": 127,
+                    "index": 3,
+                    "occult_layer": 0,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "450667075246031054"
+                  },
+                  "index": 3
+                },
+                {
+                  "alternate": {
+                    "all_occult_types": 127,
+                    "index": 4,
+                    "occult_layer": 1,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "450667075246031055"
+                  },
+                  "base": {
+                    "all_occult_types": 127,
+                    "index": 4,
+                    "occult_layer": 0,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "450667075246031055"
+                  },
+                  "index": 4
+                }
+              ],
+              "selected_index": 1,
+              "selected_layer": 1,
+              "sequence": 214,
+              "source": "native-selector-raw-entry-observer"
+            },
+            "reset_listener_registered": true,
+            "retained": {
+              "available": true,
+              "complete": true,
+              "error": "",
+              "native_pair_panel": {
+                "category_flags": 164124158,
+                "copy_enabled": true,
+                "linked": false,
+                "visible": true,
+                "x": 38,
+                "y": -139.85
+              },
+              "pair_controls_anchor": {
+                "x": 58.008544921875,
+                "y": 1176.18505859375
+              },
+              "pairs": [
+                {
+                  "alternate": {
+                    "all_occult_types": 127,
+                    "index": 0,
+                    "occult_layer": 1,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "285159751289798669"
+                  },
+                  "base": {
+                    "all_occult_types": 127,
+                    "index": 0,
+                    "occult_layer": 0,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "285159751289798669"
+                  },
+                  "index": 0
+                },
+                {
+                  "alternate": {
+                    "all_occult_types": 127,
+                    "index": 1,
+                    "occult_layer": 1,
+                    "occult_type": 4,
+                    "selected": true,
+                    "sim_id": "349336084686110946"
+                  },
+                  "base": {
+                    "all_occult_types": 127,
+                    "index": 1,
+                    "occult_layer": 0,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "349336084686110946"
+                  },
+                  "index": 1
+                },
+                {
+                  "alternate": {
+                    "all_occult_types": 127,
+                    "index": 2,
+                    "occult_layer": 1,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "349336084686110947"
+                  },
+                  "base": {
+                    "all_occult_types": 127,
+                    "index": 2,
+                    "occult_layer": 0,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "349336084686110947"
+                  },
+                  "index": 2
+                },
+                {
+                  "alternate": {
+                    "all_occult_types": 127,
+                    "index": 3,
+                    "occult_layer": 1,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "450667075246031054"
+                  },
+                  "base": {
+                    "all_occult_types": 127,
+                    "index": 3,
+                    "occult_layer": 0,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "450667075246031054"
+                  },
+                  "index": 3
+                },
+                {
+                  "alternate": {
+                    "all_occult_types": 127,
+                    "index": 4,
+                    "occult_layer": 1,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "450667075246031055"
+                  },
+                  "base": {
+                    "all_occult_types": 127,
+                    "index": 4,
+                    "occult_layer": 0,
+                    "occult_type": 4,
+                    "selected": false,
+                    "sim_id": "450667075246031055"
+                  },
+                  "index": 4
+                }
+              ],
+              "selected_index": 1,
+              "selected_layer": 1,
+              "selected_sim_id": "349336084686110946",
+              "source": "native-selector-retained-filtered-feed"
+            },
+            "scope": "native-selector-owner-pair-view",
+            "service_registered": true
+          },
+          "selector_query": "returned-value",
+          "session": 1,
+          "stable": true
+        },
+        "panel_visible": true,
+        "planned_outfits": [
+          {
+            "category": 0,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 1,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 2,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 3,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 4,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 5,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 6,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 7,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 8,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 9,
+            "data": {
+              "max_outfits": 5,
+              "outfit_list": [
+                {
+                  "outfit_index": 0,
+                  "outfit_title": "",
+                  "outfit_type": 9,
+                  "selected": true
+                }
+              ]
+            },
+            "error": "",
+            "query": "returned-value",
+            "supported": true
+          },
+          {
+            "category": 10,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 11,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 12,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          },
+          {
+            "category": 13,
+            "data": null,
+            "error": "",
+            "query": "not-queried-no-edit-intent",
+            "supported": false
+          }
+        ],
+        "planned_outfits_scope": "selected-category-only",
+        "protocol": 1,
+        "scope": "native-cas-client",
+        "selected": [
+          {
+            "dataID": "469668",
+            "hue_range_max": 0.5,
+            "hue_range_min": -0.5,
+            "hue_range_modifier": 0,
+            "hue_range_step": 0.050000000745058,
+            "opacity_range_max": 1,
+            "opacity_range_min": 0.2000000029802322,
+            "opacity_range_modifier": 1,
+            "opacity_range_step": 0.050000000745058,
+            "saturation_range_max": 0.5,
+            "saturation_range_min": -0.5,
+            "saturation_range_modifier": 0,
+            "saturation_range_step": 0.050000000745058,
+            "value_range_max": 0.5,
+            "value_range_min": -0.5,
+            "value_range_modifier": 0,
+            "value_range_step": 0.050000000745058
+          }
+        ],
+        "sim": {
+          "age": 16,
+          "allOccultTypes": 127,
+          "aspiration": "452449",
+          "bodyShapePreset": 8,
+          "breedName": "",
+          "creatorId": "0",
+          "creatorName": "",
+          "creatorRemoteId": "",
+          "firstName": "Apex",
+          "gender": 8192,
+          "geneticSource1": "0",
+          "geneticSource2": "0",
+          "geneticSourceIsPreset1": false,
+          "geneticSourceIsPreset2": false,
+          "geneticSourceType": 6,
+          "hasBrokenRelationships": false,
+          "householdId": "285159751289798668",
+          "isCASReincarnating": false,
+          "isCASStories": false,
+          "isGhost": false,
+          "isNew": true,
+          "isPregnant": false,
+          "isRobot": false,
+          "isUnicorn": false,
+          "lastName": "Test",
+          "maxTraits": 3,
+          "occultLayer": 1,
+          "occultType": 4,
+          "originalFirstName": "",
+          "originalLastName": "",
+          "physiqueValues": [
+            0.7793333530426025,
+            0.3013333082199097
+          ],
+          "pronouns": "|||||",
+          "randomizeFlags": 0,
+          "relationships": [],
+          "simId": "349336084686110946",
+          "speciesType": 1,
+          "updateType": 0,
+          "voiceActor": 3,
+          "voicePitch": -0.4458209872245789
+        },
+        "ui_occult_type": 4,
+        "wing_observation": {
+          "base_arguments": {
+            "bodyType": 0,
+            "excludeTags": [],
+            "layer": -1,
+            "state": -2134374311,
+            "tags": []
+          },
+          "base_error": "",
+          "base_is_array": true,
+          "base_native_flag": true,
+          "base_query": "returned-value",
+          "base_return_type": "object",
+          "body_type": 114,
+          "color_argument": 114,
+          "color_error": "",
+          "color_query": "returned-value",
+          "panel_state": -2134374311,
+          "protocol": 1,
+          "qualified_success": false,
+          "scope": "native-wing-selection-read-only",
+          "selected_base_ids": [
+            "469668"
+          ],
+          "selected_base_types": [
+            "string"
+          ],
+          "selected_color_id": "469668",
+          "selected_color_type": "string"
+        }
+      },
+      "history_before_json": "{\"form_strip\":{\"selected_owner_id\":\"native/64\",\"member_ui_ready\":true,\"gesture_pending\":false,\"transport\":{\"reset_pending\":false,\"stage\":\"readback\",\"native_connected\":true,\"error\":\"\",\"catalog_received\":20,\"catalog_expected\":20},\"switch_milliseconds\":-1,\"form_conversion_called\":false,\"visible\":true,\"receiving\":false,\"local_catalog_offset\":20,\"life_states\":[{\"variants\":[{\"description\":\"Human: the one shared Human appearance for this Sim.\",\"label\":\"Human\",\"icon\":\"8673334624002027025\",\"owner_id\":\"native/1\"}],\"indices\":[0],\"label\":\"Human\",\"selected\":false,\"family\":\"human\",\"icon\":\"8673334624002027025\",\"description\":\"Human: the one shared Human appearance for this Sim.\"},{\"variants\":[{\"description\":\"Alien: edit the Alien appearance independently of its shared Human disguise.\",\"label\":\"Alien\",\"icon\":\"\",\"owner_id\":\"active/2\"}],\"indices\":[1],\"label\":\"Alien\",\"selected\":false,\"family\":\"alien\",\"icon\":\"2775690754429031459\",\"description\":\"Alien: edit the Alien appearance independently of its shared Human disguise.\"},{\"variants\":[{\"description\":\"Vampire: edit the dark form independently of the shared Human appearance.\",\"label\":\"Vampire\",\"icon\":\"\",\"owner_id\":\"native/4\"}],\"indices\":[2],\"label\":\"Vampire\",\"selected\":false,\"family\":\"vampire\",\"icon\":\"13809920584366519067\",\"description\":\"Vampire: edit the dark form independently of the shared Human appearance.\"},{\"variants\":[{\"description\":\"Mermaid: customize the aquatic form separately from Human.\",\"label\":\"Mermaid\",\"icon\":\"\",\"owner_id\":\"native/8\"}],\"indices\":[3],\"label\":\"Mermaid\",\"selected\":false,\"family\":\"mermaid\",\"icon\":\"13897792856323541937\",\"description\":\"Mermaid: customize the aquatic form separately from Human.\"},{\"variants\":[{\"description\":\"Spellcaster: customize this magical form without changing other appearances.\",\"label\":\"Spellcaster\",\"icon\":\"\",\"owner_id\":\"native/16\"}],\"indices\":[4],\"label\":\"Spellcaster\",\"selected\":false,\"family\":\"witch\",\"icon\":\"10917391826644667265\",\"description\":\"Spellcaster: customize this magical form without changing other appearances.\"},{\"variants\":[{\"description\":\"Werewolf: choose the beast or human-looking Werewolf appearance.\",\"label\":\"Werewolf\",\"icon\":\"\",\"owner_id\":\"native/32\"},{\"description\":\"Werewolf: choose the beast or human-looking Werewolf appearance.\",\"label\":\"Human Cc\",\"icon\":\"\",\"owner_id\":\"werewolf/werewolf_human_cc\"}],\"indices\":[5,19],\"label\":\"Werewolf\",\"selected\":false,\"family\":\"werewolf\",\"icon\":\"9800199353117073294\",\"description\":\"Werewolf: choose the beast or human-looking Werewolf appearance.\"},{\"variants\":[{\"description\":\"Fairy: choose and customize the Fairy appearances independently.\",\"label\":\"Fairy\",\"icon\":\"\",\"owner_id\":\"native/64\"},{\"description\":\"Fairy: choose and customize the Fairy appearances independently.\",\"label\":\"Alternate\",\"icon\":\"\",\"owner_id\":\"fairy/fairy_alternate\"}],\"indices\":[6,7],\"label\":\"Fairy\",\"selected\":true,\"family\":\"fairy\",\"icon\":\"1668588114211556772\",\"description\":\"Fairy: choose and customize the Fairy appearances independently.\"},{\"variants\":[{\"description\":\"Ghost: customize this spectral appearance separately from living Human.\",\"label\":\"Ghost\",\"icon\":\"1443767933742610749\",\"owner_id\":\"ghost/ghost_ghost\"}],\"indices\":[8],\"label\":\"Ghost\",\"selected\":false,\"family\":\"ghost\",\"icon\":\"1443767933742610749\",\"description\":\"Ghost: customize this spectral appearance separately from living Human.\"},{\"variants\":[{\"description\":\"Imaginary Friend: choose Lil\\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. Each keeps its own edits. The real appearance uses shared Human.\",\"label\":\"Lil Monster\",\"icon\":\"253393667457336398\",\"owner_id\":\"imaginary_friend/imaginary_friend_lil_monster\"},{\"description\":\"Imaginary Friend: choose Lil\\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. Each keeps its own edits. The real appearance uses shared Human.\",\"label\":\"Pegacorn\",\"icon\":\"5062037657518651746\",\"owner_id\":\"imaginary_friend/imaginary_friend_pegacorn\"},{\"description\":\"Imaginary Friend: choose Lil\\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. Each keeps its own edits. The real appearance uses shared Human.\",\"label\":\"Spooky Kid\",\"icon\":\"14300094941941926870\",\"owner_id\":\"imaginary_friend/imaginary_friend_spooky_kid\"},{\"description\":\"Imaginary Friend: choose Lil\\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. Each keeps its own edits. The real appearance uses shared Human.\",\"label\":\"Wild Child\",\"icon\":\"4206598596491018995\",\"owner_id\":\"imaginary_friend/imaginary_friend_wild_child\"}],\"indices\":[9,10,11,12],\"label\":\"Imaginary Friend\",\"selected\":false,\"family\":\"imaginary_friend\",\"icon\":\"11434068158097003058\",\"description\":\"Imaginary Friend: choose Lil\\u2019 Monster, Pegacorn, Spooky Kid or Wild Child. Each keeps its own edits. The real appearance uses shared Human.\"},{\"variants\":[{\"description\":\"PlantSim: customize the plant appearance separately from Human.\",\"label\":\"PlantSim\",\"icon\":\"4781641083186275185\",\"owner_id\":\"plantsim/plantsim_plant\"}],\"indices\":[13],\"label\":\"PlantSim\",\"selected\":false,\"family\":\"plantsim\",\"icon\":\"4781641083186275185\",\"description\":\"PlantSim: customize the plant appearance separately from Human.\"},{\"variants\":[{\"description\":\"Grim Reaper: choose the robed or unrobed appearance.\",\"label\":\"Reaper\",\"icon\":\"7146739768078268620\",\"owner_id\":\"reaper/reaper_reaper\"},{\"description\":\"Grim Reaper: choose the robed or unrobed appearance.\",\"label\":\"Unrobed\",\"icon\":\"7146739768078268620\",\"owner_id\":\"reaper/reaper_unrobed\"}],\"indices\":[14,15],\"label\":\"Grim Reaper\",\"selected\":false,\"family\":\"reaper\",\"icon\":\"7146739768078268620\",\"description\":\"Grim Reaper: choose the robed or unrobed appearance.\"},{\"variants\":[{\"description\":\"Scarecrow / Patchy: customize the scarecrow appearance.\",\"label\":\"Scarecrow\",\"icon\":\"11915048362264716381\",\"owner_id\":\"scarecrow/scarecrow_scarecrow\"}],\"indices\":[16],\"label\":\"Scarecrow / Patchy\",\"selected\":false,\"family\":\"scarecrow\",\"icon\":\"11915048362264716381\",\"description\":\"Scarecrow / Patchy: customize the scarecrow appearance.\"},{\"variants\":[{\"description\":\"Servo / Robot: customize the robotic appearance separately from Human.\",\"label\":\"Servo\",\"icon\":\"8476245787455789040\",\"owner_id\":\"servo/servo_robot\"}],\"indices\":[17],\"label\":\"Servo / Robot\",\"selected\":false,\"family\":\"servo\",\"icon\":\"8476245787455789040\",\"description\":\"Servo / Robot: customize the robotic appearance separately from Human.\"},{\"variants\":[{\"description\":\"Skeleton / Bonehilda: customize the skeletal appearance.\",\"label\":\"Skeleton\",\"icon\":\"6326075673583199528\",\"owner_id\":\"skeleton/skeleton_skeleton\"}],\"indices\":[18],\"label\":\"Skeleton / Bonehilda\",\"selected\":false,\"family\":\"skeleton\",\"icon\":\"6326075673583199528\",\"description\":\"Skeleton / Bonehilda: customize the skeletal appearance.\"}],\"owned_mask\":127,\"input_timing\":{\"samples\":3,\"over_budget\":0,\"max_ms\":0,\"target_ms\":1,\"clock_resolution_ms\":1,\"total_ms\":0,\"scope\":\"accepted-CAS-input-queue-handler\"},\"native_generation\":\"97\",\"layout\":{\"collapsed\":false,\"dragging\":false,\"y\":null,\"scale\":1,\"x\":null,\"locked\":false},\"sim_id\":\"349336084686110946\",\"desired_owner_id\":\"\",\"command_pending\":true,\"local_catalog\":true,\"pair_controls\":{\"scope\":\"selected-categories\",\"panel\":{\"copy_enabled\":true,\"visible\":true,\"y\":-139.85,\"x\":38,\"category_flags\":164124158,\"linked\":false},\"pending\":false,\"visible\":true,\"selective_copy_available\":true,\"native_panel\":true,\"message\":\"\",\"pair\":{\"sim_id\":\"349336084686110946\",\"selected_owner_id\":\"native/64\",\"generation\":\"97\",\"linked\":false,\"category_flags\":4294967295,\"human_owner_id\":\"native/1\",\"alternate_owner_id\":\"native/64\",\"base_owner_id\":\"native/1\"}},\"member_ui_frames\":11,\"member_ui_milliseconds\":1222,\"message\":\"\",\"scope\":\"native-cas-hybrid-form-strip\",\"molecule_pending\":null,\"command_phase\":1,\"protocol\":1,\"native_fast_state\":true,\"native_owner_state\":\"bound\",\"selection_result\":null,\"owner_count\":20,\"cross_kind_navigation\":true,\"session\":1,\"variant_family\":\"\"},\"planned_outfits\":[{\"data\":null,\"supported\":false,\"category\":0,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":1,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":2,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":3,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":4,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":5,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":6,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":7,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":8,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":{\"max_outfits\":5,\"outfit_list\":[{\"outfit_title\":\"\",\"outfit_index\":0,\"selected\":true,\"outfit_type\":9}]},\"supported\":true,\"category\":9,\"error\":\"\",\"query\":\"returned-value\"},{\"data\":null,\"supported\":false,\"category\":10,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":11,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":12,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"},{\"data\":null,\"supported\":false,\"category\":13,\"error\":\"\",\"query\":\"not-queried-no-edit-intent\"}],\"panel_visible\":true,\"ui_occult_type\":64,\"hair_swatches\":[{\"dataID\":\"414242\",\"color\":4262333968,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414027\",\"color\":4262531345,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414235\",\"color\":4265223453,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414248\",\"color\":4265421348,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414030\",\"color\":4267722547,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414241\",\"color\":4268709188,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414246\",\"color\":4272699442,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414026\",\"color\":4272706355,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414251\",\"color\":4274550318,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414243\",\"color\":4271997014,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414240\",\"color\":4273643903,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414029\",\"color\":4275155792,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414236\",\"color\":4275415404,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414244\",\"color\":4278186696,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414249\",\"color\":4276348132,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414250\",\"color\":4274372794,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414237\",\"color\":4272664246,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414245\",\"color\":4274691530,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414239\",\"color\":4276838318,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414032\",\"color\":4263985840,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414247\",\"color\":4264744121,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414238\",\"color\":4263623483,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414031\",\"color\":4269302859,\"isModded\":false,\"icon\":\"0\"},{\"dataID\":\"414028\",\"color\":4266807890,\"isModded\":false,\"icon\":\"0\"}],\"history_palette\":{\"swatch_type\":6,\"sim_id\":\"349336084686110946\",\"protocol\":1,\"selected\":[4288461661,4286233510,4290476688,4284651618,4292862178],\"native_kind\":64,\"owner_id\":\"native/64\",\"query\":\"returned-value\"},\"catalogs\":[{\"preset\":null,\"supported\":false,\"panel\":\"clothing_body_bodyhair_torsofront\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374303,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_body\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134636525,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_hair_none\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2138564608,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_glasses\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133851101,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_horn\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134375336,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_pet_whiskers\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134632417,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"vampire_mouth\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134375400,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_body_skinspecularity\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374301,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"vampire_cheeks\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134375403,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_shoes\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134376377,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_head_chin\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134637555,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_toenail\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133850037,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_head_eyes\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134637560,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_head_mouth\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134637557,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_hair_mane\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134370224,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_body\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2138044416,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"vampire_eyesockets\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134375401,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_bridle\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374315,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_face_makeup_cheeks\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134368215,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_hair\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134376418,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_head_tattoos\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134375418,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_body_skincolor\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134636450,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_hair_forelock\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134370223,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_face_makeup\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134368220,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_necklaces\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133850060,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_fullbody\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134376355,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_head_cheek\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134637558,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_hair_horse_tail\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134370221,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_pet_tail\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374373,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_face_makeup_lips\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134368214,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_body_bodyhair_arm\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374305,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_face_makeup_eyeliner\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134368212,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_body_tattoos\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374394,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_face_teeth\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134375399,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_looks\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134376431,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_base_layer\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133850055,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_socks\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133850039,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_face_makeup_eyelashes\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134368211,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_head_jaw\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134637556,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_gloves\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133850058,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_tops\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134376398,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_hair_eyebrows\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134632433,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_body_medical\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374344,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_face_makeup_paint\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134368213,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_fingernail\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133850057,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_bracelets\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133850061,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_generic_full_breed\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134628151,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_face\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2138562560,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_body_bodyhair_torsoback\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374302,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_hats\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133851104,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_generic_pelt\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134629176,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_head_skin_details\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134375419,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"vampire_brows\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134375404,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_face_facial_hair\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134368225,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_headdeco\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133851098,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_head_whole_heads\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134637561,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_body_hoofcolor\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374313,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_saddle\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374316,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_hair_horse_feather\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134370222,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_body_bodyhair_leg\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374304,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"vampire_eyebags\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134375402,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_piercings\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133851103,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_head_ears\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134637554,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_earrings\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133851102,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_tights\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133850038,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_body_skin_details\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374395,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_face_makeup_eyes\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134368216,\"query\":\"not-queried-inactive-panel\"},{\"preset\":{\"index\":-1,\"presetId\":\"0\"},\"supported\":true,\"panel\":\"clothing_body_wings\",\"items\":[{\"value_range_step\":0.050000000745058,\"value_range_max\":0.5,\"value_range_modifier\":0,\"hue_range_min\":-0.5,\"opacity_range_min\":0.2000000029802322,\"saturation_range_min\":-0.5,\"hue_range_step\":0.050000000745058,\"saturation_range_modifier\":0,\"saturation_range_max\":0.5,\"opacity_range_step\":0.050000000745058,\"saturation_range_step\":0.050000000745058,\"hue_range_modifier\":0,\"hue_range_max\":0.5,\"opacity_range_max\":1,\"dataID\":\"469668\",\"opacity_range_modifier\":1,\"value_range_min\":-0.5}],\"preset_query\":\"returned-value\",\"menu_state\":-2134374311,\"query\":\"queried-current-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_head_forehead\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134637552,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_head_nose\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134637559,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_bodydetails\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374195,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_bodyscar\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374196,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_head\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2138045440,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_bottoms\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134376378,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_blanket\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134374314,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"clothing_accessories_rings\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2133850059,\"query\":\"not-queried-inactive-panel\"},{\"preset\":null,\"supported\":false,\"panel\":\"profile_body_fur\",\"items\":null,\"preset_query\":\"not-queried-inactive-panel\",\"menu_state\":-2134636342,\"query\":\"not-queried-inactive-panel\"}],\"hair_swatch_query\":\"returned-value\",\"native_context\":{\"new_family\":{\"error\":\"\",\"value\":false,\"query\":\"returned-value\"},\"forced_full_edit\":{\"error\":\"\",\"value\":true,\"query\":\"returned-value\"},\"edit_mode\":{\"error\":\"\",\"value\":0,\"query\":\"returned-value\"},\"entered_from_play_area\":{\"error\":\"\",\"value\":{\"result\":true},\"query\":\"returned-value\"},\"rendered_form\":{\"error\":\"\",\"value\":64,\"query\":\"returned-value\"}},\"catalog_metadata\":[],\"selected\":[{\"value_range_step\":0.050000000745058,\"value_range_max\":0.5,\"value_range_modifier\":0,\"hue_range_min\":-0.5,\"opacity_range_min\":0.2000000029802322,\"saturation_range_min\":-0.5,\"hue_range_step\":0.050000000745058,\"saturation_range_modifier\":0,\"saturation_range_max\":0.5,\"opacity_range_step\":0.050000000745058,\"saturation_range_step\":0.050000000745058,\"hue_range_modifier\":0,\"hue_range_max\":0.5,\"opacity_range_max\":1,\"dataID\":\"469668\",\"opacity_range_modifier\":1,\"value_range_min\":-0.5}],\"owner_pair_observation\":{\"household_primitives\":[{\"field_names_truncated\":false,\"fields\":{\"sim_id\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"simId\":{\"bounded\":true,\"primitive\":true,\"type\":\"string\",\"present\":true,\"value\":\"285159751289798669\"},\"isNew\":{\"bounded\":true,\"primitive\":true,\"type\":\"boolean\",\"present\":true,\"value\":true},\"occultLayer\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"householdId\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"age\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":16},\"speciesType\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":1},\"household_id\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"allOccultTypes\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":127},\"occultType\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":1}},\"field_names\":[\"simId\",\"isNew\",\"age\",\"speciesType\",\"lastName\",\"breedName\",\"isPregnant\",\"firstName\",\"allOccultTypes\",\"occultType\"]},{\"field_names_truncated\":false,\"fields\":{\"sim_id\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"simId\":{\"bounded\":true,\"primitive\":true,\"type\":\"string\",\"present\":true,\"value\":\"349336084686110946\"},\"isNew\":{\"bounded\":true,\"primitive\":true,\"type\":\"boolean\",\"present\":true,\"value\":true},\"occultLayer\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"householdId\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"age\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":16},\"speciesType\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":1},\"household_id\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"allOccultTypes\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":127},\"occultType\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":1}},\"field_names\":[\"simId\",\"isNew\",\"age\",\"speciesType\",\"lastName\",\"breedName\",\"isPregnant\",\"firstName\",\"allOccultTypes\",\"occultType\"]},{\"field_names_truncated\":false,\"fields\":{\"sim_id\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"simId\":{\"bounded\":true,\"primitive\":true,\"type\":\"string\",\"present\":true,\"value\":\"349336084686110947\"},\"isNew\":{\"bounded\":true,\"primitive\":true,\"type\":\"boolean\",\"present\":true,\"value\":true},\"occultLayer\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"householdId\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"age\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":16},\"speciesType\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":1},\"household_id\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"allOccultTypes\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":127},\"occultType\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":1}},\"field_names\":[\"simId\",\"isNew\",\"age\",\"speciesType\",\"lastName\",\"breedName\",\"isPregnant\",\"firstName\",\"allOccultTypes\",\"occultType\"]},{\"field_names_truncated\":false,\"fields\":{\"sim_id\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"simId\":{\"bounded\":true,\"primitive\":true,\"type\":\"string\",\"present\":true,\"value\":\"450667075246031054\"},\"isNew\":{\"bounded\":true,\"primitive\":true,\"type\":\"boolean\",\"present\":true,\"value\":true},\"occultLayer\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"householdId\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"age\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":16},\"speciesType\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":1},\"household_id\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"allOccultTypes\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":127},\"occultType\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":1}},\"field_names\":[\"simId\",\"isNew\",\"age\",\"speciesType\",\"lastName\",\"breedName\",\"isPregnant\",\"firstName\",\"allOccultTypes\",\"occultType\"]},{\"field_names_truncated\":false,\"fields\":{\"sim_id\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"simId\":{\"bounded\":true,\"primitive\":true,\"type\":\"string\",\"present\":true,\"value\":\"450667075246031055\"},\"isNew\":{\"bounded\":true,\"primitive\":true,\"type\":\"boolean\",\"present\":true,\"value\":true},\"occultLayer\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"householdId\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"age\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":16},\"speciesType\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":1},\"household_id\":{\"bounded\":true,\"primitive\":true,\"type\":\"undefined\",\"present\":false,\"value\":null},\"allOccultTypes\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":127},\"occultType\":{\"bounded\":true,\"primitive\":true,\"type\":\"number\",\"present\":true,\"value\":1}},\"field_names\":[\"simId\",\"isNew\",\"age\",\"speciesType\",\"lastName\",\"breedName\",\"isPregnant\",\"firstName\",\"allOccultTypes\",\"occultType\"]}],\"selector_query\":\"returned-value\",\"feed\":{\"selected_layer\":1,\"delivered\":true,\"sequence\":213,\"complete\":true,\"selected_index\":1,\"error\":\"\",\"pairs\":[{\"base\":{\"sim_id\":\"285159751289798669\",\"occult_type\":4,\"index\":0,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":0,\"alternate\":{\"sim_id\":\"285159751289798669\",\"occult_type\":4,\"index\":0,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"349336084686110946\",\"occult_type\":4,\"index\":1,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":1,\"alternate\":{\"sim_id\":\"349336084686110946\",\"occult_type\":4,\"index\":1,\"selected\":true,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"349336084686110947\",\"occult_type\":4,\"index\":2,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":2,\"alternate\":{\"sim_id\":\"349336084686110947\",\"occult_type\":4,\"index\":2,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"450667075246031054\",\"occult_type\":4,\"index\":3,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":3,\"alternate\":{\"sim_id\":\"450667075246031054\",\"occult_type\":4,\"index\":3,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"450667075246031055\",\"occult_type\":4,\"index\":4,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":4,\"alternate\":{\"sim_id\":\"450667075246031055\",\"occult_type\":4,\"index\":4,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}}]},\"stable\":true,\"listener_registered\":true,\"selector_feed\":{\"mapping_verified\":false,\"retained\":{\"selected_layer\":1,\"selected_index\":1,\"pair_controls_anchor\":{\"y\":1176.18505859375,\"x\":58.008544921875},\"selected_sim_id\":\"349336084686110946\",\"native_pair_panel\":{\"copy_enabled\":true,\"visible\":true,\"linked\":false,\"category_flags\":164124158,\"x\":38,\"y\":-139.85},\"source\":\"native-selector-retained-filtered-feed\",\"available\":true,\"error\":\"\",\"complete\":true,\"pairs\":[{\"base\":{\"sim_id\":\"285159751289798669\",\"occult_type\":4,\"index\":0,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":0,\"alternate\":{\"sim_id\":\"285159751289798669\",\"occult_type\":4,\"index\":0,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"349336084686110946\",\"occult_type\":4,\"index\":1,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":1,\"alternate\":{\"sim_id\":\"349336084686110946\",\"occult_type\":4,\"index\":1,\"selected\":true,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"349336084686110947\",\"occult_type\":4,\"index\":2,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":2,\"alternate\":{\"sim_id\":\"349336084686110947\",\"occult_type\":4,\"index\":2,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"450667075246031054\",\"occult_type\":4,\"index\":3,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":3,\"alternate\":{\"sim_id\":\"450667075246031054\",\"occult_type\":4,\"index\":3,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"450667075246031055\",\"occult_type\":4,\"index\":4,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":4,\"alternate\":{\"sim_id\":\"450667075246031055\",\"occult_type\":4,\"index\":4,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}}]},\"alternate_accept_authorized\":false,\"protocol\":1,\"service_registered\":true,\"reset_listener_registered\":true,\"navigation_service_registered\":true,\"raw_feed\":{\"selected_layer\":1,\"delivered\":true,\"pairs\":[{\"base\":{\"sim_id\":\"285159751289798669\",\"occult_type\":4,\"index\":0,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":0,\"alternate\":{\"sim_id\":\"285159751289798669\",\"occult_type\":4,\"index\":0,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"349336084686110946\",\"occult_type\":4,\"index\":1,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":1,\"alternate\":{\"sim_id\":\"349336084686110946\",\"occult_type\":4,\"index\":1,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"349336084686110947\",\"occult_type\":4,\"index\":2,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":2,\"alternate\":{\"sim_id\":\"349336084686110947\",\"occult_type\":4,\"index\":2,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"450667075246031054\",\"occult_type\":4,\"index\":3,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":3,\"alternate\":{\"sim_id\":\"450667075246031054\",\"occult_type\":4,\"index\":3,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}},{\"base\":{\"sim_id\":\"450667075246031055\",\"occult_type\":4,\"index\":4,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":0},\"index\":4,\"alternate\":{\"sim_id\":\"450667075246031055\",\"occult_type\":4,\"index\":4,\"selected\":false,\"all_occult_types\":127,\"occult_layer\":1}}],\"before_native_handler\":true,\"source\":\"native-selector-raw-entry-observer\",\"base_row_count\":5,\"sequence\":214,\"complete\":true,\"error\":\"\",\"alternate_row_count\":5,\"selected_index\":1},\"scope\":\"native-selector-owner-pair-view\"},\"household\":[],\"scope\":\"native-cas-paired-feed-read-only\",\"selected\":{\"sim_id\":\"349336084686110946\",\"occult_type\":4,\"occult_layer\":1,\"household_id\":\"285159751289798668\",\"all_occult_types\":127},\"complete\":false,\"protocol\":1,\"selected_query\":\"returned-value\",\"session\":1,\"household_query\":\"invalid-record\",\"error\":\"Paired feed delivery or fresh selected/household records are incomplete\"},\"catalog_workspace\":{\"inventory_dirty\":true,\"native_catalog_timing\":[{\"native_ms\":1,\"construct_ms\":0,\"state\":-2134374311,\"bind_ms\":159,\"selected_ms\":13,\"count\":27,\"clear_ms\":0},{\"native_ms\":1,\"construct_ms\":0,\"state\":-2134374311,\"bind_ms\":97,\"selected_ms\":1,\"count\":27,\"clear_ms\":7},{\"native_ms\":2,\"construct_ms\":0,\"state\":-2134374311,\"bind_ms\":105,\"selected_ms\":5,\"count\":27,\"clear_ms\":1},{\"native_ms\":1,\"construct_ms\":1,\"state\":-2134374311,\"bind_ms\":122,\"selected_ms\":1,\"count\":27,\"clear_ms\":2},{\"native_ms\":1,\"construct_ms\":1,\"state\":-2134374311,\"bind_ms\":113,\"selected_ms\":7,\"count\":27,\"clear_ms\":1},{\"native_ms\":2,\"construct_ms\":0,\"state\":-2134374311,\"bind_ms\":193,\"selected_ms\":14,\"count\":27,\"clear_ms\":4},{\"native_ms\":3,\"construct_ms\":1,\"state\":-2134374311,\"bind_ms\":124,\"selected_ms\":0,\"count\":27,\"clear_ms\":2},{\"native_ms\":2,\"construct_ms\":1,\"state\":-2134374311,\"bind_ms\":51,\"selected_ms\":3,\"count\":27,\"clear_ms\":1}],\"keyboard\":{\"queued\":0,\"focused_name\":\"\",\"pending\":0,\"visibility\":{\"available\":false},\"typing\":false,\"receipt\":null,\"received\":0,\"rejected\":\"\",\"context\":\"\",\"last_code\":0,\"message\":\"\",\"index\":-1},\"view\":\"items\",\"selection_timing\":{\"samples\":7905,\"max_ms\":2,\"over_1ms\":17,\"clock_resolution_ms\":1},\"visible\":false,\"slider_thumbs\":{},\"actual_columns\":5,\"companion\":{\"favorites\":[],\"appearance_written\":false,\"mode\":\"all\",\"source\":\"Dynamic CAS Companion actual code\",\"receipt\":null,\"pending\":false,\"favorite_button_visible\":true,\"available\":true,\"duplicate_handlers_installed\":false,\"favorite_button_present\":true,\"native_controls\":true},\"card_layout\":{\"columns\":5,\"card_height\":147,\"width\":595,\"gap_x\":4,\"gap_y\":4,\"pitch_y\":151,\"pitch_x\":111,\"card_width\":107,\"hit_width\":103,\"scale\":1},\"grid_metrics\":{\"row_reflow_attempts\":0,\"layout_width\":0,\"horizontal\":true,\"gap_x\":4,\"gap_y\":4,\"dimensions\":[5,6],\"layout_height\":906},\"card_cells\":[{\"height\":147.0013427734375,\"width\":103.0001831054688,\"root_x\":4,\"root_y\":0,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":5,\"x\":10,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013427734375,\"width\":103.0001983642578,\"root_x\":115,\"root_y\":0,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":5,\"x\":121,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013427734375,\"width\":103.0002136230469,\"root_x\":226,\"root_y\":0,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":5,\"x\":232,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013427734375,\"width\":103.0002136230469,\"root_x\":337,\"root_y\":0,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":5,\"x\":343,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013427734375,\"width\":103.0001831054688,\"root_x\":448,\"root_y\":0,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":5,\"x\":454,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013427734375,\"width\":103.0001831054688,\"root_x\":4,\"root_y\":151,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":156,\"x\":10,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013427734375,\"width\":103.0001983642578,\"root_x\":115,\"root_y\":151,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":156,\"x\":121,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013427734375,\"width\":103.0002136230469,\"root_x\":226,\"root_y\":151,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":true,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":156,\"x\":232,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013427734375,\"width\":103.0002136230469,\"root_x\":337,\"root_y\":151,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":156,\"x\":343,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013427734375,\"width\":103.0001831054688,\"root_x\":448,\"root_y\":151,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":156,\"x\":454,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013732910156,\"width\":103.0001831054688,\"root_x\":4,\"root_y\":302,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":307,\"x\":10,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013732910156,\"width\":103.0001983642578,\"root_x\":115,\"root_y\":302,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":307,\"x\":121,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013732910156,\"width\":103.0002136230469,\"root_x\":226,\"root_y\":302,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":307,\"x\":232,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013732910156,\"width\":103.0002136230469,\"root_x\":337,\"root_y\":302,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":307,\"x\":343,\"grid_height\":147,\"root_width\":107},{\"height\":147.0013732910156,\"width\":103.0001831054688,\"root_x\":448,\"root_y\":302,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":307,\"x\":454,\"grid_height\":147,\"root_width\":107},{\"height\":147.0014038085938,\"width\":103.0001831054688,\"root_x\":4,\"root_y\":453,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":458,\"x\":10,\"grid_height\":147,\"root_width\":107},{\"height\":147.0014038085938,\"width\":103.0001983642578,\"root_x\":115,\"root_y\":453,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":458,\"x\":121,\"grid_height\":147,\"root_width\":107},{\"height\":147.0014038085938,\"width\":103.0002136230469,\"root_x\":226,\"root_y\":453,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":458,\"x\":232,\"grid_height\":147,\"root_width\":107},{\"height\":147.0014038085938,\"width\":103.0002136230469,\"root_x\":337,\"root_y\":453,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":458,\"x\":343,\"grid_height\":147,\"root_width\":107},{\"height\":147.0014038085938,\"width\":103.0001831054688,\"root_x\":448,\"root_y\":453,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":458,\"x\":454,\"grid_height\":147,\"root_width\":107},{\"height\":147.0014038085938,\"width\":103.0001831054688,\"root_x\":4,\"root_y\":604,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":609,\"x\":10,\"grid_height\":147,\"root_width\":107},{\"height\":147.0014038085938,\"width\":103.0001983642578,\"root_x\":115,\"root_y\":604,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":609,\"x\":121,\"grid_height\":147,\"root_width\":107},{\"height\":147.0014038085938,\"width\":103.0002136230469,\"root_x\":226,\"root_y\":604,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":609,\"x\":232,\"grid_height\":147,\"root_width\":107},{\"height\":147.0014038085938,\"width\":103.0002136230469,\"root_x\":337,\"root_y\":604,\"marker\":true,\"local_height\":147,\"reported_height\":147,\"selected\":false,\"local_width\":103,\"scale_x\":1,\"scale_y\":1,\"y\":609,\"x\":343,\"grid_height\":147,\"root_width\":107}],\"persisted\":false,\"owned_frame_timing\":{\"samples\":47480,\"max_ms\":889,\"over_1ms\":111,\"layout_max_ms\":887,\"total_ms\":3673,\"binding_max_ms\":2},\"equipped_category\":{\"published\":0,\"active\":false,\"pending\":false,\"resolved\":0,\"unresolved\":[],\"timing\":null},\"items\":[],\"card_preferences\":{\"gap_x\":4,\"scale\":1,\"gap_y\":4},\"catalog_bounds\":{\"stage_width\":1278,\"stage_height\":1376,\"height\":1249.000122070313,\"width\":595,\"y\":63,\"x\":651,\"local_x\":0},\"clothing_grid_item_count\":27,\"search\":{\"indexed_matches\":0,\"ticket\":\"\",\"input_embedded\":false,\"appearance_written\":false,\"source_count\":0,\"native_response\":\"\",\"input_text_width\":0,\"folder_matches\":[],\"unresolved_resources\":[],\"ready\":false,\"query\":null,\"index_sha256\":\"\",\"input_text\":\"\",\"elapsed_ms\":0,\"folder_corrected\":false,\"input_password\":false,\"resolved\":0,\"matched\":0,\"text\":\"\",\"rebuilds\":0,\"context\":\"\",\"pending\":false,\"available\":false,\"error\":\"\",\"publish_ms\":0,\"input_font\":\"\"},\"preferences\":{\"columns\":6,\"border\":3,\"period\":1.4,\"animation\":\"none\",\"strength\":1,\"color\":51691,\"glow\":0},\"equipped_count\":0,\"selection_effect_count\":1,\"outfit\":null,\"layout_changes\":1,\"binding_observation\":{\"view\":0.02,\"screen\":298.6875,\"maximum\":245},\"context\":\"\",\"error\":\"\"},\"scope\":\"native-cas-client\",\"outfit\":{\"outfit_index\":0,\"outfit_type\":9},\"molecule\":{\"sim_id\":\"349336084686110946\",\"enabled\":true,\"width\":76.49917602539063,\"height\":45.8953857421875,\"occult_count\":6,\"y\":252.396240234375,\"kind\":64,\"visible\":true,\"x\":163.1984405517578},\"sim\":{\"aspiration\":\"452449\",\"geneticSourceIsPreset1\":false,\"isNew\":true,\"occultLayer\":1,\"pronouns\":\"|||||\",\"originalFirstName\":\"\",\"speciesType\":1,\"physiqueValues\":[0.7793333530426025,0.3013333082199097],\"isCASStories\":false,\"updateType\":0,\"creatorRemoteId\":\"\",\"originalLastName\":\"\",\"voicePitch\":-0.4458209872245789,\"breedName\":\"\",\"geneticSourceType\":6,\"isGhost\":false,\"randomizeFlags\":0,\"maxTraits\":3,\"isUnicorn\":false,\"geneticSource2\":\"0\",\"bodyShapePreset\":8,\"occultType\":4,\"simId\":\"349336084686110946\",\"geneticSourceIsPreset2\":false,\"householdId\":\"285159751289798668\",\"age\":16,\"lastName\":\"Test\",\"isPregnant\":false,\"allOccultTypes\":127,\"relationships\":[],\"creatorId\":\"0\",\"isCASReincarnating\":false,\"hasBrokenRelationships\":false,\"voiceActor\":3,\"firstName\":\"Apex\",\"gender\":8192,\"isRobot\":false,\"creatorName\":\"\",\"geneticSource1\":\"0\"},\"protocol\":1,\"catalog_metadata_scope\":\"native-catalog-identities-only\",\"hair_color\":\"414026\",\"hair_selected_swatch_id\":\"414026\",\"planned_outfits_scope\":\"selected-category-only\",\"catalog_metadata_complete\":false,\"catalog_metadata_query\":\"disabled-pending-native-contract-proof\",\"menu_state\":-2134374311}",
+      "mutation_started": true,
+      "ok": true,
+      "operation": "undo",
+      "protocol": 1,
+      "scope": "native-cas-client"
+    },
+    "second_undo_request_retained": true,
+    "second_undo_message": "Native history changed only navigation/metadata; no Sim or equipped data change verified.",
+    "automatic_replay_submitted": false,
+    "two_undos_restore_original_complete_appearance": false
+  },
+  "remaining_default_color_gate": "An existing wing shape with no stored pelt palette still starts gray. Explicit EA swatches and all five layer pickers work. Initial default palette repair is not qualified and navigation must not silently rewrite a saved appearance.",
+  "closure": {
+    "normal_unsaved_exit": true,
+    "all20_save_files_unchanged": true,
+    "protected_original_written": false
+  }
+}

@@ -22,13 +22,20 @@
     "Repeat complete all-owner field comparison, actual edited acceptance and save/Tray gates."
   ],
   "actual_runtime": {
-    "all195_after_edits_qualified": false,
+    "all195_after_edits_qualified": true,
+    "all_directed_native_pairs_on_member5": true,
+    "all_twenty_exposed_forms_on_each_member": true,
     "automatic_view_regenerations_prevented": 10,
+    "cold_candidate": "V300",
     "cold_native_appearances_retained": 40,
     "complete_human_field_comparisons": 8,
+    "edited_cas_exit_all40_qualified": true,
+    "edited_disposable_save_all40_qualified": true,
+    "edited_save_cold_load_all40_and155_qualified": true,
     "entry_appearance_records_retained": 195,
     "evidence_sha256": {
       "actual_hair_edit": "c96c027ce6f27d51b8c4ed9004bbad87562255b80399acff31243d89ee4f6d3f",
+      "complete_switch_matrix": "2a8ddc7c17c3ec6df9141e983147769e764db49321edbeb2c920c44c2ca73554",
       "genetic_regression": "ab8ca226c48e9a85963bc22cf236e7725e8b1945c8137f59faf0cd003aaa392d"
     },
     "hair_edit_changed_fields": [
@@ -43,11 +50,16 @@
     "inherited_hair_before": [
       "277692"
     ],
+    "named_looks_retained": 155,
     "native_diagnostic_error": "",
     "real_hair_edit_updates_inherited_hair": true,
+    "repeat_form_selections": 191,
+    "repeat_household_members": 5,
     "save_tray_qualified": false,
     "scope": "Matching V295, initial full-CAS entry and targeted Human inheritance regression; this does not qualify every form or save/Tray cycle.",
-    "undo_qualified": false
+    "two_redos_recover_exact_edited_human": true,
+    "undo_qualified": false,
+    "undo_restores_outfit_but_regenerates_inherited_hair": true
   },
   "candidate_epoch": "2026-10-24-captured-genetics-bind-v295",
   "candidate_sha256": "a27bcb06308d92a07a47d05aa41ea44c79d5f3effc09d59f54c986839357efc2",

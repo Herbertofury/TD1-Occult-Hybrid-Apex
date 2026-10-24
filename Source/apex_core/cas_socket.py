@@ -143,6 +143,9 @@ def start(acknowledge, backend=None):
         peer = None
         wait_seconds = IDLE_SECONDS
         try:
+            # This dedicated loopback stream carries small alternating frames;
+            # batching them behind a delayed ACK adds player-visible UI waits.
+            connection.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             while True:
                 # One absolute deadline covers header and payload, including
                 # fragmented reads; arriving bytes do not renew it indefinitely.

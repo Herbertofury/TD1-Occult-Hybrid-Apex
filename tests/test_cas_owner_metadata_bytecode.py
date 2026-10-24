@@ -3,8 +3,8 @@ import os,shutil,subprocess,tempfile,unittest
 ROOT=Path(__file__).resolve().parents[1]
 JAR=ROOT/'.work/research/ffdec/ffdec.jar'
 COMPILED=ROOT/'.work/research/apex-cas-compiled.swf'
-CASES=('exact','frame-lease','lease-branch','nonce','send','stage','wire','deadline','palette-source','palette-slot',
-       'bootstrap-state','bootstrap-guard','bound-owner-refresh',
+CASES=('exact','prime-claim','prime-household','prime-native-read','frame-lease','lease-branch','nonce','send','stage','wire','deadline','palette-source','palette-slot',
+       'bootstrap-state','bootstrap-guard','bound-owner-refresh','frame-ack-drain','frame-open-busy','local-menu-operation','local-menu-duplicate','local-menu-count',
        'pair-refresh-read','pair-refresh-generation','pair-refresh-identity','pair-refresh-protocol','pair-refresh-enabled','pair-refresh-signature',
        'pair-strip-call','pair-typed-call','pair-typed-ready','pair-native-rebind',
        'frame-call','frame-gate','frame-write','frame-ready','frame-cleanup','frame-deadline','frame-cli-event','frame-cli-yield',

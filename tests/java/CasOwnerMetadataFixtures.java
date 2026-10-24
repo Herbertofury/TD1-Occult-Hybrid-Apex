@@ -29,6 +29,41 @@ public class CasOwnerMetadataFixtures {
         var rows=body.getCode().code;int p=CasBytecodePatch.uniqueLiteral(abc,body,"POLL|");
         switch(key) {
             case "exact":break;
+            case "prime-claim":case "prime-household":case "prime-native-read": {
+                var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
+                var target=CasBytecodePatch.ownedBody(abc,instance,"ApexPresentationPrime");int changes=0;
+                for(var row:target.getCode().code) {
+                    String field=key.equals("prime-claim")?"apexPendingFields":"householdId";
+                    if(!key.equals("prime-native-read")&&(CasBytecodePatch.property(abc,row,0x60,field)||CasBytecodePatch.property(abc,row,0x66,field))) {
+                        row.operands[0]=member(abc,key.equals("prime-claim")?"apexFormsPage":"simId");changes++;
+                    }
+                    if(key.equals("prime-native-read")&&(CasBytecodePatch.property(abc,row,0x46,"ApexFormsObservedSim")||CasBytecodePatch.property(abc,row,0x4f,"ApexFormsObservedSim"))) {
+                        row.operands[0]=member(abc,"CallGameService");changes++;
+                    }
+                }
+                if(changes<1)throw new AssertionError("Missing exact local prime mutation");target.setModified();break;
+            }
+            case "local-menu-operation":case "local-menu-duplicate":case "local-menu-count": {
+                var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
+                var target=CasBytecodePatch.ownedBody(abc,instance,key.equals("local-menu-duplicate")?"ApexFormsConsumeCatalog":"ApexFormsTryLocalCatalog");
+                int changes=0;
+                for(var op:target.getCode().code) {
+                    if(key.equals("local-menu-operation")&&CasBytecodePatch.stringLiteral(abc,op,"LOCALOWNERS|")) {op.operands[0]=abc.constants.getStringId("WRITE|",true);changes++;}
+                    if(key.equals("local-menu-duplicate")&&CasBytecodePatch.stringLiteral(abc,op,"Late peer form catalogue differs from the prepared native page")) {op.operands[0]=abc.constants.getStringId("Unchecked duplicate catalogue",true);changes++;}
+                    if(key.equals("local-menu-count")&&(CasBytecodePatch.property(abc,op,0x60,"apexFormsOwnerTotal")||CasBytecodePatch.property(abc,op,0x66,"apexFormsOwnerTotal"))) {op.operands[0]=member(abc,"apexFormsPage");changes++;}
+                }
+                if(changes<1)throw new AssertionError("Missing exact prepared menu mutation");target.setModified();break;
+            }
+            case "frame-ack-drain":case "frame-open-busy": {
+                var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
+                var target=CasBytecodePatch.ownedBody(abc,instance,key.equals("frame-ack-drain")?"ApexTick":"ApexNativeOpen");
+                int changes=0;
+                for(var row:target.getCode().code) {
+                    if(key.equals("frame-ack-drain")&&CasBytecodePatch.property(abc,row,0x4f,"ApexNativeReceive")) {row.operands[0]=member(abc,"ApexClone");changes++;}
+                    if(key.equals("frame-open-busy")&&CasBytecodePatch.stringLiteral(abc,row,"BUSY")) {row.operands[0]=abc.constants.getStringId("STALE",true);changes++;}
+                }
+                if(changes!=1)throw new AssertionError("Missing exact transport bootstrap mutation");target.setModified();break;
+            }
             case "pair-strip-call":case "pair-typed-call":case "pair-typed-ready":case "pair-native-rebind": {
                 var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
                 String method=key.equals("pair-strip-call")?"ApexFormsOwnedTick":
@@ -81,7 +116,7 @@ public class CasOwnerMetadataFixtures {
                     if(key.equals("notify-write")&&CasBytecodePatch.property(abc,row,0x61,"apexPresentationSim")) {row.operands[0]=member(abc,"apexBoundSim");changes++;}
                     if(key.equals("notify-listener")&&CasBytecodePatch.stringLiteral(abc,row,"CASSetSimInfo")) {row.operands[0]=abc.constants.getStringId("CASUnexpectedMember",true);changes++;}
                     if(key.equals("frame-call")&&(CasBytecodePatch.property(abc,row,0x4f,"ApexTick")||CasBytecodePatch.property(abc,row,0x46,"ApexTick"))) {row.operands[0]=member(abc,"ApexExecute");changes++;}
-                    if(key.equals("frame-gate")&&(CasBytecodePatch.property(abc,row,0x60,"apexPendingFields")||CasBytecodePatch.property(abc,row,0x66,"apexPendingFields"))) {row.operands[0]=member(abc,"apexLastId");changes++;}
+                    if(key.equals("frame-gate")&&(CasBytecodePatch.property(abc,row,0x60,"apexTicking")||CasBytecodePatch.property(abc,row,0x66,"apexTicking"))) {row.operands[0]=member(abc,"apexPendingFields");changes++;}
                     if(key.equals("frame-write")&&CasBytecodePatch.property(abc,row,0x61,"apexPresentationMilliseconds")) {row.operands[0]=member(abc,"apexClaimNonce");changes++;}
                     if(key.equals("frame-ready")&&(CasBytecodePatch.property(abc,row,0x60,"apexFormsSelectedId")||CasBytecodePatch.property(abc,row,0x66,"apexFormsSelectedId"))) {row.operands[0]=member(abc,"apexLastId");changes++;}
                     if(key.equals("frame-cleanup")&&(CasBytecodePatch.property(abc,row,0x4f,"removeEventListener")||CasBytecodePatch.property(abc,row,0x46,"removeEventListener"))) {row.operands[0]=member(abc,"addEventListener");changes++;}

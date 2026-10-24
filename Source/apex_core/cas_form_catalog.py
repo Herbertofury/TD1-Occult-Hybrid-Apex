@@ -62,6 +62,19 @@ DESCRIPTIONS = {
 }
 
 
+def wire_page(rows, offset):
+    """One identical data-only page for the peer and native prepared menu."""
+    from urllib.parse import quote
+    if (not isinstance(rows, list) or not 1 <= len(rows) <= 2048 or type(offset) is not int or
+            not 0 <= offset < len(rows) or offset % 32):
+        raise ValueError('Use an exact bounded menu page boundary.')
+    return 'OWNERS|{}|{}|'.format(offset,len(rows))+';'.join(
+        '{},{},{},{},{},{},{},{},{},{}'.format(row['owner_id'],row['native_kind'],row['ui_token'],
+            row['form_id'],quote(row['label'],safe=''),row['family'],row['icon'],row['family_icon'],
+            quote(row['description'],safe=''),quote(row['label'].split(' \u00b7 ',1)[-1],safe=''))
+        for row in rows[offset:offset+32])
+
+
 def presentation(row):
     """Data-only menu metadata; never infer identity from a rendering flag."""
     family, variant = row['form_id'].split('/')

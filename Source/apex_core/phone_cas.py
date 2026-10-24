@@ -7,6 +7,7 @@ Uncertain submissions are never automatically repeated, including observation.
 import json
 import copy
 import math
+import sys
 import threading
 import time
 import uuid
@@ -29,10 +30,16 @@ def _name(lane):
 
 
 def _outfit_name(category):
+    # This label is queried repeatedly while building phone/F11 inventories.
+    # Gameplay already owns the enum module. A label lookup must never scan
+    # import paths or load a gameplay package on the interaction-menu path.
+    enums = sys.modules.get('sims.outfits.outfit_enums')
+    outfit_category = getattr(enums, 'OutfitCategory', None)
+    if outfit_category is None:
+        return 'Category ' + str(category)
     try:
-        from sims.outfits.outfit_enums import OutfitCategory
-        return OutfitCategory(category).name.replace('_', ' ').title()
-    except (ImportError, AttributeError, ValueError):
+        return outfit_category(category).name.replace('_', ' ').title()
+    except (AttributeError, ValueError):
         return 'Category ' + str(category)
 
 

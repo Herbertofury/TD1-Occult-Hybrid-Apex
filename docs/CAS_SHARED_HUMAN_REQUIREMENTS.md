@@ -1350,3 +1350,86 @@ falls back without re-claiming or replaying work. No polling or appearance
 write authority is added. Five transport regressions pass. Matching member
 latency and palette UI qualification remain required. See
 [the palette/bootstrap report](../Reports/CAS_PALETTE_AND_BOOTSTRAP_V297.json).
+
+
+V295 repeats all 191 native/named selections across five Sims with all 195
+complete appearance records matching the two deliberate Human hair and Fairy
+wing-palette edits. Actual CAS exit, exact two-lane disposition and saving retain
+all 40 native appearances and 155 named looks. V300 also cold-loads them before
+and after advancing Live simulation, with no native appearance restoration.
+Its compatibility change admits metadata from the exact audited V295 script
+hash, retaining immutable seals, native equality checks, unknown-source refusals
+and the separate A0-only native recovery authority.
+
+Undo remains a release blocker: two native Undos restore the original Human
+hair outfit but replace inherited hair 277692 with 306960. Two native Redos
+recover the exact edited Human. V298 adds explicit, scope-bound research tracing,
+disabled by default and at fresh scope/retirement, with sixteen bounded call
+records and eight game-frame RVAs each. It implements no functional Undo fix.
+
+V300 schedules variant opening, same-owner dismissal and ordinary form-toolbar
+changes on the next rendered frame instead of awaiting the network timer.
+Thirty-three serialized menu mutations, thirty-nine owner metadata mutations
+and thirty-nine form-selection mutations pass. Matching interactive latency,
+Fairy controls and the remaining release gates still require actual QA. See
+[the menu/metadata report](../Reports/CAS_MENU_AND_SAVED_METADATA_V300.json).
+
+
+V302 requalifies the edited save (40 complete native appearances and 155 named
+looks) and normal full-CAS entry (195 complete records). Actual V300 pointer
+selections measured 31–56 ms from queued gesture to bound owner, with a native
+pair panel. The queue handler alone measured 0 ms at 1 ms resolution; this is
+not a universal complete-switch latency claim. Member presentation still took
+1,624 ms / 44 frames in a measured sample.
+
+The native Fairy layer picker now works after selecting a valid palette from an
+empty gray palette; purple paint survives two Vampire round trips, changing
+only Fairy pelt_layers and retaining Human. Paint-history CLI qualification is
+still open. V302 adds bounded same-owner palette readback evidence to Undo/Redo.
+
+The inspected catalogue pre-action genotype rewrite is now suppressed only for
+the exact captured model/context. A real hair edit still updates inheritance.
+The deliberately mismatched legacy inheritance Undo test still fails; neither
+this partial correction nor the palette evidence closes the history gate.
+The original unresolved command is never replayed. See
+[the history/palette report](../Reports/CAS_HISTORY_AND_PALETTE_V302.json).
+
+V303 addresses member-handshake delays: bounded bootstrap frames drain existing
+ACKs before the ordinary 500 ms Timer, while their dispatcher still refuses
+command execution/readback on a frame. BUSY from the previous closing worker
+retries without a connection reset. Both dedicated loopback endpoints disable
+Nagle batching. No background service, idle frame polling or appearance-write
+authority is added. Measure actual member transitions before claiming a win.
+
+V306 repeats all 191 full-CAS selections across five members, including every
+directed native pair and all twenty exposed forms on every member. All 195
+complete records and all twenty save/backup files remain unchanged. Actual
+Vampire/Human/Alien pointer selections settle in 31–38 ms. Household-member
+presentation still takes 1,405–3,556 ms; the fifth member misses the bounded
+local bootstrap. See [the measured report](../Reports/CAS_LOCAL_MENU_SWITCHING_V306.json).
+
+V307 primes the complete prepared menu from its exact opened native lease,
+without waiting for TCP or a new native Sim-info allocation. The native group,
+member, scope, rendering kind and bound model still gate presentation. Source
+commands retain their separate connected transport, nonce, UUID and claim.
+Native link/copy actions use the same exact pair and replay checks. Five actual
+member selections now publish the local catalogue and EA pair controls on one
+frame in 737–854 ms. This is an improvement, but still fails the 250 ms target.
+Actual Vampire/Human/Alien clicks take 31–43 ms; their queue handlers alone
+measure 0 ms at 1 ms resolution. Profile the delay before the first frame and
+the menu/pair/icon publication costs next. Do not call this instant.
+
+The matching V307 sources pass 2,912 Python checks and nineteen native targets.
+Cold Live reload retains forty complete native appearances and 155 named
+looks; normal automatic full-CAS entry retains all 195 records. This does not
+qualify every special-form mesh or shader, edited MCCC/F11 persistence, or the
+native full-household Tray/Gallery round trip. See
+[the local-presentation report](../Reports/CAS_LOCAL_PRESENTATION_V307.json).
+
+The corrected swatch-ID-to-ARGB projection acknowledges the first actual Fairy
+layer Undo. A second native Undo changes no verified appearance field and its
+original request remains unresolved without replay. Purple wings survive two
+Vampire round trips while Human stays exact. Existing empty wing palettes still
+start gray; explicit native swatches enable all five working color layers.
+Initial default-color repair and complete paint history remain open. See
+[the actual palette/history evidence](../Reports/CAS_PALETTE_HISTORY_V306.json).

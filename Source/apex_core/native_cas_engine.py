@@ -91,6 +91,17 @@ def argument(value):
         raise ValueError('Use the exact native form scope identity.')
     if operation == 'activate' and set(value) == {'operation', 'scope_id'}:
         return
+    if operation == 'menu-stage' and set(value) == {'operation','scope_id','sim_id','pages'}:
+        if (not _identity(value['sim_id']) or not isinstance(value['pages'],list) or not 1<=len(value['pages'])<=64 or
+                any(not isinstance(page,str) or not 0<len(page)<=131072 or
+                    any(ord(c)<32 or ord(c)>126 for c in page) for page in value['pages']) or
+                sum(len(page) for page in value['pages'])>2*1024*1024):
+            raise ValueError('Stage bounded escaped menu data for one exact pre-entry member.')
+        return
+    if operation == 'genetic-trace' and set(value) == {'operation', 'scope_id', 'enabled'}:
+        if type(value['enabled']) is not bool:
+            raise ValueError('Native genetics tracing requires an explicit boolean.')
+        return
     if operation == 'entry-ready' and set(value) == {'operation', 'scope_id', 'sim_id'} and _identity(value['sim_id']):
         return
     if operation == 'export-owner-page' and set(value) == {'operation','scope_id','sim_id','expected_generation','after_owner_id'}:
@@ -392,6 +403,30 @@ def _verify_imported_owners(call, status, expected):
     return dict(ok=True, owners=verified, appearance_written=False, pre_entry_fields_verified=True)
 
 
+def _stage_member_menus(call, status, scope_id):
+    from . import cas_form_catalog
+    import copy
+    rows=status['members'];roster={row['sim_id']:copy.deepcopy({key:row[key] for key in
+        ('graph_generation','logical_owner_ids','human_owner_id','separate_owners')}) for row in rows}
+    receipts=[]
+    for row in rows:
+        projected=cas_form_catalog.project(row['separate_owners'],row['human_owner_id'],
+            row['graph_selected_owner_id'],row['logical_owner_ids'])['forms']
+        pages=[cas_form_catalog.wire_page(projected,offset) for offset in range(0,len(projected),32)]
+        result=call(dict(operation='menu-stage',scope_id=scope_id,sim_id=row['sim_id'],pages=pages))
+        current=result.get('members',[])
+        if (result.get('ok') is not True or result.get('scope_id')!=scope_id or
+                result.get('selection_enabled') is not True or
+                {r['sim_id']:{key:r[key] for key in ('graph_generation','logical_owner_ids','human_owner_id','separate_owners')}
+                 for r in current}!=roster):
+            raise ValueError('Prepared menu changed its captured owner graph or scope.')
+        member=next(r for r in current if r['sim_id']==row['sim_id'])
+        if member.get('prepared_menu_owner_count')!=len(projected):
+            raise ValueError('Native prepared menu did not retain the complete visible form catalogue.')
+        receipts.append(dict(sim_id=row['sim_id'],owners=len(projected),pages=len(pages)))
+    return dict(protocol=1,members=receipts,appearance_written=False)
+
+
 def seed_members(backend):
     """Extend CAS's native import with every pre-entry canonical owner.
 
@@ -501,12 +536,13 @@ def seed_members(backend):
     if result.get('ok') is not True or result.get('selection_enabled') is not True:
         raise ValueError('Complete native owner selection did not activate.')
     verification = _verify_imported_owners(call,result,expected)
+    prepared_menus = _stage_member_menus(call,result,status['scope_id'])
     _LAYOUT_SCOPE=dict(pid=os.getpid(),scope_id=status['scope_id'],owners=layouts,epochs=epochs,
         load_identity=load_identity,
         logical_owners={row['sim_id']:dict(logical_owner_ids=row['logical_owner_ids'],human_owner_id=row['human_owner_id'])
                         for row in result['members']})
     return dict(enabled=True, scope_id=status['scope_id'], members=receipts, existing_appearances_unchanged=True,
-                import_verification=verification)
+                import_verification=verification,prepared_menus=prepared_menus)
 
 
 def owns_return(sim_id,epoch):

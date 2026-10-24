@@ -3,6 +3,7 @@
 #pragma once
 #include "ApexNativeCasEngine.h"
 #include "ApexCasGeneticBind.h"
+#include "ApexCasMenuWire.h"
 #include "ApexCasOwnerGraph.h"
 #include "ApexCasFormPair.h"
 #include "ApexCasPairAction.h"
@@ -238,6 +239,7 @@ struct Imported {
     std::unique_ptr<OwnerGraph<std::unique_ptr<NativeOwner>>> graph;
     std::map<std::uint32_t,std::string> logicalOwners;
     std::map<std::string,std::unique_ptr<NativeUndo>> undoOwners;
+    menu::Prepared preparedMenu;
     bool initialImport=true,viewBound=false,viewFault=false,activeSourceSeeded=false;void* boundGroup=nullptr;void* boundContext=nullptr;std::string entryOwner=NativeOwnerId(1),partner=NativeOwnerId(2),humanOwner=NativeOwnerId(1);std::map<std::string,std::uint32_t> uiTokens;
     std::uint64_t importedEntity=0;bool editorImported=false;ui::Json householdCanonical,exactRecordExport;
     std::uint32_t mask=0,preferred=0,canonicalSourceMask=0;unsigned imports=0,switches=0,skippedPackets=0;bool seeded=false;std::string error;
@@ -273,6 +275,15 @@ struct State {
     void* exportController=nullptr;std::string preparedScope;
     void* geneticInsertRelay=nullptr;void* geneticInsertTrampoline=nullptr;std::uint64_t geneticPartsRetained=0;
     std::uint64_t geneticViewRegenerationsPrevented=0;std::string geneticViewError;
+    std::uint64_t geneticCatalogPreparationsPrevented=0;
+    std::uint32_t localUiRequestSerial=0;
+    // Explicit research tracing only. Disabled in normal play; no allocation,
+    // file IO or stack capture occurs on the ordinary path.
+    std::atomic<bool> geneticTraceEnabled{false};
+    std::uint64_t geneticTraceCount=0;
+    struct GeneticTraceRow {std::uintptr_t caller=0;bool viewBinding=false;
+        std::array<std::uint32_t,8> frames{};unsigned count=0;};
+    std::array<GeneticTraceRow,16> geneticTraceRows{};
     std::uint64_t householdOutputFaults=0;
     std::uint64_t preparedHouseholdId=0;
     ui::Json householdFaults=ui::Json::array(),householdDispatch={{"verified",false}};
@@ -307,18 +318,40 @@ inline thread_local ViewBinding* binding=nullptr;
 __declspec(noinline) inline void GeneticPartsFromOutfit(void* genetics,const void* outfit) {
     auto& state=Runtime();
     const auto caller=reinterpret_cast<std::uintptr_t>(_ReturnAddress());
-    // Only the pinned automatic setup call inside the current independent
-    // view bind. Normal hair/outfit setters and every other caller stay native.
-    if(binding && caller==state.image+0x457559) {
+    if(state.geneticTraceEnabled.load(std::memory_order_relaxed)) {
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);
+        if(state.geneticTraceEnabled.load(std::memory_order_relaxed) && state.selectionEnabled) {
+            auto& row=state.geneticTraceRows[state.geneticTraceCount%state.geneticTraceRows.size()];
+            row={};row.caller=caller-state.image;row.viewBinding=binding!=nullptr;
+            void* frames[8]{};const auto count=CaptureStackBackTrace(0,8,frames,nullptr);
+            for(unsigned n=0;n<count;++n) {
+                const auto address=reinterpret_cast<std::uintptr_t>(frames[n]);
+                if(address>=state.image && address-state.image<0x4000000)
+                    row.frames[row.count++]=static_cast<std::uint32_t>(address-state.image);
+            }
+            ++state.geneticTraceCount;
+        }
+    }
+    // Retain incoming genetics during view setup and the inspected pre-action
+    // catalog normalization. Actual edit/Undo action calls remain native.
+    if((binding && caller==state.image+0x457559) ||
+       (!binding && state.selectionEnabled && caller==state.image+0x438b98)) {
         try {
-            auto& bank=*binding->bank;const auto controller=binding->controller;
+            std::lock_guard<std::recursive_mutex> lock(state.mutex);
+            const auto controller=binding?binding->controller:state.boundController;
+            const auto found=state.bank.find(state.boundSim);
+            auto* current=binding?binding->bank:(found==state.bank.end()?nullptr:&found->second);
+            if(!current) throw std::runtime_error("Catalog genetics have no exact captured owner context.");
+            auto& bank=*current;
             const auto group=controller?Read<void*>(controller,0x100):nullptr;
             const auto model=controller?Read<void*>(controller,0x1d0):nullptr;
             const auto sim=bank.graph?bank.graph->cursor().sim:0;
-            const auto captured=bank.graph?bank.graph->appearance(binding->owner)->data():nullptr;
+            const auto owner=binding?binding->owner:(bank.graph?bank.graph->cursor().owner:std::string{});
+            const auto captured=bank.graph?bank.graph->appearance(owner)->data():nullptr;
             GeneticViewBinding scope;
             scope.enabled=state.armed&&state.selectionEnabled&&!state.scope.id.empty();
-            scope.ownerPresent=captured&&state.scope.members.count(sim)!=0;
+            scope.ownerPresent=captured&&state.scope.members.count(sim)!=0&&
+                (binding || (bank.viewBound&&state.boundSim==sim));
             scope.fault=bank.viewFault;scope.image=state.image;
             scope.controller=reinterpret_cast<std::uintptr_t>(controller);
             scope.model=reinterpret_cast<std::uintptr_t>(model);
@@ -327,8 +360,11 @@ __declspec(noinline) inline void GeneticPartsFromOutfit(void* genetics,const voi
             scope.sim=sim;scope.groupSim=group?Read<std::uint64_t>(group,0xb8):0;
             scope.capturedKind=captured?Read<std::uint32_t>(captured,8):0;
             scope.modelKind=model?Read<std::uint32_t>(model,0x178):0;
-            if(RetainViewGenetics(scope,caller,genetics,outfit)) {
+            if(binding && RetainViewGenetics(scope,caller,genetics,outfit)) {
                 ++state.geneticViewRegenerationsPrevented;return;
+            }
+            if(!binding && RetainCatalogPreparationGenetics(scope,caller,genetics)) {
+                ++state.geneticCatalogPreparationsPrevented;return;
             }
         } catch(const std::exception& error) {state.geneticViewError=std::string(error.what()).substr(0,2048);}
     }
@@ -1523,7 +1559,7 @@ inline std::string FastOwnerState(State& state,std::uint64_t channel) {
     // UI-thread read of the already-bound model. No Python/socket round trip,
     // serialization, synchronization, allocation of EA objects or harvesting.
     if(!state.armed || !state.selectionEnabled || !state.image || state.scope.id.empty()) return "UNAVAILABLE";
-    if(!pipe::Channel().Matches(channel,state.scope.id)) return "STALE";
+    if(!pipe::Channel().MatchesOpened(channel,state.scope.id)) return "STALE";
     const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
     const auto group=controller?Read<void*>(controller,0x100):nullptr;
     const auto id=group?Read<std::uint64_t>(group,0xb8):0;
@@ -1646,7 +1682,31 @@ inline bool GetOccultService(const void* arguments) {
             if(!group||Read<std::uint64_t>(group,0xb8)!=number||!state.scope.members.count(number))
                 throw std::runtime_error("Native CAS pipe cannot open for another selected Sim.");
             response=pipe::Open(state.scope.id);
+        } else if(action=="LOCALOWNERS"&&end!=std::string::npos) {
+            const auto tail=rest.substr(end+1);const auto delimiter=tail.find('|');
+            if(delimiter==std::string::npos||tail.find('|',delimiter+1)!=std::string::npos)
+                throw std::runtime_error("Prepared CAS menu needs its exact member and continuation.");
+            const auto expectedSim=SimId(ui::Json(tail.substr(0,delimiter)));
+            if(FastOwnerState(state,number).rfind("VIEWSTATE|",0)!=0||state.boundSim!=expectedSim)response="WAIT";
+            else {
+                const auto& prepared=state.bank.at(state.boundSim).preparedMenu;
+                const auto offset=menu::Number(tail.substr(delimiter+1));
+                if(prepared.pages.empty())response="UNAVAILABLE";
+                else {
+                    const auto page=prepared.byOffset.find(offset);
+                    if(page==prepared.byOffset.end())throw std::runtime_error("Prepared CAS menu continuation differs.");
+                    response=page->second;
+                }
+            }
         } else if(action=="STATE"&&end==std::string::npos)response=FastOwnerState(state,number);
+        else if(action=="UIREQUEST"&&end==std::string::npos) {
+            void* controller=nullptr;auto& bank=PairBank(state,number,controller);
+            if(bank.preparedMenu.pages.empty()||state.localUiRequestSerial==UINT32_MAX)
+                throw std::runtime_error("Local pair request lacks its prepared scope or exhausted identity.");
+            const auto cursor=bank.graph->cursor();char suffix[9]{};
+            std::snprintf(suffix,sizeof(suffix),"%08x",++state.localUiRequestSerial);
+            response="UIREQUEST|"+std::to_string(cursor.sim)+"|"+cursor.owner+"|"+std::to_string(cursor.generation)+"|"+state.scope.id.substr(0,24)+suffix;
+        }
         else if(action=="PAIR"&&end==std::string::npos)response=PairState(state,number);
         else if(action=="PAIRDO"&&end!=std::string::npos)response=ApplyPairAction(state,number,rest.substr(end+1));
         else if(action=="EQUIPPED"&&end!=std::string::npos)response=EquippedItems(state,number,rest.substr(end+1));
@@ -1842,6 +1902,15 @@ inline ui::Json ViewStatus() {
 }
 inline ui::Json Status() {
     auto& state=Runtime();std::lock_guard<std::recursive_mutex> lock(state.mutex);auto rows=ui::Json::array();
+    ui::Json geneticTrace=ui::Json::array();
+    const auto traceSize=std::min<std::uint64_t>(state.geneticTraceCount,state.geneticTraceRows.size());
+    for(auto n=state.geneticTraceCount-traceSize;n<state.geneticTraceCount;++n) {
+        const auto& row=state.geneticTraceRows[n%state.geneticTraceRows.size()];
+        ui::Json frames=ui::Json::array();
+        for(unsigned i=0;i<row.count;++i)frames.push_back(row.frames[i]);
+        geneticTrace.push_back({{"sequence",n+1},{"caller_rva",row.caller},
+            {"during_view_bind",row.viewBinding},{"game_frame_rvas",frames}});
+    }
     auto outputCalls=ui::Json::array();for(const auto& row:state.householdOutputCalls)outputCalls.push_back(row.second);
     auto retiredRoots=ui::Json::array();for(const auto& root:state.preparedRoots)if(root.second.retired)retiredRoots.push_back(std::to_string(root.first));
     for(const auto& member:state.scope.members) {
@@ -1890,6 +1959,7 @@ inline ui::Json Status() {
             {"comparison_baseline_reuses",found==state.bank.end()?0u:found->second.comparisonReuses},
             {"native_view_fault",found!=state.bank.end() && found->second.viewFault},
             {"undo_owner_count",found==state.bank.end()?0:found->second.undoOwners.size()},
+            {"prepared_menu_owner_count",found==state.bank.end()?0:found->second.preparedMenu.count},
             {"graph_selected_owner_id",found!=state.bank.end() && found->second.graph?found->second.graph->cursor().owner:""},
             {"human_owner_id",found!=state.bank.end()?found->second.humanOwner:NativeOwnerId(1)},
             {"logical_owner_ids",logicalOwners},
@@ -1934,7 +2004,10 @@ inline ui::Json Status() {
         {"import_outfit_fills_prevented",state.importOutfitFillsPrevented},
         {"captured_genetic_parts_retained",state.geneticPartsRetained},
         {"view_genetic_regenerations_prevented",state.geneticViewRegenerationsPrevented},
+        {"catalog_genetic_preparations_prevented",state.geneticCatalogPreparationsPrevented},
         {"view_genetic_error",state.geneticViewError},
+        {"genetic_outfit_trace",{{"enabled",state.geneticTraceEnabled.load(std::memory_order_relaxed)},{"calls",state.geneticTraceCount},
+            {"recent",geneticTrace},{"appearance_written",false},{"capacity",16}}},
         {"human_cc_material",{{"bound",humanCCMaterialGenus.load(std::memory_order_acquire)!=nullptr},
             {"compositions",humanCCMaterialCompositions.load(std::memory_order_relaxed)},
             {"shader_queries",humanCCMaterialShaderQueries.load(std::memory_order_relaxed)},
@@ -2012,6 +2085,8 @@ inline void Install() {
         {0x35fbee,"21f147c04536c59a355f7f51bcd482323c96ea15097e2428fbb7706bd073f198"},
         {0x35ffc0,"09c5f10e365ea94b03a068ec0eb91efbc539cc1204e43b9fc9d6d0f86d989c39"},
         {0x457540,"623f87c169e067182093c2ce7dc5e706bfabf1d9579686544793047d0952c9d5"},
+        {0x438b80,"ab534cf343b4e4dca32dcd7a02f18b16886ac4b64525377f664c4005bb5bb8f2"},
+        {0x44c780,"4f8e7678c64462cd1f779c5cd4a450412533fffc95003f0b176b5417a793e8c1"},
         {0x4103ea,"30bd234b1656fecf4f7886432b1dd6ccbcf2b4b413b0ab43f97a430cc5a22a89"},
         {0x48ae60,"18e24cec017509e7328a076722fb2c38686180f19fb2510cffaf636bcf21719d"},
         {0x7ae500,"8f78ef8bdd8b8b57954bc76403fe9f039d713503ed1f62f76a233d0cb94d14f9"},
@@ -2174,6 +2249,16 @@ inline ui::Json Control(const ui::Json& request) {
     if(request.is_object() && request.size()==1 && request.value("operation","")=="view-status") return ViewStatus();
     if(state.scopeRetired && (!request.is_object() || request.value("operation","")!="arm"))
         throw std::runtime_error("A retired CAS session requires a fresh captured scope; old intents cannot import or mutate it.");
+    if(request.is_object() && request.size()==3 && request.value("operation","")=="genetic-trace") {
+        if(!state.armed || !state.selectionEnabled || binding ||
+           !request.contains("scope_id") || !request["scope_id"].is_string() ||
+           request["scope_id"].get<std::string>()!=state.scope.id ||
+           !request.contains("enabled") || !request["enabled"].is_boolean())
+            throw std::runtime_error("Genetic tracing requires an active exact captured CAS scope and explicit boolean.");
+        state.geneticTraceEnabled=request["enabled"].get<bool>();
+        if(state.geneticTraceEnabled.load(std::memory_order_relaxed)) {state.geneticTraceCount=0;state.geneticTraceRows={};}
+        return Status();
+    }
     if(request.is_object() && request.size()==3 && request.value("operation","")=="retire-committed-session") {
         // Internal Source completion only; not part of the public research
         // argument API. Every member's exact graph generation is required.
@@ -2199,7 +2284,7 @@ inline ui::Json Control(const ui::Json& request) {
         }
         // The whole check precedes disposal. Keep the installed hooks and
         // armed roster ready for a new, freshly checkpointed import.
-        ClearHumanCCMaterial();state.selectionEnabled=false;state.boundSim=0;state.boundController=nullptr;
+        ClearHumanCCMaterial();state.selectionEnabled=false;state.geneticTraceEnabled=false;state.boundSim=0;state.boundController=nullptr;
         state.observedNative={{"available",false}};state.viewResult=nullptr;
         state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
         state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
@@ -2328,6 +2413,24 @@ inline ui::Json Control(const ui::Json& request) {
             {"sim_id",std::to_string(id)},{"owner_id",owner},{"staged_only",true}};
         response["token"]=token;return response;
     }
+    if(request.is_object() && request.size()==4 && request.value("operation","")=="menu-stage") {
+        if(!request.contains("scope_id")||!request["scope_id"].is_string()||
+           !request.contains("sim_id")||!request["sim_id"].is_string()||
+           !request.contains("pages")||!request["pages"].is_array()||request["pages"].empty()||request["pages"].size()>64)
+            throw std::runtime_error("Prepared CAS menu requires typed scope, member and bounded pages.");
+        const auto id=SimId(request["sim_id"]);const auto at=state.bank.find(id);
+        if(!state.armed||!state.selectionEnabled||request["scope_id"].get<std::string>()!=state.scope.id||
+           at==state.bank.end()||!at->second.seeded||!at->second.initialImport||at->second.viewBound||
+           !at->second.graph||!at->second.preparedMenu.pages.empty())
+            throw std::runtime_error("Prepared CAS menu lacks its unused captured pre-entry member.");
+        std::vector<std::string> pages;for(const auto& page:request["pages"]) {
+            if(!page.is_string())throw std::runtime_error("Prepared CAS menu page is not text.");pages.push_back(page.get<std::string>());
+        }
+        auto& bank=at->second;std::map<std::string,menu::Owner> owners;
+        for(const auto& owner:bank.graph->owners())owners.emplace(owner.id,menu::Owner{owner.nativeKind,bank.uiTokens.at(owner.id)});
+        auto prepared=menu::Validate(pages,owners,bank.logicalOwners,bank.humanOwner);
+        bank.preparedMenu=std::move(prepared);return Status();
+    }
     if(request.is_object() && request.size()==3 && request.value("operation","")=="entry-ready" &&
        request.contains("scope_id") && request["scope_id"].is_string() && request.contains("sim_id")) {
         if(!state.selectionEnabled || request["scope_id"].get<std::string>()!=state.scope.id ||
@@ -2345,7 +2448,7 @@ inline ui::Json Control(const ui::Json& request) {
         const auto found=state.bank.find(id);
         if(!state.armed || state.selectionEnabled || request["scope_id"].get<std::string>()!=state.scope.id ||
            kind>64 || !Kind(static_cast<std::uint32_t>(kind)) || found==state.bank.end() || !found->second.seeded ||
-           !found->second.initialImport || found->second.viewBound || !found->second.graph ||
+           !found->second.initialImport || !found->second.preparedMenu.pages.empty() || found->second.viewBound || !found->second.graph ||
            !(found->second.mask&kind) || (found->second.canonicalSourceMask&kind))
             throw std::runtime_error("Canonical appearance import lacks its exact unused entry scope.");
         const auto nativeKind=static_cast<std::uint32_t>(kind);
@@ -2363,7 +2466,7 @@ inline ui::Json Control(const ui::Json& request) {
         const auto found=state.bank.find(id);
         if(!state.armed || state.selectionEnabled || request["scope_id"].get<std::string>()!=state.scope.id ||
            kind>64 || !Kind(static_cast<std::uint32_t>(kind)) || found==state.bank.end() || !found->second.seeded ||
-           !found->second.initialImport || found->second.activeSourceSeeded || found->second.viewBound || !found->second.active || !found->second.graph ||
+           !found->second.initialImport || !found->second.preparedMenu.pages.empty() || found->second.activeSourceSeeded || found->second.viewBound || !found->second.active || !found->second.graph ||
            found->second.entryOwner!="active/"+std::to_string(kind) ||
            found->second.graph->cursor().owner!=found->second.entryOwner ||
            Read<std::uint32_t>(found->second.active->data(),8)!=kind)
@@ -2382,7 +2485,7 @@ inline ui::Json Control(const ui::Json& request) {
         const auto found=state.bank.find(id);
         if(!state.armed || request["scope_id"].get<std::string>()!=state.scope.id || !FormOwnerId(ownerId) ||
            ownerId.compare(0,7,"native/")==0 || kind64>64 || !Kind(static_cast<std::uint32_t>(kind64)) ||
-           found==state.bank.end() || !found->second.graph || !found->second.seeded || !found->second.initialImport ||
+           found==state.bank.end() || !found->second.graph || !found->second.seeded || !found->second.initialImport || !found->second.preparedMenu.pages.empty() ||
            !(found->second.mask&static_cast<std::uint32_t>(kind64)))
             throw std::runtime_error("Named appearance import lacks its exact pre-entry Sim/form scope.");
         const auto kind=static_cast<std::uint32_t>(kind64);
@@ -2408,7 +2511,7 @@ inline ui::Json Control(const ui::Json& request) {
         if(resource::HashBytes(bytes)!=request["sha256"].get<std::string>())
             throw std::runtime_error("Native full-owner bytes differ from their captured SHA-256.");
         const auto existing=state.bank.find(id);
-        if(existing!=state.bank.end() && existing->second.seeded && !existing->second.initialImport)
+        if(existing!=state.bank.end() && existing->second.seeded && (!existing->second.initialImport||!existing->second.preparedMenu.pages.empty()))
             throw std::runtime_error("A ready CAS owner graph cannot be reseeded over user edits.");
         alignas(16) std::array<char,0x400> proto{};state.api.protoConstruct(proto.data());
         try {
@@ -2452,7 +2555,7 @@ inline ui::Json Control(const ui::Json& request) {
         if(!channel.finished.load(std::memory_order_acquire) || !channel.stop || channel.connected)
             throw std::runtime_error("The retired CAS transport has not released its session.");
     }
-    Install();state.scope=scope;state.armed=true;state.scopeRetired=false;
+    Install();state.scope=scope;state.armed=true;state.scopeRetired=false;state.geneticTraceEnabled=false;state.localUiRequestSerial=0;
     state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
     state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
     state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;state.householdOutputCalls.clear();

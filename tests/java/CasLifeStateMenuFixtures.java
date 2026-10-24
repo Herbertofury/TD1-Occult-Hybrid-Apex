@@ -27,6 +27,36 @@ public class CasLifeStateMenuFixtures {
             case "tooltip-unload":method="ApexFormsDispose";from="ApexFormsClearTooltips";break;
             case "tooltip-shutdown":method="ApexFormsClearTooltips";from="Shutdown";break;
             case "fast-queue-not-deferred":method="ApexFormsScheduleFrame";from="addEventListener";break;
+            case "variant-menu-not-deferred":method="ApexFormsClick";from="ApexFormsScheduleFrame";break;
+            case "toolbar-ui-not-deferred":method="ApexFormsToolbarClick";from="ApexFormsScheduleFrame";break;
+            case "history-palette-response": {
+                var b=CasBytecodePatch.ownedBody(abc,abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain")),"ApexSnapshot");
+                int at=CasBytecodePatch.uniqueLiteral(abc,b,"history_palette");
+                b.getCode().code.get(at).operands[0]=abc.constants.getStringId("missing_history_palette",true);b.setModified();break;
+            }
+            case "history-palette-getter": {
+                var b=CasBytecodePatch.ownedBody(abc,abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain")),"ApexSnapshot");
+                var rows=b.getCode().code;boolean changed=false;
+                for(int n=2;n<rows.size();n++)if(CasBytecodePatch.property(abc,rows.get(n),0x46,"CallGameService") &&
+                    CasBytecodePatch.stringLiteral(abc,rows.get(n-2),"CasGetSwatchColorSelected") &&
+                    CasBytecodePatch.opcode(rows.get(n-1),0x24) && rows.get(n-1).operands[0]==6) {rows.get(n-1).operands[0]=5;changed=true;}
+                if(!changed)throw new AssertionError("Missing exact native pelt getter");b.setModified();break;
+            }
+            case "history-palette-list-getter":case "history-palette-data-id": {
+                var b=CasBytecodePatch.ownedBody(abc,abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain")),"ApexSnapshot");
+                var rows=b.getCode().code;int at=-1;
+                for(int n=2;n<rows.size();n++)if(CasBytecodePatch.property(abc,rows.get(n),0x46,"CallGameService") &&
+                    CasBytecodePatch.stringLiteral(abc,rows.get(n-2),"CasGetSwatchColorList") &&
+                    CasBytecodePatch.opcode(rows.get(n-1),0x24) && rows.get(n-1).operands[0]==6) {at=n;break;}
+                if(at<0)throw new AssertionError("Missing exact native pelt palette list");
+                if(key.equals("history-palette-list-getter"))rows.get(at-1).operands[0]=5;
+                else {
+                    int end=CasBytecodePatch.uniqueLiteral(abc,b,"Unresolved native pelt swatch color"),changes=0;
+                    for(int n=at+1;n<end;n++)if(CasBytecodePatch.property(abc,rows.get(n),0x66,"dataID")) {rows.get(n).operands[0]=member(abc,"simId");changes++;}
+                    if(changes!=1)throw new AssertionError("Missing exact selected palette dataID lookup");
+                }
+                b.setModified();break;
+            }
             case "fast-frame-network-poll":method="ApexFormsNextFrame";from="ApexFormsOwnedTick";to="ApexTick";break;
             case "fast-frame-missing-lease":method="ApexFormsNextFrame";from="ApexFormsCommandBlocksInput";to="ApexFormsReadNativeState";opcode=0x46;break;
             case "readonly-operation": {

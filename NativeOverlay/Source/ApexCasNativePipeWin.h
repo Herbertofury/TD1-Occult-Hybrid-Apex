@@ -40,6 +40,11 @@ struct Mailbox {
         std::lock_guard<std::mutex> lock(mutex);
         return expected==generation && currentScope==scope && !stop && connected;
     }
+    bool MatchesOpened(std::uint64_t expected,const std::string& currentScope) {
+        std::lock_guard<std::mutex> lock(mutex);
+        // Local UI reads use the exact opened lease; TCP only carries Source CLI.
+        return expected==generation && currentScope==scope && !stop;
+    }
     std::string Poll(std::uint64_t expected,const std::string& currentScope) {
         std::lock_guard<std::mutex> lock(mutex);
         if(expected!=generation||currentScope!=scope)return "STALE";
@@ -90,6 +95,11 @@ inline void Worker(Mailbox& box,std::uint64_t generation) noexcept {
         WSADATA data{};if(WSAStartup(MAKEWORD(2,2),&data))throw std::runtime_error("Winsock unavailable.");initialized=true;
         socket=::socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
         if(socket==INVALID_SOCKET)throw std::runtime_error("Native CAS connection unavailable.");
+        // Typed local request/reply traffic must not wait for Nagle/delayed
+        // ACK coalescing between the small handshake and owner-page frames.
+        const int immediate=1;
+        if(setsockopt(socket,IPPROTO_TCP,TCP_NODELAY,reinterpret_cast<const char*>(&immediate),sizeof(immediate)))
+            throw std::runtime_error("Native CAS immediate local transport unavailable.");
         u_long nonblocking=1;if(ioctlsocket(socket,FIONBIO,&nonblocking))throw std::runtime_error("Native CAS socket mode unavailable.");
         sockaddr_in address{};address.sin_family=AF_INET;address.sin_port=htons(8021);address.sin_addr.s_addr=htonl(INADDR_LOOPBACK);
         if(connect(socket,reinterpret_cast<const sockaddr*>(&address),sizeof(address))==SOCKET_ERROR) {

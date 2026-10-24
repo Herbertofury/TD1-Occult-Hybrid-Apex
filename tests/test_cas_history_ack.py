@@ -18,6 +18,15 @@ def client():
                 {'outfit_type': 0, 'outfit_index': 0, 'selected': True}]}}]}
 
 
+def paint_client(colors):
+    value=client()
+    value['form_strip']=dict(sim_id='12',selected_owner_id='native/64',native_owner_state='bound',desired_owner_id='')
+    value['native_context']=dict(rendered_form=dict(query='returned-value',value=64))
+    value['history_palette']=dict(protocol=1,query='returned-value',swatch_type=6,sim_id='12',
+        owner_id='native/64',native_kind=64,selected=colors)
+    return value
+
+
 class CasHistoryAckTests(unittest.TestCase):
     def setUp(self):
         cas_ui._RECORDS.clear()
@@ -50,6 +59,34 @@ class CasHistoryAckTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'only navigation'):
             cas_ui.receive(rid, payload)
         self.assert_rejected_history(rid, payload)
+
+    def test_exact_native_wing_color_undo_and_empty_palette_redo_are_observable(self):
+        for before_colors,after_colors in (([0xff6e00ff,0xffffffff],[0xff9cc143,0xffffffff]),([], [0xff6e00ff])):
+            with self.subTest(before=before_colors):
+                self.setUp();before=paint_client(before_colors);after=paint_client(after_colors)
+                rid,payload=self.submit(before,after)
+                cas_ui.receive(rid,payload);cas_ui.receive(rid,payload)
+                result=cas_ui.result(rid)
+                self.assertTrue(result['history_data_change_verified'])
+                self.assertEqual(result['client']['history_palette'],after['history_palette'])
+
+    def test_palette_navigation_missing_observation_or_changed_owner_cannot_prove_history(self):
+        for change in ('same','missing-before','wrong-sim','wrong-owner','wrong-kind','not-bound','bool-color','too-many','wrong-swatch','malformed-context'):
+            with self.subTest(change=change):
+                self.setUp();before=paint_client([0xff6e00ff]);after=paint_client([0xff9cc143])
+                if change=='same':after['history_palette']['selected']=[0xff6e00ff];after['panel_visible']=True
+                if change=='missing-before':before.pop('history_palette')
+                if change=='wrong-sim':after['history_palette']['sim_id']='13'
+                if change=='wrong-owner':after['history_palette']['owner_id']='fairy/alternate'
+                if change=='wrong-kind':after['history_palette']['native_kind']=32
+                if change=='not-bound':after['form_strip']['native_owner_state']='unresolved'
+                if change=='bool-color':after['history_palette']['selected']=[True]
+                if change=='too-many':after['history_palette']['selected']=[0]*6
+                if change=='wrong-swatch':after['history_palette']['swatch_type']=5
+                if change=='malformed-context':after['native_context']=None
+                rid,payload=self.submit(before,after)
+                with self.assertRaises(ValueError):cas_ui.receive(rid,payload)
+                self.assert_rejected_history(rid,payload)
 
     def test_exact_swatch_change_verified_and_duplicate_ack_idempotent(self):
         before, after = client(), client()

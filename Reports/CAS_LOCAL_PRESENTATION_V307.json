@@ -1,0 +1,167 @@
+{
+  "schema": 1,
+  "build_epoch": "2026-10-24-local-lease-presentation-v307",
+  "production_ready": false,
+  "implementation": {
+    "menu_prepared_from_exact_captured_native_graph": true,
+    "one_shared_human": true,
+    "local_menu_uses_opened_native_lease_before_tcp_connection": true,
+    "source_cli_still_requires_connection_nonce_uuid_and_claim": true,
+    "native_pair_buttons_use_exact_native_scope_for_local_replay_identity": true,
+    "frame_bootstrap_executes_no_cli_mutations": true,
+    "permanent_preservation_guard": true,
+    "new_background_services": 0,
+    "idle_frame_poller_added": false
+  },
+  "qualification": {
+    "python_tests": 2912,
+    "native_ctest_targets": 19,
+    "owner_metadata_bytecode_tests": 47,
+    "life_state_bytecode_tests": 37,
+    "form_select_bytecode_tests": 39
+  },
+  "cold_load": {
+    "native_complete_appearances": 40,
+    "named_looks": 155,
+    "after_simulation_unchanged": true,
+    "native_appearance_restore_requested": false,
+    "save_files_unchanged": true
+  },
+  "normal_full_cas_entry": {
+    "members": 5,
+    "prepared_owners_per_member": 20,
+    "all195_complete_records_unchanged": true,
+    "manual_arm_submitted": false
+  },
+  "actual_member_clicks": {
+    "samples": [
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 778,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "349336084686110946",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 737,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "349336084686110947",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 810,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "450667075246031054",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 854,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "285159751289798669",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 749,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "450667075246031055",
+        "transport_error": ""
+      }
+    ],
+    "minimum_ms": 737,
+    "maximum_ms": 854,
+    "within_250ms_target": false,
+    "all_five_built_on_one_frame": true,
+    "all_five_complete_local_catalog_and_native_link_copy_panel": true
+  },
+  "actual_form_clicks": [
+    {
+      "exact_owner_and_kind": true,
+      "input_handler": {
+        "clock_resolution_ms": 1,
+        "max_ms": 0,
+        "over_budget": 0,
+        "samples": 1,
+        "scope": "accepted-CAS-input-queue-handler",
+        "target_ms": 1,
+        "total_ms": 0
+      },
+      "native_bind_ms": 18.7237,
+      "native_pair_visible": true,
+      "owner_id": "native/4",
+      "queued_to_bound_ms": 31
+    },
+    {
+      "exact_owner_and_kind": true,
+      "input_handler": {
+        "clock_resolution_ms": 1,
+        "max_ms": 0,
+        "over_budget": 0,
+        "samples": 2,
+        "scope": "accepted-CAS-input-queue-handler",
+        "target_ms": 1,
+        "total_ms": 0
+      },
+      "native_bind_ms": 21.3101,
+      "native_pair_visible": true,
+      "owner_id": "native/1",
+      "queued_to_bound_ms": 32
+    },
+    {
+      "exact_owner_and_kind": true,
+      "input_handler": {
+        "clock_resolution_ms": 1,
+        "max_ms": 0,
+        "over_budget": 0,
+        "samples": 3,
+        "scope": "accepted-CAS-input-queue-handler",
+        "target_ms": 1,
+        "total_ms": 0
+      },
+      "native_bind_ms": 22.5386,
+      "native_pair_visible": true,
+      "owner_id": "active/2",
+      "queued_to_bound_ms": 43
+    }
+  ],
+  "all_form_matrix": {
+    "previous_matching_v306_selections": 191,
+    "previous_all42_native_directed_pairs": true,
+    "previous_all20_exposed_forms_each_of_five_members": true,
+    "previous_all195_complete_records_retained": true,
+    "v307_repeat": "running",
+    "full_visual_mesh_and_shader_qualification": false
+  },
+  "remaining_performance_gate": "Member setup still takes 737-854 ms despite completing on a single frame. Instrument the delay before that frame and the local menu/pair/icon publication cost before choosing another optimization. Complete form switches are not 0-1 ms.",
+  "phone_f11_inventory_labels": {
+    "import_path_scans_removed": true,
+    "already_loaded_game_enum_used": true,
+    "unknown_category_identity_preserved": true,
+    "missing_enum_fallback_does_not_trigger_imports": true
+  },
+  "release_gates_still_open": [
+    "Exact legacy inherited/equipped hair Undo",
+    "Complete palette Undo and initial empty/gray wing default repair",
+    "Edited MCCC/phone/F11 and native full-household Tray/Gallery round trips",
+    "All remaining special-form meshes, sliders/presets and SpinningPlumbobs animations",
+    "Comparative Live interaction/pie-menu and large-CAS-category latency"
+  ]
+}

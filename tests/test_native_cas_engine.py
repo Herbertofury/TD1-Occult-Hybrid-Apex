@@ -16,6 +16,13 @@ class NativeEngineTests(unittest.TestCase):
             production_ready=False, installed=True, armed=True, selection_enabled=False,
             members=[dict(sim_id='123', owned_mask=127, imported_mask=127, kinds=[1,2,4,8,16,32,64])])
 
+    def test_genetic_trace_requires_exact_scope_boolean_and_no_extra_fields(self):
+        for enabled in (True,False):
+            engine.argument(dict(operation='genetic-trace',scope_id='a'*32,enabled=enabled))
+        for changed in ({'enabled':1},{'enabled':'true'},{'scope_id':'b'*31},{'pointer':'0x10000'}):
+            value=dict(operation='genetic-trace',scope_id='a'*32,enabled=True);value.update(changed)
+            with self.subTest(changed=changed),self.assertRaises(ValueError):engine.argument(value)
+
     def test_complete_scope_status_and_explicit_activation_are_typed(self):
         for value in (self.arm, dict(operation='status'), dict(operation='activate', scope_id='a'*32)):
             engine.argument(value)
@@ -127,7 +134,14 @@ class NativeEngineTests(unittest.TestCase):
             if argument['operation']=='activate':
                 self.assertTrue(all(r['imported_mask']==3 for r in status['members']));status['selection_enabled']=True
                 for row in status['members']:
-                    row.update(logical_owner_ids={'1':'native/1','2':'active/2'},human_owner_id='native/1')
+                    row.update(logical_owner_ids={'1':'native/1','2':'active/2'},human_owner_id='native/1',
+                        graph_generation=1,graph_selected_owner_id='active/2',separate_owners=[
+                            dict(owner_id=owner,native_kind=kind,ui_token=0x20000000+index)
+                            for index,(owner,kind) in enumerate([('native/1',1),('native/2',2),('active/2',2)])])
+            if argument['operation']=='menu-stage':
+                self.assertTrue(status['selection_enabled'])
+                row=next(r for r in status['members'] if r['sim_id']==argument['sim_id'])
+                row['prepared_menu_owner_count']=2
             return copy.deepcopy(status)
         def capture(backend,sim):
             raw=str(sim.id).encode('ascii')
@@ -146,8 +160,9 @@ class NativeEngineTests(unittest.TestCase):
                     '__outfits__':form_appearance.encode(('protobuf',b'\xa0\x06\x01'))}):
             result=engine.seed_members(backend)
         self.assertEqual(calls,['status','seed','seed-canonical','seed-canonical','seed-active',
-                               'seed','seed-canonical','seed-canonical','seed-active','activate'])
+                               'seed','seed-canonical','seed-canonical','seed-active','activate','menu-stage','menu-stage'])
         self.assertTrue(result['existing_appearances_unchanged']);self.assertEqual(len(result['members']),2)
+        self.assertEqual([r['owners'] for r in result['prepared_menus']['members']],[2,2])
         self.assertEqual(engine._LAYOUT_SCOPE['epochs'],{'123':'a'*64,'456':'b'*64})
 
     def test_unarmed_overlay_never_serializes_the_household(self):

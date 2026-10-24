@@ -9,6 +9,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import threading
 import time
 import uuid
@@ -605,12 +606,8 @@ def owner_metadata(token, backend):
         rows, offset = peer['owner_catalog'], peer['owner_catalog_offset']
         if offset < len(rows):
             page=rows[offset:offset+32];peer['owner_catalog_offset']+=len(page)
-            from urllib.parse import quote
-            return 'OWNERS|{}|{}|'.format(offset,len(rows))+';'.join(
-                '{},{},{},{},{},{},{},{},{},{}'.format(row['owner_id'],row['native_kind'],row['ui_token'],
-                    row['form_id'],quote(row['label'],safe=''),row['family'],
-                    row['icon'],row['family_icon'],quote(row['description'],safe=''),
-                    quote(row['label'].split(' \u00b7 ',1)[-1],safe='')) for row in page)
+            from .cas_form_catalog import wire_page
+            return wire_page(rows, offset)
     status = call({'operation':'view-status'})
     if status.get('available') is not True or status.get('sim_id') != sim_id: return None
     generation = status.get('generation')
@@ -744,6 +741,32 @@ def history_state(client):
                   'hair_selected_swatch_id': client.get('hair_selected_swatch_id'),
                   'slot_inventory': sorted(slots, key=lambda row: row['category'])}
     return json.dumps(projection, sort_keys=True, separators=(',', ':'), allow_nan=False)
+
+
+def history_palette(client):
+    """Exact bound native pelt colors, not menu visibility or selector metadata."""
+    value = client.get('history_palette')
+    if value is None or isinstance(value, dict) and value.get('query') != 'returned-value':
+        return None
+    strip = client.get('form_strip', {})
+    context = client.get('native_context', {})
+    rendered = context.get('rendered_form', {}) if isinstance(context, dict) else None
+    if not isinstance(strip, dict) or not isinstance(rendered, dict):
+        raise ValueError('Native history palette has malformed owner/render context.')
+    if (not isinstance(value, dict) or set(value) != {'protocol','query','swatch_type','sim_id','owner_id','native_kind','selected'} or
+            type(value['protocol']) is not int or value['protocol'] != 1 or
+            type(value['swatch_type']) is not int or value['swatch_type'] != 6 or
+            type(value['native_kind']) is not int or value['native_kind'] not in (32,64) or
+            value['sim_id'] != client['sim']['simId'] or strip.get('sim_id') != value['sim_id'] or
+            not isinstance(value['owner_id'], str) or
+            re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}', value['owner_id']) is None or
+            strip.get('selected_owner_id') != value['owner_id'] or strip.get('native_owner_state') != 'bound' or
+            strip.get('desired_owner_id') != '' or rendered.get('query') != 'returned-value' or
+            type(rendered.get('value')) is not int or rendered['value'] != value['native_kind'] or
+            not isinstance(value['selected'], list) or len(value['selected']) > 5 or
+            any(type(color) is not int or not 0 <= color < 2**32 for color in value['selected'])):
+        raise ValueError('Native history palette lacks its exact bound Sim/form and uint32 colors.')
+    return (value['sim_id'], value['owner_id'], value['native_kind']), value['selected']
 
 
 def validate_client(client, sim_id, request):
@@ -1225,7 +1248,10 @@ def _receive(request_id, payload, backend=None):
                     raise ValueError('Native history acknowledgement lacks its complete pre-state.')
                 before = json.loads(before_json)
                 validate_client(before, row['sim_id'], {'operation': 'status'})
-                if history_state(before) == history_state(client):
+                before_palette, after_palette = history_palette(before), history_palette(client)
+                palette_changed = (before_palette is not None and after_palette is not None and
+                    before_palette[0] == after_palette[0] and before_palette[1] != after_palette[1])
+                if history_state(before) == history_state(client) and not palette_changed:
                     raise ValueError('Native history changed only navigation/metadata; no Sim or equipped data change verified.')
             if row['request']['operation'] == 'member-select':
                 stored = row['form_select_context']; request = row['request']; before = stored['before']

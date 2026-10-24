@@ -39,11 +39,12 @@ NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c20
                                'a534570689a04e48ea6d90cb26d9727cdaf369806ae950898ffacbf4fc0fa8d1',
                                'cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd',
                                'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770',
-                               '30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4')
+                               '30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4',
+                               '1eb9997146db3e2426e0acc4f847fc729f732baaf3ec1bc1f2f26dec68e39fbe')
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-24-wing-palette-reenable-v297'
+UPGRADE_EPOCH = '2026-10-24-local-lease-presentation-v307'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'ab200867152928482443ed327d324cad175ed6c99a51edf63907dbbe1c9192e2'
+UPGRADE_SELF_BODY_SHA = '0c5611387d6d96354557c1699cb3b9cd95e2988783af54548d960009e8861d33'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
@@ -55,7 +56,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_commit_plan.py': '032ebc4a20e711db9ae359874b923c6cadd72eceec05277f85bfae3f935fe0c4',
     'apex_core/cas_controls.py': '148afd4a6876472de657fe276157c3d34e9ffea09d29e4b9eee610a8c613305d',
     'apex_core/cas_entry_context.py': '9474f7dbb6251318e908676ac7ba8b4479c99b9d2bead59ae706eb023726140b',
-    'apex_core/cas_form_catalog.py': 'c7c7efc7925691ed2712d9ee0d1047c1368e3e68ddd49cc5fde84402076da32c',
+    'apex_core/cas_form_catalog.py': '902a4db445e0988ac44788968e9b9c5372ee22a6353a2ae7b74bb7065b7518f7',
     'apex_core/cas_frontdoor.py': 'cc749e4d5f4e3f05fcfe16b8c92a80296e84a4a9ebfb30b7e9cbaa6980e82f95',
     'apex_core/cas_named_return.py': '53888dcfb949e675820e86b946596e8aa8b6a1a3dcc0c5b4d48c49f66010d84d',
     'apex_core/cas_native_return.py': '3baf9162e487d9547703611a0725c5a497f1c342d6ebf72f3a70917cff9df8a0',
@@ -65,7 +66,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_save_boundary.py': '8e5421be2938408f972ca2ce4ee98fbab683258f9f7049919631db0649d542d7',
-    'apex_core/cas_ui.py': '18b13b24f9aa4abbb3d807698cee3d017e4a94d10e47692afa8c9aee0a11715a',
+    'apex_core/cas_ui.py': 'e5eb11ec778891f280b002e04075218f0ba3f2feebc0688e0e481f7ba36aff3d',
     'apex_core/catalog_usage.py': '010877d055c90dad2696cc2af71608323188d1aa6f914554a41aea97433d624a',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
@@ -85,7 +86,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/live_form_presentation.py': '31c2fc2cf41419878f068eb201cd81a67e9bef701b4ecefff99dac6e7d6ab1cd',
     'apex_core/morph_controls.py': 'd144ebd7a8dcbff5695b1a2747f641b17017b60a6c39bd904e467602d4c7f876',
     'apex_core/named_save_boundary.py': 'e91cedc374353240e8a5abdde6ab6e99d2313de9158a3846b5a74e1f1fe0c8ca',
-    'apex_core/native_cas_engine.py': '44755f3b8c5304e3e9b22a8a900fbab0d86d4a035ecb076a94cbae45fb32e9d3',
+    'apex_core/native_cas_engine.py': '3e9e0ba6b35610d3a66f3d87001b5966295f1df5ae89bbdbe4466abc30530c3c',
     'apex_core/native_controls.py': 'b9d63713fb02f73245ed6febbafd4b641e33b06120a7a5123977d670741fd80d',
     'apex_core/native_form_isolation.py': '8b543ee251da890e30df2f96a961d4d7d76519816376617330f5136de414bb33',
     'apex_core/native_form_select.py': '5c3c9b28d82df3e6515169f3bb653f94ed9c9505d7745673514d85ed79744c44',
@@ -98,7 +99,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/outfit_hair.py': 'f96b905caa86c118579590f942abe8d5ce665e07ed84db8d311fddcdb39243c4',
     'apex_core/outfit_snapshot.py': 'd6f60b352643961d200406aff95b3a850aa018f7538e4b75f883768bbaeb9d42',
     'apex_core/overlay_loader.py': '21ba456e3c6f26817ff224e40a26b099cca10f4baaba60ed0649c2d1f9ece1a1',
-    'apex_core/phone_cas.py': 'dfa10301eaecde9d92282ebab19fceccfb2599be1e08cd9ebd8db6983a4138b6',
+    'apex_core/phone_cas.py': 'e4ff29679991274795c450b4823dc2951e3d8dc42e409dd7819181c657017366',
     'apex_core/phone_interactions.py': '05778ddb4e9e764ee4899cca39e5143bf3a4bd7d3bf61d4890c3e0466b72f025',
     'apex_core/profile_save_identity.py': '3dff19214d24119caa20bf3b0849e16e1c006a73a5a9e8f0c167ca5c0a080453',
     'apex_core/runtime_profile.py': '740f28d28c4493f88c61c77c81085e61a2b2c98097c1847dae066ea0c3e05072',

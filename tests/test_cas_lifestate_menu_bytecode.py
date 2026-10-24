@@ -15,6 +15,9 @@ CASES=('exact','grouping','rendering-kind','tooltip-create','tooltip-rebuild','t
        'molecule-click-drops-intent','molecule-click-inline','molecule-drain-other-session',
        'molecule-drain-active-command','molecule-drain-inline','molecule-not-consumed')
 CASES+=('readonly-operation','readonly-phase','readonly-length','readonly-nonce','readonly-sim','readonly-display-sim','readonly-mutated','readonly-receiving')
+CASES+=('variant-menu-not-deferred','toolbar-ui-not-deferred')
+CASES+=('history-palette-response','history-palette-getter')
+CASES+=('history-palette-list-getter','history-palette-data-id')
 
 
 class LifeStateMenuBytecodeTests(unittest.TestCase):

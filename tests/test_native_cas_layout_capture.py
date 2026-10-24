@@ -24,12 +24,19 @@ class NativeLayoutCaptureTests(unittest.TestCase):
         raw=b'\x01\x02';capture=dict(native_base64=base64.b64encode(raw).decode('ascii'),
             native_sha256=hashlib.sha256(raw).hexdigest(),native_message_type='EA.Sims4.Persistence.SimData')
         calls=[]
+        menu_member=dict(sim_id='123',logical_owner_ids={'1':'native/1','2':'active/2'},human_owner_id='native/1',
+            graph_generation=1,graph_selected_owner_id='active/2',separate_owners=[
+                dict(owner_id=oid,native_kind=kind,ui_token=0x20000000+index) for index,(oid,kind) in enumerate(
+                    (('native/1',1),('native/2',2),('active/2',2),('ghost/manifested',1)))])
         def call(module,dll,value):
             op=value['operation'];calls.append(op)
             if op=='status':return dict(ok=True,armed=True,selection_enabled=False,entry_scope_protocol=1,
                 scope_id='a'*32,members=[dict(sim_id='123',owned_mask=3,imported_mask=0)])
             if op=='activate':return dict(ok=fail!='activate',selection_enabled=fail!='activate',
-                members=[dict(sim_id='123',logical_owner_ids={'1':'native/1','2':'active/2'},human_owner_id='native/1')])
+                members=[copy.deepcopy(menu_member)])
+            if op=='menu-stage':
+                staged=copy.deepcopy(menu_member);staged['prepared_menu_owner_count']=3
+                return dict(ok=True,selection_enabled=True,scope_id='a'*32,members=[staged])
             imported=dict(sim_id='123',imported_mask=3,kinds=[1,2],active_entry_source_seeded=True,canonical_source_seeded_mask=3,separate_owners=[
                 dict(owner_id='ghost/manifested',native_kind=2 if fail=='named-kind' else 1)])
             return dict(ok=True,members=[imported])
@@ -53,7 +60,7 @@ class NativeLayoutCaptureTests(unittest.TestCase):
 
     def test_fresh_native_active_and_named_owners_publish_only_representations(self):
         calls,scope=self.seed()
-        self.assertEqual(calls,['status','seed','seed-canonical','seed-canonical','seed-active','seed-appearance','activate'])
+        self.assertEqual(calls,['status','seed','seed-canonical','seed-canonical','seed-active','seed-appearance','activate','menu-stage'])
         self.assertEqual(scope['pid'],os.getpid());self.assertEqual(scope['scope_id'],'a'*32)
         self.assertEqual(set(scope['owners']),{('123','native/1'),('123','native/2'),('123','active/2'),('123','ghost/manifested')})
         self.assertEqual(scope['owners'][('123','active/2')]['native_kind'],2)

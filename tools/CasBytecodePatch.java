@@ -574,6 +574,40 @@ public class CasBytecodePatch {
         verifyFastOwnerReadback(abc,instance);
         verifyPairControls(abc,instance);
         verifyMoleculeSelection(abc,instance);
+        int menuFrames=0;
+        for(var op:ownedBody(abc,instance,"ApexFormsClick").getCode().code)
+            if(property(abc,op,0x4f,"ApexFormsScheduleFrame"))menuFrames++;
+        require(menuFrames==2,"Variant opening and same-owner dismissal must render on the next frame, without waiting for the network Timer.");
+        int toolbarFrames=0;
+        for(var op:ownedBody(abc,instance,"ApexFormsToolbarClick").getCode().code)
+            if(property(abc,op,0x4f,"ApexFormsScheduleFrame"))toolbarFrames++;
+        require(toolbarFrames==3,"Variant Back and ordinary toolbar changes must share deferred next-frame presentation.");
+        var paletteSnapshot=ownedBody(abc,instance,"ApexSnapshot");
+        uniqueLiteral(abc,paletteSnapshot,"history_palette");
+        uniqueLiteral(abc,paletteSnapshot,"not-queried-outside-bound-pelt-owner");
+        uniqueLiteral(abc,paletteSnapshot,"Incomplete native pelt palette");
+        uniqueLiteral(abc,paletteSnapshot,"Untyped native pelt swatch ID");
+        uniqueLiteral(abc,paletteSnapshot,"Incomplete native pelt color list");
+        int resolvedPalette=uniqueLiteral(abc,paletteSnapshot,"Unresolved native pelt swatch color");
+        var paletteOps=paletteSnapshot.getCode().code;int paletteReads=0,listRead=-1;
+        for(int n=2;n<paletteOps.size();n++)
+            if(property(abc,paletteOps.get(n),0x46,"CallGameService") && paletteOps.get(n).operands[1]==2 &&
+               stringLiteral(abc,paletteOps.get(n-2),"CasGetSwatchColorSelected") &&
+               opcode(paletteOps.get(n-1),0x24) && paletteOps.get(n-1).operands[0]==6)paletteReads++;
+        require(paletteReads==1,"History must retain the typed native FURTONE palette read.");
+        for(int n=2;n<paletteOps.size();n++)
+            if(property(abc,paletteOps.get(n),0x46,"CallGameService") && paletteOps.get(n).operands[1]==2 &&
+               stringLiteral(abc,paletteOps.get(n-2),"CasGetSwatchColorList") &&
+               opcode(paletteOps.get(n-1),0x24) && paletteOps.get(n-1).operands[0]==6) {
+                require(listRead<0,"Ambiguous native FURTONE color list.");listRead=n;
+            }
+        boolean exactId=false,nativeColor=false;
+        for(int n=listRead+1;n<resolvedPalette;n++) {
+            exactId|=property(abc,paletteOps.get(n),0x66,"dataID");
+            nativeColor|=property(abc,paletteOps.get(n),0x66,"color");
+        }
+        require(listRead>=0 && resolvedPalette>listRead && exactId && nativeColor,
+            "Selected pelt dataID strings must resolve through EA's exact native color palette.");
         var expected=Map.of("ApexFormsTick",List.of("CasGetAvailableOccults","GetOccultIcon"),
             "ApexFormsClick",List.of("CASGetSimInfo"), "ApexFormsOwnedTick",List.of("SetSimOccult","GetOccultIcon"));
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter && name(abc,trait).startsWith("Apex")) {
@@ -608,7 +642,8 @@ public class CasBytecodePatch {
         for(Trait trait:instance.instance_traits.traits) if(trait instanceof TraitMethodGetterSetter &&
             propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains("ApexFormsOwnedTick"))
                 nativeOwnerCallers.add(name(abc,trait));
-        require(nativeOwnerCallers.equals(Set.of("ApexFormsTick","ApexFormsNextFrame")),"Independent form buttons may execute only on the owned strip Timer or guarded next frame.");
+        require(nativeOwnerCallers.equals(Set.of("ApexFormsTick","ApexFormsNextFrame","ApexPresentationFrame","ApexPresentationPrime")),
+            "Independent form buttons may execute only on the owned Timer, guarded gesture frame or guarded member bootstrap.");
         var ownerCode=ownedBody(abc,instance,"ApexFormsOwnedTick").getCode().code;
         boolean tokenLow=false,tokenHigh=false;
         for(var op:ownerCode) if(opcode(op,0x2d)) {
@@ -709,24 +744,51 @@ public class CasBytecodePatch {
     static void verifyPresentationBootstrap(ABC abc,InstanceInfo instance) {
         var frame=ownedBody(abc,instance,"ApexPresentationFrame");
         var calls=propertyCalls(abc,frame);
-        require(calls.equals(Set.of("ApexPresentationStop","ApexPresentationReady","getTimer","test","ApexTick","ApexPresentationSchedule")),
+        require(calls.equals(Set.of("ApexPresentationStop","ApexPresentationReady","getTimer","test","ApexTick","ApexPresentationSchedule",
+            "ApexFormsTryLocalCatalog","ApexFormsOwnedTick","ApexFormsObservedSim","ApexSocketFailure","ApexPresentationPrime")),
             "Member presentation may only advance its checked bootstrap, never navigate or execute a new mutation.");
         var required=new HashSet<String>();
+        int drainAt=-1,framePosition=0;
         for(var row:frame.getCode().code) {
-            for(String key:Set.of("apexDisconnected","apexTicking","apexPendingFields","apexReceiving","apexPendingPhase","mCurrSimInfo"))
+            if(property(abc,row,0x4f,"ApexTick")||property(abc,row,0x46,"ApexTick"))drainAt=framePosition;
+            for(String key:Set.of("apexDisconnected","apexTicking","mCurrSimInfo","apexPendingFields","apexReceiving","apexPendingPhase"))
                 if(property(abc,row,0x60,key)||property(abc,row,0x66,key))required.add(key);
+            for(String key:Set.of("apexPendingFields","apexReceiving","apexPendingPhase"))
+                require((!property(abc,row,0x60,key)&&!property(abc,row,0x66,key))||drainAt>=0,
+                    "Member bootstrap must drain owned ACKs; command execution remains gated inside ApexTick.");
             if(opcode(row,0x61))require(Set.of("apexPresentationFrames","apexPresentationMilliseconds").contains(
                 abc.constants.getString(abc.constants.getMultiname(row.operands[0]).name_index)),
                 "Member presentation cannot overwrite a command, owner or transport state.");
             if(property(abc,row,0x4f,"ApexTick")||property(abc,row,0x46,"ApexTick"))
                 require(row.operands[1]==1,"Bootstrap must identify its frame event to the checked dispatcher.");
+            framePosition++;
         }
-        require(required.size()==6,"Member presentation lacks its idle/lifetime/exact native-Sim gate.");
+        require(required.size()==6&&drainAt>=0,"Member presentation lacks its lifetime/reentrancy/exact native-Sim and post-ACK claim gates.");
+        var prime=ownedBody(abc,instance,"ApexPresentationPrime");
+        var primeCalls=propertyCalls(abc,prime);
+        require(primeCalls.containsAll(Set.of("ApexNativeOpen","ApexFormsTryLocalCatalog","ApexFormsOwnedTick","ApexPresentationReady")) &&
+            Collections.disjoint(primeCalls,Set.of("CallGameService","ApexExecute","ApexReadback","ApexPairExecute","ApexNativeExchange")),
+            "Local presentation must validate the opened native lease without a fresh native Sim-info call or CLI execution.");
+        var primeGuards=new HashSet<String>();boolean nativeOpen=false;
+        for(var op:prime.getCode().code) {
+            for(String key:Set.of("apexDisconnected","apexTicking","apexPendingFields","apexReceiving","apexPendingPhase",
+                "apexMoleculeIntent","apexFormsNativeIntent","apexFormsDesiredId","apexPairIntent","mCurrSimInfo","simId","householdId"))
+                if(property(abc,op,0x60,key)||property(abc,op,0x66,key))primeGuards.add(key);
+            if(property(abc,op,0x46,"ApexNativeOpen")||property(abc,op,0x4f,"ApexNativeOpen")) {
+                require(primeGuards.size()==12,"Local presentation cannot bypass a claimed command, queued gesture or exact delivered identity.");nativeOpen=true;
+            }
+            if(opcode(op,0x61)) require(property(abc,op,0x61,"apexFormsHousehold"),"Local presentation may only cache the validated delivered household label.");
+        }
+        require(nativeOpen,"Local presentation lost its exact native opening check.");
+        var open=ownedBody(abc,instance,"ApexNativeOpen");
+        uniqueLiteral(abc,open,"BUSY");
+        require(propertyCalls(abc,open).equals(Set.of("ApexNativeExchange","test","substr")),
+            "A busy prior member transport must retry its bounded bootstrap without executing a new action.");
         var ready=ownedBody(abc,instance,"ApexPresentationReady");var identity=new HashSet<String>();
         for(var row:ready.getCode().code)for(String key:Set.of("apexNativeConnected","apexNonce","apexBoundSim","apexFormsRoot",
-            "apexFormsSelectedId","apexFormsNativeState","apexFormsDesiredId","apexFormsOwnerTotal","apexFormsOwners","apexPairSignature","apexFormsNativeGeneration","mCurrSimInfo","apexPresentationSim"))
+            "apexFormsSelectedId","apexFormsNativeState","apexFormsDesiredId","apexFormsOwnerTotal","apexFormsOwners","apexPairSignature","apexFormsNativeGeneration","mCurrSimInfo","apexPresentationSim","apexFormsLocalCatalog"))
             if(property(abc,row,0x60,key)||property(abc,row,0x66,key))identity.add(key);
-        require(identity.size()==13&&propertyCalls(abc,ready).isEmpty(),"Member UI readiness must match its complete bound owner/catalog/pair identity.");
+        require(identity.size()==14&&propertyCalls(abc,ready).isEmpty(),"Member UI readiness must match its complete bound owner/catalog/pair identity.");
         uniqueLiteral(abc,ready,"bound");
         var notify=ownedBody(abc,instance,"ApexPresentationNotify");
         require(propertyCalls(abc,notify).equals(Set.of("test","getTimer","ApexPresentationReady","ApexPresentationStop","ApexPresentationSchedule")),
@@ -755,6 +817,13 @@ public class CasBytecodePatch {
         var tick=ownedBody(abc,instance,"ApexTick");var rows=tick.getCode().code;int at=-1;
         for(int i=0;i<rows.size();i++)if(property(abc,rows.get(i),0x66,"ENTER_FRAME")){require(at<0,"Ambiguous bootstrap event guard.");at=i;}
         require(at>=0,"Bootstrap must not execute a queued CLI mutation/readback on its frame.");
+        int receiveAt=-1;
+        for(int i=0;i<at;i++) {
+            if(property(abc,rows.get(i),0x4f,"ApexNativeReceive")||property(abc,rows.get(i),0x46,"ApexNativeReceive"))receiveAt=i;
+            require(!property(abc,rows.get(i),0x4f,"ApexExecute")&&!property(abc,rows.get(i),0x4f,"ApexReadback"),
+                "Bootstrap cannot execute a command before receiving its ACK and yielding outstanding work.");
+        }
+        require(receiveAt>=0,"Bounded member bootstrap must drain its native ACK before the command yield guard.");
         var guards=new HashSet<String>();boolean returned=false;
         for(int i=at+1;i<rows.size();i++) {
             for(String key:Set.of("apexPendingFields","apexReceiving"))
@@ -764,6 +833,19 @@ public class CasBytecodePatch {
                 "Bootstrap event can reach a command before its yield guard.");
         }
         require(returned&&guards.size()==2,"Bootstrap must yield received or outstanding CLI work to its owning Timer.");
+        var local=ownedBody(abc,instance,"ApexFormsTryLocalCatalog");
+        uniqueLiteral(abc,local,"LOCALOWNERS|");uniqueLiteral(abc,local,"Prepared native form page lost its exact continuation");
+        require(propertyCalls(abc,local).containsAll(Set.of("ApexNativeExchange","ApexFormsConsumeCatalog"))&&
+            Collections.disjoint(propertyCalls(abc,local),Set.of("CallGameService","ApexExecute","ApexReadback","ApexPairExecute","ApexFormsOwnedTick")),
+            "Prepared menu loading must read exact native pages without issuing a game edit or CLI command.");
+        var localGuards=new HashSet<String>();
+        for(var op:local.getCode().code)for(String key:Set.of("apexDisconnected","apexNativeChannel","mCurrSimInfo","simId","apexBoundSim","apexFormsLocalOffset","apexFormsOwnerTotal","apexFormsOwners"))
+            if(property(abc,op,0x60,key)||property(abc,op,0x66,key))localGuards.add(key);
+        require(localGuards.size()==8,"Prepared menu lacks its exact current member/channel and complete page gates.");
+        var consume=ownedBody(abc,instance,"ApexFormsConsumeCatalog");
+        uniqueLiteral(abc,consume,"Late peer form catalogue differs from the prepared native page");
+        require(Collections.disjoint(propertyCalls(abc,consume),Set.of("CallGameService","ApexNativeExchange","ApexExecute","ApexReadback","ApexFormsOwnedTick")),
+            "Menu parsing and duplicate verification must remain data-only.");
     }
     static void verifyOwnerMetadataReadback(ABC abc, InstanceInfo instance) {
         var body=ownedBody(abc,instance,"ApexReadback");
@@ -1681,6 +1763,7 @@ public class CasBytecodePatch {
             "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener", "apexMoleculeRegistered", "apexMoleculeReadRegistered", "apexMoleculeListener", "apexMoleculeView", "apexMoleculeIntent",
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
             "apexFormsPosition", "apexFormsScale", "apexFormsLocked", "apexFormsCollapsed", "apexFormsDragging", "apexFormsPanelWidth", "apexFormsHousehold", "apexFormsLayerButtons", "apexFormsGestureSequence", "apexFormsOwners", "apexFormsOwnerTotal", "apexFormsSelectedId", "apexFormsNativeState", "apexFormsDesiredId", "apexFormsNativeIntent", "apexFormsBootstrap", "apexFormsPage", "apexFormsPanelHeight", "apexFormsGroups", "apexFormsVariantFamily", "apexFormsTooltips", "apexFormsGroupKey",
+            "apexFormsCatalogPages","apexFormsLocalCatalog","apexFormsLocalOffset",
             "apexFormsFrameQueued", "apexFormsFastState", "apexFormsNativeGeneration", "apexFormsGestureStarted", "apexFormsSwitchMilliseconds",
             "apexInputSamples", "apexInputOverBudget", "apexInputMaxMs", "apexInputTotalMs",
             "apexCatalogPrefs","apexCatalogStore","apexCatalogUi","apexCatalogRows","apexCatalogIntent","apexCatalogSignature","apexCatalogEffects","apexCatalogPage","apexCatalogItems","apexCatalogContext","apexCatalogError","apexCatalogRegistered","apexCatalogDrag","apexCatalogSaved",
@@ -1696,8 +1779,8 @@ public class CasBytecodePatch {
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
         Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
-            "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame",
-            "ApexPresentationReady", "ApexPresentationStop", "ApexPresentationSchedule", "ApexPresentationFrame", "ApexPresentationNotify",
+            "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame","ApexFormsConsumeCatalog","ApexFormsTryLocalCatalog",
+            "ApexPresentationReady", "ApexPresentationStop", "ApexPresentationSchedule", "ApexPresentationFrame", "ApexPresentationNotify", "ApexPresentationPrime",
             "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",

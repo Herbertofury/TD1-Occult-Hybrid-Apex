@@ -32,6 +32,16 @@ int main() {
     Check(!RetainViewGenetics(c,caller+1,genetics,outfit));
     Check(!RetainViewGenetics(c,caller,reinterpret_cast<void*>(c.model+0x328),outfit));
     Check(!RetainViewGenetics(c,caller,genetics,reinterpret_cast<void*>(c.model+0xf0)));
+    // The catalog's pre-action normalization also poisons the history's old
+    // genotype when inherited hair differs from the current outfit. Preserve
+    // that exact model; leave the later actual action and Undo calls native.
+    const auto prepare=c.image+0x438b98;
+    Check(RetainCatalogPreparationGenetics(c,prepare,genetics));
+    Check(!RetainCatalogPreparationGenetics(c,c.image+0x457dc6,genetics));
+    Check(!RetainCatalogPreparationGenetics(c,c.image+0x336271,genetics));
+    Check(!RetainCatalogPreparationGenetics(c,prepare+1,genetics));
+    Check(!RetainCatalogPreparationGenetics(c,prepare,reinterpret_cast<void*>(c.model+0x328)));
+    Check(!RetainCatalogPreparationGenetics(noView,prepare,genetics));
     for(unsigned caseId=0;caseId<7;++caseId) {
         auto bad=c;
         if(caseId==0)bad.ownerPresent=false;
@@ -42,6 +52,7 @@ int main() {
         if(caseId==5)bad.capturedKind=bad.modelKind=3;
         if(caseId==6)bad.model=0;
         Check(!RetainViewGenetics(bad,caller,genetics,outfit));
+        Check(!RetainCatalogPreparationGenetics(bad,prepare,genetics));
     }
     std::cout<<"Captured view genetics retained; actual edits and foreign scopes stay native.\n";
 }

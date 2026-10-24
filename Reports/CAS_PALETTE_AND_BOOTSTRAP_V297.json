@@ -17,10 +17,12 @@
   },
   "build_validation": {
     "bootstrap_priority_tests_passed": 5,
-    "full_python_suite_completed": false,
+    "full_python_suite_completed": true,
     "independent_rust_validated_resources": 275,
     "packages": 7,
-    "python37_modules": 108
+    "python37_modules": 108,
+    "python_suite_seconds": 942.432,
+    "python_tests_passed": 2888
   },
   "candidate_epoch": "2026-10-24-wing-palette-reenable-v297",
   "candidate_sha256": "e85828034a10c4ebd4b702c50912b36f95412f45355b3af0501872bc87f8a7fa",

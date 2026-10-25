@@ -13,6 +13,7 @@
 #include "ApexNativeOwnerMemory.h"
 #include "ApexNativeCasProbeWin.h"
 #include "ApexNativeServiceProfilerWin.h"
+#include "ApexGfxSnapshotProfileWin.h"
 #include "ApexCasNativePipeWin.h"
 #include "ApexCasSearchWin.h"
 #include "MinHook.h"
@@ -2169,6 +2170,7 @@ inline ui::Json Status() {
         {"editor_root_authorities_retired",retiredRoots},{"household_copy_tracking_active",state.householdCopiesEnabled.load(std::memory_order_acquire)},
         {"household_faults",state.householdFaults},{"household_dispatch",state.householdDispatch},
         {"native_service_profile",performance::Snapshot()},
+        {"native_gfx_snapshot_profile",gfxprofile::win::Snapshot()},
         {"household_output_calls",outputCalls},
         {"native_converter_calls",state.converted},{"game_files_written",false},
         {"alternate_kind_overrides",state.alternateOverrides},
@@ -2456,6 +2458,16 @@ inline ui::Json Control(const ui::Json& request) {
            request["milliseconds"].get<std::int64_t>()<0 || request["milliseconds"].get<std::int64_t>()>30000)
             throw std::runtime_error("Native service profiling requires the active exact CAS scope and a bounded duration.");
         performance::Configure(state.scope.id,request["milliseconds"].get<unsigned>());return Status();
+    }
+    if(request.is_object() && request.size()==4 && request.value("operation","")=="profile-gfx-snapshot-pages") {
+        if(!state.armed || !state.selectionEnabled || binding || !request.contains("scope_id") ||
+           !request["scope_id"].is_string() || request["scope_id"].get<std::string>()!=state.scope.id ||
+           !request.contains("milliseconds") || !request["milliseconds"].is_number_integer() ||
+           request["milliseconds"].get<std::int64_t>()<0 || request["milliseconds"].get<std::int64_t>()>30000 ||
+           !request.contains("detail_timing") || !request["detail_timing"].is_boolean())
+            throw std::runtime_error("Renderer page profiling requires the active exact CAS scope, a bounded duration and an explicit timing option.");
+        gfxprofile::win::Configure(state.scope.id,request["milliseconds"].get<unsigned>(),request["detail_timing"].get<bool>());
+        return Status();
     }
     if(request.is_object() && request.size()==3 && request.value("operation","")=="genetic-trace") {
         if(!state.armed || !state.selectionEnabled || binding ||

@@ -53,7 +53,9 @@ class Fixture:
             forms = {kind: Owner() for kind in Kind}
             sim = Object(id=sid, sim_id=sid, household_id=77, full_name='Arbitrary member ' + str(index),
                          occult_types=127, current_occult_types=2 if index % 2 else 4,
-                         occult_tracker=Object(_sim_info_map=forms, _occult_form_available=True))
+                         occult_tracker=Object(_sim_info_map=forms, _occult_form_available=True,
+                                               membership={kind for kind in Kind if kind is not Kind.HUMAN}))
+            sim.occult_tracker.has_occult_type = lambda kind, tracker=sim.occult_tracker: kind in tracker.membership
             self.members.append(sim)
         self.household = Object(sim_info_gen=lambda: iter(self.members))
         for sim in self.members:
@@ -71,7 +73,11 @@ class Fixture:
             _get_current_flags=lambda sim: sim.current_occult_types,
             _sim_label=lambda sim: sim.full_name + ' (' + str(sim.id) + ')',
             _form_map=lambda tracker: tracker._sim_info_map,
-            _all_occults=lambda include_human=False: list(Kind) if include_human else list(Kind)[1:],
+            # Actual OCCULT_DATA contains six non-Human enums even when the
+            # helper is called with include_human=True. The native form map
+            # independently contains its single shared Human appearance.
+            _all_occults=lambda include_human=False: list(Kind)[1:],
+            _has_occult=backend._has_occult,
             _safe_name=lambda kind: kind.name, _LOCK=threading.RLock(),
             _HISTORY=['line ' + str(n) for n in range(300)], _BUILD_VERSION='fixture-current',
             _ALARM_READY=True, _SERVER_RUNNING=True, _AUTO_REPAIR=False, _NATIVE_STATUS='available',
@@ -95,7 +101,10 @@ class DisplayMetadataTests(unittest.TestCase):
         self.assertEqual(result['status']['household_id'], '77')
         self.assertEqual(len(result['household']['members']), 5)
         self.assertTrue(result['household']['complete'])
-        self.assertEqual(len(result['status']['form_membership']), 7)
+        self.assertEqual(len(result['status']['form_membership']), 6)
+        self.assertEqual(len(result['status']['form_map_keys']), 7)
+        self.assertTrue(result['status']['human_form_data_present'])
+        self.assertEqual(result['status']['logical_occult_membership_mask'], 126)
         self.assertEqual(len(result['status']['occults']), 6)
         self.assertTrue(all(row['has_occult'] and row['has_form_data'] for row in result['status']['occults']))
         self.assertIsNone(result['status']['health'])
@@ -115,6 +124,7 @@ class DisplayMetadataTests(unittest.TestCase):
         f.save_guid = 789
         f.active.current_occult_types = 64
         f.active.occult_types = 65
+        f.active.occult_tracker.membership = {Kind.FAIRY}
         second = display.dispatch(f.backend)
         self.assertNotEqual(first['status']['sim_id'], second['status']['sim_id'])
         self.assertEqual(second['status']['save_guid'], '789')
@@ -122,6 +132,33 @@ class DisplayMetadataTests(unittest.TestCase):
         vampire = next(row for row in second['status']['occults'] if row['name'] == 'VAMPIRE')
         self.assertFalse(vampire['has_occult'])
         self.assertEqual(first['status']['current_occult_types_value'], 4)
+
+    def test_tracker_hybrid_membership_is_independent_of_raw_render_channel_flags(self):
+        f = Fixture()
+        f.active.occult_types = 65
+        f.active.current_occult_types = 2
+        result = display.dispatch(f.backend)
+        status = result['status']
+        self.assertEqual(status['occult_types_value'], 65)
+        self.assertEqual(status['current_occult_types_value'], 2)
+        self.assertEqual(status['logical_occult_membership_mask'], 126)
+        self.assertEqual(status['membership_observation'], 'native-occult-tracker-query')
+        self.assertTrue(all(row['has_occult'] for row in status['occults']))
+        self.assertEqual({row['name'] for row in status['occults']},
+                         {'ALIEN', 'VAMPIRE', 'MERMAID', 'WITCH', 'WEREWOLF', 'FAIRY'})
+        self.assertEqual(len(status['form_map_keys']), 7)
+        self.assertTrue(status['human_form_data_present'])
+        self.assertFalse(status['mutation_authority'])
+        # Conversely, raw bits never claim a tracker membership which was
+        # actually removed; existing form-data presence is a separate fact.
+        f.active.occult_types = 127
+        f.active.occult_tracker.membership.remove(Kind.VAMPIRE)
+        next_status = display.dispatch(f.backend)['status']
+        vampire = next(row for row in next_status['occults'] if row['name'] == 'VAMPIRE')
+        self.assertFalse(vampire['has_occult'])
+        self.assertTrue(vampire['has_form_data'])
+        self.assertEqual(next_status['occult_types_value'], 127)
+        self.assertEqual(next_status['logical_occult_membership_mask'], 122)
 
     def test_explicit_missing_selection_never_substitutes_active_sim_or_scans_world(self):
         f = Fixture()
@@ -225,7 +262,7 @@ class ActualBackendRouteTests(unittest.TestCase):
     def test_real_owner_dispatch_avoids_layered_status_and_mutation_dispatch_stays_original(self):
         f = Fixture()
         names = ('services', '_APEX_GAME_THREAD_IDENT', '_get_active_sim_info', '_get_occult_flags', '_get_current_flags',
-                 '_sim_label', '_form_map', '_all_occults', '_safe_name', '_LOCK', '_HISTORY', '_BUILD_VERSION',
+                 '_sim_label', '_form_map', '_all_occults', '_has_occult', '_safe_name', '_LOCK', '_HISTORY', '_BUILD_VERSION',
                  '_ALARM_READY', '_SERVER_RUNNING', '_AUTO_REPAIR', '_NATIVE_STATUS', '_APEX7_WARNINGS')
         with patch.multiple(backend, **{name: getattr(f.backend, name) for name in names}), \
                 patch.object(backend, '_APEX_PRE_OWNER_RUN_ACTION', side_effect=forbidden), \

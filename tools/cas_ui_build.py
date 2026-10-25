@@ -95,6 +95,114 @@ def verify_source_pins(info, root=ROOT):
     return True
 
 
+def verified_library_cache(output, originals):
+    """Admit only three complete, current native-library continuations.
+
+    Main/Selector/other UI resources are never returned. Any stale, partial or
+    invalid evidence discards the entire optional cache; the compiler remains
+    the normal path and the final merged-package gates are unchanged.
+    """
+    import maru_companion
+    keys = {maru_companion.CANONICAL_GRID_LIBRARY, maru_companion.GRID_LIBRARY, CLEANUP_KEY}
+    try:
+        if not isinstance(originals, dict) or set(originals) != keys:
+            return None
+        output = Path(output)
+        raw = output.read_bytes()
+        info = json.loads(Path(str(output) + '.manifest.json').read_text(encoding='utf-8'))
+        if not isinstance(info, dict) or info.get('sha256') != dbpf_build.digest(raw):
+            return None
+        resources = dbpf_build.read(raw)
+        selected = {key: resources[key] for key in keys}
+        inputs = {key: dbpf_build.digest(Path(originals[key]).read_bytes()) for key in keys}
+        providers = info.get('grid_provider_adapters')
+        dependencies = info.get('communication_dependency_adapters')
+        if (not isinstance(providers, dict) or not isinstance(dependencies, dict) or
+                not isinstance(info.get('base_resources'), dict) or
+                not isinstance(info.get('patched_resources'), dict)):
+            return None
+        if (any(not isinstance(providers.get(dbpf_build.tgi(key)), dict) or
+                'grid_pool_contract' not in providers[dbpf_build.tgi(key)]
+                for key in (maru_companion.CANONICAL_GRID_LIBRARY, maru_companion.GRID_LIBRARY)) or
+                not isinstance(dependencies.get(dbpf_build.tgi(CLEANUP_KEY)), dict) or
+                'image_boundary_profile_contract' not in dependencies[dbpf_build.tgi(CLEANUP_KEY)]):
+            return None
+        for key in keys:
+            text = dbpf_build.tgi(key)
+            proof = (dependencies if key == CLEANUP_KEY else providers).get(text, {})
+            if (not isinstance(proof, dict) or
+                    info.get('base_resources', {}).get(text) != inputs[key] or
+                    proof.get('base_resource_sha256') != inputs[key] or
+                    info.get('patched_resources', {}).get(text) != dbpf_build.digest(selected[key])):
+                return None
+        if maru_companion.verify_grid_providers(providers, selected, dependencies) is not True:
+            return None
+        # Complete provider verification authenticates every nested proof. Its
+        # declared build pins must also name the exact current owned sources;
+        # unrelated Main source changes deliberately do not invalidate a library.
+        declared = info.get('source_pins', {})
+        if not isinstance(declared, dict):
+            return None
+        def pins_match(value):
+            if isinstance(value, dict):
+                pins = value.get('source_sha256')
+                if pins is not None:
+                    if not isinstance(pins, dict):
+                        return False
+                    for name, digest in pins.items():
+                        if (name not in PINNED_SOURCES or declared.get(name) != digest or
+                                dbpf_build.digest((ROOT / name).read_bytes()) != digest):
+                            return False
+                return all(pins_match(child) for child in value.values())
+            return not isinstance(value, list) or all(pins_match(child) for child in value)
+        if not pins_match(providers) or not pins_match(dependencies):
+            return None
+        return {'resources': selected, 'original_sha256': inputs,
+                'providers': json.loads(json.dumps(providers)),
+                'dependencies': json.loads(json.dumps(dependencies)), 'used': set()}
+    except (OSError, ValueError, KeyError, TypeError, RecursionError, UnicodeError, zlib.error):
+        return None
+
+
+def adapt_dependency_provider(cleanup_library, ffdec, work, cache=None):
+    """Reuse a verified communication dependency or run its complete compiler."""
+    if cache is not None:
+        actual = dbpf_build.digest(Path(cleanup_library).read_bytes())
+        if actual != CLEANUP_PIN or actual != cache['original_sha256'][CLEANUP_KEY]:
+            raise ValueError('Cleanup library differs from its authenticated native resource.')
+        cache['used'].add(dbpf_build.tgi(CLEANUP_KEY))
+        return cache['resources'][CLEANUP_KEY], cache['dependencies'][dbpf_build.tgi(CLEANUP_KEY)]
+    import cas_communication_dependency
+    dependency_abc, dependency_contract = cas_communication_dependency.adapt(cleanup_library, ffdec,
+        work / 'native-communication-dependency')
+    dependency_original = Path(cleanup_library).read_bytes()
+    dependency_tag = next(t[3] for t in tags(unpack(dependency_original)[1]) if t[0] == 82)
+    dependency_boundary = dependency_tag.index(b'\0', 4) + 1
+    dependency_payload = replace_payload(dependency_original, dependency_tag[:dependency_boundary] + dependency_abc)
+    dependency_adapter = cas_communication_dependency.chain_adapter(dependency_contract, dependency_payload)
+    import cas_communication_domain_probe
+    dependency_baseline = work / 'dependency-domain-baseline.swf'
+    dependency_baseline.write_bytes(dependency_payload)
+    domain_abc, domain_contract = cas_communication_domain_probe.adapt(dependency_baseline,
+        ffdec, work / 'dependency-domain')
+    dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + domain_abc)
+    dependency_adapter = cas_communication_domain_probe.chain_adapter(dependency_adapter, domain_contract, dependency_payload)
+    import cas_communication_removal_miss
+    dependency_removal_baseline = work / 'dependency-removal-baseline.swf'
+    dependency_removal_baseline.write_bytes(dependency_payload)
+    removal_abc, removal_contract = cas_communication_removal_miss.adapt(cleanup_library, dependency_removal_baseline,
+        ffdec, work / 'dependency-removal')
+    dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + removal_abc)
+    dependency_adapter = cas_communication_removal_miss.chain_adapter(dependency_adapter, removal_contract, dependency_payload)
+    import cas_image_boundary_profile
+    dependency_image_baseline = work / 'dependency-image-baseline.swf'
+    dependency_image_baseline.write_bytes(dependency_payload)
+    image_abc, image_contract = cas_image_boundary_profile.adapt(cleanup_library, dependency_image_baseline,
+        ffdec, work / 'dependency-image')
+    dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + image_abc)
+    return dependency_payload, cas_image_boundary_profile.chain_adapter(dependency_adapter, image_contract, dependency_payload)
+
+
 def verify_control_dispatch(methods):
     """Every advertised typed control must reach its next-tick readback.
 
@@ -292,6 +400,9 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     cleanup_library = Path(cleanup_library or work / 'OlympusLibrary.swf')
     if hashlib.sha256(cleanup_library.read_bytes()).hexdigest() != CLEANUP_PIN:
         raise ValueError('Installed cleanup library differs from the inspected native widget contract.')
+    library_cache = verified_library_cache(output, {
+        maru_companion.CANONICAL_GRID_LIBRARY: work / 'ClassLibraryGamedata.swf',
+        maru_companion.GRID_LIBRARY: companion['grid_library'], CLEANUP_KEY: cleanup_library}) if companion is not None else None
     patched = work / 'ApexCASCustomizerMain.as'
     patched.write_text(inject(Path(decompiled).read_text(encoding='utf-8'),
         semantic), encoding='utf-8')
@@ -500,12 +611,19 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     # duplicate classes. Adapt each authenticated provider independently;
     # keep cleanup_library itself original for the selector/voice verifiers.
     import maru_companion
-    run(['javac', '-cp', Path(ffdec).parent / 'ffdec.jar', '-d', java_classes,
-         ROOT / 'tools/CasGridBytecodePatch.java'])
-    def adapt_grid_provider(grid_swf, base_digest, output_name):
+    if library_cache is None:
+        run(['javac', '-cp', Path(ffdec).parent / 'ffdec.jar', '-d', java_classes,
+             ROOT / 'tools/CasGridBytecodePatch.java'])
+    def adapt_grid_provider(grid_swf, base_digest, output_name, cache=None):
         original_grid = Path(grid_swf).read_bytes()
         if hashlib.sha256(original_grid).hexdigest() != base_digest:
             raise ValueError('Grid class provider differs from its authenticated native resource.')
+        if cache is not None:
+            for key in (maru_companion.CANONICAL_GRID_LIBRARY, maru_companion.GRID_LIBRARY):
+                if cache['original_sha256'][key] == base_digest:
+                    cache['used'].add(dbpf_build.tgi(key))
+                    return cache['resources'][key], cache['providers'][dbpf_build.tgi(key)]
+            raise ValueError('Cached native library has no matching original provider identity.')
         grid_retained = work / output_name
         grid_contract = json.loads(run(['java', '-cp', str(Path(ffdec).parent / 'ffdec.jar') + os.pathsep + str(java_classes),
             'CasGridBytecodePatch', grid_swf, grid_retained]).stdout)
@@ -556,13 +674,13 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         adapter = cas_grid_pool.chain_adapter(adapter, pool_contract, grid_payload)
         return grid_payload, adapter
     canonical_grid_payload, canonical_grid_adapter = adapt_grid_provider(work / 'ClassLibraryGamedata.swf',
-        maru_companion.CANONICAL_GRID_LIBRARY_SHA256, 'apex-cas-canonical-grid-getter-retained.abc')
+        maru_companion.CANONICAL_GRID_LIBRARY_SHA256, 'apex-cas-canonical-grid-getter-retained.abc', library_cache)
     maru_companion.verify_canonical_grid_adapter(canonical_grid_adapter, canonical_grid_payload)
     grid_providers = {dbpf_build.tgi(maru_companion.CANONICAL_GRID_LIBRARY): canonical_grid_adapter}
     grid_payload = None
     if companion is not None:
         grid_payload, companion['grid_library_adapter'] = adapt_grid_provider(companion['grid_library'],
-            maru_companion.GRID_LIBRARY_SHA256, 'apex-cas-grid-getter-retained.abc')
+            maru_companion.GRID_LIBRARY_SHA256, 'apex-cas-grid-getter-retained.abc', library_cache)
         maru_companion.verify_grid_adapter(companion['grid_library_adapter'], grid_payload)
         grid_providers[dbpf_build.tgi(maru_companion.GRID_LIBRARY)] = companion['grid_library_adapter']
         maru_companion.verify_grid_providers(grid_providers,
@@ -570,36 +688,8 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     # The earlier Olympus domain owns real Button/controller listeners too.
     # Authenticate its original cleanup code separately from this pure
     # communication override; it has no fictional grid transaction history.
-    import cas_communication_dependency
-    dependency_abc, dependency_contract = cas_communication_dependency.adapt(cleanup_library, ffdec,
-        work / 'native-communication-dependency')
-    dependency_original = cleanup_library.read_bytes()
-    dependency_tag = next(t[3] for t in tags(unpack(dependency_original)[1]) if t[0] == 82)
-    dependency_boundary = dependency_tag.index(b'\0', 4) + 1
-    dependency_payload = replace_payload(dependency_original, dependency_tag[:dependency_boundary] + dependency_abc)
-    dependency_adapter = cas_communication_dependency.chain_adapter(dependency_contract, dependency_payload)
-    import cas_communication_domain_probe
-    dependency_baseline = work / 'dependency-domain-baseline.swf'
-    dependency_baseline.write_bytes(dependency_payload)
-    domain_abc, domain_contract = cas_communication_domain_probe.adapt(dependency_baseline,
-        ffdec, work / 'dependency-domain')
-    dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + domain_abc)
-    dependency_adapter = cas_communication_domain_probe.chain_adapter(dependency_adapter, domain_contract, dependency_payload)
-    import cas_communication_removal_miss
-    dependency_removal_baseline = work / 'dependency-removal-baseline.swf'
-    dependency_removal_baseline.write_bytes(dependency_payload)
-    removal_abc, removal_contract = cas_communication_removal_miss.adapt(cleanup_library, dependency_removal_baseline,
-        ffdec, work / 'dependency-removal')
-    dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + removal_abc)
-    dependency_adapter = cas_communication_removal_miss.chain_adapter(dependency_adapter, removal_contract, dependency_payload)
-    import cas_image_boundary_profile
-    dependency_image_baseline = work / 'dependency-image-baseline.swf'
-    dependency_image_baseline.write_bytes(dependency_payload)
-    image_abc, image_contract = cas_image_boundary_profile.adapt(cleanup_library, dependency_image_baseline,
-        ffdec, work / 'dependency-image')
-    dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + image_abc)
-    dependencies = {dbpf_build.tgi(CLEANUP_KEY): cas_image_boundary_profile.chain_adapter(
-        dependency_adapter, image_contract, dependency_payload)}
+    dependency_payload, dependency_adapter = adapt_dependency_provider(cleanup_library, ffdec, work, library_cache)
+    dependencies = {dbpf_build.tgi(CLEANUP_KEY): dependency_adapter}
     if source_pins() != expected_sources:
         raise ValueError('CAS bridge source changed during compilation; no package was written.')
     Path(output).parent.mkdir(parents=True, exist_ok=True)
@@ -616,6 +706,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'companion_code_merge': companion,
         'grid_provider_adapters': grid_providers,
         'communication_dependency_adapters': dependencies,
+        'cached_library_resources': sorted(library_cache['used']) if library_cache is not None else [],
         'source_pins': expected_sources,
         'typed_control_dispatch_verified': control_dispatch,
         'detached_snapshot_getters': detached_snapshot_getters,

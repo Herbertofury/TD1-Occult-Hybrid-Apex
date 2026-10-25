@@ -12,6 +12,20 @@ import td1_occult_hybrid_apex as backend
 
 
 class BackendOwnerTests(unittest.TestCase):
+    def test_owner_phase_measures_below_old_windows_clock_tick_with_exactly_two_qpc_samples(self):
+        with patch.object(backend.time, 'perf_counter', side_effect=[100.0, 100.0006]) as clock, \
+                patch.object(backend.time, 'monotonic', side_effect=AssertionError('Coarse clock used for owner timing')), \
+                patch.object(backend, '_log'), \
+                patch.object(backend, 'run_action', return_value={'ok': True}) as action, \
+                patch.object(backend, '_record_perf') as record:
+            result = backend._execute_owned_command({'action': 'overlay_display_status', 'sim_id': '123'})
+        self.assertTrue(result['ok'])
+        self.assertEqual(clock.call_count, 2)
+        action.assert_called_once_with('overlay_display_status', '123', None, None)
+        self.assertEqual(record.call_args[0][0], 'overlay_display_status')
+        self.assertAlmostEqual(record.call_args[0][1], .6)
+        self.assertEqual(record.call_args[1], {'ok': True})
+
     def test_alarm_yields_after_one_queued_native_transaction(self):
         from apex_core.command_queue import CommandQueue
         queue = CommandQueue(clock=lambda: 0.0)

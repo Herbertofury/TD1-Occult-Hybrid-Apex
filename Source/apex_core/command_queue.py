@@ -7,7 +7,10 @@ import uuid
 
 
 class CommandQueue:
-    def __init__(self, capacity=48, completed_limit=128, clock=time.monotonic):
+    # The game's Windows Python monotonic clock can step by 15.625 ms. Use
+    # the high-resolution monotonic counter for both deadlines and 1 ms work
+    # budgets; never mix clock domains inside a retained request.
+    def __init__(self, capacity=48, completed_limit=128, clock=time.perf_counter):
         self.capacity = capacity
         self.completed_limit = completed_limit
         self.clock = clock

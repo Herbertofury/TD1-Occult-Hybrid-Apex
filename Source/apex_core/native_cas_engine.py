@@ -106,6 +106,11 @@ def argument(value):
         if type(value['milliseconds']) is not int or not 0 <= value['milliseconds'] <= 30000:
             raise ValueError('Native profiling requires zero to stop or a bounded duration up to thirty seconds.')
         return
+    if operation == 'profile-gfx-snapshot-pages' and set(value) == {'operation', 'scope_id', 'milliseconds', 'detail_timing'}:
+        if (type(value['milliseconds']) is not int or not 0 <= value['milliseconds'] <= 30000 or
+                type(value['detail_timing']) is not bool):
+            raise ValueError('Renderer page profiling requires a bounded duration and an explicit timing option.')
+        return
     if operation == 'entry-ready' and set(value) == {'operation', 'scope_id', 'sim_id'} and _identity(value['sim_id']):
         return
     if operation == 'export-owner-page' and set(value) == {'operation','scope_id','sim_id','expected_generation','after_owner_id'}:

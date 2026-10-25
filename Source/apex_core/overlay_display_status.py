@@ -124,10 +124,18 @@ def dispatch(backend, requested=None, value=None):
             raise ValueError('The selected native form map is unavailable.')
         form_keys = tuple((key, owner is not None) for key, owner in forms.items())
         membership = []
+        logical_membership = 0
         for occult in backend._all_occults(include_human=True):
             number = int(occult)
+            # SimInfo's raw channel can describe its current/native rendering
+            # context rather than the tracker's complete hybrid membership.
+            # Keep that raw value above, and ask the same cheap tracker query
+            # used by the actual occult controls for each membership row.
+            has_occult = bool(backend._has_occult(tracker, occult))
+            if number != 1 and has_occult:
+                logical_membership |= number
             membership.append({'name': str(backend._safe_name(occult)), 'value': number,
-                               'has_occult': bool(flags & number),
+                               'has_occult': has_occult,
                                'has_form_data': any(int(key) == number and present for key, present in form_keys),
                                'has_memory_trait': None, 'has_tuning': None})
         household, generator, members = _household(backend, sim, manager)
@@ -136,6 +144,9 @@ def dispatch(backend, requested=None, value=None):
                       occult_form_available=bool(getattr(tracker, '_occult_form_available', False)),
                       form_map_keys=[str(backend._safe_name(key)) for key, present in form_keys if present],
                       form_membership=membership,
+                      logical_occult_membership_mask=logical_membership,
+                      human_form_data_present=any(int(key) == 1 and present for key, present in form_keys),
+                      membership_observation='native-occult-tracker-query',
                       occults=[row for row in membership if row['name'].upper() != 'HUMAN'],
                       drift_warning_count=_known_warning_count(backend, sid))
         # A display packet cannot silently mix a replacement Sim/household/save.

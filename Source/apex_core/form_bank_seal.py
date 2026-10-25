@@ -34,9 +34,9 @@ _LOADED = {}
 # Source provenance remains retained. This grants metadata admission only;
 # native recovery keeps its separate exact-source/A0 upgrade requirements.
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-25-display-owner-phases-v337'
+UPGRADE_EPOCH = '2026-10-25-native-transport-gfx-profile-v339'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '1c77b7e7c75ce6e4761447195045ac0feed224939c41aff8601421cea6e7f0db'
+UPGRADE_SELF_BODY_SHA = 'f513a564cc019aa1b746a8726d18370286dc992c4e3604051d5c7448b7e352c0'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
@@ -79,7 +79,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/live_form_presentation.py': '31c2fc2cf41419878f068eb201cd81a67e9bef701b4ecefff99dac6e7d6ab1cd',
     'apex_core/morph_controls.py': 'd144ebd7a8dcbff5695b1a2747f641b17017b60a6c39bd904e467602d4c7f876',
     'apex_core/named_save_boundary.py': 'a2fc956db8ed98a8dd9b0a1e68dafe9a2a0061b0df70e0448bb26006e9e4b243',
-    'apex_core/native_cas_engine.py': 'aee7135dd5c7c682aee73283e27be13bb0f87732d2653a0aa254a1054c6a58bc',
+    'apex_core/native_cas_engine.py': 'b70ebdedeacaae698c01ceb75058cf371259429527cc37db2dfef3aaff713481',
     'apex_core/native_controls.py': 'b9d63713fb02f73245ed6febbafd4b641e33b06120a7a5123977d670741fd80d',
     'apex_core/native_form_isolation.py': '8b543ee251da890e30df2f96a961d4d7d76519816376617330f5136de414bb33',
     'apex_core/native_form_select.py': '5c3c9b28d82df3e6515169f3bb653f94ed9c9505d7745673514d85ed79744c44',
@@ -91,7 +91,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/occult_icons.py': '8d2cf390a254bba09d98928da9863f3980782bc4429786c3b0f2781ae4e76589',
     'apex_core/outfit_hair.py': 'f96b905caa86c118579590f942abe8d5ce665e07ed84db8d311fddcdb39243c4',
     'apex_core/outfit_snapshot.py': 'd6f60b352643961d200406aff95b3a850aa018f7538e4b75f883768bbaeb9d42',
-    'apex_core/overlay_display_status.py': '93dd093f3eb48a4c84a2dbb8fcef6ac67227f3f1760e248ef4ebc2edba80f1b6',
+    'apex_core/overlay_display_status.py': 'c5005b05f2e26fc775588e56f13e55d083974832b62a6c06cfc343b447938480',
     'apex_core/overlay_loader.py': '21ba456e3c6f26817ff224e40a26b099cca10f4baaba60ed0649c2d1f9ece1a1',
     'apex_core/phone_cas.py': 'd230422880c601c7549152330835f7c3b4445ef4c280fbcad7abbeed228e4fc3',
     'apex_core/phone_interactions.py': '05778ddb4e9e764ee4899cca39e5143bf3a4bd7d3bf61d4890c3e0466b72f025',
@@ -103,7 +103,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
     'apex_core/test_driver.py': '811c73e9309279ecd79cfd4d7ae884aecf3a32081f3135f533bc0b938a471b37',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
-    'td1_occult_hybrid_apex.py': '84bae70d7637ce9e63c9242cb2fc37e88547a9e8cb81aa75fdf4bcd71ba3326c',
+    'td1_occult_hybrid_apex.py': '7631341683a8d4d0f5bfeb51c8f6e4a4e660f02d2d3a23f866e7fa595fc2f082',
 }
 _SEAL_FIELDS = ('intent_id', 'identity', 'contract_sha256', 'target',
                 'bank_record_sha256', 'appearances', 'file_sha256')

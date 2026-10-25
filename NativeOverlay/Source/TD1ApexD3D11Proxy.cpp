@@ -24,6 +24,8 @@
 #include <mutex>
 #include <thread>
 #include "ApexBackgroundKeyboard.h"
+#include "ApexTransportWake.h"
+#include "ApexHttpResponseFrame.h"
 #include <deque>
 #include <string>
 #include <vector>
@@ -132,6 +134,7 @@ struct QueuedCommand { std::string path; uint64_t generation; bool automaticCasR
     bool ownerObservation = false; std::string ownerRequestId;
     std::string casBankAction; };
 static std::deque<QueuedCommand> g_commands;
+static std::atomic<transport::WorkerWake*> g_workerWake{nullptr};
 static std::atomic<bool> g_occultIconsRequested{false};
 static std::string g_lifeStateReply; // g_dataMutex; retained across ordinary status refreshes
 static uint64_t g_lifeStateReplyGeneration=0;
@@ -439,6 +442,45 @@ static const CasBodyTypeDef kCasBodyTypes[] = {
 };
 
 
+// All callbacks below signal only the detached transport worker. They never
+// wake/execute a Sims game-thread command or alter its UUID/owner admission.
+static void WakeWorker() noexcept {
+    auto* wake=g_workerWake.load(std::memory_order_acquire);
+    if(wake) wake->Notify();
+}
+static void EnqueueCommandLocked(QueuedCommand command) {
+    // Every existing producer retains its existing data mutex, caps and order.
+    g_commands.push_back(std::move(command)); WakeWorker();
+}
+static bool SetOverlayVisible(bool visible) noexcept {
+    const bool previous=g_visible.exchange(visible);
+    if(previous!=visible) WakeWorker();
+    return previous;
+}
+static void SetNativeCasPaneVisible(bool visible) noexcept {
+    if(g_nativeCasPaneVisible.exchange(visible)!=visible) WakeWorker();
+}
+static void SetOwnerBlocked(bool blocked) noexcept {
+    if(g_ownerBlocked.exchange(blocked)!=blocked) WakeWorker();
+}
+static void StopWorker() noexcept {
+    g_done=true; WakeWorker();
+}
+static void WaitForWorkerWork() noexcept {
+    {
+        std::lock_guard<std::mutex> lock(g_dataMutex);
+        if(!g_commands.empty()) return; // Coalesced signals never stand in for queued command counts.
+    }
+    if(g_done.load()) return;
+    auto* wake=g_workerWake.load(std::memory_order_acquire);
+    const bool visible=g_visible.load();
+    const bool available=wake && wake->Available();
+    const auto wait=transport::IdleWaitMilliseconds(GetTickCount64(),g_lastStatusMs.load(),
+        visible,g_nativeCasPaneVisible.load(),g_ownerBlocked.load(),available);
+    if(!available || wake->Wait(wait)==transport::WakeResult::Unavailable)
+        Sleep(visible?120:250); // Creation/wait failure retains bounded old behavior.
+}
+
 static void Debug(const char* text) {
     OutputDebugStringA("[TD1 Apex Overlay] ");
     OutputDebugStringA(text);
@@ -521,6 +563,7 @@ static bool HttpGet(const std::string& path, std::string& body, ULONGLONG deadli
         sent += static_cast<size_t>(n);
     }
     std::string raw;
+    http::ResponseFrame frame(ui::kMaxOwnerJsonBytes);
     char buf[8192];
     for (;;) {
         DWORD timeout = remainingTimeout();
@@ -528,20 +571,17 @@ static bool HttpGet(const std::string& path, std::string& body, ULONGLONG deadli
         setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
         int n = recv(s, buf, sizeof(buf), 0);
         if (n < 0) { closesocket(s); return false; }
-        if (n == 0) break;
+        if (n == 0) {
+            if(frame.EndOfStream(raw)!=http::ResponseProgress::Complete) { closesocket(s); return false; }
+            break;
+        }
         raw.append(buf, buf + n);
-        if (raw.size() > ui::kMaxOwnerJsonBytes + 16384) { closesocket(s); return false; }
+        const auto progress=frame.Observe(raw);
+        if(progress==http::ResponseProgress::Rejected) { closesocket(s); return false; }
+        if(progress==http::ResponseProgress::Complete) break;
     }
     closesocket(s);
-    size_t pos = raw.find("\r\n\r\n");
-    if (pos == std::string::npos || raw.find("HTTP/1.1 200 ") != 0) return false;
-    body = raw.substr(pos + 4);
-    size_t lengthKey = raw.find("Content-Length:");
-    if (lengthKey == std::string::npos || lengthKey >= pos) return false;
-    const char* begin = raw.c_str() + lengthKey + strlen("Content-Length:");
-    char* end = nullptr;
-    unsigned long declared = strtoul(begin, &end, 10);
-    if (!end || end == begin || *end != '\r' || declared != body.size()) return false;
+    body = raw.substr(frame.BodyOffset(),frame.BodySize());
     size_t last = body.find_last_not_of(" \t\r\n");
     return last != std::string::npos && body[last] == '}' && !ui::ReadObject(body).empty();
 }
@@ -766,7 +806,7 @@ static bool QueueResource(int operation, const ui::Json& row = ui::Json::object(
         g_resourceOpenKey = ResourceKey(row);
         g_resourceOpenStatus = "Opening the verified containing package copy; request is submitted once.";
     }
-    busy = true; g_commands.push_back(std::move(command));
+    busy = true; EnqueueCommandLocked(std::move(command));
     return true;
 }
 
@@ -778,7 +818,7 @@ static bool QueueLibrary(int operation, const ui::Json& request,bool dataLocked=
     QueuedCommand command{"", g_selectionGeneration};
     command.resourceOperation = operation; command.resourceRow = request;
     command.resourceSelection = ++g_librarySerial;
-    g_libraryBusy = true; g_commands.push_back(std::move(command));
+    g_libraryBusy = true; EnqueueCommandLocked(std::move(command));
     return true;
 }
 
@@ -789,7 +829,7 @@ static bool QueueGallery(int operation,const ui::Json& request,bool dataLocked=f
     if(busy||g_commands.size()>=48)return false;
     QueuedCommand command{"",g_selectionGeneration};command.resourceOperation=operation;command.resourceRow=request;
     command.resourceSelection=operation==10?g_gallerySerial.load():++g_gallerySerial;
-    busy=true;g_commands.push_back(std::move(command));return true;
+    busy=true;EnqueueCommandLocked(std::move(command));return true;
 }
 
 static bool QueueThumbnail(const ui::Json& item,bool dataLocked=false) {
@@ -798,7 +838,7 @@ static bool QueueThumbnail(const ui::Json& item,bool dataLocked=false) {
     std::unique_lock<std::mutex> lock(g_dataMutex,std::defer_lock);if(!dataLocked)lock.lock();if(g_commands.size()>=48||g_thumbnailScene)return false;
     QueuedCommand command{"",g_selectionGeneration};command.resourceOperation=11;command.resourceSelection=g_libraryImageSerial.load();
     command.resourceRow={{"part_id",item["part_id"]},{"base_scene_id",g_simPreview.scene.id},{"resource_tgi",item["resource_tgi"]},{"resource_sha256",item["resource_sha256"]},{"body_type",item["body_type"]}};
-    g_thumbnailAttempted.insert(ui::Scalar(item,"part_id"));g_commands.push_back(std::move(command));g_thumbnailBusy=true;return true;
+    g_thumbnailAttempted.insert(ui::Scalar(item,"part_id"));EnqueueCommandLocked(std::move(command));g_thumbnailBusy=true;return true;
 }
 
 static void RunResourceCommand(const QueuedCommand& command) {
@@ -971,7 +1011,7 @@ static bool QueueCommand(const std::string& path, const std::string& nativeId = 
     }
     QueuedCommand command{path, g_selectionGeneration}; command.sim = g_selectedSim;
     if (ui::CasRequestIdentity(ui::Json(nativeId))) command.casRequestId = nativeId;
-    g_commands.push_back(std::move(command));
+    EnqueueCommandLocked(std::move(command));
     return true;
 }
 
@@ -1011,7 +1051,7 @@ static bool QueueCasBankActionLocked(const std::string& action) {
     if (!argument.is_null()) path+="&value="+UrlEncode(argument.dump());
     QueuedCommand command{path,g_selectionGeneration}; command.sim=g_selectedSim; command.casBankAction=action;
     ui::BankSubmitted(g_casBank,action); g_casBankBusy=true;
-    g_commands.push_back(std::move(command)); return true;
+    EnqueueCommandLocked(std::move(command)); return true;
 }
 static bool QueueCasBankAction(const std::string& action) {
     std::lock_guard<std::mutex> lock(g_dataMutex);
@@ -1085,7 +1125,7 @@ static bool RetainCommandOwner(const QueuedCommand& command, const std::string& 
     if (ui::RetainOwnerObservation(g_ownerObservation, receipt, command.generation, command.sim,
         command.casRequestId, GetTickCount64())) {
         g_ownerOriginalCommand = command;
-        g_ownerBlocked = true;
+        SetOwnerBlocked(true);
     }
     return g_ownerBlocked.load();
 }
@@ -1099,7 +1139,7 @@ static bool QueueOwnerObservation(bool explicitCheck) {
     command.sim = g_ownerObservation.sim; command.ownerObservation = true;
     command.ownerRequestId = g_ownerObservation.requestId;
     g_ownerObservation.checking = true; g_ownerObservation.lastCheckMs = now;
-    g_commands.push_back(std::move(command));
+    EnqueueCommandLocked(std::move(command));
     return true;
 }
 
@@ -1168,7 +1208,7 @@ static void ApplyOwnerObservation(const QueuedCommand& command, bool received, c
             ++g_casRefreshReceipt;
         }
     }
-    g_ownerObservation.requestId.clear(); g_ownerBlocked = false; g_casSubmissionBusy = false;
+    g_ownerObservation.requestId.clear(); SetOwnerBlocked(false); g_casSubmissionBusy = false;
     g_status = "Retained owner command resolved; see its original result";
 }
 
@@ -1365,7 +1405,7 @@ static void WorkerLoop() {
         }
         if (g_visible.load() && !g_nativeCasPaneVisible.load() && !g_ownerBlocked.load()) {
             ULONGLONG now = GetTickCount64();
-            if (now - g_lastStatusMs >= 1300) {
+            if (now - g_lastStatusMs >= transport::StatusIntervalMs) {
                 g_lastStatusMs = now;
                 std::string body;
                 std::string sim;
@@ -1382,18 +1422,25 @@ static void WorkerLoop() {
                     auto lines = ExtractHistory(body);
                     if (!lines.empty()) g_logLines = lines;
                     std::string sid = ui::StatusScalar(ui::ReadObject(body), "sim_id");
-                    if (!sid.empty() && g_selectedSim.empty()) { g_selectedSim = sid; ++g_selectionGeneration; }
+                    if (!sid.empty() && g_selectedSim.empty()) { g_selectedSim = sid; ++g_selectionGeneration; WakeWorker(); }
                 }
             }
         }
-        Sleep(g_visible.load() ? 120 : 250);
+        WaitForWorkerWork();
     }
     g_workerActive = false;
 }
 
 static void EnsureWorker() {
-    static bool started = false;
-    if (!started) { started = true; std::thread(WorkerLoop).detach(); }
+    static std::once_flag startOnce;
+    std::call_once(startOnce, [] {
+        // Process-lifetime storage: DllMain can signal without initialization,
+        // allocation, C++ locks or closing an event a detached thread waits on.
+        auto* wake=new transport::WorkerWake;
+        g_workerWake.store(wake,std::memory_order_release);
+        if(!wake->Available()) Debug("Transport wake unavailable; bounded polling fallback remains active.");
+        std::thread(WorkerLoop).detach();
+    });
 }
 
 static void CreateRenderTarget(IDXGISwapChain* sc) {
@@ -1447,7 +1494,7 @@ static void SynchronizeOccultIcons() {
        !g_ownerBlocked&&!g_ownerNativeDeliveryBusy&&!g_casBankBusy) {
         std::lock_guard<std::mutex> lock(g_dataMutex);
         if(!g_done&&g_commands.size()<48){QueuedCommand command{"/api/command?action=occult_icons",g_selectionGeneration};
-            command.occultIcons=true;g_commands.push_back(std::move(command));g_occultIconsRequested=true;++g_occultIconsReadAttempts;}
+            command.occultIcons=true;EnqueueCommandLocked(std::move(command));g_occultIconsRequested=true;++g_occultIconsReadAttempts;}
     }
 #endif
 }
@@ -2467,7 +2514,7 @@ static void RefreshStudioItems() {
         std::lock_guard<std::mutex> lock(g_dataMutex);
         if (g_commands.empty() && !g_casSubmissionBusy.load() && !g_ownerBlocked.load() && !g_ownerNativeDeliveryBusy.load() && !g_casBankBusy.load()) {
             QueuedCommand command{path, g_selectionGeneration}; command.automaticStudioItems = true; command.sim = g_selectedSim;
-            g_commands.push_back(std::move(command)); g_studioItemRequest = request; g_studioItemsBusy = true;
+            EnqueueCommandLocked(std::move(command)); g_studioItemRequest = request; g_studioItemsBusy = true;
         }
     }
 }
@@ -2829,7 +2876,7 @@ static void DrawLiveLibrary() {
         if(g_commands.size()<48) {
             QueuedCommand command{"",g_selectionGeneration};command.resourceOperation=7;command.resourceSelection=g_libraryImageSerial.load();
             command.resourceRow={{"part_ids",wanted},{"index_sha256",page["index_sha256"]},{"gender",g_libraryImageGender?"female":"male"}};
-            if(library::ImagesRequest(command.resourceRow)){for(const auto& id:wanted)g_libraryImageAttempted.insert(id.get<std::string>());g_libraryImagesBusy=true;g_commands.push_back(std::move(command));}
+            if(library::ImagesRequest(command.resourceRow)){for(const auto& id:wanted)g_libraryImageAttempted.insert(id.get<std::string>());g_libraryImagesBusy=true;EnqueueCommandLocked(std::move(command));}
         }
     }
     const ui::Json selection = {{"part_id", g_librarySelected}, {"index_sha256", page["index_sha256"]}};
@@ -2969,7 +3016,7 @@ static bool QueueAutomaticCasRefresh(const std::string& sim) {
     if (!g_commands.empty() || sim != g_selectedSim || g_done.load() || g_casBankBusy.load()) {
         g_casSubmissionBusy = false; return false;
     }
-    g_commands.push_back({"/api/command?action=cas_ui_diagnostics&sim_id=" + UrlEncode(sim),
+    EnqueueCommandLocked({"/api/command?action=cas_ui_diagnostics&sim_id=" + UrlEncode(sim),
         g_selectionGeneration, true, sim});
     return true;
 }
@@ -2982,7 +3029,7 @@ static bool QueueAutomaticCasReconcile(const std::string& sim, const std::string
     if (!g_commands.empty() || sim != g_selectedSim || g_done.load() || g_casBankBusy.load()) {
         g_casSubmissionBusy = false; return false;
     }
-    g_commands.push_back({"/api/command?action=cas_ui_result&sim_id=" + UrlEncode(sim) + "&value=" + UrlEncode(requestId),
+    EnqueueCommandLocked({"/api/command?action=cas_ui_result&sim_id=" + UrlEncode(sim) + "&value=" + UrlEncode(requestId),
         g_selectionGeneration, false, sim, true, requestId});
     return true;
 }
@@ -3006,7 +3053,7 @@ static void DrawNativeCas(const std::string& reply, ULONGLONG replyMs, bool hist
     std::string observedReply = reply, deliveredReply;
     ULONGLONG observedReplyMs = replyMs;
     const auto now = GetTickCount64();
-    g_nativeCasPaneVisible = true; g_nativeCasPaneMs = now;
+    SetNativeCasPaneVisible(true); g_nativeCasPaneMs = now;
     {
         std::lock_guard<std::mutex> lock(g_dataMutex);
         sim = g_selectedSim;
@@ -3354,7 +3401,7 @@ static bool QueueTrayPreview(bool dataLocked=false) {
     const auto r=tray::Request(g_trayPreviewForms,g_trayPreviewFormIndex,g_trayPreviewOutfitIndex);
     std::unique_lock<std::mutex> lock(g_dataMutex,std::defer_lock);if(!dataLocked)lock.lock();if(g_simPreviewBusy||g_commands.size()>=48||context!=g_simPreviewContext)return false;
     QueuedCommand command{"",g_selectionGeneration};command.sim=g_selectedSim;command.simPreview=true;
-    command.resourceRow={{"context",context},{"tray_request",r}};g_commands.push_back(std::move(command));
+    command.resourceRow={{"context",context},{"tray_request",r}};EnqueueCommandLocked(std::move(command));
     g_simPreviewBusy=true;g_simPreviewAttemptedContext=context;g_simPreviewStatus="Assembling the exact Tray form in memory...";return true;
 }
 
@@ -3365,7 +3412,7 @@ static bool QueueTrayClipboard() {
     if(label.size()>256)label=ui::Scalar(r,"sim_id")+" / Tray / "+tray::FormName(r["form"].get<unsigned>());
     std::lock_guard<std::mutex> lock(g_dataMutex);if(g_commands.size()>=48)return false;
     QueuedCommand command{"",g_selectionGeneration};command.sim=g_selectedSim;command.trayClipboard=true;
-    command.resourceRow={{"tray_request",r},{"label",label},{"target_form",g_studioData.at("inspected_form_flags")}};g_commands.push_back(std::move(command));g_trayClipboardResult=ui::Json::object();g_trayClipboardBusy=true;return true;
+    command.resourceRow={{"tray_request",r},{"label",label},{"target_form",g_studioData.at("inspected_form_flags")}};EnqueueCommandLocked(std::move(command));g_trayClipboardResult=ui::Json::object();g_trayClipboardBusy=true;return true;
 }
 
 // Process a completed scene even when its compact tab is not selected. GPU
@@ -3416,7 +3463,7 @@ static void DrawIndependentSimPreview() {
         const ui::Json envelope={{"form",std::stoul(form)},{"value",value.dump()}};
         std::lock_guard<std::mutex> lock(g_dataMutex);
         if(g_commands.size()<48){QueuedCommand command{"/api/command?action=studio_preview_snapshot&sim_id="+UrlEncode(g_selectedSim)+"&value="+UrlEncode(envelope.dump()),g_selectionGeneration};
-            command.sim=g_selectedSim;command.simPreview=true;command.resourceRow={{"context",context}};g_commands.push_back(std::move(command));g_simPreviewBusy=true;g_simPreviewAttemptedContext=context;g_simPreviewStatus="Reading the exact selected appearance...";}
+            command.sim=g_selectedSim;command.simPreview=true;command.resourceRow={{"context",context}};EnqueueCommandLocked(std::move(command));g_simPreviewBusy=true;g_simPreviewAttemptedContext=context;g_simPreviewStatus="Reading the exact selected appearance...";}
         }
     }
     if(!g_simPreview.Texture()&&g_simPreview.scene.id.empty()){ImGui::TextWrapped("%s",status.c_str());return;}
@@ -3562,7 +3609,7 @@ static void DrawAppearanceSliders() {
             if(g_sliderLibraryBusy)return;offset=std::max(0,next);g_sliderLibraryBusy=true;
             QueuedCommand command{"",g_selectionGeneration};command.resourceOperation=12;
             command.resourceRow={{"search",librarySearch},{"offset",offset},{"limit",25},{"kind",kinds[kind]},{"conflicts_only",conflictsOnly}};
-            g_commands.push_back(std::move(command));g_sliderLibraryStatus="Reading immutable slider catalog...";
+            EnqueueCommandLocked(std::move(command));g_sliderLibraryStatus="Reading immutable slider catalog...";
         };
         ImGui::BeginDisabled(g_sliderLibraryBusy);if(ImGui::Button("Search definitions"))query(0);
         ImGui::SameLine();if(ImGui::Button("Previous definitions"))query(std::max(0,offset-25));
@@ -3912,7 +3959,7 @@ static void LoadOverlayConfig() {
 }
 
 static void DrawOverlay() {
-    g_nativeCasPaneVisible = ui::CasNativePaneVisible(g_visible.load(), g_nativeCasView, g_activeTab);
+    SetNativeCasPaneVisible(ui::CasNativePaneVisible(g_visible.load(), g_nativeCasView, g_activeTab));
     g_nativeCasPaneMs = GetTickCount64();
     const auto display = ImGui::GetIO().DisplaySize;
     ImGui::SetNextWindowSize(ImVec2(std::max(400.0f, std::min(1180.0f, display.x - 40)), std::max(400.0f, std::min(920.0f, display.y - 60))), ImGuiCond_FirstUseEver);
@@ -3956,7 +4003,7 @@ static void DrawOverlay() {
         if (!g_ownerSubmissionBusy.load() && !g_ownerBlocked.load() && !g_ownerNativeDeliveryBusy.load() &&
             !g_casSubmissionBusy.load() && !g_casBankBusy.load() && !g_casPendingId[0] && !g_casRefreshClock.unresolved) {
         g_selectedSim = simBuf;
-        ++g_selectionGeneration;
+        ++g_selectionGeneration; WakeWorker();
         g_json = "{}";
         g_commandReply = "{}";
         g_commandReplyMs = 0;
@@ -3968,7 +4015,7 @@ static void DrawOverlay() {
         g_casRefreshSeen = g_casRefreshReceipt; g_casAutoMessage.clear();
         g_studioOutfitIndex = 0; g_studioPartIndex = 0;
         g_status = "Selection changed; waiting for current data";
-        g_lastStatusMs = 0;
+        g_lastStatusMs = 0; WakeWorker();
         }
     }
     ImGui::EndDisabled();
@@ -4028,14 +4075,14 @@ static void DrawOverlay() {
         DrawLogDock(logs); ImGui::EndChild();
     }
     DrawConfirmation();
-    g_nativeCasPaneVisible = ui::CasNativePaneVisible(g_visible.load(), g_nativeCasView, g_activeTab);
+    SetNativeCasPaneVisible(ui::CasNativePaneVisible(g_visible.load(), g_nativeCasView, g_activeTab));
     g_nativeCasPaneMs = GetTickCount64();
     ImGui::End();
 }
 
 static void ResetRenderer() {
-    g_visible = false;
-    g_nativeCasPaneVisible = false;
+    SetOverlayVisible(false);
+    SetNativeCasPaneVisible(false);
     CleanupRenderTarget();
     CleanupResourceTexture();
     CleanupLibraryImages();
@@ -4094,7 +4141,7 @@ static bool SelectSwapChain(IDXGISwapChain* sc) {
         if (desc.OutputWindow != g_hwnd) return false;
         const bool visible = g_visible.load();
         ResetRenderer();
-        g_visible = visible;
+        SetOverlayVisible(visible);
     }
     // Discover the actual window before the first keypress. The previous code
     // checked a null handle, then initialized it only after a successful toggle.
@@ -4126,7 +4173,7 @@ static void RenderOverlayFrame(IDXGISwapChain* sc) {
     LoadOverlayConfig();
     const bool foreground = GetAncestor(GetForegroundWindow(), GA_ROOT) == GetAncestor(g_hwnd, GA_ROOT);
     if (g_toggleInput.sample(foreground, (GetAsyncKeyState(g_toggleKey) & 0x8000) != 0)) {
-        g_visible = !g_visible.load();
+        SetOverlayVisible(!g_visible.load());
         ++g_toggleEvents;
     }
     const int capture = g_loaderStatus.load() >= 2 ? g_captureRequest.exchange(0) : 0;
@@ -4150,7 +4197,7 @@ static void RenderOverlayFrame(IDXGISwapChain* sc) {
                 if (capture == 4) SaveBackbufferBmp(sc, 4);
             }
         }
-    } else g_nativeCasPaneVisible = false;
+    } else SetNativeCasPaneVisible(false);
 }
 
 static thread_local unsigned g_presentDepth = 0;
@@ -4402,7 +4449,7 @@ extern "C" __declspec(dllexport) int WINAPI ApexOverlayStudio(unsigned long long
     {
         std::lock_guard<std::mutex> data(td1::g_dataMutex);
         if (td1::g_ownerBlocked.load() || td1::g_ownerNativeDeliveryBusy.load() || td1::g_ownerSubmissionBusy.load() || td1::g_casBankBusy.load()) return -2;
-        td1::g_selectedSim = std::to_string(sim); ++td1::g_selectionGeneration;
+        td1::g_selectedSim = std::to_string(sim); ++td1::g_selectionGeneration; td1::WakeWorker();
         td1::g_commandReply = "{}"; td1::g_studioLastReply.clear();
         td1::g_commandReplyMs = 0;
         td1::g_studioData = td1::ui::Json::object();
@@ -4413,9 +4460,9 @@ extern "C" __declspec(dllexport) int WINAPI ApexOverlayStudio(unsigned long long
         td1::g_casDiagnosticsSeenMs = 0; td1::g_casRefreshSeen = td1::g_casRefreshReceipt; td1::g_casAutoMessage.clear();
         td1::g_historyId[0] = '\0'; td1::g_previewId[0] = '\0';
     }
-    td1::g_activeTab = activeTab; td1::g_visible = true; td1::g_nativeCasView = nativeCas;
+    td1::g_activeTab = activeTab; td1::SetOverlayVisible(true); td1::g_nativeCasView = nativeCas;
     td1::g_libraryFocusRequested = tab == 15;
-    td1::g_nativeCasPaneVisible = nativeCas; td1::g_nativeCasPaneMs = GetTickCount64();
+    td1::SetNativeCasPaneVisible(nativeCas); td1::g_nativeCasPaneMs = GetTickCount64();
     if (nativeCas) {
         if (!td1::QueueCasAction({{"operation", "status"}})) return -3;
     } else td1::QueueAction("studio_status"); // The canonical game owner supplies accepted Live/bank data.
@@ -4491,12 +4538,12 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
                             (g_casBank.prepareAttempted && g_casBank.phase!="completed"))))
                         throw std::runtime_error("Select requires the exact current view and a completed Source Sim roster; resolve any prepared plan first.");
                     if (g_selectedSim!=sim || !ui::BankCurrent(g_casBank,g_selectedSim,g_selectionGeneration)) {
-                        g_selectedSim=sim; ++g_selectionGeneration;
+                        g_selectedSim=sim; ++g_selectionGeneration; WakeWorker();
                         g_casBank={}; g_casBank.sim=sim; g_casBank.generation=g_selectionGeneration;
                     }
                     g_commandReply="{}"; g_commandReplyMs=0; g_studioLastReply.clear(); g_studioData=ui::Json::object();
                     g_casClientData=ui::Json::object(); g_casSelectedItem=ui::Json::object();
-                    g_previewId[0]=0; g_historyId[0]=0; g_nativeCasView=false; g_activeTab=1; g_visible=true;
+                    g_previewId[0]=0; g_historyId[0]=0; g_nativeCasView=false; g_activeTab=1; SetOverlayVisible(true);
                     queued="cas_bank_status";
                 } else {
                     if (!ui::BankCurrent(g_casBank,g_selectedSim,g_selectionGeneration) ||
@@ -4525,22 +4572,22 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
             const auto& targetForms=selection["form_inventory"];
             for(size_t i=0;i<targetForms.size();++i)if(targetForms[i]["flags"]==selection["inspected_form_flags"])targetIndex=int(i);
             if(targetIndex<0||targetForms[size_t(targetIndex)]["outfit_inventory"].empty())throw std::runtime_error("Destination appearance owner has no outfit.");
-            g_selectedSim=sim;++g_selectionGeneration;g_studioData=selection;g_studioFormIndex=targetIndex;g_studioOutfitIndex=0;g_studioPartIndex=0;
+            g_selectedSim=sim;++g_selectionGeneration; WakeWorker();g_studioData=selection;g_studioFormIndex=targetIndex;g_studioOutfitIndex=0;g_studioPartIndex=0;
             g_trayPreviewForms=rows;g_trayPreviewFormIndex=formIndex;g_trayPreviewOutfitIndex=outfitIndex;g_trayPreviewActive=true;
             g_previewId[0]=0;
             g_trayClipboardResult=ui::Json::object();
-            g_studioLastReply.clear();g_commandReply="{}";g_commandReplyMs=0;g_nativeCasView=false;g_activeTab=12;g_visible=true;g_simPreviewAutomatic=true;
+            g_studioLastReply.clear();g_commandReply="{}";g_commandReplyMs=0;g_nativeCasView=false;g_activeTab=12;SetOverlayVisible(true);g_simPreviewAutomatic=true;
             g_simPreviewContext=SimPreviewContext();g_simPreviewAttemptedContext=g_simPreviewContext;
             if(!g_simPreview.scene.id.empty()){g_simPreviewSavedView=g_simPreview.view;g_simPreviewSavedSim=g_simPreview.scene.sim;}
             g_simPreview.Reset();g_simPreviewScene.reset();g_simPreviewFocusRequested=true;
             QueuedCommand command{"",g_selectionGeneration};command.sim=sim;command.simPreview=true;command.resourceRow={{"context",g_simPreviewContext},{"tray_request",source}};
-            g_commands.push_back(std::move(command));g_simPreviewBusy=true;g_simPreviewStatus="Loading the selected Tray form without importing a Sim...";
+            EnqueueCommandLocked(std::move(command));g_simPreviewBusy=true;g_simPreviewStatus="Loading the selected Tray form without importing a Sim...";
         }else if(operation=="tray-copy"){
             if(request.size()!=3||!g_trayPreviewActive||g_simPreviewBusy||g_trayClipboardBusy||g_ownerSubmissionBusy||g_ownerBlocked||g_casSubmissionBusy||g_casBankBusy||g_commands.size()>=48)throw std::runtime_error("Resolve the current preview/owner before copying its exact Tray form.");
             const auto r=tray::Request(g_trayPreviewForms,g_trayPreviewFormIndex,g_trayPreviewOutfitIndex);
             if(request.at("form")!=r.at("form")||request.at("native_sha256")!=r.at("native_sha256"))throw std::runtime_error("Displayed Tray form differs from copy intent.");
             QueuedCommand command{"",g_selectionGeneration};command.sim=g_selectedSim;command.trayClipboard=true;command.resourceRow={{"tray_request",r},{"label",ui::Scalar(r,"sim_id")+" / Tray / "+tray::FormName(r["form"].get<unsigned>())},{"target_form",g_studioData.at("inspected_form_flags")}};
-            g_commands.push_back(std::move(command));g_trayClipboardResult=ui::Json::object();g_trayClipboardBusy=true;
+            EnqueueCommandLocked(std::move(command));g_trayClipboardResult=ui::Json::object();g_trayClipboardBusy=true;
         }else if(operation=="load"){
             if(request.size()!=4||g_simPreviewBusy||g_ownerBlocked||g_ownerNativeDeliveryBusy||g_ownerSubmissionBusy||g_casSubmissionBusy||g_casBankBusy||g_casPendingId[0])throw std::runtime_error("Another owner operation is unresolved or preview fields differ.");
             const auto& job=request.at("job");const auto& selection=request.at("selection");
@@ -4560,32 +4607,32 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
             if(formIndex<0||outfitIndex<0||g_commands.size()>=48)throw std::runtime_error("Exact preview form/outfit is unavailable.");
             if(!request.at("automatic").is_boolean())throw std::runtime_error("Boolean automatic preview flag required.");
             g_trayPreviewActive=false;
-            g_selectedSim=sim;++g_selectionGeneration;g_studioData=selection;g_studioFormIndex=formIndex;g_studioOutfitIndex=outfitIndex;g_studioPartIndex=0;
+            g_selectedSim=sim;++g_selectionGeneration; WakeWorker();g_studioData=selection;g_studioFormIndex=formIndex;g_studioOutfitIndex=outfitIndex;g_studioPartIndex=0;
             strncpy_s(g_previewId,ui::Scalar(selection,"pending_preview").c_str(),_TRUNCATE);
-            g_studioLastReply.clear();g_commandReply="{}";g_commandReplyMs=0;g_nativeCasView=false;g_activeTab=12;g_visible=true;
+            g_studioLastReply.clear();g_commandReply="{}";g_commandReplyMs=0;g_nativeCasView=false;g_activeTab=12;SetOverlayVisible(true);
             g_simPreviewContext=SimPreviewContext();g_simPreviewAttemptedContext=g_simPreviewContext;g_simPreviewAutomatic=request.at("automatic").get<bool>();
             if(!g_simPreview.scene.id.empty()){g_simPreviewSavedView=g_simPreview.view;g_simPreviewSavedSim=g_simPreview.scene.sim;}
             g_simPreview.Reset();g_simPreviewScene.reset();g_simPreviewFocusRequested=true;
             QueuedCommand command{"",g_selectionGeneration};command.sim=sim;command.simPreview=true;command.resourceRow={{"context",g_simPreviewContext},{"job",job}};
-            g_commands.push_back(std::move(command));g_simPreviewBusy=true;g_simPreviewStatus="Loading the exact memory-only preview...";
+            EnqueueCommandLocked(std::move(command));g_simPreviewBusy=true;g_simPreviewStatus="Loading the exact memory-only preview...";
         }else if(operation=="mode"){
             if(request.size()!=2||!request.contains("apply_mode")||(request["apply_mode"]!="live"&&request["apply_mode"]!="preview")||g_previewId[0])throw std::runtime_error("Resolve the current try-on before selecting a typed apply mode.");
             g_livePartColor=request["apply_mode"]=="live";
         }else if(operation=="library-select"){
             auto selection=request;selection.erase("operation");
             if(g_libraryPage.value("query",ui::Json())!=CurrentLibraryQuery()||!library::VisibleSelection(g_libraryPage,g_libraryInspection,selection)||!QueueLibrary(5,selection,true))throw std::runtime_error("Select an exact visible item or its currently inspected swatch; wait for the current library request.");
-            g_workspaceFocusRequested=1;g_activeTab=12;g_visible=true;
+            g_workspaceFocusRequested=1;g_activeTab=12;SetOverlayVisible(true);
         }else if(operation=="thumbnail"){
             if(request.size()!=3||!resource::Hash(request,"part_id")||request.value("index_sha256",ui::Json())!=g_libraryPage.value("index_sha256",ui::Json()))throw std::runtime_error("Exact current catalog thumbnail selection required.");
             ui::Json item;if(g_libraryInspection.value("index_sha256",ui::Json())==request["index_sha256"]&&g_libraryInspection.contains("item")&&g_libraryInspection["item"].value("part_id",ui::Json())==request["part_id"])item=g_libraryInspection["item"];
             else if(g_libraryPage.contains("items"))for(const auto& row:g_libraryPage["items"])if(row["part_id"]==request["part_id"])item=row;
             if(item.empty()||!QueueThumbnail(item,true))throw std::runtime_error("Thumbnail is unresolved or its exact candidate is unavailable.");
-            g_workspaceFocusRequested=1;g_activeTab=12;g_visible=true;
+            g_workspaceFocusRequested=1;g_activeTab=12;SetOverlayVisible(true);
         }else if(operation=="gallery-query"){
             if(request.size()!=2||!request.contains("query")||!tray::Query(request["query"]))throw std::runtime_error("Typed Tray gallery page required.");
             const auto& q=request["query"];strcpy_s(g_gallerySearch,sizeof(g_gallerySearch),q["text"].get<std::string>().c_str());g_galleryOffset=q["offset"].get<size_t>();g_galleryKind=q["kind"]=="household"?1:q["kind"]=="lot"?2:q["kind"]=="room"?3:0;
             if(q["limit"]!=60||!QueueGallery(8,q,true))throw std::runtime_error("Gallery query is busy or page size differs.");g_galleryQueryNeeded=false;g_workspaceFocusRequested=3;
-            g_activeTab=12;g_visible=true;
+            g_activeTab=12;SetOverlayVisible(true);
         }else if(operation=="gallery-select"){
             auto selection=request;selection.erase("operation");if(!tray::Selection(selection)||selection.size()!=2||selection.value("library_sha256",ui::Json())!=g_galleryPage.value("library_sha256",ui::Json())||!ui::StudioDocument(g_studioData)||!ui::Scalar(g_studioData,"pending_preview").empty())throw std::runtime_error("Exact current Tray item and idle destination required.");
             bool present=false;for(const auto& item:g_galleryPage["items"])if(item["item_id"]==selection["item_id"]&&item["kind"]=="household"&&item["status"]=="ready")present=true;
@@ -4621,7 +4668,7 @@ extern "C" __declspec(dllexport) const char* WINAPI ApexSimPreviewControl(const 
                 g_libraryQueryNeeded=true;
             }
             if(values.contains("tab")){g_workspaceFocusRequested=values["tab"]=="equipped"?0:values["tab"]=="library"?1:values["tab"]=="tray"?3:2;g_libraryFocusRequested=false;}
-            g_activeTab=12;g_visible=true;
+            g_activeTab=12;SetOverlayVisible(true);
         }else if(operation=="view"){
             if(request.size()!=3||ui::Scalar(request,"scene_id")!=g_simPreview.scene.id||g_simPreview.scene.id.empty()||g_simPreviewBusy)throw std::runtime_error("Exact loaded preview scene required.");
             g_simPreview.Control(request.at("values"));
@@ -4771,12 +4818,12 @@ extern "C" __declspec(dllexport) int WINAPI ApexGameInput(int command, int x, in
 }
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayShow() {
     if (!td1::g_hooked.load()) return -1;
-    td1::g_visible = true;
+    td1::SetOverlayVisible(true);
     return 0;
 }
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayHide() {
     if (!td1::g_hooked.load()) return -1;
-    td1::g_visible = false;
+    td1::SetOverlayVisible(false);
     return 0;
 }
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayStart() {
@@ -4836,7 +4883,7 @@ HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter* pAdapter, D3D_DRIVER_
 
 BOOL WINAPI DllMain(HINSTANCE hInst, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) DisableThreadLibraryCalls(hInst);
-    else if (reason == DLL_PROCESS_DETACH) { td1::g_done = true; }
+    else if (reason == DLL_PROCESS_DETACH) { td1::StopWorker(); }
     return TRUE;
 }
 
@@ -4914,7 +4961,7 @@ extern "C" int ApexRunNativeSmoke() {
     const std::string ownerId(32, 'a'), nativeId(32, 'b');
     const auto uncertain = ui::Json({{"ok",false},{"outcome","unresolved"},
         {"request_id",ownerId},{"request_state","unknown"}}).dump();
-    g_selectedSim = "22"; g_selectionGeneration = 2; g_visible = true;
+    g_selectedSim = "22"; g_selectionGeneration = 2; SetOverlayVisible(true);
     g_commandReply = "{\"message\":\"current selection\"}";
     QueuedCommand historical{"/api/command?action=studio_status&sim_id=11", 1}; historical.sim = "11";
     if (!RetainCommandOwner(historical, uncertain)) return 35;
@@ -4923,9 +4970,9 @@ extern "C" int ApexRunNativeSmoke() {
         g_commands.front().path != "/api/requests/status?request_id=" + ownerId ||
         !g_commands.front().ownerObservation || g_commands.front().sim != "11") return 36;
     const auto historicalCheck = g_commands.front(); g_commands.pop_front();
-    g_visible = false;
+    SetOverlayVisible(false);
     if (BeginOwnerObservation(historicalCheck) || g_ownerObservation.checking) return 46;
-    g_visible = true; g_ownerObservation.lastCheckMs = 0;
+    SetOverlayVisible(true); g_ownerObservation.lastCheckMs = 0;
     if (!QueueOwnerObservation(true) || g_commands.size() != 1) return 47;
     const auto resumedCheck = g_commands.front(); g_commands.pop_front();
     if (!BeginOwnerObservation(resumedCheck)) return 48;
@@ -4980,7 +5027,7 @@ extern "C" int ApexRunNativeSmoke() {
     char temporary[MAX_PATH]{}, captureFile[MAX_PATH]{};
     if (!swap || !device || !context || !GetTempPathA(MAX_PATH, temporary) ||
         !GetTempFileNameA(temporary, "APX", 0, captureFile)) return 60;
-    const bool previousVisibility = g_visible.exchange(false);
+    const bool previousVisibility = SetOverlayVisible(false);
     g_smokeCapturePath = captureFile;
     ID3D11Texture2D* plainBuffer = nullptr; ID3D11RenderTargetView* plainView = nullptr;
     const float plainColor[] = {1.0f,0.0f,0.0f,1.0f};
@@ -4996,7 +5043,7 @@ extern "C" int ApexRunNativeSmoke() {
         static_cast<unsigned char>(plain[54])!=0 || static_cast<unsigned char>(plain[55])!=0 ||
         static_cast<unsigned char>(plain[56])!=255 || g_device || g_context ||
         ImGui::GetCurrentContext() || g_renderedFrames.load()!=0 || g_visible.load()) return 61;
-    g_captureCompleted=0; g_visible=previousVisibility;
+    g_captureCompleted=0; SetOverlayVisible(previousVisibility);
     if (!HookSwapChain(swap)) return 13;
     D3D11_TEXTURE2D_DESC texture{};
     texture.Width = texture.Height = 64; texture.MipLevels = texture.ArraySize = 1;
@@ -5014,7 +5061,7 @@ extern "C" int ApexRunNativeSmoke() {
     context->OMSetRenderTargets(8, views, depth);
     // Exercise the actual DXGI function detour and all ImGui rendering code.
     // No synthesized physical key events are sent to any application.
-    g_visible = true;
+    SetOverlayVisible(true);
     swap->Present(0, 0);
     if (g_presentCount != 1 || !g_device || !ImGui::GetCurrentContext() || g_hwnd != window) return 16;
     g_selectedSim = "11"; g_selectionGeneration = 3; g_casAutoRefresh = false;
@@ -5052,7 +5099,7 @@ extern "C" int ApexRunNativeSmoke() {
     g_ownerObservation = {}; g_ownerOriginalCommand = {}; g_ownerDeliveredNativeReply.clear();
     g_selectedSim.clear(); g_selectionGeneration = 0; g_commandReply = g_json = "{}";
     g_casPendingId[0] = '\0'; g_casRefreshClock = {}; g_casLastReply.clear(); g_casAutoRefresh = true;
-    g_nativeCasPaneVisible = false;
+    SetNativeCasPaneVisible(false);
     // Upload actual owned RGBA pixels, then read back the GPU resource. This
     // isolates texture ownership/device cleanup from broker HTTP and CAS.
     const auto thumbnailKey = std::string(64, 'e') + ":" + std::string(64, 'f');
@@ -5146,13 +5193,13 @@ extern "C" int ApexRunNativeSmoke() {
     g_commandReply = numeric.dump(); g_activeTab = 12;
     swap->Present(0, 0);
     if (g_colorEditorKey.empty() || !g_studioData.contains("color_editor")) return 22;
-    g_visible = false;
+    SetOverlayVisible(false);
     swap->Present(0, 0);
     if (g_presentCount != 3 || g_workerActive.load()) return 20;
     ResetRenderer();
     if (g_device || g_context || g_hwnd || g_resourceTexture || !g_resourceTextureKey.empty() || ImGui::GetCurrentContext() || g_loaderStatus != 1) return 23;
     if (ApexGameInputMetric(0) != -1 || ApexGameInputMetric(5) != 0 || ApexGameInputMetric(6) != 0 || ApexGameInputMetric(8) != 0) return 29;
-    g_visible = true; swap->Present(0, 0);
+    SetOverlayVisible(true); swap->Present(0, 0);
     if (!g_device || g_loaderStatus != 3 || g_presentCount != 4) return 24;
     IDXGISwapChain1* newer = nullptr;
     if (FAILED(swap->QueryInterface(__uuidof(IDXGISwapChain1), reinterpret_cast<void**>(&newer))) || !g_realPresent1) return 25;

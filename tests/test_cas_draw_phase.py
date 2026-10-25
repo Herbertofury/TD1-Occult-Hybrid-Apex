@@ -88,10 +88,38 @@ class GranularContinuationTests(unittest.TestCase):
         self.assertEqual(before['code'][:profile],after['code'][:profile]);self.assertEqual(profile,1590)
         self.assertEqual(r['draw_phase_contract']['phase_sites'],phase.COUNTS)
 
+    def test_compiler_import_resolves_timer_directly_without_a_runtime_flash_object(self):
+        _,final=self.fixture();a=binding._ABC(binding._abc_payload(final)[1]).parse()
+        for name in phase.OWNED:
+            row=phase._named(a,phase.MAIN,name);phase._verify_timer_binding(a,row)
+            semantic=phase._semantic(a,row)
+            self.assertIn('93:7:getTimer:22:flash.utils',semantic)
+            self.assertIn('70:7:getTimer:22:flash.utils:0',semantic)
+            self.assertNotIn('96:9:flash:',semantic)
+        source=phase.inject('package widgets.CAS.Customizer\n{\n   public class CASCustomizerMain\n   {\n   }\n}')
+        self.assertIn('import flash.utils.getTimer;',source)
+        self.assertNotIn('flash.utils.getTimer()',source)
+
+    def test_unimported_compiler_stub_is_explicitly_rejected(self):
+        bad=ROOT/'.work/v338-draw-namespace/unimported-compiled.swf'
+        if not bad.is_file():self.skipTest('Private captured failing compiler fixture required')
+        a=binding._ABC(binding._abc_payload(bad.read_bytes())[1]).parse()
+        for name in phase.OWNED:
+            with self.subTest(method=name),self.assertRaisesRegex(ValueError,'unresolved runtime flash'):
+                phase._verify_timer_binding(a,phase._named(a,phase.MAIN,name))
+
+    def test_actual_production_stub_semantics_ignore_only_common_debug_source_offset(self):
+        actual=ROOT/'.work/research/draw-phases/compiled.swf'
+        if not actual.is_file():self.skipTest('Private actual-production compiler fixture required')
+        a=binding._ABC(binding._abc_payload(actual.read_bytes())[1]).parse()
+        for name in phase.OWNED:
+            row=phase._named(a,phase.MAIN,name);phase._verify_timer_binding(a,row)
+            self.assertEqual(phase.digest(phase._semantic(a,row).encode()),phase.SEMANTICS[name])
+
     def test_rehashed_counts_phase_fidelity_sources_and_history_corruption_refused(self):
         original,final=self.fixture()
         for name,value in [('ok',1),('disabled_added_instructions',False),('changed_draw_bodies',True),('granular_sites',46),('appended_methods',1),('appended_fields',False),
-            ('native_throw_propagation_retained',False),('disabled_fast_tail_exact',False),('runtime_qualified',True),('performance_gain_claimed',True),('abc_sha256','0'*64)]:
+            ('native_throw_propagation_retained',False),('disabled_fast_tail_exact',False),('native_timer_namespace_verified',False),('runtime_qualified',True),('performance_gain_claimed',True),('abc_sha256','0'*64)]:
             r=copy.deepcopy(original);r['draw_phase_contract'][name]=value;self.refresh(r)
             with self.subTest(field=name),self.assertRaises(ValueError):phase.verify_contract(r,final)
         r=copy.deepcopy(original);r['draw_phase_contract']['phase_sites']['overlay']=True;self.refresh(r)
@@ -119,7 +147,7 @@ class GranularContinuationTests(unittest.TestCase):
             r=subprocess.run(['javac','-cp',str(jar),'-d',work,str(ROOT/'tools/CasStructuralRolesPatch.java'),str(ROOT/'tools/CasCommunicationIndexPatch.java'),str(ROOT/'tools/CasDrawPhasePatch.java'),str(ROOT/'tests/CasDrawPhaseBytecodeFixtures.java')],capture_output=True,text=True,timeout=45)
             self.assertEqual(r.returncode,0,r.stdout+r.stderr)
             r=subprocess.run(['java','-cp',str(jar)+os.pathsep+work,'CasDrawPhaseBytecodeFixtures',str(WORK/'baseline.swf'),str(WORK/'final.swf')],capture_output=True,text=True,timeout=45)
-            self.assertEqual(r.returncode,0,r.stdout+r.stderr[-2500:]);self.assertEqual(r.stdout.count('PASS '),11)
+            self.assertEqual(r.returncode,0,r.stdout+r.stderr[-2500:]);self.assertEqual(r.stdout.count('PASS '),17)
 
 
 if __name__=='__main__':unittest.main()

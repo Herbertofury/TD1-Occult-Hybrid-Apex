@@ -1,13 +1,61 @@
 from pathlib import Path
+import importlib.util
 import sys
 import threading
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
 from apex_core.command_queue import CommandQueue
+import apex_core.command_queue as command_queue
 
 
 class QueueTests(unittest.TestCase):
+    def high_resolution_default_queue(self, now):
+        # Execute the production module/default argument, not an explicitly
+        # injected queue clock. The real game's older Windows Python monotonic
+        # source can stay on the same 15.625 ms tick across this whole command.
+        coarse = lambda: int(now[0] / .015625) * .015625
+        precise = lambda: now[0]
+        fake_time = SimpleNamespace(monotonic=coarse, perf_counter=precise)
+        spec = importlib.util.spec_from_file_location('apex_high_resolution_queue_fixture', command_queue.__file__)
+        module = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, {'time': fake_time}):
+            spec.loader.exec_module(module)
+        queue = module.CommandQueue()
+        self.assertIs(queue.clock, precise)
+        return queue, coarse
+
+    def test_default_high_resolution_clock_measures_sub_tick_overrun_and_yields(self):
+        now = [100.0]
+        queue, coarse = self.high_resolution_default_queue(now)
+        initial_tick = coarse()
+        ids = [queue.submit({'action': str(index)})['request_id'] for index in range(2)]
+        calls = []
+        def execute(value):
+            calls.append(value['action'])
+            now[0] += .0014
+            return {'ok': True}
+        self.assertEqual(queue.drain(execute, budget_seconds=.001), 1)
+        self.assertEqual(coarse(), initial_tick)
+        self.assertEqual(calls, ['0'])
+        self.assertEqual(queue.status(ids[0])['state'], 'completed')
+        self.assertEqual(queue.status(ids[1])['state'], 'pending')
+        self.assertEqual(queue.metrics()['over_budget'], 1)
+        self.assertAlmostEqual(queue.metrics()['command_max_ms'], 1.4)
+        self.assertAlmostEqual(queue.metrics()['drain_max_ms'], 1.4)
+
+    def test_default_ttl_deadlines_use_the_same_precise_clock_as_budget(self):
+        now = [100.0]
+        queue, coarse = self.high_resolution_default_queue(now)
+        initial_tick = coarse()
+        request = queue.submit({'action': 'never-execute'}, ttl=.001)['request_id']
+        now[0] += .0014
+        self.assertEqual(coarse(), initial_tick)
+        self.assertEqual(queue.drain(lambda _: self.fail('Expired work was executed')), 0)
+        self.assertEqual(queue.status(request)['state'], 'cancelled')
+
     def test_expired_and_timed_out_mutations_never_execute(self):
         now = [0.0]
         queue = CommandQueue(clock=lambda: now[0])

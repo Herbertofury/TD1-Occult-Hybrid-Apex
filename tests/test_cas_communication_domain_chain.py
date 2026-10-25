@@ -119,11 +119,8 @@ class DomainContinuationTests(unittest.TestCase):
 
     def test_actual_dependency_builder_block_chains_index_domain_removal_and_image(self):
         tree = ast.parse(Path(cas_ui_build.__file__).read_text())
-        build = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'build')
-        start = next(i for i, node in enumerate(build.body) if isinstance(node, ast.Import)
-                     and any(alias.name == 'cas_communication_dependency' for alias in node.names))
-        end = next(i for i in range(start, len(build.body)) if isinstance(build.body[i], ast.Assign)
-                   and any(isinstance(target, ast.Name) and target.id == 'dependencies' for target in build.body[i].targets))
+        method = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                      and node.name == 'adapt_dependency_provider')
         record, domain_bytes = fixture('dependency')
         removal_stage = ROOT / '.work/v333-removal-miss-dependency'
         removal_record = json.loads((removal_stage / 'chained.json').read_text())
@@ -162,10 +159,12 @@ class DomainContinuationTests(unittest.TestCase):
                  patch.object(removal, 'adapt', side_effect=adapt_removal), \
                  patch.object(image, 'adapt', side_effect=adapt_image), \
                  patch.object(pool, 'adapt', side_effect=AssertionError('Dependency must stay image-final')):
-                exec(compile(ast.Module(body=build.body[start:end + 1], type_ignores=[]), '<actual-dependency-seam>', 'exec'), namespace)
+                exec(compile(ast.Module(body=[method], type_ignores=[]), '<actual-dependency-seam>', 'exec'), namespace)
+                output, adapter = namespace['adapt_dependency_provider'](
+                    namespace['cleanup_library'], namespace['ffdec'], namespace['work'], cache=None)
             self.assertEqual(order, ['dependency', 'domain', 'removal', 'image'])
-            self.assertEqual(namespace['dependency_payload'], final)
-            self.assertEqual(namespace['dependencies'], {dbpf_build.tgi(KINDS['dependency']): latest})
+            self.assertEqual(output, final)
+            self.assertEqual(adapter, latest)
 
 
 @unittest.skipUnless(READY and (ROOT / 'dist/candidate/ApexCASBridge.package').is_file() and

@@ -17,8 +17,8 @@ CELL='widgets.CAS.controls.CASClothingPanelCellViewMain'
 PHASES=('overlay','geometry','state','context','tooltip')
 COUNTS={'overlay':3,'geometry':9,'state':15,'context':11,'tooltip':9}
 OWNED=('ApexCatalogTraceConfigure','ApexCatalogTraceStep')
-SEMANTICS={'ApexCatalogTraceConfigure':'edf34d58dc3957fe2ad2b7dea4edd00b48598351111782e96f1343501589c71c',
-           'ApexCatalogTraceStep':'c081825d9e5038bfee416776817fa942ada11021f967791342253de52b98db45'}
+SEMANTICS={'ApexCatalogTraceConfigure':'f4cc380bea6e4ea55385cc22b9133deb9750307d70abf119da7b9664561148b2',
+           'ApexCatalogTraceStep':'59ba48e2346931068847a55b9be674a08521fe015601d28d63f99a5c06d7d6d1'}
 
 
 def digest(raw):return hashlib.sha256(raw).hexdigest()
@@ -39,6 +39,12 @@ def _semantic(a,row):
         if t['flags']&15 not in (0,6):raise ValueError('Granular diagnostic activation has a non-slot trait.')
         text+='|local:'+_qname(a,t['name'])+':'+_qname(a,t['type'])+':'+str(t['slot'])+':'+str(t['value'])+':'+str(t.get('value_kind',0))
     code=a.instructions(b['code']);addresses={x[0]:i for i,x in enumerate(code)};addresses[len(b['code'])]=len(code)
+    # FFDec debug(0xEF) extra operands contain absolute stub source lines.
+    # Normalize only their common positive offset, keeping type/name/register,
+    # zero extras and every relative line gap exact. These owned debug records
+    # do not execute; native bodies and runtime QName operands stay untouched.
+    debug_lines=[args[3] for _,_,op,args in code if op==0xef and len(args)==4 and args[0]==1 and args[3]>0]
+    debug_base=min(debug_lines) if debug_lines else None
     names={0x04,0x05,0x45,0x46,0x4a,0x4c,0x4e,0x4f,0x59,0x5b,0x5c,0x5d,0x5e,0x5f,0x60,0x61,0x66,0x68,0x6a,0x80,0x86,0xb2}
     for start,end,op,args in code:
         text+='\n'+str(op)
@@ -48,6 +54,7 @@ def _semantic(a,row):
                 token='@'+str(addresses[end+value])
             elif n==0 and op in names:token=_qname(a,value)
             elif n==1 and op==0xef:token=a.string(value)
+            elif n==3 and op==0xef and args[0]==1 and value>0:token='owned-source+'+str(value-debug_base)
             elif n==0 and op==0xf1:token='owned-helper-source'
             elif n==0 and op==0x2c:token=a.string(value)
             elif n==0 and op in (0x2d,0x2e):
@@ -61,6 +68,19 @@ def _semantic(a,row):
         if any(v not in addresses for v in (start,end,target)):raise ValueError('Granular diagnostic exception leaves instruction boundary.')
         text+='\ncatch:'+str(addresses[start])+':'+str(addresses[end])+':'+str(addresses[target])+':'+_qname(a,kind)+':'+_qname(a,name)
     return text
+
+
+def _verify_timer_binding(a,row):
+    bindings=[]
+    for _,_,op,args in a.instructions(row['value']['code']):
+        if op not in (0x5d,0x60,0x66,0x46,0x4f) or not args:continue
+        q=a.pool(6,args[0]);name=a.string(q['name'])
+        if name in ('flash','utils'):raise ValueError('Granular timer uses an unresolved runtime flash object.')
+        if name=='getTimer':
+            if a.qname(args[0])!='7:getTimer:22:flash.utils' or op not in (0x5d,0x46) or op==0x46 and args[1]!=0:
+                raise ValueError('Granular timer must resolve the native flash.utils PackageNamespace function.')
+            bindings.append(op)
+    if bindings!=[0x5d,0x46]:raise ValueError('Granular diagnostic timer binding inventory differs.')
 
 
 def trace_source():
@@ -79,9 +99,18 @@ def trace_source():
 
 def inject(original):
     if 'ApexCatalogTraceConfigure' in original:raise ValueError('Use the original EA Main compiler source.')
+    # FFDec's retained EA stub has no flash.utils import. An unimported fully
+    # qualified global function can compile as getlex("flash").utils.getTimer,
+    # which fails with #1069 in the actual AVM2 application domain. Resolve the
+    # imported PackageNamespace function directly; never manufacture a runtime
+    # object named flash or alter the original class's other methods.
+    anchor='package widgets.CAS.Customizer\n{'
+    if original.count(anchor)!=1:raise ValueError('Original Main package/import seam differs.')
+    if 'import flash.utils.getTimer;' not in original:
+        original=original.replace(anchor,anchor+'\n   import flash.utils.getTimer;',1)
     at=original.rfind('\n   }')
     if at<0:raise ValueError('Original Main class boundary missing.')
-    return original[:at]+trace_source()+original[at:]
+    return original[:at]+trace_source().replace('flash.utils.getTimer()','getTimer()')+original[at:]
 
 
 def _named(a,owner,name):
@@ -172,6 +201,7 @@ def reconstruct_previous(final,proof):
         raise ValueError('Granular Draw differs from the exact profiled-tail additions.')
     for n in OWNED:
         row=_named(a,MAIN,n)
+        _verify_timer_binding(a,row)
         if row['value']['frame'][2]!=parsed[MAIN+'.'+n]['frame'][2] or digest(_semantic(a,row).encode())!=SEMANTICS.get(n):
             raise ValueError('Granular diagnostic helper semantic/lexical identity differs.')
     for pool,count in zip(a.pools,counts):
@@ -206,7 +236,7 @@ def adapt(previous,baseline,source,ffdec,work):
 
 def chain_contract(previous,proof,final):
     required=('disabled_fast_tail_exact','existing_profile_markers_retained','native_cfg_projection_verified','native_throw_propagation_retained',
-              'whole_abc_rollback_verified','all_other_bodies_retained','no_borrowed_handles_retained')
+              'whole_abc_rollback_verified','all_other_bodies_retained','no_borrowed_handles_retained','native_timer_namespace_verified')
     counts={'changed_draw_bodies':1,'replaced_owned_bodies':2,'appended_methods':0,'appended_fields':0,'disabled_added_instructions':0,'granular_sites':sum(COUNTS.values())}
     if(not isinstance(previous,dict) or not isinstance(proof,dict) or proof.get('ok') is not True or proof.get('phase')!='opt-in-granular-draw-profile' or
        any(proof.get(n) is not True for n in required) or any(type(proof.get(n)) is not int or proof[n]!=v for n,v in counts.items()) or

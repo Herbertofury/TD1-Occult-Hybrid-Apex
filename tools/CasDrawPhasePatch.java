@@ -11,17 +11,32 @@ public class CasDrawPhasePatch {
  static final String MAIN=CasStructuralRolesPatch.MAIN,CELL=CasStructuralRolesPatch.CELL;
  static final List<String> OWNED=List.of("ApexCatalogTraceConfigure","ApexCatalogTraceStep");
  static final Map<String,Integer> COUNTS=Map.of("overlay",3,"geometry",9,"state",15,"context",11,"tooltip",9);
- static final Map<String,String> SEMANTICS=Map.of("ApexCatalogTraceConfigure","edf34d58dc3957fe2ad2b7dea4edd00b48598351111782e96f1343501589c71c",
-  "ApexCatalogTraceStep","c081825d9e5038bfee416776817fa942ada11021f967791342253de52b98db45");
+ static final Map<String,String> SEMANTICS=Map.of("ApexCatalogTraceConfigure","f4cc380bea6e4ea55385cc22b9133deb9750307d70abf119da7b9664561148b2",
+  "ApexCatalogTraceStep","59ba48e2346931068847a55b9be674a08521fe015601d28d63f99a5c06d7d6d1");
  static void check(boolean b,String s){CasStructuralRolesPatch.check(b,s);}
  static int op(AVM2Instruction i){return CasStructuralRolesPatch.op(i);}
  static String name(ABC a,int q){return CasStructuralRolesPatch.name(a,q);}
  static MethodBody body(ABC a,String type,String method){return CasStructuralRolesPatch.body(a,type,method,false);}
  static String sha(byte[] b)throws Exception{return CasStructuralRolesPatch.sha(b);}
- static String semantic(ABC a,MethodBody b)throws Exception{return sha(CasCommunicationIndexPatch.semanticText(a,b).replaceAll("(?<=5:)CASCustomizerMain\\.as\\$[0-9]+","CASCustomizerMain.as\\$SELF").getBytes(java.nio.charset.StandardCharsets.UTF_8));}
+ static String semantic(ABC a,MethodBody b)throws Exception{
+  String text=CasCommunicationIndexPatch.semanticText(a,b).replaceAll("(?<=5:)CASCustomizerMain\\.as\\$[0-9]+","CASCustomizerMain.as\\$SELF");
+  // Only the common absolute source offset in owned debug(0xEF) records is
+  // irrelevant. Preserve their type/name/register/zero extras/relative gaps;
+  // do not normalize an executable operand or any unowned native method.
+  int base=Integer.MAX_VALUE;for(var i:b.getCode().code)if(op(i)==0xef&&i.operands.length==4&&i.operands[0]==1&&i.operands[3]>0)base=Math.min(base,i.operands[3]);
+  if(base!=Integer.MAX_VALUE){final int offset=base;text=java.util.regex.Pattern.compile("(?m)^(239:1:.*:[0-9]+):([1-9][0-9]*)$").matcher(text).replaceAll(m->m.group(1)+":owned-source+"+(Integer.parseInt(m.group(2))-offset));}
+  return sha(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+ }
+ static void timerBinding(ABC a,MethodBody b){
+  var bindings=new ArrayList<Integer>();
+  for(var i:b.getCode().code){if(!Set.of(0x5d,0x60,0x66,0x46,0x4f).contains(op(i))||i.operands==null||i.operands.length==0)continue;
+   String n=name(a,i.operands[0]);if(n==null)continue;check(!Set.of("flash","utils").contains(n),"Granular timer uses an unresolved runtime flash object");
+   if(n.equals("getTimer")){check(CasCommunicationIndexPatch.qname(a,i.operands[0]).equals("7:getTimer:22:flash.utils")&&Set.of(0x5d,0x46).contains(op(i))&&(op(i)!=0x46||i.operands[1]==0),"Granular timer must resolve native flash.utils PackageNamespace function");bindings.add(op(i));}}
+  check(bindings.equals(List.of(0x5d,0x46)),"Granular diagnostic timer binding inventory differs");
+ }
  static void helpers(ABC a)throws Exception {
   check(SEMANTICS.size()==2,"Granular Draw helper semantic inventory is not frozen");
-  for(String n:OWNED)check(semantic(a,body(a,MAIN,n)).equals(SEMANTICS.get(n)),"Granular Draw helper differs: "+n);
+  for(String n:OWNED){var b=body(a,MAIN,n);timerBinding(a,b);check(semantic(a,b).equals(SEMANTICS.get(n)),"Granular Draw helper differs: "+n);}
  }
  static String phase(ABC a,AVM2Instruction i){
   if(!Set.of(0x46,0x4f,0x61,0x68).contains(op(i)))return null;String n=name(a,i.operands[0]);
@@ -71,6 +86,6 @@ public class CasDrawPhasePatch {
    made.method_info=old.method_info;made.init_scope_depth+=delta;made.max_scope_depth+=delta;made.setCode(made.getCode());made.setModified();CasStructuralRolesPatch.replace(candidate,made);}
   var plan=rewrite(candidate,body(base,CELL,"Draw"));CasStructuralRolesPatch.replace(candidate,plan.body);verify(base,candidate,plan);candidate=CasStructuralRolesPatch.reparse(candidate);verify(base,candidate,plan);
   var result=CasStructuralRolesPatch.save(candidate);Files.write(Path.of(args[2]),result);
-  String report="{\"ok\":true,\"phase\":\"opt-in-granular-draw-profile\",\"baseline_swf_sha256\":\""+sha(Files.readAllBytes(Path.of(args[0])))+"\",\"baseline_abc_sha256\":\""+sha(CasStructuralRolesPatch.save(base))+"\",\"abc_sha256\":\""+sha(result)+"\",\"changed_draw_bodies\":1,\"replaced_owned_bodies\":2,\"appended_methods\":0,\"appended_fields\":0,\"disabled_added_instructions\":0,\"granular_sites\":47,\"phase_sites\":{\"overlay\":3,\"geometry\":9,\"state\":15,\"context\":11,\"tooltip\":9},\"disabled_fast_tail_exact\":true,\"existing_profile_markers_retained\":true,\"native_cfg_projection_verified\":true,\"native_throw_propagation_retained\":true,\"whole_abc_rollback_verified\":true,\"all_other_bodies_retained\":true,\"no_borrowed_handles_retained\":true,\"runtime_qualified\":false,\"performance_gain_claimed\":false}";Files.writeString(Path.of(args[3]),report+"\n");System.out.println(report);
+  String report="{\"ok\":true,\"phase\":\"opt-in-granular-draw-profile\",\"baseline_swf_sha256\":\""+sha(Files.readAllBytes(Path.of(args[0])))+"\",\"baseline_abc_sha256\":\""+sha(CasStructuralRolesPatch.save(base))+"\",\"abc_sha256\":\""+sha(result)+"\",\"changed_draw_bodies\":1,\"replaced_owned_bodies\":2,\"appended_methods\":0,\"appended_fields\":0,\"disabled_added_instructions\":0,\"granular_sites\":47,\"phase_sites\":{\"overlay\":3,\"geometry\":9,\"state\":15,\"context\":11,\"tooltip\":9},\"disabled_fast_tail_exact\":true,\"existing_profile_markers_retained\":true,\"native_cfg_projection_verified\":true,\"native_throw_propagation_retained\":true,\"whole_abc_rollback_verified\":true,\"all_other_bodies_retained\":true,\"no_borrowed_handles_retained\":true,\"native_timer_namespace_verified\":true,\"runtime_qualified\":false,\"performance_gain_claimed\":false}";Files.writeString(Path.of(args[3]),report+"\n");System.out.println(report);
  }
 }

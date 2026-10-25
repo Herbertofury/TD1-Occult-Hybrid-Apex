@@ -8611,10 +8611,10 @@ _apex_install_legacy_transaction_gates()
 
 
 def _execute_owned_command(item):
-    started = time.monotonic()
+    started = time.perf_counter()
     _log('START owned {}'.format(item.get('action')))
     result = run_action(item['action'], item.get('sim_id'), item.get('occult'), item.get('value'))
-    elapsed = (time.monotonic() - started) * 1000.0
+    elapsed = (time.perf_counter() - started) * 1000.0
     _record_perf(item['action'], elapsed, ok=bool(result.get('ok')))
     _log('{} owned {} in {:.1f} ms: {}'.format('DONE' if result.get('ok') else 'FAIL',
          item['action'], elapsed, result.get('message', '')))

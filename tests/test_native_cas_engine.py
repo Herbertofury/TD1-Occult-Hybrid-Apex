@@ -23,6 +23,22 @@ class NativeEngineTests(unittest.TestCase):
             value=dict(operation='genetic-trace',scope_id='a'*32,enabled=True);value.update(changed)
             with self.subTest(changed=changed),self.assertRaises(ValueError):engine.argument(value)
 
+    def test_renderer_page_profile_requires_bounded_window_scope_and_explicit_timing(self):
+        def request(**changed):
+            value=dict(operation='profile-gfx-snapshot-pages',scope_id='a'*32,milliseconds=30000,detail_timing=False)
+            value.update(changed)
+            return value
+        for duration in (0,1,30000):
+            for detail in (True,False):
+                engine.argument(request(milliseconds=duration,detail_timing=detail))
+        for changed in ({'milliseconds':True},{'milliseconds':-1},{'milliseconds':30001},
+                        {'milliseconds':1.0},{'milliseconds':'1'},{'detail_timing':0},
+                        {'detail_timing':'false'},{'scope_id':'b'*31},{'pointer':'0x10000'}):
+            with self.subTest(changed=changed),self.assertRaises(ValueError):engine.argument(request(**changed))
+        for missing in ('scope_id','milliseconds','detail_timing'):
+            value=request();value.pop(missing)
+            with self.subTest(missing=missing),self.assertRaises(ValueError):engine.argument(value)
+
     def test_complete_scope_status_and_explicit_activation_are_typed(self):
         for value in (self.arm, dict(operation='status'), dict(operation='activate', scope_id='a'*32)):
             engine.argument(value)

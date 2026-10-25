@@ -823,6 +823,7 @@
          // Consume once on the next rendered UI frame, outside the click
          // callback. The 500ms network poll is not a form-navigation scheduler.
          if(owner==null) return;
+         ApexCatalogGridInvalidate("owner-intent");
          // One bounded latest-choice slot, tied to the exact Sim and editor.
          // Never discard a click simply because the previous frame is busy.
          apexFormsGestureStarted=getTimer();

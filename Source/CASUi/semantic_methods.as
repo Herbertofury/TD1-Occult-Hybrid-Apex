@@ -169,7 +169,14 @@
          // initializer. CAS disconnects its Python Distributor client, so this
          // transport is driven exclusively by native UI events and its timer.
          try {
-            ApexDisconnect();
+            // Native Initialize arms the hidden grid before initial Sim/data
+            // delivery. Preserve only that unstepped bootstrap while resetting
+            // transport; ordinary disconnect/unload always disposes the grid.
+            var preserveBootstrap:Boolean=apexCatalogGrid!=null && apexCatalogGrid.enabled===true &&
+               !apexCatalogGrid.disposed && !apexCatalogGrid.running && apexCatalogGrid.frame===0 &&
+               apexCatalogGrid.lease!=null && apexCatalogGrid.lease.root===this &&
+               apexCatalogGrid.lease.phase=="bootstrap";
+            ApexDisconnect(preserveBootstrap);
             apexNativeTransportRequired=true;apexNativeChannel="";apexNativeConnected=false;
             apexWire=""; apexReceiving=false; apexLastId=""; apexLastReply="";
             apexPendingFields=null; apexPendingReply=null; apexPendingContext=null;
@@ -236,7 +243,7 @@
          // never makes a delivered mutation eligible for blind execution again.
       }
 
-      private function ApexDisconnect() : void
+      private function ApexDisconnect(preserveGridBootstrap:Boolean=false) : void
       {
          apexDisconnected=true;
          if(apexPresentationListener) {
@@ -244,7 +251,7 @@
             apexPresentationListener=false;
          }
          apexPresentationSim="";apexPresentationStarted=-1;apexPresentationMilliseconds=-1;
-         ApexCatalogDispose();
+         ApexCatalogDispose(preserveGridBootstrap);
          ApexMoleculeListen(false);
          if(apexOwnerFeedListener) {
             RemoveMessageListener("CASRefreshSimIcons",ApexObserveOwnerFeed);
@@ -971,6 +978,60 @@
          return result;
       }
 
+      private function ApexCatalogReadbackOnly(operation:String) : Boolean
+      {
+         // Opening/browsing can intentionally navigate to another native menu;
+         // those commands retain full readback rather than relax this identity.
+         return operation=="catalog-state" || operation=="catalog-style" ||
+            operation=="catalog-cards" || operation=="catalog-card-reset" ||
+            operation=="catalog-search" || operation=="panel-layout" || operation=="catalog-trace" || operation=="catalog-layout-trace";
+      }
+
+      private function ApexCatalogReadbackContext(selected:Object) : Object
+      {
+         // selected is already a detached primitive row. Never retain a native
+         // Sim/outfit object while the authenticated owner cursor is queried.
+         if(!apexTicking || apexDisconnected || !apexSocketActive || apexNativeChannel=="" ||
+            apexClaimNonce!==apexNonce || !/^[0-9a-f]{64}$/.test(apexNonce) || selected==null ||
+            selected.sim_id!==apexBoundSim || mCurrSimInfo==null || selected.sim_id!==mCurrSimInfo.simId ||
+            selected.household_id!==mCurrSimInfo.householdId || selected.occult_layer!=int(mCurrSimInfo.occultLayer) ||
+            selected.all_occult_types!=int(mCurrSimInfo.allOccultTypes) || apexOwnerSession<=0 ||
+            apexFormsNativeState!="bound" || apexFormsSelectedId=="" || apexFormsDesiredId!="" ||
+            apexFormsIntent!=null || apexFormsNativeIntent!=null || apexMoleculeIntent!=null || apexPairIntent!=null || apexFormsApplying)
+            throw new Error("Catalogue readback lacks its fresh bound Sim/owner context");
+         var raw:Object=CommunicationManager.CallGameService("CasGetCurrSimOutfitSlot",null,true);
+         if(raw==null || !(raw.outfit_type is int) || raw.outfit_type<0 || raw.outfit_type>255 ||
+            !(raw.outfit_index is int) || raw.outfit_index<0 || raw.outfit_index>=5)
+            throw new Error("Catalogue readback lacks its exact outfit identity");
+         var outfitType:int=int(raw.outfit_type);var outfitIndex:int=int(raw.outfit_index);raw=null;
+         var cursor:Array=ApexNativeExchange("STATE|"+apexNativeChannel).split("|");
+         if(cursor.length!=7 || cursor[0]!="VIEWSTATE" || cursor[1]!==selected.sim_id ||
+            cursor[2]!==apexFormsSelectedId || !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(cursor[2]) ||
+            !/^(1|2|4|8|16|32|64)$/.test(cursor[3]) || cursor[3]!==String(int(mCurrSimInfo.occultType)) ||
+            cursor[4]!==String(selected.occult_layer) || cursor[5]!="bound" ||
+            cursor[6]!==apexFormsNativeGeneration || !/^[1-9][0-9]{0,19}$/.test(cursor[6]))
+            throw new Error("Catalogue readback owner/generation changed");
+         return {sim_id:selected.sim_id,household_id:selected.household_id,owner_id:String(cursor[2]),
+            native_kind:int(cursor[3]),shell_kind:int(selected.occult_type),native_mask:int(selected.all_occult_types),
+            native_generation:String(cursor[6]),session:apexOwnerSession,layer:int(selected.occult_layer),
+            outfit_type:outfitType,outfit_index:outfitIndex,menu_state:int(mCurrState)};
+      }
+
+      private function ApexCatalogSnapshot(before:Object,after:Object) : Object
+      {
+         if(before==null || after==null || ApexEncode(before)!==ApexEncode(after))
+            throw new Error("Catalogue metadata changed Sim/owner/generation before readback");
+         return {protocol:1,scope:"native-cas-catalog-client",appearance_written:false,
+            sim:{simId:after.sim_id,householdId:after.household_id,occultType:after.shell_kind,
+               allOccultTypes:after.native_mask,occultLayer:after.layer},
+            menu_state:after.menu_state,panel_visible:mCurrentPanel!=null && mCurrentPanel.visible,
+            outfit:{outfit_type:after.outfit_type,outfit_index:after.outfit_index},
+            form_strip:{sim_id:after.sim_id,selected_owner_id:after.owner_id,native_owner_state:"bound",desired_owner_id:"",
+               gesture_pending:false,native_generation:after.native_generation,session:after.session},
+            catalog_identity:{request_id:String(apexPendingFields[0]),peer_nonce:apexClaimNonce,before:before,after:after},
+            catalog_workspace:ApexCatalogStatus()};
+      }
+
       private function ApexSnapshot(includeCatalogMetadata:Boolean=false) : Object
       {
          var catalogs:Array=[];
@@ -1289,6 +1350,20 @@
 
       private function ApexControlExecute(operation:String,state:int,category:int,index:int,value:String,reply:Object,context:Object) : void
       {
+         if(operation=="catalog-state") {
+            if(state!=0 || category!=0 || index!=0 || value!="") throw new Error("Catalogue state has no mutation parameters");
+            return;
+         }
+         if(operation=="catalog-layout-trace") {
+            if(state!=0 || category!=0 || index!=0 || !/^(0|[1-9][0-9]{0,4})$/.test(value) || Number(value)>30000)
+               throw new Error("Layout diagnostics require a bounded explicit duration");
+            ApexLayoutTraceConfigure(int(value));return;
+         }
+         if(operation=="catalog-trace") {
+            if(state!=0 || category!=0 || index!=0 || !/^(0|[1-9][0-9]{0,4})$/.test(value) || Number(value)>30000)
+               throw new Error("Draw diagnostics require a bounded explicit duration");
+            ApexCatalogTraceConfigure(int(value));return;
+         }
          if(operation=="catalog-search") { ApexSearchText(decodeURIComponent(value));return; }
          if(operation=="catalog-companion") {reply.mutation_started=String(value.split(",")[0])=="random-favorite";ApexCompanionCommand(value);return;}
          if(operation=="catalog-input") { reply.mutation_started=String(value.split(",")[0])=="enter";ApexCatalogKeyboardInput(value);return; }
@@ -1296,6 +1371,7 @@
          if(operation=="catalog-cards") { ApexCardCommand(value);return; }
          if(operation=="catalog-card-reset") { ApexCardReset();return; }
          if(operation=="catalog-style") { ApexCatalogStyle(value);return; }
+         if(operation=="panel-layout") { ApexPanelsCommand(value);return; }
          if(operation=="catalog-view") { ApexCatalogView(value);return; }
          if(operation=="catalog-slider") { ApexCatalogSliderCommand(value);return; }
          if(operation=="catalog-open") {
@@ -1667,10 +1743,14 @@
 
       private function ApexControlResult(operation:String,state:int,category:int,index:int,value:String,context:Object,client:Object) : Object
       {
-         if(operation=="catalog-input") return {operation:operation,workspace:ApexCatalogStatus(),handler_invoked:true,focus_requested:String(value.split(",")[1])=="1",appearance_write_possible:String(value.split(",")[0])=="enter"};
-         if(operation=="catalog-companion") return {operation:operation,workspace:ApexCatalogStatus(),appearance_write_possible:String(value.split(",")[0])=="random-favorite"};
-         if(operation=="catalog-style" || operation=="catalog-open" || operation=="catalog-view" || operation=="catalog-slider" || operation=="catalog-cards" || operation=="catalog-card-reset" || operation=="catalog-key" || operation=="catalog-search")
-            return {operation:operation,workspace:ApexCatalogStatus(),appearance_written:false};
+         if(operation=="catalog-layout-trace") return {operation:operation,trace:client.catalog_workspace.layout_trace,appearance_written:false};
+         if(operation=="catalog-trace") return {operation:operation,trace:client.catalog_workspace.draw_trace,appearance_written:false};
+         // The same Timer readback already captured this workspace. Repeating
+         // display-bound diagnostics here traverses the physical cards twice.
+         if(operation=="catalog-input") return {operation:operation,workspace:client.catalog_workspace,handler_invoked:true,focus_requested:String(value.split(",")[1])=="1",appearance_write_possible:String(value.split(",")[0])=="enter"};
+         if(operation=="catalog-companion") return {operation:operation,workspace:client.catalog_workspace,appearance_write_possible:String(value.split(",")[0])=="random-favorite"};
+         if(operation=="catalog-state" || operation=="panel-layout" || operation=="catalog-style" || operation=="catalog-open" || operation=="catalog-view" || operation=="catalog-slider" || operation=="catalog-cards" || operation=="catalog-card-reset" || operation=="catalog-key" || operation=="catalog-search")
+            return {operation:operation,workspace:client.catalog_workspace,appearance_written:false};
          if(operation=="form-owner-select") return {operation:operation,owner_id:String(context.owner_id)};
          if(operation=="pair-link" || operation=="pair-copy") {
             var currentPair:Object=ApexPairRead();
@@ -1838,7 +1918,10 @@
          try {
             var native:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
             if(!native || String(native.simId)!=String(fields[1])) throw new Error("CAS selected Sim differs from request");
+            var catalogSelected:Object=ApexCatalogReadbackOnly(operation) ? ApexOwnerSimRow(native) : null;
             native=null;
+            if(ApexCatalogReadbackOnly(operation)) apexPendingContext.catalog_before=ApexCatalogReadbackContext(catalogSelected);
+            catalogSelected=null;
             if(operation=="occult-owner-view")
                throw new Error("Cross-occult conversion is disabled; independent owner binding is required");
             var state:int=int(fields[3]);
@@ -1854,6 +1937,7 @@
                apexPendingContext.target_sim_id=String(memberBefore.target_sim_id);
                if(String(fields[1])!=String(memberBefore.target_sim_id)) {
                   var memberIndex:int=int(memberBefore.target_index);
+                  ApexCatalogGridInvalidate("member-intent");
                   reply.mutation_started=true;
                   // The installed selector's ordinary SelectSim handler keeps
                   // its native selected index/layer and displayed UI in sync.
@@ -1868,6 +1952,7 @@
                   operation=="layer-select" ? state : -1);
                apexPendingContext.selection_before=selectionBefore;
                if(selectionBefore.selected_layer!=selectionBefore.target_layer) {
+                  ApexCatalogGridInvalidate("layer-intent");
                   // Claim/phase are consumed before either native write. The
                   // index is the already selected same-original-ID pair only.
                   reply.mutation_started=true;
@@ -2121,6 +2206,7 @@
                }
                throw new Error("Native independent form view did not settle before its bounded readback deadline");
             }
+            var catalogAfter:Object=ApexCatalogReadbackOnly(operation) ? ApexOwnerSimRow(native) : null;
             native=null;
             if(!selectedSimMatches) throw new Error("CAS selected Sim changed before native readback");
             if(!("message" in reply) && apexPendingPhase==2) {
@@ -2164,9 +2250,13 @@
             if(eyebrowProbe)
                reply.eyebrow_palette_before_snapshot=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",3));
             if(operation=="catalog-key" || operation=="catalog-input") ApexCatalogKeyboardFrame(true);
-            reply.client=ApexSnapshot();
-            if(this.mCurrState==MenuState.CLOTHING_BODY_WINGS)
-               reply.client.wing_observation=ApexWingObservation();
+            if(ApexCatalogReadbackOnly(operation)) reply.client=ApexCatalogSnapshot(context.catalog_before,ApexCatalogReadbackContext(catalogAfter));
+            else {
+               reply.client=ApexSnapshot();
+               if(this.mCurrState==MenuState.CLOTHING_BODY_WINGS)
+                  reply.client.wing_observation=ApexWingObservation();
+            }
+            catalogAfter=null;
             if(eyebrowProbe)
                reply.eyebrow_palette_after_snapshot=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",3));
             if(!("message" in reply)) {
@@ -2174,7 +2264,7 @@
                   operation=="remove" || operation=="layers" || operation=="layer-add" || operation=="layer-remove" ||
                   operation=="layer-move" || operation=="swatches" || operation=="swatch" || operation=="physique" ||
                   operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
-                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" || operation=="pair-link" || operation=="pair-copy" || operation=="catalog-style" || operation=="catalog-open" || operation=="catalog-view" || operation=="catalog-slider" || operation=="catalog-cards" || operation=="catalog-card-reset" || operation=="catalog-key" || operation=="catalog-input" || operation=="catalog-search" || operation=="catalog-companion" ||
+                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" || operation=="pair-link" || operation=="pair-copy" || operation=="catalog-state" || operation=="catalog-style" || operation=="catalog-open" || operation=="catalog-view" || operation=="catalog-slider" || operation=="catalog-cards" || operation=="catalog-card-reset" || operation=="catalog-key" || operation=="catalog-input" || operation=="catalog-search" || operation=="catalog-companion" || operation=="panel-layout" || operation=="catalog-trace" || operation=="catalog-layout-trace" ||
                   operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
                   operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view" || operation=="form-owner-select" || operation=="detail-status" ||
                   operation=="detail-mode" || operation=="filters" || operation=="filter-clear")

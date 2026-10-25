@@ -117,7 +117,7 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         except StopIteration as ended:
             return ended.value, steps
 
-    def test_install_warms_first_menu_getters_but_atomic_replacement_invalidates_cache(self):
+    def test_menu_getters_never_read_bank_and_actual_admission_tracks_replacement(self):
         import os
         self.install()
         with patch.object(gate.json, 'loads', wraps=json.loads) as parse:
@@ -132,6 +132,8 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         temp.replace(self.game.path)
         with patch.object(gate.json, 'loads', wraps=json.loads) as parse:
             self.assertFalse(self.service.is_save_locked())
+            self.assertEqual(parse.call_count, 0)
+            gate.admission(self.backend)
             self.assertEqual(parse.call_count, 1)
 
     def test_cached_admission_is_not_mutable_by_consumer_and_new_capture_is_rechecked(self):
@@ -201,8 +203,9 @@ class NativeSaveBoundaryTests(unittest.TestCase):
     def test_native_ui_is_notified_after_commit_and_existing_native_locks_remain(self):
         self.install()
         self.game.begin()
-        self.assertTrue(gate.refresh_ui(self.backend)['native_save_ui_locked'])
-        self.assertEqual(self.service.ui_notifications[-1], ('locked', self.reason))
+        self.assertTrue(gate.admission(self.backend)['locked'])
+        self.assertFalse(gate.refresh_ui(self.backend)['native_save_ui_locked'])
+        self.assertEqual(self.service.ui_notifications[-1], ('unlocked', None))
         self.service.native_locked = True
         self.service.native_reason = native_reason = object()
         result = self.finish_unchanged()
@@ -223,8 +226,10 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         self.assertFalse(result['save_ui_notification']['appearance_replay_allowed'])
 
     def assert_blocked_before_serialization(self, pending=None):
-        self.assertTrue(self.service.is_save_locked())
-        self.assertIs(self.service.get_save_lock_tooltip(), self.reason)
+        # Harmless EA controls remain available; only real serialization waits.
+        self.assertFalse(self.service.is_save_locked())
+        self.assertIsNone(self.service.get_save_lock_tooltip())
+        self.assertTrue(gate.admission(self.backend)['locked'])
         if pending is not None:
             self.assertEqual(self.backend._APEX_CAS_SAVE_ADMISSION['pending_sim_ids'], pending)
         for mode in ('Save', 'Save As', 'Save and Exit', 'autosave'):
@@ -268,7 +273,8 @@ class NativeSaveBoundaryTests(unittest.TestCase):
     def test_internal_cas_snapshot_serialization_still_runs_and_original_save_generator_is_retained(self):
         self.install()
         self.game.begin()
-        self.assertTrue(self.service.is_save_locked())
+        self.assertFalse(self.service.is_save_locked())
+        self.assertTrue(gate.admission(self.backend)['locked'])
         self.assertEqual(self.game.snapshot_calls, [])
         self.game.observe()
         self.assertEqual(self.game.snapshot_calls, [10])
@@ -320,6 +326,15 @@ class NativeSaveBoundaryTests(unittest.TestCase):
         form_bank.save(self.game.path, data)
         self.assert_blocked_before_serialization(['99'])
 
+    def test_harmless_control_predicates_never_run_apex_admission_or_bank_io(self):
+        self.install();self.game.begin()
+        with patch.object(gate,'admission',side_effect=AssertionError('No preservation work in Gallery/menu predicates')), \
+                patch.object(Path,'open',side_effect=AssertionError('No menu file I/O')):
+            for _ in range(100):
+                self.assertFalse(self.service.is_save_locked())
+                self.assertIsNone(self.service.get_save_lock_tooltip())
+            self.assertFalse(gate.refresh_ui(self.backend)['native_save_ui_locked'])
+
     def test_native_lock_and_reason_win_without_reading_bank_and_other_service_is_unchanged(self):
         self.install()
         self.service.native_locked = True
@@ -332,7 +347,7 @@ class NativeSaveBoundaryTests(unittest.TestCase):
             self.assertFalse(other.is_save_locked())
             self.assertIsNone(other.get_save_lock_tooltip())
 
-    def test_queries_fail_closed_on_malformed_duplicated_nonfinite_unknown_or_oversized_bank(self):
+    def test_actual_serialization_fails_closed_on_malformed_duplicated_nonfinite_unknown_or_oversized_bank(self):
         self.install()
         payloads = (
             b'{', b'{"schema":1,"schema":1,"records":{}}',

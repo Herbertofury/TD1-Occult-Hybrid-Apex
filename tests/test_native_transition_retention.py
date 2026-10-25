@@ -156,6 +156,30 @@ class NativeTransitionTests(unittest.TestCase):
         self.assertEqual(appearance.packed(self.backend, self.owners[32]), self.before[32])
         self.assertEqual(appearance.packed(self.backend, self.live), filtered)
 
+    def test_physical_return_witness_runs_only_after_complete_ready_restoration(self):
+        from apex_core import cas_auto_settle
+        self.tracker._apex_native_load_pending=True
+        def witness(backend,tracker):
+            self.assertIs(backend,self.backend);self.assertIs(tracker,self.tracker)
+            self.assertTrue(tracker._apex_native_load_pending)
+            self.assertTrue(tracker._apex_native_load_appearance_retention['verified'])
+            self.assertEqual(appearance.packed(self.backend,self.live),self.before[32])
+            for kind,owner in self.owners.items():self.assertEqual(appearance.packed(self.backend,owner),self.before[kind])
+            return {'state':'fixture-memory-only','appearance_written':False}
+        with patch.object(cas_auto_settle,'note_native_ready',side_effect=witness) as callback:
+            self.assertEqual(self.tracker.on_sim_ready_to_simulate(self.live),'native-ready-result')
+        callback.assert_called_once();self.assertFalse(self.tracker._apex_native_load_pending)
+        self.assertEqual(self.tracker._apex_cas_return_physical_witness['state'],'fixture-memory-only')
+
+    def test_failed_or_ordinary_ready_cannot_publish_a_physical_return_witness(self):
+        from apex_core import cas_auto_settle
+        with patch.object(cas_auto_settle,'note_native_ready',side_effect=AssertionError('Unverified load must not witness')) as callback:
+            self.tracker.on_sim_ready_to_simulate(self.live)
+            self.tracker._apex_native_load_pending=True;self.owners[32]=self.live
+            self.assertEqual(self.tracker.on_sim_ready_to_simulate(self.live),'native-ready-result')
+        callback.assert_not_called();self.assertFalse(self.tracker._apex_native_load_pending)
+        self.assertFalse(self.tracker._apex_native_load_appearance_failure['verified'])
+
     def test_ready_boundary_restores_loaded_voice_after_native_effect_then_releases_load_scope(self):
         self.tracker._apex_native_load_pending = True
         self.assertEqual(self.tracker.on_sim_ready_to_simulate(self.live), 'native-ready-result')

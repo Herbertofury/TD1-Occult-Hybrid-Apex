@@ -310,3 +310,8 @@ Open the repository, verify the authoritative worktree/branch and `SOURCE_RECOVE
 Do not respond with another roadmap. Execute.
 
 - [ ] **G900 · FINAL COMPLETION GATE** — This handoff is complete only after T900–T905 are complete **and** canonical `docs/CODEX_MASTER_EXECUTION.md` has truthfully completed every accepted T/G requirement through `G009 · FINAL COMPLETION GATE`, with no unresolved accepted blocker and no silently dropped scope.
+
+
+## Supplemental research resource — 2026-10-24
+
+Timestamped performance evidence and source-specific research are available in [the frozen V322 engine report](../Reports/CAS_ENGINE_PROFILE_V322.json) and the verified [Performance Research wiki](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/wiki/Performance-Research). These resources distinguish measured failures, changing source, installed artifacts and pending qualification. They supplement the canonical requirements and task ledger; no existing task/status text or completion gate is changed. File placement or this pointer does not establish automatic developer consumption.

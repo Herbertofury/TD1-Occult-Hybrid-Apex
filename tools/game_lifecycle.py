@@ -37,7 +37,97 @@ def background_request(request):
     return submit
 
 
-def button(observation, phase):
+def _cannot_save_discard(observation,image):
+    """Recognize only EA's complete discard warning and its measured X/check.
+
+    Text supplies intent; pixels supply the two icon-only button positions.
+    This is never a Save-and-Exit target, an arbitrary affirmative icon, or
+    permission to replay an earlier unacknowledged click.
+    """
+    normal=lambda text:' '.join(str(text).split()).casefold().replace('\u2019',"'")
+    lines=observation.get('lines',[])
+    titles=[i for i,row in enumerate(lines) if normal(row.get('text'))=='cannot save']
+    if observation.get('ok') is not True or len(titles)!=1 or image is None:
+        raise ValueError('Complete native Cannot Save discard warning is unavailable.')
+    expected=("the game is currently in a state where saving isn't possible. "
+        "warning: data may be lost if you exit. do you want to exit anyway?")
+    title=titles[0];body=[];joined=''
+    for row in lines[title+1:title+7]:
+        body.append(row);joined=' '.join(normal(r.get('text')) for r in body)
+        if joined==expected:break
+        if not expected.startswith(joined):
+            raise ValueError('Cannot Save warning text is incomplete or has another intent.')
+    if joined!=expected or any(normal(row.get('text')) in ('save game?','save and exit','cancel') for row in lines):
+        raise ValueError('Complete native Cannot Save discard warning is not recognized.')
+    def bounds(rows):
+        words=[w for row in rows for w in row.get('words',[])]
+        if not words:raise ValueError('Cannot Save warning has no measured text bounds.')
+        values=[w.get(k) for w in words for k in ('x','y','width','height')]
+        width,height=observation.get('width'),observation.get('height')
+        if (type(width) is not int or type(height) is not int or not 0<width<=8192 or not 0<height<=8192 or
+                any(type(v) not in (int,float) or not math.isfinite(v) for v in values) or
+                any(not 0<=w['x']<w['x']+w['width']<=width or
+                    not 0<=w['y']<w['y']+w['height']<=height for w in words)):
+            raise ValueError('Cannot Save text is outside its exact native viewport.')
+        return (min(w['x'] for w in words),min(w['y'] for w in words),
+            max(w['x']+w['width'] for w in words),max(w['y']+w['height'] for w in words))
+    heading=bounds([lines[title]]);text=bounds(body);unit=heading[3]-heading[1]
+    if not 8<=unit<=96 or not text[1]>heading[3] or not text[0]<sum(heading[::2])/2<text[2]:
+        raise ValueError('Cannot Save title/body geometry is ambiguous.')
+    left=max(0,math.floor(text[0]));right=min(observation['width'],math.ceil(text[2]+2*unit))
+    top=math.ceil(text[3]);bottom=min(observation['height'],math.ceil(text[3]+4*unit))
+    if not 0<(right-left)*(bottom-top)<=1024*1024:
+        raise ValueError('Cannot Save footer search is outside its bounded warning region.')
+    from PIL import Image
+    with Image.open(image) as captured:
+        if captured.size!=(observation['width'],observation['height']):
+            raise ValueError('Cannot Save pixels and OCR viewport differ.')
+        region=captured.crop((left,top,right,bottom)).convert('RGB')
+    pixels=region.load();w,h=region.size
+    blue=lambda rgb:rgb[0]<100 and 25<rgb[1]<180 and rgb[2]>110 and rgb[2]-rgb[1]>20
+    remaining={(x,y) for y in range(h) for x in range(w) if blue(pixels[x,y])}
+    components=[]
+    while remaining:
+        point=remaining.pop();stack=[point];points=[point]
+        while stack:
+            x,y=stack.pop()
+            for dx,dy in ((1,0),(-1,0),(0,1),(0,-1),(1,1),(1,-1),(-1,1),(-1,-1)):
+                adjacent=(x+dx,y+dy)
+                if adjacent in remaining:remaining.remove(adjacent);stack.append(adjacent);points.append(adjacent)
+        if len(points)<max(4,unit*unit*.08):continue
+        x0=min(q[0] for q in points);x1=max(q[0] for q in points)
+        y0=min(q[1] for q in points);y1=max(q[1] for q in points)
+        cw,ch=x1-x0+1,y1-y0+1
+        if not .65*unit<=min(cw,ch)<=max(cw,ch)<=1.8*unit or not .7<=cw/ch<=1.5:continue
+        # Both glyphs must sit on actual light circular native buttons.
+        cx,cy=(x0+x1)/2,(y0+y1)/2;radius=.62*max(cw,ch);white=0
+        for i in range(24):
+            angle=i*math.pi/12;px,py=round(cx+radius*math.cos(angle)),round(cy+radius*math.sin(angle))
+            if not 0<=px<w or not 0<=py<h:continue
+            rgb=pixels[px,py];white+=min(rgb)>195 and max(rgb)-min(rgb)<35
+        if white<16:continue
+        def density(xa,ya,xb,yb):
+            return sum(xa<=(x-x0+.5)/cw<xb and ya<=(y-y0+.5)/ch<yb for x,y in points)/(cw*ch*(xb-xa)*(yb-ya))
+        corners=[density(x,y,x+1/3,y+1/3) for x,y in ((0,0),(2/3,0),(0,2/3),(2/3,2/3))]
+        kind=None
+        if min(corners)>.16 and density(1/3,1/3,2/3,2/3)>.35:kind='cancel-x'
+        if corners[0]<.08 and corners[3]<.08 and corners[1]>.16 and density(1/3,2/3,2/3,1)>.16:kind='discard-check'
+        if kind is None:raise ValueError('Cannot Save footer contains an unknown icon button.')
+        components.append(dict(kind=kind,x=cx+left,y=cy+top,width=cw,height=ch))
+        if len(components)>2:raise ValueError('Cannot Save footer contains ambiguous affirmative icons.')
+    components.sort(key=lambda r:r['x'])
+    if (len(components)!=2 or [r['kind'] for r in components]!=['cancel-x','discard-check'] or
+            abs(components[0]['y']-components[1]['y'])>.4*unit or
+            not 1.2*unit<components[1]['x']-components[0]['x']<3.5*unit):
+        raise ValueError('The native Cancel X / discard check pair is absent or ambiguous.')
+    selected=components[1]
+    observation['lifecycle_icon_recognition']=dict(surface='cannot-save-exit-anyway',
+        text_complete=True,footer_bounds=[left,top,right,bottom],icons=components,save_requested=False)
+    return dict(command=1,x=round(selected['x']),y=round(selected['y']),
+        width=observation['width'],height=observation['height'])
+
+
+def button(observation, phase, image=None):
     lines = observation.get('lines', [])
     normalized = lambda text: ' '.join(str(text).split()).casefold()
     text = [normalized(row.get('text')) for row in lines]
@@ -48,10 +138,12 @@ def button(observation, phase):
                                           ('menu','game options','technical support','exit to main menu','exit game'))
         else:
             complete = normal_menu
-        if not complete or 'save game?' in text:
+        if not complete or 'save game?' in text or 'cannot save' in text:
             raise ValueError('Native main menu is not recognized; no Exit click submitted.')
         label = 'exit game'
     elif phase in ('confirmation', 'confirmation-discard'):
+        if phase=='confirmation-discard' and 'cannot save' in text:
+            return _cannot_save_discard(observation,image)
         if not all(item in text for item in ('save game?', 'are you sure you want to exit the game?', 'cancel', 'exit game')):
             raise ValueError('Native Save Game confirmation is not recognized; no Save and Exit click submitted.')
         if phase == 'confirmation-discard' and 'save and exit' not in text:
@@ -611,9 +703,11 @@ def shutdown(state, output, identity, request, capture=game_capture.capture, ocr
         menu_phase = 'menu' if save else 'menu-discard'
         for phase in (confirmation, 'menu'):
             try:
-                button(observed, menu_phase if phase=='menu' else phase); initial = (phase, frame, observed); break
+                button(observed, menu_phase if phase=='menu' else phase,image=image); initial = (phase, frame, observed); break
             except ValueError: pass
         if initial is None:
+            if any(' '.join(str(row.get('text')).split()).casefold()=='cannot save' for row in observed.get('lines',[])):
+                raise ValueError('Cannot Save modal is present but not authorized/recognized for this exit; no quit or confirmation input submitted.')
             guard_cas()
             guard_unsaved_live()
             record('quit-menu-request', request(state, 'test_quit', value=envelope(None)))
@@ -626,7 +720,7 @@ def shutdown(state, output, identity, request, capture=game_capture.capture, ocr
                 else:
                     image = output.with_name(output.stem + '-' + phase + '-' + str(attempt + 1) + '.bmp')
                     frame = record('capture-' + phase, capture(state, image, request)); observed = ocr(image)
-                try: selected = button(observed, menu_phase if phase=='menu' else phase)
+                try: selected = button(observed, menu_phase if phase=='menu' else phase,image=image)
                 except ValueError as error:
                     proof['steps'].append({'action': 'recognize-' + phase, 'observation': observed, 'error': str(error)})
                     write_json(output, proof)

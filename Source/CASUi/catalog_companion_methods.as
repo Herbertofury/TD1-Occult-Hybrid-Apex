@@ -85,7 +85,18 @@
          if(apexCompanion==null || apexSearch==null || apexSearch.rows==null || mCurrSimInfo==null) return;
          // Single, exact intent; an earlier queued click is never overwritten.
          if(apexCompanion.intent!=null) {apexCompanion.message="Previous catalogue action is still pending";return;}
-         apexCompanion.intent={action:action,product:product,context:ApexSearchContext(),panel:mCurrentPanel,feed:apexSearch.feed};
+         var grid:Object=mCurrentPanel==null || mCurrentPanel.mcTileList==null ? null : mCurrentPanel.mcTileList.mGridLayout;
+         var owned:Boolean=action=="random-favorite" && grid!=null && ApexCatalogGridOwns(grid);
+         var lease:Object=owned ? apexCatalogGrid.lease : null;
+         if(owned && (ApexCatalogGridPending(grid) || lease==null || lease.phase!="bound" || lease.active!==true ||
+            mCurrentPanel.mcTileList.GetGridView().visible!==true)) {
+            apexCompanion.message="Wait for the catalog before choosing a favorite";return;
+         }
+         var snapshot:Object=owned ? grid.ApexGridStatus() : null;
+         apexCompanion.intent={action:action,product:product,context:ApexSearchContext(),panel:mCurrentPanel,feed:apexSearch.feed,
+            grid:grid,lease:lease,lease_generation:owned ? int(lease.generation) : 0,
+            native_generation:owned ? String(lease.native_generation) : "",
+            grid_generation:owned ? int(snapshot.generation) : 0,grid_revision:owned ? int(snapshot.revision) : 0};
       }
 
       private function ApexCompanionCard(event:GridEvent) : void
@@ -211,12 +222,35 @@
          if(action=="random-favorite") {
             if(apexSearch.pending) throw new Error("Wait for the current search before choosing a favorite");
             var candidates:Array=[];var feed:Object=apexSearch.feed;
-            for(var at:int=0;at<int(feed.length);at++) {
-               var item:Object=feed.RequestItemAt(at);if(apexCompanion.favorites[ApexCompanionKey(item)]===true) candidates.push(at);
+            var panel:Object=mCurrentPanel;
+            var grid:Object=panel==null || panel.mcTileList==null ? null : panel.mcTileList.mGridLayout;
+            var owned:Boolean=grid!=null && ApexCatalogGridOwns(grid);
+            var lease:Object=owned ? apexCatalogGrid.lease : null;
+            if(owned && (ApexCatalogGridPending(grid) || lease==null || panel.visible!==true ||
+               panel.mcTileList.visible!==true || panel.mcTileList.GetGridView()!==apexCompanion.grid ||
+               apexCompanion.grid.visible!==true || grid.GetDataFeed()!==feed))
+               throw new Error("Wait for the current catalog before choosing a favorite");
+            var snapshot:Object=owned ? grid.ApexGridStatus() : null;
+            var count:int=owned ? int(grid.GetNumItems()) : int(feed.length);
+            for(var at:int=0;at<count;at++) {
+               var item:Object=owned ? grid.GetDataAtIndex(at) : feed.RequestItemAt(at);
+               if(apexCompanion.favorites[ApexCompanionKey(item)]===true) candidates.push(at);
             }
             if(candidates.length==0) throw new Error("No favorites in the current eligible results");
             at=int(candidates[int(Math.random()*candidates.length)]);
-            apexCompanion.grid.dispatchEvent(new GridEvent(GridEvent.CELL_EVENT+PushButtonEvent.CLICK,null,null,feed.RequestItemAt(at),false,at,at));return;
+            item=owned ? grid.GetDataAtIndex(at) : feed.RequestItemAt(at);
+            if(owned) {
+               if(!ApexCatalogGridInput(lease))throw new Error("The catalog owner changed; choose a favorite again");
+               var current:Object=grid.ApexGridStatus();
+               if(ApexCatalogGridPending(grid) || apexCatalogGrid.lease!==lease || mCurrentPanel!==panel ||
+                  panel.mcTileList.mGridLayout!==grid || grid.GetDataFeed()!==feed ||
+                  panel.mcTileList.GetGridView()!==apexCompanion.grid || apexCompanion.grid.visible!==true ||
+                  int(current.generation)!=int(snapshot.generation) || int(current.revision)!=int(snapshot.revision) ||
+                  grid.GetDataAtIndex(at)!==item)
+                  throw new Error("The catalog results changed; choose a favorite again");
+            }
+            if(item==null)throw new Error("The favorite is no longer in the current results");
+            apexCompanion.grid.dispatchEvent(new GridEvent(GridEvent.CELL_EVENT+PushButtonEvent.CLICK,null,null,item,false,at,at));return;
          }
          if(action!="toggle-favorite" && action!="toggle-hidden") throw new Error("Unknown companion action");
          var key:String=ApexCompanionKey(product);
@@ -323,6 +357,17 @@
             try {
                if(Boolean(CommunicationManager.CallUIService("IsUILoadingScreenVisible")) || Boolean(CommunicationManager.CallUIService("IsModalVisible")) ||
                   Boolean(CommunicationManager.CallUIService("IsDialogModalVisible"))) throw new Error("A modal currently owns input");
+               if(intent.action=="random-favorite") {
+                  var intentGrid:Object=mCurrentPanel.mcTileList.mGridLayout;
+                  if(ApexCatalogGridOwns(intentGrid)) {
+                     var intentLease:Object=apexCatalogGrid.lease;
+                     var intentStatus:Object=intentGrid.ApexGridStatus();
+                     if(ApexCatalogGridPending(intentGrid) || intent.grid!==intentGrid || intent.lease!==intentLease || intentLease==null ||
+                        int(intent.lease_generation)!=int(intentLease.generation) || intent.native_generation!==intentLease.native_generation ||
+                        int(intent.grid_generation)!=int(intentStatus.generation) || int(intent.grid_revision)!=int(intentStatus.revision))
+                        throw new Error("The catalog changed; choose a favorite again");
+                  }
+               }
                ApexCompanionApply(intent.action,intent.product);
                ApexCompanionReceipt(intent.action,intent.product);
             }catch(error:Error) {apexCompanion.message=error.message;}

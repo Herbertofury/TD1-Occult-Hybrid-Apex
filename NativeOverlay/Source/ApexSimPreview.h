@@ -3,7 +3,8 @@
 #pragma once
 #include "ApexResourceImage.h"
 #include <d3d11_1.h>
-#include <d3dcompiler.h>
+#include "ApexPreviewVS.h"
+#include "ApexPreviewPS.h"
 #include <DirectXMath.h>
 #include <wrl/client.h>
 #include <functional>
@@ -152,7 +153,7 @@ class Renderer {
     unsigned width=0,height=0;
     struct Constants { XMFLOAT4X4 view,joints[256];XMFLOAT4 light; };
 public:
-    Scene scene; View view;uint64_t frames=0;
+    Scene scene; View view;uint64_t frames=0,pipelineBuilds=0,pipelineReuses=0;
     ID3D11ShaderResourceView* Texture()const{return srv.Get();}
     ID3D11Texture2D* Target()const{return target.Get();}
     void Reset(){*this=Renderer();}
@@ -192,21 +193,19 @@ public:
       Check(next.device.As(&next.isolatedDevice),"Preview requires DX11.1 state isolation.");
       const D3D_FEATURE_LEVEL feature=d->GetFeatureLevel();Check(next.isolatedDevice->CreateDeviceContextState(0,&feature,1,D3D11_SDK_VERSION,__uuidof(ID3D11Device),nullptr,&next.cleanState),"Preview isolated state failed.");
       for(auto& m:next.bind)m=XMMatrixInverse(nullptr,m);
-      static const char shader[]=R"(
-cbuffer C:register(b0){row_major float4x4 view;row_major float4x4 joints[256];float4 light;};
-Texture2D diffuse:register(t0);SamplerState sampleState:register(s0);
-struct V{float3 p:POSITION;float3 n:NORMAL;float2 uv:TEXCOORD;uint4 j:BLENDINDICES;float4 w:BLENDWEIGHT;};
-struct P{float4 p:SV_POSITION;float3 n:NORMAL;float2 uv:TEXCOORD;};
-P VS(V v){P o;float4 p=0;float3 n=0;[unroll]for(int i=0;i<4;i++){p+=mul(float4(v.p,1),joints[v.j[i]])*v.w[i];n+=mul(float4(v.n,0),joints[v.j[i]]).xyz*v.w[i];}o.p=mul(p,view);o.n=normalize(n);o.uv=v.uv;return o;}
-float4 PS(P p):SV_TARGET{float4 c=diffuse.Sample(sampleState,p.uv);clip(c.a-.025);float3 n=normalize(p.n);float lit=.5+.5*max(0,dot(n,normalize(float3(-.4,.7,.8))));lit+=.15*max(0,dot(n,normalize(float3(.8,.2,-.6))));return float4(saturate(c.rgb*lit*light.x),c.a);}
-)";
-      ComPtr<ID3DBlob> vertex,pixel,error;
-      Check(D3DCompile(shader,sizeof(shader)-1,nullptr,nullptr,nullptr,"VS","vs_4_0",D3DCOMPILE_ENABLE_STRICTNESS,0,&vertex,&error),"Preview vertex shader failed.");error.Reset();
-      Check(D3DCompile(shader,sizeof(shader)-1,nullptr,nullptr,nullptr,"PS","ps_4_0",D3DCOMPILE_ENABLE_STRICTNESS,0,&pixel,&error),"Preview pixel shader failed.");
-      Check(d->CreateVertexShader(vertex->GetBufferPointer(),vertex->GetBufferSize(),nullptr,&next.vs),"Preview VS creation failed.");
-      Check(d->CreatePixelShader(pixel->GetBufferPointer(),pixel->GetBufferSize(),nullptr,&next.ps),"Preview PS creation failed.");
-      D3D11_INPUT_ELEMENT_DESC elements[]={{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},{"NORMAL",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0},{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,24,D3D11_INPUT_PER_VERTEX_DATA,0},{"BLENDINDICES",0,DXGI_FORMAT_R16G16B16A16_UINT,0,32,D3D11_INPUT_PER_VERTEX_DATA,0},{"BLENDWEIGHT",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,40,D3D11_INPUT_PER_VERTEX_DATA,0}};
-      Check(d->CreateInputLayout(elements,5,vertex->GetBufferPointer(),vertex->GetBufferSize(),&next.layout),"Preview vertex layout failed.");
+      next.pipelineBuilds=pipelineBuilds;next.pipelineReuses=pipelineReuses;
+      if(device.Get()==d && vs && ps && layout) {
+        // Immutable shaders/layout have no Sim or scene identity. Reuse them
+        // on this exact live device; don't ask the driver to rebuild a shader
+        // pipeline whenever the player equips another CAS part or form.
+        next.vs=vs;next.ps=ps;next.layout=layout;++next.pipelineReuses;
+      } else {
+        Check(d->CreateVertexShader(apex_preview_vs,sizeof(apex_preview_vs),nullptr,&next.vs),"Preview VS creation failed.");
+        Check(d->CreatePixelShader(apex_preview_ps,sizeof(apex_preview_ps),nullptr,&next.ps),"Preview PS creation failed.");
+        D3D11_INPUT_ELEMENT_DESC elements[]={{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},{"NORMAL",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12,D3D11_INPUT_PER_VERTEX_DATA,0},{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,24,D3D11_INPUT_PER_VERTEX_DATA,0},{"BLENDINDICES",0,DXGI_FORMAT_R16G16B16A16_UINT,0,32,D3D11_INPUT_PER_VERTEX_DATA,0},{"BLENDWEIGHT",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,40,D3D11_INPUT_PER_VERTEX_DATA,0}};
+        Check(d->CreateInputLayout(elements,5,apex_preview_vs,sizeof(apex_preview_vs),&next.layout),"Preview vertex layout failed.");
+        ++next.pipelineBuilds;
+      }
       D3D11_BUFFER_DESC cb{};cb.ByteWidth=sizeof(Constants);cb.Usage=D3D11_USAGE_DEFAULT;cb.BindFlags=D3D11_BIND_CONSTANT_BUFFER;Check(d->CreateBuffer(&cb,nullptr,&next.constants),"Preview constants failed.");
       D3D11_SAMPLER_DESC sd{};sd.Filter=D3D11_FILTER_MIN_MAG_MIP_LINEAR;sd.AddressU=sd.AddressV=sd.AddressW=D3D11_TEXTURE_ADDRESS_WRAP;sd.MaxLOD=D3D11_FLOAT32_MAX;Check(d->CreateSamplerState(&sd,&next.sampler),"Preview sampler failed.");
       D3D11_RASTERIZER_DESC rd{};rd.FillMode=D3D11_FILL_SOLID;rd.CullMode=D3D11_CULL_NONE;rd.DepthClipEnable=TRUE;Check(d->CreateRasterizerState(&rd,&next.raster),"Preview raster failed.");

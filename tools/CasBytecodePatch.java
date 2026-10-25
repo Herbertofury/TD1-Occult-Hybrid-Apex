@@ -1,6 +1,6 @@
 // Build-time adapter for FFDec's public ABC API. No game-process access.
 // Retain native class/script construction, traits and method bytecode; append
-// only Apex traits/methods, one Initialize call and one Unload cleanup call.
+// only Apex traits/methods, early grid + late Initialize calls and Unload cleanup.
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
@@ -22,6 +22,233 @@ public class CasBytecodePatch {
     }
     static void require(boolean condition, String message) {
         if (!condition) throw new IllegalArgumentException(message);
+    }
+    // Opcode-based relocation and projection, independent of FFDec's
+    // isBranch classification (which does not include unconditional jump).
+    static List<Integer> bootstrapEdges(AVM2Instruction op) {
+        int n=op.definition.instructionCode;
+        if(n>=0x0c && n<=0x1a)return List.of(0);
+        if(n==0x1b) {
+            require(op.operands!=null && op.operands.length>=3 && op.operands[1]>=0 &&
+                op.operands.length==op.operands[1]+3,"Malformed initializer lookupswitch.");
+            var edges=new ArrayList<Integer>();edges.add(0);
+            for(int i=2;i<op.operands.length;i++)edges.add(i);return edges;
+        }
+        return List.of();
+    }
+    static long bootstrapTarget(AVM2Instruction op,int operand) {
+        return op.getAddress()+(op.definition.instructionCode==0x1b?0:op.getBytesLength())+op.operands[operand];
+    }
+    static Map<Long,Integer> bootstrapAddresses(MethodBody body) {
+        var result=new HashMap<Long,Integer>();var code=body.getCode().code;
+        for(int i=0;i<code.size();i++)require(result.put(code.get(i).getAddress(),i)==null,"Duplicate initializer address.");
+        result.put(body.getCode().getEndOffset(),code.size());return result;
+    }
+    static int bootstrapIndex(Map<Long,Integer> addresses,long address) {
+        Integer result=addresses.get(address);require(result!=null,"Initializer edge is not on an instruction boundary.");return result;
+    }
+    static boolean bootstrapReachable(MethodBody body,int target,int blocked) {
+        var code=body.getCode().code;var addresses=bootstrapAddresses(body);
+        var seen=new HashSet<Integer>();var pending=new ArrayDeque<Integer>();pending.add(0);
+        while(!pending.isEmpty()) {
+            int at=pending.removeFirst();if(at==blocked || at>=code.size() || !seen.add(at))continue;
+            if(at==target)return true;
+            var op=code.get(at);int n=op.definition.instructionCode;
+            for(int operand:bootstrapEdges(op))pending.add(bootstrapIndex(addresses,bootstrapTarget(op,operand)));
+            if(n!=0x10 && n!=0x1b && n!=0x03 && n!=0x47 && n!=0x48)pending.add(at+1);
+            for(var e:body.exceptions)if(op.getAddress()>=e.start && op.getAddress()<e.end)
+                pending.add(bootstrapIndex(addresses,e.target));
+        }
+        return false;
+    }
+    static int gridBootstrapSeam(ABC abc,MethodBody body) {
+        var code=body.getCode().code;int literal=-1,handled=-1,history=-1,returns=0;
+        int main=abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain");
+        int historyClass=abc.findClassByName("dcc.history.HistoryHost");
+        require(main>=0 && historyClass>=0,"Pinned native bootstrap classes are absent.");
+        int callback=ownedGridName(abc,abc.instance_info.get(main),"HandleContextMenuSetMenuState");
+        for(int i=0;i<code.size();i++) {
+            var op=code.get(i);
+            if(stringLiteral(abc,op,"CASContextMenuSetMenuState")) {
+                require(literal<0,"Initializer has duplicate bootstrap listener seams.");literal=i;
+            }
+            if(property(abc,op,0x46,"HandleSetSimInfo") || property(abc,op,0x4f,"HandleSetSimInfo")) {
+                require(handled<0,"Initializer has duplicate initial Sim deliveries.");handled=i;
+            }
+            if(i>=2 && property(abc,code.get(i-2),0x60,"HistoryHost") && opcode(code.get(i-1),0xd0) &&
+                (property(abc,op,0x46,"Attach") || property(abc,op,0x4f,"Attach"))) {
+                require(history<0,"Initializer has duplicate HistoryHost attachment.");history=i;
+            }
+            if(opcode(op,0x47))returns++;
+        }
+        require(literal>=1 && literal+4<code.size() && property(abc,code.get(literal-1),0x5d,"AddMessageListener") &&
+            opcode(code.get(literal+1),0xd0) && property(abc,code.get(literal+2),0x66,"HandleContextMenuSetMenuState") &&
+            code.get(literal+2).operands[0]==callback && property(abc,code.get(literal+3),0x46,"AddMessageListener") &&
+            code.get(literal-1).operands[0]==code.get(literal+3).operands[0] && code.get(literal+3).operands[1]==2 &&
+            opcode(code.get(literal+4),0x29),"Native bootstrap listener receiver/arguments/stack differ.");
+        int seam=literal+5;
+        require(handled>=0 && history>=2 && code.get(handled).operands[1]==1 && code.get(history).operands[1]==1 &&
+            code.get(history-2).operands[0]==abc.instance_info.get(historyClass).name_index,
+            "Native bootstrap Sim/history class/arguments differ.");
+        require(handled>seam && history>handled && returns==1 && opcode(code.get(code.size()-1),0x47),
+            "Native bootstrap must precede initial Sim delivery/history and retain one final return.");
+        require(bootstrapReachable(body,seam,-1) && bootstrapReachable(body,handled,-1) && bootstrapReachable(body,history,-1) &&
+            !bootstrapReachable(body,seam,literal+3) &&
+            !bootstrapReachable(body,handled,seam) && !bootstrapReachable(body,history,seam),
+            "A native control-flow path bypasses bootstrap or its established communication listener.");
+        return seam;
+    }
+    static MethodBody gridBootstrapAdapter(ABC abc,MethodBody before,int bootstrapName,int initializeName) throws Exception {
+        int seam=gridBootstrapSeam(abc,before);var old=new ArrayList<>(before.getCode().code);
+        var body=before.clone();var code=body.getCode();var made=new ArrayList<AVM2Instruction>();
+        var origins=new ArrayList<Integer>();var starts=new HashMap<Integer,Integer>();
+        for(int i=0;i<old.size();i++) {
+            starts.put(i,made.size());
+            if(i==seam || i==old.size()-1) {
+                made.add(new AVM2Instruction(0,0xd0,new int[0]));origins.add(-1);
+                made.add(new AVM2Instruction(0,0x4f,new int[]{i==seam?bootstrapName:initializeName,0}));origins.add(-1);
+            }
+            var op=old.get(i);made.add(new AVM2Instruction(0,op.definition.instructionCode,op.operands==null?null:op.operands.clone()));origins.add(i);
+        }
+        starts.put(old.size(),made.size());long address=0;
+        for(var op:made){op.setAddress(address);address+=op.getBytesLength();}
+        final long end=address;var addresses=bootstrapAddresses(before);
+        for(int i=0;i<made.size();i++)if(origins.get(i)>=0) {
+            var op=made.get(i);var nativeOp=old.get(origins.get(i));
+            for(int operand:bootstrapEdges(nativeOp)) {
+                int at=starts.get(bootstrapIndex(addresses,bootstrapTarget(nativeOp,operand)));
+                long dest=at==made.size()?end:made.get(at).getAddress();
+                long offset=dest-op.getAddress()-(opcode(op,0x1b)?0:op.getBytesLength());
+                require(offset>=-8388608 && offset<=8388607,"Initializer S24 edge overflow.");op.operands[operand]=(int)offset;
+            }
+        }
+        code.code.clear();code.code.addAll(made);body.setCode(code);body.setModified();
+        body.exceptions=new ABCException[before.exceptions.length];
+        for(int i=0;i<before.exceptions.length;i++) {
+            var e=before.exceptions[i].clone();int a=starts.get(bootstrapIndex(addresses,e.start));
+            int b=starts.get(bootstrapIndex(addresses,e.end));int c=starts.get(bootstrapIndex(addresses,e.target));
+            e.start=(int)(a==made.size()?end:made.get(a).getAddress());
+            e.end=(int)(b==made.size()?end:made.get(b).getAddress());
+            e.target=(int)(c==made.size()?end:made.get(c).getAddress());body.exceptions[i]=e;
+        }
+        body.max_stack=Math.max(before.max_stack,1);body.setModified();
+        verifyGridBootstrapProjection(abc,before,body,bootstrapName,initializeName);return body;
+    }
+    static void verifyGridBootstrapProjection(ABC abc,MethodBody before,MethodBody after,int bootstrapName,int initializeName) throws Exception {
+        int seam=gridBootstrapSeam(abc,before);var old=before.getCode().code;var code=after.getCode().code;
+        var kept=new ArrayList<AVM2Instruction>();
+        var canonical=new HashMap<Integer,Long>();int early=0,late=0;
+        for(int i=0;i<code.size();) {
+            int pos=kept.size();
+            if((pos==seam && early==0) || (pos==old.size()-1 && late==0)) {
+                int q=pos==seam?bootstrapName:initializeName;
+                require(i+1<code.size() && opcode(code.get(i),0xd0) && opcode(code.get(i+1),0x4f) &&
+                    Arrays.equals(code.get(i+1).operands,new int[]{q,0}),"Initializer hook has wrong receiver, QName or arguments.");
+                canonical.put(pos,code.get(i).getAddress());
+                if(pos==seam)early++;else late++;i+=2;continue;
+            }
+            canonical.putIfAbsent(pos,code.get(i).getAddress());kept.add(code.get(i++));
+        }
+        canonical.put(kept.size(),after.getCode().getEndOffset());
+        require(early==1 && late==1 && kept.size()==old.size(),"Initializer hook/native inventory differs.");
+        var originalAddresses=bootstrapAddresses(before);
+        for(int i=0;i<old.size();i++) {
+            var a=old.get(i);var b=kept.get(i);require(a.definition.instructionCode==b.definition.instructionCode &&
+                (a.operands==null)==(b.operands==null) && (a.operands==null || a.operands.length==b.operands.length),
+                "Original initializer opcode/operand shape changed.");
+            if(a.operands!=null)for(int operand=0;operand<a.operands.length;operand++) {
+                if(bootstrapEdges(a).contains(operand))require(Objects.equals(bootstrapTarget(b,operand),
+                    canonical.get(bootstrapIndex(originalAddresses,bootstrapTarget(a,operand)))),"Original initializer jump/conditional/switch edge changed.");
+                else require(a.operands[operand]==b.operands[operand],"Original initializer operand changed.");
+            }
+        }
+        require(after.exceptions.length==before.exceptions.length,"Initializer exception inventory differs.");
+        for(int i=0;i<before.exceptions.length;i++) {
+            var a=before.exceptions[i];var b=after.exceptions[i];
+            require(Objects.equals((long)b.start,canonical.get(bootstrapIndex(originalAddresses,a.start))) &&
+                Objects.equals((long)b.end,canonical.get(bootstrapIndex(originalAddresses,a.end))) &&
+                Objects.equals((long)b.target,canonical.get(bootstrapIndex(originalAddresses,a.target))) &&
+                a.type_index==b.type_index && a.name_index==b.name_index,"Original initializer exception span/handler changed.");
+        }
+        require(after.max_regs==before.max_regs && after.max_stack==Math.max(before.max_stack,1) &&
+            after.init_scope_depth==before.init_scope_depth && after.max_scope_depth==before.max_scope_depth,
+            "Initializer hook changed original locals/stack/scope ABI.");
+        after.getCode().checkValidOffsets(after);
+    }
+    static int ownedGridName(ABC abc,InstanceInfo instance,String method) {
+        int result=-1;
+        for(var trait:instance.instance_traits.traits)if(name(abc,trait).equals(method) && trait instanceof TraitMethodGetterSetter) {
+            require(result<0,"Duplicate grid helper trait.");result=trait.name_index;
+        }
+        require(result>=0,"Missing grid helper trait: "+method);return result;
+    }
+    static void verifyGridController(ABC abc,InstanceInfo instance) {
+        int initialize=ownedGridName(abc,instance,"ApexCatalogGridInitialize");
+        var permit=ownedBody(abc,instance,"ApexCatalogGridPermit");
+        uniqueLiteral(abc,permit,"GRIDPERMIT|1");
+        require(propertyCalls(abc,permit).equals(Set.of("ApexNativeExchange","test")),
+            "Early grid permit must only read its fixed native capture-scope response.");
+        var bootstrap=ownedBody(abc,instance,"ApexCatalogGridBootstrap");
+        var info=abc.method_info.get(bootstrap.method_info);
+        require(info.param_types.length==0 && "void".equals(abc.constants.getString(abc.constants.getMultiname(info.ret_type).name_index)),
+            "Early bootstrap must be a no-argument void method.");
+        int calls=0;var code=bootstrap.getCode().code;
+        for(int i=0;i<code.size();i++)if(property(abc,code.get(i),0x46,"ApexCatalogGridInitialize") || property(abc,code.get(i),0x4f,"ApexCatalogGridInitialize")) {
+            require(i>=2 && opcode(code.get(i-1),0x26) && code.get(i).operands[0]==initialize && code.get(i).operands[1]==1 &&
+                (opcode(code.get(i-2),0xd0) || (opcode(code.get(i-2),0x5d) && code.get(i-2).operands[0]==initialize)),
+                "Early bootstrap must invoke its exact owned initializer with true on the original this.");calls++;
+        }
+        require(calls==1 && Set.of("ApexCatalogGridPermit","ApexCatalogGridInitialize","removeEventListener","RemoveMessageListener","ApexGridCancel").containsAll(propertyCalls(abc,bootstrap)),
+            "Early bootstrap performs an unreviewed call or has no single initializer call.");
+        for(String method:List.of("ApexCatalogGridBootstrap","ApexCatalogGridInitialize","ApexCatalogGridPrepare",
+            "ApexCatalogGridLeaseCurrent","ApexCatalogGridValidate","ApexCatalogGridInvalidate","ApexCatalogGridChanged",
+            "ApexCatalogGridDispose","ApexCatalogGridOwns","ApexCatalogGridPending"))
+            require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,method)),Set.of("CallGameService","CallUIService","ApexNativeExchange",
+                "getLocal","flush","connect","writeUTFBytes","GetCatalogItemsSelected","RequestData","ResetAndPositionCells","PositionCells",
+                "GetAllDisplayObjectCells","ApexCardScaleCells","ApexCardRowsAligned")),
+                "Structural grid bootstrap/lease/cleanup performs engine, disk or bulk catalogue work: "+method);
+        for(String producer:List.of("ApexCatalogGridPrepare","ApexCatalogGridRequest")) {
+            var produced=ownedBody(abc,instance,producer).getCode().code;int validators=0;
+            int inputName=ownedGridName(abc,instance,"ApexCatalogGridInput");
+            for(int i=0;i<produced.size();i++)if(stringLiteral(abc,produced.get(i),"inputValidate")) {
+                // FFDec emits a bound private method closure with getlex;
+                // an explicit this receiver uses getlocal0/getproperty.
+                boolean direct=i+1<produced.size() && opcode(produced.get(i+1),0x60) && produced.get(i+1).operands[0]==inputName;
+                boolean explicit=i+2<produced.size() && ((opcode(produced.get(i+1),0x5d) && produced.get(i+1).operands[0]==inputName) ||
+                    opcode(produced.get(i+1),0xd0)) && property(abc,produced.get(i+2),0x66,"ApexCatalogGridInput") &&
+                    produced.get(i+2).operands[0]==inputName;
+                require(direct || explicit,"Grid request binds an unreviewed write-input validator.");validators++;
+            }
+            require(validators>0,"Grid request omitted its fresh write-input validator: "+producer);
+        }
+        var observe=ownedBody(abc,instance,"ApexCatalogGridObserve");
+        uniqueLiteral(abc,observe,"CASGetSimInfo");uniqueLiteral(abc,observe,"CasGetCurrSimOutfitSlot");
+        int freshReads=0;var reads=observe.getCode().code;
+        for(int i=0;i<reads.size();i++)if(property(abc,reads.get(i),0x46,"CallGameService") || property(abc,reads.get(i),0x4f,"CallGameService")) {
+            require(i>=3 && reads.get(i).operands[1]==3 && opcode(reads.get(i-1),0x26) && opcode(reads.get(i-2),0x20) &&
+                (stringLiteral(abc,reads.get(i-3),"CASGetSimInfo") || stringLiteral(abc,reads.get(i-3),"CasGetCurrSimOutfitSlot")),
+                "Grid identity read must use its exact fresh native read arguments.");freshReads++;
+        }
+        require(freshReads==2,"Grid identity observation must contain exactly the selected Sim/outfit read pair.");
+        uniqueLiteral(abc,observe,"STATE|");
+        require(propertyCalls(abc,observe).containsAll(Set.of("CallGameService","ApexOwnerSimRow","ApexNativeExchange")),"Grid frame lacks fresh selected Sim/outfit observation.");
+        var incremental=ownedBody(abc,instance,"ApexCardIncrementalApply");
+        require(Collections.disjoint(propertyCalls(abc,incremental),Set.of("ResetAndPositionCells","PositionCells",
+            "ApexLayoutReset","ApexCardScaleCells","ApexCardRowsAligned","GetAllDisplayObjectCells","CallGameService","ApexNativeExchange")),
+            "Incremental geometry invokes the legacy pool/engine path.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexCardApply")).containsAll(Set.of("ApexCatalogGridOwns","ApexCardIncrementalApply")),
+            "The armed grid does not bypass legacy full-pool geometry.");
+        var frame=ownedBody(abc,instance,"ApexCatalogGridFrame");
+        require(propertyCalls(abc,frame).containsAll(Set.of("ApexCatalogGridObserve","ApexGridBegin","ApexGridStep","getTimer")),
+            "Grid scheduler lacks owned observation or bounded native stepping.");
+        boolean budget=false;var ops=frame.getCode().code;
+        for(int i=0;i<ops.size();i++)if(property(abc,ops.get(i),0x46,"ApexGridStep") || property(abc,ops.get(i),0x4f,"ApexGridStep")) {
+            require(ops.get(i).operands[1]==2,"Grid Step requires max-operations and deadline arguments.");
+            for(int j=Math.max(0,i-8);j<i;j++)if(opcode(ops.get(j),0x24) && ops.get(j).operands[0]==64)budget=true;
+        }
+        require(budget,"Grid frame must bound operations to64 and use its soft deadline.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogGridInput")).containsAll(Set.of("ApexCatalogGridObserve","ApexCatalogGridMatches","ApexCatalogGridInvalidate")),
+            "Write-capable cells lack a fresh exact identity check.");
     }
     static void extendReturn(MethodBody body, int methodName, String lifecycle) {
         int returnIndex = -1;
@@ -1188,6 +1415,29 @@ public class CasBytecodePatch {
         }
         require(readers>=3,"CAS catalog inventory readers are unavailable for the disabled-query verification.");
     }
+    static void verifyCatalogThinReadback(ABC abc,InstanceInfo instance) {
+        var allowed=ownedBody(abc,instance,"ApexCatalogReadbackOnly");
+        require(propertyCalls(abc,allowed).isEmpty(),"Thin readback eligibility must perform no work.");
+        Set<String> operations=new HashSet<>();
+        for(var op:allowed.getCode().code)if(opcode(op,0x2c))operations.add(abc.constants.getString(op.operands[0]));
+        require(operations.equals(Set.of("catalog-state","catalog-search","catalog-style",
+            "catalog-cards","catalog-card-reset","panel-layout","catalog-trace","catalog-layout-trace")),
+            "Thin readback operation allowlist includes an inventory or appearance path.");
+        var context=ownedBody(abc,instance,"ApexCatalogReadbackContext");
+        uniqueLiteral(abc,context,"CasGetCurrSimOutfitSlot");uniqueLiteral(abc,context,"STATE|");
+        require(propertyCalls(abc,context).equals(Set.of("test","split","CallGameService","ApexNativeExchange")),
+            "Thin readback context must only read exact outfit and authenticated owner state.");
+        var snapshot=ownedBody(abc,instance,"ApexCatalogSnapshot");
+        uniqueLiteral(abc,snapshot,"native-cas-catalog-client");
+        require(propertyCalls(abc,snapshot).equals(Set.of("ApexEncode","ApexCatalogStatus")),
+            "Thin snapshot invokes native inventory or repeats display readback.");
+        require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,"ApexControlResult")),
+            Set.of("ApexCatalogStatus","ApexCatalogTraceStatus","ApexLayoutTraceStatus")),
+            "Control result must reuse its same-event captured catalogue workspace.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexReadback")).containsAll(
+            Set.of("ApexCatalogReadbackOnly","ApexCatalogReadbackContext","ApexCatalogSnapshot","ApexSnapshot")),
+            "Readback lost its separate thin/full snapshot paths.");
+    }
     static void verifyEyebrowPaletteWidget(ABC abc, InstanceInfo instance) {
         Set<String> calls=propertyCalls(abc,ownedBody(abc,instance,"ApexSelectEyebrowSwatch"));
         require(calls.containsAll(Set.of("IsEnabled","SetType","SetSelection","GetSelectedIndices","GetDataFeed","RequestItemsAt","ApexClone")) &&
@@ -1419,8 +1669,22 @@ public class CasBytecodePatch {
         boolean margin=false;
         var layoutCalls=propertyCalls(abc,ownedBody(abc,instance,"ApexCardApply"));
         uniqueLiteral(abc,ownedBody(abc,instance,"ApexCardApply"),"cards:");
-        require(layoutCalls.contains("ResetAndPositionCells") && !layoutCalls.contains("PositionCells"),
+        require(layoutCalls.contains("ApexLayoutReset") && !layoutCalls.contains("PositionCells"),
             "Card layout must reset the native row cache; ordinary positioning can retain NaN.");
+        for(String method:List.of("ApexCardApply","ApexCardRestore")) {
+            var transaction=ownedBody(abc,instance,method);boolean readsLease=false,acquires=false,releases=false;
+            var code=transaction.getCode().code;
+            for(int at=0;at<code.size();at++) {
+                readsLease|=property(abc,code.get(at),0x66,"SuppressUpdates");
+                if(at>0 && property(abc,code.get(at),0x61,"SuppressUpdates")) {
+                    acquires|=opcode(code.get(at-1),0x26);releases|=opcode(code.get(at-1),0x27);
+                }
+            }
+            require(readsLease && acquires && releases && transaction.exceptions.length>0,
+                "Card geometry must respect the native suppression lease and restore its owned lease through finally: "+method);
+            require(Collections.disjoint(propertyCalls(abc,transaction),Set.of("CallGameService","CallUIService","ApexNativeExchange")),
+                "Grid geometry transaction cannot fetch or mutate Sim appearance data.");
+        }
         for(var op:ownedBody(abc,instance,"ApexCardApply").getCode().code)
             if(op.definition.instructionCode==0x5d || op.definition.instructionCode==0x60) {
                 String member=abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index);
@@ -1560,6 +1824,473 @@ public class CasBytecodePatch {
         }
         require(result.size()==5,"Companion adapter inventory differs.");return result;
     }
+    static List<MethodBody> lazySwatchAdapters(ABC original,ABC compiled) {
+        var result=new ArrayList<MethodBody>();
+        if(original.findClassByName("dcc.history.HistoryHost")<0)return result;
+        for(String type:List.of("dcc.history.HairSwatches","dcc.history.SwatchRepair")) {
+            var before=staticMethod(original,type,"Decorate");
+            var after=staticMethod(compiled,type,"Decorate");
+            require(before.exceptions.length==0 && after.exceptions.length==0,
+                "Lazy swatch adapter has an unreviewed exception region.");
+            require(propertyCalls(compiled,after).equals(propertyCalls(original,before)),
+                "Lazy swatch adapter must preserve exactly the donor call routes: "+type);
+            var code=after.getCode().code;int expensive=-1;int returns=0;boolean hover=false,open=false;
+            for(int i=0;i<code.size();i++) {
+                var op=code.get(i);
+                if(property(compiled,op,0x46,"GetColorSwatchDataFeed") || property(compiled,op,0x46,"CallGameService")) {
+                    expensive=i;break;
+                }
+                returns+=opcode(op,0x47)?1:0;hover|=opcode(op,0xd3);
+                open|=type.endsWith("HairSwatches") ? property(compiled,op,0x66,"origin") || property(compiled,op,0x60,"origin") :
+                    property(compiled,op,0x46,"Base");
+            }
+            require(expensive>=0 && returns>=2 && hover && open,
+                "Closed swatches must return before native queries or grid allocation: "+type);
+            for(var op:code)require(!opcode(op,0x40) && !opcode(op,0x44) && !opcode(op,0x67),
+                "Lazy swatch adapter has an unreviewed lexical reference.");
+            var body=after.clone();body.method_info=before.method_info;
+            int delta=before.init_scope_depth-after.init_scope_depth;
+            require(delta>=0 && delta<=16,"Lazy swatch lexical scope differs.");
+            body.init_scope_depth+=delta;body.max_scope_depth+=delta;body.setCode(body.getCode());result.add(body);
+        }
+        return result;
+    }
+    static final String DRAW_TRACE_TYPE="widgets.CAS.controls.CASClothingPanelCellViewMain";
+    static final String DRAW_TRACE_PIN="1f289754f5a45f86a44986a4e61840ab4a647e83a1a8c5d8afc82f1322e359f8";
+    static String byteHash(byte[] bytes) {
+        try {return HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));}
+        catch(java.security.NoSuchAlgorithmException impossible) {throw new IllegalStateException(impossible);}
+    }
+    static TraitSlotConst drawTraceStaticTrait(ABC abc) {
+        int index=abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain");
+        require(index>=0,"Draw trace Main class missing.");TraitSlotConst result=null;
+        for(var trait:abc.class_info.get(index).static_traits.traits)if(name(abc,trait).equals("apexCatalogDrawTraceStep")) {
+            require(result==null && trait instanceof TraitSlotConst,"Ambiguous draw trace callback trait.");
+            result=(TraitSlotConst)trait;
+        }
+        require(result!=null && result.value_index==0 && result.type_index>0 &&
+            abc.constants.getString(abc.constants.getMultiname(result.type_index).name_index).equals("Function"),
+            "Draw trace must be an uninitialized nullable Function trait.");
+        var q=abc.constants.getMultiname(result.name_index);
+        require(q.kind==Multiname.QNAME && q.namespace_index>0 &&
+            abc.constants.getNamespace(q.namespace_index).kind==Namespace.KIND_PACKAGE &&
+            abc.constants.getString(abc.constants.getNamespace(q.namespace_index).name_index).isEmpty(),
+            "Draw trace callback must use the public namespace.");return result;
+    }
+    static List<AVM2Instruction> drawTraceCall(ABC abc,int local,String event) {
+        var block=new ArrayList<AVM2Instruction>();
+        block.add(new AVM2Instruction(0,0x62,new int[]{local}));
+        var guard=new AVM2Instruction(0,0x12,new int[]{0});block.add(guard);
+        block.add(new AVM2Instruction(0,0x62,new int[]{local}));
+        block.add(new AVM2Instruction(0,0x64,new int[0]));
+        block.add(new AVM2Instruction(0,0x2c,new int[]{abc.constants.getStringId(event,true)}));
+        block.add(new AVM2Instruction(0,event.equals("draw.enter")?0xd1:0x20,new int[0]));
+        block.add(new AVM2Instruction(0,0x41,new int[]{2}));
+        block.add(new AVM2Instruction(0,0x29,new int[0]));
+        int skip=0;for(int i=2;i<block.size();i++)skip+=block.get(i).getBytesLength();guard.operands[0]=skip;
+        return block;
+    }
+    static MethodBody makeDrawTraceAdapter(ABC original,ABC compiled) {
+        var before=classMethod(original,DRAW_TRACE_TYPE,"Draw");
+        require(byteHash(before.getCodeBytes()).equals(DRAW_TRACE_PIN),"Pinned native Draw bytes differ.");
+        require(before.exceptions.length==0 && before.max_regs==24,"Pinned Draw exception/local layout differs.");
+        verifyDrawTraceCallAbi(original);
+        var callback=drawTraceStaticTrait(compiled);
+        int main=original.findClassByName("widgets.CAS.Customizer.CASCustomizerMain");
+        var old=before.getCode().code;int local=before.max_regs;
+        require(old.size()>2 && opcode(old.get(0),0xd0) && opcode(old.get(1),0x30),
+            "Native Draw scope prologue differs.");
+        var insertions=new TreeMap<Integer,List<AVM2Instruction>>();
+        var prefix=new ArrayList<AVM2Instruction>();
+        prefix.add(new AVM2Instruction(0,0x60,new int[]{original.instance_info.get(main).name_index}));
+        prefix.add(new AVM2Instruction(0,0x66,new int[]{callback.name_index}));
+        prefix.add(new AVM2Instruction(0,0x63,new int[]{local}));
+        prefix.addAll(drawTraceCall(compiled,local,"draw.enter"));insertions.put(2,prefix);
+        var counts=new HashMap<String,Integer>();int returns=0;
+        for(int i=0;i<old.size();i++) {
+            var op=old.get(i);require(!opcode(op,0x1b),"Draw trace has an unreviewed switch.");String phase=null;
+            if(opcode(op,0x47)) {insertions.computeIfAbsent(i,k->new ArrayList<>()).addAll(drawTraceCall(compiled,local,"draw.leave"));returns++;}
+            if(opcode(op,0x46)||opcode(op,0x4f)||opcode(op,0x45)||opcode(op,0x4e)) {
+                var called=original.constants.getString(original.constants.getMultiname(op.operands[0]).name_index);
+                if(called.equals("Paint"))phase="favorite";
+                else if(called.equals("Draw")&&(opcode(op,0x45)||opcode(op,0x4e)))phase="super";
+                else if(called.equals("LoadThumbnail"))phase="thumbnail";
+                else if(called.equals("Decorate"))phase="decoration";
+                else if(Set.of("GetColorSwatchDataFeed","GetColorSwatchArray","GetDataLength","SetDataFeed","ShowGrid","RefreshLayout").contains(called))phase="swatches";
+                else if(Set.of("LoadImage","SetTag").contains(called))phase="icons";
+            }
+            if(phase!=null) {
+                counts.merge(phase,1,Integer::sum);
+                insertions.computeIfAbsent(i,k->new ArrayList<>()).addAll(drawTraceCall(compiled,local,phase+".enter"));
+                insertions.computeIfAbsent(i+1,k->new ArrayList<>()).addAll(drawTraceCall(compiled,local,phase+".leave"));
+            }
+        }
+        require(returns==4 && counts.equals(Map.of("favorite",1,"super",1,"thumbnail",5,"decoration",4,"swatches",7,"icons",2)),
+            "Pinned Draw phase/return inventory differs: "+counts);
+        var body=before.clone();var code=body.getCode();var rewritten=new ArrayList<AVM2Instruction>();
+        var starts=new HashMap<Long,AVM2Instruction>();var originals=new ArrayList<AVM2Instruction>();
+        for(int i=0;i<old.size();i++) {
+            var additions=insertions.getOrDefault(i,List.of());var copy=old.get(i).clone();
+            starts.put(old.get(i).getAddress(),additions.isEmpty()?copy:additions.get(0));
+            rewritten.addAll(additions);rewritten.add(copy);originals.add(copy);
+        }
+        rewritten.addAll(insertions.getOrDefault(old.size(),List.of()));
+        long address=0;for(var op:rewritten) {op.setAddress(address);address+=op.getBytesLength();}
+        long oldEnd=before.getCode().getEndOffset();
+        for(int i=0;i<old.size();i++)if(old.get(i).isBranch() || old.get(i).isJump()) {
+            long target=old.get(i).getTargetAddress();
+            require(target==oldEnd || starts.containsKey(target),"Native Draw branch has no retained target.");
+            long destination=target==oldEnd?address:starts.get(target).getAddress();
+            var op=originals.get(i);op.operands[0]=Math.toIntExact(destination-op.getAddress()-op.getBytesLength());
+        }
+        code.code.clear();code.code.addAll(rewritten);body.max_regs=before.max_regs+1;body.max_stack=before.max_stack+4;
+        body.setCode(code);body.setModified();code.checkValidOffsets(body);return body;
+    }
+    static void verifyRetainedDrawFlow(ABC abc,MethodBody before,MethodBody after) {
+        // Independent of the assembler's isBranch/isJump helpers. AVM2 jump
+        // opcode0x10 is NOT an IfTypeIns, and must be checked explicitly.
+        var old=before.getCode().code;var code=after.getCode().code;
+        var projected=new ArrayList<AVM2Instruction>();var destinations=new HashMap<Long,Integer>();
+        int markers=0,prefixes=0;
+        for(int i=0;i<code.size();) {
+            var op=code.get(i);
+            if(i==2) {
+                require(opcode(op,0x60) && property(abc,op,0x60,"CASCustomizerMain") &&
+                    property(abc,code.get(i+1),0x66,"apexCatalogDrawTraceStep") &&
+                    opcode(code.get(i+2),0x63) && code.get(i+2).operands[0]==before.max_regs,
+                    "Draw must preserve scope setup before its one-local diagnostic prefix.");
+                destinations.put(op.getAddress(),projected.size());prefixes++;i+=3;continue;
+            }
+            if(opcode(op,0x62) && op.operands[0]==before.max_regs) {
+                require(i+8<=code.size() && opcode(code.get(i+1),0x12) && opcode(code.get(i+2),0x62) &&
+                    code.get(i+2).operands[0]==before.max_regs && opcode(code.get(i+3),0x64) &&
+                    opcode(code.get(i+4),0x2c) && (opcode(code.get(i+5),0x20)||opcode(code.get(i+5),0xd1)) &&
+                    opcode(code.get(i+6),0x41) && code.get(i+6).operands[0]==2 && opcode(code.get(i+7),0x29),
+                    "Trace marker changes the original value stack or function receiver/argument convention.");
+                long end=i+8==code.size()?after.getCode().getEndOffset():code.get(i+8).getAddress();
+                require(code.get(i+1).getTargetAddress()==end,"Disabled trace guard does not preserve the original value stack.");
+                destinations.put(op.getAddress(),projected.size());markers++;i+=8;continue;
+            }
+            destinations.put(op.getAddress(),projected.size());projected.add(op);i++;
+        }
+        destinations.put(after.getCode().getEndOffset(),projected.size());
+        require(prefixes==1 && markers==45 && projected.size()==old.size(),"Native Draw projection/marker count differs.");
+        for(int i=0;i<old.size();i++) {
+            var a=projected.get(i);var b=old.get(i);int number=b.definition.instructionCode;
+            boolean relative=number>=0x0c && number<=0x1a;
+            require(a.definition.instructionCode==number && (relative||Arrays.equals(a.operands,b.operands)),
+                "Native Draw non-control instruction/operand changed.");
+            if(relative)require(Objects.equals(destinations.get(a.getTargetAddress()),before.getCode().adr2pos(b.getTargetAddress())),
+                "Native Draw conditional/unconditional control-flow edge changed.");
+        }
+    }
+    static void verifyDrawTraceCallAbi(ABC original) {
+        // Independently compiled donor code invokes a Function with two captured
+        // arguments using getglobalscope as receiver. Do not substitute null.
+        boolean found=false;
+        for(var body:original.bodies) {
+            var code=body.getCode().code;
+            for(int i=7;i<code.size();i++)if(opcode(code.get(i),0x41) && code.get(i).operands[0]==2 &&
+                opcode(code.get(i-7),0x65) && opcode(code.get(i-6),0x6c) && opcode(code.get(i-5),0x64) &&
+                opcode(code.get(i-4),0x65) && opcode(code.get(i-3),0x6c) &&
+                opcode(code.get(i-2),0x65) && opcode(code.get(i-1),0x6c))found=true;
+        }
+        require(found,"Pinned donor lacks the independently compiled Function-call receiver convention.");
+    }
+    static void verifyDrawTraceAdapter(ABC original,ABC serialized) {
+        var before=classMethod(original,DRAW_TRACE_TYPE,"Draw");var after=classMethod(serialized,DRAW_TRACE_TYPE,"Draw");
+        var expected=makeDrawTraceAdapter(original,serialized);
+        require(Arrays.equals(expected.getCodeBytes(),after.getCodeBytes()) && after.exceptions.length==0 &&
+            after.max_regs==before.max_regs+1 && after.max_stack==before.max_stack+4 &&
+            after.init_scope_depth==before.init_scope_depth && after.max_scope_depth==before.max_scope_depth,
+            "Serialized Draw trace changed retained native instructions, guards, branches, locals or exceptions.");
+        verifyRetainedDrawFlow(serialized,before,after);
+    }
+    static void verifyDrawTraceHelper(ABC abc,InstanceInfo instance) {
+        var routes=Map.of("ApexCatalogTraceConfigure",Set.of("ApexCatalogTraceStatus","getTimer","ApexCatalogTraceDispose","ApexLayoutTraceDispose"),
+            "ApexCatalogTraceStep",Set.of("pop","split","max","substr","getTimer","push","ApexCatalogTraceDispose"),
+            "ApexCatalogTraceDispose",Set.<String>of(),"ApexCatalogTraceStatus",Set.of("max","getTimer","push","ApexCatalogTraceDispose"));
+        for(var entry:routes.entrySet()) {
+            var body=ownedBody(abc,instance,entry.getKey());
+            require(propertyCalls(abc,body).equals(entry.getValue()),"Draw trace helper gained a service, IO or unreviewed callback: "+entry.getKey());
+            for(var op:body.getCode().code)if((opcode(op,0x60)||opcode(op,0x5d)) &&
+                abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index).equals("getTimer")) {
+                var q=abc.constants.getMultiname(op.operands[0]);
+                require(q.kind==Multiname.QNAME && q.namespace_index>0 &&
+                    abc.constants.getNamespace(q.namespace_index).kind==Namespace.KIND_PACKAGE &&
+                    abc.constants.getString(abc.constants.getNamespace(q.namespace_index).name_index).equals("flash.utils"),
+                    "Draw trace clock is not the actual Flash utility function.");
+            }
+        }
+        var step=ownedBody(abc,instance,"ApexCatalogTraceStep");boolean earlyReturn=false,enabled=false,clock=false,catchAll=false;
+        for(var op:step.getCode().code) {
+            if(property(abc,op,0x46,"getTimer")) {clock=true;break;}
+            earlyReturn|=opcode(op,0x47);enabled|=property(abc,op,0x66,"enabled");
+        }
+        for(var handler:step.exceptions)catchAll|=handler.type_index==0;
+        require(earlyReturn && enabled && clock && catchAll,"Draw trace lacks its disabled return or catch-all diagnostic boundary.");
+    }
+    static void verifyOwnedLexicalRoots(ABC abc,Set<Integer> methods) {
+        for(int method:methods)for(var op:abc.findBody(method).getCode().code)
+            if(opcode(op,0x60)||opcode(op,0x5d)) {
+                String root=abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index);
+                require(!Set.of("olympus","gamedata","widgets","apex").contains(root),
+                    "Owned CAS method uses an unresolved package root instead of an imported class: "+root);
+            }
+    }
+    static void verifySearchScrollerBinding(ABC abc,InstanceInfo instance) {
+        var publish=ownedBody(abc,instance,"ApexSearchPublish");int constructs=0;
+        for(var op:publish.getCode().code)if((opcode(op,0x60)||opcode(op,0x5d)||opcode(op,0x4a)) &&
+            abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index).equals("ScrollerEvent")) {
+            var q=abc.constants.getMultiname(op.operands[0]);
+            require(q.kind==Multiname.QNAME && q.namespace_index>0 &&
+                abc.constants.getNamespace(q.namespace_index).kind==Namespace.KIND_PACKAGE &&
+                abc.constants.getString(abc.constants.getNamespace(q.namespace_index).name_index).equals("olympus.events"),
+                "Search scroll event is not the actual native event class.");
+            if(opcode(op,0x4a))constructs++;
+        }
+        require(constructs==1,"Search must dispatch one real native event before remapping a popup's numeric feed index.");
+    }
+    static void verifyLayoutTraceHelper(ABC abc,InstanceInfo instance) {
+        var routes=Map.of("ApexLayoutTraceConfigure",Set.of("ApexLayoutTraceDispose","ApexLayoutTraceStatus","ApexCatalogTraceDispose","getTimer"),
+            "ApexLayoutTraceDispose",Set.<String>of(),"ApexLayoutTraceStatus",Set.of("getTimer","max","ApexLayoutTraceDispose"),
+            "ApexLayoutReset",Set.of("ResetAndPositionCells","getTimer","max","ApexLayoutTraceDispose","ApexProfileResetAndPositionCells","ApexGridProviderIdentity","push"));
+        for(var entry:routes.entrySet()) {
+            var body=ownedBody(abc,instance,entry.getKey());
+            require(propertyCalls(abc,body).equals(entry.getValue()),"Layout diagnostic helper gained an unreviewed native callback: "+entry.getKey());
+            for(var op:body.getCode().code)if((opcode(op,0x60)||opcode(op,0x5d)) &&
+                abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index).equals("getTimer")) {
+                var q=abc.constants.getMultiname(op.operands[0]);
+                require(q.kind==Multiname.QNAME && q.namespace_index>0 &&
+                    abc.constants.getNamespace(q.namespace_index).kind==Namespace.KIND_PACKAGE &&
+                    abc.constants.getString(abc.constants.getNamespace(q.namespace_index).name_index).equals("flash.utils"),
+                    "Layout diagnostic clock is not the actual Flash utility function.");
+            }
+        }
+        var reset=ownedBody(abc,instance,"ApexLayoutReset");
+        int nativeCalls=0,profileCalls=0,providers=0;boolean earlyReturn=false,enabled=false,clock=false;
+        for(var op:reset.getCode().code) {
+            if(property(abc,op,0x46,"getTimer")) {clock=true;break;}
+            earlyReturn|=opcode(op,0x47);enabled|=property(abc,op,0x66,"enabled");
+        }
+        for(var op:reset.getCode().code) {
+            if(property(abc,op,0x46,"ResetAndPositionCells") || property(abc,op,0x4f,"ResetAndPositionCells"))nativeCalls++;
+            if(property(abc,op,0x46,"ApexProfileResetAndPositionCells") || property(abc,op,0x4f,"ApexProfileResetAndPositionCells"))profileCalls++;
+            if(property(abc,op,0x46,"ApexGridProviderIdentity"))providers++;
+        }
+        require(earlyReturn && enabled && clock && nativeCalls==2 && profileCalls==1 && providers==1 && reset.exceptions.length==1,
+            "Layout diagnostics must retain the disabled native path, one profile call and native exception propagation.");
+    }
+    static MethodBody favoriteLookupAdapter(ABC original,ABC compiled) {
+        if(original.findClassByName("dcc.history.HistoryHost")<0)return null;
+        var before=staticMethod(original,"widgets.CAS.dcc.DCCFavorites","Has");
+        var after=staticMethod(compiled,"widgets.CAS.dcc.DCCFavorites","Has");
+        require(before.exceptions.length==0 && after.exceptions.length==0 &&
+            propertyCalls(original,before).equals(propertyCalls(compiled,after)),
+            "Favorite lookup must retain the original settings/key routes.");
+        int oldReads=0,newReads=0;
+        for(var op:before.getCode().code)if(property(original,op,0x66,"AccountSettings"))oldReads++;
+        for(var op:after.getCode().code) {
+            if(property(compiled,op,0x66,"AccountSettings"))newReads++;
+            require(!opcode(op,0x40) && !opcode(op,0x44) && !opcode(op,0x67),"Unreviewed favorite lookup lexical reference.");
+        }
+        require(oldReads==3 && newReads==1,"Favorite lookup must resolve the live account map exactly once.");
+        var body=after.clone();body.method_info=before.method_info;
+        int delta=before.init_scope_depth-after.init_scope_depth;
+        require(delta>=0 && delta<=16,"Favorite lookup scope differs.");
+        body.init_scope_depth+=delta;body.max_scope_depth+=delta;body.setCode(body.getCode());return body;
+    }
+    static int[] communicationBinding(ABC abc) {
+        int manager=-1,call=-1;
+        for(var method:abc.bodies)for(var op:method.getCode().code) {
+            if(manager<0 && property(abc,op,0x60,"CommunicationManager"))manager=op.operands[0];
+            if(call<0 && property(abc,op,0x46,"CallUIService"))call=op.operands[0];
+        }
+        require(manager>=0 && call>=0,"Native UI communication binding absent.");return new int[]{manager,call};
+    }
+    static MethodBody retainedPrefix(ABC abc,MethodBody before,List<AVM2Instruction> prefix,int branch,int stack) {
+        var body=before.clone();body.exceptions=new ABCException[before.exceptions.length];
+        for(int i=0;i<before.exceptions.length;i++)body.exceptions[i]=before.exceptions[i].clone();
+        body.insertAll(0,prefix);body.getCode().code.get(branch).operands[0]=1;
+        body.max_stack=Math.max(stack,body.max_stack);body.setModified();
+        int extra=body.getCodeBytes().length-before.getCodeBytes().length;require(extra>0,"Empty native prefix.");
+        for(int i=0;i<before.exceptions.length;i++) {
+            body.exceptions[i].start=before.exceptions[i].start+extra;
+            body.exceptions[i].end=before.exceptions[i].end+extra;
+            body.exceptions[i].target=before.exceptions[i].target+extra;
+        }
+        verifyRetainedPrefix(body,before);return body;
+    }
+    static void verifyRetainedPrefix(MethodBody after,MethodBody before) {
+        byte[] saved=after.getCodeBytes(),old=before.getCodeBytes();int extra=saved.length-old.length;
+        require(extra>0 && Arrays.equals(old,Arrays.copyOfRange(saved,extra,saved.length)),
+            "Original native consumer bytes changed outside its dispatcher.");
+        require(after.exceptions.length==before.exceptions.length,"Native consumer exception inventory differs.");
+        for(int i=0;i<before.exceptions.length;i++) {
+            var a=after.exceptions[i];var b=before.exceptions[i];
+            require(a.start==b.start+extra && a.end==b.end+extra && a.target==b.target+extra &&
+                a.type_index==b.type_index && a.name_index==b.name_index,"Native exception region was not retained exactly.");
+        }
+    }
+    static List<MethodBody> consumerAdapters(ABC original,ABC compiled) {
+        var result=new ArrayList<MethodBody>();
+        if(original.findClassByName("dcc.history.HistoryHost")<0)return result;
+        var binding=communicationBinding(compiled);
+        for(String type:List.of("dcc.history.SavedOutfitNames","dcc.history.CurrentRemove")) {
+            String method=type.endsWith("SavedOutfitNames")?"Commit":"Click";
+            int index=original.findClassByName(type),callback=-1;
+            for(var trait:original.class_info.get(index).static_traits.traits)
+                if(name(original,trait).equals(method) && trait instanceof TraitMethodGetterSetter)callback=trait.name_index;
+            require(callback>=0,"Native consumer callback absent.");var before=staticMethod(original,type,method);
+            require(original.method_info.get(before.method_info).param_types.length==1,"Native consumer signature differs.");
+            var prefix=List.of(new AVM2Instruction(0,0x60,new int[]{binding[0]}),
+                new AVM2Instruction(0,0x2c,new int[]{compiled.constants.getStringId("ApexPanelConsumer",true)}),
+                new AVM2Instruction(0,0x2c,new int[]{compiled.constants.getStringId("kind",true)}),
+                new AVM2Instruction(0,0x2c,new int[]{compiled.constants.getStringId(method.equals("Commit")?"save":"remove",true)}),
+                new AVM2Instruction(0,0x2c,new int[]{compiled.constants.getStringId("callback",true)}),
+                new AVM2Instruction(0,0x60,new int[]{original.instance_info.get(index).name_index}),
+                new AVM2Instruction(0,0x66,new int[]{callback}),
+                new AVM2Instruction(0,0x2c,new int[]{compiled.constants.getStringId("event",true)}),
+                new AVM2Instruction(0,0xd1,new int[0]),new AVM2Instruction(0,0x55,new int[]{3}),
+                new AVM2Instruction(0,0x46,new int[]{binding[1],2}),new AVM2Instruction(0,0x12,new int[]{1}),
+                new AVM2Instruction(0,0x47,new int[0]));
+            result.add(retainedPrefix(compiled,before,prefix,11,8));
+        }
+        int sinks=0;int sharedSink=staticMethod(original,"dcc.history.HistoryHost","CurrentOutfitClick").method_info;
+        for(var before:original.bodies)if(propertyCalls(original,before).containsAll(Set.of("SavePart","PendingName","SetValue"))) {
+            require(before.method_info==sharedSink,"Unreviewed saved-outfit persistence body.");
+            require(original.method_info.get(before.method_info).param_types.length==1,"Saved-outfit sink signature differs.");
+            var prefix=List.of(new AVM2Instruction(0,0x60,new int[]{binding[0]}),
+                new AVM2Instruction(0,0x2c,new int[]{compiled.constants.getStringId("ApexPanelPersistGate",true)}),
+                new AVM2Instruction(0,0xd1,new int[0]),new AVM2Instruction(0,0x46,new int[]{binding[1],2}),
+                new AVM2Instruction(0,0x12,new int[]{1}),new AVM2Instruction(0,0x47,new int[0]));
+            result.add(retainedPrefix(compiled,before,prefix,4,3));sinks++;
+        }
+        // Attach creates an anonymous function from the SAME MethodInfo that
+        // backs the public CurrentOutfitClick trait. The decompiler prints it
+        // twice, but prefixing that single body must protect both call paths.
+        int references=0;
+        for(var op:staticMethod(original,"dcc.history.HistoryHost","Attach").getCode().code)
+            if(opcode(op,0x40) && op.operands[0]==sharedSink)references++;
+        require(sinks==1 && references==1 && result.size()==3,"Native outfit save/remove shared-body inventory differs.");return result;
+    }
+    static void verifyConsumerPrefix(ABC abc,MethodBody after,MethodBody before) {
+        verifyRetainedPrefix(after,before);var code=after.getCode().code;
+        require(property(abc,code.get(0),0x60,"CommunicationManager"),"Consumer dispatcher manager differs.");
+        if(stringLiteral(abc,code.get(1),"ApexPanelConsumer")) {
+            String type=stringLiteral(abc,code.get(3),"save")?"dcc.history.SavedOutfitNames":"dcc.history.CurrentRemove";
+            String method=type.endsWith("SavedOutfitNames")?"Commit":"Click";int index=abc.findClassByName(type),callback=-1;
+            for(var trait:abc.class_info.get(index).static_traits.traits)if(name(abc,trait).equals(method))callback=trait.name_index;
+            require(code.size()>13 && stringLiteral(abc,code.get(2),"kind") &&
+                stringLiteral(abc,code.get(3),method.equals("Commit")?"save":"remove") &&
+                stringLiteral(abc,code.get(4),"callback") && opcode(code.get(5),0x60) &&
+                code.get(5).operands[0]==abc.instance_info.get(index).name_index && opcode(code.get(6),0x66) &&
+                code.get(6).operands[0]==callback && stringLiteral(abc,code.get(7),"event") && opcode(code.get(8),0xd1) &&
+                opcode(code.get(9),0x55) && code.get(9).operands[0]==3 && property(abc,code.get(10),0x46,"CallUIService") &&
+                code.get(10).operands[1]==2 && opcode(code.get(11),0x12) && code.get(11).operands[0]==1 && opcode(code.get(12),0x47),
+                "Outfit consumer must retain its exact callback/event and absent-service fallback.");
+        } else require(code.size()>6 && stringLiteral(abc,code.get(1),"ApexPanelPersistGate") && opcode(code.get(2),0xd1) &&
+            property(abc,code.get(3),0x46,"CallUIService") && code.get(3).operands[1]==2 && opcode(code.get(4),0x12) &&
+            code.get(4).operands[0]==1 && opcode(code.get(5),0x47),"Outfit persistence sink lost its freshness gate.");
+    }
+    static MethodBody currentOutfitAdapter(ABC original,ABC compiled) {
+        if(original.findClassByName("dcc.history.HistoryHost")<0)return null;
+        var before=staticMethod(original,"dcc.history.HistoryHost","RefreshCurrentOutfit");
+        var body=before.clone();var code=body.getCode().code;
+        require(body.exceptions.length==0 && code.size()>2 && property(original,code.get(0),0x60,"HistoryHost") &&
+            property(original,code.get(1),0x66,"dccHistoryRuntimeDrawer"),
+            "Current outfit refresh has an unreviewed scope or exception region.");
+        int manager=-1,call=-1;
+        for(var method:compiled.bodies)for(var op:method.getCode().code) {
+            if(manager<0 && property(compiled,op,0x60,"CommunicationManager"))manager=op.operands[0];
+            if(call<0 && property(compiled,op,0x46,"CallUIService"))call=op.operands[0];
+        }
+        require(manager>=0 && call>=0,"Current outfit dispatcher lost its native communication binding.");
+        var q=compiled.constants.getMultiname(manager);
+        require(q.kind==Multiname.QNAME && q.namespace_index>0 &&
+            compiled.constants.getString(compiled.constants.getNamespace(q.namespace_index).name_index).equals("olympus.io"),
+            "Outfit dispatcher is not bound to the native communication manager.");
+        body.insertAll(0,List.of(new AVM2Instruction(0,0x60,new int[]{manager}),
+            new AVM2Instruction(0,0x2c,new int[]{compiled.constants.getStringId("ApexPanelRefreshGate",true)}),
+            new AVM2Instruction(0,0x20,new int[0]),new AVM2Instruction(0,0x46,new int[]{call,2}),
+            new AVM2Instruction(0,0x12,new int[]{1}),new AVM2Instruction(0,0x47,new int[0])));
+        // insertAll relocates a newly inserted branch while adding its sibling
+        // return. Pin the final relative target to the one-byte return skip.
+        body.getCode().code.get(4).operands[0]=1;
+        body.max_stack=Math.max(3,body.max_stack);body.setModified();
+        verifyCurrentOutfitAdapter(compiled,body,before.getCodeBytes());return body;
+    }
+    static void verifyCurrentOutfitAdapter(ABC abc,MethodBody body,byte[] original) {
+        var code=body.getCode().code;var saved=body.getCodeBytes();
+        require(code.size()>8 && body.exceptions.length==0 &&
+            property(abc,code.get(0),0x60,"CommunicationManager") && stringLiteral(abc,code.get(1),"ApexPanelRefreshGate") &&
+            opcode(code.get(2),0x20) && property(abc,code.get(3),0x46,"CallUIService") && code.get(3).operands[1]==2 &&
+            opcode(code.get(4),0x12) && code.get(4).operands[0]==1 && opcode(code.get(5),0x47),
+            "Outfit refresh must queue through the owned UI service and retain the absent-service fallback: "+
+                code.subList(0,Math.min(8,code.size())).stream().map(op->op.definition.instructionName+Arrays.toString(op.operands)).toList());
+        int bytes=saved.length-original.length;
+        require(bytes>0 && Arrays.equals(original,Arrays.copyOfRange(saved,bytes,saved.length)),
+            "Original outfit refresh bytes changed outside the owned queue dispatcher.");
+    }
+    static void verifyPanelScheduling(ABC abc,InstanceInfo instance) {
+        var gate=ownedBody(abc,instance,"ApexPanelRefreshGate");
+        require(propertyCalls(abc,gate).isEmpty(),"Outfit refresh input must only coalesce retained intent.");
+        var forbidden=Set.of("CallGameService","CallUIService","ApexNativeExchange","RemoveAllItems","AddItemsFromIterable","flush");
+        for(String method:List.of("ApexPanelsDragStart","ApexPanelsDragMove","ApexPanelsDragEnd","ApexPanelsScale","ApexPanelsClick","ApexPanelsCommand"))
+            require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,method)),forbidden),
+                "Panel input performs engine, feed or disk work: "+method);
+        var work=ownedBody(abc,instance,"ApexPanelsWork");
+        require(propertyCalls(abc,work).containsAll(Set.of("GetCatalogItemsSelected","GetCatalogProduct","CurrentCategoryPart",
+            "Register","AddEyeColor","Record","AddItem","ReplaceItemAt","RemoveItemAt","PositionCells","ApexPanelsStamp")) &&
+            Collections.disjoint(propertyCalls(abc,work),Set.of("RemoveAllItems","AddItemsFromIterable")),
+            "Incremental outfit preview lost native donor routes or its complete appearance freshness check.");
+        var frame=ownedBody(abc,instance,"ApexPanelsFrame");
+        require(propertyCalls(abc,frame).containsAll(Set.of("getTimer","ApexPanelsWork","ApexPanelsContext","flush")),
+            "Panel scheduler lost frame timing, context verification or deferred persistence.");
+    }
+    static List<MethodBody> columnSchedulingAdapters(ABC original,ABC compiled) {
+        var result=new ArrayList<MethodBody>();
+        if(original.findClassByName("dcc.history.HistoryHost")<0)return result;
+        String type="widgets.CAS.Customizer.CASCustomizerMain";
+        var routes=Map.of("RefreshAndShowPanel","ApexColumnsTakeover","ApplyDynamicColumns","ApexColumnsSet",
+            "LoadThumbnailScaleSetting","ApexColumnsTakeover","FlushThumbnailScaleReflow","ApexColumnsTakeover",
+            "HandleThumbnailScaleMove","ApexColumnsScale","HandleThumbnailScaleUp","ApexColumnsScaleEnd",
+            "HandleDynamicResizeMoveRight","ApexColumnsResize","HandleDynamicResizeUpRight","ApexColumnsResizeEnd");
+        int manager=-1,call=-1;
+        for(var method:compiled.bodies)for(var op:method.getCode().code) {
+            if(manager<0 && property(compiled,op,0x60,"CommunicationManager"))manager=op.operands[0];
+            if(call<0 && property(compiled,op,0x46,"CallUIService"))call=op.operands[0];
+        }
+        require(manager>=0 && call>=0,"Column dispatcher native communication binding absent.");
+        for(var entry:routes.entrySet()) {
+            var before=classMethod(original,type,entry.getKey());var body=before.clone();var code=body.getCode().code;
+            require(body.exceptions.length==0 && code.size()>2 && opcode(code.get(0),0xd0) && opcode(code.get(1),0x30),
+                "Unreviewed column adapter scope: "+entry.getKey());
+            int at=2;
+            if(entry.getKey().equals("RefreshAndShowPanel")) {
+                at=-1;
+                for(int i=0;i<code.size();i++)if(property(original,code.get(i),0x4f,"ShowPanel")) {
+                    require(at<0,"Multiple native panel publication calls.");at=i+1;
+                }
+                require(at>=0,"Native panel publication call absent.");
+            }
+            boolean argument=Set.of("ApplyDynamicColumns","HandleThumbnailScaleMove","HandleThumbnailScaleUp",
+                "HandleDynamicResizeMoveRight","HandleDynamicResizeUpRight").contains(entry.getKey());
+            body.insertAll(at,List.of(new AVM2Instruction(0,0x60,new int[]{manager}),
+                new AVM2Instruction(0,0x2c,new int[]{compiled.constants.getStringId(entry.getValue(),true)}),
+                new AVM2Instruction(0,argument?0xd1:0x20,new int[0]),
+                new AVM2Instruction(0,0x46,new int[]{call,2}),new AVM2Instruction(0,0x12,new int[]{1}),
+                new AVM2Instruction(0,0x47,new int[0])));
+            body.getCode().code.get(at+4).operands[0]=1;body.max_stack=Math.max(3,body.max_stack);body.setModified();
+            byte[] saved=body.getCodeBytes(),old=before.getCodeBytes();
+            int start=(int)body.getCode().code.get(at).getAddress(),extra=saved.length-old.length;
+            require(extra>0 && Arrays.equals(Arrays.copyOfRange(old,0,start),Arrays.copyOfRange(saved,0,start)) &&
+                Arrays.equals(Arrays.copyOfRange(old,start,old.length),Arrays.copyOfRange(saved,start+extra,saved.length)),
+                "Column adapter changed original bytes outside its owned dispatcher: "+entry.getKey());
+            result.add(body);
+        }
+        require(result.size()==8,"Column scheduler adapter inventory differs.");return result;
+    }
     static List<MethodBody> equippedAdapters(ABC original,ABC compiled) {
         var result=new ArrayList<MethodBody>();
         var routes=Map.of(
@@ -1621,12 +2352,12 @@ public class CasBytecodePatch {
     static void verifyNativeCatalogSearch(ABC abc,InstanceInfo instance) {
         var forbidden=Set.of("CallGameService","CallUIService","ApexNativeExchange","ApexSearchPublish","ApexSearchNativeKey",
             "RemoveAllItems","AddItemsFromIterable","Refresh","RequestData");
-        for(String method:List.of("ApexSearchChanged","ApexSearchText","ApexSearchClear","ApexSearchKey","ApexSearchSource"))
+        for(String method:List.of("ApexSearchChanged","ApexSearchText","ApexSearchClear","ApexSearchKey","ApexSearchSource","ApexSearchSelection"))
             require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,method)),forbidden),
                 "Search input/source callbacks perform catalog or native work: "+method);
         var publish=ownedBody(abc,instance,"ApexSearchPublish");
-        require(Collections.disjoint(propertyCalls(abc,publish),Set.of("CallGameService","CallUIService","ApexNativeExchange")) &&
-            propertyCalls(abc,publish).containsAll(Set.of("ApexSearchContext","RemoveAllItems","AddItemsFromIterable","UpdateSelections")),
+        require(Collections.disjoint(propertyCalls(abc,publish),Set.of("CallGameService","CallUIService","ApexNativeExchange","UpdateSelections","ReplaceWithVariation","SetVariation")) &&
+            propertyCalls(abc,publish).containsAll(Set.of("ApexSearchContext","RemoveAllItems","AddItemsFromIterable","SetSelectionStateMultiple")),
             "Search publication must only filter the original native feed and its selection display.");
         int compare=-1,clear=-1;var publication=publish.getCode().code;
         for(int i=0;i<publication.size();i++) {
@@ -1638,10 +2369,16 @@ public class CasBytecodePatch {
         for(int i=compare+1;i<clear;i++)unchangedReturn|=opcode(publication.get(i),0x47);
         require(compare>=0 && clear>compare && unchangedReturn,
             "Unchanged search results must return before native card removal/rebinding.");
-        for(String member:List.of("context","panel","rows","feed","matches","body_type","data_id","apexEquippedActive")) {
+        for(String member:List.of("context","panel","rows","feed","matches","body_type","data_id","selection_keys","apexEquippedActive")) {
             boolean found=false;
             for(var op:publish.getCode().code) found|=property(abc,op,0x66,member)||property(abc,op,0x60,member);
             require(found,"Search publication lost its eligibility/context gate: "+member);
+        }
+        for(String member:List.of("context","panel","publishing","selection_feed","currentTarget","eligible","isSelected")) {
+            boolean found=false;
+            for(var op:ownedBody(abc,instance,"ApexSearchSelection").getCode().code)
+                found|=property(abc,op,0x66,member)||property(abc,op,0x60,member);
+            require(found,"Search selection observation lost its exact native/feed gate: "+member);
         }
         for(String member:List.of("apexKeyQueue","apexKeyIntent","apexKeyIndex","apexKeyItem")) {
             boolean found=false;
@@ -1753,7 +2490,7 @@ public class CasBytecodePatch {
         InstanceInfo nativeClass = original.instance_info.get(oi), newClass = compiled.instance_info.get(ci);
         List<Trait> added = new ArrayList<>();
         Set<Integer> ownedMethods = new HashSet<>();
-        Set<String> ownedFields = Set.of("apexWire", "apexReceiving", "apexLastId", "apexLastReply",
+        Set<String> ownedFields = Set.of("apexCatalogGrid","apexLayoutTrace","apexCatalogTrace","apexColumns", "apexPanels", "apexWire", "apexReceiving", "apexLastId", "apexLastReply",
             "apexNativeTransportRequired", "apexNativeChannel", "apexNativeConnected",
             "apexSocket", "apexTimer", "apexFrame", "apexExpected", "apexNonce", "apexBoundSim",
             "apexAwaiting", "apexAckId", "apexDisconnected", "apexSocketActive", "apexHelloPending", "apexSocketError",
@@ -1777,11 +2514,11 @@ public class CasBytecodePatch {
             "apexEquippedPublication",
               "apexKeyStage","apexKeyIntent","apexKeyIndex","apexKeyFeed","apexKeyContext","apexKeyFocus","apexKeyMessage","apexKeyBounds","apexKeyItem","apexKeyQueue","apexKeyReceipt","apexKeyInjecting","apexKeyReceived","apexKeyLastCode","apexKeyRejected",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
-        Set<String> ownedNames = Set.of("ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
+        Set<String> ownedNames = Set.of("ApexCatalogGridPermit","ApexCatalogGridBootstrap","ApexCatalogGridInitialize","ApexCatalogGridPrepare","ApexCatalogGridLeaseCurrent","ApexCatalogGridValidate","ApexCatalogGridObserve","ApexCatalogGridMatches","ApexCatalogGridInput","ApexCatalogGridRequest","ApexCatalogGridFrame","ApexCatalogGridInvalidate","ApexCatalogGridChanged","ApexCatalogGridOwns","ApexCatalogGridPending","ApexCatalogGridStatus","ApexCatalogGridDispose","ApexLayoutTraceConfigure","ApexLayoutTraceDispose","ApexLayoutTraceStatus","ApexLayoutReset","ApexCatalogTraceConfigure","ApexCatalogTraceStatus","ApexCatalogTraceDispose","ApexCatalogTraceStep","ApexPanelsConsumerCancel","ApexPanelsCapture","ApexPanelsAction","ApexPanelConsumer","ApexPanelPersistGate","ApexPanelsConsume","ApexPanelsTooltip","ApexPanelsPreview","ApexColumnsInitialize","ApexColumnsTakeover","ApexColumnsSave","ApexColumnsSet","ApexColumnsScale","ApexColumnsScaleEnd","ApexColumnsResize","ApexColumnsResizeEnd","ApexColumnsDown","ApexColumnsMove","ApexColumnsUp","ApexColumnsFrame","ApexColumnsDispose","ApexPanelsInitialize","ApexPanelsDrawer","ApexPanelsChanged","ApexPanelsButton","ApexPanelsAdopt","ApexPanelsApply","ApexPanelsDragStart","ApexPanelsDragMove","ApexPanelsDragEnd","ApexPanelsScale","ApexPanelsWheel","ApexPanelsClick","ApexPanelsFrame","ApexPanelRefreshGate","ApexPanelsContext","ApexPanelsStamp","ApexPanelsWork","ApexPanelsCommand","ApexPanelsStatus","ApexPanelsDispose","ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame","ApexFormsConsumeCatalog","ApexFormsTryLocalCatalog",
             "ApexPresentationReady", "ApexPresentationStop", "ApexPresentationSchedule", "ApexPresentationFrame", "ApexPresentationNotify", "ApexPresentationPrime",
-            "ApexQuote", "ApexEncode", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
+            "ApexQuote", "ApexEncode", "ApexCatalogReadbackOnly", "ApexCatalogReadbackContext", "ApexCatalogSnapshot", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
@@ -1789,11 +2526,11 @@ public class CasBytecodePatch {
             "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming", "ApexFormsRefreshBoundPair", "ApexFormsCommandBlocksInput",
             "ApexCatalogInitialize","ApexCatalogValidate","ApexCatalogPersist","ApexCatalogStyle","ApexCatalogDispose","ApexCatalogOpen","ApexCatalogFrame","ApexCatalogClearEffects","ApexCatalogSelection","ApexCatalogReadEquipped","ApexCatalogMenu","ApexCatalogButton","ApexCatalogSlider","ApexCatalogDraw","ApexCatalogClick","ApexCatalogSlideStart","ApexCatalogSlide","ApexCatalogSlideEnd","ApexCatalogStatus",
             "ApexCatalogView", "ApexCatalogSliderCommand", "ApexCatalogInvalidate", "ApexCatalogObserveBinding", "ApexCatalogApplyBinding",
-            "ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardForget","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback",
+            "ApexCardIncrementalApply","ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardForget","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback","ApexCardFit","ApexCardRepairControls",
             "ApexCatalogKeyboardVisibility","ApexCatalogKeyboardTyping","ApexCatalogKeyboardInput","ApexCatalogKeyboardCommand","ApexCatalogKeyboardInitialize","ApexCatalogKeyboardDispose","ApexCatalogKeyDown","ApexCatalogKeyboardFrame",
             "ApexSearchInitialize","ApexSearchContext","ApexSearchRestore","ApexSearchDispose","ApexSearchReset","ApexSearchSource","ApexSearchAdopt",
             "ApexSearchText","ApexSearchChanged","ApexSearchClear","ApexSearchKey","ApexSearchLabels","ApexSearchFocus",
-            "ApexSearchAttach","ApexSearchQuery","ApexSearchPublish","ApexSearchFrame","ApexSearchNativeKey","ApexSearchStatus","ApexSearchChooseFolder","ApexSearchSuggestions","ApexSearchOrder",
+            "ApexSearchAttach","ApexSearchQuery","ApexSearchPublish","ApexSearchFrame","ApexSearchNativeKey","ApexSearchStatus","ApexSearchChooseFolder","ApexSearchSuggestions","ApexSearchOrder","ApexSearchSelection",
             "ApexCompanionInitialize","ApexCompanionValidKey","ApexCompanionKey","ApexCompanionAllows","ApexCompanionSave","ApexCompanionRecentOrder","ApexCompanionReceipt",
             "ApexCompanionChanged","ApexCompanionIntent","ApexCompanionCard","ApexCompanionButton","ApexCompanionGlyph",
             "ApexCompanionAttach","ApexCompanionApply","ApexCompanionBadges","ApexCompanionFrame","ApexCompanionCommand",
@@ -1803,7 +2540,7 @@ public class CasBytecodePatch {
             "ApexEquippedRefresh","ApexEquippedOpen","ApexEquippedFrame","ApexEquippedResolve","ApexEquippedKey","ApexEquippedDecimal","ApexEquippedPrepare","ApexEquippedClick",
             "ApexPairDispose", "ApexPairRead", "ApexPairExecute", "ApexPairClick", "ApexPairLabel", "ApexPairButton", "ApexPairTick", "ApexPairStatus", "ApexPairPanel");
         Set<String> seenNames = new HashSet<>();
-        int initializeName = -1, disconnectName = -1;
+        int initializeName = -1, disconnectName = -1, gridBootstrapName=-1;
         for (Trait trait : newClass.instance_traits.traits) {
             String key = name(compiled, trait);
             if (key.startsWith("Apex") || key.startsWith("apex")) {
@@ -1817,12 +2554,18 @@ public class CasBytecodePatch {
                     ownedMethods.add(method);
                     if (key.equals("ApexInitialize")) initializeName = trait.name_index;
                     if (key.equals("ApexDisconnect")) disconnectName = trait.name_index;
+                    if (key.equals("ApexCatalogGridBootstrap")) gridBootstrapName = trait.name_index;
                 }
             }
         }
-        require(added.size() == ownedFields.size() + ownedNames.size() && initializeName >= 0 && disconnectName >= 0,
+        require(added.size() == ownedFields.size() + ownedNames.size() && initializeName >= 0 && disconnectName >= 0 && gridBootstrapName>=0,
             "Unexpected Apex trait inventory.");
+        verifyGridController(compiled,newClass);
         verifyTimerPipeline(compiled, newClass);
+        verifyDrawTraceHelper(compiled,newClass);
+        verifyLayoutTraceHelper(compiled,newClass);
+        verifyOwnedLexicalRoots(compiled,ownedMethods);
+        verifySearchScrollerBinding(compiled,newClass);
         require(propertyCalls(compiled,ownedBody(compiled,newClass,"ApexIdleMemberChanged")).equals(Set.of("test")),
             "Idle member observation must validate retained primitives without native queries or selection.");
         verifyOwnerObservation(compiled, newClass);
@@ -1839,6 +2582,7 @@ public class CasBytecodePatch {
         verifyAcceptPrimaryLayerOnly(compiled, newClass);
         verifyCatalogMetadataLinkage(compiled, newClass);
         verifyCatalogMetadataDisabled(compiled, newClass);
+        verifyCatalogThinReadback(compiled,newClass);
         verifyEyebrowPaletteWidget(compiled, newClass);
         verifyWingSelection(compiled, newClass);
         verifyOwnerMetadataReadback(compiled,newClass);
@@ -1915,6 +2659,20 @@ public class CasBytecodePatch {
         MethodBody heightAdapter=cardHeightAdapter(original,compiled);
         var equippedBodies=equippedAdapters(original,compiled);
         var companionBodies=companionAdapters(original,compiled);
+        var outfitBody=currentOutfitAdapter(original,compiled);
+        if(outfitBody!=null)equippedBodies.add(outfitBody);
+        var columnBodies=columnSchedulingAdapters(original,compiled);equippedBodies.addAll(columnBodies);
+        var lazySwatchBodies=lazySwatchAdapters(original,compiled);equippedBodies.addAll(lazySwatchBodies);
+        var favoriteBody=favoriteLookupAdapter(original,compiled);if(favoriteBody!=null)equippedBodies.add(favoriteBody);
+        var consumerBodies=consumerAdapters(original,compiled);equippedBodies.addAll(consumerBodies);
+        MethodBody drawTraceBody=null;
+        if(original.findClassByName("dcc.history.HistoryHost")>=0) {drawTraceBody=makeDrawTraceAdapter(original,compiled);equippedBodies.add(drawTraceBody);}
+        var traceCallback=drawTraceStaticTrait(compiled).clone();
+        int traceMain=original.findClassByName("widgets.CAS.Customizer.CASCustomizerMain");
+        for(var trait:original.class_info.get(traceMain).static_traits.traits)
+            require(!name(original,trait).equals("apexCatalogDrawTraceStep"),"Native class already owns the diagnostic callback name.");
+        ((TraitSlotConst)traceCallback).slot_id=0;
+        original.class_info.get(traceMain).static_traits.traits.add(traceCallback);
         equippedBodies.addAll(companionBodies);
         var adapterIds=new HashSet<Integer>();adapterIds.add(heightAdapter.method_info);
         for(var body:equippedBodies)adapterIds.add(body.method_info);
@@ -1935,8 +2693,13 @@ public class CasBytecodePatch {
         for (Trait trait : added) if (trait instanceof TraitMethodGetterSetter) {
             var method = (TraitMethodGetterSetter)trait; method.method_info = remap.get(method.method_info);
         }
+        var nativeInitOriginal=nativeInit.clone();
+        var initialized=gridBootstrapAdapter(original,nativeInitOriginal,gridBootstrapName,initializeName);
+        // Resolve the exact native seam before appending traits whose QNames
+        // belong to the compiler's extended constant pool, not original's.
         nativeClass.instance_traits.traits.addAll(added);
-        extendReturn(nativeInit, initializeName, "Initialize");
+        nativeInit.setCode(initialized.getCode());nativeInit.exceptions=initialized.exceptions;
+        nativeInit.max_stack=initialized.max_stack;nativeInit.setModified();
         extendUnloadPrologue(nativeUnload, disconnectName);
         for (MethodBody body : original.bodies) if (body != nativeInit && body != nativeUnload)
             require(Arrays.equals(nativeCode.get(body.method_info), body.getCodeBytes()), "Unowned native method bytecode changed.");
@@ -1944,12 +2707,15 @@ public class CasBytecodePatch {
         compiled.saveToStream(saved);
         ABC serialized = new ABC(new ABCInputStream(new MemoryInputStream(saved.toByteArray())), compiled.getSwf(), null);
         verifyLifecycle(serialized.findBody(nativeInit.method_info), nativeCode.get(nativeInit.method_info), initializeName, "Initialize");
+        verifyGridBootstrapProjection(serialized,nativeInitOriginal,serialized.findBody(nativeInit.method_info),gridBootstrapName,initializeName);
+        verifyGridController(serialized,serialized.instance_info.get(oi));
         verifyUnloadPrologue(serialized.findBody(nativeUnload.method_info), nativeCode.get(nativeUnload.method_info), disconnectName);
         verifyAcceptLinkage(serialized, serialized.instance_info.get(oi));
         verifyAcceptHouseholdBinding(serialized, serialized.instance_info.get(oi));
         verifyAcceptPrimaryLayerOnly(serialized, serialized.instance_info.get(oi));
         verifyCatalogMetadataLinkage(serialized, serialized.instance_info.get(oi));
         verifyCatalogMetadataDisabled(serialized, serialized.instance_info.get(oi));
+        verifyCatalogThinReadback(serialized,serialized.instance_info.get(oi));
         verifyOwnerObservation(serialized, serialized.instance_info.get(oi));
         verifyFormSelection(serialized, serialized.instance_info.get(oi));
         verifyFormStrip(serialized, serialized.instance_info.get(oi));
@@ -1967,16 +2733,26 @@ public class CasBytecodePatch {
         verifyCatalogWorkspace(serialized,serialized.instance_info.get(oi));
         verifyNativeCatalogSearch(serialized,serialized.instance_info.get(oi));
         verifyCatalogCompanion(serialized,serialized.instance_info.get(oi));
+        verifyPanelScheduling(serialized,serialized.instance_info.get(oi));
+        verifyDrawTraceHelper(serialized,serialized.instance_info.get(oi));
+        verifyLayoutTraceHelper(serialized,serialized.instance_info.get(oi));
+        verifyOwnedLexicalRoots(serialized,new HashSet<>(remap.values()));
+        verifySearchScrollerBinding(serialized,serialized.instance_info.get(oi));
+        if(outfitBody!=null)verifyCurrentOutfitAdapter(serialized,serialized.findBody(outfitBody.method_info),nativeCode.get(outfitBody.method_info));
         require(Arrays.equals(heightAdapter.getCodeBytes(),serialized.findBody(heightAdapter.method_info).getCodeBytes()),
             "Serialized owned card getter changed.");
         for(var body:equippedBodies)require(Arrays.equals(body.getCodeBytes(),serialized.findBody(body.method_info).getCodeBytes()),
             "Serialized equipped adapter changed.");
+        for(var body:consumerBodies)verifyConsumerPrefix(serialized,serialized.findBody(body.method_info),original.findBody(body.method_info));
+        if(drawTraceBody!=null)verifyDrawTraceAdapter(original,serialized);
+        var savedTraceTrait=drawTraceStaticTrait(serialized);
+        require(savedTraceTrait.name_index==traceCallback.name_index,"Serialized nullable Draw callback trait differs.");
         for (MethodBody body : original.bodies) if (body != nativeInit && body != nativeUnload && !adapterIds.contains(body.method_info))
             require(Arrays.equals(nativeCode.get(body.method_info), serialized.findBody(body.method_info).getCodeBytes()),
                 "Serialized unowned native method bytecode changed.");
         Files.write(Path.of(args[2]), saved.toByteArray());
         System.out.println("{\"native_method_count\":" + original.bodies.size() + ",\"apex_method_count\":" + ownedMethods.size() +
-            ",\"native_lexical_scope_preserved\":true,\"card_height_marker_adapter_verified\":true,\"native_equipped_category_adapters_verified\":true,\"native_wing_paint_owner_adapters\":3,\"native_pelt_palette_reenable_verified\":true,\"companion_named_form_adapters\":"+companionBodies.size()+",\"unchanged_native_methods\":" + (nativeCode.size()-2-adapterIds.size()) +
-            ",\"native_initializer_bytecode_extended\":true,\"native_unload_bytecode_extended\":true,\"native_unload_cleanup_precedes_teardown\":true,\"owned_local_scope_indexes_verified\":true,\"serialized_lifecycle_hooks_verified\":true,\"socket_callbacks_data_only_verified\":true,\"timer_command_phases_verified\":true,\"accept_commit_timer_owned_verified\":true,\"accept_native_class_linkage_verified\":true,\"accept_expected_household_bound_verified\":true,\"accept_primary_layer_only_verified\":true,\"catalog_metadata_localization_linkage_verified\":true,\"owner_pair_callback_data_only_verified\":true,\"owner_pair_listener_cleanup_verified\":true,\"owner_pair_timer_read_only_verified\":true,\"socket_connect_queue_only_verified\":true,\"socket_handshake_exact_constructor_timer_verified\":true,\"form_select_timer_owned_verified\":true,\"form_select_exact_same_original_pair_verified\":true,\"form_select_native_argument_order_verified\":true,\"form_select_next_tick_readback_verified\":true,\"earrings_exact_bodytype_and_swatch_guard_verified\":true}");
+            ",\"native_lexical_scope_preserved\":true,\"card_height_marker_adapter_verified\":true,\"native_equipped_category_adapters_verified\":true,\"native_wing_paint_owner_adapters\":3,\"native_pelt_palette_reenable_verified\":true,\"native_column_scheduler_adapters\":"+columnBodies.size()+",\"native_draw_trace_adapters\":"+(drawTraceBody==null?0:1)+",\"native_draw_trace_guard_verified\":true,\"native_draw_trace_cfg_verified\":"+(drawTraceBody!=null)+",\"native_draw_trace_call_abi_verified\":"+(drawTraceBody!=null)+",\"native_outfit_consumers\":"+consumerBodies.size()+",\"native_favorite_lookup_map_verified\":true,\"native_lazy_swatch_adapters\":"+lazySwatchBodies.size()+",\"native_current_outfit_refresh_queue_verified\":true,\"companion_named_form_adapters\":"+companionBodies.size()+",\"unchanged_native_methods\":" + (nativeCode.size()-2-adapterIds.size()) +
+            ",\"native_grid_bootstrap_pre_sim_delivery_verified\":true,\"native_grid_bootstrap_cfg_projection_verified\":true,\"native_grid_controller_scope_verified\":true,\"native_initializer_bytecode_extended\":true,\"native_unload_bytecode_extended\":true,\"native_unload_cleanup_precedes_teardown\":true,\"owned_local_scope_indexes_verified\":true,\"serialized_lifecycle_hooks_verified\":true,\"socket_callbacks_data_only_verified\":true,\"timer_command_phases_verified\":true,\"accept_commit_timer_owned_verified\":true,\"accept_native_class_linkage_verified\":true,\"accept_expected_household_bound_verified\":true,\"accept_primary_layer_only_verified\":true,\"catalog_metadata_localization_linkage_verified\":true,\"owner_pair_callback_data_only_verified\":true,\"owner_pair_listener_cleanup_verified\":true,\"owner_pair_timer_read_only_verified\":true,\"socket_connect_queue_only_verified\":true,\"socket_handshake_exact_constructor_timer_verified\":true,\"form_select_timer_owned_verified\":true,\"form_select_exact_same_original_pair_verified\":true,\"form_select_native_argument_order_verified\":true,\"form_select_next_tick_readback_verified\":true,\"earrings_exact_bodytype_and_swatch_guard_verified\":true}");
     }
 }

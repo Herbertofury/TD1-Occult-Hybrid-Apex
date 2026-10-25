@@ -32,22 +32,37 @@ VOICE_PIN = 'd0f81a01e1ef4039dc8fb4b5d39dac680ea45e512a8102e243e59a99d3362764'
 MOLECULE_KEY = (0x62ECC59A, 0, 9034126160331862072)
 MOLECULE_PIN = '3124ed12ea50140da6f072d16ab0703e6154e448974edb1c3f6f7d05f7c24524'
 PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.java',
+                  'tools/CasStructuralRolesPatch.java', 'tools/cas_structural_roles.py',
+                  'tools/CasGridTransactionPatch.java', 'tools/cas_grid_transaction.py',
+                  'tools/CasDrawFastPathPatch.java', 'tools/cas_draw_fast_path.py',
+                  'tools/CasCommunicationIndexPatch.java', 'tools/cas_communication_index.py',
+                  'tools/CasCommunicationDependencyPatch.java', 'tools/cas_communication_dependency.py',
+                  'tools/CasCommunicationDomainProbePatch.java', 'tools/cas_communication_domain_probe.py',
                   'Source/CASUi/form_strip_methods.as',
                   'Source/CASUi/pair_controls_methods.as',
                   'Source/CASUi/catalog_workspace_methods.as',
                   'Source/CASUi/catalog_cards_methods.as', 'tools/cas_equipped_catalog.py',
+                  'Source/CASUi/catalog_grid_transaction_methods.as',
+                  'Source/CASUi/catalog_grid_geometry_methods.as',
                   'Source/CASUi/equipped_category_methods.as', 'Source/CASUi/catalog_keyboard_methods.as',
                   'Source/CASUi/catalog_search_methods.as',
                   'Source/CASUi/catalog_companion_methods.as',
+                  'Source/CASUi/panel_layout_methods.as',
+                  'Source/CASUi/panel_input_methods.as',
+                  'Source/CASUi/panel_consumer_methods.as',
+                  'Source/CASUi/catalog_columns_methods.as',
+                  'Source/CASUi/catalog_trace_methods.as',
+                  'Source/CASUi/catalog_layout_trace_methods.as',
                   'tools/cas_catalog_workspace.py', 'tools/CasCatalogBytecodePatch.java',
                   'Source/CASUi/selector_methods.as', 'tools/CasSelectorBytecodePatch.java',
                   'tools/cas_pair_panel_patch.py',
                   'tools/cas_pelt_patch.py',
                   'tools/maru_companion.py',
                   'tools/maru_companion_adapters.py',
+                  'tools/maru_companion_performance.py',
                   'tools/maru_companion_resources.json',
                   'Source/apex_core/cas_panels.py', 'Source/apex_core/cas_controls.py',
-                  'tools/CasVoiceBytecodePatch.java', 'tools/cas_molecule_patch.py',
+                  'tools/CasVoiceBytecodePatch.java', 'tools/CasGridBytecodePatch.java', 'tools/cas_molecule_patch.py',
                   'tools/CasMoleculeBytecodePatch.java')
 
 
@@ -191,7 +206,7 @@ def inject(source, methods):
     source = source.replace(anchor, anchor + '\n         ApexInitialize();')
     # Resolve external QNames at compilation, avoiding dotted runtime lookups.
     source = source.replace('   import gamedata.CAS.CASAPI;',
-        '   import olympus.events.GridEvent;\n   import olympus.events.PushButtonEvent;\n   import gamedata.shared.SimGenderTypes;\n   import gamedata.CAS.shared.CASCatalogProduct;\n   import gamedata.CAS.CASAPI;')
+        '   import olympus.events.GridEvent;\n   import olympus.events.DataFeedEvent;\n   import olympus.events.ScrollerEvent;\n   import olympus.events.PushButtonEvent;\n   import gamedata.shared.SimGenderTypes;\n   import gamedata.CAS.shared.CASCatalogProduct;\n   import gamedata.CAS.CASAPI;')
     source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.widget.Margin;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import flash.utils.getTimer;\n   import flash.utils.getDefinitionByName;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
@@ -230,10 +245,18 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_workspace_methods.as').read_text(encoding='utf-8').replace(
         '__APEX_EQUIPPED_MENUS__',json.dumps(cas_catalog_workspace.equipped_menus(),sort_keys=True,separators=(',', ':')))
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_cards_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/catalog_grid_transaction_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/catalog_grid_geometry_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/equipped_category_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_keyboard_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_search_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_companion_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/panel_layout_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/panel_input_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/panel_consumer_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/catalog_columns_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/catalog_trace_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/catalog_layout_trace_methods.as').read_text(encoding='utf-8')
     control_dispatch = verify_control_dispatch(semantic)
     detached_snapshot_getters = verify_snapshot_ownership(semantic)
     household_acceptance = verify_household_acceptance(semantic)
@@ -295,10 +318,25 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         compiled=next_compiled
     if companion is not None:
         import maru_companion_adapters
+        import maru_companion_performance
         for sequence, name in enumerate(maru_companion_adapters.ROUTES):
             stub = work / ('apex-companion-context-' + str(sequence) + '.as')
             stub.write_text(maru_companion_adapters.source(name), encoding='utf-8')
             destination = work / ('apex-companion-context-' + str(sequence) + '.swf')
+            run([ffdec, '-importAssets', 'yes,local', '-replace', compiled, destination, name, stub])
+            compiled = destination
+        name = maru_companion_performance.PREFERENCES
+        donor_source = customizer_sources / (name.replace('.', '/') + '.as')
+        stub = work / 'apex-companion-favorite-lookup.as'
+        stub.write_text(maru_companion_performance.preferences(donor_source.read_text(encoding='utf-8')), encoding='utf-8')
+        destination = work / 'apex-companion-favorite-lookup.swf'
+        run([ffdec, '-importAssets', 'yes,local', '-replace', compiled, destination, name, stub])
+        compiled = destination
+        for sequence, name in enumerate(maru_companion_performance.ROUTES):
+            donor_source = customizer_sources / (name.replace('.', '/') + '.as')
+            stub = work / ('apex-companion-lazy-swatches-' + str(sequence) + '.as')
+            stub.write_text(maru_companion_performance.inject(name, donor_source.read_text(encoding='utf-8')), encoding='utf-8')
+            destination = work / ('apex-companion-lazy-swatches-' + str(sequence) + '.swf')
             run([ffdec, '-importAssets', 'yes,local', '-replace', compiled, destination, name, stub])
             compiled = destination
     # The general AS compiler changes native methods' lexical scope. It is
@@ -309,6 +347,20 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     native_tag = next(t[3] for t in tags(unpack(original)[1]) if t[0] == 82)
     boundary = native_tag.index(b'\0', 4) + 1
     payload = replace_payload(original, native_tag[:boundary] + retained.read_bytes())
+    structural_roles_contract = None
+    draw_fast_path_contract = None
+    if companion is not None:
+        import cas_structural_roles
+        role_abc, role_proof = cas_structural_roles.adapt(input_swf, payload,
+            customizer_sources, ffdec, work / 'structural-roles')
+        payload = replace_payload(payload, native_tag[:boundary] + role_abc)
+        structural_roles_contract = cas_structural_roles.chain_contract(contract, role_proof, payload)
+        import cas_draw_fast_path
+        draw_abc, draw_proof = cas_draw_fast_path.adapt(contract, structural_roles_contract,
+            payload, Path(ffdec).with_name('ffdec.jar'), work / 'draw-fast-path')
+        payload = replace_payload(payload, native_tag[:boundary] + draw_abc)
+        draw_fast_path_contract = cas_draw_fast_path.chain_contract(contract, structural_roles_contract,
+            draw_proof, payload)
     selector_source = work / 'ApexCASSelectorMain.as'
     selector_source.write_text(inject_selector(selector_decompiled.read_text(encoding='utf-8'),
         (ROOT / 'Source/CASUi/selector_methods.as').read_text(encoding='utf-8')), encoding='utf-8')
@@ -419,18 +471,91 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     plan_tag = next(t[3] for t in tags(unpack(original_plan)[1]) if t[0]==82)
     plan_boundary = plan_tag.index(b'\0',4)+1
     plan_payload = replace_payload(original_plan,plan_tag[:plan_boundary]+plan_retained.read_bytes())
+    # Import-free ClassLibraryGamedata can supply the grid before the donor's
+    # duplicate classes. Adapt each authenticated provider independently;
+    # keep cleanup_library itself original for the selector/voice verifiers.
+    import maru_companion
+    run(['javac', '-cp', Path(ffdec).parent / 'ffdec.jar', '-d', java_classes,
+         ROOT / 'tools/CasGridBytecodePatch.java'])
+    def adapt_grid_provider(grid_swf, base_digest, output_name):
+        original_grid = Path(grid_swf).read_bytes()
+        if hashlib.sha256(original_grid).hexdigest() != base_digest:
+            raise ValueError('Grid class provider differs from its authenticated native resource.')
+        grid_retained = work / output_name
+        grid_contract = json.loads(run(['java', '-cp', str(Path(ffdec).parent / 'ffdec.jar') + os.pathsep + str(java_classes),
+            'CasGridBytecodePatch', grid_swf, grid_retained]).stdout)
+        grid_tag = next(t[3] for t in tags(unpack(original_grid)[1]) if t[0] == 82)
+        grid_boundary = grid_tag.index(b'\0', 4) + 1
+        grid_payload = replace_payload(original_grid, grid_tag[:grid_boundary] + grid_retained.read_bytes())
+        adapter = dict(base_resource_sha256=base_digest,
+            patched_resource_sha256=hashlib.sha256(grid_payload).hexdigest(), native_bytecode_contract=grid_contract)
+        # Keep the exact getter/profile proof historical; the transaction pass
+        # proves rollback to that ABC and authenticates its own final output.
+        import cas_grid_transaction
+        transaction_abc, transaction_contract = cas_grid_transaction.adapt(grid_swf, grid_payload, None,
+            ffdec, work / (Path(output_name).stem + '-transaction'))
+        grid_payload = replace_payload(grid_payload, grid_tag[:grid_boundary] + transaction_abc)
+        adapter = cas_grid_transaction.chain_adapter(adapter, transaction_contract, grid_payload)
+        import cas_communication_index
+        communication_abc, communication_contract = cas_communication_index.adapt(grid_swf, grid_payload, None,
+            ffdec, work / (Path(output_name).stem + '-communication'))
+        grid_payload = replace_payload(grid_payload, grid_tag[:grid_boundary] + communication_abc)
+        adapter = cas_communication_index.chain_adapter(adapter, communication_contract, grid_payload)
+        import cas_communication_domain_probe
+        domain_baseline = work / (Path(output_name).stem + '-domain-baseline.swf')
+        domain_baseline.write_bytes(grid_payload)
+        domain_abc, domain_contract = cas_communication_domain_probe.adapt(domain_baseline,
+            ffdec, work / (Path(output_name).stem + '-domain'))
+        grid_payload = replace_payload(grid_payload, grid_tag[:grid_boundary] + domain_abc)
+        adapter = cas_communication_domain_probe.chain_adapter(adapter, domain_contract, grid_payload)
+        return grid_payload, adapter
+    canonical_grid_payload, canonical_grid_adapter = adapt_grid_provider(work / 'ClassLibraryGamedata.swf',
+        maru_companion.CANONICAL_GRID_LIBRARY_SHA256, 'apex-cas-canonical-grid-getter-retained.abc')
+    maru_companion.verify_canonical_grid_adapter(canonical_grid_adapter, canonical_grid_payload)
+    grid_providers = {dbpf_build.tgi(maru_companion.CANONICAL_GRID_LIBRARY): canonical_grid_adapter}
+    grid_payload = None
+    if companion is not None:
+        grid_payload, companion['grid_library_adapter'] = adapt_grid_provider(companion['grid_library'],
+            maru_companion.GRID_LIBRARY_SHA256, 'apex-cas-grid-getter-retained.abc')
+        maru_companion.verify_grid_adapter(companion['grid_library_adapter'], grid_payload)
+        grid_providers[dbpf_build.tgi(maru_companion.GRID_LIBRARY)] = companion['grid_library_adapter']
+        maru_companion.verify_grid_providers(grid_providers,
+            {maru_companion.CANONICAL_GRID_LIBRARY: canonical_grid_payload, maru_companion.GRID_LIBRARY: grid_payload})
+    # The earlier Olympus domain owns real Button/controller listeners too.
+    # Authenticate its original cleanup code separately from this pure
+    # communication override; it has no fictional grid transaction history.
+    import cas_communication_dependency
+    dependency_abc, dependency_contract = cas_communication_dependency.adapt(cleanup_library, ffdec,
+        work / 'native-communication-dependency')
+    dependency_original = cleanup_library.read_bytes()
+    dependency_tag = next(t[3] for t in tags(unpack(dependency_original)[1]) if t[0] == 82)
+    dependency_boundary = dependency_tag.index(b'\0', 4) + 1
+    dependency_payload = replace_payload(dependency_original, dependency_tag[:dependency_boundary] + dependency_abc)
+    dependency_adapter = cas_communication_dependency.chain_adapter(dependency_contract, dependency_payload)
+    import cas_communication_domain_probe
+    dependency_baseline = work / 'dependency-domain-baseline.swf'
+    dependency_baseline.write_bytes(dependency_payload)
+    domain_abc, domain_contract = cas_communication_domain_probe.adapt(dependency_baseline,
+        ffdec, work / 'dependency-domain')
+    dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + domain_abc)
+    dependencies = {dbpf_build.tgi(CLEANUP_KEY): cas_communication_domain_probe.chain_adapter(
+        dependency_adapter, domain_contract, dependency_payload)}
     if source_pins() != expected_sources:
         raise ValueError('CAS bridge source changed during compilation; no package was written.')
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     resources = {KEY: payload, SELECTOR_KEY: selector_payload, VOICE_KEY: voice_payload,
                                               MOLECULE_KEY: molecule_payload,cas_catalog_workspace.CONTEXT_KEY:context_payload,
-                                              cas_catalog_workspace.PLAN_KEY:plan_payload}
+                                              cas_catalog_workspace.PLAN_KEY:plan_payload,maru_companion.CANONICAL_GRID_LIBRARY:canonical_grid_payload,
+                                              CLEANUP_KEY:dependency_payload}
     if companion is not None:
         import maru_companion
-        resources = maru_companion.combine(companion_package, resources, companion)
+        resources[maru_companion.GRID_LIBRARY] = grid_payload
+        resources = maru_companion.combine(companion_package, resources, companion, grid_providers, dependencies)
     Path(output).write_bytes(dbpf_build.build(resources))
     info = {'schema': 1, 'artifact': Path(output).name, 'scope': 'native-CAS-semantic-bridge',
         'companion_code_merge': companion,
+        'grid_provider_adapters': grid_providers,
+        'communication_dependency_adapters': dependencies,
         'source_pins': expected_sources,
         'typed_control_dispatch_verified': control_dispatch,
         'detached_snapshot_getters': detached_snapshot_getters,
@@ -439,6 +564,8 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'patched_resource_sha256': hashlib.sha256(payload).hexdigest(),
         'sha256': hashlib.sha256(Path(output).read_bytes()).hexdigest(),
         'runtime_verified': False, 'non_script_tags_preserved': True, 'native_bytecode_contract': contract,
+        'structural_roles_native_bytecode_contract': structural_roles_contract,
+        'draw_fast_path_native_bytecode_contract': draw_fast_path_contract,
         'selector_native_bytecode_contract': selector_contract,
         'voice_native_bytecode_contract': voice_contract,
         'molecule_native_bytecode_contract': molecule_contract,
@@ -446,19 +573,25 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'catalog_header_native_bytecode_contract': plan_contract,
         'base_resources': {dbpf_build.tgi(KEY): PIN, dbpf_build.tgi(SELECTOR_KEY): SELECTOR_PIN, dbpf_build.tgi(VOICE_KEY): VOICE_PIN,
                            dbpf_build.tgi(MOLECULE_KEY): MOLECULE_PIN,dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY):context_pin,
-                           dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY):cas_catalog_workspace.PLAN_PIN},
-        'unmodified_dependency_resources': {dbpf_build.tgi(CLEANUP_KEY):CLEANUP_PIN},
+                           dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY):cas_catalog_workspace.PLAN_PIN,
+                           dbpf_build.tgi(maru_companion.CANONICAL_GRID_LIBRARY):maru_companion.CANONICAL_GRID_LIBRARY_SHA256,
+                           dbpf_build.tgi(CLEANUP_KEY):CLEANUP_PIN},
+        'unmodified_dependency_resources': {},
         'patched_resources': {dbpf_build.tgi(KEY): hashlib.sha256(payload).hexdigest(),
                               dbpf_build.tgi(SELECTOR_KEY): hashlib.sha256(selector_payload).hexdigest(),
                               dbpf_build.tgi(VOICE_KEY): hashlib.sha256(voice_payload).hexdigest(),
                               dbpf_build.tgi(MOLECULE_KEY): hashlib.sha256(molecule_payload).hexdigest(),
                               dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY):hashlib.sha256(context_payload).hexdigest(),
-                              dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY):hashlib.sha256(plan_payload).hexdigest()},
+                              dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY):hashlib.sha256(plan_payload).hexdigest(),
+                              dbpf_build.tgi(maru_companion.CANONICAL_GRID_LIBRARY):hashlib.sha256(canonical_grid_payload).hexdigest(),
+                              dbpf_build.tgi(CLEANUP_KEY):hashlib.sha256(dependency_payload).hexdigest()},
         'resources': [dbpf_build.tgi(KEY), dbpf_build.tgi(SELECTOR_KEY), dbpf_build.tgi(VOICE_KEY), dbpf_build.tgi(MOLECULE_KEY),
-                      dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY),dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
+                      dbpf_build.tgi(cas_catalog_workspace.CONTEXT_KEY),dbpf_build.tgi(cas_catalog_workspace.PLAN_KEY),
+                      dbpf_build.tgi(maru_companion.CANONICAL_GRID_LIBRARY),dbpf_build.tgi(CLEANUP_KEY)], 'transport': 'fixed loopback CAS socket, native CAS acknowledgement',
         'socket_protocol': {'host': '127.0.0.1', 'port': 8021, 'length_digits': 8,
             'encoding': 'utf-8', 'maximum_frame_bytes': 131072, 'poll_interval_ms': 500}}
     if companion is not None:
+        info['base_resources'][dbpf_build.tgi(maru_companion.GRID_LIBRARY)] = maru_companion.GRID_LIBRARY_SHA256
         info['resources'] = [dbpf_build.tgi(k) for k in sorted(resources)]
         info['patched_resources'] = {dbpf_build.tgi(k): dbpf_build.digest(v) for k, v in resources.items()}
         maru_companion.verify_merged(info, resources)

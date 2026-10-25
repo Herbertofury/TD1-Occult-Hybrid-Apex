@@ -37,6 +37,128 @@ class HouseholdIOTests(unittest.TestCase):
             raw=struct.pack('<IIII',2,len(payload)+12,0,len(payload))+payload
             with self.assertRaises(ValueError):household_io.tray_sims(raw)
 
+    def test_malformed_native_member_or_envelope_field_is_never_silently_omitted(self):
+        scalar_member=varint(6<<3)+varint(12)
+        scalar_household=varint(1<<3)+varint(1)
+        for payload in (blob(1,blob(6,b'one')+scalar_member),
+                        blob(1,blob(6,b'one'))+scalar_household,
+                        scalar_household):
+            for version in (1,2):
+                raw=(struct.pack('<II',1,len(payload)+4)+payload if version==1 else
+                     struct.pack('<IIII',2,len(payload)+12,0,len(payload))+payload)
+                with self.subTest(version=version,payload=payload),self.assertRaises(ValueError):
+                    household_io.tray_sims(raw)
+
+    def test_household_export_rechecks_complete_save_roster_and_native_object_ownership(self):
+        import base64
+        for change in ('none','save','household-object','remove-member','add-member','replace-owner','unregister-owner'):
+            with self.subTest(change=change):
+                sims=[Obj(id=sid,household_id=77,occult_tracker=Obj()) for sid in (11,12)]
+                members=list(sims);objects={s.id:s for s in sims};guid=[88]
+                household=Obj(id=77,sim_info_gen=lambda:iter(members));active=[household]
+                backend=Obj(services=Obj(active_household=lambda:active[0],sim_info_manager=lambda:Obj(get=objects.get),
+                    get_persistence_service=lambda:Obj(get_save_slot_proto_guid=lambda:guid[0])),
+                    _form_map=lambda tracker:{1:tracker})
+                captured=[]
+                def capture(_backend,sim):
+                    captured.append(sim.id)
+                    if len(captured)==2:
+                        if change=='save':guid[0]=89
+                        elif change=='household-object':active[0]=Obj(id=77,sim_info_gen=lambda:iter(members))
+                        elif change=='remove-member':members.pop()
+                        elif change=='add-member':
+                            added=Obj(id=13,household_id=77,occult_tracker=Obj());members.append(added);objects[13]=added
+                        elif change=='replace-owner':
+                            replacement=Obj(id=11,household_id=77,occult_tracker=Obj());members[0]=replacement;objects[11]=replacement
+                        elif change=='unregister-owner':objects.pop(11)
+                    return dict(native_base64=base64.b64encode(('complete-native-'+str(sim.id)).encode()).decode(),
+                                native_sha256=hashlib.sha256(('complete-native-'+str(sim.id)).encode()).hexdigest())
+                request=dict(household_id='77',save_guid='88',sim_ids=['11','12'])
+                with patch.object(appearance,'packed',return_value={'complete':'unchanged'}),\
+                     patch.object(household_io.studio,'_capture_native_record',side_effect=capture),\
+                     patch.object(household_io.sim_record,'restore',side_effect=lambda row:row):
+                    if change=='none':
+                        result=household_io.records(backend,request)
+                        self.assertEqual([r['sim_id'] for r in result['sims']],['11','12'])
+                        self.assertEqual(base64.b64decode(result['sims'][1]['native_sim']),b'complete-native-12')
+                        self.assertFalse(result['game_appearance_written']);self.assertFalse(result['save_file_written'])
+                    else:
+                        with self.assertRaises(ValueError):household_io.records(backend,request)
+                self.assertEqual(captured,[11,12])
+
+    def test_import_allocator_cannot_replace_an_unloaded_persistent_sim(self):
+        for persisted in (Obj(native_record='retained'),0):
+            with self.subTest(persisted=persisted),tempfile.TemporaryDirectory() as temporary:
+                folder=Path(temporary);tray=folder/'Tray';tray.mkdir()
+                filename='0x00000000!0x0000000000000001.householdbinary'
+                payload=blob(1,blob(6,b'complete-native-packet'));raw=struct.pack('<II',1,len(payload)+4)+payload
+                (tray/filename).write_bytes(raw)
+                native_calls=[];lookups=[]
+                class Proto:
+                    def ParseFromString(self,raw):self.sim_id=9
+                class SimInfo:
+                    def __init__(self,**kwargs):native_calls.append('constructor');raise AssertionError('A colliding clone must not be created.')
+                household=Obj(id=77,account=Obj(id=1),sim_info_gen=lambda:iter([Obj(id=11)]))
+                persistence=Obj(get_save_slot_proto_guid=lambda:88,
+                    get_sim_proto_buff=lambda sid:(lookups.append(sid) or persisted))
+                backend=Obj(_data_directory=lambda:temporary,services=Obj(active_household=lambda:household,
+                    sim_info_manager=lambda:Obj(get=lambda sid:None),get_persistence_service=lambda:persistence))
+                modules={'protocolbuffers':Obj(FileSerialization_pb2=Obj(SimData=Proto)),
+                    'sims.sim_info':Obj(SimInfo=SimInfo),'sims.sim_info_types':Obj(Age=int,Gender=int,SpeciesExtended=Obj()),
+                    'sims.sim_info_lod':Obj(SimInfoLODLevel=Obj(FULL=1)),'sims.sim_spawner':Obj(SimSpawner=Obj()),
+                    'id_generator':Obj(generate_object_id=lambda:22)}
+                request=dict(household_id='77',save_guid='88',filename=filename,sha256=hashlib.sha256(raw).hexdigest(),source_sim_ids=['9'])
+                with patch.dict(sys.modules,modules),self.assertRaisesRegex(ValueError,'unloaded Sim records'):
+                    household_io.import_tray(backend,request,folder)
+                self.assertEqual(lookups,[22]);self.assertEqual(native_calls,[])
+                self.assertFalse((folder/'household_tray_import.json').exists())
+                self.assertEqual((tray/filename).read_bytes(),raw)
+
+    def test_first_or_later_original_capture_failure_retains_recoverable_import_wal_before_clones(self):
+        for failed_capture in (1,2):
+            with self.subTest(failed_capture=failed_capture),tempfile.TemporaryDirectory() as temporary:
+                folder=Path(temporary);tray=folder/'Tray';tray.mkdir()
+                filename='0x00000000!0x0000000000000001.householdbinary'
+                payload=blob(1,blob(6,b'complete-native-packet'));raw=struct.pack('<II',1,len(payload)+4)+payload
+                (tray/filename).write_bytes(raw)
+                native_calls=[];captures=[];restored=[]
+                class Proto:
+                    def ParseFromString(self,raw):self.sim_id=9;self.age=1;self.gender=1;self.extended_species=1
+                    def SerializeToString(self):return b'complete-native-packet'
+                class SimInfo:
+                    def __init__(self,sim_id,age,gender,species,account):
+                        native_calls.append('constructor');raise AssertionError('Failed preimage capture must precede clone creation.')
+                    def load_sim_info(self,proto,is_clone=True,default_lod=1):
+                        native_calls.append('load');raise AssertionError('No native clone may be loaded.')
+                members=[Obj(id=11),Obj(id=12)]
+                household=Obj(id=77,account=Obj(id=1),sim_info_gen=lambda:iter(members))
+                persistence=Obj(get_save_slot_proto_guid=lambda:88,get_sim_proto_buff=lambda sid:None)
+                backend=Obj(_data_directory=lambda:temporary,services=Obj(active_household=lambda:household,
+                    sim_info_manager=lambda:Obj(get=lambda sid:None),get_persistence_service=lambda:persistence))
+                modules={'protocolbuffers':Obj(FileSerialization_pb2=Obj(SimData=Proto)),
+                    'sims.sim_info':Obj(SimInfo=SimInfo),
+                    'sims.sim_info_types':Obj(Age=int,Gender=int,SpeciesExtended=Obj(get_species=lambda value:value)),
+                    'sims.sim_info_lod':Obj(SimInfoLODLevel=Obj(FULL=1)),'sims.sim_spawner':Obj(SimSpawner=Obj()),
+                    'id_generator':Obj(generate_object_id=lambda:22)}
+                def capture(_backend,sim,kind):
+                    captures.append(sim.id)
+                    if len(captures)==failed_capture:raise ValueError('Original preimage capture failed.')
+                    return Obj(flags=(3,1),restore=lambda membership,accepted:restored.append((sim.id,membership,accepted)))
+                request=dict(household_id='77',save_guid='88',filename=filename,sha256=hashlib.sha256(raw).hexdigest(),source_sim_ids=['9'])
+                with patch.dict(sys.modules,modules),patch.object(household_io.occult_add_guard,'Preservation',side_effect=capture),\
+                     self.assertRaisesRegex(ValueError,'preimage capture failed'):
+                    household_io.import_tray(backend,request,folder)
+                self.assertEqual(native_calls,[])
+                self.assertEqual(captures,[11] if failed_capture==1 else [11,12])
+                self.assertEqual(restored,[] if failed_capture==1 else [(11,3,False)])
+                path=folder/'household_tray_import.json';retained=path.read_bytes();proof=json.loads(retained)
+                self.assertEqual(proof['stage'],'recovery-required');self.assertEqual(proof['created'],[])
+                self.assertEqual(proof['identity_map'],{'9':'22'});self.assertIn('preimage capture failed',proof['error'])
+                recovered=household_io.recover_import(backend,dict(household_id='77',save_guid='88',journal_sha256=hashlib.sha256(retained).hexdigest()))
+                self.assertTrue(recovered['ok']);self.assertFalse(recovered['import_replayed'])
+                self.assertEqual(json.loads(path.read_text())['stage'],'recovered-original-members-only')
+                self.assertEqual((tray/filename).read_bytes(),raw)
+
     def test_native_household_membership_requires_explicit_current_save_and_household(self):
         household=Obj(id=77)
         backend=Obj(services=Obj(active_household=lambda:household,get_persistence_service=lambda:Obj(get_save_slot_proto_guid=lambda:88)))

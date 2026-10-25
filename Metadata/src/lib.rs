@@ -2,6 +2,8 @@ pub mod catalog;
 #[cfg(feature = "cli")]
 pub mod enrich;
 pub mod ffi;
+#[cfg(feature = "runtime-workers")]
+pub mod appearance_worker;
 pub mod folders;
 pub mod identity;
 #[cfg(feature = "cli")]

@@ -102,6 +102,10 @@ def argument(value):
         if type(value['enabled']) is not bool:
             raise ValueError('Native genetics tracing requires an explicit boolean.')
         return
+    if operation == 'profile-services' and set(value) == {'operation', 'scope_id', 'milliseconds'}:
+        if type(value['milliseconds']) is not int or not 0 <= value['milliseconds'] <= 30000:
+            raise ValueError('Native profiling requires zero to stop or a bounded duration up to thirty seconds.')
+        return
     if operation == 'entry-ready' and set(value) == {'operation', 'scope_id', 'sim_id'} and _identity(value['sim_id']):
         return
     if operation == 'export-owner-page' and set(value) == {'operation','scope_id','sim_id','expected_generation','after_owner_id'}:

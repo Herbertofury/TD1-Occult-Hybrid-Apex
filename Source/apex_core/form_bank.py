@@ -815,15 +815,20 @@ def switch(backend, sim, target, operation):
         _switch_check_identity(backend, sim, tracker, owners, owner_ids, location, manager)
         final_stored = _switch_snapshots(backend, owners)
         final_active = appearance.packed(backend, sim)
-        if _switch_hashes(final_stored) != _switch_hashes(expected):
+        # These newly encoded captures are detached invocation-local values.
+        # Reuse their evidence only; every native read and expected comparison
+        # remains at its original transaction boundary.
+        final_stored_hashes = _switch_hashes(final_stored)
+        if final_stored_hashes != _switch_hashes(expected):
             raise ValueError('All stored owners failed final readback after the last native write.')
-        if appearance.fingerprint(final_active) != appearance.fingerprint(desired_active):
+        final_active_evidence = appearance.fingerprint(final_active)
+        if final_active_evidence != appearance.fingerprint(desired_active):
             raise ValueError('Distinct active owner failed final appearance readback.')
         if _switch_lane(backend._get_current_flags(sim)) != target:
             raise ValueError('Target owner changed during native reconciliation.')
         pending['all_stored_owners_verified'] = pending['active_owner_verified'] = True
-        pending['verified_stored_hashes'] = _switch_hashes(final_stored)
-        pending['verified_active_hash'] = appearance.fingerprint(final_active)['appearance_sha256']
+        pending['verified_stored_hashes'] = dict(final_stored_hashes)
+        pending['verified_active_hash'] = final_active_evidence['appearance_sha256']
         pending['state'] = 'immediate-native-readback-verified'
         # Publish the full verified receipt together with its final metadata.
         # No native mutation occurs between this check and that atomic commit.
@@ -845,8 +850,8 @@ def switch(backend, sim, target, operation):
                     simulation_settled_verified=False, save_reload_verified=False,
                     hair_policy_synchronized=desired_hair_policy is not None,
                     switch_request_id=pending['request_id'],
-                    stored_owner_hashes=_switch_hashes(final_stored),
-                    appearance=appearance.fingerprint(final_active))
+                    stored_owner_hashes=dict(final_stored_hashes),
+                    appearance=final_active_evidence)
     except Exception as error:
         record['switch_pending'] = pending
         try:

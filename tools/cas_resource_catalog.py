@@ -287,7 +287,7 @@ def casp_metadata(raw):
         raise ValueError('CASP length is invalid.')
     r = Reader(raw)
     version, table = r.value('I'), r.value('I') + 8
-    if version not in range(44, 53) or not 64 <= table < len(raw):
+    if version not in range(42, 53) or not 64 <= table < len(raw):
         raise ValueError('CASP version/reference-table layout is unverified.')
     r.limit = table
     if r.value('i') != 0:
@@ -313,7 +313,9 @@ def casp_metadata(raw):
     r.take(r.count(4096) * 6)
     r.take(4)
     title, description = r.value('I'), r.value('I')
-    r.take(5)
+    # TS4SimRipper CASP's versioned constructor: v43 adds an unknown uint32
+    # before textureSpace. Installed v42 CC has only the texture-space byte.
+    r.take(5 if version >= 43 else 1)
     body = r.value('I')
     r.take(4)
     age_gender, species = r.value('I'), r.value('I')

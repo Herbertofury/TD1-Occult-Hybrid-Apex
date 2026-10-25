@@ -12,6 +12,7 @@
 #include "ApexCasOutfitOrder.h"
 #include "ApexNativeOwnerMemory.h"
 #include "ApexNativeCasProbeWin.h"
+#include "ApexNativeServiceProfilerWin.h"
 #include "ApexCasNativePipeWin.h"
 #include "ApexCasSearchWin.h"
 #include "MinHook.h"
@@ -23,6 +24,11 @@
 #include <intrin.h>
 #include <atomic>
 #include <cstdio>
+
+extern "C" {
+std::uint64_t ApexAppearanceSubmit(const char*,const unsigned char*,std::size_t);
+char* ApexAppearancePoll(const char*,std::uint64_t);
+}
 
 namespace td1::nativecas::engine {
 using ImportFn=void(*)(void*,const void*);
@@ -258,6 +264,9 @@ inline std::uint8_t ConfigurePortraitPair(Imported& bank,const std::string& owne
     bank.entryOwner=pair.base;bank.partner=pair.alternate;return pair.layer;
 }
 struct State {
+    struct StampTicket {std::string context,scope,owner;std::uint64_t channel=0,sim=0,generation=0;};
+    std::map<std::uint64_t,StampTicket> stampTickets;
+    ui::Json stampMetrics={{"background_only",true},{"worker_limit",2},{"inflight_limit",4}};
     std::recursive_mutex mutex;Api api;Scope scope;std::map<std::uint64_t,Imported> bank;
     ui::Json pairResult=nullptr;std::set<std::string> pairRequests;
     std::unique_ptr<ViewIntent> viewIntent;ui::Json viewResult=nullptr;std::set<std::uint32_t> viewTokens;std::uint64_t nativeUiSequence=0;std::uint32_t nextUiToken=0x20000000;
@@ -1189,16 +1198,51 @@ inline bool SaveAndExit(const void* argument) {
 
 inline bool CancelCas(const void* argument) {
     ClearHumanCCMaterial();
-    auto& state=Runtime();
+    auto& state=Runtime();std::string scope;unsigned session=0;std::uint64_t serial=0;
+    ui::Json generations=ui::Json::object(),members=ui::Json::array();bool captured=false;
     {
         std::lock_guard<std::recursive_mutex> lock(state.mutex);
         if(state.cancelSerial!=UINT64_MAX)++state.cancelSerial;
-        state.householdAcceptance={{"verified",false},{"native_accepted",false},{"cancelled",true}};
+        scope=state.scope.id;session=state.sessionsRetired;serial=state.cancelSerial;
+        captured=state.armed && state.selectionEnabled && !scope.empty() && !state.scope.members.empty() &&
+                 state.bank.size()==state.scope.members.size() && serial!=UINT64_MAX;
+        for(const auto& member:state.scope.members) {
+            members.push_back(std::to_string(member.first));const auto found=state.bank.find(member.first);
+            if(found==state.bank.end() || !found->second.graph) {captured=false;continue;}
+            generations[std::to_string(member.first)]=found->second.graph->cursor().generation;
+        }
+        state.householdAcceptance={{"verified",false},{"native_accepted",false},{"cancelled",true},
+            {"cancel_started",true},{"cancel_completed",false},{"native_handled",false},
+            {"scope_id",scope},{"session",session},{"cancel_serial",serial},
+            {"runtime_pid",GetCurrentProcessId()},{"member_ids",members},{"generations",generations}};
         state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
         state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};
         state.preparedRoots.clear();state.preparedScope.clear();state.exportController=nullptr;
     }
-    return state.api.cancelCas(argument);
+    // No graph lock across EA dispatch. Intent alone never certifies that the
+    // room cancelled; publish completion only after the original service returns.
+    bool handled=false;
+    try {handled=state.api.cancelCas(argument);}
+    catch(...) {
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);
+        if(state.cancelSerial==serial && state.householdAcceptance.value("cancel_serial",std::uint64_t(0))==serial)
+            state.householdAcceptance["message"]="Native cancellation raised; not replayed.";
+        throw;
+    }
+    {
+        std::lock_guard<std::recursive_mutex> lock(state.mutex);
+        bool same=captured && state.armed && state.selectionEnabled && state.scope.id==scope &&
+                  state.sessionsRetired==session && state.cancelSerial==serial &&
+                  state.bank.size()==generations.size() && state.scope.members.size()==members.size();
+        for(const auto& row:state.bank) same=same && row.second.graph && state.scope.members.count(row.first) &&
+            generations.contains(std::to_string(row.first)) &&
+            generations.at(std::to_string(row.first))==row.second.graph->cursor().generation;
+        if(state.householdAcceptance.value("cancel_serial",std::uint64_t(0))==serial) {
+            state.householdAcceptance["native_handled"]=handled;
+            state.householdAcceptance["cancel_completed"]=handled && same;
+        }
+    }
+    return handled;
 }
 
 inline void BindSelected(void* controller,bool notify) {
@@ -1648,6 +1692,61 @@ inline std::string EquippedItems(State& state,std::uint64_t channel,const std::s
     }
     return result;
 }
+inline std::string EquippedStamp(State& state,std::uint64_t channel) {
+    if(FastOwnerState(state,channel).rfind("VIEWSTATE|",0)!=0)
+        throw std::runtime_error("Current-outfit refresh lacks its exact bound native model.");
+    const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
+    const auto group=Read<void*>(controller,0x100);const auto id=Read<std::uint64_t>(group,0xb8);
+    auto& bank=state.bank.at(id);const auto cursor=bank.graph->cursor();
+    const auto bytes=SerializeOwner(state.api,*CloneModel(state,bank,controller),id);
+    return "EQUIPPEDSTAMP|"+std::to_string(id)+"|"+cursor.owner+"|"+
+        resource::HashBytes(selective::Canonical(bytes,selective::Schema::Root));
+}
+inline std::string StartEquippedStamp(State& state,std::uint64_t channel) {
+    const auto started=std::chrono::steady_clock::now();
+    if(FastOwnerState(state,channel).rfind("VIEWSTATE|",0)!=0)
+        throw std::runtime_error("Appearance worker needs its exact bound native model.");
+    const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
+    const auto group=Read<void*>(controller,0x100);const auto id=Read<std::uint64_t>(group,0xb8);
+    auto& bank=state.bank.at(id);const auto cursor=bank.graph->cursor();
+    // Engine capture remains on its owning thread. Rust receives an independent
+    // bounded byte copy; parsing, normalization and SHA never call game APIs.
+    const auto bytes=SerializeOwner(state.api,*CloneModel(state,bank,controller),id);
+    const auto context=state.scope.id+"|"+std::to_string(channel)+"|"+std::to_string(id)+"|"+
+        cursor.owner+"|"+std::to_string(cursor.generation);
+    const auto ticket=ApexAppearanceSubmit(context.c_str(),reinterpret_cast<const unsigned char*>(bytes.data()),bytes.size());
+    state.stampMetrics["last_capture_submit_ms"]=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-started).count();
+    state.stampMetrics["last_packet_bytes"]=bytes.size();
+    if(!ticket)return "STAMPBUSY";
+    while(state.stampTickets.size()>=8)state.stampTickets.erase(state.stampTickets.begin());
+    state.stampTickets[ticket]={context,state.scope.id,cursor.owner,channel,id,cursor.generation};
+    return "STAMPJOB|"+std::to_string(id)+"|"+cursor.owner+"|"+std::to_string(ticket);
+}
+inline std::string PollEquippedStamp(State& state,std::uint64_t channel,std::uint64_t ticket) {
+    const auto stale="STAMPSTALE|"+std::to_string(ticket);
+    const auto found=state.stampTickets.find(ticket);
+    if(found==state.stampTickets.end())return stale;
+    const auto job=found->second;
+    if(job.channel!=channel || job.scope!=state.scope.id ||
+       FastOwnerState(state,channel).rfind("VIEWSTATE|",0)!=0 || state.boundSim!=job.sim)return stale;
+    const auto bank=state.bank.find(job.sim);
+    if(bank==state.bank.end() || bank->second.graph->cursor().owner!=job.owner ||
+       bank->second.graph->cursor().generation!=job.generation)return stale;
+    char* raw=ApexAppearancePoll(job.context.c_str(),ticket);
+    if(!raw)throw std::runtime_error("Appearance worker returned no bounded receipt.");
+    ui::Json result;
+    try {const std::string bytes(raw);if(bytes.size()>4096)throw std::runtime_error("Appearance worker receipt exceeds bound.");result=ui::Json::parse(bytes);}
+    catch(...){ApexCatalogFree(raw);throw;}
+    ApexCatalogFree(raw);
+    state.stampMetrics["last_worker_receipt"]=result;
+    const auto status=result.value("state",std::string());
+    if(result.value("ticket",std::uint64_t(0))!=ticket)throw std::runtime_error("Appearance worker ticket differs.");
+    if(status=="pending")return "STAMPPENDING|"+std::to_string(ticket);
+    state.stampTickets.erase(ticket);
+    if(status=="stale")return stale;
+    if(status!="ready" || !resource::Hash(result,"sha256"))throw std::runtime_error("Appearance worker verification failed.");
+    return "EQUIPPEDSTAMP|"+std::to_string(job.sim)+"|"+job.owner+"|"+result["sha256"].get<std::string>();
+}
 inline std::string ApplyPairAction(State& state,std::uint64_t channel,const std::string& payload) {
     const auto action=ParsePairAction(payload);void* controller=nullptr;auto& bank=PairBank(state,channel,controller);
     if(action.flags!=UINT32_MAX)selective::Validate(action.flags);
@@ -1690,6 +1789,34 @@ inline std::string ApplyPairAction(State& state,std::uint64_t channel,const std:
         return "PAIRFAILED|"+action.request;
     }
 }
+inline std::string GridScopePermit(const State& state) {
+    // Read-only early-widget eligibility. A catalog without an authenticated
+    // capture keeps its original EA feed/layout/input paths. This is not a
+    // pipe Open, appearance permission or restoration/serialization receipt.
+    constexpr const char* unavailable="GRIDPERMIT|0";
+    if(!state.installed || !state.armed || !state.selectionEnabled || state.scopeRetired ||
+       state.scope.id.size()!=32 || state.scope.id.find_first_not_of("0123456789abcdef")!=std::string::npos ||
+       state.scope.members.empty() || state.scope.members.size()>8 || state.bank.size()!=state.scope.members.size())return unavailable;
+    for(const auto& member:state.scope.members) {
+        const auto found=state.bank.find(member.first);
+        if(found==state.bank.end())return unavailable;
+        const auto& bank=found->second;
+        if(!bank.graph || !bank.seeded || !bank.activeSourceSeeded || bank.canonicalSourceMask!=member.second.mask ||
+           bank.mask!=member.second.mask || !bank.error.empty() || bank.graph->cursor().sim!=member.first)return unavailable;
+    }
+    try {
+        const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
+        const auto group=controller?Read<void*>(controller,0x100):nullptr;
+        if(!group)return unavailable;
+        const auto selected=Read<std::uint64_t>(group,0xb8);
+        const auto found=state.bank.find(selected);
+        if(!state.scope.members.count(selected) || found==state.bank.end() ||
+           !found->second.editorImported || !found->second.importedEntity ||
+           GroupId(group)!=found->second.importedEntity || found->second.viewFault)return unavailable;
+        return "GRIDPERMIT|"+state.scope.id+"|"+std::to_string(selected)+"|"+
+            std::to_string(found->second.graph->cursor().generation);
+    } catch(const std::exception&) {return unavailable;}
+}
 inline bool GetOccultService(const void* arguments) {
     auto& state=Runtime();
     const auto parameter=Read<const void*>(arguments,8);
@@ -1707,7 +1834,8 @@ inline bool GetOccultService(const void* arguments) {
         searchRequest=action=="SEARCH"||action=="SEARCHREAD"||action=="SEARCHPAGE"||action=="SEARCHRELOAD";
         const auto end=rest.find('|');const auto identity=rest.substr(0,end);
         const auto number=SimId(ui::Json(identity));
-        if(action=="OPEN") {
+        if(action=="GRIDPERMIT" && end==std::string::npos && identity=="1")response=GridScopePermit(state);
+        else if(action=="OPEN") {
             if(end!=std::string::npos)throw std::runtime_error("Native CAS open has extra fields.");
             const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
             const auto group=controller?Read<void*>(controller,0x100):nullptr;
@@ -1742,6 +1870,9 @@ inline bool GetOccultService(const void* arguments) {
         else if(action=="PAIR"&&end==std::string::npos)response=PairState(state,number);
         else if(action=="PAIRDO"&&end!=std::string::npos)response=ApplyPairAction(state,number,rest.substr(end+1));
         else if(action=="EQUIPPED"&&end!=std::string::npos)response=EquippedItems(state,number,rest.substr(end+1));
+        else if(action=="EQUIPPEDSTAMP"&&end==std::string::npos)response=EquippedStamp(state,number);
+        else if(action=="EQUIPPEDSTAMPSTART"&&end==std::string::npos)response=StartEquippedStamp(state,number);
+        else if(action=="EQUIPPEDSTAMPREAD"&&end!=std::string::npos)response=PollEquippedStamp(state,number,SimId(ui::Json(rest.substr(end+1))));
         else if(action=="SEARCHRELOAD"&&end==std::string::npos) {
             if(FastOwnerState(state,number).rfind("VIEWSTATE|",0)!=0)throw std::runtime_error("Reload needs the exact bound CAS appearance.");
             search::ReloadOfflineMetadata();response="SEARCHRELOADED";
@@ -2013,6 +2144,7 @@ inline ui::Json Status() {
         {"household_copy_lifetimes",state.householdCopies.size()},
         {"editor_root_authorities_retired",retiredRoots},{"household_copy_tracking_active",state.householdCopiesEnabled.load(std::memory_order_acquire)},
         {"household_faults",state.householdFaults},{"household_dispatch",state.householdDispatch},
+        {"native_service_profile",performance::Snapshot()},
         {"household_output_calls",outputCalls},
         {"native_converter_calls",state.converted},{"game_files_written",false},
         {"alternate_kind_overrides",state.alternateOverrides},
@@ -2022,6 +2154,7 @@ inline ui::Json Status() {
         {"blocked_existing_owner_conversions",state.blockedConversions},
         {"conversion_quarantined",true},{"independent_owner_view_ready",false},
         {"owner_view_adapter_available",state.installed},{"owner_view_result",state.viewResult},{"pair_action_result",state.pairResult},
+        {"appearance_worker",state.stampMetrics},
         {"owner_view_staged",state.viewIntent!=nullptr},
         {"native_kind_bias_prevented",state.kindBiasPrevented},
         {"cas_animation_membership_scopes",state.animationMembershipScopes},
@@ -2292,6 +2425,14 @@ inline ui::Json Control(const ui::Json& request) {
     if(request.is_object() && request.size()==1 && request.value("operation","")=="view-status") return ViewStatus();
     if(state.scopeRetired && (!request.is_object() || request.value("operation","")!="arm"))
         throw std::runtime_error("A retired CAS session requires a fresh captured scope; old intents cannot import or mutate it.");
+    if(request.is_object() && request.size()==3 && request.value("operation","")=="profile-services") {
+        if(!state.armed || !state.selectionEnabled || binding || !request.contains("scope_id") ||
+           !request["scope_id"].is_string() || request["scope_id"].get<std::string>()!=state.scope.id ||
+           !request.contains("milliseconds") || !request["milliseconds"].is_number_integer() ||
+           request["milliseconds"].get<std::int64_t>()<0 || request["milliseconds"].get<std::int64_t>()>30000)
+            throw std::runtime_error("Native service profiling requires the active exact CAS scope and a bounded duration.");
+        performance::Configure(state.scope.id,request["milliseconds"].get<unsigned>());return Status();
+    }
     if(request.is_object() && request.size()==3 && request.value("operation","")=="genetic-trace") {
         if(!state.armed || !state.selectionEnabled || binding ||
            !request.contains("scope_id") || !request["scope_id"].is_string() ||
@@ -2327,7 +2468,7 @@ inline ui::Json Control(const ui::Json& request) {
         }
         // The whole check precedes disposal. Keep the installed hooks and
         // armed roster ready for a new, freshly checkpointed import.
-        ClearHumanCCMaterial();state.selectionEnabled=false;state.geneticTraceEnabled=false;state.boundSim=0;state.boundController=nullptr;
+        ClearHumanCCMaterial();performance::Shared().timing.Stop();state.selectionEnabled=false;state.geneticTraceEnabled=false;state.boundSim=0;state.boundController=nullptr;
         state.observedNative={{"available",false}};state.viewResult=nullptr;
         state.householdCopiesEnabled.store(false,std::memory_order_release);state.householdCopies.clear();
         state.preparedHouseholdId=0;state.householdDispatch={{"verified",false}};

@@ -92,7 +92,7 @@ def inject_plan(source):
     added = '''         if(_loc2_ && typeof param1.apex_view_x_offset=="number" &&
             typeof param1.apex_screen_x_offset=="number" && typeof param1.apex_screen_x_max=="number" &&
             isFinite(param1.apex_view_x_offset) && isFinite(param1.apex_screen_x_offset) &&
-            isFinite(param1.apex_screen_x_max) && this.mWidth>=262 && this.mWidth<=LayoutAPI.StageWidth*0.53)
+            isFinite(param1.apex_screen_x_max) && this.mWidth>=262 && this.mWidth<=LayoutAPI.StageWidth-12)
          {
             this.BindPanelToSim(this.m3dBindLayer,Number(param1.apex_view_x_offset),
                Number(param1.apex_screen_x_offset)+CASPlanOutfitTunables.PANEL_SCREEN_OFFSET_X,
@@ -138,12 +138,9 @@ def equipped_menus():
 
 
 def viewport_layout(columns, stage_width):
-    """Reference for the owned AS viewport rule, in logical stage units."""
-    import math
-    if type(columns) is not int or not 2 <= columns <= 12 or not math.isfinite(stage_width) or stage_width < 640:
-        raise ValueError('Use bounded columns and a supported viewport.')
-    actual=min(columns,max(2,min(12,int((stage_width*.53-40)/111))))
-    return {'requested':columns,'columns':actual,'width':262+(actual-2)*111}
+    """Default compact card fit, preserving the chosen count by scaling tiles."""
+    layout=card_layout(columns,stage_width,1,4,4,base_width=107)
+    return {'requested':columns,'columns':layout['columns'],'width':layout['width']}
 
 
 def native_catalog_clamp(columns,stage_width,original_maximum):
@@ -155,19 +152,28 @@ def native_catalog_clamp(columns,stage_width,original_maximum):
     return stage_width-max(original_maximum,layout['width']+12)
 
 
-def card_layout(columns,stage_width,scale,gap_x,gap_y,base_width=107,base_height=148):
+def card_layout(columns,stage_width,scale,gap_x,gap_y,base_width=107,base_height=148,*,ui_scale=1,native_stage_width=None):
     """Independent geometry oracle for fitted, proportional native tiles."""
     import math
-    if (type(columns) is not int or not 2<=columns<=12 or
+    if (type(columns) is not int or not 2<=columns<=32 or
             any(type(v) not in (int,float) or not math.isfinite(v) for v in
                 (stage_width,scale,gap_x,gap_y,base_width,base_height)) or
-            stage_width<640 or not .65<=scale<=1.6 or not 0<=gap_x<=32 or not 0<=gap_y<=32 or
+            stage_width<640 or not .2<=scale<=1.6 or not 0<=gap_x<=32 or not 0<=gap_y<=32 or
             base_width<=0 or base_height<=0):
         raise ValueError('Use bounded cards and the actual native tile dimensions.')
-    available=stage_width*.53
-    actual_scale=min(scale,(available-40-2*gap_x)/(2*base_width))
-    pitch=base_width*actual_scale+gap_x
-    actual_columns=min(columns,max(2,min(12,int((available-40)/pitch))))
-    return dict(scale=actual_scale,gap_x=gap_x,gap_y=gap_y,card_width=base_width*actual_scale,
+    # Match the native attachment's reserved catalogue region. More columns
+    # fit smaller cards here; they must never grow left across the Sim.
+    if (type(ui_scale) not in (int,float) or not math.isfinite(ui_scale) or ui_scale<=0 or
+            native_stage_width is not None and (type(native_stage_width) not in (int,float) or
+                not math.isfinite(native_stage_width) or native_stage_width<=0)):
+        raise ValueError('Native catalogue viewport unavailable.')
+    logical_width=min(stage_width if native_stage_width is None else native_stage_width,stage_width/ui_scale)
+    available=max(80,min(40+6*(base_width+4),logical_width*.40-12))
+    content=available-40
+    actual_gap_x=min(gap_x,content/(columns*2))
+    actual_scale=min(scale,(content-columns*actual_gap_x)/(columns*base_width))
+    pitch=base_width*actual_scale+actual_gap_x
+    return dict(scale=actual_scale,gap_x=actual_gap_x,gap_y=gap_y,card_width=base_width*actual_scale,
         card_height=base_height*actual_scale,pitch_x=pitch,pitch_y=base_height*actual_scale+gap_y,
-        columns=actual_columns,width=max(262,40+actual_columns*pitch))
+        columns=columns,width=max(min(262,available),40+columns*pitch),requested_columns=columns,requested_scale=scale,requested_gap_x=gap_x,
+        available_width=available,columns_fit=True,size_fitted=actual_scale<scale-1e-6,gap_x_fitted=actual_gap_x<gap_x-1e-6)

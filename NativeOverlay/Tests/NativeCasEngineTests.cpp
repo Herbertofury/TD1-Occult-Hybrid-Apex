@@ -269,7 +269,24 @@ std::atomic<bool> acceptanceMutexAvailable{false};std::thread acceptanceWorker;
 void BoolValue(void* value,bool flag) {Write(value,0,2u);Write(value,8,std::uint8_t(flag));}
 int AcceptanceIndex(void*,std::uint64_t entity) {return entity==123?0:entity==456?1:-1;}
 void* AcceptanceCache(void*,std::uint64_t entity) {const auto i=AcceptanceIndex(nullptr,entity);return i<0?nullptr:acceptanceCaches[i];}
-bool OriginalCancel(const void*) {++cancellationCalls;return true;}
+int cancellationMode=0;
+bool OriginalCancel(const void*) {
+    ++cancellationCalls;auto& state=Runtime();
+    Require(state.householdAcceptance.value("cancel_started",false));
+    Require(!state.householdAcceptance.value("cancel_completed",false));
+    std::atomic<bool> available{false};
+    std::thread worker([&] {std::lock_guard<std::recursive_mutex> lock(state.mutex);available=true;});
+    for(int i=0;i<1000 && !available;++i)Sleep(1);
+    const bool unlocked=available;worker.join();Require(unlocked);
+    if(cancellationMode==2) {
+        auto& graph=*state.bank.at(123).graph;
+        graph.linkPair(graph.cursor(),"native/1","native/2",false);
+    }
+    if(cancellationMode==3)++state.sessionsRetired;
+    if(cancellationMode==4)throw std::runtime_error("Native cancellation failure fixture.");
+    if(cancellationMode==5)state.scope.id=std::string(32,'f');
+    return cancellationMode!=1;
+}
 bool OriginalAcceptance(const void* argument) {
     ++acceptanceCalls;
     if(Runtime().selectionEnabled) {
@@ -327,11 +344,58 @@ void ExerciseHouseholdAcceptance(void* controller,void* metadata) {
     Require(SaveAndExit(argument.data()));acceptanceWorker.join();Require(acceptanceCalls==6);
     Require(!state.householdAcceptance["verified"].get<bool>());
     state.selectionEnabled=true;other.viewBound=otherView;
+    for(int mode=0;mode<6;++mode) {
+        const auto previousScope=state.scope.id;const auto previousSession=state.sessionsRetired;
+        cancellationMode=mode;
+        if(mode==4)Refuses([&]{CancelCas(argument.data());});
+        else Require(CancelCas(argument.data())==(mode!=1));
+        const auto& proof=state.householdAcceptance;
+        Require(proof.value("cancel_completed",false)==(mode==0));
+        Require(proof.at("runtime_pid")==GetCurrentProcessId() && proof.at("scope_id")==previousScope);
+        Require(proof.at("member_ids").size()==2 && proof.at("generations").size()==2);
+        Require(proof.at("cancel_serial")==state.cancelSerial && proof.at("session")==previousSession);
+        state.scope.id=previousScope;state.sessionsRetired=previousSession;
+    }
+    cancellationMode=0;
     state.api.index=previousIndex;viewControllerTable[0x410/8]=previousCache;
 }
 #include "CasGeneticImportFixture.h"
 #include "CasExactRecordLookupFixture.h"
 #include "CasHouseholdRootFixture.h"
+void ExerciseGridPermit(void* controller) {
+    auto& state=Runtime();auto& bank=state.bank.at(123);
+    const auto installed=state.installed;state.installed=true;
+    const auto cursor=bank.graph->cursor();const auto scope=state.scope.id;
+    const auto channel=td1::nativecas::pipe::Channel().generation;
+    const auto nativeCalls=nativeSyncCalls;const auto selections=state.serviceSelections;
+    const auto group=Read<void*>(controller,0x100);
+    const auto expected="GRIDPERMIT|"+scope+"|123|"+std::to_string(cursor.generation);
+    Require(GridScopePermit(state)==expected);
+    auto unavailable=[&] {Require(GridScopePermit(state)=="GRIDPERMIT|0");};
+    state.installed=false;unavailable();state.installed=true;
+    state.armed=false;unavailable();state.armed=true;
+    state.selectionEnabled=false;unavailable();state.selectionEnabled=true;
+    state.scopeRetired=true;unavailable();state.scopeRetired=false;
+    state.scope.id=std::string(32,'z');unavailable();state.scope.id=scope;
+    state.scope.members.emplace(999,Member{999,1});unavailable();state.scope.members.erase(999);
+    bank.seeded=false;unavailable();bank.seeded=true;
+    bank.activeSourceSeeded=false;unavailable();bank.activeSourceSeeded=true;
+    bank.canonicalSourceMask=3;unavailable();bank.canonicalSourceMask=127;
+    auto graph=std::move(bank.graph);unavailable();bank.graph=std::move(graph);
+    bank.editorImported=false;unavailable();bank.editorImported=true;
+    const auto entity=bank.importedEntity;bank.importedEntity=999;unavailable();bank.importedEntity=entity;
+    bank.viewFault=true;unavailable();bank.viewFault=false;
+    bank.error="incomplete capture";unavailable();bank.error.clear();
+    Write(controller,0x100,static_cast<void*>(nullptr));unavailable();Write(controller,0x100,group);
+    const auto selected=Read<std::uint64_t>(group,0xb8);
+    Write(group,0xb8,std::uint64_t(999));unavailable();Write(group,0xb8,selected);
+    Require(GridScopePermit(state)==expected);
+    Require(bank.graph->cursor().sim==cursor.sim && bank.graph->cursor().owner==cursor.owner &&
+        bank.graph->cursor().generation==cursor.generation && state.scope.id==scope &&
+        nativeSyncCalls==nativeCalls && state.serviceSelections==selections &&
+        td1::nativecas::pipe::Channel().generation==channel);
+    state.installed=installed;
+}
 int main() {
  try {
     std::array<char,16> shortText{};std::memcpy(shortText.data(),"APEXUI1|READ|7",14);shortText[15]=1;
@@ -565,6 +629,7 @@ int main() {
     Require(bank.partner=="native/1" && Read<unsigned>(group.data(),0xe8)==9999);
     Require(Read<unsigned>(Read<void*>(group.data(),0x4c0),0xe8)==100);
     ExerciseAnimationIsolation(controller.data());
+    ExerciseGridPermit(controller.data());
     auto stageView=[&](const char* rid,const char* owner) {
         const auto cursor=bank.graph->cursor();
         auto staged=Control({{"operation","stage-view"},{"scope_id",scope.id},{"sim_id","123"},

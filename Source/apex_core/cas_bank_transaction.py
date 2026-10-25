@@ -539,6 +539,35 @@ def _completed_uncached(transaction):
                 return False
             decisions[row['lane']] = row['action']
         accepted = {lane for lane, action in decisions.items() if action == 'accept-returned'}
+        native_intent=plan.get('authenticated_native_intent')
+        if native_intent is not None:
+            returned_graph=transaction.get('native_owner_return',{});native_identity=returned_graph.get('identity',{})
+            members=native_intent.get('captured_sim_ids') if isinstance(native_intent,dict) else None
+            generations=native_intent.get('generations') if isinstance(native_intent,dict) else None
+            if (not isinstance(native_intent,dict) or native_intent.get('intent') not in ('accept','cancel') or
+                    native_intent.get('runtime_pid')!=identity['runtime_pid'] or
+                    native_intent.get('household_id')!=identity['household_id'] or
+                    native_intent.get('save_guid')!=identity['save_guid'] or
+                    not isinstance(native_intent.get('scope_id'),str) or not 0<len(native_intent['scope_id'])<=128 or
+                    not _token(native_intent.get('frontdoor_id')) or not isinstance(members,list) or
+                    not 1<=len(members)<=8 or len(set(members))!=len(members) or
+                    not all(primitive._id(sid) for sid in members) or identity['sim_id'] not in members or
+                    not isinstance(generations,dict) or set(generations)!=set(members) or
+                    any(type(g) is not int or not 0<g<2**64 for g in generations.values()) or
+                    native_identity.get('pid')!=identity['runtime_pid'] or native_identity.get('sim_id')!=identity['sim_id'] or
+                    native_identity.get('scope_id')!=native_intent['scope_id'] or
+                    native_identity.get('generation')!=generations[identity['sim_id']] or
+                    returned_graph.get('checkpoint_epoch')!=transaction['transaction_sha256'] or
+                    journal.get('appearance_choice_source')!='authenticated-native-cas-logical-owners'):
+                return False
+            wanted_action='accept-returned' if native_intent['intent']=='accept' else 'restore-original'
+            if any(action!=wanted_action for action in decisions.values()):return False
+            if native_intent['intent']=='cancel' and (native_intent.get('native_handled') is not True or
+                    type(native_intent.get('session')) is not int or native_intent['session']<0 or
+                    type(native_intent.get('cancel_serial')) is not int or not 0<native_intent['cancel_serial']<2**64):
+                return False
+            if any(fields!=(returned['stored'][lane] if lane in accepted else original['stored'][lane])
+                    for lane,fields in plan['desired'].items()):return False
         if plan.get('changed_lanes') != sorted(changed, key=int) or plan.get('accepted_lanes') != sorted(accepted, key=int):
             return False
         for lane, fields in plan['desired'].items():
@@ -571,6 +600,8 @@ def _completed_uncached(transaction):
 def _blocked(record, owner_key=None):
     if record is None:
         return False
+    if record.get('automatic_cas_preservation_failure') is not None:
+        return True
     if record.get('pending') is not None or record.get('switch_pending') is not None:
         return True
     transaction = record.get('cas_transaction')
@@ -1232,7 +1263,55 @@ def prepare(backend, sim, argument):
         return result
 
 
-def commit(backend, sim, argument):
+def prepare_native_accepted(backend, sim, capability):
+    """Internal native-CAS intent; not an action/JSON route or inferred diff.
+
+    A user's actual native acceptance authorizes its own complete logical
+    owners, including new wardrobe slots. Ordinary/manual hair intent keeps
+    its existing separate planner. Neither caller can supply appearance bytes.
+    """
+    from . import cas_auto_settle, cas_named_return
+    with _LOCK:
+        witness=cas_auto_settle.require_member(backend,sim,capability)
+        path,key,record,transaction=_selected(backend,sim)
+        returned=_native_return_capability(path,key,transaction)
+        instance=_instance(backend,sim)
+        if (returned is None or instance.state!='observed' or
+                instance.document.get('appearance_choice_source')!='authenticated-native-cas-logical-owners' or
+                returned['identity'].get('scope_id')!=witness['scope_id'] or
+                returned['identity'].get('generation')!=witness['generations'][str(sim.id)]):
+            raise ValueError('Automatic completion requires the exact authenticated final native owners.')
+        action='accept-returned' if witness['intent']=='accept' else 'restore-original'
+        original=instance.pending['original_owners']['stored'];raw=instance.document['raw_return']['stored']
+        dispositions=[{'lane':lane,'action':action} for lane in sorted(original,key=int)
+            if appearance.fingerprint(original[lane])!=appearance.fingerprint(raw[lane])]
+        named_dispositions=[{'owner_id':row['owner_id'],'action':action}
+            for row in cas_named_return.changes(record,returned)]
+        # This complete, accepted native graph already contains the user's
+        # exact wardrobe. Do not impose the manual planner's old-slot-only
+        # hair selections or rebuild it from old hair metadata.
+        result=primitive.CasCommitTransaction.prepare(instance,transaction['checkpoint_sha256'],
+            instance.raw_return_sha256,dispositions)
+        named,_archive=cas_named_return.prepare(record,returned,instance.plan['desired'],named_dispositions)
+        instance.plan.update(native_owner_return_sha256=primitive.digest(returned),
+            named_document_sha256=primitive.digest(named),named_dispositions=named_dispositions,
+            authenticated_native_intent=copy.deepcopy(witness))
+        document=copy.deepcopy(instance.document)
+        document.update(plan=copy.deepcopy(instance.plan),plan_sha256=primitive.digest(instance.plan))
+        try:instance._write(document)
+        except Exception as error:instance._failure(error,'accepted native household plan')
+        result.update(plan_sha256=document['plan_sha256'],expected_pending_sha256=transaction['transaction_sha256'],
+            native_user_intent=witness['intent'],manual_review_required=False)
+        return result
+
+
+def commit_native_accepted(backend, sim, argument, capability):
+    from .cas_auto_settle import require_member
+    require_member(backend,sim,capability)
+    return commit(backend,sim,argument,_native_completion=False)
+
+
+def commit(backend, sim, argument, _native_completion=True):
     with _LOCK:
         transaction = _argument(backend, sim, argument,
             {'expected_pending_sha256', 'expected_plan_sha256'})
@@ -1252,7 +1331,8 @@ def commit(backend, sim, argument):
         from . import native_cas_engine
         _path,_key,_record,completed=_selected(backend,sim,allow_consumed=True)
         try:
-            result['native_session_completion']=native_cas_engine.complete_return(backend,sim,completed)
+            result['native_session_completion']=(native_cas_engine.complete_return(backend,sim,completed) if _native_completion else
+                dict(enabled=True,retired=False,deferred_to_household_final_verification=True))
         except Exception as error:
             # Appearance/metadata commit already succeeded. Preserve that ACK;
             # a blocked retirement must never replay the form transaction.

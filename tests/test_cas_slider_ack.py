@@ -1,0 +1,83 @@
+"""Exact control values plus only native twip-sized thumb quantization."""
+import copy,json,math
+from pathlib import Path
+import sys,unittest
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Source'))
+from apex_core import cas_controls,cas_ui
+RANGES={'columns':(2,32),'red':(0,255),'green':(0,255),'blue':(0,255),'glow':(0,12),'border':(1,8),
+        'period':(.8,4),'strength':(.25,1),'card_scale':(.2,1.6),'gap_x':(0,32),'gap_y':(0,32)}
+TWIP=(1/20)/300
+
+
+def sample(name,fraction):
+    low,high=RANGES[name];discrete=name in ('columns','red','green','blue')
+    expected=low+(math.floor(fraction*(high-low)+.5) if discrete else fraction*(high-low))
+    workspace=dict(visible=True,view='layout' if name in ('card_scale','gap_x','gap_y') else 'style',
+        preferences={},card_preferences={},slider_thumbs={name:(expected-low)/(high-low)})
+    if name in ('red','green','blue'):
+        shift={'red':16,'green':8,'blue':0}[name];workspace['preferences']['color']=(0xaabbcc&~(255<<shift))|(expected<<shift)
+    elif name in ('card_scale','gap_x','gap_y'):workspace['card_preferences']['scale' if name=='card_scale' else name]=expected
+    else:workspace['preferences'][name]=expected
+    request=dict(operation='catalog-slider',control=name,fraction=fraction);cas_ui.envelope('12',request)
+    return request,{'control':dict(operation='catalog-slider',appearance_written=False,workspace=workspace)}
+
+
+class SliderAcknowledgmentTests(unittest.TestCase):
+    def test_retained_native_12_column_ack_accepts_one_measured_twip_without_replaying(self):
+        fixture=json.loads((Path(__file__).parent/'fixtures/catalog-slider-native-twip.json').read_text(encoding='utf-8'))
+        cas_controls.validate(fixture['client'],fixture['request'])
+        workspace=fixture['client']['control']['workspace']
+        self.assertEqual(workspace['preferences']['columns'],12)
+        self.assertAlmostEqual((1/3-workspace['slider_thumbs']['columns'])*300,.05)
+
+    def test_discrete_controls_use_exact_rounded_value_position_not_raw_fraction(self):
+        for name in ('columns','red','green','blue'):
+            for fraction in (.34,.35,.5,.0166,.0167,1/3):
+                with self.subTest(name=name,fraction=fraction):
+                    request,client=sample(name,fraction);cas_controls.validate(client,request)
+                    actual=client['control']['workspace']['slider_thumbs'][name]
+                    if abs(actual-fraction)>TWIP+1e-9:
+                        client['control']['workspace']['slider_thumbs'][name]=fraction
+                        with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+
+    def test_continuous_values_remain_exact_independent_of_thumb_quantization(self):
+        for name in RANGES:
+            for fraction in (.12345,.4,1/3):
+                with self.subTest(name=name,fraction=fraction):
+                    request,client=sample(name,fraction);workspace=client['control']['workspace']
+                    expected=workspace['slider_thumbs'][name]
+                    for offset in (-TWIP,TWIP):
+                        workspace['slider_thumbs'][name]=expected+offset;cas_controls.validate(client,request)
+                    workspace['slider_thumbs'][name]=expected+2*TWIP
+                    with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+
+    def test_endpoints_are_in_range_and_true_wrong_thumb_or_untyped_coordinates_refuse(self):
+        for name in RANGES:
+            for fraction in (0,1):
+                request,client=sample(name,fraction);cas_controls.validate(client,request)
+                for wrong in (-TWIP,1+TWIP,float('nan'),float('inf'),True,None):
+                    with self.subTest(name=name,fraction=fraction,wrong=wrong):
+                        changed=copy.deepcopy(client);changed['control']['workspace']['slider_thumbs'][name]=wrong
+                        with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(changed,request)
+
+    def test_correct_thumb_cannot_authorize_wrong_preference_or_rounding_bin(self):
+        for name in RANGES:
+            request,client=sample(name,.34);workspace=client['control']['workspace']
+            if name in ('red','green','blue'):workspace['preferences']['color']^=1<<{'red':16,'green':8,'blue':0}[name]
+            elif name in ('card_scale','gap_x','gap_y'):workspace['card_preferences']['scale' if name=='card_scale' else name]+=.01
+            else:workspace['preferences'][name]+=.01
+            with self.subTest(name=name),self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+        for bad in (float('nan'),float('inf'),True):
+            request,client=sample('glow',.4);client['control']['workspace']['preferences']['glow']=bad
+            with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+
+    def test_value_precision_is_not_relaxed_by_visual_twip_tolerance(self):
+        request,client=sample('columns',1/3);workspace=client['control']['workspace']
+        workspace['slider_thumbs']['columns']-=TWIP
+        workspace['preferences']['columns']=12.0000001
+        with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+        request,client=sample('glow',1/3);client['control']['workspace']['preferences']['glow']+=.00001
+        with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+
+
+if __name__=='__main__':unittest.main()

@@ -8,6 +8,7 @@ from collections import OrderedDict
 import copy
 import hashlib
 import json
+import math
 import os
 import re
 import threading
@@ -24,6 +25,11 @@ _READY = None
 _LAST_REPLY = None
 _PEERS = {}
 _OWNER_BASELINES = OrderedDict()
+
+# An explicit, smaller readback for display/preferences metadata. Full status,
+# navigation, slider mismatch recovery, history and equip paths stay complete.
+_CATALOG_READBACK_OPERATIONS = frozenset(('catalog-state', 'catalog-search', 'catalog-style',
+    'catalog-cards', 'catalog-card-reset', 'panel-layout', 'catalog-trace', 'catalog-layout-trace'))
 
 
 def _owner_id(value, allow_zero=False, producer=False):
@@ -536,6 +542,8 @@ def poll_client(token, clock=time.monotonic):
         for row in _RECORDS.values():
             if row['state'] == 'pending' and row.get('transport') == 'loopback-socket' and row['sim_id'] == peer['sim_id'] and row.get('delivery') == 'queued':
                 row.update(delivery='claimed', peer=token)
+                if row['request']['operation'] in _CATALOG_READBACK_OPERATIONS:
+                    row['catalog_expected_owner'] = copy.deepcopy(peer.get('owner_state_identity'))
                 return row['wire']
     return None
 
@@ -637,7 +645,8 @@ def receive_socket(token, request_id, payload, clock=time.monotonic, backend=Non
         try:
             receive(request_id, payload, backend=backend)
         except cas_controls.PostconditionMismatch:
-            # A complete, same-Sim swatch receipt is retained as a terminal
+            # A complete same-owner UI-only slider or same-Sim swatch
+            # receipt is retained as a terminal
             # failure by receive(). Consume its transport ACK without claiming
             # its requested value succeeded. Dropping this socket strands CAS
             # after an ordinary failed readback and loses diagnostic access.
@@ -767,6 +776,73 @@ def history_palette(client):
             any(type(color) is not int or not 0 <= color < 2**32 for color in value['selected'])):
         raise ValueError('Native history palette lacks its exact bound Sim/form and uint32 colors.')
     return (value['sim_id'], value['owner_id'], value['native_kind']), value['selected']
+
+
+def _validate_catalog_client(data, row):
+    """Thin packets prove a claimed, stable native cursor; never an inventory."""
+    request, client = row['request'], data.get('client')
+    token = row.get('peer'); peer = _PEERS.get(token)
+    if (request['operation'] not in _CATALOG_READBACK_OPERATIONS or
+            row.get('transport') != 'loopback-socket' or row.get('delivery') != 'claimed' or
+            not isinstance(token, str) or re.fullmatch('[0-9a-f]{64}', token) is None or
+            not isinstance(peer, dict) or peer.get('sim_id') != row['sim_id'] or
+            set(data) != {'protocol','ok','scope','cas_request_id','operation','mutation_started','client'} or
+            data.get('scope') != 'native-cas-client' or data.get('operation') != request['operation'] or
+            data.get('cas_request_id') != row.get('wire','').split('|',1)[0] or
+            data.get('mutation_started') is not False or not isinstance(client, dict) or
+            set(client) != {'protocol','scope','appearance_written','sim','menu_state','panel_visible','outfit',
+                            'form_strip','catalog_identity','catalog_workspace','control'} or
+            type(client.get('protocol')) is not int or client['protocol'] != 1 or
+            client.get('scope') != 'native-cas-catalog-client' or client.get('appearance_written') is not False):
+        raise ValueError('Thin catalogue response lacks its exact metadata request/peer scope.')
+    proof = client['catalog_identity']
+    if (not isinstance(proof, dict) or set(proof) != {'request_id','peer_nonce','before','after'} or
+            proof.get('request_id') != data['cas_request_id'] or proof.get('peer_nonce') != token or
+            not isinstance(proof.get('before'), dict) or not isinstance(proof.get('after'), dict) or
+            proof['before'] != proof['after'] or _baseline_hash(proof['before']) != _baseline_hash(proof['after'])):
+        raise ValueError('Thin catalogue request nonce or native before/after identity differs.')
+    context = proof['after']
+    fields = {'sim_id','household_id','owner_id','native_kind','shell_kind','native_mask','native_generation',
+              'session','layer','outfit_type','outfit_index','menu_state'}
+    if set(context) != fields:
+        raise ValueError('Thin catalogue native context is incomplete or contains foreign fields.')
+    for name in ('sim_id','household_id','native_generation'):
+        _owner_id(context[name])
+    if (context['sim_id'] != row['sim_id'] or not isinstance(context['owner_id'], str) or
+            re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}', context['owner_id']) is None or
+            any(type(context[k]) is not int or context[k] not in (1,2,4,8,16,32,64) for k in ('native_kind','shell_kind')) or
+            type(context['native_mask']) is not int or not 0 < context['native_mask'] <= 127 or not context['native_mask'] & 1 or
+            type(context['session']) is not int or not 0 < context['session'] < 2**31 or
+            type(context['layer']) is not int or context['layer'] not in (0,1) or
+            type(context['outfit_type']) is not int or not 0 <= context['outfit_type'] <= 255 or
+            type(context['outfit_index']) is not int or not 0 <= context['outfit_index'] < 5 or
+            type(context['menu_state']) is not int or not -2**31 <= context['menu_state'] < 2**31):
+        raise ValueError('Thin catalogue selected native context is untyped or foreign.')
+    expected = ('OWNERSTATE|{}|{}|{}|bound'.format(context['owner_id'],context['native_kind'],context['layer']),
+                int(context['native_generation']))
+    if row.get('catalog_expected_owner') != expected:
+        raise ValueError('Thin catalogue owner/native generation differs from the claimed native cursor.')
+    sim = {'simId':context['sim_id'],'householdId':context['household_id'],'occultType':context['shell_kind'],
+           'allOccultTypes':context['native_mask'],'occultLayer':context['layer']}
+    strip = {'sim_id':context['sim_id'],'selected_owner_id':context['owner_id'],'native_owner_state':'bound',
+             'desired_owner_id':'','gesture_pending':False,'native_generation':context['native_generation'],'session':context['session']}
+    if (client['sim'] != sim or client['form_strip'] != strip or
+            any(type(client['sim'].get(k)) is not type(v) for k,v in sim.items()) or
+            any(type(client['form_strip'].get(k)) is not type(v) for k,v in strip.items()) or
+            type(client['menu_state']) is not int or client['menu_state'] != context['menu_state'] or
+            type(client['panel_visible']) is not bool or
+            client['outfit'] != {'outfit_type':context['outfit_type'],'outfit_index':context['outfit_index']} or
+            not isinstance(client['outfit'], dict) or any(type(v) is not int for v in client['outfit'].values())):
+        raise ValueError('Thin catalogue header differs from its authenticated native context.')
+    control, workspace = client['control'], client['catalog_workspace']
+    trace = request['operation'] in ('catalog-trace','catalog-layout-trace')
+    if (not isinstance(workspace, dict) or not isinstance(control, dict) or
+            set(control) != {'operation','appearance_written','trace' if trace else 'workspace'} or
+            control.get('operation') != request['operation'] or control.get('appearance_written') is not False or
+            (control.get('trace') != workspace.get('draw_trace' if request['operation']=='catalog-trace' else 'layout_trace') if trace else
+             control.get('workspace') != workspace)):
+        raise ValueError('Thin catalogue control differs from its single captured workspace.')
+    cas_controls.validate(client, request)
 
 
 def validate_client(client, sim_id, request):
@@ -1043,7 +1119,8 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
             peers = {token for token, peer in _PEERS.items() if peer['sim_id'] == sim_id and 0 <= clock()-peer['observed_at'] <= 3}
             prior = next((row for row in reversed(list(_RECORDS.values())) if row['state']=='completed' and
                 row.get('peer') in peers and row['sim_id']==sim_id and row.get('acknowledged_at') is not None and
-                0 <= clock()-row['acknowledged_at'] <= 3 and row['result'].get('ok')), None)
+                0 <= clock()-row['acknowledged_at'] <= 3 and row['result'].get('ok') and
+                row['result'].get('client',{}).get('scope')=='native-cas-client'), None)
             if prior is None:
                 raise ValueError('Inspect fresh owned CAS status before changing an occult view.')
             before = prior['result']['client']
@@ -1075,7 +1152,8 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
             _form_select_original(backend, sim_id, request['household_id'])
             fresh = [row for row in reversed(list(_RECORDS.values())) if row['state']=='completed' and
                 row['sim_id']==sim_id and row.get('acknowledged_at') is not None and
-                0 <= clock()-row['acknowledged_at'] <= 3 and row['result'].get('ok')]
+                0 <= clock()-row['acknowledged_at'] <= 3 and row['result'].get('ok') and
+                row['result'].get('client',{}).get('scope')=='native-cas-client']
             if not fresh: raise ValueError('Read fresh CAS status before selecting an independent form.')
             before=fresh[0]['result']['client']; observation=before.get('owner_pair_observation',{})
             if (before['sim']['householdId']!=request['household_id'] or
@@ -1091,7 +1169,8 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
             prior = next((row for row in reversed(list(_RECORDS.values())) if
                           row['state'] == 'completed' and row.get('peer') in fresh_peers and
                           row['sim_id'] == sim_id and row.get('acknowledged_at') is not None and
-                          0 <= clock() - row['acknowledged_at'] <= 3 and row['result'].get('ok')), None)
+                          0 <= clock() - row['acknowledged_at'] <= 3 and row['result'].get('ok') and
+                          row['result'].get('client',{}).get('scope')=='native-cas-client'), None)
             if prior is None:
                 raise ValueError('CAS form selection requires a fresh owned native acknowledgement; request status first.')
             if request['operation'] == 'member-select':
@@ -1123,9 +1202,20 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
             pending = []
         if pending:
             raise ValueError('A CAS client request is unresolved; inspect its request ID before another operation.')
+        slider_lease=None
+        if request['operation']=='catalog-slider':
+            for prior in reversed(list(_RECORDS.values())):
+                token=prior.get('peer');peer=_PEERS.get(token)
+                if (prior.get('state')=='completed' and prior.get('sim_id')==sim_id and isinstance(peer,dict) and
+                        peer.get('sim_id')==sim_id and isinstance(prior.get('result'),dict) and prior['result'].get('ok') is True and
+                        prior['result'].get('client',{}).get('scope')=='native-cas-client'):
+                    context=_slider_owner_context(prior['result'].get('client'),sim_id)
+                    if context is not None:slider_lease=dict(peer=token,context=context)
+                    break
         _RECORDS[request_id] = {'state': 'pending', 'sim_id': sim_id, 'request': copy.deepcopy(request),
                               'created': clock(), 'result': None, 'wire': wire,
                               'transport': 'loopback-socket' if socket_ready else 'game-ui-message', 'delivery': 'queued'}
+        if slider_lease is not None:_RECORDS[request_id]['slider_owner_lease']=copy.deepcopy(slider_lease)
         if request['operation'] == 'form-owner-select':
             from . import native_cas_engine
             token = native_cas_engine.stage_view(backend, sim_id, request_id, request)
@@ -1149,6 +1239,68 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
             'message': 'Semantic request submitted. Await the native CAS client acknowledgement; do not repeat.'}
 
 
+def _slider_owner_context(client, sim_id):
+    """Primitive same-peer owner lease; never appearance bytes or inferred form."""
+    if not isinstance(client,dict) or client.get('scope')!='native-cas-client':return None
+    sim=client.get('sim',{});strip=client.get('form_strip',{});context=client.get('native_context',{})
+    pair=client.get('owner_pair_observation',{});slot=client.get('outfit',{})
+    if not all(isinstance(v,dict) for v in (sim,strip,context,pair,slot)):return None
+    rendered=context.get('rendered_form',{})
+    oid=strip.get('selected_owner_id')
+    if (sim.get('simId')!=sim_id or strip.get('sim_id')!=sim_id or strip.get('native_owner_state')!='bound' or
+            strip.get('desired_owner_id')!='' or strip.get('gesture_pending') is not False or
+            not isinstance(oid,str) or re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',oid) is None or
+            not isinstance(rendered,dict) or rendered.get('query')!='returned-value' or
+            type(rendered.get('value')) is not int or rendered['value'] not in (1,2,4,8,16,32,64) or
+            type(pair.get('session')) is not int or not 0<pair['session']<2**31 or
+            type(sim.get('occultLayer')) is not int or sim['occultLayer'] not in (0,1) or
+            type(slot.get('outfit_type')) is not int or not 0<=slot['outfit_type']<=255 or
+            type(slot.get('outfit_index')) is not int or not 0<=slot['outfit_index']<5):return None
+    try:household=_owner_id(sim.get('householdId'))
+    except ValueError:return None
+    return dict(sim_id=sim_id,household_id=household,owner_id=oid,native_kind=rendered['value'],
+        session=pair['session'],layer=sim['occultLayer'],outfit_type=slot['outfit_type'],outfit_index=slot['outfit_index'])
+
+
+def _complete_slider_mismatch(row,data):
+    """A definite UI-only result may fail without stranding its socket queue.
+
+    An unknown/partial/foreign or appearance-capable transition retains its
+    pending quarantine. This classification never authorizes retry or success.
+    """
+    if (row['request']['operation']!='catalog-slider' or data.get('operation')!='catalog-slider' or
+            data.get('scope')!='native-cas-client' or data.get('mutation_started') is not False or
+            set(data)!={'protocol','ok','cas_request_id','operation','scope','mutation_started','client'} or
+            not isinstance(row.get('slider_owner_lease'),dict) or
+            row.get('peer')!=row['slider_owner_lease'].get('peer')):return False
+    lease=row['slider_owner_lease'];client=data.get('client')
+    try:
+        validate_client(client,row['sim_id'],{'operation':'status'})
+        if _slider_owner_context(client,row['sim_id'])!=lease['context']:return False
+        control=client.get('control');workspace=control.get('workspace') if isinstance(control,dict) else None
+        if (not isinstance(control,dict) or set(control)!={'operation','appearance_written','workspace'} or
+                control.get('operation')!='catalog-slider' or control.get('appearance_written') is not False or
+                not isinstance(workspace,dict) or workspace.get('visible') is not True or workspace.get('error')!='' or
+                workspace.get('context')!=row['sim_id']+'|'+lease['context']['owner_id'] or
+                workspace.get('outfit')!={'category':lease['context']['outfit_type'],'index':lease['context']['outfit_index']}):return False
+        name=row['request']['control'];view='layout' if name in ('card_scale','gap_x','gap_y') else 'style'
+        if workspace.get('view')!=view:return False
+        prefs=workspace.get('preferences');cards=workspace.get('card_preferences');thumbs=workspace.get('slider_thumbs')
+        if not all(isinstance(v,dict) for v in (prefs,cards,thumbs)):return False
+        if (type(prefs.get('columns')) is not int or not 2<=prefs['columns']<=32 or
+                type(prefs.get('color')) is not int or not 0<=prefs['color']<=0xffffff or
+                prefs.get('animation') not in ('none','pulse','flash')):return False
+        for values,key,low,high in ((prefs,'glow',0,12),(prefs,'border',1,8),(prefs,'period',.8,4),(prefs,'strength',.25,1),
+                (cards,'scale',.2,1.6),(cards,'gap_x',0,32),(cards,'gap_y',0,32)):
+            value=values.get(key)
+            if type(value) not in (int,float) or not math.isfinite(value) or not low<=value<=high:return False
+        expected=({'columns','card_scale','gap_x','gap_y'} if view=='layout' else
+            {'columns','red','green','blue','glow','border','period','strength'})
+        if set(thumbs)!=expected or any(type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=1 for v in thumbs.values()):return False
+        return True
+    except (ValueError,KeyError,TypeError):return False
+
+
 def receive(request_id, payload, backend=None):
     """Retain rejected successes; only complete target mismatches can finish failed."""
     try:
@@ -1166,13 +1318,13 @@ def receive(request_id, payload, backend=None):
                     if row and row['state'] == 'pending' and row['request']['operation'] != 'accept':
                         row['rejected_acknowledgement'] = copy.deepcopy(data)
                         row['acknowledgement_validation_error'] = str(error)
-                        # A typed, same-Sim, complete swatch readback is a known
-                        # failed postcondition, not a lost response. Keep its
+                        # A complete swatch readback or exact same-owner UI-only
+                        # slider result is a known failed postcondition, not a lost response. Keep its
                         # exact packet and failure; never resend or claim success.
                         # Malformed replies, history and ownership transitions
                         # remain unresolved and cannot unlock later mutations.
                         if (isinstance(error, cas_controls.PostconditionMismatch) and
-                                row['request']['operation'] == 'swatch'):
+                                (row['request']['operation']=='swatch' or _complete_slider_mismatch(row,data))):
                             validate_client(data.get('client'), row['sim_id'], {'operation': 'status'})
                             row.update(state='failed', result={
                                 'ok': False, 'outcome': 'native-postcondition-failed',
@@ -1230,6 +1382,10 @@ def _receive(request_id, payload, backend=None):
             return
         if row['state'] not in ('pending', 'superseded-read'):
             if row['result'] != data: raise ValueError('CAS request acknowledgement changed.')
+            return
+        if data.get('ok') and isinstance(data.get('client'), dict) and data['client'].get('scope') == 'native-cas-catalog-client':
+            _validate_catalog_client(data, row)
+            row.update(state='completed', result=copy.deepcopy(data))
             return
         if data.get('ok'):
             client = data.get('client')

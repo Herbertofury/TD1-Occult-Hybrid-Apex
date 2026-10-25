@@ -33,9 +33,13 @@ def tray_sims(raw):
         reserved,length=struct.unpack_from('<II',raw,8)
         if reserved or length>len(raw)-16 or len(raw)-16-length>4096:raise ValueError('Native household extent differs.')
         payload=raw[16:16+length]
-    bodies=[v for n,k,v in chunks(payload) if n==1 and k==2]
-    if len(bodies)!=1:raise ValueError('Native Tray household absent or ambiguous.')
-    sims=[v for n,k,v in chunks(bodies[0]) if n==6 and k==2]
+    bodies=[(k,v) for n,k,v in chunks(payload) if n==1]
+    if len(bodies)!=1 or bodies[0][0]!=2:raise ValueError('Native Tray household absent, ambiguous or untyped.')
+    sims=[]
+    for number,kind,value in chunks(bodies[0][1]):
+        if number!=6:continue
+        if kind!=2:raise ValueError('Native household Sim field type differs; no member omitted.')
+        sims.append(value)
     if not 1<=len(sims)<=8 or sum(map(len,sims))>8*1024*1024:raise ValueError('Native household member count/extent exceeds its bound.')
     return sims
 
@@ -64,9 +68,20 @@ def capabilities(backend,request):
                 native_api=names,game_appearance_written=False)
 
 
+def _export_roster(backend,request):
+    household=context(backend,request);members=list(household.sim_info_gen())
+    manager=backend.services.sim_info_manager()
+    identities=[getattr(sim,'id',None) for sim in members]
+    if (not 1<=len(members)<=8 or any(type(sid) is not int or not 0<sid<1<<64 for sid in identities) or
+            len(set(identities))!=len(members) or
+            any(sim.household_id!=household.id or manager.get(sim.id) is not sim for sim in members)):
+        raise ValueError('Native household export roster is incomplete, duplicated or not manager-owned.')
+    return household,members
+
+
 def records(backend,request):
     if set(request)!={'household_id','save_guid','sim_ids'}:raise ValueError('Exact household/member inventory required.')
-    household=context(backend,request);members=list(household.sim_info_gen())
+    household,members=_export_roster(backend,request)
     if sorted(request['sim_ids'])!=sorted(str(s.id) for s in members) or len(set(request['sim_ids']))!=len(members):
         raise ValueError('Household member inventory changed; no incomplete export accepted.')
     before=[(s,appearance.packed(backend,s),dict(backend._form_map(s.occult_tracker)),
@@ -81,6 +96,11 @@ def records(backend,request):
                 any(current[k] is not v for k,v in mapping.items()) or
                 any(appearance.packed(backend,o)!=old for o,old in owners)):
             raise ValueError('Native household serialization changed an appearance; no export accepted.')
+    current_household,current_members=_export_roster(backend,request)
+    original={sim.id:sim for sim in members}
+    if (current_household is not household or len(current_members)!=len(members) or
+            any(original.get(sim.id) is not sim for sim in current_members)):
+        raise ValueError('Household export roster or native owners changed during serialization; no export accepted.')
     return dict(ok=True,household_id=str(household.id),save_guid=request['save_guid'],sims=rows,
                 game_appearance_written=False,save_file_written=False)
 
@@ -329,10 +349,15 @@ def import_tray(backend,request,profile):
     if len(set(source_ids))!=len(source_ids) or sorted(source_ids)!=sorted(request['source_sim_ids']):raise ValueError('Source Sim inventory differs; no import submitted.')
     members=list(household.sim_info_gen());manager=backend.services.sim_info_manager()
     if len(members)+len(protos)>8:raise ValueError('Native household has insufficient free slots; no existing Sim removed.')
+    persistence=backend.services.get_persistence_service()
+    persisted=getattr(persistence,'get_sim_proto_buff',None)
+    if not callable(persisted):raise ValueError('Native persistence identity lookup is unavailable; no clone created.')
     mapping={}
     for proto in protos:
         allocated=int(id_generator.generate_object_id())
-        if not 0<allocated<1<<64 or allocated in mapping.values() or manager.get(allocated) is not None:raise ValueError('Native allocator returned an existing/reserved identity.')
+        if (not 0<allocated<1<<64 or allocated in mapping.values() or manager.get(allocated) is not None or
+                persisted(allocated) is not None):
+            raise ValueError('Native allocator returned an existing/reserved identity, including unloaded Sim records.')
         mapping[int(proto.sim_id)]=allocated
         inspect.signature(SimInfo).bind(sim_id=allocated,age=Age(proto.age),gender=Gender(proto.gender),species=SpeciesExtended.get_species(proto.extended_species),account=household.account)
         inspect.signature(SimInfo.load_sim_info).bind(None,proto,is_clone=True,default_lod=SimInfoLODLevel.FULL)
@@ -345,8 +370,9 @@ def import_tray(backend,request,profile):
         identity_map={str(k):str(v) for k,v in mapping.items()},original_members=[str(s.id) for s in members],created=[],
         source_sims=[base64.b64encode(p.SerializeToString()).decode('ascii') for p in protos],native_contexts={})
     occult_add_guard.publish(journal,proof)
-    originals=[occult_add_guard.Preservation(backend,s,0) for s in members]
+    originals=[]
     try:
+        for member in members:originals.append(occult_add_guard.Preservation(backend,member,0))
         for proto in protos:
             source_id=int(proto.sim_id)
             _remap(proto,mapping);proto.sim_id=mapping[source_id]

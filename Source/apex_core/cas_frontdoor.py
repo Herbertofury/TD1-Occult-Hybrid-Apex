@@ -2,7 +2,8 @@
 
 No private third-party hooks, scanning timer or guessed return decisions. Every
 hybrid household member gets fresh raw originals before the native command.
-The existing explicit all-owner review remains authoritative on return.
+Completed native acceptance supplies exact automatic Keep intent; uncertain
+returns retain their independent originals and explicit recovery review.
 """
 from contextlib import contextmanager
 import hashlib
@@ -250,6 +251,15 @@ def before_entry(backend, parsed, connection):
     sim, hybrids = _live(backend, parsed, connection)
     if not hybrids:
         return None
+    # Re-entering CAS is another actual data boundary. Finish a prior accepted
+    # scope automatically; a fresh/unaccepted entry still follows its original
+    # exact checkpoint preflight below and never becomes inferred acceptance.
+    from . import native_cas_engine
+    if native_cas_engine._LAYOUT_SCOPE is not None:
+        from .cas_auto_settle import settle
+        outcome=settle(backend)
+        if outcome.get('unresolved') is True:
+            raise ValueError('Prior CAS preservation is retained and unresolved; no native entry is replayed.')
     from .cas_save_boundary import require_installed
     require_installed(backend)
     capability = getattr(_LOCAL, 'prepared', None)

@@ -10,7 +10,8 @@
             root:null,input:null,placeholder:null,count:null,clear:null,bubble:null,list:null,geometry:null,
             registered:false,revision:0,started:0,elapsed_ms:0,sources:[],query:null,native_response:"",publish_ms:0,rebuilds:0,index_sha256:"",
             folder_matches:[],folder_corrected:false,suggestions:null,suggestion_signature:"",order:{},rank:0,
-            eligible:{},families:{},unresolved_resources:[]};
+            eligible:{},bodies:{},families:{},resources:{},resource_count:0,body_type:null,unresolved_resources:[],appends:0,
+            display_revision:-1,publish_due:0,waits:0,selection_keys:{},selection_feed:null,publishing:false,message:null};
          apexSearch.registered=RegisterServiceHandler("ApexCatalogSearchSource",ApexSearchSource);
       }
 
@@ -25,6 +26,10 @@
          if(apexSearch==null) return;
          var g:Object=apexSearch.geometry;
          if(g!=null) {
+            if(g.no_results!=null && g.no_results_owned && g.no_results.visible===false)
+               g.no_results.visible=g.no_results_visible;
+            if(g.no_results!=null && g.no_results.y==g.no_results_y+52) g.no_results.y=g.no_results_y;
+            if(g.swatches!=null && g.swatches.y==g.swatches_y+52) g.swatches.y=g.swatches_y;
             if(apexSearch.bubble!=null && apexSearch.bubble.y==g.bubble_y+52) apexSearch.bubble.y=g.bubble_y;
             if(apexSearch.list!=null && apexSearch.list.y==g.list_y+52) {
                apexSearch.list.y=g.list_y;
@@ -32,14 +37,17 @@
             }
          }
          if(apexSearch.root!=null && apexSearch.root.parent!=null) apexSearch.root.parent.removeChild(apexSearch.root);
+         if(apexSearch.message!=null && apexSearch.message.parent!=null) apexSearch.message.parent.removeChild(apexSearch.message);
          apexSearch.root=null;apexSearch.input=null;apexSearch.geometry=null;apexSearch.bubble=null;apexSearch.list=null;apexSearch.width=-1;
-         apexSearch.suggestions=null;apexSearch.suggestion_signature="";
+         apexSearch.suggestions=null;apexSearch.suggestion_signature="";apexSearch.message=null;
       }
 
       private function ApexSearchDispose() : void
       {
          if(apexSearch!=null && apexSearch.registered===true)
             UnregisterServiceHandler("ApexCatalogSearchSource",ApexSearchSource);
+         if(apexSearch!=null && apexSearch.selection_feed!=null)
+            apexSearch.selection_feed.removeEventListener(DataFeedEvent.UPDATE,ApexSearchSelection);
          ApexSearchRestore();apexSearch=null;
       }
 
@@ -53,6 +61,7 @@
          apexSearch.query=null;apexSearch.native_response="";apexSearch.index_sha256="";
          apexSearch.folder_matches=[];apexSearch.folder_corrected=false;
          apexSearch.due=flash.utils.getTimer()+180;apexSearch.revision++;apexSearch.started=flash.utils.getTimer();
+         apexSearch.publish_due=0;
       }
 
       private function ApexSearchSource(value:Object) : Object
@@ -109,11 +118,47 @@
             apexSearch.sources.splice(i,1);
             if(source.sim!=String(mCurrSimInfo.simId) || source.sim!=apexBoundSim || source.owner!=apexFormsSelectedId ||
                source.generation!=apexFormsNativeGeneration) continue;
-            apexSearch.rows=source.rows;apexSearch.feed=feed;apexSearch.panel=panel;apexSearch.selected=source.selected;
-            apexSearch.eligible={};apexSearch.families={};
-            for each(var product:CASCatalogProduct in source.rows)
+            if(apexSearch.selection_feed!==feed) {
+               if(apexSearch.selection_feed!=null)
+                  apexSearch.selection_feed.removeEventListener(DataFeedEvent.UPDATE,ApexSearchSelection);
+               feed.addEventListener(DataFeedEvent.UPDATE,ApexSearchSelection,false,0,true);
+               apexSearch.selection_feed=feed;
+            }
+            apexSearch.rows=source.rows;apexSearch.feed=feed;apexSearch.panel=panel;
+            apexSearch.eligible={};apexSearch.bodies={};apexSearch.families={};apexSearch.resources={};apexSearch.resource_count=0;apexSearch.selection_keys={};
+            var body:Object=null;var mixed:Boolean=false;
+            for each(var product:CASCatalogProduct in source.rows) {
                apexSearch.eligible[String(product.body_type)+"|"+String(product.data_id)]=true;
+               apexSearch.bodies[String(product.body_type)]=true;
+               if(body==null) body=uint(product.body_type);else if(uint(body)!=product.body_type) mixed=true;
+               if(source.selected.indexOf(String(product.data_id))>=0)
+                  apexSearch.selection_keys[String(product.body_type)+"|"+String(product.data_id)]=int(product.groupId);
+            }
+            apexSearch.body_type=mixed ? null : body;
+            if(apexSearch.geometry!=null && apexSearch.geometry.no_results!=null)
+               apexSearch.geometry.no_results_visible=source.rows.length==0;
             ApexSearchReset(ApexSearchContext());return;
+         }
+      }
+
+      private function ApexSearchSelection(event:DataFeedEvent) : void
+      {
+         if(apexSearch==null || apexSearch.publishing || event.currentTarget!==apexSearch.selection_feed ||
+            apexSearch.context!=ApexSearchContext() || apexSearch.panel!==mCurrentPanel ||
+            !(event.mDataArray is Array) || !(event.mUserDataArray is Array)) return;
+         // Keep native selection changes even when their other cards are hidden
+         // by search. Restoring the feed must never reselect a previous outfit.
+         for(var i:int=0;i<event.mDataArray.length && i<event.mUserDataArray.length;i++) {
+            var product:Object=event.mDataArray[i];var state:Object=event.mUserDataArray[i];
+            if(product==null || state==null || !("isSelected" in state)) continue;
+            var key:String=String(product.body_type)+"|"+String(product.data_id);
+            if(apexSearch.eligible[key]!==true) continue;
+            if(state.isSelected===true) {
+               if(!MenuState.SupportsMultipleSelections(mCurrState)) apexSearch.selection_keys={};
+               else for(var previous:String in apexSearch.selection_keys)
+                  if(int(apexSearch.selection_keys[previous])==int(product.groupId)) delete apexSearch.selection_keys[previous];
+               apexSearch.selection_keys[key]=int(product.groupId);
+            } else if(state.isSelected===false) delete apexSearch.selection_keys[key];
          }
       }
 
@@ -121,6 +166,7 @@
       {
          if(text.length>160 || /[\x00-\x1f\x7f]/.test(text)) throw new Error("Search accepts up to 160 printable characters");
          if(apexSearch==null || apexSearch.input==null) throw new Error("Open a native item category with a filter bar first");
+         if(!/\S/.test(text)) text="";
          apexSearch.text=text;
          // Assigning text again during CHANGE resets the caret/selection. Let
          // native typing keep its edit position; only CLI/clear replaces it.
@@ -146,7 +192,10 @@
       {
          // Stage catalog navigation already yields to INPUT fields. Keep
          // Enter/Escape local as well, without swallowing ordinary edit keys.
-         if(event.keyCode==13) {apexSearch.due=0;event.preventDefault();event.stopImmediatePropagation();}
+         if(event.keyCode==13) {
+            if(apexSearch.error!="") ApexSearchReset(ApexSearchContext());
+            apexSearch.due=0;event.preventDefault();event.stopImmediatePropagation();
+         }
          else if(event.keyCode==27) {ApexSearchText("");event.preventDefault();event.stopImmediatePropagation();}
       }
 
@@ -155,9 +204,34 @@
          if(apexSearch==null || apexSearch.root==null) return;
          apexSearch.placeholder.visible=apexSearch.text=="" && (stage==null || stage.focus!==apexSearch.input);
          apexSearch.clear.visible=apexSearch.text!="";
-         var caption:String=apexSearch.error!="" ? "!" : apexSearch.pending ? "…" :
+         var caption:String=apexSearch.error!="" ? "!" : apexSearch.pending ? (int(apexSearch.shown)>0 ? String(apexSearch.shown)+"…" : "…") :
             apexSearch.text=="" ? "" : String(apexSearch.shown);
          if(apexSearch.count.text!=caption) apexSearch.count.text=caption;
+         var message:String="";
+         if(apexSearch.text!="") {
+            if(apexSearch.context!=ApexSearchContext() || apexSearch.panel!==mCurrentPanel)
+               message="Waiting for this category…";
+            else if(apexSearch.error!="") message="Search unavailable. "+String(apexSearch.error).substr(0,200)+"\nClear search to browse this category.";
+            else if(apexSearch.pending && int(apexSearch.shown)==0) message="Searching this category…";
+            else if(apexSearch.ready && int(apexSearch.shown)==0)
+               message=int(apexSearch.total)>0 ? "No matches in this category.\nTry another category or clear a filter." :
+                  "No matches.\nTry another word or clear a filter.";
+         }
+         if(apexSearch.message!=null) {
+            if(apexSearch.message.text!=message) apexSearch.message.text=message;
+            apexSearch.message.visible=message!="";
+         }
+         // The native label is only refreshed by EA's full category query.
+         // Suppress its stale empty/nonempty result while our own search owns
+         // the feed; restore its original state when this row detaches.
+         var g:Object=apexSearch.geometry;
+         if(g!=null && g.no_results!=null) {
+            if(apexSearch.text!="") {g.no_results_owned=true;g.no_results.visible=false;}
+            else if(g.no_results_owned || apexSearch.ready && apexSearch.context==ApexSearchContext() && apexSearch.panel===mCurrentPanel) {
+               g.no_results.visible=apexSearch.feed!=null && int(apexSearch.feed.length)==0;
+               g.no_results_owned=false;
+            }
+         }
          ApexSearchSuggestions();
       }
 
@@ -232,20 +306,47 @@
          var g:Object=apexSearch.geometry;
          // Native RefreshLayout may reset these coordinates. Never accumulate
          // another row on top of a previously applied offset.
-         if(g==null) {g={bubble_y:bubble.y,list_y:list.y,list_height:list.height};apexSearch.geometry=g;}
+         if(g==null) {
+            g={bubble_y:bubble.y,list_y:list.y,list_height:list.height,no_results:null,no_results_owned:false};
+            if("txtNoResults" in panel && panel.txtNoResults!=null) {
+               g.no_results=panel.txtNoResults;g.no_results_visible=panel.txtNoResults.visible;g.no_results_y=panel.txtNoResults.y;
+            }
+            apexSearch.geometry=g;
+         }
          if(bubble.y!=g.bubble_y+52) g.bubble_y=bubble.y;
          if(list.y!=g.list_y+52) {g.list_y=list.y;g.list_height=list.height;}
          if(bubble.y!=g.bubble_y+52) bubble.y=g.bubble_y+52;
          if(list.y!=g.list_y+52) list.y=g.list_y+52;
          var height:Number=Math.max(32,g.list_height-52);
          if(list.height!=height) list.height=height;
+         if(g.no_results!=null) {
+            if(g.no_results.y!=g.no_results_y+52) g.no_results_y=g.no_results.y;
+            if(g.no_results.y!=g.no_results_y+52) g.no_results.y=g.no_results_y+52;
+         }
+         // EA places its live color palette independently of bubble.y. Move
+         // it with the inserted row instead of covering its swatches with search.
+         var swatches:flash.display.DisplayObject=("mcColorSwatchPanel" in panel)
+            ? panel.mcColorSwatchPanel as flash.display.DisplayObject : null;
+         if(g.swatches!==swatches) {
+            if(g.swatches!=null && g.swatches.y==g.swatches_y+52)g.swatches.y=g.swatches_y;
+            g.swatches=swatches;g.swatches_y=swatches==null ? 0 : swatches.y;
+         }
+         if(swatches!=null) {
+            if(swatches.y!=g.swatches_y+52)g.swatches_y=swatches.y;
+            if(swatches.y!=g.swatches_y+52)swatches.y=g.swatches_y+52;
+         }
          var width:Number=Math.max(180,Number(bubble.mcBackground.width));
          apexSearch.root.x=bubble.x;apexSearch.root.y=g.bubble_y+26;
          if(apexSearch.width!==width) {
             apexSearch.width=width;apexSearch.root.graphics.clear();apexSearch.root.graphics.lineStyle(1,0xc5e2e4,0.8);
             apexSearch.root.graphics.beginFill(0xe7f6f5,0.88);apexSearch.root.graphics.drawRoundRect(0,0,width,24,8,8);apexSearch.root.graphics.endFill();
-            apexSearch.input.width=width-80;apexSearch.count.x=width-68;apexSearch.clear.x=width-25;
+            apexSearch.input.width=width-80;apexSearch.placeholder.width=width-80;apexSearch.count.x=width-68;apexSearch.clear.x=width-25;
          }
+         if(apexSearch.message==null) {
+            apexSearch.message=ApexFormsText(list.parent,"",list.x+12,list.y+12,width-24,12,0x376681);
+            apexSearch.message.name="ApexCatalogSearchMessage";apexSearch.message.wordWrap=true;apexSearch.message.height=76;
+         }
+         apexSearch.message.x=list.x+12;apexSearch.message.y=list.y+12;apexSearch.message.width=width-24;
          ApexSearchLabels();
       }
 
@@ -253,7 +354,10 @@
       {
          // One parser in the offline worker handles quoted filters, exclusions,
          // wildcard filenames and dates. Typing never parses/scans packages.
-         return {text:String(apexSearch.text),author:"",sort:"name",body_type:null,origin:null,name_mode:"preferred",
+         // A single-body category need not resolve swatches from every other
+         // category in the installed library. Mixed categories retain all types;
+         // the exact native eligible feed still decides every visible card.
+         return {text:String(apexSearch.text),author:"",sort:"name",body_type:apexSearch.body_type,origin:null,name_mode:"preferred",
             offset:int(apexSearch.offset),limit:24,view:"all",grouped:false,fuzzy:true};
       }
 
@@ -273,23 +377,37 @@
          if(apexCompanion!=null && apexCompanion.mode=="recent") products.sort(ApexCompanionRecentOrder);
          else if(apexSearch.text!="") products.sort(ApexSearchOrder);
          apexKeyQueue=[];apexKeyIntent=0;apexKeyIndex=-1;apexKeyItem=null;apexKeyBounds="";
-         // A failed query leaves native cards intact. Clearing it, or a warm
-         // query with identical results, must not tear down/rebind every card.
-         var unchanged:Boolean=int(apexSearch.feed.length)==products.length;
-         if(unchanged) for(var position:int=0;position<products.length;position++)
-            if(apexSearch.feed.RequestItemAt(position)!==products[position]) {unchanged=false;break;}
+         // Clearing or publishing another page with identical results must
+         // not tear down/rebind every card.
+         var previousLength:int=int(apexSearch.feed.length);
+         var prefix:Boolean=previousLength<=products.length;
+         if(prefix) for(var position:int=0;position<previousLength;position++)
+            if(apexSearch.feed.RequestItemAt(position)!==products[position]) {prefix=false;break;}
+         var unchanged:Boolean=prefix && previousLength==products.length;
          if(unchanged) {
             apexSearch.shown=products.length;apexSearch.elapsed_ms=flash.utils.getTimer()-int(apexSearch.started);
             apexSearch.publish_ms=flash.utils.getTimer()-started;ApexSearchLabels();return;
          }
-         var selected:Array=apexSearch.feed.GetSelectedIndices();var selectedIds:Array=[];
-         for each(var index:int in selected) {var item:Object=apexSearch.feed.RequestItemAt(index);if(item!=null) selectedIds.push(String(item.data_id));}
-         if(apexSearch.selected!=null) for each(var id:String in apexSearch.selected) if(selectedIds.indexOf(id)<0) selectedIds.push(id);
          // A queued Enter must not select a different item after the same feed
          // object publishes a new search result at that old numeric index.
-         apexSearch.feed.RemoveAllItems();apexSearch.feed.AddItemsFromIterable(products);
-         apexSearch.feed.UpdateSelections(selectedIds,true);apexSearch.shown=products.length;
-         apexSearch.rebuilds++;apexSearch.publish_ms=flash.utils.getTimer()-started;
+         // Reuse every native product and its current variation. UpdateSelections
+         // asks the game for variants and can replace that variation; restoring
+         // only selection flags keeps filtering strictly a presentation change.
+         var selected:Array=[];
+         for(var index:int=prefix ? previousLength : 0;index<products.length;index++)
+            if(apexSearch.selection_keys.hasOwnProperty(String(products[index].body_type)+"|"+String(products[index].data_id))) selected.push(index);
+         apexSearch.publishing=true;
+         try {
+            // Native swatch popups retain a numeric feed index. Their existing
+            // scroll handler dismisses them before that index can change.
+            if(!prefix && apexSearch.list!=null && apexSearch.list.Controller!=null)
+               apexSearch.list.Controller.dispatchEvent(new ScrollerEvent(ScrollerEvent.SCROLL));
+            if(prefix) {apexSearch.feed.AddItemsFromIterable(products.slice(previousLength));apexSearch.appends++;}
+            else {apexSearch.feed.RemoveAllItems();apexSearch.feed.AddItemsFromIterable(products);apexSearch.rebuilds++;}
+            apexSearch.feed.SetSelectionStateMultiple(selected,true);
+         } finally {apexSearch.publishing=false;}
+         apexSearch.shown=products.length;
+         apexSearch.publish_ms=flash.utils.getTimer()-started;
          apexSearch.elapsed_ms=flash.utils.getTimer()-int(apexSearch.started);ApexSearchLabels();
       }
 
@@ -309,6 +427,12 @@
          }
          if(!apexSearch.pending || apexPendingFields!=null || apexReceiving) return;
          if(apexSearch.text=="") {apexSearch.pending=false;apexSearch.ready=true;ApexSearchPublish();return;}
+         if(int(apexSearch.display_revision)!=int(apexSearch.revision)) {
+            // Clear the previous query's cards on the first idle frame. Search
+            // results then arrive progressively instead of leaving an unrelated
+            // full catalog on screen until every indexed swatch is resolved.
+            ApexSearchPublish();apexSearch.display_revision=apexSearch.revision;
+         }
          if(Boolean(CommunicationManager.CallUIService("IsUILoadingScreenVisible")) ||
             Boolean(CommunicationManager.CallUIService("IsModalVisible")) || Boolean(CommunicationManager.CallUIService("IsDialogModalVisible"))) return;
          var now:int=flash.utils.getTimer();if(now<int(apexSearch.due)) return;
@@ -323,8 +447,20 @@
                   var tgi:Array=String(row.resource_tgi).split(":");
                   if(tgi.length!=3 || String(tgi[0]).toUpperCase()!="034AEECB" || !/^[0-9a-f]{16}$/i.test(tgi[2])) throw new Error("Invalid indexed CAS resource key");
                   var exact:String=ApexEquippedDecimal("0x"+tgi[2]);
-                  var raw:Object=CommunicationManager.CallGameService("GetCatalogItem",exact);
-                  var resolvedKey:String=ApexSearchNativeKey(raw,exact,row.body_type);
+                  var resourceKey:String=String(row.body_type)+"|"+exact;
+                  var resolvedKey:String="";var raw:Object=null;
+                  if(apexSearch.eligible[resourceKey]===true) resolvedKey=resourceKey;
+                  else if(row.body_type!=null && apexSearch.bodies[String(row.body_type)]!==true) resolvedKey="";
+                  else if(apexSearch.resources.hasOwnProperty(resourceKey)) resolvedKey=String(apexSearch.resources[resourceKey]);
+                  else {
+                     raw=CommunicationManager.CallGameService("GetCatalogItem",exact);
+                     resolvedKey=ApexSearchNativeKey(raw,exact,row.body_type);
+                     // Detached IDs only, scoped to this exact native source.
+                     // Do not retain borrowed game-service result objects.
+                     if(int(apexSearch.resource_count)<65536) {
+                        apexSearch.resources[resourceKey]=resolvedKey;apexSearch.resource_count++;
+                     }
+                  }
                   if(resolvedKey!="") {
                      if(apexSearch.matches[resolvedKey]!==true) apexSearch.order[resolvedKey]=apexSearch.rank++;
                      apexSearch.matches[resolvedKey]=true;
@@ -333,6 +469,9 @@
                         native_base:raw==null ? "" : String(raw.data_id),native_variant:raw==null ? "" : String(raw.variation_id)});
                   }
                   apexSearch.resolved++;sliceCount++;
+               }
+               if(now>=int(apexSearch.publish_due)) {
+                  ApexSearchPublish();apexSearch.publish_due=now+100;
                }
                if(int(apexSearch.index)<rows.length) return;
                var next:Object=apexSearch.page.next_offset;apexSearch.page=null;apexSearch.ticket="";
@@ -345,11 +484,14 @@
                apexSearch.native_response=submitted.substr(0,900);
                if(submitted.indexOf("SEARCHERROR|")==0) throw new Error("Search unavailable: "+submitted.substr(12));
                if(!/^SEARCH\|[1-9][0-9]*$/.test(submitted)) throw new Error("Search worker unavailable; native items unchanged");
-               apexSearch.ticket=submitted.substr(7);apexSearch.poll=now+50;return;
+               apexSearch.ticket=submitted.substr(7);apexSearch.poll=now+50;apexSearch.waits=0;return;
             }
             if(now<int(apexSearch.poll)) return;apexSearch.poll=now+50;
             var wire:String=ApexNativeExchange("SEARCHPAGE|"+apexNativeChannel+"|"+apexSearch.ticket);
-            if(wire=="SEARCHWAIT|"+apexSearch.ticket) return;
+            if(wire=="SEARCHWAIT|"+apexSearch.ticket) {
+               if(++apexSearch.waits>300) throw new Error("The search worker did not respond. Press Enter to try again.");
+               return;
+            }
             if(wire.indexOf("SEARCHERROR|")==0) throw new Error("Search unavailable: "+wire.substr(12));
             if(wire.length>4096) throw new Error("Search reply exceeds its bound");
             var fields:Array=wire.split("|");
@@ -384,7 +526,11 @@
                items.length==0 || String(nextOffset)!=fields[5])) throw new Error("Search reply pagination differs");
             apexSearch.index_sha256=fields[2];apexSearch.index=0;apexSearch.total=int(fields[3]);
             apexSearch.page={items:items,next_offset:fields[5]=="-" ? null : nextOffset};
-         } catch(error:Error) {apexSearch.pending=false;apexSearch.ready=false;apexSearch.error=error.message;ApexSearchLabels();}
+         } catch(error:Error) {
+            apexSearch.pending=false;apexSearch.ready=false;apexSearch.error=error.message;
+            apexSearch.matches={};apexSearch.order={};apexSearch.ticket="";apexSearch.page=null;
+            ApexSearchPublish();ApexSearchLabels();
+         }
       }
 
       private function ApexSearchNativeKey(raw:Object,exact:String,bodyType:Object) : String
@@ -423,10 +569,12 @@
             folder_matches:apexSearch.folder_matches,folder_corrected:apexSearch.folder_corrected,
             source_count:apexSearch.rows==null ? 0 : apexSearch.rows.length,query:apexSearch.query,
             unresolved_resources:apexSearch.unresolved_resources,
-            native_response:apexSearch.native_response,publish_ms:apexSearch.publish_ms,rebuilds:apexSearch.rebuilds,
+            native_response:apexSearch.native_response,publish_ms:apexSearch.publish_ms,rebuilds:apexSearch.rebuilds,appends:apexSearch.appends,
             index_sha256:apexSearch.index_sha256,input_font:apexSearch.input==null ? "" : apexSearch.input.defaultTextFormat.font,
             input_embedded:apexSearch.input!=null && apexSearch.input.embedFonts,
             input_password:apexSearch.input!=null && apexSearch.input.displayAsPassword,
             input_text:apexSearch.input==null ? "" : apexSearch.input.text,
-            input_text_width:apexSearch.input==null ? 0 : apexSearch.input.textWidth,appearance_written:false};
+            input_text_width:apexSearch.input==null ? 0 : apexSearch.input.textWidth,
+            message:apexSearch.message==null ? "" : apexSearch.message.text,
+            feed_count:apexSearch.feed==null ? 0 : int(apexSearch.feed.length),appearance_written:false};
       }

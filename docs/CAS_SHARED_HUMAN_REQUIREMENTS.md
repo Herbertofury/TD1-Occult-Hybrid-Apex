@@ -1,5 +1,43 @@
 # Native CAS forms: shared Human and EA portrait layout
 
+## Owner priority: merge performance, 2026-10-24
+
+Performance engineering is the first priority; visual polish runs in parallel.
+Retain the donor panels, sliders, favorites and hide features while Apex owns
+catalog geometry and its 2–32 column controls, with 20–160% requested card sizes.
+Fit the requested column count first and expose any viewport limit honestly.
+Keep the catalog in its compact footprint. Increasing column count, card size
+or spacing must never widen it across the Sim, face, traits or other controls.
+Fit additional columns within the reserved catalog area, using native logical
+and panel-local coordinates. Preserve requested values separately from the
+effective fit; effective card size may be below the size slider's minimum.
+Test resizing and UI scaling as well as the ordinary viewport.
+Eliminate competing geometry
+writers and repeated category rebuilds. Move suitable immutable CPU work off
+the game/UI/render threads with bounded workers; do not move game objects or
+thread-affine engine calls onto those workers. Choose concurrency from measured
+work and hardware capacity, rather than maximizing utilization as an end in
+itself. Keep the permanent guard and all complete-field checks. Qualify actual
+click-to-result timing and frame-time spikes separately from offline worker
+benchmarks; neither a Rust rewrite nor a successful build proves hitch-free play.
+
+Runtime behavior must work for arbitrary Sims, households and player-created
+looks. Test-household identities and appearance fixtures are not runtime rules.
+Bind each operation to the selected save, Sim, independently owned form and
+outfit; never substitute a test Sim's appearance. Reuse display controls only,
+then bind fresh owner-specific data. Keep metadata and native bytes separate.
+
+Saving, loading, importing and exporting must preserve every independent form
+through every supported entry point, including normal Save/Save As, household
+travel and reload, CAS acceptance/cancel, phone/MCCC, local Tray and Gallery.
+Normal browsing controls must retain EA's own availability rules. Do not use an
+Apex manual-review lock as a general UI/save-lock predicate. Automatically
+settle only a fully authenticated native return, preflight every captured member
+before committing any, and revalidate the entire household after the last write.
+The permanent preservation guard remains active at actual serialization. A
+clickable Gallery icon does not qualify its import/export round trip; test the
+native output and reload all appearances separately.
+
 Owner-confirmed requirements: 2026-10-17. This is an implementation and QA
 checklist, not a claim that the current candidate meets these requirements.
 It supersedes the earlier user-facing layout that exposed canonical, active

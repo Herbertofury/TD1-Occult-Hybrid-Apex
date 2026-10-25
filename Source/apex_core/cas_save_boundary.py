@@ -1,4 +1,4 @@
-"""Block native file-save admission while retained CAS owners need review.
+"""Protect actual saves without using a bank transaction as a global UI lock.
 
 The inspected game's _save_game_gen first calls get_save_lock_tooltip and
 returns FAILED_SAVE_LOCKED before starting any serialization when non-None.
@@ -9,6 +9,7 @@ save time. No timer, periodic scan or swallowed native exception is added.
 """
 import hashlib
 import json
+import os
 from pathlib import Path
 import threading
 
@@ -28,9 +29,8 @@ _CONTRACT = {
                                 '5b08ff8db9dda7d4d1ca7aa9ba6ebfc66a3b6e443b24bf87eb27c9016eea024f'),
     '_send_unlock_save_message': ('f79c77363b2e0b8c58b4b3f6339aa47a26c0d119d033b0f34d040bbd6f3c3357',
                                   'd4ec64e73f522f73a996453c6c4be14387fc6b722914a4454790fb356e0f1f03')}
-_TEXT = ('Apex: finish CAS review for every captured Sim before saving. '
-         'Keep or restore each changed form, then commit every captured member. '
-         'Originals and returned edits remain retained.')
+_TEXT = ('Apex could not finish automatic appearance preservation for this save. '
+         'Originals and edited forms remain retained; the save was not started.')
 
 
 def _shape(function):
@@ -143,18 +143,28 @@ def admission(backend):
     try:
         if threading.current_thread().ident != backend._APEX_GAME_THREAD_IDENT:
             raise ValueError('Save admission must be observed on the canonical game thread.')
+        guid = str(backend.services.get_persistence_service().get_save_slot_proto_guid())
+        if not _id(guid):raise ValueError('The current native save identity is unavailable.')
+        unresolved=getattr(backend,'_APEX_CAS_AUTO_SETTLEMENT',{})
+        if (isinstance(unresolved,dict) and unresolved.get('unresolved') is True and unresolved.get('save_guid')==guid):
+            result.update(reason='automatic-household-preservation-unresolved',save_guid=guid,
+                pending_sim_ids=list(unresolved.get('members',[])))
+            return result
         path = _unlinked(Path(backend._data_directory()) / 'form_bank.json')
         with bank._LOCK:
             if bank._lease_path(path).exists():
                 raise ValueError('A retained form-bank writer is unresolved.')
             if not path.exists():
+                from . import native_cas_engine
+                scope=native_cas_engine._LAYOUT_SCOPE
+                if (isinstance(scope,dict) and scope.get('pid')==os.getpid() and
+                        scope.get('load_identity',{}).get('save_guid')==guid and scope.get('epochs')):
+                    result.update(reason='captured-cas-bank-missing',save_guid=guid,pending_sim_ids=sorted(scope['epochs'],key=int))
+                    return result
                 result.update(locked=False, reason='no-retained-form-bank')
                 return result
             if not path.is_file() or not 0 < path.stat().st_size <= MAX_BANK:
                 raise ValueError('Retained form bank is absent, empty or exceeds its bound.')
-            guid = str(backend.services.get_persistence_service().get_save_slot_proto_guid())
-            if not _id(guid):
-                raise ValueError('The current native save identity is unavailable.')
             before = _stamp(path)
             cache_key = (str(path), guid, before)
             cached = getattr(backend, '_APEX_CAS_SAVE_ADMISSION_CACHE', None)
@@ -232,15 +242,11 @@ def install(backend, service_type=None, reason_factory=None):
     if reason is None:
         raise ValueError('Native localized CAS save-lock reason is unavailable.')
     def is_save_locked(self):
-        native = locked(self)
-        if native or self is not backend.services.get_persistence_service():
-            return native
-        return admission(backend)['locked']
+        # EA also asks this for harmless navigation such as Gallery browsing.
+        # The actual save generator performs Apex's preservation admission.
+        return locked(self)
     def get_save_lock_tooltip(self):
-        native = tooltip(self)
-        if native is not None or self is not backend.services.get_persistence_service():
-            return native
-        return reason if admission(backend)['locked'] else None
+        return tooltip(self)
     for method, original in ((is_save_locked, locked), (get_save_lock_tooltip, tooltip)):
         method._apex_cas_save_boundary = backend
         method._apex_original = original
@@ -263,7 +269,7 @@ def require_installed(backend):
 
 
 def refresh_ui(backend):
-    """Publish the exact native lock state after an explicit completed review.
+    """Publish EA's own lock state after appearance preservation.
 
     Existing EA locks win. No lock holder is removed, no save is requested and
     native appearance completion must never be replayed if UI delivery fails.
@@ -290,6 +296,10 @@ def probe(backend, exercise_locked_generator=False):
         appearance_written=False, save_file_written=False)
     if not exercise_locked_generator:
         return result
+    from . import native_cas_engine
+    if native_cas_engine._LAYOUT_SCOPE is not None:
+        raise ValueError('A retained native CAS scope may settle automatically; a diagnostic must not submit its save.')
+    if reason is None:reason=getattr(type(service)._save_game_gen,'_apex_preservation_reason',None)
     if state['locked'] is not True or not state['pending_sim_ids'] or reason is None:
         raise ValueError('The native generator probe requires actual pending CAS owners and a current native lock reason; no save submitted.')
     original = getattr(type(service)._save_game_gen, '_apex_original', type(service)._save_game_gen)

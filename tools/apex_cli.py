@@ -408,7 +408,7 @@ def parser():
     cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
-        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion'))
+        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-state', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion', 'panel-layout', 'catalog-trace', 'catalog-layout-trace'))
     cas.add_argument('--text', help='Native Filter Items search, including package names and author/type/origin filters')
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')
@@ -436,11 +436,11 @@ def parser():
     cas.add_argument('--family', help='Life-state family from form_strip.life_states; all returns to the main menu')
     cas.add_argument('--x', type=float, help='CAS strip horizontal position, 0 left to 1 right, within the available viewport')
     cas.add_argument('--y', type=float, help='CAS strip vertical position, 0 top to 1 bottom, within the available viewport')
-    cas.add_argument('--scale', type=float, help='CAS strip scale, 0.7 to 1.5')
-    cas.add_argument('--columns', type=int, help='CAS catalog columns, 2-12; fits the available viewport')
+    cas.add_argument('--scale', type=float, help='CAS strip scale 0.7-1.5, or Current Outfit panel scale 0.35-1.5 for panel-layout')
+    cas.add_argument('--columns', type=int, help='CAS catalog columns, 2-32; cards shrink inside the compact panel beside the Sim')
     cas.add_argument('--view', choices=('category','items','style','layout','closed'), help='Native equipped thumbnails, optional text list, layout, selection, or close')
     cas.add_argument('--control', choices=('columns','red','green','blue','glow','border','period','strength','card_scale','gap_x','gap_y'), help='Exact catalog slider to adjust without pointer input')
-    cas.add_argument('--card-scale', type=float, help='Proportional native CAS card size, 0.65-1.6')
+    cas.add_argument('--card-scale', type=float, help='Requested native CAS card size, 0.2-1.6; fits the chosen column count')
     cas.add_argument('--gap-x', type=float, help='Horizontal native CAS card spacing, 0-32 logical pixels')
     cas.add_argument('--gap-y', type=float, help='Vertical native CAS card spacing, 0-32 logical pixels')
     cas.add_argument('--fraction', type=float, help='Catalog slider position, 0-1')
@@ -452,6 +452,7 @@ def parser():
     cas.add_argument('--border', type=float, help='Selection border width, 1-8')
     cas.add_argument('--locked', action=argparse.BooleanOptionalAction, default=None, help='CAS strip movement lock')
     cas.add_argument('--collapsed', action=argparse.BooleanOptionalAction, default=None, help='CAS strip compact header')
+    cas.add_argument('--milliseconds', type=int, help='Explicit bounded CAS diagnostic window, 0 to stop, at most 30000 ms')
     cas.add_argument('--category', type=int)
     cas.add_argument('--index', type=int, help='Zero-based existing outfit number')
     cas.add_argument('--data-id', help='Exact decimal native CAS catalog data identity')

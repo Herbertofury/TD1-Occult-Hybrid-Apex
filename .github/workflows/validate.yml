@@ -24,7 +24,7 @@ jobs:
           rustup toolchain install 1.99.0 --profile minimal
           rustup override set 1.99.0
       - name: Offline catalogue, folders, dates and FFI fixtures
-        run: cargo test --manifest-path Metadata/Cargo.toml --locked
+        run: cargo test --manifest-path Metadata/Cargo.toml --locked --features runtime-workers
       - name: Offline ownership, isolation and CLI fixtures
         run: python -m unittest discover -s tests -v
       - name: Canonical source identity

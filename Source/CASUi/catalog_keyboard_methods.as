@@ -43,12 +43,30 @@
          if(panel==null || !panel.visible || panel.mcTileList==null || !panel.mcTileList.visible) {apexKeyRejected="no visible catalog";return;}
          if(Boolean(CommunicationManager.CallUIService("IsUILoadingScreenVisible")) ||
             Boolean(CommunicationManager.CallUIService("IsModalVisible")) || Boolean(CommunicationManager.CallUIService("IsDialogModalVisible"))) {apexKeyQueue=[];apexKeyIntent=0;return;}
-         // The key callback performs no catalog/native query, selection or
-         // reflow. The owned idle phase below consumes one latest key intent.
+         var grid:Object=panel.mcTileList.mGridLayout;
+         if(grid==null) {apexKeyRejected="no native catalog grid";return;}
+         var owned:Boolean=ApexCatalogGridOwns(grid);
+         var lease:Object=owned ? apexCatalogGrid.lease : null;
+         var snapshot:Object=null;
+         if(owned) {
+            if(ApexCatalogGridPending(grid) || lease==null || lease.phase!="bound" || lease.active!==true ||
+               panel.mcTileList.GetGridView().visible!==true) {
+               apexKeyRejected="catalog is still loading";apexKeyMessage="Wait for the catalog before using a key.";
+               apexKeyQueue=[];apexKeyIntent=0;
+               if(apexKeyFocus!=null)apexKeyFocus.visible=false;
+               event.preventDefault();event.stopImmediatePropagation();return;
+            }
+            snapshot=grid.ApexGridStatus();
+         }
+         // Capture cheap native identity primitives only. Fresh engine reads,
+         // selection and scrolling belong to the owned consuming phase.
          if(apexKeyQueue==null) apexKeyQueue=[];
          if(apexKeyQueue.length>=64) {apexKeyMessage="Keyboard input is busy; wait for the catalog.";event.preventDefault();event.stopImmediatePropagation();return;}
          apexKeyQueue.push({key:int(event.keyCode),sim:apexBoundSim,owner:apexFormsSelectedId,
-            panel:panel,state:mCurrState,feed:panel.mcTileList.mGridLayout.GetDataFeed(),
+            panel:panel,state:mCurrState,feed:grid.GetDataFeed(),grid:grid,lease:lease,
+            lease_generation:owned ? int(lease.generation) : 0,native_generation:owned ? String(lease.native_generation) : "",
+            grid_generation:owned ? int(snapshot.generation) : 0,grid_revision:owned ? int(snapshot.revision) : 0,
+            focused_index:apexKeyIndex,focused_item:apexKeyItem,
             route:apexKeyInjecting ? "shared-keyboard-handler" : "stage-keyboard-event"});
          apexKeyIntent=int(apexKeyQueue[0].key);event.preventDefault();event.stopImmediatePropagation();
       }
@@ -66,10 +84,26 @@
             apexKeyIntent=0;apexKeyQueue=[];apexKeyIndex=-1;if(apexKeyFocus!=null) apexKeyFocus.visible=false;return;
          }
          var feed:Object=grid.GetDataFeed();
+         var owned:Boolean=ApexCatalogGridOwns(grid);
+         var lease:Object=owned ? apexCatalogGrid.lease : null;
          var context:String=String(mCurrSimInfo.simId)+"|"+apexFormsSelectedId+"|"+mCurrState+"|"+apexEquippedActive;
-         if(feed!==apexKeyFeed || context!=apexKeyContext || apexKeyIndex>=int(feed.length) || apexKeyIndex>=0 && feed.RequestItemAt(apexKeyIndex)!==apexKeyItem) {
+         if(owned && lease!=null)context+="|"+lease.native_generation+"|"+lease.generation;
+         if(feed!==apexKeyFeed || context!=apexKeyContext) {
             apexKeyFeed=feed;apexKeyContext=context;apexKeyIndex=-1;apexKeyItem=null;apexKeyBounds="";
             if(apexKeyFocus!=null) apexKeyFocus.visible=false;
+         }
+         if(owned && (ApexCatalogGridPending(grid) || list.GetGridView().visible!==true)) {
+            // Retain a logical target while its ordinary scroll job binds.
+            // Queued actions are never replayed after that job or a rebind.
+            apexKeyQueue=[];apexKeyIntent=0;apexKeyRejected="catalog is still loading";
+            apexKeyMessage="Wait for the catalog before using a key.";
+            if(apexKeyFocus!=null)apexKeyFocus.visible=false;return;
+         }
+         var count:int=owned ? int(grid.GetNumItems()) : int(feed.length);
+         if(apexKeyIndex>=count || apexKeyIndex>=0 &&
+            (owned ? grid.GetDataAtIndex(apexKeyIndex) : feed.RequestItemAt(apexKeyIndex))!==apexKeyItem) {
+            apexKeyIndex=-1;apexKeyItem=null;apexKeyBounds="";
+            if(apexKeyFocus!=null)apexKeyFocus.visible=false;
          }
          if(apexKeyIntent!=0) {
             var intent:Object=apexKeyQueue==null || apexKeyQueue.length==0 ? null : apexKeyQueue.shift();
@@ -78,15 +112,36 @@
                intent.panel!==panel || int(intent.state)!=mCurrState || intent.feed!==feed) {
                apexKeyRejected="catalog context changed";apexKeyQueue=[];apexKeyIntent=0;return;
             }
+            var snapshot:Object=null;
+            if(owned) {
+               snapshot=grid.ApexGridStatus();
+               if(intent.grid!==grid || intent.lease!==lease || lease==null ||
+                  int(intent.lease_generation)!=int(lease.generation) || intent.native_generation!==lease.native_generation ||
+                  int(intent.grid_generation)!=int(snapshot.generation) || int(intent.grid_revision)!=int(snapshot.revision) ||
+                  !ApexCatalogGridInput(lease)) {
+                  apexKeyRejected="catalog lease changed";apexKeyMessage="The catalog changed; press the key again.";
+                  apexKeyQueue=[];apexKeyIntent=0;return;
+               }
+               var current:Object=grid.ApexGridStatus();
+               if(ApexCatalogGridPending(grid) || grid.GetDataFeed()!==feed ||
+                  apexCatalogGrid.lease!==lease || int(current.generation)!=int(snapshot.generation) ||
+                  int(current.revision)!=int(snapshot.revision)) {
+                  apexKeyRejected="catalog changed during input";apexKeyQueue=[];apexKeyIntent=0;return;
+               }
+            }
             var key:int=int(intent.key);
             if((!controlled && ApexCatalogKeyboardTyping()) || Boolean(CommunicationManager.CallUIService("IsUILoadingScreenVisible")) ||
                Boolean(CommunicationManager.CallUIService("IsModalVisible")) || Boolean(CommunicationManager.CallUIService("IsDialogModalVisible"))) {apexKeyQueue=[];apexKeyIntent=0;return;}
-            var count:int=int(feed.length);if(count<1) return;
+            if(count<1) return;
             var columns:int=Math.max(1,int(grid.GetGridDimensions()[grid.Horizontal ? 0 : 1]));
             var before:int=apexKeyIndex;
             if(before<0) {
                var selected:Array=feed.GetSelectedIndices();
                before=selected!=null && selected.length>0 ? int(selected[0]) : 0;
+               if(owned && selected!=null && selected.length>0) {
+                  var mapping:Object=grid.GetFilteredDataIndices();
+                  if(mapping!=null)before=Math.max(0,int(mapping.indexOf(before)));
+               }
             }
             var target:int=before;var page:int=0;
             if(key==37) target--;
@@ -100,14 +155,32 @@
                page=columns*Math.max(1,int((cells==null ? columns : cells.length)/columns)-1);
                target+=(key==33 ? -page : page);
             }
-            target=Math.max(0,Math.min(count-1,target));apexKeyIndex=target;apexKeyItem=feed.RequestItemAt(target);
+            target=Math.max(0,Math.min(count-1,target));apexKeyIndex=target;
+            apexKeyItem=owned ? grid.GetDataAtIndex(target) : feed.RequestItemAt(target);
             if(key==13) {
                // Reuse the exact native card click route, including its form,
                // swatch, eligibility, undo and equipped-view adapters.
-               var item:Object=feed.RequestItemAt(target);
+               var item:Object=apexKeyItem;
                if(item==null) return;
+               var cellIndex:int=target;
+               if(owned) {
+                  if(int(intent.focused_index)>=0 && (target!=int(intent.focused_index) || item!==intent.focused_item)) {
+                     apexKeyRejected="focused card changed";apexKeyQueue=[];apexKeyIntent=0;return;
+                  }
+                  var ready:flash.display.DisplayObject=grid.GetViewAtIndex(target) as flash.display.DisplayObject;
+                  current=grid.ApexGridStatus();
+                  if(ApexCatalogGridPending(grid) || apexCatalogGrid.lease!==lease || grid.GetDataFeed()!==feed ||
+                     int(current.generation)!=int(snapshot.generation) || int(current.revision)!=int(snapshot.revision) ||
+                     grid.GetDataAtIndex(target)!==item || ready==null || !ready.visible || ready.stage!==stage ||
+                     ready.parent!==list.GetGridView() || int(grid.GetGridIndexOfCell(ready))!=target) {
+                     apexKeyRejected="focused card is not ready";apexKeyMessage="Wait for the focused card to appear.";
+                     apexKeyQueue=[];apexKeyIntent=0;return;
+                  }
+                  cellIndex=int(grid.ApexGridCells.indexOf(ready));
+                  if(cellIndex<0)return;
+               }
                var click:GridEvent=new GridEvent(
-                  GridEvent.CELL_EVENT+PushButtonEvent.CLICK,null,null,item,false,target,target);
+                  GridEvent.CELL_EVENT+PushButtonEvent.CLICK,null,null,item,false,target,cellIndex);
                list.GetGridView().dispatchEvent(click);
             } else {
                var targetCell:flash.display.DisplayObject=grid.GetViewAtIndex(target) as flash.display.DisplayObject;
@@ -117,7 +190,15 @@
                   var viewport:flash.geom.Rectangle=list.mScrollerView.GetScrollingRegion();
                   outside=cellBounds.top<viewport.top || cellBounds.bottom>viewport.bottom;
                }
-               if(outside || key==33 || key==34) list.mSlider.SetCurrentValue(grid.GetPositionOfIndex(target)+list.ScrollerViewMargin.mTop,false);
+               if(outside || key==33 || key==34) {
+                  var position:Number;
+                  if(owned) {
+                     if(apexCardLayout==null || !isFinite(Number(apexCardLayout.pitch_y)) || Number(apexCardLayout.pitch_y)<=0 ||
+                        int(apexCardLayout.columns)!=columns)throw new Error("Confirmed catalog geometry unavailable");
+                     position=Math.floor(target/columns)*Number(apexCardLayout.pitch_y);
+                  } else position=grid.GetPositionOfIndex(target);
+                  list.mSlider.SetCurrentValue(position+list.ScrollerViewMargin.mTop,false);
+               }
             }
             apexKeyReceipt={key:key,sim_id:String(mCurrSimInfo.simId),owner_id:apexFormsSelectedId,
                menu_state:mCurrState,menu_state_before:int(intent.state),source_route:String(intent.route),
@@ -125,7 +206,7 @@
                page_step:page,click_dispatched:key==13};
          }
          if(apexKeyIndex<0) return;
-         apexKeyMessage="Card "+(apexKeyIndex+1)+" of "+feed.length+" / arrows browse, Enter selects";
+         apexKeyMessage="Card "+(apexKeyIndex+1)+" of "+count+" / arrows browse, Enter selects";
          var cell:flash.display.DisplayObject=grid.GetViewAtIndex(apexKeyIndex) as flash.display.DisplayObject;
          if(apexKeyFocus==null) {
             apexKeyFocus=new flash.display.Sprite();apexKeyFocus.mouseEnabled=false;apexKeyFocus.mouseChildren=false;
@@ -141,7 +222,7 @@
          apexKeyBounds=boundsKey;
          apexKeyFocus.graphics.clear();apexKeyFocus.graphics.lineStyle(2,0xffffff,1);
          apexKeyFocus.graphics.drawRoundRect(rect.x+2,rect.y+2,Math.max(1,rect.width-4),Math.max(1,rect.height-4),8,8);
-         apexKeyMessage="Card "+(apexKeyIndex+1)+" of "+feed.length+" / arrows browse, Enter selects";
+         apexKeyMessage="Card "+(apexKeyIndex+1)+" of "+count+" / arrows browse, Enter selects";
          } catch(keyboardError:Error) {
             apexKeyQueue=[];apexKeyIntent=0;apexKeyIndex=-1;apexKeyReceipt=null;
             apexKeyMessage="Keyboard navigation paused: "+keyboardError.message;
@@ -157,9 +238,18 @@
          var panel:Object=mCurrentPanel;
          if(panel==null || !panel.visible || panel.mcTileList==null || panel.mcTileList.mGridLayout==null)
             throw new Error("No visible native card catalog");
+         var grid:Object=panel.mcTileList.mGridLayout;
+         var owned:Boolean=ApexCatalogGridOwns(grid);
+         var lease:Object=owned ? apexCatalogGrid.lease : null;
+         if(owned && (ApexCatalogGridPending(grid) || lease==null || lease.phase!="bound" || lease.active!==true))
+            throw new Error("Wait for the catalog before using a key");
+         var snapshot:Object=owned ? grid.ApexGridStatus() : null;
          apexKeyReceipt=null;
          apexKeyQueue=[{key:int(codes[value]),sim:apexBoundSim,owner:apexFormsSelectedId,
-            panel:panel,state:mCurrState,feed:panel.mcTileList.mGridLayout.GetDataFeed(),route:"semantic-navigation"}];
+            panel:panel,state:mCurrState,feed:grid.GetDataFeed(),grid:grid,lease:lease,
+            lease_generation:owned ? int(lease.generation) : 0,native_generation:owned ? String(lease.native_generation) : "",
+            grid_generation:owned ? int(snapshot.generation) : 0,grid_revision:owned ? int(snapshot.revision) : 0,
+            focused_index:apexKeyIndex,focused_item:apexKeyItem,route:"semantic-navigation"}];
          apexKeyIntent=int(codes[value]);ApexCatalogKeyboardFrame(true);
          if(apexKeyReceipt==null || int(apexKeyReceipt.key)!=int(codes[value]))
             throw new Error(apexKeyMessage=="" ? "Native catalog navigation was not applied" : apexKeyMessage);

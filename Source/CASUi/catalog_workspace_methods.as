@@ -41,6 +41,8 @@
          ApexCatalogKeyboardInitialize();
          ApexSearchInitialize();
          ApexCompanionInitialize();
+         ApexPanelsInitialize();
+         ApexColumnsInitialize();
          try {
             apexCatalogStore=flash.net.SharedObject.getLocal("TD1ApexCASCatalog");
             if(apexCatalogStore!=null && (apexCatalogStore.data.version===1 || apexCatalogStore.data.version===2))
@@ -60,7 +62,7 @@
 
       private function ApexCatalogValidate(p:Object) : void
       {
-         if(p==null || !isFinite(Number(p.columns)) || int(p.columns)!=Number(p.columns) || int(p.columns)<2 || int(p.columns)>12 ||
+         if(p==null || !isFinite(Number(p.columns)) || int(p.columns)!=Number(p.columns) || int(p.columns)<2 || int(p.columns)>32 ||
             !isFinite(Number(p.color)) || Number(p.color)!=uint(p.color) || uint(p.color)>0xffffff ||
             !isFinite(Number(p.glow)) || Number(p.glow)<0 || Number(p.glow)>12 ||
             !isFinite(Number(p.border)) || Number(p.border)<1 || Number(p.border)>8 ||
@@ -111,11 +113,15 @@
             throw new Error("Use an exact idle catalog slider and bounded fraction");
          ApexCatalogView(["card_scale","gap_x","gap_y"].indexOf(parts[0])>=0 ? "layout" : "style");apexCatalogDrag=String(parts[0]);
          try {ApexCatalogSlide(null,Number(parts[1]));} finally {apexCatalogDrag="";}
-         ApexCatalogPersist();
+         ApexCatalogPersist();ApexCatalogDraw();
       }
 
-      private function ApexCatalogDispose() : void
+      private function ApexCatalogDispose(preserveGridBootstrap:Boolean=false) : void
       {
+         ApexCatalogTraceDispose();ApexLayoutTraceDispose();
+         if(!preserveGridBootstrap)ApexCatalogGridDispose();
+         ApexPanelsDispose();
+         ApexColumnsDispose();
          ApexEquippedDispose();
          ApexCatalogKeyboardDispose();
          ApexCompanionDispose();
@@ -188,6 +194,7 @@
          var frameStarted:int=flash.utils.getTimer();
          apexCatalogFrameCells=null;
          try {
+         ApexPanelsFrame();
          var panel:Object=this.mCurrentPanel;
          if(panel!=null && panel.visible && panel.mcTileList!=null && panel.mcTileList.mGridLayout!=null && panel is ClothingPanel) {
             var grid:Object=panel.mcTileList.mGridLayout;
@@ -201,7 +208,7 @@
             if(styleSignature!=apexCatalogStyleSignature) {
                ApexCatalogClearEffects();apexCatalogStyleSignature=styleSignature;
             }
-            ApexCatalogSelection(grid);
+            if(!ApexCatalogGridPending(grid))ApexCatalogSelection(grid);
          } else {
             if(apexCatalogEffects!=null && apexCatalogEffects.length>0) ApexCatalogClearEffects();
             // The hidden clothing panel retains its fitted recycled pool.
@@ -210,6 +217,7 @@
             // Restore only on disposal, replacement grid, or a display fault.
             ApexCatalogApplyBinding(262);apexCatalogHeaderSignature="";
          }
+         ApexColumnsFrame();
          if(apexCatalogUi!=null && apexCatalogUi.visible) {
             if(apexCatalogContext!="" && mCurrSimInfo!=null &&
                apexCatalogContext!=String(mCurrSimInfo.simId)+"|"+apexFormsSelectedId) {
@@ -244,6 +252,9 @@
          if(apexPendingFields==null && !apexReceiving) {ApexEquippedFrame();ApexSearchFrame();ApexCompanionFrame();ApexCatalogKeyboardFrame();}
          } catch(frameError:Error) {
             apexCatalogError="Catalog display paused: "+frameError.message;
+            if(apexCatalogGrid!=null) {
+               apexCatalogGrid.error=apexCatalogError;ApexCatalogGridInvalidate("error-abandon");
+            }
             removeEventListener(flash.events.Event.ENTER_FRAME,ApexCatalogFrame);
             ApexCatalogClearEffects();ApexCardRestore();
          }
@@ -392,7 +403,7 @@
          ApexCatalogButton(apexCatalogUi,"tab_layout","Card layout",125,46,100);
          ApexCatalogButton(apexCatalogUi,"tab_style","Selection",235,46,100);
          if(apexCatalogTab=="style") {
-         ApexCatalogSlider(apexCatalogUi,"columns","Columns: "+apexCatalogPrefs.columns+" (fits your screen)",apexCatalogPrefs.columns,2,12,86);
+         ApexCatalogSlider(apexCatalogUi,"columns","Columns: "+apexCatalogPrefs.columns+" (cards fit this count)",apexCatalogPrefs.columns,2,32,86);
          var c:uint=uint(apexCatalogPrefs.color);
          ApexCatalogSlider(apexCatalogUi,"red","Selection red: "+((c>>16)&255),(c>>16)&255,0,255,133);
          ApexCatalogSlider(apexCatalogUi,"green","Selection green: "+((c>>8)&255),(c>>8)&255,0,255,177);
@@ -406,12 +417,13 @@
          ApexCatalogSlider(apexCatalogUi,"strength","Border opacity: "+Number(apexCatalogPrefs.strength).toFixed(2),apexCatalogPrefs.strength,0.25,1,448);
          ApexFormsText(apexCatalogUi,"Effect: "+apexCatalogPrefs.animation+" / "+(apexCatalogSaved ? "Saved" : "Session settings"),15,501,320,11,0x47708b);
          } else if(apexCatalogTab=="layout") {
-         ApexCatalogSlider(apexCatalogUi,"columns","Columns: "+apexCatalogPrefs.columns+" (fits your screen)",apexCatalogPrefs.columns,2,12,86);
-         ApexCatalogSlider(apexCatalogUi,"card_scale","Card size: "+Math.round(apexCardPrefs.scale*100)+"%",apexCardPrefs.scale,0.65,1.6,145);
+         ApexCatalogSlider(apexCatalogUi,"columns","Columns: "+apexCatalogPrefs.columns+" (cards fit this count)",apexCatalogPrefs.columns,2,32,86);
+         ApexCatalogSlider(apexCatalogUi,"card_scale","Card size: "+Math.round(apexCardPrefs.scale*100)+"%",apexCardPrefs.scale,0.2,1.6,145);
          ApexCatalogSlider(apexCatalogUi,"gap_x","Horizontal spacing: "+Number(apexCardPrefs.gap_x).toFixed(1),apexCardPrefs.gap_x,0,32,204);
          ApexCatalogSlider(apexCatalogUi,"gap_y","Vertical spacing: "+Number(apexCardPrefs.gap_y).toFixed(1),apexCardPrefs.gap_y,0,32,263);
          ApexCatalogButton(apexCatalogUi,"reset_cards","Reset EA card size / spacing",15,329,320);
-         ApexFormsText(apexCatalogUi,"Native thumbnails and controls resize together. Columns fit the available screen.",15,380,320,11,0x47708b);
+         var cardHelp:flash.text.TextField=ApexFormsText(apexCatalogUi,"20-160% cards / 2-32 columns. Cards fit the chosen count. Swatches open at full size.",15,380,320,11,0x47708b);
+         cardHelp.wordWrap=true;cardHelp.height=64;
          } else {
          ApexCatalogButton(apexCatalogUi,"category","Thumbnails",15,86,110);
          ApexCatalogButton(apexCatalogUi,"refresh","Refresh",130,86,95);
@@ -461,8 +473,8 @@
          if(apexCatalogDrag=="" || apexCatalogUi==null) return;
          var started:int=flash.utils.getTimer();
          var ratio:Number=fraction<0 ? Math.max(0,Math.min(1,(apexCatalogUi.mouseX-15)/300)) : fraction;var c:uint=uint(apexCatalogPrefs.color);
-         if(apexCatalogDrag=="columns") apexCatalogPrefs.columns=2+Math.round(ratio*10);
-         else if(apexCatalogDrag=="card_scale") apexCardPrefs.scale=0.65+ratio*0.95;
+         if(apexCatalogDrag=="columns") apexCatalogPrefs.columns=2+Math.round(ratio*30);
+         else if(apexCatalogDrag=="card_scale") apexCardPrefs.scale=0.2+ratio*1.4;
          else if(apexCatalogDrag=="gap_x" || apexCatalogDrag=="gap_y") apexCardPrefs[apexCatalogDrag]=ratio*32;
          else if(apexCatalogDrag=="glow") apexCatalogPrefs.glow=ratio*12;
          else if(apexCatalogDrag=="border") apexCatalogPrefs.border=1+ratio*7;
@@ -480,7 +492,7 @@
          var caption:flash.text.TextField=apexCatalogUi.getChildByName("label_"+apexCatalogDrag) as flash.text.TextField;
          if(caption!=null) {
             c=uint(apexCatalogPrefs.color);
-            if(apexCatalogDrag=="columns") caption.text="Columns: "+apexCatalogPrefs.columns+" (fits your screen)";
+            if(apexCatalogDrag=="columns") caption.text="Columns: "+apexCatalogPrefs.columns+" (cards fit this count)";
             else if(apexCatalogDrag=="card_scale") caption.text="Card size: "+Math.round(apexCardPrefs.scale*100)+"%";
             else if(apexCatalogDrag=="gap_x") caption.text="Horizontal spacing: "+Number(apexCardPrefs.gap_x).toFixed(1);
             else if(apexCatalogDrag=="gap_y") caption.text="Vertical spacing: "+Number(apexCardPrefs.gap_y).toFixed(1);
@@ -506,6 +518,35 @@
 
       private function ApexCatalogStatus() : Object
       {
+         // Explicit diagnostics only. Older/unmodified providers remain valid;
+         // no function, widget or communication object leaves this readback.
+         var communicationIndex:Object={available:false,appearance_written:false};
+         try {
+            var communicationClass:Class=flash.utils.getDefinitionByName("olympus.io.CommunicationObject") as Class;
+            if(communicationClass!=null && "ApexCommIndexStats" in communicationClass &&
+               communicationClass["ApexCommIndexStats"] is Function) {
+               communicationIndex=communicationClass["ApexCommIndexStats"]();
+               communicationIndex.available=true;
+            }
+         } catch(unavailableIndex:Error) { }
+         var buttonCommunicationIndex:Object={available:false,appearance_written:false};
+         try {
+            if(mcClothingPanel!=null && mcClothingPanel.mcTileList!=null &&
+               mcClothingPanel.mcTileList.mGridLayout!=null) {
+               var diagnosticCells:Object=mcClothingPanel.mcTileList.mGridLayout.GetAllDisplayObjectCells();
+               for(var diagnosticIndex:int=0;diagnosticIndex<Math.min(8,diagnosticCells.length);diagnosticIndex++) {
+                  var diagnosticCell:Object=diagnosticCells[diagnosticIndex];
+                  if(diagnosticCell!=null && "ApexCommButtonIndexStats" in diagnosticCell &&
+                     diagnosticCell["ApexCommButtonIndexStats"] is Function) {
+                     var localCommunication:Object=diagnosticCell["ApexCommButtonIndexStats"]();
+                     buttonCommunicationIndex={available:true,button_provider:localCommunication.button_provider,
+                        listener_membership:localCommunication.listener_membership,appearance_written:false};
+                     break;
+                  }
+               }
+               diagnosticCell=null;diagnosticCells=null;
+            }
+         } catch(unavailableButtonIndex:Error) { }
          var layout:Object=null;
          var thumbs:Object={};
          if(apexCatalogUi!=null && (apexCatalogTab=="style" || apexCatalogTab=="layout"))
@@ -532,5 +573,5 @@
                published:apexEquippedPublication==null ? 0 : int(apexEquippedPublication.count),
                pending:apexEquippedActive && apexEquippedRefreshPending,unresolved:apexEquippedUnresolved,timing:apexEquippedTiming},
             keyboard:{received:apexKeyReceived,last_code:apexKeyLastCode,rejected:apexKeyRejected,visibility:ApexCatalogKeyboardVisibility(),typing:ApexCatalogKeyboardTyping(),focused_name:stage==null || stage.focus==null ? "" : String(stage.focus.name),index:apexKeyIndex,context:apexKeyContext,pending:apexKeyIntent,queued:apexKeyQueue==null ? 0 : apexKeyQueue.length,receipt:ApexClone(apexKeyReceipt),message:apexKeyMessage},
-            search:ApexSearchStatus(),companion:ApexCompanionStatus(),native_catalog_timing:apexCatalogPerformance,owned_frame_timing:apexCatalogFrameTiming};
+            search:ApexSearchStatus(),companion:ApexCompanionStatus(),panels:ApexPanelsStatus(),native_catalog_timing:apexCatalogPerformance,owned_frame_timing:apexCatalogFrameTiming,draw_trace:ApexCatalogTraceStatus(),layout_trace:ApexLayoutTraceStatus(),incremental_grid:ApexCatalogGridStatus(),listener_membership:communicationIndex,button_listener_membership:buttonCommunicationIndex};
       }

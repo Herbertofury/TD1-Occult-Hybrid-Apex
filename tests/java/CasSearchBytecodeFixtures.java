@@ -11,8 +11,8 @@ public class CasSearchBytecodeFixtures {
     public static void main(String[] args)throws Exception {
         var abc=CasBytecodePatch.load(args[0]);String mode=args[1];
         var instance=abc.instance_info.get(abc.findClassByName("widgets.CAS.Customizer.CASCustomizerMain"));
-        if(mode.equals("input-native-work")) {
-            var body=CasBytecodePatch.ownedBody(abc,instance,"ApexSearchChanged");
+        if(mode.equals("input-native-work") || mode.equals("selection-native-work")) {
+            var body=CasBytecodePatch.ownedBody(abc,instance,mode.equals("input-native-work") ? "ApexSearchChanged" : "ApexSearchSelection");
             body.insertAll(2,List.of(new AVM2Instruction(0,0xd0,new int[0]),
                 new AVM2Instruction(0,0x4f,new int[]{member(abc,"ApexNativeExchange"),0})));
             body.max_stack=Math.max(body.max_stack,1);body.setModified();
@@ -50,9 +50,14 @@ public class CasSearchBytecodeFixtures {
                 case "adopt-wrong-owner":old="owner";replacement="sim";opcode=0x66;break;
                 case "swatch-no-membership":old="eligible";replacement="matches";opcode=0x66;break;
                 case "swatch-no-family-cache":old="families";replacement="matches";opcode=0x66;break;
+                case "publish-requeries-variants":old="SetSelectionStateMultiple";replacement="UpdateSelections";opcode=0x4f;break;
+                case "selection-no-context":old="context";replacement="text";opcode=0x66;break;
+                case "selection-no-current-feed":old="selection_feed";replacement="feed";opcode=0x66;break;
+                case "selection-no-publication-guard":old="publishing";replacement="pending";opcode=0x66;break;
+                case "selection-no-membership":old="eligible";replacement="matches";opcode=0x66;break;
                 default:throw new IllegalArgumentException("Unknown fixture");
             }
-            var body=CasBytecodePatch.ownedBody(abc,instance,mode.startsWith("swatch-") ? "ApexSearchNativeKey" : mode.startsWith("adopt-") ? "ApexSearchAdopt" : "ApexSearchPublish");boolean changed=false;
+            var body=CasBytecodePatch.ownedBody(abc,instance,mode.startsWith("swatch-") ? "ApexSearchNativeKey" : mode.startsWith("adopt-") ? "ApexSearchAdopt" : mode.startsWith("selection-") ? "ApexSearchSelection" : "ApexSearchPublish");boolean changed=false;
             for(var op:body.getCode().code)if(CasBytecodePatch.property(abc,op,opcode,old) ||
                 opcode==0x68 && CasBytecodePatch.property(abc,op,0x61,old)) {
                 op.operands[0]=member(abc,replacement);changed=true;

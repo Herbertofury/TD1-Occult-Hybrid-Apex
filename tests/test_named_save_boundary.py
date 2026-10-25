@@ -17,7 +17,8 @@ class NamedSaveBoundaryTests(unittest.TestCase):
         self.backend = self.game.backend
         self.backend._APEX_GAME_THREAD_IDENT = threading.current_thread().ident
         self.backend._get_active_sim_info = lambda: self.game.sim
-        self.service = Obj(get_save_slot_proto_guid=lambda: int(fixture.GUID), get_save_lock_tooltip=lambda: None)
+        self.service = Obj(get_save_slot_proto_guid=lambda: int(fixture.GUID), is_save_locked=lambda: False,
+            get_save_lock_tooltip=lambda: None)
         self.backend.services.get_persistence_service = lambda: self.service
         self.data = Obj(slot_id=2, slot_name=self.game.target['slot_name'])
         self.native_calls = []; self.target = self.game.slot

@@ -29,35 +29,28 @@ CONTRACT = hashlib.sha256(json.dumps({'version': 2, 'fields': appearance.FIELDS,
     'outfits': 'complete-category-normalized-protobuf', 'ownership': 'stored-and-active-separate'},
     sort_keys=True).encode('ascii')).hexdigest()
 _LOADED = {}
-# Metadata-only compatibility: these reviewed builds captured complete schema-1
-# named documents in household seals. V261's distinct five-member Alien/Vampire
-# edits, all 40 native appearances and 155 named looks passed save/cold-load.
-# Every admission still verifies its immutable seal, current file, exact owner
-# coverage and native appearance/load observation. This never authorizes native
-# restoration or changes the separate A0 recovery-source restrictions.
-NAMED_METADATA_PREDECESSORS = ('40efecd91ebede4807a2fbc6c044de67628e3203a4cd4c2039d895fc0cd8363e',
-                               'a534570689a04e48ea6d90cb26d9727cdaf369806ae950898ffacbf4fc0fa8d1',
-                               'cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd',
-                               'aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770',
-                               '30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4',
-                               '1eb9997146db3e2426e0acc4f847fc729f732baaf3ec1bc1f2f26dec68e39fbe')
+# Named data compatibility follows the immutable appearance CONTRACT and the
+# strict named document schema, not a growing list of script build hashes.
+# Source provenance remains retained. This grants metadata admission only;
+# native recovery keeps its separate exact-source/A0 upgrade requirements.
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-24-detached-outfit-order-v315'
+UPGRADE_EPOCH = '2026-10-24-native-button-domain-v332'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '8aabf3ced5cc3a957423354663aedd25242897a645b48eca2a9ce9afcbd6fa1d'
+UPGRADE_SELF_BODY_SHA = 'd92ee2bf3932cac6ddfaf05610c88e7f9ada5a1f9f52b44339f6851e3eec4b7f'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': 'ce995a7ba97ee257b641cca8cc817fb2cff62a08e827cffcf0a50067e34a3286',
     'apex_core/body_hair_initialization.py': 'b90fd14e840ae90de087b647519ef39208e3488dc72b5ab41d4389855f7b0592',
     'apex_core/bridge_startup.py': '0aa605cb1671a198571381ee51aa729082630faffbac657529a2ada385a9bee2',
-    'apex_core/cas_bank_transaction.py': '98ce1f011f6e5712648273650774803a98b5fe29c766e4b890f1b260b7da430e',
+    'apex_core/cas_auto_settle.py': 'a613178d57ca36e386db0ce39ae1abc906f3e530df8e6b23e7816395f6ba1c67',
+    'apex_core/cas_bank_transaction.py': '6bded2170ea8719bafea7239f55bd395c15006baecac1908dbddb5f79d7e4f48',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '032ebc4a20e711db9ae359874b923c6cadd72eceec05277f85bfae3f935fe0c4',
-    'apex_core/cas_controls.py': '148afd4a6876472de657fe276157c3d34e9ffea09d29e4b9eee610a8c613305d',
+    'apex_core/cas_controls.py': '2a34f4af3b10219bc7bf75a45a88a87e6ba03b17b272d78fb7f501c2e13e2ddc',
     'apex_core/cas_entry_context.py': '9474f7dbb6251318e908676ac7ba8b4479c99b9d2bead59ae706eb023726140b',
     'apex_core/cas_form_catalog.py': '902a4db445e0988ac44788968e9b9c5372ee22a6353a2ae7b74bb7065b7518f7',
-    'apex_core/cas_frontdoor.py': 'cc749e4d5f4e3f05fcfe16b8c92a80296e84a4a9ebfb30b7e9cbaa6980e82f95',
+    'apex_core/cas_frontdoor.py': '47a8a96f8d0ab1e99d591ebe8383143879633d18c586523e6e9c9c9e2b775598',
     'apex_core/cas_named_return.py': '53888dcfb949e675820e86b946596e8aa8b6a1a3dcc0c5b4d48c49f66010d84d',
     'apex_core/cas_native_return.py': '3baf9162e487d9547703611a0725c5a497f1c342d6ebf72f3a70917cff9df8a0',
     'apex_core/cas_owner_decode.py': 'f371901c795ddd1fa6270d24b49db3ab0982f5084ce5edc3fb6d5f46fc2ca938',
@@ -65,28 +58,28 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_owner_payload.py': '47134e0e2ae6b222898677d7ed80a6e9cd20ddbc2be98a771af8d0167ca94b21',
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
-    'apex_core/cas_save_boundary.py': '9685cf56db4417c4e46d00aa1611b8d94561e22662c31454c863da0cc5342836',
-    'apex_core/cas_ui.py': 'e5eb11ec778891f280b002e04075218f0ba3f2feebc0688e0e481f7ba36aff3d',
+    'apex_core/cas_save_boundary.py': '9b6b0f17b9a1f8953457a93372ecd0dc8f54cad4ba32c74063984ce4516b99e1',
+    'apex_core/cas_ui.py': '0bf4d83924c440f05b79c3bb8397185d6ae49810676c44655a4cce3ca16ac903',
     'apex_core/catalog_usage.py': '010877d055c90dad2696cc2af71608323188d1aa6f914554a41aea97433d624a',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',
     'apex_core/form_appearance.py': 'e5b8d7832ad09f3877123f701192b74e15f38a4599af7da3bd672b24b2d0ae5f',
-    'apex_core/form_bank.py': '3b0bb323b9aa4601766c3b46233b515736b70bc147bac3e22e62e858b841448e',
+    'apex_core/form_bank.py': 'a9981d0dc5139edeedee971ea70c5b20335be8bddbfc73131c5cea7ef6d323db',
     'apex_core/gameplay_qol.py': 'f58a7fd7dff9b9c532bcf08dcb1e500f5559bf8905861fd93053933ac9d95cb7',
     'apex_core/genetics_snapshot.py': 'e240b088b515015bed2ca7e77326888b0faeb5a685ee0e93684cdcc8bf0aead7',
     'apex_core/growth_parts.py': 'efca6b2b2cacf2c18171e87779b95cd3be9766809068583fd1547b5f7bd32db2',
-    'apex_core/household_io.py': '13e4b8e86ef6587d8e9319e48551637664813acda4c9bf34878d130ecc3df667',
+    'apex_core/household_io.py': '06071d472ee2e9c7cc84393885018f11cd033a27047a8a80fce552c03c017181',
     'apex_core/household_save_group.py': 'dcad435189961dc1a2375e35fc0a04e2e6304cf644a9b7d628a25e222f24e06d',
     'apex_core/human_werewolf.py': '9bafd4df1783f6a3c526242b9a40c42033e3dad4d2f8029e0046633b2f4a363e',
-    'apex_core/hybrid_persistence.py': 'a102a2ab2c5e68c79b1ff3ba4d460589ed46e503df7c8ccdb31b8bcdb122c15a',
+    'apex_core/hybrid_persistence.py': 'f9059669f9b6c34346daf2ce0effe2d831b4d0c9a32fbc3e7b7af9ca27b18681',
     'apex_core/installed_icon_resources.py': '9dc1e52a3e3ab5d064b729047f34e6c3a635a88780047db258fbb2eb72283cd4',
     'apex_core/legacy_phone_guard.py': '097e88240ed8828101de5389c8f966a76e2c393b821f0580808735b663b600cd',
     'apex_core/lifestate_forms.py': '3b7815856093c4fa7eb344d7a4141aa30bbf14a8baed70a4463a218a9f5b4af8',
     'apex_core/lifestates.py': 'c45a4c6f621b75c055e91f55fdb0b767ac15418cff649dcc90801e1bee355ac7',
     'apex_core/live_form_presentation.py': '31c2fc2cf41419878f068eb201cd81a67e9bef701b4ecefff99dac6e7d6ab1cd',
     'apex_core/morph_controls.py': 'd144ebd7a8dcbff5695b1a2747f641b17017b60a6c39bd904e467602d4c7f876',
-    'apex_core/named_save_boundary.py': 'e91cedc374353240e8a5abdde6ab6e99d2313de9158a3846b5a74e1f1fe0c8ca',
-    'apex_core/native_cas_engine.py': '3e9e0ba6b35610d3a66f3d87001b5966295f1df5ae89bbdbe4466abc30530c3c',
+    'apex_core/named_save_boundary.py': 'a2fc956db8ed98a8dd9b0a1e68dafe9a2a0061b0df70e0448bb26006e9e4b243',
+    'apex_core/native_cas_engine.py': 'aee7135dd5c7c682aee73283e27be13bb0f87732d2653a0aa254a1054c6a58bc',
     'apex_core/native_controls.py': 'b9d63713fb02f73245ed6febbafd4b641e33b06120a7a5123977d670741fd80d',
     'apex_core/native_form_isolation.py': '8b543ee251da890e30df2f96a961d4d7d76519816376617330f5136de414bb33',
     'apex_core/native_form_select.py': '5c3c9b28d82df3e6515169f3bb653f94ed9c9505d7745673514d85ed79744c44',
@@ -99,7 +92,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/outfit_hair.py': 'f96b905caa86c118579590f942abe8d5ce665e07ed84db8d311fddcdb39243c4',
     'apex_core/outfit_snapshot.py': 'd6f60b352643961d200406aff95b3a850aa018f7538e4b75f883768bbaeb9d42',
     'apex_core/overlay_loader.py': '21ba456e3c6f26817ff224e40a26b099cca10f4baaba60ed0649c2d1f9ece1a1',
-    'apex_core/phone_cas.py': 'e4ff29679991274795c450b4823dc2951e3d8dc42e409dd7819181c657017366',
+    'apex_core/phone_cas.py': 'd230422880c601c7549152330835f7c3b4445ef4c280fbcad7abbeed228e4fc3',
     'apex_core/phone_interactions.py': '05778ddb4e9e764ee4899cca39e5143bf3a4bd7d3bf61d4890c3e0466b72f025',
     'apex_core/profile_save_identity.py': '3dff19214d24119caa20bf3b0849e16e1c006a73a5a9e8f0c167ca5c0a080453',
     'apex_core/runtime_profile.py': '740f28d28c4493f88c61c77c81085e61a2b2c98097c1847dae066ea0c3e05072',
@@ -473,7 +466,14 @@ def _source_authority(backend, identity, profile, bank_path, key, seal_path, row
 def _named_source_authority(backend, identity, profile, bank_path, key, seal_path, row):
     _seal_owner_authority(identity, key, seal_path, row)
     source = row['identity'].get('script_sha256')
-    if source != identity['script_sha256'] and source in NAMED_METADATA_PREDECESSORS and 'named_forms' in row:
+    if not _sha(source) or not _sha(identity.get('script_sha256')):
+        raise ValueError('Named metadata source provenance is not an exact script SHA-256.')
+    if source != identity['script_sha256'] and 'named_forms' in row:
+        # This is inert, fully typed appearance data. A module/UI rebuild does
+        # not change its meaning when the immutable data CONTRACT and exact
+        # named schema still match. Never execute old code or broaden native
+        # restoration: reconcile/current_runtime_bank_verified still use the
+        # untouched _source_authority, including its audited A0 restriction.
         from .lifestate_forms import document, KEY
         document({KEY: row['named_forms']})
         return 'named-metadata-only:' + source

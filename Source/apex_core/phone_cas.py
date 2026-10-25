@@ -189,7 +189,7 @@ class PhoneCasSession:
         self._bind(dict(result, current_runtime=True))
         self.phase = 'captured'
         self.receipts.append({'operation': 'begin', 'nonce': self.nonce, 'receipt': result})
-        return {'ok': True, 'message': 'This Sim’s native originals are retained. Protected native CAS entry also captures hybrid household companions. After returning to Live, choose “After CAS: run, pause and review” for every captured household member, including members not edited.'}
+        return {'ok': True, 'message': 'This Sim’s originals and captured household companions are retained. Accepted native edits are preserved automatically at save or CAS re-entry. The detailed review remains available for explicit recovery choices.'}
 
     def _adopt_observation(self, status):
         self._bind(status)

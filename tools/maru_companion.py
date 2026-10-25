@@ -16,6 +16,165 @@ PACKAGE_SHA256 = '054ca6a189a587063290df004a42072c5381e59404d33e58ddb737ab821cf9
 CUSTOMIZER = (0x62ECC59A, 0, 0xDF09D526F4C77B95)
 CUSTOMIZER_SHA256 = 'c97afa8f0362a0452b359074769b9c99174444dd211927d08972091db3391969'
 RESOURCE_COUNT = 66
+GRID_LIBRARY = (0x62ECC59A, 0, 0x89D13757C58C2E05)
+GRID_LIBRARY_SHA256 = '6ddb983fee2bd284a2b7efec155e1544bfe99d27f16d4d28097bada25e1864f0'
+GRID_LIBRARY_PATCHED_SHA256 = 'd93ab23bae5cbbbbcaa223d4eaec25dd516ae3e87c9da26abe495d2dc0702a7a'
+GRID_LIBRARY_CONTRACT = dict(ok=True, native_method_count=8479, unchanged_native_methods=8479,
+    appended_native_getters=1, appended_provider_identity_methods=1, provider_identity_verified=True,
+    appended_reset_profile_methods=1, reset_profile_native_flow_verified=True,
+    reset_profile_scope_verified=True, reset_profile_report_verified=True,
+    provider_resource_tgi='62ECC59A:00000000:89D13757C58C2E05',
+    retained_native_abc_sha256='eb8615b7156e4434a15e207aee8cb629a2e47d1ef6e9490b2406777bdfd764f8',
+    getter_field_namespace_verified=True, getter_scope_verified=True, getter_read_only_verified=True,
+    native_abc_retention_verified=True)
+CANONICAL_GRID_LIBRARY = (0x62ECC59A, 0, 0x12272E1AC0C1F8E2)
+CANONICAL_GRID_LIBRARY_SHA256 = '5f475a80a4f9c77f9a0439e133221a31f766cb929318f74191b4b9bad98e8cae'
+CANONICAL_GRID_LIBRARY_PATCHED_SHA256 = 'deb4f64ab6e1d6d5a752f2733cc4d73212a6380c82d73ccb82e4e7eece6a9116'
+CANONICAL_GRID_LIBRARY_CONTRACT = dict(ok=True, native_method_count=9194, unchanged_native_methods=9194,
+    appended_native_getters=1, appended_provider_identity_methods=1, provider_identity_verified=True,
+    appended_reset_profile_methods=1, reset_profile_native_flow_verified=True,
+    reset_profile_scope_verified=True, reset_profile_report_verified=True,
+    provider_resource_tgi='62ECC59A:00000000:12272E1AC0C1F8E2',
+    retained_native_abc_sha256='ae1435753ae49522947aa6fe364b83f3692163cff9fe2b9f1ab393c7e18bbc0f',
+    getter_field_namespace_verified=True, getter_scope_verified=True, getter_read_only_verified=True,
+    native_abc_retention_verified=True)
+UNMODIFIED_OLYMPUS_LIBRARY = (0x62ECC59A, 0, 0x3FFE72432A703655)
+# The earlier *_PATCHED_SHA256/CONTRACT values remain the historical
+# getter/profile proof. Final transaction bytes have their own identities.
+GRID_LIBRARY_TRANSACTION_SHA256 = 'f286299b7822fe857b13eaada6775de3e4c8ab536c741cd0582234d7fdd92792'
+CANONICAL_GRID_LIBRARY_TRANSACTION_SHA256 = '525b5db224f243b4fc60fafe2dc9365409076a8c234358e62083ec922e33746f'
+GRID_TRANSACTION_SOURCES = ('tools/CasGridTransactionPatch.java', 'tools/cas_grid_transaction.py')
+GRID_TRANSACTION_PROOF_SOURCES = GRID_TRANSACTION_SOURCES + ('tools/CasStructuralRolesPatch.java',
+                                                           'tools/CasGridBytecodePatch.java')
+GRID_COMMUNICATION_SOURCES = ('tools/CasCommunicationIndexPatch.java', 'tools/cas_communication_index.py')
+GRID_COMMUNICATION_DEPENDENCY_SOURCES = ('tools/CasCommunicationDependencyPatch.java', 'tools/cas_communication_dependency.py')
+GRID_COMMUNICATION_DOMAIN_SOURCES = ('tools/CasCommunicationDomainProbePatch.java', 'tools/cas_communication_domain_probe.py')
+GRID_COMMUNICATION_FINALS = {
+    '62ECC59A:00000000:12272E1AC0C1F8E2': '2f74987d872080437fe9695a9f219e8a71c139f37c1f6c3c806f5888f98e8cf3',
+    '62ECC59A:00000000:89D13757C58C2E05': 'b7ab103c2e1070ee474b88bd82c77279d176e4985d4f2caa7f27dab3ef85fe6f',
+}
+GRID_TRANSACTION_ABCS = {
+    '62ECC59A:00000000:12272E1AC0C1F8E2': 'f2f6599a828a5b0630ee10dbffebc22af521756794d079cc58b58e5d34feca2a',
+    '62ECC59A:00000000:89D13757C58C2E05': 'e67cb304ab5865b47125c84ecae737f4fd8892189401679b4566b53b67f06c08',
+}
+
+
+def _verify_transaction_history(evidence, expected, final_digest, body_count):
+    """Validate the exact historical stage under a separately pinned final SWF.
+
+    This is metadata validation, not a claim that the final communication ABC
+    equals the earlier grid ABC. The caller authenticates both final bytes and
+    the separate whole-ABC rollback/source proof linking those two stages.
+    """
+    def same(a, b):
+        return json.dumps(a, sort_keys=True, separators=(',', ':')) == json.dumps(b, sort_keys=True, separators=(',', ':'))
+    post = evidence.get('native_bytecode_contract', {}) if isinstance(evidence, dict) else {}
+    counts = dict(original_method_info_count=expected['native_bytecode_contract']['native_method_count'],
+        original_method_body_count=body_count, baseline_method_info_count=expected['native_bytecode_contract']['native_method_count'] + 3,
+        baseline_method_body_count=body_count + 3, guarded_original_native_bodies=17,
+        guarded_existing_adapter_bodies=1, guarded_native_bodies=18,
+        unchanged_original_native_bodies=body_count - 17, unchanged_baseline_bodies=body_count - 15,
+        appended_methods=45, appended_fields=1)
+    required = ('whole_abc_rollback_verified', 'serialized_projection_verified',
+                'protected_field_namespace_bindings_verified', 'explicit_jump_switch_exception_fixtures',
+                'unarmed_original_native_flow_verified')
+    if (not isinstance(evidence, dict) or not same(evidence.get('retained_base_adapter'), expected) or
+            evidence.get('base_resource_sha256') != expected['base_resource_sha256'] or
+            evidence.get('patched_resource_sha256') != final_digest or not isinstance(post, dict) or
+            not same({name: post.get(name) for name in counts}, counts) or
+            any(post.get(name) is not True for name in required) or post.get('ok') is not True or
+            post.get('runtime_qualified') is not False or post.get('hitch_free_claimed') is not False or
+            post.get('base_provider_sha256') != expected['base_resource_sha256'] or
+            post.get('baseline_swf_sha256') != expected['patched_resource_sha256'] or
+            post.get('provider_resource_tgi') != expected['native_bytecode_contract']['provider_resource_tgi'] or
+            post.get('abc_sha256') != GRID_TRANSACTION_ABCS[expected['native_bytecode_contract']['provider_resource_tgi']] or
+            post.get('source_sha256') != {name: dbpf_build.digest((Path(__file__).resolve().parents[1] / name).read_bytes())
+                                        for name in GRID_TRANSACTION_PROOF_SOURCES}):
+        raise ValueError('Historical grid transaction proof, source, identity or native counts differ.')
+    return post
+
+
+def _verify_grid_adapter(evidence, data, expected, final_digest, body_count):
+    """Authenticate history and final bytes without relabeling native counts."""
+    def same(left, right):
+        return json.dumps(left, sort_keys=True, separators=(',', ':')) == json.dumps(right, sort_keys=True, separators=(',', ':'))
+    if isinstance(evidence, dict) and 'communication_domain_probe_contract' in evidence:
+        import cas_communication_domain_probe
+        cas_communication_domain_probe.verify_adapter(evidence, data)
+        previous = evidence['previous_stage_adapter']
+        _verify_transaction_history(previous['retained_transaction_adapter'], expected, final_digest, body_count)
+        if previous['base_resource_sha256'] != expected['base_resource_sha256']:
+            raise ValueError('Listener domain proof has the wrong native provider history.')
+    elif isinstance(evidence, dict) and 'retained_transaction_adapter' in evidence:
+        import cas_communication_index
+        history = _verify_transaction_history(evidence['retained_transaction_adapter'], expected, final_digest, body_count)
+        post = evidence.get('communication_index_contract', {})
+        if (dbpf_build.digest(data) != GRID_COMMUNICATION_FINALS[expected['native_bytecode_contract']['provider_resource_tgi']] or
+                post.get('baseline_abc_sha256') != history.get('abc_sha256')):
+            raise ValueError('Final communication provider is not the pinned continuation of its historical grid ABC.')
+        cas_communication_index.verify_adapter(evidence, data)
+    elif isinstance(evidence, dict) and 'retained_base_adapter' in evidence:
+        import cas_grid_transaction
+        post = evidence.get('native_bytecode_contract', {})
+        counts = dict(original_method_info_count=expected['native_bytecode_contract']['native_method_count'],
+            original_method_body_count=body_count, baseline_method_info_count=expected['native_bytecode_contract']['native_method_count'] + 3,
+            baseline_method_body_count=body_count + 3, guarded_original_native_bodies=17,
+            guarded_existing_adapter_bodies=1, guarded_native_bodies=18,
+            unchanged_original_native_bodies=body_count - 17, unchanged_baseline_bodies=body_count - 15,
+            appended_methods=45, appended_fields=1)
+        if (not same(evidence['retained_base_adapter'], expected) or
+                not isinstance(post, dict) or
+                not same({name: post.get(name) for name in counts}, counts) or
+                post.get('runtime_qualified') is not False or post.get('hitch_free_claimed') is not False or
+                dbpf_build.digest(data) != final_digest):
+            raise ValueError('Native grid transaction does not retain the exact provider history, counts or final bytes.')
+        cas_grid_transaction.verify_adapter(evidence, data)
+    elif not same(evidence, expected) or dbpf_build.digest(data) != expected['patched_resource_sha256']:
+        raise ValueError('Grid provider is not the exact authenticated read-only getter/profile adaptation.')
+    return True
+
+
+def verify_grid_adapter(evidence, data):
+    """Accept the historical donor or its exact chained transaction adapter."""
+    expected = dict(base_resource_sha256=GRID_LIBRARY_SHA256,
+                    patched_resource_sha256=GRID_LIBRARY_PATCHED_SHA256,
+                    native_bytecode_contract=GRID_LIBRARY_CONTRACT)
+    return _verify_grid_adapter(evidence, data, expected, GRID_LIBRARY_TRANSACTION_SHA256, 8224)
+
+
+def verify_grid_providers(evidence, resources, dependencies=None):
+    """Require both exact class providers; duplicate native classes can bind first."""
+    donor_key, canonical_key = dbpf_build.tgi(GRID_LIBRARY), dbpf_build.tgi(CANONICAL_GRID_LIBRARY)
+    if not isinstance(evidence, dict) or set(evidence) != {donor_key, canonical_key}:
+        raise ValueError('Both authenticated grid class providers are required.')
+    if UNMODIFIED_OLYMPUS_LIBRARY in resources:
+        import cas_communication_dependency
+        key = dbpf_build.tgi(UNMODIFIED_OLYMPUS_LIBRARY)
+        if not isinstance(dependencies, dict) or set(dependencies) != {key}:
+            raise ValueError('The Olympus dependency override requires its separate exact communication proof.')
+        if 'communication_domain_probe_contract' in dependencies[key]:
+            import cas_communication_domain_probe
+            cas_communication_domain_probe.verify_adapter(dependencies[key], resources[UNMODIFIED_OLYMPUS_LIBRARY])
+        else:
+            cas_communication_dependency.verify_adapter(dependencies[key], resources[UNMODIFIED_OLYMPUS_LIBRARY])
+    elif dependencies:
+        raise ValueError('A communication dependency proof has no matching final resource.')
+    verify_grid_adapter(evidence[donor_key], resources.get(GRID_LIBRARY, b''))
+    verify_canonical_grid_adapter(evidence[canonical_key], resources.get(CANONICAL_GRID_LIBRARY, b''))
+    def stage(value):
+        return (3 if 'communication_domain_probe_contract' in value else
+                2 if 'retained_transaction_adapter' in value else 1 if 'retained_base_adapter' in value else 0)
+    if stage(evidence[donor_key]) != stage(evidence[canonical_key]):
+        raise ValueError('Both native class providers must use the same reviewed adapter stage.')
+    return True
+
+
+def verify_canonical_grid_adapter(evidence, data):
+    """Accept only the authenticated canonical history or its transaction chain."""
+    expected = dict(base_resource_sha256=CANONICAL_GRID_LIBRARY_SHA256,
+                    patched_resource_sha256=CANONICAL_GRID_LIBRARY_PATCHED_SHA256,
+                    native_bytecode_contract=CANONICAL_GRID_LIBRARY_CONTRACT)
+    return _verify_grid_adapter(evidence, data, expected, CANONICAL_GRID_LIBRARY_TRANSACTION_SHA256, 8928)
 
 
 def expected_resources():
@@ -39,6 +198,8 @@ def prepare(path, ffdec, work):
     work.mkdir(parents=True, exist_ok=True)
     customizer = work / 'DynamicCASCustomizer.swf'
     customizer.write_bytes(resources[CUSTOMIZER])
+    grid_library = work / 'DynamicCASGridLibrary.swf'
+    grid_library.write_bytes(resources[GRID_LIBRARY])
     # Preserve the exact donor imports and definitions, rather than recompiling
     # its classes from text or relying on another mod to provide them at runtime.
     exported = work / 'customizer'
@@ -53,18 +214,28 @@ def prepare(path, ffdec, work):
     rows = {dbpf_build.tgi(key): dbpf_build.digest(data) for key, data in resources.items()}
     return dict(package_sha256=PACKAGE_SHA256, customizer_sha256=CUSTOMIZER_SHA256,
                 resource_count=RESOURCE_COUNT, resource_sha256=rows,
-                customizer=str(customizer), decompiled=str(source), scripts=str(scripts),
+                customizer=str(customizer), grid_library=str(grid_library), decompiled=str(source), scripts=str(scripts),
                 method='donor-ABC-with-retained-Apex-adapters', runtime_verified=False)
 
 
-def combine(path, apex, evidence):
+def combine(path, apex, evidence, grid_providers=None, dependencies=None):
     resources = read_package(path)
     if evidence.get('resource_sha256') != {dbpf_build.tgi(k): dbpf_build.digest(v) for k, v in resources.items()}:
         raise ValueError('Dynamic CAS donor changed after compilation.')
-    # An overlap must be the reviewed customizer. Other Apex native UI resources
-    # cannot be silently replaced by a donor, even if a later version adds them.
-    if set(resources) & set(apex) != {CUSTOMIZER}:
+    # The original customizer and this one authenticated getter adaptation are
+    # the complete overlap allowance. Every other dependency remains exact.
+    overlaps = set(resources) & set(apex)
+    grid_adapter = evidence.get('grid_library_adapter')
+    expected_overlap = {CUSTOMIZER}
+    if grid_adapter is not None:
+        verify_grid_adapter(grid_adapter, apex.get(GRID_LIBRARY, b''))
+        expected_overlap.add(GRID_LIBRARY)
+    if overlaps != expected_overlap:
         raise ValueError('Unreviewed Dynamic CAS/Apex resource overlap.')
+    if CANONICAL_GRID_LIBRARY in apex or grid_providers is not None or UNMODIFIED_OLYMPUS_LIBRARY in apex:
+        verify_grid_providers(grid_providers, apex, dependencies)
+        if grid_providers[dbpf_build.tgi(GRID_LIBRARY)] != grid_adapter:
+            raise ValueError('Grid provider and donor retention evidence differ.')
     resources.update(apex)
     return resources
 
@@ -80,12 +251,105 @@ def verify_merged(info, resources):
             evidence.get('customizer_sha256') != CUSTOMIZER_SHA256 or
             evidence.get('method') != 'donor-ABC-with-retained-Apex-adapters'):
         raise ValueError('Dynamic CAS input provenance differs from the reviewed donor.')
+    pins = info.get('source_pins', {})
+    transaction_required = any(name in pins for name in GRID_TRANSACTION_SOURCES)
+    communication_required = any(name in pins for name in GRID_COMMUNICATION_SOURCES)
+    dependency_required = (any(name in pins for name in GRID_COMMUNICATION_DEPENDENCY_SOURCES) or
+                           UNMODIFIED_OLYMPUS_LIBRARY in resources or
+                           info.get('communication_dependency_adapters') is not None)
+    domain_required = (any(name in pins for name in GRID_COMMUNICATION_DOMAIN_SOURCES) or
+                       any(isinstance(value, dict) and 'communication_domain_probe_contract' in value
+                           for group in ('grid_provider_adapters', 'communication_dependency_adapters')
+                           for value in (info.get(group) or {}).values()))
+    if domain_required and any(name not in pins for name in GRID_COMMUNICATION_DOMAIN_SOURCES):
+        raise ValueError('Current listener domain diagnostic pins are incomplete.')
+    if dependency_required and any(name not in pins for name in GRID_COMMUNICATION_DEPENDENCY_SOURCES):
+        raise ValueError('Current Olympus communication dependency pins are incomplete.')
+    if communication_required and any(name not in pins for name in GRID_COMMUNICATION_SOURCES):
+        raise ValueError('Current listener index source pins are incomplete.')
+    if transaction_required and any(name not in pins for name in GRID_TRANSACTION_PROOF_SOURCES):
+        raise ValueError('Current grid transaction source pins are incomplete.')
+    if ('tools/CasGridBytecodePatch.java' in pins and
+            evidence.get('grid_library_adapter') is None):
+        raise ValueError('The current CAS sources require the authenticated grid suppression getter.')
+    if ('tools/CasGridBytecodePatch.java' in info.get('source_pins', {}) or
+            info.get('grid_provider_adapters') is not None or CANONICAL_GRID_LIBRARY in resources):
+        providers = info.get('grid_provider_adapters')
+        dependencies = info.get('communication_dependency_adapters')
+        if domain_required:
+            import cas_communication_domain_probe
+            for group in (providers, dependencies):
+                if not isinstance(group, dict) or not group:
+                    raise ValueError('Current CAS sources require all three listener domain continuations.')
+                for key, adapter in group.items():
+                    if (not isinstance(adapter, dict) or
+                            adapter.get('communication_domain_probe_contract', {}).get('source_sha256') !=
+                                {name: pins.get(name) for name in cas_communication_domain_probe.SOURCES}):
+                        raise ValueError('Current CAS sources require the exact listener domain diagnostic and source proof.')
+        if dependency_required:
+            import cas_communication_dependency
+            key = dbpf_build.tgi(UNMODIFIED_OLYMPUS_LIBRARY)
+            dependency_adapter = dependencies.get(key, {}) if isinstance(dependencies, dict) else {}
+            historical_dependency = dependency_adapter.get('previous_stage_adapter', dependency_adapter)
+            dependency_final = (cas_communication_domain_probe.FINALS[key][0] if domain_required else
+                                cas_communication_dependency.FINAL_SWF_SHA256)
+            if (not isinstance(dependencies, dict) or set(dependencies) != {key} or
+                    historical_dependency.get('communication_dependency_contract', {}).get('source_sha256') !=
+                        {name: pins.get(name) for name in cas_communication_dependency.SOURCES} or
+                    key in info.get('unmodified_dependency_resources', {}) or
+                    info.get('base_resources', {}).get(key) != cas_communication_dependency.PIN or
+                    info.get('patched_resources', {}).get(key) != dependency_final):
+                raise ValueError('Current CAS sources require the exact earlier Olympus communication override.')
+        verify_grid_providers(providers, resources, dependencies)
+        if providers[dbpf_build.tgi(GRID_LIBRARY)] != evidence.get('grid_library_adapter'):
+            raise ValueError('Grid provider and donor retention evidence differ.')
+        if dbpf_build.tgi(CANONICAL_GRID_LIBRARY) in info.get('unmodified_dependency_resources', {}):
+            raise ValueError('The adapted canonical provider cannot be declared unmodified.')
+        for key, adapter in providers.items():
+            historical_adapter = adapter.get('previous_stage_adapter', adapter)
+            if communication_required:
+                proof = historical_adapter.get('communication_index_contract', {})
+                communication_sources = GRID_COMMUNICATION_SOURCES + ('tools/CasStructuralRolesPatch.java',)
+                if (not isinstance(historical_adapter.get('retained_transaction_adapter'), dict) or
+                        proof.get('source_sha256') != {name: pins.get(name) for name in communication_sources}):
+                    raise ValueError('Current CAS sources require the exact listener index continuation and source proof.')
+            if transaction_required:
+                transaction = historical_adapter.get('retained_transaction_adapter', historical_adapter)
+                post = transaction.get('native_bytecode_contract', {})
+                if (not isinstance(transaction.get('retained_base_adapter'), dict) or
+                        post.get('source_sha256') != {name: pins[name] for name in GRID_TRANSACTION_PROOF_SOURCES}):
+                    raise ValueError('Current CAS sources require the exact chained grid transaction and source proof.')
+            if (info.get('base_resources', {}).get(key) != adapter['base_resource_sha256'] or
+                    info.get('patched_resources', {}).get(key) != adapter['patched_resource_sha256']):
+                raise ValueError('Grid provider hashes are absent or inconsistent in the resource manifest.')
     for key, digest in expected.items():
-        if key != dbpf_build.tgi(CUSTOMIZER) and actual.get(key) != digest:
+        if key == dbpf_build.tgi(GRID_LIBRARY) and evidence.get('grid_library_adapter') is not None:
+            verify_grid_adapter(evidence['grid_library_adapter'], resources.get(GRID_LIBRARY, b''))
+        elif key != dbpf_build.tgi(CUSTOMIZER) and actual.get(key) != digest:
             raise ValueError('A retained Dynamic CAS dependency changed or is absent: ' + key)
     contract = info.get('native_bytecode_contract', {})
-    if (contract.get('native_method_count') != 2650 or contract.get('unchanged_native_methods') != 2632 or
+    if (contract.get('native_method_count') != 2650 or contract.get('unchanged_native_methods') != 2616 or
             contract.get('companion_named_form_adapters') != 5 or
+            contract.get('native_column_scheduler_adapters') != 8 or
+            contract.get('native_lazy_swatch_adapters') != 2 or
+            contract.get('native_outfit_consumers') != 3 or
+            contract.get('native_draw_trace_adapters') != 1 or
+            contract.get('native_draw_trace_guard_verified') is not True or
+            contract.get('native_draw_trace_cfg_verified') is not True or
+            contract.get('native_draw_trace_call_abi_verified') is not True or
+            contract.get('native_favorite_lookup_map_verified') is not True or
+            contract.get('native_current_outfit_refresh_queue_verified') is not True or
             contract.get('native_pelt_palette_reenable_verified') is not True):
         raise ValueError('The complete donor ABC did not pass retained-method verification.')
+    if 'tools/CasStructuralRolesPatch.java' in info.get('source_pins', {}):
+        import cas_structural_roles
+        post = info.get('structural_roles_native_bytecode_contract')
+        if 'tools/CasDrawFastPathPatch.java' in info.get('source_pins', {}):
+            import cas_draw_fast_path
+            fast = info.get('draw_fast_path_native_bytecode_contract')
+            if (not isinstance(post, dict) or not isinstance(fast, dict) or
+                    cas_draw_fast_path.chain_contract(contract, post, fast, resources[CUSTOMIZER]) != fast):
+                raise ValueError('Final Draw fast path does not chain to the historical structural/native proof.')
+        elif not isinstance(post, dict) or cas_structural_roles.chain_contract(contract, post, resources[CUSTOMIZER]) != post:
+            raise ValueError('Final structural-role ABC does not chain to the base native proof.')
     return True

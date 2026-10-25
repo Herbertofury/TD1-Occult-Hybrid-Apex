@@ -86,7 +86,16 @@ def wrap(backend, original, reason):
     def _save_game_gen(self, timeline, save_game_data, check_cooldown=True):
         context = None
         applies = self is backend.services.get_persistence_service()
-        if applies and self.get_save_lock_tooltip() is None:
+        if applies and not self.is_save_locked() and self.get_save_lock_tooltip() is None:
+            # Slot0 is EA's internal CAS/travel scratch path. The guarded CAS
+            # engine owns that serialization; it is not an actual file save.
+            slot=getattr(save_game_data,'slot_id',None)
+            if not (type(slot) is int and slot==0):
+                from . import cas_save_boundary,cas_auto_settle
+                if cas_save_boundary.admission(backend)['locked']:
+                    cas_auto_settle.settle(backend)
+                if cas_save_boundary.admission(backend)['locked']:
+                    return (original.__globals__['SaveGameResult'].FAILED_SAVE_LOCKED,reason)
             try:
                 context = prepare(backend, self, save_game_data)
             except Exception as error:
@@ -109,4 +118,5 @@ def wrap(backend, original, reason):
         return returned
     _save_game_gen._apex_cas_save_boundary = backend
     _save_game_gen._apex_original = original
+    _save_game_gen._apex_preservation_reason = reason
     return _save_game_gen

@@ -117,7 +117,7 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
         if (ui_info.get('target_game') != '1.128.90.1030' or
                 ui_info.get('sha256') != digest(ui_path.read_bytes()) or
                 ui_info.get('non_script_tags_preserved') is not True or
-                contract.get('unchanged_native_methods') != (2632 if merged_companion else 1774) or
+                contract.get('unchanged_native_methods') != (2616 if merged_companion else 1774) or
                 contract.get('native_wing_paint_owner_adapters') != 3 or
                 contract.get('native_pelt_palette_reenable_verified') is not True or
                 selector_contract.get('native_method_count') != 462 or
@@ -135,8 +135,16 @@ def build(output, foundry=None, cas_ui_package=None, epoch=None):
                 '62ECC59A:00000000:CAEE355CE0B704F7',
                 '62ECC59A:00000000:3E752EBCB41E7298'}
         if merged_companion:
-            from maru_companion import expected_resources
+            from maru_companion import expected_resources, CANONICAL_GRID_LIBRARY, UNMODIFIED_OLYMPUS_LIBRARY
             expected_ui_resources.update(expected_resources())
+            # verify_merged above authenticates both providers and their exact
+            # additive adapters; the canonical import is an additional resource.
+            if ui_info.get('grid_provider_adapters') is not None:
+                expected_ui_resources.add(tgi(CANONICAL_GRID_LIBRARY))
+            # verify_merged also authenticates the separately chained earlier
+            # Button/communication domain. Admit only that exact extra TGI.
+            if ui_info.get('communication_dependency_adapters') is not None:
+                expected_ui_resources.add(tgi(UNMODIFIED_OLYMPUS_LIBRARY))
         if set(tgi(key) for key in read(ui_path.read_bytes())) != expected_ui_resources:
             raise ValueError('CAS bridge resource inventory differs from its exact verified inputs.')
         catalog=ui_info.get('catalog_native_bytecode_contract',{})

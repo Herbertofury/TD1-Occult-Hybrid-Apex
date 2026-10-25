@@ -53,7 +53,8 @@ def _remember_observation(args,result,clock):
             'form_strip' in observed['client'] and not _owner_strip_settled(observed['client'])):
         return result
     if (isinstance(result,dict) and result.get('ok') is True and observed.get('ok') is True and
-            isinstance(observed.get('client'),dict) and isinstance(observed['client'].get('sim'),dict) and
+            isinstance(observed.get('client'),dict) and observed['client'].get('scope')=='native-cas-client' and
+            isinstance(observed['client'].get('sim'),dict) and
             isinstance(observed['client']['sim'].get('simId'),str) and
             isinstance(observed.get('cas_request_id'),str) and re.fullmatch('[0-9a-f]{32}',observed['cas_request_id'])):
         lease.update(at=clock(),result=dict(ok=True,cas_request_id=observed['cas_request_id'],

@@ -524,6 +524,8 @@ def install_transition_guard(tracker):
                             raise ValueError('Loaded native appearance failed complete final readback.')
                         self._apex_native_load_appearance_retention = {'form_flags': int(sim.current_occult_types),
                             'stored_owners': sorted(captured), 'verified': True, 'bank_read': False}
+                        from .cas_auto_settle import note_native_ready
+                        self._apex_cas_return_physical_witness = note_native_ready(backend,self)
                     except Exception as error:
                         # A retention failure must be observable without making
                         # EA discard an otherwise loaded Sim. Keep its original

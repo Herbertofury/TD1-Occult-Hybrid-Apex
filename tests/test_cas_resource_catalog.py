@@ -509,6 +509,54 @@ class CatalogTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             catalog.casp_metadata(casp(version=53))
 
+    def test_legacy42_43_metadata_uses_the_declared_prebody_layout(self):
+        # Independent bounded prefix fixture, following the primary C# CASP
+        # constructor; different nonzero fields expose a four-byte misread.
+        def legacy(version, body):
+            name='Legacy hair'.encode('utf-16-be')
+            raw=bytearray(struct.pack('<IIi',version,0,0)+bytes([len(name)])+name)
+            raw+=struct.pack('<fHIIBBQQQ',13.5,37,0x12345678,0x10203,4,9,0xdead,0xbeef,0xabc)
+            raw+=struct.pack('<iHIHI',2,10,42,11,43)
+            raw+=struct.pack('<III',777,123,456)
+            if version>=43:raw+=struct.pack('<I',0xcafebabe)
+            raw+=struct.pack('<BIIIIH',1,body,0x1111,0xf127,1,15)+bytes(10)
+            raw+=struct.pack('<BII',2,0xff123456,0xffabcdef)+bytes([0,1])+bytes(20)
+            struct.pack_into('<I',raw,4,len(raw)-8)
+            raw+=bytes([2])+struct.pack('<QIIQII',0,0,0,0x9876,0x80000000,0x00b2d882)
+            return bytes(raw)
+        for version in (42,43):
+            for body in (0,2,32,255):
+                with self.subTest(version=version,body=body):
+                    meta=catalog.casp_metadata(legacy(version,body))
+                    self.assertEqual(meta['body_type'],body)
+                    self.assertEqual(meta['internal_name'],'Legacy hair')
+                    self.assertEqual(meta['outfit_id'],0x12345678)
+                    self.assertEqual((meta['title_key'],meta['description_key']),(123,456))
+                    self.assertEqual((meta['age_gender'],meta['species'],meta['pack_id']),(0xf127,1,15))
+                    self.assertEqual(meta['swatch_order'],37)
+                    self.assertEqual(meta['swatch_colors_argb'],[0xff123456,0xffabcdef])
+                    self.assertEqual(meta['variant_thumbnail_tgi'],'00B2D882:80000000:0000000000009876')
+        for version in (42,43):
+            good=legacy(version,2)
+            for label,raw in [('truncated',good[:-1]),('trailing',good+b'\x00'),('short',good[:63])]:
+                with self.subTest(version=version,label=label),self.assertRaises(ValueError):
+                    catalog.casp_metadata(raw)
+            tags=13+len('Legacy hair'.encode('utf-16-be'))+struct.calcsize('<fHIIBBQQQ')
+            for offset,value,kind in [(4,len(good),'I'),(4,32,'I'),(8,1,'i'),(12,3,'B'),
+                                      (tags,-1,'i'),(tags,4097,'i')]:
+                raw=bytearray(good);struct.pack_into('<'+kind,raw,offset,value)
+                with self.subTest(version=version,offset=offset,value=value),self.assertRaises(ValueError):
+                    catalog.casp_metadata(bytes(raw))
+            table=struct.unpack_from('<I',good,4)[0]+8
+            for offset,value in [(table,3),(table-21,2)]:
+                raw=bytearray(good);raw[offset]=value
+                with self.subTest(version=version,offset=offset),self.assertRaises(ValueError):
+                    catalog.casp_metadata(bytes(raw))
+        good=legacy(42,2)
+        for version in (0,41,53,0xffffffff):
+            raw=bytearray(good);struct.pack_into('<I',raw,0,version)
+            with self.subTest(version=version),self.assertRaises(ValueError):catalog.casp_metadata(bytes(raw))
+
     def test_ts4_jpeg_embedded_alpha_decodes_actual_pixels_without_placeholder(self):
         from PIL import Image
         jpeg, alpha = picture('JPEG'), picture(color=(83, 83, 83, 255))

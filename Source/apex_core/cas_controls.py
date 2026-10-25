@@ -12,16 +12,20 @@ class PostconditionMismatch(ValueError):
     """A complete native readback differs from the requested target value."""
 
 
-READS = frozenset(('catalog', 'variants', 'swatches', 'layers', 'body-types', 'modifiers', 'hair-matching', 'occults',
+READS = frozenset(('catalog-state', 'catalog', 'variants', 'swatches', 'layers', 'body-types', 'modifiers', 'hair-matching', 'occults',
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion', 'panel-layout', 'catalog-trace', 'catalog-layout-trace'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
 PART_PROFILE_PANELS = frozenset(('profile_hair_eyebrows', 'profile_pet_whiskers'))
 SCHEMAS = {
+    'catalog-state': {'operation'},
+    'catalog-trace': {'operation','milliseconds'},
+    'catalog-layout-trace': {'operation','milliseconds'},
+    'panel-layout': {'operation','x','y','scale','locked'},
     'catalog-search': {'operation','text'},
     'catalog-companion': {'operation','action','data_id'},
     'catalog-cards': {'operation','card_scale','gap_x','gap_y'},
@@ -91,6 +95,18 @@ def wire(request, panel):
         raise ValueError('CAS control requires its complete typed fields.')
     state = panel(request['panel']) if op in PANEL_OPERATIONS else 0
     category, index, value = 0, 0, ''
+    if op in ('catalog-trace','catalog-layout-trace'):
+        return 0,0,0,str(integer(request['milliseconds'],0,30000,'diagnostic duration'))
+    if op == 'panel-layout':
+        values=[]
+        for name,low,high in (('x',-1,1),('y',-1,1),('scale',.35,1.5)):
+            n=request[name]
+            if (type(n) not in (int,float) or not math.isfinite(n) or not low<=n<=high or
+                    name in ('x','y') and n<0 and n!=-1):
+                raise ValueError('Invalid bounded panel '+name+'. Use -1 for automatic placement.')
+            values.append(format(n,'.9f').rstrip('0').rstrip('.'))
+        if type(request['locked']) is not bool:raise ValueError('Panel lock must be an explicit Boolean.')
+        return 0,0,0,','.join(values+[str(int(request['locked']))])
     if op == 'catalog-companion':
         action=request['action'];data=request['data_id']
         if action not in ('all','favorites','recent','hidden','hide-mode','toggle-favorite','toggle-hidden','random-favorite','pause','play','refresh-search','columns-reset'):
@@ -113,7 +129,7 @@ def wire(request, panel):
         return 0,0,0,''
     if op == 'catalog-cards':
         values=[]
-        for name,low,high in (('card_scale',.65,1.6),('gap_x',0,32),('gap_y',0,32)):
+        for name,low,high in (('card_scale',.2,1.6),('gap_x',0,32),('gap_y',0,32)):
             n=request[name]
             if type(n) not in (int,float) or not math.isfinite(n) or not low<=n<=high:
                 raise ValueError('Invalid bounded catalog '+name+'.')
@@ -138,7 +154,7 @@ def wire(request, panel):
             raise ValueError('Catalog slider fraction must be finite and bounded 0-1.')
         return 0,0,0,request['control']+','+format(n,'.9f').rstrip('0').rstrip('.')
     if op == 'catalog-style':
-        values=[str(integer(request['columns'],2,12,'catalog columns')),str(integer(request['color'],0,0xffffff,'selection RGB'))]
+        values=[str(integer(request['columns'],2,32,'catalog columns')),str(integer(request['color'],0,0xffffff,'selection RGB'))]
         for name,low,high in (('glow',0,12),('strength',.25,1),('period',.8,4),('border',1,8)):
             n=request[name]
             if type(n) not in (int,float) or not math.isfinite(n) or not low<=n<=high:
@@ -276,6 +292,63 @@ def validate(client, request):
     control = client.get('control')
     if not isinstance(control, dict) or control.get('operation') != op:
         raise ValueError('Native CAS control has no exact typed result.')
+    if op == 'catalog-state':
+        if control.get('appearance_written') is not False or not isinstance(control.get('workspace'), dict):
+            raise PostconditionMismatch('Catalogue state lacks its read-only workspace result.')
+        return
+    if op == 'catalog-layout-trace':
+        trace = control.get('trace')
+        phases = ('setup_ms', 'position_ms', 'bind_ms', 'resize_ms', 'total_ms')
+        def natural(value):
+            return type(value) is int and 0 <= value <= 2**31-1
+        if (control.get('appearance_written') is not False or not isinstance(trace, dict) or
+                trace.get('appearance_written') is not False or trace.get('available') is not True or
+                type(trace.get('enabled')) is not bool or type(trace.get('requested_ms')) is not int or
+                trace['requested_ms'] != request['milliseconds'] or
+                trace.get('record_limit') != 16 or type(trace.get('record_limit')) is not int or
+                not isinstance(trace.get('records'), list) or len(trace['records']) > 16 or
+                not isinstance(trace.get('aggregates'), dict) or
+                any(not natural(trace.get(key)) for key in ('generation', 'completed', 'suppressed', 'errors')) or
+                request['milliseconds'] == 0 and trace['enabled']):
+            raise PostconditionMismatch('Native layout diagnostic acknowledgement is incomplete.')
+        aggregate = trace['aggregates']
+        if (set(aggregate) != set(phases) and not (not aggregate and trace['generation'] == 0)):
+            raise PostconditionMismatch('Native layout diagnostic phases are incomplete.')
+        for row in aggregate.values():
+            if (not isinstance(row, dict) or set(row) != {'calls', 'total_ms', 'max_ms'} or
+                    any(not natural(value) for value in row.values()) or
+                    row['calls'] != trace['completed'] or row['max_ms'] > row['total_ms']):
+                raise PostconditionMismatch('Native layout diagnostic aggregate is malformed.')
+        for row in trace['records']:
+            if (not isinstance(row, dict) or set(row) != set(phases) | {'provider', 'before_count', 'after_count'} or
+                    row['provider'] not in ('62ECC59A:00000000:12272E1AC0C1F8E2', '62ECC59A:00000000:89D13757C58C2E05') or
+                    any(not natural(row[key]) for key in phases + ('before_count', 'after_count')) or
+                    any(row[key] > row['total_ms'] for key in phases)):
+                raise PostconditionMismatch('Native layout diagnostic record is malformed.')
+        if len(trace['records']) > trace['completed']:
+            raise PostconditionMismatch('Native layout diagnostic records exceed completed calls.')
+        return
+    if op == 'catalog-trace':
+        trace=control.get('trace')
+        if (control.get('appearance_written') is not False or not isinstance(trace,dict) or
+                type(trace.get('requested_ms')) is not int or trace['requested_ms']!=request['milliseconds'] or
+                type(trace.get('enabled')) is not bool or type(trace.get('callback_active')) is not bool or
+                trace['enabled']!=trace['callback_active'] or trace.get('appearance_written') is not False or
+                type(trace.get('record_limit')) is not int or not 0<=trace['record_limit']<=32 or
+                not isinstance(trace.get('records'),list) or len(trace['records'])>trace['record_limit'] or
+                not isinstance(trace.get('aggregates'),dict) or request['milliseconds']==0 and trace['enabled']):
+            raise PostconditionMismatch('Draw diagnostics lack their bounded display-only acknowledgement.')
+        return
+    if op == 'panel-layout':
+        panels=control.get('workspace',{}).get('panels')
+        if (control.get('appearance_written') is not False or not isinstance(panels,dict) or
+                panels.get('appearance_written') is not False or type(panels.get('locked')) is not bool or
+                panels['locked']!=request['locked']):
+            raise PostconditionMismatch('Panel layout lacks its acknowledged display-only result.')
+        for name in ('x','y','scale'):
+            if type(panels.get(name)) not in (int,float) or abs(panels[name]-request[name])>0.000001:
+                raise PostconditionMismatch('Panel layout did not retain '+name+'.')
+        return
     if op == 'catalog-companion':
         companion=control.get('workspace',{}).get('companion',{})
         appearance=request['action']=='random-favorite'
@@ -363,26 +436,34 @@ def validate(client, request):
                         (type(actual) not in (int,float) or abs(actual-expected)>0.000001)):
                     raise PostconditionMismatch('Catalog style did not retain '+name+'.')
         elif op=='catalog-slider':
-            thumbs=workspace.get('slider_thumbs',{})
-            actual=thumbs.get(request['control']) if isinstance(thumbs,dict) else None
-            view='layout' if request['control'] in ('card_scale','gap_x','gap_y') else 'style'
-            if (workspace.get('visible') is not True or workspace.get('view')!=view or
-                    type(actual) not in (int,float) or abs(actual-request['fraction'])>0.000001):
-                raise PostconditionMismatch('The actual catalog slider thumb did not acknowledge its requested fraction.')
             name=request['control'];n=request['fraction'];prefs=workspace.get('preferences',{})
+            view='layout' if name in ('card_scale','gap_x','gap_y') else 'style'
             if name in ('red','green','blue'):
+                low,high=0,255
+                expected=math.floor(n*255+.5)
                 color=prefs.get('color');shift={'red':16,'green':8,'blue':0}[name]
-                if type(color) is not int or (color>>shift)&255!=math.floor(n*255+.5):
+                if type(color) is not int or not 0<=color<=0xffffff or (color>>shift)&255!=expected:
                     raise PostconditionMismatch('Catalog RGB slider value did not read back.')
             else:
-                low,high={'columns':(2,12),'glow':(0,12),'border':(1,8),'period':(.8,4),'strength':(.25,1),
-                    'card_scale':(.65,1.6),'gap_x':(0,32),'gap_y':(0,32)}[name]
-                expected=low+n*(high-low)
-                if name=='columns':expected=math.floor(expected+.5)
+                low,high={'columns':(2,32),'glow':(0,12),'border':(1,8),'period':(.8,4),'strength':(.25,1),
+                    'card_scale':(.2,1.6),'gap_x':(0,32),'gap_y':(0,32)}[name]
+                expected=low+(math.floor(n*(high-low)+.5) if name=='columns' else n*(high-low))
                 actual=(workspace.get('card_preferences',{}).get('scale' if name=='card_scale' else name)
                     if name in ('card_scale','gap_x','gap_y') else prefs.get(name))
-                if type(actual) not in (int,float) or abs(actual-expected)>.000001:
+                if (type(actual) not in (int,float) or not math.isfinite(actual) or
+                        (actual!=expected if name=='columns' else abs(actual-expected)>.000001)):
                     raise PostconditionMismatch('Catalog slider value did not read back.')
+            # Released/redrawn discrete controls place the thumb at their
+            # rounded value, rather than an arbitrary input fraction. GFx
+            # quantizes DisplayObject.x to 1/20 pixel on this 300px track.
+            # Keep this geometric tolerance separate from the value check.
+            expected_fraction=(expected-low)/(high-low)
+            thumbs=workspace.get('slider_thumbs',{})
+            actual=thumbs.get(name) if isinstance(thumbs,dict) else None
+            if (workspace.get('visible') is not True or workspace.get('view')!=view or
+                    type(actual) not in (int,float) or not math.isfinite(actual) or not 0<=actual<=1 or
+                    abs(actual-expected_fraction)>(1/20)/300+1e-9):
+                raise PostconditionMismatch('The actual catalog slider thumb did not acknowledge its rounded value within one native twip.')
         elif op=='catalog-view':
             if request['view']=='category':
                 if (workspace.get('equipped_category',{}).get('active') is not True or workspace.get('error') or

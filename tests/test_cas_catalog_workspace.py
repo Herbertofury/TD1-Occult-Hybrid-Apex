@@ -14,31 +14,40 @@ class CatalogWorkspaceTests(unittest.TestCase):
         return dict(operation='catalog-style',columns=6,color=0x00c9eb,glow=0,
             animation='none',strength=1,period=1.4,border=3)
 
-    def test_columns_fit_without_scaling_native_tiles(self):
+    def test_requested_columns_fit_using_smaller_native_tiles(self):
         for width in (640,1024,1280,1920,2560,3840):
-            for requested in range(2,13):
+            for requested in range(2,33):
                 layout=viewport_layout(requested,width)
                 self.assertLessEqual(layout['columns'],requested)
-                self.assertEqual(layout['width'],262+(layout['columns']-2)*111)
-                self.assertLessEqual(layout['width'],max(262,width*.53))
+                self.assertGreaterEqual(layout['columns'],2)
+                self.assertLessEqual(layout['width'],max(80,width*.40-12)+1e-8)
+        for requested in (12,20,32):self.assertEqual(viewport_layout(requested,1278)['columns'],requested)
         self.assertEqual(viewport_layout(6,1920)['width'],706)
 
     def test_native_attachment_clamp_reserves_the_complete_catalog(self):
         for width in (640,1278,1920,2560):
-            for columns in range(2,13):
+            for columns in range(2,33):
                 x=native_catalog_clamp(columns,width,418)
                 self.assertGreaterEqual(x,0)
                 self.assertLessEqual(x+viewport_layout(columns,width)['width'],width-12)
-        self.assertEqual(native_catalog_clamp(6,1278,418),671)
+        self.assertAlmostEqual(native_catalog_clamp(6,1278,418),766.8)
 
     def test_invalid_slider_values_never_reach_transport(self):
         request=self.style()
-        for field,values in {'columns':[True,0,13,2.5],'color':[True,-1,0x1000000],
+        for field,values in {'columns':[True,0,33,2.5],'color':[True,-1,0x1000000],
                 'glow':[float('nan'),13],'period':[0,.79,4.1],
                 'border':[0,9],'strength':[False,.2,2],'animation':['strobe','unknown']}.items():
             for value in values:
                 with self.subTest(field=field,value=value),self.assertRaises(ValueError):
                     cas_ui.envelope('12',dict(request,**{field:value}))
+
+    def test_extended_column_and_card_bounds_reach_the_same_typed_contract(self):
+        for count in (2,12,20,32):
+            request=dict(self.style(),columns=count);cas_ui.envelope('12',request)
+            self.assertEqual(cas_controls.wire(request,None)[3].split(',')[0],str(count))
+        for size in (.2,.4,1,1.6):
+            request=dict(operation='catalog-cards',card_scale=size,gap_x=4,gap_y=4);cas_ui.envelope('12',request)
+            self.assertEqual(float(cas_controls.wire(request,None)[3].split(',')[0]),size)
 
     def test_acknowledgement_must_match_every_preference(self):
         request=self.style();cas_ui.envelope('12',request)
@@ -106,7 +115,7 @@ class CatalogWorkspaceTests(unittest.TestCase):
         self.assertIn('Math.max(param4,this.mWidth + 12)',made)
         self.assertIn('typeof param1.apex_view_x_offset=="number"',made)
         self.assertIn('isFinite(param1.apex_screen_x_max)',made)
-        self.assertIn('this.mWidth>=262 && this.mWidth<=LayoutAPI.StageWidth*0.53',made)
+        self.assertIn('this.mWidth>=262 && this.mWidth<=LayoutAPI.StageWidth-12',made)
         self.assertNotIn('CasSelectPlannedOutfit',made)
         self.assertTrue(made.endswith('if(_loc2_ == this.mAnimExtension.IsVisible())'))
         with self.assertRaises(ValueError):inject_plan(made)
@@ -137,7 +146,7 @@ class CatalogWorkspaceTests(unittest.TestCase):
             with self.subTest(control=name):
                 request=dict(operation='catalog-slider',control=name,fraction=.4)
                 cas_ui.envelope('12',request)
-                value={'columns':6,'color':0x666666,'glow':4.8,'border':3.8,'period':2.08,'strength':.55}
+                value={'columns':14,'color':0x666666,'glow':4.8,'border':3.8,'period':2.08,'strength':.55}
                 workspace=dict(visible=True,view='style',preferences=value,slider_thumbs={name:.4})
                 client={'control':dict(operation='catalog-slider',appearance_written=False,workspace=workspace)}
                 cas_controls.validate(client,request)
@@ -157,21 +166,24 @@ class CatalogWorkspaceTests(unittest.TestCase):
 
     def test_card_geometry_keeps_proportions_gaps_and_viewport_fit(self):
         for viewport in (640,1024,1278,1920,2560,3840):
-            for size in (.65,1,1.6):
+            for size in (.2,.4,.65,1,1.6):
                 for gap_x,gap_y in ((0,32),(32,0),(4,4),(32,32)):
-                    for columns in (2,6,12):
+                    for columns in (2,6,12,20,32):
                         made=card_layout(columns,viewport,size,gap_x,gap_y)
                         self.assertLessEqual(made['columns'],columns)
-                        self.assertLessEqual(made['width'],viewport*.53+1e-8)
+                        self.assertLessEqual(made['width'],max(80,viewport*.40-12)+1e-8)
+                        self.assertEqual(made['columns'],columns)
                         self.assertAlmostEqual(made['card_width']/made['card_height'],107/148)
-                        self.assertAlmostEqual(made['pitch_x']-made['card_width'],gap_x)
+                        self.assertAlmostEqual(made['pitch_x']-made['card_width'],made['gap_x'])
+                        self.assertLessEqual(made['gap_x'],gap_x)
+                        self.assertEqual(made['requested_gap_x'],gap_x)
                         self.assertAlmostEqual(made['pitch_y']-made['card_height'],gap_y)
         self.assertEqual(card_layout(6,1920,1,4,4)['width'],706)
 
     def test_card_commands_reject_nonfinite_bool_missing_and_foreign_fields(self):
         request=dict(operation='catalog-cards',card_scale=1,gap_x=4,gap_y=4)
         cas_ui.envelope('12',request)
-        for name,values in {'card_scale':[True,float('nan'),.64,1.61],
+        for name,values in {'card_scale':[True,float('nan'),.19,1.61],
                 'gap_x':[False,-1,33,float('inf')],'gap_y':[-1,33,float('nan')]}.items():
             for value in values:
                 with self.subTest(field=name,value=value),self.assertRaises(ValueError):
@@ -191,7 +203,7 @@ class CatalogWorkspaceTests(unittest.TestCase):
         with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
 
     def test_card_sliders_acknowledge_exact_thumb_and_independent_values(self):
-        for name,key,n in (('card_scale','scale',1.03),('gap_x','gap_x',12.8),('gap_y','gap_y',12.8)):
+        for name,key,n in (('card_scale','scale',.76),('gap_x','gap_x',12.8),('gap_y','gap_y',12.8)):
             request=dict(operation='catalog-slider',control=name,fraction=.4);cas_ui.envelope('12',request)
             workspace=dict(visible=True,view='layout',card_preferences={key:n},slider_thumbs={name:.4})
             client={'control':dict(operation='catalog-slider',appearance_written=False,workspace=workspace)}
@@ -217,13 +229,13 @@ class CatalogWorkspaceTests(unittest.TestCase):
         self.assertIn('grid.Horizontal ? 0 : 1',source)
         self.assertNotIn('columns:grid.NumLines',source)
         self.assertIn('Number(nativeCell.width)/Number(nativeCell.scaleX)',source)
-        self.assertIn('naturalWidth*scale+Number(apexCardPrefs.gap_x)',source)
+        self.assertIn('naturalWidth*scale+Number(fitted.gap_x)',source)
         self.assertIn('new flash.geom.Rectangle(base.x,base.y,naturalWidth*scale,0)',source)
         self.assertIn('CalculateCellViewHeight(cell as flash.display.DisplayObject)',source)
 
     def test_layout_resets_the_stock_recycling_cache_instead_of_preserving_nan(self):
         source=(ROOT/'Source/CASUi/catalog_cards_methods.as').read_text(encoding='utf-8')
-        self.assertIn('grid.ResetAndPositionCells()',source)
+        self.assertIn('ApexLayoutReset(grid)',source)
         self.assertNotIn('grid.PositionCells()',source)
         self.assertNotIn('ApexCatalogGridPlaced',source)
 

@@ -12,6 +12,7 @@ crate-type = ["rlib", "staticlib"]
 [features]
 default = ["cli"]
 cli = ["dep:clap", "dep:rayon", "dep:reqwest", "dep:tempfile", "dep:regex"]
+runtime-workers = ["dep:rayon"]
 
 [[bin]]
 name = "apex-catalog"

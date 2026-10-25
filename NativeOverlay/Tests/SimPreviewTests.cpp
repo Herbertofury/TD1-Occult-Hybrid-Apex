@@ -48,7 +48,9 @@ int wmain(int argc,wchar_t** argv) {
       preview::Check(device->CreateTexture2D(&td,nullptr,&originalTexture),"Original render target failed.");
       preview::Check(device->CreateRenderTargetView(originalTexture.Get(),nullptr,&originalTarget),"Original RTV failed.");
       ID3D11RenderTargetView* originalRtv=originalTarget.Get();context->OMSetRenderTargets(1,&originalRtv,nullptr);
+      const auto repeatScene=scene;
       preview::Renderer renderer;renderer.Load(device.Get(),std::move(scene));renderer.view.playing=false;
+      if(renderer.pipelineBuilds!=1 || renderer.pipelineReuses!=0)throw std::runtime_error("Initial preview pipeline accounting differs.");
       renderer.Control({{"yaw",0.2},{"playing",false},{"clip",0},{"time",0.0}});
       try{renderer.Control({{"yaw",0.8},{"distance",0.01}});throw std::runtime_error("Out-of-range view accepted.");}
       catch(const std::runtime_error&){if(renderer.view.yaw!=.2f)throw std::runtime_error("Malformed view partially applied.");}
@@ -88,6 +90,11 @@ int wmain(int argc,wchar_t** argv) {
       renderer.Control({{"fov",90},{"preset","reset"}});renderer.Control({{"preset","reset"}});
       if(renderer.view.fov!=35||renderer.view.orthographic||renderer.view.pitch!=0)throw std::runtime_error("Camera reset did not restore framing settings.");
       renderer.Pan(.2f,.1f);if(!std::isfinite(renderer.view.pan)||!std::isfinite(renderer.view.panDepth))throw std::runtime_error("Camera pan is nonfinite.");
+      renderer.Load(device.Get(),repeatScene);
+      if(renderer.pipelineBuilds!=1 || renderer.pipelineReuses!=1)throw std::runtime_error("Same-device scene change rebuilt immutable shaders.");
+      renderer.Control({{"yaw",0},{"pitch",0},{"roll",0},{"playing",false},{"clip",0},{"time",0.0},{"projection","perspective"}});
+      renderer.Render(context.Get(),640,900,0);
+      if(Capture(device.Get(),context.Get(),renderer.Target())!=first)throw std::runtime_error("Reused precompiled shader pipeline changed pixels.");
       std::cout<<ui::Json({{"ok",true},{"sim_id",renderer.scene.sim},{"form",renderer.scene.form},{"outfit_id",renderer.scene.outfit},{"meshes",renderer.scene.meshes.size()},{"clips",renderer.scene.clips.size()},{"front_sha256",first},{"animated_sha256",animated},{"rotated_sha256",rotated},{"pipeline_restored",true},{"game_contacted",false}}).dump()<<"\n";
       return 0;
     }catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}

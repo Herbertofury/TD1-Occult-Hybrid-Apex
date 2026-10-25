@@ -129,76 +129,92 @@ class SavedNamedFormsTests(SealFixture):
         self.assertEqual(self.bank_path.read_bytes(),original);self.assertEqual(self.writes,[])
         self.assertIn('match-save',self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['reason'])
 
-    def test_known_metadata_predecessor_does_not_gain_native_restore_authority(self):
-        certified=self.certify();old_source=self.identity['script_sha256'];self.identity['script_sha256']='c'*64
-        with patch.object(seal,'NAMED_METADATA_PREDECESSORS',(old_source,)):
+    def test_module_update_keeps_compatible_metadata_without_native_restore_authority(self):
+        import hashlib,io,zipfile
+        def script(module_body):
+            stream=io.BytesIO()
+            with zipfile.ZipFile(stream,'w') as archive:
+                archive.writestr('apex_core/catalog_layout.py',module_body)
+                archive.writestr('appearance-data-contract.txt',seal.CONTRACT)
+            return stream.getvalue()
+        original_script=script('columns = 12\n')
+        updated_script=script('columns = 16\n# UI-only implementation change\n')
+        old_source=hashlib.sha256(original_script).hexdigest();new_source=hashlib.sha256(updated_script).hexdigest()
+        self.assertNotEqual(old_source,new_source)
+        self.identity['script_sha256']=old_source;certified=self.certify()
+        sealed_bytes=self.path.read_bytes();save_bytes=self.slot.read_bytes()
+        self.identity['script_sha256']=new_source;self.loaded()
+        self.forms[1].physique='later legitimate Human Live edit after updated-code load'
+        with patch.object(seal,'_upgrade_receipt',side_effect=AssertionError('Metadata must not request native recovery')):
+            forms.list_forms(self.backend,self.sim)
+        record=self.record();self.assertEqual(record['lifestate_forms'],self.saved_named)
+        self.assertEqual(appearance.decode(record['bank']['1']['physique']),'later legitimate Human Live edit after updated-code load')
+        self.assertEqual(self.forms[1].physique,'later legitimate Human Live edit after updated-code load')
+        self.assertEqual(self.path.read_bytes(),sealed_bytes);self.assertEqual(self.slot.read_bytes(),save_bytes)
+        self.assertEqual(self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['metadata_source_authority'],'named-metadata-only:'+old_source)
+        with self.assertRaisesRegex(ValueError,'another source'):
+            seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
+        self.assertFalse(seal.current_runtime_bank_verified(self.backend,self.sim,record))
+        self.assertEqual(self.writes,[])
+
+    def test_arbitrary_well_formed_source_hashes_do_not_need_a_build_allowlist(self):
+        import hashlib
+        self.identity['script_sha256']=hashlib.sha256(b'previous unrelated UI implementation').hexdigest()
+        old_source=self.identity['script_sha256'];self.certify()
+        for version in range(3):
+            self.identity['script_sha256']=hashlib.sha256(('new implementation '+str(version)).encode()).hexdigest()
             self.loaded();forms.list_forms(self.backend,self.sim)
             self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
-            self.assertEqual(self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['metadata_source_authority'],
-                'named-metadata-only:'+old_source)
-            with self.assertRaisesRegex(ValueError,'another source'):
-                seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
+            self.assertEqual(self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['metadata_source_authority'],'named-metadata-only:'+old_source)
         self.assertEqual(self.writes,[])
 
-    def test_unknown_source_still_cannot_admit_saved_names_or_mutate_native_data(self):
-        self.certify();self.identity['script_sha256']='c'*64;self.loaded();original=self.bank_path.read_bytes()
-        self.assertFalse(seal.admit_saved_named(self.backend,self.sim))
-        self.assertEqual(self.bank_path.read_bytes(),original);self.assertEqual(self.writes,[])
+    def test_compatible_metadata_does_not_change_a0_native_recovery_restriction(self):
+        self.identity['script_sha256']=seal.UPGRADE_PREDECESSOR;self.certify()
+        self.identity['script_sha256']='c'*64
+        identity,profile,bank_path,key,path=seal._identity(self.backend,self.sim);row=seal._store(path)['records'][key]
+        with patch.object(seal,'_upgrade_receipt',return_value='audited-upgrade-receipt') as upgrade:
+            self.assertEqual(seal._source_authority(self.backend,identity,profile,bank_path,key,path,row),'audited-upgrade-receipt')
+        upgrade.assert_called_once()
+        with patch.object(seal,'_upgrade_receipt',side_effect=AssertionError('Metadata is not native restoration')):
+            self.assertEqual(seal._named_source_authority(self.backend,identity,profile,bank_path,key,path,row),'named-metadata-only:'+seal.UPGRADE_PREDECESSOR)
 
-    def test_audited_v192_menu_upgrade_reopens_metadata_without_native_restore_authority(self):
-        old_source='cfef084203d44910520917a2922a034bb6c996cb68bac436782460a94712b0cd'
-        self.assertIn(old_source,seal.NAMED_METADATA_PREDECESSORS)
-        self.identity['script_sha256']=old_source
-        certified=self.certify();self.identity['script_sha256']='c'*64
-        self.loaded();forms.list_forms(self.backend,self.sim)
-        self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
-        with self.assertRaisesRegex(ValueError,'another source'):
-            seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
-        self.assertEqual(self.writes,[])
+    def test_cross_source_requires_exact_contract_schema_hashes_and_immutable_seal(self):
+        self.certify();self.identity['script_sha256']='c'*64
+        original=seal._store(self.path)
+        for damage in ('contract','schema','schema-bool','document-extra','row-extra','document-hash','source-missing','source-short','source-uppercase','source-bool','seal'):
+            with self.subTest(damage=damage):
+                seals=copy.deepcopy(original);row=seals['records'][self.key]
+                if damage=='contract':row['contract_sha256']='d'*64
+                elif damage=='schema':row['named_forms']['schema']=2
+                elif damage=='schema-bool':row['named_forms']['schema']=True
+                elif damage=='document-extra':row['named_forms']['future_schema_field']='unknown meaning'
+                elif damage=='row-extra':row['named_forms']['forms']['ghost_ghost']['future']='unknown meaning'
+                elif damage=='document-hash':row['named_forms']['forms']['ghost_ghost']['fields']['physique']=appearance.encode('changed bytes without valid field digest')
+                elif damage=='source-missing':row['identity'].pop('script_sha256')
+                elif damage=='source-short':row['identity']['script_sha256']='a'*63
+                elif damage=='source-uppercase':row['identity']['script_sha256']='A'*64
+                elif damage=='source-bool':row['identity']['script_sha256']=True
+                else:row['seal_sha256']='f'*64
+                if damage!='seal':row['seal_sha256']=seal._seal_digest(row)
+                seal._write(self.path,seals);self.loaded();before=self.bank_path.read_bytes()
+                self.assertFalse(seal.admit_saved_named(self.backend,self.sim))
+                self.assertEqual(self.bank_path.read_bytes(),before);self.assertEqual(self.writes,[])
 
-    def test_audited_v198_fairy_save_reopens_metadata_without_native_restore_authority(self):
-        old_source='aa2b7e955890d44c6d0c66225777fa10cfeff68900c7650d860910e07d0a3770'
-        self.assertIn(old_source,seal.NAMED_METADATA_PREDECESSORS)
-        self.identity['script_sha256']=old_source
-        certified=self.certify();self.identity['script_sha256']='c'*64
-        self.loaded();forms.list_forms(self.backend,self.sim)
-        self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
-        self.assertEqual(self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['metadata_source_authority'],
-            'named-metadata-only:'+old_source)
-
-        with self.assertRaisesRegex(ValueError,'another source'):
-            seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
-        self.assertEqual(self.writes,[])
-
-    def test_v261_edited_household_save_reopens_after_code_upgrade_without_native_restore(self):
-        old_source='30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4'
-        self.assertIn(old_source,seal.NAMED_METADATA_PREDECESSORS)
-        self.identity['script_sha256']=old_source
-        certified=self.certify();self.identity['script_sha256']='c'*64
-        sealed_bytes=self.path.read_bytes()
-        self.loaded();forms.list_forms(self.backend,self.sim)
-        self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
-        self.assertEqual(self.path.read_bytes(),sealed_bytes)
-        self.assertEqual(self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['metadata_source_authority'],
-            'named-metadata-only:'+old_source)
-        with self.assertRaisesRegex(ValueError,'another source'):
-            seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
-        self.assertEqual(self.writes,[])
-
-    def test_v295_edited_household_save_admits_only_saved_metadata_after_upgrade(self):
-        old_source='1eb9997146db3e2426e0acc4f847fc729f732baaf3ec1bc1f2f26dec68e39fbe'
-        self.assertIn(old_source,seal.NAMED_METADATA_PREDECESSORS)
-        self.identity['script_sha256']=old_source
-        certified=self.certify();self.identity['script_sha256']='c'*64
-        sealed_bytes=self.path.read_bytes()
-        self.loaded();forms.list_forms(self.backend,self.sim)
-        self.assertEqual(self.record()['lifestate_forms'],self.saved_named)
-        self.assertEqual(self.path.read_bytes(),sealed_bytes)
-        self.assertEqual(self.backend._APEX_NAMED_LOAD_DIAGNOSTICS[str(self.sim.id)]['metadata_source_authority'],
-            'named-metadata-only:'+old_source)
-        with self.assertRaisesRegex(ValueError,'another source'):
-            seal.reconcile(self.backend,self.sim,dict(seal_sha256=certified['seal_sha256']))
-        self.assertEqual(self.writes,[])
+    def test_cross_source_file_slot_identity_native_loss_or_unproved_live_edit_stays_retained(self):
+        self.certify();self.identity['script_sha256']='c'*64;self.loaded()
+        original_slot=self.slot.read_bytes();original_live=self.live
+        for damage in ('file','slot','household','native-loss','later-live-without-load-proof'):
+            with self.subTest(damage=damage):
+                self.slot.write_bytes(original_slot);self.live=original_live
+                self.forms[1].physique='independent-1';seal._LOADED.clear();seal.note_loaded(self.tracker)
+                if damage=='file':self.slot.write_bytes(b'newer actual saved file')
+                elif damage=='slot':self.live=lambda:dict(original_live(),save_slot=3)
+                elif damage=='household':self.live=lambda:dict(original_live(),household_id='1234')
+                elif damage=='native-loss':
+                    self.forms[1].physique='native diverged';seal._LOADED[self.key]['native']['stored']['1']['fields']['physique']=appearance.encode('same unproved divergence')
+                else:self.forms[1].physique='newer Live edit';seal._LOADED.clear()
+                before=self.bank_path.read_bytes();self.assertFalse(seal.admit_saved_named(self.backend,self.sim))
+                self.assertEqual(self.bank_path.read_bytes(),before);self.assertEqual(self.writes,[])
 
     def test_same_process_save_reload_uses_the_saved_names_and_not_the_unsaved_old_tracker(self):
         self.certify()

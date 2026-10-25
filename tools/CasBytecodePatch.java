@@ -230,8 +230,21 @@ public class CasBytecodePatch {
                 "Grid identity read must use its exact fresh native read arguments.");freshReads++;
         }
         require(freshReads==2,"Grid identity observation must contain exactly the selected Sim/outfit read pair.");
-        uniqueLiteral(abc,observe,"STATE|");
+        uniqueLiteral(abc,observe,"GRIDSTATE|");
         require(propertyCalls(abc,observe).containsAll(Set.of("CallGameService","ApexOwnerSimRow","ApexNativeExchange")),"Grid frame lacks fresh selected Sim/outfit observation.");
+        var visualObserve=ownedBody(abc,instance,"ApexCatalogGridFrameObserve");
+        uniqueLiteral(abc,visualObserve,"GRIDSTATE|");uniqueLiteral(abc,visualObserve,"CasGetCurrSimOutfitSlot");
+        int visualReads=0;var visualOps=visualObserve.getCode().code;
+        for(int i=0;i<visualOps.size();i++) {
+            require(!stringLiteral(abc,visualOps.get(i),"CASGetSimInfo"),"Visual work requests the complete Sim-info object.");
+            if(property(abc,visualOps.get(i),0x46,"CallGameService") || property(abc,visualOps.get(i),0x4f,"CallGameService")) {
+                require(i>=3 && visualOps.get(i).operands[1]==3 && opcode(visualOps.get(i-1),0x26) &&
+                    opcode(visualOps.get(i-2),0x20) && stringLiteral(abc,visualOps.get(i-3),"CasGetCurrSimOutfitSlot"),
+                    "Visual frame must retain its exact fresh outfit getter.");visualReads++;
+            }
+        }
+        require(visualReads==1 && propertyCalls(abc,visualObserve).containsAll(Set.of("ApexCatalogGridLeaseCurrent","ApexNativeExchange")),
+            "Visual frame lacks fresh exact native context/outfit validation.");
         var incremental=ownedBody(abc,instance,"ApexCardIncrementalApply");
         require(Collections.disjoint(propertyCalls(abc,incremental),Set.of("ResetAndPositionCells","PositionCells",
             "ApexLayoutReset","ApexCardScaleCells","ApexCardRowsAligned","GetAllDisplayObjectCells","CallGameService","ApexNativeExchange")),
@@ -239,7 +252,7 @@ public class CasBytecodePatch {
         require(propertyCalls(abc,ownedBody(abc,instance,"ApexCardApply")).containsAll(Set.of("ApexCatalogGridOwns","ApexCardIncrementalApply")),
             "The armed grid does not bypass legacy full-pool geometry.");
         var frame=ownedBody(abc,instance,"ApexCatalogGridFrame");
-        require(propertyCalls(abc,frame).containsAll(Set.of("ApexCatalogGridObserve","ApexGridBegin","ApexGridStep","getTimer")),
+        require(propertyCalls(abc,frame).containsAll(Set.of("ApexCatalogGridObserve","ApexCatalogGridFrameObserve","ApexGridBegin","ApexGridStep","getTimer")),
             "Grid scheduler lacks owned observation or bounded native stepping.");
         boolean budget=false;var ops=frame.getCode().code;
         for(int i=0;i<ops.size();i++)if(property(abc,ops.get(i),0x46,"ApexGridStep") || property(abc,ops.get(i),0x4f,"ApexGridStep")) {
@@ -2052,8 +2065,9 @@ public class CasBytecodePatch {
         require(constructs==1,"Search must dispatch one real native event before remapping a popup's numeric feed index.");
     }
     static void verifyLayoutTraceHelper(ABC abc,InstanceInfo instance) {
-        var routes=Map.of("ApexLayoutTraceConfigure",Set.of("ApexLayoutTraceDispose","ApexLayoutTraceStatus","ApexCatalogTraceDispose","getTimer"),
-            "ApexLayoutTraceDispose",Set.<String>of(),"ApexLayoutTraceStatus",Set.of("getTimer","max","ApexLayoutTraceDispose"),
+        var routes=Map.of("ApexLayoutTraceConfigure",Set.of("ApexLayoutTraceDispose","ApexLayoutTraceStatus","ApexCatalogTraceDispose","getTimer","ApexImageBoundaryProbe"),
+            "ApexLayoutTraceDispose",Set.of("ApexImageBoundaryProbe"),"ApexLayoutTraceStatus",Set.of("getTimer","max","ApexLayoutTraceDispose","ApexImageBoundaryProbe"),
+            "ApexImageBoundaryProbe",Set.of("min","GetAllDisplayObjectCells"),
             "ApexLayoutReset",Set.of("ResetAndPositionCells","getTimer","max","ApexLayoutTraceDispose","ApexProfileResetAndPositionCells","ApexGridProviderIdentity","push"));
         for(var entry:routes.entrySet()) {
             var body=ownedBody(abc,instance,entry.getKey());
@@ -2067,6 +2081,25 @@ public class CasBytecodePatch {
                     "Layout diagnostic clock is not the actual Flash utility function.");
             }
         }
+        var imageOps=ownedBody(abc,instance,"ApexImageBoundaryProbe").getCode().code;
+        int statsCalls=0,enableCalls=0;
+        for(int i=0;i<imageOps.size();i++)if(opcode(imageOps.get(i),0x41)) {
+            var op=imageOps.get(i);
+            if(op.operands[0]==0) {
+                require(i>=5 && stringLiteral(abc,imageOps.get(i-3),"ApexImageTraceStats") &&
+                    opcode(imageOps.get(i-2),0x66) && opcode(imageOps.get(i-1),0xd3) &&
+                    opcode(imageOps.get(i-4),0xd7) && opcode(imageOps.get(i-5),0x2a),
+                    "Image stats callback is not the exact actual-image method/receiver.");statsCalls++;
+            } else {
+                require(op.operands[0]==1 && i>=7 && stringLiteral(abc,imageOps.get(i-5),"ApexImageTraceEnable") &&
+                    opcode(imageOps.get(i-4),0x66) && opcode(imageOps.get(i-3),0xd3) &&
+                    opcode(imageOps.get(i-2),0x65) && imageOps.get(i-2).operands[0]==1 &&
+                    opcode(imageOps.get(i-1),0x6c) && imageOps.get(i-1).operands[0]==1 &&
+                    opcode(imageOps.get(i-6),0xd7) && opcode(imageOps.get(i-7),0x2a),
+                    "Image enable callback substitutes its target, receiver or bounded budget.");enableCalls++;
+            }
+        }
+        require(statsCalls==1 && enableCalls==1,"Image probe must invoke only its two explicit actual-image methods.");
         var reset=ownedBody(abc,instance,"ApexLayoutReset");
         int nativeCalls=0,profileCalls=0,providers=0;boolean earlyReturn=false,enabled=false,clock=false;
         for(var op:reset.getCode().code) {
@@ -2514,7 +2547,7 @@ public class CasBytecodePatch {
             "apexEquippedPublication",
               "apexKeyStage","apexKeyIntent","apexKeyIndex","apexKeyFeed","apexKeyContext","apexKeyFocus","apexKeyMessage","apexKeyBounds","apexKeyItem","apexKeyQueue","apexKeyReceipt","apexKeyInjecting","apexKeyReceived","apexKeyLastCode","apexKeyRejected",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
-        Set<String> ownedNames = Set.of("ApexCatalogGridPermit","ApexCatalogGridBootstrap","ApexCatalogGridInitialize","ApexCatalogGridPrepare","ApexCatalogGridLeaseCurrent","ApexCatalogGridValidate","ApexCatalogGridObserve","ApexCatalogGridMatches","ApexCatalogGridInput","ApexCatalogGridRequest","ApexCatalogGridFrame","ApexCatalogGridInvalidate","ApexCatalogGridChanged","ApexCatalogGridOwns","ApexCatalogGridPending","ApexCatalogGridStatus","ApexCatalogGridDispose","ApexLayoutTraceConfigure","ApexLayoutTraceDispose","ApexLayoutTraceStatus","ApexLayoutReset","ApexCatalogTraceConfigure","ApexCatalogTraceStatus","ApexCatalogTraceDispose","ApexCatalogTraceStep","ApexPanelsConsumerCancel","ApexPanelsCapture","ApexPanelsAction","ApexPanelConsumer","ApexPanelPersistGate","ApexPanelsConsume","ApexPanelsTooltip","ApexPanelsPreview","ApexColumnsInitialize","ApexColumnsTakeover","ApexColumnsSave","ApexColumnsSet","ApexColumnsScale","ApexColumnsScaleEnd","ApexColumnsResize","ApexColumnsResizeEnd","ApexColumnsDown","ApexColumnsMove","ApexColumnsUp","ApexColumnsFrame","ApexColumnsDispose","ApexPanelsInitialize","ApexPanelsDrawer","ApexPanelsChanged","ApexPanelsButton","ApexPanelsAdopt","ApexPanelsApply","ApexPanelsDragStart","ApexPanelsDragMove","ApexPanelsDragEnd","ApexPanelsScale","ApexPanelsWheel","ApexPanelsClick","ApexPanelsFrame","ApexPanelRefreshGate","ApexPanelsContext","ApexPanelsStamp","ApexPanelsWork","ApexPanelsCommand","ApexPanelsStatus","ApexPanelsDispose","ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
+        Set<String> ownedNames = Set.of("ApexCatalogGridPermit","ApexCatalogGridBootstrap","ApexCatalogGridInitialize","ApexCatalogGridPrepare","ApexCatalogGridLeaseCurrent","ApexCatalogGridValidate","ApexCatalogGridObserve","ApexCatalogGridFrameObserve","ApexCatalogGridMatches","ApexCatalogGridInput","ApexCatalogGridRequest","ApexCatalogGridFrame","ApexCatalogGridInvalidate","ApexCatalogGridChanged","ApexCatalogGridOwns","ApexCatalogGridPending","ApexCatalogGridStatus","ApexCatalogGridDispose","ApexImageBoundaryProbe","ApexLayoutTraceConfigure","ApexLayoutTraceDispose","ApexLayoutTraceStatus","ApexLayoutReset","ApexCatalogTraceConfigure","ApexCatalogTraceStatus","ApexCatalogTraceDispose","ApexCatalogTraceStep","ApexPanelsConsumerCancel","ApexPanelsCapture","ApexPanelsAction","ApexPanelConsumer","ApexPanelPersistGate","ApexPanelsConsume","ApexPanelsTooltip","ApexPanelsPreview","ApexColumnsInitialize","ApexColumnsTakeover","ApexColumnsSave","ApexColumnsSet","ApexColumnsScale","ApexColumnsScaleEnd","ApexColumnsResize","ApexColumnsResizeEnd","ApexColumnsDown","ApexColumnsMove","ApexColumnsUp","ApexColumnsFrame","ApexColumnsDispose","ApexPanelsInitialize","ApexPanelsDrawer","ApexPanelsChanged","ApexPanelsButton","ApexPanelsAdopt","ApexPanelsApply","ApexPanelsDragStart","ApexPanelsDragMove","ApexPanelsDragEnd","ApexPanelsScale","ApexPanelsWheel","ApexPanelsClick","ApexPanelsFrame","ApexPanelRefreshGate","ApexPanelsContext","ApexPanelsStamp","ApexPanelsWork","ApexPanelsCommand","ApexPanelsStatus","ApexPanelsDispose","ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame","ApexFormsConsumeCatalog","ApexFormsTryLocalCatalog",
             "ApexPresentationReady", "ApexPresentationStop", "ApexPresentationSchedule", "ApexPresentationFrame", "ApexPresentationNotify", "ApexPresentationPrime",

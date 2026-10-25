@@ -34,9 +34,9 @@ _LOADED = {}
 # Source provenance remains retained. This grants metadata admission only;
 # native recovery keeps its separate exact-source/A0 upgrade requirements.
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-24-native-button-domain-v332'
+UPGRADE_EPOCH = '2026-10-25-display-owner-phases-v337'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'd92ee2bf3932cac6ddfaf05610c88e7f9ada5a1f9f52b44339f6851e3eec4b7f'
+UPGRADE_SELF_BODY_SHA = '1c77b7e7c75ce6e4761447195045ac0feed224939c41aff8601421cea6e7f0db'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
@@ -91,6 +91,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/occult_icons.py': '8d2cf390a254bba09d98928da9863f3980782bc4429786c3b0f2781ae4e76589',
     'apex_core/outfit_hair.py': 'f96b905caa86c118579590f942abe8d5ce665e07ed84db8d311fddcdb39243c4',
     'apex_core/outfit_snapshot.py': 'd6f60b352643961d200406aff95b3a850aa018f7538e4b75f883768bbaeb9d42',
+    'apex_core/overlay_display_status.py': '93dd093f3eb48a4c84a2dbb8fcef6ac67227f3f1760e248ef4ebc2edba80f1b6',
     'apex_core/overlay_loader.py': '21ba456e3c6f26817ff224e40a26b099cca10f4baaba60ed0649c2d1f9ece1a1',
     'apex_core/phone_cas.py': 'd230422880c601c7549152330835f7c3b4445ef4c280fbcad7abbeed228e4fc3',
     'apex_core/phone_interactions.py': '05778ddb4e9e764ee4899cca39e5143bf3a4bd7d3bf61d4890c3e0466b72f025',
@@ -102,7 +103,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
     'apex_core/test_driver.py': '811c73e9309279ecd79cfd4d7ae884aecf3a32081f3135f533bc0b938a471b37',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
-    'td1_occult_hybrid_apex.py': '9e9a47ce5e8c58942aab3fbf2f3f7c7caf83bd64d94c2de700b28f3b16284bbf',
+    'td1_occult_hybrid_apex.py': '84bae70d7637ce9e63c9242cb2fc37e88547a9e8cb81aa75fdf4bcd71ba3326c',
 }
 _SEAL_FIELDS = ('intent_id', 'identity', 'contract_sha256', 'target',
                 'bank_record_sha256', 'appearances', 'file_sha256')

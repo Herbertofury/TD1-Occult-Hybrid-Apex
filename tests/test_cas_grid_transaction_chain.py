@@ -14,6 +14,9 @@ sys.path.insert(0, str(ROOT / 'tools'))
 import cas_grid_transaction
 import cas_communication_index
 import cas_communication_domain_probe
+import cas_communication_removal_miss
+import cas_image_boundary_profile
+import cas_grid_pool
 import cas_ui_build
 import dbpf_build
 import maru_companion
@@ -98,7 +101,7 @@ class TransactionProviderChainTests(unittest.TestCase):
             with self.subTest(provider=name, changed_bytes=True), self.assertRaises(ValueError):
                 verify(proof, raw + b'changed')
 
-    def test_actual_nested_build_seam_chains_profile_transaction_and_communication_for_both_providers(self):
+    def test_actual_nested_grid_builder_seam_chains_all_frozen_stages(self):
         tree = ast.parse(Path(cas_ui_build.__file__).read_text())
         method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
                       and node.name == 'adapt_grid_provider')
@@ -108,7 +111,19 @@ class TransactionProviderChainTests(unittest.TestCase):
             communication_bytes = (stage / 'final.swf').read_bytes()
             domain_stage = ROOT / ('.work/v332-domain-probe-' + name)
             domain = json.loads((domain_stage / 'chained.json').read_text())
-            final = (domain_stage / 'final.swf').read_bytes()
+            domain_bytes = (domain_stage / 'final.swf').read_bytes()
+            removal_stage = ROOT / ('.work/v333-removal-miss-' + name)
+            removal = json.loads((removal_stage / 'chained.json').read_text())
+            removal_bytes = (removal_stage / 'final.swf').read_bytes()
+            image_stage = ROOT / ('.work/v334-image-profile-' + name)
+            image = json.loads((image_stage / 'chained.json').read_text())
+            image_bytes = (image_stage / 'final.swf').read_bytes()
+            pool_stage = ROOT / ('.work/v335-grid-pool-' + name)
+            pooled = json.loads((pool_stage / 'chained.json').read_text())
+            final = (pool_stage / 'final.swf').read_bytes()
+            self.assertEqual(pooled['previous_stage_adapter'], image)
+            self.assertEqual(image['previous_stage_adapter'], removal)
+            self.assertEqual(removal['previous_stage_adapter'], domain)
             self.assertEqual(domain['previous_stage_adapter'], communication)
             self.assertEqual(communication['retained_transaction_adapter'], transaction)
             baseline = (ROOT / '.work/v328-grid-perf-native' / (name + '-profile.swf')).read_bytes()
@@ -134,18 +149,36 @@ class TransactionProviderChainTests(unittest.TestCase):
                 def adapt_domain(*args):
                     order.append('domain')
                     self.assertEqual(Path(args[0]).read_bytes(), communication_bytes)
-                    return abc(final), domain['communication_domain_probe_contract']
+                    return abc(domain_bytes), domain['communication_domain_probe_contract']
+                def adapt_removal(*args):
+                    order.append('removal')
+                    self.assertEqual(Path(args[0]).read_bytes(), original.read_bytes())
+                    self.assertEqual(Path(args[1]).read_bytes(), domain_bytes)
+                    return abc(removal_bytes), removal['communication_removal_miss_contract']
+                def adapt_image(*args):
+                    order.append('image')
+                    self.assertEqual(Path(args[0]).read_bytes(), original.read_bytes())
+                    self.assertEqual(Path(args[1]).read_bytes(), removal_bytes)
+                    return abc(image_bytes), image['image_boundary_profile_contract']
+                def adapt_pool(*args):
+                    order.append('pool')
+                    self.assertEqual(Path(args[0]).read_bytes(), original.read_bytes())
+                    self.assertEqual(Path(args[1]).read_bytes(), image_bytes)
+                    return abc(final), pooled['grid_pool_contract']
                 namespace = vars(cas_ui_build).copy()
                 namespace.update(work=work, ffdec=ROOT / '.work/research/ffdec/ffdec-cli.exe',
                                  java_classes=work, run=run)
                 exec(compile(ast.Module(body=[method], type_ignores=[]), '<actual-provider-seam>', 'exec'), namespace)
                 with patch.object(cas_grid_transaction, 'adapt', side_effect=adapt_transaction), \
                      patch.object(cas_communication_index, 'adapt', side_effect=adapt_communication), \
-                     patch.object(cas_communication_domain_probe, 'adapt', side_effect=adapt_domain):
+                     patch.object(cas_communication_domain_probe, 'adapt', side_effect=adapt_domain), \
+                     patch.object(cas_communication_removal_miss, 'adapt', side_effect=adapt_removal), \
+                     patch.object(cas_image_boundary_profile, 'adapt', side_effect=adapt_image), \
+                     patch.object(cas_grid_pool, 'adapt', side_effect=adapt_pool):
                     data, chained = namespace['adapt_grid_provider'](original, transaction['base_resource_sha256'], name + '.abc')
-                self.assertEqual(order, ['getter-profile', 'transaction', 'communication', 'domain'])
+                self.assertEqual(order, ['getter-profile', 'transaction', 'communication', 'domain', 'removal', 'image', 'pool'])
                 self.assertEqual(data, final)
-                self.assertEqual(chained, domain)
+                self.assertEqual(chained, pooled)
                 verify = maru_companion.verify_canonical_grid_adapter if name == 'canonical' else maru_companion.verify_grid_adapter
                 self.assertTrue(verify(chained, data))
                 with self.assertRaisesRegex(ValueError, 'authenticated native resource'):

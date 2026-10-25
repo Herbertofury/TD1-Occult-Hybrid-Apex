@@ -1652,6 +1652,29 @@ inline std::string FastOwnerState(State& state,std::uint64_t channel) {
     return "VIEWSTATE|"+std::to_string(id)+"|"+cursor.owner+"|"+std::to_string(cursor.kind)+"|"+
         std::to_string(layer)+"|bound|"+std::to_string(cursor.generation);
 }
+inline std::string GridOwnerState(State& state,std::uint64_t channel) {
+    // Read fresh native selection primitives for visual work without exporting
+    // a full Sim-info object. This path has no synchronization/serialization
+    // calls. Complete edit/input identity and bind/save fences remain separate.
+    const auto owner=FastOwnerState(state,channel);
+    if(owner.rfind("VIEWSTATE|",0)!=0)return owner;
+    const auto controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
+    const auto group=Read<void*>(controller,0x100);const auto id=Read<std::uint64_t>(group,0xb8);
+    const auto& bank=state.bank.at(id);const auto cursor=bank.graph->cursor();
+    const auto layer=Read<std::uint8_t>(controller,0x242);
+    const auto view=layer?Read<void*>(group,0x4c0):group;
+    const auto model=Read<void*>(controller,0x1d0);
+    // The original GetSimInfo serializer reads the selected physical Sim's
+    // household. Controller+0xb0 is a separate editor/save household authority.
+    const auto household=Read<std::uint64_t>(view,0x640);
+    const auto viewMask=Read<std::uint32_t>(view,0xdc),modelMask=Read<std::uint32_t>(model,0x17c);
+    if(!household || !bank.editorImported || !bank.importedEntity || GroupId(group)!=bank.importedEntity ||
+       !bank.boundContext || Read<void*>(model,0x510)!=bank.boundContext ||
+       viewMask!=bank.mask || modelMask!=bank.mask || state.scope.members.at(id).mask!=bank.mask)return "WAIT";
+    return "GRIDSTATE|"+std::to_string(id)+"|"+std::to_string(household)+"|"+cursor.owner+"|"+
+        std::to_string(cursor.kind)+"|"+std::to_string(layer)+"|"+std::to_string(viewMask)+"|"+
+        std::to_string(modelMask)+"|"+std::to_string(cursor.generation);
+}
 inline Imported& PairBank(State& state,std::uint64_t channel,void*& controller) {
     if(FastOwnerState(state,channel).rfind("VIEWSTATE|",0)!=0)throw std::runtime_error("Pair controls lack an exact bound native model.");
     controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
@@ -1859,6 +1882,7 @@ inline bool GetOccultService(const void* arguments) {
                 }
             }
         } else if(action=="STATE"&&end==std::string::npos)response=FastOwnerState(state,number);
+        else if(action=="GRIDSTATE"&&end==std::string::npos)response=GridOwnerState(state,number);
         else if(action=="UIREQUEST"&&end==std::string::npos) {
             void* controller=nullptr;auto& bank=PairBank(state,number,controller);
             if(bank.preparedMenu.pages.empty()||state.localUiRequestSerial==UINT32_MAX)

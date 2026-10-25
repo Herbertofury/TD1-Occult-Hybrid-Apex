@@ -4656,6 +4656,11 @@ def _handle_http_client(conn):
             payload = _overlay_state_payload(query)
             conn.sendall(_http_payload(payload))
             return
+        if path == '/api/overlay/display':
+            # Periodic native display refresh has its own metadata-only owner
+            # action.  The legacy state/audit/library endpoints stay explicit.
+            conn.sendall(_http_payload(_overlay_display_payload(query)))
+            return
         if path == '/api/overlay/capabilities':
             payload = {'ok': True, 'message': 'Overlay capabilities ready', 'data': _overlay_capabilities()}
             conn.sendall(_http_payload(payload))
@@ -8431,10 +8436,38 @@ def _apex_cas_transaction_argument(value):
     return result
 
 
+def _overlay_display_payload(query=None):
+    query = query or {}
+    try:
+        if not isinstance(query, dict) or set(query) - {'count', 'sim_id'}:
+            raise ValueError('Overlay display accepts only a selected Sim and bounded log count.')
+        raw_count = query.get('count', '220')
+        if type(raw_count) not in (str, int):
+            raise ValueError('Overlay display log count must be an integer.')
+        count = int(raw_count)
+        if not 0 <= count <= 260:
+            raise ValueError('Overlay display log count must be from zero to 260.')
+        return _submit_action('overlay_display_status', sim_id=query.get('sim_id', ''),
+                              value=json.dumps({'count': count}), wait_seconds=2.5)
+    except (TypeError, ValueError) as error:
+        return {'ok': False, 'message': str(error), 'display_metadata_only': True,
+                'appearance_read': False, 'appearance_written': False}
+
+
 def run_action(action, sim_id=None, occult=None, value=None):
     action = (action or 'status').strip().lower()
     if services is None or threading.current_thread().ident != _APEX_GAME_THREAD_IDENT:
         return {'ok': False, 'message': 'Sim inspection and mutation require the canonical Sims game-thread owner.'}
+    if action == 'overlay_display_status':
+        from apex_core.overlay_display_status import dispatch
+        import sys
+        try:
+            if occult not in (None, ''):
+                raise ValueError('Overlay display metadata accepts no occult mutation target.')
+            return dispatch(sys.modules[__name__], sim_id, value)
+        except Exception as exc:
+            return {'ok': False, 'message': str(exc), 'display_metadata_only': True,
+                    'appearance_read': False, 'appearance_written': False}
     if action == 'catalog_actor_roster':
         from apex_core.catalog_usage import roster
         import sys
@@ -8653,7 +8686,8 @@ def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.
         return {'ok': False, 'state': 'rejected', 'message': 'Invalid command request identity.'}
     if not _ALARM_READY and not (_APEX_CORE_TICK_READY and safe_action in (
             'test_quit', 'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start',
-            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack', 'catalog_actor_roster')):
+            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack', 'catalog_actor_roster',
+            'overlay_display_status')):
         return {'ok': False, 'state': 'rejected', 'message':
                 'Game-thread bridge is not ready. Load a disposable household or run apex.bridge.start from the game console.',
                 'bootstrap_status': _APEX_BOOTSTRAP_STATUS}

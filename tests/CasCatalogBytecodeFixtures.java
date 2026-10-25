@@ -69,9 +69,9 @@ public class CasCatalogBytecodeFixtures {
             }
             CasBytecodePatch.require(member>0,"Native position fixture binding missing.");boolean changed=false;
             for(var op:CasBytecodePatch.ownedBody(abc,instance,"ApexCardApply").getCode().code)
-                if(CasBytecodePatch.property(abc,op,0x4f,"ResetAndPositionCells") ||
-                   CasBytecodePatch.property(abc,op,0x46,"ResetAndPositionCells")) {op.operands[0]=member;changed=true;}
-            CasBytecodePatch.require(changed,"Fixture did not remove stock cache reset.");
+                if(CasBytecodePatch.property(abc,op,0x4f,"ApexLayoutReset") ||
+                   CasBytecodePatch.property(abc,op,0x46,"ApexLayoutReset")) {op.operands[0]=member;changed=true;}
+            CasBytecodePatch.require(changed,"Fixture did not replace the current owned reset route with an incorrect position-only call.");
         } else if(mode.equals("missing-native-margin")) {
             int member=-1;
             for(var trait:instance.instance_traits.traits)

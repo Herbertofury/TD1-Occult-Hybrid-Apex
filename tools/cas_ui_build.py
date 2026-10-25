@@ -38,6 +38,12 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'tools/CasCommunicationIndexPatch.java', 'tools/cas_communication_index.py',
                   'tools/CasCommunicationDependencyPatch.java', 'tools/cas_communication_dependency.py',
                   'tools/CasCommunicationDomainProbePatch.java', 'tools/cas_communication_domain_probe.py',
+                  'tools/CasCommunicationRemovalMissPatch.java', 'tools/cas_communication_removal_miss.py',
+                  'tools/CasImageBoundaryProfilePatch.java', 'tools/cas_image_boundary_profile.py',
+                  'tools/CasCellAttachPatch.java', 'tools/cas_cell_attach.py',
+                  'tools/CasGridPoolPatch.java', 'tools/cas_grid_pool.py',
+                  'tools/CasCatalogBindingPatch.java', 'tools/cas_catalog_binding.py',
+                  'tools/CasDrawPhasePatch.java', 'tools/cas_draw_phase.py',
                   'Source/CASUi/form_strip_methods.as',
                   'Source/CASUi/pair_controls_methods.as',
                   'Source/CASUi/catalog_workspace_methods.as',
@@ -349,6 +355,9 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     payload = replace_payload(original, native_tag[:boundary] + retained.read_bytes())
     structural_roles_contract = None
     draw_fast_path_contract = None
+    cell_attach_contract = None
+    catalog_binding_contract = None
+    draw_phase_contract = None
     if companion is not None:
         import cas_structural_roles
         role_abc, role_proof = cas_structural_roles.adapt(input_swf, payload,
@@ -361,6 +370,22 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         payload = replace_payload(payload, native_tag[:boundary] + draw_abc)
         draw_fast_path_contract = cas_draw_fast_path.chain_contract(contract, structural_roles_contract,
             draw_proof, payload)
+        import cas_cell_attach
+        attach_abc, attach_proof = cas_cell_attach.adapt(input_swf, contract, structural_roles_contract,
+            draw_fast_path_contract, payload, Path(ffdec).with_name('ffdec.jar'), work / 'cell-attach')
+        payload = replace_payload(payload, native_tag[:boundary] + attach_abc)
+        cell_attach_contract = cas_cell_attach.chain_contract(contract, structural_roles_contract,
+            draw_fast_path_contract, attach_proof, payload)
+        import cas_catalog_binding
+        payload, binding_proof = cas_catalog_binding.adapt(cell_attach_contract, payload,
+            decompiled, ffdec, work / 'catalog-binding')
+        catalog_binding_contract = cas_catalog_binding.chain_contract(cell_attach_contract,
+            binding_proof, payload)
+        import cas_draw_phase
+        payload, phase_proof = cas_draw_phase.adapt(catalog_binding_contract, payload,
+            decompiled, ffdec, work / 'draw-phases')
+        draw_phase_contract = cas_draw_phase.chain_contract(catalog_binding_contract,
+            phase_proof, payload)
     selector_source = work / 'ApexCASSelectorMain.as'
     selector_source.write_text(inject_selector(selector_decompiled.read_text(encoding='utf-8'),
         (ROOT / 'Source/CASUi/selector_methods.as').read_text(encoding='utf-8')), encoding='utf-8')
@@ -508,6 +533,27 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
             ffdec, work / (Path(output_name).stem + '-domain'))
         grid_payload = replace_payload(grid_payload, grid_tag[:grid_boundary] + domain_abc)
         adapter = cas_communication_domain_probe.chain_adapter(adapter, domain_contract, grid_payload)
+        import cas_communication_removal_miss
+        removal_baseline = work / (Path(output_name).stem + '-removal-baseline.swf')
+        removal_baseline.write_bytes(grid_payload)
+        removal_abc, removal_contract = cas_communication_removal_miss.adapt(grid_swf, removal_baseline,
+            ffdec, work / (Path(output_name).stem + '-removal'))
+        grid_payload = replace_payload(grid_payload, grid_tag[:grid_boundary] + removal_abc)
+        adapter = cas_communication_removal_miss.chain_adapter(adapter, removal_contract, grid_payload)
+        import cas_image_boundary_profile
+        image_baseline = work / (Path(output_name).stem + '-image-baseline.swf')
+        image_baseline.write_bytes(grid_payload)
+        image_abc, image_contract = cas_image_boundary_profile.adapt(grid_swf, image_baseline,
+            ffdec, work / (Path(output_name).stem + '-image'))
+        grid_payload = replace_payload(grid_payload, grid_tag[:grid_boundary] + image_abc)
+        adapter = cas_image_boundary_profile.chain_adapter(adapter, image_contract, grid_payload)
+        import cas_grid_pool
+        pool_baseline = work / (Path(output_name).stem + '-pool-baseline.swf')
+        pool_baseline.write_bytes(grid_payload)
+        pool_abc, pool_contract = cas_grid_pool.adapt(grid_swf, pool_baseline,
+            ffdec, work / (Path(output_name).stem + '-pool'))
+        grid_payload = replace_payload(grid_payload, grid_tag[:grid_boundary] + pool_abc)
+        adapter = cas_grid_pool.chain_adapter(adapter, pool_contract, grid_payload)
         return grid_payload, adapter
     canonical_grid_payload, canonical_grid_adapter = adapt_grid_provider(work / 'ClassLibraryGamedata.swf',
         maru_companion.CANONICAL_GRID_LIBRARY_SHA256, 'apex-cas-canonical-grid-getter-retained.abc')
@@ -538,8 +584,22 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     domain_abc, domain_contract = cas_communication_domain_probe.adapt(dependency_baseline,
         ffdec, work / 'dependency-domain')
     dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + domain_abc)
-    dependencies = {dbpf_build.tgi(CLEANUP_KEY): cas_communication_domain_probe.chain_adapter(
-        dependency_adapter, domain_contract, dependency_payload)}
+    dependency_adapter = cas_communication_domain_probe.chain_adapter(dependency_adapter, domain_contract, dependency_payload)
+    import cas_communication_removal_miss
+    dependency_removal_baseline = work / 'dependency-removal-baseline.swf'
+    dependency_removal_baseline.write_bytes(dependency_payload)
+    removal_abc, removal_contract = cas_communication_removal_miss.adapt(cleanup_library, dependency_removal_baseline,
+        ffdec, work / 'dependency-removal')
+    dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + removal_abc)
+    dependency_adapter = cas_communication_removal_miss.chain_adapter(dependency_adapter, removal_contract, dependency_payload)
+    import cas_image_boundary_profile
+    dependency_image_baseline = work / 'dependency-image-baseline.swf'
+    dependency_image_baseline.write_bytes(dependency_payload)
+    image_abc, image_contract = cas_image_boundary_profile.adapt(cleanup_library, dependency_image_baseline,
+        ffdec, work / 'dependency-image')
+    dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + image_abc)
+    dependencies = {dbpf_build.tgi(CLEANUP_KEY): cas_image_boundary_profile.chain_adapter(
+        dependency_adapter, image_contract, dependency_payload)}
     if source_pins() != expected_sources:
         raise ValueError('CAS bridge source changed during compilation; no package was written.')
     Path(output).parent.mkdir(parents=True, exist_ok=True)
@@ -566,6 +626,9 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'runtime_verified': False, 'non_script_tags_preserved': True, 'native_bytecode_contract': contract,
         'structural_roles_native_bytecode_contract': structural_roles_contract,
         'draw_fast_path_native_bytecode_contract': draw_fast_path_contract,
+        'cell_attach_native_bytecode_contract': cell_attach_contract,
+        'catalog_binding_native_bytecode_contract': catalog_binding_contract,
+        'draw_phase_native_bytecode_contract': draw_phase_contract,
         'selector_native_bytecode_contract': selector_contract,
         'voice_native_bytecode_contract': voice_contract,
         'molecule_native_bytecode_contract': molecule_contract,

@@ -1,4 +1,4 @@
-"""Execute the unactivated Main grid lease fragment with adversarial native doubles.
+"""Execute the Main grid lease fragment with adversarial native doubles.
 
 These fixtures exercise Main orchestration, not GFx rendering/performance or
 native bytecode equivalence; those remain the native adapter's separate gate.
@@ -36,7 +36,7 @@ class MainGridLeaseTests(unittest.TestCase):
 ApexCatalogGridBootstrap();mcClothingPanel.visible=false;
 const before=grid.calls.length,clock=frameClock;
 for(let n=0;n<200;n++)ApexCatalogGridFrame();
-assert.equal(reads.length,0);assert.equal(stateReads,0);assert.equal(grid.steps,0);
+assert.equal(reads.length,0);assert.equal(stateReads,0);assert.equal(gridStateReads,0);assert.equal(grid.steps,0);
 assert.equal(grid.calls.length,before);assert.equal(frameClock,clock);
 mcClothingPanel.visible=true;mCurrentPanel={visible:true};ApexCatalogGridFrame();
 assert.equal(reads.length,0);assert.equal(grid.steps,0);
@@ -103,9 +103,14 @@ const assert=require('node:assert/strict');
 function int(n){return Math.trunc(n)||0;}int.MAX_VALUE=2147483647;
 var frameClock=1000,flash={events:{Event:{ENTER_FRAME:'frame'}},utils:{getTimer(){return frameClock++;}}};
 var added=[],removed=[],messages={},reads=[],writes=0,apexCatalogError='';
-var permitAvailable=true,permitCalls=0,stateReads=0,apexNativeChannel='77';
-function ApexNativeExchange(command){if(command==='GRIDPERMIT|1'){permitCalls++;return permitAvailable?'GRIDPERMIT|'+'a'.repeat(32)+'|101|73':'GRIDPERMIT|0';}
- assert.equal(command,'STATE|77');stateReads++;return 'VIEWSTATE|'+nativeSim.simId+'|'+nativeOwner+'|2|'+nativeSim.occultLayer+'|bound|'+nativeGeneration;}
+var permitAvailable=true,permitCalls=0,stateReads=0,gridStateReads=0,fullInfoReads=0,nativeExchanges=[],apexNativeChannel='77';
+// Count full getter dispatches, not NativeSync cache writes or actual harvest work.
+var gridStateOverride=null,simRowOverride=null,onOutfitRead=null;
+function freshGridWire(){if(nativeModelContext!==expectedModelContext)return 'WAIT';
+ return ['GRIDSTATE',nativeSim.simId,nativeSim.householdId,nativeOwner,nativeRendererKind,nativeSim.occultLayer,nativeViewMask,nativeModelMask,nativeGeneration].join('|');}
+function ApexNativeExchange(command){nativeExchanges.push(command);if(command==='GRIDPERMIT|1'){permitCalls++;return permitAvailable?'GRIDPERMIT|'+'a'.repeat(32)+'|101|73':'GRIDPERMIT|0';}
+ if(command==='GRIDSTATE|77'){gridStateReads++;return gridStateOverride===null?freshGridWire():(typeof gridStateOverride==='function'?gridStateOverride():gridStateOverride);}
+ if(command==='STATE|77'){stateReads++;throw Error('Legacy STATE cannot attest native household and both masks');}throw Error('Unexpected native exchange '+command);}
 
 function addEventListener(...args){added.push(args);}function removeEventListener(...args){removed.push(args);}
 function AddMessageListener(name,fn){messages[name]=fn;}function RemoveMessageListener(name,fn){if(messages[name]===fn)delete messages[name];}
@@ -113,12 +118,13 @@ var apexCatalogSignature='fit-1';
 var stage={},apexCatalogGrid=null,apexOwnerSession=3,apexDisconnected=false,apexBoundSim='101';
 var mCurrState=40,mCurrSimInfo={simId:'101',householdId:'909',occultLayer:1,occultType:2,allOccultTypes:127};
 var nativeSim={...mCurrSimInfo},nativeSlot={outfit_type:0,outfit_index:0};
+var nativeRendererKind=2,nativeViewMask=127,nativeModelMask=127,nativeModelContext={id:'bound-model'},expectedModelContext=nativeModelContext;
 var apexFormsNativeState='bound',apexFormsSelectedId='alien/alien',apexFormsNativeGeneration='73',apexFormsDesiredId='';
 var nativeOwner=apexFormsSelectedId,nativeGeneration=apexFormsNativeGeneration;
 var apexFormsIntent=null,apexFormsNativeIntent=null,apexMoleculeIntent=null,apexPairIntent=null,apexFormsApplying=false;
 var apexPendingFields=null,apexReceiving=false;
-var CommunicationManager={CallGameService(name,args,fresh){reads.push(name);assert.equal(fresh,true);
-    if(name==='CASGetSimInfo')return {...nativeSim};if(name==='CasGetCurrSimOutfitSlot')return {...nativeSlot};throw Error('Unexpected engine call '+name);}};
+var CommunicationManager={CallGameService(name,args,nativeArg3){reads.push(name);assert.equal(nativeArg3,true);
+    if(name==='CASGetSimInfo'){fullInfoReads++;return {...(simRowOverride===null?nativeSim:simRowOverride)};}if(name==='CasGetCurrSimOutfitSlot'){if(onOutfitRead)onOutfitRead();return nativeSlot===null?null:{...nativeSlot};}throw Error('Unexpected engine call '+name);}};
 function ApexOwnerSimRow(raw){if(!raw||typeof raw.simId!=='string'||typeof raw.householdId!=='string')return null;
     return {sim_id:raw.simId,household_id:raw.householdId,occult_type:raw.occultType,all_occult_types:raw.allOccultTypes,occult_layer:raw.occultLayer};}
 class NativeGrid{
@@ -139,7 +145,7 @@ class NativeGrid{
    if(this.phase==='cancel'){this.phase='cancelled';if(this.next){const r=this.next;this.next=null;this.ApexGridBegin(r);}return this.ApexGridStatus();}
    assert.equal(this.request.validate(this.request.owner),true);
    if(this.request.bootstrap===true){if(!this.measurementReady){this.measurements=(this.measurements||0)+1;this.measuredCell={id:'retained-real-cell'};this.measurementReady=true;}this.phase='measured';return this.ApexGridStatus();}
-   if(this.phase==='acquire')this.phase='bind';else if(this.phase==='bind')this.phase='done';return this.ApexGridStatus();}
+   if(this.phase==='acquire')this.phase='bind';else if(this.phase==='bind'){this.phase='done';this.dirty=false;}return this.ApexGridStatus();}
  click(){const r=this.request;if(!r||this.phase!=='done'||this.dirty||!r.owner.active||this.ownerGeneration!==r.owner.generation||this.feedAtBegin!==this.feed)return false;
    if(r.inputValidate(r.owner)!==true)return false;writes++;return true;}
 }
@@ -193,8 +199,8 @@ ApexCatalogGridBootstrap();pump();const beforeReads=reads.length,beforeCalls=gri
 for(let i=0;i<30;i++)ApexCatalogGridFrame();
 assert.equal(reads.length,beforeReads);assert.equal(grid.calls.length,beforeCalls);assert.equal(frameClock,beforeClock);
 apexCatalogSignature='changed-fit';ApexCatalogGridFrame();
-assert.equal(reads.length,beforeReads+2);assert.ok(grid.calls.length>beforeCalls);
-grid.dirty=true;const n=reads.length;ApexCatalogGridFrame();assert.equal(reads.length,n+2);
+assert.equal(reads.length,beforeReads+1);assert.equal(reads[reads.length-1],'CasGetCurrSimOutfitSlot');assert.ok(grid.calls.length>beforeCalls);
+grid.dirty=true;const n=reads.length,full=fullInfoReads;ApexCatalogGridFrame();assert.equal(reads.length,n+1);assert.equal(fullInfoReads,full);
 ''')
 
     def test_unarmed_new_or_unsupported_cas_keeps_native_controls_unintercepted(self):
@@ -281,8 +287,8 @@ assert.equal(grid.click(),true);assert.equal(writes,1);
         self.run_js(r'''
 ApexCatalogGridInitialize(true);pump();const old=apexCatalogGrid.lease,before=reads.length;
 messages.CASPlannedOutfitTypeChanged({});assert.equal(old.active,false);assert.equal(reads.length,before);
-assert.equal(grid.click(),false);pump();apexFormsSelectedId='vampire/dark';
-assert.equal(grid.click(),false);assert.equal(writes,0);assert.equal(reads.length%2,0);
+assert.equal(grid.click(),false);pump();const afterFreshRecovery=reads.length;apexFormsSelectedId='vampire/dark';
+assert.equal(grid.click(),false);assert.equal(writes,0);assert.equal(reads.length,afterFreshRecovery);
 ''')
 
     def test_live_feed_replacement_blocks_old_cells_and_restarts_exact_new_feed(self):

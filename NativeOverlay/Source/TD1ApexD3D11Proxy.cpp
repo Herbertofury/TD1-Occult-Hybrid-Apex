@@ -1371,7 +1371,7 @@ static void WorkerLoop() {
                 std::string sim;
                 uint64_t generation;
                 { std::lock_guard<std::mutex> lock(g_dataMutex); sim = g_selectedSim; generation = g_selectionGeneration; }
-                std::string path = "/api/overlay/state?count=220";
+                std::string path = "/api/overlay/display?count=220";
                 if (!sim.empty()) path += "&sim_id=" + UrlEncode(sim);
                 bool ok = HttpGet(path, body);
                 std::lock_guard<std::mutex> lock(g_dataMutex);
@@ -3981,12 +3981,16 @@ static void DrawOverlay() {
         ImGui::SameLine(); ActionButton("Research Audit", "research_audit", nullptr, nullptr, ImVec2(136,0));
         ImGui::SameLine(); ActionButton("Final Audit", "final_audit", nullptr, nullptr, ImVec2(116,0));
     }
-    std::string warn = ui::StatusScalar(ui::ReadObject(json), "drift_warning_count");
+    const auto& displayStatus = ui::ReadObject(json);
+    std::string warn = ui::StatusScalar(displayStatus, "drift_warning_count");
     if (!warn.empty() && warn != "0") {
         ImGui::Separator();
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.40f, 1.0f), "DRIFT WARNING: %s issue(s) found. Open Drift Guard or press Fix.", warn.c_str());
         ImGui::SameLine(); if (ImGui::Button("Fix Selected")) QueueAction("fix_occult_drift", ActiveOccultName());
         ImGui::SameLine(); if (ImGui::Button("Scan Again")) QueueAction("scan_occult_drift");
+    } else if (ui::StatusScalar(displayStatus, "drift_observation") == "cached-notifications-only" &&
+               !ui::StatusScalar(displayStatus, "sim_id").empty()) {
+        ImGui::TextDisabled("Drift is not scanned by periodic refresh. Use Scan in Drift Guard to check the current appearance.");
     }
     ImGui::Separator();
 

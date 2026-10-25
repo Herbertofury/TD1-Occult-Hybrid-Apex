@@ -27,11 +27,12 @@ def helper_js():
 @unittest.skipUnless(shutil.which('node'),'Node required for scalar helper harness')
 class DrawTraceHelperTests(unittest.TestCase):
     def run_js(self,test):
-        boot='''let now=0,clocks=0;
+        boot='''let now=0,clocks=0,layoutDisposals=0;
 const flash={utils:{getTimer:()=>{clocks++;return now;}}};
 const CASCustomizerMain={apexCatalogDrawTraceStep:null};
 const int=x=>x|0;
 function check(v,m){if(!v)throw Error(m);}
+function ApexLayoutTraceDispose(){layoutDisposals++;}
 '''
         result=subprocess.run(['node','-e',boot+helper_js()+test],capture_output=True,text=True,timeout=10)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
@@ -40,7 +41,7 @@ function check(v,m){if(!v)throw Error(m);}
         self.run_js('''check(ApexCatalogTraceStatus().requested_ms===0,"default");
 check(ApexCatalogTraceStatus().records.length===0,"empty records");
 ApexCatalogTraceStep("draw.enter",{data_id:"1"});
-ApexCatalogTraceConfigure(0);check(clocks===0,"disabled timer");
+ApexCatalogTraceConfigure(0);check(clocks===0,"disabled timer");check(layoutDisposals===0,"disabled draw trace leaves layout diagnostics alone");
 check(CASCustomizerMain.apexCatalogDrawTraceStep===null,"disabled callback");''')
 
     def test_other_main_disposal_cannot_clear_active_owner(self):
@@ -53,7 +54,7 @@ check(second.status().enabled && second.status().callback_active,"owner active")
 second.dispose();check(CASCustomizerMain.apexCatalogDrawTraceStep===null,"owner dispose");''')
 
     def test_exact_phases_and_scalar_records(self):
-        self.run_js('''ApexCatalogTraceConfigure(1000);
+        self.run_js('''ApexCatalogTraceConfigure(1000);check(layoutDisposals===1,"positive draw trace retires the other diagnostic");
 ApexCatalogTraceStep("draw.enter",{data_id:"18446744073709551615",body_type:114});
 now=1;ApexCatalogTraceStep("thumbnail.enter");now=99;ApexCatalogTraceStep("thumbnail.leave");
 now=100;ApexCatalogTraceStep("draw.leave");let s=ApexCatalogTraceStatus();

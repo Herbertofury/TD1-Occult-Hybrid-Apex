@@ -230,8 +230,9 @@
             }
             // Keep layout controls away from the native thumbnail catalog so
             // size/spacing changes can be previewed while dragging a slider.
-            apexCatalogUi.x=apexCatalogTab=="items" ? Math.max(12,stage.stageWidth-apexCatalogUi.width-20) : 12;
-            apexCatalogUi.y=75;
+            var catalogX:Number=apexCatalogTab=="items" ? Math.max(12,stage.stageWidth-apexCatalogUi.width-20) : 12;
+            if(apexCatalogUi.x!=catalogX)apexCatalogUi.x=catalogX;
+            if(apexCatalogUi.y!=75)apexCatalogUi.y=75;
          }
          if(apexCatalogIntent!=null && apexPendingFields==null && !apexReceiving) {
             var intent:Object=apexCatalogIntent;apexCatalogIntent=null;
@@ -325,7 +326,7 @@
             var alpha:Number=Number(apexCatalogPrefs.strength);
             if(apexCatalogPrefs.animation=="pulse") alpha*=0.4+0.6*(0.5-0.5*Math.cos(phase*Math.PI*2));
             else if(apexCatalogPrefs.animation=="flash") alpha*=phase<0.5 ? 1 : 0.25;
-            effect.alpha=alpha;
+            if(effect.alpha!=alpha)effect.alpha=alpha;
             if(retained==null) retained={cell:cell,effect:effect,frame:null,transform:null};
             kept.push(retained);
          }
@@ -540,7 +541,9 @@
                      diagnosticCell["ApexCommButtonIndexStats"] is Function) {
                      var localCommunication:Object=diagnosticCell["ApexCommButtonIndexStats"]();
                      buttonCommunicationIndex={available:true,button_provider:localCommunication.button_provider,
-                        listener_membership:localCommunication.listener_membership,appearance_written:false};
+                        listener_membership:localCommunication.listener_membership,
+                        using_mouse_keyboard:(localCommunication.using_mouse_keyboard is Boolean) ? Boolean(localCommunication.using_mouse_keyboard) : null,
+                        appearance_written:false};
                      break;
                   }
                }

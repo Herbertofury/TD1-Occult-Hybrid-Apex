@@ -13,9 +13,13 @@ sys.path.insert(0, str(ROOT / 'tools'))
 import cas_communication_dependency as dependency
 import cas_communication_domain_probe as domain
 import cas_communication_index as communication
+import cas_communication_removal_miss as removal
+import cas_image_boundary_profile as image
+import cas_grid_pool as pool
 import cas_ui_build
 import dbpf_build
 import maru_companion
+from cas_provider_chain_fixtures import historical_domain_fixture
 
 KINDS = {'canonical': maru_companion.CANONICAL_GRID_LIBRARY,
          'donor': maru_companion.GRID_LIBRARY,
@@ -113,14 +117,22 @@ class DomainContinuationTests(unittest.TestCase):
                 with self.subTest(provider=name, bytes=dbpf_build.digest(payload)), self.assertRaises(ValueError):
                     domain.verify_adapter(record, payload)
 
-    def test_actual_dependency_builder_block_chains_both_frozen_postpasses(self):
+    def test_actual_dependency_builder_block_chains_index_domain_removal_and_image(self):
         tree = ast.parse(Path(cas_ui_build.__file__).read_text())
         build = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'build')
         start = next(i for i, node in enumerate(build.body) if isinstance(node, ast.Import)
                      and any(alias.name == 'cas_communication_dependency' for alias in node.names))
         end = next(i for i in range(start, len(build.body)) if isinstance(build.body[i], ast.Assign)
                    and any(isinstance(target, ast.Name) and target.id == 'dependencies' for target in build.body[i].targets))
-        record, final = fixture('dependency')
+        record, domain_bytes = fixture('dependency')
+        removal_stage = ROOT / '.work/v333-removal-miss-dependency'
+        removal_record = json.loads((removal_stage / 'chained.json').read_text())
+        removal_bytes = (removal_stage / 'final.swf').read_bytes()
+        image_stage = ROOT / '.work/v334-image-profile-dependency'
+        latest = json.loads((image_stage / 'chained.json').read_text())
+        final = (image_stage / 'final.swf').read_bytes()
+        self.assertEqual(latest['previous_stage_adapter'], removal_record)
+        self.assertEqual(removal_record['previous_stage_adapter'], record)
         prior = record['previous_stage_adapter']
         baseline = previous_bytes('dependency')
         with tempfile.TemporaryDirectory() as directory:
@@ -135,22 +147,37 @@ class DomainContinuationTests(unittest.TestCase):
             def adapt_domain(*args):
                 order.append('domain')
                 self.assertEqual(Path(args[0]).read_bytes(), baseline)
-                return abc(final), record['communication_domain_probe_contract']
-            with patch.object(dependency, 'adapt', side_effect=adapt_dependency), patch.object(domain, 'adapt', side_effect=adapt_domain):
+                return abc(domain_bytes), record['communication_domain_probe_contract']
+            def adapt_removal(*args):
+                order.append('removal')
+                self.assertEqual(Path(args[0]).read_bytes(), namespace['cleanup_library'].read_bytes())
+                self.assertEqual(Path(args[1]).read_bytes(), domain_bytes)
+                return abc(removal_bytes), removal_record['communication_removal_miss_contract']
+            def adapt_image(*args):
+                order.append('image')
+                self.assertEqual(Path(args[0]).read_bytes(), namespace['cleanup_library'].read_bytes())
+                self.assertEqual(Path(args[1]).read_bytes(), removal_bytes)
+                return abc(final), latest['image_boundary_profile_contract']
+            with patch.object(dependency, 'adapt', side_effect=adapt_dependency), patch.object(domain, 'adapt', side_effect=adapt_domain), \
+                 patch.object(removal, 'adapt', side_effect=adapt_removal), \
+                 patch.object(image, 'adapt', side_effect=adapt_image), \
+                 patch.object(pool, 'adapt', side_effect=AssertionError('Dependency must stay image-final')):
                 exec(compile(ast.Module(body=build.body[start:end + 1], type_ignores=[]), '<actual-dependency-seam>', 'exec'), namespace)
-            self.assertEqual(order, ['dependency', 'domain'])
+            self.assertEqual(order, ['dependency', 'domain', 'removal', 'image'])
             self.assertEqual(namespace['dependency_payload'], final)
-            self.assertEqual(namespace['dependencies'], {dbpf_build.tgi(KINDS['dependency']): record})
+            self.assertEqual(namespace['dependencies'], {dbpf_build.tgi(KINDS['dependency']): latest})
 
 
 @unittest.skipUnless(READY and (ROOT / 'dist/candidate/ApexCASBridge.package').is_file() and
                      (ROOT / 'dist/candidate/ApexCASBridge.package.manifest.json').is_file(),
                      'Private compiled merge and three frozen domain stages required')
-class CurrentDomainManifestTests(unittest.TestCase):
+class HistoricalDomainManifestTests(unittest.TestCase):
+    """These domain-pinned V332 manifests explicitly predate removal sources."""
     def setUp(self):
         package = ROOT / 'dist/candidate/ApexCASBridge.package'
         self.info = json.loads(Path(str(package) + '.manifest.json').read_text())
         self.resources = dbpf_build.read(package.read_bytes())
+        historical_domain_fixture(self.info, self.resources)
         self.info['communication_dependency_adapters'] = {}
         for name, key in KINDS.items():
             record, data = fixture(name)

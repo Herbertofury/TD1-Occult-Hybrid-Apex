@@ -49,6 +49,9 @@ GRID_TRANSACTION_PROOF_SOURCES = GRID_TRANSACTION_SOURCES + ('tools/CasStructura
 GRID_COMMUNICATION_SOURCES = ('tools/CasCommunicationIndexPatch.java', 'tools/cas_communication_index.py')
 GRID_COMMUNICATION_DEPENDENCY_SOURCES = ('tools/CasCommunicationDependencyPatch.java', 'tools/cas_communication_dependency.py')
 GRID_COMMUNICATION_DOMAIN_SOURCES = ('tools/CasCommunicationDomainProbePatch.java', 'tools/cas_communication_domain_probe.py')
+GRID_COMMUNICATION_REMOVAL_SOURCES = ('tools/CasCommunicationRemovalMissPatch.java', 'tools/cas_communication_removal_miss.py')
+GRID_IMAGE_PROFILE_SOURCES = ('tools/CasImageBoundaryProfilePatch.java', 'tools/cas_image_boundary_profile.py')
+GRID_POOL_SOURCES = ('tools/CasGridPoolPatch.java', 'tools/cas_grid_pool.py')
 GRID_COMMUNICATION_FINALS = {
     '62ECC59A:00000000:12272E1AC0C1F8E2': '2f74987d872080437fe9695a9f219e8a71c139f37c1f6c3c806f5888f98e8cf3',
     '62ECC59A:00000000:89D13757C58C2E05': 'b7ab103c2e1070ee474b88bd82c77279d176e4985d4f2caa7f27dab3ef85fe6f',
@@ -98,7 +101,28 @@ def _verify_grid_adapter(evidence, data, expected, final_digest, body_count):
     """Authenticate history and final bytes without relabeling native counts."""
     def same(left, right):
         return json.dumps(left, sort_keys=True, separators=(',', ':')) == json.dumps(right, sort_keys=True, separators=(',', ':'))
-    if isinstance(evidence, dict) and 'communication_domain_probe_contract' in evidence:
+    if isinstance(evidence, dict) and 'grid_pool_contract' in evidence:
+        import cas_grid_pool
+        cas_grid_pool.verify_adapter(evidence, data)
+        previous = evidence['previous_stage_adapter']['previous_stage_adapter']['previous_stage_adapter']['previous_stage_adapter']
+        _verify_transaction_history(previous['retained_transaction_adapter'], expected, final_digest, body_count)
+        if previous['base_resource_sha256'] != expected['base_resource_sha256']:
+            raise ValueError('Pool proof has the wrong native provider history.')
+    elif isinstance(evidence, dict) and 'image_boundary_profile_contract' in evidence:
+        import cas_image_boundary_profile
+        cas_image_boundary_profile.verify_adapter(evidence, data)
+        previous = evidence['previous_stage_adapter']['previous_stage_adapter']['previous_stage_adapter']
+        _verify_transaction_history(previous['retained_transaction_adapter'], expected, final_digest, body_count)
+        if previous['base_resource_sha256'] != expected['base_resource_sha256']:
+            raise ValueError('Image-boundary proof has the wrong native provider history.')
+    elif isinstance(evidence, dict) and 'communication_removal_miss_contract' in evidence:
+        import cas_communication_removal_miss
+        cas_communication_removal_miss.verify_adapter(evidence, data)
+        previous = evidence['previous_stage_adapter']['previous_stage_adapter']
+        _verify_transaction_history(previous['retained_transaction_adapter'], expected, final_digest, body_count)
+        if previous['base_resource_sha256'] != expected['base_resource_sha256']:
+            raise ValueError('Removal-miss proof has the wrong native provider history.')
+    elif isinstance(evidence, dict) and 'communication_domain_probe_contract' in evidence:
         import cas_communication_domain_probe
         cas_communication_domain_probe.verify_adapter(evidence, data)
         previous = evidence['previous_stage_adapter']
@@ -152,7 +176,13 @@ def verify_grid_providers(evidence, resources, dependencies=None):
         key = dbpf_build.tgi(UNMODIFIED_OLYMPUS_LIBRARY)
         if not isinstance(dependencies, dict) or set(dependencies) != {key}:
             raise ValueError('The Olympus dependency override requires its separate exact communication proof.')
-        if 'communication_domain_probe_contract' in dependencies[key]:
+        if 'image_boundary_profile_contract' in dependencies[key]:
+            import cas_image_boundary_profile
+            cas_image_boundary_profile.verify_adapter(dependencies[key], resources[UNMODIFIED_OLYMPUS_LIBRARY])
+        elif 'communication_removal_miss_contract' in dependencies[key]:
+            import cas_communication_removal_miss
+            cas_communication_removal_miss.verify_adapter(dependencies[key], resources[UNMODIFIED_OLYMPUS_LIBRARY])
+        elif 'communication_domain_probe_contract' in dependencies[key]:
             import cas_communication_domain_probe
             cas_communication_domain_probe.verify_adapter(dependencies[key], resources[UNMODIFIED_OLYMPUS_LIBRARY])
         else:
@@ -162,7 +192,10 @@ def verify_grid_providers(evidence, resources, dependencies=None):
     verify_grid_adapter(evidence[donor_key], resources.get(GRID_LIBRARY, b''))
     verify_canonical_grid_adapter(evidence[canonical_key], resources.get(CANONICAL_GRID_LIBRARY, b''))
     def stage(value):
-        return (3 if 'communication_domain_probe_contract' in value else
+        return (6 if 'grid_pool_contract' in value else
+                5 if 'image_boundary_profile_contract' in value else
+                4 if 'communication_removal_miss_contract' in value else
+                3 if 'communication_domain_probe_contract' in value else
                 2 if 'retained_transaction_adapter' in value else 1 if 'retained_base_adapter' in value else 0)
     if stage(evidence[donor_key]) != stage(evidence[canonical_key]):
         raise ValueError('Both native class providers must use the same reviewed adapter stage.')
@@ -247,6 +280,10 @@ def verify_merged(info, resources):
         raise ValueError('Missing exact Dynamic CAS merge identity.')
     expected = expected_resources()
     actual = {dbpf_build.tgi(k): dbpf_build.digest(v) for k, v in resources.items()}
+    main_hash = actual.get(dbpf_build.tgi(CUSTOMIZER))
+    if (main_hash is None or info.get('patched_resource_sha256') != main_hash or
+            info.get('patched_resources', {}).get(dbpf_build.tgi(CUSTOMIZER)) != main_hash):
+        raise ValueError('Advertised final Main identities differ from the actual merged bytes.')
     if (evidence.get('resource_sha256') != expected or evidence.get('resource_count') != RESOURCE_COUNT or
             evidence.get('customizer_sha256') != CUSTOMIZER_SHA256 or
             evidence.get('method') != 'donor-ABC-with-retained-Apex-adapters'):
@@ -257,7 +294,26 @@ def verify_merged(info, resources):
     dependency_required = (any(name in pins for name in GRID_COMMUNICATION_DEPENDENCY_SOURCES) or
                            UNMODIFIED_OLYMPUS_LIBRARY in resources or
                            info.get('communication_dependency_adapters') is not None)
-    domain_required = (any(name in pins for name in GRID_COMMUNICATION_DOMAIN_SOURCES) or
+    pool_required = (any(name in pins for name in GRID_POOL_SOURCES) or
+                     any(isinstance(value, dict) and 'grid_pool_contract' in value
+                         for value in (info.get('grid_provider_adapters') or {}).values()))
+    if pool_required and any(name not in pins for name in GRID_POOL_SOURCES + GRID_IMAGE_PROFILE_SOURCES):
+        raise ValueError('Current initialized-grid pool source pins are incomplete.')
+    image_required = (pool_required or any(name in pins for name in GRID_IMAGE_PROFILE_SOURCES) or
+                     any(isinstance(value, dict) and 'image_boundary_profile_contract' in value
+                         for group in ('grid_provider_adapters', 'communication_dependency_adapters')
+                         for value in (info.get(group) or {}).values()))
+    if image_required and any(name not in pins for name in GRID_IMAGE_PROFILE_SOURCES):
+        raise ValueError('Current image-boundary profiling source pins are incomplete.')
+    removal_required = (image_required or any(name in pins for name in GRID_COMMUNICATION_REMOVAL_SOURCES) or
+                       any(isinstance(value, dict) and 'communication_removal_miss_contract' in value
+                           for group in ('grid_provider_adapters', 'communication_dependency_adapters')
+                           for value in (info.get(group) or {}).values()))
+    if removal_required and any(name not in pins for name in
+            GRID_COMMUNICATION_REMOVAL_SOURCES + GRID_COMMUNICATION_DOMAIN_SOURCES +
+            GRID_COMMUNICATION_SOURCES + GRID_TRANSACTION_PROOF_SOURCES):
+        raise ValueError('Current removal-miss continuation source pins are incomplete.')
+    domain_required = (removal_required or any(name in pins for name in GRID_COMMUNICATION_DOMAIN_SOURCES) or
                        any(isinstance(value, dict) and 'communication_domain_probe_contract' in value
                            for group in ('grid_provider_adapters', 'communication_dependency_adapters')
                            for value in (info.get(group) or {}).values()))
@@ -276,22 +332,68 @@ def verify_merged(info, resources):
             info.get('grid_provider_adapters') is not None or CANONICAL_GRID_LIBRARY in resources):
         providers = info.get('grid_provider_adapters')
         dependencies = info.get('communication_dependency_adapters')
+        if pool_required:
+            import cas_grid_pool
+            if not isinstance(providers, dict) or set(providers) != {
+                    dbpf_build.tgi(CANONICAL_GRID_LIBRARY), dbpf_build.tgi(GRID_LIBRARY)}:
+                raise ValueError('Current CAS sources require both exact initialized-grid pool continuations.')
+            for key, adapter in providers.items():
+                if (not isinstance(adapter, dict) or adapter.get('grid_pool_contract', {}).get('source_sha256') !=
+                        {name: pins.get(name) for name in cas_grid_pool.SOURCES}):
+                    raise ValueError('Current CAS sources require the exact initialized-grid pool and source proof.')
+            if isinstance(dependencies, dict) and any(isinstance(adapter, dict) and 'grid_pool_contract' in adapter for adapter in dependencies.values()):
+                raise ValueError('The communication-only dependency has no grid pool adaptation.')
+        def before_pool(adapter):
+            if not isinstance(adapter, dict):
+                raise ValueError('CAS provider continuation is not an object.')
+            return adapter.get('previous_stage_adapter', {}) if 'grid_pool_contract' in adapter else adapter
+        if image_required:
+            import cas_image_boundary_profile
+            for group in (providers, dependencies):
+                if not isinstance(group, dict) or not group:
+                    raise ValueError('Current CAS sources require all three image-boundary continuations.')
+                for key, adapter in group.items():
+                    image_adapter = before_pool(adapter)
+                    if (not isinstance(adapter, dict) or image_adapter.get('image_boundary_profile_contract', {}).get('source_sha256') !=
+                            {name: pins.get(name) for name in cas_image_boundary_profile.SOURCES}):
+                        raise ValueError('Current CAS sources require the exact image-boundary continuation and source proof.')
+        if removal_required:
+            import cas_communication_removal_miss
+            for group in (providers, dependencies):
+                if not isinstance(group, dict) or not group:
+                    raise ValueError('Current CAS sources require all three removal-miss continuations.')
+                for key, adapter in group.items():
+                    image_adapter = before_pool(adapter)
+                    removal_adapter = image_adapter.get('previous_stage_adapter', {}) if image_required else image_adapter
+                    if (not isinstance(adapter, dict) or not isinstance(removal_adapter, dict) or
+                            removal_adapter.get('communication_removal_miss_contract', {}).get('source_sha256') !=
+                                {name: pins.get(name) for name in cas_communication_removal_miss.SOURCES}):
+                        raise ValueError('Current CAS sources require the exact removal-miss continuation and source proof.')
         if domain_required:
             import cas_communication_domain_probe
             for group in (providers, dependencies):
                 if not isinstance(group, dict) or not group:
                     raise ValueError('Current CAS sources require all three listener domain continuations.')
                 for key, adapter in group.items():
-                    if (not isinstance(adapter, dict) or
-                            adapter.get('communication_domain_probe_contract', {}).get('source_sha256') !=
+                    image_adapter = before_pool(adapter)
+                    removal_adapter = image_adapter.get('previous_stage_adapter', {}) if image_required else image_adapter
+                    domain_adapter = removal_adapter.get('previous_stage_adapter', {}) if removal_required else removal_adapter
+                    if (not isinstance(adapter, dict) or not isinstance(domain_adapter, dict) or
+                            domain_adapter.get('communication_domain_probe_contract', {}).get('source_sha256') !=
                                 {name: pins.get(name) for name in cas_communication_domain_probe.SOURCES}):
                         raise ValueError('Current CAS sources require the exact listener domain diagnostic and source proof.')
         if dependency_required:
             import cas_communication_dependency
             key = dbpf_build.tgi(UNMODIFIED_OLYMPUS_LIBRARY)
             dependency_adapter = dependencies.get(key, {}) if isinstance(dependencies, dict) else {}
+            if image_required:
+                dependency_adapter = dependency_adapter.get('previous_stage_adapter', {})
+            if removal_required:
+                dependency_adapter = dependency_adapter.get('previous_stage_adapter', {})
             historical_dependency = dependency_adapter.get('previous_stage_adapter', dependency_adapter)
-            dependency_final = (cas_communication_domain_probe.FINALS[key][0] if domain_required else
+            dependency_final = (cas_image_boundary_profile.FINALS[key][0] if image_required else
+                                cas_communication_removal_miss.FINALS[key][0] if removal_required else
+                                cas_communication_domain_probe.FINALS[key][0] if domain_required else
                                 cas_communication_dependency.FINAL_SWF_SHA256)
             if (not isinstance(dependencies, dict) or set(dependencies) != {key} or
                     historical_dependency.get('communication_dependency_contract', {}).get('source_sha256') !=
@@ -306,7 +408,10 @@ def verify_merged(info, resources):
         if dbpf_build.tgi(CANONICAL_GRID_LIBRARY) in info.get('unmodified_dependency_resources', {}):
             raise ValueError('The adapted canonical provider cannot be declared unmodified.')
         for key, adapter in providers.items():
-            historical_adapter = adapter.get('previous_stage_adapter', adapter)
+            image_adapter = before_pool(adapter)
+            removal_adapter = image_adapter.get('previous_stage_adapter', image_adapter) if image_required else image_adapter
+            domain_adapter = removal_adapter.get('previous_stage_adapter', removal_adapter) if removal_required else removal_adapter
+            historical_adapter = domain_adapter.get('previous_stage_adapter', domain_adapter)
             if communication_required:
                 proof = historical_adapter.get('communication_index_contract', {})
                 communication_sources = GRID_COMMUNICATION_SOURCES + ('tools/CasStructuralRolesPatch.java',)
@@ -347,7 +452,48 @@ def verify_merged(info, resources):
         if 'tools/CasDrawFastPathPatch.java' in info.get('source_pins', {}):
             import cas_draw_fast_path
             fast = info.get('draw_fast_path_native_bytecode_contract')
-            if (not isinstance(post, dict) or not isinstance(fast, dict) or
+            binding_required = (any(name in pins for name in ('tools/CasCatalogBindingPatch.java', 'tools/cas_catalog_binding.py')) or
+                                info.get('catalog_binding_native_bytecode_contract') is not None)
+            attach_required = (any(name in pins for name in ('tools/CasCellAttachPatch.java', 'tools/cas_cell_attach.py')) or
+                               info.get('cell_attach_native_bytecode_contract') is not None)
+            if attach_required:
+                import cas_cell_attach
+                attach = info.get('cell_attach_native_bytecode_contract')
+                attach_bytes = resources[CUSTOMIZER]
+                phase_required = (any(name in pins for name in ('tools/CasDrawPhasePatch.java', 'tools/cas_draw_phase.py')) or
+                                  info.get('draw_phase_native_bytecode_contract') is not None)
+                if phase_required:
+                    import cas_draw_phase
+                    phase = info.get('draw_phase_native_bytecode_contract')
+                    if (any(name not in pins for name in cas_draw_phase.SOURCES) or
+                            not isinstance(phase, dict) or
+                            phase.get('draw_phase_contract', {}).get('source_sha256') !=
+                                {name: pins[name] for name in cas_draw_phase.SOURCES} or
+                            phase.get('previous_stage_contract') != info.get('catalog_binding_native_bytecode_contract') or
+                            cas_draw_phase.verify_contract(phase, attach_bytes) is not True):
+                        raise ValueError('Granular Draw pass does not retain the exact historical Main/binding proofs.')
+                    attach_bytes = cas_draw_phase.reconstruct_previous(attach_bytes, phase['draw_phase_contract'])
+                if binding_required:
+                    import cas_catalog_binding
+                    binding = info.get('catalog_binding_native_bytecode_contract')
+                    if (any(name not in pins for name in cas_catalog_binding.SOURCES) or
+                            not isinstance(binding, dict) or
+                            binding.get('catalog_binding_contract', {}).get('source_sha256') !=
+                                {name: pins[name] for name in cas_catalog_binding.SOURCES} or
+                            binding.get('previous_stage_contract') != attach or
+                            cas_catalog_binding.verify_contract(binding, attach_bytes) is not True):
+                        raise ValueError('Final catalogue binding pass does not retain the exact historical Main/cell proofs.')
+                    attach_bytes = cas_catalog_binding.reconstruct_previous(attach_bytes, binding['catalog_binding_contract'])
+                if (any(name not in pins for name in cas_cell_attach.SOURCES) or
+                        not isinstance(attach, dict) or
+                        attach.get('cell_attach_contract', {}).get('source_sha256') !=
+                            {name: pins[name] for name in cas_cell_attach.SOURCES} or
+                        attach.get('previous_chain') != cas_cell_attach.previous(contract, post, fast) or
+                        cas_cell_attach.verify_contract(attach, attach_bytes) is not True):
+                    raise ValueError('Final cell attach pass does not retain the exact historical Main/Draw proofs.')
+            elif binding_required:
+                raise ValueError('Catalogue binding pass requires the complete historical Main/cell chain.')
+            elif (not isinstance(post, dict) or not isinstance(fast, dict) or
                     cas_draw_fast_path.chain_contract(contract, post, fast, resources[CUSTOMIZER]) != fast):
                 raise ValueError('Final Draw fast path does not chain to the historical structural/native proof.')
         elif not isinstance(post, dict) or cas_structural_roles.chain_contract(contract, post, resources[CUSTOMIZER]) != post:

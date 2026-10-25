@@ -737,6 +737,37 @@ int main() {
     pairChannel.connected=true;pairChannel.stop=false;
     Require(FastOwnerState(runtime,70)=="STALE");
     Require(FastOwnerState(runtime,71).rfind("VIEWSTATE|123|native/2|2|0|bound|",0)==0);
+    // Visual frame identity is fresh native data without entering the complete
+    // synchronizer or writing the canonical/selected/inactive appearances.
+    const auto originalHousehold=Read<std::uint64_t>(group.data(),0x640);
+    const auto originalEditorHousehold=Read<std::uint64_t>(controller.data(),0xb0);
+    Write(group.data(),0x640,std::uint64_t(909));
+    Write(controller.data(),0xb0,std::uint64_t(707));
+    const auto gridModel=currentModel;const auto gridCursor=bank.graph->cursor();
+    const auto gridWrites=bank.canonicalWrites,gridScratch=bank.scratchAllocations;
+    const auto gridPrefix=std::string("GRIDSTATE|123|909|native/2|2|0|127|127|");
+    Require(GridOwnerState(runtime,71)==gridPrefix+std::to_string(gridCursor.generation));
+    for(unsigned n=0;n<100;++n)Require(GridOwnerState(runtime,71)==gridPrefix+std::to_string(gridCursor.generation));
+    Require(currentModel==gridModel && bank.graph->cursor().generation==gridCursor.generation &&
+        bank.canonicalWrites==gridWrites && bank.scratchAllocations==gridScratch);
+    Require(GridOwnerState(runtime,70)=="STALE");
+    Write(controller.data(),0xb0,std::uint64_t(606));
+    Require(GridOwnerState(runtime,71)==gridPrefix+std::to_string(gridCursor.generation));
+    Write(group.data(),0x640,std::uint64_t(808));
+    Require(GridOwnerState(runtime,71).rfind("GRIDSTATE|123|808|",0)==0); // No cached household substitute.
+    Write(group.data(),0x640,std::uint64_t(0));Require(GridOwnerState(runtime,71)=="WAIT");
+    Write(group.data(),0x640,std::uint64_t(909));
+    Write(group.data(),0xdc,63u);Require(GridOwnerState(runtime,71)=="WAIT");Write(group.data(),0xdc,127u);
+    Write(currentModel.data(),0x17c,63u);Require(GridOwnerState(runtime,71)=="WAIT");Write(currentModel.data(),0x17c,127u);
+    const auto gridContext=Read<void*>(currentModel.data(),0x510);
+    Write(currentModel.data(),0x510,static_cast<void*>(nullptr));Require(GridOwnerState(runtime,71)=="WAIT");
+    Write(currentModel.data(),0x510,gridContext);
+    const auto gridEntity=bank.importedEntity;bank.importedEntity++;
+    Require(GridOwnerState(runtime,71)=="WAIT");bank.importedEntity=gridEntity;
+    Write(currentModel.data(),0x178,4u);Require(GridOwnerState(runtime,71)=="WAIT");Write(currentModel.data(),0x178,2u);
+    Write(group.data(),0x640,originalHousehold);
+    Write(controller.data(),0xb0,originalEditorHousehold);
+    Require(currentModel==gridModel && bank.canonicalWrites==gridWrites && bank.scratchAllocations==gridScratch);
     Require(PairState(runtime,71).rfind("PAIR|123|native/2|native/2|native/1|native/1|0|",0)==0);
     const auto humanBeforeLink=Read<unsigned>(bank.graph->appearance("native/1")->data(),0x18);
     const auto vampireBeforeCopy=Read<unsigned>(bank.graph->appearance("native/4")->data(),0x18);

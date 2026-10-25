@@ -142,6 +142,26 @@ class SerializedBytecodeTests(unittest.TestCase):
         info = json.loads(manifest.read_text())
         baseline = dbpf_build.read(package.read_bytes())[maru_companion.CUSTOMIZER]
         structural = info['structural_roles_native_bytecode_contract']
+        if info.get('draw_phase_native_bytecode_contract') is not None:
+            import cas_draw_phase as phase
+            record = info['draw_phase_native_bytecode_contract']
+            self.assertTrue(phase.verify_contract(record, baseline))
+            self.assertEqual(record['previous_stage_contract'], info['catalog_binding_native_bytecode_contract'])
+            baseline = phase.reconstruct_previous(baseline, record['draw_phase_contract'])
+        if info.get('catalog_binding_native_bytecode_contract') is not None:
+            import cas_catalog_binding as binding
+            record = info['catalog_binding_native_bytecode_contract']
+            self.assertTrue(binding.verify_contract(record, baseline))
+            self.assertEqual(record['previous_stage_contract'], info['cell_attach_native_bytecode_contract'])
+            baseline = binding.reconstruct_previous(baseline, record['catalog_binding_contract'])
+        if info.get('cell_attach_native_bytecode_contract') is not None:
+            import cas_cell_attach as attach
+            record = info['cell_attach_native_bytecode_contract']
+            self.assertTrue(attach.verify_contract(record, baseline))
+            for stage in ('native_bytecode_contract', 'structural_roles_native_bytecode_contract',
+                          'draw_fast_path_native_bytecode_contract'):
+                self.assertEqual(record['previous_chain'][stage], info[stage])
+            baseline = attach.reconstruct_previous(baseline)
         if info.get('draw_fast_path_native_bytecode_contract') is not None:
             final = baseline
             old_tag = next(t[3] for t in ui.tags(ui.unpack(final)[1]) if t[0] == 82)

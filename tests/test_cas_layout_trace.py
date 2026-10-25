@@ -60,21 +60,23 @@ class LayoutTraceExecutionTests(unittest.TestCase):
     def run_body(self, checks):
         source = (ROOT / 'Source/CASUi/catalog_layout_trace_methods.as').read_text(encoding='utf-8')
         code = '''const assert=require('node:assert/strict');
-var apexLayoutTrace=null,now=0,clockCalls=0,drawDisposed=0;
+var apexLayoutTrace=null,now=0,clockCalls=0,drawDisposed=0,mcClothingPanel=null,poolReads=0;
 var flash={utils:{getTimer(){clockCalls++;return now;}}};
 const int=Math.trunc,Boolean=global.Boolean;
 function ApexCatalogTraceDispose(){drawDisposed++;}
 '''
-        for name, parameters in [('ApexLayoutTraceConfigure', 'milliseconds'), ('ApexLayoutTraceDispose', ''),
+        for name, parameters in [('ApexImageBoundaryProbe', 'budget=-1'), ('ApexLayoutTraceConfigure', 'milliseconds'), ('ApexLayoutTraceDispose', ''),
                                  ('ApexLayoutTraceStatus', ''), ('ApexLayoutReset', 'grid')]:
             part = source.split('private function ' + name + '(', 1)[1]
             part = re.split(r'\n      private (?:function|var) ', part, maxsplit=1)[0]
             body = part.split('{', 1)[1].rsplit('}', 1)[0]
             body = re.sub(r'\b(var\s+\w+)\s*:\s*[\w.]+', r'\1', body)
             body = re.sub(r'for each\((?:var )?(\w+) in ([^\n]+?)\)', r'for(var \1 of \2)', body)
-            body = body.replace('catch(nativeError:*)', 'catch(nativeError)')
+            body = body.replace('catch(nativeError:*)', 'catch(nativeError)').replace('catch(error:Error)', 'catch(error)')
+            body = re.sub(r'([\w.]+(?:\["[^"]+"\])?) is Function', r'(typeof \1==="function")', body)
             code += 'function ' + name + '(' + parameters + '){' + body + '}\n'
-        code += '''let original=0,profile=0;
+        code += '''function catalogCells(cells){mcClothingPanel={mcTileList:{mGridLayout:{GetAllDisplayObjectCells(){poolReads++;return cells;}}}};}
+let original=0,profile=0;
 const grid={ResetAndPositionCells(){original++;},ApexProfileResetAndPositionCells(){profile++;return {suppressed:false,before_count:48,after_count:640,setup_ms:10,position_ms:2,bind_ms:20,resize_ms:3,total_ms:35};},
     ApexGridProviderIdentity(){return '62ECC59A:00000000:12272E1AC0C1F8E2';}};
 '''+checks

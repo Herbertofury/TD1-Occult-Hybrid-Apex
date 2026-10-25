@@ -188,7 +188,7 @@
             // Empty marker transforms are geometry metadata only. Retain the
             // donor's live aspect (for example eyebrow cards), including when
             // SetCellBounds temporarily changes only the X transform.
-            marker.scaleY=aspect;
+            if(marker.scaleY!=aspect)marker.scaleY=aspect;
             var heightScale:Number=scale*aspect;
             if(Math.abs(cell.scaleX-scale)>0.000001 || Math.abs(cell.scaleY-heightScale)>0.000001) {
                cell.scaleX=scale;cell.scaleY=heightScale;changed=true;

@@ -10,7 +10,9 @@ from cas_client import observation_batch,_remember_observation,_recent_observati
 class ObservationBatchTests(unittest.TestCase):
     def setUp(self):
         self.args=Obj(state=Path('disposable-fixture.json'),sim_id='123')
-        self.row=dict(ok=True,cas_request_id='a'*32,client=dict(sim=dict(simId='123'),future_field=[1,2]))
+        self.row=dict(ok=True,cas_request_id='a'*32,client=dict(scope='native-cas-client',sim=dict(simId='123'),
+            form_strip=dict(sim_id='123',selected_owner_id='native/2',native_owner_state='bound',
+                desired_owner_id='',gesture_pending=False),future_field=[1,2]))
 
     def test_only_completed_same_member_subsecond_observations_can_be_reused(self):
         self.assertIsNone(_recent_observation(self.args,lambda:10))
@@ -38,6 +40,7 @@ class ObservationBatchTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 with observation_batch(Path('another-fixture.json')):pass
             target=copy.deepcopy(self.row);target['client']['sim']['simId']='456'
+            target['client']['form_strip']['sim_id']='456'
             _remember_observation(self.args,dict(self.row,destination_status=target),lambda:10)
             self.assertIsNone(_recent_observation(self.args,lambda:10.1))
             self.assertEqual(_recent_observation(Obj(state=self.args.state,sim_id='456'),lambda:10.1)['client'],target['client'])

@@ -149,20 +149,21 @@
                selected.all_occult_types!=int(mCurrSimInfo.allOccultTypes))return null;
             // Physical kind/layer alone cannot distinguish two independent
             // named owners using the same renderer. Read the actual cursor.
-            current=ApexNativeExchange("STATE|"+apexNativeChannel).split("|");
+            current=ApexNativeExchange("GRIDSTATE|"+apexNativeChannel).split("|");
             s.waiting="rendered-owner-cursor";
-            if(current.length!=7 || current[0]!="VIEWSTATE" || current[1]!==selected.sim_id ||
-               current[2]!==apexFormsSelectedId || !/^(1|2|4|8|16|32|64)$/.test(current[3]) ||
-               current[3]!==String(int(mCurrSimInfo.occultType)) ||
-               current[4]!==String(selected.occult_layer) || current[5]!="bound" ||
-               current[6]!==apexFormsNativeGeneration || !/^[1-9][0-9]{0,19}$/.test(current[6]))return null;
+            if(current.length!=9 || current[0]!="GRIDSTATE" || current[1]!==selected.sim_id ||
+               current[2]!==selected.household_id || current[3]!==apexFormsSelectedId ||
+               !/^(1|2|4|8|16|32|64)$/.test(current[4]) || current[4]!==String(int(mCurrSimInfo.occultType)) ||
+               current[5]!==String(selected.occult_layer) ||
+               current[6]!==String(selected.all_occult_types) || current[7]!==String(selected.all_occult_types) ||
+               current[8]!==apexFormsNativeGeneration || !/^[1-9][0-9]{0,19}$/.test(current[8]))return null;
             s.waiting="";
-            return {sim_id:selected.sim_id,household_id:selected.household_id,owner:String(current[2]),
+            return {sim_id:selected.sim_id,household_id:selected.household_id,owner:String(current[3]),
                // EA's shell may stay Vampire while our independently bound
                // Alien (or another owner) renders. The authenticated cursor
                // attests the actual model; retain shell identity separately.
-               session:apexOwnerSession,layer:int(selected.occult_layer),native_kind:int(current[3]),shell_kind:int(selected.occult_type),
-               native_mask:int(selected.all_occult_types),native_generation:String(current[6]),
+               session:apexOwnerSession,layer:int(selected.occult_layer),native_kind:int(current[4]),shell_kind:int(selected.occult_type),
+               native_mask:int(selected.all_occult_types),native_generation:String(current[8]),
                outfit_type:int(slot.outfit_type),outfit_index:int(slot.outfit_index),state:int(mCurrState)};
          } finally {raw=null;selected=null;slot=null;current=null;}
       }
@@ -174,6 +175,33 @@
             lease.layer===context.layer && lease.native_kind===context.native_kind && lease.shell_kind===context.shell_kind && lease.native_mask===context.native_mask &&
             lease.native_generation===context.native_generation && lease.outfit_type===context.outfit_type &&
             lease.outfit_index===context.outfit_index && lease.state===context.state;
+      }
+
+      private function ApexCatalogGridFrameObserve() : Object
+      {
+         var s:Object=apexCatalogGrid;var lease:Object=s==null ? null : s.lease;
+         if(!ApexCatalogGridLeaseCurrent(lease) || lease.phase!="bound" || !s.running)return null;
+         var slot:Object=null;var current:Array=null;
+         try {
+            // Bootstrap/rebind and EVERY write-capable input use the complete
+            // observation above. A visual frame reads the actual outfit and
+            // native controller/household/model/cursor. This avoids requesting
+            // a complete Sim-info object for each visual work frame.
+            slot=CommunicationManager.CallGameService("CasGetCurrSimOutfitSlot",null,true);
+            current=ApexNativeExchange("GRIDSTATE|"+apexNativeChannel).split("|");
+            s.waiting="fresh-native-grid";
+            if(slot==null || !(slot.outfit_type is int) || !(slot.outfit_index is int) ||
+               slot.outfit_type<0 || slot.outfit_index<0 || current.length!=9 || current[0]!="GRIDSTATE" ||
+               current[1]!==lease.sim_id || current[2]!==lease.household_id || current[3]!==lease.owner ||
+               current[4]!==String(lease.native_kind) || current[5]!==String(lease.layer) ||
+               current[6]!==String(lease.native_mask) || current[7]!==String(lease.native_mask) ||
+               current[8]!==lease.native_generation)return null;
+            s.waiting="";
+            return {sim_id:String(current[1]),household_id:String(current[2]),owner:String(current[3]),
+               session:lease.session,layer:int(current[5]),native_kind:int(current[4]),shell_kind:lease.shell_kind,
+               native_mask:int(current[6]),native_generation:String(current[8]),
+               outfit_type:int(slot.outfit_type),outfit_index:int(slot.outfit_index),state:int(mCurrState)};
+         } finally {slot=null;current=null;}
       }
 
       private function ApexCatalogGridInput(lease:Object) : Boolean
@@ -232,9 +260,13 @@
          s.running=true;
          try {
             if(!ApexCatalogGridPrepare())return;
-            var lease:Object=s.lease;var context:Object=ApexCatalogGridObserve();
+            var lease:Object=s.lease;
+            var context:Object=lease.phase=="bound" ? ApexCatalogGridFrameObserve() : ApexCatalogGridObserve();
             if(context==null) {if(lease.phase!="bootstrap")ApexCatalogGridInvalidate("context-unsettled");return;}
             if(!ApexCatalogGridMatches(lease,context)) {
+               // A changed bound outfit/category is a rebind, not permission
+               // to seed another lease from the visual-only observation.
+               if(lease.phase=="bound") {ApexCatalogGridInvalidate("bound-context-change");return;}
                ApexCatalogGridInvalidate("owner");
                if(s.generation>=int.MAX_VALUE)throw new Error("Catalogue lease generation exhausted");
                lease={active:true,generation:++s.generation,root:this,stage:stage,panel:mcClothingPanel,grid:s.grid,

@@ -6,7 +6,7 @@
 #include <limits>
 
 namespace td1::nativecas::gfxprofile {
-enum class Boundary : std::uint32_t {Capture,SnapshotDestructor,PointerAllocate,PointerFree,Count};
+enum class Boundary : std::uint32_t {Capture,SnapshotDestructor,PointerAllocate,PointerFree,MovieAdvance,Count};
 inline constexpr std::size_t BoundaryCount=static_cast<std::size_t>(Boundary::Count);
 struct TimingRow {std::uint64_t started{},returned{},unwound{},null_returns{},qualified{},ticks{},maximum_ticks{};};
 struct TimingTicket {std::uint64_t generation{},started{};Boundary boundary{};bool active{},timed{};};

@@ -37,6 +37,7 @@ from .overlay_loader import _unlinked
 
 _LOCK = threading.RLock()
 _ACTIVE = {}
+_BANK_ASYNC_VIEW = None
 _CAPTURED = {}
 _WRITER_LEASES = {}
 _UNSPECIFIED = object()
@@ -311,6 +312,8 @@ def _write_revision(path):
 
 
 def _context(backend, sim, fresh=True):
+    if _BANK_ASYNC_VIEW is not None:
+        return _BANK_ASYNC_VIEW.context(backend, sim, fresh)
     if fresh:
         identity = _identity(backend, sim)
     else:
@@ -890,6 +893,82 @@ class _HairTransaction(primitive.CasCommitTransaction):
         return result
 
 
+    def prepare_steps(self, expected_pending_sha256, expected_raw_return_sha256,
+                dispositions, hair_targets=None):
+        # Validate the underlying explicit dispositions before any policy can
+        # turn a changed/unknown owner into accepted appearance authority.
+        if self.state != 'observed':
+            raise ValueError('Hair planning requires a complete observed CAS return.')
+        self._guard()
+        if (expected_pending_sha256 != self.pending_sha256 or
+                expected_raw_return_sha256 != self.raw_return_sha256):
+            raise ValueError('CAS hair plan hashes differ from this native checkpoint.')
+        raw = self.document['raw_return']
+        primitive._consistent(raw)
+        original = self.pending['original_owners']['stored']
+        returned = raw['stored']
+        changed = {lane for lane in original if appearance.fingerprint(original[lane])['appearance_sha256'] !=
+                   appearance.fingerprint(returned[lane])['appearance_sha256']}
+        if not isinstance(dispositions, list) or len(dispositions) != len(changed):
+            raise ValueError('Every changed CAS lane requires one explicit disposition.')
+        accepted, seen = set(), set()
+        for row in dispositions:
+            if (not isinstance(row, dict) or set(row) != {'lane', 'action'} or
+                    not isinstance(row['lane'], str) or row['lane'] not in changed or row['lane'] in seen or
+                    not isinstance(row['action'], str) or row['action'] not in primitive.DECISIONS):
+                raise ValueError('Invalid or external-payload CAS disposition.')
+            seen.add(row['lane'])
+            if row['action'] == 'accept-returned':
+                accepted.add(row['lane'])
+        targets = primitive._hair_targets(hair_targets, accepted, original, returned, self.known)
+        planned = {}
+        if self.hair_checkpoint['enabled']:
+            held = self.hair_checkpoint['forms']
+            policy = {'hair_policy': {'enabled': True, 'forms': copy.deepcopy(held)}}
+            for lane in accepted:
+                if lane not in held or outfit_hair.capture(self.backend, original[lane]) != held[lane]:
+                    raise ValueError('Hair isolation lacks its freshly captured original wardrobe.')
+                observed = outfit_hair.capture(self.backend, returned[lane])
+                original_index = outfit_hair._held_index(held[lane])
+                current_index = outfit_hair._held_index(observed)
+                if (set(original_index) != set(current_index) or
+                        any(current_index[key]['outfit_id'] != value['outfit_id'] for key, value in original_index.items())):
+                    raise ValueError('Hair-isolated outfit was added, removed, replaced, or reordered; explicit wardrobe acceptance is unfinished.')
+                target = targets.get(lane)
+                if target is None:
+                    if any(current_index[key]['hair'] != value['hair'] for key, value in original_index.items()):
+                        raise ValueError('Changed hair requires explicit category/ordinal/original-UID intent; propagation is not accepted.')
+                    chosen = outfit_hair.reconcile(self.backend, returned[lane], held[lane], preserve=None, lane=lane)
+                else:
+                    chosen = outfit_hair.accept_cas(self.backend, policy, lane, returned[lane],
+                        {'schema': 1, 'lane': lane, 'targets': target})
+                if ({name: value for name, value in chosen.items() if name != '__outfits__'} !=
+                        {name: value for name, value in returned[lane].items() if name != '__outfits__'}):
+                    raise ValueError('Hair planner changed a non-outfit appearance field.')
+                appearance.fingerprint(chosen)
+                planned[lane] = chosen
+        result = yield from super(_HairTransaction, self).prepare_steps(expected_pending_sha256,
+                    expected_raw_return_sha256, dispositions, hair_targets=targets)
+        if self.hair_checkpoint['enabled']:
+            for lane, fields in planned.items():
+                self.plan['desired'][lane] = copy.deepcopy(fields)
+            self.plan['hair_policy_contract'] = {
+                'enabled': True, 'held_source': 'fresh-raw-original-owners',
+                'explicit_outfit_intent_required': True, 'automatic_intent_classification': False,
+                'native_cas_propagation_verified': False,
+                'reconciled_lanes': sorted(planned, key=int)}
+            plan_hash = primitive.digest(self.plan)
+            document = copy.deepcopy(self.document)
+            document.update(plan=copy.deepcopy(self.plan), plan_sha256=plan_hash)
+            try:
+                yield from self._write_steps(document)
+            except Exception as error:
+                self._prepare_failure(error, 'trusted hair-policy plan journal')
+            result['plan_sha256'] = plan_hash
+        result['hair_isolation_planned'] = self.hair_checkpoint['enabled']
+        result['native_cas_propagation_verified'] = False
+        return result
+
 def _cache_key(path, key, token):
     return str(path), key, token
 
@@ -1410,3 +1489,33 @@ def dispatch(backend, sim, action, value=None):
     argument = json.loads(value, object_pairs_hook=_pairs, parse_constant=reject_constant)
     functions = {'cas_bank_observe': observe, 'cas_bank_prepare': prepare, 'cas_bank_commit': commit}
     return functions[action](backend, sim, argument)
+
+
+def prepare_steps(backend, sim, argument):
+    transaction = _argument(backend, sim, argument,
+        {'expected_pending_sha256', 'expected_raw_return_sha256', 'dispositions'}, {'hair_targets','named_dispositions'})
+    if not primitive._hash(argument['expected_raw_return_sha256']):
+        raise ValueError('CAS returned-owner hash must be exact.')
+    instance = _instance(backend, sim)
+    path,key,record,_transaction=_selected(backend,sim)
+    native_return=_native_return_capability(path,key,transaction)
+    if native_return is not None:
+        # Validate every exact named form before the native write phase.
+        from . import cas_named_return
+        cas_named_return.prepare(record,native_return,instance.document['raw_return']['stored'],argument.get('named_dispositions'))
+    elif 'named_dispositions' in argument:
+        raise ValueError('Named CAS decisions require their complete receiver-owned native graph.')
+    result = yield from instance.prepare_steps(transaction['checkpoint_sha256'],
+        argument['expected_raw_return_sha256'], argument['dispositions'], argument.get('hair_targets'))
+    if native_return is not None:
+        named,_archive=cas_named_return.prepare(record,native_return,instance.plan['desired'],argument['named_dispositions'])
+        instance.plan.update(native_owner_return_sha256=primitive.digest(native_return),
+            named_document_sha256=primitive.digest(named),named_dispositions=copy.deepcopy(argument['named_dispositions']))
+        document=copy.deepcopy(instance.document)
+        document.update(plan=copy.deepcopy(instance.plan),plan_sha256=primitive.digest(instance.plan))
+        try:yield from instance._write_steps(document)
+        except Exception as error:instance._prepare_failure(error,'exact named-owner return plan')
+        result['plan_sha256']=document['plan_sha256']
+        result['independent_owners_planned']=len(native_return['owners'])
+    result['expected_pending_sha256'] = transaction['transaction_sha256']
+    return result

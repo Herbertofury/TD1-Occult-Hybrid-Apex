@@ -12,6 +12,7 @@
 #include <type_traits>
 
 namespace td1::nativecas::gfxprofile::win {
+using AdvanceFn=float(*)(void*,float,unsigned,bool);
 using CaptureFn=bool(*)(void*);
 using SnapshotDestructorFn=void*(*)(void*,unsigned);
 using AllocateFn=void*(*)(void*,std::size_t,std::size_t,const void*);
@@ -20,11 +21,12 @@ struct Definition {const char* name;std::uint32_t rva,end;const char* hash;std::
 // Hashes are filled from the authenticated runtime text, not encrypted disk
 // .text. Full functions, original .pdata entries and their unwind codes gate
 // installation. The disk executable identity is checked by OpenPinnedCasImage.
-inline constexpr std::array<Definition,4> Definitions{{
+inline constexpr std::array<Definition,5> Definitions{{
     {"ContextCapture",0x1006a20,0x1006da5,"6d6c8e09cdf728bcd63a0db85218bdd08378c87d5fb589a959a7be47841f3484",0x267fd88,0x1006a54,"0134080034740c002f640b0026340a0006720250"},
     {"SnapshotDestructor",0x10063d0,0x1006509,"f3f3068ef310ee21440890c8c34662c8043df0f3125aa9387982bc8421e1c9d4",0x24adb98,0x1006509,"0114080014640800145407001434060014321070"},
     {"PointerAllocate",0x10026e0,0x100277c,"5b4d8359d405b2294f20c2701423a74aceeda29ec6fdfa6630ba5c7b36133a7e",0x267f8b8,0x1002701,"010f06000f640e000f540d000f920b70"},
-    {"PointerFree",0x1002da0,0x1002f11,"fb7a49402348eb8b9965a3a2e42d54b3ce2fd6cca42301367b3a9c474c8644ff",0x24ec560,0x1002db8,"010e02000e320a50"}
+    {"PointerFree",0x1002da0,0x1002f11,"fb7a49402348eb8b9965a3a2e42d54b3ce2fd6cca42301367b3a9c474c8644ff",0x24ec560,0x1002db8,"010e02000e320a50"},
+    {"MovieAdvance",0xff6ae0,0xff74aa,"8da97c651d68eccee11dc5822f77d8e7b2d1cdf141cd3120ea936621e788ac42",0x267e9c8,0xff6b8a,"1927070015680f000d01220006f004d002c000007c0a4401"}
 }};
 inline constexpr std::uintptr_t AllocateReturnRva=0x1006b8a,FreeReturnRva=0x10064b7;
 inline constexpr std::uint32_t RootHeapRva=0x29640d0,RootHeapVtableRva=0x201ede0;
@@ -44,11 +46,11 @@ inline std::uint64_t Fingerprint(std::uintptr_t address,std::uint64_t generation
 struct TrampolineUnwind {
     RUNTIME_FUNCTION entry{};
     std::uintptr_t base{};
-    std::array<unsigned char,8> metadata{};
+    std::array<unsigned char,16> metadata{};
     std::array<unsigned char,14> original_jump{};
     std::size_t jump_offset{};
     bool registered{},tail_written{},jump_written{};
-    static constexpr std::size_t SlotBytes=64,TailOffset=56;
+    static constexpr std::size_t SlotBytes=64,TailOffset=48;
     using AddFn=BOOLEAN(WINAPI*)(PRUNTIME_FUNCTION,DWORD,DWORD64);
     using DeleteFn=BOOLEAN(WINAPI*)(PRUNTIME_FUNCTION);
     static bool Bytes(std::uintptr_t at,const void* expected,std::size_t size) noexcept {
@@ -58,27 +60,28 @@ struct TrampolineUnwind {
         std::array<unsigned char,14> expected{{0xff,0x25,0,0,0,0}};std::memcpy(expected.data()+6,&destination,8);return Bytes(at,expected.data(),expected.size());
     }
     bool Prepare(std::size_t kind,void* trampoline,void* target,void* detour,AddFn add=RtlAddFunctionTable) noexcept {
-        if(kind>=4||registered||tail_written||jump_written||!trampoline||!target||!detour||!add)return false;
+        if(kind>=5||registered||tail_written||jump_written||!trampoline||!target||!detour||!add)return false;
         base=reinterpret_cast<std::uintptr_t>(trampoline);const auto native=reinterpret_cast<std::uintptr_t>(target),hook=reinterpret_cast<std::uintptr_t>(detour);
         std::size_t body=0;
         if(kind==0) {const unsigned char code[]{0x40,0x55,0x48,0x83,0xec,0x40};if(!Bytes(base,code,sizeof(code))||!Jump(base+6,native+6))return false;body=20;metadata={1,6,2,0,6,0x72,2,0x50};}
         if(kind==1) {const unsigned char code[]{0x48,0x89,0x5c,0x24,8};if(!Bytes(base,code,sizeof(code))||!Jump(base+5,native+5))return false;body=19;metadata={1,5,2,0,5,0x34,1,0};}
         if(kind==2) {const unsigned char code[]{0x48,0x89,0x6c,0x24,0x10};if(!Bytes(base,code,sizeof(code))||!Jump(base+5,native+5))return false;body=19;metadata={1,5,2,0,5,0x54,2,0};}
         if(kind==3) {const unsigned char code[]{0x48,0x85,0xd2,0x75,0x0e};if(!Bytes(base,code,sizeof(code))||!Jump(base+5,native+0x170)||!Jump(base+19,native+9))return false;body=33;metadata={1,0,0,0,0,0,0,0};}
+        if(kind==4) {const unsigned char code[]{0x41,0x54,0x41,0x55,0x41,0x57};if(!Bytes(base,code,sizeof(code))||!Jump(base+6,native+6))return false;body=20;metadata={1,6,3,0,6,0xf0,4,0xd0,2,0xc0,0,0};}
         if(!body||body+14>TailOffset||!Jump(base+body,hook))return false;
-        const std::array<unsigned char,8> empty{};if(!Bytes(base+TailOffset,empty.data(),empty.size()))return false;
+        const std::array<unsigned char,16> empty{};if(!Bytes(base+TailOffset,empty.data(),empty.size()))return false;
         MEMORY_BASIC_INFORMATION region{};
         if(VirtualQuery(trampoline,&region,sizeof(region))!=sizeof(region)||region.State!=MEM_COMMIT||
            (region.Protect&(PAGE_GUARD|PAGE_NOACCESS))||base<reinterpret_cast<std::uintptr_t>(region.BaseAddress)||
            base-reinterpret_cast<std::uintptr_t>(region.BaseAddress)>region.RegionSize||
            region.RegionSize-(base-reinterpret_cast<std::uintptr_t>(region.BaseAddress))<SlotBytes)return false;
-        jump_offset=kind==3?19:kind==0?6:5;
+        jump_offset=kind==3?19:(kind==0||kind==4)?6:5;
         if(!ReadValue(base+jump_offset,original_jump.data(),original_jump.size()))return false;
         std::array<unsigned char,14> jump{{0x49,0xbb,0,0,0,0,0,0,0,0,0x41,0xff,0xe3,0x90}};
-        const auto destination=native+(kind==3?9:kind==0?6:5);std::memcpy(jump.data()+2,&destination,8);
+        const auto destination=native+(kind==3?9:(kind==0||kind==4)?6:5);std::memcpy(jump.data()+2,&destination,8);
         DWORD old=0;if(!VirtualProtect(reinterpret_cast<void*>(base),SlotBytes,PAGE_EXECUTE_READWRITE,&old))return false;
         // RtlVirtualUnwind mistakes MinHook's FF25 jump-back for a tail
-        // epilogue and skips the copied prologue. These exact4 native bodies
+        // epilogue and skips the copied prologue. These exact5 native bodies
         // never read incoming R11. The same-length MOVABS R11/JMP R11 keeps
         // every argument/nonvolatile/stack location and is not an epilogue.
         std::memcpy(reinterpret_cast<void*>(base+jump_offset),jump.data(),jump.size());jump_written=true;
@@ -115,10 +118,10 @@ inline thread_local SnapshotFrame* CurrentSnapshot{};
 inline thread_local unsigned ObservationDepth{};
 struct Runtime {
     SnapshotTiming timing;
-    std::array<std::atomic<void*>,4> original{};
-    std::array<void*,4> targets{};
-    std::array<TrampolineUnwind,4> unwind{};
-    std::array<std::string,4> original_prefix{},owned_prefix{};
+    std::array<std::atomic<void*>,5> original{};
+    std::array<void*,5> targets{};
+    std::array<TrampolineUnwind,5> unwind{};
+    std::array<std::string,5> original_prefix{},owned_prefix{};
     std::mutex requests,control,worker_mutex;
     std::condition_variable worker_condition;
     std::thread worker;
@@ -236,7 +239,16 @@ __declspec(noinline) inline void* SnapshotDestructor(void* snapshot,unsigned fla
     }
     return result;
 }
-inline const std::array<void*,4> Detours{{reinterpret_cast<void*>(Capture),reinterpret_cast<void*>(SnapshotDestructor),reinterpret_cast<void*>(Allocate),reinterpret_cast<void*>(Free)}};
+__declspec(noinline) inline float Advance(void* movie,float delta,unsigned catch_up,bool capture) {
+    auto& runtime=Shared();const auto native=reinterpret_cast<AdvanceFn>(runtime.original[4].load(std::memory_order_acquire));
+    if(Observing()||!runtime.timing.Active())return native(movie,delta,catch_up,capture);
+    const auto incoming=GetLastError();++ObservationDepth;const auto ticket=runtime.timing.Begin(Boundary::MovieAdvance,true,Clock);--ObservationDepth;
+    float result=0;SetLastError(incoming);
+    __try {result=native(movie,delta,catch_up,capture);}
+    __finally {const auto outgoing=GetLastError();++ObservationDepth;runtime.timing.End(ticket,AbnormalTermination()!=FALSE,false,true,Clock);--ObservationDepth;SetLastError(outgoing);}
+    return result;
+}
+inline const std::array<void*,5> Detours{{reinterpret_cast<void*>(Capture),reinterpret_cast<void*>(SnapshotDestructor),reinterpret_cast<void*>(Allocate),reinterpret_cast<void*>(Free),reinterpret_cast<void*>(Advance)}};
 
 inline std::string HexBytes(const char* text) {
     std::string result;for(std::size_t i=0;text[i];i+=2){if(!text[i+1])throw std::runtime_error("Unwind pin hex is incomplete.");auto digit=[](char c){return c>='0'&&c<='9'?c-'0':c>='a'&&c<='f'?c-'a'+10:-1;};const int a=digit(text[i]),b=digit(text[i+1]);if(a<0||b<0)throw std::runtime_error("Unwind pin hex differs.");result.push_back(static_cast<char>((a<<4)|b));}return result;
@@ -317,7 +329,7 @@ inline void InstallLocked(Runtime& runtime) {
             throw;
         }
     } else for(std::size_t i=0;i<Definitions.size();++i)if(!runtime.unwind[i].registered||
-        !TrampolineUnwind::Bytes(runtime.unwind[i].base+TrampolineUnwind::TailOffset,runtime.unwind[i].metadata.data(),8))throw std::runtime_error("Renderer profiler retained unwind lifetime changed.");
+        !TrampolineUnwind::Bytes(runtime.unwind[i].base+TrampolineUnwind::TailOffset,runtime.unwind[i].metadata.data(),16))throw std::runtime_error("Renderer profiler retained unwind lifetime changed.");
     ActivatePreparedLocked(runtime);runtime.prepare_ms=double(Clock()-started)*1000.0/double(runtime.frequency);
 }
 
@@ -364,7 +376,7 @@ inline void Configure(const std::string& scope,unsigned milliseconds,bool detail
 inline ui::Json Snapshot() {
     auto& runtime=Shared();std::lock_guard<std::mutex> guard(runtime.control);const auto data=runtime.timing.Read();
     ui::Json rows=ui::Json::array(),records=ui::Json::array();const double scale=runtime.frequency?1000.0/double(runtime.frequency):0;
-    for(std::size_t i=0;i<Definitions.size();++i){const auto& row=data.rows[i];const bool timed=i<2||data.detail_timing;rows.push_back({{"boundary",Definitions[i].name},{"started",row.started},{"returned",row.returned},{"unwound",row.unwound},{"null_returns",row.null_returns},{"qualified_calls",row.qualified},{"timed",timed},{"total_ms",timed?ui::Json(double(row.ticks)*scale):ui::Json(nullptr)},{"max_ms",timed?ui::Json(double(row.maximum_ticks)*scale):ui::Json(nullptr)}});}
+    for(std::size_t i=0;i<Definitions.size();++i){const auto& row=data.rows[i];const bool timed=i<2||i==4||data.detail_timing;rows.push_back({{"boundary",Definitions[i].name},{"started",row.started},{"returned",row.returned},{"unwound",row.unwound},{"null_returns",row.null_returns},{"qualified_calls",row.qualified},{"timed",timed},{"total_ms",timed?ui::Json(double(row.ticks)*scale):ui::Json(nullptr)},{"max_ms",timed?ui::Json(double(row.maximum_ticks)*scale):ui::Json(nullptr)}});}
     if(!data.records_contended)for(std::size_t i=0;i<data.record_count;++i){const auto& row=data.records[i];records.push_back({{"scope_serial",row.serial},{"context_fingerprint",row.context_fingerprint},{"native_frame_id",row.native_frame_id},{"thread_id",row.thread},{"heap_verified",row.heap_verified},{"native_return",row.native_return},{"unwound",row.unwound},{"started_qpc",row.started_ticks},{"total_ms",double(row.elapsed_ticks)*scale},{"allocations",row.allocations},{"allocation_nulls",row.allocation_nulls},{"frees",row.frees},{"retired_frees",row.retired_frees},{"merged_frees",row.merged_frees},{"allocation_ms",double(row.allocation_ticks)*scale},{"free_ms",double(row.free_ticks)*scale}});}
     return {{"available",true},{"enabled",data.enabled},{"active_heap_hooks",runtime.active_hooks},{"prepared",runtime.created},{"generation",data.generation},{"scope_id",runtime.scope},{"inflight",data.inflight},{"detail_timing",data.detail_timing},{"boundaries",std::move(rows)},{"captures",std::move(records)},{"records_contended",data.records_contended},{"skipped_calls",data.skipped},{"dropped_records",data.dropped_records},{"preparation_ms",runtime.prepare_ms},{"error",runtime.error},{"conflicting_patch",runtime.conflict},{"native_entries_restored",runtime.created&&!runtime.active_hooks&&!runtime.conflict},{"disabled_trampolines_retained",runtime.created},{"diagnostic_timeout_thread",runtime.worker_running.load()},{"background_service",false},{"appearance_written",false},{"page_substitution",false},{"page_retention",false},{"timing","QPC wall time including hook/observer overhead and scheduling; not exclusive CPU time"},{"counter_semantics","calls accepted while enabled; accepted calls may finish after stop"},{"context_fingerprint_semantics","window address hash; not a persistent Sim, form or lifetime identity"}};
 }

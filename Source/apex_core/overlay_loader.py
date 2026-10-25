@@ -30,6 +30,10 @@ PROTOCOL = 1
 _HANDLE = None
 _CALLS = None
 _ENGINE_CALL = None
+_OWNER_MAILBOX_BINDING = None
+_BANK_EXPORTS = None
+_BANK_BINDING = None
+_BANK_ROOT = None
 _LOADED_SHA = None
 _LOADED_PATH = None
 _LOADED_ARCHIVE = None
@@ -143,6 +147,121 @@ def _bind_engine(native, handle):
     return EngineCall(('ApexNativeCasEngineControl', Library()))
 
 
+def _bind_owner_mailbox(native, handle):
+    if type(getattr(native, 'FUNCFLAG_PYTHONAPI', None)) is not int:
+        return None # Keep legacy HTTP when the atomic peek cannot retain the GIL.
+    class String(native._SimpleCData): _type_ = 'z'
+    class Integer(native._SimpleCData): _type_ = 'i'
+    class Control(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL
+        _restype_ = String
+        _argtypes_ = (String,)
+    class Pending(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL | native.FUNCFLAG_PYTHONAPI
+        _restype_ = Integer
+        _argtypes_ = ()
+    class Library: _handle = handle
+    try:
+        control = Control(('ApexOwnerMailboxControl', Library()))
+        pending = Pending(('ApexOwnerMailboxPending', Library()))
+    except (AttributeError, OSError):
+        return None # An older authenticated DLL never accepted a native UUID.
+    def call(request):
+        raw = json.dumps(request, ensure_ascii=True, allow_nan=False, separators=(',', ':')).encode('ascii')
+        if len(raw) > 8 * 1024 * 1024 + 4096:
+            raise ValueError('Native owner control exceeds its bound.')
+        response = control(raw)
+        response = getattr(response, 'value', response)
+        if not isinstance(response, bytes) or len(response) > 8 * 1024 * 1024 + 4096:
+            raise ValueError('Native owner returned an invalid bounded response.')
+        return json.loads(response.decode('utf-8'))
+    return call, lambda: _integer(pending)
+
+
+def owner_mailbox_binding(module_file):
+    # Frozen authenticated exports only. No file reads, DLL hashing, ctypes
+    # rebinding or loader lock in the owner tick, including hidden idle ticks.
+    if _OWNER_MAILBOX_BINDING is None:
+        return None
+    if os.path.normcase(_archive_name(module_file)) != _LOADED_ARCHIVE:
+        raise ValueError('Owner mailbox caller is not the archive that authenticated this sidecar.')
+    return _OWNER_MAILBOX_BINDING
+
+
+def _bind_bank_exports(native, handle):
+    # Submit/PollCopy are pure bytes + small publication locks. Retain the GIL
+    # there to avoid scheduling a background Python thread on every owner poll.
+    if type(getattr(native, 'FUNCFLAG_PYTHONAPI', None)) is not int:
+        return None
+    class String(native._SimpleCData): _type_ = 'z'
+    class U64(native._SimpleCData): _type_ = 'Q'
+    class Bind(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL
+        _restype_ = U64
+        _argtypes_ = (String, U64)
+    class Submit(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL | native.FUNCFLAG_PYTHONAPI
+        _restype_ = U64
+        _argtypes_ = (U64, String, U64, String, U64)
+    class Poll(native.CFuncPtr):
+        _flags_ = native.FUNCFLAG_STDCALL | native.FUNCFLAG_PYTHONAPI
+        _restype_ = String
+        _argtypes_ = (U64, String, U64, U64)
+    class Library: _handle = handle
+    try:
+        return (Bind(('ApexBankBind', Library())), Submit(('ApexBankSubmit', Library())),
+                Poll(('ApexBankPollCopy', Library())))
+    except (AttributeError, OSError):
+        return None # No native ticket accepted; the private route stays off.
+
+
+def _configure_bank_worker(module_file, data_root):
+    global _BANK_BINDING, _BANK_ROOT
+    if (_BANK_EXPORTS is None or _HANDLE is None or _STATUS.get('ok') is not True or
+            os.path.normcase(_archive_name(module_file)) != _LOADED_ARCHIVE):
+        raise ValueError('The authenticated loaded sidecar has no bank worker binding.')
+    absolute_root = os.path.abspath(str(data_root))
+    root = os.path.normcase(absolute_root)
+    profile = Path(_LOADED_ARCHIVE).parent.parent.parent
+    expected = os.path.normcase(str(profile / 'TD1_OccultHybridApexData'))
+    if profile.name.casefold() != 'the sims 4' or root != expected:
+        raise ValueError('Bank worker root differs from the current authenticated game profile.')
+    if _BANK_BINDING is not None:
+        if _BANK_ROOT != root:
+            raise ValueError('A different bank root already owns this loaded runtime.')
+        return _BANK_BINDING
+    directory = _unlinked(absolute_root)
+    if not directory.is_dir():
+        raise ValueError('Current game bank root is not an existing regular directory.')
+    bind, submit, poll = _BANK_EXPORTS
+    encoded = str(directory).encode('utf-8')
+    value = bind(encoded, len(encoded))
+    capability = int(getattr(value, 'value', value))
+    if not 0 < capability < 2**64:
+        raise ValueError('Native bank root was refused before job admission.')
+    def send(header, payload):
+        value = submit(capability, header, len(header), payload, len(payload))
+        return int(getattr(value, 'value', value))
+    def observe(header, ticket):
+        value = poll(capability, header, len(header), ticket)
+        return getattr(value, 'value', value) # Copy TLS bytes before another native call.
+    from .bank_worker import NativeBinding
+    _BANK_BINDING = NativeBinding(directory, send, observe)
+    _BANK_ROOT = root
+    return _BANK_BINDING
+
+
+def bank_worker_binding(module_file):
+    # Active actions use only this frozen owner binding: no loader lock,
+    # hashing, path stat, worker startup or synchronous fallback on a tick.
+    if (_BANK_BINDING is None or _STATUS.get('ok') is not True or
+            os.path.normcase(_archive_name(module_file)) != _LOADED_ARCHIVE):
+        raise ValueError('No authenticated current-root bank worker is ready.')
+    if _BANK_BINDING.owner != threading.current_thread().ident:
+        raise ValueError('Bank worker binding belongs to another canonical owner.')
+    return _BANK_BINDING
+
+
 def _bind_input(native, handle):
     class Integer(native._SimpleCData):
         _type_ = 'i'
@@ -187,8 +306,8 @@ def _integer(call):
 
 
 @serialized
-def start(module_file, dll_path):
-    global _HANDLE, _CALLS, _ENGINE_CALL, _STATUS, _LOADED_SHA, _LOADED_PATH, _LOADED_ARCHIVE
+def start(module_file, dll_path, data_root=None):
+    global _HANDLE, _CALLS, _ENGINE_CALL, _OWNER_MAILBOX_BINDING, _BANK_EXPORTS, _STATUS, _LOADED_SHA, _LOADED_PATH, _LOADED_ARCHIVE
     try:
         native_path, info = sidecar_paths(module_file)
         if _HANDLE is not None and (_LOADED_SHA != info['sha256'] or _LOADED_PATH != str(native_path)):
@@ -201,10 +320,14 @@ def start(module_file, dll_path):
                 if _integer(calls['ApexOverlayProtocolVersion']) != PROTOCOL:
                     raise ValueError('Native export protocol differs from the script.')
                 engine_call = _bind_engine(native, handle)
+                owner_binding = _bind_owner_mailbox(native, handle)
+                bank_exports = _bind_bank_exports(native, handle)
             except Exception:
                 native.FreeLibrary(handle)
                 raise
             _HANDLE, _CALLS, _ENGINE_CALL = handle, calls, engine_call
+            _OWNER_MAILBOX_BINDING = owner_binding
+            _BANK_EXPORTS = bank_exports
             _LOADED_SHA, _LOADED_PATH = info['sha256'], str(native_path)
             _LOADED_ARCHIVE = os.path.normcase(_archive_name(module_file))
         result = _integer(_CALLS['ApexOverlayStart'])
@@ -213,6 +336,14 @@ def start(module_file, dll_path):
             'F11 overlay hook is ready; press F11 in the game window.' if result == 0 else
             _ERRORS.get(result, 'Native start failed with code {}.'.format(result)),
             'game_window_verified': False, 'runtime_verified': False}
+        if result == 0 and data_root is not None and _BANK_EXPORTS is not None:
+            try:
+                _configure_bank_worker(module_file, data_root)
+            except Exception as bank_error:
+                _STATUS['bank_worker_error'] = str(bank_error)
+                _STATUS['bank_worker_ready'] = False
+            else:
+                _STATUS['bank_worker_ready'] = True
     except Exception as exc:
         _STATUS = {'ok': False, 'message': 'F11 loader: {}'.format(exc), 'runtime_verified': False}
     return dict(_STATUS)
@@ -232,6 +363,8 @@ def status():
         result['captures_completed'] = _integer(_CALLS['ApexCaptureCompleted'])
         result['runtime_verified'] = (result.get('ok') is True and result['game_window_verified'] and
                                       result['renderer_initialized'] and result['frame_submission_verified'])
+        if _OWNER_MAILBOX_BINDING is not None:
+            result['owner_mailbox'] = _OWNER_MAILBOX_BINDING[0]({'operation': 'status'})
         if result.get('ok') is True:
             result['message'] = ('F11 renderer is initialized and has submitted frames; UI actions require their own acknowledgements.'
                                  if result['runtime_verified'] else

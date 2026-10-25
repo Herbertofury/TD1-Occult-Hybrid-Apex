@@ -11,10 +11,11 @@ from build_script import build as build_script
 
 ROOT = Path(__file__).resolve().parents[1]
 CODE = '''
-import json, sys, _ctypes
+import json, os, sys, tempfile, time, _ctypes
 sys.path.insert(0, sys.argv[1])
-from apex_core.overlay_loader import _bind, _bind_input, _bind_engine, _integer
+from apex_core.overlay_loader import _bind, _bind_input, _bind_engine, _bind_bank_exports, _integer
 handle = _ctypes.LoadLibrary(sys.argv[2])
+bank_started = False
 try:
     calls = _bind(_ctypes, handle)
     result = {name: _integer(call) for name, call in calls.items()}
@@ -42,9 +43,50 @@ try:
     refused_raw = engine(json.dumps(arm).encode('ascii'))
     refused = json.loads(getattr(refused_raw, 'value', refused_raw).decode('utf-8'))
     assert refused['ok'] is False and refused['production_ready'] is False and refused['game_files_written'] is False
+    # Exercise the ACTUAL combined sidecar's Rust symbols through the same
+    # Python 3.7 low-level U64/String/GIL-held binding used in the game.
+    assert _ctypes.FUNCFLAG_PYTHONAPI == 4
+    exports = _bind_bank_exports(_ctypes, handle)
+    assert exports is not None, 'Combined sidecar lacks bank exports'
+    bind, submit, poll = exports
+    with tempfile.TemporaryDirectory(prefix='apex-bank-abi-') as temporary:
+        root = temporary.encode('utf-8')
+        value = bind(root, len(root)); capability = int(getattr(value, 'value', value))
+        assert 0 < capability < 2**64
+        bank_started = True
+        request = dict(request_id='b'*32, transaction_id='a'*32,
+            identity=dict(runtime_pid=os.getpid(),save_guid='17',household_id='19',sim_id='23'),
+            operation='read-selected',sequence=0,expected_file_sha256=None,
+            expected_record_sha256=None,expected_journal_sha256=None,document_sha256=None)
+        header = json.dumps(request,separators=(',',':')).encode('ascii')
+        value = submit(capability | (1<<40),header,len(header),b'',0)
+        assert int(getattr(value,'value',value)) == 0, 'U64 capability was truncated'
+        value = submit(capability,header,len(header),b'',0)
+        ticket = int(getattr(value,'value',value)); assert 0 < ticket < 2**64
+        until = time.perf_counter()+10
+        while True:
+            value = poll(capability,header,len(header),ticket)
+            copied = getattr(value,'value',value)
+            assert isinstance(copied,bytes)
+            receipt = json.loads(copied.decode('utf-8'))
+            if receipt['state'] != 'pending': break
+            assert time.perf_counter()<until, 'Combined bank worker did not publish'
+            time.sleep(.002)
+        assert receipt['ok'] is False and receipt['state']=='failed'
+        assert receipt['native_call_authorized'] is False # Empty temporary bank.
+        first = copied
+        value = poll(capability,header,len(header),ticket+(1<<40))
+        second = getattr(value,'value',value)
+        assert json.loads(second.decode('utf-8'))['state']=='failed'
+        assert first != second and json.loads(first.decode('utf-8'))==receipt
+    result['bank_worker_abi'] = dict(combined_dll=True,python37=True,u64=True,
+        pollcopy_owned_bytes=True,gil_retained_submit_poll=True,temporary_root_only=True)
     print(json.dumps(result, sort_keys=True))
 finally:
-    _ctypes.FreeLibrary(handle)
+    # A bound Rust pool is process-lifetime. Never unload its executing module;
+    # child process exit releases it before the parent cleans the fixture.
+    if not bank_started:
+        _ctypes.FreeLibrary(handle)
 '''
 
 LOADER_CODE = '''

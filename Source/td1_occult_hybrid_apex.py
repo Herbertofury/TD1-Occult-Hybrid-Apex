@@ -4294,8 +4294,10 @@ def _apex_install_core_tick():
                     _APEX_PROFILE_PULSE()
                 if _SERVER_START_RETRY.take_due(time.monotonic()):
                     start_server()
-                if _APEX_COMMANDS.pending:
-                    _APEX_COMMANDS.drain(_execute_owned_command, max_commands=1, budget_seconds=0.001)
+                import sys
+                _APEX_OWNER_MAILBOX.ingress(sys.modules[__name__])
+                _APEX_COMMANDS.drain(_execute_owned_command, max_commands=1, budget_seconds=0.001)
+                _APEX_OWNER_MAILBOX.completions(sys.modules[__name__])
             return result
         tick._apex_core_tick = True
         core.on_tick = tick
@@ -4421,10 +4423,10 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;background-ima
     </div>
 
     <div class="dashboard">
-      <div class="metric"><div class="label">Target</div><div class="value" id="mSim">—</div><div class="hint" id="mSimHint">Awaiting game status</div></div>
-      <div class="metric"><div class="label">Hybrid Health</div><div class="value" id="mHealth">—</div><div class="hint" id="mHealthHint">No report yet</div></div>
-      <div class="metric"><div class="label">Flags</div><div class="value" id="mFlags">—</div><div class="hint" id="mCurrent">current —</div></div>
-      <div class="metric"><div class="label">Bridge</div><div class="value" id="mBridge">—</div><div class="hint" id="mBridgeHint">native status unknown</div></div>
+      <div class="metric"><div class="label">Target</div><div class="value" id="mSim">â€”</div><div class="hint" id="mSimHint">Awaiting game status</div></div>
+      <div class="metric"><div class="label">Hybrid Health</div><div class="value" id="mHealth">â€”</div><div class="hint" id="mHealthHint">No report yet</div></div>
+      <div class="metric"><div class="label">Flags</div><div class="value" id="mFlags">â€”</div><div class="hint" id="mCurrent">current â€”</div></div>
+      <div class="metric"><div class="label">Bridge</div><div class="value" id="mBridge">â€”</div><div class="hint" id="mBridgeHint">native status unknown</div></div>
     </div>
 
     <section id="control" class="panel active">
@@ -4442,7 +4444,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;background-ima
 
     <section id="memory" class="panel">
       <div class="section-title"><div><h2>Memory + Traits</h2><p>Manage hidden occult memory traits and tuning trait alignment without opening CAS.</p></div></div>
-      <div class="hero"><button class="bigbtn good" onclick="cmd('save_memory')">Save Form Memory</button><button class="bigbtn good" onclick="cmd('restore_memory')">Restore Form Memory</button><button class="bigbtn danger" onclick="cmd('clear_memory')">Clear Memory</button><button class="bigbtn soft" onclick="cmd('sync_flags_to_traits')">Flags → Traits</button><button class="bigbtn soft" onclick="cmd('sync_traits_to_flags')">Traits → Flags</button></div>
+      <div class="hero"><button class="bigbtn good" onclick="cmd('save_memory')">Save Form Memory</button><button class="bigbtn good" onclick="cmd('restore_memory')">Restore Form Memory</button><button class="bigbtn danger" onclick="cmd('clear_memory')">Clear Memory</button><button class="bigbtn soft" onclick="cmd('sync_flags_to_traits')">Flags â†’ Traits</button><button class="bigbtn soft" onclick="cmd('sync_traits_to_flags')">Traits â†’ Flags</button></div>
       <div id="memoryGrid" class="grid"></div>
     </section>
 
@@ -4465,7 +4467,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;background-ima
 
     <section id="saved" class="panel">
       <div class="section-title"><div><h2>Saved Occult Form Library</h2><p>Save the active edited form or a stored occult form, search presets, then force-apply one back to current or occult data.</p></div></div>
-      <div class="row"><div class="card"><h3>Save / Apply</h3><div class="field"><label>Preset Name</label><input id="saveName" placeholder="Nóttlilja vampire form v1"></div><div class="field"><label>Saved Form ID or Name</label><input id="savedId" placeholder="sf-VAMPIRE-..."></div><div class="hero"><button class="bigbtn good" onclick="cmd('save_active_form', $('occultPick').value, $('saveName').value)">Save Active Form</button><button class="bigbtn good" onclick="cmd('save_occult_form', $('occultPick').value, $('saveName').value)">Save Stored Occult Form</button><button class="bigbtn soft" onclick="cmd('apply_saved_form_current', null, $('savedId').value)">Apply To Current</button><button class="bigbtn warn" onclick="cmd('force_apply_saved_form', $('occultPick').value, $('savedId').value)">Force Apply To Occult</button></div></div><div class="card"><h3>Search</h3><div class="field"><label>Search</label><input id="savedSearch" placeholder="name, occult, sim, id"></div><button class="btn soft" onclick="searchSaved()">Search Saved Forms</button><button class="btn danger" onclick="cmd('delete_saved_form', null, $('savedId').value)">Delete Selected</button><pre class="output" id="savedOut">No search yet.</pre></div></div>
+      <div class="row"><div class="card"><h3>Save / Apply</h3><div class="field"><label>Preset Name</label><input id="saveName" placeholder="NÃ³ttlilja vampire form v1"></div><div class="field"><label>Saved Form ID or Name</label><input id="savedId" placeholder="sf-VAMPIRE-..."></div><div class="hero"><button class="bigbtn good" onclick="cmd('save_active_form', $('occultPick').value, $('saveName').value)">Save Active Form</button><button class="bigbtn good" onclick="cmd('save_occult_form', $('occultPick').value, $('saveName').value)">Save Stored Occult Form</button><button class="bigbtn soft" onclick="cmd('apply_saved_form_current', null, $('savedId').value)">Apply To Current</button><button class="bigbtn warn" onclick="cmd('force_apply_saved_form', $('occultPick').value, $('savedId').value)">Force Apply To Occult</button></div></div><div class="card"><h3>Search</h3><div class="field"><label>Search</label><input id="savedSearch" placeholder="name, occult, sim, id"></div><button class="btn soft" onclick="searchSaved()">Search Saved Forms</button><button class="btn danger" onclick="cmd('delete_saved_form', null, $('savedId').value)">Delete Selected</button><pre class="output" id="savedOut">No search yet.</pre></div></div>
     </section>
     <section id="mccc" class="panel">
       <div class="section-title"><div><h2>MCCC Compatibility Guard</h2><p>Feature-detects MCCC modules, snapshots active household occult state, and restores occult flags/forms after MCCC Modify Household/Edit CAS returns.</p></div></div>
@@ -4485,7 +4487,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;background-ima
   <aside class="logdock">
     <div class="loghead"><div><h2>Running Log</h2><p>Live queue, command, repair, and diagnostic trace.</p></div><div class="logcontrols"><button class="btn ghost" onclick="pollLogs(true)">Refresh</button><button class="btn ghost" onclick="copyLog()">Copy</button><button class="btn ghost" onclick="downloadLog()">Export</button></div></div>
     <div id="logbox" class="logbox"></div>
-    <div class="perf"><div class="perfitem"><div class="k">Queue</div><div class="v" id="queueStat">—</div></div><div class="perfitem"><div class="k">Auto Repair</div><div class="v" id="autoStat">—</div></div><div class="perfitem"><div class="k">Last Avg</div><div class="v" id="avgStat">—</div></div><div class="perfitem"><div class="k">Native</div><div class="v" id="nativeStat">—</div></div></div>
+    <div class="perf"><div class="perfitem"><div class="k">Queue</div><div class="v" id="queueStat">â€”</div></div><div class="perfitem"><div class="k">Auto Repair</div><div class="v" id="autoStat">â€”</div></div><div class="perfitem"><div class="k">Last Avg</div><div class="v" id="avgStat">â€”</div></div><div class="perfitem"><div class="k">Native</div><div class="v" id="nativeStat">â€”</div></div></div>
   </aside>
 </div>
 <div class="toast" id="toast"></div>
@@ -4497,18 +4499,18 @@ function enc(v){return encodeURIComponent(v===undefined||v===null?'':v)}
 function toast(msg){const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800)}
 function setDot(ok){const d=$('dot'); if(ok){d.classList.add('ok')}else{d.classList.remove('ok')}}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.tab).classList.add('active')});
-function card(o,kind){let buttons=''; if(kind==='cas'){buttons=`<button class="btn warn" onclick="cmd('cas_prepare_keep','${o}')">CAS Keep ${o}</button><button class="btn good" onclick="cmd('cas_restore')">Restore</button>`} if(kind==='control'){buttons=`<button class="btn good" onclick="cmd('add','${o}')">Add</button><button class="btn soft" onclick="cmd('gameplay_add','${o}')">Gameplay Init</button><button class="btn danger" onclick="cmd('remove','${o}')">Remove</button><button class="btn danger" onclick="cmd('gameplay_remove','${o}')">Gameplay Remove</button><button class="btn" onclick="cmd('switch','${o}')">Switch</button><button class="btn soft" onclick="cmd('on_add_actions','${o}')">Add Actions</button><button class="btn warn" onclick="cmd('lock_perks','${o}')">Lock Perks</button><button class="btn good" onclick="cmd('unlock_perks','${o}')">Unlock Perks</button>`} if(kind==='forms'){buttons=`<button class="btn good" onclick="cmd('generate_form','${o}')">Generate Form</button><button class="btn danger" onclick="cmd('delete_form','${o}')">Delete Form</button><button class="btn" onclick="cmd('copy_human_to_form','${o}')">Human → Form</button><button class="btn" onclick="cmd('copy_current_to_form','${o}')">Current → Form</button><button class="btn soft" onclick="cmd('copy_form_to_current','${o}')">Form → Current</button>`} if(kind==='memory'){buttons=`<button class="btn warn" onclick="cmd('add_memory_trait','${o}')">Add Memory Trait</button><button class="btn danger" onclick="cmd('remove_memory_trait','${o}')">Remove Memory Trait</button><button class="btn good" onclick="cmd('add_tuning_traits','${o}')">Add Tuning Traits</button><button class="btn danger" onclick="cmd('remove_tuning_traits','${o}')">Remove Tuning Traits</button>`} if(kind==='raw'){buttons=`<button class="btn warn" onclick="cmd('toggle_flag','${o}')">Toggle Raw Flag</button>`} return `<div class="card occ" data-occult="${o.toLowerCase()}"><div class="occ-head"><div class="occ-name">${o}</div><div class="occ-value" id="value-${kind}-${o}">—</div></div><div class="pills" id="pill-${kind}-${o}"><span class="pill">awaiting status</span></div>${buttons}</div>`}
+function card(o,kind){let buttons=''; if(kind==='cas'){buttons=`<button class="btn warn" onclick="cmd('cas_prepare_keep','${o}')">CAS Keep ${o}</button><button class="btn good" onclick="cmd('cas_restore')">Restore</button>`} if(kind==='control'){buttons=`<button class="btn good" onclick="cmd('add','${o}')">Add</button><button class="btn soft" onclick="cmd('gameplay_add','${o}')">Gameplay Init</button><button class="btn danger" onclick="cmd('remove','${o}')">Remove</button><button class="btn danger" onclick="cmd('gameplay_remove','${o}')">Gameplay Remove</button><button class="btn" onclick="cmd('switch','${o}')">Switch</button><button class="btn soft" onclick="cmd('on_add_actions','${o}')">Add Actions</button><button class="btn warn" onclick="cmd('lock_perks','${o}')">Lock Perks</button><button class="btn good" onclick="cmd('unlock_perks','${o}')">Unlock Perks</button>`} if(kind==='forms'){buttons=`<button class="btn good" onclick="cmd('generate_form','${o}')">Generate Form</button><button class="btn danger" onclick="cmd('delete_form','${o}')">Delete Form</button><button class="btn" onclick="cmd('copy_human_to_form','${o}')">Human â†’ Form</button><button class="btn" onclick="cmd('copy_current_to_form','${o}')">Current â†’ Form</button><button class="btn soft" onclick="cmd('copy_form_to_current','${o}')">Form â†’ Current</button>`} if(kind==='memory'){buttons=`<button class="btn warn" onclick="cmd('add_memory_trait','${o}')">Add Memory Trait</button><button class="btn danger" onclick="cmd('remove_memory_trait','${o}')">Remove Memory Trait</button><button class="btn good" onclick="cmd('add_tuning_traits','${o}')">Add Tuning Traits</button><button class="btn danger" onclick="cmd('remove_tuning_traits','${o}')">Remove Tuning Traits</button>`} if(kind==='raw'){buttons=`<button class="btn warn" onclick="cmd('toggle_flag','${o}')">Toggle Raw Flag</button>`} return `<div class="card occ" data-occult="${o.toLowerCase()}"><div class="occ-head"><div class="occ-name">${o}</div><div class="occ-value" id="value-${kind}-${o}">â€”</div></div><div class="pills" id="pill-${kind}-${o}"><span class="pill">awaiting status</span></div>${buttons}</div>`}
 function build(){let pick=$('occultPick'); if(pick)pick.innerHTML=occults.map(o=>`<option>${o}</option>`).join(''); ['control','forms','memory','raw','cas'].forEach(kind=>{let el=$(kind==='control'?'occultGrid':kind+'Grid'); if(el)el.innerHTML=occults.map(o=>card(o,kind)).join('')})}
 function filterCards(){const q=($('filter')?$('filter').value:'').toLowerCase(); document.querySelectorAll('.occ').forEach(c=>c.style.display=c.dataset.occult.indexOf(q)>=0?'':'none')}
 async function cmd(action,occult,value){let u='/api/command?action='+enc(action)+'&sim_id='+enc($('sim').value||''); if(occult)u+='&occult='+enc(occult); if(value!==undefined&&value!==null)u+='&value='+enc(value); busy=true; $('out').textContent='Running '+action+'...\nWatch the Running Log for queue/start/done details.'; pollLogs(true); try{let r=await fetch(u,{cache:'no-store'}); let j=await r.json(); show(j); pollLogs(true); if(action!=='status'&&action!=='list_sims'&&action!=='diagnostics'&&action!=='clear_logs') setTimeout(()=>cmd('status'),450)}catch(e){$('out').textContent='Browser request failed: '+e; setDot(false)} finally{busy=false}}
 function show(j){setDot(!!j.ok); $('out').textContent=JSON.stringify(j,null,2); if(j.data){if(j.data.server){$('diagOut').textContent=JSON.stringify(j.data,null,2); renderPerf(j.data.performance||{}); updateLogStats({performance:j.data.performance||{},pending_count:j.data.pending_count,auto_repair:j.data.auto_repair,native_status:j.data.native_status})}else{$('status').textContent=JSON.stringify(j.data,null,2); lastStatus=j.data; paint(j.data)}} if(j.details){$('out').textContent += '\n\n' + j.details.join('\n')} if(j.sims){renderSims(j.sims)}}
-function paint(data){$('versionText').textContent=data.build_version||'v4'; $('mSim').textContent=(data.sim||'—').split(' ').slice(0,2).join(' '); $('mSimHint').textContent='id '+(data.sim_id||'—'); const h=data.health||{}; $('mHealth').textContent=(h.score!==undefined?h.score:'—'); $('mHealthHint').textContent=(h.issues&&h.issues.length? h.issues.length+' issue(s)' : 'clean'); $('mFlags').textContent=data.occult_types_value; $('mCurrent').textContent='current '+data.current_occult_types_value; $('mBridge').textContent=(data.native&&data.native.status&&data.native.status.indexOf('loaded')>=0)?'Loaded':'Fallback'; $('mBridgeHint').textContent=(data.native&&data.native.status)||'unknown'; setDot(true); for(const o of data.occults||[]){for(const kind of ['control','forms','memory','raw','cas']){let el=$(`pill-${kind}-${o.name}`); let val=$(`value-${kind}-${o.name}`); if(val)val.textContent=o.value; if(!el)continue; let tuning=o.has_tuning?'tuning':'no tuning'; el.innerHTML=`<span class="pill ${o.has_occult?'on':'off'}">occult ${o.has_occult?'ON':'OFF'}</span><span class="pill ${o.has_form_data?'on':'off'}">form ${o.has_form_data?'ON':'OFF'}</span><span class="pill ${o.has_memory_trait?'on':'off'}">memory ${o.has_memory_trait?'ON':'OFF'}</span><span class="pill ${o.has_tuning?'on':'warn'}">${tuning}</span>`}} updateLogStats(data.performance||{})}
+function paint(data){$('versionText').textContent=data.build_version||'v4'; $('mSim').textContent=(data.sim||'â€”').split(' ').slice(0,2).join(' '); $('mSimHint').textContent='id '+(data.sim_id||'â€”'); const h=data.health||{}; $('mHealth').textContent=(h.score!==undefined?h.score:'â€”'); $('mHealthHint').textContent=(h.issues&&h.issues.length? h.issues.length+' issue(s)' : 'clean'); $('mFlags').textContent=data.occult_types_value; $('mCurrent').textContent='current '+data.current_occult_types_value; $('mBridge').textContent=(data.native&&data.native.status&&data.native.status.indexOf('loaded')>=0)?'Loaded':'Fallback'; $('mBridgeHint').textContent=(data.native&&data.native.status)||'unknown'; setDot(true); for(const o of data.occults||[]){for(const kind of ['control','forms','memory','raw','cas']){let el=$(`pill-${kind}-${o.name}`); let val=$(`value-${kind}-${o.name}`); if(val)val.textContent=o.value; if(!el)continue; let tuning=o.has_tuning?'tuning':'no tuning'; el.innerHTML=`<span class="pill ${o.has_occult?'on':'off'}">occult ${o.has_occult?'ON':'OFF'}</span><span class="pill ${o.has_form_data?'on':'off'}">form ${o.has_form_data?'ON':'OFF'}</span><span class="pill ${o.has_memory_trait?'on':'off'}">memory ${o.has_memory_trait?'ON':'OFF'}</span><span class="pill ${o.has_tuning?'on':'warn'}">${tuning}</span>`}} updateLogStats(data.performance||{})}
 function renderSims(sims){const box=$('simCards'); box.innerHTML=(sims||[]).map(s=>`<div class="card"><h3>${s.name||'Unknown Sim'}</h3><div class="pills"><span class="pill">id ${s.id}</span><span class="pill">flags ${s.occult_types_value}</span><span class="pill">current ${s.current_occult_types_value}</span></div><button class="btn good" onclick="$('sim').value='${s.id}'; cmd('status')">Target This Sim</button></div>`).join('')||'<div class="card">No Sims returned.</div>'}
 function lineClass(text){if(text.indexOf('DONE')>=0||text.indexOf('loaded')>=0||text.indexOf('enabled')>=0)return 'goodline'; if(text.indexOf('FAIL')>=0||text.indexOf('failed')>=0||text.indexOf('ERROR')>=0)return 'badline'; if(text.indexOf('WAITING')>=0||text.indexOf('QUEUED')>=0)return 'warnline'; if(text.indexOf('START')>=0)return 'startline'; return ''}
-function renderLogs(lines){lastLogs=lines||[]; const box=$('logbox'); box.innerHTML=lastLogs.map(line=>{let time=''; let msg=line; const m=/^\[([^\]]+)\]\s*(.*)$/.exec(line); if(m){time=m[1]; msg=m[2]} return `<div class="logline ${lineClass(msg)}"><div class="logtime">${time}</div><div class="logmsg">${escapeHtml(msg)}</div></div>`}).join('')||'<div class="logline"><div class="logtime">—</div><div class="logmsg">No log entries yet.</div></div>'; box.scrollTop=box.scrollHeight}
+function renderLogs(lines){lastLogs=lines||[]; const box=$('logbox'); box.innerHTML=lastLogs.map(line=>{let time=''; let msg=line; const m=/^\[([^\]]+)\]\s*(.*)$/.exec(line); if(m){time=m[1]; msg=m[2]} return `<div class="logline ${lineClass(msg)}"><div class="logtime">${time}</div><div class="logmsg">${escapeHtml(msg)}</div></div>`}).join('')||'<div class="logline"><div class="logtime">â€”</div><div class="logmsg">No log entries yet.</div></div>'; box.scrollTop=box.scrollHeight}
 function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 async function pollLogs(manual){if(logPaused&&!manual)return; try{let r=await fetch('/api/logs?count=220',{cache:'no-store'}); let j=await r.json(); renderLogs(j.history||[]); updateLogStats(j); renderPerf(j.performance||{}); setDot(!!j.ok)}catch(e){if(manual)toast('Could not read log: '+e); setDot(false)}}
-function updateLogStats(j){j=j||{}; $('queueStat').textContent=(j.pending_count!==undefined?j.pending_count:'0')+' pending'; $('autoStat').textContent=j.auto_repair?'ON':'OFF'; $('nativeStat').textContent=(j.native_status|| (lastStatus&&lastStatus.native&&lastStatus.native.status) || '—').split(' ')[0]; let p={}; if(j.performance&&j.performance.stats){p=j.performance.stats}else if(j.stats){p=j.stats}else if(j.performance){p=j.performance}else{p=j}; let keys=Object.keys(p).filter(k=>p[k]&&typeof p[k]==='object'&&p[k].last_ms!==undefined); if(keys.length){let latest=keys.map(k=>[k,p[k].last_ms||0]).sort((a,b)=>b[1]-a[1])[0]; $('avgStat').textContent=latest[0]+' '+latest[1]+'ms'}else{$('avgStat').textContent='—'}}
+function updateLogStats(j){j=j||{}; $('queueStat').textContent=(j.pending_count!==undefined?j.pending_count:'0')+' pending'; $('autoStat').textContent=j.auto_repair?'ON':'OFF'; $('nativeStat').textContent=(j.native_status|| (lastStatus&&lastStatus.native&&lastStatus.native.status) || 'â€”').split(' ')[0]; let p={}; if(j.performance&&j.performance.stats){p=j.performance.stats}else if(j.stats){p=j.stats}else if(j.performance){p=j.performance}else{p=j}; let keys=Object.keys(p).filter(k=>p[k]&&typeof p[k]==='object'&&p[k].last_ms!==undefined); if(keys.length){let latest=keys.map(k=>[k,p[k].last_ms||0]).sort((a,b)=>b[1]-a[1])[0]; $('avgStat').textContent=latest[0]+' '+latest[1]+'ms'}else{$('avgStat').textContent='â€”'}}
 function renderPerf(perf){if(perf&&perf.stats)perf=perf.stats; const keys=Object.keys(perf||{}).filter(k=>perf[k]&&typeof perf[k]==='object').sort(); $('perfOut').textContent=keys.map(k=>`${k}: count=${perf[k].count} ok=${perf[k].ok} fail=${perf[k].fail} last=${perf[k].last_ms}ms avg=${perf[k].avg_ms}ms max=${perf[k].max_ms}ms`).join('\n')||'No command timing samples yet.'}
 
 async function searchSaved(){try{let r=await fetch('/api/saved_forms/text?search='+enc($('savedSearch').value||''),{cache:'no-store'}); $('savedOut').textContent=await r.text()}catch(e){$('savedOut').textContent='Saved form search failed: '+e}}
@@ -8284,10 +8286,12 @@ _log('TD1 Occult Hybrid Apex v9.6 loaded: BodyType table corrected for Sims 4 1.
 
 
 # Canonical transport owner: all Sim reads and writes belong to the game thread.
-from apex_core.command_queue import CommandQueue
+from apex_core.command_queue import CommandQueue, OwnerContinuation
 
 _APEX_GAME_THREAD_IDENT = threading.current_thread().ident
 _APEX_COMMANDS = CommandQueue(capacity=48, completed_limit=128)
+_APEX_ASYNC_BANK_PREPARE_ENABLED = False
+from apex_core import owner_mailbox as _APEX_OWNER_MAILBOX
 _APEX_PRE_OWNER_RUN_ACTION = run_action
 _BUILD_VERSION = '2026.10.07-apex-in-game-cli-dev'
 _APEX_BOOTSTRAP_STATUS = 'not initialized'
@@ -8552,6 +8556,13 @@ def run_action(action, sim_id=None, occult=None, value=None):
                 function = cas_bank_transaction.begin if action == 'cas_bank_begin' else cas_bank_transaction.status
                 return function(sys.modules[__name__], sim)
             argument = _apex_cas_transaction_argument(value)
+            if action == 'cas_bank_prepare' and _APEX_ASYNC_BANK_PREPARE_ENABLED:
+                from apex_core import bank_worker, overlay_loader
+                rid = _APEX_COMMANDS.current_request_id()
+                if rid is None:
+                    raise ValueError('Async prepare requires its original canonical queue UUID.')
+                return bank_worker.PrepareAction(sys.modules[__name__], sim, argument,
+                    overlay_loader.bank_worker_binding(__file__), rid)
             function = {'cas_bank_observe': cas_bank_transaction.observe,
                         'cas_bank_prepare': cas_bank_transaction.prepare,
                         'cas_bank_commit': cas_bank_transaction.commit}[action]
@@ -8613,8 +8624,18 @@ _apex_install_legacy_transaction_gates()
 def _execute_owned_command(item):
     started = time.perf_counter()
     _log('START owned {}'.format(item.get('action')))
-    result = run_action(item['action'], item.get('sim_id'), item.get('occult'), item.get('value'))
+    import sys
+    try:
+        _APEX_OWNER_MAILBOX.before_execute(sys.modules[__name__], item)
+    except ValueError as error:
+        result = {'ok': False, 'message': str(error)}
+    else:
+        result = run_action(item['action'], item.get('sim_id'), item.get('occult'), item.get('value'))
     elapsed = (time.perf_counter() - started) * 1000.0
+    if isinstance(result, OwnerContinuation):
+        _record_perf(item['action'] + ':owner-admission', elapsed, ok=True)
+        _log('WAIT owned {} after {:.1f} ms; same UUID retained'.format(item['action'], elapsed))
+        return result
     _record_perf(item['action'], elapsed, ok=bool(result.get('ok')))
     _log('{} owned {} in {:.1f} ms: {}'.format('DONE' if result.get('ok') else 'FAIL',
          item['action'], elapsed, result.get('message', '')))
@@ -8625,7 +8646,10 @@ def _process_pending(_handle=None):
     # Empty ticks perform no Sim reads/scans/HTTP and no disk writes.
     # Yield after one native transaction. Its game API cannot be preempted;
     # never stack several expensive transactions into the same menu frame.
+    import sys
+    _APEX_OWNER_MAILBOX.ingress(sys.modules[__name__])
     count = _APEX_COMMANDS.drain(_execute_owned_command, max_commands=1, budget_seconds=0.001)
+    _APEX_OWNER_MAILBOX.completions(sys.modules[__name__])
     if _AUTO_REPAIR:
         _auto_repair_tick()
     if _MCCC_CAS_SHIELD_ENABLED:
@@ -8680,14 +8704,18 @@ def _setup_alarm():
         return False
 
 
+def _apex_owner_action_ready(safe_action):
+    return not (not _ALARM_READY and not (_APEX_CORE_TICK_READY and safe_action in (
+            'test_quit', 'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start',
+            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack', 'catalog_actor_roster',
+            'overlay_display_status', 'test_async_bank_prepare')))
+
+
 def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.0, request_id=None):
     safe_action = (action or 'status').strip().lower()
     if request_id is not None and (len(request_id) != 32 or any(c not in '0123456789abcdef' for c in request_id)):
         return {'ok': False, 'state': 'rejected', 'message': 'Invalid command request identity.'}
-    if not _ALARM_READY and not (_APEX_CORE_TICK_READY and safe_action in (
-            'test_quit', 'test_capture', 'test_input', 'overlay_status', 'overlay_show', 'overlay_hide', 'overlay_start',
-            'cas_ui_request', 'cas_ui_result', 'cas_ui_panels', 'cas_ui_diagnostics', 'cas_ui_socket_ack', 'catalog_actor_roster',
-            'overlay_display_status')):
+    if not _apex_owner_action_ready(safe_action):
         return {'ok': False, 'state': 'rejected', 'message':
                 'Game-thread bridge is not ready. Load a disposable household or run apex.bridge.start from the game console.',
                 'bootstrap_status': _APEX_BOOTSTRAP_STATUS}
@@ -8713,6 +8741,8 @@ def _submit_action(action, sim_id=None, occult=None, value=None, wait_seconds=8.
 def _apex_zone_queue_ready(zone_instance, *args, **kwargs):
     global _APEX_GAME_THREAD_IDENT, _ALARM_HANDLE, _ALARM_READY
     _APEX_GAME_THREAD_IDENT = threading.current_thread().ident
+    import sys
+    _APEX_OWNER_MAILBOX.retire(sys.modules[__name__])
     for request_id in list(_APEX_COMMANDS.pending):
         _APEX_COMMANDS.cancel(request_id, 'Zone changed before execution; submit against the new zone explicitly.')
     _APEX_COMMANDS.bind_owner()
@@ -8741,7 +8771,7 @@ def _apex_start_overlay(automatic=False):
         if automatic and not overlay_loader.auto_start_enabled(__file__):
             return {'ok': False, 'message': 'Automatic F11 loading is disabled in ApexOverlay.ini.'}
         import paths
-        result = overlay_loader.start(__file__, paths.DLL_PATH)
+        result = overlay_loader.start(__file__, paths.DLL_PATH, data_root=_data_directory())
     except Exception as exc:
         result = {'ok': False, 'message': 'F11 startup: {}'.format(exc)}
     _log(result['message'])

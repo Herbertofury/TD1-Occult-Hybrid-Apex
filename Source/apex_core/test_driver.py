@@ -712,6 +712,15 @@ def dispatch(backend, action, sim_id, value):
         return control(backend, guard(backend, value))
     global _LAST_CLIENT_ID
     argument = guard(backend, value)
+    if action == 'test_async_bank_prepare':
+        if type(argument) is not bool:
+            raise ValueError('Async prepare qualification accepts one disposable-only Boolean.')
+        if argument:
+            from .overlay_loader import bank_worker_binding
+            bank_worker_binding(backend.__file__)
+        backend._APEX_ASYNC_BANK_PREPARE_ENABLED = argument
+        return {'ok': True, 'enabled': argument, 'direct_queued_prepare_only': True,
+                'existing_jobs_not_cancelled': True, 'appearance_written': False, 'save_requested': False}
     if action == 'test_native_cas_probe':
         if argument is not None:
             raise ValueError('Native CAS inspection accepts no addresses or operations.')

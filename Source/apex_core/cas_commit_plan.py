@@ -647,3 +647,81 @@ class CasCommitTransaction:
                 'accepted_lanes': list(self.plan['accepted_lanes']),
                 'all_native_owners_verified': True, 'bank_committed': True,
                 'save_reload_verified': False, 'journal_sha256': self.journal_sha256}
+
+
+    def prepare_steps(self, expected_pending_sha256, expected_raw_return_sha256,
+                dispositions, hair_targets=None):
+        """Bind all changed owners to explicit decisions without native writes.
+
+        Hair targets record independently supplied intent; this primitive does
+        not infer propagation or transform the returned hair message. The
+        embedding policy planner must implement any separate hair isolation.
+        """
+        if self.state != 'observed':
+            raise ValueError('Only one complete observed CAS return can be planned.')
+        self._guard()
+        if (not _hash(expected_pending_sha256) or expected_pending_sha256 != self.pending_sha256 or
+                not _hash(expected_raw_return_sha256) or expected_raw_return_sha256 != self.raw_return_sha256):
+            raise ValueError('CAS plan hashes are stale or belong to another return.')
+        raw, original = self.document['raw_return'], self.pending['original_owners']
+        _consistent(raw)
+        original_fields, returned_fields = original['stored'], raw['stored']
+        changed = {lane for lane in original_fields if
+                   appearance.fingerprint(original_fields[lane])['appearance_sha256'] !=
+                   appearance.fingerprint(returned_fields[lane])['appearance_sha256']}
+        if not isinstance(dispositions, list) or len(dispositions) != len(changed):
+            raise ValueError('Every changed CAS lane requires one explicit disposition.')
+        selected = {}
+        for row in dispositions:
+            if not isinstance(row, dict) or set(row) != {'lane', 'action'}:
+                raise ValueError('CAS dispositions cannot contain external appearance bytes or navigation receipts.')
+            lane = _lane(row['lane'], self.known)
+            if (not isinstance(row['lane'], str) or lane not in changed or lane in selected or
+                    not isinstance(row['action'], str) or row['action'] not in DECISIONS):
+                raise ValueError('CAS disposition is duplicate, unchanged, unknown, or unsupported.')
+            selected[lane] = row['action']
+        if set(selected) != changed:
+            raise ValueError('A changed CAS lane lacks explicit intent; no destination guessed.')
+        accepted = {lane for lane, action in selected.items() if action == 'accept-returned'}
+        desired = copy.deepcopy(original_fields)
+        for lane in accepted:
+            desired[lane] = copy.deepcopy(returned_fields[lane])
+        targets = _hair_targets(hair_targets, accepted, original_fields, returned_fields, self.known)
+        self.plan = {'schema': 1, 'identity': self.identity, 'pending_sha256': self.pending_sha256,
+                     'raw_return_sha256': self.raw_return_sha256,
+                     'pre_write_owners_sha256': self.document['pre_write_owners_sha256'],
+                     'active_lane': raw['active']['lane'],
+                     'dispositions': [{'lane': lane, 'action': selected[lane]} for lane in sorted(selected, key=int)],
+                     'changed_lanes': sorted(changed, key=int), 'accepted_lanes': sorted(accepted, key=int),
+                     'desired': desired, 'hair_targets': targets,
+                     'automatic_intent_classification': False}
+        plan_hash = digest(self.plan)
+        document = copy.deepcopy(self.document)
+        document.update(state='planned', plan=copy.deepcopy(self.plan), plan_sha256=plan_hash)
+        try:
+            yield from self._write_steps(document)
+        except Exception as error:
+            self._prepare_failure(error, 'plan journal')
+        self.state = 'planned'
+        return {'ok': True, 'plan_sha256': plan_hash,
+                'changed_lanes': self.plan['changed_lanes'], 'accepted_lanes': self.plan['accepted_lanes'],
+                'native_write_attempted': False, 'all_changed_lanes_have_explicit_intent': True}
+
+    def _write_steps(self, document):
+        self.retained_document = copy.deepcopy(document)
+        receipt = yield from self.journal_writer_steps(copy.deepcopy(document), self.journal_sha256)
+        expected = digest(document)
+        if (not isinstance(receipt, dict) or set(receipt) != {'durable', 'sha256'} or
+                receipt.get('durable') is not True or receipt.get('sha256') != expected):
+            raise ValueError('CAS write-ahead journal was not durably acknowledged.')
+        persisted = self.journal_reader()
+        if persisted is None or digest(persisted) != expected:
+            raise ValueError('CAS journal durable readback differs from its acknowledgment.')
+        self.document, self.journal_sha256 = copy.deepcopy(document), expected
+
+    def _prepare_failure(self, error, phase):
+        # The exact preceding durable pending/journal remains blocking. Never
+        # run the synchronous writer or clear evidence after a lost async ACK.
+        self.state = 'recovery-required'
+        self.prepare_error = str(error)
+        raise RecoveryRequired('CAS ' + phase + ' failed; durable prior originals/return retained: ' + str(error))

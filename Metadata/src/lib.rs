@@ -4,6 +4,10 @@ pub mod enrich;
 pub mod ffi;
 #[cfg(feature = "runtime-workers")]
 pub mod appearance_worker;
+#[cfg(feature = "runtime-workers")]
+mod bank_json;
+#[cfg(feature = "runtime-workers")]
+pub mod bank_worker;
 pub mod folders;
 pub mod identity;
 #[cfg(feature = "cli")]

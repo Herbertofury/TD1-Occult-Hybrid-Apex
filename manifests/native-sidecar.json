@@ -1,5 +1,5 @@
 {
-  "bytes": 5040640,
+  "bytes": 5302784,
   "file": "ApexOverlay.dll",
   "game_files_modified": false,
   "game_runtime_verified": false,
@@ -33,9 +33,17 @@
     "ApexOverlayStart": -1,
     "ApexOverlayStatus": 0,
     "ApexOverlayToggleEvents": 0,
-    "ApexOverlayVisible": 0
+    "ApexOverlayVisible": 0,
+    "bank_worker_abi": {
+      "combined_dll": true,
+      "gil_retained_submit_poll": true,
+      "pollcopy_owned_bytes": true,
+      "python37": true,
+      "temporary_root_only": true,
+      "u64": true
+    }
   },
   "schema": 1,
-  "sha256": "c1f99b78037fa802b8359a0c5db16a20ed5112e77d078f911bede6f0461b7a96",
-  "verified_script_sha256": "22e1fc4c92822fd0422d7a3ec1f5194ffcb3580c1a80618223f4d4a38c5556e3"
+  "sha256": "0fb93edf5bb3f513eccaa74590c939a8a71005fea3b9cf36ee26521d991d0cee",
+  "verified_script_sha256": "fe3fa45f310ef5fc0752b84d2cb4de153f1ca297ce6dcaa79de1377726c93a8d"
 }

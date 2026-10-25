@@ -34,19 +34,20 @@ _LOADED = {}
 # Source provenance remains retained. This grants metadata admission only;
 # native recovery keeps its separate exact-source/A0 upgrade requirements.
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-25-native-transport-gfx-profile-v339'
+UPGRADE_EPOCH = '2026-10-25-async-bank-prepare-advance-v341'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'f513a564cc019aa1b746a8726d18370286dc992c4e3604051d5c7448b7e352c0'
+UPGRADE_SELF_BODY_SHA = '2c99e461683df90eb97d97e72fe41d3365d5e0430de095539eec463a46f37a29'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': 'ce995a7ba97ee257b641cca8cc817fb2cff62a08e827cffcf0a50067e34a3286',
+    'apex_core/bank_worker.py': 'a229feb2721d9c517f7099e289f6fd509aae4f4a9bcb9e940ea691ddef9e6d30',
     'apex_core/body_hair_initialization.py': 'b90fd14e840ae90de087b647519ef39208e3488dc72b5ab41d4389855f7b0592',
     'apex_core/bridge_startup.py': '0aa605cb1671a198571381ee51aa729082630faffbac657529a2ada385a9bee2',
     'apex_core/cas_auto_settle.py': 'a613178d57ca36e386db0ce39ae1abc906f3e530df8e6b23e7816395f6ba1c67',
-    'apex_core/cas_bank_transaction.py': '6bded2170ea8719bafea7239f55bd395c15006baecac1908dbddb5f79d7e4f48',
+    'apex_core/cas_bank_transaction.py': 'a20f459eec754f303405ad8ee2e86e69d61aa7a96ff63cc13cf7c2b5ecba8faf',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
-    'apex_core/cas_commit_plan.py': '032ebc4a20e711db9ae359874b923c6cadd72eceec05277f85bfae3f935fe0c4',
+    'apex_core/cas_commit_plan.py': '80857e08bab56694496e75dbb3f0df3136814346dac24d99320ab0898e6f1d95',
     'apex_core/cas_controls.py': '2a34f4af3b10219bc7bf75a45a88a87e6ba03b17b272d78fb7f501c2e13e2ddc',
     'apex_core/cas_entry_context.py': '9474f7dbb6251318e908676ac7ba8b4479c99b9d2bead59ae706eb023726140b',
     'apex_core/cas_form_catalog.py': '902a4db445e0988ac44788968e9b9c5372ee22a6353a2ae7b74bb7065b7518f7',
@@ -92,7 +93,8 @@ UPGRADE_MODULE_PINS = {
     'apex_core/outfit_hair.py': 'f96b905caa86c118579590f942abe8d5ce665e07ed84db8d311fddcdb39243c4',
     'apex_core/outfit_snapshot.py': 'd6f60b352643961d200406aff95b3a850aa018f7538e4b75f883768bbaeb9d42',
     'apex_core/overlay_display_status.py': 'c5005b05f2e26fc775588e56f13e55d083974832b62a6c06cfc343b447938480',
-    'apex_core/overlay_loader.py': '21ba456e3c6f26817ff224e40a26b099cca10f4baaba60ed0649c2d1f9ece1a1',
+    'apex_core/overlay_loader.py': '33155a5c6b851bb1906550cd82c3e1a1684a0b0f5a6067257a07debbf48a15de',
+    'apex_core/owner_mailbox.py': '77d37c06413800c500a01c2c8da4ae7e17d9fc359a28e2d38ccaf2f61f7a93e2',
     'apex_core/phone_cas.py': 'd230422880c601c7549152330835f7c3b4445ef4c280fbcad7abbeed228e4fc3',
     'apex_core/phone_interactions.py': '05778ddb4e9e764ee4899cca39e5143bf3a4bd7d3bf61d4890c3e0466b72f025',
     'apex_core/profile_save_identity.py': '3dff19214d24119caa20bf3b0849e16e1c006a73a5a9e8f0c167ca5c0a080453',
@@ -101,9 +103,9 @@ UPGRADE_MODULE_PINS = {
     'apex_core/sim_data.py': 'dfc26d8d9a016b24d69187233ab089058fe72ef82abbac60a2d09710fe0e7266',
     'apex_core/studio.py': '438ec3d9ff7b89607a6a8bfdd0e9136e39785da36e915a378d57ed6c0b759913',
     'apex_core/switch_trace.py': 'f6df67441d2024d41d2e7c47d5840332ce74abc3cb6836874c5a379c36fa0462',
-    'apex_core/test_driver.py': '811c73e9309279ecd79cfd4d7ae884aecf3a32081f3135f533bc0b938a471b37',
+    'apex_core/test_driver.py': 'bef7e66bfa7e60db1f80677325b5f5361460770228dff8b7f1d6672e850bddb8',
     'apex_core/werewolf_defaults.py': 'ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443',
-    'td1_occult_hybrid_apex.py': '7631341683a8d4d0f5bfeb51c8f6e4a4e660f02d2d3a23f866e7fa595fc2f082',
+    'td1_occult_hybrid_apex.py': '5c926b9ae75a44d425673a6e25cb0899289737c80559dbe09f425e25ea98e7e4',
 }
 _SEAL_FIELDS = ('intent_id', 'identity', 'contract_sha256', 'target',
                 'bank_record_sha256', 'appearances', 'file_sha256')

@@ -34,3 +34,14 @@ tools/cas_molecule_patch.py -text whitespace=cr-at-eol
 tools/CasMoleculeBytecodePatch.java -text whitespace=cr-at-eol
 
 Source/CASUi/catalog_keyboard_methods.as -text whitespace=cr-at-eol
+
+# These historical Git blobs are LF, but their audited recovery inputs are
+# CRLF. Recreate the exact pinned bytes on every platform without repinning.
+Source/apex_core/cas_auto_settle.py text eol=crlf whitespace=cr-at-eol
+Source/apex_core/cas_frontdoor.py text eol=crlf whitespace=cr-at-eol
+Source/apex_core/hybrid_persistence.py text eol=crlf whitespace=cr-at-eol
+Source/apex_core/named_save_boundary.py text eol=crlf whitespace=cr-at-eol
+# New async-receiver pins bind their authored bytes, including CRLF.
+Source/apex_core/cas_bank_transaction.py -text whitespace=cr-at-eol
+Source/apex_core/cas_commit_plan.py -text whitespace=cr-at-eol
+Source/apex_core/command_queue.py -text whitespace=cr-at-eol

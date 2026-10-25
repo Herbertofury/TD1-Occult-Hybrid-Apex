@@ -23,9 +23,17 @@
 #include <atomic>
 #include <mutex>
 #include <thread>
+#include <optional>
 #include "ApexBackgroundKeyboard.h"
 #include "ApexTransportWake.h"
 #include "ApexHttpResponseFrame.h"
+#include "ApexOwnerMailboxApi.h"
+#pragma comment(linker, "/INCLUDE:ApexBankBind")
+#pragma comment(linker, "/INCLUDE:ApexBankSubmit")
+#pragma comment(linker, "/INCLUDE:ApexBankPollCopy")
+#pragma comment(linker, "/EXPORT:ApexBankBind")
+#pragma comment(linker, "/EXPORT:ApexBankSubmit")
+#pragma comment(linker, "/EXPORT:ApexBankPollCopy")
 #include <deque>
 #include <string>
 #include <vector>
@@ -135,6 +143,7 @@ struct QueuedCommand { std::string path; uint64_t generation; bool automaticCasR
     std::string casBankAction; };
 static std::deque<QueuedCommand> g_commands;
 static std::atomic<transport::WorkerWake*> g_workerWake{nullptr};
+static std::atomic<ownerbridge::Mailbox*> g_ownerMailbox{nullptr};
 static std::atomic<bool> g_occultIconsRequested{false};
 static std::string g_lifeStateReply; // g_dataMutex; retained across ordinary status refreshes
 static uint64_t g_lifeStateReplyGeneration=0;
@@ -464,7 +473,9 @@ static void SetOwnerBlocked(bool blocked) noexcept {
     if(g_ownerBlocked.exchange(blocked)!=blocked) WakeWorker();
 }
 static void StopWorker() noexcept {
-    g_done=true; WakeWorker();
+    g_done=true;
+    if(auto* mailbox=g_ownerMailbox.load(std::memory_order_acquire))mailbox->SignalShutdown();
+    WakeWorker();
 }
 static void WaitForWorkerWork() noexcept {
     {
@@ -517,8 +528,82 @@ static std::string UrlEncode(const std::string& s) {
     return out;
 }
 
+static std::string NewOwnerIdentity() {
+    GUID guid{};if(FAILED(CoCreateGuid(&guid)))return {};
+    const auto* bytes=reinterpret_cast<const unsigned char*>(&guid);
+    const char* hex="0123456789abcdef";std::string id;
+    for(size_t i=0;i<sizeof(guid);++i){id.push_back(hex[bytes[i]>>4]);id.push_back(hex[bytes[i]&15]);}
+    return id;
+}
+static ui::Json NativeOwnerStatus(const ownerbridge::Snapshot& row) {
+    if(row.phase==ownerbridge::Phase::Uncertain)
+        return {{"ok",false},{"request_id",row.id},{"state","unknown"},
+            {"message","Native runtime retired with an unverified outcome; this UUID is never resubmitted."}};
+    if(row.receipt)return ui::ParseObject(*row.receipt);
+    return {{"ok",true},{"request_id",row.id},{"state","pending"},{"result",nullptr}};
+}
+static bool NativeOwnerStatusPath(const std::string& path,std::string& body) {
+    const std::string prefix="/api/requests/status?request_id=";
+    if(path.rfind(prefix,0)!=0)return false;
+    const auto id=path.substr(prefix.size());
+    if(!ownerbridge::Identity(id))return false;
+    auto* mailbox=g_ownerMailbox.load(std::memory_order_acquire);
+    if(!mailbox)return false;
+    const auto row=mailbox->ById(id);if(!row.ticket)return false;
+    body=NativeOwnerStatus(row).dump();
+    if(row.phase==ownerbridge::Phase::Terminal)mailbox->Read(row.ticket,id,true);
+    return true; // A retained native UUID never changes transport after admission.
+}
+static bool NativeOwnedCommand(const std::string& path,const std::string& id,std::string& body,
+                               ULONGLONG deadline,ULONGLONG ttl=8000,std::optional<std::uint64_t> expectedGeneration={}) {
+    auto* mailbox=g_ownerMailbox.load(std::memory_order_acquire);
+    if(!mailbox)return false; // Proven before any native acceptance.
+    try {
+        std::uint64_t generation;
+        {std::lock_guard<std::mutex> lock(g_dataMutex);generation=expectedGeneration.value_or(g_selectionGeneration);
+         if(generation!=g_selectionGeneration){body=ui::Json{{"ok",false},{"state","rejected"},{"message","Selection changed before native admission; no command submitted."}}.dump();return true;}}
+        auto offered=mailbox->Offer(id,path,generation,GetTickCount64()+ttl);
+        if(offered.admission==ownerbridge::Admission::Unready)return false;
+        if(offered.admission==ownerbridge::Admission::Rejected) {
+            if(offered.record.ticket)throw std::runtime_error("This UUID already has a different native owner; its outcome remains retained.");
+            // Capacity/typed refusal is explicit; it is not a reason to route
+            // the same intent through HTTP with different admission semantics.
+            body=ui::Json{{"ok",false},{"state","rejected"},{"message",offered.reason}}.dump();return true;
+        }
+        auto row=offered.record;
+        while(!g_done.load()&&GetTickCount64()<deadline) {
+            ui::Json result;
+            const auto reply=NativeOwnerStatus(row);
+            const auto state=ui::ReadOwnerCompletion(reply,id,result);
+            if(state==ui::OwnerReply::Terminal) {
+                body=result.dump();mailbox->Read(row.ticket,id,true);return true;
+            }
+            if(state==ui::OwnerReply::Invalid||row.phase==ownerbridge::Phase::Uncertain)break;
+            const auto now=GetTickCount64();if(now>=deadline)break;
+            row=mailbox->Wait(row.ticket,id,row.version,std::chrono::steady_clock::now()+std::chrono::milliseconds(deadline-now));
+            if(!row.ticket)break;
+        }
+    }catch(const std::exception&) {
+        // Allocation/ABI failure is not proof that native admission did not
+        // occur. Retain this UUID as uncertain; never retry through HTTP.
+    }
+    body=ui::Json{{"ok",false},{"outcome","unresolved"},{"request_id",id},{"request_state","unknown"},
+        {"message","Native command result is unverified. Observe this retained UUID; do not repeat the action."}}.dump();
+    return true;
+}
+
 static bool HttpGet(const std::string& path, std::string& body, ULONGLONG deadline = 0) {
     if (!deadline) deadline = GetTickCount64() + 12000;
+    if(NativeOwnerStatusPath(path,body))return true;
+    if(path=="/api/overlay/display"||path.rfind("/api/overlay/display?",0)==0) {
+        auto* mailbox=g_ownerMailbox.load(std::memory_order_acquire);
+        if(mailbox&&mailbox->Ready()) {
+            const auto id=NewOwnerIdentity();
+            if(id.empty()){body=ui::Json{{"ok",false},{"state","rejected"},{"message","Owner identity could not be generated; no request submitted."}}.dump();return true;}
+            if(NativeOwnedCommand(path,id,body,deadline,2500))return true;
+        }
+    }
+
     if (!g_wsStarted) {
         WSADATA wsa{};
         if (WSAStartup(MAKEWORD(2,2), &wsa) != 0) return false;
@@ -586,22 +671,20 @@ static bool HttpGet(const std::string& path, std::string& body, ULONGLONG deadli
     return last != std::string::npos && body[last] == '}' && !ui::ReadObject(body).empty();
 }
 
-static bool HttpOwnedCommand(const std::string& path, std::string& body) {
+static bool HttpOwnedCommand(const std::string& path, std::string& body, std::optional<std::uint64_t> expectedGeneration={}) {
     if (path.rfind("/api/command?",0)!=0) return HttpGet(path,body);
-    GUID guid{};
-    if (FAILED(CoCreateGuid(&guid))) {
+    const auto id=NewOwnerIdentity();
+    if(id.empty()) {
         body=ui::Json{{"ok",false},{"state","rejected"},{"message","Owner identity could not be generated; no HTTP request was submitted."}}.dump();
-        return true; // Proven refusal before any HTTP call, not uncertainty.
+        return true;
     }
-    const auto bytes=reinterpret_cast<const unsigned char*>(&guid);
-    const char* hex="0123456789abcdef"; std::string id;
-    for(size_t i=0;i<sizeof(guid);++i) { id.push_back(hex[bytes[i]>>4]); id.push_back(hex[bytes[i]&15]); }
     if(path.find("request_id=")!=std::string::npos) {
         body=ui::Json{{"ok",false},{"state","rejected"},{"message","A caller-supplied owner identity is forbidden; no HTTP request was submitted."}}.dump();
         return true;
     }
     const bool review=path.rfind("/api/command?action=cas_bank_ui_",0)==0;
     const auto deadline=GetTickCount64()+(review?180000:15000);
+    if(NativeOwnedCommand(path,id,body,deadline,review?60000:8000,expectedGeneration))return true;
     bool received=HttpGet(path+"&request_id="+id,body,deadline);
     auto submission=received ? ui::ReadOwnerSubmission(ui::ParseObject(body),id) : ui::OwnerReply::Pending;
     if(submission==ui::OwnerReply::Terminal || submission==ui::OwnerReply::Rejected) return true;
@@ -734,7 +817,7 @@ static void RunSimPreview(const QueuedCommand& command) {
             {
                 g_ownerSubmissionBusy=true;
                 struct OwnerGuard{~OwnerGuard(){g_ownerSubmissionBusy=false;}} owner;
-                const bool acknowledged=HttpOwnedCommand(command.path,raw);
+                const bool acknowledged=HttpOwnedCommand(command.path,raw,command.generation);
                 RetainCommandOwner(command,raw);
                 if(!acknowledged)throw std::runtime_error("The exact appearance snapshot was not acknowledged; no request replayed.");
             }
@@ -775,7 +858,7 @@ static void RunTrayClipboard(const QueuedCommand& command) {
             if(!current())throw std::runtime_error("Destination changed during copy; no command was replayed.");
             const ui::Json envelope={{"form",command.resourceRow.at("target_form")},{"value",value.dump()}};
             QueuedCommand owned=command;owned.path="/api/command?action="+action+"&sim_id="+UrlEncode(command.sim)+"&value="+UrlEncode(envelope.dump());
-            if(!HttpOwnedCommand(owned.path,raw))throw std::runtime_error("Tray clipboard owner was not acknowledged.");
+            if(!HttpOwnedCommand(owned.path,raw,owned.generation))throw std::runtime_error("Tray clipboard owner was not acknowledged.");
             RetainCommandOwner(owned,raw);const auto reply=ui::ParseObject(raw);
             if(!reply.value("ok",false))throw std::runtime_error("Tray clipboard copy: "+ui::Scalar(reply,"message"));return reply;
         };
@@ -1226,7 +1309,7 @@ static void WorkerLoop() {
                     g_occultIconsNextAttempt=GetTickCount64()+1000;g_occultIconsRequested=false;continue;
                 }
                 std::string body;
-                if (HttpOwnedCommand(command.path,body)) {
+                if (HttpOwnedCommand(command.path,body,command.generation)) {
                     RetainCommandOwner(command,body);
                     const auto reply=ui::ParseObject(body);
                     std::map<std::string,resource::Pixels> decoded;
@@ -1290,7 +1373,7 @@ static void WorkerLoop() {
                 bool current;
                 { std::lock_guard<std::mutex> lock(g_dataMutex); current = command.generation == g_selectionGeneration; }
                 std::string result;
-                if (current && g_visible.load()) HttpOwnedCommand(command.path, result);
+                if (current && g_visible.load()) HttpOwnedCommand(command.path,result,command.generation);
                 RetainCommandOwner(command, result);
                 { std::lock_guard<std::mutex> lock(g_dataMutex);
                   g_studioItemsReply = current ? result : "{}"; ++g_studioItemsReceipt; }
@@ -1307,7 +1390,7 @@ static void WorkerLoop() {
                 }
             }
             std::string body;
-            bool ok = HttpOwnedCommand(command.path, body);
+            bool ok = HttpOwnedCommand(command.path,body,command.generation);
             if (command.automaticCasReconcile) {
                 RetainCommandOwner(command, body);
                 std::lock_guard<std::mutex> lock(g_dataMutex);
@@ -1337,7 +1420,7 @@ static void WorkerLoop() {
                     // Preserve the existing native request/polling contract.
                     command.path = "/api/command?action=cas_ui_request&sim_id=" + UrlEncode(command.sim) +
                         "&value=" + UrlEncode("{\"operation\":\"status\"}");
-                    ok = HttpOwnedCommand(command.path, body);
+                    ok = HttpOwnedCommand(command.path,body,command.generation);
                     if (!ok || ui::OwnerCommandUnresolved(ui::ParseObject(body))) {
                         automaticFailed = true; automaticUnresolved = true;
                         automaticMessage = "Auto refresh paused: submission outcome is unverified. Inspect transport requests before another native read.";
@@ -1361,7 +1444,7 @@ static void WorkerLoop() {
                     while (!g_done && GetTickCount64() < deadline) {
                         if (command.automaticCasRefresh && !AutomaticCasPaneVisible()) break;
                         std::string result;
-                        if (!HttpOwnedCommand("/api/command?action=cas_ui_result" + query + "&value=" + UrlEncode(id), result)) break;
+                        if (!HttpOwnedCommand("/api/command?action=cas_ui_result" + query + "&value=" + UrlEncode(id), result, command.generation)) break;
                         body = result;
                         if (ui::Scalar(ui::ReadObject(result), "outcome") != "pending-client") break;
                         Sleep(150);
@@ -3600,7 +3683,7 @@ static void DrawLifeStateLooks() {
 
 static void DrawAppearanceSliders() {
     ImGui::TextWrapped("Face and body controls belong to the selected appearance owner. Preset sculpt bytes and other modifier groups are retained.");
-    if(ImGui::CollapsingHeader("All EA / CC modifiers · package conflicts and duplicate definitions")) {
+    if(ImGui::CollapsingHeader("All EA / CC modifiers Â· package conflicts and duplicate definitions")) {
         static char librarySearch[201]="";static bool conflictsOnly=false;static int kind=0,offset=0,group=0;
         const char* kinds[]={"modifier","hotspot","preset","sculpt","all"};
         ImGui::SetNextItemWidth(-1);ImGui::InputTextWithHint("##slider-library-search","Package name, region, modifier key or hotspot",librarySearch,sizeof(librarySearch));
@@ -3632,7 +3715,7 @@ static void DrawAppearanceSliders() {
             if(row["kind"]=="modifier"){ImGui::SetNextItemWidth(130);ImGui::InputFloat("Initial amount",&initial,0,0,"%.6f");}
             size_t ordinal=0;
             for(const auto& provider:row["providers"]) {
-                ImGui::PushID(static_cast<int>(ordinal++));ImGui::TextWrapped("%s · %s",ui::Scalar(provider,"package_name").c_str(),ui::Scalar(provider,"origin").c_str());
+                ImGui::PushID(static_cast<int>(ordinal++));ImGui::TextWrapped("%s Â· %s",ui::Scalar(provider,"package_name").c_str(),ui::Scalar(provider,"origin").c_str());
                 if(ImGui::IsItemHovered())ImGui::SetTooltip("Resource SHA256: %s",ui::Scalar(provider,"resource_sha256").c_str());
                 if(row["kind"]=="modifier") {
                     ImGui::BeginDisabled(row["instance"]=="0"||stored||!g_studioData.contains("appearance_sha256")||!g_studioData.contains("history_lane")||!std::isfinite(initial)||g_previewId[0]||g_ownerBlocked||g_ownerSubmissionBusy||g_ownerNativeDeliveryBusy||g_casBankBusy||g_simPreviewBusy);
@@ -3681,7 +3764,7 @@ static void DrawAppearanceSliders() {
 }
 
 static void DrawAppearanceTransfer() {
-    if(!ImGui::CollapsingHeader("Copy / paste appearance · any Sim / any form"))return;
+    if(!ImGui::CollapsingHeader("Copy / paste appearance Â· any Sim / any form"))return;
     const bool pending=!ui::Scalar(g_studioData,"pending_preview").empty();
     ImGui::BeginDisabled(g_ownerBlocked||g_ownerSubmissionBusy||g_casSubmissionBusy||g_simPreviewBusy);
     if(ImGui::Button("Copy this form appearance"))QueueStudioAction("studio_copy_appearance");
@@ -3717,7 +3800,7 @@ static void DrawAppearanceTransfer() {
             if(ImGui::Checkbox(label.c_str(),&selected)){if(selected)g_pasteFields.insert(name);else g_pasteFields.erase(name);}
         }ImGui::TreePop();
     }
-    if(g_pasteScope==1&&ImGui::TreeNode("Choose any CAS categories · empty selection means whole outfit")){
+    if(g_pasteScope==1&&ImGui::TreeNode("Choose any CAS categories Â· empty selection means whole outfit")){
         for(const auto& row:g_studioData.value("category_catalog",ui::Json::array())){
             const int body=row["body_type"].get<int>();bool selected=g_pasteBodies.count(body)>0;
             const auto label=ui::Scalar(row,"label")+"##paste-body-"+std::to_string(body);
@@ -3869,7 +3952,7 @@ static void DrawStudioTab(const std::string& reply, ULONGLONG replyMs, bool hist
     const auto forms = g_studioData.find("form_inventory");
     if(!history){
         DrawLifeStateLooks();
-        if(ui::Scalar(g_studioData,"inspected_form_flags")=="32"&&ImGui::CollapsingHeader("Werewolf appearance · EA or Human / CC")){
+        if(ui::Scalar(g_studioData,"inspected_form_flags")=="32"&&ImGui::CollapsingHeader("Werewolf appearance Â· EA or Human / CC")){
             bool human=g_studioData.value("werewolf_appearance_style",std::string("ea"))=="human_cc";
             ImGui::BeginDisabled(!ui::Scalar(g_studioData,"pending_preview").empty()||g_ownerBlocked||g_ownerSubmissionBusy||g_casSubmissionBusy||g_simPreviewBusy);
             if(ImGui::Checkbox("Human / personal CC look",&human)){QueueAction(human?"werewolf_human_on":"werewolf_human_off");QueueStudioAction("studio_status");}
@@ -4377,6 +4460,27 @@ static void HookFromDevice(ID3D11Device* device) {
     if (dummyWindow) DestroyWindow(dummyWindow);
 }
 } // namespace td1
+
+extern "C" __declspec(dllexport) int WINAPI ApexOwnerMailboxPending() {
+    auto* mailbox=td1::g_ownerMailbox.load(std::memory_order_acquire);
+    return mailbox&&mailbox->Ready()&&mailbox->Pending()?1:0;
+}
+extern "C" __declspec(dllexport) const char* WINAPI ApexOwnerMailboxControl(const char* raw) {
+    static thread_local std::string result;
+    try {
+        constexpr std::size_t limit=td1::ownerbridge::MaxBytes*2+4096;
+        if(!raw||strnlen_s(raw,limit+1)>limit)throw std::runtime_error("Mailbox control exceeds its bound.");
+        auto* mailbox=td1::g_ownerMailbox.load(std::memory_order_acquire);
+        if(!mailbox) {
+            auto* created=new td1::ownerbridge::Mailbox;
+            if(!td1::g_ownerMailbox.compare_exchange_strong(mailbox,created,std::memory_order_acq_rel))delete created;
+            else mailbox=created;
+        }
+        const auto selection=[] {std::lock_guard<std::mutex> lock(td1::g_dataMutex);return td1::g_selectionGeneration;};
+        result=td1::ownerbridge::ControlWithSelection(*mailbox,raw,GetCurrentProcessId(),GetCurrentThreadId(),selection,GetTickCount64()).dump();
+    }catch(const std::exception& error){result=td1::ui::Json{{"ok",false},{"message",error.what()}}.dump();}
+    return result.c_str();
+}
 
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayProtocolVersion() { return 1; }
 extern "C" __declspec(dllexport) int WINAPI ApexOverlayStatus() { return td1::g_loaderStatus.load(); }

@@ -6,6 +6,12 @@ import time
 import uuid
 
 
+class OwnerContinuation:
+    """Private owner-only continuation; never a transport result or worker callback."""
+    def resume(self):
+        raise NotImplementedError
+
+
 class CommandQueue:
     # The game's Windows Python monotonic clock can step by 15.625 ms. Use
     # the high-resolution monotonic counter for both deadlines and 1 ms work
@@ -23,12 +29,23 @@ class CommandQueue:
         self.over_budget = 0
         self.command_max_ms = 0.0
         self.drain_max_ms = 0.0
+        self._executing_id = None
+
+    def current_request_id(self):
+        if threading.current_thread().ident != self.owner:
+            raise RuntimeError('Request context is restricted to the bound game thread.')
+        return self._executing_id
 
     def bind_owner(self):
         with self.lock:
+            owner = threading.current_thread().ident
+            # Zone readiness can rebind the SAME canonical thread while an
+            # immutable job waits. This transfers no capability or ownership.
+            if self.owner == owner:
+                return
             if any(row['state'] == 'running' for row in self.records.values()):
                 raise RuntimeError('Cannot transfer the owner during execution.')
-            self.owner = threading.current_thread().ident
+            self.owner = owner
 
     def _prune(self):
         complete = [key for key, row in self.records.items() if row['state'] in ('completed', 'failed', 'cancelled')]
@@ -50,7 +67,7 @@ class CommandQueue:
                 if existing['payload'] != payload:
                     raise ValueError('Request identity was reused for a different command.')
                 return self._status(existing)
-            if len(self.pending) >= self.capacity:
+            if sum(row['state'] in ('pending', 'running') for row in self.records.values()) >= self.capacity:
                 return {'ok': False, 'state': 'rejected', 'message': 'Queue is full; no accepted command was dropped.'}
             row = {'request_id': request_id, 'payload': payload, 'state': 'pending',
                    'deadline': self.clock() + ttl, 'event': threading.Event(), 'result': None}
@@ -98,32 +115,47 @@ class CommandQueue:
             raise RuntimeError('Command execution is restricted to the bound game thread.')
         start = self.clock()
         count = 0
-        while count < max_commands and self.clock() - start < budget_seconds:
+        # A waiting job can be polled once per drain, without busy-looping or
+        # starving an unrelated command queued behind its disk work.
+        available = len(self.pending)
+        while available and count < max_commands and self.clock() - start < budget_seconds:
+            available -= 1
             with self.lock:
                 if not self.pending:
                     break
                 row = self.records[self.pending.popleft()]
-                if row['deadline'] <= self.clock():
+                if row['state'] == 'pending' and row['deadline'] <= self.clock():
                     row['state'] = 'cancelled'
                     row['result'] = {'ok': False, 'message': 'Command expired before execution.'}
                     row['event'].set()
                     self._prune()
                     continue
+                continuation = row.get('_continuation')
                 row['state'] = 'running'
             command_start = self.clock()
+            previous_execution = self._executing_id
+            self._executing_id = row['request_id']
             try:
-                result = execute(copy.deepcopy(row['payload']))
-                if not isinstance(result, dict) or 'ok' not in result:
+                result = (continuation.resume() if continuation is not None else
+                          execute(copy.deepcopy(row['payload'])))
+                if not isinstance(result, OwnerContinuation) and (not isinstance(result, dict) or 'ok' not in result):
                     raise ValueError('Domain action returned no explicit verification result.')
             except Exception as error:
                 result = {'ok': False, 'message': str(error)}
+            finally:
+                self._executing_id = previous_execution
             with self.lock:
-                row['result'] = result
-                row['state'] = 'completed' if result['ok'] else 'failed'
-                row['event'].set()
-                self._prune()
+                if isinstance(result, OwnerContinuation):
+                    row['_continuation'] = result
+                    self.pending.append(row['request_id'])
+                else:
+                    row.pop('_continuation', None)
+                    row['result'] = result
+                    row['state'] = 'completed' if result['ok'] else 'failed'
+                    row['event'].set()
+                    self._prune()
                 elapsed_ms = max(0.0, self.clock() - command_start) * 1000.0
-                self.executed += 1
+                self.executed += continuation is None
                 self.command_max_ms = max(self.command_max_ms, elapsed_ms)
                 self.over_budget += elapsed_ms > budget_seconds * 1000.0
             count += 1

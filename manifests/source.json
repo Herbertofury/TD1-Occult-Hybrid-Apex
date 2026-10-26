@@ -1949,6 +1949,12 @@
       "sha256": "2ad1dc63fb7cde429a73c799d653e617a3e6bc4b04abfaa9a234a0940871f25f"
     },
     {
+      "bytes": 9598,
+      "mode": "100644",
+      "path": "tests/test_cas_slider_ack.py",
+      "sha256": "42990a273c717b208261abe7931a16f660f3ee34b8cf86cce2ac4cacf391d95d"
+    },
+    {
       "bytes": 27814,
       "mode": "100644",
       "path": "Source/CASUi/catalog_columns_methods.as",
@@ -5375,12 +5381,6 @@
       "sha256": "e7ad48ab08914359abbd971d4bfadb4ac609a54b6692d5a628cfb7a84913226e"
     },
     {
-      "bytes": 14500,
-      "mode": "100644",
-      "path": "tests/test_cas_workbench.py",
-      "sha256": "cd40224eb38ce12034144e4155435cf1ab9056eb974db48a4507be239041b878"
-    },
-    {
       "bytes": 25574,
       "mode": "100644",
       "path": "wiki/CAS-and-Content-Search.md",
@@ -5511,6 +5511,12 @@
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexBackgroundPointer.h",
       "sha256": "44261b17c45078e9117cb45227375e5ff8a17d0f5356e4e7557df631c0a84896"
+    },
+    {
+      "bytes": 14594,
+      "mode": "100644",
+      "path": "tests/test_cas_workbench.py",
+      "sha256": "a8d412d889b639d1a70afd53653e3d3c1b8019aebcb7a355aca2b84b51aea7d2"
     },
     {
       "bytes": 4040,
@@ -5781,12 +5787,6 @@
       "mode": "100644",
       "path": "tests/test_cas_household_commit.py",
       "sha256": "105f6db24d6f9f535d1fd45a8a7a6daea3b7ede42948a4110f9b686cc7fd1df4"
-    },
-    {
-      "bytes": 8962,
-      "mode": "100644",
-      "path": "tests/test_cas_slider_ack.py",
-      "sha256": "ce88205e1cbe410a94a0e311787e58fdb386174f8d460fcb15bcdffeecbcf46e"
     },
     {
       "bytes": 19093,

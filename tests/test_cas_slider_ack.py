@@ -34,7 +34,16 @@ class SliderAcknowledgmentTests(unittest.TestCase):
         self.assertEqual(pixel,32.1);self.assertEqual(fraction,.1)
         self.assertGreater(abs(pixel/300-fraction),TWIP)
         expected=request['fraction']*300;self.assertLessEqual(abs(pixel-expected),.05)
-        cas_ui.validate_client(client,client['sim']['simId'],request)
+        # This unchanged V344 capture predates the installed Featured Face
+        # alias. Its historical full envelope must not pass today's complete
+        # registry gate. Qualify only the attested slider primitives here.
+        self.assertEqual(len(client['catalogs']),77)
+        self.assertEqual({row['panel'] for row in client['catalogs']},
+                         set(cas_ui.PANELS)-{'featured_face_presets'})
+        with self.assertRaisesRegex(ValueError,'every mapped panel'):
+            cas_ui.validate_client(client,client['sim']['simId'],request)
+        cas_controls.validate(client,request)
+        self.assertEqual(cas_ui._baseline_hash(ack),fixture['native_acknowledgement_sha256'])
         self.assertEqual(fixture['original_terminal_outcome'],'native-postcondition-failed')
 
     def test_actual_pixel_bound_is_one_twip_and_fraction_cannot_authorize_a_wrong_thumb(self):

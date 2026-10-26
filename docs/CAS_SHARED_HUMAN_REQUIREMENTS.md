@@ -45,6 +45,23 @@ and named implementation records as separate form choices.
 
 ## Latest catalog evidence: 2026-10-26
 
+V354 passes actual Body 12-column/35% sizing, right-edge grow/shrink of 200px,
+nine native button exclusions and overflow navigation. Its clean exact Source
+passes 4,112 cases with zero failures/errors and 396 explicit skip entries.
+Cold load retains all forty native appearances and 155 named looks. Raw native
+Cancel retains all 195 independent records before preparation; five original-only
+commits and normal unsaved exit succeed, with all 21 save/backup files unchanged.
+
+It is not a release pass. A Home key sent during initial card allocation is
+correctly unconsumed, but its incomplete error packet leaves the CLI slot
+unresolved and blocks a later read before request submission. No PageDown,
+padded EOF, large-to-small row test, all59 sweep or video is credited to V354.
+The original UUID and failed result remain intact; no request-slot bypass was
+used. Width-only clipping changes also rebuild a valid card bank although
+card geometry and owner/feed identity are unchanged. Both defects have separate
+targeted fixes under development. See the
+[V354 actual runtime and retained-failure report](../Reports/CAS_SCROLL_AND_WIDTH_VALIDATION_V354.json).
+
 V353 composes Search and category tabs from one authoritative native list
 baseline. Head Decorations publishes 240 cards; idle samples show zero native
 work-counter changes over 105 observed UI callback frames. All 59 planned

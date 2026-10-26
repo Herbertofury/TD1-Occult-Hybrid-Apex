@@ -3899,12 +3899,6 @@
       "sha256": "e367246f60b2d4ed033eab8daba1e7bee5e3e044135fefede32f6ba606466ecb"
     },
     {
-      "bytes": 108916,
-      "mode": "100644",
-      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
-      "sha256": "ac7cdc102b5b699bbd1547aea088c2d58d873d2f1279d31194b01f0ffee49812"
-    },
-    {
       "bytes": 51092,
       "mode": "100644",
       "path": "tools/cas_grid_transaction.py",
@@ -4725,6 +4719,12 @@
       "mode": "100644",
       "path": "tests/test_cas_grid_scroll_main.py",
       "sha256": "5b104779d4128a75572ce053072b1d6ae2962dd296a27fe073f15d5b95818206"
+    },
+    {
+      "bytes": 15822,
+      "mode": "100644",
+      "path": "Reports/CAS_SCROLL_AND_WIDTH_VALIDATION_V354.json",
+      "sha256": "17cbe136029282fe99cc39a12d4a99aaf4295689c5ed7f9ea865c33841ec1baa"
     },
     {
       "bytes": 2008,
@@ -5865,6 +5865,12 @@
       "mode": "100644",
       "path": "tools/cas_publication_stage.py",
       "sha256": "fac5b4efe1a5992428e30d34449a3a125247544bf078e792747b3ebb6c318a64"
+    },
+    {
+      "bytes": 110077,
+      "mode": "100644",
+      "path": "docs/CAS_SHARED_HUMAN_REQUIREMENTS.md",
+      "sha256": "be6779ad1dd7ca56c3b3febcbe6387b9d94edf8d57e2f84ec5eb8c7df590b500"
     },
     {
       "bytes": 833,

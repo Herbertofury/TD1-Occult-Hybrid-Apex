@@ -45,6 +45,21 @@ and named implementation records as separate form choices.
 
 ## Latest catalog evidence: 2026-10-26
 
+V353 composes Search and category tabs from one authoritative native list
+baseline. Head Decorations now publishes 240 cards, with zero native work-counter
+deltas over 105 observed idle UI frames. Body sizing at 12 columns and 35%, edge
+growth and shrinkage of 200px, nine actual native button exclusions and overflow navigation
+pass. This does not close performance gates: a one-row return still rebinds48
+cards rather than 6 after a large-to-small category change, and a small-card
+PageDown exceeds its deadline before eventually publishing. Strict rail/mask
+bounds overlap 4px and remain unqualified. The broad sweep clears 43 cases;
+seven more pass with the corrected native routing schema before a Mouth ACK
+requires original-ID recovery. Remaining cases are pending. All 195 records
+remain exact after the first partial sweep; this process has not yet completed
+native Cancel/return. The clean exact Source passes 3,991 cases, with 367 explicit
+skip entries and no failures/errors. See the
+[V353 shared-layout and retained-failure report](../Reports/CAS_SHARED_LAYOUT_AND_SCROLL_VALIDATION_V353.json).
+
 V352 gates the complete native selectable PositionCells override, preserving
 direct feed and selection paths. Bracelets now publishes 16 cards without an
 extra readiness poll. Seven category surfaces pass 12-column/35% geometry,

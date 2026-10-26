@@ -5,6 +5,7 @@ from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
 import cas_grid_eof,cas_catalog_authority
+import cas_grid_width,cas_catalog_unconsumed
 
 class AuthorityBuildIntegrationTests(unittest.TestCase):
     def tree(self):return ast.parse((ROOT/'tools/cas_ui_build.py').read_text(encoding='utf-8'))
@@ -60,6 +61,8 @@ class AuthorityBuildIntegrationTests(unittest.TestCase):
         def eof(info,res):self.assertIs(info,middle);calls.append('eof');return info,res
         def frame(info,res):self.assertIs(info,middle);calls.append('frame');raise Done()
         for n,fn in zip(modules,(main,eof,frame)):modules[n].unwrap_manifest=fn
+        for outer_name in ("cas_catalog_unconsumed","cas_grid_width"):
+            outer=types.ModuleType(outer_name);outer.unwrap_manifest=lambda info,res:(info,res);modules[outer_name]=outer
         with patch.dict(sys.modules,modules),self.assertRaises(Done):self.verifier()(original,resources)
         self.assertEqual(calls,['authority','eof','frame'])
     def test_refused_main_proof_never_runs_older_provider_or_frame(self):
@@ -68,6 +71,8 @@ class AuthorityBuildIntegrationTests(unittest.TestCase):
         def forbidden(*args):raise AssertionError('Refusal fell through')
         modules['cas_catalog_authority'].unwrap_manifest=refuse
         modules['cas_grid_eof'].unwrap_manifest=modules['cas_grid_frame_status'].unwrap_manifest=forbidden
+        for outer_name in ("cas_catalog_unconsumed","cas_grid_width"):
+            outer=types.ModuleType(outer_name);outer.unwrap_manifest=lambda info,res:(info,res);modules[outer_name]=outer
         with patch.dict(sys.modules,modules),self.assertRaisesRegex(ValueError,'Exact authority refused'):self.verifier()({}, {})
         self.assertEqual(calls,['authority'])
     def test_provider_finish_never_compiles_main(self):
@@ -77,12 +82,12 @@ class AuthorityBuildIntegrationTests(unittest.TestCase):
     def test_exact_current_provider_verifies_without_compile(self):
         from tests.test_cas_grid_budget_cache import CacheTests
         result,calls,cache,prior,key=CacheTests('runTest').cached('eof')
-        self.assertEqual([n for n,_ in calls],['cas_grid_eof.verify']);self.assertEqual(result,(b'cached',prior));self.assertNotIn('continued',cache)
+        self.assertEqual([n for n,_ in calls],['cas_grid_eof.verify','cas_grid_width.adapt']);self.assertEqual(result[0],b'cas_grid_width');self.assertIs(result[1]['previous_stage_adapter'],prior);self.assertIn('continued',cache)
     def test_frame_prefix_runs_only_missing_eof_compiler(self):
         from tests.test_cas_grid_budget_cache import CacheTests
         result,calls,cache,prior,key=CacheTests('runTest').cached('frame-status')
-        self.assertEqual([n for n,_ in calls],['cas_grid_frame_status.verify','cas_grid_eof.adapt'])
-        self.assertEqual(result[0],b'cas_grid_eof');self.assertIs(result[1]['previous_stage_adapter'],prior);self.assertIn('continued',cache)
+        self.assertEqual([n for n,_ in calls],['cas_grid_frame_status.verify','cas_grid_eof.adapt','cas_grid_width.adapt'])
+        self.assertEqual(result[0],b'cas_grid_width');self.assertIs(result[1]['previous_stage_adapter']['previous_stage_adapter'],prior);self.assertIn('continued',cache)
     def test_refused_eof_compile_never_returns_cached_predecessor(self):
         from tests.test_cas_grid_budget_cache import CacheTests
         result,calls,*_=CacheTests('runTest').cached('frame-status','cas_grid_eof.adapt')

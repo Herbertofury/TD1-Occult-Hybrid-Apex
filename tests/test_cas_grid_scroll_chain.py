@@ -23,8 +23,9 @@ class IntegrationSourceTests(unittest.TestCase):
   position=next(n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='_finish_grid_provider_position')
   logical=next(n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='_finish_grid_provider_logical_bank')
   frame=next(n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='_finish_grid_provider_frame_status')
-  imports={a.name for helper in(finish,frame,logical,position,spares,intrinsic,physical)for n in ast.walk(helper)if isinstance(n,ast.Import)for a in n.names}
-  self.assertTrue({'cas_grid_featured','cas_grid_budget','cas_grid_slice','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns','cas_grid_row_delta','cas_grid_physical','cas_grid_intrinsic','cas_grid_spares','cas_grid_position','cas_grid_logical_bank','cas_grid_frame_status','cas_grid_eof'}<=imports)
+  eof=next(n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='_finish_grid_provider_eof')
+  imports={a.name for helper in(finish,eof,frame,logical,position,spares,intrinsic,physical)for n in ast.walk(helper)if isinstance(n,ast.Import)for a in n.names}
+  self.assertTrue({'cas_grid_featured','cas_grid_budget','cas_grid_slice','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns','cas_grid_row_delta','cas_grid_physical','cas_grid_intrinsic','cas_grid_spares','cas_grid_position','cas_grid_logical_bank','cas_grid_frame_status','cas_grid_eof','cas_grid_width'}<=imports)
 
 FIXTURE=Path(os.environ['APEX_CAS_GRID_SCROLL_FIXTURE'])if os.environ.get('APEX_CAS_GRID_SCROLL_FIXTURE')else None
 @unittest.skipUnless(FIXTURE is not None,'Set APEX_CAS_GRID_SCROLL_FIXTURE for optional authenticated compiled resources')

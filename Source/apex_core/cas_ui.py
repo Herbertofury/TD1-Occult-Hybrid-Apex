@@ -1495,7 +1495,7 @@ def receive(request_id, payload, backend=None):
                 data = None
             if (isinstance(data, dict) and type(data.get('protocol')) is int and data['protocol'] == 1 and
                     data.get('cas_request_id') == request_id and
-                    (data.get('ok') is True or data.get('ok') is False and 'navigation_publication' in data)):
+                    (data.get('ok') is True or data.get('ok') is False and ('navigation_publication' in data or 'navigation_unconsumed' in data))):
                 with _LOCK:
                     row = _RECORDS.get(request_id)
                     if row and row['state'] == 'pending' and row['request']['operation'] != 'accept':
@@ -1534,6 +1534,11 @@ def _receive(request_id, payload, backend=None):
             if row['rejected_acknowledgement'] != data:
                 raise ValueError('CAS failed postcondition acknowledgement changed.')
             return
+        if (row['state']=='failed' and isinstance(row.get('result'),dict) and
+                row['result'].get('outcome')=='native-navigation-unconsumed'):
+            if row.get('rejected_acknowledgement')!=data:
+                raise ValueError('CAS unconsumed navigation acknowledgement changed.')
+            return
         if row['request']['operation'] == 'accept':
             if row['result'] == data or row.get('accept_intent') == data:
                 return  # A duplicate same-nonce intent cannot submit again.
@@ -1566,6 +1571,15 @@ def _receive(request_id, payload, backend=None):
             return
         if row['state'] not in ('pending', 'superseded-read'):
             if row['result'] != data: raise ValueError('CAS request acknowledgement changed.')
+            return
+        if 'navigation_unconsumed' in data:
+            from . import cas_navigation_unconsumed
+            cas_navigation_unconsumed.validate(row,data,_PEERS)
+            row['rejected_acknowledgement']=copy.deepcopy(data)
+            row.update(state='failed',result={'ok':False,'outcome':'native-navigation-unconsumed',
+                'cas_request_id':request_id,'message':data['message'],'native_acknowledgement':copy.deepcopy(data),
+                'native_acknowledgement_sha256':_baseline_hash(data),'mutation_started':False,
+                'retry_submitted':False,'input_consumed':False,'postcondition_verified':False})
             return
         if 'navigation_publication' in data:
             if data.get('ok') is not False or not _complete_navigation_mismatch(row,data,timeout=True):

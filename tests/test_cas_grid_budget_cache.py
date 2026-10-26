@@ -11,7 +11,7 @@ STAGES=(('slice','cas_grid_slice','slice_contract'),('budget','cas_grid_budget',
         ('staging-attach','cas_grid_staging_attach','staging_attach_contract'),
         ('swatch-columns','cas_swatch_columns','swatch_columns_contract'),
         ('row-delta','cas_grid_row_delta','row_delta_contract'),
-        ('physical','cas_grid_physical','physical_position_contract'),('intrinsic','cas_grid_intrinsic','intrinsic_geometry_contract'),('spares','cas_grid_spares','spare_custody_contract'),('position','cas_grid_position','native_position_contract'),('logical-bank','cas_grid_logical_bank','logical_bank_contract'),('frame-status','cas_grid_frame_status','frame_status_contract'),('eof','cas_grid_eof','eof_delta_contract'))
+        ('physical','cas_grid_physical','physical_position_contract'),('intrinsic','cas_grid_intrinsic','intrinsic_geometry_contract'),('spares','cas_grid_spares','spare_custody_contract'),('position','cas_grid_position','native_position_contract'),('logical-bank','cas_grid_logical_bank','logical_bank_contract'),('frame-status','cas_grid_frame_status','frame_status_contract'),('eof','cas_grid_eof','eof_delta_contract'),('width','cas_grid_width','view_width_transfer_contract'))
 
 
 class CacheTests(unittest.TestCase):
@@ -67,7 +67,7 @@ class CacheTests(unittest.TestCase):
                        'resources':{key:b'cached'},'providers':{dbpf_build.tgi(key):prior}}
                 namespace=dict(Path=Path,hashlib=hashlib,dbpf_build=dbpf_build,maru_companion=maru_companion,
                                work=Path(directory),ffdec='ffdec')
-                self.function('_finish_grid_provider_physical',namespace);self.function('_finish_grid_provider_intrinsic',namespace);self.function('_finish_grid_provider_spares',namespace);self.function('_finish_grid_provider_position',namespace);self.function('_finish_grid_provider_logical_bank',namespace);self.function('_finish_grid_provider_frame_status',namespace);self.function('finish_grid_provider',namespace);function=self.function('adapt_grid_provider',namespace)
+                self.function('_finish_grid_provider_physical',namespace);self.function('_finish_grid_provider_intrinsic',namespace);self.function('_finish_grid_provider_spares',namespace);self.function('_finish_grid_provider_position',namespace);self.function('_finish_grid_provider_logical_bank',namespace);self.function('_finish_grid_provider_frame_status',namespace);self.function('_finish_grid_provider_eof',namespace);self.function('finish_grid_provider',namespace);function=self.function('adapt_grid_provider',namespace)
                 if refuse:
                     with self.assertRaisesRegex(ValueError,'Exact (?:predecessor proof|terminal compile) refused'):
                         function(native,digest,'out.abc',cache)
@@ -100,7 +100,7 @@ class CacheTests(unittest.TestCase):
                 if index==len(STAGES)-1:
                     self.assertEqual(result,(b'cached',prior));self.assertNotIn('continued',cache)
                 else:
-                    self.assertEqual(result[0],b'cas_grid_eof')
+                    self.assertEqual(result[0],b'cas_grid_width')
                     self.assertEqual(cache['continued'],{dbpf_build.tgi(key)})
 
     def test_refused_prefix_or_any_terminal_compiler_never_returns_stale_cached_bytes(self):

@@ -34,9 +34,9 @@ _LOADED = {}
 # Source provenance remains retained. This grants metadata admission only;
 # native recovery keeps its separate exact-source/A0 upgrade requirements.
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-26-catalog-scroll-throughput-v354'
+UPGRADE_EPOCH = '2026-10-26-catalog-width-and-key-rejection-v355'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '7b9207e3358575d44ca6ee7df2413c92b5f4294678349247f7517c15cd645007'
+UPGRADE_SELF_BODY_SHA = '15973d658aa136eac5aaadc3b244c2176346632785e4d8507c4191b2612d14f5'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
@@ -60,7 +60,8 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_panels.py': 'cae87422c351e14d72fc48d601c416d74d3fc76668864be92d675b73b0da0a6d',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_save_boundary.py': 'efa9127cef9cbe2b70a509f258cdf4ced55f685343f25bf00cb350f3767ab22e',
-    'apex_core/cas_ui.py': 'f222e2d86107b1932bb7f082e68840b4f7589d7b5b9f08bf31bd4f5c788ce50a',
+    'apex_core/cas_ui.py': '11a983dec85f331e0dc3e2f1a9a8fbe453c81d931735ed56f345abb5445f7242',
+    'apex_core/cas_navigation_unconsumed.py': 'a41d6fe934f08349768d9dfe8d06ba045331f5c5f6406c81a4c4ea248c1ca203',
     'apex_core/catalog_usage.py': '010877d055c90dad2696cc2af71608323188d1aa6f914554a41aea97433d624a',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',

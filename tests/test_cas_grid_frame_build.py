@@ -10,6 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
 import cas_grid_frame_status  # Load current dependency definitions before scoped legacy gate doubles.
 import cas_grid_eof,cas_catalog_authority
+import cas_grid_width,cas_catalog_unconsumed
 import cas_grid_frame_status as insets
 
 
@@ -119,10 +120,10 @@ class FrameBuildIntegrationTests(unittest.TestCase):
         from tests.test_cas_grid_budget_cache import CacheTests
         harness=CacheTests('runTest')
         result,calls,cache,prior,key=harness.cached('frame-status')
-        self.assertEqual([name for name,args in calls],['cas_grid_frame_status.verify','cas_grid_eof.adapt']);self.assertEqual(result[0],b'cas_grid_eof');self.assertIs(result[1]['previous_stage_adapter'],prior);self.assertIn('continued',cache)
+        self.assertEqual([name for name,args in calls],['cas_grid_frame_status.verify','cas_grid_eof.adapt','cas_grid_width.adapt']);self.assertEqual(result[0],b'cas_grid_width');self.assertIs(result[1]['previous_stage_adapter']['previous_stage_adapter'],prior);self.assertIn('continued',cache)
         result,calls,cache,prior,key=harness.cached('position')
-        self.assertEqual([name for name,args in calls],['cas_grid_position.verify','cas_grid_logical_bank.adapt','cas_grid_frame_status.adapt','cas_grid_eof.adapt'])
-        self.assertIs(result[1]['previous_stage_adapter']['previous_stage_adapter']['previous_stage_adapter'],prior);self.assertIn('continued',cache)
+        self.assertEqual([name for name,args in calls],['cas_grid_position.verify','cas_grid_logical_bank.adapt','cas_grid_frame_status.adapt','cas_grid_eof.adapt','cas_grid_width.adapt'])
+        self.assertIs(result[1]['previous_stage_adapter']['previous_stage_adapter']['previous_stage_adapter']['previous_stage_adapter'],prior);self.assertIn('continued',cache)
 
 
 if __name__=='__main__':unittest.main()

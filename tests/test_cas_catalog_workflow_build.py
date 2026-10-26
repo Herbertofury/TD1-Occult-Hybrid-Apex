@@ -10,6 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
 import cas_grid_frame_status  # Load current dependency definitions before scoped legacy gate doubles.
 import cas_grid_eof,cas_catalog_authority
+import cas_grid_width,cas_catalog_unconsumed
 import cas_catalog_workflow as workflow
 
 

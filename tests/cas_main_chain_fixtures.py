@@ -21,6 +21,8 @@ import cas_swatch_columns as skin
 import cas_grid_row_delta as row_delta
 import cas_grid_staging_attach as staging_attach
 import cas_grid_publication as publication
+import cas_catalog_unconsumed as unconsumed
+import cas_grid_width as width
 import cas_catalog_authority as authority
 import cas_grid_eof as eof
 import cas_grid_frame_status as frame_status
@@ -43,6 +45,8 @@ READY = PACKAGE.is_file() and Path(str(PACKAGE) + '.manifest.json').is_file()
 # Only markers unique to the removed terminal passes are stripped. Shared
 # binding/attach/communication sources remain authoritative for earlier passes.
 TERMINAL_MAIN_MARKERS={
+    unconsumed.MANIFEST: unconsumed.SOURCES,
+    width.MAIN_MANIFEST: width.SOURCES,
     authority.MANIFEST: authority.SOURCES,
     frame_status.MANIFEST: frame_status.SOURCES,
     list_insets.MANIFEST: list_insets.SOURCES,
@@ -72,6 +76,8 @@ def unwrap_catalog_heads(info,resources,stop_before=None):
     stage's exact unique sources and envelope.
     """
     stages=(
+            (unconsumed,unconsumed.SOURCES,(unconsumed.MANIFEST,)),
+            (width,width.SOURCES,(width.MAIN_MANIFEST,)),
             (authority,authority.SOURCES,(authority.MANIFEST,)),
             (eof,eof.SOURCES,()),
             (frame_status,frame_status.SOURCES,(frame_status.MANIFEST,)),
@@ -158,6 +164,8 @@ def current_main(stage):
     # test stage. Providers are irrelevant to this per-resource read, but their
     # complete heads are still rolled together by unwrap_catalog_heads above.
     for wanted,name,module,prior_name in (
+        ('unconsumed',unconsumed.MANIFEST,unconsumed,width.MAIN_MANIFEST),
+        ('width',width.MAIN_MANIFEST,width,authority.MANIFEST),
         ('authority',authority.MANIFEST,authority,frame_status.MANIFEST),
         ('frame',frame_status.MANIFEST,frame_status,list_insets.MANIFEST),
         ('list-insets',list_insets.MANIFEST,list_insets,workflow.MANIFEST),
@@ -171,7 +179,7 @@ def current_main(stage):
             if stage==wanted:raise ValueError('Current package has no requested Main stage: '+wanted)
             continue
         if module.verify_main(outer,final)is not True:raise AssertionError('Current Main '+wanted+' chain did not verify')
-        if module in(frame_status,intrinsic):previous,prior=module.historical(outer,final,module.MAIN)
+        if module in(frame_status,intrinsic,width):previous,prior=module.historical(outer,final,module.MAIN)
         else:previous,prior=module.historical(outer,final)
         if previous!=info.get(prior_name)or previous!=outer.get('previous_stage_contract'):
             raise AssertionError('Current Main '+wanted+' preceding complete history differs')

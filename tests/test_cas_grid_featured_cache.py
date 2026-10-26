@@ -18,26 +18,26 @@ class FeatureCacheTests(unittest.TestCase):
     def test_verified_slice_prefix_runs_each_missing_stage_in_exact_order(self):
         result,calls,cache,prior,key=self.run_prefix('slice')
         self.assertEqual([row[0]for row in calls],['cas_grid_slice.verify','cas_grid_budget.adapt',
-            'cas_grid_featured.adapt','cas_grid_publication.adapt','cas_grid_staging_attach.adapt','cas_swatch_columns.adapt','cas_grid_row_delta.adapt'])
+            'cas_grid_featured.adapt','cas_grid_publication.adapt','cas_grid_staging_attach.adapt','cas_swatch_columns.adapt','cas_grid_row_delta.adapt','cas_grid_physical.adapt','cas_grid_intrinsic.adapt'])
         self.assertIs(calls[0][1][0],prior);self.assertEqual(calls[0][1][1],b'cached')
-        self.assertEqual(calls[2][1][1],b'cas_grid_budget');self.assertEqual(result[0],b'cas_grid_row_delta')
+        self.assertEqual(calls[2][1][1],b'cas_grid_budget');self.assertEqual(result[0],b'cas_grid_intrinsic')
 
     def test_verified_budget_prefix_does_not_recompile_budget_or_earlier_stages(self):
         result,calls,*_=self.run_prefix('budget')
         self.assertEqual([row[0]for row in calls],['cas_grid_budget.verify','cas_grid_featured.adapt',
-            'cas_grid_publication.adapt','cas_grid_staging_attach.adapt','cas_swatch_columns.adapt','cas_grid_row_delta.adapt'])
-        self.assertEqual(result[0],b'cas_grid_row_delta')
+            'cas_grid_publication.adapt','cas_grid_staging_attach.adapt','cas_swatch_columns.adapt','cas_grid_row_delta.adapt','cas_grid_physical.adapt','cas_grid_intrinsic.adapt'])
+        self.assertEqual(result[0],b'cas_grid_intrinsic')
 
     def test_featured_is_verified_before_newer_terminal_stages_and_cannot_return_early(self):
         result,calls,cache,prior,key=self.run_prefix('featured')
         self.assertEqual([row[0]for row in calls],['cas_grid_featured.verify','cas_grid_publication.adapt',
-            'cas_grid_staging_attach.adapt','cas_swatch_columns.adapt','cas_grid_row_delta.adapt'])
-        self.assertIs(calls[0][1][0],prior);self.assertEqual(result[0],b'cas_grid_row_delta')
+            'cas_grid_staging_attach.adapt','cas_swatch_columns.adapt','cas_grid_row_delta.adapt','cas_grid_physical.adapt','cas_grid_intrinsic.adapt'])
+        self.assertIs(calls[0][1][0],prior);self.assertEqual(result[0],b'cas_grid_intrinsic')
         self.assertIn('continued',cache)
 
     def test_refused_featured_prefix_or_later_compiler_cannot_return_stale_bytes(self):
         for refusal in('cas_grid_featured.verify','cas_grid_publication.adapt',
-                       'cas_grid_staging_attach.adapt','cas_swatch_columns.adapt','cas_grid_row_delta.adapt'):
+                       'cas_grid_staging_attach.adapt','cas_swatch_columns.adapt','cas_grid_row_delta.adapt','cas_grid_physical.adapt','cas_grid_intrinsic.adapt'):
             with self.subTest(refusal=refusal):
                 result,calls,*_=self.run_prefix('featured',refusal)
                 self.assertIsNone(result);self.assertEqual(calls[-1][0],refusal)

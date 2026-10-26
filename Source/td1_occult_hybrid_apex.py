@@ -8556,7 +8556,8 @@ def run_action(action, sim_id=None, occult=None, value=None):
                 function = cas_bank_transaction.begin if action == 'cas_bank_begin' else cas_bank_transaction.status
                 return function(sys.modules[__name__], sim)
             argument = _apex_cas_transaction_argument(value)
-            if action == 'cas_bank_prepare' and _APEX_ASYNC_BANK_PREPARE_ENABLED:
+            if (action == 'cas_bank_prepare' and _APEX_ASYNC_BANK_PREPARE_ENABLED and
+                    _APEX_COMMANDS.current_action() == 'cas_bank_prepare'):
                 from apex_core import bank_worker, overlay_loader
                 rid = _APEX_COMMANDS.current_request_id()
                 if rid is None:

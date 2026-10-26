@@ -49,14 +49,18 @@ class NativeBinding:
         started = time.perf_counter()
         raw = self.poll_call(_wire(request), ticket)
         self.costs['native_poll_ms'] += (time.perf_counter() - started) * 1000.0
-        if type(raw) is not bytes or not 0 < len(raw) <= primitive.MAX_DOCUMENT_BYTES + 4096:
+        # Original selected bytes plus at most twice the canonical append
+        # bytes for JSON-string escaping. Bank/payload bounds stay unchanged.
+        if type(raw) is not bytes or not 0 < len(raw) <= 3 * primitive.MAX_DOCUMENT_BYTES + 8192:
             raise ValueError('Native bank returned an invalid owned byte receipt.')
         started = time.perf_counter()
         value = json.loads(raw.decode('utf-8'), object_pairs_hook=bank._pairs,
                            parse_float=bank._finite_float, parse_constant=bank._invalid_constant)
-        self.costs['selected_decode_ms'] += (time.perf_counter() - started) * 1000.0
         if not isinstance(value, dict) or value.get('state') not in ('pending', 'ready', 'failed'):
             raise ValueError('Worker receipt is untyped.')
+        if value.get('state') == 'ready':
+            value = primitive.immutable_append.restore_native_receipt(value, request)
+        self.costs['selected_decode_ms'] += (time.perf_counter() - started) * 1000.0
         return value
 
 
@@ -205,7 +209,8 @@ class PrepareAction(OwnerContinuation):
         if not bank._token(request_id) or bank._BANK_ASYNC_VIEW is not None:
             raise ValueError('Prepare needs one fresh owner-bound transport UUID.')
         self.backend, self.sim, self.binding = backend, sim, binding
-        self.costs = dict(owner_capture_ms=0.0, owner_fence_ms=0.0, owner_planner_ms=0.0)
+        self.costs = dict(owner_capture_ms=0.0, owner_fence_ms=0.0, owner_planner_ms=0.0,
+                          owner_immutable_append_freeze_ms=0.0)
         started = time.perf_counter()
         self.fence = _Fence(backend, sim, native_probe)
         self.costs['owner_capture_ms'] += (time.perf_counter() - started) * 1000.0
@@ -225,6 +230,17 @@ class PrepareAction(OwnerContinuation):
             raise ValueError('Prepare was already issued or receiver is not observed; no replay.')
         self.argument = copy.deepcopy(argument)  # typed small intent only
         self.fence.bind_observed(captured, self.instance, self.argument)
+        # Freeze ONLY the untouched complete serializer append. Both held
+        # documents keep their complete predecessor hash and own all other
+        # mutable values. Later legacy writers thaw at their explicit boundary.
+        started = time.perf_counter()
+        document = primitive.immutable_append.freeze_journal(self.instance.document)
+        retained = (primitive.immutable_append.freeze_journal(self.instance.retained_document)
+                    if self.instance.retained_document is not None else None)
+        if primitive.digest(document) != self.instance.journal_sha256:
+            raise ValueError('Immutable append differs from the held observed journal.')
+        self.instance.document, self.instance.retained_document = document, retained
+        self.costs['owner_immutable_append_freeze_ms'] += (time.perf_counter() - started) * 1000.0
         self.request = dict(request_id=request_id, transaction_id=cache_key[2], identity=self.fence.identity,
             operation='read-selected', sequence=0, expected_file_sha256=None, expected_record_sha256=None,
             expected_journal_sha256=None, document_sha256=None)

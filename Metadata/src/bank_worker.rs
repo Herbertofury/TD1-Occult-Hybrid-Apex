@@ -10,6 +10,9 @@ use std::{collections::BTreeMap, ffi::{CString,c_char}, fs::{self,OpenOptions}, 
 const MAX_JOBS:usize=4;
 const MAX_RETAINED:usize=256;
 const MAX_HEADER:usize=4096;
+// selected raw record <= MAX_DOCUMENT, canonical append <= MAX_DOCUMENT,
+// JSON string escaping expands ASCII canonical bytes by at most 2x.
+const MAX_RECEIPT:usize=3*j::MAX_DOCUMENT+8192;
 #[derive(Clone,Debug,PartialEq,Eq,Deserialize,Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Identity {pub runtime_pid:u32,pub save_guid:String,pub household_id:String,pub sim_id:String}
@@ -182,13 +185,28 @@ impl Lease {
 impl Drop for Lease {fn drop(&mut self){if !self.keep&&self.verify().is_ok(){let _=fs::remove_file(&self.path);}}}
 fn receipt(raw:&[u8],req:&Request,worker_ms:f64)->j::Result<String> {
     let node=parse(raw)?;let record=selected(raw,&node,req)?;let tx=field(record,"cas_transaction")?;
-    let mut meta=serde_json::to_string(&json!({"ok":true,"state":"ready","request_id":req.request_id,"transaction_id":req.transaction_id,"sequence":req.sequence,"identity":req.identity,"file_sha256":sha(raw),"record_sha256":sha(&raw[record.span.clone()]),"journal_sha256":sha(&canonical(raw,field(tx,"journal")?)),"durable":req.operation!="read-selected","native_call_authorized":false,"worker_ms":worker_ms})).map_err(|e|e.to_string())?;
-    meta.pop();meta.push_str(",\"record\":");meta.push_str(std::str::from_utf8(&raw[record.span.clone()]).map_err(|e|e.to_string())?);meta.push('}');Ok(meta)
+    let journal=field(tx,"journal")?;
+    let mut metadata=json!({"ok":true,"state":"ready","request_id":req.request_id,"transaction_id":req.transaction_id,"sequence":req.sequence,"identity":req.identity,"file_sha256":sha(raw),"record_sha256":sha(&raw[record.span.clone()]),"journal_sha256":sha(&canonical(raw,journal)),"durable":req.operation!="read-selected","native_call_authorized":false,"worker_ms":worker_ms,"immutable_append_protocol":1});
+    let projected=if let Some(append)=journal.field("native_serialized_append") {
+        append.members()?;
+        let bytes=canonical(raw,append);check(bytes.len()<=j::MAX_DOCUMENT,"Canonical append exceeds existing payload bound")?;let digest=sha(&bytes);
+        check(field(journal,"native_serialized_sha256")?.string_eq(&digest),"Complete serializer append digest differs")?;
+        metadata["immutable_journal_append"]=json!({"schema":1,"request_id":req.request_id,"transaction_id":req.transaction_id,"sequence":req.sequence,"canonical_json":std::str::from_utf8(&bytes).map_err(|e|e.to_string())?,"sha256":digest});
+        // Exactly one known leaf becomes a null projection. The on-disk
+        // original, canonical hash and every unknown raw span are unchanged.
+        let mut value=raw[record.span.start..append.span.start].to_vec();value.extend_from_slice(b"null");value.extend_from_slice(&raw[append.span.end..record.span.end]);value
+    } else {raw[record.span.clone()].to_vec()};
+    let mut meta=serde_json::to_string(&metadata).map_err(|e|e.to_string())?;
+    meta.pop();meta.push_str(",\"record\":");meta.push_str(std::str::from_utf8(&projected).map_err(|e|e.to_string())?);meta.push('}');
+    check(meta.len()<=MAX_RECEIPT,"Complete immutable receipt exceeds its proven transport bound")?;Ok(meta)
 }
 fn perform(root:&Path,req:&Request,payload:&[u8],fault:Fault)->j::Result<String>{
     req.validate()?;for p in root.ancestors(){regular(p,true)?;}let path=root.join("form_bank.json");let started=Instant::now();
     if req.operation=="read-selected" {check(payload.is_empty(),"Read cannot carry replacement bytes")?;let raw=read_bank(&path)?;return receipt(&raw,req,started.elapsed().as_secs_f64()*1000.0);}
     let mut lease=Lease::take(root,req)?;lease.verify()?;let before=read_bank(&path)?;let after=patch(&before,req,payload)?;
+    // Refuse an oversized projected ACK before creating any candidate file.
+    // A complete original append is never dropped to fit the transport.
+    receipt(&after,req,0.0)?;
     check(fault!=Fault::BeforeWrite,"Injected before-write failure")?;
     let pending=root.join("form_bank.pending");let mut f=OpenOptions::new().write(true).create_new(true).open(&pending).map_err(|_|"Pending evidence already exists")?;
     // Once our candidate exists, retain the shared lease on EVERY failure.
@@ -365,5 +383,25 @@ mod tests {
         let mut header=serde_json::to_vec(&req).unwrap();let ticket=unsafe{ApexBankSubmit(handle,header.as_ptr(),header.len(),std::ptr::null(),0)};header.fill(b'x');assert!(poll(&req,ticket).contains("\"ok\":true"));
         let(plan,mut payload)=prepare(&req,&raw);let expected=patch(&raw,&plan,&payload).unwrap();let mut header=serde_json::to_vec(&plan).unwrap();let ticket=unsafe{ApexBankSubmit(handle,header.as_ptr(),header.len(),payload.as_ptr(),payload.len())};header.fill(b'x');payload.fill(b'x');assert!(poll(&plan,ticket).contains("\"durable\":true"));assert_eq!(fs::read(root.0.join("form_bank.json")).unwrap(),expected);
         assert_eq!(unsafe{ApexBankSubmit(handle,std::ptr::null(),4097,std::ptr::null(),0)},0);
+    }
+    fn append_fixture(req:&Request,append:&[u8])->Vec<u8>{
+        let raw=initial(req);let whole=parse(&raw).unwrap();let record=selected(&raw,&whole,req).unwrap();let journal=field(field(record,"cas_transaction").unwrap(),"journal").unwrap();
+        let hash=sha(&canonical(append,&parse(append).unwrap()));let mut out=raw[..journal.span.end-1].to_vec();out.extend_from_slice(b",\"native_serialized_append\":");out.extend_from_slice(append);out.extend_from_slice(format!(",\"native_serialized_sha256\":\"{hash}\"").as_bytes());out.extend_from_slice(&raw[journal.span.end-1..]);out
+    }
+    #[test]fn immutable_receipt_projects_exact_leaf_without_mutating_raw_unknown_bytes(){
+        let req=read_request();let append=br#"{"future":{"unicode":["\ud800","\ud83e\uddda"],"numbers":[1e+03,-0,-0.00,184467440737095516160]},"sentinel":"native_serialized_append"}"#;
+        let raw=append_fixture(&req,append);let before=raw.clone();let response=receipt(&raw,&req,1.0).unwrap();assert_eq!(raw,before);
+        let node=parse(response.as_bytes()).unwrap();assert_eq!(&response.as_bytes()[field(&node,"immutable_append_protocol").unwrap().span.clone()],b"1");
+        let projected=field(field(field(&node,"record").unwrap(),"cas_transaction").unwrap(),"journal").unwrap();assert_eq!(field(projected,"native_serialized_append").unwrap().value,Value::Null);
+        let capsule=field(&node,"immutable_journal_append").unwrap();let Value::String(encoded)=&field(capsule,"canonical_json").unwrap().value else{panic!("string capsule required")};let recovered=String::from_utf16(encoded).unwrap();assert_eq!(recovered.as_bytes(),canonical(append,&parse(append).unwrap()));
+        let raw_node=parse(&raw).unwrap();let original=field(field(selected(&raw,&raw_node,&req).unwrap(),"cas_transaction").unwrap(),"journal").unwrap();assert!(field(&node,"journal_sha256").unwrap().string_eq(&sha(&canonical(&raw,original))));
+    }
+    #[test]fn immutable_capsule_transport_bound_covers_escape_heavy_unknown_values(){
+        let req=read_request();let text="\\\"".repeat(4096);let append=serde_json::to_vec(&json!({"unknown":text})).unwrap();let canonical=canonical(&append,&parse(&append).unwrap());let escaped=serde_json::to_vec(std::str::from_utf8(&canonical).unwrap()).unwrap();assert!(escaped.len()<=2*canonical.len()+2);
+        let raw=append_fixture(&req,&append);let result=receipt(&raw,&req,0.0).unwrap();assert!(result.len()<=raw.len()+2*canonical.len()+8192);assert!(MAX_RECEIPT>=3*j::MAX_DOCUMENT+8192);
+    }
+    #[test]fn malformed_or_rehashed_append_is_refused_before_any_storage_candidate(){
+        let root=Temp::new();let req=read_request();let mut raw=append_fixture(&req,br#"{"unknown":[1,2,3]}"#);let whole=parse(&raw).unwrap();let record=selected(&raw,&whole,&req).unwrap();let journal=field(field(record,"cas_transaction").unwrap(),"journal").unwrap();let hash=field(journal,"native_serialized_sha256").unwrap().span.clone();raw[hash.start+1]=if raw[hash.start+1]==b'0'{b'1'}else{b'0'};
+        fs::write(root.0.join("form_bank.json"),&raw).unwrap();assert!(perform(&root.0,&req,&[],Fault::None).unwrap_err().contains("append digest differs"));assert_eq!(fs::read(root.0.join("form_bank.json")).unwrap(),raw);assert!(!root.0.join("form_bank.pending").exists());
     }
 }

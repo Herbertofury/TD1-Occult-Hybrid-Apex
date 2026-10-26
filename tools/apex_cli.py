@@ -409,6 +409,7 @@ def parser():
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
         'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-state', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion', 'panel-layout', 'catalog-trace', 'catalog-layout-trace'))
+    cas.add_argument('--minimal-navigation',action='store_true',help='Disposable panel-only exact-identity receipt; omit full diagnostic inventory.')
     cas.add_argument('--text', help='Native Filter Items search, including package names and author/type/origin filters')
     cas.add_argument('--state', required=True, type=Path)
     cas.add_argument('--sim-id')

@@ -241,7 +241,7 @@ class CatalogWorkspaceTests(unittest.TestCase):
 
     def test_semantic_panel_navigation_notifies_the_native_radial_binding(self):
         source=(ROOT/'Source/CASUi/semantic_methods.as').read_text(encoding='utf-8')
-        branch=source.split('} else if(operation=="panel") {',1)[1].split('} else if(operation=="outfit"',1)[0]
+        branch=source.split('} else if(operation=="panel" || operation=="panel-navigation") {',1)[1].split('} else if(operation=="outfit"',1)[0]
         self.assertLess(branch.index('HandleContextMenuSetMenuState('),branch.index('SendUIMessage("CASChangeMenuState",state)'))
 
 

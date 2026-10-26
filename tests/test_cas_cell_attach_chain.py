@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path[:0] = [str(ROOT / 'tools'), str(ROOT / 'tests')]
 import cas_cell_attach as attach
 import cas_draw_fast_path as draw
 import cas_structural_roles as roles
@@ -19,6 +19,7 @@ import dbpf_build
 import maru_companion
 import cas_catalog_binding as binding
 import cas_draw_phase as phase
+from cas_main_chain_fixtures import current_main
 
 WORK = ROOT / '.work/v335-cell-attach'
 READY = all((WORK / name).is_file() for name in ('chained.json', 'baseline.swf', 'final.swf'))
@@ -137,9 +138,6 @@ class CellAttachContinuationTests(unittest.TestCase):
             attach.verify_contract(forged, changed_bytes)
 
     def test_actual_main_builder_runs_all_five_postpasses_on_frozen_bytes(self):
-        binding_work = ROOT / '.work/v336-catalog-binding-current'
-        if not all((binding_work / name).is_file() for name in ('chained.json', 'final.swf')):
-            self.skipTest('Frozen complete binding fixture required for the current builder seam')
         # This seam consumes mutable current compiler cache entries. Authenticate
         # those entries against the CURRENT package chain rather than mixing
         # them with the immutable V334 Main used by the historical tests above.
@@ -166,14 +164,11 @@ class CellAttachContinuationTests(unittest.TestCase):
         role_abc = (ROOT / '.work/research/structural-roles/retained.abc').read_bytes()
         self.assertEqual(draw.digest(native.read_bytes()), prior['structural_roles_native_bytecode_contract']['baseline_swf_sha256'])
         self.assertEqual(draw.digest(role_abc), prior['structural_roles_native_bytecode_contract']['abc_sha256'])
-        outer = json.loads((binding_work / 'chained.json').read_text())
-        bound_final = (binding_work / 'final.swf').read_bytes()
+        outer, bound_final, _ = current_main('binding')
         self.assertTrue(binding.verify_contract(outer, bound_final))
         self.assertEqual(outer['previous_stage_contract'], record)
         self.assertEqual(binding.reconstruct_previous(bound_final, outer['catalog_binding_contract']), final)
-        phase_work = ROOT / '.work/v337-draw-phases'
-        phase_outer = json.loads((phase_work / 'chained.json').read_text())
-        phase_final = (phase_work / 'final.swf').read_bytes()
+        phase_outer, phase_final, _ = current_main('phase')
         self.assertTrue(phase.verify_contract(phase_outer, phase_final))
         self.assertEqual(phase_outer['previous_stage_contract'], outer)
         self.assertEqual(phase.reconstruct_previous(phase_final, phase_outer['draw_phase_contract']), bound_final)

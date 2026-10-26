@@ -544,6 +544,8 @@ def poll_client(token, clock=time.monotonic):
                 row.update(delivery='claimed', peer=token)
                 if row['request']['operation'] in _CATALOG_READBACK_OPERATIONS:
                     row['catalog_expected_owner'] = copy.deepcopy(peer.get('owner_state_identity'))
+                if row['request']['operation'] == 'panel-navigation':
+                    row['navigation_expected_owner'] = copy.deepcopy(peer.get('owner_state_identity'))
                 return row['wire']
     return None
 
@@ -845,6 +847,77 @@ def _validate_catalog_client(data, row):
     cas_controls.validate(client, request)
 
 
+def _validate_panel_navigation_client(data, row):
+    """A bounded, exact-identity receipt; never seed appearance or save authority."""
+    request, client = row['request'], data.get('client')
+    token = row.get('peer'); peer = _PEERS.get(token)
+    if (request.get('operation') != 'panel-navigation' or
+            row.get('transport') != 'loopback-socket' or row.get('delivery') != 'claimed' or
+            not isinstance(token, str) or re.fullmatch('[0-9a-f]{64}', token) is None or
+            not isinstance(peer, dict) or peer.get('sim_id') != row['sim_id'] or
+            set(data) != {'protocol','ok','scope','cas_request_id','operation','mutation_started','client'} or
+            data.get('scope') != 'native-cas-client' or data.get('operation') != 'panel-navigation' or
+            data.get('cas_request_id') != row.get('wire','').split('|',1)[0] or data.get('mutation_started') is not True or
+            not isinstance(client, dict) or set(client) != {'protocol','scope','appearance_written','sim',
+                'menu_state','panel_visible','requested_menu_state','outfit','form_strip','navigation_identity','card_layout'} or
+            type(client.get('protocol')) is not int or client['protocol'] != 1 or
+            client.get('scope') != 'native-cas-navigation-client' or client.get('appearance_written') is not False):
+        raise ValueError('Panel navigation lacks its exact request/peer/navigation-only scope.')
+    proof = client['navigation_identity']
+    fields = {'sim_id','household_id','owner_id','native_kind','shell_kind','native_mask','native_generation',
+              'session','layer','outfit_type','outfit_index','menu_state'}
+    if (not isinstance(proof, dict) or set(proof) != {'request_id','peer_nonce','before','after'} or
+            proof.get('request_id') != data['cas_request_id'] or proof.get('peer_nonce') != token):
+        raise ValueError('Panel navigation UUID or claimed peer nonce differs.')
+    for side in ('before','after'):
+        context = proof.get(side)
+        if not isinstance(context, dict) or set(context) != fields:
+            raise ValueError('Panel navigation native context is incomplete or foreign.')
+        for name in ('sim_id','household_id','native_generation'):
+            _owner_id(context[name])
+        if (context['sim_id'] != row['sim_id'] or not isinstance(context['owner_id'], str) or
+                re.fullmatch(r'[a-z0-9_][a-z0-9_-]{0,63}/[a-z0-9_][a-z0-9_-]{0,63}',context['owner_id']) is None or
+                any(type(context[k]) is not int or context[k] not in (1,2,4,8,16,32,64) for k in ('native_kind','shell_kind')) or
+                type(context['native_mask']) is not int or not 0 < context['native_mask'] <= 127 or not context['native_mask'] & 1 or
+                type(context['session']) is not int or not 0 < context['session'] < 2**31 or
+                type(context['layer']) is not int or context['layer'] not in (0,1) or
+                type(context['outfit_type']) is not int or not 0 <= context['outfit_type'] <= 255 or
+                type(context['outfit_index']) is not int or not 0 <= context['outfit_index'] < 5 or
+                type(context['menu_state']) is not int or not -2**31 <= context['menu_state'] < 2**31):
+            raise ValueError('Panel navigation selected native context is untyped or foreign.')
+    before, after = proof['before'], proof['after']
+    if any(type(before[k]) is not type(after[k]) or before[k] != after[k] for k in fields-{'menu_state'}):
+        raise ValueError('Panel navigation changed Sim/form/generation/session/outfit identity.')
+    requested = panel(request['panel'])
+    expected = ('OWNERSTATE|{}|{}|{}|bound'.format(after['owner_id'],after['native_kind'],after['layer']),
+                int(after['native_generation']))
+    if row.get('navigation_expected_owner') != expected:
+        raise ValueError('Panel navigation differs from its claimed native cursor.')
+    sim = {'simId':after['sim_id'],'householdId':after['household_id'],'occultType':after['shell_kind'],
+           'allOccultTypes':after['native_mask'],'occultLayer':after['layer']}
+    strip = {'sim_id':after['sim_id'],'selected_owner_id':after['owner_id'],'native_owner_state':'bound',
+             'desired_owner_id':'','gesture_pending':False,'native_generation':after['native_generation'],'session':after['session']}
+    if (client['sim'] != sim or client['form_strip'] != strip or
+            any(type(client['sim'].get(k)) is not type(v) for k,v in sim.items()) or
+            any(type(client['form_strip'].get(k)) is not type(v) for k,v in strip.items()) or
+            type(client['menu_state']) is not int or client['menu_state'] != requested or after['menu_state'] != requested or
+            type(client['requested_menu_state']) is not int or client['requested_menu_state'] != requested or
+            client['panel_visible'] is not True or client['outfit'] != {'outfit_type':after['outfit_type'],'outfit_index':after['outfit_index']} or
+            not isinstance(client['outfit'], dict) or any(type(v) is not int for v in client['outfit'].values())):
+        raise ValueError('Panel navigation header differs from its exact requested native context.')
+    layout=client['card_layout']
+    if not isinstance(layout,dict) or type(layout.get('available')) is not bool:
+        raise ValueError('Panel navigation layout availability is untyped.')
+    if layout['available']:
+        if (set(layout)!={'query','available','columns','scale','width','card_width','card_height','gap_x','gap_y'} or
+                layout['query']!='cached-current-panel-only' or type(layout['columns']) is not int or not 2<=layout['columns']<=32 or
+                any(type(layout[k]) not in (int,float) or not math.isfinite(layout[k]) or not 0<=layout[k]<=8192
+                    for k in ('scale','width','card_width','card_height','gap_x','gap_y')) or not 0<layout['scale']<=1.6):
+            raise ValueError('Panel navigation cached layout is malformed or exceeds its fixed scalar bounds.')
+    elif layout!={'query':'not-available-current-panel','available':False}:
+        raise ValueError('Unavailable panel navigation layout must not invent values.')
+
+
 def validate_client(client, sim_id, request):
     if request['operation'] == 'member-select': sim_id = request['target_sim_id']
     if not isinstance(client, dict) or client.get('scope') != 'native-cas-client' or not isinstance(client.get('sim'), dict) or str(client['sim'].get('simId')) != sim_id:
@@ -1027,6 +1100,7 @@ def envelope(sim_id, request):
             raise ValueError('CAS envelope exceeds its printable transport bound.')
         return request_id, wire
     allowed = {'status': {'operation'}, 'panel': {'operation', 'panel'},
+        'panel-navigation': {'operation','panel','test_token'},
         'outfit': {'operation', 'category', 'index'},
         'outfit-add': {'operation', 'category'}, 'hair-swatch': {'operation', 'data_id'},
         'select': {'operation', 'panel', 'data_id'}, 'undo': {'operation'}, 'redo': {'operation'},
@@ -1096,8 +1170,13 @@ def submit(sim_id, request, send=None, clock=time.monotonic, backend=None):
     if request.get('operation') == 'select' and request.get('panel') == 'clothing_body_wings':
         raise ValueError('Native wing selection is quarantined after failed exact color readback and a crash trial; no request sent.')
     request_id, wire = envelope(sim_id, request)
+    if request['operation'] == 'panel-navigation':
+        from .test_driver import guard
+        guard(backend, json.dumps({'test_token':request['test_token'],'value':None}))
     with _LOCK:
         socket_ready = send is None and any(peer['sim_id'] == sim_id and clock() - peer['observed_at'] <= 3 for peer in _PEERS.values())
+    if request['operation'] == 'panel-navigation' and not socket_ready:
+        raise ValueError('Panel navigation requires the fresh exact-Sim native CAS peer; no request sent.')
     form_select_context = None
     occult_view_context = None
     if request['operation'] in ('occult-view', 'occult-cache-view', 'occult-owner-view'):
@@ -1382,6 +1461,10 @@ def _receive(request_id, payload, backend=None):
             return
         if row['state'] not in ('pending', 'superseded-read'):
             if row['result'] != data: raise ValueError('CAS request acknowledgement changed.')
+            return
+        if data.get('ok') and row['request']['operation'] == 'panel-navigation':
+            _validate_panel_navigation_client(data,row)
+            row.update(state='completed',result=copy.deepcopy(data))
             return
         if data.get('ok') and isinstance(data.get('client'), dict) and data['client'].get('scope') == 'native-cas-catalog-client':
             _validate_catalog_client(data, row)

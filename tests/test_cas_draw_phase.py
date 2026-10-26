@@ -11,10 +11,11 @@ import tempfile
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/'tools'))
+sys.path[:0]=[str(ROOT/'tools'),str(ROOT/'tests')]
 import cas_draw_phase as phase
 import cas_catalog_binding as binding
 import cas_communication_index as comm
+from cas_main_chain_fixtures import READY, current_main
 
 
 def helper_js():
@@ -70,16 +71,15 @@ let s=ApexCatalogTraceStatus();check(s.records.length===32&&s.incomplete.length=
 ApexCatalogTraceConfigure(0);check(CASCustomizerMain.apexCatalogDrawTraceStep===null,'stop callback');''')
 
 
-WORK=ROOT/'.work/v337-draw-phases'
-@unittest.skipUnless((WORK/'chained.json').is_file(),'Frozen private granular Main required')
+@unittest.skipUnless(READY,'Current private granular Main required')
 class GranularContinuationTests(unittest.TestCase):
-    def fixture(self):return json.loads((WORK/'chained.json').read_text(encoding='utf-8')),(WORK/'final.swf').read_bytes()
+    def fixture(self):return current_main('phase')[:2]
 
     def refresh(self,r):
         r['previous_stage_sha256']=comm.contract_digest(r['previous_stage_contract']);r['draw_phase_contract']['previous_stage_sha256']=r['previous_stage_sha256'];r['postproof_sha256']=comm.contract_digest(r['draw_phase_contract'])
 
     def test_exact_profile_only_tail_reconstructs_complete_binding_stage(self):
-        r,final=self.fixture();self.assertTrue(phase.verify_contract(r,final));baseline=(WORK/'baseline.swf').read_bytes()
+        r,final=self.fixture();self.assertTrue(phase.verify_contract(r,final));baseline=current_main('phase')[2]
         self.assertEqual(phase.reconstruct_previous(final,r['draw_phase_contract']),baseline)
         self.assertTrue(binding.verify_contract(r['previous_stage_contract'],baseline))
         a=binding._ABC(binding._abc_payload(final)[1]).parse();b=binding._ABC(binding._abc_payload(baseline)[1]).parse()
@@ -146,7 +146,10 @@ class GranularContinuationTests(unittest.TestCase):
             jar=ROOT/'.work/research/ffdec/ffdec.jar'
             r=subprocess.run(['javac','-cp',str(jar),'-d',work,str(ROOT/'tools/CasStructuralRolesPatch.java'),str(ROOT/'tools/CasCommunicationIndexPatch.java'),str(ROOT/'tools/CasDrawPhasePatch.java'),str(ROOT/'tests/CasDrawPhaseBytecodeFixtures.java')],capture_output=True,text=True,timeout=45)
             self.assertEqual(r.returncode,0,r.stdout+r.stderr)
-            r=subprocess.run(['java','-cp',str(jar)+os.pathsep+work,'CasDrawPhaseBytecodeFixtures',str(WORK/'baseline.swf'),str(WORK/'final.swf')],capture_output=True,text=True,timeout=45)
+            _,final,baseline=current_main('phase')
+            before=Path(work)/'baseline.swf';after=Path(work)/'final.swf'
+            before.write_bytes(baseline);after.write_bytes(final)
+            r=subprocess.run(['java','-cp',str(jar)+os.pathsep+work,'CasDrawPhaseBytecodeFixtures',str(before),str(after)],capture_output=True,text=True,timeout=45)
             self.assertEqual(r.returncode,0,r.stdout+r.stderr[-2500:]);self.assertEqual(r.stdout.count('PASS '),17)
 
 

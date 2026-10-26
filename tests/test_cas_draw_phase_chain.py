@@ -14,14 +14,16 @@ import cas_ui_build as ui
 import dbpf_build
 import maru_companion
 from test_cas_catalog_binding_chain import install_fixture as install_binding_fixture,historical_binding_fixture
+from cas_main_chain_fixtures import READY, current_main
 
-WORK=ROOT/'.work/v337-draw-phases'
-READY=all((WORK/name).is_file() for name in ('chained.json','baseline.swf','final.swf'))
 KEY=maru_companion.CUSTOMIZER
 TEXT=dbpf_build.tgi(KEY)
 
 
-def fixture():return json.loads((WORK/'chained.json').read_text(encoding='utf-8')),(WORK/'final.swf').read_bytes()
+def fixture():return current_main('phase')[:2]
+
+
+def baseline_fixture():return current_main('phase')[2]
 
 
 def refresh(record):
@@ -47,7 +49,7 @@ class GranularContinuationTests(unittest.TestCase):
     def test_actual_final_reconstructs_full_binding_prior_and_honest_phase_inventory(self):
         record,final=fixture();self.assertTrue(phase.verify_contract(record,final))
         before=phase.reconstruct_previous(final,record['draw_phase_contract'])
-        self.assertEqual(before,(WORK/'baseline.swf').read_bytes())
+        self.assertEqual(before,baseline_fixture())
         self.assertTrue(binding.verify_contract(record['previous_stage_contract'],before))
         p=record['draw_phase_contract']
         self.assertEqual((p['changed_draw_bodies'],p['replaced_owned_bodies'],p['appended_methods'],p['appended_fields'],p['disabled_added_instructions'],p['granular_sites']),(1,2,0,0,0,47))
@@ -77,7 +79,7 @@ class GranularContinuationTests(unittest.TestCase):
 
     def test_exact_prior_binding_corruption_or_substituted_bytes_cannot_relabel_a_main(self):
         original,final=fixture()
-        for value in ((WORK/'baseline.swf').read_bytes(),final+b'extra'):
+        for value in (baseline_fixture(),final+b'extra'):
             with self.subTest(bytes=phase.digest(value)),self.assertRaises(ValueError):phase.verify_contract(original,value)
         r=copy.deepcopy(original);prior=r['previous_stage_contract'];prior['catalog_binding_contract']['other_four_binds_retained']=False
         prior['postproof_sha256']=communication.contract_digest(prior['catalog_binding_contract']);refresh(r)
@@ -135,7 +137,7 @@ class GranularManifestTests(unittest.TestCase):
             if field=='patched_resources':info[field][TEXT]='0'*64
             else:info[field]='0'*64
             with self.subTest(field=field),self.assertRaises(ValueError):maru_companion.verify_merged(info,self.resources)
-        info,resources=copy.deepcopy(self.info),dict(self.resources);resources[KEY]=(WORK/'baseline.swf').read_bytes()
+        info,resources=copy.deepcopy(self.info),dict(self.resources);resources[KEY]=baseline_fixture()
         info['patched_resource_sha256']=info['patched_resources'][TEXT]=phase.digest(resources[KEY])
         with self.assertRaises(ValueError):maru_companion.verify_merged(info,resources)
 

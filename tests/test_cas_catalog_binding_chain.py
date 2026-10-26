@@ -6,7 +6,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path[:0] = [str(ROOT / 'tools'), str(ROOT / 'tests')]
 import cas_catalog_binding as binding
 import cas_cell_attach as attach
 import cas_communication_index as communication
@@ -14,15 +14,18 @@ import cas_ui_build as ui
 import dbpf_build
 import maru_companion
 import cas_draw_phase as phase
+from cas_main_chain_fixtures import READY, current_main
 
-WORK = ROOT / '.work/v336-catalog-binding-current'
-READY = all((WORK / name).is_file() for name in ('chained.json', 'baseline.swf', 'final.swf'))
 KEY = maru_companion.CUSTOMIZER
 TEXT = dbpf_build.tgi(KEY)
 
 
 def fixture():
-    return json.loads((WORK / 'chained.json').read_text()), (WORK / 'final.swf').read_bytes()
+    return current_main('binding')[:2]
+
+
+def baseline_fixture():
+    return current_main('binding')[2]
 
 
 def refresh(record):
@@ -80,7 +83,7 @@ class BindingContinuationTests(unittest.TestCase):
         self.assertTrue(binding.verify_contract(record, final))
         previous = record['previous_stage_contract']
         before = binding.reconstruct_previous(final, record['catalog_binding_contract'])
-        self.assertEqual(before, (WORK / 'baseline.swf').read_bytes())
+        self.assertEqual(before, baseline_fixture())
         self.assertTrue(attach.verify_contract(previous, before))
         self.assertNotEqual(binding.digest(final), previous['final_swf_sha256'])
         proof = record['catalog_binding_contract']
@@ -120,7 +123,7 @@ class BindingContinuationTests(unittest.TestCase):
 
     def test_final_byte_substitution_and_rehashed_complete_history_corruption_are_refused(self):
         record, final = fixture()
-        for value in ((WORK / 'baseline.swf').read_bytes(), final + b'changed'):
+        for value in (baseline_fixture(), final + b'changed'):
             with self.subTest(payload=binding.digest(value)), self.assertRaises(ValueError):
                 binding.verify_contract(record, value)
         for stage, field in [('native_bytecode_contract', 'native_method_count'),
@@ -193,7 +196,7 @@ class BindingManifestTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             maru_companion.verify_merged(changed, self.resources)
         changed, resources = copy.deepcopy(self.info), dict(self.resources)
-        resources[KEY] = (WORK / 'baseline.swf').read_bytes()
+        resources[KEY] = baseline_fixture()
         changed['patched_resource_sha256'] = changed['patched_resources'][TEXT] = binding.digest(resources[KEY])
         with self.assertRaises(ValueError):
             maru_companion.verify_merged(changed, resources)

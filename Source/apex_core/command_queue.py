@@ -30,11 +30,17 @@ class CommandQueue:
         self.command_max_ms = 0.0
         self.drain_max_ms = 0.0
         self._executing_id = None
+        self._executing_action = None
 
     def current_request_id(self):
         if threading.current_thread().ident != self.owner:
             raise RuntimeError('Request context is restricted to the bound game thread.')
         return self._executing_id
+
+    def current_action(self):
+        if threading.current_thread().ident != self.owner:
+            raise RuntimeError('Action context is restricted to the bound game thread.')
+        return self._executing_action
 
     def bind_owner(self):
         with self.lock:
@@ -134,7 +140,9 @@ class CommandQueue:
                 row['state'] = 'running'
             command_start = self.clock()
             previous_execution = self._executing_id
+            previous_action = self._executing_action
             self._executing_id = row['request_id']
+            self._executing_action = row['payload']['action']
             try:
                 result = (continuation.resume() if continuation is not None else
                           execute(copy.deepcopy(row['payload'])))
@@ -144,6 +152,7 @@ class CommandQueue:
                 result = {'ok': False, 'message': str(error)}
             finally:
                 self._executing_id = previous_execution
+                self._executing_action = previous_action
             with self.lock:
                 if isinstance(result, OwnerContinuation):
                     row['_continuation'] = result

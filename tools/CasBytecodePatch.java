@@ -353,7 +353,8 @@ public class CasBytecodePatch {
             require(Collections.disjoint(calls.get(event), Set.of("ApexExecute", "ApexReadback", "ApexSnapshot", "ApexComplete", "ApexAccept",
                 "ApexFormSelectionContext", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers",
                 "CallGameService", "CallUIService", "SendUIMessage", "SendMessage", "ApexMemberSelectionContext",
-                "ApexResetSocket", "ApexDisconnect", "close", "connect", "ApexSocketSend")), "Socket callback executes native CAS or socket lifecycle work.");
+                "ApexResetSocket", "ApexDisconnect", "close", "connect", "ApexSocketSend",
+                "ApexPanelNavigationSnapshot","ApexCatalogTimerStep","ApexCatalogTimerStatus")), "Socket callback executes native CAS or socket lifecycle work.");
         require(calls.get("ApexSocketConnect").equals(Set.of("split")), "CAS CONNECT callback must queue only.");
         require(calls.get("ApexTick").containsAll(Set.of("CallGameService","ApexSocketSend","connect","addEventListener")),
             "Queued CAS handshake lacks the actual native Timer/Socket constructor path.");
@@ -473,11 +474,21 @@ public class CasBytecodePatch {
     }
     static int householdRequestSlot(ABC abc, MethodBody body) {
         var code = body.getCode().code;
-        int slot = -1;
+        int slot = -1, fieldsSlot=-1;
+        // Readback owns a typed local alias; Accept reads the retained wire
+        // directly. An unrelated array[6] (for example a native owner cursor's
+        // generation) is not a household request field.
+        for(int i=0;i+2<code.size();i++)if(property(abc,code.get(i),0x60,"apexPendingFields") &&
+            opcode(code.get(i+1),0x80) && "Array".equals(abc.constants.getString(abc.constants.getMultiname(code.get(i+1).operands[0]).name_index)) &&
+            opcode(code.get(i+2),0x6d)) {
+            require(fieldsSlot<0,"CAS wire alias is ambiguous.");fieldsSlot=code.get(i+2).operands[0];
+        }
         for (int i=0; i+4<code.size(); i++) {
             if (!opcode(code.get(i),0x24) || code.get(i).operands[0]!=6 ||
                 !opcode(code.get(i+1),0x66) ||
                 abc.constants.getMultiname(code.get(i+1).operands[0]).kind!=Multiname.MULTINAMEL) continue;
+            if(i==0 || !(property(abc,code.get(i-1),0x60,"apexPendingFields") || fieldsSlot>=0 &&
+                opcode(code.get(i-1),0x6c) && code.get(i-1).operands[0]==fieldsSlot))continue;
             int next=i+2;
             if (opcode(code.get(next),0x70)) next++; // Explicit String().
             require(opcode(code.get(next),0x85) && opcode(code.get(next+1),0x6d),
@@ -1451,6 +1462,79 @@ public class CasBytecodePatch {
             Set.of("ApexCatalogReadbackOnly","ApexCatalogReadbackContext","ApexCatalogSnapshot","ApexSnapshot")),
             "Readback lost its separate thin/full snapshot paths.");
     }
+    static void ownedSignature(ABC abc,InstanceInfo instance,String method,List<String> parameters,String returned) {
+        var body=ownedBody(abc,instance,method);var info=abc.method_info.get(body.method_info);
+        require(info.param_types.length==parameters.size() && returned.equals(abc.constants.getString(abc.constants.getMultiname(info.ret_type).name_index)),
+            "Reviewed diagnostic/navigation method signature differs: "+method);
+        for(int n=0;n<parameters.size();n++)require(parameters.get(n).equals(abc.constants.getString(abc.constants.getMultiname(info.param_types[n]).name_index)),
+            "Reviewed diagnostic/navigation parameter type differs: "+method);
+        Multiname reference=null,actual=null;
+        for(var trait:instance.instance_traits.traits) {
+            if(name(abc,trait).equals("ApexCatalogReadbackContext"))reference=abc.constants.getMultiname(trait.name_index);
+            if(name(abc,trait).equals(method))actual=abc.constants.getMultiname(trait.name_index);
+        }
+        require(reference!=null && actual!=null && reference.kind==Multiname.QNAME && actual.kind==Multiname.QNAME &&
+            reference.namespace_index==actual.namespace_index && abc.constants.getNamespace(actual.namespace_index).kind==0x05 &&
+            // FFDec retains one extra lexical level for TimerStep's reviewed
+            // nested diagnostic catch. The later common native-scope delta is
+            // applied to both sides; no generic depth range is accepted.
+            body.init_scope_depth==ownedBody(abc,instance,"ApexCatalogReadbackContext").init_scope_depth+(method.equals("ApexCatalogTimerStep")?1:0),
+            "Reviewed diagnostic/navigation method lost its private same-class lexical owner: "+method);
+        for(var op:body.getCode().code)require(!Set.of(0x40,0x41,0x44,0x4c,0x4e).contains(op.definition.instructionCode),
+            "Reviewed diagnostic/navigation method has an indirect/anonymous callback: "+method);
+    }
+    static Set<String> methodCallers(ABC abc,InstanceInfo instance,String target) {
+        var result=new HashSet<String>();
+        for(var trait:instance.instance_traits.traits)if(trait instanceof TraitMethodGetterSetter &&
+            propertyCalls(abc,abc.findBody(((TraitMethodGetterSetter)trait).method_info)).contains(target))result.add(name(abc,trait));
+        return result;
+    }
+    static void verifyPanelNavigation(ABC abc,InstanceInfo instance) {
+        ownedSignature(abc,instance,"ApexPanelNavigationSnapshot",List.of("Object","Object","int"),"Object");
+        var snapshot=ownedBody(abc,instance,"ApexPanelNavigationSnapshot");
+        require(propertyCalls(abc,snapshot).equals(Set.of("isFinite")),
+            "Panel navigation snapshot performs native, inventory, layout or diagnostic work.");
+        for(String literal:List.of("native-cas-navigation-client","appearance_written","navigation_identity","request_id","peer_nonce",
+            "before","after","requested_menu_state","not-available-current-panel","cached-current-panel-only"))uniqueLiteral(abc,snapshot,literal);
+        var identity=snapshot.getCode().code;int mismatch=uniqueLiteral(abc,snapshot,"Panel navigation changed its bound native Sim/form/outfit context");
+        require(mismatch>=17 && mismatch+3<identity.size() && opcode(identity.get(mismatch-17),0x62) &&
+            stringLiteral(abc,identity.get(mismatch-16),"menu_state") && opcode(identity.get(mismatch-15),0xab) && opcode(identity.get(mismatch-14),0x96) &&
+            opcode(identity.get(mismatch-13),0x2a) && opcode(identity.get(mismatch-12),0x12) && opcode(identity.get(mismatch-11),0x29) &&
+            opcode(identity.get(mismatch-10),0xd1) && opcode(identity.get(mismatch-9),0x62) && opcode(identity.get(mismatch-8),0x66) &&
+            opcode(identity.get(mismatch-7),0xd2) && opcode(identity.get(mismatch-6),0x62) && opcode(identity.get(mismatch-5),0x66) &&
+            identity.get(mismatch-17).operands[0]==identity.get(mismatch-9).operands[0] && identity.get(mismatch-9).operands[0]==identity.get(mismatch-6).operands[0] &&
+            abc.constants.getMultiname(identity.get(mismatch-8).operands[0]).kind==Multiname.MULTINAMEL &&
+            abc.constants.getMultiname(identity.get(mismatch-5).operands[0]).kind==Multiname.MULTINAMEL &&
+            opcode(identity.get(mismatch-4),0xac) && opcode(identity.get(mismatch-3),0x96) && opcode(identity.get(mismatch-2),0x12) &&
+            property(abc,identity.get(mismatch-1),0x5d,"Error") && property(abc,identity.get(mismatch+1),0x4a,"Error") && opcode(identity.get(mismatch+2),0x03) &&
+            bootstrapTarget(identity.get(mismatch-12),0)==identity.get(mismatch-2).getAddress() &&
+            bootstrapTarget(identity.get(mismatch-2),0)==identity.get(mismatch+3).getAddress(),
+            "Panel navigation must compare every original before/after field strictly, excluding only menu state.");
+        require(methodCallers(abc,instance,"ApexPanelNavigationSnapshot").equals(Set.of("ApexReadback")),
+            "Panel navigation snapshot escaped its deferred owned readback.");
+        require(methodCallers(abc,instance,"ApexCatalogReadbackContext").equals(Set.of("ApexExecute","ApexReadback")),
+            "Exact catalogue/navigation context escaped its owned admission/readback phases.");
+        for(String phase:List.of("ApexExecute","ApexReadback")) {
+            var body=ownedBody(abc,instance,phase);
+            require(propertyCalls(abc,body).containsAll(Set.of("ApexOwnerSimRow","ApexCatalogReadbackContext","CallGameService")),
+                "Panel navigation lacks its fresh owned native cursor: "+phase);
+            boolean scoped=false;
+            for(var op:body.getCode().code)scoped|=stringLiteral(abc,op,"panel-navigation");
+            require(scoped,"Panel navigation lacks its separate typed operation: "+phase);
+        }
+        var read=ownedBody(abc,instance,"ApexReadback");var code=read.getCode().code;
+        int navigation=-1;
+        for(int n=0;n<code.size();n++)if(property(abc,code.get(n),0x46,"ApexPanelNavigationSnapshot")) {
+            require(navigation<0 && code.get(n).operands[1]==3,"Panel navigation snapshot must have one complete before/after/request argument route.");navigation=n;
+        }
+        require(navigation>=0,"Panel navigation next-tick snapshot is absent.");
+        boolean bound=false;
+        for(int n=Math.max(0,navigation-28);n<navigation;n++)bound|=stringLiteral(abc,code.get(n),"panel-navigation");
+        require(bound,"Panel navigation snapshot is not behind its explicit operation branch.");
+        boolean guardedFallback=false;
+        for(int n=0;n+2<code.size();n++)if(stringLiteral(abc,code.get(n),"panel-navigation") && opcode(code.get(n+1),0xab) && opcode(code.get(n+2),0x96))guardedFallback=true;
+        require(guardedFallback,"Panel navigation cannot invoke a full diagnostic error fallback.");
+    }
     static void verifyEyebrowPaletteWidget(ABC abc, InstanceInfo instance) {
         Set<String> calls=propertyCalls(abc,ownedBody(abc,instance,"ApexSelectEyebrowSwatch"));
         require(calls.containsAll(Set.of("IsEnabled","SetType","SetSelection","GetSelectedIndices","GetDataFeed","RequestItemsAt","ApexClone")) &&
@@ -2022,7 +2106,7 @@ public class CasBytecodePatch {
     static void verifyDrawTraceHelper(ABC abc,InstanceInfo instance) {
         var routes=Map.of("ApexCatalogTraceConfigure",Set.of("ApexCatalogTraceStatus","getTimer","ApexCatalogTraceDispose","ApexLayoutTraceDispose"),
             "ApexCatalogTraceStep",Set.of("pop","split","max","substr","getTimer","push","ApexCatalogTraceDispose"),
-            "ApexCatalogTraceDispose",Set.<String>of(),"ApexCatalogTraceStatus",Set.of("max","getTimer","push","ApexCatalogTraceDispose"));
+            "ApexCatalogTraceDispose",Set.<String>of(),"ApexCatalogTraceStatus",Set.of("max","getTimer","push","ApexCatalogTraceDispose","ApexCatalogTimerStatus"));
         for(var entry:routes.entrySet()) {
             var body=ownedBody(abc,instance,entry.getKey());
             require(propertyCalls(abc,body).equals(entry.getValue()),"Draw trace helper gained a service, IO or unreviewed callback: "+entry.getKey());
@@ -2042,6 +2126,101 @@ public class CasBytecodePatch {
         }
         for(var handler:step.exceptions)catchAll|=handler.type_index==0;
         require(earlyReturn && enabled && clock && catchAll,"Draw trace lacks its disabled return or catch-all diagnostic boundary.");
+    }
+    static void verifyTimerTraceHelper(ABC abc,InstanceInfo instance) {
+        ownedSignature(abc,instance,"ApexCatalogTimerStep",List.of("String","int"),"int");
+        ownedSignature(abc,instance,"ApexCatalogTimerStatus",List.of(),"Object");
+        var step=ownedBody(abc,instance,"ApexCatalogTimerStep");var status=ownedBody(abc,instance,"ApexCatalogTimerStatus");
+        require(propertyCalls(abc,step).equals(Set.of("pop","split","max","indexOf","substr","getTimer","push","substring","ApexCatalogTraceDispose")) &&
+            propertyCalls(abc,status).equals(Set.of("push")),"Timer diagnostics gained native, IO, display or unreviewed work.");
+        var info=abc.method_info.get(step.method_info);
+        require(info.flagHas_optional() && info.optional.length==1 && info.optional[0].value_kind==ValueKind.CONSTANT_Int &&
+            abc.constants.getInt(info.optional[0].value_index)==0,"Timer trace generation must default to zero.");
+        for(var body:List.of(step,status))for(var op:body.getCode().code) {
+            if(opcode(op,0x60) || opcode(op,0x5d)) {
+                String root=abc.constants.getString(abc.constants.getMultiname(op.operands[0]).name_index);
+                require(Set.of("apexCatalogTrace","apexPendingPhase","apexPendingFields","apexReceiving","apexWire","apexFormsIntent",
+                    "Math","getTimer","ApexCatalogTraceDispose").contains(root),"Timer trace accesses an unreviewed lexical/native root.");
+                if(root.equals("getTimer")) {
+                    var q=abc.constants.getMultiname(op.operands[0]);
+                    require(q.kind==Multiname.QNAME && q.namespace_index>0 && abc.constants.getNamespace(q.namespace_index).kind==Namespace.KIND_PACKAGE &&
+                        "flash.utils".equals(abc.constants.getString(abc.constants.getNamespace(q.namespace_index).name_index)),
+                        "Timer diagnostic clock is not the actual Flash utility function.");
+                }
+            }
+        }
+        int firstClock=-1,disabledReturn=-1;boolean enabled=false,leave=false,catchAll=false,depth=false,limit=false;
+        var rows=step.getCode().code;
+        for(int n=0;n<rows.size();n++) {
+            var op=rows.get(n);
+            if(firstClock<0 && property(abc,op,0x46,"getTimer"))firstClock=n;
+            if(firstClock<0) {
+                enabled|=property(abc,op,0x66,"enabled");leave|=stringLiteral(abc,op,"tick.leave");
+                if(n>0 && opcode(op,0x48) && opcode(rows.get(n-1),0x24) && rows.get(n-1).operands[0]==0)disabledReturn=n;
+            }
+            depth|=opcode(op,0x24) && op.operands[0]==8;limit|=opcode(op,0x24) && op.operands[0]==16;
+        }
+        for(var handler:step.exceptions)catchAll|=handler.type_index==0;
+        require(disabledReturn>=0 && firstClock>disabledReturn && enabled && leave && catchAll && depth && limit,
+            "Timer diagnostics lost disabled return, matching tick leave, bounded retention or catch-all boundary.");
+        for(String phase:List.of("tick","receive","native-info","clone","execute","readback","snapshot","ack-encode","ack-send","forms"))
+            require(rows.stream().anyMatch(op->stringLiteral(abc,op,phase)),"Timer diagnostic phase inventory is incomplete: "+phase);
+        for(String field:List.of("appearance_written","record_limit","depth_limit"))
+            require(status.getCode().code.stream().filter(op->stringLiteral(abc,op,field)).count()==2,
+                "Timer diagnostic empty/active status scope or bounds differ.");
+        require(methodCallers(abc,instance,"ApexCatalogTimerStatus").equals(Set.of("ApexCatalogTraceStatus")),
+            "Timer status escaped explicit Draw diagnostic status.");
+        require(methodCallers(abc,instance,"ApexCatalogTimerStep").equals(Set.of("ApexTick","ApexExecute","ApexReadback","ApexComplete","ApexSocketReply")),
+            "Timer diagnostics escaped reviewed owned phases.");
+        var expected=Map.of("ApexTick",List.of("tick.enter","receive.enter","receive.leave","native-info.enter","native-info.leave","clone.enter","clone.leave",
+                "readback.enter","readback.leave","execute.enter","execute.leave","forms.enter","forms.leave","tick.leave"),
+            "ApexExecute",List.of("native-info.enter","native-info.leave"),
+            "ApexReadback",List.of("native-info.enter","native-info.leave","snapshot.enter","snapshot.leave","snapshot.enter","snapshot.leave"),
+            "ApexComplete",List.of("ack-encode.enter","ack-encode.leave"),"ApexSocketReply",List.of("ack-send.enter","ack-send.leave"));
+        for(var entry:expected.entrySet())verifyTimerTraceMarkers(abc,ownedBody(abc,instance,entry.getKey()),entry.getValue());
+    }
+    static void verifyTimerTraceMarkers(ABC abc,MethodBody body,List<String> expected) {
+        var rows=body.getCode().code;var observed=new ArrayList<String>();int generationSlot=-1;
+        for(int at=0;at<rows.size();at++)if(property(abc,rows.get(at),0x46,"ApexCatalogTimerStep") || property(abc,rows.get(at),0x4f,"ApexCatalogTimerStep")) {
+            String event=null;
+            if(at>0 && opcode(rows.get(at-1),0x2c))event=abc.constants.getString(rows.get(at-1).operands[0]);
+            else if(at>2 && opcode(rows.get(at-3),0x2c))event=abc.constants.getString(rows.get(at-3).operands[0]);
+            require(event!=null,"Timer diagnostic event must be a fixed inserted marker.");observed.add(event);
+            if(event.equals("tick.enter")) {
+                require(at>=17 && at+3<rows.size() && property(abc,rows.get(at),0x46,"ApexCatalogTimerStep") && rows.get(at).operands[1]==1 &&
+                    opcode(rows.get(at-17),0x24) && rows.get(at-17).operands[0]==0 && opcode(rows.get(at-16),0x6d) &&
+                    property(abc,rows.get(at-15),0x60,"apexCatalogTrace") && opcode(rows.get(at-14),0x20) && opcode(rows.get(at-13),0xab) &&
+                    opcode(rows.get(at-12),0x96) && opcode(rows.get(at-11),0x2a) && opcode(rows.get(at-10),0x12) && opcode(rows.get(at-9),0x29) &&
+                    property(abc,rows.get(at-8),0x60,"apexCatalogTrace") && property(abc,rows.get(at-7),0x66,"enabled") &&
+                    opcode(rows.get(at-6),0x26) && opcode(rows.get(at-5),0xac) && opcode(rows.get(at-4),0x12) &&
+                    opcode(rows.get(at-3),0x65) && property(abc,rows.get(at-2),0x5d,"ApexCatalogTimerStep") && opcode(rows.get(at+1),0x73) && opcode(rows.get(at+2),0x6d) &&
+                    rows.get(at-16).operands[0]==rows.get(at+2).operands[0] &&
+                    bootstrapTarget(rows.get(at-10),0)==rows.get(at-4).getAddress() && bootstrapTarget(rows.get(at-4),0)==rows.get(at+3).getAddress(),
+                    "Timer tick entry lost its exact default-zero/disabled guard and retained generation.");
+                generationSlot=rows.get(at+2).operands[0];
+            } else if(event.equals("tick.leave")) {
+                require(at>=8 && at+1<rows.size() && generationSlot>=0 && opcode(rows.get(at-8),0x65) && opcode(rows.get(at-7),0x6c) &&
+                    rows.get(at-7).operands[0]==generationSlot && opcode(rows.get(at-6),0x24) && rows.get(at-6).operands[0]==0 &&
+                    opcode(rows.get(at-5),0x13) && property(abc,rows.get(at-4),0x5d,"ApexCatalogTimerStep") &&
+                    opcode(rows.get(at-2),0x65) && opcode(rows.get(at-1),0x6c) && rows.get(at-1).operands[0]==generationSlot &&
+                    property(abc,rows.get(at),0x4f,"ApexCatalogTimerStep") && rows.get(at).operands[1]==2 &&
+                    bootstrapTarget(rows.get(at-5),0)==rows.get(at+1).getAddress(),
+                    "Timer tick finally lost its matching nonzero copied generation.");
+            } else {
+                require(at>=22 && at+1<rows.size() && property(abc,rows.get(at),0x4f,"ApexCatalogTimerStep") && rows.get(at).operands[1]==1 &&
+                    property(abc,rows.get(at-22),0x60,"apexCatalogTrace") && opcode(rows.get(at-21),0x20) && opcode(rows.get(at-20),0xab) &&
+                    opcode(rows.get(at-19),0x96) && opcode(rows.get(at-18),0x2a) && opcode(rows.get(at-17),0x12) && opcode(rows.get(at-16),0x29) &&
+                    property(abc,rows.get(at-15),0x60,"apexCatalogTrace") && property(abc,rows.get(at-14),0x66,"enabled") &&
+                    opcode(rows.get(at-13),0x26) && opcode(rows.get(at-12),0xac) && opcode(rows.get(at-11),0x2a) && opcode(rows.get(at-10),0x12) &&
+                    opcode(rows.get(at-9),0x29) && property(abc,rows.get(at-8),0x60,"apexCatalogTrace") && property(abc,rows.get(at-7),0x66,"timer_profile") &&
+                    opcode(rows.get(at-6),0x20) && opcode(rows.get(at-5),0xab) && opcode(rows.get(at-4),0x96) && opcode(rows.get(at-3),0x12) &&
+                    property(abc,rows.get(at-2),0x5d,"ApexCatalogTimerStep") &&
+                    bootstrapTarget(rows.get(at-17),0)==rows.get(at-11).getAddress() && bootstrapTarget(rows.get(at-10),0)==rows.get(at-3).getAddress() &&
+                    bootstrapTarget(rows.get(at-3),0)==rows.get(at+1).getAddress(),
+                    "Timer phase marker lost its exact disabled/null-profile short circuit: "+event);
+            }
+        }
+        require(observed.equals(expected),"Timer diagnostic marker inventory/order differs.");
     }
     static void verifyOwnedLexicalRoots(ABC abc,Set<Integer> methods) {
         for(int method:methods)for(var op:abc.findBody(method).getCode().code)
@@ -2551,7 +2730,7 @@ public class CasBytecodePatch {
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame","ApexFormsConsumeCatalog","ApexFormsTryLocalCatalog",
             "ApexPresentationReady", "ApexPresentationStop", "ApexPresentationSchedule", "ApexPresentationFrame", "ApexPresentationNotify", "ApexPresentationPrime",
-            "ApexQuote", "ApexEncode", "ApexCatalogReadbackOnly", "ApexCatalogReadbackContext", "ApexCatalogSnapshot", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
+            "ApexQuote", "ApexEncode", "ApexCatalogReadbackOnly", "ApexCatalogReadbackContext", "ApexCatalogSnapshot", "ApexPanelNavigationSnapshot", "ApexCatalogTimerStep", "ApexCatalogTimerStatus", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
@@ -2596,6 +2775,8 @@ public class CasBytecodePatch {
         verifyGridController(compiled,newClass);
         verifyTimerPipeline(compiled, newClass);
         verifyDrawTraceHelper(compiled,newClass);
+        verifyTimerTraceHelper(compiled,newClass);
+        verifyPanelNavigation(compiled,newClass);
         verifyLayoutTraceHelper(compiled,newClass);
         verifyOwnedLexicalRoots(compiled,ownedMethods);
         verifySearchScrollerBinding(compiled,newClass);
@@ -2768,6 +2949,8 @@ public class CasBytecodePatch {
         verifyCatalogCompanion(serialized,serialized.instance_info.get(oi));
         verifyPanelScheduling(serialized,serialized.instance_info.get(oi));
         verifyDrawTraceHelper(serialized,serialized.instance_info.get(oi));
+        verifyTimerTraceHelper(serialized,serialized.instance_info.get(oi));
+        verifyPanelNavigation(serialized,serialized.instance_info.get(oi));
         verifyLayoutTraceHelper(serialized,serialized.instance_info.get(oi));
         verifyOwnedLexicalRoots(serialized,new HashSet<>(remap.values()));
         verifySearchScrollerBinding(serialized,serialized.instance_info.get(oi));

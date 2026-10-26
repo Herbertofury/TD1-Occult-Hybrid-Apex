@@ -19,6 +19,7 @@ import os
 
 from . import form_appearance as appearance
 from . import outfit_snapshot
+from . import immutable_append
 
 
 MAX_DOCUMENT_BYTES = 48 * 1024 * 1024
@@ -28,6 +29,9 @@ DECISIONS = {'accept-returned', 'restore-original'}
 
 def _json(value):
     try:
+        frozen = immutable_append.chunks(value)
+        if frozen is not None:
+            return b''.join(frozen)
         raw = json.dumps(value, sort_keys=True, ensure_ascii=True,
                          allow_nan=False, separators=(',', ':')).encode('ascii')
     except (TypeError, ValueError, RecursionError) as error:
@@ -39,6 +43,11 @@ def digest(value):
     """Hash complete typed fields, including the original unnormalized bytes."""
     result = hashlib.sha256()
     try:
+        frozen = immutable_append.chunks(value)
+        if frozen is not None:
+            for chunk in frozen:
+                result.update(chunk)
+            return result.hexdigest()
         encoder = json.JSONEncoder(sort_keys=True, ensure_ascii=True,
             allow_nan=False, separators=(',', ':'))
         # The ordinary iterencode path walks every token in Python, even when

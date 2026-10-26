@@ -14,17 +14,17 @@ from unittest.mock import patch
 from types import SimpleNamespace as Obj
 
 ROOT = Path(__file__).resolve().parents[1]
-STAGE = ROOT / '.work/v340-bank-async-stage'
 sys.path.insert(0, str(ROOT / 'Source'))
 sys.path.insert(1, str(ROOT / 'tests'))
 from apex_core import bank_worker, cas_bank_transaction as bank, cas_commit_plan as primitive, form_bank
 from apex_core.command_queue import CommandQueue, OwnerContinuation
 import test_cas_bank_transaction as receiver_fixtures
 
-DLL = STAGE / 'target/debug/apex_bank_prepare_stage.dll'
+_DLL_PATH = os.environ.get('APEX_BANK_WORKER_TEST_DLL')
+DLL = Path(_DLL_PATH).expanduser().resolve() if _DLL_PATH else None
 
 
-@unittest.skipUnless(DLL.is_file(), 'Private staged Rust C ABI build required')
+@unittest.skipUnless(DLL is not None and DLL.is_file(), 'Explicit matching APEX_BANK_WORKER_TEST_DLL required')
 class PrepareAsyncTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -159,7 +159,9 @@ class PrepareAsyncTests(unittest.TestCase):
         result = self.finish(self.start(argument))
         self.assertTrue(result['ok'], result)
         self.assertEqual(result['plan_sha256'], expected['plan_sha256'])
-        self.assertEqual(instance.document, planned)
+        # The private complete append may be immutable internally. Compare
+        # every canonical field; the on-disk document stays ordinary JSON.
+        self.assertEqual(primitive._json(instance.document), primitive._json(planned))
         self.assertEqual(fx.record()['cas_transaction']['journal'], planned)
         self.assertEqual(fx.data()['records']['30:99'], fx.foreign)
         self.assertEqual(fx.native_writes, [])
@@ -170,6 +172,69 @@ class PrepareAsyncTests(unittest.TestCase):
 
     def test_actual_no_edit_prepare_matches_synchronous_result_and_never_uses_owner_bank_io(self):
         self.parity()
+
+    def dense_snapshot(self):
+        """Synthetic complete metadata density; no private save or appearance."""
+        snapshot = receiver_fixtures._native_snapshot(self.fixture.sim)
+        snapshot['future_dense_metadata'] = {'rows': [
+            {'ordinal': index, 'fields': [
+                {'number': child, 'name': 'unknown-field-' + str(child),
+                 'value': 'synthetic opaque metadata retained exactly'}
+                for child in range(3)]}
+            for index in range(2048)]}
+        snapshot['future_numbers'] = [1000.0, 0, -0.0, 1e-5, 5e-324, 2**200]
+        snapshot['future_unicode'] = {'\ud800': ['\U0001f9da', '\\"', 'native_serialized_append', None]}
+        return snapshot
+
+    def test_dense_three_barriers_keep_unknown_raw_bytes_then_legacy_commit_and_history_plain(self):
+        from apex_core import bank_history, sim_data
+        fx = self.fixture
+        with patch.object(sim_data, 'snapshot', return_value=self.dense_snapshot()):
+            argument = self.observed_named(hair=True)
+        instance = next(iter(bank._ACTIVE.values()))
+        append = copy.deepcopy(instance.document['native_serialized_append'])
+        before = fx.path.read_bytes()
+        original = b'"future_numbers": [1000.0, 0, -0.0, 1e-05, 5e-324, '
+        retained = b'"future_numbers": [1e+03, -0, -0.0000, 0.0000100, 4.9406564584124654e-324, '
+        self.assertIn(original, before)
+        fx.path.write_bytes(before.replace(original, retained))
+        result = self.finish(self.start(argument))
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(self.operations, ['read-selected', 'plan-base', 'plan-hair', 'plan-named'])
+        self.assertIn(retained, fx.path.read_bytes())
+        self.assertIs(type(instance.document['native_serialized_append']), primitive.immutable_append.FrozenAppend)
+        self.assertEqual(primitive._json(instance.document['native_serialized_append']), primitive._json(append))
+        self.assertEqual(fx.record()['cas_transaction']['journal']['native_serialized_append'], append)
+        self.assertEqual(fx.data()['records']['30:99'], fx.foreign)
+        self.assertEqual(fx.native_writes, [])
+        committed = bank.commit(fx.backend, fx.sim, dict(expected_pending_sha256=fx.epoch,
+            expected_plan_sha256=result['plan_sha256']))
+        self.assertTrue(committed['ok'], committed)
+        persisted = fx.data()
+        bank._exact_json_tree(persisted)
+        transaction = persisted['records'][fx.key]['cas_transaction']
+        self.assertEqual(transaction['journal']['native_serialized_append'], append)
+        archived = bank_history.store(fx.path, transaction)
+        self.assertEqual(bank_history.resolve(fx.path, archived), transaction)
+        self.assertEqual(persisted['records']['30:99'], fx.foreign)
+
+    def test_dense_immutable_prepare_then_existing_failure_writer_keeps_complete_plain_append(self):
+        from apex_core import sim_data
+        fx = self.fixture
+        with patch.object(sim_data, 'snapshot', return_value=self.dense_snapshot()):
+            argument = self.observed()
+        append = copy.deepcopy(next(iter(bank._ACTIVE.values())).document['native_serialized_append'])
+        result = self.finish(self.start(argument))
+        self.assertTrue(result['ok'], result)
+        instance = next(iter(bank._ACTIVE.values()))
+        with self.assertRaises(primitive.RecoveryRequired):
+            instance._failure(ValueError('constructed failure after immutable prepare'), 'test-only failure writer')
+        persisted = fx.data()
+        bank._exact_json_tree(persisted)
+        journal = persisted['records'][fx.key]['cas_transaction']['journal']
+        self.assertEqual(journal['state'], 'recovery-required')
+        self.assertEqual(journal['native_serialized_append'], append)
+        self.assertEqual(fx.native_writes, [])
 
     def test_actual_changed_prepare_matches_every_complete_field_and_plan_hash(self):
         self.parity(changed=True)

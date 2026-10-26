@@ -705,7 +705,9 @@ def _write_journal(backend, sim, token, document, expected_previous_sha256):
         if (document.get('identity') != identity or
                 document.get('pending_sha256') != transaction['checkpoint_sha256']):
             raise ValueError('Journal belongs to another native checkpoint.')
-        record['cas_transaction']['journal'] = copy.deepcopy(document)
+        # Async prepare may own the complete append as immutable canonical
+        # bytes. The legacy atomic bank writer still receives ordinary JSON.
+        record['cas_transaction']['journal'] = primitive.immutable_append.thaw_journal(document)
         record['cas_transaction']['phase'] = document['state']
     _mutate(backend, sim, update)
     _path, _key, _record, transaction = _selected(backend, sim, token, allow_consumed=True)

@@ -22,7 +22,8 @@ def extracted_owner():
     router = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'run_action'][-1]
     module = ModuleType('apex_cas_route_fixture')
     module.__dict__.update(json=json, sys=sys, threading=threading,
-                           _APEX_GAME_THREAD_IDENT=threading.current_thread().ident)
+                           _APEX_GAME_THREAD_IDENT=threading.current_thread().ident,
+                           _APEX_ASYNC_BANK_PREPARE_ENABLED=False)
     compiled = ast.Module(body=helpers + [router], type_ignores=[])
     exec(compile(ast.fix_missing_locations(compiled), 'actual-apex-owner-router', 'exec'), module.__dict__)
     return module

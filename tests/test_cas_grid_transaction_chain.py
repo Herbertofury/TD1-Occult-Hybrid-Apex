@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path[:0] = [str(ROOT / 'tools'), str(ROOT / 'tests')]
 import cas_grid_transaction
 import cas_communication_index
 import cas_communication_domain_probe

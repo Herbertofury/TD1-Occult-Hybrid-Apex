@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-STAGE = ROOT / '.work/v340-bank-async-stage'
+STAGE = ROOT
 
 
 def method(path, owner, name):

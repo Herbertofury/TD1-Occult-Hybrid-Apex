@@ -286,11 +286,21 @@
       {
          if(apexDisconnected || apexTicking) return;
          apexTicking=true;
+         // APEX_TIMER_TRACE_BEGIN tick-begin
+         var apexTimerTraceGeneration:int=0;
+         if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true) apexTimerTraceGeneration=ApexCatalogTimerStep("tick.enter");
+         // APEX_TIMER_TRACE_END tick-begin
          try {
             // Never tear down GFx's native Socket from its own event callback.
             // A failure records intent only; this later Timer owns closure.
             if(apexSocketResetPending) { ApexResetSocket();return; }
+            // APEX_TIMER_TRACE_BEGIN receive-begin
+            if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("receive.enter");
+            // APEX_TIMER_TRACE_END receive-begin
             if(apexNativeChannel!="") ApexNativeReceive();
+            // APEX_TIMER_TRACE_BEGIN receive-end
+            if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("receive.leave");
+            // APEX_TIMER_TRACE_END receive-end
             // A bootstrap frame may receive an existing CLI claim, but only
             // the ordinary owned Timer executes that claim and its readback.
             if(message is flash.events.Event && message.type==flash.events.Event.ENTER_FRAME &&
@@ -322,8 +332,18 @@
                apexPendingFields!=null || apexFormsIntent!=null ||
                apexFormsResult!=null && apexFormsResult.pending===true);
             if(ApexIdleMemberChanged(nativeNeeded)) {ApexResetSocket();return;}
+            // APEX_TIMER_TRACE_BEGIN tick-native-begin
+            if(nativeNeeded && apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("native-info.enter");
+            // APEX_TIMER_TRACE_END tick-native-begin
             var native:Object=nativeNeeded ? CommunicationManager.CallGameService("CASGetSimInfo",null,true) : null;
+            // APEX_TIMER_TRACE_BEGIN tick-native-end
+            if(nativeNeeded && apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("native-info.leave");
+            if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("clone.enter");
+            // APEX_TIMER_TRACE_END tick-native-end
             var formsSim:Object=nativeNeeded ? ApexClone(native) : ApexFormsObservedSim();
+            // APEX_TIMER_TRACE_BEGIN tick-clone-end
+            if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("clone.leave");
+            // APEX_TIMER_TRACE_END tick-clone-end
             var simId:String=formsSim ? String(formsSim.simId) : apexBoundSim;
             if(nativeNeeded && formsSim!=null) apexFormsHousehold=String(formsSim.householdId);
             native=null;
@@ -366,13 +386,33 @@
                ApexAccept(); return;
             }
             if(apexPendingPhase>=1 && apexPendingPhase<=4 && apexPendingFields!=null && int(apexTimer.currentCount)>=apexReadbackTick) {
-               ApexReadback(); return;
+               // APEX_TIMER_TRACE_BEGIN readback-begin
+               if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("readback.enter");
+               // APEX_TIMER_TRACE_END readback-begin
+               ApexReadback();
+               // APEX_TIMER_TRACE_BEGIN readback-end
+               if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("readback.leave");
+               // APEX_TIMER_TRACE_END readback-end
+               return;
             }
             if(apexReceiving && apexSocketActive && apexNonce.length==64) {
-               ApexExecute(); return;
+               // APEX_TIMER_TRACE_BEGIN execute-begin
+               if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("execute.enter");
+               // APEX_TIMER_TRACE_END execute-begin
+               ApexExecute();
+               // APEX_TIMER_TRACE_BEGIN execute-end
+               if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("execute.leave");
+               // APEX_TIMER_TRACE_END execute-end
+               return;
             }
             if(apexSocketActive && apexNonce.length==64 && apexAwaiting=="") {
+               // APEX_TIMER_TRACE_BEGIN forms-begin
+               if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("forms.enter");
+               // APEX_TIMER_TRACE_END forms-begin
                ApexFormsTick(formsSim); formsSim=null;
+               // APEX_TIMER_TRACE_BEGIN forms-end
+               if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("forms.leave");
+               // APEX_TIMER_TRACE_END forms-end
                apexAwaiting="poll|"+apexTimer.currentCount;
                ApexSocketSend("POLL|"+apexNonce);
             }
@@ -380,6 +420,9 @@
          finally {
             if(apexPresentationStarted>=0 && apexPresentationMilliseconds<0 && ApexPresentationReady())
                apexPresentationMilliseconds=getTimer()-apexPresentationStarted;
+            // APEX_TIMER_TRACE_BEGIN tick-end
+            if(apexTimerTraceGeneration!=0) ApexCatalogTimerStep("tick.leave",apexTimerTraceGeneration);
+            // APEX_TIMER_TRACE_END tick-end
             apexTicking=false;
          }
       }
@@ -612,7 +655,13 @@
       private function ApexSocketReply(id:String, reply:String) : void
       {
          apexAckId=id; apexAwaiting="ack|"+apexTimer.currentCount;
+         // APEX_TIMER_TRACE_BEGIN ack-send-begin
+         if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("ack-send.enter");
+         // APEX_TIMER_TRACE_END ack-send-begin
          ApexSocketSend("ACK|"+apexNonce+"|"+id+"|"+reply);
+         // APEX_TIMER_TRACE_BEGIN ack-send-end
+         if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("ack-send.leave");
+         // APEX_TIMER_TRACE_END ack-send-end
       }
 
       private function ApexQuote(value:String) : String
@@ -1030,6 +1079,43 @@
                gesture_pending:false,native_generation:after.native_generation,session:after.session},
             catalog_identity:{request_id:String(apexPendingFields[0]),peer_nonce:apexClaimNonce,before:before,after:after},
             catalog_workspace:ApexCatalogStatus()};
+      }
+
+      private function ApexPanelNavigationSnapshot(before:Object,after:Object,requested:int) : Object
+      {
+         // This distinct scope proves navigation only, never a full inventory,
+         // form write, save capability or an appearance-preservation result.
+         if(before==null || after==null || after.menu_state!==requested ||
+            mCurrentPanel==null || mCurrentPanel.visible!==true)
+            throw new Error("Requested native CAS panel did not become visible");
+         for(var field:String in before)
+            if(field!="menu_state" && before[field]!==after[field])
+               throw new Error("Panel navigation changed its bound native Sim/form/outfit context");
+         var layout:Object={query:"not-available-current-panel",available:false};
+         // Only copy cached numeric tuning for the current physical panel.
+         // Never enumerate cells, call getBounds, inspect a feed or force layout.
+         if(apexCardGeometry!=null && apexCardGeometry.panel===mCurrentPanel && apexCardLayout!=null) {
+            var columns:* = apexCardLayout.columns;
+            if(!(columns is int) || columns<2 || columns>32)
+               throw new Error("Current panel cached columns are invalid");
+            layout={query:"cached-current-panel-only",available:true,columns:int(columns)};
+            for each(var metric:String in ["scale","width","card_width","card_height","gap_x","gap_y"]){
+               var number:* = apexCardLayout[metric];
+               if(typeof number!="number" || !isFinite(number) || number<0 || number>8192 ||
+                  (metric=="scale" && (number<=0 || number>1.6)))
+                  throw new Error("Current panel cached layout metric is invalid");
+               layout[metric]=Number(number);
+            }
+         }
+         return {protocol:1,scope:"native-cas-navigation-client",appearance_written:false,
+            sim:{simId:after.sim_id,householdId:after.household_id,occultType:after.shell_kind,
+               allOccultTypes:after.native_mask,occultLayer:after.layer},
+            menu_state:after.menu_state,panel_visible:true,requested_menu_state:requested,
+            outfit:{outfit_type:after.outfit_type,outfit_index:after.outfit_index},
+            form_strip:{sim_id:after.sim_id,selected_owner_id:after.owner_id,native_owner_state:"bound",desired_owner_id:"",
+               gesture_pending:false,native_generation:after.native_generation,session:after.session},
+            navigation_identity:{request_id:String(apexPendingFields[0]),peer_nonce:apexClaimNonce,before:before,after:after},
+            card_layout:layout};
       }
 
       private function ApexSnapshot(includeCatalogMetadata:Boolean=false) : Object
@@ -1916,11 +2002,18 @@
          apexPendingPhase=1; apexReadbackTick=int(apexTimer.currentCount)+1;
          apexAwaiting="readback|"+apexTimer.currentCount;
          try {
+            // APEX_TIMER_TRACE_BEGIN execute-native-begin
+            if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("native-info.enter");
+            // APEX_TIMER_TRACE_END execute-native-begin
             var native:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
+            // APEX_TIMER_TRACE_BEGIN execute-native-end
+            if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("native-info.leave");
+            // APEX_TIMER_TRACE_END execute-native-end
             if(!native || String(native.simId)!=String(fields[1])) throw new Error("CAS selected Sim differs from request");
-            var catalogSelected:Object=ApexCatalogReadbackOnly(operation) ? ApexOwnerSimRow(native) : null;
+            var catalogSelected:Object=(ApexCatalogReadbackOnly(operation) || operation=="panel-navigation") ? ApexOwnerSimRow(native) : null;
             native=null;
             if(ApexCatalogReadbackOnly(operation)) apexPendingContext.catalog_before=ApexCatalogReadbackContext(catalogSelected);
+            if(operation=="panel-navigation") apexPendingContext.navigation_before=ApexCatalogReadbackContext(catalogSelected);
             catalogSelected=null;
             if(operation=="occult-owner-view")
                throw new Error("Cross-occult conversion is disabled; independent owner binding is required");
@@ -1964,7 +2057,7 @@
                      navigation.sim_id!==String(fields[1]) || navigation.submitted!==true || navigation.native_selector_handler!==true)
                      throw new Error("Native selector handler did not acknowledge this exact navigation intent");
                }
-            } else if(operation=="panel") {
+            } else if(operation=="panel" || operation=="panel-navigation") {
                reply.mutation_started=true;
                HandleContextMenuSetMenuState({menuState:state,skipAnim:true,setZoomState:true});
                // Notify the native radial widget too. A direct Customizer call
@@ -2177,7 +2270,13 @@
                CommunicationManager.CallGameService("SetSimPhysiqueValue",physiqueCommit);
                return;
             }
+            // APEX_TIMER_TRACE_BEGIN readback-native-begin
+            if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("native-info.enter");
+            // APEX_TIMER_TRACE_END readback-native-begin
             var native:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
+            // APEX_TIMER_TRACE_BEGIN readback-native-end
+            if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("native-info.leave");
+            // APEX_TIMER_TRACE_END readback-native-end
             selectedSimMatches=native && String(native.simId)==(operation=="member-select" ? String(context.target_sim_id) : String(fields[1]));
             // CASGetSimInfo reports the Sim's family metadata. GetSimOccult
             // reads the current native model's genus, including its alt view.
@@ -2206,7 +2305,7 @@
                }
                throw new Error("Native independent form view did not settle before its bounded readback deadline");
             }
-            var catalogAfter:Object=ApexCatalogReadbackOnly(operation) ? ApexOwnerSimRow(native) : null;
+            var catalogAfter:Object=(ApexCatalogReadbackOnly(operation) || operation=="panel-navigation") ? ApexOwnerSimRow(native) : null;
             native=null;
             if(!selectedSimMatches) throw new Error("CAS selected Sim changed before native readback");
             if(!("message" in reply) && apexPendingPhase==2) {
@@ -2250,12 +2349,19 @@
             if(eyebrowProbe)
                reply.eyebrow_palette_before_snapshot=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",3));
             if(operation=="catalog-key" || operation=="catalog-input") ApexCatalogKeyboardFrame(true);
-            if(ApexCatalogReadbackOnly(operation)) reply.client=ApexCatalogSnapshot(context.catalog_before,ApexCatalogReadbackContext(catalogAfter));
+            // APEX_TIMER_TRACE_BEGIN snapshot-begin
+            if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("snapshot.enter");
+            // APEX_TIMER_TRACE_END snapshot-begin
+            if(operation=="panel-navigation") reply.client=ApexPanelNavigationSnapshot(context.navigation_before,ApexCatalogReadbackContext(catalogAfter),state);
+            else if(ApexCatalogReadbackOnly(operation)) reply.client=ApexCatalogSnapshot(context.catalog_before,ApexCatalogReadbackContext(catalogAfter));
             else {
                reply.client=ApexSnapshot();
                if(this.mCurrState==MenuState.CLOTHING_BODY_WINGS)
                   reply.client.wing_observation=ApexWingObservation();
             }
+            // APEX_TIMER_TRACE_BEGIN snapshot-end
+            if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("snapshot.leave");
+            // APEX_TIMER_TRACE_END snapshot-end
             catalogAfter=null;
             if(eyebrowProbe)
                reply.eyebrow_palette_after_snapshot=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",3));
@@ -2315,7 +2421,7 @@
                      selection_changed:category!=int(afterSelection.target_layer),selection_verified:true,
                      mapping_verified:false,alternate_accept_authorized:false};
                }
-               if(operation=="panel" || operation=="select") {
+               if(operation=="panel" || operation=="panel-navigation" || operation=="select") {
                   if(reply.client.menu_state!=state || reply.client.panel_visible!==true)
                      throw new Error("Native CAS panel did not become visible");
                }
@@ -2372,10 +2478,16 @@
                apexAwaiting="readback|"+apexTimer.currentCount;
                return;
             }
-            if(reply.mutation_started && selectedSimMatches && reply.client==null &&
+            if(operation!="panel-navigation" && reply.mutation_started && selectedSimMatches && reply.client==null &&
                !(operation=="physique" && context.physique_commit_pending===true)) {
+               // APEX_TIMER_TRACE_BEGIN fallback-snapshot-begin
+               if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("snapshot.enter");
+               // APEX_TIMER_TRACE_END fallback-snapshot-begin
                try { reply.client=ApexSnapshot(); }
                catch(snapshotError:Error) { reply.client_snapshot_error=snapshotError.message; }
+               // APEX_TIMER_TRACE_BEGIN fallback-snapshot-end
+               if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("snapshot.leave");
+               // APEX_TIMER_TRACE_END fallback-snapshot-end
             }
          }
          var unresolvedPhysique:Boolean=operation=="physique" && context.physique_commit_pending===true;
@@ -2386,6 +2498,9 @@
       private function ApexComplete() : void
       {
          var reply:Object=apexPendingReply; var id:String=String(apexPendingFields[0]);
+         // APEX_TIMER_TRACE_BEGIN ack-encode-begin
+         if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("ack-encode.enter");
+         // APEX_TIMER_TRACE_END ack-encode-begin
          try {
             apexLastReply=ApexEncode(reply);
             var encoded:flash.utils.ByteArray=new flash.utils.ByteArray();
@@ -2404,6 +2519,9 @@
             }
             apexLastReply=ApexEncode(boundedFailure);
          }
+         // APEX_TIMER_TRACE_BEGIN ack-encode-end
+         if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("ack-encode.leave");
+         // APEX_TIMER_TRACE_END ack-encode-end
          // Release only after the complete result is cached. A replacement peer
          // cannot acknowledge or re-execute another peer's claimed mutation.
          var owner:String=apexClaimNonce;
@@ -2440,6 +2558,8 @@
             var observedId:String=sim ? String(sim.simId) : "";
             var observedHousehold:String=sim && sim.householdId is String ? String(sim.householdId) : "";
             var observedLayer:* = sim ? sim.occultLayer : null;
+            var observedShell:* = sim ? sim.occultType : null;
+            var observedMask:* = sim ? sim.allOccultTypes : null;
             sim=null;
             var editMode:* = CommunicationManager.CallGameService("CasGetCASEditMode");
             var newFamily:* = CommunicationManager.CallGameService("CasIsNewFamily");
@@ -2449,6 +2569,34 @@
                !(observedLayer is int) || int(observedLayer)!=0 ||
                !(editMode is int) || (int(editMode)!=0 && int(editMode)!=7) || newFamily!==false || !fromLive)
                throw new Error("Native CAS accept preconditions changed after intent acknowledgement; no commit submitted");
+            // Capture only immutable identity before cleanup can synchronously
+            // hide panels. Never carry borrowed Sim/native objects across it.
+            var observedRendered:* = null;
+            var acceptanceChannel:String="";
+            var observedOwnerState:String="";
+            if(editMode===0) {
+               observedRendered=CommunicationManager.CallGameService("GetSimOccult");
+               if(!(observedShell is int) || !(observedMask is int) || !(observedRendered is int))
+                  throw new Error("Native household cleanup lacks its typed original form identity");
+               // An already bound independent owner must remain the same exact
+               // native cursor. Plain/native CAS without that binding keeps
+               // its existing fresh Sim/editor guards; no owner is invented.
+               if(apexFormsNativeState=="bound" || apexFormsSelectedId!="") {
+                  acceptanceChannel=apexNativeChannel;
+                  if(acceptanceChannel=="" || apexFormsNativeState!="bound" || apexFormsDesiredId!="" ||
+                     apexFormsIntent!=null || apexFormsNativeIntent!=null || apexMoleculeIntent!=null || apexPairIntent!=null || apexFormsApplying)
+                     throw new Error("Native household cleanup has an unresolved original form owner");
+                  observedOwnerState=ApexNativeExchange("STATE|"+acceptanceChannel);
+                  var ownerBefore:Array=observedOwnerState.split("|");
+                  if(ownerBefore.length!=7 || ownerBefore[0]!="VIEWSTATE" || ownerBefore[1]!==simId ||
+                     ownerBefore[2]!==apexFormsSelectedId ||
+                     !/^[a-z0-9_][a-z0-9_-]{0,63}\/[a-z0-9_][a-z0-9_-]{0,63}$/.test(ownerBefore[2]) ||
+                     ownerBefore[3]!==String(observedRendered) || ownerBefore[4]!==String(observedLayer) || ownerBefore[5]!="bound" ||
+                     ownerBefore[6]!==apexFormsNativeGeneration || !/^[1-9][0-9]{0,19}$/.test(ownerBefore[6]))
+                     throw new Error("Native household cleanup original owner/cursor differs");
+                  ownerBefore=null;
+               }
+            }
             // The native class already imports this external class. Use its
             // imported QName; FFDec treats a fully qualified dotted expression
             // here as a runtime lookup for an object named "olympus".
@@ -2473,6 +2621,20 @@
                var namesApplied:* = CommunicationManager.CallUIService("CasApplyNameFields",false);
                if(namesApplied!==true)
                   throw new Error("Native household name finalization refused or is unverified; commit not submitted");
+               // Match EA Navigation.EnterGame after FinalizeSimFamily's
+               // genetics/name checks. Hiding the native Customizer leaves the
+               // active category (including Medical/TattooMode) through its
+               // original handler; no arbitrary panel/part is selected here.
+               // The original intent was consumed above. Cache id/owner locally
+               // and refuse if cleanup unexpectedly retires this CAS room.
+               reply.household_cleanup_attempted=true;
+               CommunicationManager.SendUIMessage("CASHidePersonalityAndGeneticsPanels",null);
+               CommunicationManager.SendUIMessage("CASHideCustomizer",null);
+               CommunicationManager.SendUIMessage("CASResetGhostToggle",null);
+               CommunicationManager.SendUIMessage("CASResetWingToggle",null);
+               if(apexDisconnected || !apexSocketActive || apexNonce!==owner || this.mCurrState!==MenuState.NONE ||
+                  CASStateData.TattooMode!==false || acceptanceChannel!="" && apexNativeChannel!==acceptanceChannel)
+                  throw new Error("Native household cleanup retired its room or did not leave the active panel; commit not submitted");
                var householdData:Object=CommunicationManager.CallGameService("CasGetHouseholdExchangeData",{bValidateExistingSimTraits:false});
                if(householdData==null)
                   throw new Error("Native household validation refused; commit not submitted");
@@ -2490,11 +2652,23 @@
                // original Sim and creature layer before the one native save.
                var finalizedSim:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
                var finalizedLayer:* = finalizedSim ? finalizedSim.occultLayer : null;
+               var finalizedShell:* = finalizedSim ? finalizedSim.occultType : null;
+               var finalizedMask:* = finalizedSim ? finalizedSim.allOccultTypes : null;
                var finalizedMatches:Boolean=finalizedSim!=null && String(finalizedSim.simId)==simId &&
                   String(finalizedSim.householdId)==expectedHousehold;
                finalizedSim=null;
-               if(!(finalizedLayer is int) || int(finalizedLayer)!=0 || !finalizedMatches)
-                  throw new Error("Native household finalization changed the bound Sim/form; commit not submitted");
+               var finalizedRendered:* = CommunicationManager.CallGameService("GetSimOccult");
+               var finalizedMode:* = CommunicationManager.CallGameService("CasGetCASEditMode");
+               var finalizedNewFamily:* = CommunicationManager.CallGameService("CasIsNewFamily");
+               var finalizedPlayArea:Object=CommunicationManager.CallGameService("CasIsEnteredFromPlayArea");
+               var finalizedFromLive:Boolean=finalizedPlayArea!=null && finalizedPlayArea.result===true;finalizedPlayArea=null;
+               if(!(finalizedLayer is int) || int(finalizedLayer)!=0 || !finalizedMatches ||
+                  finalizedShell!==observedShell || finalizedMask!==observedMask || finalizedRendered!==observedRendered ||
+                  finalizedMode!==editMode || finalizedNewFamily!==false || !finalizedFromLive ||
+                  apexDisconnected || !apexSocketActive || apexNonce!==owner ||
+                  acceptanceChannel!="" && (apexNativeChannel!==acceptanceChannel || ApexNativeExchange("STATE|"+acceptanceChannel)!==observedOwnerState))
+                  throw new Error("Native household cleanup/finalization changed the bound Sim/form/editor; commit not submitted");
+               reply.household_cleanup_verified=true;
                reply.household_finalization_verified=true;
             }
             reply.commit_attempted=true;

@@ -35,6 +35,7 @@ class SourceReadbackTests(unittest.TestCase):
         source = r'''
 const assert=require('node:assert/strict');const int=x=>Number(x)|0;
 function isType(v,t){return t==='Array'?Array.isArray(v):t==='int'?Number.isInteger(v):typeof v===t.toLowerCase();}
+var apexCatalogTrace=null;
 var apexTicking=true,apexDisconnected=false,apexSocketActive=true,apexNativeChannel='7',apexNonce='a'.repeat(64),apexClaimNonce=apexNonce;
 var apexBoundSim='12',mCurrSimInfo={simId:'12',householdId:'34',occultLayer:0,occultType:2,allOccultTypes:5};
 var apexOwnerSession=3,apexFormsNativeState='bound',apexFormsSelectedId='alien/first',apexFormsDesiredId='',apexFormsNativeGeneration='91';

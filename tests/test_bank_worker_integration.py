@@ -52,8 +52,14 @@ class BankIntegration(unittest.TestCase):
 
     def test_enabled_route_requires_real_owned_uuid_and_disabled_route_stays_synchronous(self):
         module,native,adapter=self.fixture()
-        with patch.object(bank_worker,'PrepareAction') as start:
-            result=module.run_action('cas_bank_prepare','42',value='{}')
+        queue=module._APEX_COMMANDS
+        rid=queue.submit({'action':'cas_bank_prepare'},request_id=ID)['request_id']
+        # Only an actual typed direct queue entry selects the async route.
+        # Fault its UUID accessor while retaining that real outer action;
+        # ordinary nonqueued calls intentionally remain synchronous.
+        with patch.object(queue,'current_request_id',return_value=None),patch.object(bank_worker,'PrepareAction') as start:
+            queue.drain(lambda payload:module.run_action(payload['action'],'42',value='{}'))
+            result=queue.records[rid]['result']
             self.assertFalse(result['ok']);self.assertIn('canonical queue UUID',result['message']);start.assert_not_called()
         module._APEX_ASYNC_BANK_PREPARE_ENABLED=False
         with patch.object(receiver,'prepare',return_value={'ok':True,'synchronous':True}) as prepare:

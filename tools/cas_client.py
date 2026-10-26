@@ -269,6 +269,8 @@ def _submit_status(args, request, monotonic, pause):
 
 def _execute(args, request, monotonic=time.monotonic, pause=time.sleep, allow_preflight_refresh=True):
     preflight = None
+    if getattr(args,'minimal_navigation',False) and args.operation != 'panel':
+        raise ValueError('Minimal navigation is an explicit panel-only disposable measurement mode.')
     if args.operation == 'panels': return request(args.state, 'cas_ui_panels')
     if args.operation == 'diagnostics': return request(args.state, 'cas_ui_diagnostics')
     if not 0 < args.seconds <= 60: raise ValueError('CAS acknowledgement wait must be 0-60 seconds.')
@@ -285,6 +287,10 @@ def _execute(args, request, monotonic=time.monotonic, pause=time.sleep, allow_pr
     else:
         if not args.sim_id: raise ValueError('An explicit native CAS Sim identity is required.')
         value = {'operation': args.operation}
+        if getattr(args,'minimal_navigation',False):
+            import reusable_profile
+            _,journal,_,_=reusable_profile.load(args.state)
+            value.update(operation='panel-navigation',test_token=journal['token'])
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
         from apex_core import cas_controls
         if args.operation == 'occult-cache-view':

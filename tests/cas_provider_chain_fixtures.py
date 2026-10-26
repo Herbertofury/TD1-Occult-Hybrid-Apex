@@ -8,6 +8,8 @@ import cas_communication_dependency
 import cas_communication_removal_miss
 import cas_image_boundary_profile
 import cas_grid_pool
+import cas_catalog_binding
+import cas_draw_phase
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -80,6 +82,27 @@ def historical_domain_fixture(info, resources):
 
 def historical_provider_fixture(info, resources, keep_dependency=False):
     """Remove later source requirements together with their actual envelopes."""
+    # Binding/phase use the communication verifier as a compiler dependency.
+    # A pre-communication library manifest cannot keep that Main authority
+    # while deleting its shared source marker. Recover the exact earlier Main
+    # bytes and envelopes; never relabel the later bytecode as historical.
+    key = maru_companion.CUSTOMIZER
+    outer = info.pop('draw_phase_native_bytecode_contract', None)
+    if outer is not None:
+        assert cas_draw_phase.verify_contract(outer, resources[key])
+        assert outer['previous_stage_contract'] == info['catalog_binding_native_bytecode_contract']
+        resources[key] = cas_draw_phase.reconstruct_previous(resources[key], outer['draw_phase_contract'])
+    for source in cas_draw_phase.SOURCES[:2]:
+        info['source_pins'].pop(source, None)
+    outer = info.pop('catalog_binding_native_bytecode_contract', None)
+    if outer is not None:
+        assert cas_catalog_binding.verify_contract(outer, resources[key])
+        assert outer['previous_stage_contract'] == info['cell_attach_native_bytecode_contract']
+        resources[key] = cas_catalog_binding.reconstruct_previous(resources[key], outer['catalog_binding_contract'])
+    for source in cas_catalog_binding.SOURCES[:2]:
+        info['source_pins'].pop(source, None)
+    text = dbpf_build.tgi(key)
+    info['patched_resource_sha256'] = info['patched_resources'][text] = dbpf_build.digest(resources[key])
     historical_domain_fixture(info, resources)
     for source in maru_companion.GRID_COMMUNICATION_DOMAIN_SOURCES:
         info['source_pins'].pop(source, None)

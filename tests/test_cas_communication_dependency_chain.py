@@ -6,7 +6,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'tools'))
+sys.path[:0] = [str(ROOT / 'tools'), str(ROOT / 'tests')]
 import cas_communication_dependency as dependency
 import cas_communication_index as communication
 import cas_ui_build

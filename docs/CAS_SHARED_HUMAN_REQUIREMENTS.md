@@ -45,6 +45,22 @@ and named implementation records as separate form choices.
 
 ## Latest catalog evidence: 2026-10-26
 
+V355 passes 4,170 clean-source cases with zero failures/errors and 411
+explicit skip entries. Configured compiled/source/actual Python3.7 gates and
+all three real library caches pass. Cold load retains forty native appearances
+and155 named looks; full CAS entry retains all195. Actual runtime stops on the
+first Body navigation: the captured UI switches to Bodies, but its original
+acknowledgement remains unobserved. Native status proves the same CAS episode
+with transport generation2 to3; the precise lost-receipt stage remains unknown.
+The intent is never replayed and the guard is not bypassed. Width zero-work,
+row/EOF, all59 and rendered-scroll gates therefore remain unrun on355.
+
+All195 records stay exact before Cancel and on raw native return before
+restoration. Five original-only commits, normal unsaved exit and all21 unchanged
+save/backup files pass. The next protocol keeps exact immutable original receipts
+across pipe restarts; it does not repeat actions or infer success from a new
+snapshot. See the [V355 actual receipt-failure report](../Reports/CAS_RECEIPT_AND_WIDTH_VALIDATION_V355.json).
+
 V354 passes actual Body 12-column/35% sizing, right-edge grow/shrink of 200px,
 nine native button exclusions and overflow navigation. Its clean exact Source
 passes 4,112 cases with zero failures/errors and 396 explicit skip entries.

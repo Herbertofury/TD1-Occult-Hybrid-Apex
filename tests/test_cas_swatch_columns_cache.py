@@ -3,7 +3,7 @@ from pathlib import Path
 import ast,os,sys,types,unittest
 ROOT=Path(__file__).resolve().parents[1]
 BUILD=Path(os.environ.get('APEX_CAS_SWATCH_COLUMNS_BUILD_SOURCE',ROOT/'tools/cas_ui_build.py'))
-STAGES=(('cas_grid_slice','slice_contract'),('cas_grid_budget','budget_contract'),('cas_grid_featured','featured_contract'),('cas_grid_publication','publication_trace_contract'),('cas_grid_staging_attach','staging_attach_contract'),('cas_swatch_columns','swatch_columns_contract'),('cas_grid_row_delta','row_delta_contract'),('cas_grid_physical','physical_position_contract'),('cas_grid_intrinsic','intrinsic_geometry_contract'),('cas_grid_spares','spare_custody_contract'))
+STAGES=(('cas_grid_slice','slice_contract'),('cas_grid_budget','budget_contract'),('cas_grid_featured','featured_contract'),('cas_grid_publication','publication_trace_contract'),('cas_grid_staging_attach','staging_attach_contract'),('cas_swatch_columns','swatch_columns_contract'),('cas_grid_row_delta','row_delta_contract'),('cas_grid_physical','physical_position_contract'),('cas_grid_intrinsic','intrinsic_geometry_contract'),('cas_grid_spares','spare_custody_contract'),('cas_grid_position','native_position_contract'))
 class SwatchColumnsBuildTests(unittest.TestCase):
  def function(self,name,namespace):
   tree=ast.parse(BUILD.read_text());node=next(n for n in ast.walk(tree)if isinstance(n,ast.FunctionDef)and n.name==name);exec(compile(ast.fix_missing_locations(ast.Module(body=[node],type_ignores=[])),str(BUILD),'exec'),namespace);return namespace[name]
@@ -23,7 +23,7 @@ class SwatchColumnsBuildTests(unittest.TestCase):
   try:
    key=STAGES[index][1];prior={key:{'previous_stage_kind':'featured-fixture'if historical else'staging-attach'}}
    if index==4:prior['previous_stage_kind']='publication'
-   ns={'Path':Path};self.function('_finish_grid_provider_physical',ns);self.function('_finish_grid_provider_intrinsic',ns);fn=self.function('finish_grid_provider',ns)
+   ns={'Path':Path};self.function('_finish_grid_provider_physical',ns);self.function('_finish_grid_provider_intrinsic',ns);self.function('_finish_grid_provider_spares',ns);fn=self.function('finish_grid_provider',ns)
    if refuse or historical:
     with self.assertRaises(ValueError):fn(prior,b'authenticated-prefix','native','compiler',Path('distinct-private-output'))
     result=None
@@ -37,9 +37,9 @@ class SwatchColumnsBuildTests(unittest.TestCase):
   for index,(name,_)in enumerate(STAGES):
    with self.subTest(prefix=name):
     calls,result=self.run_prefix(index);self.assertEqual(calls,[name+'.verify']+[n+'.adapt'for n,_ in STAGES[index+1:]])
-    self.assertEqual(result[0],b'authenticated-prefix'if index==len(STAGES)-1 else b'cas_grid_spares')
+    self.assertEqual(result[0],b'authenticated-prefix'if index==len(STAGES)-1 else b'cas_grid_position')
  def test_current_skin_returns_only_after_strict_validation(self):
-  calls,result=self.run_prefix(5);self.assertEqual(calls,['cas_swatch_columns.verify','cas_grid_row_delta.adapt','cas_grid_physical.adapt','cas_grid_intrinsic.adapt','cas_grid_spares.adapt']);self.assertIn('spare_custody_contract',result[1]);self.assertIn('intrinsic_geometry_contract',result[1]['previous_stage_adapter'])
+  calls,result=self.run_prefix(5);self.assertEqual(calls,['cas_swatch_columns.verify','cas_grid_row_delta.adapt','cas_grid_physical.adapt','cas_grid_intrinsic.adapt','cas_grid_spares.adapt','cas_grid_position.adapt']);self.assertIn('native_position_contract',result[1]);self.assertIn('spare_custody_contract',result[1]['previous_stage_adapter']);self.assertIn('intrinsic_geometry_contract',result[1]['previous_stage_adapter']['previous_stage_adapter'])
  def test_invalid_existing_prefix_never_falls_back_to_any_compiler(self):
   for index,(name,_)in enumerate(STAGES):
    calls,_=self.run_prefix(index,name);self.assertEqual(calls,[name+'.verify'])
@@ -63,6 +63,6 @@ class SwatchColumnsBuildTests(unittest.TestCase):
   source=BUILD.read_text();tree=ast.parse(source);assignment=next(n for n in tree.body if isinstance(n,ast.Assign)and any(isinstance(t,ast.Name)and t.id=='PINNED_SOURCES'for t in n.targets));pins=ast.literal_eval(assignment.value)
   for name in('tools/cas_swatch_columns.py','tools/CasSwatchColumnsPatch.java','Source/CASUi/swatch_columns_methods.as'):self.assertIn(name,pins)
   self.assertLess(source.index('payload, publication_main_contract = cas_grid_publication.adapt_main'),source.index('payload, swatch_columns_main_contract = cas_swatch_columns.adapt_main'))
-  self.assertIn("if 'spare_custody_contract' not in prior:cache.setdefault('continued'",source)
+  self.assertIn("if 'native_position_contract' not in prior:cache.setdefault('continued'",source)
 
 if __name__=='__main__':unittest.main()

@@ -17,10 +17,11 @@ class IntegrationSourceTests(unittest.TestCase):
   terminal=max(n.lineno for n in ast.walk(provider)if isinstance(n,ast.Return)and isinstance(n.value,ast.Call)and isinstance(n.value.func,ast.Name)and n.value.func.id=='finish_grid_provider')
   self.assertLess(calls['cas_swatch_provider'],calls['cas_grid_scroll']);self.assertLess(calls['cas_grid_scroll'],calls['cas_grid_slice']);self.assertLess(calls['cas_grid_slice'],terminal)
   finish=next(n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='finish_grid_provider')
+  spares=next(n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='_finish_grid_provider_spares')
   intrinsic=next(n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='_finish_grid_provider_intrinsic')
   physical=next(n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='_finish_grid_provider_physical')
-  imports={a.name for helper in(finish,intrinsic,physical)for n in ast.walk(helper)if isinstance(n,ast.Import)for a in n.names}
-  self.assertTrue({'cas_grid_featured','cas_grid_budget','cas_grid_slice','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns','cas_grid_row_delta','cas_grid_physical','cas_grid_intrinsic','cas_grid_spares'}<=imports)
+  imports={a.name for helper in(finish,spares,intrinsic,physical)for n in ast.walk(helper)if isinstance(n,ast.Import)for a in n.names}
+  self.assertTrue({'cas_grid_featured','cas_grid_budget','cas_grid_slice','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns','cas_grid_row_delta','cas_grid_physical','cas_grid_intrinsic','cas_grid_spares','cas_grid_position'}<=imports)
 
 FIXTURE=Path(os.environ['APEX_CAS_GRID_SCROLL_FIXTURE'])if os.environ.get('APEX_CAS_GRID_SCROLL_FIXTURE')else None
 @unittest.skipUnless(FIXTURE is not None,'Set APEX_CAS_GRID_SCROLL_FIXTURE for optional authenticated compiled resources')

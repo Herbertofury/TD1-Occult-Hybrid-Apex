@@ -4,10 +4,10 @@ from unittest.mock import patch
 ROOT=Path(os.environ.get('APEX_INTRINSIC_SOURCE_ROOT',Path(__file__).resolve().parents[1])).resolve()
 H=ROOT
 SOURCE=ROOT/'tools/cas_ui_build.py'
-STAGES=[('cas_grid_slice','slice_contract'),('cas_grid_budget','budget_contract'),('cas_grid_featured','featured_contract'),('cas_grid_publication','publication_trace_contract'),('cas_grid_staging_attach','staging_attach_contract'),('cas_swatch_columns','swatch_columns_contract'),('cas_grid_row_delta','row_delta_contract'),('cas_grid_physical','physical_position_contract'),('cas_grid_intrinsic','intrinsic_geometry_contract'),('cas_grid_spares','spare_custody_contract')]
+STAGES=[('cas_grid_slice','slice_contract'),('cas_grid_budget','budget_contract'),('cas_grid_featured','featured_contract'),('cas_grid_publication','publication_trace_contract'),('cas_grid_staging_attach','staging_attach_contract'),('cas_swatch_columns','swatch_columns_contract'),('cas_grid_row_delta','row_delta_contract'),('cas_grid_physical','physical_position_contract'),('cas_grid_intrinsic','intrinsic_geometry_contract'),('cas_grid_spares','spare_custody_contract'),('cas_grid_position','native_position_contract')]
 class BuilderContinuationTests(unittest.TestCase):
  def setup_builder(self):
-  tree=ast.parse(SOURCE.read_text());functions=[n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name in ('finish_grid_provider','_finish_grid_provider_intrinsic','_finish_grid_provider_physical')];self.assertEqual(len(functions),3)
+  tree=ast.parse(SOURCE.read_text());functions=[n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name in ('finish_grid_provider','_finish_grid_provider_spares','_finish_grid_provider_intrinsic','_finish_grid_provider_physical')];self.assertEqual(len(functions),4)
   ns={'Path':Path};exec(compile(ast.fix_missing_locations(ast.Module(body=functions,type_ignores=[])),str(SOURCE),'exec'),ns);self.calls=[];modules={}
   for module,key in STAGES:
    def verify(proof,raw,module=module,key=key):
@@ -20,20 +20,23 @@ class BuilderContinuationTests(unittest.TestCase):
     new=key.encode();return new,{key:{'previous_stage_kind':'staging-attach'}if key=='swatch_columns_contract'else{},'previous_stage_adapter':proof,'previous_stage_kind':'publication'if key=='staging_attach_contract'else None,'bytes':new}
    modules[module]=types.SimpleNamespace(verify_adapter=verify,adapt=adapt)
   self.fail=None;return ns['finish_grid_provider'],modules
- def prefix(self,key):return {key:{'previous_stage_kind':'staging-attach'}if key=='swatch_columns_contract'else{},'previous_stage_kind':'publication'if key=='staging_attach_contract'else None,'bytes':key.encode()}
+ def prefix(self,key):
+  result={key:{'previous_stage_kind':'staging-attach'}if key=='swatch_columns_contract'else{},'previous_stage_kind':'publication'if key=='staging_attach_contract'else None,'bytes':key.encode()}
+  if key=='native_position_contract':result['previous_stage_adapter']={'spare_custody_contract':{}}
+  return result
  def test_every_authenticated_historical_prefix_continues_exact_missing_stages(self):
   for i,(_,key)in enumerate(STAGES):
    with self.subTest(prefix=key):
     finish,modules=self.setup_builder();prior=self.prefix(key)
     with patch.dict(sys.modules,modules):raw,proof=finish(prior,prior['bytes'],b'original','compiler',H/'unused')
     self.assertEqual([name for kind,name in self.calls if kind=='adapt'],[name for name,_ in STAGES[i+1:]])
-    self.assertEqual(self.calls[0],('verify',STAGES[i][0]));self.assertIn('spare_custody_contract',proof);self.assertEqual(raw,proof['bytes'])
+    self.assertEqual(self.calls[0],('verify',STAGES[i][0]));self.assertIn('native_position_contract',proof);self.assertIn('spare_custody_contract',proof['previous_stage_adapter']);self.assertEqual(raw,proof['bytes'])
  def test_current_terminal_is_verified_and_never_recompiled(self):
-  finish,modules=self.setup_builder();prior=self.prefix('spare_custody_contract')
+  finish,modules=self.setup_builder();prior=self.prefix('native_position_contract')
   with patch.dict(sys.modules,modules):self.assertEqual(finish(prior,prior['bytes'],b'original','compiler',H/'unused'),(prior['bytes'],prior))
-  self.assertEqual(self.calls,[('verify','cas_grid_spares')])
+  self.assertEqual(self.calls,[('verify','cas_grid_position')])
  def test_corrupt_current_or_prefix_never_returns_stale_bytes(self):
-  for key in ('spare_custody_contract','intrinsic_geometry_contract','physical_position_contract','row_delta_contract'):
+  for key in ('native_position_contract','spare_custody_contract','intrinsic_geometry_contract','physical_position_contract','row_delta_contract'):
    finish,modules=self.setup_builder();prior=self.prefix(key);prior['corrupt']=True
    with self.subTest(key=key),patch.dict(sys.modules,modules),self.assertRaisesRegex(ValueError,'strict prefix refused'):finish(prior,prior['bytes'],b'original','compiler',H/'unused')
    self.assertFalse(any(kind=='adapt'for kind,_ in self.calls))

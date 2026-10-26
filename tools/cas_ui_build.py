@@ -58,6 +58,8 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'Source/CASUi/catalog_grid_intrinsic_methods.as',
                   'tools/cas_grid_spares.py','tools/cas_grid_spares_stage.py','tools/CasGridSparesPatch.java',
                   'Source/CASUi/catalog_spare_custody_methods.as',
+                  'tools/cas_grid_position.py','tools/cas_grid_position_stage.py','tools/CasGridPositionPatch.java',
+                  'Source/CASUi/catalog_native_position_gate.as',
                   'tools/cas_catalog_schedule.py','tools/cas_catalog_schedule_stage.py','tools/CasCatalogSchedulePatch.java',
                   'Source/CASUi/catalog_scheduling_methods.as',
                   'tools/cas_catalog_workflow.py','tools/cas_catalog_workflow_stage.py','tools/CasCatalogWorkflowPatch.java',
@@ -164,6 +166,9 @@ def verified_library_cache(output, originals):
             # bypass newly required builder stages through this early return.
             # Admit an exact current final OR the authenticated immediately
             # preceding V345 prefix; adapt_grid_provider must continue it.
+            if isinstance(adapter,dict) and isinstance(adapter.get('native_position_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('spare_custody_contract'),dict):return False
             if isinstance(adapter,dict) and isinstance(adapter.get('spare_custody_contract'),dict):
                 adapter=adapter.get('previous_stage_adapter')
                 if not isinstance(adapter,dict) or not isinstance(adapter.get('intrinsic_geometry_contract'),dict):return False
@@ -239,6 +244,16 @@ def verified_library_cache(output, originals):
 
 
 def finish_grid_provider(prior, retained, original, ffdec, work):
+    """Continue through the native subclass position-tail repair."""
+    import cas_grid_position
+    if isinstance(prior,dict) and 'native_position_contract' in prior:
+        cas_grid_position.verify_adapter(prior,retained)
+        return retained,prior
+    retained,prior=_finish_grid_provider_spares(prior,retained,original,ffdec,work)
+    return cas_grid_position.adapt(prior,retained,original,ffdec,Path(work)/'native-position')
+
+
+def _finish_grid_provider_spares(prior, retained, original, ffdec, work):
     """Continue authenticated prefixes through the complete spare-custody terminal."""
     import cas_grid_spares
     if isinstance(prior,dict) and 'spare_custody_contract' in prior:
@@ -404,7 +419,7 @@ def verify_household_acceptance(methods):
        'CASStateData.TattooMode!==false','currentOwner!==expectedOwner','ApexAcceptNative(held,"READY")'):
         if required not in ready:raise ValueError('Acceptance ready fence missing: '+required)
     for required in ('fields.length!=18','fields[2]!==held.simId','fields[3]!==held.household','fields[17]!=="1"',
-       'stamp!==held.stamp','fields[15]===ÃƒÆ’Ã‚Â©ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬"0"'.replace('ÃƒÆ’Ã‚Â©ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬',''),'fields[16]===ÃƒÆ’Ã‚Â©ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬"0"'.replace('ÃƒÆ’Ã‚Â©ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬','')):
+       'stamp!==held.stamp','fields[15]===ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬"0"'.replace('ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬',''),'fields[16]===ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬"0"'.replace('ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬','')):
         if required not in native:raise ValueError('Acceptance native receipt guard missing: '+required)
     if re.search(r'CASStateData\.TattooMode\s*=(?!=)',body):raise ValueError('Acceptance cannot force a preview flag.')
     if 'if(apexPendingPhase==9) { ApexAccept();return; }' not in methods:
@@ -824,7 +839,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
                 if cache['original_sha256'][key] == base_digest:
                     cache['used'].add(dbpf_build.tgi(key))
                     prior=cache['providers'][dbpf_build.tgi(key)];retained=cache['resources'][key]
-                    if 'spare_custody_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
+                    if 'native_position_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
                     return finish_grid_provider(prior,retained,grid_swf,
                         ffdec,work/(Path(output_name).stem+'-from-prefix'))
             raise ValueError('Cached native library has no matching original provider identity.')

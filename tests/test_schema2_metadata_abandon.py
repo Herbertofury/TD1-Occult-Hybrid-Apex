@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Source'))
 from apex_core import cas_bank_transaction as receiver, cas_commit_plan as primitive
 from apex_core import form_bank, sim_data, test_driver
 from test_form_bank_seal import SealFixture, SIM, HH, GUID, outfit
+from test_cas_bank_transaction import reset_receiver_process
 import test_cas_abandon as host_fixtures
 import cas_abandon
 from apex_core import form_appearance as appearance
@@ -27,8 +28,8 @@ def pending_digest(value):
 class Schema2SourceArchiveTests(SealFixture):
     def setUp(self):
         super().setUp()
-        receiver._ACTIVE.clear(); receiver._CAPTURED.clear(); receiver._WRITER_LEASES.clear()
-        self.addCleanup(receiver._ACTIVE.clear); self.addCleanup(receiver._CAPTURED.clear)
+        reset_receiver_process(); receiver._WRITER_LEASES.clear()
+        self.addCleanup(reset_receiver_process)
         self.addCleanup(receiver._WRITER_LEASES.clear)
         self.backend._APEX_GAME_THREAD_IDENT = threading.current_thread().ident
         self.backend._get_sim_info_by_id = lambda _id: self.sim

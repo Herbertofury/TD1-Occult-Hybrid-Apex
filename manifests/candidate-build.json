@@ -1,12 +1,12 @@
 {
-  "build_epoch": "2026-10-26-ready-card-attach-swatch-v347",
+  "build_epoch": "2026-10-26-ready-row-delta-lifetime-v348",
   "bundle": {
-    "artifact": "Apex_Development_Candidate_2026-10-26-ready-card-attach-swatch-v347.zip",
-    "bytes": 12376913,
+    "artifact": "Apex_Development_Candidate_2026-10-26-ready-row-delta-lifetime-v348.zip",
+    "bytes": 12426940,
     "members": 31,
-    "sha256": "6d42e7557bf9793074480eb46b4c8506b99d0cc73973289e17ab9fa895c85561"
+    "sha256": "2dfdf6f154433dbaceb26a887d647d9bf33b3d2ca2daa4338c775235934b39c7"
   },
-  "compiled_script_modules": 113,
+  "compiled_script_modules": 114,
   "deployed": false,
   "f11_game_loader_verified": false,
   "files": [
@@ -31,9 +31,9 @@
       "sha256": "c0d068392ea65358b798b8c165103560f06e9e3b38c4ab4e2d8810a7b931af86"
     },
     {
-      "bytes": 783190,
+      "bytes": 916381,
       "file": "Manifests/ApexCASBridge.package.manifest.json",
-      "sha256": "4476de80f4eaefd335a2f9937bd332391505517a524cd751893e833b512b3dbd"
+      "sha256": "c6084744b01744654f365ee910a07072205466e03b7ce23cdc72f9c9d5feeb66"
     },
     {
       "bytes": 18738,
@@ -51,9 +51,9 @@
       "sha256": "68cc8f8ff1eacbe090ea39a3cab506a9bfdb02a8b4a8fc0a4aff93076827941f"
     },
     {
-      "bytes": 59247,
+      "bytes": 59584,
       "file": "Manifests/ApexOccultHybrid.ts4script.manifest.json",
-      "sha256": "8f7291ca023c297efbece8c96f859210898b8e3d7134b87fd62a82c88b03dfba"
+      "sha256": "9d0a0a78ded9d870c4dd612e99d0a35abaaf70ba5b361caef2c87b31788cdeb7"
     },
     {
       "bytes": 1506,
@@ -86,9 +86,9 @@
       "sha256": "eecf46ce7850a439dd8f7f78d7ca1bc2cbabe2a0a222225c210151a2ad3d955f"
     },
     {
-      "bytes": 3205499,
+      "bytes": 3216575,
       "file": "Mods/Apex/ApexCASBridge.package",
-      "sha256": "d4454ab749f26efa6c0c9964c25bd36843dc32cbba342abb55b7163d2ce1bb0f"
+      "sha256": "67545792fd78a5bb0015146ab4a8ec2aad423f967b201cd60795d0a94e2813ab"
     },
     {
       "bytes": 16550,
@@ -101,9 +101,9 @@
       "sha256": "db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2"
     },
     {
-      "bytes": 1146008,
+      "bytes": 1156396,
       "file": "Mods/Apex/ApexOccultHybrid.ts4script",
-      "sha256": "2bb55abb34252eaaae9bc0da4b8856d0fc3521f1e4ff0148bd8dec6ffb55c890"
+      "sha256": "3735e182a89e956e477f84a2c7d2db0961b53209f9f72f4ae3bfbaee6cbcb737"
     },
     {
       "bytes": 5352448,
@@ -118,7 +118,7 @@
     {
       "bytes": 1461,
       "file": "Mods/Apex/Native/overlay-manifest.json",
-      "sha256": "12db2ac9112aba22e0394faee115cfb4a40dd02e46b596492fbfa349030bc318"
+      "sha256": "e92491099b17bfb1da316f9a8694eb2c1db5d5d1b6438ce26f335c054e079f33"
     },
     {
       "bytes": 424,
@@ -164,7 +164,8 @@
   "package_verification": [
     {
       "artifact": "ApexOccultHybrid.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 159,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [
         "apex_core.phone_interactions",
         "apex_hybrid.CoreLib.TD1_OccultHybrid_MenuUI",
@@ -180,37 +181,43 @@
     },
     {
       "artifact": "ApexCASUnlocks.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 39,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 39
     },
     {
       "artifact": "ApexColorStudio.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 2,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 2
     },
     {
       "artifact": "Optional/ApexPlantSimPermanent.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 2,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 2
     },
     {
       "artifact": "Optional/ApexPlantSimNoVampireThirst.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 1,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 1
     },
     {
       "artifact": "Optional/ApexServoNoVampireThirst.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 1,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 1
     },
     {
       "artifact": "ApexCASBridge.package",
-      "independent_rust_verified": false,
+      "independent_resource_hashes_verified": 73,
+      "independent_rust_verified": true,
       "namespace_modules_resolved": [],
       "resources": 73
     }

@@ -389,12 +389,6 @@
       "sha256": "ff543c4c7648f677d541801bbda9061eb02ae1264557cb7609aea860379c22f9"
     },
     {
-      "bytes": 5174,
-      "mode": "100644",
-      "path": "tests/test_cas_frontdoor_archive.py",
-      "sha256": "e56052487e768587a066d11e301f751eef3b9f1a569d8d6442b345a51d538c7d"
-    },
-    {
       "bytes": 11594,
       "mode": "100644",
       "path": "tools/slider_catalog.py",
@@ -1023,12 +1017,6 @@
       "mode": "100644",
       "path": "tests/test_cas_lifestate_menu_bytecode.py",
       "sha256": "13b7779c9d76f8e62a0a5b94d4c4bd5b43f44dc90f0ce5feb801077a69446636"
-    },
-    {
-      "bytes": 33631,
-      "mode": "100644",
-      "path": "tests/test_schema2_metadata_abandon.py",
-      "sha256": "0e87d841bb11f93550ff749a93a91d3d6361078fd7c29cad381c89bb49b4e9e7"
     },
     {
       "bytes": 4333,
@@ -3377,6 +3365,12 @@
       "sha256": "59ddf308c578fba1a20e16a18675e009dbe55ac087ea847c1aa0f04e8bca2d9e"
     },
     {
+      "bytes": 2297,
+      "mode": "100644",
+      "path": "tests/test_receiver_archive_fixture_isolation.py",
+      "sha256": "7db6a95eb2419881f0f3a4ea9ec5c45bb678b0f2a903e310b387b8a06609026b"
+    },
+    {
       "bytes": 7861,
       "mode": "100644",
       "path": "Experiments/GfxSnapshotPool/README.md",
@@ -3399,6 +3393,12 @@
       "mode": "100644",
       "path": "tools/CasVoiceBytecodePatch.java",
       "sha256": "f146b3774f23c222cc718d498c884bdc397075149792693147e0ab8ea79e3c9b"
+    },
+    {
+      "bytes": 22743,
+      "mode": "100644",
+      "path": "tests/test_cas_crash_archive.py",
+      "sha256": "8c5788294a5eb0f97a99bf039dcb70cd162d3ee1b2270325267fbb48cf2b6bc3"
     },
     {
       "bytes": 6724,
@@ -4961,12 +4961,6 @@
       "sha256": "90acd6092e9a5930c7fdba4ffc41736e9af2c06372c05594035a7c7140764bfa"
     },
     {
-      "bytes": 22753,
-      "mode": "100644",
-      "path": "tests/test_cas_crash_archive.py",
-      "sha256": "3a74e236ec4f13a28135783ef34bc17782dc6fb8e25dd3f24d46c2a1c3111879"
-    },
-    {
       "bytes": 7784,
       "mode": "100644",
       "path": "Reports/NATIVE_CAS_HYBRID_MEMBERSHIP_2026-10-15.md",
@@ -5205,6 +5199,12 @@
       "mode": "100644",
       "path": "NativeOverlay/third_party/imgui/backends/imgui_impl_win32.h",
       "sha256": "2736595b8de1e56871661d5d9b96deec567d35521746fbe2ade8f0543acdfd2b"
+    },
+    {
+      "bytes": 33621,
+      "mode": "100644",
+      "path": "tests/test_schema2_metadata_abandon.py",
+      "sha256": "92effe75aac9163e4febb5a2b3db19ff9979c369567f405e33e5b96973335d25"
     },
     {
       "bytes": 2755,
@@ -5775,6 +5775,12 @@
       "mode": "100644",
       "path": "tools/cas_grid_scroll.py",
       "sha256": "0bfa57325d4c528a152e52e9677202c4ae4578a954a49805b06ca3fdf062cccc"
+    },
+    {
+      "bytes": 5166,
+      "mode": "100644",
+      "path": "tests/test_cas_frontdoor_archive.py",
+      "sha256": "6341e20156cb92120cbe77b042f688f87f9a96ef3d70eda8b2205f5a61351b5d"
     },
     {
       "bytes": 6400,

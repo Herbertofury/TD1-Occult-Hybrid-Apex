@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 from test_form_bank_seal import SealFixture,SIM,HH,GUID
+from test_cas_bank_transaction import reset_receiver_process
 from apex_core import cas_bank_transaction as receiver
 from apex_core.form_bank_seal import _hash
 import cas_frontdoor_archive as tool
@@ -11,8 +12,8 @@ from source_manifest import write_json,sha256
 
 class FrontdoorArchiveTests(SealFixture):
     def setUp(self):
-        super().setUp();receiver._CAPTURED.clear();receiver._ACTIVE.clear()
-        self.addCleanup(receiver._CAPTURED.clear);self.addCleanup(receiver._ACTIVE.clear)
+        super().setUp();reset_receiver_process()
+        self.addCleanup(reset_receiver_process)
         self.backend._APEX_GAME_THREAD_IDENT=threading.current_thread().ident
         self.backend._get_sim_info_by_id=lambda _:self.sim
         self.prior=self.identity['pid']-1;intent='c'*32

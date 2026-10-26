@@ -8,6 +8,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 
 from test_form_bank_seal import SealFixture, SIM, HH, GUID
+from test_cas_bank_transaction import reset_receiver_process
 from apex_core import cas_bank_transaction as receiver, form_bank
 from apex_core.form_bank_seal import _hash
 import cas_crash_archive
@@ -17,8 +18,8 @@ from source_manifest import sha256, write_json
 class ClosedCrashArchiveTests(SealFixture):
     def setUp(self):
         super().setUp()
-        receiver._CAPTURED.clear(); receiver._ACTIVE.clear()
-        self.addCleanup(receiver._CAPTURED.clear); self.addCleanup(receiver._ACTIVE.clear)
+        reset_receiver_process()
+        self.addCleanup(reset_receiver_process)
         self.backend._APEX_GAME_THREAD_IDENT = threading.current_thread().ident
         self.backend._get_sim_info_by_id = lambda _id: self.sim
         self.old = dict(self.identity, pid=self.identity['pid'] - 1)

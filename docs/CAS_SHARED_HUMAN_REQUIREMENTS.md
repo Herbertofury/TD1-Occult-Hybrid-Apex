@@ -45,6 +45,20 @@ and named implementation records as separate form choices.
 
 ## Latest catalog evidence: 2026-10-26
 
+V352 gates the complete native selectable PositionCells override, preserving
+direct feed and selection paths. Bracelets now publishes 16 cards without an
+extra readiness poll. Seven category surfaces pass 12-column/35% geometry,
+then Head decorations fails to settle. Its revision stays zero while position
+and scroll callbacks recur. Exact extracted donor/Search code reproduces two
+competing list-height writers, and the installed screenshot confirms both
+features are present. The next fix gives them one authoritative native baseline
+and composed layout, retaining both features. It is not yet runtime-qualified.
+All 195 records remain exact through failure, native Cancel, five original-only
+commits and normal unsaved exit; all 21 save/backup files stay unchanged.
+The exact clean Source `a7407b84` passes 3,950 cases with zero failures/errors
+and 341 explicit skip entries. See the
+[V352 native-layout and merge-feedback report](../Reports/CAS_NATIVE_LAYOUT_AND_MERGE_FEEDBACK_V352.json).
+
 V351 fixes the original six-column Hair PageDown failure: one-row return binds,
 draws and selects only six entering cards, reuses the other 42, and constructs
 none. Actual Body 12-column/35% sizing, right-edge grow/shrink 200px, nine native

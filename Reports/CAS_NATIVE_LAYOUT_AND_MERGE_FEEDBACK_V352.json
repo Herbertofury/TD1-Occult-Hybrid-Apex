@@ -1,0 +1,431 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-26-native-selectable-position-v352",
+  "build_source_commit": "a7407b846c6c783ffdec1efb724d182a50406357",
+  "candidate_sha256": "5bc66c8522bb2334be68f1efb322e7b7c4e02faf156d1cb4863063756c825c5e",
+  "cas_package_sha256": "8a8543a47747738c7ee223456c656a285db6cd9d34ea90b4d5b09d0871726c7b",
+  "cas_main_sha256": "ab98d692e5261d2b86de077ccc22f4ccd2e0200fee07b59accbe37a6b178f213",
+  "script_sha256": "e5a27761fdd84d6df479386ab087e65ea5cedc3025f464f093b369fa40edf609",
+  "native_dll_sha256": "ea25d60c004c4ba62a6f0ace71d8681b57b4d25e63958d616da1e78f1e54d629",
+  "actual_save_ready": false,
+  "zero_hitch_claimed": false,
+  "actual_fps_qualified": false,
+  "continuous_blank_free_proven": false,
+  "package": {
+    "source_pins": 139,
+    "ui_resources": 73,
+    "python37_modules": 114,
+    "packages": 7,
+    "independent_rust_resources": 277
+  },
+  "source_regression": {
+    "exact_commit": "a7407b846c6c783ffdec1efb724d182a50406357",
+    "tests_run": 3950,
+    "successful_methods": 3618,
+    "failures": 0,
+    "errors": 0,
+    "skip_entries": 341,
+    "skip_accounting": "332 individual methods plus nine class/module entries.",
+    "proof": {
+      "private_receipt": "v348-clean-source-control/run-a7407b846c6c/completion-summary.json",
+      "sha256": "106b44aa03df07bcfa0654a3c79338c7d3bab57c4e1e756952914100df2b624e"
+    }
+  },
+  "native_callback_fix": {
+    "scope": "Apex formerly suppressed the base PositionCells geometry but left the native selectable subclass selection tail active. The complete override is now gated only in the exact armed layout; direct feed/add/sort/selection paths retain their native bodies.",
+    "body_native_event_kinds": {
+      "add": 0,
+      "bounds": 0,
+      "front": 0,
+      "input": 0,
+      "last_kind": "scroll",
+      "padding": 0,
+      "position": 1,
+      "profile": 0,
+      "redraw": 0,
+      "remove": 0,
+      "removeAll": 0,
+      "reset": 0,
+      "scroll": 4,
+      "selection": 0,
+      "sort": 0,
+      "unknown": 0,
+      "update": 0
+    },
+    "body_native_revision": 0,
+    "bracelets_nonempty_columns12_scale35_passed": true,
+    "bracelets_physical_cards": 16,
+    "bracelets_additional_wait_polls": 0,
+    "scope_limit": "This establishes the original Bracelets case now publishes; it is not every category or a universal performance pass."
+  },
+  "runtime_passes": {
+    "original_scroll": {
+      "target": 48,
+      "entering": 6,
+      "reused": 42,
+      "count_delta": {
+        "attach": 0,
+        "bind": 6,
+        "construct": 0,
+        "data": 18,
+        "draw": 6,
+        "position": 0,
+        "selected_setter": 6,
+        "selection": 6
+      },
+      "proof": {
+        "private_receipt": "v352-row-delta-runtime.json",
+        "sha256": "34daa2f799aafdfd9e5085f8fc3d95d3bf53ef85f9d62090b3f31efc403091b8"
+      }
+    },
+    "body_width_overflow": {
+      "qualifications": [
+        "body35_slider_ack",
+        "end",
+        "home",
+        "page-down",
+        "page-up",
+        "width_grow",
+        "width_shrink"
+      ],
+      "width_grow": {
+        "after_width": 737.406005859375,
+        "before_width": 537.400146484375,
+        "delta_x": 200,
+        "independent_controls_unchanged": true,
+        "left_attachment_unchanged": true,
+        "native_button_overlap_qualification": "actual current native hit rectangles",
+        "native_button_rectangles_independently_verified": true,
+        "native_exclusion_limit_respected": true,
+        "native_navigation_buttons": 9,
+        "requested_width": 737.406104260774
+      },
+      "width_shrink": {
+        "after_width": 537.353271484375,
+        "before_width": 737.406005859375,
+        "delta_x": -200,
+        "independent_controls_unchanged": true,
+        "left_attachment_unchanged": true,
+        "native_button_overlap_qualification": "actual current native hit rectangles",
+        "native_button_rectangles_independently_verified": true,
+        "native_exclusion_limit_respected": true,
+        "native_navigation_buttons": 9,
+        "requested_width": 537.3531192772556
+      },
+      "body35": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.3499999998,
+        "outer_family_dimensions": null,
+        "physical_cells": 176,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "proof": {
+        "private_receipt": "v352-catalog-runtime.json",
+        "sha256": "59872e0137654e0b3c25f8c4d6eefe616e83f2750a3959e1e2e1d19ca9b58459"
+      }
+    },
+    "categories": [
+      {
+        "panel": "clothing_accessories_base_layer",
+        "physical_cards": 8,
+        "wait_polls": 0,
+        "geometry": {
+          "actual_columns": 12,
+          "dimension_scope": "current-native-card-grid",
+          "fitted_scale": 0.3499634885336881,
+          "outer_family_dimensions": null,
+          "physical_cells": 8,
+          "pixel_clipping_visual_check_required": false,
+          "requested_columns": 12,
+          "requested_scale": 0.35,
+          "sampled_cards": 8,
+          "skin_family_count": 0
+        }
+      },
+      {
+        "panel": "clothing_accessories_bracelets",
+        "physical_cards": 16,
+        "wait_polls": 0,
+        "geometry": {
+          "actual_columns": 12,
+          "dimension_scope": "current-native-card-grid",
+          "fitted_scale": 0.3499999998,
+          "outer_family_dimensions": null,
+          "physical_cells": 16,
+          "pixel_clipping_visual_check_required": false,
+          "requested_columns": 12,
+          "requested_scale": 0.35,
+          "sampled_cards": 16,
+          "skin_family_count": 0
+        }
+      },
+      {
+        "panel": "clothing_accessories_earrings",
+        "physical_cards": 99,
+        "wait_polls": 3,
+        "geometry": {
+          "actual_columns": 12,
+          "dimension_scope": "current-native-card-grid",
+          "fitted_scale": 0.3499634883337,
+          "outer_family_dimensions": null,
+          "physical_cells": 99,
+          "pixel_clipping_visual_check_required": false,
+          "requested_columns": 12,
+          "requested_scale": 0.35,
+          "sampled_cards": 24,
+          "skin_family_count": 0
+        }
+      },
+      {
+        "panel": "clothing_accessories_fingernail",
+        "physical_cards": 50,
+        "wait_polls": 1,
+        "geometry": {
+          "actual_columns": 12,
+          "dimension_scope": "current-native-card-grid",
+          "fitted_scale": 0.3499999998,
+          "outer_family_dimensions": null,
+          "physical_cells": 50,
+          "pixel_clipping_visual_check_required": false,
+          "requested_columns": 12,
+          "requested_scale": 0.35,
+          "sampled_cards": 24,
+          "skin_family_count": 0
+        }
+      },
+      {
+        "panel": "clothing_accessories_glasses",
+        "physical_cards": 15,
+        "wait_polls": 0,
+        "geometry": {
+          "actual_columns": 12,
+          "dimension_scope": "current-native-card-grid",
+          "fitted_scale": 0.3499634885336881,
+          "outer_family_dimensions": null,
+          "physical_cells": 15,
+          "pixel_clipping_visual_check_required": false,
+          "requested_columns": 12,
+          "requested_scale": 0.35,
+          "sampled_cards": 15,
+          "skin_family_count": 0
+        }
+      },
+      {
+        "panel": "clothing_accessories_gloves",
+        "physical_cards": 1,
+        "wait_polls": 0,
+        "geometry": {
+          "actual_columns": 12,
+          "dimension_scope": "current-native-card-grid",
+          "fitted_scale": 0.3499634885336881,
+          "outer_family_dimensions": null,
+          "physical_cells": 1,
+          "pixel_clipping_visual_check_required": false,
+          "requested_columns": 12,
+          "requested_scale": 0.35,
+          "sampled_cards": 1,
+          "skin_family_count": 0
+        }
+      },
+      {
+        "panel": "clothing_accessories_hats",
+        "physical_cards": 48,
+        "wait_polls": 1,
+        "geometry": {
+          "actual_columns": 12,
+          "dimension_scope": "current-native-card-grid",
+          "fitted_scale": 0.3499634885336881,
+          "outer_family_dimensions": null,
+          "physical_cells": 48,
+          "pixel_clipping_visual_check_required": false,
+          "requested_columns": 12,
+          "requested_scale": 0.35,
+          "sampled_cards": 24,
+          "skin_family_count": 0
+        }
+      }
+    ]
+  },
+  "remaining_category_failure": {
+    "panel": "clothing_accessories_headdeco",
+    "raw_feed_count": 260,
+    "planned_surfaces": 59,
+    "completed_nonempty_surfaces": 7,
+    "current_category_readiness_timeout": true,
+    "original_uuid_replayed": false,
+    "source_quarantine": false,
+    "native": {
+      "generation": 4,
+      "revision": 0,
+      "target": 240,
+      "index": 137,
+      "phase": "selection",
+      "publishes": 2,
+      "operations": 3070,
+      "counts": {
+        "attach": 312,
+        "bind": 618,
+        "construct": 312,
+        "data": 1852,
+        "draw": 618,
+        "position": 720,
+        "publish": 2,
+        "retire": 0,
+        "selected_setter": 617,
+        "selection": 617
+      },
+      "maxMS": {
+        "attach": 54,
+        "bind": 14,
+        "construct": 4,
+        "data": 1,
+        "draw": 14,
+        "position": 2,
+        "publish": 113,
+        "retire": 0,
+        "selected_setter": 1,
+        "selection": 2
+      },
+      "coalesced": 3798,
+      "native_event_kinds": {
+        "add": 0,
+        "bounds": 0,
+        "front": 0,
+        "input": 0,
+        "last_kind": "scroll",
+        "padding": 0,
+        "position": 2349,
+        "profile": 0,
+        "redraw": 0,
+        "remove": 0,
+        "removeAll": 0,
+        "reset": 0,
+        "scroll": 2351,
+        "selection": 0,
+        "sort": 0,
+        "unknown": 0,
+        "update": 0
+      },
+      "natural_width": 107.0111632413762
+    },
+    "observation": "The retained image contains populated headwear artwork, not an entirely blank card region. No stable current completed generation is attested by the bounded readbacks.",
+    "proof": {
+      "private_receipt": "v352-category-main1-summary.json",
+      "sha256": "c6af663ddc20559d84bd4a98b4765b3601b061b38eee1143b8ca76d86d93c66a"
+    },
+    "last_receipt": {
+      "private_receipt": "v352-category-main1-041-clothing_accessories_headdeco-wait16.json",
+      "sha256": "5507e1440daf0032a83fcb3d8bfece7d6d06ad1a2ab27e91bf73ef27cd6b72a9"
+    },
+    "image": {
+      "private_receipt": "v352-headdeco-unpublished.bmp",
+      "sha256": "8f76a44c0c0d8a0c05723b2d571fdc893b1862bff4f69100934726be45e9fa9d"
+    }
+  },
+  "merge_feedback_attribution": {
+    "source_reproduction": "Unchanged BodyTypeTabs.Layout and ApexSearchAttach both assign catalog height from separate baselines/insets. Executing the extracted current functions produces 59 setters and matching position/scroll notifications across 30 frames, with two writes each steady frame despite stable final geometry.",
+    "actual_prerequisites": "The retained HeadDeco screenshot has the genuine OTHER1/OTHER115 rail and Search together. The donor rail methods and ten native height/position/SCROLL chain bodies match the actual installed352 resource and pinned originals.",
+    "terminal_restart_defect": "A position callback after a completed bank currently becomes a full update notification even with unchanged data/revision, causing another complete bank. Working callbacks only coalesce.",
+    "runtime_correction_qualified": false,
+    "proofs": [
+      {
+        "private_receipt": "v352-scroll-readonly-audit/report.json",
+        "sha256": "54e6fff41c7fadd199ac87c4718f0d2547132b77e3cb24a5c5b616f7cf525f4f"
+      },
+      {
+        "private_receipt": "v352-scroll-readonly-audit/body-type-tabs-byte-proof.json",
+        "sha256": "172410e9152d5db77afd998c8da6502c17d3759d302a3b3b77d3aabafb68c34f"
+      },
+      {
+        "private_receipt": "v352-scroll-readonly-audit/native-height-scroll-chain-byte-proof.json",
+        "sha256": "3ae61bbd12eb2efa194a685a26cf125f67f7ef13ea06270bb1d5f1dce6dc8a7b"
+      },
+      {
+        "private_receipt": "v353-scroll-feedback/rail-search-feedback.log",
+        "sha256": "217b9d660b7ddef5a479098a531c89245d2b1b3f792b0ec89704d797bdd6a214"
+      },
+      {
+        "private_receipt": "v353-scroll-feedback/build_repro.py",
+        "sha256": "9528b74bb084e846fc3c91436ec2a4cecb2ddd40566961c444b92b7a783dd645"
+      }
+    ]
+  },
+  "resume": {
+    "initial_queued_click_did_not_leave_home": true,
+    "initial_request_retained": true,
+    "old_uuid_replayed": false,
+    "fresh_observed_home_button_click_loaded_household": true,
+    "focus_or_os_cursor_change_requested": false,
+    "coordinate_defect_proven": false,
+    "proofs": [
+      {
+        "private_receipt": "v352-edited-cold-resume.json",
+        "sha256": "3589ab5d9631723e20b535482d74ced671af9fc6c272c349689b0a0ab6337399"
+      },
+      {
+        "private_receipt": "v352-observed-mainmenu-resume-click.json",
+        "sha256": "ac74c5c9e71ccf3615c1106b4aa5be6db05d00e732658f0140c0bf35031c5558"
+      },
+      {
+        "private_receipt": "v352-edited-saved-cold-load-observed.json",
+        "sha256": "ef716505e0b7d31f88208170199f4e75c15f1a9e9bbb132a81c0f96fad6d1934"
+      },
+      {
+        "private_receipt": "v352-resume-readonly-audit/report.json",
+        "sha256": "90cb9f2878629705ab0742a7aa91269da5cd1e3771ba085ab9c46e0c343bbd85"
+      }
+    ]
+  },
+  "preservation": {
+    "cold_native_appearances": 40,
+    "cold_named_looks": 155,
+    "full_cas_entry_exact": 195,
+    "after_failure_exact": 195,
+    "raw_native_cancel_exact_before_prepare": 195,
+    "original_only_household_commits": 5,
+    "normal_unsaved_exit": true,
+    "save_submitted": false,
+    "all_save_backup_files_unchanged": 21,
+    "proofs": [
+      {
+        "private_receipt": "v352-normal-automatic-entry.json",
+        "sha256": "05f82d7629d5e04edf830944a291e8d1605595cdcd8edc22173e97a7a2f63868"
+      },
+      {
+        "private_receipt": "v352-after-category-failure-all195.json",
+        "sha256": "73b9505c51ee0253c7ad8751eb5403633f8f39e1c7323d1b3b42f8d9e7e9595a"
+      },
+      {
+        "private_receipt": "v352-scroll-cancel-raw-return-all195.json",
+        "sha256": "e3d90ff3b79a00443a616ca77b2d05f032150eb02c6272f28dc94f04887fee12"
+      },
+      {
+        "private_receipt": "v352-scroll-cancel-originals-household-commit.json",
+        "sha256": "4832a114d8d0c062553f189a48f9ee73564af0854e7857e16280a63139b00e84"
+      },
+      {
+        "private_receipt": "v353-final-normal-discard.json",
+        "sha256": "a7e7c3623d2a8401c342ffff98faf3181ffeaf5b13ab7d7b451c6430d62ed383"
+      }
+    ]
+  },
+  "next_candidate": {
+    "purpose": "One shared native-baseline layout authority for Search and the donor rail, preserving both features and native resize/lifecycle behavior. Keep their controls in separate rectangles and remove steady repeated setters.",
+    "native_raw_witness_required": true,
+    "runtime_qualified": false
+  },
+  "remaining_validation": [
+    "Shared-layout current-category and rendered-transition matrix",
+    "All59 geometry surfaces plus conditional schemas/width/size boundaries",
+    "Small-card scrolling and full-bank/width-only throughput",
+    "Separate continuous pixel/Present cadence evidence",
+    "Human paint/Medical and match_hair_style",
+    "Independent member/form edits, link/copy, actual save and Tray/Gallery round trips"
+  ],
+  "protected_original_written": false
+}

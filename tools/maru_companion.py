@@ -389,6 +389,8 @@ def combine(path, apex, evidence, grid_providers=None, dependencies=None):
 
 def verify_merged(info, resources):
     """Bundle gate independent of the owner's donor path and compiler scratch."""
+    import cas_catalog_workflow
+    info, resources = cas_catalog_workflow.unwrap_manifest(info, resources)
     import cas_catalog_schedule
     info, resources = cas_catalog_schedule.unwrap_manifest(info, resources)
     import cas_grid_intrinsic

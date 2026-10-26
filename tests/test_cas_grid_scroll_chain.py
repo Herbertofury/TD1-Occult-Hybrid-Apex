@@ -18,7 +18,7 @@ class IntegrationSourceTests(unittest.TestCase):
   self.assertLess(calls['cas_swatch_provider'],calls['cas_grid_scroll']);self.assertLess(calls['cas_grid_scroll'],calls['cas_grid_slice']);self.assertLess(calls['cas_grid_slice'],terminal)
   finish=next(n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='finish_grid_provider')
   imports={a.name for n in ast.walk(finish)if isinstance(n,ast.Import)for a in n.names}
-  self.assertTrue({'cas_grid_featured','cas_grid_budget','cas_grid_slice','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns'}<=imports)
+  self.assertTrue({'cas_grid_featured','cas_grid_budget','cas_grid_slice','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns','cas_grid_row_delta'}<=imports)
 
 FIXTURE=Path(os.environ['APEX_CAS_GRID_SCROLL_FIXTURE'])if os.environ.get('APEX_CAS_GRID_SCROLL_FIXTURE')else None
 @unittest.skipUnless(FIXTURE is not None,'Set APEX_CAS_GRID_SCROLL_FIXTURE for optional authenticated compiled resources')

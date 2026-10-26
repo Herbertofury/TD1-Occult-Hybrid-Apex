@@ -219,12 +219,11 @@ class PrepareAction(OwnerContinuation):
             raise ValueError('Authenticated bank worker belongs to another active profile root.')
         # The held receiver is mandatory. JSON cannot reconstruct it or make a
         # previous-runtime journal into authority over a current native Sim.
-        held = [(key, value) for key, value in bank._CAPTURED.items()
-                if key[:2] == (str(binding.path), self.key) and value.get('backend') is backend and
-                value.get('sim') is sim and value.get('identity') == self.fence.identity]
-        if len(held) != 1 or held[0][0] not in bank._ACTIVE:
+        cache_key, captured = bank._receiver_lifetime(backend).lookup(binding.path, self.key, require_active=True)
+        if (captured.get('backend') is not backend or captured.get('sim') is not sim or
+                captured.get('identity') != self.fence.identity):
             raise ValueError('Prepare has no exact live observed receiver capability.')
-        cache_key, captured = held[0]
+        self.cache_key, self.captured = cache_key, captured
         self.instance = bank._ACTIVE[cache_key]
         if self.instance.state != 'observed' or captured.get('prepare_async_request') is not None:
             raise ValueError('Prepare was already issued or receiver is not observed; no replay.')
@@ -246,6 +245,7 @@ class PrepareAction(OwnerContinuation):
             expected_journal_sha256=None, document_sha256=None)
         ticket = binding.submit(self.request)
         captured['prepare_async_request'] = request_id
+        bank._RECEIVERS.pin_prepare(cache_key, captured, request_id)
         self.waiting = _Wait(self.request, ticket)
         self.view, self.generator, self.terminal = None, None, None
 
@@ -313,6 +313,7 @@ class PrepareAction(OwnerContinuation):
                 self.costs['owner_planner_ms'] += (time.perf_counter() - started) * 1000.0
             if self.terminal is not None:
                 self.terminal['owner_phase_costs'] = dict(self.costs, **self.binding.costs)
+                bank._RECEIVERS.finish_prepare(self.cache_key, self.captured, self.request['request_id'])
                 return self.terminal
             if not isinstance(self.waiting, _Wait):
                 raise ValueError('Prepare yielded no typed immutable worker ticket.')
@@ -323,4 +324,8 @@ class PrepareAction(OwnerContinuation):
             self.terminal = dict(ok=False, message=str(error), originals_and_returned_edits_retained=True,
                 automatic_replay_allowed=False, save_reload_verified=False, native_write_attempted=False,
                 async_prepare=True, owner_phase_costs=dict(self.costs, **self.binding.costs))
+            try:
+                bank._RECEIVERS.finish_prepare(self.cache_key, self.captured, self.request['request_id'])
+            except Exception as retention_error:
+                self.terminal['receiver_lifetime_retained'] = str(retention_error)[:2048]
             return self.terminal

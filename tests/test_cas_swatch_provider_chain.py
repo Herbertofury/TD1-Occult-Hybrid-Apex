@@ -27,9 +27,10 @@ class SwatchProviderChainTests(unittest.TestCase):
             cls.providers=manifest['grid_provider_adapters'];cls.resources=dbpf_build.read(package.read_bytes())
         # Current packages wrap this historical swatch layer. Authenticate
         # and raw-roll back only complete known terminal provider stages.
-        import cas_swatch_columns,cas_grid_staging_attach,cas_grid_publication
+        import cas_grid_row_delta,cas_swatch_columns,cas_grid_staging_attach,cas_grid_publication
         import cas_grid_featured,cas_grid_budget,cas_grid_slice,cas_grid_scroll
-        for module,contract in ((cas_swatch_columns,'swatch_columns_contract'),
+        for module,contract in ((cas_grid_row_delta,'row_delta_contract'),
+                                (cas_swatch_columns,'swatch_columns_contract'),
                                 (cas_grid_staging_attach,'staging_attach_contract'),
                                 (cas_grid_publication,'publication_trace_contract'),
                                 (cas_grid_featured,'featured_contract'),

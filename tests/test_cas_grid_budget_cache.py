@@ -9,7 +9,8 @@ BUILD=Path(os.environ.get('APEX_CAS_GRID_BUDGET_BUILD_SOURCE',ROOT/'tools/cas_ui
 STAGES=(('slice','cas_grid_slice','slice_contract'),('budget','cas_grid_budget','budget_contract'),
         ('featured','cas_grid_featured','featured_contract'),('publication','cas_grid_publication','publication_trace_contract'),
         ('staging-attach','cas_grid_staging_attach','staging_attach_contract'),
-        ('swatch-columns','cas_swatch_columns','swatch_columns_contract'))
+        ('swatch-columns','cas_swatch_columns','swatch_columns_contract'),
+        ('row-delta','cas_grid_row_delta','row_delta_contract'))
 
 
 class CacheTests(unittest.TestCase):
@@ -98,7 +99,7 @@ class CacheTests(unittest.TestCase):
                 if index==len(STAGES)-1:
                     self.assertEqual(result,(b'cached',prior));self.assertNotIn('continued',cache)
                 else:
-                    self.assertEqual(result[0],b'cas_swatch_columns')
+                    self.assertEqual(result[0],b'cas_grid_row_delta')
                     self.assertEqual(cache['continued'],{dbpf_build.tgi(key)})
 
     def test_refused_prefix_or_any_terminal_compiler_never_returns_stale_cached_bytes(self):

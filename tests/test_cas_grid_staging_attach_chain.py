@@ -69,7 +69,7 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(len(found),1);namespace={'Path':Path};exec(compile(ast.fix_missing_locations(ast.Module(body=[found[0]],type_ignores=[])),str(INTEGRATION/'cas_ui_build.py'),'exec'),namespace);return namespace[name]
     def mocks(self,events):
         result={}
-        for name,key in(('cas_swatch_columns','swatch_columns_contract'),('cas_grid_staging_attach','staging_attach_contract'),('cas_grid_publication','publication_trace_contract'),('cas_grid_featured','featured_contract'),('cas_grid_budget','budget_contract'),('cas_grid_slice','slice_contract')):
+        for name,key in(('cas_grid_row_delta','row_delta_contract'),('cas_swatch_columns','swatch_columns_contract'),('cas_grid_staging_attach','staging_attach_contract'),('cas_grid_publication','publication_trace_contract'),('cas_grid_featured','featured_contract'),('cas_grid_budget','budget_contract'),('cas_grid_slice','slice_contract')):
             module=types.ModuleType(name)
             def verify(prior,raw,n=name,k=key):events.append(('verify',n));self.assertIn(k,prior);return True
             def adapt(prior,raw,*args,n=name,k=key):events.append(('adapt',n));return raw+b'|'+n.encode(),{k:{},'previous_stage_kind':'publication','previous_stage_adapter':prior}
@@ -79,27 +79,32 @@ class BuilderTests(unittest.TestCase):
         fn=self.function('finish_grid_provider');events=[]
         with patch.dict(sys.modules,self.mocks(events)):
             raw,proof=fn({'publication_trace_contract':{}},b'pub',Path('original'),'ffdec',Path('private'))
-        self.assertEqual(events,[('verify','cas_grid_publication'),('adapt','cas_grid_staging_attach'),('adapt','cas_swatch_columns')]);self.assertIn('swatch_columns_contract',proof)
-    def test_verified_attach_prefix_continues_only_the_missing_skin_stage(self):
+        self.assertEqual(events,[('verify','cas_grid_publication'),('adapt','cas_grid_staging_attach'),('adapt','cas_swatch_columns'),('adapt','cas_grid_row_delta')]);self.assertIn('row_delta_contract',proof)
+    def test_verified_attach_prefix_continues_only_missing_skin_and_row_delta_stages(self):
         fn=self.function('finish_grid_provider');events=[];prior={'staging_attach_contract':{},'previous_stage_kind':'publication'}
         with patch.dict(sys.modules,self.mocks(events)):raw,proof=fn(prior,b'final',Path('original'),'ffdec',Path('private'))
-        self.assertIsNot(proof,prior);self.assertEqual(raw,b'final|cas_swatch_columns');self.assertEqual(events,[('verify','cas_grid_staging_attach'),('adapt','cas_swatch_columns')])
-    def test_current_skin_final_verifies_without_recompilation(self):
+        self.assertIsNot(proof,prior);self.assertEqual(raw,b'final|cas_swatch_columns|cas_grid_row_delta');self.assertEqual(events,[('verify','cas_grid_staging_attach'),('adapt','cas_swatch_columns'),('adapt','cas_grid_row_delta')])
+    def test_verified_skin_prefix_continues_only_missing_row_delta_stage(self):
         fn=self.function('finish_grid_provider');events=[];prior={'swatch_columns_contract':{'previous_stage_kind':'staging-attach'}}
         with patch.dict(sys.modules,self.mocks(events)):raw,proof=fn(prior,b'final',Path('original'),'ffdec',Path('private'))
-        self.assertIs(proof,prior);self.assertEqual(raw,b'final');self.assertEqual(events,[('verify','cas_swatch_columns')])
+        self.assertIsNot(proof,prior);self.assertEqual(raw,b'final|cas_grid_row_delta');self.assertEqual(events,[('verify','cas_swatch_columns'),('adapt','cas_grid_row_delta')])
+    def test_current_row_delta_final_verifies_without_recompilation(self):
+        fn=self.function('finish_grid_provider');events=[];prior={'row_delta_contract':{}}
+        with patch.dict(sys.modules,self.mocks(events)):raw,proof=fn(prior,b'final',Path('original'),'ffdec',Path('private'))
+        self.assertIs(proof,prior);self.assertEqual(raw,b'final');self.assertEqual(events,[('verify','cas_grid_row_delta')])
     def test_featured_budget_slice_prefixes_reach_all_missing_terminal_layers(self):
         fn=self.function('finish_grid_provider')
-        for key,expected in(('featured_contract',['cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns']),('budget_contract',['cas_grid_featured','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns']),('slice_contract',['cas_grid_budget','cas_grid_featured','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns'])):
+        for key,expected in(('featured_contract',['cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns','cas_grid_row_delta']),('budget_contract',['cas_grid_featured','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns','cas_grid_row_delta']),('slice_contract',['cas_grid_budget','cas_grid_featured','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns','cas_grid_row_delta'])):
             events=[]
             with patch.dict(sys.modules,self.mocks(events)):_,proof=fn({key:{}},b'prefix',Path('original'),'ffdec',Path('private'))
-            self.assertEqual([n for op,n in events if op=='adapt'],expected);self.assertIn('swatch_columns_contract',proof)
+            self.assertEqual([n for op,n in events if op=='adapt'],expected);self.assertIn('row_delta_contract',proof)
     def test_cache_shape_rejects_attach_over_wrong_predecessor(self):
         if FIXTURE is None:self.skipTest('Authenticated Attach fixture required')
         fn=self.function('current_grid_stages');adapter=next(iter(json.loads((FIXTURE/'adapters.json').read_text()).values()))
         self.assertTrue(fn(adapter));bad=copy.deepcopy(adapter);bad['previous_stage_adapter']=bad['previous_stage_adapter']['previous_stage_adapter'];self.assertFalse(fn(bad))
     def test_merged_verifier_unwraps_attach_before_publication(self):
         source=(INTEGRATION/'maru_companion.py').read_text();method=source[source.index('def verify_merged('):]
+        self.assertLess(method.index('cas_grid_row_delta.unwrap_manifest'),method.index('cas_swatch_columns.unwrap_manifest'))
         self.assertLess(method.index('cas_swatch_columns.unwrap_manifest'),method.index('cas_grid_staging_attach.unwrap_manifest'))
         self.assertLess(method.index('cas_grid_staging_attach.unwrap_manifest'),method.index('cas_grid_publication.unwrap_manifest'))
 

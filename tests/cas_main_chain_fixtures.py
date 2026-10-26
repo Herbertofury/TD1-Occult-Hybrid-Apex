@@ -18,6 +18,7 @@ import cas_grid_slice as grid_slice
 import cas_grid_budget as budget
 import cas_grid_featured as featured
 import cas_swatch_columns as skin
+import cas_grid_row_delta as row_delta
 import cas_grid_staging_attach as staging_attach
 import cas_grid_publication as publication
 import dbpf_build
@@ -31,6 +32,7 @@ READY = PACKAGE.is_file() and Path(str(PACKAGE) + '.manifest.json').is_file()
 # Only markers unique to the removed terminal passes are stripped. Shared
 # binding/attach/communication sources remain authoritative for earlier passes.
 TERMINAL_MAIN_MARKERS={
+    'row_delta_main_native_bytecode_contract': row_delta.SOURCES,
     'swatch_columns_main_native_bytecode_contract': skin.SOURCES,
     'publication_trace_main_native_bytecode_contract': publication.SOURCES,
     'featured_main_native_bytecode_contract': featured.SOURCES,
@@ -53,6 +55,7 @@ def unwrap_catalog_heads(info,resources,stop_before=None):
     stage's exact unique sources and envelope.
     """
     stages=(
+            (row_delta,row_delta.SOURCES,('row_delta_main_native_bytecode_contract',)),
             (skin,skin.SOURCES,('swatch_columns_main_native_bytecode_contract',)),
             (staging_attach,staging_attach.SOURCES,()),
             (publication,publication.SOURCES,('publication_trace_main_native_bytecode_contract',)),
@@ -124,6 +127,8 @@ def current_main(stage):
     info=json.loads(Path(str(PACKAGE)+'.manifest.json').read_text(encoding='utf-8'))
     final=dbpf_build.read(PACKAGE.read_bytes())[maru_companion.CUSTOMIZER]
     for wanted,name,module,proof_name,prior_name in (
+        ('row-delta','row_delta_main_native_bytecode_contract',row_delta,'row_delta_contract',
+         'swatch_columns_main_native_bytecode_contract'),
         ('skin','swatch_columns_main_native_bytecode_contract',skin,'swatch_columns_main_contract',
          'publication_trace_main_native_bytecode_contract'),
         ('publication','publication_trace_main_native_bytecode_contract',publication,'publication_trace_contract',
@@ -146,10 +151,11 @@ def current_main(stage):
         if outer is None:
             if stage==wanted:raise ValueError('Current package has no requested Main stage: '+wanted)
             continue
-        verify=module.verify_main if wanted in ('skin','publication','featured') else module.verify_contract
+        verify=module.verify_main if wanted in ('row-delta','skin','publication','featured') else module.verify_contract
         if verify(outer,final) is not True:
             raise AssertionError('Current Main '+wanted+' chain did not verify')
-        if wanted=='skin':prior=skin.reconstruct(final,outer[proof_name])
+        if wanted=='row-delta':prior=row_delta.reconstruct(final,outer[proof_name]['rollback'],row_delta.MAIN)
+        elif wanted=='skin':prior=skin.reconstruct(final,outer[proof_name])
         elif wanted=='publication':prior=publication.reconstruct(final,outer[proof_name]['rollback'],publication.MAIN)
         elif wanted=='featured':prior=featured.reconstruct(final,outer[proof_name]['rollback'],featured.MAIN)
         elif wanted=='budget':prior=budget.reconstruct(final,outer[proof_name]['rollback'],budget.MAIN,budget.MAIN_REPLACED,())

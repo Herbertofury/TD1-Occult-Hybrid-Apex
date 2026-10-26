@@ -19,6 +19,7 @@ import cas_grid_slice as grid_slice
 import cas_grid_budget as budget
 import cas_grid_featured as featured
 import cas_swatch_columns as skin
+import cas_grid_row_delta as row_delta
 import cas_grid_staging_attach as staging_attach
 import cas_grid_publication as publication
 from cas_main_chain_fixtures import READY, current_main, rollback_terminal_main, TERMINAL_MAIN_MARKERS
@@ -179,7 +180,9 @@ class BindingManifestTests(unittest.TestCase):
         package=ROOT/'dist/candidate/ApexCASBridge.package'
         original=json.loads(Path(str(package)+'.manifest.json').read_text())
         original_resources=dbpf_build.read(package.read_bytes());raw=original_resources[KEY]
-        for change in ('missing-preview','missing-swatch','missing-source','wrong-history','wrong-bytes',
+        for change in ('missing-row-delta','missing-row-delta-source','wrong-row-delta-history',
+                       'missing-row-delta-adapter','wrong-row-delta-bytes',
+                       'missing-preview','missing-swatch','missing-source','wrong-history','wrong-bytes',
                        'missing-scroll','missing-scroll-source','missing-slice-source','missing-slice-adapter',
                        'missing-scroll-adapter','wrong-scroll-history','wrong-slice-bytes',
                        'missing-featured','missing-featured-source','missing-budget','missing-budget-source',
@@ -195,7 +198,12 @@ class BindingManifestTests(unittest.TestCase):
                     if contract in adapter:return adapter
                     adapter=adapter.get('previous_stage_adapter')
                 raise AssertionError('Current fixture lacks its required exact layer: '+contract)
-            if change=='missing-preview':info.pop('preview_transition_native_bytecode_contract')
+            if change=='missing-row-delta':info.pop('row_delta_main_native_bytecode_contract')
+            elif change=='missing-row-delta-source':info['source_pins'].pop(row_delta.SOURCES[0])
+            elif change=='wrong-row-delta-history':info['row_delta_main_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='missing-row-delta-adapter':provider_layer('row_delta_contract').pop('row_delta_contract')
+            elif change=='wrong-row-delta-bytes':resources[maru_companion.GRID_LIBRARY]+=b'corrupt-row-delta'
+            elif change=='missing-preview':info.pop('preview_transition_native_bytecode_contract')
             elif change=='missing-swatch':info.pop('swatch_geometry_native_bytecode_contract')
             elif change=='missing-source':info['source_pins'].pop('tools/cas_preview_transition.py')
             elif change=='wrong-history':info['preview_transition_native_bytecode_contract']['previous_stage_contract']={}

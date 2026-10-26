@@ -217,7 +217,7 @@ assert.equal(events.length,before);assert.equal(apexAcceptInput,true);frame();as
         self.run_as("""
 nativeShell=2;nativeBusy=true;invoke();assert.equal(saveCalls,0);assert.equal(prepareCalls,1);
 assert.equal(apexAcceptWait.shell,2);assert.equal(apexAcceptWait.mask,127);
-assert(preparedRequest.includes('|7|0|4|2|127|alien/first|91'));
+assert(preparedRequest.includes('|7|0|2|2|127|alien/first|91'));
 const original=preparedRequest;frame();frame();assert.equal(prepareCalls,1);assert.equal(saveCalls,0);
 assert.equal(apexAcceptWait.request,original);nativeBusy=false;frame();assert.equal(saveCalls,1);
 frame();invoke();assert.equal(saveCalls,1);assert.equal(listeners.size,0);

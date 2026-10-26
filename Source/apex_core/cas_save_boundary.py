@@ -113,7 +113,7 @@ def remember_read(path, data, file_hash, stamp):
 
 
 def hair_policy_enabled(backend, sim):
-    """Read only the opted-in bit from the current stable bank-read index.
+    """Read only whether an opted-in automatic repair may be attempted now.
 
     This grants no repair authority. The enabled path still performs its fresh
     idle, runtime and full wardrobe checks. No bank payload is cached here.
@@ -132,7 +132,20 @@ def hair_policy_enabled(backend, sim):
         if (not isinstance(index, dict) or index['path'] != str(path) or
                 index['stamp'] != before or _stamp(path) != before):
             return False
-        return key in index.get('hair_enabled', ())
+        enabled = key in index.get('hair_enabled', ())
+        if enabled:
+            # This exact stable reader index already proved that repair must
+            # refuse. Suppress only the redundant callback, never a user edit
+            # or its permanent mutation gate. Completion republishes the index.
+            parts = key.split(':')
+            pending = index.get('by_save_guid', {}).get(parts[0], ())
+            if len(parts) == 2 and type(pending) is tuple and parts[1] in pending:
+                validator = (bank._blocked, bank._completed, bank._completed_uncached,
+                    bank.appearance.fingerprint, bank.primitive.digest,
+                    bank._native_context_envelope, bank._verify_context_final)
+                if index.get('validator') == validator:
+                    return False
+        return enabled
 
 
 def admission(backend):

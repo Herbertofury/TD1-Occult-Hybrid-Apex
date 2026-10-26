@@ -2928,7 +2928,7 @@
                shell:observedShell,mask:observedMask,rendered:observedRendered,channel:acceptanceChannel,formOwner:formOwner,
                started:getTimer(),reply:reply,request:id+"|"+owner+"|"+simId+"|"+expectedHousehold+"|"+
                   (acceptanceChannel!="" ? acceptanceChannel : "0")+"|0|"+
-                  (editMode===0 ? String(observedShell)+"|"+String(observedRendered)+"|"+String(observedMask) : "-|-|-")+"|"+formOwner+"|"+originalGeneration};
+                  (editMode===0 ? String(acceptanceChannel!="" ? observedRendered : observedShell)+"|"+String(observedRendered)+"|"+String(observedMask) : "-|-|-")+"|"+formOwner+"|"+originalGeneration};
             reply.readiness_observations=0;apexAcceptInput=false;
             apexPendingPhase=9;ApexAcceptListen(true);
             ApexAcceptNative(apexAcceptWait,"PREPARE"); // Exactly one authoritative harvest, before waiting.

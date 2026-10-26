@@ -26,6 +26,7 @@ import cas_grid_budget as budget
 import cas_grid_featured as featured
 import cas_grid_publication as publication
 import cas_swatch_columns as skin
+import cas_grid_row_delta as row_delta
 from cas_main_chain_fixtures import current_main, rollback_terminal_main, TERMINAL_MAIN_MARKERS
 
 WORK = ROOT / '.work/v335-cell-attach'
@@ -145,7 +146,7 @@ class CellAttachContinuationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'reconstruct'):
             attach.verify_contract(forged, changed_bytes)
 
-    def test_actual_main_builder_runs_all_twelve_postpasses_on_current_bytes(self):
+    def test_actual_main_builder_runs_all_thirteen_postpasses_on_current_bytes(self):
         # This seam consumes mutable current compiler cache entries. Authenticate
         # those entries against the CURRENT package chain rather than mixing
         # them with the immutable V334 Main used by the historical tests above.
@@ -198,6 +199,10 @@ class CellAttachContinuationTests(unittest.TestCase):
         self.assertTrue(skin.verify_main(skin_outer,skin_final))
         self.assertEqual(skin_outer['previous_stage_contract'],publication_outer)
         self.assertEqual(skin_prior,publication_final)
+        row_delta_outer,row_delta_final,row_delta_prior=current_main('row-delta')
+        self.assertTrue(row_delta.verify_main(row_delta_outer,row_delta_final))
+        self.assertEqual(row_delta_outer['previous_stage_contract'],skin_outer)
+        self.assertEqual(row_delta_prior,skin_final)
         tree = ast.parse(Path(ui.__file__).read_text())
         build = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'build')
         block = next(node for node in build.body if isinstance(node, ast.If) and
@@ -267,8 +272,13 @@ class CellAttachContinuationTests(unittest.TestCase):
         def adapt_skin(*args):
             order.append('skin')
             self.assertEqual(args[0],publication_outer);self.assertEqual(args[1],publication_final)
-            self.assertEqual(args[2],namespace['patched'])
+            self.assertEqual(args[2],namespace['input_swf'])
             return skin_final,skin_outer
+        def adapt_row_delta(*args):
+            order.append('row-delta')
+            self.assertEqual(args[0],skin_outer);self.assertEqual(args[1],skin_final)
+            self.assertEqual(args[2],namespace['patched'])
+            return row_delta_final,row_delta_outer
         with tempfile.TemporaryDirectory() as directory:
             namespace = vars(ui).copy()
             namespace.update(companion={},input_swf=ROOT / '.work/research/maru-integrated/DynamicCASCustomizer.swf',
@@ -276,7 +286,7 @@ class CellAttachContinuationTests(unittest.TestCase):
                 structural_roles_contract=None,draw_fast_path_contract=None,cell_attach_contract=None,
                 catalog_binding_contract=None,draw_phase_contract=None,
                 swatch_geometry_contract=None,preview_transition_contract=None,scroll_main_contract=None,
-                budget_main_contract=None,featured_main_contract=None,publication_main_contract=None,swatch_columns_main_contract=None,
+                budget_main_contract=None,featured_main_contract=None,publication_main_contract=None,swatch_columns_main_contract=None,row_delta_main_contract=None,
                 patched=Path(directory)/'CASCustomizerMain.as',
                 customizer_sources=ROOT / '.work/research/maru-integrated/customizer/scripts',
                 decompiled=ROOT / '.work/research/current-cas/scripts/scripts/widgets/CAS/Customizer/CASCustomizerMain.as',
@@ -290,10 +300,11 @@ class CellAttachContinuationTests(unittest.TestCase):
                  patch.object(budget, 'adapt_main', side_effect=adapt_budget), \
                  patch.object(featured, 'adapt_main', side_effect=adapt_featured), \
                  patch.object(publication, 'adapt_main', side_effect=adapt_publication), \
-                 patch.object(skin, 'adapt_main', side_effect=adapt_skin):
+                 patch.object(skin, 'adapt_main', side_effect=adapt_skin), \
+                 patch.object(row_delta, 'adapt_main', side_effect=adapt_row_delta):
                 exec(compile(ast.Module(body=[block], type_ignores=[]), '<actual-main-postpass-seam>', 'exec'), namespace)
-            self.assertEqual(order, ['structural', 'draw', 'attach', 'binding', 'phase', 'swatch', 'preview', 'scroll', 'budget', 'featured', 'publication', 'skin'])
-            self.assertEqual(namespace['payload'], skin_final)
+            self.assertEqual(order, ['structural', 'draw', 'attach', 'binding', 'phase', 'swatch', 'preview', 'scroll', 'budget', 'featured', 'publication', 'skin', 'row-delta'])
+            self.assertEqual(namespace['payload'], row_delta_final)
             self.assertEqual(namespace['cell_attach_contract'], record)
             self.assertEqual(namespace['catalog_binding_contract'], outer)
             self.assertEqual(namespace['draw_phase_contract'], phase_outer)
@@ -304,6 +315,7 @@ class CellAttachContinuationTests(unittest.TestCase):
             self.assertEqual(namespace['featured_main_contract'],featured_outer)
             self.assertEqual(namespace['publication_main_contract'],publication_outer)
             self.assertEqual(namespace['swatch_columns_main_contract'],skin_outer)
+            self.assertEqual(namespace['row_delta_main_contract'],row_delta_outer)
 
 
 @unittest.skipUnless(READY and (ROOT / 'dist/candidate/ApexCASBridge.package').is_file(), 'Private package Main fixture required')

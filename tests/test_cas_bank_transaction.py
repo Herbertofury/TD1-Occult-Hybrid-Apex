@@ -30,10 +30,17 @@ def _native_snapshot(sim, raw=b'\x08\x0a\xa2\x06\x03new'):
             'native_serializer_called': True, 'save_file_written': False}
 
 
+def reset_receiver_process():
+    """A fresh fixture process owns fresh maps and the matching capability index."""
+    receiver._ACTIVE.clear()
+    receiver._CAPTURED.clear()
+    from apex_core.receiver_lifetime import ReceiverLifetime
+    receiver._RECEIVERS = ReceiverLifetime(receiver._CAPTURED, receiver._ACTIVE)
+
+
 class CasBankReceiverTests(unittest.TestCase):
     def setUp(self):
-        receiver._ACTIVE.clear()
-        receiver._CAPTURED.clear()
+        reset_receiver_process()
         receiver._WRITER_LEASES.clear()
         self.addCleanup(receiver._ACTIVE.clear)
         self.addCleanup(receiver._CAPTURED.clear)
@@ -447,7 +454,7 @@ class CasBankReceiverTests(unittest.TestCase):
     def test_hair_wardrobe_replacement_reorder_or_addition_refuses_before_any_setter(self):
         for change in ('replacement', 'reorder', 'addition'):
             with self.subTest(change=change):
-                receiver._ACTIVE.clear()
+                reset_receiver_process()
                 reset = self.data()
                 reset.clear()
                 reset.update(copy.deepcopy(self.initial))
@@ -784,7 +791,7 @@ class CasBankReceiverTests(unittest.TestCase):
     def test_original_capability_cache_loss_and_prior_bound_receiver_cannot_rebind_primary(self):
         for lost in ('captured', 'active'):
             with self.subTest(lost=lost):
-                receiver._ACTIVE.clear(); receiver._CAPTURED.clear()
+                reset_receiver_process()
                 self.path.unlink()
                 form_bank.save(self.path, self.initial)
                 self.begin()

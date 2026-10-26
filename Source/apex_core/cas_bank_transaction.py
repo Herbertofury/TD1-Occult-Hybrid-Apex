@@ -39,6 +39,8 @@ _LOCK = threading.RLock()
 _ACTIVE = {}
 _BANK_ASYNC_VIEW = None
 _CAPTURED = {}
+from .receiver_lifetime import ReceiverLifetime
+_RECEIVERS = ReceiverLifetime(_CAPTURED, _ACTIVE)
 _WRITER_LEASES = {}
 _UNSPECIFIED = object()
 _COMPLETED_RECEIPTS = OrderedDict()
@@ -1135,8 +1137,7 @@ def begin(backend, sim, snapshot_reader=None):
             transaction['transaction_sha256'] = primitive.digest(_native_context_envelope(transaction, envelope))
         record['pending'] = raw_checkpoint
         record['cas_transaction'] = transaction
-        if len(_CAPTURED) >= 256:
-            raise ValueError('CAS checkpoint receiver capacity reached; no original discarded.')
+        reservation = _receiver_lifetime(backend).preflight(path, key)
         def capture(data_now, selected, fresh_identity):
             _current_data, current_hash = _read(path)
             if fresh_identity != identity or selected != existing or current_hash != file_hash:
@@ -1146,13 +1147,9 @@ def begin(backend, sim, snapshot_reader=None):
         # CAS can recreate the primary SimInfo and its stored wrappers. Hold
         # this original capability; only initial observe may bind the exact
         # same-runtime manager-owned return, once, before any raw journal.
-        for old_key in list(_CAPTURED):
-            if old_key[:2] == (str(path), key):
-                _CAPTURED.pop(old_key, None)
-                _ACTIVE.pop(old_key, None)
-        _CAPTURED[_cache_key(path, key, token)] = {
+        _RECEIVERS.install(reservation, token, {
             'backend': backend, 'sim': sim, 'begin_sim': sim, 'identity': copy.deepcopy(identity),
-            'receiver_bound': False, 'primary_sim_recreated': False}
+            'receiver_bound': False, 'primary_sim_recreated': False})
         if snapshot_reader is not None:
             try:
                 native = primitive._serialized_append(snapshot_reader(), identity)
@@ -1392,6 +1389,45 @@ def commit_native_accepted(backend, sim, argument, capability):
     return commit(backend,sim,argument,_native_completion=False)
 
 
+def _receiver_lifetime(backend):
+    _thread(backend)
+    _RECEIVERS.bind_owner(backend._APEX_GAME_THREAD_IDENT)
+    return _RECEIVERS
+
+
+def _mark_receiver_completed(backend, sim, path, key, record, transaction):
+    """Detach no state until the existing receiver proves a durable completion."""
+    _thread(backend)
+    cache_key, captured = _receiver_lifetime(backend).lookup(path, key, require_active=True)
+    instance = _ACTIVE[cache_key]
+    identity = _identity(backend, sim)
+    journal = transaction.get('journal')
+    if (captured.get('backend') is not backend or captured.get('sim') is not sim or
+            captured.get('identity') != identity or instance.backend is not backend or instance.sim is not sim or
+            transaction.get('transaction_id') != cache_key[2] or transaction.get('identity') != identity or
+            transaction.get('phase') != 'completed' or record.get('pending') is not None or
+            record.get('switch_pending') is not None or not _completed(transaction) or
+            not isinstance(journal, dict) or primitive.digest(journal) != instance.journal_sha256):
+        raise ValueError('Receiver lifetime requires the exact durable completed owner/journal.')
+    required = transaction.get('native_owner_return_required', False)
+    if type(required) is not bool or captured.get('native_return_required', False) is not required:
+        raise ValueError('Receiver native-return lifetime requirement changed.')
+    native = transaction.get('native_owner_return', {}).get('identity', {}) if required else {}
+    _RECEIVERS.certify(cache_key, captured, instance,
+        (identity['runtime_pid'], identity['save_guid'], identity['household_id'], identity['sim_id']),
+        transaction['transaction_sha256'], instance.journal_sha256, journal['plan_sha256'],
+        scope=native.get('scope_id'), generation=native.get('generation'),
+        native_sha=transaction.get('native_owner_return_sha256') if required else None)
+    return cache_key
+
+
+def _retire_scope_receivers(backend, scope, receipt):
+    """Native retirement was already verified; release only those exact receivers."""
+    _thread(backend)
+    path = _unlinked(Path(backend._data_directory()) / 'form_bank.json')
+    return _receiver_lifetime(backend).retire_scope(path, scope, receipt)
+
+
 def commit(backend, sim, argument, _native_completion=True):
     with _LOCK:
         transaction = _argument(backend, sim, argument,
@@ -1411,6 +1447,11 @@ def commit(backend, sim, argument, _native_completion=True):
         result.update(expected_pending_sha256=transaction['transaction_sha256'], replayed=False)
         from . import native_cas_engine
         _path,_key,_record,completed=_selected(backend,sim,allow_consumed=True)
+        lifetime_key = None
+        try:
+            lifetime_key = _mark_receiver_completed(backend, sim, _path, _key, _record, completed)
+        except Exception as error:
+            result['receiver_lifetime'] = dict(retained=True, error=str(error)[:2048], appearance_replay_authorized=False)
         try:
             result['native_session_completion']=(native_cas_engine.complete_return(backend,sim,completed) if _native_completion else
                 dict(enabled=True,retired=False,deferred_to_household_final_verification=True))
@@ -1419,6 +1460,13 @@ def commit(backend, sim, argument, _native_completion=True):
             # a blocked retirement must never replay the form transaction.
             result['native_session_completion']=dict(ok=False,retired=False,message=str(error)[:2048],
                 appearance_replay_authorized=False)
+        if (lifetime_key is not None and _native_completion and
+                result.get('native_session_completion', {}).get('enabled') is False and
+                native_cas_engine._LAYOUT_SCOPE is None):
+            try:
+                result['receiver_lifetime'] = _RECEIVERS.retire_unbound(lifetime_key)
+            except Exception as error:
+                result['receiver_lifetime'] = dict(retained=True, error=str(error)[:2048], appearance_replay_authorized=False)
         if getattr(backend, '_APEX_CAS_SAVE_BOUNDARY_READY', False):
             from .cas_save_boundary import refresh_ui
             try:

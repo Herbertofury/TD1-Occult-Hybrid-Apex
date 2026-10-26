@@ -34,13 +34,18 @@ class PrepareAsyncTests(unittest.TestCase):
         cls.lib.ApexBankBind.restype = ctypes.c_uint64
         cls.lib.ApexBankSubmit.argtypes = [ctypes.c_uint64, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_char_p, ctypes.c_size_t]
         cls.lib.ApexBankSubmit.restype = ctypes.c_uint64
-        cls.lib.ApexBankPoll.argtypes = [ctypes.c_uint64, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_uint64]
-        cls.lib.ApexBankPoll.restype = ctypes.c_void_p
-        cls.lib.ApexBankFree.argtypes = [ctypes.c_void_p]
+        cls.poll_types = [ctypes.c_uint64, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_uint64]
+        raw_poll, raw_free = hasattr(cls.lib, 'ApexBankPoll'), hasattr(cls.lib, 'ApexBankFree')
+        assert raw_poll == raw_free, 'Partial raw poll/free ABI is invalid'
+        cls.use_poll_copy = not raw_poll
+        if raw_poll:
+            cls.lib.ApexBankPoll.argtypes = cls.poll_types
+            cls.lib.ApexBankPoll.restype = ctypes.c_void_p
+            cls.lib.ApexBankFree.argtypes = [ctypes.c_void_p]
         cls.held_lib = ctypes.PyDLL(str(DLL))
         cls.held_lib.ApexBankSubmit.argtypes = cls.lib.ApexBankSubmit.argtypes
         cls.held_lib.ApexBankSubmit.restype = ctypes.c_uint64
-        cls.held_lib.ApexBankPollCopy.argtypes = cls.lib.ApexBankPoll.argtypes
+        cls.held_lib.ApexBankPollCopy.argtypes = cls.poll_types
         cls.held_lib.ApexBankPollCopy.restype = ctypes.c_char_p
         encoded = cls.root.name.encode('utf-8')
         cls.handle = cls.lib.ApexBankBind(encoded, len(encoded))
@@ -77,6 +82,10 @@ class PrepareAsyncTests(unittest.TestCase):
         return int(self.lib.ApexBankSubmit(self.handle, header, len(header), payload, len(payload)))
 
     def poll(self, header, ticket):
+        if self.use_poll_copy:
+            result = self.held_lib.ApexBankPollCopy(self.handle, header, len(header), ticket)
+            self.assertIsInstance(result, bytes)
+            return result
         result = self.lib.ApexBankPoll(self.handle, header, len(header), ticket)
         self.assertTrue(result)
         try:

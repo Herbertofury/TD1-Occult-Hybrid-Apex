@@ -34,18 +34,18 @@ _LOADED = {}
 # Source provenance remains retained. This grants metadata admission only;
 # native recovery keeps its separate exact-source/A0 upgrade requirements.
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-26-ready-card-attach-swatch-v347'
+UPGRADE_EPOCH = '2026-10-26-ready-row-delta-lifetime-v348'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '818c12288c7ad048906867a4bf90c346f0408432080372149942c3537a2e6471'
+UPGRADE_SELF_BODY_SHA = '5835d8d372565d51f3bec09062c4efcded3964ec4c96d62bd714c01802d99f77'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
     'apex_core/bank_history.py': 'ce995a7ba97ee257b641cca8cc817fb2cff62a08e827cffcf0a50067e34a3286',
-    'apex_core/bank_worker.py': 'e18fb1d327a11fd6f20b4de641e1cb06b2499e408e1cb1e4bafd39d8bef9e393',
+    'apex_core/bank_worker.py': '90ef6b7e88f110e37104df421632eaedc7a75f2abb964d543fb9ed9e72e637c1',
     'apex_core/body_hair_initialization.py': 'b90fd14e840ae90de087b647519ef39208e3488dc72b5ab41d4389855f7b0592',
     'apex_core/bridge_startup.py': '0aa605cb1671a198571381ee51aa729082630faffbac657529a2ada385a9bee2',
     'apex_core/cas_auto_settle.py': 'a613178d57ca36e386db0ce39ae1abc906f3e530df8e6b23e7816395f6ba1c67',
-    'apex_core/cas_bank_transaction.py': '1f4cdc5215f2bee5b4f834f689dfbc54b2a603be0f83f11d5f5149c0bf9bbf15',
+    'apex_core/cas_bank_transaction.py': 'c6891b5e6ac6ad99b121caf1b4fdd45e9e28cfaeb0faa15a0cf85a867227f4db',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '54dd6cf60a998048f9ce7571968c64205f9295bdf62c02f30b845c3f132b2933',
     'apex_core/cas_controls.py': '2e0c35e715d7d8eae129651e5d1ce7a31970c70298a21d1ac36a07b471217fb1',
@@ -59,7 +59,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_owner_payload.py': '47134e0e2ae6b222898677d7ed80a6e9cd20ddbc2be98a771af8d0167ca94b21',
     'apex_core/cas_panels.py': 'cae87422c351e14d72fc48d601c416d74d3fc76668864be92d675b73b0da0a6d',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
-    'apex_core/cas_save_boundary.py': '9b6b0f17b9a1f8953457a93372ecd0dc8f54cad4ba32c74063984ce4516b99e1',
+    'apex_core/cas_save_boundary.py': 'efa9127cef9cbe2b70a509f258cdf4ced55f685343f25bf00cb350f3767ab22e',
     'apex_core/cas_ui.py': 'f222e2d86107b1932bb7f082e68840b4f7589d7b5b9f08bf31bd4f5c788ce50a',
     'apex_core/catalog_usage.py': '010877d055c90dad2696cc2af71608323188d1aa6f914554a41aea97433d624a',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
@@ -81,7 +81,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/live_form_presentation.py': '31c2fc2cf41419878f068eb201cd81a67e9bef701b4ecefff99dac6e7d6ab1cd',
     'apex_core/morph_controls.py': 'd144ebd7a8dcbff5695b1a2747f641b17017b60a6c39bd904e467602d4c7f876',
     'apex_core/named_save_boundary.py': 'a2fc956db8ed98a8dd9b0a1e68dafe9a2a0061b0df70e0448bb26006e9e4b243',
-    'apex_core/native_cas_engine.py': 'b70ebdedeacaae698c01ceb75058cf371259429527cc37db2dfef3aaff713481',
+    'apex_core/native_cas_engine.py': '7d348cae3dd4f43961e00c1462a658fb7ab4b11df78c8df3b6a265844c5c3cee',
     'apex_core/native_controls.py': 'b9d63713fb02f73245ed6febbafd4b641e33b06120a7a5123977d670741fd80d',
     'apex_core/native_form_isolation.py': '8b543ee251da890e30df2f96a961d4d7d76519816376617330f5136de414bb33',
     'apex_core/native_form_select.py': '5c3c9b28d82df3e6515169f3bb653f94ed9c9505d7745673514d85ed79744c44',
@@ -99,6 +99,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/phone_cas.py': 'd230422880c601c7549152330835f7c3b4445ef4c280fbcad7abbeed228e4fc3',
     'apex_core/phone_interactions.py': '05778ddb4e9e764ee4899cca39e5143bf3a4bd7d3bf61d4890c3e0466b72f025',
     'apex_core/profile_save_identity.py': '3dff19214d24119caa20bf3b0849e16e1c006a73a5a9e8f0c167ca5c0a080453',
+    'apex_core/receiver_lifetime.py': 'b6e2c19f6d18d3263faadeae7ea49960a8061a8d5f92571e2a920c202bb2bee2',
     'apex_core/runtime_profile.py': '740f28d28c4493f88c61c77c81085e61a2b2c98097c1847dae066ea0c3e05072',
     'apex_core/saved_occult_extras.py': '6b7f0c8c4ea258823d680f35764155bd2de02551a1fc876424888108c814fb0a',
     'apex_core/sim_data.py': 'dfc26d8d9a016b24d69187233ab089058fe72ef82abbac60a2d09710fe0e7266',

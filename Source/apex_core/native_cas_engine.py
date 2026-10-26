@@ -661,9 +661,16 @@ def _retire_completed_scope(backend,scope):
             {row['sim_id'] for row in result.get('members',[])}!=set(scope['epochs']) or
             any(row.get('imported_mask')!=0 for row in result['members'])):
         raise ValueError('Native session retirement did not verify; retain its attempt without replay.')
+    # The native ACK remains authoritative even if Source lifetime cleanup refuses.
+    # Cleanup grants no appearance write and never retries the native operation.
+    from . import cas_bank_transaction as receiver
+    try:
+        lifetime = receiver._retire_scope_receivers(backend, scope, result)
+    except Exception as error:
+        lifetime = dict(retained=True, error=str(error)[:2048], appearance_replay_authorized=False)
     _LAYOUT_SCOPE=None
     return dict(enabled=True,retired=True,completed_members=len(completions),scope_id=scope['scope_id'],
-                appearance_written=False,native_write_replay_authorized=False)
+                appearance_written=False,native_write_replay_authorized=False,receiver_lifetime=lifetime)
 
 
 def _retirement_argument(value,capability):

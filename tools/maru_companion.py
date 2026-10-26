@@ -101,6 +101,10 @@ def _verify_grid_adapter(evidence, data, expected, final_digest, body_count):
     """Authenticate history and final bytes without relabeling native counts."""
     def same(left, right):
         return json.dumps(left, sort_keys=True, separators=(',', ':')) == json.dumps(right, sort_keys=True, separators=(',', ':'))
+    if isinstance(evidence, dict) and 'row_delta_contract' in evidence:
+        import cas_grid_row_delta
+        previous, original = cas_grid_row_delta.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
     if isinstance(evidence, dict) and 'swatch_columns_contract' in evidence:
         import cas_swatch_columns
         previous, original = cas_swatch_columns.historical(evidence, data)
@@ -215,6 +219,10 @@ def verify_grid_adapter(evidence, data):
 def verify_grid_providers(evidence, resources, dependencies=None):
     """Require both exact class providers; duplicate native classes can bind first."""
     donor_key, canonical_key = dbpf_build.tgi(GRID_LIBRARY), dbpf_build.tgi(CANONICAL_GRID_LIBRARY)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'row_delta_contract' in value for value in evidence.values()):
+        import cas_grid_row_delta
+        previous, original, prior_dependencies = cas_grid_row_delta.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
     if isinstance(evidence, dict) and any(isinstance(value, dict) and 'swatch_columns_contract' in value for value in evidence.values()):
         import cas_swatch_columns
         previous, original, prior_dependencies = cas_swatch_columns.unwrap_providers(evidence, resources, dependencies)
@@ -365,6 +373,8 @@ def combine(path, apex, evidence, grid_providers=None, dependencies=None):
 
 def verify_merged(info, resources):
     """Bundle gate independent of the owner's donor path and compiler scratch."""
+    import cas_grid_row_delta
+    info, resources = cas_grid_row_delta.unwrap_manifest(info, resources)
     import cas_swatch_columns
     info, resources = cas_swatch_columns.unwrap_manifest(info, resources)
     import cas_grid_staging_attach

@@ -68,7 +68,7 @@ const flash={utils:{getTimer(){return 0;}}};const stage={stageWidth:2560};
 let x=12,y=75,xWrites=0,yWrites=0;
 const apexCatalogUi={visible:true,width:320,get x(){return x;},set x(value){xWrites++;x=value;},get y(){return y;},set y(value){yWrites++;y=value;}};
 let apexCatalogPrefs={},apexDisconnected=false,apexCatalogFrameCells=null,apexCatalogEffects=[],apexCatalogHeaderSignature='',apexCatalogTab='style';
-let apexCatalogContext='',mCurrSimInfo=null,apexCatalogDirty=false,apexPendingFields=null,apexReceiving=false,apexCatalogIntent=null,apexCatalogGrid=null;
+let apexCatalogContext='',apexCatalogObservedOwner='',mCurrSimInfo=null,apexCatalogDirty=false,apexPendingFields=null,apexReceiving=false,apexCatalogIntent=null,apexCatalogGrid=null;
 let apexCatalogError='',apexCatalogFrameTiming={samples:0,total_ms:0,max_ms:0,over_1ms:0};
 const mCurrentPanel=null;
 function ApexPanelsFrame(){}function ApexCatalogApplyBinding(){}function ApexColumnsFrame(){}function ApexEquippedFrame(){}

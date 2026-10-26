@@ -25,6 +25,9 @@ import cas_grid_scroll
 import cas_grid_slice
 import cas_grid_budget
 import cas_grid_featured
+import cas_grid_publication
+import cas_grid_staging_attach
+import cas_swatch_columns
 import cas_ui_build
 import dbpf_build
 import maru_companion
@@ -137,7 +140,8 @@ class TransactionProviderChainTests(unittest.TestCase):
             terminal_bytes=current_resources[key]
             suffix={}
             preceding,preceding_bytes=terminal_record,terminal_bytes
-            for label,module in [('featured',cas_grid_featured),('budget',cas_grid_budget),
+            for label,module in [('skin',cas_swatch_columns),('staging-attach',cas_grid_staging_attach),
+                                 ('publication',cas_grid_publication),('featured',cas_grid_featured),('budget',cas_grid_budget),
                                  ('slice',cas_grid_slice),('scroll',cas_grid_scroll),
                                  ('swatch-provider',cas_swatch_provider),('progress',cas_grid_progress),
                                  ('product-rows',cas_grid_product_rows),('presentation',cas_grid_presentation)]:
@@ -216,10 +220,13 @@ class TransactionProviderChainTests(unittest.TestCase):
                      patch.object(cas_grid_scroll, 'adapt', side_effect=terminal_adapter('scroll','swatch-provider')), \
                      patch.object(cas_grid_slice, 'adapt', side_effect=terminal_adapter('slice','scroll')), \
                      patch.object(cas_grid_budget, 'adapt', side_effect=terminal_adapter('budget','slice')), \
-                     patch.object(cas_grid_featured, 'adapt', side_effect=terminal_adapter('featured','budget')):
+                     patch.object(cas_grid_featured, 'adapt', side_effect=terminal_adapter('featured','budget')), \
+                     patch.object(cas_grid_publication, 'adapt', side_effect=terminal_adapter('publication','featured')), \
+                     patch.object(cas_grid_staging_attach, 'adapt', side_effect=terminal_adapter('staging-attach','publication')), \
+                     patch.object(cas_swatch_columns, 'adapt', side_effect=terminal_adapter('skin','staging-attach')):
                     data, chained = namespace['adapt_grid_provider'](original, transaction['base_resource_sha256'], name + '.abc',cache=None)
                 self.assertEqual(order, ['getter-profile', 'transaction', 'communication', 'domain', 'removal', 'image', 'pool',
-                                         'presentation','product-rows','progress','swatch-provider','scroll','slice','budget','featured'])
+                                         'presentation','product-rows','progress','swatch-provider','scroll','slice','budget','featured','publication','staging-attach','skin'])
                 self.assertEqual(data, terminal_bytes)
                 self.assertEqual(chained, terminal_record)
                 verify = maru_companion.verify_canonical_grid_adapter if name == 'canonical' else maru_companion.verify_grid_adapter

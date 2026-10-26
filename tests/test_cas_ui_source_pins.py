@@ -54,9 +54,11 @@ class SourcePinsTests(unittest.TestCase):
         names = 'CallUIService("CasApplyNameFields",false)'
         with self.assertRaisesRegex(ValueError, 'incomplete'):
             cas_ui_build.verify_household_acceptance(methods.replace(names, 'CallUIService("SkippedNames",false)'))
-        save = 'CallGameService("SaveAndExitCAS",{bValidateExistingSimTraits:false})'
+        save = 'CallGameService("SaveAndExitCAS",{bValidateExistingSimTraits:false,apex_accept_id:id,apex_accept_nonce:owner})'
+        self.assertEqual(methods.count(names), 1)
+        self.assertEqual(methods.count(save), 1)
         swapped = methods.replace(names, '__SWAP__').replace(save, names).replace('__SWAP__', save)
-        with self.assertRaisesRegex(ValueError, 'precede'):
+        with self.assertRaisesRegex(ValueError, 'one prepare and at most one original typed commit'):
             cas_ui_build.verify_household_acceptance(swapped)
 
     def test_household_native_class_is_imported_as_a_compiler_qname(self):

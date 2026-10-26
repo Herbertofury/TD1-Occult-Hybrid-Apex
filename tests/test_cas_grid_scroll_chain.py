@@ -18,7 +18,7 @@ class IntegrationSourceTests(unittest.TestCase):
   self.assertLess(calls['cas_swatch_provider'],calls['cas_grid_scroll']);self.assertLess(calls['cas_grid_scroll'],calls['cas_grid_slice']);self.assertLess(calls['cas_grid_slice'],terminal)
   finish=next(n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name=='finish_grid_provider')
   imports={a.name for n in ast.walk(finish)if isinstance(n,ast.Import)for a in n.names}
-  self.assertTrue({'cas_grid_featured','cas_grid_budget','cas_grid_slice'}<=imports)
+  self.assertTrue({'cas_grid_featured','cas_grid_budget','cas_grid_slice','cas_grid_publication','cas_grid_staging_attach','cas_swatch_columns'}<=imports)
 
 FIXTURE=Path(os.environ['APEX_CAS_GRID_SCROLL_FIXTURE'])if os.environ.get('APEX_CAS_GRID_SCROLL_FIXTURE')else None
 @unittest.skipUnless(FIXTURE is not None,'Set APEX_CAS_GRID_SCROLL_FIXTURE for optional authenticated compiled resources')
@@ -31,12 +31,8 @@ class CompiledChainTests(unittest.TestCase):
   # Authenticate the exact newer heads before constructing an explicit Slice
   # fixture. Their complete bytes, unique source pins and envelopes move back
   # together; no hash is repinned and a partial/forged head cannot be skipped.
-  for module,envelope in((featured,'featured_main_native_bytecode_contract'),(budget,'budget_main_native_bytecode_contract')):
-   before,rolled=module.unwrap_manifest(info,resources)
-   if before is info and rolled is resources:continue
-   before.pop(envelope)
-   for source in module.SOURCES:before['source_pins'].pop(source,None)
-   info,resources=before,rolled
+  from cas_main_chain_fixtures import unwrap_catalog_heads
+  info,resources=unwrap_catalog_heads(info,resources,stop_before='cas_grid_slice')
   return info,resources
  def test_complete_provider_and_main_chain_passes_and_restores_exact_previous_layers(self):
   info,res=self.slice_fixture();info,res=slice.unwrap_manifest(info,res);info,res=scroll.unwrap_manifest(info,res);self.assertTrue(all('swatch_provider_contract'in a for a in info['grid_provider_adapters'].values()));self.assertEqual(scroll.sha(res[(0x62ECC59A,0,0xDF09D526F4C77B95)]),info['preview_transition_native_bytecode_contract']['final_swf_sha256'])

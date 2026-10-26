@@ -18,6 +18,9 @@ import cas_grid_scroll as scroll
 import cas_grid_slice as grid_slice
 import cas_grid_budget as budget
 import cas_grid_featured as featured
+import cas_swatch_columns as skin
+import cas_grid_staging_attach as staging_attach
+import cas_grid_publication as publication
 from cas_main_chain_fixtures import READY, current_main, rollback_terminal_main, TERMINAL_MAIN_MARKERS
 
 KEY = maru_companion.CUSTOMIZER
@@ -180,7 +183,10 @@ class BindingManifestTests(unittest.TestCase):
                        'missing-scroll','missing-scroll-source','missing-slice-source','missing-slice-adapter',
                        'missing-scroll-adapter','wrong-scroll-history','wrong-slice-bytes',
                        'missing-featured','missing-featured-source','missing-budget','missing-budget-source',
-                       'missing-featured-adapter','missing-budget-adapter','wrong-featured-history','wrong-budget-history'):
+                       'missing-featured-adapter','missing-budget-adapter','wrong-featured-history','wrong-budget-history',
+                       'missing-skin','missing-skin-source','wrong-skin-history','missing-skin-adapter','wrong-skin-kind',
+                       'missing-attach-source','missing-attach-adapter','wrong-attach-kind',
+                       'missing-publication','missing-publication-source','missing-publication-adapter','wrong-publication-history'):
             info=copy.deepcopy(original);resources=dict(original_resources)
             def provider_layer(contract):
                 adapter=info['grid_provider_adapters'][dbpf_build.tgi(maru_companion.GRID_LIBRARY)]
@@ -212,7 +218,19 @@ class BindingManifestTests(unittest.TestCase):
             elif change=='missing-budget-adapter':
                 provider_layer('budget_contract').pop('budget_contract')
             elif change=='wrong-featured-history':info['featured_main_native_bytecode_contract']['previous_stage_contract']={}
-            else:info['budget_main_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='wrong-budget-history':info['budget_main_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='missing-skin':info.pop('swatch_columns_main_native_bytecode_contract')
+            elif change=='missing-skin-source':info['source_pins'].pop(skin.SOURCES[0])
+            elif change=='wrong-skin-history':info['swatch_columns_main_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='missing-skin-adapter':provider_layer('swatch_columns_contract').pop('swatch_columns_contract')
+            elif change=='wrong-skin-kind':provider_layer('swatch_columns_contract')['swatch_columns_contract']['previous_stage_kind']='featured-fixture'
+            elif change=='missing-attach-source':info['source_pins'].pop(staging_attach.SOURCES[0])
+            elif change=='missing-attach-adapter':provider_layer('staging_attach_contract').pop('staging_attach_contract')
+            elif change=='wrong-attach-kind':provider_layer('staging_attach_contract')['previous_stage_kind']='featured-fixture'
+            elif change=='missing-publication':info.pop('publication_trace_main_native_bytecode_contract')
+            elif change=='missing-publication-source':info['source_pins'].pop(publication.SOURCES[0])
+            elif change=='missing-publication-adapter':provider_layer('publication_trace_contract').pop('publication_trace_contract')
+            else:info['publication_trace_main_native_bytecode_contract']['previous_stage_contract']={}
             snapshot=copy.deepcopy(info);before=dict(resources)
             with self.subTest(change=change),self.assertRaises((AssertionError,ValueError)):
                 rollback_terminal_main(info,resources)

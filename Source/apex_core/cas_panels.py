@@ -4,3 +4,8 @@ ALIASES = {'hair': 'clothing_hair', 'eyebrows': 'profile_hair_eyebrows', 'skin_d
 
 # Installed native Vampire detail slots use their own distinct body categories.
 PANELS.update({'vampire_brows': -2134375404, 'vampire_cheeks': -2134375403, 'vampire_eyebags': -2134375402, 'vampire_eyesockets': -2134375401, 'vampire_mouth': -2134375400})
+
+# Installed MenuState.FEATURED_FACE_PRESETS: version2 | menu item | featured | head |26.
+# This routes through EA's own Featured panel; its wrapper rows remain distinct
+# from CASCatalogProduct and never enter the clothing/appearance selection ABI.
+PANELS['featured_face_presets'] = -2133588966

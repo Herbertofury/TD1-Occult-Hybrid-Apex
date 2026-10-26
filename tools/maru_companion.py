@@ -101,6 +101,20 @@ def _verify_grid_adapter(evidence, data, expected, final_digest, body_count):
     """Authenticate history and final bytes without relabeling native counts."""
     def same(left, right):
         return json.dumps(left, sort_keys=True, separators=(',', ':')) == json.dumps(right, sort_keys=True, separators=(',', ':'))
+    if isinstance(evidence, dict) and 'swatch_columns_contract' in evidence:
+        import cas_swatch_columns
+        previous, original = cas_swatch_columns.historical(evidence, data)
+        if evidence['swatch_columns_contract'].get('previous_stage_kind')!='staging-attach':
+            raise ValueError('Historical Skin fixture is not a current provider capability.')
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'staging_attach_contract' in evidence:
+        import cas_grid_staging_attach
+        previous, original = cas_grid_staging_attach.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'publication_trace_contract' in evidence:
+        import cas_grid_publication
+        previous, original = cas_grid_publication.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
     if isinstance(evidence, dict) and 'featured_contract' in evidence:
         import cas_grid_featured
         previous, original = cas_grid_featured.historical(evidence, data)
@@ -201,6 +215,18 @@ def verify_grid_adapter(evidence, data):
 def verify_grid_providers(evidence, resources, dependencies=None):
     """Require both exact class providers; duplicate native classes can bind first."""
     donor_key, canonical_key = dbpf_build.tgi(GRID_LIBRARY), dbpf_build.tgi(CANONICAL_GRID_LIBRARY)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'swatch_columns_contract' in value for value in evidence.values()):
+        import cas_swatch_columns
+        previous, original, prior_dependencies = cas_swatch_columns.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'staging_attach_contract' in value for value in evidence.values()):
+        import cas_grid_staging_attach
+        previous, original, prior_dependencies = cas_grid_staging_attach.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'publication_trace_contract' in value for value in evidence.values()):
+        import cas_grid_publication
+        previous, original, prior_dependencies = cas_grid_publication.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
     if isinstance(evidence, dict) and any(isinstance(value, dict) and 'featured_contract' in value for value in evidence.values()):
         import cas_grid_featured
         previous, original, prior_dependencies = cas_grid_featured.unwrap_providers(evidence, resources, dependencies)
@@ -339,6 +365,12 @@ def combine(path, apex, evidence, grid_providers=None, dependencies=None):
 
 def verify_merged(info, resources):
     """Bundle gate independent of the owner's donor path and compiler scratch."""
+    import cas_swatch_columns
+    info, resources = cas_swatch_columns.unwrap_manifest(info, resources)
+    import cas_grid_staging_attach
+    info, resources = cas_grid_staging_attach.unwrap_manifest(info, resources)
+    import cas_grid_publication
+    info, resources = cas_grid_publication.unwrap_manifest(info, resources)
     import cas_grid_featured
     info, resources = cas_grid_featured.unwrap_manifest(info, resources)
     import cas_grid_budget

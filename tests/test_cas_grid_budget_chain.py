@@ -9,11 +9,8 @@ class BudgetChainTests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):
   cls.info=json.loads((FIXTURE/'info.json').read_text());cls.res={tuple(int(n,16)for n in k.split(':')):bytes.fromhex(v)for k,v in json.loads((FIXTURE/'resource-map.json').read_text()).items()}
-  previous,rolled=featured.unwrap_manifest(cls.info,cls.res)
-  if previous is not cls.info or rolled is not cls.res:
-   previous.pop('featured_main_native_bytecode_contract')
-   for source in featured.SOURCES:previous['source_pins'].pop(source,None)
-   cls.info,cls.res=previous,rolled
+  from cas_main_chain_fixtures import unwrap_catalog_heads
+  cls.info,cls.res=unwrap_catalog_heads(cls.info,cls.res,stop_before='cas_grid_budget')
  def test_full_main_and_both_provider_chains_restore_the_exact_declared_predecessor(self):
   info,res=b.unwrap_manifest(self.info,self.res)
   for key,adapter in info['grid_provider_adapters'].items():self.assertIn('slice_contract',adapter)

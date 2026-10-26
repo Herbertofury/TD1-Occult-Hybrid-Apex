@@ -3049,7 +3049,7 @@ public class CasBytecodePatch {
             "apexFormsCatalogPages","apexFormsLocalCatalog","apexFormsLocalOffset",
             "apexFormsFrameQueued", "apexFormsFastState", "apexFormsNativeGeneration", "apexFormsGestureStarted", "apexFormsSwitchMilliseconds",
             "apexInputSamples", "apexInputOverBudget", "apexInputMaxMs", "apexInputTotalMs",
-            "apexCatalogPrefs","apexCatalogDisplayFaults","apexCatalogStore","apexCatalogUi","apexCatalogRows","apexCatalogIntent","apexCatalogSignature","apexCatalogEffects","apexCatalogPage","apexCatalogItems","apexCatalogContext","apexCatalogError","apexCatalogRegistered","apexCatalogDrag","apexCatalogSaved",
+            "apexCatalogPrefs","apexCatalogDisplayFaults","apexCatalogStore","apexCatalogUi","apexCatalogRows","apexCatalogIntent","apexCatalogSignature","apexCatalogEffects","apexCatalogPage","apexCatalogItems","apexCatalogContext","apexCatalogObservedOwner","apexCatalogError","apexCatalogRegistered","apexCatalogDrag","apexCatalogSaved",
             "apexCatalogTab", "apexCatalogSelectionFrames", "apexCatalogSelectionMaxMs", "apexCatalogSelectionOverBudget", "apexCatalogStyleSignature", "apexCatalogLayoutChanges", "apexCatalogRefreshRegistered", "apexCatalogDirty", "apexCatalogSlot", "apexCatalogBinding", "apexCatalogBindingRegistered", "apexCatalogBindingDirty", "apexCatalogBoundWidth", "apexCatalogHeaderSignature",
             "apexCardPrefs","apexCardGeometry","apexCardLayout","apexCardReflowAttempts",
             "apexCatalogFrameCells","apexEquippedActive","apexEquippedOpening","apexEquippedProducts","apexEquippedBindings","apexEquippedDirty",

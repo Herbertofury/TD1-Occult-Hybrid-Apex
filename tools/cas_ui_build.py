@@ -52,6 +52,10 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'tools/cas_grid_scroll.py','tools/CasGridScrollPatch.java','tools/CasGridScrollMainPatch.java',
                   'Source/CASUi/catalog_grid_scroll_methods.as','Source/CASUi/catalog_grid_scroll_main_methods.as',
                   'tools/cas_grid_slice.py','tools/CasGridSlicePatch.java','Source/CASUi/catalog_grid_slice_methods.as',
+                  'tools/cas_swatch_columns.py','tools/CasSwatchColumnsPatch.java','Source/CASUi/swatch_columns_methods.as',
+                  'tools/cas_grid_staging_attach.py','tools/CasGridStagingAttachPatch.java','Source/CASUi/catalog_grid_staging_attach_methods.as',
+                  'tools/cas_grid_publication.py','tools/cas_publication_stage.py','tools/CasPublicationTracePatch.java',
+                  'Source/CASUi/catalog_publication_trace_methods.as','Source/CASUi/catalog_grid_publication_trace_emit.as',
                   'tools/cas_grid_featured.py','tools/CasGridFeaturedPatch.java','tools/CasGridFeaturedMainPatch.java',
                   'Source/CASUi/catalog_featured_identity_methods.as','Source/CASUi/catalog_featured_main_identity.as',
                   'tools/cas_grid_budget.py','tools/CasGridBudgetPatch.java','tools/CasGridBudgetMainPatch.java',
@@ -149,6 +153,16 @@ def verified_library_cache(output, originals):
             # bypass newly required builder stages through this early return.
             # Admit an exact current final OR the authenticated immediately
             # preceding V345 prefix; adapt_grid_provider must continue it.
+            if isinstance(adapter,dict) and isinstance(adapter.get('swatch_columns_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('staging_attach_contract'),dict):return False
+            if isinstance(adapter,dict) and isinstance(adapter.get('staging_attach_contract'),dict):
+                if adapter.get('previous_stage_kind')!='publication':return False
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('publication_trace_contract'),dict):return False
+            if isinstance(adapter,dict) and isinstance(adapter.get('publication_trace_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('featured_contract'),dict):return False
             if isinstance(adapter,dict) and isinstance(adapter.get('featured_contract'),dict):
                 adapter=adapter.get('previous_stage_adapter')
                 if not isinstance(adapter,dict) or not isinstance(adapter.get('budget_contract'),dict):return False
@@ -202,21 +216,38 @@ def verified_library_cache(output, originals):
 
 
 def finish_grid_provider(prior, retained, original, ffdec, work):
-    """Continue only missing authenticated terminal stages, including V345 prefixes."""
+    """Continue every missing authenticated terminal stage; no prefix early return."""
+    import cas_swatch_columns
+    import cas_grid_staging_attach
+    import cas_grid_publication
     import cas_grid_featured
     import cas_grid_budget
     import cas_grid_slice
     work=Path(work)
-    if isinstance(prior,dict) and 'featured_contract' in prior:
-        cas_grid_featured.verify_adapter(prior,retained)
+    if isinstance(prior,dict) and 'swatch_columns_contract' in prior:
+        cas_swatch_columns.verify_adapter(prior,retained)
+        if prior['swatch_columns_contract'].get('previous_stage_kind')!='staging-attach':
+            raise ValueError('Historical Skin fixture is not a current build capability.')
         return retained,prior
-    if isinstance(prior,dict) and 'budget_contract' in prior:
-        cas_grid_budget.verify_adapter(prior,retained)
+    if isinstance(prior,dict) and 'staging_attach_contract' in prior:
+        if prior.get('previous_stage_kind')!='publication':raise ValueError('Production Attach requires Publication predecessor')
+        cas_grid_staging_attach.verify_adapter(prior,retained)
     else:
-        # Missing, partial or unknown history fails before any compiler call.
-        cas_grid_slice.verify_adapter(prior,retained)
-        retained,prior=cas_grid_budget.adapt(prior,retained,original,ffdec,work/'budget')
-    return cas_grid_featured.adapt(prior,retained,original,ffdec,work/'featured')
+        if isinstance(prior,dict) and 'publication_trace_contract' in prior:
+            cas_grid_publication.verify_adapter(prior,retained)
+        else:
+            if isinstance(prior,dict) and 'featured_contract' in prior:
+                cas_grid_featured.verify_adapter(prior,retained)
+            else:
+                if isinstance(prior,dict) and 'budget_contract' in prior:
+                    cas_grid_budget.verify_adapter(prior,retained)
+                else:
+                    cas_grid_slice.verify_adapter(prior,retained)
+                    retained,prior=cas_grid_budget.adapt(prior,retained,original,ffdec,work/'budget')
+                retained,prior=cas_grid_featured.adapt(prior,retained,original,ffdec,work/'featured')
+            retained,prior=cas_grid_publication.adapt(prior,retained,original,ffdec,work/'publication')
+        retained,prior=cas_grid_staging_attach.adapt(prior,retained,original,ffdec,work/'staging-attach')
+    return cas_swatch_columns.adapt(prior,retained,original,ffdec,work/'swatch-columns')
 
 
 def adapt_dependency_provider(cleanup_library, ffdec, work, cache=None):
@@ -543,6 +574,8 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     scroll_main_contract = None
     budget_main_contract = None
     featured_main_contract = None
+    publication_main_contract = None
+    swatch_columns_main_contract = None
     if companion is not None:
         import cas_structural_roles
         role_abc, role_proof = cas_structural_roles.adapt(input_swf, payload,
@@ -589,6 +622,12 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         import cas_grid_featured
         payload, featured_main_contract = cas_grid_featured.adapt_main(budget_main_contract, payload,
             patched, ffdec, work / 'grid-featured-main')
+        import cas_grid_publication
+        payload, publication_main_contract = cas_grid_publication.adapt_main(featured_main_contract, payload,
+            patched, ffdec, work / 'grid-publication-main')
+        import cas_swatch_columns
+        payload, swatch_columns_main_contract = cas_swatch_columns.adapt_main(publication_main_contract, payload,
+            input_swf, ffdec, work / 'swatch-columns-main')
     selector_source = work / 'ApexCASSelectorMain.as'
     selector_source.write_text(inject_selector(selector_decompiled.read_text(encoding='utf-8'),
         (ROOT / 'Source/CASUi/selector_methods.as').read_text(encoding='utf-8')), encoding='utf-8')
@@ -715,7 +754,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
                 if cache['original_sha256'][key] == base_digest:
                     cache['used'].add(dbpf_build.tgi(key))
                     prior=cache['providers'][dbpf_build.tgi(key)];retained=cache['resources'][key]
-                    if 'featured_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
+                    if 'swatch_columns_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
                     return finish_grid_provider(prior,retained,grid_swf,
                         ffdec,work/(Path(output_name).stem+'-from-prefix'))
             raise ValueError('Cached native library has no matching original provider identity.')
@@ -843,6 +882,8 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'scroll_main_native_bytecode_contract': scroll_main_contract,
         'budget_main_native_bytecode_contract': budget_main_contract,
         'featured_main_native_bytecode_contract': featured_main_contract,
+        'publication_trace_main_native_bytecode_contract': publication_main_contract,
+        'swatch_columns_main_native_bytecode_contract': swatch_columns_main_contract,
         'selector_native_bytecode_contract': selector_contract,
         'voice_native_bytecode_contract': voice_contract,
         'molecule_native_bytecode_contract': molecule_contract,

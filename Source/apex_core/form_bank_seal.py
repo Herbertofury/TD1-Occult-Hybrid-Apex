@@ -34,9 +34,9 @@ _LOADED = {}
 # Source provenance remains retained. This grants metadata admission only;
 # native recovery keeps its separate exact-source/A0 upgrade requirements.
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-26-provider-budget-featured-width-v346'
+UPGRADE_EPOCH = '2026-10-26-ready-card-attach-swatch-v347'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'f4485263af16db7fde9e5e5407ef84e60e04600ca0bd8d7f76c02884ea918ec6'
+UPGRADE_SELF_BODY_SHA = '818c12288c7ad048906867a4bf90c346f0408432080372149942c3537a2e6471'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
@@ -57,7 +57,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_owner_decode.py': 'f371901c795ddd1fa6270d24b49db3ab0982f5084ce5edc3fb6d5f46fc2ca938',
     'apex_core/cas_owner_export_page.py': '46d190c9958cfa459a950687938e1bcbc8995840b9bcac323c27f6f42814c77e',
     'apex_core/cas_owner_payload.py': '47134e0e2ae6b222898677d7ed80a6e9cd20ddbc2be98a771af8d0167ca94b21',
-    'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
+    'apex_core/cas_panels.py': 'cae87422c351e14d72fc48d601c416d74d3fc76668864be92d675b73b0da0a6d',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_save_boundary.py': '9b6b0f17b9a1f8953457a93372ecd0dc8f54cad4ba32c74063984ce4516b99e1',
     'apex_core/cas_ui.py': 'f222e2d86107b1932bb7f082e68840b4f7589d7b5b9f08bf31bd4f5c788ce50a',

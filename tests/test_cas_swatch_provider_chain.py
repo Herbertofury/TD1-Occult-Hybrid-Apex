@@ -20,8 +20,24 @@ class SwatchProviderChainTests(unittest.TestCase):
                 cls.resources[tgi]=(folder/'final.swf').read_bytes()
         else:
             package=ROOT/'dist/candidate/ApexCASBridge.package'
-            manifest=json.loads(Path(str(package)+'.manifest.json').read_text(encoding='utf-8'))
+            manifest_path=Path(str(package)+'.manifest.json')
+            if not package.is_file() or not manifest_path.is_file():
+                raise unittest.SkipTest('Private sealed CAS package and manifest required')
+            manifest=json.loads(manifest_path.read_text(encoding='utf-8'))
             cls.providers=manifest['grid_provider_adapters'];cls.resources=dbpf_build.read(package.read_bytes())
+        # Current packages wrap this historical swatch layer. Authenticate
+        # and raw-roll back only complete known terminal provider stages.
+        import cas_swatch_columns,cas_grid_staging_attach,cas_grid_publication
+        import cas_grid_featured,cas_grid_budget,cas_grid_slice,cas_grid_scroll
+        for module,contract in ((cas_swatch_columns,'swatch_columns_contract'),
+                                (cas_grid_staging_attach,'staging_attach_contract'),
+                                (cas_grid_publication,'publication_trace_contract'),
+                                (cas_grid_featured,'featured_contract'),
+                                (cas_grid_budget,'budget_contract'),
+                                (cas_grid_slice,'slice_contract'),
+                                (cas_grid_scroll,'scroll_contract')):
+            if any(isinstance(adapter,dict) and contract in adapter for adapter in cls.providers.values()):
+                cls.providers,cls.resources,_=module.unwrap_providers(cls.providers,cls.resources)
         cls.key=dbpf_build.tgi(maru_companion.GRID_LIBRARY)
 
     def test_declaring_provider_appends_one_adapter_and_reconstructs_exact_progress_bytes(self):

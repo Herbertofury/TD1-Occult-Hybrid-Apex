@@ -64,7 +64,8 @@ class VerifiedLibraryCacheTests(unittest.TestCase):
         self.assertEqual(verify.call_args_list[0],call(self.info['grid_provider_adapters'],cache['resources'],
                                                      self.info['communication_dependency_adapters']))
         # Every exact current terminal is verified, not merely its top wrapper.
-        stages=('featured_contract','budget_contract','slice_contract','scroll_contract',
+        stages=('swatch_columns_contract','staging_attach_contract','publication_trace_contract',
+                'featured_contract','budget_contract','slice_contract','scroll_contract',
                 'swatch_provider_contract','progress_contract','product_rows_contract',
                 'presentation_contract','grid_pool_contract')
         observed=[]
@@ -160,9 +161,9 @@ class VerifiedLibraryCacheTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertIsNone(self.admit())
 
-    def test_exact_actual_budget_and_slice_prefixes_admit_only_the_missing_stage_continuation(self):
-        import cas_grid_featured,cas_grid_budget
-        for continuation in (cas_grid_featured,cas_grid_budget):
+    def test_all_exact_supported_prefixes_admit_only_the_missing_stage_continuation(self):
+        import cas_swatch_columns,cas_grid_staging_attach,cas_grid_publication,cas_grid_featured,cas_grid_budget
+        for continuation in (cas_swatch_columns,cas_grid_staging_attach,cas_grid_publication,cas_grid_featured,cas_grid_budget):
             for key in (maru.CANONICAL_GRID_LIBRARY,maru.GRID_LIBRARY):
                 text=dbpf.tgi(key)
                 previous,raw=continuation.historical(self.info['grid_provider_adapters'][text],self.resources[key])
@@ -187,7 +188,7 @@ class VerifiedLibraryCacheTests(unittest.TestCase):
 
     def test_current_stage_inventory_must_be_typed_complete_and_cannot_throw_on_bad_history(self):
         text=dbpf.tgi(maru.GRID_LIBRARY)
-        for position in range(3):
+        for position in range(6):
             for malformed in (None,False,[],"wrong"):
                 self.info=copy.deepcopy(self.original_info);row=self.info['grid_provider_adapters'][text]
                 for _ in range(position):row=row['previous_stage_adapter']
@@ -237,8 +238,8 @@ class VerifiedLibraryCacheTests(unittest.TestCase):
         this fixture only changes actual provider bytes/proofs, never relabels a
         resource as its predecessor or weakens the complete provider verifier.
         """
-        import cas_grid_featured,cas_grid_budget,cas_grid_slice,cas_grid_scroll
-        for continuation in (cas_grid_featured,cas_grid_budget,cas_grid_slice,cas_grid_scroll):
+        import cas_swatch_columns,cas_grid_staging_attach,cas_grid_publication,cas_grid_featured,cas_grid_budget,cas_grid_slice,cas_grid_scroll
+        for continuation in (cas_swatch_columns,cas_grid_staging_attach,cas_grid_publication,cas_grid_featured,cas_grid_budget,cas_grid_slice,cas_grid_scroll):
             for key in (maru.CANONICAL_GRID_LIBRARY,maru.GRID_LIBRARY):
                 text=dbpf.tgi(key);adapter=self.info['grid_provider_adapters'][text]
                 previous,raw=continuation.historical(adapter,self.resources[key])

@@ -19,6 +19,7 @@
       private var apexCatalogPage:int = 0;
       private var apexCatalogItems:Array;
       private var apexCatalogContext:String = "";
+      private var apexCatalogObservedOwner:String = "";
       private var apexCatalogError:String = "";
       private var apexCatalogRegistered:Boolean = false;
       private var apexCatalogDrag:String = "";
@@ -34,7 +35,7 @@
          apexCatalogEffects=[];apexCatalogItems=[];apexCatalogDisplayFaults=null;
          apexCardPrefs={scale:1,gap_x:4,gap_y:4};apexCardGeometry=null;apexCardLayout=null;apexPanelGeometry=null;
          apexCatalogSaved=false;apexCatalogLayoutChanges=0;apexCatalogStyleSignature="";
-         apexCatalogDirty=false;apexCatalogSlot=null;
+         apexCatalogDirty=false;apexCatalogSlot=null;apexCatalogObservedOwner="";
          apexCatalogBinding=null;apexCatalogBindingDirty=false;apexCatalogBoundWidth=-1;apexCatalogHeaderSignature="";
          apexCatalogTab="items";
          apexCatalogSelectionFrames=0;apexCatalogSelectionMaxMs=0;apexCatalogSelectionOverBudget=0;
@@ -153,7 +154,7 @@
          if(apexCatalogBindingRegistered) RemoveMessageListener("CASBindingSimContextMenu",ApexCatalogObserveBinding);
          apexCatalogRegistered=false;
          apexCatalogBindingRegistered=false;apexCatalogBinding=null;apexCatalogBoundWidth=-1;apexCatalogHeaderSignature="";
-         apexCatalogRefreshRegistered=false;apexCatalogDirty=false;apexCatalogSlot=null;
+         apexCatalogRefreshRegistered=false;apexCatalogDirty=false;apexCatalogSlot=null;apexCatalogObservedOwner="";
          ApexCatalogClearEffects();ApexCardForget();apexPanelGeometry=null;
          if(apexCatalogUi!=null && apexCatalogUi.parent!=null) apexCatalogUi.parent.removeChild(apexCatalogUi);
          apexCatalogUi=null;apexCatalogRows=null;apexCatalogItems=[];apexCatalogIntent=null;apexCatalogStore=null;
@@ -247,14 +248,24 @@
          }
          ApexColumnsFrame();
          if(apexCatalogUi!=null && apexCatalogUi.visible) {
-            if(apexCatalogContext!="" && mCurrSimInfo!=null &&
-               apexCatalogContext!=String(mCurrSimInfo.simId)+"|"+apexFormsSelectedId) {
-               apexCatalogItems=[];apexCatalogContext="";apexCatalogError="Sim or form changed. Refresh equipped items.";ApexCatalogDraw();
+            var visibleContext:String=mCurrSimInfo==null || apexFormsSelectedId=="" ? "" : String(mCurrSimInfo.simId)+"|"+apexFormsSelectedId;
+            var visibleOwner:String=visibleContext=="" ? "" : visibleContext+"|"+apexNativeChannel+"|"+apexOwnerSession;
+            if(visibleOwner!==apexCatalogObservedOwner || (apexCatalogContext!="" && apexCatalogContext!==visibleContext)) {
+               apexCatalogObservedOwner=visibleOwner;
+               // Retire the old owner's actionable rows immediately. Queue one
+               // inventory read after the new native owner has actually bound.
+               apexCatalogItems=[];apexCatalogSlot=null;apexCatalogPage=0;apexCatalogContext="";
+               apexCatalogDirty=true;apexCatalogError="Updating equipped items for the selected Sim and form.";ApexCatalogDraw();
             }
-            if(apexCatalogDirty && apexPendingFields==null && !apexReceiving) {
+            if(apexCatalogDirty && apexPendingFields==null && !apexReceiving && apexPendingPhase==0 &&
+               mCurrSimInfo!=null && String(mCurrSimInfo.simId)===apexBoundSim && apexNativeChannel!="" &&
+               (apexNativeConnected || apexFormsLocalCatalog) && apexFormsNativeState=="bound" &&
+               apexFormsSelectedId!="" && apexFormsNativeGeneration!="" && apexOwnerSession>0 &&
+               !apexFormsApplying && apexFormsDesiredId=="" && apexFormsNativeIntent==null && apexFormsIntent==null &&
+               apexMoleculeIntent==null && apexPairIntent==null) {
                apexCatalogDirty=false;
                try {ApexCatalogReadEquipped();ApexCatalogDraw();}
-               catch(refreshError:Error) {apexCatalogError=refreshError.message;}
+               catch(refreshError:Error) {apexCatalogDirty=false;apexCatalogError=refreshError.message;}
             }
             // Keep layout controls away from the native thumbnail catalog so
             // size/spacing changes can be previewed while dragging a slider.
@@ -373,13 +384,22 @@
 
       private function ApexCatalogReadEquipped() : void
       {
-         if(mCurrSimInfo==null || apexNativeChannel=="" || apexFormsSelectedId=="") throw new Error("No exact active CAS form");
+         if(mCurrSimInfo==null || String(mCurrSimInfo.simId)!==apexBoundSim || apexNativeChannel=="" ||
+            apexFormsSelectedId=="" || apexFormsNativeState!="bound" || apexFormsNativeGeneration=="" || apexOwnerSession<=0 ||
+            apexFormsDesiredId!="" || apexFormsApplying || apexDisconnected || !(apexNativeConnected || apexFormsLocalCatalog) ||
+            apexFormsNativeIntent!=null || apexFormsIntent!=null || apexMoleculeIntent!=null || apexPairIntent!=null)
+            throw new Error("No exact active CAS form");
+         var readSim:String=String(mCurrSimInfo.simId);var readOwner:String=apexFormsSelectedId;
+         var readChannel:String=apexNativeChannel;var readGeneration:String=apexFormsNativeGeneration;var readSession:int=apexOwnerSession;
+         var readPending:Object=apexPendingFields;var readPhase:int=apexPendingPhase;var readReceiving:Boolean=apexReceiving;
+         var readConnected:Boolean=apexNativeConnected;var readLocal:Boolean=apexFormsLocalCatalog;
+         apexCatalogDirty=false;
          var slot:Object=ApexClone(CommunicationManager.CallGameService("CasGetCurrSimOutfitSlot"));
          if(slot==null || !(slot.outfit_type is int) || !(slot.outfit_index is int)) throw new Error("Current outfit is unavailable");
-         var response:String=ApexNativeExchange("EQUIPPED|"+apexNativeChannel+"|"+slot.outfit_type+"|"+slot.outfit_index);
+         var response:String=ApexNativeExchange("EQUIPPED|"+readChannel+"|"+slot.outfit_type+"|"+slot.outfit_index);
          var lines:Array=response.split("\n");var header:Array=String(lines.shift()).split("|");
-         if(header.length!=6 || header[0]!="EQUIPPED" || header[1]!=String(mCurrSimInfo.simId) || header[2]!=apexFormsSelectedId ||
-            int(header[3])!=slot.outfit_type || int(header[4])!=slot.outfit_index || lines.length>256)
+         if(header.length!=6 || header[0]!="EQUIPPED" || header[1]!==readSim || header[2]!==readOwner ||
+            header[3]!==String(slot.outfit_type) || header[4]!==String(slot.outfit_index) || header[5]!==readGeneration || lines.length>256)
             throw new Error("Equipped items do not belong to this exact Sim, form and outfit");
          var names:Object={};var definition:XML=flash.utils.describeType(CASBodyType);
          for each(var constant:XML in definition.constant) names[int(CASBodyType[String(constant.@name)])]=String(constant.@name).replace(/_/g," ");
@@ -392,9 +412,23 @@
             rows.push({part_key:fields[0],body_type:body,color:fields[2],layer:fields[3],
                label:(names[body] || "Body type "+body)+(int(fields[3])>0 ? " / layer "+fields[3] : ""),menu_state:state});
          }
+         // Native getters may re-enter the editor. Publish only after the
+         // original primitive owner/session/generation and outfit still agree.
+         var afterSlot:Object=ApexClone(CommunicationManager.CallGameService("CasGetCurrSimOutfitSlot"));
+         if(mCurrSimInfo==null || String(mCurrSimInfo.simId)!==readSim || apexBoundSim!==readSim ||
+            apexFormsSelectedId!==readOwner || apexNativeChannel!==readChannel || apexFormsNativeGeneration!==readGeneration ||
+            apexOwnerSession!==readSession || apexFormsNativeState!="bound" || apexFormsDesiredId!="" || apexFormsApplying || apexCatalogDirty ||
+            apexDisconnected || apexNativeConnected!==readConnected || apexFormsLocalCatalog!==readLocal ||
+            !(apexNativeConnected || apexFormsLocalCatalog) || apexFormsNativeIntent!=null || apexFormsIntent!=null ||
+            apexMoleculeIntent!=null || apexPairIntent!=null || apexPendingFields!==readPending ||
+            apexPendingPhase!==readPhase || apexReceiving!==readReceiving ||
+            afterSlot==null || !(afterSlot.outfit_type is int) || !(afterSlot.outfit_index is int) ||
+            afterSlot.outfit_type!==slot.outfit_type || afterSlot.outfit_index!==slot.outfit_index)
+            throw new Error("Equipped inventory changed its exact Sim, form, session or outfit before publication");
          apexCatalogItems=rows;apexCatalogPage=0;apexCatalogError="";
          apexCatalogSlot={category:int(slot.outfit_type),index:int(slot.outfit_index)};apexCatalogDirty=false;
-         apexCatalogContext=String(mCurrSimInfo.simId)+"|"+apexFormsSelectedId;
+         apexCatalogContext=readSim+"|"+readOwner;
+         apexCatalogObservedOwner=apexCatalogContext+"|"+readChannel+"|"+readSession;
       }
 
       private function ApexCatalogMenu(body:int) : int

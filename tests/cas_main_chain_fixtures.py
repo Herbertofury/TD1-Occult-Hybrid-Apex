@@ -17,6 +17,9 @@ import cas_grid_scroll as scroll
 import cas_grid_slice as grid_slice
 import cas_grid_budget as budget
 import cas_grid_featured as featured
+import cas_swatch_columns as skin
+import cas_grid_staging_attach as staging_attach
+import cas_grid_publication as publication
 import dbpf_build
 import maru_companion
 
@@ -28,6 +31,8 @@ READY = PACKAGE.is_file() and Path(str(PACKAGE) + '.manifest.json').is_file()
 # Only markers unique to the removed terminal passes are stripped. Shared
 # binding/attach/communication sources remain authoritative for earlier passes.
 TERMINAL_MAIN_MARKERS={
+    'swatch_columns_main_native_bytecode_contract': skin.SOURCES,
+    'publication_trace_main_native_bytecode_contract': publication.SOURCES,
     'featured_main_native_bytecode_contract': featured.SOURCES,
     'budget_main_native_bytecode_contract': budget.SOURCES,
     'scroll_main_native_bytecode_contract': scroll.SOURCES,
@@ -40,19 +45,26 @@ TERMINAL_MAIN_MARKERS={
 }
 
 
-def unwrap_catalog_heads(info,resources):
+def unwrap_catalog_heads(info,resources,stop_before=None):
     """Authenticate and raw-roll back the complete latest provider/Main heads.
 
     Return new dictionaries on a real rollback, without changing the caller if
     any later proof fails. Only a successful full raw rollback can remove that
     stage's exact unique sources and envelope.
     """
-    for module,unique,envelopes in (
+    stages=(
+            (skin,skin.SOURCES,('swatch_columns_main_native_bytecode_contract',)),
+            (staging_attach,staging_attach.SOURCES,()),
+            (publication,publication.SOURCES,('publication_trace_main_native_bytecode_contract',)),
             (featured,featured.SOURCES,('featured_main_native_bytecode_contract',)),
             (budget,budget.SOURCES,('budget_main_native_bytecode_contract',)),
             (grid_slice,grid_slice.SOURCES,()),
             (scroll,scroll.SOURCES,('scroll_main_native_bytecode_contract',)),
-            (swatch_provider,swatch_provider.SOURCES[:2],())):
+            (swatch_provider,swatch_provider.SOURCES[:2],()))
+    if stop_before is not None and stop_before not in {module.__name__ for module,_,_ in stages}:
+        raise ValueError('Unknown exact historical terminal boundary')
+    for module,unique,envelopes in stages:
+        if module.__name__==stop_before:break
         previous,rolled=module.unwrap_manifest(info,resources)
         if previous is info and rolled is resources:continue
         for marker in unique:previous['source_pins'].pop(marker,None)
@@ -112,6 +124,10 @@ def current_main(stage):
     info=json.loads(Path(str(PACKAGE)+'.manifest.json').read_text(encoding='utf-8'))
     final=dbpf_build.read(PACKAGE.read_bytes())[maru_companion.CUSTOMIZER]
     for wanted,name,module,proof_name,prior_name in (
+        ('skin','swatch_columns_main_native_bytecode_contract',skin,'swatch_columns_main_contract',
+         'publication_trace_main_native_bytecode_contract'),
+        ('publication','publication_trace_main_native_bytecode_contract',publication,'publication_trace_contract',
+         'featured_main_native_bytecode_contract'),
         ('featured','featured_main_native_bytecode_contract',featured,'featured_main_contract',
          'budget_main_native_bytecode_contract'),
         ('budget','budget_main_native_bytecode_contract',budget,'budget_main_contract',
@@ -130,10 +146,12 @@ def current_main(stage):
         if outer is None:
             if stage==wanted:raise ValueError('Current package has no requested Main stage: '+wanted)
             continue
-        verify=module.verify_main if wanted=='featured' else module.verify_contract
+        verify=module.verify_main if wanted in ('skin','publication','featured') else module.verify_contract
         if verify(outer,final) is not True:
             raise AssertionError('Current Main '+wanted+' chain did not verify')
-        if wanted=='featured':prior=featured.reconstruct(final,outer[proof_name]['rollback'],featured.MAIN)
+        if wanted=='skin':prior=skin.reconstruct(final,outer[proof_name])
+        elif wanted=='publication':prior=publication.reconstruct(final,outer[proof_name]['rollback'],publication.MAIN)
+        elif wanted=='featured':prior=featured.reconstruct(final,outer[proof_name]['rollback'],featured.MAIN)
         elif wanted=='budget':prior=budget.reconstruct(final,outer[proof_name]['rollback'],budget.MAIN,budget.MAIN_REPLACED,())
         elif wanted=='scroll':prior=scroll.reconstruct(final,outer[proof_name]['rollback'],scroll.MAIN,('ApexCatalogGridRequest',),())
         else:prior=module.reconstruct_previous(final,outer[proof_name])

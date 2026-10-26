@@ -64,7 +64,7 @@ nativeShell=2;nativeBusy=true;
 onCleanup=()=>{assert.equal(fresh.occultType,4);assert.equal(rendered,2);};
 invoke();assert.equal(saveCalls,0);assert.equal(prepareCalls,1);
 assert(preparedRequest.includes('|7|0|2|2|127|alien/first|91'));
-assert.equal(apexAcceptWait.shell,2); // Existing R2 post-harvest native attestation.
+assert.equal(apexAcceptWait.shell,4);assert.equal(apexAcceptWait.nativeViewKind,2); // Existing R2 post-harvest native attestation.
 const original=preparedRequest;frame();assert.equal(prepareCalls,1);
 assert.equal(apexAcceptWait.request,original);nativeBusy=false;frame();
 assert.equal(saveCalls,1);frame();invoke();assert.equal(saveCalls,1);

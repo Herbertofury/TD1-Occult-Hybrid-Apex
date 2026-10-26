@@ -53,6 +53,11 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'Source/CASUi/catalog_grid_scroll_methods.as','Source/CASUi/catalog_grid_scroll_main_methods.as',
                   'tools/cas_grid_slice.py','tools/CasGridSlicePatch.java','Source/CASUi/catalog_grid_slice_methods.as',
                   'tools/cas_grid_row_delta.py','tools/cas_row_delta_stage.py','tools/CasGridRowDeltaPatch.java',
+                  'tools/cas_grid_physical.py','tools/cas_grid_physical_stage.py','tools/CasGridPhysicalPatch.java',
+                  'tools/cas_grid_intrinsic.py','tools/cas_grid_intrinsic_stage.py','tools/CasGridIntrinsicPatch.java',
+                  'Source/CASUi/catalog_grid_intrinsic_methods.as',
+                  'tools/cas_catalog_schedule.py','tools/cas_catalog_schedule_stage.py','tools/CasCatalogSchedulePatch.java',
+                  'Source/CASUi/catalog_scheduling_methods.as',
                   'Source/CASUi/catalog_row_delta_methods.as',
                   'tools/cas_swatch_columns.py','tools/CasSwatchColumnsPatch.java','Source/CASUi/swatch_columns_methods.as',
                   'tools/cas_grid_staging_attach.py','tools/CasGridStagingAttachPatch.java','Source/CASUi/catalog_grid_staging_attach_methods.as',
@@ -155,6 +160,12 @@ def verified_library_cache(output, originals):
             # bypass newly required builder stages through this early return.
             # Admit an exact current final OR the authenticated immediately
             # preceding V345 prefix; adapt_grid_provider must continue it.
+            if isinstance(adapter,dict) and isinstance(adapter.get('intrinsic_geometry_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('physical_position_contract'),dict):return False
+            if isinstance(adapter,dict) and isinstance(adapter.get('physical_position_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('row_delta_contract'),dict):return False
             if isinstance(adapter,dict) and isinstance(adapter.get('row_delta_contract'),dict):
                 adapter=adapter.get('previous_stage_adapter')
                 if not isinstance(adapter,dict) or not isinstance(adapter.get('swatch_columns_contract'),dict):return False
@@ -221,7 +232,18 @@ def verified_library_cache(output, originals):
 
 
 def finish_grid_provider(prior, retained, original, ffdec, work):
+    """Continue only authenticated prefixes through the complete intrinsic terminal."""
+    import cas_grid_intrinsic
+    if isinstance(prior,dict) and 'intrinsic_geometry_contract' in prior:
+        cas_grid_intrinsic.verify_adapter(prior,retained)
+        return retained,prior
+    retained,prior=_finish_grid_provider_physical(prior,retained,original,ffdec,work)
+    return cas_grid_intrinsic.adapt(prior,retained,original,ffdec,Path(work)/'intrinsic-geometry')
+
+
+def _finish_grid_provider_physical(prior, retained, original, ffdec, work):
     """Continue every missing authenticated terminal stage; no prefix early return."""
+    import cas_grid_physical
     import cas_grid_row_delta
     import cas_swatch_columns
     import cas_grid_staging_attach
@@ -230,14 +252,18 @@ def finish_grid_provider(prior, retained, original, ffdec, work):
     import cas_grid_budget
     import cas_grid_slice
     work=Path(work)
+    if isinstance(prior,dict) and 'physical_position_contract' in prior:
+        cas_grid_physical.verify_adapter(prior,retained)
+        return retained,prior
     if isinstance(prior,dict) and 'row_delta_contract' in prior:
         cas_grid_row_delta.verify_adapter(prior,retained)
-        return retained,prior
+        return cas_grid_physical.adapt(prior,retained,original,ffdec,work/'physical-position')
     if isinstance(prior,dict) and 'swatch_columns_contract' in prior:
         cas_swatch_columns.verify_adapter(prior,retained)
         if prior['swatch_columns_contract'].get('previous_stage_kind')!='staging-attach':
             raise ValueError('Historical Skin fixture is not a current build capability.')
-        return cas_grid_row_delta.adapt(prior,retained,original,ffdec,work/'row-delta')
+        retained,prior=cas_grid_row_delta.adapt(prior,retained,original,ffdec,work/'row-delta')
+        return cas_grid_physical.adapt(prior,retained,original,ffdec,work/'physical-position')
     if isinstance(prior,dict) and 'staging_attach_contract' in prior:
         if prior.get('previous_stage_kind')!='publication':raise ValueError('Production Attach requires Publication predecessor')
         cas_grid_staging_attach.verify_adapter(prior,retained)
@@ -257,7 +283,8 @@ def finish_grid_provider(prior, retained, original, ffdec, work):
             retained,prior=cas_grid_publication.adapt(prior,retained,original,ffdec,work/'publication')
         retained,prior=cas_grid_staging_attach.adapt(prior,retained,original,ffdec,work/'staging-attach')
     retained,prior=cas_swatch_columns.adapt(prior,retained,original,ffdec,work/'swatch-columns')
-    return cas_grid_row_delta.adapt(prior,retained,original,ffdec,work/'row-delta')
+    retained,prior=cas_grid_row_delta.adapt(prior,retained,original,ffdec,work/'row-delta')
+    return cas_grid_physical.adapt(prior,retained,original,ffdec,work/'physical-position')
 
 
 def adapt_dependency_provider(cleanup_library, ffdec, work, cache=None):
@@ -360,7 +387,7 @@ def verify_household_acceptance(methods):
        'CASStateData.TattooMode!==false','currentOwner!==expectedOwner','ApexAcceptNative(held,"READY")'):
         if required not in ready:raise ValueError('Acceptance ready fence missing: '+required)
     for required in ('fields.length!=18','fields[2]!==held.simId','fields[3]!==held.household','fields[17]!=="1"',
-       'stamp!==held.stamp','fields[15]===é‰€"0"'.replace('é‰€',''),'fields[16]===é‰€"0"'.replace('é‰€','')):
+       'stamp!==held.stamp','fields[15]===ÃƒÂ©Ã¢â‚¬Â°Ã¢â€šÂ¬"0"'.replace('ÃƒÂ©Ã¢â‚¬Â°Ã¢â€šÂ¬',''),'fields[16]===ÃƒÂ©Ã¢â‚¬Â°Ã¢â€šÂ¬"0"'.replace('ÃƒÂ©Ã¢â‚¬Â°Ã¢â€šÂ¬','')):
         if required not in native:raise ValueError('Acceptance native receipt guard missing: '+required)
     if re.search(r'CASStateData\.TattooMode\s*=(?!=)',body):raise ValueError('Acceptance cannot force a preview flag.')
     if 'if(apexPendingPhase==9) { ApexAccept();return; }' not in methods:
@@ -587,6 +614,8 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     publication_main_contract = None
     swatch_columns_main_contract = None
     row_delta_main_contract = None
+    intrinsic_geometry_main_contract = None
+    catalog_schedule_main_contract = None
     if companion is not None:
         import cas_structural_roles
         role_abc, role_proof = cas_structural_roles.adapt(input_swf, payload,
@@ -642,6 +671,12 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         import cas_grid_row_delta
         payload, row_delta_main_contract = cas_grid_row_delta.adapt_main(swatch_columns_main_contract, payload,
             patched, ffdec, work / 'grid-row-delta-main')
+        import cas_grid_intrinsic
+        payload, intrinsic_geometry_main_contract = cas_grid_intrinsic.adapt_main(row_delta_main_contract, payload,
+            patched, ffdec, work / 'grid-intrinsic-main')
+        import cas_catalog_schedule
+        payload, catalog_schedule_main_contract = cas_catalog_schedule.adapt_main(intrinsic_geometry_main_contract, payload,
+            patched, ffdec, work / 'catalog-schedule-main')
     selector_source = work / 'ApexCASSelectorMain.as'
     selector_source.write_text(inject_selector(selector_decompiled.read_text(encoding='utf-8'),
         (ROOT / 'Source/CASUi/selector_methods.as').read_text(encoding='utf-8')), encoding='utf-8')
@@ -768,7 +803,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
                 if cache['original_sha256'][key] == base_digest:
                     cache['used'].add(dbpf_build.tgi(key))
                     prior=cache['providers'][dbpf_build.tgi(key)];retained=cache['resources'][key]
-                    if 'row_delta_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
+                    if 'intrinsic_geometry_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
                     return finish_grid_provider(prior,retained,grid_swf,
                         ffdec,work/(Path(output_name).stem+'-from-prefix'))
             raise ValueError('Cached native library has no matching original provider identity.')
@@ -899,6 +934,8 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'publication_trace_main_native_bytecode_contract': publication_main_contract,
         'swatch_columns_main_native_bytecode_contract': swatch_columns_main_contract,
         'row_delta_main_native_bytecode_contract': row_delta_main_contract,
+        'intrinsic_geometry_main_native_bytecode_contract': intrinsic_geometry_main_contract,
+        'catalog_schedule_main_native_bytecode_contract': catalog_schedule_main_contract,
         'selector_native_bytecode_contract': selector_contract,
         'voice_native_bytecode_contract': voice_contract,
         'molecule_native_bytecode_contract': molecule_contract,

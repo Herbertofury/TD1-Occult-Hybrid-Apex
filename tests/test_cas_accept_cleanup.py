@@ -216,7 +216,7 @@ assert.equal(events.length,before);assert.equal(apexAcceptInput,true);frame();as
     def test_attested_mixed_shell_prepare_keeps_original_tuple_and_saves_once_after_ready(self):
         self.run_as("""
 nativeShell=2;nativeBusy=true;invoke();assert.equal(saveCalls,0);assert.equal(prepareCalls,1);
-assert.equal(apexAcceptWait.shell,2);assert.equal(apexAcceptWait.mask,127);
+assert.equal(apexAcceptWait.shell,4);assert.equal(apexAcceptWait.nativeViewKind,2);assert.equal(apexAcceptWait.mask,127);
 assert(preparedRequest.includes('|7|0|2|2|127|alien/first|91'));
 const original=preparedRequest;frame();frame();assert.equal(prepareCalls,1);assert.equal(saveCalls,0);
 assert.equal(apexAcceptWait.request,original);nativeBusy=false;frame();assert.equal(saveCalls,1);

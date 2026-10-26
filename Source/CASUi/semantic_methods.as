@@ -2726,8 +2726,9 @@
          var fields:Array=String(raw).split("|");
          if(fields.length!=18 || fields[0]!="ACCEPTSTATE" || (fields[1]!="READY" && fields[1]!="WAIT") ||
             fields[2]!==held.simId || fields[3]!==held.household || fields[4]!=="0" ||
-            held.mode===0 && ((fields[5]!==String(held.shell) &&
-               !(operation==="PREPARE" && held.channel!="" && fields[5]===String(held.rendered))) ||
+            held.mode===0 && ((operation==="PREPARE" ?
+               fields[5]!==String(held.shell) && !(held.channel!="" && fields[5]===String(held.rendered)) :
+               fields[5]!==String(held.nativeViewKind)) ||
                fields[6]!==String(held.rendered) || fields[7]!==String(held.mask)) ||
             !/^(1|2|4|8|16|32|64)$/.test(fields[5]) || !/^(1|2|4|8|16|32|64)$/.test(fields[6]) ||
             !/^[0-9]{1,3}$/.test(fields[7]) || !/^[0-9]{1,3}$/.test(fields[8]) ||
@@ -2743,10 +2744,10 @@
          if((fields[1]==="READY")!==ready) throw new Error("Native acceptance ready flag differs from its genuine phase/model predicates");
          var stamp:String=fields.slice(2,15).join("|");
          if(operation==="PREPARE") {
-            // The native once-only harvest can replace EA's layout shell with
-            // this exact selected owner's rendered kind. The original request
-            // stays immutable; all subsequent probes use the attested shell.
-            if(held.mode===0) {held.shell=int(fields[5]);held.mask=int(fields[7]);}
+            // Native fields5/6 attest physical view/model kinds, not the
+            // CASGetSimInfo packet shell. Keep the original packet separately;
+            // its first post-harvest read binds only after all owner/READY fences.
+            held.nativeViewKind=int(fields[5]);held.preparedPacketShell=null;
             held.stamp=stamp;held.preparedGeneration=String(fields[11]);
          } else if(stamp!==held.stamp) throw new Error("Prepared native editor/household changed during readiness wait");
          return fields;
@@ -2762,9 +2763,13 @@
             apexFormsNativeIntent!=null || apexMoleculeIntent!=null || apexPairIntent!=null || apexFormsApplying)
             throw new Error("Acceptance readiness lost its original room/nonce or has a pending edit");
          var fresh:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
+         var packetKind:* = fresh==null ? null : fresh.occultType;
+         var packetMatches:Boolean=held.preparedPacketShell===null ?
+            packetKind===held.shell || held.channel!="" && packetKind===held.nativeViewKind :
+            packetKind===held.preparedPacketShell;
          var freshMatches:Boolean=fresh!=null && String(fresh.simId)===held.simId && String(fresh.householdId)===held.household &&
             fresh.occultLayer is int && fresh.occultLayer===0 &&
-            (held.mode===7 || fresh.occultType===held.shell && fresh.allOccultTypes===held.mask);
+            (held.mode===7 || packetMatches && fresh.allOccultTypes===held.mask);
          fresh=null;
          var currentMode:* = CommunicationManager.CallGameService("CasGetCASEditMode");
          var currentNewFamily:* = CommunicationManager.CallGameService("CasIsNewFamily");
@@ -2783,6 +2788,7 @@
                throw new Error("Acceptance readiness changed its original bound owner/generation");
          }
          var nativeReady:Array=ApexAcceptNative(held,"READY");
+         if(held.mode===0 && held.preparedPacketShell===null)held.preparedPacketShell=packetKind;
          held.reply.readiness_observations=int(held.reply.readiness_observations)+1;
          return nativeReady[1]==="READY";
       }

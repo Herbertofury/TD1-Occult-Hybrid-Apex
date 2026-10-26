@@ -1,0 +1,208 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-26-ready-row-delta-lifetime-v348",
+  "source_commit": "02ecee85ef41e0904da088981233bcdebb7e8742",
+  "candidate_sha256": "2dfdf6f154433dbaceb26a887d647d9bf33b3d2ca2daa4338c775235934b39c7",
+  "cas_package_sha256": "67545792fd78a5bb0015146ab4a8ec2aad423f967b201cd60795d0a94e2813ab",
+  "actual_save_ready": false,
+  "zero_hitch_claimed": false,
+  "actual_fps_qualified": false,
+  "source_regression": {
+    "complete": true,
+    "tests_run": 3742,
+    "successful_test_methods": 3447,
+    "failures": 0,
+    "errors": 0,
+    "skip_entries": 304,
+    "skip_accounting": "295 individual method skips and 9 setUpClass entries; entries are not all tests_run.",
+    "canonical_source_files": 1065,
+    "proof": {
+      "private_receipt": "v348-clean-source-control/run-02ecee85ef41/proof.json",
+      "sha256": "7579c1268c9ab80c3899a294fc03b2f58c482f6223f939dabcc4dbf7734e87df"
+    },
+    "scope": "Exact committed V348 sources; does not qualify later V349 changes. Earlier incomplete and failed runs are retained."
+  },
+  "package_validation": {
+    "resources": 73,
+    "ui_source_pins": 116,
+    "rust_independent_resources": 277,
+    "rust_packages": 7,
+    "rust_qualification": "Independent verification required during the sealed --foundry candidate build."
+  },
+  "runtime_passes": {
+    "cold_saved_household": {
+      "native_appearances": 40,
+      "named_appearances": 155,
+      "proof": {
+        "private_receipt": "v348-edited-saved-cold-load.json",
+        "sha256": "b68aff38e62b884f4c420e63c070b577d8e3701583e585535f89a620722cb560"
+      }
+    },
+    "full_cas_entry": {
+      "raw_owners_exact": 195,
+      "household_members": 5,
+      "automatic_entry_once": true,
+      "proof": {
+        "private_receipt": "v348-normal-automatic-entry.json",
+        "sha256": "e6a854532481d2bb9d9105f8af5a839dde6bb580dd00e4d8738c5264e72fc396"
+      }
+    },
+    "body_and_width": {
+      "requested_columns": 12,
+      "requested_scale": 0.35,
+      "right_edge_grow_shrink_pixels": 200,
+      "native_left_retained": true,
+      "native_navigation_rectangles_checked": 9,
+      "keys": [
+        "PageDown",
+        "End",
+        "PageUp",
+        "Home"
+      ],
+      "proof": {
+        "private_receipt": "v348-catalog-runtime.json",
+        "sha256": "8cd4288c7b5e11563c046070bf573d38c2977e50a63e0f55dc62d99bdd0debf9"
+      }
+    },
+    "pre_paint_unchanged": {
+      "raw_owners_exact": 195,
+      "proof": {
+        "private_receipt": "v348-pre-paint-all195-qualified.json",
+        "sha256": "1de39796b92016c1e0c9aa3b40baba17624ae526debd2e36b61c0d0ff610c441"
+      }
+    },
+    "after_paint_committed_graph": {
+      "other_owners_exact": 194,
+      "human_changed_fields": [
+        "__outfits__"
+      ],
+      "strict_single_row_edit_qualified": false,
+      "live_return_proven": false,
+      "proof": {
+        "private_receipt": "v348-paint2-committed-graph-after-edit-full.json",
+        "sha256": "63a1f5ef098d202a36e176706e2189185d869b16d1f57a9d0d38ea3b6982fcf2"
+      }
+    },
+    "native_cancel": {
+      "actual_live_return": true,
+      "simulation_paused": true,
+      "all_save_files_unchanged": true,
+      "proof": {
+        "private_receipt": "v348-paint2-native-cancel-live-observation.json",
+        "sha256": "fe871741d12bbddd3d41190fb170a79c25fbbcf60d69da8d6c5c92eafd7fe803"
+      }
+    },
+    "raw_cancel_return": {
+      "raw_owners_exact_to_edited_pre_cancel_graph": 195,
+      "before_original_restoration": true,
+      "proof": {
+        "private_receipt": "v348-paint2-cancel-raw-return-all195.json",
+        "sha256": "2cb1dfc26b30afd914d5ac9f1460600c0b19b6d2ca4523ebb337d2a0259c0494"
+      }
+    },
+    "original_only_household_restoration": {
+      "members": 5,
+      "accepted_edits": [],
+      "accepted_named_edits": [],
+      "proof": {
+        "private_receipt": "v348-paint2-cancel-originals-household-commit.json",
+        "sha256": "383fdb8c102faa4db8eb2392ce0780e02bd6c37c21a7828438b70e449976f7ff"
+      }
+    },
+    "normal_unsaved_exit": {
+      "game_exit_verified": true,
+      "all_21_save_files_unchanged": true,
+      "proof": {
+        "private_receipt": "v349-final-normal-discard.json",
+        "sha256": "8ecd59d5263049efa829d2d3cf6db1389e79dbe981600a99573407d0e7aa575b"
+      }
+    }
+  },
+  "runtime_failures": {
+    "one_row_scroll": {
+      "expected_entering_bind_draw": 6,
+      "observed_entering_then_full_fallback_bind_draw": 72,
+      "full_grid_cards": 66,
+      "proof": {
+        "private_receipt": "v348-row-delta-runtime.json",
+        "sha256": "502e474a14a86e9e9abcd9f7ff2b99992161cec1815728f5171278a3f833b156"
+      },
+      "harness_note": "Original pitch-tolerance assertion also failed; logical keyboard first-row change and original receipts are retained. No assertion was relabeled as a pass.",
+      "cause": "Native physical y and ideal logical y differ because of native storage. Exact comparisons against the ideal refused valid retained rows."
+    },
+    "intrinsic_geometry": {
+      "requested_layout_unchanged": true,
+      "natural_width_before": 107.02109693394,
+      "natural_width_after": 106.9743639349732,
+      "cause": "Every constructor remeasured already-scaled native width and fed rounding into fitted geometry. First compatible native constructor geometry must be retained for its exact class/context lifetime."
+    },
+    "accessories_aggregate_never_published": {
+      "observation_seconds_at_least": 90,
+      "observations": 35,
+      "phase": "selection",
+      "generation": 2198,
+      "revision": 4387,
+      "physical_published_cells": 0,
+      "native_feed_rows": 81,
+      "target_cells": 84,
+      "publishes": 0,
+      "cause_attribution": "Unresolved until requested native route/lease/visibility/width diagnostics. SUBMENU is legitimate native clothing-panel navigation and must remain supported.",
+      "proof": {
+        "private_receipt": "v348-category-matrix-r2/036-clothing_accessories_body-observe35.json",
+        "sha256": "4fb5dcfbe89596e2633ed6313cc77e78bf4c6cf1ed15902deb9f95c859258fe0"
+      }
+    },
+    "human_paint_acceptance": {
+      "original_uuid": "48c89d6bb5654a3fab14bbee481a286d",
+      "commit_attempted": false,
+      "commit_submitted": false,
+      "save_submitted": false,
+      "cause": "After native PREPARE, ActionScript replaced the CAS packet shell kind with the independent physical native view kind, then rejected the unchanged packet shell.",
+      "proof": {
+        "private_receipt": "v348-human-paint-validation/09-medical-normal-return.json",
+        "sha256": "5297df5c5d380cbcd640d47a76e493057e205298b292a3d27be0db7307cdba40"
+      }
+    },
+    "human_outfit_extra_change": {
+      "field": 9,
+      "generated_schema_name": "match_hair_style",
+      "generated_schema_type": "optional bool",
+      "native_before": false,
+      "native_after": true,
+      "strict_one_paint_audit_passed": false,
+      "scope": "Observed while normal native panel selection/synchronization ran. Origin is not yet attributed. Never silently waive or overwrite this field.",
+      "proof": {
+        "private_receipt": "v348-paint2-selected-outfit-protobuf-delta.json",
+        "sha256": "66dcb589430d1e0178a803213907bc08fcc6d1b16fe124ef11fa81f907fb2df2"
+      }
+    }
+  },
+  "next_build_work": {
+    "runtime_qualified": false,
+    "changes": [
+      "Physical position readback ledger",
+      "Exact-context intrinsic constructor geometry",
+      "Main width feedback and hidden-work cleanup diagnostics",
+      "Separate CAS packet shell and native physical-view acceptance domains"
+    ],
+    "preserved_features": [
+      "favorites",
+      "hide",
+      "native right-click actions",
+      "2-32 columns",
+      "20-160% requested size",
+      "native right-edge width drag",
+      "separate appearance owners"
+    ],
+    "remaining_validation": [
+      "Real one-row reuse counters and settled geometry",
+      "Aggregate publish/idle with requested native diagnostics",
+      "All applicable categories and specialized panel routes",
+      "Continuous rendered card pixels and Present cadence",
+      "Human-paint actual Live return/raw before prepare",
+      "Household/save/Tray/Gallery round trips"
+    ]
+  },
+  "protected_original_written": false,
+  "save_files_written": false
+}

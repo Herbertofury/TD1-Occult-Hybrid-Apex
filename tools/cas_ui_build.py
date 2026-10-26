@@ -66,6 +66,20 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'Source/CASUi/catalog_workflow_methods.as',
                   'tools/cas_list_insets.py','tools/cas_list_insets_stage.py','tools/CasListInsetsPatch.java',
                   'Source/CASUi/catalog_list_inset_methods.as',
+                  'tools/cas_grid_logical_bank.py','tools/cas_grid_logical_bank_stage.py','tools/CasGridLogicalBankPatch.java',
+                  'Source/CASUi/catalog_logical_bank_methods.as',
+                  'tools/cas_grid_frame_status.py','tools/cas_frame_status_stage.py','tools/CasGridFrameStatusPatch.java',
+                  'Source/CASUi/catalog_frame_status_methods.as',
+                  'tools/cas_grid_eof.py',
+                  'tools/cas_grid_eof_stage.py',
+                  'tools/CasGridEofPatch.java',
+                  'Source/CASUi/catalog_grid_eof_methods.as',
+                  'Source/CASUi/catalog_grid_authority_methods.as',
+                  'tools/cas_catalog_authority.py',
+                  'tools/cas_catalog_authority_stage.py',
+                  'tools/CasCatalogAuthorityPatch.java',
+                  'Source/CASUi/catalog_authority_methods.as',
+                  'Source/CASUi/catalog_authority_consumer_methods.as',
                   'Source/CASUi/catalog_row_delta_methods.as',
                   'tools/cas_swatch_columns.py','tools/CasSwatchColumnsPatch.java','Source/CASUi/swatch_columns_methods.as',
                   'tools/cas_grid_staging_attach.py','tools/CasGridStagingAttachPatch.java','Source/CASUi/catalog_grid_staging_attach_methods.as',
@@ -168,6 +182,15 @@ def verified_library_cache(output, originals):
             # bypass newly required builder stages through this early return.
             # Admit an exact current final OR the authenticated immediately
             # preceding V345 prefix; adapt_grid_provider must continue it.
+            if isinstance(adapter,dict) and isinstance(adapter.get('eof_delta_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('frame_status_contract'),dict):return False
+            if isinstance(adapter,dict) and isinstance(adapter.get('frame_status_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('logical_bank_contract'),dict):return False
+            if isinstance(adapter,dict) and isinstance(adapter.get('logical_bank_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('native_position_contract'),dict):return False
             if isinstance(adapter,dict) and isinstance(adapter.get('native_position_contract'),dict):
                 adapter=adapter.get('previous_stage_adapter')
                 if not isinstance(adapter,dict) or not isinstance(adapter.get('spare_custody_contract'),dict):return False
@@ -246,6 +269,36 @@ def verified_library_cache(output, originals):
 
 
 def finish_grid_provider(prior, retained, original, ffdec, work):
+    """Keep native EOF slots and typed authority fences after complete frame APIs."""
+    import cas_grid_eof
+    if isinstance(prior,dict) and 'eof_delta_contract' in prior:
+        cas_grid_eof.verify_adapter(prior,retained)
+        return retained,prior
+    retained,prior=_finish_grid_provider_frame_status(prior,retained,original,ffdec,work)
+    return cas_grid_eof.adapt(prior,retained,original,ffdec,Path(work)/'eof-delta')
+
+
+def _finish_grid_provider_frame_status(prior, retained, original, ffdec, work):
+    """Continue exact authenticated providers through the complete frame API."""
+    import cas_grid_frame_status
+    if isinstance(prior,dict) and 'frame_status_contract' in prior:
+        cas_grid_frame_status.verify_adapter(prior,retained)
+        return retained,prior
+    retained,prior=_finish_grid_provider_logical_bank(prior,retained,original,ffdec,work)
+    return cas_grid_frame_status.adapt(prior,retained,original,ffdec,Path(work)/'frame-status')
+
+
+def _finish_grid_provider_logical_bank(prior, retained, original, ffdec, work):
+    """Keep the complete ready logical window before adding frame APIs."""
+    import cas_grid_logical_bank
+    if isinstance(prior,dict) and 'logical_bank_contract' in prior:
+        cas_grid_logical_bank.verify_adapter(prior,retained)
+        return retained,prior
+    retained,prior=_finish_grid_provider_position(prior,retained,original,ffdec,work)
+    return cas_grid_logical_bank.adapt(prior,retained,original,ffdec,Path(work)/'logical-bank')
+
+
+def _finish_grid_provider_position(prior, retained, original, ffdec, work):
     """Continue through the native subclass position-tail repair."""
     import cas_grid_position
     if isinstance(prior,dict) and 'native_position_contract' in prior:
@@ -652,6 +705,8 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     catalog_schedule_main_contract = None
     catalog_workflow_main_contract = None
     catalog_list_insets_main_contract = None
+    frame_status_main_contract = None
+    catalog_authority_main_contract = None
     if companion is not None:
         import cas_structural_roles
         role_abc, role_proof = cas_structural_roles.adapt(input_swf, payload,
@@ -719,6 +774,12 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         import cas_list_insets
         payload, catalog_list_insets_main_contract = cas_list_insets.adapt_main(catalog_workflow_main_contract, payload,
             patched, ffdec, work / 'catalog-list-insets-main')
+        import cas_grid_frame_status
+        payload, frame_status_main_contract = cas_grid_frame_status.adapt_main(catalog_list_insets_main_contract, payload,
+            patched, ffdec, work / 'grid-frame-status-main')
+        import cas_catalog_authority
+        payload, catalog_authority_main_contract = cas_catalog_authority.adapt_main(frame_status_main_contract, payload,
+            patched, ffdec, work / 'catalog-authority-main')
     selector_source = work / 'ApexCASSelectorMain.as'
     selector_source.write_text(inject_selector(selector_decompiled.read_text(encoding='utf-8'),
         (ROOT / 'Source/CASUi/selector_methods.as').read_text(encoding='utf-8')), encoding='utf-8')
@@ -845,7 +906,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
                 if cache['original_sha256'][key] == base_digest:
                     cache['used'].add(dbpf_build.tgi(key))
                     prior=cache['providers'][dbpf_build.tgi(key)];retained=cache['resources'][key]
-                    if 'native_position_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
+                    if 'eof_delta_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
                     return finish_grid_provider(prior,retained,grid_swf,
                         ffdec,work/(Path(output_name).stem+'-from-prefix'))
             raise ValueError('Cached native library has no matching original provider identity.')
@@ -980,6 +1041,8 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'catalog_schedule_main_native_bytecode_contract': catalog_schedule_main_contract,
         'catalog_workflow_main_native_bytecode_contract': catalog_workflow_main_contract,
         'catalog_list_insets_main_native_bytecode_contract': catalog_list_insets_main_contract,
+        'frame_status_main_native_bytecode_contract': frame_status_main_contract,
+        'catalog_authority_main_native_bytecode_contract': catalog_authority_main_contract,
         'selector_native_bytecode_contract': selector_contract,
         'voice_native_bytecode_contract': voice_contract,
         'molecule_native_bytecode_contract': molecule_contract,

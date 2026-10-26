@@ -34,9 +34,9 @@ _LOADED = {}
 # Source provenance remains retained. This grants metadata admission only;
 # native recovery keeps its separate exact-source/A0 upgrade requirements.
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-26-shared-catalog-layout-v353'
+UPGRADE_EPOCH = '2026-10-26-catalog-scroll-throughput-v354'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = 'c640a7d090ab727207ccd1fdf214f4165c0205a468b3e07880f8a1f8a14b9d3a'
+UPGRADE_SELF_BODY_SHA = '7b9207e3358575d44ca6ee7df2413c92b5f4294678349247f7517c15cd645007'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',

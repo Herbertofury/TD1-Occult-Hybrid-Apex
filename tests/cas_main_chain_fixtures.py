@@ -21,6 +21,17 @@ import cas_swatch_columns as skin
 import cas_grid_row_delta as row_delta
 import cas_grid_staging_attach as staging_attach
 import cas_grid_publication as publication
+import cas_catalog_authority as authority
+import cas_grid_eof as eof
+import cas_grid_frame_status as frame_status
+import cas_grid_logical_bank as logical_bank
+import cas_grid_position as position
+import cas_grid_spares as spares
+import cas_list_insets as list_insets
+import cas_catalog_workflow as workflow
+import cas_catalog_schedule as schedule
+import cas_grid_intrinsic as intrinsic
+import cas_grid_physical as physical
 import dbpf_build
 import maru_companion
 
@@ -32,6 +43,12 @@ READY = PACKAGE.is_file() and Path(str(PACKAGE) + '.manifest.json').is_file()
 # Only markers unique to the removed terminal passes are stripped. Shared
 # binding/attach/communication sources remain authoritative for earlier passes.
 TERMINAL_MAIN_MARKERS={
+    authority.MANIFEST: authority.SOURCES,
+    frame_status.MANIFEST: frame_status.SOURCES,
+    list_insets.MANIFEST: list_insets.SOURCES,
+    workflow.MANIFEST: workflow.SOURCES,
+    schedule.MANIFEST: schedule.SOURCES,
+    'intrinsic_geometry_main_native_bytecode_contract': intrinsic.SOURCES,
     'row_delta_main_native_bytecode_contract': row_delta.SOURCES,
     'swatch_columns_main_native_bytecode_contract': skin.SOURCES,
     'publication_trace_main_native_bytecode_contract': publication.SOURCES,
@@ -55,6 +72,17 @@ def unwrap_catalog_heads(info,resources,stop_before=None):
     stage's exact unique sources and envelope.
     """
     stages=(
+            (authority,authority.SOURCES,(authority.MANIFEST,)),
+            (eof,eof.SOURCES,()),
+            (frame_status,frame_status.SOURCES,(frame_status.MANIFEST,)),
+            (logical_bank,logical_bank.SOURCES,()),
+            (position,position.SOURCES,()),
+            (spares,spares.SOURCES,()),
+            (list_insets,list_insets.SOURCES,(list_insets.MANIFEST,)),
+            (workflow,workflow.SOURCES,(workflow.MANIFEST,)),
+            (schedule,schedule.SOURCES,(schedule.MANIFEST,)),
+            (intrinsic,intrinsic.SOURCES,('intrinsic_geometry_main_native_bytecode_contract',)),
+            (physical,physical.SOURCES,()),
             (row_delta,row_delta.SOURCES,('row_delta_main_native_bytecode_contract',)),
             (skin,skin.SOURCES,('swatch_columns_main_native_bytecode_contract',)),
             (staging_attach,staging_attach.SOURCES,()),
@@ -126,6 +154,29 @@ def rollback_terminal_main(info,resources):
 def current_main(stage):
     info=json.loads(Path(str(PACKAGE)+'.manifest.json').read_text(encoding='utf-8'))
     final=dbpf_build.read(PACKAGE.read_bytes())[maru_companion.CUSTOMIZER]
+    # Authenticate the complete actual new Main before exposing a historical
+    # test stage. Providers are irrelevant to this per-resource read, but their
+    # complete heads are still rolled together by unwrap_catalog_heads above.
+    for wanted,name,module,prior_name in (
+        ('authority',authority.MANIFEST,authority,frame_status.MANIFEST),
+        ('frame',frame_status.MANIFEST,frame_status,list_insets.MANIFEST),
+        ('list-insets',list_insets.MANIFEST,list_insets,workflow.MANIFEST),
+        ('workflow',workflow.MANIFEST,workflow,schedule.MANIFEST),
+        ('schedule',schedule.MANIFEST,schedule,'intrinsic_geometry_main_native_bytecode_contract'),
+        ('intrinsic','intrinsic_geometry_main_native_bytecode_contract',intrinsic,'row_delta_main_native_bytecode_contract')):
+        outer=info.get(name)
+        if outer is None:
+            if any(marker in info.get('source_pins',{})for marker in module.SOURCES):
+                raise ValueError('Current Main terminal source has no exact envelope: '+name)
+            if stage==wanted:raise ValueError('Current package has no requested Main stage: '+wanted)
+            continue
+        if module.verify_main(outer,final)is not True:raise AssertionError('Current Main '+wanted+' chain did not verify')
+        if module in(frame_status,intrinsic):previous,prior=module.historical(outer,final,module.MAIN)
+        else:previous,prior=module.historical(outer,final)
+        if previous!=info.get(prior_name)or previous!=outer.get('previous_stage_contract'):
+            raise AssertionError('Current Main '+wanted+' preceding complete history differs')
+        if stage==wanted:return copy.deepcopy(outer),final,prior
+        final=prior
     for wanted,name,module,proof_name,prior_name in (
         ('row-delta','row_delta_main_native_bytecode_contract',row_delta,'row_delta_contract',
          'swatch_columns_main_native_bytecode_contract'),

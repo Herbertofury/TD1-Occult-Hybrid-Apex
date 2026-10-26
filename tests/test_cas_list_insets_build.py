@@ -8,6 +8,8 @@ from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
+import cas_grid_frame_status  # Load current dependency definitions before scoped legacy gate doubles.
+import cas_grid_eof,cas_catalog_authority
 import cas_list_insets as insets
 
 

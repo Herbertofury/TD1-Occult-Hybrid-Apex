@@ -101,6 +101,18 @@ def _verify_grid_adapter(evidence, data, expected, final_digest, body_count):
     """Authenticate history and final bytes without relabeling native counts."""
     def same(left, right):
         return json.dumps(left, sort_keys=True, separators=(',', ':')) == json.dumps(right, sort_keys=True, separators=(',', ':'))
+    if isinstance(evidence, dict) and 'eof_delta_contract' in evidence:
+        import cas_grid_eof
+        previous, original = cas_grid_eof.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'frame_status_contract' in evidence:
+        import cas_grid_frame_status
+        previous, original = cas_grid_frame_status.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'logical_bank_contract' in evidence:
+        import cas_grid_logical_bank
+        previous, original = cas_grid_logical_bank.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
     if isinstance(evidence, dict) and 'native_position_contract' in evidence:
         import cas_grid_position
         previous, original = cas_grid_position.historical(evidence, data)
@@ -235,6 +247,18 @@ def verify_grid_adapter(evidence, data):
 def verify_grid_providers(evidence, resources, dependencies=None):
     """Require both exact class providers; duplicate native classes can bind first."""
     donor_key, canonical_key = dbpf_build.tgi(GRID_LIBRARY), dbpf_build.tgi(CANONICAL_GRID_LIBRARY)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'eof_delta_contract' in value for value in evidence.values()):
+        import cas_grid_eof
+        previous, original, prior_dependencies = cas_grid_eof.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'frame_status_contract' in value for value in evidence.values()):
+        import cas_grid_frame_status
+        previous, original, prior_dependencies = cas_grid_frame_status.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'logical_bank_contract' in value for value in evidence.values()):
+        import cas_grid_logical_bank
+        previous, original, prior_dependencies = cas_grid_logical_bank.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
     if isinstance(evidence, dict) and any(isinstance(value, dict) and 'native_position_contract' in value for value in evidence.values()):
         import cas_grid_position
         previous, original, prior_dependencies = cas_grid_position.unwrap_providers(evidence, resources, dependencies)
@@ -405,6 +429,14 @@ def combine(path, apex, evidence, grid_providers=None, dependencies=None):
 
 def verify_merged(info, resources):
     """Bundle gate independent of the owner's donor path and compiler scratch."""
+    import cas_catalog_authority
+    info, resources = cas_catalog_authority.unwrap_manifest(info, resources)
+    import cas_grid_eof
+    info, resources = cas_grid_eof.unwrap_manifest(info, resources)
+    import cas_grid_frame_status
+    info, resources = cas_grid_frame_status.unwrap_manifest(info, resources)
+    import cas_grid_logical_bank
+    info, resources = cas_grid_logical_bank.unwrap_manifest(info, resources)
     import cas_grid_position
     info, resources = cas_grid_position.unwrap_manifest(info, resources)
     import cas_grid_spares

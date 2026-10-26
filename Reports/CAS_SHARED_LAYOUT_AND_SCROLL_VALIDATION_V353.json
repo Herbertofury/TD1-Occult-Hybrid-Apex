@@ -90,6 +90,17 @@
         "path": ".work/v353-mouth-current-state.json",
         "sha256": "df48917787d45a6c9a75bc7e2bb44abfc31dc2e02f497a3b0c0956bf81021707"
       }
+    },
+    "final_planned_geometry": {
+      "result": "PASS all 59 planned geometry cases; 56 nonempty and 3 genuine empty states; native four-family Skin structure retained",
+      "proof": {
+        "path": ".work/v353-category-tail9-summary.json",
+        "sha256": "d0bed2252ce36594277fdd4c61c96ec2be27023bbc6bf066de5002805bdaad82"
+      },
+      "qualified_categories": 59,
+      "nonempty": 56,
+      "empty": 3,
+      "conditional_forms_species_and_featured_styled_looks_qualified": false
     }
   },
   "retained_failures": {
@@ -141,10 +152,14 @@
       "path": ".work/v349-visual-recording/v353-headdeco-direct1/invalid.json",
       "sha256": "f43dc9930ca2bce9d7b19ab98f3f956f9d4f98762b95dd019abcd1c38efca848"
     },
-    "pixel_only_note": "Separate timing-invalid every-frame pixel analysis is retained privately; no timing repair or dropped frames."
+    "pixel_only_note": "Separate timing-invalid audit verified every one of 3,893 decoded frame hashes; no whole-field low-detail candidate was found. No dropped/retimed frame, valid timing, current-page, blank-free or FPS claim.",
+    "pixel_only_proof": {
+      "path": ".work/v353-timing-invalid-pixels/verified-pixels1/summary.json",
+      "sha256": "3740ed73ed6b19697ee050154bf9c2e61111c6deef0d67b27f2f1411e5c2ac23"
+    }
   },
   "appearance": {
-    "result": "cold40native+155named retained; fullCAS entry195 exact; after43category entries and warm trace195 exact",
+    "result": "All 195 records remain exact through the final native Cancel, before original-only restoration preparation; five original-only commits complete.",
     "cold": {
       "path": ".work/v353-edited-saved-cold-load.json",
       "sha256": "00d19a8282b7a8e719365749a37428d6965c4abf888eb90545c8302f440fa9fb"
@@ -157,16 +172,27 @@
       "path": ".work/v353-after-category-all195.json",
       "sha256": "1732509cac93ee02f7faecf55e89e79decc20567d246a04563683676a9dbe3a8"
     },
-    "native_cancel_and_raw_return": "pending for this process",
-    "original_profile_written": false
+    "native_cancel_and_raw_return": {
+      "path": ".work/v353-scroll-cancel-raw-return-all195.json",
+      "sha256": "c809aa6f4afe01a8564882ea2ef9afe69d22e72a83d561b745238b3a8945d93d"
+    },
+    "original_profile_written": false,
+    "five_original_only_commits": {
+      "path": ".work/v353-scroll-cancel-originals-household-commit.json",
+      "sha256": "4dad5ae8620f8beb48a6174e482e0f735e39c4ad1b1dce2540830544e2bfd5ca"
+    },
+    "normal_unsaved_exit": {
+      "path": ".work/v353-actual-final-normal-discard.json",
+      "sha256": "ac00ded660de4ee5efab0b6eaf1409df87ef4de8778d85066fc8641ab40dd087"
+    },
+    "all_21_save_and_backup_files_unchanged": true
   },
   "pending": [
-    "Remaining native categories and nested Skin swatches",
+    "Conditional form/species categories, Featured and the separate native Styled Looks widget remain unqualified.",
     "Actual runtime verification of strict hidden-surplus normalization",
     "EOF padding row-reuse proof and runtime test",
     "Frame-only status allocation reduction runtime test",
     "Separate native CLI radial route fix and ordinary-input timings",
-    "Native Cancel raw195 readback, original-only household commits and unchanged save hashes",
     "Independent edited-category, multi-Sim, phone/MCCC/F11, save/cold-load and Tray/Gallery release gates remain open"
   ]
 }

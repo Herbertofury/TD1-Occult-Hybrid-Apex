@@ -46,18 +46,22 @@ and named implementation records as separate form choices.
 ## Latest catalog evidence: 2026-10-26
 
 V353 composes Search and category tabs from one authoritative native list
-baseline. Head Decorations now publishes 240 cards, with zero native work-counter
-deltas over 105 observed idle UI frames. Body sizing at 12 columns and 35%, edge
-growth and shrinkage of 200px, nine actual native button exclusions and overflow navigation
-pass. This does not close performance gates: a one-row return still rebinds48
-cards rather than 6 after a large-to-small category change, and a small-card
-PageDown exceeds its deadline before eventually publishing. Strict rail/mask
-bounds overlap 4px and remain unqualified. The broad sweep clears 43 cases;
-seven more pass with the corrected native routing schema before a Mouth ACK
-requires original-ID recovery. Remaining cases are pending. All 195 records
-remain exact after the first partial sweep; this process has not yet completed
-native Cancel/return. The clean exact Source passes 3,991 cases, with 367 explicit
-skip entries and no failures/errors. See the
+baseline. Head Decorations publishes 240 cards; idle samples show zero native
+work-counter changes over 105 observed UI callback frames. All 59 planned
+geometry cases now pass: 56 nonempty and three genuine empty states, including
+the four separate Skin families. Body sizing at 12 columns and 35%, edge growth
+and shrinkage of 200px, nine native button exclusions and overflow navigation
+also pass. Conditional categories and Styled Looks remain separate open gates.
+
+Scrolling is still too slow: the large-to-small one-row test binds 48 cards
+instead of six, and the padded final-page test exceeds its deadline. Separate
+surplus, EOF and frame-status fixes are being verified. Strict rail/mask bounds
+overlap 4px and remain unqualified. The video retains invalid duplicate timing;
+a separate exhaustive pixel audit makes no instant/current-page/FPS claim.
+All 195 records remain exact on raw native Cancel before preparation. Five
+original-only commits and normal unsaved exit complete, with all 21 save and
+backup files unchanged. The clean exact Source passes 3,991 cases with no
+failures/errors and 367 explicit skip entries. See the
 [V353 shared-layout and retained-failure report](../Reports/CAS_SHARED_LAYOUT_AND_SCROLL_VALIDATION_V353.json).
 
 V352 gates the complete native selectable PositionCells override, preserving

@@ -43,7 +43,28 @@ checklist, not a claim that the current candidate meets these requirements.
 It supersedes the earlier user-facing layout that exposed canonical, active
 and named implementation records as separate form choices.
 
-## Current evidence: 2026-10-20
+## Latest catalog evidence: 2026-10-26
+
+V351 fixes the original six-column Hair PageDown failure: one-row return binds,
+draws and selects only six entering cards, reuses the other 42, and constructs
+none. Actual Body 12-column/35% sizing, right-edge grow/shrink 200px, nine native
+button exclusions and overflow navigation pass. The broader sweep still fails:
+Bracelets repeatedly replans without publishing its current category, leaving
+stale previous artwork. Hair 12-column/35% scrolling also exceeds the ten-second
+deadline; sampled video retains old cards until a late publication. This is
+not instant or a blank-free/FPS release pass. All 195 records remain exact after
+the failures and raw native Cancel, all five original-only commits complete,
+normal unsaved exit succeeds, and all 21 save/backup files stay unchanged.
+
+The exact clean Source successor `371982bf` passes 3,927 cases, with zero failures
+or errors and 335 explicit skip entries. That does not close runtime gates.
+The next candidate gates the native selectable PositionCells override before
+its unconditional selection tail, preserves direct feed/selection routes, and
+records bounded native event kinds. This fixes a proven callback defect; its
+being the sole Bracelets cause remains unproved. See the
+[actual V351 report](../Reports/CAS_CARD_SCROLL_AND_CATEGORY_VALIDATION_V351.json).
+
+## Earlier evidence: 2026-10-20
 
 V215's full regression passes 2,695 tests. Its cold Live pass retains all forty
 native appearances, but actual CAS acceptance is rejected by the new complete

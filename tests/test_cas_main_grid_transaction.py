@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import unittest
 from pathlib import Path
+from test_cas_panel_geometry import js as panel_javascript
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'Source/CASUi/catalog_grid_transaction_methods.as'
@@ -24,6 +25,9 @@ def translated():
         body = re.sub(r'\b(var\s+\w+)\s*:\s*[\w.]+', r'\1', body)
         body = re.sub(r'\b([\w.]+) is Function\b', r'(typeof \1==="function")', body)
         body = re.sub(r'\b([\w.]+) is int\b', r'Number.isInteger(\1)', body)
+        body = body.replace('grid is SelectableRecyclingGridLayout', 'grid instanceof NativeGrid')
+        body = body.replace('item is CASCatalogProduct', 'item instanceof CASCatalogProduct')
+        body = re.sub(r'\s+as\s+Class\b', '', body)
         body = re.sub(r'catch\((\w+):Error\)', r'catch(\1)', body)
         methods.append('function '+name+'('+parameters+'){'+body+'}\n')
     return '\n'.join(methods)
@@ -115,7 +119,7 @@ function ApexNativeExchange(command){nativeExchanges.push(command);if(command===
 function addEventListener(...args){added.push(args);}function removeEventListener(...args){removed.push(args);}
 function AddMessageListener(name,fn){messages[name]=fn;}function RemoveMessageListener(name,fn){if(messages[name]===fn)delete messages[name];}
 var apexCatalogSignature='fit-1';
-var stage={},apexCatalogGrid=null,apexOwnerSession=3,apexDisconnected=false,apexBoundSim='101';
+var stage={},apexCatalogGrid=null,apexCatalogDisplayFaults=null,apexOwnerSession=3,apexDisconnected=false,apexBoundSim='101';
 var mCurrState=40,mCurrSimInfo={simId:'101',householdId:'909',occultLayer:1,occultType:2,allOccultTypes:127};
 var nativeSim={...mCurrSimInfo},nativeSlot={outfit_type:0,outfit_index:0};
 var nativeRendererKind=2,nativeViewMask=127,nativeModelMask=127,nativeModelContext={id:'bound-model'},expectedModelContext=nativeModelContext;
@@ -151,9 +155,11 @@ class NativeGrid{
 }
 var grid=new NativeGrid(),mcClothingPanel={stage,visible:true,mcTileList:{mGridLayout:grid,mScrollerView:{width:670,height:950},mSlider:{Value:23}}};
 var mCurrentPanel=mcClothingPanel;
-var apexCardGeometry={grid},apexCardLayout={columns:12,scale:.46,card_width:51.06,card_height:68.08,gap_x:4,gap_y:4};
+var apexCardGeometry={grid,panel:mcClothingPanel},apexCardLayout={columns:12,scale:.46,card_width:51.06,card_height:68.08,gap_x:4,gap_y:4};
+var apexPanelGeometry=null,apexCardReflowAttempts=0,mcBodyModPanel=null,mcFaceModPanel=null,
+    mcGenericCatalogPanel=null,mcFeaturedFaceLookPanel=null,mcSkinColorPanel=null;
 function pump(){for(let i=0;i<8&&grid.phase!=='done';i++)ApexCatalogGridFrame();assert.equal(grid.phase,'done');}
-'''+translated()
+'''+panel_javascript('ApexCatalogPanelKey','panel')+panel_javascript('ApexCardStateFor','grid')+translated()
 
     def test_default_off_is_inert_and_early_bootstrap_never_draws_or_queries(self):
         self.run_js(r'''
@@ -187,7 +193,7 @@ for(let i=0;i<4;i++)ApexCatalogGridFrame();
 assert.equal(grid.phase,'measured');assert.equal(grid.measurements,1);assert.equal(grid.click(),false);
 assert.equal(grid.request.owner.phase,'bound');assert.equal(grid.request.bootstrap,true);
 const retained=grid.measuredCell;
-apexCardGeometry={grid};apexCardLayout={columns:12,scale:.46,card_width:51.06,card_height:68.08,gap_x:4,gap_y:4};
+apexCardGeometry={grid,panel:mcClothingPanel};apexCardLayout={columns:12,scale:.46,card_width:51.06,card_height:68.08,gap_x:4,gap_y:4};
 apexCatalogSignature='measured-fit';pump();
 assert.equal(grid.request.bootstrap,false);assert.equal(grid.measurements,1);assert.equal(grid.measuredCell,retained);
 assert.equal(grid.click(),true);assert.equal(writes,1);
@@ -305,7 +311,9 @@ ApexCatalogGridInitialize(true);pump();const old=apexCatalogGrid.lease;
 stage={};mcClothingPanel.stage=stage;ApexCatalogGridFrame();pump();
 assert.equal(old.active,false);assert.equal(apexCatalogGrid.lease.stage,stage);
 const second=apexCatalogGrid.lease;mcClothingPanel={...mcClothingPanel};
-assert.equal(grid.click(),false);mCurrentPanel=mcClothingPanel;ApexCatalogGridFrame();pump();
+assert.equal(grid.click(),false);mCurrentPanel=mcClothingPanel;ApexCatalogGridFrame();
+assert.equal(grid.click(),false); // The replaced widget requires its own fitted geometry.
+apexCardGeometry={grid,panel:mcClothingPanel};pump();
 assert.equal(second.active,false);assert.equal(apexCatalogGrid.lease.panel,mcClothingPanel);
 assert.equal(grid.click(),true);assert.equal(writes,1);assert.equal(ApexCatalogGridOwns(grid),true);
 ''')

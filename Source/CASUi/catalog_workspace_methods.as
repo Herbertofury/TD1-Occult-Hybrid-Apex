@@ -1,4 +1,5 @@
       private var apexCatalogPrefs:Object;
+      private var apexCatalogDisplayFaults:Object;
       private var apexCatalogStore:Object;
       private var apexCatalogUi:flash.display.Sprite;
       private var apexCatalogRows:flash.display.Sprite;
@@ -30,8 +31,8 @@
       private function ApexCatalogInitialize() : void
       {
          apexCatalogPrefs={columns:6,color:0x00c9eb,glow:0,animation:"none",strength:1,period:1.4,border:3};
-         apexCatalogEffects=[];apexCatalogItems=[];
-         apexCardPrefs={scale:1,gap_x:4,gap_y:4};apexCardGeometry=null;apexCardLayout=null;
+         apexCatalogEffects=[];apexCatalogItems=[];apexCatalogDisplayFaults=null;
+         apexCardPrefs={scale:1,gap_x:4,gap_y:4};apexCardGeometry=null;apexCardLayout=null;apexPanelGeometry=null;
          apexCatalogSaved=false;apexCatalogLayoutChanges=0;apexCatalogStyleSignature="";
          apexCatalogDirty=false;apexCatalogSlot=null;
          apexCatalogBinding=null;apexCatalogBindingDirty=false;apexCatalogBoundWidth=-1;apexCatalogHeaderSignature="";
@@ -47,7 +48,10 @@
             apexCatalogStore=flash.net.SharedObject.getLocal("TD1ApexCASCatalog");
             if(apexCatalogStore!=null && (apexCatalogStore.data.version===1 || apexCatalogStore.data.version===2))
                { ApexCatalogValidate(apexCatalogStore.data.preferences);
-                 if(apexCatalogStore.data.version===2) ApexCardValidate(apexCatalogStore.data.cards);apexCatalogSaved=true; }
+                 if(apexCatalogStore.data.version===2) ApexCardValidate(apexCatalogStore.data.cards);
+                 var rightWidth:Object=apexCatalogStore.data.right_width;
+                 if(typeof rightWidth=="number" && isFinite(rightWidth) && rightWidth>=80 && rightWidth<=16384)apexColumns.preferred_width=Number(rightWidth);
+                 apexCatalogSaved=true; }
          } catch(storageError:Error) { apexCatalogStore=null; }
          if(!apexCatalogRegistered)
             apexCatalogRegistered=RegisterServiceHandler("ApexOpenEquippedCatalog",ApexCatalogOpen);
@@ -81,6 +85,7 @@
          try {
             apexCatalogStore.data.version=2;apexCatalogStore.data.preferences=apexCatalogPrefs;
             apexCatalogStore.data.cards=apexCardPrefs;
+            apexCatalogStore.data.right_width=apexColumns!=null && isFinite(Number(apexColumns.preferred_width)) ? Number(apexColumns.preferred_width) : 0;
             apexCatalogSaved=String(apexCatalogStore.flush())=="flushed";
          } catch(storageError:Error) { apexCatalogSaved=false; }
       }
@@ -114,10 +119,22 @@
          ApexCatalogView(["card_scale","gap_x","gap_y"].indexOf(parts[0])>=0 ? "layout" : "style");apexCatalogDrag=String(parts[0]);
          try {ApexCatalogSlide(null,Number(parts[1]));} finally {apexCatalogDrag="";}
          ApexCatalogPersist();ApexCatalogDraw();
+         // Set the released thumb only after the replacement display tree is
+         // attached. Its actual x remains the acknowledgement authority.
+         var releasedTrack:flash.display.DisplayObjectContainer=apexCatalogUi.getChildByName("slider_"+String(parts[0])) as flash.display.DisplayObjectContainer;
+         var releasedThumb:flash.display.DisplayObject=releasedTrack==null ? null : releasedTrack.getChildByName("thumb");
+         if(releasedThumb==null)throw new Error("Actual released catalog slider is unavailable");
+         var released:Number=Number(parts[1]);
+         if(parts[0]=="columns")released=(Number(apexCatalogPrefs.columns)-2)/30;
+         else if(parts[0]=="red")released=((uint(apexCatalogPrefs.color)>>16)&255)/255;
+         else if(parts[0]=="green")released=((uint(apexCatalogPrefs.color)>>8)&255)/255;
+         else if(parts[0]=="blue")released=(uint(apexCatalogPrefs.color)&255)/255;
+         releasedThumb.x=300*released;
       }
 
       private function ApexCatalogDispose(preserveGridBootstrap:Boolean=false) : void
       {
+         apexCatalogDisplayFaults=null;
          ApexCatalogTraceDispose();ApexLayoutTraceDispose();
          if(!preserveGridBootstrap)ApexCatalogGridDispose();
          ApexPanelsDispose();
@@ -137,7 +154,7 @@
          apexCatalogRegistered=false;
          apexCatalogBindingRegistered=false;apexCatalogBinding=null;apexCatalogBoundWidth=-1;apexCatalogHeaderSignature="";
          apexCatalogRefreshRegistered=false;apexCatalogDirty=false;apexCatalogSlot=null;
-         ApexCatalogClearEffects();ApexCardForget();
+         ApexCatalogClearEffects();ApexCardForget();apexPanelGeometry=null;
          if(apexCatalogUi!=null && apexCatalogUi.parent!=null) apexCatalogUi.parent.removeChild(apexCatalogUi);
          apexCatalogUi=null;apexCatalogRows=null;apexCatalogItems=[];apexCatalogIntent=null;apexCatalogStore=null;
          apexCatalogContext="";apexCatalogSignature="";apexCatalogStyleSignature="";apexCatalogDrag="";apexCatalogTab="items";
@@ -175,7 +192,7 @@
             // x coordinate. EA's view/screen attachment and min clamp survive.
             BindDisplayObjectToSim(this.mLayerPanels,apexCatalogBinding.view,
                apexCatalogBinding.screen+CASCustomizerTunables.PANEL_SCREEN_OFFSET_X,
-               Math.max(apexCatalogBinding.maximum,width+12));
+               ApexCatalogWidthMode() && isFinite(Number(apexColumns.width_anchor)) ? Math.max(apexCatalogBinding.maximum,Number(apexColumns.width_anchor)) : Math.max(apexCatalogBinding.maximum,width+12));
             apexCatalogBoundWidth=width;apexCatalogBindingDirty=false;
          }
          var header:String=String(mCurrState)+":"+width;
@@ -196,10 +213,12 @@
          try {
          ApexPanelsFrame();
          var panel:Object=this.mCurrentPanel;
-         if(panel!=null && panel.visible && panel.mcTileList!=null && panel.mcTileList.mGridLayout!=null && panel is ClothingPanel) {
+         if(ApexCatalogPanelKind(panel)!="") {
             var grid:Object=panel.mcTileList.mGridLayout;
+            if(apexCatalogDisplayFaults==null || !ApexCatalogDisplayFaulted(panel,grid)) {
+            try {
             var layoutStarted:int=flash.utils.getTimer();
-            var width:Number=ApexCardApply(panel,grid);
+            var width:Number=ApexCatalogPanelKind(panel)=="swatches" ? ApexSkinToneApply(panel,grid) : ApexCardApply(panel,grid);
             apexCatalogFrameTiming.layout_max_ms=Math.max(apexCatalogFrameTiming.layout_max_ms,flash.utils.getTimer()-layoutStarted);
             var bindingStarted:int=flash.utils.getTimer();
             ApexCatalogApplyBinding(width);
@@ -208,7 +227,16 @@
             if(styleSignature!=apexCatalogStyleSignature) {
                ApexCatalogClearEffects();apexCatalogStyleSignature=styleSignature;
             }
-            if(!ApexCatalogGridPending(grid))ApexCatalogSelection(grid);
+            if(panel===mcClothingPanel && !ApexCatalogGridPending(grid))ApexCatalogSelection(grid);
+            // Clear only this feature's displayed fault summary after another
+            // healthy panel actually completes its apply. Private evidence stays.
+            if(apexCatalogDisplayFaults!=null && apexCatalogError!="") {
+               for each(var precedingFault:Object in apexCatalogDisplayFaults) {
+                  if(apexCatalogError===precedingFault.display_message) {apexCatalogError="";break;}
+               }
+            }
+            } catch(displayError:Error) {ApexCatalogDisplayFault(panel,grid,displayError);}
+            }
          } else {
             if(apexCatalogEffects!=null && apexCatalogEffects.length>0) ApexCatalogClearEffects();
             // The hidden clothing panel retains its fitted recycled pool.
@@ -388,9 +416,10 @@
          var caption:flash.text.TextField=ApexFormsText(parent,label,15,y,300,11,0x275273);caption.name="label_"+name;
          var track:flash.display.Sprite=new flash.display.Sprite();track.name="slider_"+name;track.y=y+20;track.x=15;
          track.graphics.beginFill(0xb8d7e8);track.graphics.drawRoundRect(0,-3,300,12,8,8);track.graphics.endFill();
-         var thumb:flash.display.Sprite=new flash.display.Sprite();thumb.name="thumb";thumb.x=300*(value-low)/(high-low);thumb.y=3;
+         var thumb:flash.display.Sprite=new flash.display.Sprite();thumb.name="thumb";thumb.y=3;
          thumb.mouseEnabled=false;thumb.graphics.beginFill(uint(apexCatalogPrefs.color));thumb.graphics.drawCircle(0,0,7);thumb.graphics.endFill();track.addChild(thumb);
          track.buttonMode=true;parent.addChild(track);
+         thumb.x=300*(value-low)/(high-low);
       }
 
       private function ApexCatalogDraw() : void
@@ -551,25 +580,39 @@
             }
          } catch(unavailableButtonIndex:Error) { }
          var layout:Object=null;
-         var thumbs:Object={};
+         var thumbs:Object={};var thumbGeometry:Object={};
          if(apexCatalogUi!=null && (apexCatalogTab=="style" || apexCatalogTab=="layout"))
             for each(var control:String in ["columns","red","green","blue","glow","border","period","strength","card_scale","gap_x","gap_y"]) {
                var track:flash.display.DisplayObjectContainer=apexCatalogUi.getChildByName("slider_"+control) as flash.display.DisplayObjectContainer;
-               if(track!=null && track.getChildByName("thumb")!=null) thumbs[control]=track.getChildByName("thumb").x/300;
+               if(track!=null && track.getChildByName("thumb")!=null) {
+                  var actualThumb:flash.display.DisplayObject=track.getChildByName("thumb");
+                  thumbs[control]=actualThumb.x/300;
+                  thumbGeometry[control]={x:actualThumb.x,track_pixels:300,track_scale_x:track.scaleX,
+                     attached:track.parent===apexCatalogUi && actualThumb.parent===track};
+               }
             }
          if(stage!=null && mCurrentPanel!=null && mCurrentPanel.visible) {
             var bounds:flash.geom.Rectangle=mCurrentPanel.mcPanelBackground.getBounds(stage);
             layout={x:bounds.x,y:bounds.y,width:bounds.width,height:bounds.height,
                local_x:mCurrentPanel.x,stage_width:stage.stageWidth,stage_height:stage.stageHeight};
          }
+         // Explicit diagnostic/width readback only. No idle, player hover,
+         // slider frame or unrelated F11 status performs this extra bounds work.
+         var widthProbe:Object=null;
+         if(apexPendingFields!=null && (apexPendingFields[2]=="catalog-state" || apexPendingFields[2]=="catalog-width-drag")) {
+            widthProbe={protocol:1,scope:"native-catalog-width-bounds",ok:false,reason:"not-attempted",appearance_written:false};
+            try {ApexCatalogWidthEnvelope(mCurrentPanel,widthProbe);}
+            catch(widthReadError:Error) {widthProbe.ok=false;widthProbe.reason="native-bounds-error";widthProbe.error=String(widthReadError.message).substr(0,256);}
+         }
          return {preferences:apexCatalogPrefs,card_preferences:apexCardPrefs,card_layout:apexCardLayout,card_cells:ApexCardReadback(),grid_metrics:ApexCardGridReadback(),visible:apexCatalogUi!=null && apexCatalogUi.visible,view:apexCatalogTab,items:apexCatalogItems,
             catalog_bounds:layout,binding_observation:apexCatalogBinding,outfit:apexCatalogSlot,inventory_dirty:apexCatalogDirty,
             actual_columns:apexCatalogSignature=="" ? 0 : int(apexCatalogSignature.split(":")[1]),
             layout_changes:apexCatalogLayoutChanges,
             slider_thumbs:thumbs,
+            slider_geometry:thumbGeometry,width_diagnostics:widthProbe,
             equipped_count:apexCatalogItems==null ? 0 : apexCatalogItems.length,context:apexCatalogContext,
             clothing_grid_item_count:apexCardGeometry==null ? 0 : apexCardGeometry.grid.GetDataFeed().length,
-            error:apexCatalogError,persisted:apexCatalogSaved,selection_effect_count:apexCatalogEffects==null ? 0 : apexCatalogEffects.length,
+            error:apexCatalogError,display_faults:ApexCatalogDisplayFaultStatus(),persisted:apexCatalogSaved,selection_effect_count:apexCatalogEffects==null ? 0 : apexCatalogEffects.length,
             selection_timing:{samples:apexCatalogSelectionFrames,max_ms:apexCatalogSelectionMaxMs,
                over_1ms:apexCatalogSelectionOverBudget,clock_resolution_ms:1},
             equipped_category:{active:apexEquippedActive,resolved:apexEquippedProducts==null ? 0 : apexEquippedProducts.length,
@@ -577,4 +620,50 @@
                pending:apexEquippedActive && apexEquippedRefreshPending,unresolved:apexEquippedUnresolved,timing:apexEquippedTiming},
             keyboard:{received:apexKeyReceived,last_code:apexKeyLastCode,rejected:apexKeyRejected,visibility:ApexCatalogKeyboardVisibility(),typing:ApexCatalogKeyboardTyping(),focused_name:stage==null || stage.focus==null ? "" : String(stage.focus.name),index:apexKeyIndex,context:apexKeyContext,pending:apexKeyIntent,queued:apexKeyQueue==null ? 0 : apexKeyQueue.length,receipt:ApexClone(apexKeyReceipt),message:apexKeyMessage},
             search:ApexSearchStatus(),companion:ApexCompanionStatus(),panels:ApexPanelsStatus(),native_catalog_timing:apexCatalogPerformance,owned_frame_timing:apexCatalogFrameTiming,draw_trace:ApexCatalogTraceStatus(),layout_trace:ApexLayoutTraceStatus(),incremental_grid:ApexCatalogGridStatus(),listener_membership:communicationIndex,button_listener_membership:buttonCommunicationIndex};
+      }
+
+
+      private function ApexCatalogDisplayFaulted(panel:Object,grid:Object) : Boolean
+      {
+         if(apexCatalogDisplayFaults==null || panel==null || grid==null)return false;
+         var key:String=ApexCatalogPanelKey(panel);
+         var row:Object=key=="" ? null : apexCatalogDisplayFaults[key];
+         return row!=null && row.panel===panel && row.grid===grid;
+      }
+
+      private function ApexCatalogDisplayFault(panel:Object,grid:Object,error:Error) : void
+      {
+         var key:String=ApexCatalogPanelKey(panel);if(key=="" || panel==null || grid==null)return;
+         if(apexCatalogDisplayFaults==null)apexCatalogDisplayFaults={};
+         if(ApexCatalogDisplayFaulted(panel,grid))return;
+         // Six native panel slots only. UI identities stay private; status
+         // explicitly copies the primitive evidence below, never these handles.
+         var row:Object={panel:panel,grid:grid,key:key,menu_state:int(mCurrState),
+            sim_id:mCurrSimInfo==null ? "" : String(mCurrSimInfo.simId),owner_id:apexFormsSelectedId,
+            session:apexOwnerSession,native_generation:apexFormsNativeGeneration,
+            message:error.message.substr(0,512),cleanup_error:"",incremental_retired:false};
+         apexCatalogDisplayFaults[key]=row;
+         row.display_message="Catalogue display unavailable for "+key+": "+row.message;
+         apexCatalogError=String(row.display_message);
+         try {
+            // A different retained provider belongs to a different panel.
+            // Never poison or retire it because this panel's adapter failed.
+            var state:Object=apexCatalogGrid;
+            if(state!=null && state.grid===grid && state.lease!=null && state.lease.panel===panel) {
+               ApexCatalogGridInvalidate("dispose");row.incremental_retired=true;
+            }
+            ApexCatalogClearEffects();
+            if(apexCardGeometry!=null && apexCardGeometry.grid===grid && apexCardGeometry.panel===panel)
+               ApexCardRestore();
+         } catch(cleanupError:*) {row.cleanup_error="Owned display cleanup refused";}
+      }
+
+      private function ApexCatalogDisplayFaultStatus() : Object
+      {
+         var result:Array=[];
+         if(apexCatalogDisplayFaults!=null)for each(var row:Object in apexCatalogDisplayFaults)
+            result.push({panel:String(row.key),menu_state:int(row.menu_state),sim_id:String(row.sim_id),
+               owner_id:String(row.owner_id),session:int(row.session),native_generation:String(row.native_generation),
+               message:String(row.message),cleanup_error:String(row.cleanup_error),incremental_retired:Boolean(row.incremental_retired)});
+         return {faults:result,limit:6,retry:"replacement-widget-or-new-room",appearance_written:false};
       }

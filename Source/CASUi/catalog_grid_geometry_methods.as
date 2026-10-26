@@ -23,7 +23,7 @@
             apexCardGeometry={grid:grid,panel:panel,incremental:true,
                bounds:new flash.geom.Rectangle(0,0,naturalWidth,naturalHeight),padding:grid.GetCellPadding(),
                width:panel.mcPanelBackground.width,columns:int(native.columns),cell_width:naturalWidth,
-               title_x:panel.txtTitle==null ? null : panel.txtTitle.x,random_x:panel.btnRandomize==null ? null : panel.btnRandomize.x,
+               title_x:panel.txtTitle==null ? null : panel.txtTitle.x,random_x:ApexCatalogOptional(panel,"btnRandomize")==null ? null : ApexCatalogOptional(panel,"btnRandomize").x,
                filter_width:panel.mcFilterPane==null ? null : panel.mcFilterPane.mcFilterBubble.mcBackground.width};
             apexCatalogSignature="";
          }
@@ -38,7 +38,7 @@
             if(!isFinite(unitWidth) || unitWidth<=0 || !isFinite(viewportWidth) || viewportWidth<=0)
                throw new Error("Native catalogue viewport unavailable");
             var fitted:Object=ApexCardFit(int(apexCatalogPrefs.columns),viewportWidth,Number(apexCardPrefs.scale),
-               Number(apexCardPrefs.gap_x),Number(apexCardPrefs.gap_y),naturalWidth,naturalHeight);
+               Number(apexCardPrefs.gap_x),Number(apexCardPrefs.gap_y),naturalWidth,naturalHeight,ApexCatalogWidthRequest(panel));
             var rowHeight:Number=naturalHeight*Number(fitted.scale)*aspect;
             if(isFinite(Number(native.measured_scale)) && Number(native.measured_scale)==Number(fitted.scale) &&
                isFinite(Number(native.measured_height)) && Number(native.measured_height)>0)
@@ -49,7 +49,7 @@
             // Requested readbacks inspect that mask on the real bound cells.
             fitted.hit_width=null;
             var signature:String="cards:"+fitted.columns+":"+viewportWidth+":"+fitted.scale+":"+
-               fitted.gap_x+":"+fitted.gap_y+":"+naturalWidth+":"+naturalHeight+":"+rowHeight;
+               fitted.gap_x+":"+fitted.gap_y+":"+naturalWidth+":"+naturalHeight+":"+rowHeight+":"+fitted.width;
             var changed:Boolean=signature!=apexCatalogSignature;
             if(changed)ApexCatalogClearEffects();
             apexCardLayout=fitted;geometry.cell_width=naturalWidth;geometry.row_height=rowHeight;

@@ -13,7 +13,8 @@ def sample(name,fraction):
     low,high=RANGES[name];discrete=name in ('columns','red','green','blue')
     expected=low+(math.floor(fraction*(high-low)+.5) if discrete else fraction*(high-low))
     workspace=dict(visible=True,view='layout' if name in ('card_scale','gap_x','gap_y') else 'style',
-        preferences={},card_preferences={},slider_thumbs={name:(expected-low)/(high-low)})
+        preferences={},card_preferences={},slider_thumbs={name:(expected-low)/(high-low)},
+        slider_geometry={name:dict(x=(expected-low)/(high-low)*300,track_pixels=300,track_scale_x=1,attached=True)})
     if name in ('red','green','blue'):
         shift={'red':16,'green':8,'blue':0}[name];workspace['preferences']['color']=(0xaabbcc&~(255<<shift))|(expected<<shift)
     elif name in ('card_scale','gap_x','gap_y'):workspace['card_preferences']['scale' if name=='card_scale' else name]=expected
@@ -23,9 +24,49 @@ def sample(name,fraction):
 
 
 class SliderAcknowledgmentTests(unittest.TestCase):
-    def test_retained_native_12_column_ack_accepts_one_measured_twip_without_replaying(self):
+    def native_fixture(self):
+        return json.loads((Path(__file__).parent/'fixtures/catalog-slider-v344-pixel-ack.json').read_text(encoding='utf-8'))
+
+    def test_actual_full_v344_ack_has_correct_pixels_and_inconsistent_fraction_without_replay(self):
+        fixture=self.native_fixture();ack=fixture['native_acknowledgement'];client=ack['client'];request=fixture['request']
+        self.assertEqual(cas_ui._baseline_hash(ack),fixture['native_acknowledgement_sha256'])
+        w=client['control']['workspace'];pixel=w['slider_geometry']['card_scale']['x'];fraction=w['slider_thumbs']['card_scale']
+        self.assertEqual(pixel,32.1);self.assertEqual(fraction,.1)
+        self.assertGreater(abs(pixel/300-fraction),TWIP)
+        expected=request['fraction']*300;self.assertLessEqual(abs(pixel-expected),.05)
+        cas_ui.validate_client(client,client['sim']['simId'],request)
+        self.assertEqual(fixture['original_terminal_outcome'],'native-postcondition-failed')
+
+    def test_actual_pixel_bound_is_one_twip_and_fraction_cannot_authorize_a_wrong_thumb(self):
+        fixture=self.native_fixture();request=fixture['request'];client=fixture['native_acknowledgement']['client']
+        w=client['control']['workspace'];expected=request['fraction']*300
+        for delta in(-.05,.05):
+            w['slider_geometry']['card_scale']['x']=expected+delta;cas_controls.validate(client,request)
+        w['slider_thumbs']['card_scale']=request['fraction']
+        for pixel in(expected-.050001,expected+.050001,30):
+            w['slider_geometry']['card_scale']['x']=pixel
+            with self.subTest(pixel=pixel),self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+
+    def test_missing_detached_scaled_or_forged_pixel_geometry_is_not_a_complete_ack(self):
+        fixture=self.native_fixture();request=fixture['request'];original=fixture['native_acknowledgement']['client']
+        changes=[lambda w:w.pop('slider_geometry'),lambda w:w['slider_geometry'].pop('card_scale'),
+            lambda w:w['slider_geometry']['card_scale'].update(attached=False),
+            lambda w:w['slider_geometry']['card_scale'].update(track_pixels=299),
+            lambda w:w['slider_geometry']['card_scale'].update(track_scale_x=.5),
+            lambda w:w['slider_geometry']['card_scale'].update(x=True),
+            lambda w:w['slider_geometry']['card_scale'].update(x=float('nan')),
+            lambda w:w['slider_geometry']['card_scale'].update(extra='foreign')]
+        for change in changes:
+            client=copy.deepcopy(original);change(client['control']['workspace'])
+            with self.subTest(client=client['control']['workspace']['slider_geometry']if 'slider_geometry'in client['control']['workspace']else None):
+                with self.assertRaises(ValueError)as raised:cas_controls.validate(client,request)
+                self.assertNotIsInstance(raised.exception,cas_controls.PostconditionMismatch)
+        client=copy.deepcopy(original);client['control']['workspace']['card_preferences']['scale']=.36
+        with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
+
+    def test_historical_fraction_only_packet_cannot_authorize_current_pixel_ack(self):
         fixture=json.loads((Path(__file__).parent/'fixtures/catalog-slider-native-twip.json').read_text(encoding='utf-8'))
-        cas_controls.validate(fixture['client'],fixture['request'])
+        with self.assertRaisesRegex(ValueError,'pixel geometry'):cas_controls.validate(fixture['client'],fixture['request'])
         workspace=fixture['client']['control']['workspace']
         self.assertEqual(workspace['preferences']['columns'],12)
         self.assertAlmostEqual((1/3-workspace['slider_thumbs']['columns'])*300,.05)
@@ -37,7 +78,7 @@ class SliderAcknowledgmentTests(unittest.TestCase):
                     request,client=sample(name,fraction);cas_controls.validate(client,request)
                     actual=client['control']['workspace']['slider_thumbs'][name]
                     if abs(actual-fraction)>TWIP+1e-9:
-                        client['control']['workspace']['slider_thumbs'][name]=fraction
+                        client['control']['workspace']['slider_geometry'][name]['x']=fraction*300
                         with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
 
     def test_continuous_values_remain_exact_independent_of_thumb_quantization(self):
@@ -47,8 +88,8 @@ class SliderAcknowledgmentTests(unittest.TestCase):
                     request,client=sample(name,fraction);workspace=client['control']['workspace']
                     expected=workspace['slider_thumbs'][name]
                     for offset in (-TWIP,TWIP):
-                        workspace['slider_thumbs'][name]=expected+offset;cas_controls.validate(client,request)
-                    workspace['slider_thumbs'][name]=expected+2*TWIP
+                        workspace['slider_geometry'][name]['x']=(expected+offset)*300;cas_controls.validate(client,request)
+                    workspace['slider_geometry'][name]['x']=(expected+2*TWIP)*300
                     with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
 
     def test_endpoints_are_in_range_and_true_wrong_thumb_or_untyped_coordinates_refuse(self):
@@ -57,8 +98,8 @@ class SliderAcknowledgmentTests(unittest.TestCase):
                 request,client=sample(name,fraction);cas_controls.validate(client,request)
                 for wrong in (-TWIP,1+TWIP,float('nan'),float('inf'),True,None):
                     with self.subTest(name=name,fraction=fraction,wrong=wrong):
-                        changed=copy.deepcopy(client);changed['control']['workspace']['slider_thumbs'][name]=wrong
-                        with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(changed,request)
+                        changed=copy.deepcopy(client);changed['control']['workspace']['slider_geometry'][name]['x']=wrong*300 if type(wrong)in(int,float)else wrong
+                        with self.assertRaises(ValueError):cas_controls.validate(changed,request)
 
     def test_correct_thumb_cannot_authorize_wrong_preference_or_rounding_bin(self):
         for name in RANGES:

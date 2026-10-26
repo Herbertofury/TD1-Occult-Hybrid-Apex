@@ -140,7 +140,10 @@ class SerializedBytecodeTests(unittest.TestCase):
         if not package.exists() or not manifest.exists():
             self.skipTest('Current private package proof required')
         info = json.loads(manifest.read_text())
-        baseline = dbpf_build.read(package.read_bytes())[maru_companion.CUSTOMIZER]
+        from cas_main_chain_fixtures import rollback_terminal_main
+        resources = dbpf_build.read(package.read_bytes())
+        rollback_terminal_main(info, resources)
+        baseline = resources[maru_companion.CUSTOMIZER]
         structural = info['structural_roles_native_bytecode_contract']
         if info.get('draw_phase_native_bytecode_contract') is not None:
             import cas_draw_phase as phase

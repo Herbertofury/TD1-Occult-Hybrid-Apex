@@ -12,9 +12,9 @@ public class CasCatalogBindingPatch {
  static final String ALIGN_PIN="f91d35898c71a91be92a16ff09f1b546555b06b7beba929c51f093b729d8da0e",BIND_PIN="86157039c4e2301508bb20948b7ce9322a1a949714060f41a9d3e15220792e38";
  static final List<String> ADDED=List.of(WIDTH,WRAPPER),OWNED=List.of(WIDTH,WRAPPER,OBSERVE);
  static final Map<String,String> SEMANTICS=Map.of(
-  WIDTH,"0965b86c3177f8dd81afa0cacaf8b382445f902d4ae1f47765fb7eb6ba6b311d",
-  WRAPPER,"a48fd5e6e7e8cf8a8b00fe77ac963f456f2cb6d7cc4a83b7b02f520e400c5554",
-  OBSERVE,"43b54c1a09147780d2d03ad17949f95bbdbb0cc4a80b9c21255ea0014b5355f4");
+  WIDTH,"c05c3790f06381df675159dab552019fc6674e7bdfbd169bd1809493ff137a3f",
+  WRAPPER,"e191121a298137862c676a2a424a423107f9bf528a993555de1e86cad62561d2",
+  OBSERVE,"d6603b4d21dd8fb6ee682fc55b82687108b9b21a01cc167a84787d431749f487");
  static final Map<String,String> PROVIDERS=Map.of("5f475a80a4f9c77f9a0439e133221a31f766cb929318f74191b4b9bad98e8cae","canonical","6ddb983fee2bd284a2b7efec155e1544bfe99d27f16d4d28097bada25e1864f0","donor");
  static void check(boolean b,String s){CasStructuralRolesPatch.check(b,s);}
  static String sha(byte[] b)throws Exception{return CasStructuralRolesPatch.sha(b);}

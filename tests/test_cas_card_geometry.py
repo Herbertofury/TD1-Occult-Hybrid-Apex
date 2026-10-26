@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'Source/CASUi/catalog_cards_methods.as'
 sys.path.insert(0, str(ROOT / 'tools'))
 from cas_catalog_workspace import card_layout
+from test_cas_panel_geometry import js as panel_javascript
 
 
 def javascript_function(name, parameters='', source=SOURCE):
@@ -73,10 +74,20 @@ var list={ScrollerViewMargin:new Margin(-4,12,0,18),mScrollerView:view,mSlider:s
         slider.Value=Math.min(slider.Value,slider.MaxValue);if(popupOpen){popupOpen=false;popupCloses++;}}};
 var panel={localToGlobal(p){return new Point(p.x*uiScale+400,p.y*uiScale+20);},mcTileList:list,mcPanelBackground:{width:262},mcFilterPane:{mcFilterBubble:{mcBackground:{width:232}}},txtTitle:{x:110},btnRandomize:{x:220},
     set width(value){this.mcPanelBackground.width=value;list.width=value;}};
+// Exercise the real shared six-panel ownership helpers. Width preferences
+// remain unset here; their measured-envelope behavior has its own fixtures.
+var apexPanelGeometry=null,apexColumns={preferred_width:0},mCurrentPanel=panel;
+var mcClothingPanel=panel,mcBodyModPanel=null,mcFaceModPanel=null,
+    mcGenericCatalogPanel=null,mcFeaturedFaceLookPanel=null,mcSkinColorPanel=null;
+panel.stage=stage;panel.visible=true;list.mGridLayout=grid;
 '''
+        for name, parameters in [('ApexCatalogPanelKey', 'panel'), ('ApexCatalogPanelKind', 'panel'),
+                                 ('ApexCatalogOptional', 'owner,name'), ('ApexCardStateFor', 'grid'),
+                                 ('ApexCardActivate', 'panel,grid'), ('ApexCatalogWidthRequest', 'panel')]:
+            code += panel_javascript(name, parameters)
         for name, parameters in [('ApexCatalogCells', 'grid'), ('ApexCardRowsAligned', 'grid,columns,pitch,pitchX=0'),
                                  ('ApexCardRestore', ''), ('ApexCardScaleCells', 'grid,scale,preserveAspect=true'),
-                                 ('ApexCardFit', 'columns,stageWidth,scale,gapX,gapY,naturalWidth,naturalHeight'),
+                                 ('ApexCardFit', 'columns,stageWidth,scale,gapX,gapY,naturalWidth,naturalHeight,availableOverride=-1'),
                                  ('ApexCardRepairControls', 'panel,width,reflow'), ('ApexCardApply', 'panel,grid')]:
             code += javascript_function(name, parameters)
         return code

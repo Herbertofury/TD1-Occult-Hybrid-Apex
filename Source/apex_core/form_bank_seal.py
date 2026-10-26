@@ -34,9 +34,9 @@ _LOADED = {}
 # Source provenance remains retained. This grants metadata admission only;
 # native recovery keeps its separate exact-source/A0 upgrade requirements.
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-25-cas-timer-navigation-cleanup-v342'
+UPGRADE_EPOCH = '2026-10-26-provider-budget-featured-width-v346'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '128d0147224f727d300ee95bab969f3caa3f6b3df65edd8aa96e7b7a02335009'
+UPGRADE_SELF_BODY_SHA = 'f4485263af16db7fde9e5e5407ef84e60e04600ca0bd8d7f76c02884ea918ec6'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',
@@ -48,7 +48,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_bank_transaction.py': '1f4cdc5215f2bee5b4f834f689dfbc54b2a603be0f83f11d5f5149c0bf9bbf15',
     'apex_core/cas_catalog.py': '72b6b949cbabdfc16d3f214b31edf2952e65edd2fe4c8b085a8c1bd0894c5e38',
     'apex_core/cas_commit_plan.py': '54dd6cf60a998048f9ce7571968c64205f9295bdf62c02f30b845c3f132b2933',
-    'apex_core/cas_controls.py': '2a34f4af3b10219bc7bf75a45a88a87e6ba03b17b272d78fb7f501c2e13e2ddc',
+    'apex_core/cas_controls.py': '2e0c35e715d7d8eae129651e5d1ce7a31970c70298a21d1ac36a07b471217fb1',
     'apex_core/cas_entry_context.py': '9474f7dbb6251318e908676ac7ba8b4479c99b9d2bead59ae706eb023726140b',
     'apex_core/cas_form_catalog.py': '902a4db445e0988ac44788968e9b9c5372ee22a6353a2ae7b74bb7065b7518f7',
     'apex_core/cas_frontdoor.py': '47a8a96f8d0ab1e99d591ebe8383143879633d18c586523e6e9c9c9e2b775598',
@@ -60,7 +60,7 @@ UPGRADE_MODULE_PINS = {
     'apex_core/cas_panels.py': '3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374',
     'apex_core/cas_room.py': '1d5ecb8c558f988674f4303ea7506e620a38d3d5b4392e6f7653aedd783d182f',
     'apex_core/cas_save_boundary.py': '9b6b0f17b9a1f8953457a93372ecd0dc8f54cad4ba32c74063984ce4516b99e1',
-    'apex_core/cas_ui.py': '011c900b20d335440224c8f9a6805f35d6a61ce35d9c282b8db76181a95f742a',
+    'apex_core/cas_ui.py': 'f222e2d86107b1932bb7f082e68840b4f7589d7b5b9f08bf31bd4f5c788ce50a',
     'apex_core/catalog_usage.py': '010877d055c90dad2696cc2af71608323188d1aa6f914554a41aea97433d624a',
     'apex_core/change_journal.py': '456c460c2154fdcd2dc40e8337debf10fcdb2a84e79253d31263933bdfba023e',
     'apex_core/foreign_current_trait.py': '69fe43862f36efd22dbf3adb992f520dc32c655de0383d94d985133a1a67003b',

@@ -15,7 +15,7 @@ import cas_image_boundary_profile as image
 import cas_ui_build as ui
 import dbpf_build
 import maru_companion
-from cas_provider_chain_fixtures import historical_image_fixture
+from cas_provider_chain_fixtures import historical_image_fixture, historical_library_terminals
 
 KINDS = {'canonical': maru_companion.CANONICAL_GRID_LIBRARY, 'donor': maru_companion.GRID_LIBRARY}
 DEPENDENCY = maru_companion.UNMODIFIED_OLYMPUS_LIBRARY
@@ -126,6 +126,7 @@ class PoolManifestTests(unittest.TestCase):
         package = ROOT / 'dist/candidate/ApexCASBridge.package'
         self.info = json.loads(Path(str(package) + '.manifest.json').read_text())
         self.resources = dbpf_build.read(package.read_bytes())
+        historical_library_terminals(self.info, self.resources)
         def source_pins(value):
             if isinstance(value, dict):
                 if isinstance(value.get('source_sha256'), dict):

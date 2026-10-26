@@ -17,6 +17,14 @@ import cas_communication_domain_probe
 import cas_communication_removal_miss
 import cas_image_boundary_profile
 import cas_grid_pool
+import cas_grid_presentation
+import cas_grid_product_rows
+import cas_grid_progress
+import cas_swatch_provider
+import cas_grid_scroll
+import cas_grid_slice
+import cas_grid_budget
+import cas_grid_featured
 import cas_ui_build
 import dbpf_build
 import maru_companion
@@ -105,6 +113,9 @@ class TransactionProviderChainTests(unittest.TestCase):
         tree = ast.parse(Path(cas_ui_build.__file__).read_text())
         method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
                       and node.name == 'adapt_grid_provider')
+        package=ROOT/'dist/candidate/ApexCASBridge.package'
+        current=json.loads(Path(str(package)+'.manifest.json').read_text())
+        current_resources=dbpf_build.read(package.read_bytes())
         for name, transaction, transaction_bytes in self.fixtures():
             stage = ROOT / ('.work/v331-comm-index-stage-' + name)
             communication = json.loads((stage / 'chained.json').read_text())
@@ -121,6 +132,18 @@ class TransactionProviderChainTests(unittest.TestCase):
             pool_stage = ROOT / ('.work/v335-grid-pool-' + name)
             pooled = json.loads((pool_stage / 'chained.json').read_text())
             final = (pool_stage / 'final.swf').read_bytes()
+            key=maru_companion.CANONICAL_GRID_LIBRARY if name=='canonical' else maru_companion.GRID_LIBRARY
+            terminal_record=current['grid_provider_adapters'][dbpf_build.tgi(key)]
+            terminal_bytes=current_resources[key]
+            suffix={}
+            preceding,preceding_bytes=terminal_record,terminal_bytes
+            for label,module in [('featured',cas_grid_featured),('budget',cas_grid_budget),
+                                 ('slice',cas_grid_slice),('scroll',cas_grid_scroll),
+                                 ('swatch-provider',cas_swatch_provider),('progress',cas_grid_progress),
+                                 ('product-rows',cas_grid_product_rows),('presentation',cas_grid_presentation)]:
+                suffix[label]=(preceding,preceding_bytes)
+                preceding,preceding_bytes=module.historical(preceding,preceding_bytes)
+            self.assertEqual(preceding,pooled);self.assertEqual(preceding_bytes,final)
             self.assertEqual(pooled['previous_stage_adapter'], image)
             self.assertEqual(image['previous_stage_adapter'], removal)
             self.assertEqual(removal['previous_stage_adapter'], domain)
@@ -165,20 +188,40 @@ class TransactionProviderChainTests(unittest.TestCase):
                     self.assertEqual(Path(args[0]).read_bytes(), original.read_bytes())
                     self.assertEqual(Path(args[1]).read_bytes(), image_bytes)
                     return abc(final), pooled['grid_pool_contract']
+                def terminal_adapter(label,prior_label):
+                    def adapt(*args):
+                        expected,expected_bytes=(pooled,final) if prior_label is None else suffix[prior_label]
+                        self.assertEqual(args[0],expected);self.assertEqual(args[1],expected_bytes)
+                        self.assertEqual(Path(args[2]).read_bytes(),original.read_bytes())
+                        order.append(label)
+                        result,result_bytes=suffix[label]
+                        return result_bytes,result
+                    return adapt
                 namespace = vars(cas_ui_build).copy()
                 namespace.update(work=work, ffdec=ROOT / '.work/research/ffdec/ffdec-cli.exe',
                                  java_classes=work, run=run)
+                finish=next(node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name=='finish_grid_provider')
+                exec(compile(ast.Module(body=[finish],type_ignores=[]), '<actual-provider-terminal-seam>', 'exec'),namespace)
                 exec(compile(ast.Module(body=[method], type_ignores=[]), '<actual-provider-seam>', 'exec'), namespace)
                 with patch.object(cas_grid_transaction, 'adapt', side_effect=adapt_transaction), \
                      patch.object(cas_communication_index, 'adapt', side_effect=adapt_communication), \
                      patch.object(cas_communication_domain_probe, 'adapt', side_effect=adapt_domain), \
                      patch.object(cas_communication_removal_miss, 'adapt', side_effect=adapt_removal), \
                      patch.object(cas_image_boundary_profile, 'adapt', side_effect=adapt_image), \
-                     patch.object(cas_grid_pool, 'adapt', side_effect=adapt_pool):
-                    data, chained = namespace['adapt_grid_provider'](original, transaction['base_resource_sha256'], name + '.abc')
-                self.assertEqual(order, ['getter-profile', 'transaction', 'communication', 'domain', 'removal', 'image', 'pool'])
-                self.assertEqual(data, final)
-                self.assertEqual(chained, pooled)
+                     patch.object(cas_grid_pool, 'adapt', side_effect=adapt_pool), \
+                     patch.object(cas_grid_presentation, 'adapt', side_effect=terminal_adapter('presentation',None)), \
+                     patch.object(cas_grid_product_rows, 'adapt', side_effect=terminal_adapter('product-rows','presentation')), \
+                     patch.object(cas_grid_progress, 'adapt', side_effect=terminal_adapter('progress','product-rows')), \
+                     patch.object(cas_swatch_provider, 'adapt', side_effect=terminal_adapter('swatch-provider','progress')), \
+                     patch.object(cas_grid_scroll, 'adapt', side_effect=terminal_adapter('scroll','swatch-provider')), \
+                     patch.object(cas_grid_slice, 'adapt', side_effect=terminal_adapter('slice','scroll')), \
+                     patch.object(cas_grid_budget, 'adapt', side_effect=terminal_adapter('budget','slice')), \
+                     patch.object(cas_grid_featured, 'adapt', side_effect=terminal_adapter('featured','budget')):
+                    data, chained = namespace['adapt_grid_provider'](original, transaction['base_resource_sha256'], name + '.abc',cache=None)
+                self.assertEqual(order, ['getter-profile', 'transaction', 'communication', 'domain', 'removal', 'image', 'pool',
+                                         'presentation','product-rows','progress','swatch-provider','scroll','slice','budget','featured'])
+                self.assertEqual(data, terminal_bytes)
+                self.assertEqual(chained, terminal_record)
                 verify = maru_companion.verify_canonical_grid_adapter if name == 'canonical' else maru_companion.verify_grid_adapter
                 self.assertTrue(verify(chained, data))
                 with self.assertRaisesRegex(ValueError, 'authenticated native resource'):

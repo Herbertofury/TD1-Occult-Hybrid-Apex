@@ -10,12 +10,41 @@ import cas_image_boundary_profile
 import cas_grid_pool
 import cas_catalog_binding
 import cas_draw_phase
+from cas_main_chain_fixtures import rollback_terminal_main, unwrap_catalog_heads
+import cas_grid_progress
+import cas_grid_product_rows
+import cas_grid_presentation
+import cas_swatch_provider
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def historical_library_terminals(info,resources):
+    """Remove swatch/progress/row/presentation after their exact raw rollback.
+
+    Existing image/pool/domain tests deliberately substitute older providers.
+    They must not retain source markers for the newer two-/three-domain stages.
+    Shared transaction/pool/communication source authority remains untouched.
+    """
+    current,current_resources=unwrap_catalog_heads(info,resources)
+    changed=current is not info or current_resources is not resources
+    for module,unique in ((cas_grid_progress,cas_grid_progress.SOURCES),
+                          (cas_grid_product_rows,cas_grid_product_rows.SOURCES),
+                          (cas_grid_presentation,cas_grid_presentation.PRESENTATION_SOURCES)):
+        previous,rolled=module.unwrap_manifest(current,current_resources)
+        if previous is current and rolled is current_resources:continue
+        for source in unique:previous['source_pins'].pop(source,None)
+        current,current_resources=previous,rolled
+        changed=True
+    if changed:
+        info.clear();info.update(current)
+        resources.clear();resources.update(current_resources)
+    return info,resources
+
+
 def historical_image_fixture(info, resources):
     """V334 image packages predate the two-provider retained widget pool."""
+    historical_library_terminals(info,resources)
     for source in cas_grid_pool.SOURCES[:2]:
         info['source_pins'].pop(source, None)
     for name, key in [('canonical', maru_companion.CANONICAL_GRID_LIBRARY),
@@ -86,6 +115,7 @@ def historical_provider_fixture(info, resources, keep_dependency=False):
     # A pre-communication library manifest cannot keep that Main authority
     # while deleting its shared source marker. Recover the exact earlier Main
     # bytes and envelopes; never relabel the later bytecode as historical.
+    rollback_terminal_main(info,resources)
     key = maru_companion.CUSTOMIZER
     outer = info.pop('draw_phase_native_bytecode_contract', None)
     if outer is not None:

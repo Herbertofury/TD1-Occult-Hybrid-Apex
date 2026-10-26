@@ -16,6 +16,7 @@ import cas_communication_index as communication
 import cas_communication_removal_miss as removal
 import cas_image_boundary_profile as image
 import cas_grid_pool as pool
+import cas_grid_presentation as presentation
 import cas_ui_build
 import dbpf_build
 import maru_companion
@@ -117,7 +118,7 @@ class DomainContinuationTests(unittest.TestCase):
                 with self.subTest(provider=name, bytes=dbpf_build.digest(payload)), self.assertRaises(ValueError):
                     domain.verify_adapter(record, payload)
 
-    def test_actual_dependency_builder_block_chains_index_domain_removal_and_image(self):
+    def test_actual_dependency_builder_block_chains_index_domain_removal_image_and_presentation(self):
         tree = ast.parse(Path(cas_ui_build.__file__).read_text())
         method = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
                       and node.name == 'adapt_dependency_provider')
@@ -128,6 +129,15 @@ class DomainContinuationTests(unittest.TestCase):
         image_stage = ROOT / '.work/v334-image-profile-dependency'
         latest = json.loads((image_stage / 'chained.json').read_text())
         final = (image_stage / 'final.swf').read_bytes()
+        package=ROOT/'dist/candidate/ApexCASBridge.package'
+        current=json.loads(Path(str(package)+'.manifest.json').read_text())
+        current_resources=dbpf_build.read(package.read_bytes())
+        dependency_key=maru_companion.UNMODIFIED_OLYMPUS_LIBRARY
+        presentation_adapter=current['communication_dependency_adapters'][dbpf_build.tgi(dependency_key)]
+        presentation_final=current_resources[dependency_key]
+        self.assertTrue(presentation.verify_adapter(presentation_adapter,presentation_final))
+        old_adapter,old_bytes=presentation.previous(presentation_adapter,presentation_final)
+        self.assertEqual(old_adapter,latest);self.assertEqual(old_bytes,final)
         self.assertEqual(latest['previous_stage_adapter'], removal_record)
         self.assertEqual(removal_record['previous_stage_adapter'], record)
         prior = record['previous_stage_adapter']
@@ -155,16 +165,23 @@ class DomainContinuationTests(unittest.TestCase):
                 self.assertEqual(Path(args[0]).read_bytes(), namespace['cleanup_library'].read_bytes())
                 self.assertEqual(Path(args[1]).read_bytes(), removal_bytes)
                 return abc(final), latest['image_boundary_profile_contract']
+            def adapt_presentation(*args):
+                order.append('presentation')
+                self.assertEqual(args[0],latest)
+                self.assertEqual(args[1],final)
+                self.assertEqual(args[2],namespace['cleanup_library'])
+                return presentation_final,presentation_adapter
             with patch.object(dependency, 'adapt', side_effect=adapt_dependency), patch.object(domain, 'adapt', side_effect=adapt_domain), \
                  patch.object(removal, 'adapt', side_effect=adapt_removal), \
                  patch.object(image, 'adapt', side_effect=adapt_image), \
+                 patch.object(presentation, 'adapt', side_effect=adapt_presentation), \
                  patch.object(pool, 'adapt', side_effect=AssertionError('Dependency must stay image-final')):
                 exec(compile(ast.Module(body=[method], type_ignores=[]), '<actual-dependency-seam>', 'exec'), namespace)
                 output, adapter = namespace['adapt_dependency_provider'](
                     namespace['cleanup_library'], namespace['ffdec'], namespace['work'], cache=None)
-            self.assertEqual(order, ['dependency', 'domain', 'removal', 'image'])
-            self.assertEqual(output, final)
-            self.assertEqual(adapter, latest)
+            self.assertEqual(order, ['dependency', 'domain', 'removal', 'image', 'presentation'])
+            self.assertEqual(output, presentation_final)
+            self.assertEqual(adapter, presentation_adapter)
 
 
 @unittest.skipUnless(READY and (ROOT / 'dist/candidate/ApexCASBridge.package').is_file() and

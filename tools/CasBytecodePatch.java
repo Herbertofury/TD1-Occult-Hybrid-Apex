@@ -182,6 +182,66 @@ public class CasBytecodePatch {
         }
         require(result>=0,"Missing grid helper trait: "+method);return result;
     }
+    static boolean gridBudgetOp(AVM2Instruction op,int code,int... operands) {
+        return opcode(op,code) && (op.operands==null ? operands.length==0 : Arrays.equals(op.operands,operands));
+    }
+    static int gridBudgetSlot(ABC abc,MethodBody body,String member,String type) {
+        int slot=-1;
+        for(var trait:body.traits.traits)if(name(abc,trait).equals(member)) {
+            require(slot==-1 && trait instanceof TraitSlotConst,"Grid deadline activation slot is ambiguous: "+member);
+            var field=(TraitSlotConst)trait;var q=abc.constants.getMultiname(field.type_index);
+            require(field.kindType==Trait.TRAIT_SLOT && field.kindFlags==0 && field.slot_id>0 &&
+                type.equals(abc.constants.getString(q.name_index)),"Grid deadline activation slot type differs: "+member);
+            slot=field.slot_id;
+        }
+        require(slot>0,"Grid deadline activation slot is missing: "+member);return slot;
+    }
+    static boolean gridBudgetClock(ABC abc,AVM2Instruction lookup,AVM2Instruction call) {
+        if(!opcode(lookup,0x5d) || lookup.operands==null || lookup.operands.length!=1 ||
+           !gridBudgetOp(call,0x46,lookup.operands[0],0))return false;
+        var q=abc.constants.getMultiname(lookup.operands[0]);
+        if(q.kind!=Multiname.QNAME || q.namespace_index<=0 || !"getTimer".equals(abc.constants.getString(q.name_index)))return false;
+        var ns=abc.constants.getNamespace(q.namespace_index);
+        return ns.kind==Namespace.KIND_PACKAGE && "flash.utils".equals(abc.constants.getString(ns.name_index));
+    }
+    static void verifyGridStepBudget(ABC abc,MethodBody frame) {
+        // Authenticate the ACTUAL two stack arguments, rather than accept a
+        // nearby decoy64. Only these two reviewed compiler expressions exist:
+        // Step(64,getTimer()+1), or Step(64,(stepStarted=getTimer())+1).
+        var ops=frame.getCode().code;int step=-1;
+        for(int i=0;i<ops.size();i++)if(property(abc,ops.get(i),0x46,"ApexGridStep") || property(abc,ops.get(i),0x4f,"ApexGridStep")) {
+            require(step==-1,"Grid frame must contain exactly one native Step call.");step=i;
+        }
+        require(step>=0 && gridBudgetOp(ops.get(step),0x46,ops.get(step).operands[0],2),
+            "Grid Step requires its exact result-producing two-argument call.");
+        boolean plain=step>=5 && gridBudgetOp(ops.get(step-5),0x24,64) &&
+            gridBudgetClock(abc,ops.get(step-4),ops.get(step-3)) &&
+            gridBudgetOp(ops.get(step-2),0x24,1) && gridBudgetOp(ops.get(step-1),0xa0);
+        boolean timed=false;
+        if(step>=12 && gridBudgetOp(ops.get(step-12),0x24,64) && gridBudgetOp(ops.get(step-11),0x65,1) &&
+           gridBudgetClock(abc,ops.get(step-10),ops.get(step-9)) && gridBudgetOp(ops.get(step-8),0x73) &&
+           gridBudgetOp(ops.get(step-7),0x2a) && gridBudgetOp(ops.get(step-6),0xd7) &&
+           gridBudgetOp(ops.get(step-4),0xd3) && gridBudgetOp(ops.get(step-3),0x08,3) &&
+           gridBudgetOp(ops.get(step-2),0x24,1) && gridBudgetOp(ops.get(step-1),0xa0)) {
+            timed=gridBudgetOp(ops.get(step-5),0x6d,gridBudgetSlot(abc,frame,"stepStarted","int"));
+        }
+        require(plain || timed,"Grid frame must pass literal64 and its exact fresh getTimer()+1 deadline.");
+        int start=step-(timed?12:5);
+        require(start>=3 && gridBudgetOp(ops.get(start-3),0x65,1) &&
+            gridBudgetOp(ops.get(start-2),0x6c,gridBudgetSlot(abc,frame,"s","Object")) &&
+            property(abc,ops.get(start-1),0x66,"grid"),"Grid Step receiver must be the owned scheduler's current grid.");
+        // No branch/exception edge may enter midway and bypass a checked
+        // receiver, argument, assignment, clock or deadline addition.
+        var addresses=bootstrapAddresses(frame);
+        for(var op:ops)for(int operand:bootstrapEdges(op)) {
+            int target=bootstrapIndex(addresses,bootstrapTarget(op,operand));
+            require(target<=start-3 || target>step,"Grid deadline has an unreviewed incoming control-flow edge.");
+        }
+        for(var error:frame.exceptions) {
+            int target=bootstrapIndex(addresses,error.target);
+            require(target<=start-3 || target>step,"Grid deadline has an unreviewed exception entry.");
+        }
+    }
     static void verifyGridController(ABC abc,InstanceInfo instance) {
         int initialize=ownedGridName(abc,instance,"ApexCatalogGridInitialize");
         var permit=ownedBody(abc,instance,"ApexCatalogGridPermit");
@@ -200,7 +260,7 @@ public class CasBytecodePatch {
         }
         require(calls==1 && Set.of("ApexCatalogGridPermit","ApexCatalogGridInitialize","removeEventListener","RemoveMessageListener","ApexGridCancel").containsAll(propertyCalls(abc,bootstrap)),
             "Early bootstrap performs an unreviewed call or has no single initializer call.");
-        for(String method:List.of("ApexCatalogGridBootstrap","ApexCatalogGridInitialize","ApexCatalogGridPrepare",
+        for(String method:List.of("ApexCatalogGridProductPanel","ApexCatalogGridProductRow","ApexCatalogGridBootstrap","ApexCatalogGridInitialize","ApexCatalogGridPrepare",
             "ApexCatalogGridLeaseCurrent","ApexCatalogGridValidate","ApexCatalogGridInvalidate","ApexCatalogGridChanged",
             "ApexCatalogGridDispose","ApexCatalogGridOwns","ApexCatalogGridPending"))
             require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,method)),Set.of("CallGameService","CallUIService","ApexNativeExchange",
@@ -221,6 +281,31 @@ public class CasBytecodePatch {
             }
             require(validators>0,"Grid request omitted its fresh write-input validator: "+producer);
         }
+        var productRow=ownedBody(abc,instance,"ApexCatalogGridProductRow");
+        var rowInfo=abc.method_info.get(productRow.method_info);
+        require(rowInfo.flags==0 && rowInfo.param_types.length==1 && productRow.exceptions.length==0 && productRow.traits.traits.isEmpty(),
+            "Product row predicate must be a single synchronous unbound type check.");
+        var rowOps=new ArrayList<AVM2Instruction>();
+        for(var op:productRow.getCode().code)if(!Set.of(0xef,0xf0,0xf1).contains(op.definition.instructionCode))rowOps.add(op);
+        require(rowOps.size()==6 && opcode(rowOps.get(0),0xd0) && opcode(rowOps.get(1),0x30) && opcode(rowOps.get(2),0xd1) &&
+            opcode(rowOps.get(3),0x60) && opcode(rowOps.get(4),0xb3) && opcode(rowOps.get(5),0x48),
+            "Product row predicate may only test its argument against the native CASCatalogProduct class.");
+        var rowType=abc.constants.getMultiname(rowOps.get(3).operands[0]);var rowNs=abc.constants.getNamespace(rowType.namespace_index);
+        require(rowType.kind==7 && rowNs.kind==22 && "CASCatalogProduct".equals(abc.constants.getString(rowType.name_index)) &&
+            "gamedata.CAS.shared".equals(abc.constants.getString(rowNs.name_index)),"Product predicate uses an unresolved or foreign native type.");
+        var productPanel=ownedBody(abc,instance,"ApexCatalogGridProductPanel");
+        Set<String> productClasses=Set.of("SelectableRecyclingGridLayout","CASBodyPanelCellView","CASFacePanelCellView","CASGenericCatalogVariantCellView","CASBreedCatalogCellView");
+        var observedProductClasses=new HashSet<String>();
+        for(var op:productPanel.getCode().code)if(opcode(op,0x60)) {
+            var q=abc.constants.getMultiname(op.operands[0]);String name=abc.constants.getString(q.name_index);
+            require(!Set.of("olympus","widgets","gamedata").contains(name),"Product panel type must not use a runtime namespace object.");
+            if(productClasses.contains(name)) {
+                var ns=abc.constants.getNamespace(q.namespace_index);String space=name.equals("SelectableRecyclingGridLayout")?"olympus.layout":"widgets.CAS.controls";
+                require(q.kind==7 && ns.kind==22 && space.equals(abc.constants.getString(ns.name_index)),"Product panel native class QName differs: "+name);
+                observedProductClasses.add(name);
+            }
+        }
+        require(observedProductClasses.equals(productClasses),"Product panel omitted a reviewed native grid/cell class.");
         var observe=ownedBody(abc,instance,"ApexCatalogGridObserve");
         uniqueLiteral(abc,observe,"CASGetSimInfo");uniqueLiteral(abc,observe,"CasGetCurrSimOutfitSlot");
         int freshReads=0;var reads=observe.getCode().code;
@@ -254,12 +339,7 @@ public class CasBytecodePatch {
         var frame=ownedBody(abc,instance,"ApexCatalogGridFrame");
         require(propertyCalls(abc,frame).containsAll(Set.of("ApexCatalogGridObserve","ApexCatalogGridFrameObserve","ApexGridBegin","ApexGridStep","getTimer")),
             "Grid scheduler lacks owned observation or bounded native stepping.");
-        boolean budget=false;var ops=frame.getCode().code;
-        for(int i=0;i<ops.size();i++)if(property(abc,ops.get(i),0x46,"ApexGridStep") || property(abc,ops.get(i),0x4f,"ApexGridStep")) {
-            require(ops.get(i).operands[1]==2,"Grid Step requires max-operations and deadline arguments.");
-            for(int j=Math.max(0,i-8);j<i;j++)if(opcode(ops.get(j),0x24) && ops.get(j).operands[0]==64)budget=true;
-        }
-        require(budget,"Grid frame must bound operations to64 and use its soft deadline.");
+        verifyGridStepBudget(abc,frame);
         require(propertyCalls(abc,ownedBody(abc,instance,"ApexCatalogGridInput")).containsAll(Set.of("ApexCatalogGridObserve","ApexCatalogGridMatches","ApexCatalogGridInvalidate")),
             "Write-capable cells lack a fresh exact identity check.");
     }
@@ -421,6 +501,116 @@ public class CasBytecodePatch {
         require(Collections.disjoint(propertyCalls(abc,ownedBody(abc,instance,"ApexConsumeFrame")),
             Set.of("CallGameService","CallUIService","ApexExecute","ApexReadback","ApexAccept")),
             "Transport frame parsing must not execute a native CAS mutation.");
+    }
+    static boolean acceptCall(ABC abc,AVM2Instruction op,String method) {
+        return property(abc,op,0x46,method)||property(abc,op,0x4f,method);
+    }
+    static int acceptCallIndex(ABC abc,MethodBody body,String method) {
+        int result=-1;var code=body.getCode().code;
+        for(int i=0;i<code.size();i++)if(acceptCall(abc,code.get(i),method)) {
+            require(result<0,"Acceptance calls a one-shot boundary more than once: "+method);result=i;
+        }
+        require(result>=0,"Acceptance omits boundary: "+method);return result;
+    }
+    static boolean acceptValue(ABC abc,AVM2Instruction op,String member) {
+        return property(abc,op,0x60,member)||property(abc,op,0x66,member);
+    }
+    static void acceptReads(ABC abc,MethodBody body,Set<String> required) {
+        var found=new HashSet<String>();
+        for(var op:body.getCode().code)for(String member:required)if(acceptValue(abc,op,member))found.add(member);
+        require(found.equals(required),"Acceptance fresh identity/retained context read missing: "+required+" / "+found);
+    }
+    static boolean acceptElseThrows(ABC abc,List<AVM2Instruction> code,int branch,int opcode) {
+        return branch>=0 && branch+4<code.size() && opcode(code.get(branch),opcode) &&
+            property(abc,code.get(branch+1),0x5d,"Error") && opcode(code.get(branch+2),0x2c) &&
+            property(abc,code.get(branch+3),0x4a,"Error") && opcode(code.get(branch+4),0x03) && branchTarget(code,branch)>branch+4;
+    }
+    static int acceptOriginalSlot(ABC abc,MethodBody body,String member,int wireIndex) {
+        var c=body.getCode().code;int slot=-1;
+        for(int i=0;i+9<c.size();i++)if(property(abc,c.get(i),0x60,"apexAcceptWait") &&
+                property(abc,c.get(i+1),0x66,member) && opcode(c.get(i+2),0x70) && opcode(c.get(i+3),0x10)) {
+            int join;
+            if(wireIndex>=0) {
+                require(property(abc,c.get(i+4),0x60,"apexPendingFields") && opcode(c.get(i+5),0x24) && c.get(i+5).operands[0]==wireIndex &&
+                    opcode(c.get(i+6),0x66) && abc.constants.getMultiname(c.get(i+6).operands[0]).kind==Multiname.MULTINAMEL &&
+                    opcode(c.get(i+7),0x70),"Acceptance original UUID/household is not its retained or exact wire field.");join=i+8;
+            } else {require(property(abc,c.get(i+4),0x60,"apexClaimNonce"),"Acceptance nonce is not its original retained/claimed nonce.");join=i+5;}
+            require(branchTarget(c,i+3)==join && opcode(c.get(join),0x85) && opcode(c.get(join+1),0x6d),"Acceptance original identity does not join one owned String slot.");
+            require(slot<0,"Acceptance retained identity is ambiguous.");slot=c.get(join+1).operands[0];
+        }
+        require(slot>=0,"Acceptance lost its original retained identity: "+member);return slot;
+    }
+    static void verifyAcceptReadiness(ABC abc,InstanceInfo instance) {
+        var body=ownedBody(abc,instance,"ApexAccept");var c=body.getCode().code;
+        int idSlot=acceptOriginalSlot(abc,body,"id",0),nonceSlot=acceptOriginalSlot(abc,body,"owner",-1);
+        acceptOriginalSlot(abc,body,"household",6);
+        int ready=acceptCallIndex(abc,body,"ApexAcceptReady"),prepare=acceptCallIndex(abc,body,"ApexAcceptNative");
+        int save=uniqueLiteral(abc,body,"SaveAndExitCAS"),key=uniqueLiteral(abc,body,"apex_accept_id"),nonce=uniqueLiteral(abc,body,"apex_accept_nonce");
+        require(prepare<ready && ready<save && ready>=1 && property(abc,c.get(ready-1),0x60,"apexAcceptWait") && c.get(ready).operands[1]==1 &&
+            ready+3<c.size() && opcode(c.get(ready+1),0x96) && opcode(c.get(ready+2),0x12) && opcode(c.get(ready+3),0x47) && branchTarget(c,ready+2)==ready+4,
+            "Acceptance genuine-not-ready must RETURN before any native save; no alternate branch/delay.");
+        require(!bootstrapReachable(body,save,ready),"A CFG path bypasses acceptance readiness before native save.");
+        require(prepare>=2 && property(abc,c.get(prepare-2),0x60,"apexAcceptWait") && stringLiteral(abc,c.get(prepare-1),"PREPARE") && c.get(prepare).operands[1]==2,
+            "Acceptance preparation is not the exact retained once-only PREPARE.");
+        int phase=-1,consume=-1;boolean resuming=false;
+        for(int i=1;i<c.size();i++) {
+            if(property(abc,c.get(i),0x61,"apexPendingPhase") && opcode(c.get(i-1),0x24) && c.get(i-1).operands[0]==9) {require(phase<0,"Readiness waiting phase is written repeatedly.");phase=i;}
+            if(i>ready && i<save && property(abc,c.get(i),0x61,"apexAcceptWait") && opcode(c.get(i-1),0x20)) {require(consume<0,"Acceptance consumes its original wait repeatedly.");consume=i;}
+            if(i+2<c.size() && property(abc,c.get(i-1),0x60,"apexPendingPhase") && opcode(c.get(i),0x24) && c.get(i).operands[0]==9 && opcode(c.get(i+1),0xab))resuming=true;
+        }
+        require(phase>=0 && phase<prepare && resuming && consume>ready && consume<save && !bootstrapReachable(body,save,consume),
+            "Acceptance lacks phase9 admission or consume-before-save on every CFG path.");
+        require(key==save+3 && nonce==key+3 && slotLoad(c,key+1,idSlot) && slotLoad(c,nonce+1,nonceSlot) &&
+            opcode(c.get(nonce+3),0x55) && c.get(nonce+3).operands[0]==3 && property(abc,c.get(nonce+4),0x46,"CallGameService") && c.get(nonce+4).operands[1]==2,
+            "Native Save must carry only validation=false and its exact original UUID/nonce tuple.");
+        boolean heldId=false,heldNonce=false;
+        for(int i=0;i<phase;i++)if(stringLiteral(abc,c.get(i),"id")&&slotLoad(c,i+1,idSlot))heldId=true;
+        else if(stringLiteral(abc,c.get(i),"owner")&&slotLoad(c,i+1,nonceSlot))heldNonce=true;
+        require(heldId&&heldNonce,"Readiness wait did not retain the same original UUID/nonce passed to Save.");
+        var readyBody=ownedBody(abc,instance,"ApexAcceptReady");var r=readyBody.getCode().code;
+        acceptReads(abc,readyBody,Set.of("apexAcceptInput","apexDisconnected","apexSocketActive","apexNonce","owner","stage","apexAcceptStage",
+            "channel","apexNativeChannel","apexFormsDesiredId","apexFormsIntent","apexFormsNativeIntent","apexMoleculeIntent","apexPairIntent","apexFormsApplying",
+            "simId","householdId","household","occultLayer","occultType","allOccultTypes","shell","mask","mode","result","rendered","mCurrState","TattooMode",
+            "apexFormsNativeState","apexFormsSelectedId","formOwner","preparedGeneration","apexFormsNativeGeneration"));
+        int read=acceptCallIndex(abc,readyBody,"ApexAcceptNative");
+        require(read>=2 && opcode(r.get(read-2),0xd1) && stringLiteral(abc,r.get(read-1),"READY") && r.get(read).operands[1]==2,
+            "Acceptance readiness must read the original retained READY receipt.");
+        for(String literal:Set.of("CASGetSimInfo","CasGetCASEditMode","CasIsNewFamily","CasIsEnteredFromPlayArea","GetSimOccult"))
+            require(uniqueLiteral(abc,readyBody,literal)<read,"Acceptance readiness native context is not fresh before READY.");
+        boolean timed=false,input=false,nonceGuard=false;
+        for(int i=0;i+7<r.size();i++) {
+            if(opcode(r.get(i),0x25)&&r.get(i).operands[0]==10000&&opcode(r.get(i+1),0xaf)&&acceptElseThrows(abc,r,i+2,0x12))timed=true;
+            if(property(abc,r.get(i),0x60,"apexAcceptInput")&&acceptElseThrows(abc,r,i+1,0x12))input=true;
+            if(property(abc,r.get(i),0x60,"apexNonce")&&opcode(r.get(i+1),0xd1)&&property(abc,r.get(i+2),0x66,"owner")&&
+                opcode(r.get(i+3),0xac)&&opcode(r.get(i+4),0x96)&&opcode(r.get(i+5),0x2a)&&opcode(r.get(i+6),0x11)&&
+                guardedThrow(abc,r,trueRefusal(r,i+6)))nonceGuard=true;
+        }
+        require(timed&&input&&nonceGuard,"Acceptance readiness timeout/input/original nonce refusal lost its exact branch polarity.");
+        var nativeBody=ownedBody(abc,instance,"ApexAcceptNative");var n=nativeBody.getCode().code;
+        require(propertyCalls(abc,nativeBody).equals(Set.of("CallGameService","split","test","slice","join","indexOf","substr")),"Readiness receipt parser invokes an unreviewed service/helper.");
+        verifyBoundedNativeRefusal(abc,nativeBody);
+        uniqueLiteral(abc,nativeBody,"APEXACCEPT1|");uniqueLiteral(abc,nativeBody,"GetSimOccult");
+        boolean length=false,stamp=false,model=false,phaseProof=false,flag=false;
+        for(int i=0;i+6<n.size();i++) {
+            if(property(abc,n.get(i),0x66,"length")&&opcode(n.get(i+1),0x24)&&n.get(i+1).operands[0]==18&&
+               opcode(n.get(i+2),0xab)&&opcode(n.get(i+3),0x96)&&opcode(n.get(i+4),0x2a)&&opcode(n.get(i+5),0x11)&&guardedThrow(abc,n,trueRefusal(n,i+5)))length=true;
+            if(property(abc,n.get(i),0x66,"stamp")&&acceptElseThrows(abc,n,i+1,0x19))stamp=true;
+            if(opcode(n.get(i),0x24)&&(n.get(i).operands[0]==15||n.get(i).operands[0]==16)&&opcode(n.get(i+1),0x66)&&
+               stringLiteral(abc,n.get(i+2),"0")&&opcode(n.get(i+3),0xac)) {if(n.get(i).operands[0]==15)phaseProof=true;else model=true;}
+            if(stringLiteral(abc,n.get(i),"READY")&&opcode(n.get(i+1),0xac)&&acceptElseThrows(abc,n,i+3,0x19))flag=true;
+        }
+        require(length&&stamp&&model&&phaseProof&&flag,"Readiness receipt length/scalar stamp/real phase/model/READY equality proof changed.");
+        var user=ownedBody(abc,instance,"ApexAcceptUserInput");require(propertyCalls(abc,user).isEmpty(),"Readiness input callback must queue cancellation only, never block EA controls or call native.");
+        boolean queued=false;for(int i=1;i<user.getCode().code.size();i++)if(property(abc,user.getCode().code.get(i),0x61,"apexAcceptInput")&&opcode(user.getCode().code.get(i-1),0x26))queued=true;
+        require(queued,"Readiness input callback omitted its cancellation flag.");
+        var frame=ownedBody(abc,instance,"ApexAcceptReadyFrame");require(propertyCalls(abc,frame).equals(Set.of("ApexAccept")),"Only the owned readiness frame may resume the same accepted operation.");
+        acceptReads(abc,frame,Set.of("apexAcceptWait","apexPendingPhase","apexTicking"));
+        var listen=ownedBody(abc,instance,"ApexAcceptListen");require(propertyCalls(abc,listen).equals(Set.of("removeEventListener","addEventListener")),"Readiness listener setup may not mutate/query the game.");
+        acceptReads(abc,listen,Set.of("stage","apexAcceptStage","ENTER_FRAME","MOUSE_DOWN","KEY_DOWN","ApexAcceptReadyFrame","ApexAcceptUserInput"));
+        var abort=ownedBody(abc,instance,"ApexAcceptAbort");require(acceptCallIndex(abc,abort,"ApexAcceptListen")<uniqueLiteral(abc,abort,"APEXACCEPT1|CANCEL|"),"Readiness cancellation must detach listeners before transport/native cleanup.");
+        acceptReads(abc,abort,Set.of("request","reply","owner","id","apexNonce","apexSocketActive"));
+        var reset=ownedBody(abc,instance,"ApexResetSocket");require(acceptCallIndex(abc,reset,"ApexAcceptAbort")<uniqueLiteral(abc,reset,"CLOSE|"),"Room retirement must cancel retained acceptance before closing its original channel.");
+        require(propertyCalls(abc,ownedBody(abc,instance,"ApexDisconnect")).contains("ApexResetSocket"),"Unload must retire the original readiness continuation.");
     }
     static void verifyAcceptLinkage(ABC abc, InstanceInfo instance) {
         MethodBody accept = null;
@@ -1189,6 +1379,46 @@ public class CasBytecodePatch {
         require(earrings && expectedBody, "CAS Earrings selection lacks its exact native BodyType refusal.");
         require(exactSwatch, "CAS item selection lacks its exact one-swatch ambiguity refusal.");
     }
+    static void verifyBoundedNativeRefusal(ABC abc,MethodBody body) {
+        var code=body.getCode().code;int p=uniqueLiteral(abc,body,"REFUSED|");
+        uniqueLiteral(abc,body,"Native acceptance readiness refused: ");
+        require(p>=2 && p+22<code.size() && gridBudgetOp(code.get(p-2),0xd3) && gridBudgetOp(code.get(p-1),0x70) &&
+            property(abc,code.get(p+1),0x46,"indexOf") && code.get(p+1).operands[1]==1 &&
+            gridBudgetOp(code.get(p+2),0x24,0) && gridBudgetOp(code.get(p+3),0xac) && gridBudgetOp(code.get(p+4),0x2a) && opcode(code.get(p+5),0x12) &&
+            gridBudgetOp(code.get(p+6),0x29) && gridBudgetOp(code.get(p+7),0xd3) && gridBudgetOp(code.get(p+8),0x70) &&
+            property(abc,code.get(p+9),0x66,"length") && gridBudgetOp(code.get(p+10),0x25,1024) && gridBudgetOp(code.get(p+11),0xae) && opcode(code.get(p+12),0x12) &&
+            property(abc,code.get(p+13),0x5d,"Error") && stringLiteral(abc,code.get(p+14),"Native acceptance readiness refused: ") &&
+            gridBudgetOp(code.get(p+15),0xd3) && gridBudgetOp(code.get(p+16),0x70) && gridBudgetOp(code.get(p+17),0x24,8) &&
+            property(abc,code.get(p+18),0x46,"substr") && code.get(p+18).operands[1]==1 && gridBudgetOp(code.get(p+19),0xa0) &&
+            property(abc,code.get(p+20),0x4a,"Error") && code.get(p+20).operands[1]==1 && gridBudgetOp(code.get(p+21),0x03),
+            "Native refusal must match its exact prefix,1024 bound,substring and throwing-only branch.");
+        require(bootstrapTarget(code.get(p+5),0)==code.get(p+12).getAddress() &&
+            bootstrapTarget(code.get(p+12),0)==code.get(p+22).getAddress(),"Native bounded refusal has unreviewed branch polarity or targets.");
+        int prefixes=0,slices=0;for(var op:code){if(property(abc,op,0x46,"indexOf"))prefixes++;if(property(abc,op,0x46,"substr"))slices++;}
+        require(prefixes==1 && slices==1,"Native refusal helpers may only occur in the reviewed bounded throw.");
+    }
+    static int typedIndexReadEnd(ABC abc,MethodBody body,int start) {
+        var code=body.getCode().code;var signature=abc.method_info.get(body.method_info);
+        require(signature.param_types.length==7 && "int".equals(abc.constants.getString(
+            abc.constants.getMultiname(signature.param_types[3]).name_index)),"Native occult index must remain formal int argument four.");
+        if(start<code.size() && gridBudgetOp(code.get(start),0x62,4)) {
+            // Historical direct-register compilation: no preceding write may
+            // replace the formal parameter with an unrelated local value.
+            for(int i=0;i<start;i++)require(!gridBudgetOp(code.get(i),0x63,4),"Native occult formal index register was overwritten.");
+            return start+1;
+        }
+        int slot=gridBudgetSlot(abc,body,"index","int"),store=-1;
+        require((signature.flags&2)!=0 && start+1<code.size() && gridBudgetOp(code.get(start),0x65,1) &&
+            gridBudgetOp(code.get(start+1),0x6c,slot),"Native occult index is not its owned activation parameter.");
+        for(int i=0;i<code.size();i++)if(gridBudgetOp(code.get(i),0x6d,slot)) {
+            require(store==-1 && i>=2 && gridBudgetOp(code.get(i-2),0x65,1) && gridBudgetOp(code.get(i-1),0x62,4),
+                "Native occult activation index must be copied once from formal argument four.");store=i;
+        }
+        require(store>=0 && store<start,"Native occult activation index initialization is missing.");
+        for(int i=0;i<store;i++)require(!gridBudgetOp(code.get(i),0x63,4),"Native occult formal index was overwritten before capture.");
+        require(!bootstrapReachable(body,start,store),"Native occult activation index capture does not dominate its setter.");
+        return start+2;
+    }
     static void verifyTypedControls(ABC abc, InstanceInfo instance) {
         // Execute: four palette calls, two physique calls, preset write,
         // one product lookup, two family queries, equipped query, clear and
@@ -1253,12 +1483,13 @@ public class CasBytecodePatch {
         require(layerCallers.equals(Set.of("ApexControlExecute","ApexControlResult")),
             "Native layer inspection is called outside its exact owned control phases.");
         int viewSetters=0;
-        var viewCode=ownedBody(abc,instance,"ApexControlExecute").getCode().code;
+        var viewBody=ownedBody(abc,instance,"ApexControlExecute");var viewCode=viewBody.getCode().code;
         for(int i=0;i<viewCode.size();i++) if(stringLiteral(abc,viewCode.get(i),"SetSimOccult")) {
             viewSetters++;
-            require(i+2<viewCode.size() && opcode(viewCode.get(i+1),0x62) && viewCode.get(i+1).operands[0]==4 &&
-                (property(abc,viewCode.get(i+2),0x46,"CallGameService") || property(abc,viewCode.get(i+2),0x4f,"CallGameService")) &&
-                viewCode.get(i+2).operands[1]==2,
+            int call=typedIndexReadEnd(abc,viewBody,i+1);
+            require(call<viewCode.size() &&
+                (property(abc,viewCode.get(call),0x46,"CallGameService") || property(abc,viewCode.get(call),0x4f,"CallGameService")) &&
+                viewCode.get(call).operands.length==2 && viewCode.get(call).operands[1]==2,
                 "Occult view must call the literal native setter with its typed existing-kind index only.");
         }
         require(viewSetters==2,"Existing-kind and staged-owner native setter inventory changed.");
@@ -1445,7 +1676,7 @@ public class CasBytecodePatch {
         Set<String> operations=new HashSet<>();
         for(var op:allowed.getCode().code)if(opcode(op,0x2c))operations.add(abc.constants.getString(op.operands[0]));
         require(operations.equals(Set.of("catalog-state","catalog-search","catalog-style",
-            "catalog-cards","catalog-card-reset","panel-layout","catalog-trace","catalog-layout-trace")),
+            "catalog-cards","catalog-card-reset","catalog-width-drag","panel-layout","catalog-trace","catalog-layout-trace")),
             "Thin readback operation allowlist includes an inventory or appearance path.");
         var context=ownedBody(abc,instance,"ApexCatalogReadbackContext");
         uniqueLiteral(abc,context,"CasGetCurrSimOutfitSlot");uniqueLiteral(abc,context,"STATE|");
@@ -2690,6 +2921,109 @@ public class CasBytecodePatch {
         var dispose=ownedBody(abc,instance,"ApexCompanionDispose");
         require(propertyCalls(abc,dispose).containsAll(Set.of("removeEventListener","Shutdown","removeChild")),"Companion must retire native listeners, tooltips and display ownership.");
     }
+    static String commonGeometryNs(ABC a,int index){if(index==0)return "*";var n=a.constants.getNamespace(index);String text=a.constants.getString(n.name_index);
+        // FFDec names the imported class's file-private namespace with its
+        // unchanged provider-specific class index. Normalize only that exact
+        // self namespace; all foreign/private/protected bindings stay exact.
+
+        return n.kind+":"+text;}
+    static String commonGeometryQName(ABC a,int index){
+        if(index==0)return "*";var q=a.constants.getMultiname(index);var out=new StringBuilder();
+        out.append(q.kind).append(':').append(a.constants.getString(q.name_index)).append(':').append(commonGeometryNs(a,q.namespace_index));
+        if(q.namespace_set_index>0){out.append('[');for(int n:a.constants.getNamespaceSet(q.namespace_set_index).namespaces)out.append(commonGeometryNs(a,n)).append(';');out.append(']');}
+        if(q.qname_index>0)out.append('<').append(commonGeometryQName(a,q.qname_index)).append('>');
+        if(q.params!=null)for(int p:q.params)out.append('<').append(commonGeometryQName(a,p)).append('>');return out.toString();
+    }
+    static String commonGeometrySemantic(ABC a,MethodBody b)throws Exception{
+        var text=new StringBuilder();var info=a.method_info.get(b.method_info);
+        text.append(info.flags).append('|').append(commonGeometryQName(a,info.ret_type));for(int p:info.param_types)text.append('|').append(commonGeometryQName(a,p));
+        text.append('|').append(b.max_regs).append('|').append(b.max_stack).append('|').append(b.max_scope_depth-b.init_scope_depth);
+        for(var t:b.traits.traits){require(t instanceof TraitSlotConst,"Indexed helper activation has a non-slot trait");var slot=(TraitSlotConst)t;
+            text.append("|local:").append(commonGeometryQName(a,t.name_index)).append(':').append(commonGeometryQName(a,slot.type_index)).append(':').append(slot.slot_id).append(':').append(slot.value_index).append(':').append(slot.value_kind);}
+
+        var addresses=bootstrapAddresses(b);
+        int debugBase=Integer.MAX_VALUE;for(var i:b.getCode().code)
+            if(i.definition.instructionCode==0xef && i.operands.length==4 && i.operands[0]==1 && i.operands[3]>0)debugBase=Math.min(debugBase,i.operands[3]);
+        var multinames=Set.of(0x04,0x05,0x45,0x46,0x4a,0x4c,0x4e,0x4f,0x59,0x5b,0x5c,0x5d,0x5e,0x5f,0x60,0x61,0x66,0x68,0x6a,0x80,0x86,0xb2);
+        for(var i:b.getCode().code){text.append('\n').append(i.definition.instructionCode);if(i.operands==null)continue;
+            for(int n=0;n<i.operands.length;n++){
+                text.append(':');if(bootstrapEdges(i).contains(n))text.append('@').append(bootstrapIndex(addresses,bootstrapTarget(i,n)));
+                else if(n==0&&multinames.contains(i.definition.instructionCode))text.append(commonGeometryQName(a,i.operands[n]));
+                else if(n==1&&i.definition.instructionCode==0xef)text.append(a.constants.getString(i.operands[n]));
+                else if(n==3&&i.definition.instructionCode==0xef&&i.operands[0]==1&&i.operands[n]>0)text.append("owned-source+").append(i.operands[n]-debugBase);
+                else if(n==0&&i.definition.instructionCode==0xf1)text.append("owned-helper-source");
+                else if(n==0&&i.definition.instructionCode==0x2c)text.append(a.constants.getString(i.operands[n]));
+                else if(n==0&&i.definition.instructionCode==0x2d)text.append(a.constants.getInt(i.operands[n]));
+                else if(n==0&&i.definition.instructionCode==0x2e)text.append(a.constants.getUInt(i.operands[n]));
+                else if(n==0&&i.definition.instructionCode==0x2f)text.append(a.constants.getDouble(i.operands[n]));
+                else text.append(i.operands[n]);
+            }
+        }
+        for(var e:b.exceptions)text.append("\ncatch:").append(bootstrapIndex(addresses,e.start)).append(':')
+            .append(bootstrapIndex(addresses,e.end)).append(':').append(bootstrapIndex(addresses,e.target))
+            .append(':').append(commonGeometryQName(a,e.type_index)).append(':').append(commonGeometryQName(a,e.name_index));
+        return text.toString();
+    }
+
+    static final Map<String,String> COMMON_GEOMETRY_SEMANTICS=Map.ofEntries(
+        Map.entry("ApexCatalogPanelKey","55f955c55f339601c70f03ba91ed5d1f6b9319446cfa4ed9bc577f1943dc2408"),
+        Map.entry("ApexCatalogPanelKind","e1d242336a75f262c0970b6d8d5b1dfc2a5df9f51a381c3a6d5aa103d0ec11ea"),
+        Map.entry("ApexCatalogOptional","9323437faa47479f88f31c5d6bdb6d238f706f01af278a2207442a4f68de7407"),
+        Map.entry("ApexCardStateFor","0195b9c8bc9cafb605d1ffb2a9df5ea95af9db44c289e80f22e9b069c6ca3a33"),
+        Map.entry("ApexCardActivate","dee9247a93058d7670c574f78b272fcd11d1bcd72fdad6b2451f453817f615db"),
+        Map.entry("ApexCatalogVisibleRect","8f79ddc6704bc8ce9d34c10158dabbf6fda2e54e57c217eae8695c20bd029501"),
+        Map.entry("ApexCatalogSafeRight","d4a67411cace69dc1e7f6e41c71edb60112584839ec5c89093a14b8ad791004a"),
+        Map.entry("ApexCatalogNavigationRects","149a6647aeae5b60b0d1da1fdb4fda5785a9b49e0109f6ceb45eac80091c7108"),
+        Map.entry("ApexCatalogWidthEnvelope","48476bd1b399c60c3479c4ba90ef4b57c0a8ca888872e61032ee29d1c49d1c98"),
+        Map.entry("ApexCatalogWidthRequest","133e6f3568f3e6f95daaad63402b84c4d227794cca9d56847b910814bdd3b736"),
+        Map.entry("ApexCatalogWidthMode","f988d122849168876430c96306aa4168813e9e59549782511e9b8410e3e8cb24"),
+        Map.entry("ApexSkinToneApply","28df4fbda6fd8ce203da0e2dd69b14c3d31b55f3dbc4d76bb946f78b0f7c0947"),
+        Map.entry("ApexColumnsTrack","e8f0ed72555fd5e881ecc14f7b63144603ab17d46836a9925edad77b743beda0"),
+        Map.entry("ApexColumnsScaleDown","0ace3aeafcc98d83bf3b590ac85a0c3def41aaf8968a64711ce99f7153ed6f3a"),
+        Map.entry("ApexColumnsScaleMove","1b6ea38dff37441761cab745ac0dde29006d1a6b02dea33debaebb4882617ccc"),
+        Map.entry("ApexColumnsScaleUp","e183723f12da19a17e0fd781d347234c40faf501f33d9f506523797f5d98ff07"),
+        Map.entry("ApexColumnsWidthDown","d5d5d231b873c9677a571d4d3fdfcd802b8d23d8f448a083b0d318c0f351950a"),
+        Map.entry("ApexColumnsWidthMove","4dbab2be52ef351126ac2813b747bc4514bbc6f981ef3aa9a3c412cfa6870966"),
+        Map.entry("ApexColumnsWidthUp","382c691564dca8ce8e8d72f4bbabdd4155b023e020a0f7752f9cb16f6b7bcd06"),
+        Map.entry("ApexColumnsWidthHandle","000eb0911a6543fd3f21f319b780a64a9d420ccd16f4a8ee6f0992605900a0e1"));
+    static Set<String> commonGeometryCalls(ABC abc,MethodBody body) {
+        var result=new HashSet<String>();for(var i:body.getCode().code)
+            if(Set.of(0x46,0x4f,0x45,0x4e,0x4a).contains(i.definition.instructionCode))result.add(abc.constants.getString(abc.constants.getMultiname(i.operands[0]).name_index));
+        return result;
+    }
+    static void verifyCommonCatalogGeometry(ABC abc,InstanceInfo instance) {
+        for(var entry:COMMON_GEOMETRY_SEMANTICS.entrySet()) {
+            String name=entry.getKey();var b=ownedBody(abc,instance,name);
+            var trait=instance.instance_traits.traits.stream().filter(q->q instanceof TraitMethodGetterSetter && name(abc,q).equals(name)).map(q->(TraitMethodGetterSetter)q).findFirst().orElseThrow();
+            var q=abc.constants.getMultiname(trait.name_index);var ns=abc.constants.getNamespace(q.namespace_index);
+            require(q.kind==Multiname.QNAME && ns.kind==Namespace.KIND_PRIVATE && abc.constants.getString(ns.name_index).equals("widgets.CAS.Customizer:CASCustomizerMain"),"Common geometry method escaped exact private Main namespace: "+name);
+            require(b.init_scope_depth==ownedBody(abc,instance,"ApexColumnsTakeover").init_scope_depth && b.exceptions.length==0 && b.traits.traits.isEmpty(),"Common geometry lexical/activation scope differs: "+name);
+            try {String semantic=commonGeometrySemantic(abc,b).replaceAll("(?<=5:)CASCustomizerMain\\.as\\$[0-9]+","CASCustomizerMain.as\\$SELF");require(byteHash(semantic.getBytes(java.nio.charset.StandardCharsets.UTF_8)).equals(entry.getValue()),"Reviewed common geometry semantic differs: "+name);} catch(Exception e){throw new IllegalArgumentException(e);}
+        }
+        {var b=ownedBody(abc,instance,"ApexCatalogPanelKey");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "String".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCatalogPanelKey");require(commonGeometryCalls(abc,b).equals(Set.of()),"Common geometry callees differ: ApexCatalogPanelKey");}
+        {var b=ownedBody(abc,instance,"ApexCatalogPanelKind");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "String".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCatalogPanelKind");require(commonGeometryCalls(abc,b).equals(Set.of()),"Common geometry callees differ: ApexCatalogPanelKind");}
+        {var b=ownedBody(abc,instance,"ApexCatalogOptional");var i=abc.method_info.get(b.method_info);require(i.param_types.length==2 && i.optional.length==0 && "Object".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCatalogOptional");require(commonGeometryCalls(abc,b).equals(Set.of()),"Common geometry callees differ: ApexCatalogOptional");}
+        {var b=ownedBody(abc,instance,"ApexCardStateFor");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "Object".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCardStateFor");require(commonGeometryCalls(abc,b).equals(Set.of("ApexCatalogPanelKey")),"Common geometry callees differ: ApexCardStateFor");}
+        {var b=ownedBody(abc,instance,"ApexCardActivate");var i=abc.method_info.get(b.method_info);require(i.param_types.length==2 && i.optional.length==0 && "Boolean".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCardActivate");require(commonGeometryCalls(abc,b).equals(Set.of("ApexCardStateFor","ApexCatalogPanelKey","ApexCatalogPanelKind")),"Common geometry callees differ: ApexCardActivate");}
+        {var b=ownedBody(abc,instance,"ApexCatalogVisibleRect");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "Object".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCatalogVisibleRect");require(commonGeometryCalls(abc,b).equals(Set.of("Error","Sprite","getBounds","isFinite")),"Common geometry callees differ: ApexCatalogVisibleRect");}
+        {var b=ownedBody(abc,instance,"ApexCatalogSafeRight");var i=abc.method_info.get(b.method_info);require(i.param_types.length==6 && i.optional.length==0 && "Number".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCatalogSafeRight");require(commonGeometryCalls(abc,b).equals(Set.of("isFinite","max","min")),"Common geometry callees differ: ApexCatalogSafeRight");}
+        {var b=ownedBody(abc,instance,"ApexCatalogNavigationRects");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==1 && "Array".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCatalogNavigationRects");require(commonGeometryCalls(abc,b).equals(Set.of("ApexCatalogOptional","ApexCatalogVisibleRect","GetLoadedWidgetByName","push")),"Common geometry callees differ: ApexCatalogNavigationRects");require(i.optional[0].value_index==12 && i.optional[0].value_kind==12 && "Object".equals(abc.constants.getString(abc.constants.getMultiname(i.param_types[i.param_types.length-1]).name_index)),"Width diagnostic option must remain exact default-null Object");}
+        {var b=ownedBody(abc,instance,"ApexCatalogWidthEnvelope");var i=abc.method_info.get(b.method_info);require(i.param_types.length==2 && i.optional.length==1 && "Object".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCatalogWidthEnvelope");require(commonGeometryCalls(abc,b).equals(Set.of("ApexCatalogNavigationRects","ApexCatalogPanelKind","ApexCatalogSafeRight","ApexCatalogVisibleRect","Error","Point","abs","getBounds","isFinite","localToGlobal","max","min","push")),"Common geometry callees differ: ApexCatalogWidthEnvelope");require(i.optional[0].value_index==12 && i.optional[0].value_kind==12 && "Object".equals(abc.constants.getString(abc.constants.getMultiname(i.param_types[i.param_types.length-1]).name_index)),"Width diagnostic option must remain exact default-null Object");}
+        {var b=ownedBody(abc,instance,"ApexCatalogWidthRequest");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "Number".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCatalogWidthRequest");require(commonGeometryCalls(abc,b).equals(Set.of("ApexCardStateFor","ApexCatalogWidthEnvelope","ApexCatalogWidthMode","isFinite","max","min")),"Common geometry callees differ: ApexCatalogWidthRequest");}
+        {var b=ownedBody(abc,instance,"ApexCatalogWidthMode");var i=abc.method_info.get(b.method_info);require(i.param_types.length==0 && i.optional.length==0 && "Boolean".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexCatalogWidthMode");require(commonGeometryCalls(abc,b).equals(Set.of("isFinite")),"Common geometry callees differ: ApexCatalogWidthMode");}
+        {var b=ownedBody(abc,instance,"ApexSkinToneApply");var i=abc.method_info.get(b.method_info);require(i.param_types.length==2 && i.optional.length==0 && "Number".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexSkinToneApply");require(commonGeometryCalls(abc,b).equals(Set.of("ApexCardActivate","ApexCardFit","ApexCardRepairControls","ApexCatalogOptional","ApexCatalogPanelKind","ApexCatalogWidthRequest","ApexSwatchGroupGeometry","Error","GetAllDisplayObjectCells","Point","PositionCells","abs","isFinite","isNaN","localToGlobal","min")),"Common geometry callees differ: ApexSkinToneApply");}
+        {var b=ownedBody(abc,instance,"ApexColumnsTrack");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "Sprite".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexColumnsTrack");require(commonGeometryCalls(abc,b).equals(Set.of("Sprite","addChild","addEventListener","beginFill","drawRoundRect","endFill","getChildByName")),"Common geometry callees differ: ApexColumnsTrack");}
+        {var b=ownedBody(abc,instance,"ApexColumnsScaleDown");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "void".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexColumnsScaleDown");require(commonGeometryCalls(abc,b).equals(Set.of("ApexColumnsScale","ApexColumnsTakeover","addEventListener","preventDefault","stopImmediatePropagation")),"Common geometry callees differ: ApexColumnsScaleDown");}
+        {var b=ownedBody(abc,instance,"ApexColumnsScaleMove");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "void".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexColumnsScaleMove");require(commonGeometryCalls(abc,b).equals(Set.of("ApexColumnsScale","ApexColumnsScaleEnd","Event","preventDefault","stopImmediatePropagation")),"Common geometry callees differ: ApexColumnsScaleMove");}
+        {var b=ownedBody(abc,instance,"ApexColumnsScaleUp");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "void".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexColumnsScaleUp");require(commonGeometryCalls(abc,b).equals(Set.of("ApexColumnsScaleEnd","preventDefault","stopImmediatePropagation")),"Common geometry callees differ: ApexColumnsScaleUp");}
+        {var b=ownedBody(abc,instance,"ApexColumnsWidthDown");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "void".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexColumnsWidthDown");require(commonGeometryCalls(abc,b).equals(Set.of("ApexCatalogWidthEnvelope","ApexCatalogWidthMode","ApexColumnsResizeEnd","ApexColumnsScaleEnd","ApexColumnsTakeover","ApexColumnsUp","Event","addEventListener","isFinite","max","preventDefault","stopImmediatePropagation")),"Common geometry callees differ: ApexColumnsWidthDown");}
+        {var b=ownedBody(abc,instance,"ApexColumnsWidthMove");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "void".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexColumnsWidthMove");require(commonGeometryCalls(abc,b).equals(Set.of("ApexCatalogWidthEnvelope","ApexColumnsResizeEnd","ApexColumnsSave","ApexColumnsTakeover","Event","isFinite","max","min","preventDefault","stopImmediatePropagation")),"Common geometry callees differ: ApexColumnsWidthMove");}
+        {var b=ownedBody(abc,instance,"ApexColumnsWidthUp");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==1 && "void".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexColumnsWidthUp");require(commonGeometryCalls(abc,b).equals(Set.of("ApexColumnsResizeEnd","preventDefault","stopImmediatePropagation")),"Common geometry callees differ: ApexColumnsWidthUp");}
+        {var b=ownedBody(abc,instance,"ApexColumnsWidthHandle");var i=abc.method_info.get(b.method_info);require(i.param_types.length==1 && i.optional.length==0 && "void".equals(abc.constants.getString(abc.constants.getMultiname(i.ret_type).name_index)),"Common geometry signature differs: ApexColumnsWidthHandle");require(commonGeometryCalls(abc,b).equals(Set.of("Initialize","Sprite","TooltipObject","addChild","addEventListener","beginFill","drawRect","drawRoundRect","endFill","getBounds","lineStyle","lineTo","max","moveTo","push")),"Common geometry callees differ: ApexColumnsWidthHandle");}
+        var nullable=abc.method_info.get(ownedBody(abc,instance,"ApexColumnsWidthUp").method_info).optional[0];
+        require(nullable.value_index==com.jpexs.decompiler.flash.abc.types.ValueKind.CONSTANT_Null && nullable.value_kind==com.jpexs.decompiler.flash.abc.types.ValueKind.CONSTANT_Null,"Width-up default must remain exact null Event");
+        require(!propertyCalls(abc,ownedBody(abc,instance,"ApexColumnsResize")).contains("ApexColumnsSet"),"Width resize cannot overwrite the chosen column count");
+    }
     public static void main(String[] args) throws Exception {
         require(args.length == 3, "Use original SWF, compiler SWF, output ABC.");
         ABC original = load(args[0]), compiled = load(args[1]);
@@ -2702,12 +3036,12 @@ public class CasBytecodePatch {
         InstanceInfo nativeClass = original.instance_info.get(oi), newClass = compiled.instance_info.get(ci);
         List<Trait> added = new ArrayList<>();
         Set<Integer> ownedMethods = new HashSet<>();
-        Set<String> ownedFields = Set.of("apexCatalogGrid","apexLayoutTrace","apexCatalogTrace","apexColumns", "apexPanels", "apexWire", "apexReceiving", "apexLastId", "apexLastReply",
+        Set<String> ownedFields = Set.of("apexPanelGeometry","apexCatalogGrid","apexLayoutTrace","apexCatalogTrace","apexColumns", "apexPanels", "apexWire", "apexReceiving", "apexLastId", "apexLastReply",
             "apexNativeTransportRequired", "apexNativeChannel", "apexNativeConnected",
             "apexSocket", "apexTimer", "apexFrame", "apexExpected", "apexNonce", "apexBoundSim",
             "apexAwaiting", "apexAckId", "apexDisconnected", "apexSocketActive", "apexHelloPending", "apexSocketError",
             "apexSocketResetPending", "apexOutboundFrame", "apexOutboundPending",
-            "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking",
+            "apexPendingFields", "apexPendingReply", "apexPendingContext", "apexReadbackTick", "apexPendingPhase", "apexClaimNonce", "apexTicking", "apexAcceptWait", "apexAcceptInput", "apexAcceptStage",
             "apexPresentationQueued", "apexPresentationStarted", "apexPresentationMilliseconds", "apexPresentationFrames", "apexPresentationListener", "apexPresentationSim","apexPresentationFirstFrameDelay","apexPresentationPrimeMs","apexPresentationCatalogMs","apexPresentationMenuMs","apexPresentationStateMs","apexPresentationPairMs","apexPresentationIconsMs","apexPresentationGraphicsMs",
             "apexOwnerFeed", "apexOwnerFeedSequence", "apexOwnerSession", "apexOwnerFeedListener", "apexOwnerResetListener", "apexMoleculeRegistered", "apexMoleculeReadRegistered", "apexMoleculeListener", "apexMoleculeView", "apexMoleculeIntent",
             "apexFormsRoot", "apexFormsSignature", "apexFormsOwnedMask", "apexFormsCatalog", "apexFormsIntent", "apexFormsResult", "apexFormsMessage", "apexFormsApplying",
@@ -2715,7 +3049,7 @@ public class CasBytecodePatch {
             "apexFormsCatalogPages","apexFormsLocalCatalog","apexFormsLocalOffset",
             "apexFormsFrameQueued", "apexFormsFastState", "apexFormsNativeGeneration", "apexFormsGestureStarted", "apexFormsSwitchMilliseconds",
             "apexInputSamples", "apexInputOverBudget", "apexInputMaxMs", "apexInputTotalMs",
-            "apexCatalogPrefs","apexCatalogStore","apexCatalogUi","apexCatalogRows","apexCatalogIntent","apexCatalogSignature","apexCatalogEffects","apexCatalogPage","apexCatalogItems","apexCatalogContext","apexCatalogError","apexCatalogRegistered","apexCatalogDrag","apexCatalogSaved",
+            "apexCatalogPrefs","apexCatalogDisplayFaults","apexCatalogStore","apexCatalogUi","apexCatalogRows","apexCatalogIntent","apexCatalogSignature","apexCatalogEffects","apexCatalogPage","apexCatalogItems","apexCatalogContext","apexCatalogError","apexCatalogRegistered","apexCatalogDrag","apexCatalogSaved",
             "apexCatalogTab", "apexCatalogSelectionFrames", "apexCatalogSelectionMaxMs", "apexCatalogSelectionOverBudget", "apexCatalogStyleSignature", "apexCatalogLayoutChanges", "apexCatalogRefreshRegistered", "apexCatalogDirty", "apexCatalogSlot", "apexCatalogBinding", "apexCatalogBindingRegistered", "apexCatalogBindingDirty", "apexCatalogBoundWidth", "apexCatalogHeaderSignature",
             "apexCardPrefs","apexCardGeometry","apexCardLayout","apexCardReflowAttempts",
             "apexCatalogFrameCells","apexEquippedActive","apexEquippedOpening","apexEquippedProducts","apexEquippedBindings","apexEquippedDirty",
@@ -2726,20 +3060,21 @@ public class CasBytecodePatch {
             "apexEquippedPublication",
               "apexKeyStage","apexKeyIntent","apexKeyIndex","apexKeyFeed","apexKeyContext","apexKeyFocus","apexKeyMessage","apexKeyBounds","apexKeyItem","apexKeyQueue","apexKeyReceipt","apexKeyInjecting","apexKeyReceived","apexKeyLastCode","apexKeyRejected",
             "apexPairRoot", "apexPairContext", "apexPairIntent", "apexPairSignature", "apexPairTooltips", "apexPairMessage", "apexPairRegistered");
-        Set<String> ownedNames = Set.of("ApexCatalogGridPermit","ApexCatalogGridBootstrap","ApexCatalogGridInitialize","ApexCatalogGridPrepare","ApexCatalogGridLeaseCurrent","ApexCatalogGridValidate","ApexCatalogGridObserve","ApexCatalogGridFrameObserve","ApexCatalogGridMatches","ApexCatalogGridInput","ApexCatalogGridRequest","ApexCatalogGridFrame","ApexCatalogGridInvalidate","ApexCatalogGridChanged","ApexCatalogGridOwns","ApexCatalogGridPending","ApexCatalogGridStatus","ApexCatalogGridDispose","ApexImageBoundaryProbe","ApexLayoutTraceConfigure","ApexLayoutTraceDispose","ApexLayoutTraceStatus","ApexLayoutReset","ApexCatalogTraceConfigure","ApexCatalogTraceStatus","ApexCatalogTraceDispose","ApexCatalogTraceStep","ApexPanelsConsumerCancel","ApexPanelsCapture","ApexPanelsAction","ApexPanelConsumer","ApexPanelPersistGate","ApexPanelsConsume","ApexPanelsTooltip","ApexPanelsPreview","ApexColumnsInitialize","ApexColumnsTakeover","ApexColumnsSave","ApexColumnsSet","ApexColumnsScale","ApexColumnsScaleEnd","ApexColumnsResize","ApexColumnsResizeEnd","ApexColumnsDown","ApexColumnsMove","ApexColumnsUp","ApexColumnsFrame","ApexColumnsDispose","ApexPanelsInitialize","ApexPanelsDrawer","ApexPanelsChanged","ApexPanelsButton","ApexPanelsAdopt","ApexPanelsApply","ApexPanelsDragStart","ApexPanelsDragMove","ApexPanelsDragEnd","ApexPanelsScale","ApexPanelsWheel","ApexPanelsClick","ApexPanelsFrame","ApexPanelRefreshGate","ApexPanelsContext","ApexPanelsStamp","ApexPanelsWork","ApexPanelsCommand","ApexPanelsStatus","ApexPanelsDispose","ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
+        Set<String> ownedNames = Set.of("ApexCatalogGridProductPanel","ApexCatalogGridProductRow","ApexCatalogPanelKey","ApexCatalogPanelKind","ApexCatalogOptional","ApexCardStateFor","ApexCardActivate","ApexCatalogVisibleRect","ApexCatalogSafeRight","ApexCatalogNavigationRects","ApexCatalogWidthEnvelope","ApexCatalogWidthRequest","ApexCatalogWidthMode","ApexSkinToneApply","ApexColumnsTrack","ApexColumnsScaleDown","ApexColumnsScaleMove","ApexColumnsScaleUp","ApexColumnsWidthDown","ApexColumnsWidthMove","ApexColumnsWidthUp","ApexColumnsWidthHandle","ApexCatalogGridPermit","ApexCatalogGridBootstrap","ApexCatalogGridInitialize","ApexCatalogGridPrepare","ApexCatalogGridLeaseCurrent","ApexCatalogGridValidate","ApexCatalogGridObserve","ApexCatalogGridFrameObserve","ApexCatalogGridMatches","ApexCatalogGridInput","ApexCatalogGridRequest","ApexCatalogGridFrame","ApexCatalogGridInvalidate","ApexCatalogGridChanged","ApexCatalogGridOwns","ApexCatalogGridPending","ApexCatalogGridStatus","ApexCatalogGridDispose","ApexImageBoundaryProbe","ApexLayoutTraceConfigure","ApexLayoutTraceDispose","ApexLayoutTraceStatus","ApexLayoutReset","ApexCatalogTraceConfigure","ApexCatalogTraceStatus","ApexCatalogTraceDispose","ApexCatalogTraceStep","ApexPanelsConsumerCancel","ApexPanelsCapture","ApexPanelsAction","ApexPanelConsumer","ApexPanelPersistGate","ApexPanelsConsume","ApexPanelsTooltip","ApexPanelsPreview","ApexColumnsInitialize","ApexColumnsTakeover","ApexColumnsSave","ApexColumnsSet","ApexColumnsScale","ApexColumnsScaleEnd","ApexColumnsResize","ApexColumnsResizeEnd","ApexColumnsDown","ApexColumnsMove","ApexColumnsUp","ApexColumnsFrame","ApexColumnsDispose","ApexPanelsInitialize","ApexPanelsDrawer","ApexPanelsChanged","ApexPanelsButton","ApexPanelsAdopt","ApexPanelsApply","ApexPanelsDragStart","ApexPanelsDragMove","ApexPanelsDragEnd","ApexPanelsScale","ApexPanelsWheel","ApexPanelsClick","ApexPanelsFrame","ApexPanelRefreshGate","ApexPanelsContext","ApexPanelsStamp","ApexPanelsWork","ApexPanelsCommand","ApexPanelsStatus","ApexPanelsDispose","ApexInitialize", "ApexResetSocket", "ApexDisconnect", "ApexTick", "ApexIdleMemberChanged", "ApexMoleculeChooseOccult", "ApexMoleculeReadSelection", "ApexMoleculeDrain", "ApexFormsBindUiKind", "ApexObserveMolecule", "ApexMoleculeListen",
             "ApexSocketConnect", "ApexSocketFailure", "ApexSocketSend", "ApexSocketData", "ApexSocketReply",
             "ApexNativeExchange", "ApexNativeOpen", "ApexNativeReceive", "ApexConsumeFrame","ApexFormsConsumeCatalog","ApexFormsTryLocalCatalog",
             "ApexPresentationReady", "ApexPresentationStop", "ApexPresentationSchedule", "ApexPresentationFrame", "ApexPresentationNotify", "ApexPresentationPrime",
-            "ApexQuote", "ApexEncode", "ApexCatalogReadbackOnly", "ApexCatalogReadbackContext", "ApexCatalogSnapshot", "ApexPanelNavigationSnapshot", "ApexCatalogTimerStep", "ApexCatalogTimerStatus", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept",
+            "ApexQuote", "ApexEncode", "ApexCatalogReadbackOnly", "ApexCatalogReadbackContext", "ApexCatalogSnapshot", "ApexPanelNavigationSnapshot", "ApexCatalogTimerStep", "ApexCatalogTimerStatus", "ApexSnapshot", "ApexExecute", "ApexReadback", "ApexComplete", "ApexAccept", "ApexAcceptListen", "ApexAcceptUserInput", "ApexAcceptReadyFrame", "ApexAcceptAbort", "ApexAcceptNative", "ApexAcceptReady",
             "ApexOwnerFeedRow", "ApexObserveOwnerFeed", "ApexOwnerSimRow", "ApexOwnerObservation", "ApexInvalidateOwnerFeed", "ApexOwnerHouseholdProbe", "ApexFormSelectionContext", "ApexMemberSelectionContext",
             "ApexClone", "ApexCatalog", "ApexControlExecute", "ApexControlResult", "ApexBodyTypes", "ApexNativeLayers", "ApexSelectEyebrowSwatch", "ApexWingObservation",
             "ApexFormsDispose", "ApexFormsText", "ApexFormsButton", "ApexFormsTick", "ApexFormsClick", "ApexFormsLayers", "ApexFormsStatus",
             "ApexFormsToolbar", "ApexFormsToolbarClick", "ApexFormsPlace", "ApexFormsDragStart", "ApexFormsDragEnd", "ApexFormsResetPosition", "ApexFormsObservedSim", "ApexFormsDragCancel", "ApexFormsApply", "ApexFormsOwnedTick", "ApexFormsCompactButton", "ApexFormsGroupCatalog", "ApexFormsTooltip", "ApexFormsClearTooltips",
             "ApexFormsQueueOwner", "ApexFormsNextFrame", "ApexFormsReadNativeState", "ApexFormsScheduleFrame", "ApexInputTiming", "ApexFormsRefreshBoundPair", "ApexFormsCommandBlocksInput",
             "ApexCatalogInitialize","ApexCatalogValidate","ApexCatalogPersist","ApexCatalogStyle","ApexCatalogDispose","ApexCatalogOpen","ApexCatalogFrame","ApexCatalogClearEffects","ApexCatalogSelection","ApexCatalogReadEquipped","ApexCatalogMenu","ApexCatalogButton","ApexCatalogSlider","ApexCatalogDraw","ApexCatalogClick","ApexCatalogSlideStart","ApexCatalogSlide","ApexCatalogSlideEnd","ApexCatalogStatus",
+            "ApexCatalogDisplayFaulted","ApexCatalogDisplayFault","ApexCatalogDisplayFaultStatus",
             "ApexCatalogView", "ApexCatalogSliderCommand", "ApexCatalogInvalidate", "ApexCatalogObserveBinding", "ApexCatalogApplyBinding",
             "ApexCardIncrementalApply","ApexCardValidate","ApexCardCommand","ApexCardReset","ApexCardRestore","ApexCardForget","ApexCardScaleCells","ApexCardApply","ApexCardReadback","ApexCardRowsAligned","ApexCardGridReadback","ApexCardFit","ApexCardRepairControls",
-            "ApexCatalogKeyboardVisibility","ApexCatalogKeyboardTyping","ApexCatalogKeyboardInput","ApexCatalogKeyboardCommand","ApexCatalogKeyboardInitialize","ApexCatalogKeyboardDispose","ApexCatalogKeyDown","ApexCatalogKeyboardFrame",
+            "ApexCatalogKeyboardVisibility","ApexCatalogKeyboardTyping","ApexCatalogKeyboardInput","ApexCatalogKeyboardCommand","ApexCatalogKeyboardPublication","ApexCatalogKeyboardPublicationReady","ApexCatalogKeyboardScopeEqual","ApexCatalogKeyboardInitialize","ApexCatalogKeyboardDispose","ApexCatalogKeyDown","ApexCatalogKeyboardFrame",
             "ApexSearchInitialize","ApexSearchContext","ApexSearchRestore","ApexSearchDispose","ApexSearchReset","ApexSearchSource","ApexSearchAdopt",
             "ApexSearchText","ApexSearchChanged","ApexSearchClear","ApexSearchKey","ApexSearchLabels","ApexSearchFocus",
             "ApexSearchAttach","ApexSearchQuery","ApexSearchPublish","ApexSearchFrame","ApexSearchNativeKey","ApexSearchStatus","ApexSearchChooseFolder","ApexSearchSuggestions","ApexSearchOrder","ApexSearchSelection",
@@ -2772,6 +3107,7 @@ public class CasBytecodePatch {
         }
         require(added.size() == ownedFields.size() + ownedNames.size() && initializeName >= 0 && disconnectName >= 0 && gridBootstrapName>=0,
             "Unexpected Apex trait inventory.");
+        verifyCommonCatalogGeometry(compiled,newClass);
         verifyGridController(compiled,newClass);
         verifyTimerPipeline(compiled, newClass);
         verifyDrawTraceHelper(compiled,newClass);
@@ -2791,6 +3127,7 @@ public class CasBytecodePatch {
         verifyExactItemSelection(compiled, newClass);
         verifyTypedControls(compiled, newClass);
         verifyPhysiqueGesture(compiled,newClass);
+        verifyAcceptReadiness(compiled,newClass);
         verifyAcceptLinkage(compiled, newClass);
         verifyAcceptHouseholdBinding(compiled, newClass);
         verifyAcceptPrimaryLayerOnly(compiled, newClass);
@@ -2922,8 +3259,10 @@ public class CasBytecodePatch {
         ABC serialized = new ABC(new ABCInputStream(new MemoryInputStream(saved.toByteArray())), compiled.getSwf(), null);
         verifyLifecycle(serialized.findBody(nativeInit.method_info), nativeCode.get(nativeInit.method_info), initializeName, "Initialize");
         verifyGridBootstrapProjection(serialized,nativeInitOriginal,serialized.findBody(nativeInit.method_info),gridBootstrapName,initializeName);
+        verifyCommonCatalogGeometry(serialized,serialized.instance_info.get(oi));
         verifyGridController(serialized,serialized.instance_info.get(oi));
         verifyUnloadPrologue(serialized.findBody(nativeUnload.method_info), nativeCode.get(nativeUnload.method_info), disconnectName);
+        verifyAcceptReadiness(serialized,serialized.instance_info.get(oi));
         verifyAcceptLinkage(serialized, serialized.instance_info.get(oi));
         verifyAcceptHouseholdBinding(serialized, serialized.instance_info.get(oi));
         verifyAcceptPrimaryLayerOnly(serialized, serialized.instance_info.get(oi));
@@ -2969,6 +3308,6 @@ public class CasBytecodePatch {
         Files.write(Path.of(args[2]), saved.toByteArray());
         System.out.println("{\"native_method_count\":" + original.bodies.size() + ",\"apex_method_count\":" + ownedMethods.size() +
             ",\"native_lexical_scope_preserved\":true,\"card_height_marker_adapter_verified\":true,\"native_equipped_category_adapters_verified\":true,\"native_wing_paint_owner_adapters\":3,\"native_pelt_palette_reenable_verified\":true,\"native_column_scheduler_adapters\":"+columnBodies.size()+",\"native_draw_trace_adapters\":"+(drawTraceBody==null?0:1)+",\"native_draw_trace_guard_verified\":true,\"native_draw_trace_cfg_verified\":"+(drawTraceBody!=null)+",\"native_draw_trace_call_abi_verified\":"+(drawTraceBody!=null)+",\"native_outfit_consumers\":"+consumerBodies.size()+",\"native_favorite_lookup_map_verified\":true,\"native_lazy_swatch_adapters\":"+lazySwatchBodies.size()+",\"native_current_outfit_refresh_queue_verified\":true,\"companion_named_form_adapters\":"+companionBodies.size()+",\"unchanged_native_methods\":" + (nativeCode.size()-2-adapterIds.size()) +
-            ",\"native_grid_bootstrap_pre_sim_delivery_verified\":true,\"native_grid_bootstrap_cfg_projection_verified\":true,\"native_grid_controller_scope_verified\":true,\"native_initializer_bytecode_extended\":true,\"native_unload_bytecode_extended\":true,\"native_unload_cleanup_precedes_teardown\":true,\"owned_local_scope_indexes_verified\":true,\"serialized_lifecycle_hooks_verified\":true,\"socket_callbacks_data_only_verified\":true,\"timer_command_phases_verified\":true,\"accept_commit_timer_owned_verified\":true,\"accept_native_class_linkage_verified\":true,\"accept_expected_household_bound_verified\":true,\"accept_primary_layer_only_verified\":true,\"catalog_metadata_localization_linkage_verified\":true,\"owner_pair_callback_data_only_verified\":true,\"owner_pair_listener_cleanup_verified\":true,\"owner_pair_timer_read_only_verified\":true,\"socket_connect_queue_only_verified\":true,\"socket_handshake_exact_constructor_timer_verified\":true,\"form_select_timer_owned_verified\":true,\"form_select_exact_same_original_pair_verified\":true,\"form_select_native_argument_order_verified\":true,\"form_select_next_tick_readback_verified\":true,\"earrings_exact_bodytype_and_swatch_guard_verified\":true}");
+            ",\"native_grid_bootstrap_pre_sim_delivery_verified\":true,\"native_grid_bootstrap_cfg_projection_verified\":true,\"native_grid_controller_scope_verified\":true,\"native_initializer_bytecode_extended\":true,\"native_unload_bytecode_extended\":true,\"native_unload_cleanup_precedes_teardown\":true,\"owned_local_scope_indexes_verified\":true,\"serialized_lifecycle_hooks_verified\":true,\"socket_callbacks_data_only_verified\":true,\"timer_command_phases_verified\":true,\"accept_commit_timer_owned_verified\":true,\"accept_readiness_original_uuid_once_only_verified\":true,\"accept_readiness_busy_wait_no_save_verified\":true,\"accept_native_class_linkage_verified\":true,\"accept_expected_household_bound_verified\":true,\"accept_primary_layer_only_verified\":true,\"catalog_metadata_localization_linkage_verified\":true,\"owner_pair_callback_data_only_verified\":true,\"owner_pair_listener_cleanup_verified\":true,\"owner_pair_timer_read_only_verified\":true,\"socket_connect_queue_only_verified\":true,\"socket_handshake_exact_constructor_timer_verified\":true,\"form_select_timer_owned_verified\":true,\"form_select_exact_same_original_pair_verified\":true,\"form_select_native_argument_order_verified\":true,\"form_select_next_tick_readback_verified\":true,\"earrings_exact_bodytype_and_swatch_guard_verified\":true}");
     }
 }

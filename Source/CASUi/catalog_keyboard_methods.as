@@ -307,3 +307,90 @@
             cell:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},
             viewport:{x:viewport.x,y:viewport.y,width:viewport.width,height:viewport.height}};
       }
+
+      private function ApexCatalogKeyboardPublication(before:Object) : Object
+      {
+         // Retain the ONE consumed navigation, never the input event or a
+         // second scroll request. This object lives only in its command context.
+         var panel:Object=mCurrentPanel;var list:Object=panel==null ? null : panel.mcTileList;
+         var grid:Object=list==null ? null : list.mGridLayout;var receipt:Object=apexKeyReceipt;
+         if(before==null || apexPendingFields==null || apexClaimNonce!==apexNonce || stage==null || grid==null ||
+            receipt==null || int(receipt.key)==13 || receipt.click_dispatched!==false ||
+            receipt.sim_id!==String(apexPendingFields[1]) || receipt.owner_id!==apexFormsSelectedId ||
+            apexKeyIndex!=int(receipt.index_after) || apexKeyItem==null || apexKeyIntent!=0 ||
+            apexKeyQueue!=null && apexKeyQueue.length!=0)
+            throw new Error("Navigation publication lacks its exact consumed key");
+         var owned:Boolean=ApexCatalogGridOwns(grid);
+         var lease:Object=owned ? apexCatalogGrid.lease : null;
+         var status:Object=owned ? grid.ApexGridStatus() : null;
+         if(owned && (lease==null || status==null))throw new Error("Navigation publication lost its original native lease");
+         return {request_id:String(apexPendingFields[0]),peer_nonce:apexClaimNonce,started:flash.utils.getTimer(),
+            before:ApexClone(before),stage:stage,channel:apexNativeChannel,panel:panel,list:list,grid:grid,feed:grid.GetDataFeed(),
+            owned:owned,lease:lease,revision:owned ? int(status.revision) : 0,
+            lease_generation:owned ? int(lease.generation) : 0,receipt:receipt,receipt_json:ApexEncode(receipt),
+            target:apexKeyIndex,item:apexKeyItem};
+      }
+
+      private function ApexCatalogKeyboardPublicationReady(held:Object) : Boolean
+      {
+         if(held==null || apexPendingFields==null || String(apexPendingFields[0])!==held.request_id ||
+            apexClaimNonce!==held.peer_nonce || apexNonce!==held.peer_nonce || apexDisconnected || !apexSocketActive ||
+            stage!==held.stage || apexNativeChannel!==held.channel || mCurrSimInfo==null ||
+            String(mCurrSimInfo.simId)!==held.before.sim_id || String(mCurrSimInfo.householdId)!==held.before.household_id ||
+            apexBoundSim!==held.before.sim_id || apexFormsSelectedId!==held.before.owner_id ||
+            apexFormsNativeGeneration!==held.before.native_generation || apexOwnerSession!=int(held.before.session) ||
+            int(mCurrState)!=int(held.before.menu_state) || int(mCurrSimInfo.occultLayer)!=int(held.before.layer) ||
+            int(mCurrSimInfo.occultType)!=int(held.before.native_kind) || int(mCurrSimInfo.allOccultTypes)!=int(held.before.native_mask) ||
+            apexFormsNativeState!=="bound" || apexFormsDesiredId!="" || apexFormsIntent!=null ||
+            apexFormsNativeIntent!=null || apexMoleculeIntent!=null || apexPairIntent!=null || apexFormsApplying ||
+            mCurrentPanel!==held.panel || held.panel.stage!==stage || held.panel.visible!==true ||
+            held.panel.mcTileList!==held.list || held.list.mGridLayout!==held.grid ||
+            held.grid.GetDataFeed()!==held.feed || apexKeyReceipt!==held.receipt ||
+            ApexEncode(apexKeyReceipt)!==held.receipt_json || apexKeyIndex!=int(held.target) || apexKeyItem!==held.item ||
+            apexKeyIntent!=0 || apexKeyQueue!=null && apexKeyQueue.length!=0 ||
+            ApexCatalogGridOwns(held.grid)!==held.owned)
+            throw new Error("Navigation publication changed its original request, target or catalog");
+         var grid:Object=held.grid;var list:Object=held.list;
+         if(held.owned) {
+            if(apexCatalogGrid.lease!==held.lease || !ApexCatalogGridLeaseCurrent(held.lease) ||
+               int(held.lease.generation)!=int(held.lease_generation) ||
+               int(grid.ApexGridStatus().revision)!=int(held.revision))
+               throw new Error("Navigation publication changed its original native lease or feed revision");
+            // A scroll may advance native JOB generation; it must finish its
+            // own double-buffer publication before its mapping can be used.
+            if(ApexCatalogGridPending(grid))return false;
+         }
+         if(list.visible!==true || list.GetGridView().visible!==true)return false;
+         if((held.owned ? grid.GetDataAtIndex(int(held.target)) : held.feed.RequestItemAt(int(held.target)))!==held.item)
+            throw new Error("Navigation publication replaced its original target item");
+         var cell:flash.display.DisplayObject=grid.GetViewAtIndex(int(held.target)) as flash.display.DisplayObject;
+         if(cell==null || cell.stage!==stage || cell.visible!==true || cell.parent!==list.GetGridView() ||
+            int(grid.GetGridIndexOfCell(cell))!=int(held.target) || apexKeyFocus==null ||
+            apexKeyFocus.parent!==list.GetGridView() || apexKeyFocus.stage!==stage || apexKeyFocus.visible!==true)return false;
+         var visibility:Object=ApexCatalogKeyboardVisibility();
+         return visibility.available===true && visibility.fully_visible===true && visibility.focus_visible===true &&
+            grid.GetDataFeed()===held.feed &&
+            (held.owned ? grid.GetDataAtIndex(int(held.target)) : held.feed.RequestItemAt(int(held.target)))===held.item &&
+            (!held.owned || apexCatalogGrid.lease===held.lease && ApexCatalogGridLeaseCurrent(held.lease) &&
+             int(grid.ApexGridStatus().revision)==int(held.revision) && !ApexCatalogGridPending(grid));
+      }
+
+
+      private function ApexCatalogKeyboardScopeEqual(left:Object,right:Object) : Boolean
+      {
+         // Dynamic AS Object enumeration is not an identity/canonical order.
+         // Compare the COMPLETE private scalar schema, never encoded key order.
+         if(left==null || right==null)return false;
+         var fields:Array=["sim_id","household_id","owner_id","native_kind","shell_kind","native_mask",
+            "native_generation","session","layer","outfit_type","outfit_index","menu_state"];
+         var count:int=0;var name:String;
+         for(name in left) {if(fields.indexOf(name)<0)return false;count++;}
+         if(count!=fields.length)return false;
+         count=0;for(name in right) {if(fields.indexOf(name)<0)return false;count++;}
+         if(count!=fields.length)return false;
+         for(var at:int=0;at<fields.length;at++) {
+            name=String(fields[at]);
+            if(!left.hasOwnProperty(name) || !right.hasOwnProperty(name) || left[name]!==right[name])return false;
+         }
+         return true;
+      }

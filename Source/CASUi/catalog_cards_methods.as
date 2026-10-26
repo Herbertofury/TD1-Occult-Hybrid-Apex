@@ -65,7 +65,7 @@
          if(apexCardGeometry==null) return;
          var geometry:Object=apexCardGeometry;
          var grid:Object=geometry.grid;
-         if(geometry.incremental===true) {
+         if(geometry.incremental===true || geometry.specialized===true) {
             // The controller owns retirement/rebinding. Never bulk-reset an
             // active or retired incremental pool from the legacy restore path.
             ApexCardForget();return;
@@ -97,9 +97,9 @@
          if(geometry.panel.txtTitle!=null && geometry.title_x!=null &&
             geometry.panel.txtTitle.x==Number(geometry.title_x)+(lastWidth-Number(geometry.width))*0.5)
             geometry.panel.txtTitle.x=Number(geometry.title_x);
-         if(geometry.panel.btnRandomize!=null && geometry.random_x!=null &&
-            geometry.panel.btnRandomize.x==Number(geometry.random_x)+lastWidth-Number(geometry.width))
-            geometry.panel.btnRandomize.x=Number(geometry.random_x);
+         if(ApexCatalogOptional(geometry.panel,"btnRandomize")!=null && geometry.random_x!=null &&
+            ApexCatalogOptional(geometry.panel,"btnRandomize").x==Number(geometry.random_x)+lastWidth-Number(geometry.width))
+            ApexCatalogOptional(geometry.panel,"btnRandomize").x=Number(geometry.random_x);
          var filter:Object=geometry.panel.mcFilterPane;
          if(filter!=null && filter.mcFilterBubble!=null && geometry.filter_width!=null && filter.mcFilterBubble.mcBackground.width==lastWidth-30)
             filter.mcFilterBubble.mcBackground.width=Number(geometry.filter_width);
@@ -113,7 +113,7 @@
          } finally {geometry.applying=false;}
       }
 
-      private function ApexCardFit(columns:int,stageWidth:Number,scale:Number,gapX:Number,gapY:Number,naturalWidth:Number,naturalHeight:Number) : Object
+      private function ApexCardFit(columns:int,stageWidth:Number,scale:Number,gapX:Number,gapY:Number,naturalWidth:Number,naturalHeight:Number,availableOverride:Number=-1) : Object
       {
          // The native attachment remains authoritative. Reserve the left
          // 60% of the actual viewport for the Sim and its controls; extra
@@ -122,6 +122,8 @@
          // of the chosen count, requested size or requested spacing.
          var nominal:Number=40+6*(naturalWidth+4);
          var available:Number=Math.max(80,Math.min(nominal,stageWidth*0.40-12));
+         var explicitWidth:Boolean=isFinite(availableOverride) && availableOverride>=80;
+         if(explicitWidth)available=Math.max(80,Math.min(availableOverride,stageWidth-24));
          var content:Number=available-40;
          // Keep the requested count even at 12+ columns. An automatic fit may
          // go below the user's size-slider minimum. If gaps alone would fill
@@ -130,7 +132,8 @@
          var size:Number=Math.min(scale,(content-columns*fittedGap)/(columns*naturalWidth));
          var pitch:Number=naturalWidth*size+fittedGap;
          return {scale:size,gap_x:fittedGap,gap_y:gapY,card_width:naturalWidth*size,card_height:naturalHeight*size,
-            pitch_x:pitch,pitch_y:naturalHeight*size+gapY,columns:columns,width:Math.max(Math.min(262,available),40+columns*pitch),
+            pitch_x:pitch,pitch_y:naturalHeight*size+gapY,columns:columns,width:explicitWidth ? available : Math.max(Math.min(262,available),40+columns*pitch),
+            right_growth:explicitWidth,
             requested_columns:columns,requested_scale:scale,requested_gap_x:gapX,available_width:available,
             columns_fit:true,size_fitted:size<scale-0.000001,gap_x_fitted:fittedGap<gapX-0.000001};
       }
@@ -163,9 +166,9 @@
             var titleX:Number=Number(apexCardGeometry.title_x)+(width-Number(apexCardGeometry.width))*0.5;
             if(panel.txtTitle.x!=titleX) {panel.txtTitle.x=titleX;moved=true;}
          }
-         if(panel.btnRandomize!=null && apexCardGeometry.random_x!=null) {
+         if(ApexCatalogOptional(panel,"btnRandomize")!=null && apexCardGeometry.random_x!=null) {
             var randomX:Number=Number(apexCardGeometry.random_x)+width-Number(apexCardGeometry.width);
-            if(panel.btnRandomize.x!=randomX) {panel.btnRandomize.x=randomX;moved=true;}
+            if(ApexCatalogOptional(panel,"btnRandomize").x!=randomX) {ApexCatalogOptional(panel,"btnRandomize").x=randomX;moved=true;}
          }
          if((reflow || moved) && apexCompanion!=null && apexCompanion.donor!=null)apexCompanion.donor.PositionButton(panel);
          apexCardGeometry.controls_width=width;
@@ -199,6 +202,7 @@
 
       private function ApexCardApply(panel:Object,grid:Object) : Number
       {
+         if(!ApexCardActivate(panel,grid))return Number(panel.mcPanelBackground.width);
          if(ApexCatalogGridOwns(grid))return ApexCardIncrementalApply(panel,grid);
          if(grid.SuppressUpdates===true || apexCardGeometry!=null && apexCardGeometry.applying===true)
             return Number(panel.mcPanelBackground.width);
@@ -207,7 +211,6 @@
          // read its transient reset-to-zero or fitted values back as user
          // preferences; that feedback caused competing layouts on navigation.
          if(apexCardGeometry==null || apexCardGeometry.grid!==grid) {
-            ApexCardRestore();
             if(apexCardGeometry!=null)return Number(panel.mcPanelBackground.width);
             var bounds:flash.geom.Rectangle=grid.GetCellBounds();
             if(bounds==null || bounds.width<=0 || bounds.height<=0) throw new Error("Native card bounds unavailable");
@@ -220,7 +223,7 @@
             if(nativeCell==null) return 262;
             apexCardGeometry={grid:grid,panel:panel,bounds:bounds.clone(),padding:nativePadding,
                columns:int(dimensions[grid.Horizontal ? 0 : 1]),width:panel.mcPanelBackground.width,
-               title_x:panel.txtTitle==null ? null : panel.txtTitle.x,random_x:panel.btnRandomize==null ? null : panel.btnRandomize.x,
+               title_x:panel.txtTitle==null ? null : panel.txtTitle.x,random_x:ApexCatalogOptional(panel,"btnRandomize")==null ? null : ApexCatalogOptional(panel,"btnRandomize").x,
                filter_width:panel.mcFilterPane==null ? null : panel.mcFilterPane.mcFilterBubble.mcBackground.width,
                cell_width:Number(nativeCell.width)/Number(nativeCell.scaleX)};
             apexCatalogSignature="";
@@ -241,7 +244,7 @@
          if(!isFinite(unitWidth) || unitWidth<=0 || !isFinite(viewportWidth) || viewportWidth<=0)
             throw new Error("Native catalogue viewport unavailable");
          var fitted:Object=ApexCardFit(int(apexCatalogPrefs.columns),viewportWidth,Number(apexCardPrefs.scale),
-            Number(apexCardPrefs.gap_x),Number(apexCardPrefs.gap_y),naturalWidth,base.height);
+            Number(apexCardPrefs.gap_x),Number(apexCardPrefs.gap_y),naturalWidth,base.height,ApexCatalogWidthRequest(panel));
          var scale:Number=Number(fitted.scale);
          var pitch:Number=naturalWidth*scale+Number(fitted.gap_x);
          var columns:int=int(fitted.columns);var width:Number=Number(fitted.width);
@@ -249,7 +252,8 @@
          var rowHeight:Number=base.height*scale;
          if(currentCells!=null && currentCells.length>0) {
             var first:Object=currentCells[0];
-            var localHeight:Number=first.mcHitArea==null ? base.height : Number(first.mcHitArea.height);
+            var hit:Object=ApexCatalogOptional(first,"mcHitArea");
+            var localHeight:Number=hit==null ? base.height : Number(hit.height);
             var aspect:Number=Number(first.scaleY)/Number(first.scaleX);
             if(!isFinite(localHeight) || localHeight<=0 || !isFinite(aspect) || aspect<=0)
                throw new Error("Native card row height unavailable");
@@ -268,7 +272,7 @@
          // Category identity is not geometry. Retain the fitted pool across
          // category changes; newly recycled cells are still scaled below.
          var signature:String="cards:"+columns+":"+viewportWidth+":"+scale+":"+
-            apexCardPrefs.gap_x+":"+apexCardPrefs.gap_y;
+            apexCardPrefs.gap_x+":"+apexCardPrefs.gap_y+":"+width;
          var actualDimensions:Array=grid.GetGridDimensions();
          var reflow:Boolean=signature!=apexCatalogSignature || int(actualDimensions[grid.Horizontal ? 0 : 1])!=columns ||
             geometry.row_height==null || Math.abs(rowHeight-Number(geometry.row_height))>0.05+0.000001;
@@ -318,15 +322,36 @@
       private function ApexCardReadback() : Array
       {
          var rows:Array=[];
-         if(apexCardGeometry==null) return rows;
+         if(apexCardGeometry==null || apexCardGeometry.panel!==mCurrentPanel) return rows;
          // Bounded diagnostic sampling on a requested readback, not each frame.
+         if(apexCardGeometry.specialized===true) {
+            var groups:Object=apexCardGeometry.grid.GetAllDisplayObjectCells();var family:int=0;
+            for each(var group:Object in groups) {
+               if(family>=4)break;
+               var nested:Object=group.mcColorSwatchPanel.mcSelectionGrid.mGridLayout;
+               var nativeBounds:flash.geom.Rectangle=nested.GetCellBounds();
+               for each(var swatch:Object in nested.GetAllDisplayObjectCells()) {
+                  if(!swatch.visible)continue;
+                  var swatchBounds:flash.geom.Rectangle=swatch.getBounds(swatch.parent);
+                  rows.push({family_group:family,scale_x:swatch.scaleX,scale_y:swatch.scaleY,reported_height:swatch.height,
+                     grid_height:nativeBounds.height,root_width:swatch.width,root_x:swatch.x,root_y:swatch.y,
+                     local_width:swatchBounds.width,local_height:swatchBounds.height,x:swatchBounds.x,y:swatchBounds.y,
+                     width:swatchBounds.width,height:swatchBounds.height,marker:false,selected:ApexCatalogOptional(swatch,"Selected")});
+                  if(rows.length>=24)return rows;
+               }
+               family++;
+            }
+            return rows;
+         }
          for each(var cell:Object in apexCardGeometry.grid.GetAllDisplayObjectCells()) {
             if(!cell.visible) continue;
-            var bounds:flash.geom.Rectangle=cell.mcHitArea.getBounds(cell.parent);
+            var hit:Object=ApexCatalogOptional(cell,"mcHitArea");
+            if(hit==null)hit=cell;
+            var bounds:flash.geom.Rectangle=hit.getBounds(cell.parent);
             rows.push({scale_x:cell.scaleX,scale_y:cell.scaleY,reported_height:cell.height,
                grid_height:apexCardGeometry.grid.CalculateCellViewHeight(cell as flash.display.DisplayObject),
                root_width:cell.width,root_x:cell.x,root_y:cell.y,
-               local_width:cell.mcHitArea.width*cell.scaleX,local_height:cell.mcHitArea.height*cell.scaleY,
+               local_width:bounds.width,local_height:bounds.height,
                x:bounds.x,y:bounds.y,width:bounds.width,height:bounds.height,
                marker:cell.getChildByName("apexCatalogCardScale")!=null,selected:cell.Selected});
             if(rows.length>=24) break;
@@ -337,12 +362,27 @@
       private function ApexCardGridReadback() : Object
       {
          if(apexCardGeometry==null) return null;
-         var grid:Object=apexCardGeometry.grid;
+         if(apexCardGeometry.panel!==mCurrentPanel)return null;
+         var grid:Object=apexCardGeometry.grid;var families:Array=null;var outer:Array=null;var cellCount:int=0;
+         if(apexCardGeometry.specialized===true) {
+            outer=grid.GetGridDimensions();families=[];
+            for each(var group:Object in grid.GetAllDisplayObjectCells()) {
+               if(families.length>=4)break;
+               var nested:Object=group.mcColorSwatchPanel.mcSelectionGrid.mGridLayout;
+               var nativeBounds:flash.geom.Rectangle=nested.GetLayoutBounds();var nativePadding:Object=nested.GetCellPadding();
+               var count:int=int(nested.GetAllDisplayObjectCells().length);cellCount+=count;
+               families.push({dimensions:nested.GetGridDimensions(),physical_cell_count:count,gap_x:nativePadding.Horizontal,
+                  gap_y:nativePadding.Vertical,layout_width:nativeBounds.width,layout_height:nativeBounds.height});
+               if(families.length==1)grid=nested;
+            }
+            if(families.length==0)return null;
+         } else cellCount=int(grid.GetAllDisplayObjectCells().length);
          var padding:Object=grid.GetCellPadding();
          var bounds:flash.geom.Rectangle=grid.GetLayoutBounds();
          var list:Object=apexCardGeometry.panel.mcTileList;var slider:Object=list.mSlider;var view:Object=list.mScrollerView;
          var bar:flash.geom.Rectangle=slider.getBounds(stage);var mask:flash.geom.Rectangle=view.mcMask.getBounds(stage);
-         return {dimensions:grid.GetGridDimensions(),physical_cell_count:grid.GetAllDisplayObjectCells().length,horizontal:grid.Horizontal,
+         return {dimensions:grid.GetGridDimensions(),dimension_scope:families==null ? "current-native-card-grid" : "first-nested-skin-family",
+            outer_family_dimensions:outer,swatch_families:families,physical_cell_count:cellCount,horizontal:grid.Horizontal,
             native_grid_provider:("ApexGridProviderIdentity" in grid) ? grid.ApexGridProviderIdentity() : "unidentified",
             gap_x:padding.Horizontal,gap_y:padding.Vertical,layout_width:bounds.width,layout_height:bounds.height,
             scroll_list_width:list.width,scroll_list_height:list.height,scroll_view_width:view.width,scroll_view_height:view.height,grid_view_width:list.GetGridView().width,

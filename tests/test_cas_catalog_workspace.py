@@ -147,10 +147,11 @@ class CatalogWorkspaceTests(unittest.TestCase):
                 request=dict(operation='catalog-slider',control=name,fraction=.4)
                 cas_ui.envelope('12',request)
                 value={'columns':14,'color':0x666666,'glow':4.8,'border':3.8,'period':2.08,'strength':.55}
-                workspace=dict(visible=True,view='style',preferences=value,slider_thumbs={name:.4})
+                workspace=dict(visible=True,view='style',preferences=value,slider_thumbs={name:.4},
+                    slider_geometry={name:dict(x=120,track_pixels=300,track_scale_x=1,attached=True)})
                 client={'control':dict(operation='catalog-slider',appearance_written=False,workspace=workspace)}
                 cas_controls.validate(client,request)
-                workspace['slider_thumbs'][name]=.5
+                workspace['slider_geometry'][name]['x']=150
                 with self.assertRaises(cas_controls.PostconditionMismatch):cas_controls.validate(client,request)
         for fraction in (True,-.1,1.1,float('nan')):
             with self.assertRaises(ValueError):cas_ui.envelope('12',dict(operation='catalog-slider',control='red',fraction=fraction))
@@ -205,7 +206,8 @@ class CatalogWorkspaceTests(unittest.TestCase):
     def test_card_sliders_acknowledge_exact_thumb_and_independent_values(self):
         for name,key,n in (('card_scale','scale',.76),('gap_x','gap_x',12.8),('gap_y','gap_y',12.8)):
             request=dict(operation='catalog-slider',control=name,fraction=.4);cas_ui.envelope('12',request)
-            workspace=dict(visible=True,view='layout',card_preferences={key:n},slider_thumbs={name:.4})
+            workspace=dict(visible=True,view='layout',card_preferences={key:n},slider_thumbs={name:.4},
+                slider_geometry={name:dict(x=120,track_pixels=300,track_scale_x=1,attached=True)})
             client={'control':dict(operation='catalog-slider',appearance_written=False,workspace=workspace)}
             cas_controls.validate(client,request)
             workspace['card_preferences'][key]=n+.1

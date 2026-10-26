@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 import unittest
+import test_cas_panel_geometry as geometry
 
 
 SOURCE = Path(__file__).resolve().parents[1] / 'Source/CASUi/catalog_columns_methods.as'
@@ -23,46 +24,36 @@ def javascript_function(name, parameters=''):
 @unittest.skipUnless(shutil.which('node'), 'Node is required for the AS method harness')
 class ColumnControlTests(unittest.TestCase):
     def harness(self):
-        setup = '''
-const assert=require('node:assert/strict');
-class Point{constructor(x,y){this.x=x;this.y=y;}}
-class Event{constructor(type){this.type=type;}}Event.DEACTIVATE='deactivate';Event.MOUSE_LEAVE='mouseLeave';Event.ENTER_FRAME='frame';
-class MouseEvent extends Event{}MouseEvent.MOUSE_MOVE='move';MouseEvent.MOUSE_UP='up';MouseEvent.MOUSE_DOWN='down';
-class Sprite{
-    constructor(name=''){this.name=name;this.parent=null;this.x=0;this.y=0;this.scaleX=1;this.scaleY=1;this.visible=true;this.children={};}
-    addChild(child){this.children[child.name]=child;child.parent=this;}
-    getChildByName(name){return this.children[name]||null;}
-    localToGlobal(p){const value={x:p.x*this.scaleX+this.x,y:p.y*this.scaleY+this.y};return this.parent?this.parent.localToGlobal(value):value;}
-    globalToLocal(p){const value=this.parent?this.parent.globalToLocal(p):p;return {x:(value.x-this.x)/this.scaleX,y:(value.y-this.y)/this.scaleY};}
-    get mouseX(){return this.globalToLocal({x:stage.mouseX,y:stage.mouseY}).x;}
-}
-class ClothingPanel extends Sprite{}
-var flash={geom:{Point},display:{Sprite},events:{Event,MouseEvent},utils:{getTimer:()=>10}};
-var stage={stageWidth:1278,stageHeight:1376,mouseX:0,mouseY:0,addEventListener(){},removeEventListener(){}};
-function int(x){return Math.trunc(x);}function HandleThumbnailScaleMove(){}function HandleThumbnailScaleUp(){}function HandleThumbnailScaleFrame(){}
-var mcClothingPanel=new ClothingPanel(),mCurrentPanel=mcClothingPanel;
-mcClothingPanel.x=978;mcClothingPanel.mcTileList={x:20,y:100,height:600};mcClothingPanel.mcPanelBackground={width:300};
+        # Share the real native-panel/mask/viewport fixture with the six-panel
+        # geometry tests; execute the complete current column helper family.
+        setup = geometry.BASE + geometry.GeometryTests().common() + '''
+stage.stageWidth=1278;stage.stageHeight=1376;mcClothingPanel.x=978;
+mcClothingPanel.mcTileList.y=100;mcClothingPanel.mcTileList.height=600;
 const root=new Sprite('ApexColumnsSlider'),track=new Sprite('dccThumbnailScaleTrack');
 for(const name of ['thumb','caption','apexColumnsLayout'])root.addChild(new Sprite(name));
 for(const name of ['dccThumbnailScaleThumb','apexThumbnailScaleCaption'])track.addChild(new Sprite(name));
 mcClothingPanel.addChild(root);mcClothingPanel.addChild(track);
-var apexColumns={root,track,bounds:null,anchor:null,resize:null,tooltips:[],track_tip:null,drag:false,scale_drag:false,
+apexColumns={root,track,bounds:null,anchor:null,resize:null,tooltips:[],track_tip:null,drag:false,scale_drag:false,
     scale_stage:null,stage:null,persist:false,due:0},apexCatalogPrefs={columns:2},apexCardPrefs={scale:1},apexCardLayout={columns:2,scale:1};
 var apexPanels={drag:null},apexPendingFields=null,apexReceiving=false;
 function ApexCatalogPersist(){throw new Error('Persistence on an active input frame');}
-function event(){return {target:root,stopImmediatePropagation(){},preventDefault(){}};}
+function event(){return {target:root,currentTarget:root,stopImmediatePropagation(){},preventDefault(){}};}
 '''
         for name, parameters in [('ApexColumnsTakeover', 'value=null'), ('ApexColumnsSave', ''),
                                  ('ApexColumnsSet', 'value=null'), ('ApexColumnsScale', 'value=null'),
                                  ('ApexColumnsScaleEnd', 'value=null'), ('ApexColumnsDown', 'event'),
                                  ('ApexColumnsMove', 'event'), ('ApexColumnsUp', 'event=null'),
                                  ('ApexColumnsResize', 'value=null'), ('ApexColumnsResizeEnd', 'value=null'),
+                                 ('ApexColumnsTrack', 'panel'), ('ApexColumnsScaleDown', 'event'),
+                                 ('ApexColumnsScaleMove', 'event'), ('ApexColumnsScaleUp', 'event'),
+                                 ('ApexColumnsWidthDown', 'event'), ('ApexColumnsWidthMove', 'event'),
+                                 ('ApexColumnsWidthUp', 'event=null'), ('ApexColumnsWidthHandle', 'panel'),
                                  ('ApexColumnsFrame', '')]:
             setup += javascript_function(name, parameters)
         return setup
 
     def run_case(self, case):
-        result = subprocess.run(['node', '-e', self.harness() + case], capture_output=True,
+        result = subprocess.run(['node', '-'], input=self.harness() + case, capture_output=True,
                                 text=True, encoding='utf-8', timeout=15)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
@@ -99,15 +90,16 @@ assert.equal(apexColumns.scale_drag,false);assert.equal(apexColumns.drag,false);
 assert.equal(apexCardPrefs.scale,size);
 ''')
 
-    def test_complete_slider_ranges_and_native_resize_hold_one_pitch(self):
+    def test_complete_slider_ranges_and_native_width_handle_keep_count_and_size_independent(self):
         self.run_case('''
-function HandleDynamicResizeMoveRight(){}function HandleDynamicResizeUpRight(){}
-var mDynamicResizeStartX=100,mDynamicResizeStartCols=6,mDynamicResizeHandle={alpha:1};
-apexCardLayout.pitch_x=100;ApexColumnsResize({stageX:300});assert.equal(apexCatalogPrefs.columns,8);
-assert.equal(apexColumns.drag,true);apexCardLayout.pitch_x=25;
-ApexColumnsResize({stageX:300});assert.equal(apexCatalogPrefs.columns,8);
-const last=apexCatalogPrefs.columns;ApexColumnsResizeEnd(new Event(Event.DEACTIVATE));
-assert.equal(apexColumns.resize,null);assert.equal(apexColumns.drag,false);assert.equal(apexCatalogPrefs.columns,last);
+ApexColumnsFrame();const beforeCount=apexCatalogPrefs.columns,beforeSize=apexCardPrefs.scale;
+// A plain object cannot invent a native mouse gesture.
+ApexColumnsResize({stageX:300});assert.equal(apexColumns.resize,null);
+const down=new MouseEvent(1100);ApexColumnsResize(down);assert.notEqual(apexColumns.resize,null);
+assert.equal(apexCatalogPrefs.columns,beforeCount);assert.equal(apexCardPrefs.scale,beforeSize);
+ApexColumnsResize(new MouseEvent(1170));assert.equal(apexCatalogPrefs.columns,beforeCount);assert.equal(apexCardPrefs.scale,beforeSize);
+ApexColumnsResizeEnd(new Event(Event.DEACTIVATE));
+assert.equal(apexColumns.resize,null);assert.equal(apexColumns.drag,false);assert.equal(apexCatalogPrefs.columns,beforeCount);
 ApexColumnsSet(32);assert.equal(apexCatalogPrefs.columns,32);ApexColumnsSet(33);assert.equal(apexCatalogPrefs.columns,32);
 ApexColumnsFrame();const at=track.localToGlobal(new Point(0,0));stage.mouseX=at.x+20*track.scaleX;ApexColumnsScale();
 assert.equal(apexCardPrefs.scale,.2);stage.mouseX=at.x+210*track.scaleX;ApexColumnsScale();assert.equal(apexCardPrefs.scale,1.6);
@@ -115,10 +107,8 @@ assert.equal(apexCardPrefs.scale,.2);stage.mouseX=at.x+210*track.scaleX;ApexColu
 
     def test_native_resize_retires_on_context_change_without_native_fallback(self):
         self.run_case('''
-function HandleDynamicResizeMoveRight(){}function HandleDynamicResizeUpRight(){}
-var mDynamicResizeStartX=100,mDynamicResizeStartCols=6,mDynamicResizeHandle={alpha:1};
-apexCardLayout.pitch_x=100;ApexColumnsResize({stageX:300});const count=apexCatalogPrefs.columns;
-mCurrentPanel=new Sprite('body');ApexColumnsFrame();
+ApexColumnsFrame();ApexColumnsResize(new MouseEvent(1100));assert.notEqual(apexColumns.resize,null);
+const count=apexCatalogPrefs.columns;mCurrentPanel=new Sprite('unknown');ApexColumnsFrame();
 assert.equal(apexColumns.resize,null);assert.equal(apexColumns.drag,false);assert.equal(apexCatalogPrefs.columns,count);
 assert.equal(mDynamicResizeHandle.alpha,.78);assert.equal(root.visible,false);assert.equal(track.visible,false);
 ''')

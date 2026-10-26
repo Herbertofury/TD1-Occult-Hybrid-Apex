@@ -11,6 +11,7 @@
 #include "ApexCasSelectiveAppearance.h"
 #include "ApexCasOutfitOrder.h"
 #include "ApexNativeOwnerMemory.h"
+#include "ApexCasAcceptReadiness.h"
 #include "ApexNativeCasProbeWin.h"
 #include "ApexNativeServiceProfilerWin.h"
 #include "ApexGfxSnapshotProfileWin.h"
@@ -80,6 +81,9 @@ using TextureFn=void(*)(void*,std::uint64_t);
 using ProtoSizeFn=int(*)(const void*);
 using ProtoArrayFn=char*(*)(const void*,char*);
 using PreviewFn=void(*)(void*,bool);
+using ModelBusyFn=bool(*)(void*);
+using ValueHasMemberFn=bool(*)(const void*,const char*);
+using ValueMemberFn=const void*(*)(const void*,const char*);
 using OutfitHairFn=void(*)(void*,const void*);
 using AnimationGenusFn=void(*)(void*,const void*,bool);
 using PrepareHouseholdFn=void(*)(void*);
@@ -115,6 +119,8 @@ struct Api {
     OccultRecordFn occultRecord=nullptr;
     ExportProtoFn exportProto=nullptr;ProtoSizeFn protoSize=nullptr;ProtoArrayFn protoArray=nullptr;
     PreviewFn hairPreview=nullptr,clothingPreview=nullptr,wingsPreview=nullptr;
+    ModelBusyFn modelBusy=nullptr;
+    ValueHasMemberFn valueHasMember=nullptr;ValueMemberFn valueMember=nullptr;
     PrepareHouseholdFn prepareHousehold=nullptr;
     HouseholdDispatchFn dispatchHousehold=nullptr;TreeNextFn treeNext=nullptr;
 };
@@ -280,6 +286,8 @@ struct State {
     ui::Json lastAnimationScope=nullptr;
     bool acceptingHousehold=false;
     std::uint64_t cancelSerial=0;
+    std::uint64_t nativeSaveSerial=0;
+    acceptance::Ledger acceptReadiness;
     ui::Json householdAcceptance={{"verified",false},{"native_accepted",false}};
     std::map<std::uint64_t,PreparedHouseholdRoot> preparedRoots;
     std::map<const void*,HouseholdCopy> householdCopies;
@@ -1068,11 +1076,34 @@ inline void HouseholdOutput(const void* source,void* proto) {
     }catch(const std::exception&) {}
     ProjectHouseholdOutput(state,source,proto,controller);
 }
+inline acceptance::Observation CaptureAcceptReadiness(State&,const acceptance::Intent&);
+inline acceptance::Observation ProbeAcceptReadiness(State&,const acceptance::Intent&);
+inline const acceptance::Record* ConsumePreparedSave(State& state,const void* argument) {
+    // Existing manual/native callers have no typed receipt. Preserve that route.
+    const auto payload=Read<const void*>(argument,8);
+    if(!payload || Read<std::uint32_t>(payload)!=7 || !state.api.valueHasMember || !state.api.valueMember)return nullptr;
+    const bool hasId=state.api.valueHasMember(payload,"apex_accept_id"),hasNonce=state.api.valueHasMember(payload,"apex_accept_nonce");
+    if(!hasId && !hasNonce)return nullptr;
+    if(!hasId || !hasNonce)throw std::runtime_error("Native save has a partial acceptance receipt.");
+    const auto id=UiString(state.api.valueMember(payload,"apex_accept_id"));
+    const auto nonce=UiString(state.api.valueMember(payload,"apex_accept_nonce"));
+    const auto intent=state.acceptReadiness.IntentForSave(id,nonce);
+    return &state.acceptReadiness.Consume(intent,[&]{return CaptureAcceptReadiness(state,intent);},[&]{return ProbeAcceptReadiness(state,intent);});
+}
 inline bool SaveAndExit(const void* argument) {
     auto& state=Runtime();std::string scope;unsigned session=0;std::uint64_t cancel=0,outputFaults=0;
     ui::Json generations=ui::Json::object();std::size_t caches=0;
     {
         std::lock_guard<std::recursive_mutex> lock(state.mutex);
+        const acceptance::Record* prepared=nullptr;
+        try {prepared=ConsumePreparedSave(state,argument);}
+        catch(const std::exception& error) {
+            state.householdAcceptance={{"verified",false},{"native_accepted",false},{"message",error.what()}};
+            state.api.boolValue(Read<void*>(argument,0x10),false);return true;
+        }
+        // Consume the exact prepared proof BEFORE changing its lifetime serial.
+        // Untyped/manual saves keep their original route and are never blocked.
+        if(state.nativeSaveSerial!=UINT64_MAX)++state.nativeSaveSerial;
         const auto controller=(state.armed && state.selectionEnabled && state.image)?
             Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00)):nullptr;
         const auto group=controller?Read<void*>(controller,0x100):nullptr;
@@ -1087,7 +1118,9 @@ inline bool SaveAndExit(const void* argument) {
                 if(binding || !selectedBank.viewBound || selectedBank.viewFault ||
                    state.boundSim!=id || state.boundController!=controller || selectedBank.boundGroup!=group)
                     throw std::runtime_error("CAS acceptance lacks its exact settled selected model.");
-                Sync(controller);
+                if(prepared) {
+                    if(!prepared->authoritativeHarvest)throw std::runtime_error("Prepared save lacks its original authoritative harvest.");
+                } else Sync(controller);
                 if(selectedBank.viewFault)throw std::runtime_error("CAS acceptance could not retain the current edit.");
                 using CacheFn=void*(*)(void*,std::uint64_t);
                 const auto getCache=Read<CacheFn>(Read<void*>(controller),0x410);
@@ -1841,12 +1874,212 @@ inline std::string GridScopePermit(const State& state) {
             std::to_string(found->second.graph->cursor().generation);
     } catch(const std::exception&) {return unavailable;}
 }
+struct AcceptEditorFrame {
+    void* controller=nullptr;void* group=nullptr;void* view=nullptr;void* model=nullptr;void* phaseOwner=nullptr;
+    std::uint64_t sim=0,household=0;std::uint32_t layer=0,viewKind=0,modelKind=0,viewMask=0,modelMask=0,phase=0;
+    bool previewSettled=false;
+    std::string roster,identity,completeIdentity,publicContext;
+};
+inline AcceptEditorFrame ReadAcceptEditorFrame(State& state,const acceptance::Intent& intent) {
+    if(!state.installed || !state.image || !state.api.modelBusy || state.nativeSaveSerial==UINT64_MAX || state.cancelSerial==UINT64_MAX)
+        throw std::runtime_error("Pinned editor readiness is unavailable or exhausted.");
+    AcceptEditorFrame value;
+    value.controller=Read<void*>(reinterpret_cast<void*>(state.image+0x2948f00));
+    if(!value.controller || Read<std::uintptr_t>(value.controller)!=state.image+0x1e78f38)
+        throw std::runtime_error("Readiness lacks the exact current native editor controller.");
+    value.group=Read<void*>(value.controller,0x100);value.model=Read<void*>(value.controller,0x1d0);
+    if(!value.group || !value.model || Read<std::uintptr_t>(value.model)!=state.image+0x1e83970 ||
+       Read<std::uintptr_t>(Read<void*>(value.model),0x308)!=state.image+0x44e880)
+        throw std::runtime_error("Readiness model or its inspected busy implementation changed.");
+    value.sim=Read<std::uint64_t>(value.group,0xb8);value.layer=Read<std::uint8_t>(value.controller,0x242);
+    value.view=value.layer==0?value.group:value.layer==1?Read<void*>(value.group,0x4c0):nullptr;
+    if(!value.view || value.sim!=intent.sim)throw std::runtime_error("Readiness selected Sim or original layer changed.");
+    value.household=Read<std::uint64_t>(value.view,0x640);
+    if(value.household!=intent.household || Read<std::uint64_t>(value.controller,0xb0)!=intent.household)
+        throw std::runtime_error("Readiness selected and editor household authorities differ.");
+    value.viewKind=Read<std::uint32_t>(value.view,0xd8);value.viewMask=Read<std::uint32_t>(value.view,0xdc);
+    value.modelKind=Read<std::uint32_t>(value.model,0x178);value.modelMask=Read<std::uint32_t>(value.model,0x17c);
+    if(!Kind(value.viewKind)||!Kind(value.modelKind))throw std::runtime_error("Readiness has an unknown native form kind.");
+    const auto wrapper=Read<void*>(reinterpret_cast<void*>(state.image+0x2965870));
+    value.phaseOwner=wrapper?Read<void*>(wrapper,0x18):nullptr;
+    if(!value.phaseOwner)throw std::runtime_error("Readiness lacks the exact native save state.");
+    value.phase=Read<std::uint32_t>(value.phaseOwner,0x40);
+    value.previewSettled=Read<std::uint8_t>(value.model,0xa60)!=0 && Read<std::uint8_t>(value.model,0xbb9)==0 &&
+        (value.modelKind!=64 || Read<std::uint8_t>(value.model,0xbba)!=0);
+    // Capture the ACTUAL editor roster. An unbound/single-Sim room does not
+    // invent Apex owners, but still cannot adopt a changed native household.
+    const auto sentinel=static_cast<char*>(value.controller)+0x108;
+    auto node=Read<void*>(sentinel);std::set<void*> seen;std::set<std::uint64_t> entitySet;std::map<std::uint64_t,void*> roster;
+    std::map<std::uint64_t,std::uint64_t> entities;
+    while(node!=sentinel) {
+        if(seen.size()>=8 || !seen.insert(node).second)throw std::runtime_error("Readiness household roster is cyclic or unbounded.");
+        const auto group=Read<void*>(node,0x10);const auto sim=Read<std::uint64_t>(group,0xb8);const auto entity=GroupId(group);
+        if(!sim||!entity||!entitySet.insert(entity).second||!roster.emplace(sim,group).second)throw std::runtime_error("Readiness household roster has duplicate or missing identities.");
+        entities.emplace(sim,entity);node=Read<void*>(node);
+    }
+    if(!roster.count(value.sim) || roster.at(value.sim)!=value.group)throw std::runtime_error("Readiness selected group left its actual roster.");
+    std::string others,all;
+    for(const auto& [sim,group]:roster) {
+        const auto prefix=std::to_string(sim)+":"+std::to_string(entities.at(sim))+":"+
+            std::to_string(reinterpret_cast<std::uintptr_t>(group))+";";
+        others+=prefix;all+=prefix;
+        const auto found=state.bank.find(sim);
+        if(found!=state.bank.end()&&found->second.graph) {
+            const auto cursor=found->second.graph->cursor();
+            const auto detail=std::to_string(found->second.mask)+":"+cursor.owner+":"+std::to_string(cursor.generation)+";";
+            all+=detail;
+            // Only this selected owner's authoritative preparation may harvest
+            // its newly edited appearance. Other members cannot move with it.
+            if(sim!=value.sim)others+=detail;
+            else others+=std::to_string(found->second.mask)+":"+cursor.owner+";";
+        }
+    }
+    std::string scope="-",owner="-",generation="0";
+    if(intent.channel) {
+        if(GridOwnerState(state,intent.channel).rfind("GRIDSTATE|",0)!=0 || state.scopeRetired)
+            throw std::runtime_error("Readiness lost its exact bound channel/model/owner scope.");
+        const auto& selected=state.bank.at(value.sim);const auto cursor=selected.graph->cursor();
+        std::size_t materialized=0;
+        for(const auto& [sim,member]:state.scope.members) {
+            const auto found=state.bank.find(sim);
+            if(found==state.bank.end() || !found->second.graph || found->second.mask!=member.mask || found->second.viewFault)
+                throw std::runtime_error("Readiness captured household member changed.");
+            if(!found->second.editorImported) {
+                if(roster.count(sim))throw std::runtime_error("Readiness has a partially imported native household member.");
+                continue; // Single-Sim rooms need not materialize captured companions.
+            }
+            ++materialized;
+            if(!roster.count(sim) || found->second.importedEntity!=entities.at(sim))
+                throw std::runtime_error("Readiness imported native household identity changed.");
+        }
+        if(roster.size()!=materialized)throw std::runtime_error("Readiness actual and materialized captured rosters differ.");
+        scope=state.scope.id;owner=cursor.owner;generation=std::to_string(cursor.generation);
+    }
+    value.roster=resource::HashBytes(all);
+    const auto stable=std::to_string(value.sim)+"|"+std::to_string(value.household)+"|"+std::to_string(value.layer)+"|"+
+        std::to_string(value.viewKind)+"|"+std::to_string(value.modelKind)+"|"+std::to_string(value.viewMask)+"|"+
+        std::to_string(value.modelMask)+"|"+scope+"|"+owner;
+    auto preparationKind=value.viewKind;
+    const auto captured=state.armed && state.selectionEnabled && state.scope.members.count(value.sim);
+    if(captured) {
+        const auto& selected=state.bank.at(value.sim);const auto cursor=selected.graph->cursor();
+        // Sync copies the rendered owner's COMPLETE CasData into the selected
+        // EA slot. A hybrid's layout shell can therefore change, e.g. 4 -> 2.
+        // Normalize ONLY this predicted write in the before/after preparation
+        // identity, after exact original admission is checked by PREPARE.
+        // Actual kinds remain in the complete/scalar/public postprepare stamp;
+        // a later reversion, different kind, mask or other-member edit refuses.
+        if(intent.viewKind!="-" && intent.modelKind==std::to_string(cursor.kind) &&
+           intent.viewMask==std::to_string(selected.mask) && value.modelKind==cursor.kind &&
+           value.viewMask==selected.mask && value.modelMask==selected.mask &&
+           (std::to_string(value.viewKind)==intent.viewKind || value.viewKind==cursor.kind))
+            preparationKind=cursor.kind;
+    }
+    const auto preparationStable=std::to_string(value.sim)+"|"+std::to_string(value.household)+"|"+std::to_string(value.layer)+"|"+
+        std::to_string(preparationKind)+"|"+std::to_string(value.modelKind)+"|"+std::to_string(value.viewMask)+"|"+
+        std::to_string(value.modelMask)+"|"+scope+"|"+owner;
+    const auto pointers=std::to_string(reinterpret_cast<std::uintptr_t>(value.controller))+"|"+
+        std::to_string(reinterpret_cast<std::uintptr_t>(value.model))+"|"+std::to_string(reinterpret_cast<std::uintptr_t>(value.phaseOwner));
+    const auto scopeIdentity=std::string(state.armed?"armed":"unarmed")+"|"+(state.selectionEnabled?"selected":"unselected")+"|"+
+        (state.scopeRetired?"retired":"current")+"|"+state.scope.id+"|"+std::to_string(state.boundSim)+"|"+
+        std::to_string(reinterpret_cast<std::uintptr_t>(state.boundController))+"|"+(binding?"binding":"settled");
+    std::string capturedOthers,capturedAll;
+    if(state.armed && state.selectionEnabled)for(const auto& [sim,member]:state.scope.members) {
+        const auto found=state.bank.find(sim);
+        if(found==state.bank.end() || !found->second.graph || found->second.viewFault)throw std::runtime_error("Acceptance captured roster lacks its exact settled graph.");
+        const auto cursor=found->second.graph->cursor();
+        const auto fixed=std::to_string(sim)+":"+std::to_string(member.mask)+":"+std::to_string(found->second.mask)+":"+
+            std::to_string(found->second.importedEntity)+":"+cursor.owner+":"+std::to_string(reinterpret_cast<std::uintptr_t>(found->second.graph.get()))+":"+
+            std::to_string(cursor.sim)+":"+std::to_string(cursor.kind)+":"+(found->second.viewBound?"bound":"unbound")+":"+
+            (found->second.editorImported?"imported":"detached")+":"+(found->second.seeded?"seeded":"unseeded")+":"+
+            std::to_string(reinterpret_cast<std::uintptr_t>(found->second.boundGroup))+":"+
+            std::to_string(reinterpret_cast<std::uintptr_t>(found->second.boundContext))+":";
+        capturedAll+=fixed+std::to_string(cursor.generation)+";";
+        capturedOthers+=fixed+(sim==value.sim?"":std::to_string(cursor.generation))+";";
+    }
+    const auto serials=scopeIdentity+"|"+std::to_string(state.nativeSaveSerial)+"|"+std::to_string(state.cancelSerial)+"|"+std::to_string(state.sessionsRetired);
+    value.identity=resource::HashBytes(preparationStable+"|"+pointers+"|"+others+"|"+serials+"|"+capturedOthers);
+    value.completeIdentity=resource::HashBytes(stable+"|"+pointers+"|"+all+"|"+serials+"|"+capturedAll);
+    value.publicContext=stable+"|"+generation+"|"+value.roster+"|"+std::to_string(state.nativeSaveSerial)+"|"+std::to_string(state.cancelSerial);
+    return value;
+}
+inline acceptance::Observation ProbeAcceptReadiness(State& state,const acceptance::Intent& intent) {
+    const auto frame=ReadAcceptEditorFrame(state,intent);
+    return {frame.identity,{},frame.publicContext,state.api.modelBusy(frame.model),frame.previewSettled,frame.phase,frame.completeIdentity};
+}
+inline acceptance::Observation CaptureAcceptReadiness(State& state,const acceptance::Intent& intent) {
+    const auto before=ReadAcceptEditorFrame(state,intent);
+    // Serialize only a detached complete model copy. The raw current editor
+    // and every unknown appearance byte remain unchanged; no Sync/setter here.
+    if(!state.api.assignSim)throw std::runtime_error("Readiness lacks the complete native Sim copy implementation.");
+    NativeOwner detached(state.api,intent.sim);
+    state.api.assignSim(detached.value,before.view);
+    state.api.assignData(const_cast<void*>(detached.data()),static_cast<char*>(before.model)+0x170);
+    state.api.current(detached.value,before.modelKind);state.api.availableData(const_cast<void*>(detached.data()),before.modelMask);
+    const auto modelHash=resource::HashBytes(SerializeOwner(state.api,detached,intent.sim));
+    const auto busy=state.api.modelBusy(before.model);
+    const auto after=ReadAcceptEditorFrame(state,intent);
+    if(before.completeIdentity!=after.completeIdentity || before.previewSettled!=after.previewSettled)
+        throw std::runtime_error("Native editor changed during complete readiness capture.");
+    return {after.identity,resource::HashBytes(after.completeIdentity+"|"+modelHash),after.publicContext,
+        busy||state.api.modelBusy(after.model),after.previewSettled,after.phase,after.completeIdentity};
+}
+inline std::string AcceptReadinessCommand(State& state,const std::string& text) {
+    // Separate from the ordinary pipe: a plain/single-Sim editor can attest
+    // current identity without inventing a captured owner or household scope.
+    std::vector<std::string> fields;std::size_t at=0;
+    for(;;){const auto end=text.find('|',at);fields.push_back(text.substr(at,end==std::string::npos?end:end-at));if(end==std::string::npos)break;at=end+1;}
+    if(fields.size()!=13||fields[0]!="APEXACCEPT1"||(fields[1]!="PREPARE"&&fields[1]!="READY"&&fields[1]!="CANCEL"))
+        throw std::runtime_error("Acceptance readiness command is untyped.");
+    acceptance::Intent intent{fields[2],fields[3],SimId(ui::Json(fields[4])),SimId(ui::Json(fields[5])),
+        fields[6]=="0"?0:SimId(ui::Json(fields[6])),fields[7],fields[8],fields[9],fields[10],fields[11],fields[12]};
+    if(fields[1]=="CANCEL") {state.acceptReadiness.Cancel(intent);return "ACCEPTCANCELLED";}
+    auto capture=[&]{return CaptureAcceptReadiness(state,intent);};
+    if(fields[1]=="PREPARE") {
+        const auto& record=state.acceptReadiness.Begin(intent,capture,[&]{
+            const auto current=ReadAcceptEditorFrame(state,intent);
+            if(current.phase!=0)throw std::runtime_error("Native editor already started an exit; no preparation attempted.");
+            if(intent.layer!=std::to_string(current.layer) ||
+               (intent.viewKind!="-" && intent.viewKind!=std::to_string(current.viewKind)) ||
+               (intent.modelKind!="-" && intent.modelKind!=std::to_string(current.modelKind)) ||
+               (intent.viewMask!="-" && intent.viewMask!=std::to_string(current.viewMask)))
+                throw std::runtime_error("Acceptance original pre-harvest form identity changed.");
+            if(intent.channel) {
+                const auto cursor=state.bank.at(intent.sim).graph->cursor();
+                if(intent.owner!=cursor.owner || intent.generation!=std::to_string(cursor.generation))
+                    throw std::runtime_error("Acceptance original pre-harvest owner/generation changed.");
+            } else if(intent.owner!="-" || intent.generation!="0")
+                throw std::runtime_error("Unbound acceptance cannot invent a native owner.");
+            const bool captured=state.armed && state.selectionEnabled && state.scope.members.count(intent.sim);
+            if(captured) {
+                const auto& selected=state.bank.at(intent.sim);
+                if(binding || !selected.viewBound || selected.viewFault || state.boundSim!=intent.sim ||
+                   state.boundController!=current.controller || selected.boundGroup!=current.group)
+                    throw std::runtime_error("Acceptance preparation lacks its exact selected native model.");
+                Sync(current.controller);
+                if(state.bank.at(intent.sim).viewFault)throw std::runtime_error("Explicit acceptance harvest failed.");
+                return true;
+            }
+            FinishPreview(state,current.controller);return false;
+        });
+        if(record.state!="prepared")throw std::runtime_error(record.error);
+    }
+    const auto result=state.acceptReadiness.Poll(intent,capture,[&]{return ProbeAcceptReadiness(state,intent);});
+    return "ACCEPTSTATE|"+std::string(acceptance::Ready(result)?"READY":"WAIT")+"|"+result.publicContext+"|"+
+        std::to_string(result.phase)+"|"+(result.busy?"1":"0")+"|"+(result.previewSettled?"1":"0");
+}
 inline bool GetOccultService(const void* arguments) {
     auto& state=Runtime();
     const auto parameter=Read<const void*>(arguments,8);
     if(!parameter||Read<std::uint32_t>(parameter)!=6)return state.api.getOccultService(arguments);
     std::string text;
     try {text=UiString(parameter);}catch(const std::exception&){return state.api.getOccultService(arguments);}
+    if(text.rfind("APEXACCEPT1|",0)==0) {
+        std::string reply;
+        try {std::lock_guard<std::recursive_mutex> lock(state.mutex);reply=AcceptReadinessCommand(state,text);}
+        catch(const std::exception& error){reply="REFUSED|"+std::string(error.what());}
+        state.api.stringValue(Read<void*>(arguments,0x10),reply.c_str());return true;
+    }
     if(text.rfind("APEXUI1|",0)!=0)return state.api.getOccultService(arguments);
     std::string response="UNAVAILABLE";bool searchRequest=false;
     try {
@@ -2287,6 +2520,13 @@ inline void Install() {
         {0x63f470,"6322b81000b364019e148ec50a47751e090f93e5000ff266f2e403fdd8bca0bc"},
         {0x45c070,"28bd4e82a8fb688e0addc2808f300afb4aa44068945992641826e703528b5424"},
         {0x44ba00,"e06169b5e5330e8cfe47b23d840e0545987eea134bfaeb82dafdc2dfeee5f431"},
+        {0xda5710,"9a6b5994a5bf25ccb31c759892b8222256959171544d7c6a3b3b6da058d38638"},
+        {0xda74f0,"3946a5a522024c799080b5365b8a3e0c836638d8ac7269603d197f2d21e7033f"},
+        {0xda7410,"45e235f5c82323fc6844ee415fdea03a2cb1aca49a57f2080f8fa8f60dfcd460"},
+        {0x44e880,"81119e23adaf1e8d963c68c051cab3d7de97e600a128120bd8f91c37fdbf0e50"},
+        {0x3efe40,"2bd74b9a7e2de5f7d1ef4187e5c31b1c55557cfb2bff4c721d40ac250811954f"},
+        {0x20742f,"50da1a7c36ac8c1fd62b43978f2c35e6e545c58b02fe644ade1980ab591162fa"},
+        {0x8dae0,"6b4e0f8280973465faa5155114495009122581642d9593e9a9537dc6247bc993"},
         {0x44bbe0,"c2cf12e18d5385311fc573702461234512a6ddac9e77eeef0ccd1b08e0930f1d"},
         {0x330a40,"acfc08b49e61ba88dc09feea22142fe9dae5368ecc0ca0ba53d209965c4a6e7c"},
         {0x207400,"73257cf51e227b37aeb0470bbba68ebfc5c607563d1f48ba6aea33449df18b23"},
@@ -2333,6 +2573,9 @@ inline void Install() {
     state.api.protoArray=reinterpret_cast<ProtoArrayFn>(at(0x63f470));
     state.api.hairPreview=reinterpret_cast<PreviewFn>(at(0x45c070));
     state.api.clothingPreview=reinterpret_cast<PreviewFn>(at(0x44ba00));
+    state.api.modelBusy=reinterpret_cast<ModelBusyFn>(at(0x44e880));
+    state.api.valueHasMember=reinterpret_cast<ValueHasMemberFn>(at(0xda7410));
+    state.api.valueMember=reinterpret_cast<ValueMemberFn>(at(0xda5710));
     state.api.wingsPreview=reinterpret_cast<PreviewFn>(at(0x44bbe0));
     const auto init=MH_Initialize();if(init!=MH_OK && init!=MH_ERROR_ALREADY_INITIALIZED)
         throw std::runtime_error("Native form hook registry is unavailable.");

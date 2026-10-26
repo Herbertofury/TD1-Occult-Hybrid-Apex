@@ -408,7 +408,7 @@ def parser():
     cas.add_argument('operation', choices=('panels', 'status', 'panel', 'outfit', 'outfit-add', 'hair-swatch', 'select', 'form-select', 'layer-select', 'member-select', 'undo', 'redo', 'result', 'diagnostics', 'return',
         'catalog', 'variants', 'preset', 'select-layer', 'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'swatches', 'swatch', 'physique', 'body-types', 'body-type',
         'modifiers', 'color-sliders', 'hair-matching', 'hair-match', 'voices', 'voice-actor', 'voice-pitch',
-        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-state', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion', 'panel-layout', 'catalog-trace', 'catalog-layout-trace'))
+        'walkstyles', 'walkstyle', 'detail-status', 'detail-mode', 'filters', 'filter-clear', 'occults', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-state', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-width-drag', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion', 'panel-layout', 'catalog-trace', 'catalog-layout-trace'))
     cas.add_argument('--minimal-navigation',action='store_true',help='Disposable panel-only exact-identity receipt; omit full diagnostic inventory.')
     cas.add_argument('--text', help='Native Filter Items search, including package names and author/type/origin filters')
     cas.add_argument('--state', required=True, type=Path)
@@ -445,6 +445,7 @@ def parser():
     cas.add_argument('--gap-x', type=float, help='Horizontal native CAS card spacing, 0-32 logical pixels')
     cas.add_argument('--gap-y', type=float, help='Vertical native CAS card spacing, 0-32 logical pixels')
     cas.add_argument('--fraction', type=float, help='Catalog slider position, 0-1')
+    cas.add_argument('--delta-x', type=float, help='Drag the current catalog right-edge handle by signed 0.05-2048 stage pixels; native hit bounds are freshly observed')
     cas.add_argument('--color', type=lambda value:int(value,0), help='Selection RGB integer, e.g. 0x00c9eb')
     cas.add_argument('--glow', type=float, help='Selection glow radius, 0-12')
     cas.add_argument('--animation', choices=('none','pulse','flash'), help='Optional selection effect; static by default')

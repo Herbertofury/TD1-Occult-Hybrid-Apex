@@ -32,6 +32,11 @@
       private var apexPendingPhase:int = 0;
       private var apexClaimNonce:String = "";
       private var apexTicking:Boolean = false;
+      // Only the original accepted intent owns this short readiness continuation.
+      // No idle poller, replay UUID, arbitrary delay or input suppression.
+      private var apexAcceptWait:Object=null;
+      private var apexAcceptInput:Boolean=false;
+      private var apexAcceptStage:flash.display.Stage=null;
       private var apexPresentationQueued:Boolean=false;
       private var apexPresentationStarted:int=-1;
       private var apexPresentationMilliseconds:int=-1;
@@ -213,6 +218,7 @@
 
       private function ApexResetSocket() : void
       {
+         if(apexAcceptWait!=null) ApexAcceptAbort("CAS room transport retired before native acceptance");
          apexSocketResetPending=false;
          if(apexNativeChannel!="") {
             try { ApexNativeExchange("CLOSE|"+apexNativeChannel); } catch(pipeCloseError:Error) { }
@@ -294,6 +300,7 @@
             // Never tear down GFx's native Socket from its own event callback.
             // A failure records intent only; this later Timer owns closure.
             if(apexSocketResetPending) { ApexResetSocket();return; }
+            if(apexPendingPhase==9) { ApexAccept();return; }
             // APEX_TIMER_TRACE_BEGIN receive-begin
             if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("receive.enter");
             // APEX_TIMER_TRACE_END receive-begin
@@ -1033,7 +1040,7 @@
          // those commands retain full readback rather than relax this identity.
          return operation=="catalog-state" || operation=="catalog-style" ||
             operation=="catalog-cards" || operation=="catalog-card-reset" ||
-            operation=="catalog-search" || operation=="panel-layout" || operation=="catalog-trace" || operation=="catalog-layout-trace";
+            operation=="catalog-search" || operation=="catalog-width-drag" || operation=="panel-layout" || operation=="catalog-trace" || operation=="catalog-layout-trace";
       }
 
       private function ApexCatalogReadbackContext(selected:Object) : Object
@@ -1440,6 +1447,64 @@
             if(state!=0 || category!=0 || index!=0 || value!="") throw new Error("Catalogue state has no mutation parameters");
             return;
          }
+         if(operation=="catalog-width-drag") {
+            // UI-only input on the CURRENT physical handle. Coordinates are
+            // measured here under the same owner lease, never supplied as an
+            // arbitrary pointer target or used to write preferences directly.
+            if(state!=0 || category!=0 || index!=0 || !/^-?(0|[1-9][0-9]*)(\.[0-9]{1,6})?$/.test(value) ||
+               !isFinite(Number(value)) || Math.abs(Number(value))<0.05 || Math.abs(Number(value))>2048 ||
+               context.catalog_before==null || apexColumns==null || apexColumns.resize!=null || apexColumns.drag || apexColumns.scale_drag ||
+               stage==null || !ApexColumnsTakeover())throw new Error("Width drag requires its exact idle native catalog handle and bounded delta");
+            var wdPanel:Object=mCurrentPanel;
+            var wdGrid:Object=wdPanel.mcTileList==null ? null : wdPanel.mcTileList.mGridLayout;
+            var wdHandle:flash.display.Sprite=apexColumns.width_handle as flash.display.Sprite;
+            if(wdGrid==null || apexCardGeometry==null || apexCardGeometry.panel!==wdPanel || apexCardGeometry.grid!==wdGrid ||
+               apexCardLayout==null || wdHandle==null || wdHandle.parent!==wdPanel || !wdPanel.visible || !wdHandle.visible ||
+               wdPanel.stage!==stage || wdHandle.stage!==stage || !wdHandle.mouseEnabled)
+               throw new Error("Width drag handle is stale, detached or unavailable");
+            var wdVisible:Object=wdHandle;
+            while(wdVisible!=null && wdVisible!==stage) {if(!wdVisible.visible)throw new Error("Width drag handle is hidden");wdVisible=wdVisible.parent;}
+            if(wdVisible!==stage)throw new Error("Width drag handle left its observed stage");
+            var wdBounds:flash.geom.Rectangle=wdHandle.getBounds(stage);
+            var wdProbe:Object={protocol:1,scope:"native-catalog-width-bounds",ok:false,reason:"not-attempted",appearance_written:false};
+            var wdEnvelope:Object=ApexCatalogWidthEnvelope(wdPanel,wdProbe);
+            var wdBefore:Number=Number(wdPanel.mcPanelBackground.width);
+            if(wdEnvelope==null || !isFinite(wdEnvelope.scale) || wdEnvelope.scale<=0 ||
+               !isFinite(wdEnvelope.available) || wdEnvelope.available<80)
+               throw new Error("Width envelope unavailable: "+String(wdProbe.reason)+
+                  (wdProbe.navigation==null ? "" : " / "+String(wdProbe.navigation.reason)));
+            if(wdBounds==null || !isFinite(wdBefore) || wdBefore<80 ||
+               !isFinite(wdBounds.x) || !isFinite(wdBounds.y) || !isFinite(wdBounds.width) || !isFinite(wdBounds.height) ||
+               wdBounds.width<=0 || wdBounds.width>128 || wdBounds.height<=0 || wdBounds.height>256)
+               throw new Error("Width drag handle has no finite current hit bounds");
+            var wdX:Number=wdBounds.x+wdBounds.width*0.5;var wdY:Number=wdBounds.y+wdBounds.height*0.5;
+            var wdTarget:Number=wdX+Number(value);
+            if(wdBounds.x<0 || wdBounds.y<0 || wdBounds.right>stage.stageWidth || wdBounds.bottom>stage.stageHeight ||
+               wdTarget<0 || wdTarget>stage.stageWidth)throw new Error("Width drag exceeds the actual viewport");
+            var wdLocal:flash.geom.Point=wdHandle.globalToLocal(stage.localToGlobal(new flash.geom.Point(wdX,wdY)));
+            if(!isFinite(wdLocal.x) || !isFinite(wdLocal.y) || wdLocal.x<0 || wdLocal.x>12 || wdLocal.y<0 || wdLocal.y>72)
+               throw new Error("Width drag center is outside the actual handle hit area");
+            context.width_drag={handler_invoked:false,appearance_written:false,delta_x:Number(value),
+               menu_state:int(mCurrState),stage_width:stage.stageWidth,stage_height:stage.stageHeight,
+               handle:{x:wdBounds.x,y:wdBounds.y,width:wdBounds.width,height:wdBounds.height},
+               down:{x:wdX,y:wdY},move:{x:wdTarget,y:wdY},up:{x:wdTarget,y:wdY},
+               before_width:wdBefore,maximum_width:Number(wdEnvelope.available),coordinate_scale:Number(wdEnvelope.scale),
+               columns:int(apexCatalogPrefs.columns),card_scale:Number(apexCardPrefs.scale),
+               gap_x:Number(apexCardPrefs.gap_x),gap_y:Number(apexCardPrefs.gap_y)};
+            context.width_drag_panel=wdPanel;context.width_drag_grid=wdGrid;context.width_drag_handle=wdHandle;
+            try {
+               wdHandle.dispatchEvent(new flash.events.MouseEvent(flash.events.MouseEvent.MOUSE_DOWN,true,true,wdLocal.x,wdLocal.y,null,false,false,false,true));
+               if(apexColumns.resize==null || apexColumns.resize.panel!==wdPanel || apexColumns.resize.grid!==wdGrid ||
+                  apexColumns.resize.stage!==stage || apexColumns.resize.width!=stage.stageWidth || apexColumns.resize.height!=stage.stageHeight)
+                  throw new Error("Actual width down handler did not acquire its exact native handle");
+               stage.dispatchEvent(new flash.events.MouseEvent(flash.events.MouseEvent.MOUSE_MOVE,false,true,wdTarget,wdY,null,false,false,false,true));
+               stage.dispatchEvent(new flash.events.MouseEvent(flash.events.MouseEvent.MOUSE_UP,false,true,wdTarget,wdY));
+               if(apexColumns.resize!=null)throw new Error("Actual width up handler did not release its drag");
+               context.width_drag.handler_invoked=true;context.width_drag.width_bounds=wdProbe;
+               context.width_drag.requested_width=Number(apexColumns.preferred_width);
+            } finally {if(apexColumns.resize!=null)ApexColumnsResizeEnd(new flash.events.Event(flash.events.Event.DEACTIVATE));}
+            wdVisible=null;wdHandle=null;wdGrid=null;wdPanel=null;return;
+         }
          if(operation=="catalog-layout-trace") {
             if(state!=0 || category!=0 || index!=0 || !/^(0|[1-9][0-9]{0,4})$/.test(value) || Number(value)>30000)
                throw new Error("Layout diagnostics require a bounded explicit duration");
@@ -1452,8 +1517,14 @@
          }
          if(operation=="catalog-search") { ApexSearchText(decodeURIComponent(value));return; }
          if(operation=="catalog-companion") {reply.mutation_started=String(value.split(",")[0])=="random-favorite";ApexCompanionCommand(value);return;}
-         if(operation=="catalog-input") { reply.mutation_started=String(value.split(",")[0])=="enter";ApexCatalogKeyboardInput(value);return; }
-         if(operation=="catalog-key") { ApexCatalogKeyboardCommand(value);return; }
+         if(operation=="catalog-input") {
+            reply.mutation_started=String(value.split(",")[0])=="enter";ApexCatalogKeyboardInput(value);
+            if(!reply.mutation_started)context.keyboard_publication=ApexCatalogKeyboardPublication(context.keyboard_before);
+            return;
+         }
+         if(operation=="catalog-key") {
+            ApexCatalogKeyboardCommand(value);context.keyboard_publication=ApexCatalogKeyboardPublication(context.keyboard_before);return;
+         }
          if(operation=="catalog-cards") { ApexCardCommand(value);return; }
          if(operation=="catalog-card-reset") { ApexCardReset();return; }
          if(operation=="catalog-style") { ApexCatalogStyle(value);return; }
@@ -1829,6 +1900,17 @@
 
       private function ApexControlResult(operation:String,state:int,category:int,index:int,value:String,context:Object,client:Object) : Object
       {
+         if(operation=="catalog-width-drag") {
+            if(apexColumns==null || stage==null || context.width_drag==null || context.width_drag.handler_invoked!==true ||
+               context.width_drag_panel!==mCurrentPanel || mCurrentPanel==null || !mCurrentPanel.visible ||
+               mCurrentPanel.mcTileList.mGridLayout!==context.width_drag_grid ||
+               context.width_drag_handle!==apexColumns.width_handle || context.width_drag_handle.parent!==mCurrentPanel ||
+               context.width_drag_handle.stage!==stage || !context.width_drag_handle.visible || apexColumns.resize!=null ||
+               int(mCurrState)!==context.width_drag.menu_state || stage.stageWidth!==context.width_drag.stage_width ||
+               stage.stageHeight!==context.width_drag.stage_height)
+               throw new Error("Width drag lost its physical handle before readback");
+            return {operation:operation,workspace:client.catalog_workspace,drag:context.width_drag,appearance_written:false};
+         }
          if(operation=="catalog-layout-trace") return {operation:operation,trace:client.catalog_workspace.layout_trace,appearance_written:false};
          if(operation=="catalog-trace") return {operation:operation,trace:client.catalog_workspace.draw_trace,appearance_written:false};
          // The same Timer readback already captured this workspace. Repeating
@@ -2010,10 +2092,12 @@
             if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("native-info.leave");
             // APEX_TIMER_TRACE_END execute-native-end
             if(!native || String(native.simId)!=String(fields[1])) throw new Error("CAS selected Sim differs from request");
-            var catalogSelected:Object=(ApexCatalogReadbackOnly(operation) || operation=="panel-navigation") ? ApexOwnerSimRow(native) : null;
+            var keyboardNavigation:Boolean=operation=="catalog-key" || operation=="catalog-input" && String(fields[6].split(",")[0])!="enter";
+            var catalogSelected:Object=(ApexCatalogReadbackOnly(operation) || operation=="panel-navigation" || keyboardNavigation) ? ApexOwnerSimRow(native) : null;
             native=null;
             if(ApexCatalogReadbackOnly(operation)) apexPendingContext.catalog_before=ApexCatalogReadbackContext(catalogSelected);
             if(operation=="panel-navigation") apexPendingContext.navigation_before=ApexCatalogReadbackContext(catalogSelected);
+            if(keyboardNavigation)apexPendingContext.keyboard_before=ApexCatalogReadbackContext(catalogSelected);
             catalogSelected=null;
             if(operation=="occult-owner-view")
                throw new Error("Cross-occult conversion is disabled; independent owner binding is required");
@@ -2248,7 +2332,12 @@
          if((operation=="undo" || operation=="redo") && context.history_before is String)
             reply.history_before_json=String(context.history_before);
          var selectedSimMatches:Boolean=false; var writeStarted:Boolean=false;
+         var keyboardNavigation:Boolean=operation=="catalog-key" || operation=="catalog-input" && String(value.split(",")[0])!="enter";
+         var keyboardPublication:Object=keyboardNavigation ? context.keyboard_publication : null;
+         var keyboardObserved:Object=null;
          try {
+            if(keyboardNavigation && keyboardPublication==null)
+               throw new Error("message" in reply ? String(reply.message) : "Navigation input lacks its retained consumed publication intent");
             if(operation=="physique" && context.physique_commit_pending===true) {
                if("message" in reply) throw new Error("Native physique preview is unresolved; no completion replay");
                var physiqueRead:Object=ApexFormsObservedSim();
@@ -2305,9 +2394,14 @@
                }
                throw new Error("Native independent form view did not settle before its bounded readback deadline");
             }
-            var catalogAfter:Object=(ApexCatalogReadbackOnly(operation) || operation=="panel-navigation") ? ApexOwnerSimRow(native) : null;
+            var catalogAfter:Object=(ApexCatalogReadbackOnly(operation) || operation=="panel-navigation" || keyboardPublication!=null) ? ApexOwnerSimRow(native) : null;
             native=null;
             if(!selectedSimMatches) throw new Error("CAS selected Sim changed before native readback");
+            if(keyboardPublication!=null && !("message" in reply)) {
+               keyboardObserved=ApexCatalogReadbackContext(catalogAfter);
+               if(!ApexCatalogKeyboardScopeEqual(keyboardPublication.before,keyboardObserved))
+                  throw new Error("Navigation publication changed its original native Sim/form/outfit scope");
+            }
             if(!("message" in reply) && apexPendingPhase==2) {
                // Item selection settles before querying that hairstyle's swatches.
                var freshHairSwatches:Array=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorList",int(context.palette_type))) as Array;
@@ -2348,7 +2442,18 @@
             var eyebrowProbe:Boolean=(operation=="select" && state==MenuState.PROFILE_HAIR_EYEBROWS) || (operation=="swatch" && state==3);
             if(eyebrowProbe)
                reply.eyebrow_palette_before_snapshot=ApexClone(CommunicationManager.CallGameService("CasGetSwatchColorSelected",3));
+            if(keyboardPublication!=null && (apexKeyIntent!=0 || apexKeyQueue!=null && apexKeyQueue.length!=0))
+               throw new Error("Navigation publication received another keyboard intent before readback");
             if(operation=="catalog-key" || operation=="catalog-input") ApexCatalogKeyboardFrame(true);
+            if(keyboardPublication!=null && !("message" in reply) && !ApexCatalogKeyboardPublicationReady(keyboardPublication)) {
+               var keyboardElapsed:int=flash.utils.getTimer()-int(keyboardPublication.started);
+               if(keyboardElapsed<0)throw new Error("Navigation publication clock changed");
+               if(keyboardElapsed<10000) {
+                  // Yield to the existing native scroll/publication job. The
+                  // key and slider gesture have ALREADY been consumed once.
+                  apexReadbackTick=int(apexTimer.currentCount)+1;return;
+               }
+            }
             // APEX_TIMER_TRACE_BEGIN snapshot-begin
             if(apexCatalogTrace!=null && apexCatalogTrace.enabled===true && apexCatalogTrace.timer_profile!=null) ApexCatalogTimerStep("snapshot.enter");
             // APEX_TIMER_TRACE_END snapshot-begin
@@ -2370,11 +2475,29 @@
                   operation=="remove" || operation=="layers" || operation=="layer-add" || operation=="layer-remove" ||
                   operation=="layer-move" || operation=="swatches" || operation=="swatch" || operation=="physique" ||
                   operation=="body-types" || operation=="body-type" || operation=="modifiers" ||
-                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" || operation=="pair-link" || operation=="pair-copy" || operation=="catalog-state" || operation=="catalog-style" || operation=="catalog-open" || operation=="catalog-view" || operation=="catalog-slider" || operation=="catalog-cards" || operation=="catalog-card-reset" || operation=="catalog-key" || operation=="catalog-input" || operation=="catalog-search" || operation=="catalog-companion" || operation=="panel-layout" || operation=="catalog-trace" || operation=="catalog-layout-trace" ||
+                  operation=="color-sliders" || operation=="hair-matching" || operation=="hair-match" || operation=="workspace" || operation=="form-menu" || operation=="pair-link" || operation=="pair-copy" || operation=="catalog-state" || operation=="catalog-style" || operation=="catalog-open" || operation=="catalog-view" || operation=="catalog-slider" || operation=="catalog-width-drag" || operation=="catalog-cards" || operation=="catalog-card-reset" || operation=="catalog-key" || operation=="catalog-input" || operation=="catalog-search" || operation=="catalog-companion" || operation=="panel-layout" || operation=="catalog-trace" || operation=="catalog-layout-trace" ||
                   operation=="voices" || operation=="voice-actor" || operation=="voice-pitch" ||
                   operation=="walkstyles" || operation=="walkstyle" || operation=="occults" || operation=="occult-view" || operation=="occult-cache-view" || operation=="occult-owner-view" || operation=="form-owner-select" || operation=="detail-status" ||
                   operation=="detail-mode" || operation=="filters" || operation=="filter-clear")
                   reply.client.control=ApexControlResult(operation,state,category,index,value,context,reply.client);
+               if(keyboardPublication!=null) {
+                  var keyboardReady:Boolean=ApexCatalogKeyboardPublicationReady(keyboardPublication);
+                  var keyboardAfter:Object=ApexCatalogReadbackContext(ApexOwnerSimRow(reply.client.sim));
+                  keyboardObserved=keyboardAfter;
+                  if(!ApexCatalogKeyboardScopeEqual(keyboardPublication.before,keyboardAfter))
+                     throw new Error("Navigation publication changed scope during its complete snapshot");
+                  if(!keyboardReady) {
+                     keyboardElapsed=flash.utils.getTimer()-int(keyboardPublication.started);
+                     if(keyboardElapsed<0)throw new Error("Navigation publication clock changed");
+                     if(keyboardElapsed<10000) {
+                        reply.client=null;apexReadbackTick=int(apexTimer.currentCount)+1;return;
+                     }
+                     reply.navigation_publication={protocol:1,request_id:String(fields[0]),peer_nonce:apexClaimNonce,
+                        before:ApexClone(keyboardPublication.before),after:keyboardAfter,key:int(keyboardPublication.receipt.key),
+                        target_index:int(keyboardPublication.target),elapsed_ms:keyboardElapsed,published:false,appearance_written:false};
+                     throw new Error("Native catalog navigation did not publish its focused card before the bounded deadline");
+                  }
+               }
                if(operation=="accept") {
                   if(!(reply.client.sim.occultLayer is int) || int(reply.client.sim.occultLayer)!=0)
                      throw new Error("Alternate or untyped CAS layers lack a verified original owner mapping; no intent prepared");
@@ -2469,6 +2592,14 @@
             }
          } catch(error:Error) {
             reply.ok=false; reply.message=error.message;
+            if(keyboardNavigation && !("navigation_publication" in reply))
+               reply.navigation_publication={protocol:1,request_id:String(fields[0]),peer_nonce:apexClaimNonce,
+                  before:context.keyboard_before!=null ? ApexClone(context.keyboard_before) : null,
+                  after:keyboardObserved!=null ? ApexClone(keyboardObserved) : null,
+                  key:keyboardPublication!=null ? int(keyboardPublication.receipt.key) : -1,
+                  target_index:keyboardPublication!=null ? int(keyboardPublication.target) : -1,
+                  elapsed_ms:keyboardPublication!=null ? flash.utils.getTimer()-int(keyboardPublication.started) : 0,
+                  published:false,appearance_written:false};
             if(operation=="accept") {
                reply.lifecycle_stage="accept-result"; reply.commit_attempted=false;
                reply.commit_submitted=false; reply.ui_transition_verified=false;
@@ -2540,20 +2671,140 @@
          if(apexSocketActive && apexNonce==owner) ApexSocketReply(id,apexLastReply);
       }
 
+      private function ApexAcceptListen(enabled:Boolean) : void
+      {
+         removeEventListener(flash.events.Event.ENTER_FRAME,ApexAcceptReadyFrame);
+         if(apexAcceptStage!=null) {
+            apexAcceptStage.removeEventListener(flash.events.MouseEvent.MOUSE_DOWN,ApexAcceptUserInput,true);
+            apexAcceptStage.removeEventListener(flash.events.KeyboardEvent.KEY_DOWN,ApexAcceptUserInput,true);
+         }
+         apexAcceptStage=null;
+         if(!enabled) return;
+         if(this.stage==null) throw new Error("Acceptance readiness lacks its original stage");
+         apexAcceptStage=this.stage;
+         apexAcceptStage.addEventListener(flash.events.MouseEvent.MOUSE_DOWN,ApexAcceptUserInput,true,1000,true);
+         apexAcceptStage.addEventListener(flash.events.KeyboardEvent.KEY_DOWN,ApexAcceptUserInput,true,1000,true);
+         addEventListener(flash.events.Event.ENTER_FRAME,ApexAcceptReadyFrame,false,-100,true);
+      }
+
+      private function ApexAcceptUserInput(event:flash.events.Event) : void
+      {
+         // Merely cancel our pending automation. EA receives the input normally.
+         if(apexAcceptWait!=null && apexPendingPhase==9) apexAcceptInput=true;
+      }
+
+      private function ApexAcceptReadyFrame(event:flash.events.Event) : void
+      {
+         if(apexAcceptWait==null || apexPendingPhase!=9 || apexTicking) return;
+         apexTicking=true;
+         try { ApexAccept(); } finally { apexTicking=false; }
+      }
+
+      private function ApexAcceptAbort(message:String) : void
+      {
+         var held:Object=apexAcceptWait;
+         ApexAcceptListen(false);apexAcceptWait=null;apexAcceptInput=false;
+         if(held==null) return;
+         try { CommunicationManager.CallGameService("GetSimOccult","APEXACCEPT1|CANCEL|"+held.request); } catch(cancelWaitError:Error) { }
+         var cancelled:Object=held.reply;
+         cancelled.message=message;cancelled.commit_attempted=false;cancelled.commit_submitted=false;
+         cancelled.readiness_cancelled=true;
+         apexPendingFields=null;apexPendingReply=null;apexPendingContext=null;
+         apexPendingPhase=8;apexReadbackTick=-1;apexClaimNonce="";
+         apexLastReply=ApexEncode(cancelled);
+         if(apexSocketActive && apexNonce===held.owner) ApexSocketReply(held.id,apexLastReply);
+      }
+
+      private function ApexAcceptNative(held:Object,operation:String) : Array
+      {
+         var raw:* = CommunicationManager.CallGameService("GetSimOccult","APEXACCEPT1|"+operation+"|"+held.request);
+         if(!(raw is String)) throw new Error("Native acceptance readiness is not a typed receipt");
+         // Preserve a bounded native refusal. A generic shape error hides
+         // which exact editor/owner check prevented the one save attempt.
+         if(String(raw).indexOf("REFUSED|")===0 && String(raw).length<=1024)
+            throw new Error("Native acceptance readiness refused: "+String(raw).substr(8));
+         var fields:Array=String(raw).split("|");
+         if(fields.length!=18 || fields[0]!="ACCEPTSTATE" || (fields[1]!="READY" && fields[1]!="WAIT") ||
+            fields[2]!==held.simId || fields[3]!==held.household || fields[4]!=="0" ||
+            held.mode===0 && ((fields[5]!==String(held.shell) &&
+               !(operation==="PREPARE" && held.channel!="" && fields[5]===String(held.rendered))) ||
+               fields[6]!==String(held.rendered) || fields[7]!==String(held.mask)) ||
+            !/^(1|2|4|8|16|32|64)$/.test(fields[5]) || !/^(1|2|4|8|16|32|64)$/.test(fields[6]) ||
+            !/^[0-9]{1,3}$/.test(fields[7]) || !/^[0-9]{1,3}$/.test(fields[8]) ||
+            !/^[0-9a-f]{64}$/.test(fields[12]) || !/^[0-9]{1,20}$/.test(fields[13]) || !/^[0-9]{1,20}$/.test(fields[14]) ||
+            !/^[0-9]{1,10}$/.test(fields[15]) || (fields[16]!="0" && fields[16]!="1") || fields[17]!=="1")
+            throw new Error("Native acceptance readiness lost its exact editor/form identity");
+         if(held.channel!="") {
+            if(!/^[0-9a-f]{32}$/.test(fields[9]) || fields[10]!==held.formOwner || !/^[1-9][0-9]{0,19}$/.test(fields[11]))
+               throw new Error("Native acceptance readiness lost its exact bound owner");
+         } else if(fields[9]!=="-" || fields[10]!=="-" || fields[11]!=="0")
+            throw new Error("Unbound acceptance readiness invented an owner");
+         var ready:Boolean=fields[15]==="0" && fields[16]==="0";
+         if((fields[1]==="READY")!==ready) throw new Error("Native acceptance ready flag differs from its genuine phase/model predicates");
+         var stamp:String=fields.slice(2,15).join("|");
+         if(operation==="PREPARE") {
+            // The native once-only harvest can replace EA's layout shell with
+            // this exact selected owner's rendered kind. The original request
+            // stays immutable; all subsequent probes use the attested shell.
+            if(held.mode===0) {held.shell=int(fields[5]);held.mask=int(fields[7]);}
+            held.stamp=stamp;held.preparedGeneration=String(fields[11]);
+         } else if(stamp!==held.stamp) throw new Error("Prepared native editor/household changed during readiness wait");
+         return fields;
+      }
+
+      private function ApexAcceptReady(held:Object) : Boolean
+      {
+         var elapsed:int=getTimer()-int(held.started);
+         if(elapsed<0 || elapsed>10000) throw new Error("Native editor readiness timed out before any save attempt");
+         if(apexAcceptInput) throw new Error("User input cancelled pending acceptance; EA input was not blocked");
+         if(apexDisconnected || !apexSocketActive || apexNonce!==held.owner || this.stage!==apexAcceptStage ||
+            held.channel!="" && apexNativeChannel!==held.channel || apexFormsDesiredId!="" || apexFormsIntent!=null ||
+            apexFormsNativeIntent!=null || apexMoleculeIntent!=null || apexPairIntent!=null || apexFormsApplying)
+            throw new Error("Acceptance readiness lost its original room/nonce or has a pending edit");
+         var fresh:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
+         var freshMatches:Boolean=fresh!=null && String(fresh.simId)===held.simId && String(fresh.householdId)===held.household &&
+            fresh.occultLayer is int && fresh.occultLayer===0 &&
+            (held.mode===7 || fresh.occultType===held.shell && fresh.allOccultTypes===held.mask);
+         fresh=null;
+         var currentMode:* = CommunicationManager.CallGameService("CasGetCASEditMode");
+         var currentNewFamily:* = CommunicationManager.CallGameService("CasIsNewFamily");
+         var currentArea:Object=CommunicationManager.CallGameService("CasIsEnteredFromPlayArea");
+         var currentFromLive:Boolean=currentArea!=null && currentArea.result===true;currentArea=null;
+         if(!freshMatches || currentMode!==held.mode || currentNewFamily!==false || !currentFromLive)
+            throw new Error("Acceptance readiness changed Sim/household/layer/editor mode");
+         if(held.mode===0 && (CommunicationManager.CallGameService("GetSimOccult")!==held.rendered ||
+            this.mCurrState!==MenuState.NONE || CASStateData.TattooMode!==false))
+            throw new Error("Acceptance readiness reopened or changed the original preview/form");
+         if(held.channel!="") {
+            var currentOwner:String=ApexNativeExchange("STATE|"+held.channel);
+            var expectedOwner:String="VIEWSTATE|"+held.simId+"|"+held.formOwner+"|"+held.rendered+"|0|bound|"+held.preparedGeneration;
+            if(apexFormsNativeState!=="bound" || apexFormsSelectedId!==held.formOwner || currentOwner!==expectedOwner ||
+               apexFormsNativeGeneration!==held.preparedGeneration)
+               throw new Error("Acceptance readiness changed its original bound owner/generation");
+         }
+         var nativeReady:Array=ApexAcceptNative(held,"READY");
+         held.reply.readiness_observations=int(held.reply.readiness_observations)+1;
+         return nativeReady[1]==="READY";
+      }
+
       private function ApexAccept() : void
       {
-         if(apexPendingPhase!=6 || apexPendingFields==null || apexClaimNonce!=apexNonce ||
-            !apexSocketActive || int(apexTimer.currentCount)<apexReadbackTick) return;
+         var resuming:Boolean=apexPendingPhase==9 && apexAcceptWait!=null;
+         if(!resuming && (apexPendingPhase!=6 || apexPendingFields==null || apexClaimNonce!=apexNonce ||
+            !apexSocketActive || int(apexTimer.currentCount)<apexReadbackTick)) return;
          // Cache only owned identity/primitive values before native code can
          // synchronously unload this widget and clear its Timer/Socket fields.
-         var id:String=String(apexPendingFields[0]); var simId:String=String(apexPendingFields[1]);
-         var owner:String=apexClaimNonce;
-         var expectedHousehold:String=String(apexPendingFields[6]);
+         var id:String=resuming ? String(apexAcceptWait.id) : String(apexPendingFields[0]);
+         var simId:String=resuming ? String(apexAcceptWait.simId) : String(apexPendingFields[1]);
+         var owner:String=resuming ? String(apexAcceptWait.owner) : apexClaimNonce;
+         var expectedHousehold:String=resuming ? String(apexAcceptWait.household) : String(apexPendingFields[6]);
          var preparedHousehold:String=apexPendingContext ? String(apexPendingContext.household_id) : "";
          var reply:Object={ok:false,protocol:1,scope:"native-cas-client",cas_request_id:id,operation:"accept",
             lifecycle_stage:"accept-result",commit_attempted:false,commit_submitted:false,ui_transition_verified:false};
          var commitAccepted:Boolean=false;
          try {
+            if(resuming) reply=apexAcceptWait.reply;
+            else {
             var sim:Object=CommunicationManager.CallGameService("CASGetSimInfo",null,true);
             var observedId:String=sim ? String(sim.simId) : "";
             var observedHousehold:String=sim && sim.householdId is String ? String(sim.householdId) : "";
@@ -2671,8 +2922,24 @@
                reply.household_cleanup_verified=true;
                reply.household_finalization_verified=true;
             }
+            var formOwner:String=acceptanceChannel!="" ? String(observedOwnerState.split("|")[2]) : "-";
+            var originalGeneration:String=acceptanceChannel!="" ? String(observedOwnerState.split("|")[6]) : "0";
+            apexAcceptWait={id:id,simId:simId,owner:owner,household:expectedHousehold,mode:int(editMode),
+               shell:observedShell,mask:observedMask,rendered:observedRendered,channel:acceptanceChannel,formOwner:formOwner,
+               started:getTimer(),reply:reply,request:id+"|"+owner+"|"+simId+"|"+expectedHousehold+"|"+
+                  (acceptanceChannel!="" ? acceptanceChannel : "0")+"|0|"+
+                  (editMode===0 ? String(observedShell)+"|"+String(observedRendered)+"|"+String(observedMask) : "-|-|-")+"|"+formOwner+"|"+originalGeneration};
+            reply.readiness_observations=0;apexAcceptInput=false;
+            apexPendingPhase=9;ApexAcceptListen(true);
+            ApexAcceptNative(apexAcceptWait,"PREPARE"); // Exactly one authoritative harvest, before waiting.
+            if(acceptanceChannel!="") apexFormsNativeGeneration=apexAcceptWait.preparedGeneration;
+            }
+            if(!ApexAcceptReady(apexAcceptWait)) return;
+            ApexAcceptListen(false);apexAcceptWait=null;apexAcceptInput=false;
+            apexPendingPhase=7;
+            reply.readiness_verified=true;
             reply.commit_attempted=true;
-            var accepted:* = CommunicationManager.CallGameService("SaveAndExitCAS",{bValidateExistingSimTraits:false});
+            var accepted:* = CommunicationManager.CallGameService("SaveAndExitCAS",{bValidateExistingSimTraits:false,apex_accept_id:id,apex_accept_nonce:owner});
             if(accepted===true) {
                commitAccepted=true;
                // CAS_TO_LIVE=32 is pinned in TransitionScreenMode. Do not read
@@ -2698,6 +2965,10 @@
          }
          // Failed native/preflight paths retain the original UUID and nonce.
          // Successful completion is established by the host's Live observer.
+         if(apexAcceptWait!=null) {
+            try { CommunicationManager.CallGameService("GetSimOccult","APEXACCEPT1|CANCEL|"+apexAcceptWait.request); } catch(acceptCancelError:Error) { }
+         }
+         ApexAcceptListen(false);apexAcceptWait=null;apexAcceptInput=false;
          apexPendingFields=null; apexPendingReply=null; apexPendingContext=null;
          apexPendingPhase=reply.commit_outcome=="unresolved" ? 7 : 0;
          apexReadbackTick=-1; apexClaimNonce="";

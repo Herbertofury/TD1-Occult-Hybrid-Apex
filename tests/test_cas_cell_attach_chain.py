@@ -19,7 +19,12 @@ import dbpf_build
 import maru_companion
 import cas_catalog_binding as binding
 import cas_draw_phase as phase
-from cas_main_chain_fixtures import current_main
+import cas_swatch_geometry as swatch
+import cas_preview_transition as preview
+import cas_grid_scroll as scroll
+import cas_grid_budget as budget
+import cas_grid_featured as featured
+from cas_main_chain_fixtures import current_main, rollback_terminal_main, TERMINAL_MAIN_MARKERS
 
 WORK = ROOT / '.work/v335-cell-attach'
 READY = all((WORK / name).is_file() for name in ('chained.json', 'baseline.swf', 'final.swf'))
@@ -38,6 +43,7 @@ def refresh_envelope(record):
 def main_fixture(info, resources, historical=False):
     # This explicit historical Main predates binding and granular diagnostics.
     # Replace their envelopes, unique tool pins and final bytes together.
+    rollback_terminal_main(info,resources)
     info.pop('catalog_binding_native_bytecode_contract', None)
     info.pop('draw_phase_native_bytecode_contract', None)
     for name in phase.SOURCES[:2]:
@@ -137,23 +143,13 @@ class CellAttachContinuationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'reconstruct'):
             attach.verify_contract(forged, changed_bytes)
 
-    def test_actual_main_builder_runs_all_five_postpasses_on_frozen_bytes(self):
+    def test_actual_main_builder_runs_all_ten_postpasses_on_current_bytes(self):
         # This seam consumes mutable current compiler cache entries. Authenticate
         # those entries against the CURRENT package chain rather than mixing
         # them with the immutable V334 Main used by the historical tests above.
         package = ROOT / 'dist/candidate/ApexCASBridge.package'
         info = json.loads(Path(str(package) + '.manifest.json').read_text())
-        final = dbpf_build.read(package.read_bytes())[maru_companion.CUSTOMIZER]
-        if info.get('draw_phase_native_bytecode_contract') is not None:
-            outer = info['draw_phase_native_bytecode_contract']
-            self.assertTrue(phase.verify_contract(outer, final))
-            self.assertEqual(outer['previous_stage_contract'], info['catalog_binding_native_bytecode_contract'])
-            final = phase.reconstruct_previous(final, outer['draw_phase_contract'])
-        if info.get('catalog_binding_native_bytecode_contract') is not None:
-            outer = info['catalog_binding_native_bytecode_contract']
-            self.assertTrue(binding.verify_contract(outer, final))
-            self.assertEqual(outer['previous_stage_contract'], info['cell_attach_native_bytecode_contract'])
-            final = binding.reconstruct_previous(final, outer['catalog_binding_contract'])
+        outer,bound_final,final=current_main('binding')
         record = info['cell_attach_native_bytecode_contract']
         self.assertTrue(attach.verify_contract(record, final))
         prior = record['previous_chain']
@@ -172,6 +168,26 @@ class CellAttachContinuationTests(unittest.TestCase):
         self.assertTrue(phase.verify_contract(phase_outer, phase_final))
         self.assertEqual(phase_outer['previous_stage_contract'], outer)
         self.assertEqual(phase.reconstruct_previous(phase_final, phase_outer['draw_phase_contract']), bound_final)
+        swatch_outer,swatch_final,swatch_prior=current_main('swatch')
+        self.assertTrue(swatch.verify_contract(swatch_outer,swatch_final))
+        self.assertEqual(swatch_outer['previous_stage_contract'],phase_outer)
+        self.assertEqual(swatch_prior,phase_final)
+        preview_outer,preview_final,preview_prior=current_main('preview')
+        self.assertTrue(preview.verify_contract(preview_outer,preview_final))
+        self.assertEqual(preview_outer['previous_stage_contract'],swatch_outer)
+        self.assertEqual(preview_prior,swatch_final)
+        scroll_outer,scroll_final,scroll_prior=current_main('scroll')
+        self.assertTrue(scroll.verify_contract(scroll_outer,scroll_final))
+        self.assertEqual(scroll_outer['previous_stage_contract'],preview_outer)
+        self.assertEqual(scroll_prior,preview_final)
+        budget_outer,budget_final,budget_prior=current_main('budget')
+        self.assertTrue(budget.verify_contract(budget_outer,budget_final))
+        self.assertEqual(budget_outer['previous_stage_contract'],scroll_outer)
+        self.assertEqual(budget_prior,scroll_final)
+        featured_outer,featured_final,featured_prior=current_main('featured')
+        self.assertTrue(featured.verify_main(featured_outer,featured_final))
+        self.assertEqual(featured_outer['previous_stage_contract'],budget_outer)
+        self.assertEqual(featured_prior,budget_final)
         tree = ast.parse(Path(ui.__file__).read_text())
         build = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'build')
         block = next(node for node in build.body if isinstance(node, ast.If) and
@@ -206,25 +222,64 @@ class CellAttachContinuationTests(unittest.TestCase):
             self.assertEqual(args[1], bound_final)
             self.assertEqual(args[2], ROOT / '.work/research/current-cas/scripts/scripts/widgets/CAS/Customizer/CASCustomizerMain.as')
             return phase_final, phase_outer['draw_phase_contract']
+        def adapt_swatch(*args):
+            order.append('swatch')
+            self.assertEqual(args[0],phase_outer)
+            self.assertEqual(args[1],phase_final)
+            self.assertEqual(args[2],ROOT / '.work/research/maru-integrated/DynamicCASCustomizer.swf')
+            self.assertEqual(args[3],ROOT / '.work/research/maru-integrated/customizer/scripts')
+            return swatch_final,swatch_outer['swatch_geometry_contract']
+        def adapt_preview(*args):
+            order.append('preview')
+            self.assertEqual(args,(swatch_outer,swatch_final))
+            return preview_final,preview_outer['preview_transition_contract']
+        def adapt_scroll(*args):
+            order.append('scroll')
+            self.assertEqual(args[0],preview_outer)
+            self.assertEqual(args[1],preview_final)
+            self.assertEqual(Path(args[2]).name,'CASCustomizerMain.as')
+            return scroll_final,scroll_outer
+        def adapt_budget(*args):
+            order.append('budget')
+            self.assertEqual(args[0],scroll_outer);self.assertEqual(args[1],scroll_final)
+            self.assertEqual(args[2],namespace['patched'])
+            return budget_final,budget_outer
+        def adapt_featured(*args):
+            order.append('featured')
+            self.assertEqual(args[0],budget_outer);self.assertEqual(args[1],budget_final)
+            self.assertEqual(args[2],namespace['patched'])
+            return featured_final,featured_outer
         with tempfile.TemporaryDirectory() as directory:
             namespace = vars(ui).copy()
             namespace.update(companion={},input_swf=ROOT / '.work/research/maru-integrated/DynamicCASCustomizer.swf',
                 payload=native.read_bytes(),contract=prior['native_bytecode_contract'],
                 structural_roles_contract=None,draw_fast_path_contract=None,cell_attach_contract=None,
                 catalog_binding_contract=None,draw_phase_contract=None,
+                swatch_geometry_contract=None,preview_transition_contract=None,scroll_main_contract=None,
+                budget_main_contract=None,featured_main_contract=None,
+                patched=Path(directory)/'CASCustomizerMain.as',
                 customizer_sources=ROOT / '.work/research/maru-integrated/customizer/scripts',
                 decompiled=ROOT / '.work/research/current-cas/scripts/scripts/widgets/CAS/Customizer/CASCustomizerMain.as',
                 ffdec=ROOT / '.work/research/ffdec/ffdec-cli.exe',work=Path(directory),
                 native_tag=native_tag,boundary=native_tag.index(b'\0', 4) + 1)
             with patch.object(roles, 'adapt', side_effect=adapt_roles), patch.object(draw, 'adapt', side_effect=adapt_draw), \
                  patch.object(attach, 'adapt', side_effect=adapt_attach), patch.object(binding, 'adapt', side_effect=adapt_binding), \
-                 patch.object(phase, 'adapt', side_effect=adapt_phase):
+                 patch.object(phase, 'adapt', side_effect=adapt_phase), patch.object(swatch, 'adapt', side_effect=adapt_swatch), \
+                 patch.object(preview, 'adapt', side_effect=adapt_preview), \
+                 patch.object(scroll, 'adapt_main', side_effect=adapt_scroll), \
+                 patch.object(budget, 'adapt_main', side_effect=adapt_budget), \
+                 patch.object(featured, 'adapt_main', side_effect=adapt_featured):
                 exec(compile(ast.Module(body=[block], type_ignores=[]), '<actual-main-postpass-seam>', 'exec'), namespace)
-            self.assertEqual(order, ['structural', 'draw', 'attach', 'binding', 'phase'])
-            self.assertEqual(namespace['payload'], phase_final)
+            self.assertEqual(order, ['structural', 'draw', 'attach', 'binding', 'phase', 'swatch', 'preview', 'scroll', 'budget', 'featured'])
+            self.assertEqual(namespace['payload'], featured_final)
             self.assertEqual(namespace['cell_attach_contract'], record)
             self.assertEqual(namespace['catalog_binding_contract'], outer)
             self.assertEqual(namespace['draw_phase_contract'], phase_outer)
+            self.assertEqual(namespace['swatch_geometry_contract'],swatch_outer)
+            self.assertEqual(namespace['preview_transition_contract'],preview_outer)
+            self.assertEqual(namespace['scroll_main_contract'],scroll_outer)
+            self.assertEqual(namespace['budget_main_contract'],budget_outer)
+            self.assertEqual(namespace['featured_main_contract'],featured_outer)
 
 
 @unittest.skipUnless(READY and (ROOT / 'dist/candidate/ApexCASBridge.package').is_file(), 'Private package Main fixture required')

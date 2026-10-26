@@ -8,12 +8,13 @@ import time
 from types import ModuleType,SimpleNamespace as Object
 import unittest
 from unittest.mock import patch
+ROOT=Path(__file__).resolve().parents[1]
+sys.path[:0]=[str(ROOT/'Source'),str(ROOT/'tests')]
 from apex_core import owner_mailbox as adapter_module
-from tests.test_owner_mailbox import Native, ID
+from test_owner_mailbox import Native, ID
 from apex_core.command_queue import CommandQueue,OwnerContinuation
 from apex_core.overlay_display_status import dispatch as display
 
-ROOT=Path(__file__).resolve().parents[1]
 WORK=ROOT/'Source'
 
 

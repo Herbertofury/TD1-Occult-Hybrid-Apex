@@ -19,12 +19,13 @@ SOURCES=('tools/cas_catalog_binding.py','tools/CasCatalogBindingPatch.java','too
 NATIVE_SHA256='f91d35898c71a91be92a16ff09f1b546555b06b7beba929c51f093b729d8da0e'
 NATIVE_BIND_SHA256='86157039c4e2301508bb20948b7ce9322a1a949714060f41a9d3e15220792e38'
 SEMANTICS={
-    'ApexCatalogBindingWidth':'0965b86c3177f8dd81afa0cacaf8b382445f902d4ae1f47765fb7eb6ba6b311d',
-    'ApexCatalogNativeBinding':'a48fd5e6e7e8cf8a8b00fe77ac963f456f2cb6d7cc4a83b7b02f520e400c5554',
-    'ApexCatalogObserveBinding':'43b54c1a09147780d2d03ad17949f95bbdbb0cc4a80b9c21255ea0014b5355f4',
+    'ApexCatalogBindingWidth':'c05c3790f06381df675159dab552019fc6674e7bdfbd169bd1809493ff137a3f',
+    'ApexCatalogNativeBinding':'e191121a298137862c676a2a424a423107f9bf528a993555de1e86cad62561d2',
+    'ApexCatalogObserveBinding':'d6603b4d21dd8fb6ee682fc55b82687108b9b21a01cc167a84787d431749f487',
 }
 
 FIELDS=r'''
+      private var apexColumns:Object;
       private var apexCatalogPrefs:Object;
       private var apexCardPrefs:Object;
       private var apexCardGeometry:Object;
@@ -39,7 +40,8 @@ HELPERS=r'''
       private function ApexCatalogBindingWidth() : Number
       {
          var panel:Object=mCurrentPanel;
-         if(stage==null || panel==null || panel!==mcClothingPanel || panel.visible!==true || panel.stage!==stage ||
+         if(stage==null || panel==null || (panel!==mcClothingPanel && panel!==mcBodyModPanel && panel!==mcFaceModPanel &&
+             panel!==mcGenericCatalogPanel && panel!==mcFeaturedFaceLookPanel && panel!==mcSkinColorPanel) || panel.visible!==true || panel.stage!==stage ||
             panel.mcTileList==null || panel.mcPanelBackground==null || apexCardGeometry==null || apexCardLayout==null ||
             apexCatalogPrefs==null || apexCardPrefs==null || apexCatalogSignature==null || apexCatalogSignature=="" ||
             apexCardGeometry.applying===true || apexCardGeometry.panel!==panel ||
@@ -66,6 +68,10 @@ HELPERS=r'''
             view===Number(message.view_x_offset) && screen===Number(message.screen_x_offset)+CASCustomizerTunables.PANEL_SCREEN_OFFSET_X &&
             isFinite(maximum);
          var clamp:Number=fitted ? Math.max(maximum,width+12) : maximum;
+         if(fitted && apexColumns!=null && typeof apexColumns.preferred_width=="number" && isFinite(apexColumns.preferred_width) &&
+            apexColumns.preferred_width>=80 && typeof apexColumns.width_anchor=="number" && isFinite(apexColumns.width_anchor) &&
+            apexColumns.width_panel===mCurrentPanel && mCurrSimInfo!=null && apexColumns.width_sim===String(mCurrSimInfo.simId))
+            clamp=Math.max(maximum,Number(apexColumns.width_anchor));
          // This is always the original native method and is invoked exactly
          // once. Its failure/throw propagates; no successful receipt is written.
          this.BindDisplayObjectToSim(display,view,screen,clamp);

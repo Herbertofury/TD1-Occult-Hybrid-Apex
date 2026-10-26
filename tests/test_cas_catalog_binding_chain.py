@@ -14,7 +14,11 @@ import cas_ui_build as ui
 import dbpf_build
 import maru_companion
 import cas_draw_phase as phase
-from cas_main_chain_fixtures import READY, current_main
+import cas_grid_scroll as scroll
+import cas_grid_slice as grid_slice
+import cas_grid_budget as budget
+import cas_grid_featured as featured
+from cas_main_chain_fixtures import READY, current_main, rollback_terminal_main, TERMINAL_MAIN_MARKERS
 
 KEY = maru_companion.CUSTOMIZER
 TEXT = dbpf_build.tgi(KEY)
@@ -36,6 +40,7 @@ def refresh(record):
 
 def historical_binding_fixture(info, resources):
     """Remove the later diagnostic with its exact bytes and unique tool pins."""
+    rollback_terminal_main(info,resources)
     record = info.pop('draw_phase_native_bytecode_contract', None)
     if record is not None:
         assert phase.verify_contract(record, resources[KEY])
@@ -147,6 +152,71 @@ class BindingManifestTests(unittest.TestCase):
         self.info = json.loads(Path(str(package) + '.manifest.json').read_text())
         self.resources = dbpf_build.read(package.read_bytes())
         install_fixture(self.info, self.resources)
+
+    def test_terminal_history_is_raw_rolled_back_with_only_its_unique_markers(self):
+        package=ROOT/'dist/candidate/ApexCASBridge.package'
+        info=json.loads(Path(str(package)+'.manifest.json').read_text())
+        resources=dbpf_build.read(package.read_bytes())
+        pins=dict(info['source_pins'])
+        native=copy.deepcopy(info['native_bytecode_contract'])
+        rollback_terminal_main(info,resources)
+        self.assertEqual(resources[KEY],current_main('phase')[1])
+        self.assertEqual(info['native_bytecode_contract'],native)
+        for envelope,markers in TERMINAL_MAIN_MARKERS.items():
+            self.assertNotIn(envelope,info)
+            for source in markers:self.assertNotIn(source,info['source_pins'])
+        for source in ('tools/cas_catalog_binding.py','tools/cas_cell_attach.py',
+                       'tools/CasStructuralRolesPatch.java','tools/CasCommunicationIndexPatch.java'):
+            self.assertEqual(info['source_pins'][source],pins[source])
+        snapshot=copy.deepcopy(info);before=resources[KEY]
+        rollback_terminal_main(info,resources)
+        self.assertEqual(info,snapshot);self.assertEqual(resources[KEY],before)
+
+    def test_terminal_fixture_downgrade_or_corruption_refuses_before_mutation(self):
+        package=ROOT/'dist/candidate/ApexCASBridge.package'
+        original=json.loads(Path(str(package)+'.manifest.json').read_text())
+        original_resources=dbpf_build.read(package.read_bytes());raw=original_resources[KEY]
+        for change in ('missing-preview','missing-swatch','missing-source','wrong-history','wrong-bytes',
+                       'missing-scroll','missing-scroll-source','missing-slice-source','missing-slice-adapter',
+                       'missing-scroll-adapter','wrong-scroll-history','wrong-slice-bytes',
+                       'missing-featured','missing-featured-source','missing-budget','missing-budget-source',
+                       'missing-featured-adapter','missing-budget-adapter','wrong-featured-history','wrong-budget-history'):
+            info=copy.deepcopy(original);resources=dict(original_resources)
+            def provider_layer(contract):
+                adapter=info['grid_provider_adapters'][dbpf_build.tgi(maru_companion.GRID_LIBRARY)]
+                for _ in range(32):
+                    if not isinstance(adapter,dict):break
+                    if contract in adapter:return adapter
+                    adapter=adapter.get('previous_stage_adapter')
+                raise AssertionError('Current fixture lacks its required exact layer: '+contract)
+            if change=='missing-preview':info.pop('preview_transition_native_bytecode_contract')
+            elif change=='missing-swatch':info.pop('swatch_geometry_native_bytecode_contract')
+            elif change=='missing-source':info['source_pins'].pop('tools/cas_preview_transition.py')
+            elif change=='wrong-history':info['preview_transition_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='wrong-bytes':resources[KEY]=raw+b'corrupt'
+            elif change=='missing-scroll':info.pop('scroll_main_native_bytecode_contract')
+            elif change=='missing-scroll-source':info['source_pins'].pop(scroll.SOURCES[0])
+            elif change=='missing-slice-source':info['source_pins'].pop(grid_slice.SOURCES[0])
+            elif change=='missing-slice-adapter':
+                provider_layer('slice_contract').pop('slice_contract')
+            elif change=='missing-scroll-adapter':
+                provider_layer('scroll_contract').pop('scroll_contract')
+            elif change=='wrong-scroll-history':info['scroll_main_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='wrong-slice-bytes':resources[maru_companion.GRID_LIBRARY]+=b'corrupt'
+            elif change=='missing-featured':info.pop('featured_main_native_bytecode_contract')
+            elif change=='missing-featured-source':info['source_pins'].pop(featured.SOURCES[0])
+            elif change=='missing-budget':info.pop('budget_main_native_bytecode_contract')
+            elif change=='missing-budget-source':info['source_pins'].pop(budget.SOURCES[0])
+            elif change=='missing-featured-adapter':
+                provider_layer('featured_contract').pop('featured_contract')
+            elif change=='missing-budget-adapter':
+                provider_layer('budget_contract').pop('budget_contract')
+            elif change=='wrong-featured-history':info['featured_main_native_bytecode_contract']['previous_stage_contract']={}
+            else:info['budget_main_native_bytecode_contract']['previous_stage_contract']={}
+            snapshot=copy.deepcopy(info);before=dict(resources)
+            with self.subTest(change=change),self.assertRaises((AssertionError,ValueError)):
+                rollback_terminal_main(info,resources)
+            self.assertEqual(info,snapshot);self.assertEqual(resources,before)
 
     def test_current_source_manifest_requires_exact_binding_history_and_actual_final_bytes(self):
         self.assertTrue(maru_companion.verify_merged(self.info, self.resources))

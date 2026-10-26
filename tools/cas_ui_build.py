@@ -32,6 +32,9 @@ VOICE_PIN = 'd0f81a01e1ef4039dc8fb4b5d39dac680ea45e512a8102e243e59a99d3362764'
 MOLECULE_KEY = (0x62ECC59A, 0, 9034126160331862072)
 MOLECULE_PIN = '3124ed12ea50140da6f072d16ab0703e6154e448974edb1c3f6f7d05f7c24524'
 PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.java',
+                  'NativeOverlay/Source/ApexCasAcceptReadiness.h',
+                  'NativeOverlay/Source/ApexNativeCasEngineWin.h',
+                  'NativeOverlay/Source/ApexNativeServiceProfilerWin.h',
                   'tools/CasStructuralRolesPatch.java', 'tools/cas_structural_roles.py',
                   'tools/CasGridTransactionPatch.java', 'tools/cas_grid_transaction.py',
                   'tools/CasDrawFastPathPatch.java', 'tools/cas_draw_fast_path.py',
@@ -42,12 +45,32 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'tools/CasImageBoundaryProfilePatch.java', 'tools/cas_image_boundary_profile.py',
                   'tools/CasCellAttachPatch.java', 'tools/cas_cell_attach.py',
                   'tools/CasGridPoolPatch.java', 'tools/cas_grid_pool.py',
+                  'tools/CasGridPresentationPatch.java', 'tools/cas_grid_presentation.py',
+                  'tools/CasGridProductRowsPatch.java', 'tools/cas_grid_product_rows.py',
+                  'tools/CasGridProgressPatch.java', 'tools/cas_grid_progress.py',
+                  'tools/CasSwatchProviderPatch.java', 'tools/cas_swatch_provider.py',
+                  'tools/cas_grid_scroll.py','tools/CasGridScrollPatch.java','tools/CasGridScrollMainPatch.java',
+                  'Source/CASUi/catalog_grid_scroll_methods.as','Source/CASUi/catalog_grid_scroll_main_methods.as',
+                  'tools/cas_grid_slice.py','tools/CasGridSlicePatch.java','Source/CASUi/catalog_grid_slice_methods.as',
+                  'tools/cas_grid_featured.py','tools/CasGridFeaturedPatch.java','tools/CasGridFeaturedMainPatch.java',
+                  'Source/CASUi/catalog_featured_identity_methods.as','Source/CASUi/catalog_featured_main_identity.as',
+                  'tools/cas_grid_budget.py','tools/CasGridBudgetPatch.java','tools/CasGridBudgetMainPatch.java',
+                  'Source/CASUi/catalog_grid_budget_step_methods.as','Source/CASUi/catalog_grid_budget_loop_methods.as',
+                  'Source/CASUi/catalog_grid_budget_main_request.as','Source/CASUi/catalog_grid_budget_main_status.as',
+                  'Source/CASUi/catalog_grid_progress_methods.as',
+                  'Source/CASUi/catalog_product_grid_row_guard.as',
+                  'Source/CASUi/catalog_grid_presentation_methods.as',
+                  'Source/CASUi/catalog_image_readiness_methods.as',
+                  'Source/CASUi/catalog_image_resource_readiness_methods.as',
                   'tools/CasCatalogBindingPatch.java', 'tools/cas_catalog_binding.py',
                   'tools/CasDrawPhasePatch.java', 'tools/cas_draw_phase.py',
                   'Source/CASUi/form_strip_methods.as',
                   'Source/CASUi/pair_controls_methods.as',
                   'Source/CASUi/catalog_workspace_methods.as',
-                  'Source/CASUi/catalog_cards_methods.as', 'tools/cas_equipped_catalog.py',
+                  'Source/CASUi/catalog_cards_methods.as','Source/CASUi/catalog_panel_geometry_methods.as',
+                  'Source/CASUi/swatch_geometry_adapter_methods.as','Source/CASUi/swatch_group_geometry_adapter_methods.as',
+                  'tools/cas_swatch_geometry.py','tools/CasSwatchGeometryPatch.java',
+                  'tools/cas_preview_transition.py', 'tools/cas_equipped_catalog.py',
                   'Source/CASUi/catalog_grid_transaction_methods.as',
                   'Source/CASUi/catalog_grid_geometry_methods.as',
                   'Source/CASUi/equipped_category_methods.as', 'Source/CASUi/catalog_keyboard_methods.as',
@@ -121,11 +144,25 @@ def verified_library_cache(output, originals):
                 not isinstance(info.get('base_resources'), dict) or
                 not isinstance(info.get('patched_resources'), dict)):
             return None
-        if (any(not isinstance(providers.get(dbpf_build.tgi(key)), dict) or
-                'grid_pool_contract' not in providers[dbpf_build.tgi(key)]
+        def current_grid_stages(adapter):
+            # Historical chains remain valid recovery evidence, but may not
+            # bypass newly required builder stages through this early return.
+            # Admit an exact current final OR the authenticated immediately
+            # preceding V345 prefix; adapt_grid_provider must continue it.
+            if isinstance(adapter,dict) and isinstance(adapter.get('featured_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('budget_contract'),dict):return False
+            if isinstance(adapter,dict) and isinstance(adapter.get('budget_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+            for contract in ('slice_contract','scroll_contract','swatch_provider_contract','progress_contract','product_rows_contract'):
+                if not isinstance(adapter,dict) or not isinstance(adapter.get(contract),dict):
+                    return False
+                adapter=adapter.get('previous_stage_adapter')
+            return True
+        if (any(not current_grid_stages(providers.get(dbpf_build.tgi(key)))
                 for key in (maru_companion.CANONICAL_GRID_LIBRARY, maru_companion.GRID_LIBRARY)) or
                 not isinstance(dependencies.get(dbpf_build.tgi(CLEANUP_KEY)), dict) or
-                'image_boundary_profile_contract' not in dependencies[dbpf_build.tgi(CLEANUP_KEY)]):
+                dependencies[dbpf_build.tgi(CLEANUP_KEY)].get('presentation_contract', {}).get('mode') != 'image'):
             return None
         for key in keys:
             text = dbpf_build.tgi(key)
@@ -164,6 +201,24 @@ def verified_library_cache(output, originals):
         return None
 
 
+def finish_grid_provider(prior, retained, original, ffdec, work):
+    """Continue only missing authenticated terminal stages, including V345 prefixes."""
+    import cas_grid_featured
+    import cas_grid_budget
+    import cas_grid_slice
+    work=Path(work)
+    if isinstance(prior,dict) and 'featured_contract' in prior:
+        cas_grid_featured.verify_adapter(prior,retained)
+        return retained,prior
+    if isinstance(prior,dict) and 'budget_contract' in prior:
+        cas_grid_budget.verify_adapter(prior,retained)
+    else:
+        # Missing, partial or unknown history fails before any compiler call.
+        cas_grid_slice.verify_adapter(prior,retained)
+        retained,prior=cas_grid_budget.adapt(prior,retained,original,ffdec,work/'budget')
+    return cas_grid_featured.adapt(prior,retained,original,ffdec,work/'featured')
+
+
 def adapt_dependency_provider(cleanup_library, ffdec, work, cache=None):
     """Reuse a verified communication dependency or run its complete compiler."""
     if cache is not None:
@@ -200,7 +255,10 @@ def adapt_dependency_provider(cleanup_library, ffdec, work, cache=None):
     image_abc, image_contract = cas_image_boundary_profile.adapt(cleanup_library, dependency_image_baseline,
         ffdec, work / 'dependency-image')
     dependency_payload = replace_payload(dependency_payload, dependency_tag[:dependency_boundary] + image_abc)
-    return dependency_payload, cas_image_boundary_profile.chain_adapter(dependency_adapter, image_contract, dependency_payload)
+    dependency_adapter = cas_image_boundary_profile.chain_adapter(dependency_adapter, image_contract, dependency_payload)
+    import cas_grid_presentation
+    return cas_grid_presentation.adapt(dependency_adapter, dependency_payload, cleanup_library,
+        ffdec, work / 'dependency-presentation')
 
 
 def verify_control_dispatch(methods):
@@ -235,30 +293,40 @@ def verify_snapshot_ownership(methods):
 
 
 def verify_household_acceptance(methods):
-    """Keep the inspected household validation ahead of its single native save.
-
-    A single-Sim shortcut returned false in actual household CAS. The native
-    name application can have side effects, so the intent is consumed first.
-    """
-    body = methods.split('private function ApexAccept()', 1)[1]
-    steps = ('apexPendingFields=null; apexPendingReply=null; apexPendingContext=null;',
-             'if(int(editMode)==0)',
-             'CallUIService("IsWidgetVisible","CASGeneticsPane")',
-             'CallUIService("CasApplyNameFields",false)',
-             'CallGameService("CasGetHouseholdExchangeData",{bValidateExistingSimTraits:false})',
-             'validatedHousehold.HouseholdContainsAdults()',
-             'CallGameService("CASCheckProfanityOnSimNames",null)',
-             'reply.household_finalization_verified=true;',
-             'reply.commit_attempted=true;',
-             'CallGameService("SaveAndExitCAS",{bValidateExistingSimTraits:false})')
-    try:
-        positions = [body.index(step) for step in steps]
-    except ValueError as error:
-        raise ValueError('Native household CAS finalization contract is incomplete.') from error
-    if positions != sorted(positions) or body.count('CallGameService("SaveAndExitCAS",') != 1:
-        raise ValueError('Native household CAS finalization must precede one consumed commit.')
+    body=methods.split('private function ApexAccept()',1)[1]
+    steps=('apexPendingFields=null; apexPendingReply=null; apexPendingContext=null;',
+      'if(int(editMode)==0)', 'CallUIService("IsWidgetVisible","CASGeneticsPane")',
+      'CallUIService("CasApplyNameFields",false)',
+      'CallGameService("CasGetHouseholdExchangeData",{bValidateExistingSimTraits:false})',
+      'validatedHousehold.HouseholdContainsAdults()',
+      'CallGameService("CASCheckProfanityOnSimNames",null)',
+      'reply.household_finalization_verified=true;',
+      'apexAcceptWait={id:id,simId:simId,owner:owner,household:expectedHousehold',
+      'apexPendingPhase=9;ApexAcceptListen(true);',
+      'ApexAcceptNative(apexAcceptWait,"PREPARE")',
+      'if(!ApexAcceptReady(apexAcceptWait)) return;',
+      'ApexAcceptListen(false);apexAcceptWait=null;apexAcceptInput=false;',
+      'apexPendingPhase=7;', 'reply.readiness_verified=true;', 'reply.commit_attempted=true;',
+      'CallGameService("SaveAndExitCAS",{bValidateExistingSimTraits:false,apex_accept_id:id,apex_accept_nonce:owner})')
+    try:positions=[body.index(s,0 if s!='apexPendingPhase=7;' else body.index('if(!ApexAcceptReady(apexAcceptWait)) return;')) for s in steps]
+    except ValueError as error:raise ValueError('Native acceptance finalization/readiness contract is incomplete.') from error
+    if positions!=sorted(positions) or body.count('CallGameService("SaveAndExitCAS",')!=1 or body.count('ApexAcceptNative(apexAcceptWait,"PREPARE")')!=1:
+        raise ValueError('Native acceptance must retain one prepare and at most one original typed commit.')
+    ready=methods.split('private function ApexAcceptReady(',1)[1].split('private function ApexAccept()',1)[0]
+    native=methods.split('private function ApexAcceptNative(',1)[1].split('private function ApexAcceptReady(',1)[0]
+    for required in ('elapsed<0 || elapsed>10000','if(apexAcceptInput)','apexNonce!==held.owner','this.stage!==apexAcceptStage',
+       'fresh.occultLayer===0','currentMode!==held.mode','currentNewFamily!==false','!currentFromLive',
+       'CASStateData.TattooMode!==false','currentOwner!==expectedOwner','ApexAcceptNative(held,"READY")'):
+        if required not in ready:raise ValueError('Acceptance ready fence missing: '+required)
+    for required in ('fields.length!=18','fields[2]!==held.simId','fields[3]!==held.household','fields[17]!=="1"',
+       'stamp!==held.stamp','fields[15]===é‰€"0"'.replace('é‰€',''),'fields[16]===é‰€"0"'.replace('é‰€','')):
+        if required not in native:raise ValueError('Acceptance native receipt guard missing: '+required)
+    if re.search(r'CASStateData\.TattooMode\s*=(?!=)',body):raise ValueError('Acceptance cannot force a preview flag.')
+    if 'if(apexPendingPhase==9) { ApexAccept();return; }' not in methods:
+        raise ValueError('Owned Timer must service an outstanding readiness continuation.')
+    if 'APEXACCEPT1|CANCEL|' not in methods or 'ApexAcceptReadyFrame' not in methods:
+        raise ValueError('Readiness must detach/cancel its exact original continuation.')
     return True
-
 
 def unpack(raw):
     if raw[:3] not in (b'FWS', b'CWS', b'GFX', b'CFX') or len(raw) < 12:
@@ -320,7 +388,7 @@ def inject(source, methods):
     source = source.replace(anchor, anchor + '\n         ApexInitialize();')
     # Resolve external QNames at compilation, avoiding dotted runtime lookups.
     source = source.replace('   import gamedata.CAS.CASAPI;',
-        '   import olympus.events.GridEvent;\n   import olympus.events.DataFeedEvent;\n   import olympus.events.ScrollerEvent;\n   import olympus.events.PushButtonEvent;\n   import gamedata.shared.SimGenderTypes;\n   import gamedata.CAS.shared.CASCatalogProduct;\n   import gamedata.CAS.CASAPI;')
+        '   import olympus.events.GridEvent;\n   import olympus.events.DataFeedEvent;\n   import olympus.events.ScrollerEvent;\n   import olympus.events.PushButtonEvent;\n   import gamedata.shared.SimGenderTypes;\n   import gamedata.CAS.shared.CASCatalogProduct;\n   import olympus.layout.SelectableRecyclingGridLayout;\n   import widgets.CAS.controls.CASBodyPanelCellView;\n   import widgets.CAS.controls.CASFacePanelCellView;\n   import widgets.CAS.controls.CASGenericCatalogVariantCellView;\n   import widgets.CAS.controls.CASBreedCatalogCellView;\n   import gamedata.CAS.CASAPI;')
     source = source.replace('   import ', '   import CasCustomizer.IconComponentResource;\n   import olympus.core.widget.Margin;\n   import olympus.core.tooltip.TooltipObject;\n   import flash.utils.describeType;\n   import flash.utils.getTimer;\n   import flash.utils.getDefinitionByName;\n   import gamedata.shared.TattooBodyData;\n   import gamedata.CAS.shared.CASCatalogFilter;\n   import gamedata.Exchange.ExchangeData;\n   import ', 1)
     source = re.sub(r'\s*\[Embed\([^\n]*\)\]', '', source)
     end = source.rfind('   }')
@@ -359,6 +427,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_workspace_methods.as').read_text(encoding='utf-8').replace(
         '__APEX_EQUIPPED_MENUS__',json.dumps(cas_catalog_workspace.equipped_menus(),sort_keys=True,separators=(',', ':')))
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_cards_methods.as').read_text(encoding='utf-8')
+    semantic += '\n' + (ROOT / 'Source/CASUi/catalog_panel_geometry_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_grid_transaction_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/catalog_grid_geometry_methods.as').read_text(encoding='utf-8')
     semantic += '\n' + (ROOT / 'Source/CASUi/equipped_category_methods.as').read_text(encoding='utf-8')
@@ -469,6 +538,11 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
     cell_attach_contract = None
     catalog_binding_contract = None
     draw_phase_contract = None
+    swatch_geometry_contract = None
+    preview_transition_contract = None
+    scroll_main_contract = None
+    budget_main_contract = None
+    featured_main_contract = None
     if companion is not None:
         import cas_structural_roles
         role_abc, role_proof = cas_structural_roles.adapt(input_swf, payload,
@@ -497,6 +571,24 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
             decompiled, ffdec, work / 'draw-phases')
         draw_phase_contract = cas_draw_phase.chain_contract(catalog_binding_contract,
             phase_proof, payload)
+        import cas_swatch_geometry
+        payload, swatch_proof = cas_swatch_geometry.adapt(draw_phase_contract, payload,
+            input_swf, customizer_sources, ffdec, work / 'swatch-geometry')
+        swatch_geometry_contract = cas_swatch_geometry.chain_contract(draw_phase_contract,
+            swatch_proof, payload)
+        import cas_preview_transition
+        payload, preview_proof = cas_preview_transition.adapt(swatch_geometry_contract, payload)
+        preview_transition_contract = cas_preview_transition.chain_contract(swatch_geometry_contract,
+            preview_proof, payload)
+        import cas_grid_scroll
+        payload, scroll_main_contract = cas_grid_scroll.adapt_main(preview_transition_contract, payload,
+            patched, ffdec, work / 'grid-scroll-main')
+        import cas_grid_budget
+        payload, budget_main_contract = cas_grid_budget.adapt_main(scroll_main_contract, payload,
+            patched, ffdec, work / 'grid-budget-main')
+        import cas_grid_featured
+        payload, featured_main_contract = cas_grid_featured.adapt_main(budget_main_contract, payload,
+            patched, ffdec, work / 'grid-featured-main')
     selector_source = work / 'ApexCASSelectorMain.as'
     selector_source.write_text(inject_selector(selector_decompiled.read_text(encoding='utf-8'),
         (ROOT / 'Source/CASUi/selector_methods.as').read_text(encoding='utf-8')), encoding='utf-8')
@@ -622,7 +714,10 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
             for key in (maru_companion.CANONICAL_GRID_LIBRARY, maru_companion.GRID_LIBRARY):
                 if cache['original_sha256'][key] == base_digest:
                     cache['used'].add(dbpf_build.tgi(key))
-                    return cache['resources'][key], cache['providers'][dbpf_build.tgi(key)]
+                    prior=cache['providers'][dbpf_build.tgi(key)];retained=cache['resources'][key]
+                    if 'featured_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
+                    return finish_grid_provider(prior,retained,grid_swf,
+                        ffdec,work/(Path(output_name).stem+'-from-prefix'))
             raise ValueError('Cached native library has no matching original provider identity.')
         grid_retained = work / output_name
         grid_contract = json.loads(run(['java', '-cp', str(Path(ffdec).parent / 'ffdec.jar') + os.pathsep + str(java_classes),
@@ -672,7 +767,29 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
             ffdec, work / (Path(output_name).stem + '-pool'))
         grid_payload = replace_payload(grid_payload, grid_tag[:grid_boundary] + pool_abc)
         adapter = cas_grid_pool.chain_adapter(adapter, pool_contract, grid_payload)
-        return grid_payload, adapter
+        import cas_grid_presentation
+        grid_payload, adapter = cas_grid_presentation.adapt(adapter, grid_payload, grid_swf,
+            ffdec, work / (Path(output_name).stem + '-presentation'))
+        import cas_grid_product_rows
+        grid_payload, adapter = cas_grid_product_rows.adapt(adapter, grid_payload, grid_swf,
+            ffdec, work / (Path(output_name).stem + '-product-rows'))
+        import cas_grid_progress
+        grid_payload, adapter = cas_grid_progress.adapt(adapter, grid_payload, grid_swf,
+            ffdec, work / (Path(output_name).stem + '-progress'))
+        import cas_swatch_provider
+        grid_payload, adapter = cas_swatch_provider.adapt(adapter, grid_payload, grid_swf,
+            ffdec, work / (Path(output_name).stem + '-swatch-provider'))
+        import cas_grid_scroll
+        grid_payload, adapter = cas_grid_scroll.adapt(adapter, grid_payload, grid_swf,
+            ffdec, work / (Path(output_name).stem + '-scroll-only'))
+        import cas_grid_slice
+        grid_payload, adapter = cas_grid_slice.adapt(adapter, grid_payload, grid_swf,
+            ffdec, work / (Path(output_name).stem + '-logical-slice'))
+        import cas_grid_budget
+        grid_payload, adapter = cas_grid_budget.adapt(adapter, grid_payload, grid_swf,
+            ffdec, work / (Path(output_name).stem + '-budget'))
+        return finish_grid_provider(adapter, grid_payload, grid_swf,
+            ffdec, work / (Path(output_name).stem + '-featured'))
     canonical_grid_payload, canonical_grid_adapter = adapt_grid_provider(work / 'ClassLibraryGamedata.swf',
         maru_companion.CANONICAL_GRID_LIBRARY_SHA256, 'apex-cas-canonical-grid-getter-retained.abc', library_cache)
     maru_companion.verify_canonical_grid_adapter(canonical_grid_adapter, canonical_grid_payload)
@@ -707,6 +824,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'grid_provider_adapters': grid_providers,
         'communication_dependency_adapters': dependencies,
         'cached_library_resources': sorted(library_cache['used']) if library_cache is not None else [],
+        'continued_library_resources': sorted(library_cache.get('continued',set())) if library_cache is not None else [],
         'source_pins': expected_sources,
         'typed_control_dispatch_verified': control_dispatch,
         'detached_snapshot_getters': detached_snapshot_getters,
@@ -720,6 +838,11 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
         'cell_attach_native_bytecode_contract': cell_attach_contract,
         'catalog_binding_native_bytecode_contract': catalog_binding_contract,
         'draw_phase_native_bytecode_contract': draw_phase_contract,
+        'swatch_geometry_native_bytecode_contract': swatch_geometry_contract,
+        'preview_transition_native_bytecode_contract': preview_transition_contract,
+        'scroll_main_native_bytecode_contract': scroll_main_contract,
+        'budget_main_native_bytecode_contract': budget_main_contract,
+        'featured_main_native_bytecode_contract': featured_main_contract,
         'selector_native_bytecode_contract': selector_contract,
         'voice_native_bytecode_contract': voice_contract,
         'molecule_native_bytecode_contract': molecule_contract,

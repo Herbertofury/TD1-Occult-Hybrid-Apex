@@ -16,10 +16,12 @@ def producer_client():
 
 
 def workspace():
-    return dict(visible=True,view='style',error='',context='12|active/2',outfit={'category':0,'index':0},
+    result=dict(visible=True,view='style',error='',context='12|active/2',outfit={'category':0,'index':0},
         preferences=dict(columns=12,color=0x00c9eb,glow=0,border=3,period=1.4,strength=1,animation='none'),
         card_preferences=dict(scale=1,gap_x=4,gap_y=4),
         slider_thumbs=dict(columns=.5,red=0,green=201/255,blue=235/255,glow=0,border=2/7,period=.1875,strength=1))
+    result['slider_geometry']={name:dict(x=fraction*300,track_pixels=300,track_scale_x=1,attached=True)for name,fraction in result['slider_thumbs'].items()}
+    return result
 
 
 class SliderFailedPostconditionTests(unittest.TestCase):
@@ -57,12 +59,13 @@ class SliderFailedPostconditionTests(unittest.TestCase):
 
     def test_old_twip_case_now_completes_successfully_through_normal_validation(self):
         self.packet['client']['control']['workspace']['slider_thumbs']['columns']=.3331666666666667
+        self.packet['client']['control']['workspace']['slider_geometry']['columns']['x']=99.95
         cas_ui.receive_socket(self.peer,self.rid,json.dumps(self.packet),clock=lambda:1)
         self.assertTrue(cas_ui.result(self.rid)['ok']);self.assertEqual(cas_ui.result(self.rid)['cas_request_state'],'completed')
 
     def test_foreign_partial_malformed_or_appearance_capable_packet_stays_pending(self):
         modes=('foreign-sim','wrong-owner','session','layer','outfit','missing-catalog','missing-preference','bad-preference','missing-thumb',
-            'bad-thumb','gesture','unbound','possible-write','mutation-started','history','extra-unknown-envelope','wrong-operation','wrong-view','workspace-error','missing-lease')
+            'bad-thumb','missing-pixels','detached-pixels','scaled-pixels','gesture','unbound','possible-write','mutation-started','history','extra-unknown-envelope','wrong-operation','wrong-view','workspace-error','missing-lease')
         for mode in modes:
             with self.subTest(mode=mode):
                 row=cas_ui._RECORDS[self.rid];row['state']='pending';row['result']=None
@@ -78,6 +81,9 @@ class SliderFailedPostconditionTests(unittest.TestCase):
                 elif mode=='bad-preference':w['preferences']['period']=float('nan')
                 elif mode=='missing-thumb':w['slider_thumbs'].pop('blue')
                 elif mode=='bad-thumb':w['slider_thumbs']['blue']=True
+                elif mode=='missing-pixels':w.pop('slider_geometry')
+                elif mode=='detached-pixels':w['slider_geometry']['columns']['attached']=False
+                elif mode=='scaled-pixels':w['slider_geometry']['columns']['track_scale_x']=2
                 elif mode=='gesture':client['form_strip']['gesture_pending']=True
                 elif mode=='unbound':client['form_strip']['native_owner_state']='pending'
                 elif mode=='possible-write':client['control']['appearance_written']=True

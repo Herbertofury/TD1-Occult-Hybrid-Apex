@@ -14,6 +14,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
 import cas_catalog_binding as binding
 import cas_communication_index as comm
+from cas_main_chain_fixtures import READY, current_main
 
 
 def javascript():
@@ -40,6 +41,9 @@ class Binding {
   this.mCurrentPanel=this.mcClothingPanel;this.apexCatalogSignature='current-fit:12';
   this.apexCardGeometry={panel:this.mCurrentPanel,grid:this.mCurrentPanel.mcTileList.mGridLayout,applying:false};
   this.apexCatalogPrefs={columns:12};this.apexCardPrefs={scale:1,gap_x:4,gap_y:4};
+  this.apexColumns={preferred_width:0};
+  this.mcBodyModPanel=null;this.mcFaceModPanel=null;this.mcGenericCatalogPanel=null;
+  this.mcFeaturedFaceLookPanel=null;this.mcSkinColorPanel=null;
   this.apexCardLayout={width:706,requested_columns:12,requested_scale:1,requested_gap_x:4,gap_y:4};
   this.apexCatalogBinding=null;this.apexCatalogBindingDirty=false;this.apexCatalogBoundWidth=-1;this.calls=[];this.hook=null;
  }
@@ -128,9 +132,9 @@ assert.equal(r.apexCatalogBindingDirty,true);
 
 
 WORK=ROOT/'.work/v336-catalog-binding'
-@unittest.skipUnless((WORK/'chained.json').is_file(),'Frozen private binding continuation required')
+@unittest.skipUnless(READY,'Current authenticated binding continuation required')
 class BindingContinuationTests(unittest.TestCase):
-    def fixture(self):return json.loads((WORK/'chained.json').read_text(encoding='utf-8')),(WORK/'final.swf').read_bytes()
+    def fixture(self):return current_main('binding')[:2]
 
     def refresh(self,r):
         r['previous_stage_sha256']=comm.contract_digest(r['previous_stage_contract'])
@@ -139,25 +143,33 @@ class BindingContinuationTests(unittest.TestCase):
 
     def test_exact_final_bytes_and_prior_full_history_are_retained(self):
         r,b=self.fixture();self.assertTrue(binding.verify_contract(r,b));self.assertIs(r['catalog_binding_contract']['runtime_qualified'],False)
-        self.assertEqual(binding.reconstruct_previous(b,r['catalog_binding_contract']),(ROOT/'.work/v335-cell-attach/final.swf').read_bytes())
+        self.assertEqual(binding.reconstruct_previous(b,r['catalog_binding_contract']),current_main('binding')[2])
 
-    @unittest.skipUnless((ROOT/'.work/v336-catalog-binding-current/chained.json').is_file(),'Actual current V335 Main fixture required')
-    def test_two_distinct_complete_main_histories_qualify_by_dynamic_rollback_not_a_final_allowlist(self):
-        current=ROOT/'.work/v336-catalog-binding-current';r=json.loads((current/'chained.json').read_text(encoding='utf-8'));b=(current/'final.swf').read_bytes()
-        self.assertTrue(binding.verify_contract(r,b));self.assertNotEqual(binding.digest(b),binding.digest(self.fixture()[1]))
-        self.assertEqual(binding.reconstruct_previous(b,r['catalog_binding_contract']),(current/'baseline.swf').read_bytes())
-        self.assertEqual(r['previous_stage_contract'],json.loads((current/'previous.json').read_text(encoding='utf-8')))
+    def test_current_history_is_dynamic_but_obsolete_source_evidence_cannot_be_adopted(self):
+        r,b,prior=current_main('binding')
+        self.assertTrue(binding.verify_contract(r,b))
+        self.assertEqual(binding.reconstruct_previous(b,r['catalog_binding_contract']),prior)
+        self.assertTrue(binding.attach.verify_contract(r['previous_stage_contract'],prior))
+        # A different proof source cannot be promoted by rewriting its outer
+        # digest. Old fixture paths/final hashes are not an admission allowlist.
+        stale=copy.deepcopy(r)
+        stale['catalog_binding_contract']['source_sha256']['tools/cas_catalog_binding.py']='0'*64
+        self.refresh(stale)
+        with self.assertRaises(ValueError):binding.verify_contract(stale,b)
 
     @unittest.skipUnless(shutil.which('javac'),'JDK required for compiled corruption fixture')
     def test_serialized_bytecode_projection_and_metadata_corruptions(self):
         with tempfile.TemporaryDirectory(prefix='apex-native-binding-') as work:
+            record,final,prior=current_main('binding')
+            before_path=Path(work)/'previous.swf';final_path=Path(work)/'final.swf'
+            before_path.write_bytes(prior);final_path.write_bytes(final)
             jar=ROOT/'.work/research/ffdec/ffdec.jar'
             r=subprocess.run(['javac','-cp',str(jar),'-d',work,str(ROOT/'tools/CasStructuralRolesPatch.java'),
                 str(ROOT/'tools/CasCommunicationIndexPatch.java'),str(ROOT/'tools/CasCatalogBindingPatch.java'),
                 str(ROOT/'tests/CasCatalogBindingBytecodeFixtures.java')],capture_output=True,text=True,timeout=45)
             self.assertEqual(r.returncode,0,r.stdout+r.stderr)
             r=subprocess.run(['java','-cp',str(jar)+os.pathsep+work,'CasCatalogBindingBytecodeFixtures',
-                str(ROOT/'.work/v335-cell-attach/final.swf'),str(WORK/'final.swf')],capture_output=True,text=True,timeout=45)
+                str(before_path),str(final_path)],capture_output=True,text=True,timeout=45)
             self.assertEqual(r.returncode,0,r.stdout+r.stderr[-2000:]);self.assertEqual(r.stdout.count('PASS '),13)
 
     def test_forged_counts_booleans_sources_baseline_history_and_runtime_claims_are_refused(self):

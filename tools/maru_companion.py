@@ -101,6 +101,38 @@ def _verify_grid_adapter(evidence, data, expected, final_digest, body_count):
     """Authenticate history and final bytes without relabeling native counts."""
     def same(left, right):
         return json.dumps(left, sort_keys=True, separators=(',', ':')) == json.dumps(right, sort_keys=True, separators=(',', ':'))
+    if isinstance(evidence, dict) and 'featured_contract' in evidence:
+        import cas_grid_featured
+        previous, original = cas_grid_featured.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'budget_contract' in evidence:
+        import cas_grid_budget
+        previous, original = cas_grid_budget.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'slice_contract' in evidence:
+        import cas_grid_slice
+        previous, original = cas_grid_slice.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'scroll_contract' in evidence:
+        import cas_grid_scroll
+        previous, original = cas_grid_scroll.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'swatch_provider_contract' in evidence:
+        import cas_swatch_provider
+        previous, original = cas_swatch_provider.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'progress_contract' in evidence:
+        import cas_grid_progress
+        previous, original = cas_grid_progress.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'product_rows_contract' in evidence:
+        import cas_grid_product_rows
+        previous, original = cas_grid_product_rows.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
+    if isinstance(evidence, dict) and 'presentation_contract' in evidence:
+        import cas_grid_presentation
+        previous, original = cas_grid_presentation.historical(evidence, data)
+        return _verify_grid_adapter(previous, original, expected, final_digest, body_count)
     if isinstance(evidence, dict) and 'grid_pool_contract' in evidence:
         import cas_grid_pool
         cas_grid_pool.verify_adapter(evidence, data)
@@ -169,6 +201,38 @@ def verify_grid_adapter(evidence, data):
 def verify_grid_providers(evidence, resources, dependencies=None):
     """Require both exact class providers; duplicate native classes can bind first."""
     donor_key, canonical_key = dbpf_build.tgi(GRID_LIBRARY), dbpf_build.tgi(CANONICAL_GRID_LIBRARY)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'featured_contract' in value for value in evidence.values()):
+        import cas_grid_featured
+        previous, original, prior_dependencies = cas_grid_featured.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'budget_contract' in value for value in evidence.values()):
+        import cas_grid_budget
+        previous, original, prior_dependencies = cas_grid_budget.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'slice_contract' in value for value in evidence.values()):
+        import cas_grid_slice
+        previous, original, prior_dependencies = cas_grid_slice.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'scroll_contract' in value for value in evidence.values()):
+        import cas_grid_scroll
+        previous, original, prior_dependencies = cas_grid_scroll.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'swatch_provider_contract' in value for value in evidence.values()):
+        import cas_swatch_provider
+        previous, original, prior_dependencies = cas_swatch_provider.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'progress_contract' in value for value in evidence.values()):
+        import cas_grid_progress
+        previous, original, prior_dependencies = cas_grid_progress.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'product_rows_contract' in value for value in evidence.values()):
+        import cas_grid_product_rows
+        previous, original, prior_dependencies = cas_grid_product_rows.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
+    if isinstance(evidence, dict) and any(isinstance(value, dict) and 'presentation_contract' in value for value in evidence.values()):
+        import cas_grid_presentation
+        previous, original, prior_dependencies = cas_grid_presentation.unwrap_providers(evidence, resources, dependencies)
+        return verify_grid_providers(previous, original, prior_dependencies)
     if not isinstance(evidence, dict) or set(evidence) != {donor_key, canonical_key}:
         raise ValueError('Both authenticated grid class providers are required.')
     if UNMODIFIED_OLYMPUS_LIBRARY in resources:
@@ -275,6 +339,22 @@ def combine(path, apex, evidence, grid_providers=None, dependencies=None):
 
 def verify_merged(info, resources):
     """Bundle gate independent of the owner's donor path and compiler scratch."""
+    import cas_grid_featured
+    info, resources = cas_grid_featured.unwrap_manifest(info, resources)
+    import cas_grid_budget
+    info, resources = cas_grid_budget.unwrap_manifest(info, resources)
+    import cas_grid_slice
+    info, resources = cas_grid_slice.unwrap_manifest(info, resources)
+    import cas_grid_scroll
+    info, resources = cas_grid_scroll.unwrap_manifest(info, resources)
+    import cas_swatch_provider
+    info, resources = cas_swatch_provider.unwrap_manifest(info, resources)
+    import cas_grid_progress
+    info, resources = cas_grid_progress.unwrap_manifest(info, resources)
+    import cas_grid_product_rows
+    info, resources = cas_grid_product_rows.unwrap_manifest(info, resources)
+    import cas_grid_presentation
+    info, resources = cas_grid_presentation.unwrap_manifest(info, resources)
     evidence = info.get('companion_code_merge')
     if not isinstance(evidence, dict) or evidence.get('package_sha256') != PACKAGE_SHA256:
         raise ValueError('Missing exact Dynamic CAS merge identity.')
@@ -446,6 +526,32 @@ def verify_merged(info, resources):
             contract.get('native_current_outfit_refresh_queue_verified') is not True or
             contract.get('native_pelt_palette_reenable_verified') is not True):
         raise ValueError('The complete donor ABC did not pass retained-method verification.')
+    historical_main = resources[CUSTOMIZER]
+    preview_required = ('tools/cas_preview_transition.py' in pins or
+                        info.get('preview_transition_native_bytecode_contract') is not None)
+    if preview_required:
+        import cas_preview_transition
+        preview = info.get('preview_transition_native_bytecode_contract')
+        if (any(name not in pins for name in cas_preview_transition.SOURCES) or not isinstance(preview,dict) or
+                preview.get('preview_transition_contract',{}).get('source_sha256') !=
+                    {name:pins[name] for name in cas_preview_transition.SOURCES} or
+                preview.get('previous_stage_contract') != info.get('swatch_geometry_native_bytecode_contract') or
+                cas_preview_transition.verify_contract(preview,historical_main) is not True):
+            raise ValueError('Native preview transition lacks its exact complete preceding geometry/Main proof.')
+        historical_main = cas_preview_transition.reconstruct_previous(historical_main,preview['preview_transition_contract'])
+    swatch_required = (any(name in pins for name in ('tools/cas_swatch_geometry.py','tools/CasSwatchGeometryPatch.java',
+        'Source/CASUi/swatch_geometry_adapter_methods.as','Source/CASUi/swatch_group_geometry_adapter_methods.as','Source/CASUi/catalog_panel_geometry_methods.as')) or
+                       info.get('swatch_geometry_native_bytecode_contract') is not None)
+    if swatch_required:
+        import cas_swatch_geometry
+        swatch = info.get('swatch_geometry_native_bytecode_contract')
+        if (any(name not in pins for name in cas_swatch_geometry.SOURCES) or not isinstance(swatch,dict) or
+                swatch.get('swatch_geometry_contract',{}).get('source_sha256') !=
+                    {name:pins[name] for name in cas_swatch_geometry.SOURCES} or
+                swatch.get('previous_stage_contract') != info.get('draw_phase_native_bytecode_contract') or
+                cas_swatch_geometry.verify_contract(swatch,historical_main) is not True):
+            raise ValueError('Final native swatch geometry does not retain its exact complete Draw/Main history.')
+        historical_main = cas_swatch_geometry.reconstruct_previous(historical_main,swatch['swatch_geometry_contract'])
     if 'tools/CasStructuralRolesPatch.java' in info.get('source_pins', {}):
         import cas_structural_roles
         post = info.get('structural_roles_native_bytecode_contract')
@@ -459,7 +565,7 @@ def verify_merged(info, resources):
             if attach_required:
                 import cas_cell_attach
                 attach = info.get('cell_attach_native_bytecode_contract')
-                attach_bytes = resources[CUSTOMIZER]
+                attach_bytes = historical_main
                 phase_required = (any(name in pins for name in ('tools/CasDrawPhasePatch.java', 'tools/cas_draw_phase.py')) or
                                   info.get('draw_phase_native_bytecode_contract') is not None)
                 if phase_required:
@@ -494,8 +600,8 @@ def verify_merged(info, resources):
             elif binding_required:
                 raise ValueError('Catalogue binding pass requires the complete historical Main/cell chain.')
             elif (not isinstance(post, dict) or not isinstance(fast, dict) or
-                    cas_draw_fast_path.chain_contract(contract, post, fast, resources[CUSTOMIZER]) != fast):
+                    cas_draw_fast_path.chain_contract(contract, post, fast, historical_main) != fast):
                 raise ValueError('Final Draw fast path does not chain to the historical structural/native proof.')
-        elif not isinstance(post, dict) or cas_structural_roles.chain_contract(contract, post, resources[CUSTOMIZER]) != post:
+        elif not isinstance(post, dict) or cas_structural_roles.chain_contract(contract, post, historical_main) != post:
             raise ValueError('Final structural-role ABC does not chain to the base native proof.')
     return True

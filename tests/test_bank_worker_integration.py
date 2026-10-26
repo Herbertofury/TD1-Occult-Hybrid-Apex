@@ -10,10 +10,11 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'Source'))
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tests'))
 from apex_core import bank_worker, cas_bank_transaction as receiver, overlay_loader as loader, test_driver
 from apex_core.command_queue import OwnerContinuation
-from tests import test_owner_mailbox_integration as mailbox_tests
-from tests.test_owner_mailbox import ID
+import test_owner_mailbox_integration as mailbox_tests
+from test_owner_mailbox import ID
 functions,WORK,ROOT=mailbox_tests.functions,mailbox_tests.WORK,mailbox_tests.ROOT
 
 

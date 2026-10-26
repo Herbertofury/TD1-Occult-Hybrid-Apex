@@ -12,11 +12,27 @@ class PostconditionMismatch(ValueError):
     """A complete native readback differs from the requested target value."""
 
 
+def _slider_thumb_pixels(workspace, name):
+    """Read the attached display object's local x; fractions are diagnostic.
+
+    Malformed geometry is not a complete failed-postcondition receipt. Keep it
+    a normal ValueError so it cannot settle an uncertain command as failed.
+    """
+    geometry = workspace.get('slider_geometry')
+    row = geometry.get(name) if isinstance(geometry, dict) else None
+    if (not isinstance(row, dict) or set(row) != {'x','track_pixels','track_scale_x','attached'} or
+            row.get('attached') is not True or
+            any(type(row.get(k)) not in (int,float) or not math.isfinite(row[k]) for k in ('x','track_pixels','track_scale_x')) or
+            row['track_pixels'] != 300 or row['track_scale_x'] != 1 or not 0 <= row['x'] <= 300):
+        raise ValueError('Catalog slider lacks exact attached native pixel geometry.')
+    return row['x']
+
+
 READS = frozenset(('catalog-state', 'catalog', 'variants', 'swatches', 'layers', 'body-types', 'modifiers', 'hair-matching', 'occults',
     'voices', 'walkstyles', 'detail-status', 'filters'))
 OPERATIONS = READS | frozenset(('preset', 'select-layer', 'remove', 'layer-add',
     'layer-remove', 'layer-move', 'swatch', 'physique', 'body-type', 'color-sliders', 'hair-match',
-    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion', 'panel-layout', 'catalog-trace', 'catalog-layout-trace'))
+    'voice-actor', 'voice-pitch', 'walkstyle', 'detail-mode', 'filter-clear', 'occult-view', 'occult-cache-view', 'occult-owner-view', 'form-owner-select', 'workspace', 'form-menu', 'pair-link', 'pair-copy', 'catalog-style', 'catalog-open', 'catalog-view', 'catalog-slider', 'catalog-width-drag', 'catalog-cards', 'catalog-card-reset', 'catalog-key', 'catalog-input', 'catalog-search', 'catalog-companion', 'panel-layout', 'catalog-trace', 'catalog-layout-trace'))
 PANEL_OPERATIONS = frozenset(('catalog', 'variants', 'preset', 'select-layer',
     'remove', 'layers', 'layer-add', 'layer-remove', 'layer-move', 'body-types', 'body-type', 'modifiers', 'color-sliders',
     'filters', 'filter-clear'))
@@ -36,6 +52,7 @@ SCHEMAS = {
     'catalog-open': {'operation'},
     'catalog-view': {'operation','view'},
     'catalog-slider': {'operation','control','fraction'},
+    'catalog-width-drag': {'operation','delta_x'},
     'pair-link': {'operation','owner_id','enabled'},
     'pair-copy': {'operation','source_owner_id','target_owner_id'},
     'form-menu': {'operation', 'family'},
@@ -146,6 +163,11 @@ def wire(request, panel):
     if op == 'catalog-view':
         if request['view'] not in ('category','items','style','layout','closed'):raise ValueError('Use category, items, style, layout or closed catalog view.')
         return 0,0,0,request['view']
+    if op == 'catalog-width-drag':
+        n=request['delta_x']
+        if type(n) not in (int,float) or not math.isfinite(n) or not .05<=abs(n)<=2048:
+            raise ValueError('Catalog width drag requires a finite signed 0.05-2048 pixel delta.')
+        return 0,0,0,format(n,'.6f').rstrip('0').rstrip('.')
     if op == 'catalog-slider':
         if request['control'] not in ('columns','red','green','blue','glow','border','period','strength','card_scale','gap_x','gap_y'):
             raise ValueError('Choose one exact catalog slider.')
@@ -295,6 +317,55 @@ def validate(client, request):
     if op == 'catalog-state':
         if control.get('appearance_written') is not False or not isinstance(control.get('workspace'), dict):
             raise PostconditionMismatch('Catalogue state lacks its read-only workspace result.')
+        return
+    if op == 'catalog-width-drag':
+        drag=control.get('drag');workspace=control.get('workspace')
+        if (control.get('appearance_written') is not False or not isinstance(drag,dict) or
+                not isinstance(workspace,dict) or drag.get('handler_invoked') is not True or
+                drag.get('appearance_written') is not False):
+            raise PostconditionMismatch('Catalog width lacks its actual native drag handler receipt.')
+        values=('delta_x','stage_width','stage_height','before_width','maximum_width','coordinate_scale','requested_width','card_scale','gap_x','gap_y')
+        if any(type(drag.get(k)) not in (int,float) or not math.isfinite(drag[k]) for k in values):
+            raise PostconditionMismatch('Catalog width receipt has untyped geometry.')
+        if (abs(drag['delta_x']-request['delta_x'])>.000001 or
+                type(drag.get('columns')) is not int or not 2<=drag['columns']<=32 or
+                type(drag.get('menu_state')) is not int or drag['menu_state']!=client.get('menu_state') or
+                not 1<=drag['stage_width']<=32768 or not 1<=drag['stage_height']<=32768 or
+                not 0<drag['coordinate_scale']<=16 or not 80<=drag['before_width']<=16384 or
+                not 80<=drag['maximum_width']<=16384 or not .2<=drag['card_scale']<=1.6 or
+                not 0<=drag['gap_x']<=32 or not 0<=drag['gap_y']<=32):
+            raise PostconditionMismatch('Catalog width receipt changed its requested context or values.')
+        for k in ('down','move','up'):
+            point=drag.get(k)
+            if (not isinstance(point,dict) or set(point)!={'x','y'} or
+                    any(type(point[n]) not in (int,float) or not math.isfinite(point[n]) for n in ('x','y')) or
+                    not 0<=point['x']<=drag['stage_width'] or not 0<=point['y']<=drag['stage_height']):
+                raise PostconditionMismatch('Catalog width handler coordinates are invalid.')
+        handle=drag.get('handle')
+        if (not isinstance(handle,dict) or set(handle)!={'x','y','width','height'} or
+                any(type(handle[k]) not in (int,float) or not math.isfinite(handle[k]) for k in handle) or
+                not 0<handle['width']<=128 or not 0<handle['height']<=256 or
+                not 0<=handle['x']<=drag['stage_width']-handle['width'] or
+                not 0<=handle['y']<=drag['stage_height']-handle['height'] or
+                abs(drag['down']['x']-(handle['x']+handle['width']/2))>.05 or
+                abs(drag['down']['y']-(handle['y']+handle['height']/2))>.05 or
+                abs(drag['move']['x']-drag['down']['x']-drag['delta_x'])>.05 or
+                drag['move']['y']!=drag['down']['y'] or drag['up']!=drag['move']):
+            raise PostconditionMismatch('Catalog width did not use the observed handle center and exact movement.')
+        expected=max(80,min(16384,drag['maximum_width'],drag['before_width']+drag['delta_x']/drag['coordinate_scale']))
+        prefs=workspace.get('card_preferences');layout=workspace.get('card_layout');bounds=workspace.get('catalog_bounds')
+        panels=workspace.get('panels');controls=panels.get('catalog_controls') if isinstance(panels,dict) else None
+        grip=controls.get('width') if isinstance(controls,dict) else None
+        style=workspace.get('preferences')
+        if (not isinstance(layout,dict) or not isinstance(bounds,dict) or not isinstance(grip,dict) or
+                not isinstance(prefs,dict) or not isinstance(style,dict) or style.get('columns')!=drag['columns'] or
+                any(type(prefs.get(k)) not in (int,float) or abs(prefs[k]-drag[d])>.000001 for k,d in (('scale','card_scale'),('gap_x','gap_x'),('gap_y','gap_y'))) or
+                grip.get('dragging') is not False or
+                any(type(v) not in (int,float) or not math.isfinite(v) or abs(v-expected)>.051
+                    for v in (drag['requested_width'],grip.get('requested'),layout.get('width'))) or
+                any(type(bounds.get(k)) not in (int,float) or not math.isfinite(bounds[k]) or abs(bounds[k]-drag[k])>.05
+                    for k in ('stage_width','stage_height'))):
+            raise PostconditionMismatch('Catalog width did not acknowledge its real handlers and unchanged layout controls.')
         return
     if op == 'catalog-layout-trace':
         trace = control.get('trace')
@@ -453,16 +524,14 @@ def validate(client, request):
                 if (type(actual) not in (int,float) or not math.isfinite(actual) or
                         (actual!=expected if name=='columns' else abs(actual-expected)>.000001)):
                     raise PostconditionMismatch('Catalog slider value did not read back.')
-            # Released/redrawn discrete controls place the thumb at their
-            # rounded value, rather than an arbitrary input fraction. GFx
-            # quantizes DisplayObject.x to 1/20 pixel on this 300px track.
-            # Keep this geometric tolerance separate from the value check.
+            # Native x is authoritative. A retained GFx packet reported x32.1
+            # but fraction0.1 for that same thumb. Never invent a corrected
+            # wire fraction or let it authorize a success. Compare the actual
+            # attached display position with the same original one-twip bound.
             expected_fraction=(expected-low)/(high-low)
-            thumbs=workspace.get('slider_thumbs',{})
-            actual=thumbs.get(name) if isinstance(thumbs,dict) else None
+            actual_pixels=_slider_thumb_pixels(workspace,name)
             if (workspace.get('visible') is not True or workspace.get('view')!=view or
-                    type(actual) not in (int,float) or not math.isfinite(actual) or not 0<=actual<=1 or
-                    abs(actual-expected_fraction)>(1/20)/300+1e-9):
+                    abs(actual_pixels-expected_fraction*300)>1/20+300e-9):
                 raise PostconditionMismatch('The actual catalog slider thumb did not acknowledge its rounded value within one native twip.')
         elif op=='catalog-view':
             if request['view']=='category':

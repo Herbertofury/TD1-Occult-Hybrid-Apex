@@ -74,7 +74,7 @@ const mCurrentPanel=null;
 function ApexPanelsFrame(){}function ApexCatalogApplyBinding(){}function ApexColumnsFrame(){}function ApexEquippedFrame(){}
 function ApexSearchFrame(){}function ApexCompanionFrame(){}function ApexCatalogKeyboardFrame(){}function ApexCatalogClearEffects(){}
 function ApexCardRestore(){}function removeEventListener(){}const thisRoot={mCurrentPanel};
-'''+code+r'''
+'''+card.panel_javascript('ApexCatalogPanelKind','panel')+code+r'''
 for(let frame=0;frame<500;frame++)ApexCatalogFrame.call(thisRoot);assert.equal(xWrites,0);assert.equal(yWrites,0);assert.equal(apexCatalogError,'');
 apexCatalogTab='items';ApexCatalogFrame.call(thisRoot);assert.equal(x,2220);assert.equal(xWrites,1);
 for(let frame=0;frame<500;frame++)ApexCatalogFrame.call(thisRoot);assert.equal(xWrites,1);

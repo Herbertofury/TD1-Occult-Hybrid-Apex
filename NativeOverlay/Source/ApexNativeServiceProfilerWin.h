@@ -14,7 +14,7 @@ namespace td1::nativecas::performance {
 // retain either argument, or replace it with a selected test Sim.
 using Callback=bool(*)(const void*,void*);
 struct Definition {const char* name;std::uint32_t rva;const char* hash;};
-inline constexpr std::array<Definition,10> Definitions{{
+inline constexpr std::array<Definition,11> Definitions{{
     {"GetCatalogBaseItems",0x426410,"2aeda6af8a71c34ab184c42ad6f3747d2354b6c1d6ef6c237c0e08878474b977"},
     {"GetCatalogColorFamilies.CAS",0x427070,"7bbd96272c0118897a471e86cb837a717173416ea4bc3c23e7f9b10dd036c366"},
     {"CasGetSwatchColorList",0x42c750,"93c9192fad1b54d255e12b871d7361b2f48e398a8a65c1840779679c4f729dd2"},
@@ -24,6 +24,7 @@ inline constexpr std::array<Definition,10> Definitions{{
     {"LoadUISettingsFromFile",0xc8a30,"c9b0c688b964699966b67222c299d8c73160adf3d19149af4e0f3cbd2006de6d"},
     {"GetCatalogColorFamilies.shared",0x1baf00,"929b32afa7221ea567b64b6d2e1ef5b36961347acede6d788708d8a2a4ee3d5f"},
     {"CASGetSimInfo",0x3f7540,"10ff167ca67e02e62e3c0db4e00be02ece5fc0adb4ac6c4702a756b5caedbda1"},
+    {"CasEnableTattooMode",0x424d50,"5b0eb04d44ca459cca6321fa30fc66255063ced7eaff36ecba1793f036a21ad1"},
     {"CasGetCurrSimOutfitSlot",0x427ef0,"a892aa9810e33d9b74501c6f6a1e74b131fe90d3b77c9c83949b66757f584452"}
 }};
 struct Runtime {
@@ -41,7 +42,7 @@ template<std::size_t Index> inline bool Dispatch(const void* a,void* b) {
     } finish{runtime,ticket};
     return runtime.original[Index](a,b);
 }
-inline const std::array<Callback,Definitions.size()> Detours{{Dispatch<0>,Dispatch<1>,Dispatch<2>,Dispatch<3>,Dispatch<4>,Dispatch<5>,Dispatch<6>,Dispatch<7>,Dispatch<8>,Dispatch<9>}};
+inline const std::array<Callback,Definitions.size()> Detours{{Dispatch<0>,Dispatch<1>,Dispatch<2>,Dispatch<3>,Dispatch<4>,Dispatch<5>,Dispatch<6>,Dispatch<7>,Dispatch<8>,Dispatch<9>,Dispatch<10>}};
 inline void Install() {
     auto& runtime=Shared();if(runtime.installed)return;
     if(runtime.attempted)throw std::runtime_error("Native service profiling installation previously failed; use a fresh runtime.");

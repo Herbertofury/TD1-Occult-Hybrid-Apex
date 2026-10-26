@@ -34,9 +34,9 @@ _LOADED = {}
 # Source provenance remains retained. This grants metadata admission only;
 # native recovery keeps its separate exact-source/A0 upgrade requirements.
 # Prior v1 receipts remain immutable and cannot authorize this source epoch.
-UPGRADE_EPOCH = '2026-10-26-catalog-workflow-evidence-v350'
+UPGRADE_EPOCH = '2026-10-26-qualified-grid-spares-v351'
 UPGRADE_PREDECESSOR = 'a0dff198bd8bf778c440883baf58d83e695b0a26e3d2b7a491e315fcbabf34ce'
-UPGRADE_SELF_BODY_SHA = '88842889fa871ba540616de2083b21da8069931a99282c8cbc86c9f1b17bd87d'
+UPGRADE_SELF_BODY_SHA = '875a8c3fe775008669ada802855ba7ed1e0d07d81e558bc77ded65d93515b0f8'
 UPGRADE_MODULE_PINS = {
     'apex_core/animated_attachment_compat.py': 'e0fc8db121c1bd0151f1765936652741d5e8f1dd93fd874c4f62f5a4d946ec74',
     'apex_core/appearance_transfer.py': 'd6691fe789e8bb932843e23c171a05b2209c09fd4f2d521ae051970599aded63',

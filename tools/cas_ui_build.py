@@ -56,6 +56,8 @@ PINNED_SOURCES = ('Source/CASUi/semantic_methods.as', 'tools/CasBytecodePatch.ja
                   'tools/cas_grid_physical.py','tools/cas_grid_physical_stage.py','tools/CasGridPhysicalPatch.java',
                   'tools/cas_grid_intrinsic.py','tools/cas_grid_intrinsic_stage.py','tools/CasGridIntrinsicPatch.java',
                   'Source/CASUi/catalog_grid_intrinsic_methods.as',
+                  'tools/cas_grid_spares.py','tools/cas_grid_spares_stage.py','tools/CasGridSparesPatch.java',
+                  'Source/CASUi/catalog_spare_custody_methods.as',
                   'tools/cas_catalog_schedule.py','tools/cas_catalog_schedule_stage.py','tools/CasCatalogSchedulePatch.java',
                   'Source/CASUi/catalog_scheduling_methods.as',
                   'tools/cas_catalog_workflow.py','tools/cas_catalog_workflow_stage.py','tools/CasCatalogWorkflowPatch.java',
@@ -162,6 +164,9 @@ def verified_library_cache(output, originals):
             # bypass newly required builder stages through this early return.
             # Admit an exact current final OR the authenticated immediately
             # preceding V345 prefix; adapt_grid_provider must continue it.
+            if isinstance(adapter,dict) and isinstance(adapter.get('spare_custody_contract'),dict):
+                adapter=adapter.get('previous_stage_adapter')
+                if not isinstance(adapter,dict) or not isinstance(adapter.get('intrinsic_geometry_contract'),dict):return False
             if isinstance(adapter,dict) and isinstance(adapter.get('intrinsic_geometry_contract'),dict):
                 adapter=adapter.get('previous_stage_adapter')
                 if not isinstance(adapter,dict) or not isinstance(adapter.get('physical_position_contract'),dict):return False
@@ -234,6 +239,16 @@ def verified_library_cache(output, originals):
 
 
 def finish_grid_provider(prior, retained, original, ffdec, work):
+    """Continue authenticated prefixes through the complete spare-custody terminal."""
+    import cas_grid_spares
+    if isinstance(prior,dict) and 'spare_custody_contract' in prior:
+        cas_grid_spares.verify_adapter(prior,retained)
+        return retained,prior
+    retained,prior=_finish_grid_provider_intrinsic(prior,retained,original,ffdec,work)
+    return cas_grid_spares.adapt(prior,retained,original,ffdec,Path(work)/'spare-custody')
+
+
+def _finish_grid_provider_intrinsic(prior, retained, original, ffdec, work):
     """Continue only authenticated prefixes through the complete intrinsic terminal."""
     import cas_grid_intrinsic
     if isinstance(prior,dict) and 'intrinsic_geometry_contract' in prior:
@@ -809,7 +824,7 @@ def build(input_swf, decompiled, ffdec, output, selector_swf=None, selector_deco
                 if cache['original_sha256'][key] == base_digest:
                     cache['used'].add(dbpf_build.tgi(key))
                     prior=cache['providers'][dbpf_build.tgi(key)];retained=cache['resources'][key]
-                    if 'intrinsic_geometry_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
+                    if 'spare_custody_contract' not in prior:cache.setdefault('continued',set()).add(dbpf_build.tgi(key))
                     return finish_grid_provider(prior,retained,grid_swf,
                         ffdec,work/(Path(output_name).stem+'-from-prefix'))
             raise ValueError('Cached native library has no matching original provider identity.')

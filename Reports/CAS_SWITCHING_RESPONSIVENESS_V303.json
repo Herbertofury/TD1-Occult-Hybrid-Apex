@@ -1,0 +1,128 @@
+{
+  "candidate_epoch": "2026-10-24-member-transport-latency-v303",
+  "candidate_sha256": "fe51dfdc86f166defa93f5e8310962cc09f74664fcc34188663abbf09dfdbcce",
+  "evidence_sha256": {
+    "v303-actual-member-latency": "7b3d547ed93c5045a785fe0f7b5a23b41c844e991de0d005d6569d74259bbc43",
+    "v303-actual-strip-clicks": "7b161ac9eeca0b97111b452b0253eb6a34f385d77c217765c0416ba320d335f4",
+    "v303-edited-saved-cold-load": "79716658152b00ed9dafdffab3d03e7f1d5f8d9b95d7139107d4e07829a6d8ee",
+    "v303-form-matrix": "fc39f8c69c8a89dd68ccbf2ab944635dec65fd7874dfbb862b363dc549001b1e",
+    "v303-normal-automatic-entry": "32f0f59624517286cfe462c20f546eeb963607b536542ebb6324f9e7767ae675",
+    "v303-wing-layer-qualification": "15f46b315e83d37f32280233c5c5143c969195a5ce09b4c1658408a7284c471b",
+    "v303-wing-native-after-original-undo": "930c924cde2f1086b1c28935821e75d667a2b54c8d1f4687377f414028f33130",
+    "v306-closed-archive-before-install": "905825b2e6ab647a54d8fd134370f8f0afb27d56c3385cf664c5f4dab900902e"
+  },
+  "production_ready": false,
+  "protected_original_written": false,
+  "remaining": [
+    "Native-menu member responsiveness in the matching new build.",
+    "Fresh palette Undo acknowledgement with the corrected native ID-to-color projection.",
+    "Exact legacy inherited/outfit mismatch Undo restoration.",
+    "All actual link/copy scopes, Live transitions and every rendered mesh.",
+    "CAS/Live/MCCC/F11 and complete Tray/Gallery round trips."
+  ],
+  "runtime": {
+    "all195_complete_records_unchanged": true,
+    "all20_save_files_unchanged": true,
+    "cold_named_looks": 155,
+    "cold_native_complete_appearances": 40,
+    "exposed_forms_per_member": 20,
+    "full_cas_entry_complete_records": 195,
+    "members": 5,
+    "native_directed_pairs_on_member5": 42,
+    "selections": 191,
+    "unexpected_differences": []
+  },
+  "schema": 1,
+  "timing": {
+    "actual_member_samples": [
+      {
+        "member_ui_frames": 65,
+        "member_ui_milliseconds": 2001,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "sim_id": "349336084686110946",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 56,
+        "member_ui_milliseconds": 1725,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "sim_id": "349336084686110947",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 53,
+        "member_ui_milliseconds": 1621,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "sim_id": "450667075246031054",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 52,
+        "member_ui_milliseconds": 1972,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "sim_id": "285159751289798669",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 40,
+        "member_ui_milliseconds": 1890,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "sim_id": "450667075246031055",
+        "transport_error": ""
+      }
+    ],
+    "actual_pointer_form_switches": [
+      {
+        "native_bind_ms": 31.9433,
+        "owner": "native/4",
+        "queued_to_bound_ms": 69
+      },
+      {
+        "native_bind_ms": 28.2135,
+        "owner": "native/1",
+        "queued_to_bound_ms": 47
+      },
+      {
+        "native_bind_ms": 26.7688,
+        "owner": "active/2",
+        "queued_to_bound_ms": 45
+      }
+    ],
+    "input_clock_resolution_ms": 1,
+    "input_handler_max_ms": 0,
+    "member_maximum_ms": 2001,
+    "member_minimum_ms": 1621,
+    "member_target_ms": 250,
+    "member_target_passed": false,
+    "zero_to_one_ms_complete_switch_claim": false
+  },
+  "validation": {
+    "native_targets": 17,
+    "python_seconds": 886.219,
+    "python_tests": 2898,
+    "serialized_owner_metadata_cases": 41
+  },
+  "wing_palette": {
+    "actual_game_contract": "Selected FURTONE values are dataID strings; resolve their uint32 colors through the native swatch list.",
+    "cli_original_undo_acknowledgement_verified": false,
+    "human_unchanged": true,
+    "native_five_layer_controls_used": true,
+    "native_original_undo_changed_complete_paint_fields": true,
+    "only_fairy_pelt_layers_changed": true,
+    "original_unresolved_uuid": "54b535a6ecbd495fb03deb3a7687c680",
+    "real_purple_layer_visible": true,
+    "test_edits_discarded_without_save": true,
+    "unresolved_uuid_replayed": false,
+    "vampire_roundtrips": 2
+  }
+}

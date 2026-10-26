@@ -1,0 +1,187 @@
+"""Bounded transport-to-owner queue. Only the owner thread may execute a command."""
+from collections import OrderedDict, deque
+import copy
+import threading
+import time
+import uuid
+
+
+class OwnerContinuation:
+    """Private owner-only continuation; never a transport result or worker callback."""
+    def resume(self):
+        raise NotImplementedError
+
+
+class CommandQueue:
+    # The game's Windows Python monotonic clock can step by 15.625 ms. Use
+    # the high-resolution monotonic counter for both deadlines and 1 ms work
+    # budgets; never mix clock domains inside a retained request.
+    def __init__(self, capacity=48, completed_limit=128, clock=time.perf_counter):
+        self.capacity = capacity
+        self.completed_limit = completed_limit
+        self.clock = clock
+        self.owner = threading.current_thread().ident
+        self.lock = threading.RLock()
+        self.pending = deque()
+        self.records = OrderedDict()
+        self.closed = False
+        self.executed = 0
+        self.over_budget = 0
+        self.command_max_ms = 0.0
+        self.drain_max_ms = 0.0
+        self._executing_id = None
+        self._executing_action = None
+
+    def current_request_id(self):
+        if threading.current_thread().ident != self.owner:
+            raise RuntimeError('Request context is restricted to the bound game thread.')
+        return self._executing_id
+
+    def current_action(self):
+        if threading.current_thread().ident != self.owner:
+            raise RuntimeError('Action context is restricted to the bound game thread.')
+        return self._executing_action
+
+    def bind_owner(self):
+        with self.lock:
+            owner = threading.current_thread().ident
+            # Zone readiness can rebind the SAME canonical thread while an
+            # immutable job waits. This transfers no capability or ownership.
+            if self.owner == owner:
+                return
+            if any(row['state'] == 'running' for row in self.records.values()):
+                raise RuntimeError('Cannot transfer the owner during execution.')
+            self.owner = owner
+
+    def _prune(self):
+        complete = [key for key, row in self.records.items() if row['state'] in ('completed', 'failed', 'cancelled')]
+        for key in complete[:-self.completed_limit] if self.completed_limit else complete:
+            del self.records[key]
+
+    def submit(self, payload, ttl=8.0, request_id=None):
+        if not isinstance(payload, dict) or not isinstance(payload.get('action'), str):
+            raise ValueError('A typed command with an action is required.')
+        if not 0 < ttl <= 60:
+            raise ValueError('Command TTL must be between zero and 60 seconds.')
+        payload = copy.deepcopy(payload)
+        with self.lock:
+            if self.closed:
+                return {'ok': False, 'state': 'rejected', 'message': 'Command queue is closed.'}
+            request_id = request_id or uuid.uuid4().hex
+            existing = self.records.get(request_id)
+            if existing:
+                if existing['payload'] != payload:
+                    raise ValueError('Request identity was reused for a different command.')
+                return self._status(existing)
+            if sum(row['state'] in ('pending', 'running') for row in self.records.values()) >= self.capacity:
+                return {'ok': False, 'state': 'rejected', 'message': 'Queue is full; no accepted command was dropped.'}
+            row = {'request_id': request_id, 'payload': payload, 'state': 'pending',
+                   'deadline': self.clock() + ttl, 'event': threading.Event(), 'result': None}
+            self.records[request_id] = row
+            self.pending.append(request_id)
+            return self._status(row)
+
+    def _status(self, row):
+        return {'ok': row['state'] not in ('failed', 'cancelled'), 'request_id': row['request_id'],
+                'state': row['state'], 'result': copy.deepcopy(row['result'])}
+
+    def status(self, request_id):
+        with self.lock:
+            row = self.records.get(request_id)
+            return self._status(row) if row else {'ok': False, 'state': 'unknown', 'request_id': request_id,
+                                                  'message': 'Request is unknown or outside the retained completion window.'}
+
+    def cancel(self, request_id, reason='Cancelled before execution.'):
+        with self.lock:
+            row = self.records.get(request_id)
+            if row and row['state'] == 'pending':
+                row['state'] = 'cancelled'
+                row['result'] = {'ok': False, 'message': reason}
+                row['event'].set()
+                self.pending.remove(request_id)
+                self._prune()
+                return True
+            return False
+
+    def wait(self, request_id, seconds):
+        with self.lock:
+            row = self.records.get(request_id)
+            if not row:
+                return self.status(request_id)
+            event = row['event']
+        if not event.wait(seconds):
+            self.cancel(request_id, 'Wait expired; command cancelled before execution.')
+        result = self.status(request_id)
+        if result['state'] == 'running':
+            result.update({'ok': False, 'message': 'Execution already started; outcome is pending. Query this request ID; do not retry the mutation.'})
+        return result
+
+    def drain(self, execute, max_commands=4, budget_seconds=0.001):
+        if threading.current_thread().ident != self.owner:
+            raise RuntimeError('Command execution is restricted to the bound game thread.')
+        start = self.clock()
+        count = 0
+        # A waiting job can be polled once per drain, without busy-looping or
+        # starving an unrelated command queued behind its disk work.
+        available = len(self.pending)
+        while available and count < max_commands and self.clock() - start < budget_seconds:
+            available -= 1
+            with self.lock:
+                if not self.pending:
+                    break
+                row = self.records[self.pending.popleft()]
+                if row['state'] == 'pending' and row['deadline'] <= self.clock():
+                    row['state'] = 'cancelled'
+                    row['result'] = {'ok': False, 'message': 'Command expired before execution.'}
+                    row['event'].set()
+                    self._prune()
+                    continue
+                continuation = row.get('_continuation')
+                row['state'] = 'running'
+            command_start = self.clock()
+            previous_execution = self._executing_id
+            previous_action = self._executing_action
+            self._executing_id = row['request_id']
+            self._executing_action = row['payload']['action']
+            try:
+                result = (continuation.resume() if continuation is not None else
+                          execute(copy.deepcopy(row['payload'])))
+                if not isinstance(result, OwnerContinuation) and (not isinstance(result, dict) or 'ok' not in result):
+                    raise ValueError('Domain action returned no explicit verification result.')
+            except Exception as error:
+                result = {'ok': False, 'message': str(error)}
+            finally:
+                self._executing_id = previous_execution
+                self._executing_action = previous_action
+            with self.lock:
+                if isinstance(result, OwnerContinuation):
+                    row['_continuation'] = result
+                    self.pending.append(row['request_id'])
+                else:
+                    row.pop('_continuation', None)
+                    row['result'] = result
+                    row['state'] = 'completed' if result['ok'] else 'failed'
+                    row['event'].set()
+                    self._prune()
+                elapsed_ms = max(0.0, self.clock() - command_start) * 1000.0
+                self.executed += continuation is None
+                self.command_max_ms = max(self.command_max_ms, elapsed_ms)
+                self.over_budget += elapsed_ms > budget_seconds * 1000.0
+            count += 1
+        if count:
+            with self.lock:
+                self.drain_max_ms = max(self.drain_max_ms, max(0.0, self.clock() - start) * 1000.0)
+        return count
+
+    def shutdown(self):
+        with self.lock:
+            self.closed = True
+            for request_id in list(self.pending):
+                self.cancel(request_id, 'Queue closed before execution.')
+
+    def metrics(self):
+        with self.lock:
+            return {'pending': len(self.pending), 'retained': len(self.records),
+                    'capacity': self.capacity, 'completed_limit': self.completed_limit, 'closed': self.closed,
+                    'executed': self.executed, 'over_budget': self.over_budget,
+                    'command_max_ms': self.command_max_ms, 'drain_max_ms': self.drain_max_ms}

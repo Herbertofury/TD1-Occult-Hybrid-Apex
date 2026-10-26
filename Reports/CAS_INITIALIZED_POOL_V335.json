@@ -1,0 +1,155 @@
+{
+  "candidate_epoch": "2026-10-25-initialized-card-pool-v335",
+  "scope": "CAS catalogue display-control lifetime and native read integration",
+  "production_ready": false,
+  "hitch_free_claimed": false,
+  "runtime_status": "scoped pool/navigation/search/preservation checks pass; action hitch gate fails",
+  "change": {
+    "retains_initialized_widgets": true,
+    "caches_appearance_or_product_data": false,
+    "active_cards_freshly_bound_before_input": true,
+    "parked_cards_hidden_unmapped_unfocusable": true,
+    "actual_write_fresh_owner_validation_unchanged": true,
+    "preservation_guard_unchanged": true,
+    "initial_cold_attachment_cost_removed": false,
+    "providers": 2,
+    "owned_bodies_replaced": 8,
+    "native_read_prefixes": 8,
+    "appended_methods": 10,
+    "appended_fields": 0
+  },
+  "regressions_caught_before_installation": [
+    "Published readonly enumeration initially reused Main's frame-only transaction validator; corrected to pure owner/generation/feed/view/panel/stage and completed-revision checks, with fresh validation retained for actual writes.",
+    "Integer proof counts initially accepted Boolean aliases; strict integer checks now reject them."
+  ],
+  "offline_checks": {
+    "pool_tests": 14,
+    "compiled_provider_cases_included": 52,
+    "pool_integration_tests": 8,
+    "dead_attach_write_tests": 3,
+    "dead_attach_compiled_cases_included": 15,
+    "dead_attach_integration_tests": 7,
+    "idempotent_transform_tests": 4,
+    "proofs_establish_player_visible_smoothness": false
+  },
+  "previous_actual_v334": {
+    "frames": 5403,
+    "median_ms": 6.8696,
+    "p99_ms": 40.8742,
+    "max_ms": 256.5539,
+    "over_33_33_ms": 133,
+    "capture_seconds": 45,
+    "includes_explicit_cli_observations": true,
+    "matched_no_mod_baseline": false,
+    "performance_pass": false
+  },
+  "remaining_checks": [
+    "Actual shared-domain active/parked card reads and input/focus behavior.",
+    "Cumulative construct/attach/retire deltas across repeated six/twelve-column changes.",
+    "Body/Tattoos/Hair, no-match/clear/matching search, keyboard browsing and donor controls.",
+    "Quiet and action frame-time measurements, independent of host compilation and indexing.",
+    "Complete five-member owner-field comparison and all disposable save-file hashes.",
+    "Initial attachment, redundant panel binding and other remaining measured engine costs.",
+    "Edited-category, form-link/copy and save/Tray/Gallery release gates remain open."
+  ],
+  "candidate_sha256": "b0a9c786379dedf6b94cbd40a303c9e552470ba1ae5d705f7d8b961254ab2472",
+  "actual_v335": {
+    "pid": 91292,
+    "cold_native_appearances_retained": 40,
+    "cold_named_looks_retained": 155,
+    "complete_owner_records_compared": 195,
+    "all_fields_unchanged": true,
+    "all21_save_files_unchanged": true,
+    "measured_repeated_layouts": [
+      {
+        "label": "reuse-0-6-done-0",
+        "active_capacity": 48,
+        "physical_capacity": 224,
+        "lifecycle_delta": {
+          "construct": 0,
+          "attach": 0,
+          "retire": 0
+        }
+      },
+      {
+        "label": "reuse-0-12-done-2",
+        "active_capacity": 180,
+        "physical_capacity": 224,
+        "lifecycle_delta": {
+          "construct": 0,
+          "attach": 0,
+          "retire": 0
+        }
+      },
+      {
+        "label": "reuse-1-6-done-0",
+        "active_capacity": 48,
+        "physical_capacity": 224,
+        "lifecycle_delta": {
+          "construct": 0,
+          "attach": 0,
+          "retire": 0
+        }
+      },
+      {
+        "label": "reuse-1-12-done-2",
+        "active_capacity": 180,
+        "physical_capacity": 224,
+        "lifecycle_delta": {
+          "construct": 0,
+          "attach": 0,
+          "retire": 0
+        }
+      }
+    ],
+    "body_tattoos_hair_completed": true,
+    "keyboard_navigation_clicks_dispatched": false,
+    "search": {
+      "native_eligible_hair_count": 436,
+      "simbience_matches": 2,
+      "no_match_and_both_clear_paths_passed": true
+    },
+    "warm_action_frames": {
+      "scope": "60s repeated six/twelve-column layout actions including explicit CLI observations; no matched no-mod or V334 workload baseline",
+      "frames": 6569,
+      "median_ms": 8.627,
+      "p95_ms": 12.8017,
+      "p99_ms": 16.1704,
+      "max_ms": 60.7729,
+      "over_33_33ms": 10,
+      "performance_pass": false,
+      "csv_sha256": "fc535442bf8770a26aba2bf99775135552f9c648b740d8a1af0525e86ddf1315"
+    },
+    "quiet_frames": {
+      "scope": "30s quiet visible CAS card grid after all own compilers ended, no CLI actions in window; no matched no-mod baseline",
+      "frames": 3305,
+      "median_ms": 8.5974,
+      "p95_ms": 11.8644,
+      "p99_ms": 13.798,
+      "max_ms": 18.9783,
+      "over_33_33ms": 0,
+      "performance_pass": false,
+      "csv_sha256": "2c5cb2f660bc06f318e501dd616f9ebf04a22ac306fba01cb889cd67beb631d3"
+    },
+    "compact_twelve_columns_reviewed": true,
+    "source_level_guard_unchanged": true
+  },
+  "regression": {
+    "tests": 1568,
+    "seconds": 692.507,
+    "initial_failures": 7,
+    "initial_errors": 4,
+    "initial_skips": 3,
+    "scope": "Original 1568-test run failed eleven fixture/integration checks. Corrected trace9, observation4, cellattach7, Drawfast5 and cataloguebytecode4 targeted methods pass (29 methods); eight new binding integration methods also pass. No second whole-suite pass is claimed.",
+    "targeted_corrections_verified": true,
+    "targeted_methods_passed": 29,
+    "additional_binding_chain_methods_passed": 8
+  },
+  "evidence": {
+    "v335-pool-runtime.json": "4caa25fa1774fdc6d9ca82d07c0477c7e0453dae5e5fe8ae2f4fbcdabf5e22ea",
+    "v335-search-actual.json": "3f356390be1b992460935025f69d1296a8a76b4d840f91c76683f5838cb38e2c",
+    "v335-post-ui-all195.json": "5fedabee001603eed5555506223f2d1f845c915a1dd1711dec10c1132c014ed9",
+    "v335b-edited-saved-cold-load.json": "db36c2258b3fdf289ee69f5342ca2ce5658dd52ac0b3b7e4c741e3ede6a1be5c",
+    "v335-twelve-compact-actual.bmp": "ff64a30aecd3d3d414c673d4b8ae31f4712653b517a0f80be1774d5e66c700ee"
+  }
+}

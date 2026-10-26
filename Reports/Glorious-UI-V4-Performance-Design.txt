@@ -1,0 +1,34 @@
+TD1 Occult Hybrid Apex - V4 Performance Design
+==============================================
+
+Goal:
+  Make the UI beautiful and functional while avoiding unnecessary simulation work.
+
+Performance safeguards added in V4:
+
+1. Lazy game-thread queue
+   Previous builds armed the repeating alarm during server startup. V4 starts the HTTP panel bridge but arms the Sims game-thread queue only when the panel or a command actually asks for game data/action.
+
+2. Low-frequency queue
+   Queue interval is 0.5 real seconds. That is frequent enough for responsive panel commands but avoids a high-frequency tick.
+
+3. No continuous Sim polling
+   The panel refreshes status only:
+     - once after the panel loads,
+     - when Refresh Status is clicked,
+     - after a command completes.
+
+4. Lightweight running log
+   The Running Log uses /api/logs, which reads _HISTORY and performance counters under a short lock. It does not call services.sim_info_manager(), does not mutate Sims, and does not run repair logic.
+
+5. Auto repair OFF by default
+   Background repair checks are disabled by default. The Diagnostics tab has explicit Auto Repair On/Off buttons.
+
+6. Bounded memory
+   The log buffer is capped at 600 lines. The browser asks for the latest 220 lines. Performance counters are small dictionaries keyed by action name.
+
+7. No external UI dependencies
+   No remote fonts, frameworks, images, or CDN scripts are used. The panel is one local document served by the mod.
+
+Honest limitation:
+  No mod can truthfully guarantee mathematically zero overhead once loaded. V4 minimizes overhead by keeping gameplay work explicit, lazy, low-frequency, and measurable.

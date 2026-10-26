@@ -1,0 +1,22 @@
+pub mod catalog;
+#[cfg(feature = "cli")]
+pub mod enrich;
+pub mod ffi;
+#[cfg(feature = "runtime-workers")]
+pub mod appearance_worker;
+#[cfg(feature = "runtime-workers")]
+mod bank_json;
+#[cfg(feature = "runtime-workers")]
+pub mod bank_worker;
+pub mod folders;
+pub mod identity;
+#[cfg(feature = "cli")]
+pub mod optimize;
+pub mod providers;
+pub mod search;
+#[cfg(feature = "cli")]
+pub mod sources;
+pub mod text;
+pub mod usage;
+#[cfg(feature = "cli")]
+pub mod wcif;

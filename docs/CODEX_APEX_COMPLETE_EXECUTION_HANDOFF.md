@@ -289,7 +289,7 @@ Do not manufacture convergence by deleting tasks, weakening assertions, reducing
 These T900-series items are **orchestration controls only**. They do not replace, summarize, renumber, or reduce canonical `T001–T196` / `G001–G015` in `docs/CODEX_MASTER_EXECUTION.md`.
 
 - [ ] **T900** · Resolve the authoritative repository/worktree/branch, current dirty state, real build/test/package/launch commands, and the exact available authorized baseline archives; record any genuine blocker inline and then proceed directly into implementation.
-- [ ] **T901** · Read every canonical document listed in this handoff once, confirm the current `docs/CODEX_MASTER_EXECUTION.md` task/gate identity, and do not create a second reduced implementation checklist.
+- [x] **T901** · Read every canonical document listed in this handoff once, confirm the current `docs/CODEX_MASTER_EXECUTION.md` task/gate identity, and do not create a second reduced implementation checklist. **Proof:** all 15 required canonical documents and the complete master were read before implementation; original T001–T196/G001–G015 identities preserved. Additional discovered safety/CLI work uses T197–T200 in that same master; G009 remains the final gate.
 - [ ] **T902** · Resume and execute the canonical master from the earliest ready unchecked/invalidated task, updating its existing T/G checkboxes and proof/blocker notes in place as work is genuinely proven.
 - [ ] **T903** · Persist coherent implementation checkpoints to the canonical GitHub repository and keep the repo TODO/issues/wiki mirror/release lineage synchronized instead of leaving the only current state in local scratch or chat.
 - [ ] **T904** · Before declaring completion, run a whole-contract convergence pass covering all canonical requirements, R001–R010, clean-profile runtime proof, exact ColorState copy proof, save/reload/restart, release artifacts/hashes, and equivalent-work performance.
@@ -310,3 +310,8 @@ Open the repository, verify the authoritative worktree/branch and `SOURCE_RECOVE
 Do not respond with another roadmap. Execute.
 
 - [ ] **G900 · FINAL COMPLETION GATE** — This handoff is complete only after T900–T905 are complete **and** canonical `docs/CODEX_MASTER_EXECUTION.md` has truthfully completed every accepted T/G requirement through `G009 · FINAL COMPLETION GATE`, with no unresolved accepted blocker and no silently dropped scope.
+
+
+## Supplemental research resource — 2026-10-24
+
+Timestamped performance evidence and source-specific research are available in [the frozen V322 engine report](../Reports/CAS_ENGINE_PROFILE_V322.json) and the verified [Performance Research wiki](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/wiki/Performance-Research). These resources distinguish measured failures, changing source, installed artifacts and pending qualification. They supplement the canonical requirements and task ledger; no existing task/status text or completion gate is changed. File placement or this pointer does not establish automatic developer consumption.

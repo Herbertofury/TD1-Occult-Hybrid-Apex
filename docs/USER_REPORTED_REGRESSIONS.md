@@ -1,6 +1,60 @@
 # User-Reported Original Mod Regressions — Non-Negotiable Fix Ledger
 
-Last reconciled: 2026-10-06
+Last reconciled: 2026-10-20
+
+Current household checkpoint: V216 verifies all five complete native caches
+before CAS acceptance, yet three members never selected in the editor still
+return mismatched appearance cores. The strict loader refuses those records;
+the distinct no-edit disposition and permanent guard retain all forty native
+appearances and 155 named looks, with every save unchanged. V217 targets the
+pinned household serialization boundary, projecting each outgoing form from its
+own independent native owner and validating the complete packet with the game
+parser. Thirteen native targets and an independent game-schema oracle pass.
+Actual V217 household acceptance still fails: the targeted export caller is
+absent and the same three unselected members change. Guard retention passes all
+forty native appearances and 155 named looks without save writes. V218 instead
+stages and verifies the actual CAS household roots before native acceptance,
+with whole-household rollback on failure. V218 was withdrawn before CAS entry
+or arming after an inline-object ABI mistake was found. V219 corrects the
+adapter and fixture; thirteen native targets plus 26 seal and 26 upgrade checks
+pass. Its actual acceptance is rejected because a prepared root differs on
+complete readback. All five original roots are restored, EA's handler is not
+called, and the session is canceled without saving. V220 reports bounded
+field-path/size/hash differences to isolate that failure while keeping every
+verification field and the rollback. V220 isolates missing Werewolf pelt data
+and changed Human genetics on an unselected member; the independent captures
+remain correct. V221 scopes the correction to final CAS serialization, with
+fresh root/entity/generation checks and complete packet validation. It does not
+rewrite native roots. V221's actual acceptance succeeds, but all fifteen
+observed exports use copied objects rather than the prepared editor roots;
+none qualifies for projection, and the same three members change. The guard
+again retains all forty native appearances and 155 named looks, with every save
+unchanged; the subsequent normal unsaved exit succeeds. V222 tracks exact
+native constructor/assignment provenance and destruction so legitimate output
+copies can retain their original scope, entity and generation. Unrelated
+objects, overwritten destinations and reused addresses cannot inherit authority
+from a matching Sim ID. All thirteen native targets and 26 seal/26 upgrade
+checks pass. Actual V222 qualification remains a direct-fix failure: three late
+copies verify, two unselected members still differ, and one native fault
+invalidates acceptance qualification. Its guard retains all forty appearances
+and 155 named looks; every save remains unchanged and normal unsaved exit
+succeeds. V223 authenticates the earlier complete native CAS household dispatch
+before its copies are queued, and preserves bounded fault history across later
+successes. Actual V223 verifies all five dispatch-derived outputs but exposes
+an adapter lifetime error: normal editor destruction invalidates the completed
+handoff. Direct qualification fails; the separate guard and normal unsaved exit
+pass with all saves unchanged. V224 tombstones retired editor addresses while
+retaining valid dispatch descendants, final generations and complete readbacks.
+Reused addresses and unauthenticated handoffs still refuse. Its thirteen native,
+26 seal and 26 upgrade checks pass. Actual V224 now passes the no-edit household
+cycle: all forty appearances match before the guard, all five output/load
+receipts verify and no native fault remains after editor teardown. The separate
+guard retains all forty appearances and 155 named looks after simulation,
+without changing any save. Edited-category, MCCC and save/Tray workflows still
+require qualification; the next five-member Alien/Vampire edit pass is starting.
+R001/R002 remain open,
+as do selective EA linking/copying, edited save/Tray round trips and measured
+end-to-end responsiveness; fixture passes do not authorize actual-save use.
 
 This is not a wishlist. These are concrete failure modes experienced with the original/older hybrid-occult workflow and are **release-blocking regressions for Apex**.
 
@@ -42,6 +96,23 @@ Before CAS/MCCC mutation:
 - inventory every linked occult/form record relevant to the Sim;
 - preserve stable identity for each form;
 - capture only the minimum recovery snapshot needed.
+
+### Owner's mandatory six-occult workflow — 2026-10-07
+
+Create one disposable Sim with Alien, Vampire, Mermaid, Spellcaster, Werewolf
+and Fairy memberships. Edit each distinct supported appearance form in CAS
+entered through MCCC and through the game's own CAS entry, using visibly
+different presets, clothing, skin details and colors. Retain exact per-form
+snapshots and screenshots. Switch away and back through Apex's actual Live
+menu, unpause to settle engine changes, then verify every edited form and every
+unrelated form. Repeat after save/reload and a complete game restart.
+
+Spellcaster and other memberships without a separate native CAS appearance
+must be explicitly mapped to their shared appearance owner; do not fabricate a
+separate saved form or overwrite another membership's look. MCCC coexistence
+and standalone Apex runs use the same retained test profile, with exact addon
+receipts. Never load the original Mods library or original saves for this test.
+Passing membership/form switches alone does not satisfy this workflow.
 
 After CAS:
 - prove every pre-existing form still exists unless the user intentionally removed it;
@@ -245,3 +316,64 @@ Then fix the shared state model and keep these failures as permanent regressions
 # Release blocker
 
 Apex is **not finished** while any of R001–R010 can still be reproduced on the current supported Sims 4 build.
+
+## October 20: observed CAS/recovery corrections, partial qualification
+
+- [x] R003: reproduce Fairy highlighted while Werewolf remains rendered. Retain a busy picker choice for the exact Sim/session and drive the stock highlight from the actual native form. An actual EA Fairy-card click now loads its independent Fairy owner, rendered kind and icon; membership stays 127.
+- [x] R004: identify the built-in Human/CC look seeded from the beast's complete outfit/genetic/body data. Seed new looks from the shared Human, render that named look as Human, and archive a prior look before an explicit full-body initialization. An actual CAS capture verifies a complete Human head/body and a separate normal beast view on the first household member.
+- [x] Prevent the form-selection CLI from binding hidden canonical backup aliases that its player-facing UI cannot acknowledge. Resolve the exact visible logical owner for each member; reject hidden, duplicate and missing identities before staging native work. Retain the failed prior UUID without replay.
+- [x] Correct recovery treating a PID reused by Opera as the old Sims runtime. Use a held query-only process handle and validate its executable image. Actual Windows and in-game checks distinguish the browser from Sims; failed identity queries still refuse recovery.
+- [x] V212: load all five members, retain all forty native appearances through 2,961 simulation ticks, preserve the original profile and keep every disposable save/backup unchanged.
+- [x] V212: complete thirty Human/CC/beast/Fairy/original visits across all five members. Every field in all 195 captured internal appearance records remains unchanged; this is not proof of edited-category or selective-copy retention.
+- [x] Reproduce V214's CAS-exit corruption on three members never selected in CAS. Keep the complete core comparison strict; the separate no-edit guard restores all forty native appearances and retains all 155 named looks. Every disposable save/backup remains unchanged.
+- [x] V215: pass 2,695 regression tests and reject native acceptance when complete copied-cache verification differs. Retain the failed receipt and discard the disposable session only under the owner's explicit authorization; no save is submitted.
+- [ ] Qualify V216's corrected full-shell verification and household cache settlement in the actual game. Twelve native targets and 52 seal/upgrade tests pass, but runtime acceptance is still pending.
+- [ ] Complete CAS return and Live geometry, full category/MCCC coverage, scoped link/copy/undo and household save/Tray/Gallery acceptance. The direct CAS-exit Human-paint fix remains open; the permanent guard stays enabled.
+
+These are scoped checkpoints. They do not close R001–R010 or certify actual-save use.
+
+
+## V225 native portrait panel and responsiveness work (2026-10-20)
+
+The owner requested EA's real Vampire-style category link/copy panel in the
+existing portrait toolbar, including Alien's existing portrait arrangement,
+without Vampire identity substitution or a new floating toolbar. The seven
+selected native panel methods now adapt only the hybrid branch to the exact
+Sim/shared-Human/selected-form graph. EA's embedded artwork, buttons, checkbox
+component, native placement and other selector methods remain intact. Stock
+controller-wide autosync is never used by that hybrid branch. Category masks
+include tattoos, skin details/scars, accessories, makeup, eyes/eyebrows, body
+hair and wings; unselected fields and opaque destination data are retained.
+Links are direct pair edges: an Alien edit cannot relay through Human into a
+separately linked Vampire. Linking does not copy either current appearance.
+The same masks are available through the semantic CLI.
+
+The replacement floating link/arrow controls and their idle native/feed reads
+are retired. Local form clicks retain one latest desired selection for the
+exact Sim/editor, including while an earlier transition/readback is pending.
+Outstanding transitions continue on UI frames rather than waiting for the
+500 ms network polling timer; EA's pair panel refreshes after the actual bind.
+A 0-1 ms click-handler budget is a target, not a claim that complete game
+binding, asset loading or rendering can finish within that time. Runtime
+latency distribution and native-panel player-visible qualification remain open.
+
+V224's interrupted edited-category run completed twelve real item edits and
+six Alien/Vampire switch visits across the first two household members. Its
+automated driver was stopped to avoid competing with the owner's input. The
+last read-only request was later observed complete, without replay. The
+remaining members, edited CAS return, selective checkbox actions, save and
+Tray/Gallery round trips remain unqualified; no save or CAS acceptance was
+submitted by that interrupted run. V224's earlier five-member no-edit return
+proof remains a separate, qualified result.
+
+
+V229 development checkpoint: the real EA copy panel is the inner
+`mcAlternativeFormCopy` of its native options container. Corrected readback
+and refresh avoid an Error 1010 and hiding it during CLI observation. A
+real V228 native voice copy was refused before writing because IdList IDs
+are packed fixed64; V229 fixes that encoding and leaves outfits/morphs
+entirely untouched for voice-only operations. All 14 native tests, 60
+selector-bytecode tests and 16 entry-context tests pass. The V228 actual
+Vampire bind measured 10.0329 ms, not 0-1 ms. The current runtime panel,
+selective copy/link/unlink, edited CAS return, save and Tray qualifications
+remain open. The protected original has not been written.

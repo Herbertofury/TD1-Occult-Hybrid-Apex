@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "scope": "actual-native-CAS-owner-refresh-and-UI-acknowledgement",
+  "ok": true,
+  "candidate_epoch": "2026-10-21-native-owner-readback-v258",
+  "candidate_sha256": "cf68e3865ab715f05721bcc10999a250cbb852131de6e52e9c43b0d864513cdc",
+  "script_sha256": "ecc5f274eaa0652e32b3605677b2ccfed5cbf860a6517bc2dca3ce2a7a31279e",
+  "native_dll_sha256": "771944929168c098665cbc6e025ab381e550ddbb24543c74349b357fdf1346ad",
+  "game_version": "1.128.90.1030",
+  "household_members_present": 5,
+  "edited_member_ordinal": 1,
+  "prior_failure": {
+    "native_operation_applied": true,
+    "native_view_elapsed_ms": 11.5173,
+    "ui_ack_observed": false,
+    "original_mutation_replayed": false,
+    "original_receipt_retained": true
+  },
+  "fix": "Reconcile desired owner with the current bound native model during readback; do not require a changed-owner heartbeat for same-form refresh.",
+  "bytecode_gate": {
+    "verified": true,
+    "negative_missing_refresh_rejected": true,
+    "fixture_cases_passed": 13
+  },
+  "operations": [
+    {
+      "same_owner_refresh": true,
+      "native_kind": 2,
+      "owner_id": "active/2",
+      "elapsed_seconds": 3.948943000053987,
+      "native_view_elapsed_ms": 27.2566,
+      "native_ack_verified": true
+    },
+    {
+      "same_owner_refresh": false,
+      "native_kind": 1,
+      "owner_id": "native/1",
+      "elapsed_seconds": 3.266544499900192,
+      "native_view_elapsed_ms": 19.017,
+      "native_ack_verified": true
+    },
+    {
+      "same_owner_refresh": true,
+      "native_kind": 1,
+      "owner_id": "native/1",
+      "elapsed_seconds": 4.481711500091478,
+      "native_view_elapsed_ms": 37.5039,
+      "native_ack_verified": true
+    },
+    {
+      "same_owner_refresh": false,
+      "native_kind": 2,
+      "owner_id": "active/2",
+      "elapsed_seconds": 3.9086584001779556,
+      "native_view_elapsed_ms": 28.1812,
+      "native_ack_verified": true
+    },
+    {
+      "same_owner_refresh": false,
+      "native_kind": 4,
+      "owner_id": "native/4",
+      "elapsed_seconds": 5.210592299932614,
+      "native_view_elapsed_ms": 34.7886,
+      "native_ack_verified": true
+    },
+    {
+      "same_owner_refresh": true,
+      "native_kind": 4,
+      "owner_id": "native/4",
+      "elapsed_seconds": 4.6245947000570595,
+      "native_view_elapsed_ms": 38.9981,
+      "native_ack_verified": true
+    },
+    {
+      "same_owner_refresh": false,
+      "native_kind": 2,
+      "owner_id": "active/2",
+      "elapsed_seconds": 3.244293199852109,
+      "native_view_elapsed_ms": 22.3871,
+      "native_ack_verified": true
+    }
+  ],
+  "actual_alien_vampire_alien": true,
+  "same_owner_alien_human_vampire_verified": true,
+  "raw_audit_sha256": "fe97512bc1e922ca90558527d4f8cbf5ed02d92f5eb11b31b27c1345ea3380c1",
+  "save_files_unchanged": true,
+  "save_submitted": false,
+  "cas_accept_submitted": false,
+  "appearance_edit_requested": false,
+  "production_ready": false,
+  "limitations": [
+    "End-to-end CLI time includes host checks, transport and retained proof; it is not native frame cost.",
+    "These no-edit form switches do not qualify all-category household edit persistence, CAS acceptance, save/cold-load or Tray/Gallery."
+  ]
+}

@@ -1,0 +1,218 @@
+{
+  "schema": 1,
+  "experiment_only": true,
+  "runtime_qualified": false,
+  "game_hooks_implemented": false,
+  "performance_gain_claimed": false,
+  "native_lifetime_review_complete": false,
+  "game_executable_sha256": "916b852b187b9c41b9c2d77af55e0d5ed6aaf06909661397d7aa98f2e4db78ab",
+  "runtime_text_sha256": "87d6eeacc8813cf60af07800f66f7cdcc2a5bc9e1caf423a89c170d8c42c4367",
+  "runtime_text_rva": "0x1000",
+  "image_base_normalized": "0x140000000",
+  "authenticated_spans": {
+    "context_constructor": {
+      "begin_rva": "0x1005ae0",
+      "end_rva": "0x1005c70",
+      "bytes": 400,
+      "sha256": "6f9271ce620cc6ac26804685fc5c1858ebd6b163900c4604230eec3e3bdf873b"
+    },
+    "context_capture": {
+      "begin_rva": "0x1006a20",
+      "end_rva": "0x1006da5",
+      "bytes": 901,
+      "sha256": "6d6c8e09cdf728bcd63a0db85218bdd08378c87d5fb589a959a7be47841f3484"
+    },
+    "snapshot_destructor": {
+      "begin_rva": "0x10063d0",
+      "end_rva": "0x1006509",
+      "bytes": 313,
+      "sha256": "f3f3068ef310ee21440890c8c34662c8043df0f3125aa9387982bc8421e1c9d4"
+    },
+    "retire_finalized_snapshot": {
+      "begin_rva": "0x10086d0",
+      "end_rva": "0x1008812",
+      "bytes": 322,
+      "sha256": "07ccff4604b0268b4de86c4e2a33789a463c3cb1c6900d8111558809651c28d8"
+    },
+    "context_next_capture": {
+      "begin_rva": "0x1008820",
+      "end_rva": "0x10089d0",
+      "bytes": 432,
+      "sha256": "5c733b15be49bd451db0527f4c3e2c0232cbc47c3f2f9deada62985c5c63c5c0"
+    },
+    "context_destructor": {
+      "begin_rva": "0x1005ee0",
+      "end_rva": "0x100602e",
+      "bytes": 334,
+      "sha256": "3fa479479c75cab6fb2c54e86416c26aad06aba3aa343b41b7cd0d17f6cb2b2c"
+    },
+    "context_shutdown": {
+      "begin_rva": "0x1007e30",
+      "end_rva": "0x1007ff3",
+      "bytes": 451,
+      "sha256": "ce742e0dd874113a0dd97d155dea6a52d4154245ae6afa5c8c8d256ffcc6398c"
+    },
+    "context_shutdown_rendering": {
+      "begin_rva": "0x1008b00",
+      "end_rva": "0x1008be3",
+      "bytes": 227,
+      "sha256": "3451c7db2e1e93e5a116bc3b9d03a2e4aff9d9ed590ace904955b9b478218fa4"
+    },
+    "native_aligned_allocate": {
+      "begin_rva": "0x10026e0",
+      "end_rva": "0x100277c",
+      "bytes": 156,
+      "sha256": "5b4d8359d405b2294f20c2701423a74aceeda29ec6fdfa6630ba5c7b36133a7e"
+    },
+    "native_free": {
+      "begin_rva": "0x1002da0",
+      "end_rva": "0x1002f11",
+      "bytes": 369,
+      "sha256": "fb7a49402348eb8b9965a3a2e42d54b3ce2fd6cca42301367b3a9c474c8644ff"
+    },
+    "global_heap_shutdown": {
+      "begin_rva": "0x1003930",
+      "end_rva": "0x10039d4",
+      "bytes": 164,
+      "sha256": "155471aa716b6012252acc95b270a72f11685ea557dd0a8caa030f14a6bf5c3f"
+    },
+    "heap_constructor": {
+      "begin_rva": "0x109df80",
+      "end_rva": "0x109e0bc",
+      "bytes": 316,
+      "sha256": "bbeaf7a80cf225630ef47a96eb8ad0e4b23c30514164d47981ccc8e747c8b830"
+    },
+    "movie_advance": {
+      "begin_rva": "0xff6ae0",
+      "end_rva": "0xff74aa",
+      "bytes": 2506,
+      "sha256": "8da97c651d68eccee11dc5822f77d8e7b2d1cdf141cd3120ea936621e788ac42"
+    }
+  },
+  "exact_callsite_spans": {
+    "capture_allocate_virtual_call_span": {
+      "begin_rva": "0x1006b80",
+      "end_rva": "0x1006b8a",
+      "bytes": 10,
+      "sha256": "d62e06d11da711c76c4bbccd8d000d5256d0d1ee35c19974e2818472701d9501",
+      "expected_bytes_hex": "488b01458d4110ff5048"
+    },
+    "final_pointer_page_free_virtual_call_span": {
+      "begin_rva": "0x10064b1",
+      "end_rva": "0x10064b7",
+      "bytes": 6,
+      "sha256": "f3f4f13a188707a8d936f550bd5167fefb64cda5d06c120a170c9c695920f286",
+      "expected_bytes_hex": "488b01ff5060"
+    },
+    "movie_context_constructor_call": {
+      "begin_rva": "0xff4f04",
+      "end_rva": "0xff4f10",
+      "bytes": 12,
+      "sha256": "3367b6c206ea0749dfd54b386df12fb5ecdc648863303f8f1809ae81a5e160c2",
+      "expected_bytes_hex": "488b15c5f19601e8d00b0100"
+    },
+    "movie_dirty_capture_call": {
+      "begin_rva": "0xff7e7c",
+      "end_rva": "0xff7e88",
+      "bytes": 12,
+      "sha256": "4e6c96c90a00b6c5405dff7cb129fcacbe950b8498ddbfa9b1bb7c06ffc284bb",
+      "expected_bytes_hex": "488d8f30530000e898eb0000"
+    },
+    "movie_clean_final_capture_call": {
+      "begin_rva": "0xff791d",
+      "end_rva": "0xff7929",
+      "bytes": 12,
+      "sha256": "7be75a0bd0f2919c43cfe52537e99aca321e9f256dd6f2b5fb7c3fa0e9152d15",
+      "expected_bytes_hex": "488d8f30530000e8f7f00000"
+    },
+    "movie_context_destructor_call": {
+      "begin_rva": "0xff5a7d",
+      "end_rva": "0xff5a89",
+      "bytes": 12,
+      "sha256": "4f23da5df655e51bf21817d5fd8e9a185f53ecbe5dd542a8811905f12986cc3a",
+      "expected_bytes_hex": "498d8e30530000e857040100"
+    },
+    "native_free_release_on_free_check": {
+      "begin_rva": "0x1002ef7",
+      "end_rva": "0x1002f06",
+      "bytes": 15,
+      "sha256": "5524cabd0e0c6454827f63019fd17da6b64075cf0d9327b69d37fd7efa9be89c",
+      "expected_bytes_hex": "483b6e307509488b06488bceff5040"
+    },
+    "heap_global_clear_after_release": {
+      "begin_rva": "0x100398c",
+      "end_rva": "0x10039a3",
+      "bytes": 23,
+      "sha256": "9dd40f7bf469aeb22c42327bb3e2d855d2129a4516849c6325235b2087f70796",
+      "expected_bytes_hex": "488b01ff90e8000000488bcb48c7052d07960100000000"
+    }
+  },
+  "native_heap": {
+    "global_pointer_rva": "0x29640d0",
+    "expected_vtable_rva": "0x201ede0",
+    "aligned_allocate_vtable_slot": "0x48",
+    "aligned_allocate_rva": "0x10026e0",
+    "free_vtable_slot": "0x60",
+    "free_rva": "0x1002da0",
+    "release_on_free_marker_offset": "0x30",
+    "native_accounting": "retained blocks remain real outstanding native allocations until drained"
+  },
+  "object_layout": {
+    "movie_context_offset": "0x5330",
+    "context_heap_offsets": [
+      "0x0",
+      "0x18"
+    ],
+    "context_lock_state_offset": "0x70",
+    "context_shutdown_flag_offset": "0x94",
+    "context_snapshot_offsets": {
+      "current": "0xc8",
+      "captured": "0xd0",
+      "rendering": "0xd8",
+      "finalized": "0xe0"
+    },
+    "current_frame_id_offset": "0xe8",
+    "finalized_frame_id_offset": "0x108",
+    "snapshot_context_offset": "0x10",
+    "snapshot_pointer_page_list_head_offset": "0x18",
+    "entry_page_current_pointer_page_offset": "0x20",
+    "pointer_page_bytes": "0x268",
+    "pointer_page_alignment": 16,
+    "pointer_page_header_bytes": "0x28",
+    "pointer_payload_bytes": "0x240",
+    "pointer_slots": 72
+  },
+  "full_initialization": {
+    "header_bytes": 40,
+    "payload_bytes": 576,
+    "total_overwritten": 616,
+    "first_destination_offset": 0,
+    "last_destination_offset": 615,
+    "native_copy_and_header_instructions_retained": true
+  },
+  "preservation_requirements": [
+    "Never skip, defer, coalesce or replace Context Capture, NextCapture, propagation or node callbacks.",
+    "Take only at capture allocation call with original RCX heap/RDX size/R8 alignment/R9 info; cached return substitutes only RAX.",
+    "Retain only after exact native pointer-page neighbor unlink and prior native finalization; derive owner from live Snapshot+0x10.",
+    "Require authenticated active same-thread Capture scope, same context/heap and live nonce; every other native call forwards unchanged.",
+    "Reject non-root/changed/ReleaseOnFree heaps; bounds include all retained native bytes in honest heap accounting.",
+    "Mark closing and drain before native Context destructor; keep closing tombstone until original destructor returns.",
+    "Terminal disable/drain, including concurrent drain completion, before global heap shutdown leak check or heap release.",
+    "All native frees run outside pool lock; prevent callback reentry, cross-thread reuse and stale-context/address-reuse scopes."
+  ],
+  "open_native_adapter_gates": [
+    "No actual-game hooks, exact-thunk ABI tests or unwind/exception qualification exist yet.",
+    "Actual per-Capture allocate/free/page counts and hit rates are not measured by ETW CPU sample weights.",
+    "Runtime root-heap vtable/global identity and ReleaseOnFree marker reads must be independently authenticated before arming.",
+    "Native adapter must preserve x64 stack alignment, shadow space, all nonvolatile registers, original volatile return behavior and tail flags.",
+    "Context Capture return AL and original exceptions must propagate through every shutdown/reentrant/fault route.",
+    "The isolated drain callback is noexcept; native Free exception/unwind compatibility is not yet qualified.",
+    "Unknown heap lifecycle, third-party patches, partial hook install or module unload must refuse arming and drain while native heap is alive."
+  ],
+  "primary_sdk_references": [
+    "https://help.autodesk.com/cloudhelp/ENU/Scaleform-Help/cpp_ref/03124.html",
+    "https://help.autodesk.com/cloudhelp/ENU/Scaleform-Help/cpp_ref/03146.html",
+    "https://help.autodesk.com/cloudhelp/ENU/Scaleform-Help/cpp_ref/02315.html",
+    "https://help.autodesk.com/cloudhelp/ENU/Scaleform-Help/scaleform_help/renderer_guide/renderer_snapshot.html"
+  ]
+}

@@ -1,0 +1,358 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-native-pipeline-profile-v322",
+  "candidate_sha256": "c980191d9775847ef95a4cd1b5024f6a6a267e288545bbd8dda0e69b7a00f37f",
+  "production_ready": false,
+  "measurement": "Explicit bounded engine callback detours; quiet game captures without compiler, tests or screenshots. Diagnostic overhead is not a baseline FPS claim.",
+  "all40_cold_fields_retained": true,
+  "named_looks_retained": 155,
+  "all195_cas_entry_fields_retained": true,
+  "appearance_edit_submitted": false,
+  "save_submitted": false,
+  "original_profile_written": false,
+  "current_outfit": {
+    "ok": true,
+    "native_services": [
+      {
+        "calls": 0,
+        "max_ms": 0.0,
+        "mean_ms": 0.0,
+        "service": "GetCatalogBaseItems",
+        "total_ms": 0.0
+      },
+      {
+        "calls": 1,
+        "max_ms": 0.0955,
+        "mean_ms": 0.0955,
+        "service": "GetCatalogColorFamilies.CAS",
+        "total_ms": 0.0955
+      },
+      {
+        "calls": 1,
+        "max_ms": 0.0935,
+        "mean_ms": 0.0935,
+        "service": "CasGetSwatchColorList",
+        "total_ms": 0.0935
+      },
+      {
+        "calls": 2,
+        "max_ms": 0.0027,
+        "mean_ms": 0.00245,
+        "service": "CasGetSwatchColorSelected",
+        "total_ms": 0.0049
+      },
+      {
+        "calls": 50,
+        "max_ms": 0.0059,
+        "mean_ms": 0.001876,
+        "service": "GetCatalogItemsSelected",
+        "total_ms": 0.09380000000000001
+      },
+      {
+        "calls": 0,
+        "max_ms": 0.0,
+        "mean_ms": 0.0,
+        "service": "GetLocalOriginId",
+        "total_ms": 0.0
+      },
+      {
+        "calls": 0,
+        "max_ms": 0.0,
+        "mean_ms": 0.0,
+        "service": "LoadUISettingsFromFile",
+        "total_ms": 0.0
+      },
+      {
+        "calls": 0,
+        "max_ms": 0.0,
+        "mean_ms": 0.0,
+        "service": "GetCatalogColorFamilies.shared",
+        "total_ms": 0.0
+      }
+    ],
+    "native_catalog_timing": null,
+    "last_outfit_job": {
+      "completed": true,
+      "elapsed_ms": 1858,
+      "last_group": 3,
+      "last_id": "",
+      "last_phase": "current_layout",
+      "last_state": -1,
+      "phases": {
+        "category_part": {
+          "calls": 18,
+          "last_ms": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "context": {
+          "calls": 43,
+          "last_ms": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "current_layout": {
+          "calls": 1,
+          "last_ms": 11,
+          "max_ms": 11,
+          "total_ms": 11
+        },
+        "eye_color": {
+          "calls": 4,
+          "last_ms": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "feed_publish": {
+          "calls": 23,
+          "last_ms": 0,
+          "max_ms": 98,
+          "total_ms": 885
+        },
+        "position_cells": {
+          "calls": 4,
+          "last_ms": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "product": {
+          "calls": 18,
+          "last_ms": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "selected_ids": {
+          "calls": 50,
+          "last_ms": 0,
+          "max_ms": 1,
+          "total_ms": 1
+        }
+      },
+      "slice_max_ms": 98,
+      "slices": 44,
+      "started_ms": 260125
+    },
+    "presentmon": {
+      "frames": 2104,
+      "metrics": {
+        "MsBetweenPresents": {
+          "p50": 6.8847000000000005,
+          "p95": 10.966695,
+          "max": 240.3357
+        },
+        "MsCPUBusy": {
+          "p50": 1.5882999999999998,
+          "p95": 6.468654999999999,
+          "max": 240.2433
+        },
+        "MsGPUBusy": {
+          "p50": 2.01795,
+          "p95": 3.4094349999999998,
+          "max": 6.027
+        }
+      }
+    },
+    "diagnostic_window": {
+      "installed": true,
+      "enabled": false,
+      "generation": 1,
+      "inflight": 0,
+      "preparation_ms": 170.5773,
+      "error": "",
+      "skipped_calls": null,
+      "skipped_counter_emitted_by_this_runtime": false,
+      "raw_qpc_boundaries_emitted": false,
+      "callback_intervals": "inclusive; do not sum nested service totals as exclusive time"
+    }
+  },
+  "body_to_tattoo": {
+    "ok": true,
+    "native_services": [
+      {
+        "calls": 2,
+        "max_ms": 5.1524,
+        "mean_ms": 2.5768,
+        "service": "GetCatalogBaseItems",
+        "total_ms": 5.1536
+      },
+      {
+        "calls": 0,
+        "max_ms": 0.0,
+        "mean_ms": 0.0,
+        "service": "GetCatalogColorFamilies.CAS",
+        "total_ms": 0.0
+      },
+      {
+        "calls": 1,
+        "max_ms": 0.0613,
+        "mean_ms": 0.0613,
+        "service": "CasGetSwatchColorList",
+        "total_ms": 0.0613
+      },
+      {
+        "calls": 1,
+        "max_ms": 0.00030000000000000003,
+        "mean_ms": 0.00030000000000000003,
+        "service": "CasGetSwatchColorSelected",
+        "total_ms": 0.00030000000000000003
+      },
+      {
+        "calls": 0,
+        "max_ms": 0.0,
+        "mean_ms": 0.0,
+        "service": "GetCatalogItemsSelected",
+        "total_ms": 0.0
+      },
+      {
+        "calls": 0,
+        "max_ms": 0.0,
+        "mean_ms": 0.0,
+        "service": "GetLocalOriginId",
+        "total_ms": 0.0
+      },
+      {
+        "calls": 0,
+        "max_ms": 0.0,
+        "mean_ms": 0.0,
+        "service": "LoadUISettingsFromFile",
+        "total_ms": 0.0
+      },
+      {
+        "calls": 0,
+        "max_ms": 0.0,
+        "mean_ms": 0.0,
+        "service": "GetCatalogColorFamilies.shared",
+        "total_ms": 0.0
+      }
+    ],
+    "native_catalog_timing": [
+      {
+        "bind_ms": 226,
+        "clear_ms": 0,
+        "construct_ms": 2,
+        "count": 176,
+        "native_ms": 0,
+        "selected_ms": 1,
+        "state": -2134636525
+      },
+      {
+        "bind_ms": 66,
+        "clear_ms": 0,
+        "construct_ms": 0,
+        "count": 6,
+        "native_ms": 6,
+        "selected_ms": 0,
+        "state": -2134374394
+      }
+    ],
+    "presentmon": {
+      "frames": 3757,
+      "metrics": {
+        "MsBetweenPresents": {
+          "p50": 7.169,
+          "p95": 11.517279999999998,
+          "max": 1641.7294000000002
+        },
+        "MsCPUBusy": {
+          "p50": 3.4394,
+          "p95": 9.18098,
+          "max": 1641.5516
+        },
+        "MsGPUBusy": {
+          "p50": 2.2828,
+          "p95": 3.965759999999999,
+          "max": 13.4727
+        }
+      }
+    },
+    "diagnostic_window": {
+      "installed": true,
+      "enabled": false,
+      "generation": 2,
+      "inflight": 0,
+      "preparation_ms": 170.5773,
+      "error": "",
+      "skipped_calls": null,
+      "skipped_counter_emitted_by_this_runtime": false,
+      "raw_qpc_boundaries_emitted": false,
+      "callback_intervals": "inclusive; do not sum nested service totals as exclusive time"
+    },
+    "previous_current_outfit_job_unrelated_to_this_navigation": {
+      "completed": true,
+      "elapsed_ms": 1858,
+      "last_group": 3,
+      "last_id": "",
+      "last_phase": "current_layout",
+      "last_state": -1,
+      "phases": {
+        "category_part": {
+          "calls": 18,
+          "last_ms": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "context": {
+          "calls": 43,
+          "last_ms": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "current_layout": {
+          "calls": 1,
+          "last_ms": 11,
+          "max_ms": 11,
+          "total_ms": 11
+        },
+        "eye_color": {
+          "calls": 4,
+          "last_ms": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "feed_publish": {
+          "calls": 23,
+          "last_ms": 0,
+          "max_ms": 98,
+          "total_ms": 885
+        },
+        "position_cells": {
+          "calls": 4,
+          "last_ms": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "product": {
+          "calls": 18,
+          "last_ms": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "selected_ids": {
+          "calls": 50,
+          "last_ms": 0,
+          "max_ms": 1,
+          "total_ms": 1
+        }
+      },
+      "slice_max_ms": 98,
+      "slices": 44,
+      "started_ms": 260125
+    }
+  },
+  "percentile_method": "linear interpolation at (n-1)*p",
+  "lost_events_warning": false,
+  "conclusion": "Actual engine callbacks are too short to account for the dominant stalls. Current Outfit publishes19cards in885ms, maximum98ms; native selected queries50calls total0.0938ms. Body\u2192Tattoo row binding exceeds native enumeration. Instrument retained native card Draw/thumbnail/super spans next; arbitrary worker/CPU/GPU utilization changes would not target this measured path.",
+  "open_gates": [
+    "Card drawing/thumbnail synchronous blocking",
+    "Actual Save/remove consumer UI qualification",
+    "Copy/edit/isolation/cold-save/Tray/compatibility gates remain open"
+  ],
+  "all195_complete_fields_retained_after_engine_profiles_and_body_tattoo_hair_navigation": true,
+  "all20_save_backup_files_unchanged": true,
+  "interpretation_limits": [
+    "Whole-capture frame maxima are not timestamp-aligned to individual calls or jobs; no attribution of the V321 member-frame maximum to a V322 service.",
+    "native_catalog_timing.native_ms includes its query plus context/merge work; selected_ms also includes functional search-source publication. Neither is a pure native function timer.",
+    "These captured V322 service rows predate the new skipped_calls counter. Admission completeness is not reconstructed from newer source.",
+    "Current Outfit and category-navigation summaries preserve their distinct jobs. Profiler preparation precedes the PresentMon window."
+  ]
+}

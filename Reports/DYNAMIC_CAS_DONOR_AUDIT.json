@@ -1,0 +1,154 @@
+{
+  "schema": 1,
+  "source": "maru_Dynamic_CAS_Companion.package",
+  "source_sha256": "12cd97eedb4283330e89c898518bc21ff7542c938e1b0c63564d13d04d2b2d86",
+  "resource_count": 25,
+  "resources": [
+    {
+      "tgi": "62ECC59A-00000000-89D13757C58C2E05",
+      "size": 1696841,
+      "sha256": "6ddb983fee2bd284a2b7efec155e1544bfe99d27f16d4d28097bada25e1864f0"
+    },
+    {
+      "tgi": "62ECC59A-00000000-DF09D526F4C77B95",
+      "size": 604091,
+      "sha256": "6318b77027dc2d0ed05cac3f31a69c2f60c5fb363f6b411084daa197a32ce15d"
+    },
+    {
+      "tgi": "62ECC59A-00000000-FE7D7B3A973E3C5D",
+      "size": 11548,
+      "sha256": "21111d651907a9d0e79ef7592158c579a4f34bab1787fa6b33c79c920906cd62"
+    },
+    {
+      "tgi": "220557DA-00000000-01C0F1009CC06DE3",
+      "size": 8066,
+      "sha256": "62d7154e1734131efe7e465ac816445fece5877e43958d4491c039d633e4b2f5"
+    },
+    {
+      "tgi": "220557DA-00000000-02C0F1009CC06DE3",
+      "size": 8161,
+      "sha256": "e1a9cd97b7bc5659c1f14510e63e6ac4d1773b735d7a4178dd675d03636fcad6"
+    },
+    {
+      "tgi": "220557DA-00000000-03C0F1009CC06DE3",
+      "size": 9560,
+      "sha256": "f6fbcf57a7659d9daf1a5dcd31c5addc12e7d0165c779b52b40fa01ff44810e9"
+    },
+    {
+      "tgi": "220557DA-00000000-04C0F1009CC06DE3",
+      "size": 8959,
+      "sha256": "60214863b2bf3f96b11337e112f4b3eca122a2a16d43880ccea20008f46cc6df"
+    },
+    {
+      "tgi": "220557DA-00000000-05C0F1009CC06DE3",
+      "size": 9923,
+      "sha256": "3f34a3e4b6b8a8865fe6ddfb3460c14d4b999f900d7d1bdd71ea911927865618"
+    },
+    {
+      "tgi": "220557DA-00000000-00C0F1009CC06DE3",
+      "size": 8130,
+      "sha256": "9f07e89a41009570154d3fa4a6cebefa06ef079a160870300dc0fcd6fe8b1e20"
+    },
+    {
+      "tgi": "220557DA-00000000-06C0F1009CC06DE3",
+      "size": 9662,
+      "sha256": "4c1dccaf5243caa01661b5f6b7c1366f3c641e1e8fe1911c3aa9d33743b74076"
+    },
+    {
+      "tgi": "220557DA-00000000-07C0F1009CC06DE3",
+      "size": 10377,
+      "sha256": "36ff167b94371764b8db893265de0a69b7d5dc55223184bdb1048ad368f66669"
+    },
+    {
+      "tgi": "220557DA-00000000-08C0F1009CC06DE3",
+      "size": 10532,
+      "sha256": "f42c96943daef3a94997dd0492df1b1c94176a6a4c394f71af09dcc1a64dbb3c"
+    },
+    {
+      "tgi": "220557DA-00000000-0BC0F1009CC06DE3",
+      "size": 9626,
+      "sha256": "612d96e96fb1520e2443176dd361ff4a5545c5e165db167f60fe9cd4b7ce0f01"
+    },
+    {
+      "tgi": "220557DA-00000000-0CC0F1009CC06DE3",
+      "size": 11620,
+      "sha256": "4209b67cef6fe41c85df45aa284095fd22b54eb98aedfd015f426ad3b10764d0"
+    },
+    {
+      "tgi": "220557DA-00000000-0DC0F1009CC06DE3",
+      "size": 11113,
+      "sha256": "d566cd557df6b56e8853a99c9b6783087aed6502041d0251b04e4c1eed3a8a9b"
+    },
+    {
+      "tgi": "220557DA-00000000-0EC0F1009CC06DE3",
+      "size": 9214,
+      "sha256": "271a86b21f67d09287b28b72932ac8f06d7e2f01179f9582b7579fee5dc0b954"
+    },
+    {
+      "tgi": "220557DA-00000000-0FC0F1009CC06DE3",
+      "size": 9694,
+      "sha256": "827c7d538b273cd479f9284cac6307a78b13ab129d4a61095decb32fa066a628"
+    },
+    {
+      "tgi": "220557DA-00000000-11C0F1009CC06DE3",
+      "size": 9571,
+      "sha256": "0469416fc6e6a035b3f04bc4038596d6d8fcabed66e1ea6659a22c3338ca1070"
+    },
+    {
+      "tgi": "220557DA-00000000-12C0F1009CC06DE3",
+      "size": 15837,
+      "sha256": "a436e5adc35ca871c5a600fcbafdc725f64bd137fd838bc2eecb142eda4b6766"
+    },
+    {
+      "tgi": "220557DA-00000000-13C0F1009CC06DE3",
+      "size": 9887,
+      "sha256": "12a2b89ff6aaa4c050422c768226883b4cee4b0b355f3d08ecb707da92a7f139"
+    },
+    {
+      "tgi": "220557DA-00000000-15C0F1009CC06DE3",
+      "size": 9582,
+      "sha256": "272912fccf14b31c9c23e7eeacfc5e650b30dc1372615d83892fb21a463fdb34"
+    },
+    {
+      "tgi": "545AC67A-00496642-DBDDABF2D2C0A2B2",
+      "size": 265,
+      "sha256": "83f57bea44c2544498a43e86f09be2414ef19c2daa1576aad70b0c070078904f"
+    },
+    {
+      "tgi": "545AC67A-00496642-3C92F93908E21560",
+      "size": 265,
+      "sha256": "8e69a99b4bfa4ecb0316346cc8d834529c2493a938a5ee84cd0e9e80b305160a"
+    },
+    {
+      "tgi": "545AC67A-00496642-DD7065EC1D9F0928",
+      "size": 265,
+      "sha256": "a4d62715bf946f045e43ceb4a7c2c54989df95afacb279f7f528c0b995c5fc7f"
+    },
+    {
+      "tgi": "545AC67A-00496642-9359FB286B626BD7",
+      "size": 265,
+      "sha256": "76509f16e5d5a227e84434384171fa931dddb10d7c3597c1943824b91a3a0e7d"
+    }
+  ],
+  "inspection": "Local user-supplied package; DBPF resources decoded read-only and GFX scripts inspected. No donor package was installed.",
+  "license": "Creative Commons Attribution 4.0 International",
+  "author": "maru",
+  "author_page": "https://www.curseforge.com/sims4/mods/dynamic-cas-columns",
+  "license_page": "https://www.curseforge.com/sims4/mods/dynamic-cas-columns/license",
+  "merging_complete": false,
+  "runtime_ab_comparison_complete": false,
+  "script_resources": [
+    {
+      "instance": "89D13757C58C2E05",
+      "classes_exported": 795
+    },
+    {
+      "instance": "DF09D526F4C77B95",
+      "classes_exported": 175
+    },
+    {
+      "instance": "FE7D7B3A973E3C5D",
+      "classes_exported": 1
+    }
+  ]
+}

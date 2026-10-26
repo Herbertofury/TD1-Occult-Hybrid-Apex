@@ -1,0 +1,143 @@
+{
+  "candidate": {
+    "bundle": {
+      "artifact": "Apex_Development_Candidate_2026-10-20-cas-catalog-header-v237.zip",
+      "bytes": 3842338,
+      "members": 28,
+      "sha256": "66b3e49899a31ae80f038033a08cef38882095c4522e567295bd691084ac5149"
+    },
+    "independently_rust_verified_resources": 210,
+    "packages": 7,
+    "python37_modules": 105
+  },
+  "date": "2026-10-20",
+  "launcher": {
+    "game_launch_and_resume_verified": true,
+    "launch_sha256": "ecb147de1985cf899f257988dc8980ce50ebe09aee39e13e37b71400f5170f42",
+    "normal_ea_restart_verified": true,
+    "recovery_sha256": "041f0e25c6993b50504cbaeb983b1783da7b570d333395ee277d51f0a44d8b3b",
+    "save_files_unchanged": true
+  },
+  "open_gates": [
+    "Replace interim equipped text list with native CAS thumbnail category, swatches and exact per-item removal",
+    "Fix reported missing right selection border; qualify all four sides at varying widths",
+    "Visible animation test rejected after viewport changed; values acknowledged but animation not qualified",
+    "Profile native category construction and thumbnail costs with large CC catalog",
+    "SharedObject preference persistence failed; session settings only",
+    "Direct native outfit-view normalization remains unfixed",
+    "Physical pointer event delivery and equipped-row navigation qualification",
+    "Friendly CC names/thumbnails in the integrated CAS list",
+    "Broad resolution/catalog/mod compatibility and latency coverage",
+    "Full edited household/MCCC/save/Tray/Gallery coverage"
+  ],
+  "preservation": {
+    "all40_live_views_retained": true,
+    "direct_native_outfit_view_isolation": false,
+    "guard_restoration_of_outfit_view_regression_verified": true,
+    "household_members": 5,
+    "named_looks_retained": 155,
+    "no_edit_cas_return_direct_isolation": true,
+    "normalization_finding_sha256": "0f77a021730dfd0acfd99f2ad959f217d0fa8905b4a98ded1a6d9e4ffe150d9f",
+    "original_profile_written": false,
+    "proof_sha256": "415f964f9bc6535b20502e5e29a0811a790f7be50e0e86ac0effbdf1626a370b",
+    "save_files_unchanged": true,
+    "ui_selected_sim_all39_unchanged": true
+  },
+  "production_ready": false,
+  "schema": 1,
+  "scope": "CAS catalog UI development qualification",
+  "tested_candidate": "2026-10-20-cas-catalog-header-v237",
+  "tests": {
+    "cas-ui": {
+      "log_sha256": "57689618b319f2eb409242ce0a7c83d3939116270d8329cfa127dc4d66d3ed01",
+      "ok": true,
+      "tests": 23
+    },
+    "catalog": {
+      "log_sha256": "3491a12521010826f3399fb49cd3245a2a4528c33233894e31a514fe44c74155",
+      "ok": true,
+      "tests": 12
+    },
+    "catalog-bytecode": {
+      "log_sha256": "326b32c095829ca82185962a346a8e32550f61a3e73e5adebf2a5730e3c23218",
+      "ok": true,
+      "tests": 1
+    },
+    "controls": {
+      "log_sha256": "24a79afe54745f5a51df228d0a5ff41fa4e4187831cabca8e4faaf16eaa5768e",
+      "ok": true,
+      "tests": 20
+    },
+    "epoch": {
+      "log_sha256": "bfb2ae0d2638605e74a3cd9a96bc9d450b3434dae30d3ab71305000a3fb5e0a8",
+      "ok": true,
+      "tests": 5
+    },
+    "install": {
+      "log_sha256": "f4d44354828f9289f2a7a3ec023bf47b1c0be47d2ae33c83aa894f818c8f9707",
+      "ok": true,
+      "tests": 7
+    },
+    "seal": {
+      "log_sha256": "e206f251b3b15bf2ea21f24501197ded5cafc4f719a203ce93a4781fbc33e4f3",
+      "ok": true,
+      "tests": 26
+    },
+    "selector": {
+      "log_sha256": "0399f23f801df9af82000a4eb0e13328e059532cdb7c3d7578f148f6ccc57484",
+      "ok": true,
+      "tests": 61
+    },
+    "transport": {
+      "log_sha256": "1ca786c8ec369888e9a340ec0ed1fd94dc016fba15d7112c6d24e1374519db2f",
+      "ok": true,
+      "tests": 3
+    },
+    "ui-pins": {
+      "log_sha256": "f09b8cdb136e807a294fd3a897590e96526a450055e04ea103c1186079277813",
+      "ok": true,
+      "tests": 6
+    },
+    "upgrade": {
+      "log_sha256": "5f521f3cc4ba5eb78724e1d619228fda6abf2859900b038ea7447e1f0b17bdb3",
+      "ok": true,
+      "tests": 26
+    }
+  },
+  "ui": {
+    "all_header_categories_visible": true,
+    "animation_proof_sha256": "d3ca19c413a2f0e0040e893cb775606ff9f5a246939c2f872d5f709e143b90bf",
+    "appearance_proof_sha256": "0609c0a61a43f84c541ce15de90343e1757e5148a9cb324099eaccd3b72127bc",
+    "clock_resolution_ms": 1,
+    "equipped_rows": 20,
+    "independent_outfit_decode": true,
+    "native_bounds": {
+      "height": 1238,
+      "local_x": 0,
+      "stage_height": 1408,
+      "stage_width": 1278,
+      "width": 595,
+      "x": 651,
+      "y": 106
+    },
+    "ok": true,
+    "persistence_reload_verified": false,
+    "pointer_hardware_delivery_verified": false,
+    "proof_sha256": "9ddcd695d9fbc678e86ea2ebbcb6b7a16987db4a9daaab00863bf1317a4d1382",
+    "requested_column_range": [
+      2,
+      12
+    ],
+    "rgb_no_grid_rebuild": true,
+    "selection_timing": {
+      "clock_resolution_ms": 1,
+      "max_ms": 2,
+      "over_1ms": 10,
+      "samples": 3945
+    },
+    "shared_slider_handler": true,
+    "ui_appearance_records_unchanged": 39,
+    "visible_pulse_and_flash": false,
+    "visual_proof_sha256": "34ae51f36111ac9f2fda519cfda903dc6e9020b173f13dc4609efb48407a765d"
+  }
+}

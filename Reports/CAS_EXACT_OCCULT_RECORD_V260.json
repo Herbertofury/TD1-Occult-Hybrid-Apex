@@ -1,0 +1,186 @@
+{
+  "actual_v258_evidence": {
+    "acceptance_replayed": false,
+    "all195_internal_records_compared": true,
+    "categories": [
+      "eyebrows",
+      "skin_details",
+      "earrings"
+    ],
+    "complete_five_member_edit_and_revisit_passed": true,
+    "distinct_player_forms_not_established_by_internal_count": true,
+    "edited_native_owners": 10,
+    "inspected_record_orders": [
+      [
+        1,
+        2,
+        4,
+        8,
+        32,
+        64,
+        16
+      ],
+      [
+        1,
+        32,
+        2,
+        4,
+        8,
+        64,
+        16
+      ],
+      [
+        1,
+        8,
+        2,
+        4,
+        32,
+        64,
+        16
+      ],
+      [
+        1,
+        64,
+        2,
+        4,
+        8,
+        32,
+        16
+      ],
+      [
+        1,
+        2,
+        4,
+        8,
+        32,
+        64,
+        16
+      ]
+    ],
+    "native_acceptance_handler_called": false,
+    "native_cas_return": "accept-rejected",
+    "native_edits": 30,
+    "native_forms": [
+      "Alien",
+      "Vampire"
+    ],
+    "save_submitted": false
+  },
+  "build_verified": true,
+  "candidate_epoch": "2026-10-21-exact-occult-record-v260",
+  "candidate_sha256": "fae1f757c0e8f57a1d01b77a9d97ee7ae70a5fc6f99638bfe526136d7a1e212b",
+  "checks": {
+    "exact_record_kind_and_order_combinations": 49,
+    "focused_python_tests": 114,
+    "full_proxy_and_smoke_rebuild_after_closure_passed": true,
+    "invalid_scope_or_roster_refusals": 9,
+    "legacy_collision_reproduced": true,
+    "native_regression_targets_passed": 15,
+    "native_writer_failure_restores_order": true,
+    "proxy_relink_blocked_by_loaded_file": false,
+    "rebuilt_native_targets_passed": 2
+  },
+  "dll_sha256": "fd4ffb283fb81e83f5bd5dd3543287a1d02ae7474b601c25fdafd54df7ae1c91",
+  "fix": {
+    "authorized_sources": "Complete captured CAS root at preflight, or current prepared root/authenticated dispatch copy at output; exact Sim/entity/generation/controller scope retained.",
+    "complete_roster_required": true,
+    "detached_output_pointer_order_restored": true,
+    "exact_kind_routing": true,
+    "malformed_roster_repair_allowed": false,
+    "native_record_writer_hook": true,
+    "native_root_written": false,
+    "permanent_guard_retained": true,
+    "unknown_and_nonappearance_fields_still_compared": true,
+    "unrelated_callers_unchanged": true
+  },
+  "matching_v261_runtime": {
+    "actual_forms": [
+      "Alien",
+      "Vampire"
+    ],
+    "all195_internal_fields_compared": true,
+    "all40_after_explicit_disposition_and_simulation_retained": true,
+    "all40_cold_fields_before_and_after_simulation_retained": true,
+    "all40_direct_live_fields_before_disposition_retained": true,
+    "all5_exact_output_receipts_verified": true,
+    "all_saved_files_and_ledger_unchanged_by_reload": true,
+    "categories": [
+      "eyebrows",
+      "skin_details",
+      "earrings"
+    ],
+    "cold_simulation_progress_ticks": 245,
+    "evidence": {
+      "cold_load": {
+        "file": "v261-edited-saved-cold-reload-r2.json",
+        "sha256": "1e9c546eff35471ac9070906731a0192ce55a8692b9e0ec77b7b9225b7fcf240"
+      },
+      "direct_return": {
+        "file": "v261-edited-cas-live-retention.json",
+        "sha256": "3b707cde48a9c2852fd769dbef284061064efa913dff77d081c8f79bd38d66ba"
+      },
+      "edits": {
+        "file": "v261-five-member-actual-form-edits.json",
+        "sha256": "f158ffb06118714ee67172e1cadbbefaf08752a16df5c3c1b8c32dd5d7440423"
+      },
+      "genetic_scope": {
+        "file": "v261-edited-genetic-scope.json",
+        "sha256": "e2d8da879410c6d385331a8a67df69bebb61025c7360e91a12a5af07fa06f669"
+      },
+      "save": {
+        "file": "v261-household-disposition-save.json",
+        "sha256": "1651d73b67fd2f4506b1c6326920fcbeeff5d1d8836f07e639adbfb2fb09393d"
+      }
+    },
+    "exact_detached_record_routes": [
+      0,
+      1,
+      1,
+      1,
+      0
+    ],
+    "full_release_matrix_qualified": false,
+    "guard_and_complete_comparisons_retained": true,
+    "household_members": 5,
+    "named_looks_admitted_from_saved_metadata": 155,
+    "native_acceptance_verified": true,
+    "native_output_faults": 0,
+    "native_restore_or_draft_resume_used": false,
+    "native_selections": 30,
+    "normal_exit_verified": true,
+    "normal_save_verified": true,
+    "only_ten_edited_owners_changed": true,
+    "other185_internal_owners_unchanged": true,
+    "performance_qualified": false,
+    "repeated_alien_vampire_alien_and_member_revisits": true,
+    "same_candidate_cold_load_verified": true,
+    "save_simulation_progress_ticks": 239,
+    "saved_slot_sha256": "dff5ce15b6800452122c5d939515d2a0cfc39cc3cdfa111e743c1205f77db57f"
+  },
+  "problem": "EA native occult-record writer groups all non-Human kinds into one bucket. A valid Werewolf-first tracker can export duplicate Alien records after actual Alien editing.",
+  "production_ready": false,
+  "remaining": [
+    "Complete every requested form/category/outfit/member and edit-route matrix, Tray/Gallery and compatibility proof.",
+    "Fix and qualify native member UI responsiveness and reliable background portrait input.",
+    "Complete per-form Ghost color channels unsupported by the native codec.",
+    "Qualify normal automatic CAS arming and repeated fresh household scopes without research CLI setup."
+  ],
+  "runtime_attempt": {
+    "cli_launch_and_resume_passed": true,
+    "cold_all40_native_fields_retained": true,
+    "entered_cas": false,
+    "entry_rejected_before_ui": true,
+    "entry_replayed": false,
+    "failed_entry_request_id": "410e25b76d9442e49cd8e0e47d134ae8",
+    "installed_matching_candidate": true,
+    "pid": 117148,
+    "reason": "Complete pre-entry readback detects five unique genetic part entries lost from the existing Human/CC Werewolf appearance.",
+    "save_submitted": false,
+    "simulation_progress_ticks": 871,
+    "stored_look_reinitialized": false
+  },
+  "runtime_verified": true,
+  "runtime_verified_in_candidate": "2026-10-21-retained-genetics-post-v261",
+  "schema": 1,
+  "script_sha256": "593573fda828d63d51452c5805207141063dba0fbc648e9145ca287eade5f3f8"
+}

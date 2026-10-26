@@ -1,19 +1,24 @@
-### Apex Occult Hybrid
-- [Home](Home)
-- [Getting Started](Getting-Started)
-- [Architecture & Safety](Architecture-and-Safety)
-- [Full TODO](TODO)
-- [Original Mod Regressions](Original-Mod-Regressions)
-- [Apex Occult Hybrid Core](Apex-Occult-Hybrid-Core)
-- [Apex Live CAS Studio](Live-CAS-Studio)
-- [Apex Color Studio](Color-Studio)
-- [CAS History Studio](CAS-History-Studio)
-- [Apex CAS Unlock Core](CAS-Unlock-Core)
-- [1.13.7 Behavioral Reference](Upstream-1.13.7-Parity)
-- [Research & Tools](Research-and-Tools)
-- [Troubleshooting](Troubleshooting)
+## ✦ APEX
+**Occult freedom · CAS precision**
 
-### Codex
-- [Authorized Baseline Strategy](../docs/AUTHORIZED_BASELINE_STRATEGY.md)
-- [Master Execution Contract](../docs/CODEX_MASTER_EXECUTION.md)
-- [Source Recovery Status](../SOURCE_RECOVERY_STATUS.md)
+### Explore
+- [Home](Home)
+- [How Apex Works](How-Apex-Works)
+- [CAS & Content Search](CAS-and-Content-Search)
+- [Dynamic CAS Companion Merge](Dynamic-CAS-Companion-Merge)
+- [Live CAS & Tray](Live-CAS-and-Tray)
+- [Occult Forms & Safety](Occult-Forms-and-Safety)
+
+### Build & improve
+- [Roadmap & Verification](Roadmap-and-Verification)
+- [Tools & References](Tools-and-References)
+- [Research Proposals](Research-Proposals)
+- [Integration Research](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/wiki/Integration%E2%80%90Research)
+
+### Project
+- [Open issues](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/issues)
+- [Engineering handoff](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/main/docs/CODEX_APEX_COMPLETE_EXECUTION_HANDOFF.md)
+- [Regression ledger](https://github.com/Herbertofury/TD1-Occult-Hybrid-Apex/blob/main/docs/USER_REPORTED_REGRESSIONS.md)
+
+---
+Development documentation. Feature requirements are not release claims.

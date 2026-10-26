@@ -1,0 +1,314 @@
+{
+  "acceptance": {
+    "cleanup_fix_status": "Exact normal EA household cleanup quartet independently staged; not installed in V341. Do not mark Medical exit fixed yet.",
+    "hair_fresh_scenario_all195_reverified": true,
+    "hair_native_acceptance_and_live_return": true,
+    "medical_preview_native_acceptance": false,
+    "original_failed_request_retained": true,
+    "original_uuid_replayed": false
+  },
+  "async_prepare": {
+    "cost_scope": "QPC wall time including scheduling. Owner phase buckets and binding buckets nest; no sum is a proven exclusive whole-action duration or maximum resume slice. Binding deltas derived from successive cumulative receipts with no intervening native bank jobs.",
+    "default_enabled": false,
+    "plans": [
+      {
+        "async_prepare": true,
+        "binding_call_deltas_ms": {
+          "native_poll_ms": 11.8033,
+          "native_submit_ms": 0.8067,
+          "selected_copy_encode_ms": 17.6887,
+          "selected_decode_ms": 42.1883
+        },
+        "changed_lanes": [],
+        "member_index": 1,
+        "owner_phase_costs_ms": {
+          "owner_capture_ms": 7.851399999935893,
+          "owner_fence_ms": 282.1182999998655,
+          "owner_planner_ms": 712.7893000001677
+        }
+      },
+      {
+        "async_prepare": true,
+        "binding_call_deltas_ms": {
+          "native_poll_ms": 8.8721,
+          "native_submit_ms": 0.5373,
+          "selected_copy_encode_ms": 15.6141,
+          "selected_decode_ms": 32.4824
+        },
+        "changed_lanes": [],
+        "member_index": 2,
+        "owner_phase_costs_ms": {
+          "owner_capture_ms": 7.359299999961877,
+          "owner_fence_ms": 214.23269999991135,
+          "owner_planner_ms": 581.8257999999332
+        }
+      },
+      {
+        "async_prepare": true,
+        "binding_call_deltas_ms": {
+          "native_poll_ms": 7.7679,
+          "native_submit_ms": 0.592,
+          "selected_copy_encode_ms": 16.239,
+          "selected_decode_ms": 29.5254
+        },
+        "changed_lanes": [],
+        "member_index": 3,
+        "owner_phase_costs_ms": {
+          "owner_capture_ms": 7.616200000029494,
+          "owner_fence_ms": 207.69870000026458,
+          "owner_planner_ms": 605.3317000000789
+        }
+      },
+      {
+        "async_prepare": true,
+        "binding_call_deltas_ms": {
+          "native_poll_ms": 7.7697,
+          "native_submit_ms": 0.6143,
+          "selected_copy_encode_ms": 15.403,
+          "selected_decode_ms": 29.4262
+        },
+        "changed_lanes": [],
+        "member_index": 4,
+        "owner_phase_costs_ms": {
+          "owner_capture_ms": 7.227199999988443,
+          "owner_fence_ms": 201.65380000003097,
+          "owner_planner_ms": 592.5549999999475
+        }
+      },
+      {
+        "async_prepare": true,
+        "binding_call_deltas_ms": {
+          "native_poll_ms": 8.1034,
+          "native_submit_ms": 0.6,
+          "selected_copy_encode_ms": 19.515,
+          "selected_decode_ms": 32.2494
+        },
+        "changed_lanes": [],
+        "member_index": 5,
+        "owner_phase_costs_ms": {
+          "owner_capture_ms": 6.290999999919222,
+          "owner_fence_ms": 215.97500000029868,
+          "owner_planner_ms": 612.1901000001344
+        }
+      }
+    ],
+    "qualification_switch": "disposable-only typed Boolean",
+    "qualified_direct_queued_actions": 5,
+    "remaining_owner_work": "Selected-record planners still582\u2013713ms cumulative and native fences202\u2013282ms cumulative; not1ms. Observe/commit/save/phone remain synchronous. Nested phone/UI outer-action guard is staged separately and not yet applied."
+  },
+  "candidate_sha256": "4751d6620e62981fa860170e44a3fa6ae6069563277ff0d189408dcb075ff0ce",
+  "ci": {
+    "cause": "Four historical recovery sources audited CRLF but checked out LF",
+    "fix": "Targeted Git attributes plus three-new-CRLF preservation; no authority relaxation",
+    "frozen093_archive_validates_with_unchanged_authority": true
+  },
+  "compiled_modules": 112,
+  "epoch": "2026-10-25-async-bank-prepare-advance-v341",
+  "evidence_sha256": {
+    "ci093-checkout-proof.json": "6c515fea3bad7b2649b2f97c4a5c9bd9ec5400da68cba1daedfdbdf1fe5ab442",
+    "v341-binding-action-summary.json": "e2c79274818ebc11e583507c4bc9824a375818775b6755d51ec43e025f4025a8",
+    "v341-binding-quiet-summary.json": "52ba7b426e475c001523f7080d7457d37085d40cd1bd5494145af2e51151e12f",
+    "v341-edited-saved-cold-load.json": "8751e6d85fdfed2b4828db0f85abae1ab957f85feec64b866f34457f97ce3c6a",
+    "v341-gfx-snapshot-runtime.json": "7058184073a149e6243fd2decfa84aa2f51be12c69a1da730b3093b3a18a2c28",
+    "v341-new-hair-return-scenario.json": "a7de83ea9c10450953ae106d9dbda2455ecd86ce6e83848a51475efd35c238c7",
+    "v341-normal-automatic-entry.json": "364a349fff1382c0913ec937dfd8f64f6da40655c5b9f0874ba7f5b8f2a89140",
+    "v341-normal-cas-return.json": "9459de00f8f466fe7e13748c1da4fb08787aa1e0d6d34a61b691af72551f3697",
+    "v341-ordinary-click-runtime.json": "b6fef10be0b3253011cdcc5220b76b7595e7082c3a4296e76a67007afb281563",
+    "v341-post-ui-all195.json": "646009d53d513845a05a2c830691affdfebb5c76567b32a95e3a1cfaaec3233a",
+    "v341b-live-no-edit-final.json": "5472b89a6cc31b71624508bff7d952c5e9a0171b586ae45e7854617f74d0663f",
+    "v341b-no-edit-household-commit.json": "54ceddea3d669db6ebb36f13bd3fa9f7aa91cbe572f8cdc15395d10cf5600a8b",
+    "v341b-normal-cas-return.json": "d423d8d99674cce7c50077cb24ca01804003dfdd1cdd5a00108fc361e3f3fbd8"
+  },
+  "frame_observations": {
+    "diagnostic_category_actions": {
+      "csv_sha256": "ec6f22e62502f23398ec2930a29e16854211aefc27941098e7d779d276f91aba",
+      "event_loss_reported": false,
+      "frames": 7680,
+      "matched_no_mod_baseline": false,
+      "max_ms": 521.1456000000001,
+      "median_ms": 7.1709499999999995,
+      "over_33_33ms": 10,
+      "p95_ms": 10.7854,
+      "p99_ms": 15.2342,
+      "performance_pass": false,
+      "scope": "60s actual Body/Tattoos/Hair actions including explicit CLI observations"
+    },
+    "ordinary_pointer_navigation": {
+      "csv_sha256": "6c088971152c03b2508d7763dd38eda00669a7c67d43d013b04c179835a44db9",
+      "frames": 5333,
+      "max_ms": 216.69930000000002,
+      "median_ms": 6.9205,
+      "over_33_33ms": 35,
+      "p95_ms": 9.8707,
+      "p99_ms": 22.7601
+    },
+    "ordinary_pointer_scope": "40s Body/SkinTones to MedicalWearables; no semantic status during capture. First4 of6 pointer requests completed within40s; later2 outside recording. Not a Tattoo navigation pass or matched no-mod baseline.",
+    "quiet_cas": {
+      "csv_sha256": "ac5d90a9e9b9f6a311015f6dcd1361c5216b9942561c28e47a42145ba7297660",
+      "event_loss_reported": false,
+      "frames": 3928,
+      "matched_no_mod_baseline": false,
+      "max_ms": 21.9727,
+      "median_ms": 7.274150000000001,
+      "over_33_33ms": 0,
+      "p95_ms": 10.721,
+      "p99_ms": 12.9837,
+      "performance_pass": false,
+      "scope": "30s quiet visible CAS grid without CLI actions; own compilers stopped"
+    }
+  },
+  "independent_rust_verified_resources": 277,
+  "native_tests_passed": 26,
+  "native_ui_profile": {
+    "counts_final": {
+      "boundaries": [
+        {
+          "boundary": "ContextCapture",
+          "max_ms": 4.165900000000001,
+          "null_returns": 0,
+          "qualified_calls": 2504,
+          "returned": 2504,
+          "started": 2504,
+          "timed": true,
+          "total_ms": 6057.034900000001,
+          "unwound": 0
+        },
+        {
+          "boundary": "SnapshotDestructor",
+          "max_ms": 2.3711,
+          "null_returns": 0,
+          "qualified_calls": 2504,
+          "returned": 2504,
+          "started": 2504,
+          "timed": true,
+          "total_ms": 3670.978,
+          "unwound": 0
+        },
+        {
+          "boundary": "PointerAllocate",
+          "max_ms": null,
+          "null_returns": 0,
+          "qualified_calls": 3379793,
+          "returned": 3379793,
+          "started": 3379793,
+          "timed": false,
+          "total_ms": null,
+          "unwound": 0
+        },
+        {
+          "boundary": "PointerFree",
+          "max_ms": null,
+          "null_returns": 0,
+          "qualified_calls": 3380608,
+          "returned": 3380608,
+          "started": 3380608,
+          "timed": false,
+          "total_ms": null,
+          "unwound": 0
+        },
+        {
+          "boundary": "MovieAdvance",
+          "max_ms": 323.0272,
+          "null_returns": 0,
+          "qualified_calls": 2503,
+          "returned": 2503,
+          "started": 2503,
+          "timed": true,
+          "total_ms": 10180.9194,
+          "unwound": 0
+        }
+      ],
+      "inflight": 0,
+      "native_entries_restored": true,
+      "page_retention": false,
+      "page_substitution": false
+    },
+    "timed_final": {
+      "boundaries": [
+        {
+          "boundary": "ContextCapture",
+          "max_ms": 11.565800000000001,
+          "null_returns": 0,
+          "qualified_calls": 2607,
+          "returned": 2607,
+          "started": 2607,
+          "timed": true,
+          "total_ms": 7366.7001,
+          "unwound": 0
+        },
+        {
+          "boundary": "SnapshotDestructor",
+          "max_ms": 5.5819,
+          "null_returns": 0,
+          "qualified_calls": 2607,
+          "returned": 2607,
+          "started": 2607,
+          "timed": true,
+          "total_ms": 4335.7104,
+          "unwound": 0
+        },
+        {
+          "boundary": "PointerAllocate",
+          "max_ms": 0.24960000000000002,
+          "null_returns": 0,
+          "qualified_calls": 3578374,
+          "returned": 3578374,
+          "started": 3578374,
+          "timed": true,
+          "total_ms": 1515.8390000000002,
+          "unwound": 0
+        },
+        {
+          "boundary": "PointerFree",
+          "max_ms": 0.1621,
+          "null_returns": 0,
+          "qualified_calls": 3578330,
+          "returned": 3578330,
+          "started": 3578330,
+          "timed": true,
+          "total_ms": 3916.9502,
+          "unwound": 0
+        },
+        {
+          "boundary": "MovieAdvance",
+          "max_ms": 397.4023,
+          "null_returns": 0,
+          "qualified_calls": 2606,
+          "returned": 2606,
+          "started": 2606,
+          "timed": true,
+          "total_ms": 11871.374,
+          "unwound": 0
+        }
+      ],
+      "inflight": 0,
+      "native_entries_restored": true,
+      "page_retention": false,
+      "page_substitution": false
+    }
+  },
+  "open_gates": [
+    "Remaining real217ms ordinary-navigation and521ms diagnostic-action frame spikes",
+    "Actual inclusive Timer phase attribution and minimal navigation runtime verification",
+    "Medical preview normal exit cleanup runtime test",
+    "Direct-only queue-action guard when async flag enabled",
+    "Async observe/commit/save and record-isolated thousand-Sim storage",
+    "Every-category edited multi-member/CAS/Live/MCCC/F11/Save/Tray/Gallery round trips and link-copy isolation"
+  ],
+  "packages": 7,
+  "performance_pass": false,
+  "preservation": {
+    "appearance_edits_submitted": false,
+    "cas_complete_owners": 195,
+    "cold_named_looks": 155,
+    "cold_native_appearances": 40,
+    "normal_saves_and_backups_unchanged": 21,
+    "post_ui_complete_owners": 195,
+    "returned_named_looks": 155,
+    "returned_native_appearances": 40,
+    "save_submitted": false
+  },
+  "production_ready": false,
+  "schema": 1,
+  "scope": "Actual disposable five-member household; strict async CAS prepare and native UI Advance observations"
+}

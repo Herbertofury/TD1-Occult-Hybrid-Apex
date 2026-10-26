@@ -1,0 +1,784 @@
+{
+  "candidate_sha256": "ff6f98a342736abc101474467cd35d8663bf94dc41de61c97bfd2ce8802f1a61",
+  "compiled_modules": 113,
+  "epoch": "2026-10-25-cas-timer-navigation-cleanup-v342",
+  "evidence_sha256": {
+    "v342-append-independent-audit/cabi-proof.json": "8bd34439b1ab0bda9a89abc2cfa266498fdfb70784c4e7eed8d51d5107a06a11",
+    "v342-edited-saved-cold-load.json": "a5a191abc7f21db3932997b2f19c788a9b00507520bf0d019d5f107bb3d70492",
+    "v342-immutable-append-stage/frozen-record-benchmark.json": "9a6dcb77843fb984999d90d51a27c175c6bf2bf39a91dba5bad2cd95b21a19fc",
+    "v342-navigation-frame-runtime.json": "081135046b848ec73e48881a9fccf83450774ae241be9ba058e59222e2f99895",
+    "v342-new-hair-return-scenario.json": "8887768ceac2ceda669b197322bbb7bc85d148c7cde2acf8a918917798d110a5",
+    "v342-normal-automatic-entry.json": "4e89632cfd2e22d0f13585532bedcbcd0aa1754de4f16fbc72e213171ffce791",
+    "v342-normal-cas-return.json": "c10ac846e4ac9a1c98f1a5f53c0ebd2738cbc1500c43fe59921c199feec8f5bb",
+    "v342-post-ui-all195.json": "d2a468cddd1673bbd6b574f5e7bc3bf2456c169ac5fb53e8c6478ce253860c8a",
+    "v342-rejection-hair-all195.json": "61cb714170a727ad6130c4e40aec170603dbe43a210ff225aa5c8aa106fc5a7d",
+    "v342-timer-runtime.json": "8d8e07f8b7a163dc56510c139e314e9b2c8599ccb805a211fba8b49993aaab9d",
+    "v342b-live-no-edit-final.json": "3444af96e711f9a1ae6b181041a74e2cdd2ca91d7affe7f2e07da993d597c494",
+    "v342b-no-edit-household-commit.json": "9c3cad8a7129506112aa2445ad8464e9fe4e2c4957b029895bafeadb1b9e52ac",
+    "v342b-normal-cas-return.json": "09b68c08044f8ba3f92e5df62ddd219c7521313261b3a4dcc0cc73bf4038862d",
+    "v342c-final-full-python-tests.json": "a364e4ca6688302586521e7b31155ca7af630857d12ca37aa20575c00952b0a9"
+  },
+  "frame_observations": {
+    "actions": {
+      "csv_sha256": "3143f6a7730bf87d44610d195709744bbee0884979ee7a252c035b53ceb80b01",
+      "frames": 6585,
+      "max_ms": 533.7144000000001,
+      "median_ms": 8.1674,
+      "over_33_33ms": 14,
+      "p95_ms": 13.2012,
+      "p99_ms": 18.8611
+    },
+    "quiet": {
+      "csv_sha256": "b54ba6fa6a302022203acada20d936417b78927a1fc922e3844f56a7bbba314c",
+      "frames": 3179,
+      "max_ms": 37.78,
+      "median_ms": 9.142,
+      "over_33_33ms": 1,
+      "p95_ms": 12.6733,
+      "p99_ms": 15.1737
+    },
+    "scope": "Probes off; one full and one minimal Body/Tattoo/Hair sequence during60s followed by30s quiet CAS; no matched no-mod baseline"
+  },
+  "immutable_append": {
+    "actual_game_prepares": 5,
+    "actual_plans": [
+      {
+        "binding_call_deltas_ms": {
+          "native_poll_ms": 10.6518,
+          "native_submit_ms": 0.8282,
+          "selected_copy_encode_ms": 2.9879,
+          "selected_decode_ms": 56.1442
+        },
+        "member_index": 1,
+        "owner_phase_costs_ms": {
+          "owner_capture_ms": 15.869500000007974,
+          "owner_fence_ms": 274.8074999999517,
+          "owner_immutable_append_freeze_ms": 72.0029000001432,
+          "owner_planner_ms": 235.80600000013874
+        }
+      },
+      {
+        "binding_call_deltas_ms": {
+          "native_poll_ms": 9.0043,
+          "native_submit_ms": 0.8245,
+          "selected_copy_encode_ms": 1.993,
+          "selected_decode_ms": 48.9653
+        },
+        "member_index": 2,
+        "owner_phase_costs_ms": {
+          "owner_capture_ms": 9.232299999894167,
+          "owner_fence_ms": 226.6285999999127,
+          "owner_immutable_append_freeze_ms": 56.00930000014159,
+          "owner_planner_ms": 178.4853999997722
+        }
+      },
+      {
+        "binding_call_deltas_ms": {
+          "native_poll_ms": 9.2721,
+          "native_submit_ms": 0.6452,
+          "selected_copy_encode_ms": 1.8469,
+          "selected_decode_ms": 53.2227
+        },
+        "member_index": 3,
+        "owner_phase_costs_ms": {
+          "owner_capture_ms": 7.550799999989977,
+          "owner_fence_ms": 236.02989999972124,
+          "owner_immutable_append_freeze_ms": 58.235799999920346,
+          "owner_planner_ms": 192.6285999998072
+        }
+      },
+      {
+        "binding_call_deltas_ms": {
+          "native_poll_ms": 9.9405,
+          "native_submit_ms": 0.6518,
+          "selected_copy_encode_ms": 1.9295,
+          "selected_decode_ms": 53.2696
+        },
+        "member_index": 4,
+        "owner_phase_costs_ms": {
+          "owner_capture_ms": 6.213000000116153,
+          "owner_fence_ms": 231.29689999996117,
+          "owner_immutable_append_freeze_ms": 98.4389000000192,
+          "owner_planner_ms": 185.00319999998283
+        }
+      },
+      {
+        "binding_call_deltas_ms": {
+          "native_poll_ms": 8.3421,
+          "native_submit_ms": 0.6504,
+          "selected_copy_encode_ms": 2.5633,
+          "selected_decode_ms": 47.008
+        },
+        "member_index": 5,
+        "owner_phase_costs_ms": {
+          "owner_capture_ms": 5.514700000048833,
+          "owner_fence_ms": 207.54190000002382,
+          "owner_immutable_append_freeze_ms": 55.0418999998783,
+          "owner_planner_ms": 191.33420000002843
+        }
+      }
+    ],
+    "admission_still_exceeds_1ms": true,
+    "barriers_preserved": true,
+    "contract": "Private immutable canonical bytes and SHA at exactly one known journal leaf; complete on-disk JSON/unknown byte spans unchanged",
+    "independent_c_abi_tests": 4,
+    "legacy_commit_history_failure_compatible": true,
+    "numeric_oracle_cases": 86249,
+    "prior_v341_planner_cumulative_ms_range": [
+      581.8258,
+      712.7893
+    ],
+    "private_receiver_c_abi_tests": 28,
+    "record_isolated_thousand_sim_scaling_qualified": false,
+    "rust_tests": 15,
+    "timing_scope": "QPC wall time includes scheduling. Owner phases and binding buckets nest; cumulative phase duration is not maximum resume/whole-action exclusive CPU. Per-action binding fields are successive cumulative counter deltas.",
+    "v342_planner_cumulative_ms_range": [
+      178.4853999997722,
+      235.80600000013874
+    ]
+  },
+  "independent_rust_verified_resources": 277,
+  "latest_player_issues": {
+    "body_face_generic_geometry_bypasses_columns": true,
+    "catalog_right_space_not_drag_resizable": true,
+    "grid_blanks_on_rebind_and_scroll": true,
+    "next_private_work": "Committed/staging card presentation and true loader readiness; common six-panel geometry/rightward width drag with avatar/control exclusions",
+    "root_cause": "Current incremental acquisition hides entire grid before staged mapping/texture readiness"
+  },
+  "medical_exit": {
+    "exact_ea_cleanup_messages_installed": true,
+    "failed_uuid_retained_not_replayed": true,
+    "fresh_hair_new_scenario_after_all195_recheck_succeeds": true,
+    "live_return": false,
+    "native_save_boolean_false": true,
+    "next_gate": "Pinned native avatar-busy predicate after preview-mode flip; wait for genuine readiness before FIRST native save, no forced commit/retry",
+    "not_fixed": true,
+    "strict_ui_cleanup_checks_passed": true
+  },
+  "native_sidecar_sha256": "cffdf3e6f9d48d8148dc74f5b7bfa08866f93a9c8e7bd35fa16722dba99ec28b",
+  "open_gates": [
+    "Real533ms menu frame spikes and native TattooMode reconstruction",
+    "Medical exit avatar readiness; exact EA cleanup alone failed actual test",
+    "Cards loading/scroll blanking and all-category layout/rightward resizing",
+    "Human paint RAW-return isolation before any restorative guard commit",
+    "Complete every-category edited CAS/Live/MCCC/F11/Save/Tray/Gallery matrix",
+    "Async observe/commit and thousand-Sim storage/receipt retirement"
+  ],
+  "packages": 7,
+  "performance_pass": false,
+  "preservation": {
+    "appearance_edits_submitted": false,
+    "cas_owners": 195,
+    "cold_named": 155,
+    "cold_native": 40,
+    "post_ui_owners": 195,
+    "returned_named": 155,
+    "returned_native": 40,
+    "save_backup_files_unchanged": 21,
+    "save_submitted": false
+  },
+  "production_ready": false,
+  "regression": {
+    "elapsed_seconds": 1340.2779906000942,
+    "errors": 0,
+    "failures": 0,
+    "ok": true,
+    "optional_private_compiler_skips": 3,
+    "run": 3513,
+    "scope": "Complete Python regression against V342 source and actual retained private SWFs; matching private Rust worker DLL enabled. Separate current-candidate native checks are reported independently.",
+    "skipped": 3,
+    "source_files": 937
+  },
+  "schema": 1,
+  "script_sha256": "3d6b74781bcbcab9075b551948b556f23aae563847c8eb630baed8bd0de07be2",
+  "timer": {
+    "full": {
+      "aggregates": {
+        "ack-encode": {
+          "completed": 4,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 29,
+          "started": 4,
+          "total_ms": 81
+        },
+        "ack-send": {
+          "completed": 4,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 6,
+          "started": 4,
+          "total_ms": 22
+        },
+        "clone": {
+          "completed": 19,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 1,
+          "started": 19,
+          "total_ms": 1
+        },
+        "execute": {
+          "completed": 3,
+          "incomplete_max_ms": 1,
+          "incomplete_total_ms": 1,
+          "interrupted": 1,
+          "max_ms": 508,
+          "started": 4,
+          "total_ms": 828
+        },
+        "forms": {
+          "completed": 9,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 2,
+          "started": 9,
+          "total_ms": 8
+        },
+        "native-info": {
+          "completed": 16,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 1,
+          "started": 16,
+          "total_ms": 5
+        },
+        "readback": {
+          "completed": 4,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 38,
+          "started": 4,
+          "total_ms": 115
+        },
+        "receive": {
+          "completed": 19,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 1,
+          "started": 19,
+          "total_ms": 1
+        },
+        "snapshot": {
+          "completed": 4,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 3,
+          "started": 4,
+          "total_ms": 8
+        },
+        "tick": {
+          "completed": 19,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 508,
+          "started": 19,
+          "total_ms": 959
+        }
+      },
+      "completed": 19,
+      "errors": 0,
+      "incomplete": [],
+      "slow_records": [
+        {
+          "interrupted": 0,
+          "operation": "catalog-trace",
+          "phase": 1,
+          "phases": {
+            "ack-encode": 13,
+            "ack-send": 5,
+            "clone": 0,
+            "native-info": 1,
+            "readback": 20,
+            "receive": 0,
+            "snapshot": 1
+          },
+          "total_ms": 21
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 0,
+            "receive": 1
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 2,
+            "receive": 0
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "execute": 9,
+            "native-info": 0,
+            "receive": 0
+          },
+          "total_ms": 9
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel",
+          "phase": 1,
+          "phases": {
+            "ack-encode": 29,
+            "ack-send": 5,
+            "clone": 0,
+            "native-info": 1,
+            "readback": 38,
+            "receive": 0,
+            "snapshot": 3
+          },
+          "total_ms": 39
+        },
+        {
+          "interrupted": 1,
+          "operation": "catalog-trace",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "native-info": 1,
+            "receive": 0
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 1,
+            "receive": 0
+          },
+          "total_ms": 1
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "execute": 508,
+            "native-info": 0,
+            "receive": 0
+          },
+          "total_ms": 508
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel",
+          "phase": 1,
+          "phases": {
+            "ack-encode": 20,
+            "ack-send": 6,
+            "clone": 0,
+            "native-info": 0,
+            "readback": 28,
+            "receive": 0,
+            "snapshot": 2
+          },
+          "total_ms": 28
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 1,
+            "receive": 0
+          },
+          "total_ms": 1
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 1,
+            "forms": 0,
+            "receive": 0
+          },
+          "total_ms": 1
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "execute": 311,
+            "native-info": 1,
+            "receive": 0
+          },
+          "total_ms": 312
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel",
+          "phase": 1,
+          "phases": {
+            "ack-encode": 19,
+            "ack-send": 6,
+            "clone": 0,
+            "native-info": 1,
+            "readback": 29,
+            "receive": 0,
+            "snapshot": 2
+          },
+          "total_ms": 29
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 1,
+            "receive": 0
+          },
+          "total_ms": 1
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 1,
+            "receive": 0
+          },
+          "total_ms": 1
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 1,
+            "receive": 0
+          },
+          "total_ms": 1
+        }
+      ]
+    },
+    "minimal": {
+      "aggregates": {
+        "ack-encode": {
+          "completed": 4,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 8,
+          "started": 4,
+          "total_ms": 11
+        },
+        "ack-send": {
+          "completed": 4,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 3,
+          "started": 4,
+          "total_ms": 5
+        },
+        "clone": {
+          "completed": 19,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 0,
+          "started": 19,
+          "total_ms": 0
+        },
+        "execute": {
+          "completed": 3,
+          "incomplete_max_ms": 1,
+          "incomplete_total_ms": 1,
+          "interrupted": 1,
+          "max_ms": 409,
+          "started": 4,
+          "total_ms": 748
+        },
+        "forms": {
+          "completed": 11,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 2,
+          "started": 11,
+          "total_ms": 8
+        },
+        "native-info": {
+          "completed": 16,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 1,
+          "started": 16,
+          "total_ms": 6
+        },
+        "readback": {
+          "completed": 4,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 13,
+          "started": 4,
+          "total_ms": 20
+        },
+        "receive": {
+          "completed": 19,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 2,
+          "started": 19,
+          "total_ms": 6
+        },
+        "snapshot": {
+          "completed": 4,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 2,
+          "started": 4,
+          "total_ms": 3
+        },
+        "tick": {
+          "completed": 19,
+          "incomplete_max_ms": 0,
+          "incomplete_total_ms": 0,
+          "interrupted": 0,
+          "max_ms": 410,
+          "started": 19,
+          "total_ms": 793
+        }
+      },
+      "completed": 19,
+      "errors": 0,
+      "incomplete": [],
+      "slow_records": [
+        {
+          "interrupted": 0,
+          "operation": "catalog-trace",
+          "phase": 1,
+          "phases": {
+            "ack-encode": 8,
+            "ack-send": 3,
+            "clone": 0,
+            "native-info": 1,
+            "readback": 13,
+            "receive": 0,
+            "snapshot": 2
+          },
+          "total_ms": 14
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 2,
+            "receive": 0
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 0,
+            "receive": 0
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 0,
+            "receive": 1
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel-navigation",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "execute": 9,
+            "native-info": 1,
+            "receive": 0
+          },
+          "total_ms": 10
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel-navigation",
+          "phase": 1,
+          "phases": {
+            "ack-encode": 0,
+            "ack-send": 1,
+            "clone": 0,
+            "native-info": 0,
+            "readback": 2,
+            "receive": 0,
+            "snapshot": 1
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 1,
+          "operation": "catalog-trace",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "native-info": 0,
+            "receive": 2
+          },
+          "total_ms": 3
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 0,
+            "receive": 1
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 1,
+            "receive": 1
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel-navigation",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "execute": 409,
+            "native-info": 1,
+            "receive": 0
+          },
+          "total_ms": 410
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel-navigation",
+          "phase": 1,
+          "phases": {
+            "ack-encode": 1,
+            "ack-send": 0,
+            "clone": 0,
+            "native-info": 1,
+            "readback": 2,
+            "receive": 0,
+            "snapshot": 0
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 1,
+            "receive": 0
+          },
+          "total_ms": 2
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 1,
+            "receive": 0
+          },
+          "total_ms": 1
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel-navigation",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "execute": 330,
+            "native-info": 1,
+            "receive": 0
+          },
+          "total_ms": 331
+        },
+        {
+          "interrupted": 0,
+          "operation": "panel-navigation",
+          "phase": 1,
+          "phases": {
+            "ack-encode": 2,
+            "ack-send": 1,
+            "clone": 0,
+            "native-info": 1,
+            "readback": 3,
+            "receive": 0,
+            "snapshot": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "interrupted": 0,
+          "operation": "idle",
+          "phase": 0,
+          "phases": {
+            "clone": 0,
+            "forms": 1,
+            "receive": 0
+          },
+          "total_ms": 1
+        }
+      ]
+    }
+  }
+}

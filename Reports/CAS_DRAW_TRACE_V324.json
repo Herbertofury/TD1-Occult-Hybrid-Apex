@@ -1,0 +1,585 @@
+{
+  "action": "Native clothing_hair panel navigation, no OS input or appearance command",
+  "actual_layout": {
+    "card_height": 95.55,
+    "card_width": 69.55,
+    "columns": 12,
+    "gap_x": 4,
+    "gap_y": 4,
+    "hit_width": 66.95,
+    "pitch_x": 73.55,
+    "pitch_y": 99.55,
+    "scale": 0.65,
+    "width": 922.5999999999999
+  },
+  "actual_trace": {
+    "aggregates": {
+      "decoration": {
+        "calls": 1238,
+        "max_ms": 2,
+        "total_ms": 49
+      },
+      "draw": {
+        "calls": 1238,
+        "max_ms": 12,
+        "total_ms": 7568
+      },
+      "favorite": {
+        "calls": 1238,
+        "max_ms": 2,
+        "total_ms": 101
+      },
+      "icons": {
+        "calls": 1010,
+        "max_ms": 6,
+        "total_ms": 78
+      },
+      "other": {
+        "calls": 1238,
+        "max_ms": 9,
+        "total_ms": 7279
+      },
+      "super": {
+        "calls": 1238,
+        "max_ms": 2,
+        "total_ms": 9
+      },
+      "swatches": {
+        "calls": 2,
+        "max_ms": 0,
+        "total_ms": 0
+      },
+      "thumbnail": {
+        "calls": 1236,
+        "max_ms": 2,
+        "total_ms": 52
+      }
+    },
+    "appearance_written": false,
+    "available": true,
+    "callback_active": true,
+    "callback_present": true,
+    "completed": 1238,
+    "depth_limit": 8,
+    "dropped": 0,
+    "duration_ms": 30000,
+    "elapsed_ms": 17018,
+    "enabled": true,
+    "errors": 0,
+    "expired": false,
+    "generation": 3,
+    "incomplete": [],
+    "max_depth": 1,
+    "overflow_depth": 0,
+    "record_limit": 32,
+    "records": [
+      {
+        "body_type": 2,
+        "id": "480171",
+        "phases": {
+          "decoration": 0,
+          "favorite": 1,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 9
+      },
+      {
+        "body_type": 2,
+        "id": "495671",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 2,
+          "other": 7,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 9
+      },
+      {
+        "body_type": 2,
+        "id": "344474",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 6,
+          "other": 6,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 12
+      },
+      {
+        "body_type": 2,
+        "id": "279485",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 9,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 9
+      },
+      {
+        "body_type": 2,
+        "id": "493797",
+        "phases": {
+          "decoration": 1,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 9
+      },
+      {
+        "body_type": 2,
+        "id": "344474",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 5,
+          "other": 5,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 10
+      },
+      {
+        "body_type": 2,
+        "id": "281735",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 9,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 9
+      },
+      {
+        "body_type": 2,
+        "id": "344474",
+        "phases": {
+          "decoration": 1,
+          "favorite": 0,
+          "icons": 5,
+          "other": 6,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 12
+      },
+      {
+        "body_type": 2,
+        "id": "439641",
+        "phases": {
+          "decoration": 1,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 9
+      },
+      {
+        "body_type": 2,
+        "id": "275365",
+        "phases": {
+          "decoration": 1,
+          "favorite": 0,
+          "icons": 0,
+          "other": 6,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 1
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 5,
+        "id": "95178",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "275883",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "275997",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 7,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 1
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "276429",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "276435",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "276454",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "276466",
+        "phases": {
+          "decoration": 0,
+          "favorite": 1,
+          "icons": 0,
+          "other": 7,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "276550",
+        "phases": {
+          "decoration": 0,
+          "favorite": 1,
+          "icons": 0,
+          "other": 7,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "276825",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "278150",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "278342",
+        "phases": {
+          "decoration": 0,
+          "favorite": 1,
+          "icons": 0,
+          "other": 7,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "279035",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "279060",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 1,
+          "other": 7,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "281526",
+        "phases": {
+          "decoration": 1,
+          "favorite": 0,
+          "icons": 0,
+          "other": 6,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 1
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "276550",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "276562",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "279023",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 6,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 2
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "279035",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "279413",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "279673",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 0,
+          "other": 8,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "418654",
+        "phases": {
+          "decoration": 0,
+          "favorite": 0,
+          "icons": 1,
+          "other": 7,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      },
+      {
+        "body_type": 2,
+        "id": "428912",
+        "phases": {
+          "decoration": 0,
+          "favorite": 1,
+          "icons": 0,
+          "other": 7,
+          "super": 0,
+          "swatches": 0,
+          "thumbnail": 0
+        },
+        "total_ms": 8
+      }
+    ],
+    "requested_ms": 30000,
+    "timing": "inclusive synchronous milliseconds; phase max is per completed draw"
+  },
+  "appearance_edit_submitted": false,
+  "candidate": "2026-10-24-draw-control-flow-v324",
+  "candidate_sha256": "3905a77a3aafbde4cfd9d0796751c921aa6a2861dd3a1feec46c47abb14b43f4",
+  "focus_changed": false,
+  "game_version": "1.128.90.1030",
+  "hitch_free_claim": false,
+  "lifetime_frame_counters": {
+    "binding_max_ms": 31,
+    "layout_max_ms": 4623,
+    "max_ms": 4639,
+    "over_1ms": 967,
+    "samples": 29020,
+    "total_ms": 48099
+  },
+  "limits": [
+    "Inclusive synchronous instrumented Draw durations include diagnostic overhead; they are not baseline frame times.",
+    "No PresentMon capture was made for this forced Hair action.",
+    "The 1,238 completed Draws are call counts, not unique catalog items or physical cell count.",
+    "Virtual grid dimensions use the whole feed and cannot prove physical pool size.",
+    "Lifetime frame counters include player interactions and earlier actions; their maximum cannot be attributed to this navigation.",
+    "Other remains an unattributed phase, not proof of a specific slow donor or engine function.",
+    "V325 source changes are separate from these loaded V324 bytes."
+  ],
+  "local_evidence_sha256": {
+    ".work/v324-forced-hair-trace-draw-status.json": "da224e2aed46c06cd076df8fd3c56108b0cabc0759ac6da43490ee581d4eb1a6",
+    ".work/v324-forced-hair-trace-draw.json": "86426719e68bdfacc0a2055a338475ea4e36a819d72ce4256d1ee489da644933"
+  },
+  "native_hair_catalog": {
+    "bind_ms": 994,
+    "clear_ms": 13,
+    "construct_ms": 8,
+    "count": 438,
+    "native_ms": 29,
+    "selected_ms": 1,
+    "state": -2134376418
+  },
+  "next_engine_change": {
+    "method": "Batch geometry with the native suppression setter plus an additive read-only getter; release only our own lease and bind final geometry once.",
+    "no_appearance_cache": true,
+    "reason": "Several native geometry setters synchronously position and bind visible cells during a single requested layout.",
+    "runtime_gain_qualified": false
+  },
+  "pid": 104644,
+  "release_ready": false,
+  "requested_layout": {
+    "animation": "none",
+    "border": 3,
+    "color": 51691,
+    "columns": 12,
+    "glow": 0,
+    "period": 1.4,
+    "strength": 1
+  },
+  "runtime_verified": true,
+  "save_submitted": false,
+  "schema": 1,
+  "status": "draw-diagnostic-working-performance-gate-open"
+}

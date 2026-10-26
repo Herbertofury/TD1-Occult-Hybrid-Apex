@@ -1,0 +1,223 @@
+{
+  "height": 210,
+  "lines": [
+    {
+      "text": "CANNOT SAVE",
+      "words": [
+        {
+          "height": 19.5,
+          "text": "CANNOT",
+          "width": 89.0,
+          "x": 115.5,
+          "y": 24.0
+        },
+        {
+          "height": 19.5,
+          "text": "SAVE",
+          "width": 51.0,
+          "x": 213.0,
+          "y": 24.0
+        }
+      ]
+    },
+    {
+      "text": "The game is currently in a state where saving isn't",
+      "words": [
+        {
+          "height": 9.0,
+          "text": "The",
+          "width": 21.0,
+          "x": 27.0,
+          "y": 66.0
+        },
+        {
+          "height": 9.5,
+          "text": "game",
+          "width": 30.5,
+          "x": 51.0,
+          "y": 68.0
+        },
+        {
+          "height": 9.0,
+          "text": "is",
+          "width": 8.0,
+          "x": 85.0,
+          "y": 66.0
+        },
+        {
+          "height": 12.0,
+          "text": "currently",
+          "width": 50.0,
+          "x": 97.0,
+          "y": 66.0
+        },
+        {
+          "height": 9.0,
+          "text": "in",
+          "width": 9.0,
+          "x": 150.5,
+          "y": 66.0
+        },
+        {
+          "height": 7.0,
+          "text": "a",
+          "width": 6.0,
+          "x": 163.0,
+          "y": 68.0
+        },
+        {
+          "height": 9.0,
+          "text": "state",
+          "width": 27.5,
+          "x": 172.5,
+          "y": 66.0
+        },
+        {
+          "height": 9.0,
+          "text": "where",
+          "width": 33.5,
+          "x": 203.5,
+          "y": 66.0
+        },
+        {
+          "height": 12.0,
+          "text": "saving",
+          "width": 35.0,
+          "x": 240.5,
+          "y": 66.0
+        },
+        {
+          "height": 9.0,
+          "text": "isn't",
+          "width": 23.0,
+          "x": 279.0,
+          "y": 66.0
+        }
+      ]
+    },
+    {
+      "text": "possible.",
+      "words": [
+        {
+          "height": 11.5,
+          "text": "possible.",
+          "width": 48.5,
+          "x": 27.5,
+          "y": 80.0
+        }
+      ]
+    },
+    {
+      "text": "WARNING: data may be lost if you exit. Do you want to exit",
+      "words": [
+        {
+          "height": 9.0,
+          "text": "WARNING:",
+          "width": 60.0,
+          "x": 27.0,
+          "y": 108.0
+        },
+        {
+          "height": 9.0,
+          "text": "data",
+          "width": 24.0,
+          "x": 91.0,
+          "y": 108.0
+        },
+        {
+          "height": 10.0,
+          "text": "may",
+          "width": 23.0,
+          "x": 119.0,
+          "y": 110.0
+        },
+        {
+          "height": 9.0,
+          "text": "be",
+          "width": 12.5,
+          "x": 145.5,
+          "y": 108.0
+        },
+        {
+          "height": 9.0,
+          "text": "lost",
+          "width": 19.5,
+          "x": 162.0,
+          "y": 108.0
+        },
+        {
+          "height": 9.0,
+          "text": "if",
+          "width": 6.5,
+          "x": 185.5,
+          "y": 108.0
+        },
+        {
+          "height": 10.0,
+          "text": "you",
+          "width": 19.5,
+          "x": 195.0,
+          "y": 110.0
+        },
+        {
+          "height": 9.0,
+          "text": "exit.",
+          "width": 22.5,
+          "x": 218.0,
+          "y": 108.0
+        },
+        {
+          "height": 9.0,
+          "text": "Do",
+          "width": 14.5,
+          "x": 245.0,
+          "y": 108.0
+        },
+        {
+          "height": 10.0,
+          "text": "you",
+          "width": 19.5,
+          "x": 262.5,
+          "y": 110.0
+        },
+        {
+          "height": 9.0,
+          "text": "want",
+          "width": 26.5,
+          "x": 286.0,
+          "y": 108.0
+        },
+        {
+          "height": 9.0,
+          "text": "to",
+          "width": 11.0,
+          "x": 316.0,
+          "y": 108.0
+        },
+        {
+          "height": 9.0,
+          "text": "exit",
+          "width": 20.0,
+          "x": 330.0,
+          "y": 108.0
+        }
+      ]
+    },
+    {
+      "text": "anyway?",
+      "words": [
+        {
+          "height": 11.5,
+          "text": "anyway?",
+          "width": 48.5,
+          "x": 27.0,
+          "y": 122.0
+        }
+      ]
+    }
+  ],
+  "ok": true,
+  "text_angle": 0,
+  "width": 390,
+  "fixture_scope": "Retained V324 warning pixels/OCR only; not an input or game exit proof."
+}

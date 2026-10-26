@@ -1,0 +1,368 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-reuse-cas-cards-v321",
+  "candidate_sha256": "2bc1675bf416d36184b0c6cb41bb9be40a5e7b93ac72737351e0c26d3e39a2c4",
+  "production_ready": false,
+  "all40_cold_fields_retained": true,
+  "named_looks_retained": 155,
+  "all195_cas_fields_retained_after_actual_second_member_click": true,
+  "all20_save_backup_files_unchanged": true,
+  "appearance_edit_submitted": false,
+  "save_submitted": false,
+  "quiet_initial_current_outfit": {
+    "panels": {
+      "last_id": "",
+      "phase_timing_ms": {
+        "category_part": {
+          "max_ms": 0,
+          "calls": 18,
+          "total_ms": 0,
+          "last_ms": 0
+        },
+        "feed_publish": {
+          "max_ms": 117,
+          "calls": 23,
+          "total_ms": 1213,
+          "last_ms": 0
+        },
+        "position_cells": {
+          "max_ms": 1,
+          "calls": 4,
+          "total_ms": 1,
+          "last_ms": 0
+        },
+        "current_layout": {
+          "max_ms": 12,
+          "calls": 1,
+          "total_ms": 12,
+          "last_ms": 12
+        },
+        "context": {
+          "max_ms": 1,
+          "calls": 50,
+          "total_ms": 1,
+          "last_ms": 0
+        },
+        "selected_ids": {
+          "max_ms": 1,
+          "calls": 50,
+          "total_ms": 1,
+          "last_ms": 0
+        },
+        "eye_color": {
+          "max_ms": 1,
+          "calls": 4,
+          "total_ms": 1,
+          "last_ms": 0
+        },
+        "product": {
+          "max_ms": 1,
+          "calls": 18,
+          "total_ms": 6,
+          "last_ms": 0
+        }
+      },
+      "bounds": {
+        "viewport_height": 1376,
+        "width": 790,
+        "viewport_width": 1278,
+        "toolbar_top": 578,
+        "height": 656,
+        "conservative_envelope": true,
+        "y": 608,
+        "x": 12,
+        "actual_scale": 1
+      },
+      "slices": 50,
+      "locked": false,
+      "last_group": 3,
+      "refresh_max_ms": 2366,
+      "last_job_timing": {
+        "last_group": 3,
+        "last_phase": "current_layout",
+        "started_ms": 734238,
+        "slices": 49,
+        "last_state": -1,
+        "completed": true,
+        "phases": {
+          "category_part": {
+            "max_ms": 0,
+            "calls": 18,
+            "total_ms": 0,
+            "last_ms": 0
+          },
+          "feed_publish": {
+            "max_ms": 117,
+            "calls": 23,
+            "total_ms": 1213,
+            "last_ms": 0
+          },
+          "position_cells": {
+            "max_ms": 1,
+            "calls": 4,
+            "total_ms": 1,
+            "last_ms": 0
+          },
+          "current_layout": {
+            "max_ms": 12,
+            "calls": 1,
+            "total_ms": 12,
+            "last_ms": 12
+          },
+          "context": {
+            "max_ms": 1,
+            "calls": 48,
+            "total_ms": 1,
+            "last_ms": 0
+          },
+          "selected_ids": {
+            "max_ms": 1,
+            "calls": 50,
+            "total_ms": 1,
+            "last_ms": 0
+          },
+          "eye_color": {
+            "max_ms": 1,
+            "calls": 4,
+            "total_ms": 1,
+            "last_ms": 0
+          },
+          "product": {
+            "max_ms": 1,
+            "calls": 18,
+            "total_ms": 6,
+            "last_ms": 0
+          }
+        },
+        "last_id": "",
+        "elapsed_ms": 2366,
+        "slice_max_ms": 117
+      },
+      "available": true,
+      "x": -1,
+      "stamp_pending": false,
+      "last_phase": "current_layout",
+      "active_job_timing": null,
+      "catalog_controls": null,
+      "expanded": true,
+      "appearance_written": false,
+      "save_pending": false,
+      "last_job_max_ms": 117,
+      "cards_added": 19,
+      "last_state": -1,
+      "cards_removed": 0,
+      "y": -1,
+      "cards_reused": 0,
+      "message": "",
+      "refreshes": 1,
+      "dragging": false,
+      "skipped_unchanged": 0,
+      "stamp_max_ms": 2,
+      "pending": false,
+      "over_1ms": 22,
+      "scale": 1,
+      "stale_discarded": 0,
+      "slice_max_ms": 117
+    },
+    "frames": 2043,
+    "presentmon": {
+      "MsBetweenPresents": {
+        "p50": 6.9471,
+        "p95": 9.912679999999998,
+        "max": 245.81740000000002
+      },
+      "MsCPUBusy": {
+        "p50": 3.5594,
+        "p95": 7.175239999999999,
+        "max": 245.513
+      },
+      "MsGPUBusy": {
+        "p50": 2.0324,
+        "p95": 3.9943699999999978,
+        "max": 5.8149
+      }
+    }
+  },
+  "quiet_actual_second_member": {
+    "panels": {
+      "last_id": "",
+      "phase_timing_ms": {
+        "category_part": {
+          "max_ms": 0,
+          "calls": 39,
+          "total_ms": 0,
+          "last_ms": 0
+        },
+        "feed_publish": {
+          "max_ms": 126,
+          "calls": 49,
+          "total_ms": 1805,
+          "last_ms": 0
+        },
+        "position_cells": {
+          "max_ms": 1,
+          "calls": 8,
+          "total_ms": 2,
+          "last_ms": 0
+        },
+        "current_layout": {
+          "max_ms": 12,
+          "calls": 2,
+          "total_ms": 14,
+          "last_ms": 2
+        },
+        "context": {
+          "max_ms": 1,
+          "calls": 100,
+          "total_ms": 6,
+          "last_ms": 0
+        },
+        "selected_ids": {
+          "max_ms": 1,
+          "calls": 100,
+          "total_ms": 2,
+          "last_ms": 0
+        },
+        "eye_color": {
+          "max_ms": 1,
+          "calls": 8,
+          "total_ms": 1,
+          "last_ms": 0
+        },
+        "product": {
+          "max_ms": 1,
+          "calls": 39,
+          "total_ms": 8,
+          "last_ms": 0
+        }
+      },
+      "bounds": {
+        "viewport_height": 1376,
+        "width": 790,
+        "viewport_width": 1278,
+        "toolbar_top": 578,
+        "height": 656,
+        "conservative_envelope": true,
+        "y": 608,
+        "x": 12,
+        "actual_scale": 1
+      },
+      "slices": 100,
+      "locked": false,
+      "last_group": 3,
+      "refresh_max_ms": 2366,
+      "last_job_timing": {
+        "last_group": 3,
+        "last_phase": "current_layout",
+        "started_ms": 834782,
+        "slices": 48,
+        "last_state": -1,
+        "completed": true,
+        "phases": {
+          "category_part": {
+            "max_ms": 0,
+            "calls": 21,
+            "total_ms": 0,
+            "last_ms": 0
+          },
+          "feed_publish": {
+            "max_ms": 126,
+            "calls": 26,
+            "total_ms": 592,
+            "last_ms": 0
+          },
+          "position_cells": {
+            "max_ms": 1,
+            "calls": 4,
+            "total_ms": 1,
+            "last_ms": 0
+          },
+          "current_layout": {
+            "max_ms": 2,
+            "calls": 1,
+            "total_ms": 2,
+            "last_ms": 2
+          },
+          "context": {
+            "max_ms": 1,
+            "calls": 47,
+            "total_ms": 5,
+            "last_ms": 0
+          },
+          "selected_ids": {
+            "max_ms": 1,
+            "calls": 50,
+            "total_ms": 1,
+            "last_ms": 0
+          },
+          "eye_color": {
+            "max_ms": 0,
+            "calls": 4,
+            "total_ms": 0,
+            "last_ms": 0
+          },
+          "product": {
+            "max_ms": 1,
+            "calls": 21,
+            "total_ms": 2,
+            "last_ms": 0
+          }
+        },
+        "last_id": "",
+        "elapsed_ms": 1231,
+        "slice_max_ms": 126
+      },
+      "available": true,
+      "x": -1,
+      "stamp_pending": false,
+      "last_phase": "current_layout",
+      "active_job_timing": null,
+      "catalog_controls": null,
+      "expanded": true,
+      "appearance_written": false,
+      "save_pending": false,
+      "last_job_max_ms": 126,
+      "cards_added": 22,
+      "last_state": -1,
+      "cards_removed": 0,
+      "y": -1,
+      "cards_reused": 19,
+      "message": "",
+      "refreshes": 2,
+      "dragging": false,
+      "skipped_unchanged": 0,
+      "stamp_max_ms": 2,
+      "pending": false,
+      "over_1ms": 44,
+      "scale": 1,
+      "stale_discarded": 0,
+      "slice_max_ms": 126
+    },
+    "frames": 1731,
+    "presentmon": {
+      "MsBetweenPresents": {
+        "p50": 7.0753,
+        "p95": 10.6815,
+        "max": 3855.8948
+      },
+      "MsCPUBusy": {
+        "p50": 5.5221,
+        "p95": 10.42035,
+        "max": 3855.7734
+      },
+      "MsGPUBusy": {
+        "p50": 2.1925,
+        "p95": 3.41535,
+        "max": 13.4431
+      }
+    }
+  },
+  "percentile_method": "linear interpolation at (n-1)*p",
+  "lost_events_warning": false,
+  "conclusion": "Native card reuse and one publication per turn reduce the largest measured publication span, but the warm actual-member update still takes 1231 ms with a 126 ms maximum slice. The performance release gate fails.",
+  "open_gates": [
+    "Native publication/thumbnail bottleneck",
+    "Atomic named outfit save/remove actual UI qualification",
+    "Real changed category copy and independent-edit/save/Tray/compatibility gates"
+  ]
+}

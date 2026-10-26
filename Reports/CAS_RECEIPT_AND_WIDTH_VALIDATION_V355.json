@@ -1,0 +1,176 @@
+{
+  "schema": 1,
+  "status": "NOT_RELEASE_READY: ORIGINAL_BODY_NAVIGATION_ACK_UNOBSERVED_AFTER_TRANSPORT_RESTART",
+  "candidate_epoch": "2026-10-26-catalog-width-and-key-rejection-v355",
+  "source_commit": "f083ab40a6e79de4346beb608a47e26ed42db5a4",
+  "actual_save_ready": false,
+  "all_hitching_removed": false,
+  "continuous_blank_free_proven": false,
+  "displayed_fps_qualified": false,
+  "candidate_zip": {
+    "sha256": "cd5bfacbfe5ea5eed6f725c4b6af99c1b495b56183f2c4b4ddf2da80f91ea972",
+    "bytes": 12843775,
+    "members": 31,
+    "compiled_modules": 115,
+    "packages": 7,
+    "rust_verified_resources": 277
+  },
+  "ui": {
+    "sha256": "cf506d9c8ee04219f78b9cbdaf2306904980477fadfe568903931cfef224cc93",
+    "source_pins": 171,
+    "resources": 73,
+    "changed_resources": 3,
+    "unchanged_resources": 70
+  },
+  "runtime_seal": {
+    "module_pins": 71,
+    "new_module": "apex_core/cas_navigation_unconsumed.py",
+    "self_body_sha256": "15973d658aa136eac5aaadc3b244c2176346632785e4d8507c4191b2612d14f5",
+    "native_dll_unchanged": true
+  },
+  "source_regression": {
+    "result": "PASS clean exact commit; no inherited fixture artifacts or overrides",
+    "cases": 4170,
+    "successful_methods": 3768,
+    "failures": 0,
+    "errors": 0,
+    "skip_entries": 411,
+    "individual_skips": 402,
+    "class_module_skips": 9,
+    "source_files": 1170,
+    "proof": {
+      "path": ".work/v348-clean-source-control/run-f083ab40a6e7/completion-summary.json",
+      "sha256": "bd113891e21e3af9b9657ee63f965f10336ef72085dedf6c84522ffd418ffb3b"
+    }
+  },
+  "configured_build_proofs": {
+    "full_merged_source_raw_and_actual_three_library_cache": "PASS",
+    "compiled_cases": 15,
+    "source_cases": 52,
+    "actual_python37_receiver_cases": 63,
+    "configured_skips": 0,
+    "freeze": {
+      "path": ".work/v355-final-integration/promotion-freeze.json",
+      "sha256": "0b5464fb24634cc5b8fb3800ccb15749d8c99c709189a3da5d2a850554477f1b"
+    },
+    "width_and_rejection_runtime_performance_qualified": false
+  },
+  "runtime": {
+    "cold_load": {
+      "result": "PASS forty complete native appearances and155 named documents, simulation advances, final paused",
+      "proof": {
+        "path": ".work/v355-edited-saved-cold-load.json",
+        "sha256": "c2386ba51f59f36df65f569298de107e9cb514423e1fce6fe79bc9ce4670891a"
+      }
+    },
+    "full_cas_entry": {
+      "result": "PASS accepted original plus separate authenticated read-only observer; all195 exact",
+      "entry_replayed": false,
+      "original": {
+        "path": ".work/v355-player-full-cas-entry.json",
+        "sha256": "b6ace836ea383c9d76c48b2ba1a1a960e69d142a4b21e56ffb568e8fedae3eeb"
+      },
+      "observer": {
+        "path": ".work/v355-player-full-cas-entry-observed.json",
+        "sha256": "42237774584030a663bbd64cc5048675a2e6ddd3979f6496288618871c309217"
+      },
+      "complete_graph": {
+        "path": ".work/v355-normal-automatic-entry.json",
+        "sha256": "c7ce696c1cd0a54af476c8e20827408e5a22d934d1eac7509cbba2f84275c936"
+      }
+    },
+    "first_body_navigation": {
+      "result": "UNRESOLVED original ACK. Actual captured image shows Bodies selected. This does not certify request completion.",
+      "request_id": "0b77897c308847a28fae2c7afc2ffcaa",
+      "intent_replayed": false,
+      "original": {
+        "path": ".work/v355-catalog-001-body-panel.json",
+        "sha256": "479f2a57eae0e41d680e8e83aa16b9b24fa74258a3aa2b09ca92072a0932c00b"
+      },
+      "original_result_poll": {
+        "path": ".work/v355-body-original-result.json",
+        "sha256": "ce28d786219d1e8a29c0c2a9ffedf5f2fed2a7095d462ae3a4d92cb5f80dcd54"
+      },
+      "captured_current_ui": {
+        "path": ".work/v355-body-pending-current.bmp",
+        "sha256": "f27f2d977495845953de36edcd7317e21f1c3d0dab3cfbe231ab359d6be779a3"
+      },
+      "diagnostic": {
+        "path": ".work/v355-body-pending-diagnostics.json",
+        "sha256": "6e67506d69f7b3d03ad4f35a1cc52bfc41866bf981838b85b36ccb4a698fc2ae"
+      },
+      "wrapper_input_submitted_false_is_not_proof_of_non_execution": true
+    },
+    "transport": {
+      "same_native_cas_episode_verified": true,
+      "generation_before": 2,
+      "generation_after": 3,
+      "restart_proven": true,
+      "exact_ack_loss_stage_unknown": true,
+      "current_connected": true,
+      "current_error": "",
+      "native_status": {
+        "path": ".work/v355-body-pending-native-engine.json",
+        "sha256": "f4cceff294938c04285456713febbcee82368a1e1dc9ed188b6380bf37b5f9e9"
+      },
+      "observed_connection_string_is_not_pipe_generation": true,
+      "guard_bypassed": false,
+      "original_peer_or_ack_recreated": false
+    },
+    "body_12_columns_scale35_width_zero_work": "NOT RUN; first navigation never returned a qualified receipt.",
+    "head240_to_hair48_six_entering_cards": "NOT RUN on355.",
+    "padded_final_page_and_reverse_scroll": "NOT RUN on355.",
+    "all59_category_geometry": "NOT RUN on355.",
+    "rendered_scrolling_video": "NOT RUN on355.",
+    "ordinary_player_input_latency_or_fps": "NOT QUALIFIED on355.",
+    "pre_cancel": {
+      "result": "PASS all195 complete fields unchanged",
+      "proof": {
+        "path": ".work/v355-after-category-all195.json",
+        "sha256": "b55dba5d679d0d93f8e6b98f2e4769f9ee97df8a60076e848d8365a4bb102009"
+      }
+    },
+    "raw_native_cancel": {
+      "result": "PASS all195 exact before preparation/restoration",
+      "proof": {
+        "path": ".work/v355-scroll-cancel-raw-return-all195.json",
+        "sha256": "64e28a03c67ed7f1789ce7a5f2540a714a90dfb09ba11d0782c603cfd3dec4fb"
+      }
+    },
+    "original_only_household_commits": {
+      "result": "PASS five original-only plans/commits; no accepted native/named edits",
+      "proof": {
+        "path": ".work/v355-scroll-cancel-originals-household-commit.json",
+        "sha256": "a783a9a866c2c2ee2e71e7afe4a23919974565514eadb62623e1d9a48f75fcf4"
+      }
+    },
+    "normal_unsaved_exit": {
+      "result": "PASS original97888 process absent, crash unchanged, all21 save/backup hashes unchanged",
+      "proof": {
+        "path": ".work/v355-actual-final-normal-discard.json",
+        "sha256": "c236b12d4b2c76a142dfb48b60ca3ac8e53f884e86482446213c33b31892de92"
+      }
+    }
+  },
+  "next_protocol_fix": {
+    "status": "PRIVATE WORK IN PROGRESS; no runtime pass claimed",
+    "intent": "Retain immutable exact original receipts across a transport restart without repeating actions.",
+    "requirements": [
+      "Original nonce/UUID/exact wire/ACK bytes and native episode/PID/UI instance/claim authority remain bound.",
+      "Receipt-only resume never queues the original action, adopts another nonce or invents a current-state acknowledgement.",
+      "One bounded canonical receipt-ingress ticket survives uncertainty; status polls never create or resubmit it.",
+      "A separately proven original pure-readback continuation may only finish its already-scheduled non-writing phase under unchanged authority; unknown/partially writing phases remain unresolved.",
+      "Source and native workers exchange immutable data; no game actors or thread-affine APIs move to those workers."
+    ]
+  },
+  "still_open": [
+    "Actual Body width zero-work, large-to-small row reuse, padded EOF, all59 category sweep and rendered scrolling on the next build.",
+    "Ordinary CAS/Live interaction latency, matched performance baselines and displayed FPS.",
+    "Human-paint/Medical match_hair_style field9 CAS acceptance, complete edited-form and household save/Tray/Gallery/MCCC/F11 route gates."
+  ],
+  "historical_evidence": [
+    "Reports/CAS_SCROLL_AND_WIDTH_VALIDATION_V354.json",
+    "Reports/CAS_SHARED_LAYOUT_AND_SCROLL_VALIDATION_V353.json"
+  ],
+  "original_profile_written": false
+}

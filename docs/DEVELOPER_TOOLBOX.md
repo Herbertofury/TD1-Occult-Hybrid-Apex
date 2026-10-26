@@ -69,3 +69,10 @@ Study/port:
 - CC compatibility and current slider-state serialization
 
 Final Apex Color Studio must work without the original mod installed.
+
+## October 8 — CAS ownership challengers rechecked
+
+- [Sims4CommunityLibrary outfit utilities](https://github.com/DeviantGameMods/Sims4CommunityLibrary/blob/main/Scripts/sims4communitylib/utils/cas/common_outfit_utils.py): reference only for category/index, BodyType/part arrays and native dirty-outfit semantics. Its normal outfit helpers do not establish a complete several-owner hybrid CAS commit or save/reload certificate. No library runtime dependency or copied implementation was added in this pass.
+- [Oops19 TS4-EditInCAS](https://github.com/Oops19/TS4-EditInCAS): reference only for its explicit transfer/filter limitations. Its own README excludes occult support and says the transfer cannot distinguish randomly replaced values from intended edits. It does not satisfy Apex's hybrid-preservation requirement. Apex's schema-2 receiver therefore retains originals and raw returned owners and requires explicit decisions for every changed form; it must not classify every secondary-form change as corruption.
+
+These are source references, not proof that Apex's runtime acceptance gate is complete. Continue the exact-game CAS, switching and restart checks in the canonical master.

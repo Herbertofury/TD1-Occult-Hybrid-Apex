@@ -1,0 +1,755 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-readonly-grid-v334",
+  "candidate_sha256": "7dee8c21632a781c0a2074a7b34070df17604459d6fd94597a331051e617bd18",
+  "production_ready": false,
+  "performance_pass": false,
+  "actual_phase": "qualified-scoped-preservation-runtime-responsiveness-failed",
+  "corrections": {
+    "repeated_sync_attribution_disproved": true,
+    "evidence": "Selected native canonical cache writes remained2 and comparison reuses0 across the measured V332 catalog workload and three idle seconds. The actual null-payload native GetInfo callback does not enter Sync.",
+    "third_service_argument": "Original AS forwards it; the inspected native dispatcher does not read the third argument. Retained for call compatibility, not used as a freshness claim.",
+    "household_roles": "Published Sim household is selected physical Sim+0x640; controller+0xb0 is separate editor/save authority.",
+    "shell_roles": "Raw GetInfo prefers Vampire when bit4 is present; actual renderer and independent owner remain separate."
+  },
+  "changes": {
+    "readonly_grid": "Fresh UI-thread native controller/group/physical-Sim HH/view+model masks/model-context/import-entity/owner/generation observation. No appearance export, Sync or EA object allocation.",
+    "visual_work": "Bound work frames request fresh native GRIDSTATE and the inspected original outfit getter. Bootstrap, rebind and every write retain full identity observations and fresh native attestation.",
+    "changed_outfit": "Invalidates first, then requires full bootstrap before a new lease can step or publish.",
+    "preservation": "Sync, its canonical cache repair and all edit/bind/accept/save fences remain intact; repeated unchanged data/pointers do not waive repair.",
+    "image_diagnostics": "Explicit bounded budget4096/depth32 native getRect/initialize/readd/cancel/asset-load spans; default off. Actual ImageResource forwards through its actual Loader; unsupported definitions keep original native path.",
+    "service_diagnostics": "Explicit maximum30s native callback timings now include GetInfo and current outfit getter (ten total); arguments and results forwarded unchanged.",
+    "ui_features": "Compact catalog,2\u201332columns,card size/spacing,sliders,panels,favorites,hiding and selection controls retained."
+  },
+  "offline_validation": {
+    "native_targets": 21,
+    "focused_python_source_and_chain": 139,
+    "image_profile_tests": 6,
+    "compiled_image_corruption_cases": 51,
+    "removal_tests": 8,
+    "compiled_removal_corruption_cases": 66,
+    "main_retention_and_serialized_reparse": true,
+    "independent_rust_resources": 277,
+    "python37_modules": 109,
+    "packages": 7
+  },
+  "providers": {
+    "62ECC59A:00000000:12272E1AC0C1F8E2": "00aa765a0826342498a8ef176a77d98bcd83bbec7beb5281bf953128bf647dc1",
+    "62ECC59A:00000000:89D13757C58C2E05": "18544a2c85e5291d0d5becd03e275119c90dd61dff0b84132297b8e8bde5d3b4",
+    "62ECC59A:00000000:3FFE72432A703655": "3dfb9eefd6861aa2460b668cd0a8f5a13b1118f1e883c323749181462b545e49"
+  },
+  "primary_evidence": {
+    "outfit_callback_contract_sha256": "bd0840ccaba64edcca97efe0e883d95c02fd63c42f9e58d90180126be69f2432",
+    "get_info_callback_contract_sha256": "2637d56237796094dc1043bd5a738f4348fe00e873fda40410b86a9957d776be",
+    "native_counter_receipt_sha256": "8058da104e970bb6e85509a8c1d3a081c0a3baa8f6d2fafa4a541f87e821a7bd"
+  },
+  "limits": "Offline and structural changes are not a hitch-free/FPS or actual-save release claim. Actual complete-field, renderer/owner/HH, runtime profiler coverage, category and frame-time tests are required.",
+  "actual": {
+    "cold_load_native_records": 40,
+    "cold_load_named_looks": 155,
+    "normal_full_cas_complete_records": 195,
+    "after_ui_complete_records": 195,
+    "all195_unchanged": true,
+    "all21_save_files_unchanged": true,
+    "frame_times": {
+      "scope": "45s real catalog action capture including explicit CLI observations; not a no-mod matched baseline",
+      "frames": 5403,
+      "median_ms": 6.8696,
+      "p95_ms": 17.3947,
+      "p99_ms": 40.8742,
+      "max_ms": 256.5539,
+      "over_33_33ms": 133,
+      "event_loss_reported": false,
+      "performance_pass": false,
+      "csv_sha256": "88892641a37de2ef82500708608be3a96c9f6581b278681bc0401b633a471ec3"
+    },
+    "catalog_native_max_ms": {
+      "attach": 37,
+      "bind": 54,
+      "construct": 3,
+      "data": 1,
+      "draw": 53,
+      "position": 1,
+      "publish": 2,
+      "retire": 2,
+      "selected_setter": 0,
+      "selection": 2
+    },
+    "actual_button": {
+      "appearance_written": false,
+      "available": true,
+      "button_provider": "62ECC59A:00000000:12272E1AC0C1F8E2",
+      "listener_membership": {
+        "appearance_written": false,
+        "listener_present": false,
+        "reason": "listener-missing",
+        "singleton_present": true
+      },
+      "using_mouse_keyboard": false
+    },
+    "controller_toggle_index_not_used_in_actual_pc_mode": true,
+    "image_boundary_spans": {
+      "appearance_written": false,
+      "available": true,
+      "budget": 4096,
+      "clock_resolution_ms": 1,
+      "completed": 1484,
+      "diagnostic_error": false,
+      "enabled": false,
+      "generation": 1,
+      "max_depth": 1,
+      "open_depth": 0,
+      "phases": [
+        {
+          "count": 362,
+          "max_ms": 1,
+          "phase": "get_rect",
+          "total_ms": 2
+        },
+        {
+          "count": 362,
+          "max_ms": 1,
+          "phase": "initialize",
+          "total_ms": 2
+        },
+        {
+          "count": 0,
+          "max_ms": 0,
+          "phase": "readd_load",
+          "total_ms": 0
+        },
+        {
+          "count": 380,
+          "max_ms": 1,
+          "phase": "cancel_load",
+          "total_ms": 1
+        },
+        {
+          "count": 380,
+          "max_ms": 1,
+          "phase": "asset_load",
+          "total_ms": 12
+        }
+      ],
+      "provider_resource_tgi": "62ECC59A:00000000:12272E1AC0C1F8E2",
+      "record_limit": 0,
+      "requested_budget": 0,
+      "scope": "native-image-boundary-profile",
+      "started": 1484
+    },
+    "service_spans": {
+      "appearance_written": false,
+      "argument_bytes_read": 0,
+      "background_service": false,
+      "enabled": false,
+      "error": "",
+      "generation": 1,
+      "inflight": 0,
+      "installed": true,
+      "preparation_ms": 159.8141,
+      "scope_id": "6ee842ce0d31403fafc08fe44eaf99dd",
+      "services": [
+        {
+          "calls": 5,
+          "max_ms": 5.8701,
+          "mean_ms": 2.53472,
+          "service": "GetCatalogBaseItems",
+          "total_ms": 12.6736
+        },
+        {
+          "calls": 0,
+          "max_ms": 0.0,
+          "mean_ms": 0.0,
+          "service": "GetCatalogColorFamilies.CAS",
+          "total_ms": 0.0
+        },
+        {
+          "calls": 6,
+          "max_ms": 0.10110000000000001,
+          "mean_ms": 0.0592,
+          "service": "CasGetSwatchColorList",
+          "total_ms": 0.3552
+        },
+        {
+          "calls": 6,
+          "max_ms": 0.0043,
+          "mean_ms": 0.0019166666666666666,
+          "service": "CasGetSwatchColorSelected",
+          "total_ms": 0.0115
+        },
+        {
+          "calls": 2,
+          "max_ms": 0.0068000000000000005,
+          "mean_ms": 0.0059,
+          "service": "GetCatalogItemsSelected",
+          "total_ms": 0.0118
+        },
+        {
+          "calls": 0,
+          "max_ms": 0.0,
+          "mean_ms": 0.0,
+          "service": "GetLocalOriginId",
+          "total_ms": 0.0
+        },
+        {
+          "calls": 0,
+          "max_ms": 0.0,
+          "mean_ms": 0.0,
+          "service": "LoadUISettingsFromFile",
+          "total_ms": 0.0
+        },
+        {
+          "calls": 0,
+          "max_ms": 0.0,
+          "mean_ms": 0.0,
+          "service": "GetCatalogColorFamilies.shared",
+          "total_ms": 0.0
+        },
+        {
+          "calls": 78,
+          "max_ms": 0.4737,
+          "mean_ms": 0.1744923076923077,
+          "service": "CASGetSimInfo",
+          "total_ms": 13.6104
+        },
+        {
+          "calls": 698,
+          "max_ms": 0.0056,
+          "mean_ms": 0.0024873925501432666,
+          "service": "CasGetCurrSimOutfitSlot",
+          "total_ms": 1.7362000000000002
+        }
+      ],
+      "skipped_calls": 0
+    },
+    "draw_trace": {
+      "aggregates": {
+        "decoration": {
+          "calls": 192,
+          "max_ms": 2,
+          "total_ms": 3
+        },
+        "draw": {
+          "calls": 192,
+          "max_ms": 7,
+          "total_ms": 292
+        },
+        "favorite": {
+          "calls": 192,
+          "max_ms": 2,
+          "total_ms": 26
+        },
+        "icons": {
+          "calls": 192,
+          "max_ms": 2,
+          "total_ms": 6
+        },
+        "other": {
+          "calls": 192,
+          "max_ms": 7,
+          "total_ms": 245
+        },
+        "super": {
+          "calls": 192,
+          "max_ms": 2,
+          "total_ms": 4
+        },
+        "swatches": {
+          "calls": 0,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "thumbnail": {
+          "calls": 192,
+          "max_ms": 1,
+          "total_ms": 8
+        }
+      },
+      "appearance_written": false,
+      "available": true,
+      "callback_active": false,
+      "callback_present": false,
+      "completed": 192,
+      "depth_limit": 8,
+      "dropped": 0,
+      "duration_ms": 30000,
+      "elapsed_ms": 21508,
+      "enabled": false,
+      "errors": 0,
+      "expired": false,
+      "generation": 1,
+      "incomplete": [],
+      "max_depth": 1,
+      "overflow_depth": 0,
+      "record_limit": 32,
+      "records": [
+        {
+          "body_type": 2,
+          "id": "272383",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 7,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 7
+        },
+        {
+          "body_type": 2,
+          "id": "272461",
+          "phases": {
+            "decoration": 0,
+            "favorite": 2,
+            "icons": 0,
+            "other": 2,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "272500",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "275774",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "272644",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "275907",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "278966",
+          "phases": {
+            "decoration": 0,
+            "favorite": 1,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "279419",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "279673",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 4,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "279679",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "279792",
+          "phases": {
+            "decoration": 0,
+            "favorite": 1,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "280456",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 1
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "276550",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "281843",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "276562",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 4,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "275259",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "281861",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 4,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "277675",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 2,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 1
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "282033",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "275365",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "277784",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 4,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "282159",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "283603",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "283654",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 4,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "277843",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 4,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "278126",
+          "phases": {
+            "decoration": 0,
+            "favorite": 1,
+            "icons": 1,
+            "other": 2,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "283678",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "278150",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 4,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "275491",
+          "phases": {
+            "decoration": 0,
+            "favorite": 1,
+            "icons": 0,
+            "other": 2,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "278253",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 4,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        },
+        {
+          "body_type": 2,
+          "id": "283690",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 3,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 3
+        },
+        {
+          "body_type": 2,
+          "id": "283702",
+          "phases": {
+            "decoration": 0,
+            "favorite": 0,
+            "icons": 0,
+            "other": 4,
+            "super": 0,
+            "swatches": 0,
+            "thumbnail": 0
+          },
+          "total_ms": 4
+        }
+      ],
+      "requested_ms": 0,
+      "timing": "inclusive synchronous milliseconds; phase max is per completed draw"
+    },
+    "draw_grid_max_ms": {
+      "attach": 45,
+      "bind": 8,
+      "construct": 3,
+      "data": 1,
+      "draw": 8,
+      "position": 2,
+      "publish": 3,
+      "retire": 2,
+      "selected_setter": 2,
+      "selection": 2
+    },
+    "image_hypothesis_disproved": "GetRect, initialize, cancel and asset_load measured at most1ms; none explains45ms attachment.",
+    "cpu_coordinated": "Exact-UTC six/twelve workload: native EDC9C0..EDCBE6 takes4573/18905 UI samples (24.19%) during twelve, above52% in two construction windows. Recorded caller root is addChild\u2192gotoAndPlay; original20s trace timing/name assumptions were superseded.",
+    "timeline_safety": "Native gotoAndPlay/Stop setters and global propagation have callbacks/side effects. Do not skip them globally merely because current frame/play value matches."
+  },
+  "next": "Retain same-class initialized display controls across shrinking/regrowing column layouts with active/parked separation and fresh generation-bound product/selection rebinding; preserve unarmed/native class replacement/disposal and every input/appearance guard. Qualify actual performance after build."
+}

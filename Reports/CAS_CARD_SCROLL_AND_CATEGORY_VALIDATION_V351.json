@@ -1,0 +1,1321 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-26-qualified-grid-spares-v351",
+  "build_source_commit": "ba31cbf1597442eade1d51a17e65bc65224cc521",
+  "candidate_sha256": "c013d2b6c8adc502a61a4bb36c650c3aafe4d9615acd6b1e364ff20dcd1fa9f8",
+  "cas_package_sha256": "dee9d9f7b53595debf770473918868953a4880ae02fb206d8c452dfe805ced40",
+  "cas_main_sha256": "ab98d692e5261d2b86de077ccc22f4ccd2e0200fee07b59accbe37a6b178f213",
+  "script_sha256": "cf0e07008493958f2c33c64b680475323901eb4b853b8b1412b2e44285041ae9",
+  "native_dll_sha256": "ea25d60c004c4ba62a6f0ace71d8681b57b4d25e63958d616da1e78f1e54d629",
+  "actual_save_ready": false,
+  "zero_hitch_claimed": false,
+  "actual_fps_qualified": false,
+  "continuous_blank_free_proven": false,
+  "source_regression": {
+    "exact_commit": "371982bf5c30928096e8e5523144398281db6b6b",
+    "complete": true,
+    "discovered": 4165,
+    "tests_run": 3927,
+    "successful_methods": 3601,
+    "failures": 0,
+    "errors": 0,
+    "skip_entries": 335,
+    "skip_accounting": "326 individual methods and9 class/module entries.",
+    "proof": {
+      "private_receipt": "v348-clean-source-control/run-371982bf5c30/completion-summary.json",
+      "sha256": "787093f43c6e6124512fc119ebf370f8b9b5c31735dba4965a87fb2ba011ddf4"
+    }
+  },
+  "passes": {
+    "original_hair_scroll": {
+      "columns": 6,
+      "requested_scale": 1,
+      "target": 48,
+      "overlap_reused": 42,
+      "entering": 6,
+      "count_delta": {
+        "attach": 0,
+        "bind": 6,
+        "construct": 0,
+        "data": 18,
+        "draw": 6,
+        "position": 0,
+        "selected_setter": 6,
+        "selection": 6
+      },
+      "native_page_down_and_one_row_up_completed": true,
+      "trace_callback_disabled": true,
+      "proof": {
+        "private_receipt": "v351-row-delta-runtime.json",
+        "sha256": "7a80f56d93c7b7545544a2e18a7009b8aa66706d620b5b77ac412750458dd7e5"
+      }
+    },
+    "body_sizing_and_drag": {
+      "qualifications": {
+        "body35_slider_ack": {
+          "actual_columns": 12,
+          "dimension_scope": "current-native-card-grid",
+          "fitted_scale": 0.3499999998,
+          "outer_family_dimensions": null,
+          "physical_cells": 176,
+          "pixel_clipping_visual_check_required": false,
+          "requested_columns": 12,
+          "requested_scale": 0.35,
+          "sampled_cards": 24,
+          "skin_family_count": 0
+        },
+        "end": {
+          "clock_probe": null,
+          "grid": {
+            "active": true,
+            "appearance_written": false,
+            "context": {
+              "household_id": "285159751289798668",
+              "layer": 0,
+              "native_generation": "42",
+              "native_kind": 2,
+              "outfit_index": 0,
+              "outfit_type": 9,
+              "owner": "active/2",
+              "panel_kind": "body",
+              "phase": "bound",
+              "session": 1,
+              "shell_kind": 4,
+              "sim_id": "285159751289798669",
+              "state": -2134636525
+            },
+            "enabled": true,
+            "error": "",
+            "frame": 1642,
+            "frame_timing": {
+              "clock_resolution_ms": 1,
+              "max_frame_parts": {
+                "pre_step_ms": 1,
+                "step_ms": 62
+              },
+              "max_ms": 63,
+              "over_1ms": 1611,
+              "pre_step_max_ms": 4,
+              "step_max_ms": 62
+            },
+            "generation": 14,
+            "invalidations": 8,
+            "native": {
+              "bootstrap": false,
+              "cancelled": false,
+              "cells": 180,
+              "cellsY": 180,
+              "coalesced": 336,
+              "counts": {
+                "attach": 0,
+                "bind": 353,
+                "construct": 0,
+                "data": 1057,
+                "draw": 343,
+                "position": 720,
+                "publish": 2,
+                "retire": 0,
+                "selected_setter": 352,
+                "selection": 352
+              },
+              "deferred_events": 6,
+              "dirty": false,
+              "error": null,
+              "generation": 4,
+              "index": 72,
+              "intrinsic_geometry_captures": 0,
+              "intrinsic_geometry_foreign": false,
+              "intrinsic_geometry_resets": 0,
+              "intrinsic_geometry_reuses": 0,
+              "lastOperation": "publish",
+              "lastPhase": "publish",
+              "lease": false,
+              "map": 180,
+              "maxMS": {
+                "attach": 0,
+                "bind": 2,
+                "construct": 0,
+                "data": 1,
+                "draw": 2,
+                "position": 2,
+                "publish": 4,
+                "retire": 0,
+                "selected_setter": 1,
+                "selection": 2
+              },
+              "measured_aspect": 1,
+              "measured_generation": 4,
+              "measured_height": 108.3845927317081,
+              "measured_scale": 0.7373101546374697,
+              "measurement_ready": true,
+              "natural_aspect": 1,
+              "natural_height": 147,
+              "natural_width": 107,
+              "operations": 1579,
+              "pendingCell": false,
+              "phase": "done",
+              "publishes": 2,
+              "reason": "",
+              "reentrant": 0,
+              "revision": 0,
+              "row_delta_active": false,
+              "row_delta_last_error": "",
+              "row_delta_last_refusal": "",
+              "row_delta_phase": "",
+              "row_delta_refusal": null,
+              "scroll_only_commits": 0,
+              "spare_diagnostic": {
+                "accepted": 0,
+                "deferred": 0,
+                "last": null,
+                "rejected": 0,
+                "scanned": 0
+              },
+              "staleBinds": 0,
+              "target": 72,
+              "thumbnail_failures": []
+            },
+            "running": false,
+            "scheduling": {
+              "actual_repair_path": "incremental",
+              "ancestors": [
+                {
+                  "name": "mScrollableContent",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mScrollerView",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": true,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mcTileList",
+                  "same_list": true,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mcBodyModPanel",
+                  "same_list": false,
+                  "same_panel": true,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "instance3658",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "instance14214",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": true,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                }
+              ],
+              "card_geometry_incremental": false,
+              "card_geometry_matches": true,
+              "contains_panel": true,
+              "current_grid_matches": true,
+              "current_grid_owned": true,
+              "current_panel_matches": true,
+              "current_panel_visible": true,
+              "desired_width": 537.3531192772556,
+              "lease_current": true,
+              "list_flag": true,
+              "list_stage_matches": true,
+              "native_grid_width": 507.35,
+              "native_list_width": 537.35,
+              "native_panel_width": 537.35,
+              "native_scroller_width": 507.35,
+              "panel_flag": true,
+              "reached_root": true,
+              "retiring": false,
+              "view_flag": true,
+              "view_stage_matches": true,
+              "width_receipt_present": true,
+              "width_receipt_valid": true
+            },
+            "waiting_reason": ""
+          },
+          "keyboard": {
+            "context": "285159751289798669|active/2|-2134636525|false|42|14",
+            "focused_name": "mScrollableContent",
+            "index": 175,
+            "last_code": 35,
+            "message": "Card 176 of 176 / arrows browse, Enter selects",
+            "pending": 0,
+            "queued": 0,
+            "receipt": {
+              "click_dispatched": false,
+              "columns": 6,
+              "count": 176,
+              "index_after": 175,
+              "index_before": 161,
+              "key": 35,
+              "menu_state": -2134636525,
+              "menu_state_before": -2134636525,
+              "owner_id": "active/2",
+              "page_step": 0,
+              "sim_id": "285159751289798669",
+              "source_route": "shared-keyboard-handler"
+            },
+            "received": 5,
+            "rejected": "",
+            "typing": false,
+            "visibility": {
+              "available": true,
+              "cell": {
+                "height": 107.3338623046875,
+                "width": 74.8921890258789,
+                "x": 87.79924774169922,
+                "y": 1090.249267578125
+              },
+              "focus_visible": true,
+              "fully_visible": true,
+              "viewport": {
+                "height": 1198.700073242188,
+                "width": 508.3500061035156,
+                "x": -0.5,
+                "y": -0.5
+              }
+            }
+          },
+          "scrollbar": {
+            "height": 1197.699951171875,
+            "local_x": 525.85,
+            "max": 2263,
+            "min": 0,
+            "mouse_enabled": true,
+            "value": 2263,
+            "visible": true,
+            "width": 13.00732421875,
+            "x": 2146.800048828125,
+            "y": 97.30000305175781
+          }
+        },
+        "home": {
+          "clock_probe": null,
+          "grid": {
+            "active": true,
+            "appearance_written": false,
+            "context": {
+              "household_id": "285159751289798668",
+              "layer": 0,
+              "native_generation": "42",
+              "native_kind": 2,
+              "outfit_index": 0,
+              "outfit_type": 9,
+              "owner": "active/2",
+              "panel_kind": "body",
+              "phase": "bound",
+              "session": 1,
+              "shell_kind": 4,
+              "sim_id": "285159751289798669",
+              "state": -2134636525
+            },
+            "enabled": true,
+            "error": "",
+            "frame": 1714,
+            "frame_timing": {
+              "clock_resolution_ms": 1,
+              "max_frame_parts": {
+                "pre_step_ms": 1,
+                "step_ms": 62
+              },
+              "max_ms": 63,
+              "over_1ms": 1683,
+              "pre_step_max_ms": 4,
+              "step_max_ms": 62
+            },
+            "generation": 14,
+            "invalidations": 8,
+            "native": {
+              "bootstrap": false,
+              "cancelled": false,
+              "cells": 180,
+              "cellsY": 180,
+              "coalesced": 409,
+              "counts": {
+                "attach": 0,
+                "bind": 425,
+                "construct": 0,
+                "data": 1273,
+                "draw": 415,
+                "position": 900,
+                "publish": 3,
+                "retire": 0,
+                "selected_setter": 424,
+                "selection": 424
+              },
+              "deferred_events": 9,
+              "dirty": false,
+              "error": null,
+              "generation": 5,
+              "index": 72,
+              "intrinsic_geometry_captures": 0,
+              "intrinsic_geometry_foreign": false,
+              "intrinsic_geometry_resets": 0,
+              "intrinsic_geometry_reuses": 0,
+              "lastOperation": "publish",
+              "lastPhase": "publish",
+              "lease": false,
+              "map": 180,
+              "maxMS": {
+                "attach": 0,
+                "bind": 2,
+                "construct": 0,
+                "data": 1,
+                "draw": 2,
+                "position": 2,
+                "publish": 4,
+                "retire": 0,
+                "selected_setter": 1,
+                "selection": 2
+              },
+              "measured_aspect": 1,
+              "measured_generation": 5,
+              "measured_height": 108.3845927317081,
+              "measured_scale": 0.7373101546374697,
+              "measurement_ready": true,
+              "natural_aspect": 1,
+              "natural_height": 147,
+              "natural_width": 107,
+              "operations": 1978,
+              "pendingCell": false,
+              "phase": "done",
+              "publishes": 3,
+              "reason": "",
+              "reentrant": 0,
+              "revision": 0,
+              "row_delta_active": false,
+              "row_delta_last_error": "",
+              "row_delta_last_refusal": "",
+              "row_delta_phase": "",
+              "row_delta_refusal": null,
+              "scroll_only_commits": 0,
+              "spare_diagnostic": {
+                "accepted": 0,
+                "deferred": 0,
+                "last": null,
+                "rejected": 0,
+                "scanned": 0
+              },
+              "staleBinds": 0,
+              "target": 72,
+              "thumbnail_failures": []
+            },
+            "running": false,
+            "scheduling": {
+              "actual_repair_path": "incremental",
+              "ancestors": [
+                {
+                  "name": "mScrollableContent",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mScrollerView",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": true,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mcTileList",
+                  "same_list": true,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mcBodyModPanel",
+                  "same_list": false,
+                  "same_panel": true,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "instance3658",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "instance14214",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": true,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                }
+              ],
+              "card_geometry_incremental": false,
+              "card_geometry_matches": true,
+              "contains_panel": true,
+              "current_grid_matches": true,
+              "current_grid_owned": true,
+              "current_panel_matches": true,
+              "current_panel_visible": true,
+              "desired_width": 537.3531192772556,
+              "lease_current": true,
+              "list_flag": true,
+              "list_stage_matches": true,
+              "native_grid_width": 507.35,
+              "native_list_width": 537.35,
+              "native_panel_width": 537.35,
+              "native_scroller_width": 507.35,
+              "panel_flag": true,
+              "reached_root": true,
+              "retiring": false,
+              "view_flag": true,
+              "view_stage_matches": true,
+              "width_receipt_present": true,
+              "width_receipt_valid": true
+            },
+            "waiting_reason": ""
+          },
+          "keyboard": {
+            "context": "285159751289798669|active/2|-2134636525|false|42|14",
+            "focused_name": "mScrollableContent",
+            "index": 0,
+            "last_code": 36,
+            "message": "Card 1 of 176 / arrows browse, Enter selects",
+            "pending": 0,
+            "queued": 0,
+            "receipt": {
+              "click_dispatched": false,
+              "columns": 6,
+              "count": 176,
+              "index_after": 0,
+              "index_before": 121,
+              "key": 36,
+              "menu_state": -2134636525,
+              "menu_state_before": -2134636525,
+              "owner_id": "active/2",
+              "page_step": 0,
+              "sim_id": "285159751289798669",
+              "source_route": "shared-keyboard-handler"
+            },
+            "received": 7,
+            "rejected": "catalog is still loading",
+            "typing": false,
+            "visibility": {
+              "available": true,
+              "cell": {
+                "height": 107.3338394165039,
+                "width": 74.8921890258789,
+                "x": 4.949240684509277,
+                "y": 4.949240684509277
+              },
+              "focus_visible": true,
+              "fully_visible": true,
+              "viewport": {
+                "height": 1198.700073242188,
+                "width": 508.3500061035156,
+                "x": -0.5,
+                "y": -0.5
+              }
+            }
+          },
+          "scrollbar": {
+            "height": 1197.699951171875,
+            "local_x": 525.85,
+            "max": 2263,
+            "min": 0,
+            "mouse_enabled": true,
+            "value": 0,
+            "visible": true,
+            "width": 13.00732421875,
+            "x": 2146.800048828125,
+            "y": 97.30000305175781
+          }
+        },
+        "page-down": {
+          "clock_probe": null,
+          "grid": {
+            "active": true,
+            "appearance_written": false,
+            "context": {
+              "household_id": "285159751289798668",
+              "layer": 0,
+              "native_generation": "42",
+              "native_kind": 2,
+              "outfit_index": 0,
+              "outfit_type": 9,
+              "owner": "active/2",
+              "panel_kind": "body",
+              "phase": "bound",
+              "session": 1,
+              "shell_kind": 4,
+              "sim_id": "285159751289798669",
+              "state": -2134636525
+            },
+            "enabled": true,
+            "error": "",
+            "frame": 1642,
+            "frame_timing": {
+              "clock_resolution_ms": 1,
+              "max_frame_parts": {
+                "pre_step_ms": 1,
+                "step_ms": 62
+              },
+              "max_ms": 63,
+              "over_1ms": 1611,
+              "pre_step_max_ms": 4,
+              "step_max_ms": 62
+            },
+            "generation": 14,
+            "invalidations": 8,
+            "native": {
+              "bootstrap": false,
+              "cancelled": false,
+              "cells": 180,
+              "cellsY": 180,
+              "coalesced": 335,
+              "counts": {
+                "attach": 0,
+                "bind": 353,
+                "construct": 0,
+                "data": 1057,
+                "draw": 343,
+                "position": 720,
+                "publish": 2,
+                "retire": 0,
+                "selected_setter": 352,
+                "selection": 352
+              },
+              "deferred_events": 5,
+              "dirty": false,
+              "error": null,
+              "generation": 4,
+              "index": 72,
+              "intrinsic_geometry_captures": 0,
+              "intrinsic_geometry_foreign": false,
+              "intrinsic_geometry_resets": 0,
+              "intrinsic_geometry_reuses": 0,
+              "lastOperation": "publish",
+              "lastPhase": "publish",
+              "lease": false,
+              "map": 180,
+              "maxMS": {
+                "attach": 0,
+                "bind": 2,
+                "construct": 0,
+                "data": 1,
+                "draw": 2,
+                "position": 2,
+                "publish": 4,
+                "retire": 0,
+                "selected_setter": 1,
+                "selection": 2
+              },
+              "measured_aspect": 1,
+              "measured_generation": 4,
+              "measured_height": 108.3845927317081,
+              "measured_scale": 0.7373101546374697,
+              "measurement_ready": true,
+              "natural_aspect": 1,
+              "natural_height": 147,
+              "natural_width": 107,
+              "operations": 1579,
+              "pendingCell": false,
+              "phase": "done",
+              "publishes": 2,
+              "reason": "",
+              "reentrant": 0,
+              "revision": 0,
+              "row_delta_active": false,
+              "row_delta_last_error": "",
+              "row_delta_last_refusal": "",
+              "row_delta_phase": "",
+              "row_delta_refusal": null,
+              "scroll_only_commits": 0,
+              "spare_diagnostic": {
+                "accepted": 0,
+                "deferred": 0,
+                "last": null,
+                "rejected": 0,
+                "scanned": 0
+              },
+              "staleBinds": 0,
+              "target": 72,
+              "thumbnail_failures": []
+            },
+            "running": false,
+            "scheduling": {
+              "actual_repair_path": "incremental",
+              "ancestors": [
+                {
+                  "name": "mScrollableContent",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mScrollerView",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": true,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mcTileList",
+                  "same_list": true,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mcBodyModPanel",
+                  "same_list": false,
+                  "same_panel": true,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "instance3658",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "instance14214",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": true,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                }
+              ],
+              "card_geometry_incremental": false,
+              "card_geometry_matches": true,
+              "contains_panel": true,
+              "current_grid_matches": true,
+              "current_grid_owned": true,
+              "current_panel_matches": true,
+              "current_panel_visible": true,
+              "desired_width": 537.3531192772556,
+              "lease_current": true,
+              "list_flag": true,
+              "list_stage_matches": true,
+              "native_grid_width": 507.35,
+              "native_list_width": 537.35,
+              "native_panel_width": 537.35,
+              "native_scroller_width": 507.35,
+              "panel_flag": true,
+              "reached_root": true,
+              "retiring": false,
+              "view_flag": true,
+              "view_stage_matches": true,
+              "width_receipt_present": true,
+              "width_receipt_valid": true
+            },
+            "waiting_reason": ""
+          },
+          "keyboard": {
+            "context": "285159751289798669|active/2|-2134636525|false|42|14",
+            "focused_name": "mScrollableContent",
+            "index": 161,
+            "last_code": 34,
+            "message": "Card 162 of 176 / arrows browse, Enter selects",
+            "pending": 0,
+            "queued": 0,
+            "receipt": {
+              "click_dispatched": false,
+              "columns": 6,
+              "count": 176,
+              "index_after": 161,
+              "index_before": 101,
+              "key": 34,
+              "menu_state": -2134636525,
+              "menu_state_before": -2134636525,
+              "owner_id": "active/2",
+              "page_step": 60,
+              "sim_id": "285159751289798669",
+              "source_route": "shared-keyboard-handler"
+            },
+            "received": 4,
+            "rejected": "catalog is still loading",
+            "typing": false,
+            "visibility": {
+              "available": true,
+              "cell": {
+                "height": 107.3338623046875,
+                "width": 74.89218139648438,
+                "x": 419.3992309570313,
+                "y": 753.0992431640625
+              },
+              "focus_visible": true,
+              "fully_visible": true,
+              "viewport": {
+                "height": 1198.700073242188,
+                "width": 508.3500061035156,
+                "x": -0.5,
+                "y": -0.5
+              }
+            }
+          },
+          "scrollbar": {
+            "height": 1197.699951171875,
+            "local_x": 525.85,
+            "max": 2263,
+            "min": 0,
+            "mouse_enabled": true,
+            "value": 2263,
+            "visible": true,
+            "width": 13.00732421875,
+            "x": 2146.800048828125,
+            "y": 97.30000305175781
+          }
+        },
+        "page-up": {
+          "clock_probe": null,
+          "grid": {
+            "active": true,
+            "appearance_written": false,
+            "context": {
+              "household_id": "285159751289798668",
+              "layer": 0,
+              "native_generation": "42",
+              "native_kind": 2,
+              "outfit_index": 0,
+              "outfit_type": 9,
+              "owner": "active/2",
+              "panel_kind": "body",
+              "phase": "bound",
+              "session": 1,
+              "shell_kind": 4,
+              "sim_id": "285159751289798669",
+              "state": -2134636525
+            },
+            "enabled": true,
+            "error": "",
+            "frame": 1642,
+            "frame_timing": {
+              "clock_resolution_ms": 1,
+              "max_frame_parts": {
+                "pre_step_ms": 1,
+                "step_ms": 62
+              },
+              "max_ms": 63,
+              "over_1ms": 1611,
+              "pre_step_max_ms": 4,
+              "step_max_ms": 62
+            },
+            "generation": 14,
+            "invalidations": 8,
+            "native": {
+              "bootstrap": false,
+              "cancelled": false,
+              "cells": 180,
+              "cellsY": 180,
+              "coalesced": 337,
+              "counts": {
+                "attach": 0,
+                "bind": 353,
+                "construct": 0,
+                "data": 1057,
+                "draw": 343,
+                "position": 720,
+                "publish": 2,
+                "retire": 0,
+                "selected_setter": 352,
+                "selection": 352
+              },
+              "deferred_events": 7,
+              "dirty": false,
+              "error": null,
+              "generation": 4,
+              "index": 72,
+              "intrinsic_geometry_captures": 0,
+              "intrinsic_geometry_foreign": false,
+              "intrinsic_geometry_resets": 0,
+              "intrinsic_geometry_reuses": 0,
+              "lastOperation": "publish",
+              "lastPhase": "publish",
+              "lease": false,
+              "map": 180,
+              "maxMS": {
+                "attach": 0,
+                "bind": 2,
+                "construct": 0,
+                "data": 1,
+                "draw": 2,
+                "position": 2,
+                "publish": 4,
+                "retire": 0,
+                "selected_setter": 1,
+                "selection": 2
+              },
+              "measured_aspect": 1,
+              "measured_generation": 4,
+              "measured_height": 108.3845927317081,
+              "measured_scale": 0.7373101546374697,
+              "measurement_ready": true,
+              "natural_aspect": 1,
+              "natural_height": 147,
+              "natural_width": 107,
+              "operations": 1579,
+              "pendingCell": false,
+              "phase": "done",
+              "publishes": 2,
+              "reason": "",
+              "reentrant": 0,
+              "revision": 0,
+              "row_delta_active": false,
+              "row_delta_last_error": "",
+              "row_delta_last_refusal": "",
+              "row_delta_phase": "",
+              "row_delta_refusal": null,
+              "scroll_only_commits": 0,
+              "spare_diagnostic": {
+                "accepted": 0,
+                "deferred": 0,
+                "last": null,
+                "rejected": 0,
+                "scanned": 0
+              },
+              "staleBinds": 0,
+              "target": 72,
+              "thumbnail_failures": []
+            },
+            "running": false,
+            "scheduling": {
+              "actual_repair_path": "incremental",
+              "ancestors": [
+                {
+                  "name": "mScrollableContent",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mScrollerView",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": true,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mcTileList",
+                  "same_list": true,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "mcBodyModPanel",
+                  "same_list": false,
+                  "same_panel": true,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "instance3658",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": false,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                },
+                {
+                  "name": "instance14214",
+                  "same_list": false,
+                  "same_panel": false,
+                  "same_root": true,
+                  "same_scroller": false,
+                  "stage_matches": true,
+                  "visible": true
+                }
+              ],
+              "card_geometry_incremental": false,
+              "card_geometry_matches": true,
+              "contains_panel": true,
+              "current_grid_matches": true,
+              "current_grid_owned": true,
+              "current_panel_matches": true,
+              "current_panel_visible": true,
+              "desired_width": 537.3531192772556,
+              "lease_current": true,
+              "list_flag": true,
+              "list_stage_matches": true,
+              "native_grid_width": 507.35,
+              "native_list_width": 537.35,
+              "native_panel_width": 537.35,
+              "native_scroller_width": 507.35,
+              "panel_flag": true,
+              "reached_root": true,
+              "retiring": false,
+              "view_flag": true,
+              "view_stage_matches": true,
+              "width_receipt_present": true,
+              "width_receipt_valid": true
+            },
+            "waiting_reason": ""
+          },
+          "keyboard": {
+            "context": "285159751289798669|active/2|-2134636525|false|42|14",
+            "focused_name": "mScrollableContent",
+            "index": 121,
+            "last_code": 33,
+            "message": "Card 122 of 176 / arrows browse, Enter selects",
+            "pending": 0,
+            "queued": 0,
+            "receipt": {
+              "click_dispatched": false,
+              "columns": 6,
+              "count": 176,
+              "index_after": 121,
+              "index_before": 175,
+              "key": 33,
+              "menu_state": -2134636525,
+              "menu_state_before": -2134636525,
+              "owner_id": "active/2",
+              "page_step": 54,
+              "sim_id": "285159751289798669",
+              "source_route": "shared-keyboard-handler"
+            },
+            "received": 6,
+            "rejected": "",
+            "typing": false,
+            "visibility": {
+              "available": true,
+              "cell": {
+                "height": 107.3338394165039,
+                "width": 74.8921890258789,
+                "x": 87.79924774169922,
+                "y": 78.79924774169922
+              },
+              "focus_visible": true,
+              "fully_visible": true,
+              "viewport": {
+                "height": 1198.700073242188,
+                "width": 508.3500061035156,
+                "x": -0.5,
+                "y": -0.5
+              }
+            }
+          },
+          "scrollbar": {
+            "height": 1197.699951171875,
+            "local_x": 525.85,
+            "max": 2263,
+            "min": 0,
+            "mouse_enabled": true,
+            "value": 2243.691854634161,
+            "visible": true,
+            "width": 13.00732421875,
+            "x": 2146.800048828125,
+            "y": 97.30000305175781
+          }
+        },
+        "width_grow": {
+          "after_width": 737.406005859375,
+          "before_width": 537.400146484375,
+          "delta_x": 200,
+          "independent_controls_unchanged": true,
+          "left_attachment_unchanged": true,
+          "native_button_overlap_qualification": "actual current native hit rectangles",
+          "native_button_rectangles_independently_verified": true,
+          "native_exclusion_limit_respected": true,
+          "native_navigation_buttons": 9,
+          "requested_width": 737.406104260774
+        },
+        "width_shrink": {
+          "after_width": 537.353271484375,
+          "before_width": 737.406005859375,
+          "delta_x": -200,
+          "independent_controls_unchanged": true,
+          "left_attachment_unchanged": true,
+          "native_button_overlap_qualification": "actual current native hit rectangles",
+          "native_button_rectangles_independently_verified": true,
+          "native_exclusion_limit_respected": true,
+          "native_navigation_buttons": 9,
+          "requested_width": 537.3531192772556
+        }
+      },
+      "proof": {
+        "private_receipt": "v351-catalog-runtime.json",
+        "sha256": "80df127ce999b2cb13b76b72125c397dd6128c69c196ecba34b0713ad97ee131"
+      },
+      "scope": "Body12 columns/35% requested size; real right-edge grow/shrink200px with native left attachment and all nine measured native navigation hit rectangles retained; genuine overflow PageDown/End/PageUp/Home. Functional evidence, not instant performance."
+    }
+  },
+  "failures": {
+    "category_sweep": {
+      "planned": 59,
+      "visited": [
+        {
+          "elapsed_observer_seconds": 0.00013640010729432106,
+          "geometry": {
+            "actual_columns": 12,
+            "dimension_scope": "current-native-card-grid",
+            "fitted_scale": 0.3499634885336881,
+            "outer_family_dimensions": null,
+            "physical_cells": 8,
+            "pixel_clipping_visual_check_required": false,
+            "requested_columns": 12,
+            "requested_scale": 0.35,
+            "sampled_cards": 8,
+            "skin_family_count": 0
+          },
+          "group": "clothing-cards",
+          "native_generation": 4,
+          "native_publications": 1,
+          "native_revision": 2,
+          "native_schema": "CASCatalogProduct",
+          "nonempty_geometry_qualified": true,
+          "panel": "clothing_accessories_base_layer",
+          "panel_kind": "clothing",
+          "physical_count": 8,
+          "readback_polls": 0,
+          "result": "nonempty",
+          "state": -2133850055
+        },
+        {
+          "group": "clothing-cards",
+          "nonempty_geometry_qualified": false,
+          "panel": "clothing_accessories_bracelets",
+          "reason": "native-generation-unpublished",
+          "result": "unqualified-timeout",
+          "state": -2133850061
+        }
+      ],
+      "completed_all": false,
+      "bracelets": {
+        "generation": 1234,
+        "revision": 2468,
+        "phase": "selection",
+        "target": 24,
+        "publishes": 0,
+        "operations": 12354,
+        "counts": {
+          "attach": 0,
+          "bind": 161,
+          "construct": 0,
+          "data": 459,
+          "draw": 161,
+          "position": 10807,
+          "publish": 0,
+          "retire": 0,
+          "selected_setter": 149,
+          "selection": 149
+        },
+        "intrinsic_geometry_captures": 0,
+        "intrinsic_geometry_reuses": 0
+      },
+      "pixel_observation": "Bracelets retains a stale short row of previous base-layer tops; no authenticated current-category publication. card_cells0 is not equivalent to a completely blank pixel region.",
+      "proof": {
+        "private_receipt": "v351-category-main1-summary.json",
+        "sha256": "2aeed29a462ff03415b9a789629db83fc3c1c536c4a85398021ac33e58e8b1d2"
+      },
+      "last_receipt": {
+        "private_receipt": "v351-category-main1-024-clothing_accessories_bracelets-wait16.json",
+        "sha256": "5244e2714849c56d522fc474e0d90216decda55f6bb287a74ee8ea11756c959b"
+      },
+      "image": {
+        "private_receipt": "v351-bracelets-unpublished.bmp",
+        "sha256": "76bcf8684bca2bf3bce96e3f1cd5b868599055355061e99e7bfa5f77963aa2a7"
+      }
+    },
+    "small_card_hair_scroll": {
+      "original_cas_request_id": "d23396477c24437e96467da58847211e",
+      "state": "failed",
+      "replayed": false,
+      "source_quarantined": false,
+      "complete_same_scope_timeout": true,
+      "error": "Native catalog navigation did not publish its focused card before the bounded deadline",
+      "columns": 12,
+      "requested_scale": 0.35,
+      "native": {
+        "phase": "capacity",
+        "generation": 4,
+        "revision": 2,
+        "target": 240,
+        "cells": 157,
+        "counts": {
+          "attach": 319,
+          "bind": 240,
+          "construct": 319,
+          "data": 720,
+          "draw": 240,
+          "position": 240,
+          "publish": 1,
+          "retire": 0,
+          "selected_setter": 240,
+          "selection": 240
+        },
+        "maxMS": {
+          "attach": 58,
+          "bind": 8,
+          "construct": 6,
+          "data": 1,
+          "draw": 7,
+          "position": 1,
+          "publish": 138,
+          "retire": 0,
+          "selected_setter": 2,
+          "selection": 2
+        },
+        "natural_width": 107.0111632413762,
+        "intrinsic_geometry_captures": 1,
+        "intrinsic_geometry_reuses": 318
+      },
+      "late_publication_observed_separately": true,
+      "late_observation": {
+        "private_receipt": "v351-after-late-scroll-observation.json",
+        "sha256": "8a30b54d77c2d43c2c57a285e9ae922e59f4334b956a3aa3e1564bef5c6fd275"
+      },
+      "proof": {
+        "private_receipt": "v351-direct-wgc-input-1-pagedown.json",
+        "sha256": "88f0d6dadf85fe29b5d873a4a8c660c76f28a86ce61baa5c40da4341054c5d18"
+      }
+    },
+    "width_only_rebuild": {
+      "unchanged_cards": 180,
+      "additional_operations": 1083,
+      "additional_construct_attach_bind_selection_each": 180,
+      "admitted_step_frames": 430,
+      "scope": "Completed grow receipts retain same mapping and transforms but rebuild another full bank. Maxima are lifetime values and cannot all be assigned to this generation.",
+      "before": {
+        "private_receipt": "v351-catalog-007-body35-wait4.json",
+        "sha256": "012e089632e9432fa324781466fc23179d5024148428c6ca17443093b0da3e6a"
+      },
+      "after": {
+        "private_receipt": "v351-catalog-016-width-grow-wait6.json",
+        "sha256": "92f642fc9c0ef32a4b8f562e09979f888f5d2f0bc83d315ef4643e936e186346"
+      }
+    }
+  },
+  "sampled_video": {
+    "decoded_frames": 1387,
+    "seconds": 29.967,
+    "dimensions": [
+      2560,
+      1368
+    ],
+    "video_sha256": "89206cea80d3c8939454cd3d4729aae33fd8641ae03a2ba5ce632230bb85933f",
+    "proof": {
+      "private_receipt": "v349-visual-recording/v351-hair-direct1/completed.json",
+      "sha256": "f0e19ed631fddbbbf68d4bd90f3be1fa1d352a424c9f69f714a3e45ae9fe2d5b"
+    },
+    "ten_sample_contact_sheet": {
+      "private_receipt": "v351-hair-scroll-contact.png",
+      "sha256": "75a4403f92ed60a706efc78c9527dfcdf904dca3afdc1bd7ef76f08ba0c200bf"
+    },
+    "single_original_input_then_stopped": true,
+    "observation": "Ten evenly spaced samples retain old visible artwork until a late changed page. This is not an all-frame blank-free proof and does not qualify responsiveness or displayed FPS.",
+    "initial_capture_attempt": "The D3D11 scaler path failed before encoded READY; no game input was sent. A separate direct-D3D11 NVENC run succeeded. Original failure evidence retained."
+  },
+  "preservation": {
+    "cold_live_native": 40,
+    "cold_named": 155,
+    "full_cas_entry_owners": 195,
+    "after_failure_owners_exact": 195,
+    "native_cancel_raw_return_exact_before_prepare": 195,
+    "original_only_household_commits": 5,
+    "normal_unsaved_exit": true,
+    "save_submitted": false,
+    "all_save_backup_files_unchanged": 21,
+    "proofs": [
+      {
+        "private_receipt": "v351-edited-saved-cold-load.json",
+        "sha256": "e55219e04a850db893267756ff45200ef233b65df8d9565654166525981467f1"
+      },
+      {
+        "private_receipt": "v351-normal-automatic-entry.json",
+        "sha256": "3fcb227271ef9d0574929275efb9961044a902eacff30f0e0955b06eda211455"
+      },
+      {
+        "private_receipt": "v351-after-scroll-failure-all195.json",
+        "sha256": "3645c109d8e444d1f29ec205dcb2e0aa0f8e404d6d427a13d2afdacf4528ea9c"
+      },
+      {
+        "private_receipt": "v351-scroll-cancel-raw-return-all195.json",
+        "sha256": "33d5dd4639dea3bce9363418ffc67e96de71a4793e25c157dd86c9f3719621f7"
+      },
+      {
+        "private_receipt": "v351-scroll-cancel-originals-household-commit.json",
+        "sha256": "4723515916ee3309e283057b9e29b0b41031ad1918668d12f83e70b059e21a08"
+      },
+      {
+        "private_receipt": "v352-final-normal-discard.json",
+        "sha256": "b2fdcac3c52ac7c31581d59dc32ff954884d722a58c1aead2a3127f604b2dc9e"
+      }
+    ]
+  },
+  "next_candidate": {
+    "purpose": "Gate the exact native selectable PositionCells override before its unconditional selection tail; preserve direct feed/add/sort/selection paths and add bounded primitive event-kind counters.",
+    "proven_native_defect": true,
+    "proven_sole_cause_of_bracelets": false,
+    "runtime_qualified": false,
+    "main_unchanged_planned": true
+  },
+  "remaining_validation": [
+    "Bracelets and all59 geometry surfaces",
+    "Small-card scrolling, full-bank throughput and width-only reuse",
+    "Continuous rendered transitions and separate Present cadence",
+    "Human paint/Medical return and match_hair_style origin",
+    "Independent member/form edits, link/copy, normal save and Tray/Gallery release round trips"
+  ],
+  "protected_original_written": false
+}

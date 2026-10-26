@@ -409,6 +409,8 @@ def verify_merged(info, resources):
     info, resources = cas_grid_position.unwrap_manifest(info, resources)
     import cas_grid_spares
     info, resources = cas_grid_spares.unwrap_manifest(info, resources)
+    import cas_list_insets
+    info, resources = cas_list_insets.unwrap_manifest(info, resources)
     import cas_catalog_workflow
     info, resources = cas_catalog_workflow.unwrap_manifest(info, resources)
     import cas_catalog_schedule

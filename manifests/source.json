@@ -671,6 +671,12 @@
       "sha256": "6346fb936ec5102a492faef7bf18a94c446c88fb00643a761cbed86a78e0b5ce"
     },
     {
+      "bytes": 72953,
+      "mode": "100644",
+      "path": "Source/apex_core/form_bank_seal.py",
+      "sha256": "efb6817d372ae6f167833239ef376086743ded2f1ae462eabe3ec38d7b36ef40"
+    },
+    {
       "bytes": 11995,
       "mode": "100644",
       "path": "tools/cas_grid_position.py",
@@ -681,6 +687,12 @@
       "mode": "100644",
       "path": "NativeOverlay/verify_ts4_dx11_imports.py",
       "sha256": "12a41b5cf03ed69896bae88599039c84a016c99879ce55222c0e715fb853ea2e"
+    },
+    {
+      "bytes": 16050,
+      "mode": "100644",
+      "path": "tools/CasListInsetsPatch.java",
+      "sha256": "d68ea5939dfa4b874d30c47e9a1d80c95183272593797ea6bfd64a49ad191fc0"
     },
     {
       "bytes": 21965,
@@ -1061,6 +1073,12 @@
       "sha256": "7bd90e50244a8bc82e4b101f4a28365c034c70ead9d1122c2c33310915f658ab"
     },
     {
+      "bytes": 4691,
+      "mode": "100644",
+      "path": "tests/test_cas_list_insets_chain.py",
+      "sha256": "03e9b1c630ad04341f4b4164d55fa8c7ca0344a84a4c252842baa3aea1b364c4"
+    },
+    {
       "bytes": 4972,
       "mode": "100644",
       "path": "Reports/CAS_RETAINED_CARDS_AND_GEOMETRY_V344.json",
@@ -1403,6 +1421,12 @@
       "sha256": "749aa65838f19e395ba0e05e35b2c156085f16598abe39db6a06face14fbf398"
     },
     {
+      "bytes": 17395,
+      "mode": "100644",
+      "path": "Source/CASUi/catalog_list_inset_methods.as",
+      "sha256": "dd004c6690076305e64d8f2cd3d6f31b0ecd00dceba33d8b6b1d03723e4cc3c6"
+    },
+    {
       "bytes": 5510,
       "mode": "100644",
       "path": "tests/test_cas_grid_intrinsic_chain.py",
@@ -1521,6 +1545,12 @@
       "mode": "100644",
       "path": "tests/test_game_lifecycle.py",
       "sha256": "bcf42a40aad891fb39c3a36e331ef3e19cf765a1517d6cebc797480a258787ba"
+    },
+    {
+      "bytes": 19941,
+      "mode": "100644",
+      "path": "tests/test_cas_list_insets.py",
+      "sha256": "106447454c7fd2a82d8c483f7f4f7deedf2e83e9603ad523a1bd86de9f4fe17b"
     },
     {
       "bytes": 19139,
@@ -2321,12 +2351,6 @@
       "sha256": "2cd27345d17779db028876f33124db95d19298ea08daf0c5bbf2e8a9eba62f57"
     },
     {
-      "bytes": 52241,
-      "mode": "100644",
-      "path": "tools/maru_companion.py",
-      "sha256": "dbfbe5caad26df9b18c425552a1a697836dd8c521f5055581e3517aa29e82052"
-    },
-    {
       "bytes": 9499,
       "mode": "100644",
       "path": "tests/test_owner_mailbox_integration.py",
@@ -2957,6 +2981,12 @@
       "sha256": "715fa5573a8df0f28f20c5de448d45f8666485deefd1bc86fa1f2da271d81353"
     },
     {
+      "bytes": 7674,
+      "mode": "100644",
+      "path": "tests/test_cas_list_insets_build.py",
+      "sha256": "2a7038edb67807d0267c650619100995ce77388fa031066ffc43280d57f396a7"
+    },
+    {
       "bytes": 1521,
       "mode": "100644",
       "path": "Source/CASUi/catalog_grid_budget_step_methods.as",
@@ -3467,6 +3497,12 @@
       "sha256": "f93483745f13f73f9c9b715762542ba8e8e296153a9e80597e3406d7bc6462de"
     },
     {
+      "bytes": 10198,
+      "mode": "100644",
+      "path": "tools/cas_list_insets_stage.py",
+      "sha256": "77d97fa3c80ae6c8f81525b7f8105123ea8a56593a73454b009fb3107ce61b50"
+    },
+    {
       "bytes": 9402,
       "mode": "100644",
       "path": "Source/apex_core/cas_form_catalog.py",
@@ -3791,12 +3827,6 @@
       "sha256": "119419abd7ad9d919bf111329bc0fc1fdc230cad3e835312b98dcbf551b1f045"
     },
     {
-      "bytes": 72971,
-      "mode": "100644",
-      "path": "tools/cas_ui_build.py",
-      "sha256": "49a0ea9433ce282468f58ef3951db3061e40422c79fbc8e6c93b40ec4802c17b"
-    },
-    {
       "bytes": 8795,
       "mode": "100644",
       "path": "tests/test_cas_width_native_bounds.py",
@@ -4041,6 +4071,12 @@
       "mode": "100644",
       "path": "Metadata/src/optimize.rs",
       "sha256": "3d391b47bd7e1ec43f08037c62c5115a9741c9023628746897faa6e334d07527"
+    },
+    {
+      "bytes": 52339,
+      "mode": "100644",
+      "path": "tools/maru_companion.py",
+      "sha256": "7a6aa929f9b3a305007f510715c2f0be29b9e14209c58754ab23f891441f5b3f"
     },
     {
       "bytes": 1043,
@@ -5465,12 +5501,6 @@
       "sha256": "bf0fc6bf3f8af7a6ba30426f8cc76a183f6d1d7a96b9b5febd533a4472fc309e"
     },
     {
-      "bytes": 72958,
-      "mode": "100644",
-      "path": "Source/apex_core/form_bank_seal.py",
-      "sha256": "5a3e59aa55cce098e160f28b79006ce87c7ddbb3b15f86b7e588cba9a13b2589"
-    },
-    {
       "bytes": 19309,
       "mode": "100644",
       "path": "Reports/LIVE_CAS_LIBRARY_2026-10-10.md",
@@ -5775,6 +5805,12 @@
       "mode": "100644",
       "path": "tests/test_bank_history.py",
       "sha256": "deddc8b3f7e0b4783cb7c844c244a361f64afb91857f356830dcba6a3074f1ac"
+    },
+    {
+      "bytes": 75510,
+      "mode": "100644",
+      "path": "tools/cas_ui_build.py",
+      "sha256": "f885d538e70faaa03752f9a10b3d97b4f735c3d9644caf4b99251e71453b6428"
     },
     {
       "bytes": 6287,
@@ -6363,6 +6399,12 @@
       "mode": "100644",
       "path": "Source/apex_core/outfit_hair.py",
       "sha256": "f96b905caa86c118579590f942abe8d5ce665e07ed84db8d311fddcdb39243c4"
+    },
+    {
+      "bytes": 16602,
+      "mode": "100644",
+      "path": "tools/cas_list_insets.py",
+      "sha256": "0ee9d1da12dbb9c0c9f8c8b64a4067860d39e200cfe566676d1ec06535e43c29"
     },
     {
       "bytes": 30313,

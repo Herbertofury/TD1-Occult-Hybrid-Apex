@@ -3,7 +3,7 @@ from pathlib import Path
 import ast,os,sys,types,unittest
 ROOT=Path(__file__).resolve().parents[1]
 BUILD=Path(os.environ.get('APEX_CAS_ROW_DELTA_BUILD_SOURCE',ROOT/'tools/cas_ui_build.py'))
-STAGES=(('cas_grid_slice','slice_contract'),('cas_grid_budget','budget_contract'),('cas_grid_featured','featured_contract'),('cas_grid_publication','publication_trace_contract'),('cas_grid_staging_attach','staging_attach_contract'),('cas_swatch_columns','swatch_columns_contract'),('cas_grid_row_delta','row_delta_contract'),('cas_grid_physical','physical_position_contract'),('cas_grid_intrinsic','intrinsic_geometry_contract'))
+STAGES=(('cas_grid_slice','slice_contract'),('cas_grid_budget','budget_contract'),('cas_grid_featured','featured_contract'),('cas_grid_publication','publication_trace_contract'),('cas_grid_staging_attach','staging_attach_contract'),('cas_swatch_columns','swatch_columns_contract'),('cas_grid_row_delta','row_delta_contract'),('cas_grid_physical','physical_position_contract'),('cas_grid_intrinsic','intrinsic_geometry_contract'),('cas_grid_spares','spare_custody_contract'))
 class BuildTests(unittest.TestCase):
  def function(self,name,namespace):
   node=next(n for n in ast.walk(ast.parse(BUILD.read_text()))if isinstance(n,ast.FunctionDef)and n.name==name)
@@ -24,7 +24,7 @@ class BuildTests(unittest.TestCase):
   try:
    key=STAGES[index][1];prior={key:{'previous_stage_kind':'featured-fixture'if historical else'staging-attach'}}
    if index==4:prior['previous_stage_kind']='publication'
-   ns={'Path':Path};self.function('_finish_grid_provider_physical',ns);fn=self.function('finish_grid_provider',ns)
+   ns={'Path':Path};self.function('_finish_grid_provider_physical',ns);self.function('_finish_grid_provider_intrinsic',ns);fn=self.function('finish_grid_provider',ns)
    if refuse or historical:
     with self.assertRaises(ValueError):fn(prior,b'authenticated-prefix','native','compiler',Path('isolated-output'))
     result=None
@@ -37,9 +37,9 @@ class BuildTests(unittest.TestCase):
  def test_every_authenticated_prefix_compiles_all_and_only_missing_stages(self):
   for i,(name,_)in enumerate(STAGES):
    calls,result=self.run_prefix(i);self.assertEqual(calls,[name+'.verify']+[n+'.adapt'for n,_ in STAGES[i+1:]])
-   self.assertEqual(result[0],b'authenticated-prefix'if i==len(STAGES)-1 else b'cas_grid_intrinsic')
+   self.assertEqual(result[0],b'authenticated-prefix'if i==len(STAGES)-1 else b'cas_grid_spares')
  def test_current_terminal_is_returned_only_after_complete_verification(self):
-  calls,result=self.run_prefix(len(STAGES)-1);self.assertEqual(calls,['cas_grid_intrinsic.verify']);self.assertIn('intrinsic_geometry_contract',result[1])
+  calls,result=self.run_prefix(len(STAGES)-1);self.assertEqual(calls,['cas_grid_spares.verify']);self.assertIn('spare_custody_contract',result[1])
  def test_invalid_prefix_never_silently_rebuilds_or_returns_older_bytes(self):
   for i,(name,_)in enumerate(STAGES):self.assertEqual(self.run_prefix(i,name)[0],[name+'.verify'])
  def test_missing_terminal_failure_cannot_become_successful_skin_cache_hit(self):
@@ -60,7 +60,7 @@ class BuildTests(unittest.TestCase):
   text=BUILD.read_text();tree=ast.parse(text);pins=ast.literal_eval(next(n for n in tree.body if isinstance(n,ast.Assign)and any(isinstance(t,ast.Name)and t.id=='PINNED_SOURCES'for t in n.targets)).value)
   for n in('tools/cas_grid_row_delta.py','tools/cas_row_delta_stage.py','tools/CasGridRowDeltaPatch.java','Source/CASUi/catalog_row_delta_methods.as'):self.assertIn(n,pins)
   self.assertLess(text.index('payload, swatch_columns_main_contract = cas_swatch_columns.adapt_main'),text.index('payload, row_delta_main_contract = cas_grid_row_delta.adapt_main'))
-  self.assertIn("if 'intrinsic_geometry_contract' not in prior:cache.setdefault('continued'",text)
+  self.assertIn("if 'spare_custody_contract' not in prior:cache.setdefault('continued'",text)
   self.assertIn("'row_delta_main_native_bytecode_contract': row_delta_main_contract",text)
 
 if __name__=='__main__':unittest.main()

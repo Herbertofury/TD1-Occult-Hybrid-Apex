@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Apex · Private CAS Workspace</title>
+  <link rel="stylesheet" href="/room-layout.css">
+</head>
+<body>
+  <header class="room-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">A</span>
+      <div><p class="eyebrow">APEX / EXTERNAL CAS</p><h1>Private room workspace</h1></div>
+    </div>
+    <div class="header-context"><span class="resource-badge">Real Sim resources</span><a href="/">Color &amp; rig diagnostic <span aria-hidden="true">↗</span></a></div>
+  </header>
+
+  <main class="room-workspace">
+    <section class="room-stage panel" aria-label="Sim pose preview">
+      <header class="stage-heading">
+        <div class="stage-title"><p class="eyebrow">ADULT FEMALE / RUST RENDERER</p><h2 id="selected-title">Loading pose library</h2><p id="selected-detail" class="muted"></p></div>
+        <div class="history-buttons" role="group" aria-label="Preview edit history">
+          <button id="undo-pose" type="button" title="Undo: Ctrl or Command + Z" aria-label="Undo pose edit" disabled><span aria-hidden="true">↶</span> Undo</button>
+          <button id="redo-pose" type="button" title="Redo: Ctrl or Command + Shift + Z" aria-label="Redo pose edit" disabled><span aria-hidden="true">↷</span> Redo</button>
+        </div>
+      </header>
+      <div class="preview-stage"><canvas width="512" height="512" role="img" aria-label="No rendered preview available">The rendered Sim preview requires canvas support.</canvas></div>
+      <div class="stage-caption"><span class="preview-label">SIM PREVIEW</span><span>Full square frame · preview changes only</span></div>
+      <div class="environment-notice"><span class="notice-dot" aria-hidden="true"></span><p><strong>Native room environment not loaded.</strong> Game room mesh, lighting and camera assets have not been found. This is a neutral preview, not native CAS parity.</p></div>
+    </section>
+
+    <section class="inspector panel" aria-label="Appearance and playback">
+      <header class="panel-heading"><div><p class="eyebrow">PREVIEW TOOLS</p><h2>Appearance &amp; motion</h2></div><span id="play-state" class="badge">Autoplay off</span></header>
+      <div class="preview-controls scroll-region" role="region" aria-label="Pose and material controls" tabindex="0">
+        <section class="control-section" aria-label="Pose playback">
+          <h3>Pose &amp; playback</h3>
+          <label for="pose-select">Selected pose · follows filters</label>
+          <select id="pose-select" disabled><option>Loading…</option></select>
+          <div class="transport-buttons" role="group" aria-label="Playback controls"><button id="play" type="button" class="primary" disabled><span aria-hidden="true">▶</span> Play sequence</button><button id="pause" type="button" disabled>Pause</button><button id="stop" type="button" disabled>Start frame</button></div>
+          <div class="range-label"><label for="timeline">Clip frame</label><span id="time-label">0 / 0</span></div>
+          <input id="timeline" aria-label="Clip frame" type="range" min="0" max="0" step="1" value="0" disabled>
+          <label class="inline"><input id="loop" type="checkbox">Loop when I press Play</label>
+          <label for="playback-rate">Sample playback speed · preview only</label>
+          <select id="playback-rate"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
+          <div id="frame-status" class="status" role="status">Awaiting verified pose library</div><button id="retry-preview" type="button" aria-describedby="frame-status" title="Retry the requested preview without changing appearance history or starting playback" disabled>Retry requested preview</button>
+        </section>
+
+        <section class="control-section" aria-label="Camera and clothing appearance">
+          <h3>Camera &amp; clothing</h3>
+          <label for="swatch-select">Dress swatch · verified resource</label><select id="swatch-select" disabled><option>Loading verified swatches…</option></select><div id="swatch-colors" aria-label="Authored swatch colors"></div><p id="swatch-status" class="status">Swatches have not been loaded.</p><label for="accessory-select">Earrings · four prepared selections</label><select id="accessory-select" disabled><option>Loading prepared earrings…</option></select><button id="reset-accessory" type="button" disabled>Reset earrings to original short pair</button><button id="inspect-accessory" type="button" hidden disabled>Inspect earrings (hide hair)</button><p id="accessory-inspection-help" class="status" hidden>Pause normal playback to inspect earrings.</p><p id="accessory-status" class="status">Preview only. Other CAS items and unprepared swatches are unsupported.</p><label for="yaw">Camera yaw</label>
+          <input id="yaw" type="range" min="-180" max="180" step="1" value="0" disabled>
+          <div class="range-endpoints" aria-hidden="true"><span>−180°</span><span>Front · 0°</span><span>180°</span></div>
+          <div class="hue-control">
+            <div id="hue-wheel" class="hue-wheel" role="slider" tabindex="0" aria-label="Hue shift wheel" aria-describedby="hue-wheel-help"><span class="hue-wheel-marker" aria-hidden="true"></span><span class="hue-wheel-zero" aria-hidden="true">HUE<br>0°</span></div>
+            <output id="hue-wheel-value"></output>
+          </div>
+          <p id="hue-wheel-help" class="muted">Relative hue rotation, not an absolute fabric color. Arrows adjust; Shift + arrows gives fine Q14 steps. Escape cancels a gesture.</p>
+          <span id="hue-wheel-announcement" class="sr-only" role="status"></span>
+          <label for="hue">Clothing hue</label>
+          <input id="hue" type="range" min="-8192" max="8192" step="1" value="0" disabled>
+          <label for="brightness">Clothing brightness</label>
+          <input id="brightness" type="range" min="-8192" max="8192" step="256" value="0" disabled>
+          <label for="saturation">Clothing saturation</label>
+          <input id="saturation" type="range" min="-8192" max="8192" step="256" value="0" disabled>
+          <label for="opacity">Clothing opacity</label>
+          <input id="opacity" type="range" min="3277" max="16384" step="1" value="16384" disabled>
+          <button id="reset-material" type="button" class="full-width" disabled>Reset clothing colors</button>
+        </section>
+
+        <section class="control-section" aria-label="Retained preview history">
+          <h3>Session history</h3>
+          <label for="pose-branches">Retained redo branches · this tab</label>
+          <select id="pose-branches" disabled></select>
+          <div id="pose-history-status" class="status">History starts after the first verified preview. Session only.</div>
+          <label for="recent">Recent poses · this tab</label>
+          <select id="recent" disabled></select>
+        </section>
+
+        <details class="control-section source-details">
+          <summary>Render identity &amp; source</summary>
+          <div id="metrics" class="status"></div>
+          <div id="identity" class="identity"></div>
+          <p id="package" class="package"></p>
+          <p class="muted">Pins and recent history stay in this tab; shared in-game favorites are not connected. Source packs are not redistributed.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="library panel" aria-label="Searchable pose collection">
+      <header class="panel-heading"><div><p class="eyebrow">REAL SOURCE COLLECTION</p><h2>Pose library</h2></div><span class="library-symbol" aria-hidden="true">▦</span></header>
+      <div class="library-scroll scroll-region" role="region" aria-label="Pose library filters and source thumbnails" tabindex="0">
+        <div class="library-filters">
+          <label for="search">Search poses, creator or package</label>
+          <input id="search" type="search" placeholder="Try “Pack 42” or “Katverse”…" maxlength="256">
+          <div class="filters"><div><label for="pack">Pack</label><select id="pack"><option value="">All packs</option></select></div><div><label for="creator">Creator</label><select id="creator"><option value="">All creators</option></select></div></div>
+          <label for="kind">Pose type</label>
+          <select id="kind"><option value="">Poses + sequences</option><option value="static">Static poses</option><option value="motion">Motion sequences</option></select>
+          <label for="availability">Playback availability</label>
+          <select id="availability"><option value="">All entries</option><option value="ready">Ready to play</option><option value="unavailable">Not playable</option></select>
+          <div class="collection-count"><strong id="count">Reading catalog…</strong><label class="inline"><input id="pinned-only" type="checkbox">Session pins</label></div>
+        </div>
+        <div id="grid" class="grid"></div>
+        <div id="empty" hidden>No poses match. Clear a filter or try a package name.</div>
+        <p class="library-note">Creator thumbnails identify the source poses. Your rendered Sim appears in the center preview.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="room-footer"><span><span class="privacy-dot" aria-hidden="true"></span>Private external preview</span><span>No game connection or Tray writes · autoplay off until you press Play</span></footer>
+  <noscript>This workspace needs JavaScript to load the verified pose library and render preview changes.</noscript>
+  <dialog id="accessory-inspection-dialog" class="accessory-inspection-dialog" aria-labelledby="accessory-inspection-title" aria-describedby="accessory-inspection-scope" hidden><h2 id="accessory-inspection-title">Earring inspection · reference pose</h2><p id="accessory-inspection-scope"><strong>Not the current normal pose.</strong> Fixed head framing at 45°. Hair, dress and shoe meshes are hidden. External preview only; no game changes. Your normal pose and history stay unchanged.</p><canvas id="accessory-inspection-canvas" width="512" height="512" role="img" aria-label="No reference inspection rendered yet"></canvas><label for="accessory-inspection-sample">Reference sample · no autoplay</label><select id="accessory-inspection-sample"><option value="0">Reference sample 0</option><option value="62" selected>Reference sample 62</option><option value="361">Reference sample 361</option></select><p id="accessory-inspection-status" class="status" role="status">No reference inspection requested.</p><button id="close-accessory-inspection" type="button">Close inspection</button></dialog><script type="module" src="/pose-app.bundle.mjs"></script>
+</body>
+</html>

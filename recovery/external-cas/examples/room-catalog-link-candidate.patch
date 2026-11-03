@@ -1,0 +1,39 @@
+--- a/preview-ui/room.html
++++ b/preview-ui/room.html
+@@ -13,7 +13,7 @@
+       <span class="brand-mark" aria-hidden="true">A</span>
+       <div><p class="eyebrow">APEX / EXTERNAL CAS</p><h1>Private room workspace</h1></div>
+     </div>
+-    <div class="header-context"><span class="resource-badge">Real Sim resources</span><a href="/">Color &amp; rig diagnostic <span aria-hidden="true">↗</span></a></div>
++    <div class="header-context"><span class="resource-badge">Real Sim resources</span><a href="/cc-library">Browse indexed CC · inspect only</a><a href="/">Color &amp; rig diagnostic <span aria-hidden="true">↗</span></a></div>
+   </header>
+ 
+   <main class="room-workspace">
+--- a/preview-ui/room-layout.test.mjs
++++ b/preview-ui/room-layout.test.mjs
+@@ -193,3 +193,5 @@
+   assert.equal(nodes.filter(n => (n.tag === 'canvas' || n.tag === 'img') && n.attrs.id !== 'accessory-inspection-canvas').length, 1, 'No invented room image or decorative renderer');
+   assert.ok('hidden' in byId('accessory-inspection-dialog').attrs);
+ });
++
++test('room links to existing inspect-only catalog without claiming equip',()=>{const a=nodes.find(n=>n.tag==='a'&&n.attrs.href==='/cc-library');assert.ok(a);assert.match(html,/Browse indexed CC · inspect only/);});
+--- a/preview-ui/cc-library.mjs
++++ b/preview-ui/cc-library.mjs
+@@ -144,7 +144,7 @@
+  $('#folder-sort-status').textContent=!browser.identity?'Folder sorting unavailable: no ready catalog helper.':browser.folderSort==='unsupported'?'Folder sorting unavailable for this index/helper. Other sorts remain available.':browser.folderSort==='supported'?'Folder sorting accepted by this helper. Ordering uses the indexed folder key, not a source path.':'Folder sorting uses the indexed folder key. Support is checked on first use; no folder paths are inferred.';
+  $('#query-fields').disabled=!browser.identity;$('#recheck').disabled=browser.state==='loading';results.setAttribute('aria-busy',String(browser.state==='loading'));
+  const stale=browser.page&& !['ready','empty'].includes(browser.state);
+- $('#coverage').textContent=browser.page?`${stale?'LAST GOOD PAGE · stale while filters or availability are unresolved. ':''}Snapshot ${completeness(browser.page.snapshot_complete)} · Package inventory ${browser.page.package_inventory_coverage} · Source errors ${browser.page.source_errors_count??'unknown'} · Redacted fields ${browser.page.projection_redactions}`:'Snapshot completeness unknown. No catalog page accepted yet.';
++ $('#coverage').textContent=browser.page?`${stale?'LAST GOOD PAGE · stale while filters or availability are unresolved. ':''}Snapshot ${completeness(browser.page.snapshot_complete)} for indexed sources only · Overall library coverage not established · Package inventory ${browser.page.package_inventory_coverage} · Source errors ${browser.page.source_errors_count??'unknown'} · Redacted fields ${browser.page.projection_redactions}`:'Snapshot completeness unknown. No catalog page accepted yet.';
+  $('#identity').textContent=browser.identity?`Epoch ${browser.identity.epoch} · Catalog ${browser.identity.catalog_sha256} · Identity policy ${browser.identity.policy}`:'No ready catalog identity.';
+  if(browser.facets!==renderedFacets){renderedFacets=browser.facets;const f=browser.facets;$('#authors').replaceChildren(...(f?.creators??[]).filter(c=>c.name_state==='present'&&c.name).map(c=>{const o=text('option',`${c.name} (${c.count})`);o.value=c.name;return o;}));$('#types').replaceChildren(...(f?.categories??[]).filter(c=>c.body_type!==null).map(c=>{const o=text('option',`${c.count} indexed`);o.value=String(c.body_type);return o;}));$('#author-note').textContent=f?`Author inventory ${f.included?'included':'not included'}; completeness ${completeness(f.complete)}. Unknown or redacted authors are not guessed.`:'Author inventory not loaded.';}
+  if(browser.page&&browser.page!==renderedPage&&['ready','empty'].includes(browser.state)){
+--- a/preview-ui/cc-library-density.test.mjs
++++ b/preview-ui/cc-library-density.test.mjs
+@@ -19,5 +19,5 @@
+  const hostile=createCard({...row,preferred_name:'<img onerror=alert(1)>'});assert.equal(all(hostile).find(n=>n.tagName==='h3').textContent,'<img onerror=alert(1)>');
+  }finally{for(const [key,value] of Object.entries(saved)){if(value===undefined)delete globalThis[key];else globalThis[key]=value;}}
+ });
+-test('all view selectors, input names, live/stale status and keyboard regions remain connected',async()=>{const html=await readFile(new URL('./cc-library.html',import.meta.url),'utf8'),js=await readFile(new URL('./cc-library.mjs',import.meta.url),'utf8');for(const match of js.matchAll(/\$\('#([\w-]+)'\)/g))assert.ok(html.includes(`id="${match[1]}"`),match[1]);const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);assert.equal(ids.length,new Set(ids).size);for(const name of ['text','folder','author','body_type','origin','sort','name_mode','added_days','grouped','fuzzy'])assert.ok(html.includes(`name="${name}"`));assert.match(html,/aria-live="polite"/);assert.match(html,/aside aria-labelledby="filters-heading" tabindex="0"/);assert.match(html,/<details class="catalog-identity"><summary>Catalog identity<\/summary><p id="identity"/);assert.match(js,/LAST GOOD PAGE/);assert.match(js,/Snapshot .*completeness/);assert.doesNotMatch(js,/identity\.epoch\.slice|identity\.catalog_sha256\.slice/);});
++test('all view selectors, input names, live/stale status and keyboard regions remain connected',async()=>{const html=await readFile(new URL('./cc-library.html',import.meta.url),'utf8'),js=await readFile(new URL('./cc-library.mjs',import.meta.url),'utf8');for(const match of js.matchAll(/\$\('#([\w-]+)'\)/g))assert.ok(html.includes(`id="${match[1]}"`),match[1]);const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);assert.equal(ids.length,new Set(ids).size);for(const name of ['text','folder','author','body_type','origin','sort','name_mode','added_days','grouped','fuzzy'])assert.ok(html.includes(`name="${name}"`));assert.match(html,/aria-live="polite"/);assert.match(html,/aside aria-labelledby="filters-heading" tabindex="0"/);assert.match(html,/<details class="catalog-identity"><summary>Catalog identity<\/summary><p id="identity"/);assert.match(js,/LAST GOOD PAGE/);assert.match(js,/Snapshot .*completeness/);assert.match(js,/for indexed sources only/);assert.match(js,/Overall library coverage not established/);assert.doesNotMatch(js,/identity\.epoch\.slice|identity\.catalog_sha256\.slice/);});
+ test('bounded scroll and narrow-screen layout rules do not crop full metadata',async()=>{const css=await readFile(new URL('./cc-library.css',import.meta.url),'utf8');assert.match(css,/grid-template-rows:auto minmax\(0,1fr\)/);assert.match(css,/aside\{[^}]*overflow:auto/);assert.match(css,/\.library\{[^}]*overflow:auto/);assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);assert.match(css,/max-width:700px/);assert.match(css,/max-width:420px/);assert.match(css,/max-height:45dvh/);assert.match(css,/\.metadata-details dd\{[^}]*overflow-wrap:anywhere/);assert.doesNotMatch(css,/\.metadata-details[^}]*overflow:hidden/);assert.doesNotMatch(css,/\.card\{[^}]*(?:height|max-height):/);assert.match(css,/:focus-visible/);});

@@ -1,0 +1,27 @@
+{
+  "tool": "esbuild",
+  "version": "0.28.2",
+  "format": "esm",
+  "target": "es2022",
+  "minify": false,
+  "treeShaking": false,
+  "inputs": {
+    "preview-ui/accessory-inspection.mjs": "99736be08fe994f0204adb8be311d4fac1ff03cc9e73ec10512e58c13fbd26a1",
+    "preview-ui/accessory-model.mjs": "2e71f4af0e4229caabbc215ab515e48bedd8a2af114e0a7c899c5f47938baadc",
+    "preview-ui/cc-history.mjs": "9060a462ed474a8303ecd48b7dcba98db745c02e65456c1aec7b536cdf5e518c",
+    "preview-ui/controller.mjs": "dd52c6933d216d9cde13b7ce1d4bab226e4b17a37ca47e16ad8e58e8df6f3368",
+    "preview-ui/frame-client.mjs": "43dea6496328ef1576d8d7c0addf0ffdf7c45022820001ce529e8858f6c3cce7",
+    "preview-ui/history-shortcuts.mjs": "82febe4bdd8a86548d4eb48529bd01a0042d62c571adf7b38442f7cce83db17f",
+    "preview-ui/hue-wheel-model.mjs": "1c2cdcaaf5fa4ba697695932267398ba1a12b0f029b5985fdc58ff2e65c87435",
+    "preview-ui/hue-wheel-ui.mjs": "444c3019c1813454d441828c887bb372beb1779c8d68dbd50d60a936a99c6ed0",
+    "preview-ui/pose-app.mjs": "91a56b0140250f28ea22f2ae742b813af52e3f72e786627401b970ffbca5301f",
+    "preview-ui/pose-history-session.mjs": "da6af3fc7a4c6a903bb8afa18375cc8aa938fe709d48eba0c0a44adb98f8da92",
+    "preview-ui/pose-history.mjs": "8309648ff421bd021b97bcb9c8521400c4b816f325b7d5fdeb16c4a2273233b4",
+    "preview-ui/pose-model.mjs": "d69853433760bd7f89a33ada0fd443c3d16b1ba7691aceaf1070dd0a66fc5393",
+    "preview-ui/swatch-model.mjs": "eacf4f0bafa95f46c03d951f71b215a0fc1da75e7cb6ff13425007affd590ed4",
+    "preview-ui/thumbnail-pool.mjs": "648d696b762c56bbae1a9ac59bddc1d3265a9d0fbd8f105db3d3c13d8b8f3cd3"
+  },
+  "output_sha256": "e7aba1db4e7dc99fd0dc53b5dc955be241560b2279e085f24bba6d4c671020d5",
+  "output_bytes": 81821,
+  "warnings": []
+}

@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Apex Rust preview diagnostic</title>
+<style>body{background:#15181e;color:#e5e9ef;font:16px system-ui;max-width:1100px;margin:24px auto}main{display:grid;grid-template-columns:540px 1fr;gap:24px}canvas{background:#181818;width:512px;height:512px;border:1px solid #455366}label{display:block;margin:24px 0}input{width:95%}button{padding:10px;margin:6px}small{color:#aebccc}output{display:block;min-height:3em} .warning{color:#f4ce7d}</style>
+<h1>Apex external preview · Rust diagnostic</h1><p class="warning">Offline upstream mesh fixture. Optional opaque overlay is a diagnostic, not complete skin/material assembly. No game connection, save writes or native CAS parity.</p>
+<main><canvas width="512" height="512" aria-label="Rust rendered mesh"></canvas><section>
+<label>Camera yaw <input id="yaw" aria-label="Camera yaw" type="range" min="-180" max="180" value="0"></label>
+<label>Synthetic arm pose <input id="pose" aria-label="Synthetic arm pose" type="range" min="-90" max="90" value="0"></label>
+<label>Upstream body-frame morph <input id="morph" aria-label="Upstream body-frame morph" type="range" min="0" max="100" value="0"></label>
+<button id="reset">Reset pose and camera</button><button id="close">Close preview</button><button id="open">Open preview</button>
+<label>Diagnostic transport <select id="format" aria-label="Diagnostic transport"><option value="rgb">RGB baseline</option><option value="rgba">RGBA candidate</option></select></label><label>Header writes <select id="headers" aria-label="Header writes"><option value="split">Split baseline</option><option value="joined">Batched candidate</option><option value="vectored">Vectored candidate</option></select></label><button id="benchmark">Measure 16 six-way frames</button>
+<output id="measurementStatus"></output><output id="status" aria-live="polite">Starting</output><output id="metrics"></output><small id="identity">Awaiting verified frame identity</small>
+</section></main><details open><summary>Bounded measurement evidence</summary><pre id="trace" style="max-height:250px;overflow:auto">[]</pre><p>Browser long-task evidence (when supported)</p><pre id="timingTrace">{}</pre></details><script type="module" src="/app.mjs"></script>

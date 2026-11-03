@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Apex selected CC preview</title>
+<style>body{background:#15181e;color:#e5e9ef;font:16px system-ui;max-width:1100px;margin:24px auto;padding:12px}main{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}canvas{width:min(512px,90vw);height:auto;background:#181818;border:1px solid #455366}section{flex:1;min-width:260px}label{display:block;margin:18px 0}input{width:95%}button{padding:10px;margin:6px}output{display:block;min-height:2em}.warning{color:#f4ce7d}small{overflow-wrap:anywhere}</style>
+<a href="/pose-library">Open real pose library</a><h1>Apex · selected CC preview</h1><p class="warning">Adult female diagnostic with real creator CC and CC skin-tone texture. Selected dress colors and one rig-bound arm diagnostic. No native clip playback. Undo/redo history stays in this tab and is lost on reload; it is not a saved outfit or shared favorites store. No game connection, Apply-to-Sim, Tray writes, full CAS or native shader parity.</p>
+<main><canvas width="512" height="512" aria-label="Rust rendered female with selected custom content"></canvas><section>
+<label>Camera yaw <input id="yaw" type="range" min="-180" max="180" value="0"></label>
+<label>Left arm (rig diagnostic) <input id="pose" type="range" min="-90" max="90" value="0" disabled></label>
+<label>Clothing brightness <input id="brightness" type="range" min="-8192" max="8192" value="0"></label>
+<label>Clothing saturation <input id="saturation" type="range" min="-8192" max="8192" value="0"></label>
+<label>Clothing hue <input id="hue" type="range" min="-8192" max="8192" value="0"></label>
+<label>Clothing opacity <input id="opacity" type="range" min="3277" max="16384" value="16384"></label>
+<button id="undo" disabled>Undo preview edit</button><button id="redo" disabled>Redo preview edit</button><label>Retained redo branch <select id="branches" disabled></select></label><output id="history-status"></output>
+<button id="reset">Reset preview</button><button id="close">Close preview</button><button id="open">Open preview</button>
+<output id="status" aria-live="polite">Starting</output><output id="metrics"></output><small id="identity">Awaiting verified scene identity</small>
+</section></main><script type="module" src="/app.mjs"></script>

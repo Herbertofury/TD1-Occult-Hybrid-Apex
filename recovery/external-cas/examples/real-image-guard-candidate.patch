@@ -1,0 +1,32 @@
+--- a/examples/cc_source_images/mod.rs
++++ b/examples/cc_source_images/mod.rs
+@@ -882,6 +882,7 @@
+             render_gate: std::sync::Mutex::new(()),
+             texture: None,
+             catalog: None,
++            import_status: None,
+             source_images,
+         }
+     }
+@@ -1047,4 +1048,20 @@
+             978661
+         );
+     }
+-}
++    // Opt-in private real-source validation. No paths or assets are checked in.
++    #[test]
++    #[ignore = "requires a separately prepared private source snapshot"]
++    fn privately_prepared_snapshot_loads_through_production_guard() {
++        let path = std::env::var("CC_REAL_SNAPSHOT_DIR").unwrap();
++        let pins = Pins {
++            index: unhex(&std::env::var("CC_REAL_INDEX_SHA").unwrap()).unwrap(),
++            manifest: unhex(&std::env::var("CC_REAL_MANIFEST_SHA").unwrap()).unwrap(),
++            catalog: unhex(&std::env::var("CC_REAL_CATALOG_SHA").unwrap()).unwrap(),
++        };
++        let snapshot = Snapshot::load(Path::new(&path), &pins).unwrap();
++        let expected: usize = std::env::var("CC_REAL_EXPECTED_COUNT").unwrap().parse().unwrap();
++        assert_eq!(snapshot.images.len(), expected);
++        assert!(snapshot.images.values().all(|image| image.width == 104 && image.height == 148 && !image.bytes().is_empty()));
++    }
++
++}

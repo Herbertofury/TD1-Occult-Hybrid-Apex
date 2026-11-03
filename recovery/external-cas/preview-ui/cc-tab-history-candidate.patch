@@ -1,0 +1,130 @@
+--- a/preview-ui/cc-app.mjs
++++ b/preview-ui/cc-app.mjs
+@@ -1,13 +1,23 @@
+ import {routeHistoryShortcut} from './history-shortcuts.mjs';
+ import {CcHistory,CC_DEFAULTS} from './cc-history.mjs';
++import {loadCcHistory,saveCcHistory} from './cc-history-session.mjs';
+ import {PreviewController} from './controller.mjs';
+ import {createFrameClient} from './frame-client.mjs';
+ const canvas=document.querySelector('canvas'),context=canvas.getContext('2d');
+ const fields=['yaw','pose','brightness','saturation','hue','opacity'];
+ const status=document.querySelector('#status'),metrics=document.querySelector('#metrics'),identity=document.querySelector('#identity');
++let sceneId=null,historyRecoveryReady=false,historyRecoveryError='';
++for(const name of fields)document.getElementById(name).disabled=true;
+ const client=createFrameClient({mode:'cc',timeoutMs:15000});
+ const controller=new PreviewController(request=>client.read(request),(frame,request)=>{
++ if(sceneId!==null&&frame.scene!==sceneId)throw Error('Preview scene changed');
+  context.putImageData(new ImageData(frame.rgba,512,512),0,0);
++ if(sceneId===null){
++  sceneId=frame.scene;
++  try{const restored=loadCcHistory(history,sessionStorage,sceneId);historyRecoveryReady=true;if(restored)queueMicrotask(renderValue);}catch(error){historyRecoveryError='Tab history unavailable: '+error.message;}
++  for(const name of fields)document.getElementById(name).disabled=false;
++  syncHistory();
++ }
+  document.querySelector('#pose').disabled=!frame.poseReady;
+  canvas.dataset.scene=frame.scene;canvas.dataset.harness=frame.harness;canvas.dataset.sequence=String(request.sequence);
+  canvas.dataset.parameters=JSON.stringify(Object.fromEntries(fields.map(k=>[k,request[k]])));
+@@ -16,19 +26,20 @@
+ },message=>{status.textContent=message;});
+ const history=new CcHistory();let historyError='';
+ const undo=document.querySelector('#undo'),redo=document.querySelector('#redo'),branches=document.querySelector('#branches'),historyStatus=document.querySelector('#history-status');
++function saveHistory(){if(!historyRecoveryReady)return;try{saveCcHistory(history,sessionStorage,sceneId);historyRecoveryError='';}catch(error){historyRecoveryReady=false;historyRecoveryError='Tab history not saved: '+error.message;}}
+ function syncHistory(){
+  undo.disabled=!history.canUndo;redo.disabled=history.pending||history.branches.length===0;
+  branches.replaceChildren(...history.branches.map(branch=>{const option=document.createElement('option');option.value=String(branch.id);option.textContent=`Edit ${branch.id}: arm ${branch.value.pose}, hue ${branch.value.hue}, brightness ${branch.value.brightness}, saturation ${branch.value.saturation}, opacity ${branch.value.opacity}, yaw ${branch.value.yaw}`;return option;}));
+  if(history.branches.length)branches.value=String(history.branches.at(-1).id);
+  branches.disabled=redo.disabled;
+- historyStatus.textContent=`Session preview history: ${history.nodes.length}/${history.capacity} states. ${history.pending?'Uncommitted slider gesture.':'No game or collection writes.'} ${historyError}`;
++ historyStatus.textContent=`Session preview history: ${history.nodes.length}/${history.capacity} states. ${history.pending?'Uncommitted slider gesture.':'No game or collection writes.'} ${historyError} ${historyRecoveryError}`;
+ }
+ function renderValue(){for(const name of fields)document.getElementById(name).value=String(history.value[name]);syncHistory();controller.request(history.value);}
+ function update(){try{history.stage(Object.fromEntries(fields.map(k=>[k,Number(document.getElementById(k).value)])));syncHistory();controller.request(history.value);}catch(error){status.textContent=error.message;}}
+-function commit(){try{history.commit();historyError='';syncHistory();}catch(error){historyError=error.message;renderValue();}}
++function commit(){try{history.commit();historyError='';saveHistory();syncHistory();}catch(error){historyError=error.message;renderValue();}}
+ for(const name of fields){const field=document.getElementById(name);field.addEventListener('input',update);field.addEventListener('change',commit);}
+-undo.addEventListener('click',()=>{history.undo();renderValue();});
+-redo.addEventListener('click',()=>{try{history.redo(Number(branches.value));renderValue();}catch(error){status.textContent=error.message;}});
++undo.addEventListener('click',()=>{history.undo();saveHistory();renderValue();});
++redo.addEventListener('click',()=>{try{history.redo(Number(branches.value));saveHistory();renderValue();}catch(error){status.textContent=error.message;}});
+ document.querySelector('#reset').addEventListener('click',()=>{history.stage(CC_DEFAULTS);commit();renderValue();});
+ document.querySelector('#close').addEventListener('click',()=>{controller.close();if(history.pending){history.undo();renderValue();}});
+ document.querySelector('#open').addEventListener('click',()=>{controller.open();renderValue();});
+--- a/preview-ui/cc.html
++++ b/preview-ui/cc.html
+@@ -1,6 +1,6 @@
+ <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Apex selected CC preview</title>
+ <style>body{background:#15181e;color:#e5e9ef;font:16px system-ui;max-width:1100px;margin:24px auto;padding:12px}main{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}canvas{width:min(512px,90vw);height:auto;background:#181818;border:1px solid #455366}section{flex:1;min-width:260px}label{display:block;margin:18px 0}input{width:95%}button{padding:10px;margin:6px}output{display:block;min-height:2em}.warning{color:#f4ce7d}small{overflow-wrap:anywhere}</style>
+-<a href="/pose-library">Open real pose library</a><h1>Apex · selected CC preview</h1><p class="warning">Adult female diagnostic with real creator CC and CC skin-tone texture. Selected dress colors and one rig-bound arm diagnostic. No native clip playback. Undo/redo history stays in this tab and is lost on reload; it is not a saved outfit or shared favorites store. No game connection, Apply-to-Sim, Tray writes, full CAS or native shader parity.</p>
++<a href="/pose-library">Open real pose library</a><h1>Apex · selected CC preview</h1><p class="warning">Adult female diagnostic with real creator CC and CC skin-tone texture. Selected dress colors and one rig-bound arm diagnostic. No native clip playback. Preview undo/redo history is recovered in this browser tab when storage is available; it is not a saved outfit, native Sim or shared favorites store. No game connection, Apply-to-Sim, Tray writes, full CAS or native shader parity.</p>
+ <main><canvas width="512" height="512" aria-label="Rust rendered female with selected custom content"></canvas><section>
+ <label>Camera yaw <input id="yaw" type="range" min="-180" max="180" value="0"></label>
+ <label>Left arm (rig diagnostic) <input id="pose" type="range" min="-90" max="90" value="0" disabled></label>
+--- /dev/null
++++ b/preview-ui/cc-history-session.mjs
+@@ -0,0 +1,14 @@
++// Tab-local recovery of preview controls only; never game data or shared outfits.
++const LIMIT=65536, owners=new WeakMap();
++function key(scene){if(typeof scene!=='string'||!/^[a-f0-9]{64}$/.test(scene))throw Error('Verified scene identity required');return 'apex.cc-preview.v1.'+scene;}
++export function loadCcHistory(history,storage,scene){
++ const name=key(scene),raw=storage.getItem(name);
++ if(raw!==null){if(typeof raw!=='string'||raw.length>LIMIT)throw Error('Retained preview history exceeds limit');history.restoreState(JSON.parse(raw));}
++ owners.set(history,{storage,name,raw});return raw!==null;
++}
++export function saveCcHistory(history,storage,scene){
++ const name=key(scene),prior=owners.get(history),current=storage.getItem(name);
++ if(!prior||prior.storage!==storage||prior.name!==name||prior.raw!==current)throw Error('Retained preview history changed; refusing overwrite');
++ const raw=JSON.stringify(history.exportState());if(raw.length>LIMIT)throw Error('Preview history exceeds limit');
++ storage.setItem(name,raw);if(storage.getItem(name)!==raw)throw Error('Preview history readback changed');owners.set(history,{storage,name,raw});
++}
+--- a/examples/preview_server.rs
++++ b/examples/preview_server.rs
+@@ -369,6 +369,13 @@
+             include_bytes!("../preview-ui/cc-history.mjs"),
+             "",
+         )?,
++        "/cc-history-session.mjs" => respond(
++            s,
++            "200 OK",
++            "text/javascript",
++            include_bytes!("../preview-ui/cc-history-session.mjs"),
++            "",
++        )?,
+         "/controller.mjs" => respond(
+             s,
+             "200 OK",
+--- a/preview-ui/cc-app.test.mjs
++++ b/preview-ui/cc-app.test.mjs
+@@ -1,15 +1,15 @@
+ import {routeHistoryShortcut} from './history-shortcuts.mjs';
+ import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+-import {CcHistory,CC_DEFAULTS} from './cc-history.mjs';import {PreviewController} from './controller.mjs';
++import {CcHistory,CC_DEFAULTS} from './cc-history.mjs';import {loadCcHistory,saveCcHistory} from './cc-history-session.mjs';import {PreviewController} from './controller.mjs';
+ const source=readFileSync(new URL('./cc-app.mjs',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ const tick=()=>new Promise(resolve=>setImmediate(resolve));
+-function ui(poseReady=false){
++function ui(poseReady=false,storage={getItem(){return null},setItem(){}}){
+  const elements=new Map();const element=id=>{if(!elements.has(id))elements.set(id,{value:'0',textContent:'',disabled:false,dataset:{},handlers:{},children:[],click(){this.handlers.click?.();},addEventListener(n,f){this.handlers[n]=f;},replaceChildren(...c){this.children=c;},getContext(){return{putImageData(){}};}});return elements.get(id);};
+  const windowHandlers={};const handlers={};const document={addEventListener(name,fn){handlers[name]=fn;},querySelector:s=>element(s.replace('#','')),getElementById:element,createElement:()=>({value:'',textContent:''})};
+  const pending=[];const createFrameClient=()=>({read:request=>new Promise((resolve,reject)=>pending.push({request,resolve,reject}))});
+- new Function('document','window','ImageData','createFrameClient','PreviewController','CcHistory','CC_DEFAULTS','routeHistoryShortcut',source)(document,{addEventListener(name,fn){windowHandlers[name]=fn;}},class{},createFrameClient,PreviewController,CcHistory,CC_DEFAULTS,routeHistoryShortcut);
++ new Function('document','window','ImageData','createFrameClient','PreviewController','CcHistory','CC_DEFAULTS','routeHistoryShortcut','loadCcHistory','saveCcHistory','sessionStorage',source)(document,{addEventListener(name,fn){windowHandlers[name]=fn;}},class{},createFrameClient,PreviewController,CcHistory,CC_DEFAULTS,routeHistoryShortcut,loadCcHistory,saveCcHistory,storage);
+  const fire=(id,event='click')=>element(id).handlers[event]();
+- const accept=async()=>{const item=pending.shift();item.resolve({rgba:new Uint8ClampedArray(4),scene:'test-scene',harness:'fixture',renderer:'fixture',fetchMs:1,poseReady});await tick();return item;};
++ const accept=async()=>{const item=pending.shift();item.resolve({rgba:new Uint8ClampedArray(4),scene:'a'.repeat(64),harness:'fixture',renderer:'fixture',fetchMs:1,poseReady});await tick();return item;};
+  return{element,fire,pending,accept,keydown:handlers.keydown,windowEvent(name,event={}){windowHandlers[name]?.(event);}};
+ }
+ test('app slider commit, undo and redo request exact states',async()=>{const u=ui();await u.accept();u.element('hue').value='500';u.fire('hue','input');u.fire('hue','change');await u.accept();assert.equal(u.element('undo').disabled,false);u.fire('undo');assert.equal(u.pending[0].request.hue,0);await u.accept();u.fire('redo');assert.equal(u.pending[0].request.hue,500);await u.accept();});
+@@ -42,3 +42,5 @@
+  await u.accept();assert.equal(JSON.parse(u.element('canvas').dataset.parameters).hue,0);assert.equal(u.pending.length,1);
+  await u.accept();assert.equal(JSON.parse(u.element('canvas').dataset.parameters).hue,500);
+ });
++
++test('tab reload restores committed preview edit with scene binding',async()=>{const m=new Map(),storage={getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)};let first=ui(true,storage);await first.accept();first.element('hue').value='1234';first.fire('hue','input');first.fire('hue','change');await first.accept();let second=ui(true,storage);await second.accept();await tick();assert.equal(second.pending[0].request.hue,1234);await second.accept();assert.equal(second.element('hue').value,'1234');second.fire('undo');assert.equal(second.pending[0].request.hue,0);await second.accept();});
+--- /dev/null
++++ b/preview-ui/cc-history-session.test.mjs
+@@ -0,0 +1,5 @@
++import test from 'node:test';import assert from 'node:assert/strict';import {CcHistory} from './cc-history.mjs';import {loadCcHistory,saveCcHistory} from './cc-history-session.mjs';
++const scene='a'.repeat(64);function storage(){const m=new Map();return {m,getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)}}
++test('scene-bound committed history and branches survive tab reload',()=>{let s=storage(),h=new CcHistory();assert.equal(loadCcHistory(h,s,scene),false);h.stage({...h.value,hue:100});h.commit();h.stage({...h.value,hue:200});h.commit();h.undo();saveCcHistory(h,s,scene);let h2=new CcHistory();assert.equal(loadCcHistory(h2,s,scene),true);assert.equal(h2.value.hue,100);h2.redo();assert.equal(h2.value.hue,200)});
++test('corrupt or foreign history never gets overwritten',()=>{let s=storage(),h=new CcHistory();loadCcHistory(h,s,scene);saveCcHistory(h,s,scene);let k=[...s.m.keys()][0];for(let raw of ['{bad','x'.repeat(65537)]){s.m.set(k,raw);let h2=new CcHistory();assert.throws(()=>loadCcHistory(h2,s,scene));assert.throws(()=>saveCcHistory(h2,s,scene));assert.equal(s.getItem(k),raw)}assert.throws(()=>loadCcHistory(new CcHistory(),s,'not-a-hash'))});
++test('concurrent changes, deletion, quota and uncertain readback fail closed',()=>{let s=storage(),h=new CcHistory();loadCcHistory(h,s,scene);saveCcHistory(h,s,scene);let k=[...s.m.keys()][0];s.m.set(k,'other');assert.throws(()=>saveCcHistory(h,s,scene));s.m.delete(k);assert.throws(()=>saveCcHistory(h,s,scene));let x=new CcHistory(),q={getItem:()=>null,setItem(){throw Error('quota')}};loadCcHistory(x,q,scene);assert.throws(()=>saveCcHistory(x,q,scene),/quota/);let raw=null,t={getItem:()=>raw,setItem(){raw='different'}};let y=new CcHistory();loadCcHistory(y,t,scene);assert.throws(()=>saveCcHistory(y,t,scene),/readback/);assert.throws(()=>saveCcHistory(y,t,scene),/changed/) });

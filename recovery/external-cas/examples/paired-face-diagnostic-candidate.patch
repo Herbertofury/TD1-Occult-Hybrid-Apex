@@ -1,0 +1,327 @@
+--- a/src/preview.rs
++++ b/src/preview.rs
+@@ -15,6 +15,34 @@
+     pub covered_pixels: usize,
+     pub triangles: usize,
+     pub stage_ms: Option<[f64; 3]>,
++}
++// Diagnostic only: identify exact reverse-wound duplicate faces with matching
++// position, UV and skinning attributes. Unique or ambiguous faces are untouched.
++fn exact_reverse_pairs(vertices: &[u8], indices: &[u8]) -> Result<Vec<bool>, &'static str> {
++    use std::collections::HashMap;
++    type VertexKey = [u8; 44];
++    type Triangle = [VertexKey; 3];
++    let count=indices.len()/12;
++    if count>100_000 {return Err("paired-face analysis budget");}
++    let mut groups:HashMap<Triangle,Vec<(usize,Triangle)>>=HashMap::new();
++    for (ordinal,tri) in indices.as_chunks::<12>().0.iter().enumerate() {
++        let ids:[usize;3]=std::array::from_fn(|i|u32::from_le_bytes(tri[i*4..i*4+4].try_into().unwrap()) as usize);
++        let mut ordered:Triangle=[[0;44];3];
++        for i in 0..3 {let off=ids[i]*STRIDE;ordered[i][..12].copy_from_slice(&vertices[off..off+12]);ordered[i][12..].copy_from_slice(&vertices[off+24..off+56]);}
++        let mut key=ordered;key.sort_unstable();
++        if key[0]!=key[1] && key[1]!=key[2] {groups.entry(key).or_default().push((ordinal,ordered));}
++    }
++    let mut marked=vec![false;count];
++    for group in groups.values() {
++        if let [(i,a),(j,b)]=group.as_slice() {
++            let rev=[a[0],a[2],a[1]];
++            if *b==rev || *b==[rev[1],rev[2],rev[0]] || *b==[rev[2],rev[0],rev[1]] {marked[*i]=true;marked[*j]=true;}
++        }
++    }
++    Ok(marked)
++}
++pub fn pair_mask(raw:&[u8],bones:usize)->Result<Vec<bool>,&'static str>{
++ let mut budget=SceneBudget::default();let mesh=budget.validate(raw,bones)?;exact_reverse_pairs(mesh.vertices,mesh.indices)
+ }
+ fn f32_at(v: &[u8], i: usize) -> f32 {
+     f32::from_le_bytes(v[i..i + 4].try_into().unwrap())
+@@ -119,6 +147,12 @@
+     let frame=render_textured_cutout_view(inputs,width,height,RenderView{camera:band.camera,rows:Some(rows)},textures,materials,masks)?;
+     Ok(BandFrame{rows,frame})
+ }
++pub fn render_textured_cutout_camera_cached(inputs:&[(&[u8],usize)],width:usize,height:usize,camera:Camera,textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:&[Option<texture::AlphaMask<'_>>],pairs:Option<&[Vec<bool>]>)->Result<Frame,&'static str>{
++ render_textured_cutout_view_cached(inputs,width,height,camera.into(),textures,materials,masks,pairs)
++}
++pub fn render_textured_cutout_band_cached(inputs:&[(&[u8],usize)],width:usize,height:usize,band:RasterBand,textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:&[Option<texture::AlphaMask<'_>>],pairs:Option<&[Vec<bool>]>)->Result<BandFrame,&'static str>{
++ let rows=(band.first_row,band.past_last_row);let frame=render_textured_cutout_view_cached(inputs,width,height,RenderView{camera:band.camera,rows:Some(rows)},textures,materials,masks,pairs)?;Ok(BandFrame{rows,frame})
++}
+ fn render_textured_cutout_view(
+     inputs: &[(&[u8], usize)],
+     width: usize,
+@@ -128,6 +162,12 @@
+     materials: &[usize],
+     masks: &[Option<texture::AlphaMask<'_>>],
+ ) -> Result<Frame, &'static str> {
++    render_textured_cutout_view_cached(inputs,width,height,camera,textures,materials,masks,None)
++}
++fn render_textured_cutout_view_cached(
++    inputs:&[(&[u8],usize)],width:usize,height:usize,camera:RenderView,
++    textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:&[Option<texture::AlphaMask<'_>>],pairs:Option<&[Vec<bool>]>,
++)->Result<Frame,&'static str>{
+     if textures.is_empty()
+         || textures.len() > 3
+         || materials.len() != inputs.len()
+@@ -143,7 +183,7 @@
+     {
+         return Err("cutout mask dimensions");
+     }
+-    render_impl::<true>(
++    render_impl_with_pairs::<true>(
+         inputs,
+         width,
+         height,
+@@ -151,6 +191,7 @@
+         textures,
+         materials,
+         Some(masks),
++        pairs,
+     )
+ }
+ fn render_impl<const TEXTURED: bool>(
+@@ -162,6 +203,11 @@
+     materials: &[usize],
+     masks: Option<&[Option<texture::AlphaMask<'_>>]>,
+ ) -> Result<Frame, &'static str> {
++    render_impl_with_pairs::<TEXTURED>(inputs,width,height,camera,textures,materials,masks,None)
++}
++fn render_impl_with_pairs<const TEXTURED:bool>(
++ inputs:&[(&[u8],usize)],width:usize,height:usize,camera:impl Into<RenderView>,textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:Option<&[Option<texture::AlphaMask<'_>>]>,pairs:Option<&[Vec<bool>]>,
++)->Result<Frame,&'static str>{
+     let view = camera.into();
+     let camera = view.camera;
+     let yaw = camera.yaw;
+@@ -229,6 +275,7 @@
+     };
+     let mut depth = vec![f32::NEG_INFINITY; pixels];
+     let mut pixel_visits = 0usize;
++    let diagnostic_cull=std::env::var("APEX_DIAGNOSTIC_CULL").unwrap_or_default();
+     for (mesh_index, mesh) in meshes.iter().enumerate() {
+         let projected: Vec<_> = mesh
+             .vertices
+@@ -248,7 +295,10 @@
+                 )
+             })
+             .collect();
+-        for triangle in mesh.indices.as_chunks::<12>().0 {
++        let computed=if diagnostic_cull=="paired" {Some(exact_reverse_pairs(mesh.vertices,mesh.indices)?)} else {None};
++        let paired=if diagnostic_cull=="cached-paired" {pairs.and_then(|p|p.get(mesh_index))} else {computed.as_ref()};
++        if paired.is_some_and(|p|p.len()!=mesh.indices.len()/12) {return Err("pair mask extent");}
++        for (triangle_index,triangle) in mesh.indices.as_chunks::<12>().0.iter().enumerate() {
+             let ids: [usize; 3] = std::array::from_fn(|i| {
+                 u32::from_le_bytes(triangle[i * 4..i * 4 + 4].try_into().unwrap()) as usize
+             });
+@@ -261,6 +311,7 @@
+             if area.abs() < 1e-8 {
+                 continue;
+             }
++            if (diagnostic_cull=="positive" && area<0.) || (diagnostic_cull=="negative" && area>0.) || ((diagnostic_cull=="paired" || diagnostic_cull=="cached-paired") && paired.is_some_and(|v|v[triangle_index]) && area>0.) { continue; }
+             frame.triangles += 1;
+             let min_x = a[0].min(b[0]).min(c[0]).floor().max(0.) as usize;
+             let max_x = (a[0].max(b[0]).max(c[0]).ceil() as usize).min(width - 1);
+@@ -359,6 +410,18 @@
+         b
+     }
+     #[test]
++    fn reverse_face_pair_detection_is_exact_and_ambiguous_faces_stay() {
++        let base=fixture(0.,[0.,0.,1.],false);let mut two=base.clone();two[12..16].copy_from_slice(&6u32.to_le_bytes());two.extend([0u32,2,1].into_iter().flat_map(u32::to_le_bytes));
++        assert_eq!(pair_mask(&two,1).unwrap(),vec![true,true]);
++        let mut three=two.clone();three[12..16].copy_from_slice(&9u32.to_le_bytes());three.extend([0u32,1,2].into_iter().flat_map(u32::to_le_bytes));
++        assert_eq!(pair_mask(&three,1).unwrap(),vec![false,false,false]);
++        let mut different=two.clone();different[16+24..16+28].copy_from_slice(&0.25f32.to_le_bytes());
++        // Both faces still refer to that vertex, so a shared UV edit remains paired.
++        assert_eq!(pair_mask(&different,1).unwrap(),vec![true,true]);
++        let vertices=&base[16..16+3*56];let mut split=b"APXMESH1".to_vec();split.extend(6u32.to_le_bytes());split.extend(6u32.to_le_bytes());split.extend(vertices);split.extend(vertices);split[16+3*56+24..16+3*56+28].copy_from_slice(&0.25f32.to_le_bytes());split.extend([0u32,1,2,3,5,4].into_iter().flat_map(u32::to_le_bytes));
++        assert_eq!(pair_mask(&split,1).unwrap(),vec![false,false]);
++    }
++    #[test]
+     fn fixed_framing_rejects_invalid_and_outside_geometry() {
+         assert!(FramingBounds::new([f32::NAN; 3], [1.; 3]).is_err());
+         assert!(FramingBounds::new([2.; 3], [1.; 3]).is_err());
+--- a/examples/cc_scene/mod.rs
++++ b/examples/cc_scene/mod.rs
+@@ -25,6 +25,7 @@
+ }
+ pub struct CcScene {
+     meshes: [Vec<u8>; 4],
++    pair_masks: Option<Vec<Vec<bool>>>,
+     accessory: Option<accessory::Accessory>,
+     accessory_selections: Option<accessory_selections::Catalog>,
+     selected_accessory: Mutex<Option<(&'static str, accessory::Accessory)>>,
+@@ -312,6 +313,7 @@
+                     textures: &textures,
+                     materials,
+                     masks: &masks,
++                    pairs: None,
+                 },
+                 512,
+                 512,
+@@ -591,9 +593,13 @@
+         } else {
+             PreparedColorLayer::new(cloth_raw)?
+         };
++        let pair_masks=if std::env::var("APEX_DIAGNOSTIC_CULL").as_deref()==Ok("cached-paired") {
++            Some(meshes.iter().map(|m|preview::pair_mask(m,165)).collect::<Result<Vec<_>,_>>()?)
++        } else {None};
+         let scene = Self {
+             raster_pool,
+             meshes,
++            pair_masks,
+             accessory,
+             accessory_selections,
+             selected_accessory: Mutex::new(None),
+@@ -878,6 +884,10 @@
+             materials.push(2);
+             masks.push(Some(accessory.mask()?));
+         }
++        // Opt-in isolated quality experiment. The resulting coverage count is
++        // a rounded subpixel-area estimate, not a native pixel coverage count.
++        let scale=if std::env::var("APEX_DIAGNOSTIC_SSAA").as_deref()==Ok("2"){2}else{1};
++        let extent=512*scale;
+         let mut frame = match &self.raster_pool {
+             Some(pool) => pooled_raster::render(
+                 pool,
+@@ -887,14 +897,24 @@
+                     textures: &textures,
+                     materials: &materials,
+                     masks: &masks,
++                    pairs: self.pair_masks.as_deref(),
+                 },
+-                512,
+-                512,
++                extent,
++                extent,
+             )?,
+-            None => preview::render_textured_cutout_camera(
+-                &inputs, 512, 512, camera, &textures, &materials, &masks,
++            None => preview::render_textured_cutout_camera_cached(
++                &inputs, extent, extent, camera, &textures, &materials, &masks, self.pair_masks.as_deref(),
+             )?,
+         };
++        if scale==2 {
++            let mut rgb=vec![0u8;512*512*3];
++            for y in 0..512 { for x in 0..512 { for c in 0..3 {
++                let mut sum=0u32;
++                for dy in 0..2 { for dx in 0..2 {sum+=u32::from(frame.rgb[((2*y+dy)*extent+(2*x+dx))*3+c]);} }
++                rgb[(y*512+x)*3+c]=((sum+2)/4) as u8;
++            } } }
++            frame.width=512;frame.height=512;frame.rgb=rgb;frame.covered_pixels=(frame.covered_pixels+2)/4;
++        }
+         frame.stage_ms = Some([
+             material_ms,
+             pose_ms,
+@@ -1190,6 +1210,7 @@
+     }
+     fn failing_scene() -> CcScene {
+         CcScene {
++            pair_masks: None,
+             meshes: std::array::from_fn(|_| Vec::new()),
+             accessory: None,
+             accessory_selections: None,
+@@ -1304,6 +1325,7 @@
+     }
+     fn scene() -> CcScene {
+         CcScene {
++            pair_masks: None,
+             meshes: std::array::from_fn(|_| triangle(-0.9)),
+             accessory: None,
+             accessory_selections: None,
+--- a/examples/cc_scene/pooled_raster.rs
++++ b/examples/cc_scene/pooled_raster.rs
+@@ -3,7 +3,7 @@
+ use rayon::prelude::*;
+ pub struct Inputs<'a> {
+     pub meshes:&'a [(&'a [u8],usize)], pub camera:Camera,
+-    pub textures:&'a [OpaqueTexture<'a>],pub materials:&'a [usize],pub masks:&'a [Option<AlphaMask<'a>>],
++    pub textures:&'a [OpaqueTexture<'a>],pub materials:&'a [usize],pub masks:&'a [Option<AlphaMask<'a>>],pub pairs:Option<&'a [Vec<bool>]>,
+ }
+ pub fn render(pool:&rayon::ThreadPool,scene:Inputs<'_>,width:usize,height:usize)->Result<Frame,&'static str> {
+     let workers=pool.current_num_threads();
+@@ -14,7 +14,7 @@
+     let parts=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||pool.install(|| {
+         (0..workers).into_par_iter().map(|i| {
+             let start=i*rows; let end=(start+rows).min(height);
+-            preview::render_textured_cutout_band(scene.meshes,width,height,preview::RasterBand{camera:scene.camera,first_row:start,past_last_row:end},scene.textures,scene.materials,scene.masks)
++            preview::render_textured_cutout_band_cached(scene.meshes,width,height,preview::RasterBand{camera:scene.camera,first_row:start,past_last_row:end},scene.textures,scene.materials,scene.masks,scene.pairs)
+         }).collect::<Result<Vec<_>,_>>()
+     }))).map_err(|_|"pooled raster worker panicked")??;
+     let triangles=parts.first().ok_or("missing raster bands")?.frame.triangles;
+@@ -33,6 +33,6 @@
+     #[test]
+     fn retained_workers_preserve_complete_rows_and_recover_after_refusal() {
+         let raw=mesh();let rgba=[80,140,220,255];let textures=[OpaqueTexture::new(1,1,&rgba).unwrap()];let masks=[None];let inputs=[(raw.as_slice(),1)];
+-        for workers in [1,2,4] {let pool=rayon::ThreadPoolBuilder::new().num_threads(workers).stack_size(512*1024).build().unwrap();for height in [16,17,63] {let camera=Camera::from(0.37);let expected=preview::render_textured_cutout_camera(&inputs,64,height,camera,&textures,&[0],&masks).unwrap();let actual=render(&pool,Inputs{meshes:&inputs,camera,textures:&textures,materials:&[0],masks:&masks},64,height).unwrap();assert_eq!(actual.rgb,expected.rgb);assert_eq!(actual.covered_pixels,expected.covered_pixels);assert_eq!(actual.triangles,expected.triangles);}let bad=[(&raw[..5],1)];assert!(render(&pool,Inputs{meshes:&bad,camera:0f32.into(),textures:&textures,materials:&[0],masks:&masks},64,64).is_err());assert!(render(&pool,Inputs{meshes:&inputs,camera:0f32.into(),textures:&textures,materials:&[0],masks:&masks},64,64).is_ok());}
++        for workers in [1,2,4] {let pool=rayon::ThreadPoolBuilder::new().num_threads(workers).stack_size(512*1024).build().unwrap();for height in [16,17,63] {let camera=Camera::from(0.37);let expected=preview::render_textured_cutout_camera(&inputs,64,height,camera,&textures,&[0],&masks).unwrap();let actual=render(&pool,Inputs{meshes:&inputs,camera,textures:&textures,materials:&[0],masks:&masks,pairs:None},64,height).unwrap();assert_eq!(actual.rgb,expected.rgb);assert_eq!(actual.covered_pixels,expected.covered_pixels);assert_eq!(actual.triangles,expected.triangles);}let bad=[(&raw[..5],1)];assert!(render(&pool,Inputs{meshes:&bad,camera:0f32.into(),textures:&textures,materials:&[0],masks:&masks,pairs:None},64,64).is_err());assert!(render(&pool,Inputs{meshes:&inputs,camera:0f32.into(),textures:&textures,materials:&[0],masks:&masks,pairs:None},64,64).is_ok());}
+     }
+ }
+--- /dev/null
++++ b/research/launch_pair_aa.py
+@@ -0,0 +1,59 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Launch one explicitly pinned private CAS diagnostic on loopback.
++
++Only execute an independently reviewed locally built preview server. Trusted
++local paths are required; pin checks are not a hostile-filesystem sandbox.
++The runtime is a partial preview, not a native game, installer or Tray save.
++"""
++import argparse,hashlib,json,os,pathlib,re,sys
++ROOT=pathlib.Path(__file__).resolve().parents[1];PRIVATE=ROOT/'private-input-recovery';D=re.compile(r'[a-f0-9]{64}\Z');N=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z')
++ASSETS={'pose-config.bin','AH00B-SugarHair-V1-Plain.rgba','eyes.2048.rgba','tone-base.2048.rgba','miiko-rhea-skin.2048.rgba','myshunosun-caroline-tattoo.2048.rgba','Jius-BowFlipFlops01.2048.rgba','FatalRose-PastelGothDress.2048.rgba'};MESHES={'head.apxmesh','dress.apxmesh','shoes.apxmesh','hair.apxmesh'}
++def pin(path,digest,limit):
++ if not D.fullmatch(digest) or path.is_symlink() or not path.is_file() or path.stat().st_size>limit:raise ValueError('bounded pinned regular file required')
++ h=hashlib.sha256()
++ with path.open('rb') as f:
++  for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
++ if h.hexdigest()!=digest:raise ValueError('runtime identity mismatch')
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--aa',choices=('1','2'),default='1');p.add_argument('--cull',choices=('none','positive','negative','paired','cached-paired'),default='none');p.add_argument('--runtime',required=True);p.add_argument('--runtime-sha',required=True);p.add_argument('--binary',required=True);p.add_argument('--binary-sha',required=True);p.add_argument('--catalog-index');p.add_argument('--catalog-index-sha');p.add_argument('--catalog-helper');p.add_argument('--catalog-helper-sha');p.add_argument('--catalog-policy');a=p.parse_args()
++ if not N.fullmatch(a.runtime) or not D.fullmatch(a.runtime_sha) or not D.fullmatch(a.binary_sha):raise ValueError('invalid identity')
++ if PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('private parent unavailable')
++ root=PRIVATE/a.runtime
++ if root.is_symlink() or not root.is_dir():raise ValueError('runtime unavailable')
++ for child in ('assets','poses'):
++  pth=root/child
++  if pth.is_symlink() or not pth.is_dir():raise ValueError('runtime directory refused')
++ record=root/'runtime.json';pin(record,a.runtime_sha,1024*1024);data=json.loads(record.read_bytes());keys={'schema','descriptor_sha256','dress_mesh_sha256','material_sha256','pose_catalog_sha256','baseline_manifest_sha256','asset_hashes','mesh_hashes','pose_hashes','game_modified','native_fidelity','preview_only','bytes'}
++ if not keys<=set(data) or set(data)-keys-{'hair_source','shoes_source','eyes_source','tattoo_source'} or data['schema']!=1 or data['game_modified'] is not False or data['native_fidelity']!='unverified' or data['preview_only'] is not True or set(data['asset_hashes'])!=ASSETS or set(data['mesh_hashes'])!=MESHES or not isinstance(data['pose_hashes'],dict) or not 1<=len(data['pose_hashes'])<=2048 or data['pose_hashes'].get('catalog.json')!=data['pose_catalog_sha256']:raise ValueError('runtime manifest shape')
++ if set(x.name for x in (root/'assets').iterdir())!=ASSETS or set(x.name for x in (root/'poses').iterdir())!=set(data['pose_hashes']):raise ValueError('runtime file inventory mismatch')
++ for name,digest in data['asset_hashes'].items():pin(root/'assets'/name,digest,32*1024*1024)
++ for name,digest in data['mesh_hashes'].items():pin(root/name,digest,64*1024*1024)
++ for name,digest in data['pose_hashes'].items():
++  if not(name=='catalog.json' or re.fullmatch(r'[a-f0-9]{64}\.(png|posebin)',name)):raise ValueError('pose file name')
++  pin(root/'poses'/name,digest,16*1024*1024)
++ pin(root/'descriptor.txt',data['descriptor_sha256'],4096)
++ if data['mesh_hashes']['dress.apxmesh']!=data['dress_mesh_sha256'] or data['asset_hashes']['FatalRose-PastelGothDress.2048.rgba']!=data['material_sha256']:raise ValueError('prepared asset mismatch')
++ if 'hair_source' in data:
++  h=data['hair_source']
++  if type(h)is not dict or set(h)!={'package_sha256','casp','casp_sha256','mesh_sha256','material_sha256'} or not all(isinstance(h[k],str) and D.fullmatch(h[k]) for k in ('package_sha256','casp_sha256','mesh_sha256','material_sha256')) or not isinstance(h['casp'],str) or not re.fullmatch(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}',h['casp']) or h['mesh_sha256']!=data['mesh_hashes']['hair.apxmesh'] or h['material_sha256']!=data['asset_hashes']['AH00B-SugarHair-V1-Plain.rgba']:raise ValueError('prepared hair identity')
++ if 'shoes_source' in data:
++  h=data['shoes_source']
++  if type(h)is not dict or set(h)!={'package_sha256','casp','casp_sha256','mesh_sha256','material_sha256'} or not all(isinstance(h[k],str) and D.fullmatch(h[k]) for k in ('package_sha256','casp_sha256','mesh_sha256','material_sha256')) or not isinstance(h['casp'],str) or not re.fullmatch(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}',h['casp']) or h['mesh_sha256']!=data['mesh_hashes']['shoes.apxmesh'] or h['material_sha256']!=data['asset_hashes']['Jius-BowFlipFlops01.2048.rgba']:raise ValueError('prepared shoes identity')
++ if 'eyes_source' in data:
++  h=data['eyes_source']
++  if type(h)is not dict or set(h)!={'package_sha256','casp','casp_sha256','material_sha256'} or not all(isinstance(h[k],str) and D.fullmatch(h[k]) for k in ('package_sha256','casp_sha256','material_sha256')) or not isinstance(h['casp'],str) or not re.fullmatch(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}',h['casp']) or h['material_sha256']!=data['asset_hashes']['eyes.2048.rgba']:raise ValueError('prepared eyes identity')
++ if 'tattoo_source' in data:
++  h=data['tattoo_source']
++  if type(h)is not dict or set(h)!={'package_sha256','casp','casp_sha256','material_sha256'} or not all(isinstance(h[k],str) and D.fullmatch(h[k]) for k in ('package_sha256','casp_sha256','material_sha256')) or not isinstance(h['casp'],str) or not re.fullmatch(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}',h['casp']) or h['material_sha256']!=data['asset_hashes']['myshunosun-caroline-tattoo.2048.rgba']:raise ValueError('prepared tattoo identity')
++ binary=pathlib.Path(a.binary);pin(binary,a.binary_sha,64*1024*1024)
++ env={'PATH':'/usr/bin:/bin','APEX_GENERIC_DRESS':str(root/'descriptor.txt'),'APEX_GENERIC_DRESS_SHA256':data['descriptor_sha256'],'APEX_POSE_LIBRARY':str(root/'poses'),'APEX_REQUEST_BUDGET':'1000'}
++ if a.aa=='2':env['APEX_DIAGNOSTIC_SSAA']='2'
++ if a.cull!='none':env['APEX_DIAGNOSTIC_CULL']=a.cull
++ fields=(a.catalog_index,a.catalog_index_sha,a.catalog_helper,a.catalog_helper_sha,a.catalog_policy)
++ if any(v is not None for v in fields):
++  if not all(v is not None for v in fields) or a.catalog_policy not in ('sha256-per-request','trusted-immutable-linux') or not pathlib.Path(a.catalog_index).is_absolute() or not pathlib.Path(a.catalog_helper).is_absolute():raise ValueError('complete trusted catalog pins required')
++  pin(pathlib.Path(a.catalog_index),a.catalog_index_sha,256*1024*1024);pin(pathlib.Path(a.catalog_helper),a.catalog_helper_sha,64*1024*1024)
++  env.update(APEX_CC_CATALOG_INDEX=a.catalog_index,APEX_CC_CATALOG_INDEX_SHA256=a.catalog_index_sha,APEX_CC_CATALOG_HELPER=a.catalog_helper,APEX_CC_CATALOG_HELPER_SHA256=a.catalog_helper_sha,APEX_CC_CATALOG_POLICY=a.catalog_policy)
++ argv=[str(binary),'--cc',str(root/'assets'),str(root/'head.apxmesh'),str(root/'dress.apxmesh'),str(root/'shoes.apxmesh'),str(root/'hair.apxmesh')]
++ os.execve(str(binary),argv,env)
++if __name__=='__main__':main()
+--- /dev/null
++++ b/PAIRED_FACE_DIAGNOSTIC.md
+@@ -0,0 +1,7 @@
++# Paired-face diagnostic
++
++A privately rendered top-and-skirt preview showed visible stippling compared with its creator reference. Investigation found exact reverse-wound duplicate faces with matching position, UV and skinning attributes. An isolated opt-in candidate culls one orientation only for unambiguous exact pairs; unique or ambiguous faces are untouched. The inspected view appeared smoother. The default renderer remains unchanged.
++
++For two private source scenes, precomputed masks matched recomputed masks across 69 pose/yaw frames each. The isolated paired-mask path measured about 30 ms median versus 53 ms recomputing masks in one bounded local test. A foreground-color heuristic still observed up to 42 apparently lost pixels per frame compared with the original path. Coverage, interior surfaces, mixed meshes, other assets, animation fidelity and native game behavior are not yet proven, so this must remain experimental. Supersampling alone cost more and did not remove the observed artifact. The candidate is not a production recommendation.
++
++245 Rust tests passed and 10 were ignored. Creator content and frames are not included.

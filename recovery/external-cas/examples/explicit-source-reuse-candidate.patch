@@ -1,0 +1,286 @@
+--- a/preparation_owner.py
++++ b/preparation_owner.py
+@@ -38,20 +38,23 @@
+   if len({v['name'] for v in self.selections.values()})!=len(self.selections) or len({v['part_id'] for v in self.selections.values()})!=len(self.selections):raise ValueError('duplicate output name or part')
+   variant_outputs=[v['variant']['output'] for v in self.selections.values() if 'variant' in v]
+   if len(set(variant_outputs))!=len(variant_outputs) or set(variant_outputs)&{v['name'] for v in self.selections.values()}:raise ValueError('duplicate runtime output')
+-  self.lock=threading.RLock();self.job=None;self.child=None;self.closed=False;self.used=set();self.thread=None;self.results={}
++  self.lock=threading.RLock();self.job=None;self.child=None;self.closed=False;self.used=set();self.prepared=set();self.thread=None;self.results={}
+  def options(self):
+-  with self.lock:return [{'token':k,'part_id':v['part_id'],'used':k in self.used} for k,v in self.selections.items()]
++  with self.lock:return [{'token':k,'part_id':v['part_id'],'used':k in self.used,'prepared':k in self.prepared} for k,v in self.selections.items()]
+  def status(self):
+   with self.lock:return None if self.job is None else dict(self.job)
+  def start(self,token,variant_override=None):
+   with self.lock:
+-   if self.closed or self.job is not None or token not in self.selections or token in self.used:raise ValueError('selection unavailable or owner busy')
++   if self.closed or self.job is not None or token not in self.selections or (token in self.used and token not in self.prepared):raise ValueError('selection unavailable or owner busy')
+    s=self.selections[token]
+    if variant_override is not None:
+     if 'variant' not in s:raise ValueError('selection cannot be rebased')
+     probe=PreparationOwner({token:{**s,'variant':variant_override}});s=probe.selections[token];probe.close()
+-   self.used.add(token);job=uuid.uuid4().hex;self.job={'id':job,'selection':token,'state':'running'}
+-   self.thread=threading.Thread(target=self._run,args=(job,s),daemon=True);self.thread.start();return dict(self.job)
++   if token in self.prepared and 'variant' not in s:raise ValueError('prepared source requires a variant')
++   self.used.add(token);job=uuid.uuid4().hex
++   if 'variant' in s:s={**s,'variant':{**s['variant'],'output':s['variant']['output'][:16]+'-'+job[:8]}}
++   self.job={'id':job,'selection':token,'state':'running','source_prepared':token in self.prepared}
++   self.thread=threading.Thread(target=self._run,args=(job,token,s),daemon=True);self.thread.start();return dict(self.job)
+  def _execute(self,args,capture=False):
+   with tempfile.TemporaryFile() as output:
+    with self.lock:
+@@ -67,11 +70,16 @@
+     return json.loads(raw)
+    finally:
+     with self.lock:self.child=None
+- def _run(self,job,s):
++ def _run(self,job,token,s):
+   args=[sys.executable,str(ROOT/'prepare_catalog_selection.py'),'--catalog',s['catalog'],s['catalog_sha'],'--part-id',s['part_id'],'--package',s['package'],'--rig',s['rig'],s['rig_sha'],'--name',s['name']]
+   state='failed';result=None
+   try:
+-   self._execute(args);state='prepared'
++   if token not in self.prepared:
++    self._execute(args)
++    with self.lock:
++     self.prepared.add(token)
++     if self.job and self.job['id']==job:self.job={**self.job,'source_prepared':True}
++   state='prepared'
+    if 'variant' in s:
+     x=s['variant'];dress=s['name'] if x['slot']=='dress' else x['counterpart'];hair=s['name'] if x['slot']=='hair' else x['counterpart']
+     args=[sys.executable,str(ROOT/'build_prepared_variant.py'),'--base',x['base'],'--base-sha',x['base_sha'],'--manifest',x['manifest'],x['manifest_sha'],'--dress-pipeline',dress,'--hair-pipeline',hair,'--binary',x['binary'],x['binary_sha'],'--output',x['output']]
+--- a/test_preparation_owner.py
++++ b/test_preparation_owner.py
+@@ -54,7 +54,7 @@
+   v={'base_token':'1'*32,'base':'base','base_sha':'d'*64,'manifest':'/safe/manifest','manifest_sha':'e'*64,'counterpart':'other','slot':'hair','binary':'/safe/bin','binary_sha':'f'*64,'output':'scene-out','helper':'/safe/helper','helper_sha':'c'*64,'policy':'sha256-per-request'};o=PreparationOwner({'2'*32:{**S,'variant':v}})
+   def execute(args,capture=False):
+    if not capture:return None
+-   return {'runtime':'scene-out','runtime_sha256':'a'*64,'scene_sha256':'b'*64,'swatch_id':'034AEECB:80000000:0123456789ABCDEF','preview_frame_verified':True,'game_modified':False,'native_fidelity':'unverified'}
++   return {'runtime':args[args.index('--output')+1],'runtime_sha256':'a'*64,'scene_sha256':'b'*64,'swatch_id':'034AEECB:80000000:0123456789ABCDEF','preview_frame_verified':True,'game_modified':False,'native_fidelity':'unverified'}
+   with mock.patch.object(o,'_execute',side_effect=execute):
+    j=o.start('2'*32);deadline=time.monotonic()+2
+    while o.status()['state']=='running' and time.monotonic()<deadline:time.sleep(.005)
+@@ -68,12 +68,25 @@
+   def execute(args,capture=False):
+    calls.append(args)
+    if not capture:return None
+-   return {'runtime':'scene-out','runtime_sha256':'a'*64,'scene_sha256':'b'*64,'swatch_id':'034AEECB:80000000:0123456789ABCDEF','preview_frame_verified':True,'game_modified':False,'native_fidelity':'unverified'}
++   return {'runtime':args[args.index('--output')+1],'runtime_sha256':'a'*64,'scene_sha256':'b'*64,'swatch_id':'034AEECB:80000000:0123456789ABCDEF','preview_frame_verified':True,'game_modified':False,'native_fidelity':'unverified'}
+   with mock.patch.object(o,'_execute',side_effect=execute):
+    j=o.start('2'*32);deadline=time.monotonic()+2
+    while o.status()['state']=='running' and time.monotonic()<deadline:time.sleep(.005)
+    self.assertEqual(o.status()['state'],'preview_ready');at=calls[1].index('--pose-config');self.assertEqual(calls[1][at+1:at+3],['/safe/pose','1'*64]);o.acknowledge(j['id']);o.close()
+   with self.assertRaises(ValueError):PreparationOwner({'2'*32:{**S,'variant':{**v,'pose_config_sha':'bad'}}})
++ def test_explicit_reuse_skips_extraction_and_uses_fresh_variant(self):
++  v={'base_token':'1'*32,'base':'base','base_sha':'d'*64,'manifest':'/safe/manifest','manifest_sha':'e'*64,'counterpart':'other','slot':'hair','binary':'/safe/bin','binary_sha':'f'*64,'output':'scene-out','helper':'/safe/helper','helper_sha':'c'*64,'policy':'sha256-per-request'};o=PreparationOwner({'2'*32:{**S,'variant':v}});calls=[]
++  def execute(args,capture=False):
++   calls.append(args)
++   if not capture:return None
++   return {'runtime':args[args.index('--output')+1],'runtime_sha256':'a'*64,'scene_sha256':'b'*64,'swatch_id':'034AEECB:80000000:0123456789ABCDEF','preview_frame_verified':True,'game_modified':False,'native_fidelity':'unverified'}
++  with mock.patch.object(o,'_execute',side_effect=execute):
++   ids=[]
++   for i in range(2):
++    j=o.start('2'*32);deadline=time.monotonic()+2
++    while o.status()['state']=='running' and time.monotonic()<deadline:time.sleep(.005)
++    self.assertEqual(o.status()['state'],'preview_ready');ids.append(o.variant_result(j['id'])['spec']['runtime']);o.activate(j['id'],lambda item:{});o.acknowledge(j['id'])
++   self.assertNotEqual(ids[0],ids[1]);self.assertEqual(len(calls),3);self.assertTrue(o.options()[0]['prepared']);o.close()
+  def test_invalid_tokens_paths_and_duplicate_names_refused(self):
+   for entries in [{'bad':S},{'1'*32:{**S,'package':'relative'}},{'1'*32:S,'2'*32:S}]:
+    with self.assertRaises(ValueError):PreparationOwner(entries)
+--- a/scene_gateway.py
++++ b/scene_gateway.py
+@@ -8,7 +8,7 @@
+ import secrets,http.server,json,pathlib,re,socketserver,threading,urllib.error,urllib.parse,urllib.request
+ from scene_switch_supervisor import Refused,TOKEN
+ from register_prepared_variant import register
+-from extend_variant_bindings import extend
++from extend_variant_bindings import extend,remove_scene
+ ROOT=pathlib.Path(__file__).resolve().parent
+ EXACT={'/cas-room','/room-layout.css','/pose-app.bundle.mjs','/identity','/pose-catalog','/swatch-catalog','/accessory-catalog','/accessory-state','/cc-library','/cc-library.css','/cc-library.mjs','/cc-library-images.mjs','/cc-library-model.mjs','/cc-catalog-state','/cc-import-status','/controller.mjs','/frame-client.mjs','/swatch-model.mjs','/accessory-model.mjs','/thumbnail-pool.mjs','/hue-wheel-model.mjs','/hue-wheel-ui.mjs','/history-shortcuts.mjs','/pose-history-session.mjs','/pose-history.mjs','/pose-model.mjs','/room-fallback.mjs','/cc-history.mjs','/cc-history-session.mjs','/cc-swatch-history.mjs','/accessory-inspection.mjs'}
+ QUERY={'/clip-frame','/cc-frame','/accessory-inspection-frame','/cc-catalog/query','/cc-source-images'}
+@@ -47,7 +47,7 @@
+    catalogs={s.get('catalog',{}).get('index_sha') for s in owner.specs.values()}
+    if len(catalogs)!=1 or None in catalogs or any(v['catalog_sha'] not in catalogs for v in preparations.selections.values()):raise ValueError('preparation catalog mismatch')
+   if provenance is not None and (preparations is None or bindings is None or set(provenance)!=set(owner.specs)):raise ValueError('scene provenance mismatch')
+-  self.preparations=preparations;self.provenance=None if provenance is None else {k:dict(v) for k,v in provenance.items()}
++  self.initial_tokens=frozenset(owner.specs);self.preparations=preparations;self.provenance=None if provenance is None else {k:dict(v) for k,v in provenance.items()}
+   self.owner=owner;self.labels=dict(labels);self.bindings=None if bindings is None else json.loads(json.dumps(bindings));self.slots=threading.BoundedSemaphore(4);super().__init__(('127.0.0.1',0),Handler);self.expected_host='127.0.0.1:'+str(self.server_address[1]);self.expected_origin='http://'+self.expected_host
+  def process_request(self,request,client_address):
+   if not self.slots.acquire(blocking=False):self.shutdown_request(request);return
+@@ -127,13 +127,28 @@
+       with owner.lock:
+        state=owner.status()
+        if state.get('state')!='ready' or state.get('token')!=v['base_token'] or state.get('generation')!=data['generation']:raise Refused('stale base')
+-       token=secrets.token_hex(16);target,bindings=extend(self.server.bindings,set(owner.specs),v['base_token'],token,v['slot'],v['part_id'])
+-       if bindings is None:return owner.switch_if(target,data['generation'])
+-       prior=self.server.provenance.get(v['base_token']) if self.server.provenance is not None else None
+-       if self.server.provenance is not None and prior is None:raise Refused('missing scene provenance')
+-       state=register(owner,self.server.labels,base_token=v['base_token'],generation=data['generation'],token=token,spec=v['spec'],label='Prepared private variation')
+-       if prior is not None:self.server.provenance[token]={**prior,v['slot']:v['pipeline']}
+-       self.server.bindings=bindings;return state
++       token=secrets.token_hex(16);old_specs=dict(owner.specs);old_labels=dict(self.server.labels);old_provenance=None if self.server.provenance is None else dict(self.server.provenance);old_bindings=self.server.bindings
++       # Prefer an existing combination. When full, evict only a non-active
++       # dynamically registered scene from memory; its staged files stay intact.
++       try:
++        try:target,bindings=extend(old_bindings,set(owner.specs),v['base_token'],token,v['slot'],v['part_id'])
++        except Refused as e:
++         if str(e)!='scene or part bound' or len(owner.specs)<16:raise
++         evict=next((k for k in owner.specs if k not in self.server.initial_tokens and k!=v['base_token']),None)
++         if evict is None:raise Refused('no replaceable dynamic scene')
++         candidate=remove_scene(old_bindings,evict);del owner.specs[evict];del self.server.labels[evict]
++         if self.server.provenance is not None:del self.server.provenance[evict]
++         target,bindings=extend(candidate,set(owner.specs),v['base_token'],token,v['slot'],v['part_id'])
++        if bindings is None:return owner.switch_if(target,data['generation'])
++        prior=self.server.provenance.get(v['base_token']) if self.server.provenance is not None else None
++        if self.server.provenance is not None and prior is None:raise Refused('missing scene provenance')
++        if prior is not None:self.server.provenance[token]={**prior,v['slot']:v['pipeline']}
++        self.server.bindings=bindings
++        return register(owner,self.server.labels,base_token=v['base_token'],generation=data['generation'],token=token,spec=v['spec'],label='Prepared private variation')
++       except BaseException:
++        if (getattr(owner,'active',None) or {}).get('token')!=token and owner.status().get('token')!=token:
++         owner.specs=old_specs;self.server.labels=old_labels;self.server.provenance=old_provenance;self.server.bindings=old_bindings
++        raise
+      state=self.server.preparations.activate(data['token'],activate);return self.reply(200,'application/json',json.dumps(state,separators=(',',':')).encode())
+     except (ValueError,Refused):return self.error(409)
+    if self.path in ('/prepare-selection','/preparation-ack'):
+--- a/test_scene_gateway.py
++++ b/test_scene_gateway.py
+@@ -66,7 +66,7 @@
+  def test_opt_in_preparation_only_opaque_same_origin_selection(self):
+   class Prep:
+    def __init__(self):self.selections={'f'*32:{'catalog_sha':'b'*64,'part_id':'a'*64,'package':'/private/example'}};self.calls=[];self.job=None
+-   def options(self):return [{'token':k,'part_id':v['part_id'],'used':False} for k,v in self.selections.items()]
++   def options(self):return [{'token':k,'part_id':v['part_id'],'used':False,'prepared':False} for k,v in self.selections.items()]
+    def status(self):return self.job
+    def start(self,token):self.calls.append(token);self.job={'id':'e'*32,'selection':token,'state':'running'};return self.job
+    def acknowledge(self,token):self.calls.append('ack:'+token);self.job=None
+@@ -91,6 +91,29 @@
+    self.assertEqual(req({'token':'f'*32,'generation':0}),409);self.assertEqual(prep.calls,[])
+    self.assertEqual(req({'token':'f'*32,'generation':1}),200);variant=prep.calls[0][1];self.assertEqual(variant['base_token'],'1'*32);self.assertEqual(variant['base'],'current');self.assertEqual(variant['counterpart'],'current-dress')
+   finally:g.shutdown();g.server_close();t.join(5)
++ def test_full_registry_evicts_only_dynamic_scene_and_rolls_back_on_failure(self):
++  from unittest.mock import patch
++  tokens=[format(i,'032x') for i in range(1,17)];pairs={t:(format(i//4+1,'x')*64,format(i%4+5,'x')*64) for i,t in enumerate(tokens)}
++  def bindings(subset):
++   items=[]
++   for kind,idx in [('dress',0),('hair',1)]:
++    for part in sorted({pairs[t][idx] for t in subset}):
++     other=1-idx;trans={a:b for a in subset for b in subset if pairs[b][idx]==part and pairs[a][other]==pairs[b][other]};items.append({'part_id':part,'kind':kind,'transitions':trans})
++   return {'schema':3,'catalog_sha256':'b'*64,'items':items,'inspect_only':True,'game_modified':False}
++  class Prep:
++   selections={'f'*32:{'catalog_sha':'b'*64,'part_id':'9'*64}}
++   def activate(self,job,fn):return fn({'base_token':tokens[0],'slot':'hair','part_id':'9'*64,'pipeline':'new-hair','spec':{'catalog':{'index_sha':'b'*64}}})
++  self.owner.specs={t:{'catalog':{'index_sha':'b'*64}} for t in tokens[:9]};self.owner.token=tokens[0];g=Gateway(self.owner,{t:'scene' for t in tokens[:9]},bindings(tokens[:9]),Prep());g.owner.specs.update({t:{'catalog':{'index_sha':'b'*64}} for t in tokens[9:]});g.labels.update({t:'scene' for t in tokens[9:]});g.bindings=bindings(tokens)
++  thread=threading.Thread(target=g.serve_forever,daemon=True);thread.start();host,port=g.server_address;origin=f'http://{host}:{port}'
++  def req():
++   c=http.client.HTTPConnection(host,port,timeout=5);c.request('POST','/activate-prepared',json.dumps({'token':'e'*32,'generation':1}),{'Content-Type':'application/json','Origin':origin,'X-CAS-Request':'1'});r=c.getresponse();v=r.status;r.read();c.close();return v
++  def fake_register(owner,labels,**kw):owner.specs[kw['token']]=kw['spec'];labels[kw['token']]=kw['label'];owner.token=kw['token'];owner.generation+=1;return owner.status()
++  try:
++   with patch('scene_gateway.register',side_effect=Refused('failure')):self.assertEqual(req(),409)
++   self.assertEqual(set(g.owner.specs),set(tokens));self.assertEqual(set(g.labels),set(tokens))
++   with patch('scene_gateway.register',side_effect=fake_register):self.assertEqual(req(),200)
++   self.assertEqual(len(g.owner.specs),16);self.assertTrue(set(tokens[:9]).issubset(g.owner.specs));self.assertNotIn(tokens[9],g.owner.specs)
++  finally:g.shutdown();g.server_close();thread.join(5)
+  def test_duplicate_json_fields_do_not_switch(self):
+   hdr={'Content-Type':'application/json','Origin':self.origin,'X-CAS-Request':'1'};body='{"token":"'+('2'*32)+'","token":"'+('1'*32)+'","generation":1}'
+   self.assertEqual(self.request('POST','/scene-switch',body,hdr)[0],400);self.assertEqual(self.owner.generation,1)
+--- a/register_prepared_variant.py
++++ b/register_prepared_variant.py
+@@ -15,4 +15,6 @@
+   owner.specs[token]=probe.specs[token];labels[token]=label
+   try:return owner.switch_if(token,generation)
+   except BaseException:
+-   del owner.specs[token];del labels[token];raise
++   if (getattr(owner,'active',None) or {}).get('token')!=token and owner.status().get('token')!=token:
++    del owner.specs[token];del labels[token]
++   raise
+--- a/extend_variant_bindings.py
++++ b/extend_variant_bindings.py
+@@ -37,3 +37,14 @@
+   other='hair' if kind=='dress' else 'dress';transitions={source:dest for source,a in pairs.items() for dest,b in pairs.items() if b[kind]==pid and a[other]==b[other]}
+   items.append({'part_id':pid,'kind':kind,'transitions':transitions})
+  return new,{**bindings,'items':items}
++
++def remove_scene(bindings,token):
++ """Drop a non-active in-memory scene; never delete staged files."""
++ if bindings.get('schema')!=3 or not isinstance(token,str) or not TOKEN.fullmatch(token):raise Refused('invalid scene removal')
++ rows=[]
++ for row in bindings.get('items',[]):
++  if type(row)is not dict or type(row.get('transitions'))is not dict:raise Refused('invalid bindings')
++  transitions={a:b for a,b in row['transitions'].items() if a!=token and b!=token}
++  if transitions:rows.append({**row,'transitions':transitions})
++ if not rows:raise Refused('cannot remove final scene')
++ return {**bindings,'items':rows}
+--- a/test_extend_variant_bindings.py
++++ b/test_extend_variant_bindings.py
+@@ -1,6 +1,6 @@
+ # SPDX-License-Identifier: GPL-3.0-or-later
+ import unittest
+-from extend_variant_bindings import extend
++from extend_variant_bindings import extend,remove_scene
+ from scene_switch_supervisor import Refused
+ class Tests(unittest.TestCase):
+  def setUp(self):
+@@ -12,6 +12,11 @@
+   dest,new=extend(self.bindings,self.tokens,'1'*32,'5'*32,'hair','e'*64);self.assertEqual(dest,'5'*32);self.assertEqual(len(new['items']),5)
+   item=next(x for x in new['items'] if x['part_id']=='a'*64);self.assertEqual(item['transitions']['5'*32],'5'*32)
+   dest,new=extend(self.bindings,self.tokens,'1'*32,'5'*32,'hair','d'*64);self.assertEqual(dest,'3'*32);self.assertIsNone(new)
++ def test_remove_scene_preserves_other_transitions_without_data_deletion(self):
++  reduced=remove_scene(self.bindings,'4'*32);tokens=self.tokens-{'4'*32}
++  for row in reduced['items']:
++   self.assertNotIn('4'*32,row['transitions']);self.assertNotIn('4'*32,row['transitions'].values())
++  dest,new=extend(reduced,tokens,'1'*32,'5'*32,'hair','e'*64);self.assertEqual(dest,'5'*32);self.assertIsNotNone(new)
+  def test_inconsistent_transitions_and_cross_slot_rejected(self):
+   self.bindings['items'][0]['transitions']['1'*32]='4'*32
+   with self.assertRaises(Refused):extend(self.bindings,self.tokens,'1'*32,'5'*32,'hair','e'*64)
+--- a/build_preparation_manifest.py
++++ b/build_preparation_manifest.py
+@@ -35,6 +35,7 @@
+  for part,slot,path in rows:
+   name='p'+part[:14];out='v'+part[:14];token=hashlib.sha256(('preparation:'+part).encode()).hexdigest()[:32]
+   variant={k:ctx[k] for k in ('base_token','base','base_sha','manifest','manifest_sha','binary','binary_sha','helper','helper_sha','policy','pose_config','pose_config_sha')};variant.update(slot=slot,counterpart=ctx['hair_counterpart' if slot=='hair' else 'dress_counterpart'],output=out)
++  if token in selections:raise ValueError('opaque token collision')
+   selections[token]={'catalog':str(index),'catalog_sha':a.catalog[1],'part_id':part,'package':str(path),'rig':ctx['rig'],'rig_sha':ctx['rig_sha'],'name':name,'variant':variant}
+  owner=PreparationOwner(selections);owner.close();payload=json.dumps({'schema':1,'selections':selections},separators=(',',':')).encode()
+  if len(payload)>262144:raise ValueError('preparation manifest byte bound')
+--- a/prepare_actions.mjs
++++ b/prepare_actions.mjs
+@@ -4,11 +4,11 @@
+  const status=document.createElement('p'),dismiss=document.createElement('button'),open=document.createElement('button');status.setAttribute('role','status');dismiss.type='button';dismiss.textContent='Dismiss preparation result';dismiss.hidden=true;open.type='button';open.textContent='Open prepared preview';open.hidden=true;root.before(status);root.before(open);root.before(dismiss);
+  let mapping=null,job=null,busy=false,timer=null,closed=false;
+  const request=async(path,options={},ms=8000)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{return await fetch(path,{...options,cache:'no-store',redirect:'error',signal:c.signal})}finally{clearTimeout(t)}};
+- const refresh=()=>{if(!mapping)return;for(const card of root.children){const binding=mapping.get(card.dataset.partId);if(!binding||card.querySelector('[data-prepare-asset]'))continue;const {token}=binding;const button=document.createElement('button');button.type='button';button.dataset.prepareAsset='1';button.dataset.preparePart=card.dataset.partId;button.textContent='Prepare private preview asset';button.disabled=busy||job!==null||binding.used;button.addEventListener('click',async()=>{if(busy||job)return;busy=true;refreshButtons();try{const sr=await request('/scene-catalog');if(!sr.ok)throw Error('scene');const scene=await sr.json();if(!Number.isSafeInteger(scene.generation))throw Error('generation');const r=await request('/prepare-selection',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token,generation:scene.generation})});if(!r.ok)throw Error('Preparation refused');const data=await r.json();job=data.job;binding.used=true;if(!job||job.state!=='running')throw Error('Preparation state uncertain');status.textContent='Preparing the private asset. No game changes.';poll()}catch(e){mapping=null;status.textContent='Preparation status uncertain. Refresh before trying again.'}finally{busy=false;refreshButtons()}});card.append(button);}};
+- const refreshButtons=()=>{for(const x of root.querySelectorAll('[data-prepare-asset]'))x.disabled=busy||job!==null||mapping===null||mapping.get(x.dataset.preparePart)?.used===true;};
+- const poll=async()=>{if(closed)return;try{const r=await request('/preparation-status');if(!r.ok)throw Error('status');const data=await r.json();job=data.job;if(!job){status.textContent='No preparation running.';dismiss.hidden=true;refreshButtons();return}if(!/^[a-f0-9]{32}$/.test(job.id)||!['running','prepared','preview_ready','activated','failed','timed_out','cancelled'].includes(job.state))throw Error('invalid status');dismiss.hidden=job.state==='running';open.hidden=job.state!=='preview_ready';status.textContent=job.state==='running'?'Preparing the private asset. No game changes.':job.state==='preview_ready'?'Preview prepared. Open it to inspect; no game changes.':job.state==='activated'?'Preview opened. No game changes.':job.state==='prepared'?'Asset prepared privately. It is not yet available in the room or game.':'Preparation '+job.state+'. Existing evidence was retained.';refreshButtons();if(job.state==='running')timer=setTimeout(poll,1000)}catch(e){mapping=null;status.textContent='Preparation status unavailable. Refresh before trying again.';refreshButtons()}};
+- open.addEventListener('click',async()=>{if(!job||job.state!=='preview_ready'||busy)return;busy=true;open.disabled=true;refreshButtons();status.textContent='Opening verified preview; no game changes.';try{const r=await request('/scene-catalog');if(!r.ok)throw Error('scene');const scene=await r.json();if(!Number.isSafeInteger(scene.generation))throw Error('generation');const a=await request('/activate-prepared',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:job.id,generation:scene.generation})},45000);if(!a.ok)throw Error('activation');location.assign('/cas-room')}catch(e){mapping=null;status.textContent='Preview state uncertain or base changed. Refresh before trying again.'}finally{busy=false;refreshButtons()}});
++ const refresh=()=>{if(!mapping)return;for(const card of root.children){const binding=mapping.get(card.dataset.partId);if(!binding||card.querySelector('[data-prepare-asset]'))continue;const {token}=binding;const button=document.createElement('button');button.type='button';button.dataset.prepareAsset='1';button.dataset.preparePart=card.dataset.partId;button.textContent=binding.prepared?'Prepare another preview':'Prepare private preview asset';button.disabled=busy||job!==null||(binding.used&&!binding.prepared);button.addEventListener('click',async()=>{if(busy||job||!mapping||(binding.used&&!binding.prepared))return;busy=true;refreshButtons();try{const sr=await request('/scene-catalog');if(!sr.ok)throw Error('scene');const scene=await sr.json();if(!Number.isSafeInteger(scene.generation))throw Error('generation');const r=await request('/prepare-selection',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token,generation:scene.generation})});if(!r.ok)throw Error('Preparation refused');const data=await r.json();job=data.job;binding.used=true;if(!job||job.state!=='running')throw Error('Preparation state uncertain');status.textContent='Preparing the private asset. No game changes.';poll()}catch(e){mapping=null;status.textContent='Preparation status uncertain. Refresh before trying again.'}finally{busy=false;refreshButtons()}});card.append(button);}};
++ const refreshButtons=()=>{for(const x of root.querySelectorAll('[data-prepare-asset]')){const binding=mapping?.get(x.dataset.preparePart);x.disabled=busy||job!==null||!binding||(binding.used&&!binding.prepared);x.textContent=binding?.prepared?'Prepare another preview':'Prepare private preview asset';}};
++ const poll=async()=>{if(closed)return;try{const r=await request('/preparation-status');if(!r.ok)throw Error('status');const data=await r.json();job=data.job;if(!job){status.textContent='No preparation running.';dismiss.hidden=true;refreshButtons();return}if(!/^[a-f0-9]{32}$/.test(job.id)||!['running','prepared','preview_ready','activated','failed','timed_out','cancelled'].includes(job.state))throw Error('invalid status');const binding=[...mapping.values()].find(x=>x.token===job.selection);if(binding&&job.source_prepared===true)binding.prepared=true;dismiss.hidden=job.state==='running';open.hidden=job.state!=='preview_ready';status.textContent=job.state==='running'?'Preparing the private asset. No game changes.':job.state==='preview_ready'?'Preview prepared. Open it to inspect; no game changes.':job.state==='activated'?'Preview opened. No game changes.':job.state==='prepared'?'Asset prepared privately. It is not yet available in the room or game.':'Preparation '+job.state+'. Existing evidence was retained.';refreshButtons();if(job.state==='running')timer=setTimeout(poll,1000)}catch(e){mapping=null;status.textContent='Preparation status unavailable. Refresh before trying again.';refreshButtons()}};
++ open.addEventListener('click',async()=>{if(!job||job.state!=='preview_ready'||busy||open.disabled||!mapping)return;busy=true;open.disabled=true;refreshButtons();status.textContent='Opening verified preview; no game changes.';try{const r=await request('/scene-catalog');if(!r.ok)throw Error('scene');const scene=await r.json();if(!Number.isSafeInteger(scene.generation))throw Error('generation');const a=await request('/activate-prepared',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:job.id,generation:scene.generation})},45000);if(!a.ok)throw Error('activation');location.assign('/cas-room')}catch(e){mapping=null;status.textContent='Preview state uncertain or base changed. Refresh before trying again.'}finally{busy=false;refreshButtons()}});
+  dismiss.addEventListener('click',async()=>{if(!job||job.state==='running'||busy)return;busy=true;refreshButtons();try{const r=await request('/preparation-ack',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:job.id})});if(!r.ok)throw Error('ack');job=null;dismiss.hidden=true;open.hidden=true;status.textContent='Result dismissed. No game changes.'}catch(e){mapping=null;status.textContent='Result state uncertain. Refresh before trying again.'}finally{busy=false;refreshButtons()}});
+- try{const [r,s]=await Promise.all([request('/preparation-options'),request('/preparation-status')]);if(!r.ok||!s.ok)throw Error('unavailable');const [data,state]=await Promise.all([r.json(),s.json()]);if(!Array.isArray(data.items)||data.items.length>64)throw Error('invalid options');mapping=new Map();for(const x of data.items){if(!/^[a-f0-9]{64}$/.test(x.part_id)||!/^[a-f0-9]{32}$/.test(x.token)||typeof x.used!=='boolean'||mapping.has(x.part_id))throw Error('invalid option');mapping.set(x.part_id,{token:x.token,used:x.used})}job=state.job;new MutationObserver(refresh).observe(root,{childList:true});refresh();if(job)poll();else status.textContent='Preparation is private and does not change the game.';}catch(e){mapping=null;status.textContent='Private preparation unavailable.';}
++ try{const [r,s]=await Promise.all([request('/preparation-options'),request('/preparation-status')]);if(!r.ok||!s.ok)throw Error('unavailable');const [data,state]=await Promise.all([r.json(),s.json()]);if(!Array.isArray(data.items)||data.items.length>64)throw Error('invalid options');mapping=new Map();for(const x of data.items){if(!/^[a-f0-9]{64}$/.test(x.part_id)||!/^[a-f0-9]{32}$/.test(x.token)||typeof x.used!=='boolean'||typeof x.prepared!=='boolean'||mapping.has(x.part_id))throw Error('invalid option');mapping.set(x.part_id,{token:x.token,used:x.used,prepared:x.prepared})}job=state.job;new MutationObserver(refresh).observe(root,{childList:true});refresh();if(job)poll();else status.textContent='Preparation is private and does not change the game.';}catch(e){mapping=null;status.textContent='Private preparation unavailable.';}
+  window.addEventListener('pagehide',()=>{closed=true;if(timer)clearTimeout(timer)});
+ }
+--- a/test_prepare_actions.mjs
++++ b/test_prepare_actions.mjs
+@@ -3,12 +3,17 @@
+ class E{constructor(){this.children=[];this.dataset={};this.handlers={};this.disabled=false;this.hidden=false;this.textContent='';this.beforeNodes=[]}append(...x){this.children.push(...x)}before(x){this.beforeNodes.push(x)}setAttribute(){}addEventListener(n,f){this.handlers[n]=f}querySelector(q){return q==='[data-prepare-asset]'?this.children.find(x=>x.dataset.prepareAsset):null}querySelectorAll(q){return q==='[data-prepare-asset]'?this.children.flatMap(c=>c.children.filter(x=>x.dataset.prepareAsset)):[]}}
+ test('preparation requires click and clearly reports preview is not in game',async()=>{
+  const saved={document:globalThis.document,fetch:globalThis.fetch,window:globalThis.window,MutationObserver:globalThis.MutationObserver},root=new E(),card=new E();card.dataset.partId='a'.repeat(64);root.children=[card];let posts=[],statusReads=0;const token='f'.repeat(32),id='e'.repeat(32);
+- globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.window={addEventListener(){}};globalThis.MutationObserver=class{observe(){}};globalThis.fetch=async(path,opts)=>{if(path==='/preparation-options')return {ok:true,json:async()=>({items:[{part_id:'a'.repeat(64),token,used:false}]})};if(path==='/preparation-status'){statusReads++;return {ok:true,json:async()=>({job:statusReads===1?null:{id,selection:token,state:'prepared'}})}}if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:7})};if(path==='/prepare-selection'){posts.push(JSON.parse(opts.body));return {ok:true,json:async()=>({job:{id,selection:token,state:'running'}})}}if(path==='/preparation-ack'){posts.push(JSON.parse(opts.body));return {ok:true}};throw Error(path)};
+- try{await import('./prepare_actions.mjs?test='+Math.random());assert.equal(posts.length,0);assert.equal(card.children.length,1);await card.children[0].handlers.click();await new Promise(r=>setTimeout(r,0));assert.deepEqual(posts,[{token,generation:7}]);assert.match(root.beforeNodes[0].textContent,/not yet available in the room or game/);assert.equal(root.beforeNodes[2].hidden,false);await root.beforeNodes[2].handlers.click();assert.deepEqual(posts,[{token,generation:7},{token:id}]);assert.equal(card.children[0].disabled,true);}
++ globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.window={addEventListener(){}};globalThis.MutationObserver=class{observe(){}};globalThis.fetch=async(path,opts)=>{if(path==='/preparation-options')return {ok:true,json:async()=>({items:[{part_id:'a'.repeat(64),token,used:false,prepared:false}]})};if(path==='/preparation-status'){statusReads++;return {ok:true,json:async()=>({job:statusReads===1?null:{id,selection:token,state:'prepared',source_prepared:true}})}}if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:7})};if(path==='/prepare-selection'){posts.push(JSON.parse(opts.body));return {ok:true,json:async()=>({job:{id,selection:token,state:'running'}})}}if(path==='/preparation-ack'){posts.push(JSON.parse(opts.body));return {ok:true}};throw Error(path)};
++ try{await import('./prepare_actions.mjs?test='+Math.random());assert.equal(posts.length,0);assert.equal(card.children.length,1);await card.children[0].handlers.click();await new Promise(r=>setTimeout(r,0));assert.deepEqual(posts,[{token,generation:7}]);assert.match(root.beforeNodes[0].textContent,/not yet available in the room or game/);assert.equal(root.beforeNodes[2].hidden,false);await root.beforeNodes[2].handlers.click();assert.deepEqual(posts,[{token,generation:7},{token:id}]);assert.equal(card.children[0].disabled,false);assert.equal(card.children[0].textContent,'Prepare another preview');}
+  finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
+ });
+ test('verified prepared variation opens only after explicit click',async()=>{
+  const saved={document:globalThis.document,fetch:globalThis.fetch,window:globalThis.window,location:globalThis.location,MutationObserver:globalThis.MutationObserver},root=new E(),card=new E();card.dataset.partId='a'.repeat(64);root.children=[card];const token='f'.repeat(32),id='e'.repeat(32);let posts=[],navigated=0;
+- globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.window={addEventListener(){}};globalThis.location={assign(p){assert.equal(p,'/cas-room');navigated++}};globalThis.MutationObserver=class{observe(){}};globalThis.fetch=async(path,opts)=>{if(path==='/preparation-options')return {ok:true,json:async()=>({items:[{part_id:'a'.repeat(64),token,used:true}]})};if(path==='/preparation-status')return {ok:true,json:async()=>({job:{id,selection:token,state:'preview_ready'}})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:7})};if(path==='/activate-prepared'){posts.push(JSON.parse(opts.body));return {ok:true}};throw Error(path)};
++ globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.window={addEventListener(){}};globalThis.location={assign(p){assert.equal(p,'/cas-room');navigated++}};globalThis.MutationObserver=class{observe(){}};globalThis.fetch=async(path,opts)=>{if(path==='/preparation-options')return {ok:true,json:async()=>({items:[{part_id:'a'.repeat(64),token,used:true,prepared:true}]})};if(path==='/preparation-status')return {ok:true,json:async()=>({job:{id,selection:token,state:'preview_ready'}})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:7})};if(path==='/activate-prepared'){posts.push(JSON.parse(opts.body));return {ok:true}};throw Error(path)};
+  try{await import('./prepare_actions.mjs?test='+Math.random());await new Promise(r=>setTimeout(r,0));assert.equal(posts.length,0);assert.equal(root.beforeNodes[1].hidden,false);await root.beforeNodes[1].handlers.click();assert.deepEqual(posts,[{token:id,generation:7}]);assert.equal(navigated,1)}finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
+ });
++test('uncertain preparation is not automatically retried',async()=>{
++ const saved={document:globalThis.document,fetch:globalThis.fetch,window:globalThis.window,MutationObserver:globalThis.MutationObserver},root=new E(),card=new E();card.dataset.partId='a'.repeat(64);root.children=[card];let posts=0;const token='f'.repeat(32);
++ globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.window={addEventListener(){}};globalThis.MutationObserver=class{observe(){}};globalThis.fetch=async(path)=>{if(path==='/preparation-options')return {ok:true,json:async()=>({items:[{part_id:'a'.repeat(64),token,used:false,prepared:false}]})};if(path==='/preparation-status')return {ok:true,json:async()=>({job:null})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:1})};if(path==='/prepare-selection'){posts++;throw Error('lost response')};throw Error(path)};
++ try{await import('./prepare_actions.mjs?test='+Math.random());await card.children[0].handlers.click();await card.children[0].handlers.click();assert.equal(posts,1);assert.equal(card.children[0].disabled,true);assert.match(root.beforeNodes[0].textContent,/uncertain/)}finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
++});

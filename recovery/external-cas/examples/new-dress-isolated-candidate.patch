@@ -1,0 +1,82 @@
+--- a/examples/cc_scene/mod.rs
++++ b/examples/cc_scene/mod.rs
+@@ -447,7 +447,7 @@
+         let shoe = read(dir.join("Jius-BowFlipFlops01.2048.rgba"))?;
+         let cloth_raw = read(dir.join("FatalRose-PastelGothDress.2048.rgba"))?;
+         if format!("{:x}", Sha256::digest(&cloth_raw))
+-            != "6b16882c53619872cd786558727335eeaafefd7ce492fead149b779349b26cf9"
++            != "5d3dbcb0bd6ffb1b54180dcae83174f5ac24a937ed1e798c73bc2d6adac06f63"
+         {
+             return Err("selected dress identity does not match verified CASP bounds".into());
+         }
+@@ -542,6 +542,7 @@
+                     .build()?,
+             )
+         };
++        if std::env::var_os("APEX_DRESS_SWATCHES").is_some() { return Err("legacy dress swatches do not apply to this new dress diagnostic".into()); }
+         let swatch_catalog = std::env::var_os("APEX_DRESS_SWATCHES")
+             .map(|path| swatch_catalog::Catalog::open(Path::new(&path)))
+             .transpose()?;
+--- a/examples/cc_scene/swatch_catalog.rs
++++ b/examples/cc_scene/swatch_catalog.rs
+@@ -11,7 +11,7 @@
+     path::{Path, PathBuf},
+ };
+ 
+-pub const DEFAULT_ID: &str = "034AEECB:80000000:E788BC6354CE1C3A";
++pub const DEFAULT_ID: &str = "034AEECB:80000000:B0AB3C0D731B68A9";
+ pub const MANIFEST_SHA256: &str =
+     "8319704a39b31b8dad34f630a00d08fa2076bba43b41ccc3389461725f9a7064";
+ pub const WIDTH: u32 = 2048;
+@@ -34,9 +34,9 @@
+ 
+ pub static SWATCHES: [Swatch; 30] = [
+     Swatch {
+-        id: "034AEECB:80000000:E788BC6354CE1C3A",
+-        order: 10,
+-        colors_argb: &[0xff7a5eaa, 0xff9c7cb3, 0xff181818],
++        id: "034AEECB:80000000:B0AB3C0D731B68A9",
++        order: 5,
++        colors_argb: &[0xff404f40, 0xffcb9f50],
+         width: WIDTH,
+         height: HEIGHT,
+         casp_sha256: "1288ec86b76d21261d39a79db7b839c157d60c0d88492cc549b3d256787c7753",
+--- a/examples/preview_server.rs
++++ b/examples/preview_server.rs
+@@ -1769,6 +1769,36 @@
+     }
+ 
+     #[test]
++    #[ignore = "isolated new creator dress and pose diagnostic; not game validation"]
++    fn new_dress_scene_renders_creator_pose() {
++        let args:Vec<String>=(0..5).map(|i|std::env::var(format!("CC_REAL_SCENE_ARG_{i}")).unwrap()).collect();
++        let cc=cc_scene::CcScene::load(&args).unwrap();
++        let id=std::env::var("CC_REAL_POSE_ID").unwrap();
++        let frame=cc.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,&id,0,0,[0,0,0,16384]).unwrap();
++        assert_eq!(frame.rgb.len(),512*512*3);
++        let again=cc.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,&id,0,0,[0,0,0,16384]).unwrap();
++        assert_eq!(frame.rgb,again.rgb);
++        let output=std::env::var("CAS_DIAGNOSTIC_RGB").unwrap();
++        let mut file=std::fs::OpenOptions::new().create_new(true).write(true).open(output).unwrap();
++        std::io::Write::write_all(&mut file,&frame.rgb).unwrap();
++        eprintln!("diagnostic pose SHA256: {:x}",Sha256::digest(&frame.rgb));
++    }
++
++    #[test]
++    #[ignore = "isolated new creator dress diagnostic; not game validation"]
++    fn new_dress_scene_renders_reference_frame() {
++        let args: Vec<String> = (0..5).map(|i| std::env::var(format!("CC_REAL_SCENE_ARG_{i}")).unwrap()).collect();
++        let cc=cc_scene::CcScene::load(&args).unwrap();
++        let frame=cc.render_pose(0,[0,0,0,16384],0).unwrap();
++        assert_eq!(frame.rgb.len(),512*512*3);
++        assert!(frame.rgb.chunks_exact(3).any(|p|p!=&frame.rgb[..3]));
++        let output=std::env::var("CAS_DIAGNOSTIC_RGB").unwrap();
++        let mut file=std::fs::OpenOptions::new().create_new(true).write(true).open(output).unwrap();
++        std::io::Write::write_all(&mut file,&frame.rgb).unwrap();
++        eprintln!("diagnostic frame SHA256: {:x}",Sha256::digest(&frame.rgb));
++    }
++
++    #[test]
+     #[ignore = "requires privately prepared real pose library and scene"]
+     fn real_creator_pose_catalog_and_frame_routes_match_scene() {
+         let args: Vec<String> = (0..5).map(|i| std::env::var(format!("CC_REAL_SCENE_ARG_{i}")).unwrap()).collect();

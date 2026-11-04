@@ -70,6 +70,41 @@ class CapturePreflightTests(unittest.TestCase):
                 ('Lost 0 events',False),('Lost 15 events',True),('12 buffers were dropped',True)]:
             self.assertEqual(capture.event_loss(text),expected,text)
 
+    def test_presentmon_ring_overflow_is_not_treated_as_lossless(self):
+        for count in ('1', '001', '16384', '4294967295'):
+            self.assertTrue(capture.event_loss('WARNING:\t'+count+' OVERFLOWED  PRESENT EVENTS DETECTED.'))
+        for text in ('no overflow', 'warning: 0 overflowed present events detected.',
+                     'warning: consider increasing present event circular buffer size',
+                     'warning: 123 overflowed widget events detected.'):
+            self.assertFalse(capture.event_loss(text),text)
+        self.assertTrue(capture.event_loss('0 events were lost.\nwarning: 2 overflowed present events detected.'))
+
+    def test_ring_overflow_invalidates_capture_even_with_usable_rows(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder=Path(temporary);paths={name:folder/(name+ext) for name,ext in
+                (('csv','.csv'),('log','.log'),('metadata','.json'))}
+            before=dict(process_creation_filetime=42)
+            args=argparse.Namespace(pid=123,mode='baseline',seconds=10,exe=folder/'synthetic.exe',exe_sha256='1'*64)
+            class Collector:
+                pid=1000;returncode=0
+                def __init__(self,command,stdout,stderr,creationflags):
+                    self.polls=0
+                    stdout.buffer.write('Started recording.\nwarning: 2 overflowed present events detected.\n'.encode('utf-16'))
+                    stdout.buffer.flush();paths['csv'].write_text('mock valid CSV')
+                def poll(self):
+                    self.polls+=1
+                    return None if self.polls==1 else 0
+            with patch.object(capture,'verify_start',return_value=(folder,paths,before,self.state('baseline'),'a'*64)), \
+                    patch.object(capture,'window_snapshot',return_value=before), \
+                    patch.object(capture,'sha',return_value='1'*64), \
+                    patch.object(capture.comparison,'read_frames',return_value=([16]*150,list(range(150)),'DXGI')), \
+                    patch.object(capture.subprocess,'Popen',side_effect=Collector),patch.object(capture.time,'sleep'):
+                with self.assertRaisesRegex(ValueError,'evidence checks'):capture.capture(args)
+            result=json.loads(paths['metadata'].read_text())
+            self.assertEqual(result['state'],'invalid')
+            self.assertTrue(result['collector_event_loss_warning'])
+            self.assertFalse(result['analysis']['valid'])
+
     def test_real_diagnostic_encodings_preserve_loss_and_refuse_unknown_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
             path=Path(temporary)/'raw.log'

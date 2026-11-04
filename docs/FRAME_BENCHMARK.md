@@ -50,6 +50,14 @@ and loss checks still determine whether the recording is valid. Record actions
 separately in QPC time and verify their actual UI transitions. Do not assume
 that a lack of logged event-loss messages proves the entire OS trace was lossless.
 
+The diagnostic check also rejects PresentMon 2.6.0's positive
+`overflowed present events detected` warning. That warning describes its
+present-event ring, distinct from the ETW event-loss warnings observed in the
+four failed game captures. None of those retained captures reported this ring
+warning, so this check does not explain their loss or qualify a new capture.
+Offline unit and mocked-collector tests cover the warning and preserve the
+existing zero-loss behavior; they are not in-game measurements.
+
 `tools/compare_frame_runs.py` consumes completed, separately recorded evidence.
 Each capture metadata JSON must be in the format of the private capture tool:
 state `completed`, collector hash, stable process/window identity and geometry,

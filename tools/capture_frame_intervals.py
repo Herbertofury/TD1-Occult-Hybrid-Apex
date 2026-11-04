@@ -113,6 +113,10 @@ def event_loss(log):
     # Check each clause: a zero-events report cannot conceal dropped buffers
     # later on the same line. Unknown loss counts remain conservatively invalid.
     for line in log.splitlines():
+        # PresentMon 2.6.0 reports its own ring overflow separately from ETW
+        # loss, and only emits this warning when the overflow count is positive.
+        if re.search(r'\bwarning:\s*0*[1-9][0-9]*\s+overflowed\s+present\s+events\s+detected\b', line, re.I):
+            return True
         if not re.search(r'\b(lost|dropped|missed)\b', line, re.I):
             continue
         remainder = re.sub(r'\b(?:0|no)\s+(?:events?|buffers?)\s+(?:were\s+)?(?:lost|dropped|missed)\b|'

@@ -1,0 +1,393 @@
+--- a/examples/cc_scene/mod.rs
++++ b/examples/cc_scene/mod.rs
+@@ -1,6 +1,7 @@
+ mod accessory;
+ mod accessory_selections;
+ mod pooled_raster;
++mod generic_dress;
+ pub mod pose_library;
+ pub mod swatch_catalog;
+ mod swatch_png;
+@@ -30,6 +31,7 @@
+     lower: OwnedOpaqueTexture,
+     material: Mutex<ActiveMaterial>,
+     swatch_catalog: Option<swatch_catalog::Catalog>,
++    generic_dress: Option<generic_dress::GenericDress>,
+     raster_pool: Option<rayon::ThreadPool>,
+     hair: OwnedOpaqueTexture,
+     mask: Vec<u8>,
+@@ -373,6 +375,12 @@
+             .ok_or("prepared accessory selection unavailable")?;
+         catalog_owner.check(id, catalog)
+     }
++    pub fn default_swatch_id(&self) -> &str { self.generic_dress.as_ref().map_or(swatch_catalog::DEFAULT_ID, |g| g.id.as_str()) }
++    pub fn swatch_allowed(&self, id: &str) -> bool { self.generic_dress.as_ref().map_or_else(|| self.swatches().iter().any(|s|s.id==id), |g|g.id==id) }
++    pub fn public_swatch_entries(&self) -> String {
++        if let Some(g)=&self.generic_dress { return g.entry_json(); }
++        self.swatches().iter().map(|entry| { let colors=entry.colors_argb.iter().map(u32::to_string).collect::<Vec<_>>().join(",");format!("{{\"id\":\"{}\",\"order\":{},\"colors_argb\":[{}],\"width\":{},\"height\":{}}}",entry.id,entry.order,colors,entry.width,entry.height) }).collect::<Vec<_>>().join(",")
++    }
+     pub fn swatches_enabled(&self) -> bool {
+         self.swatch_catalog.is_some()
+     }
+@@ -389,6 +397,7 @@
+         }
+     }
+     fn select_swatch(&self, id: &str) -> Result<&'static swatch_catalog::Swatch, &'static str> {
++        if let Some(g)=&self.generic_dress { return if id==g.id { Ok(&swatch_catalog::SWATCHES[0]) } else { Err("generic swatch identity") }; }
+         let swatch = swatch_catalog::find(id)?;
+         if !self.swatches_enabled() && swatch.id != swatch_catalog::DEFAULT_ID {
+             return Err("dress swatch catalog unavailable");
+@@ -399,6 +408,8 @@
+         if a.len() != 5 {
+             return Err("selected head dress shoes hair".into());
+         }
++        let generic_dress=generic_dress::GenericDress::from_env()?;
++        if generic_dress.is_some() && (std::env::var_os("APEX_DRESS_SWATCHES").is_some() || std::env::var_os("APEX_CC_ACCESSORY_MANIFEST").is_some() || std::env::var_os("APEX_CC_ACCESSORY_SELECTIONS").is_some()) { return Err("generic dress cannot use legacy dress or accessory catalogs".into()); }
+         let accessory_path = std::env::var_os("APEX_CC_ACCESSORY_MANIFEST");
+         let accessory_pin = std::env::var_os("APEX_CC_ACCESSORY_MANIFEST_SHA256");
+         accessory::check_input_pair(accessory_path.is_some(), accessory_pin.is_some())?;
+@@ -446,11 +457,8 @@
+         let tattoo = read(dir.join("myshunosun-caroline-tattoo.2048.rgba"))?;
+         let shoe = read(dir.join("Jius-BowFlipFlops01.2048.rgba"))?;
+         let cloth_raw = read(dir.join("FatalRose-PastelGothDress.2048.rgba"))?;
+-        if format!("{:x}", Sha256::digest(&cloth_raw))
+-            != "6b16882c53619872cd786558727335eeaafefd7ce492fead149b779349b26cf9"
+-        {
+-            return Err("selected dress identity does not match verified CASP bounds".into());
+-        }
++        if let Some(g)=&generic_dress { g.check_assets(&cloth_raw,&dress)?; }
++        else if format!("{:x}", Sha256::digest(&cloth_raw)) != "6b16882c53619872cd786558727335eeaafefd7ce492fead149b779349b26cf9" { return Err("selected dress identity does not match verified CASP bounds".into()); }
+         let skin_blend = apex_external_cas_draft_research::preview::skin_detail::blend(
+             2048, 4096, &tone_base, &skin, 0.35, 0.,
+         )?;
+@@ -490,6 +498,7 @@
+         hash.update(
+             b"CC-v1:2048x4096:skin-opacity0.35:cutout128:selected-range-hsb-half-opacity0.2to1",
+         );
++        if let Some(g)=&generic_dress { hash.update(b"generic-dress-descriptor-v1");hash.update(g.descriptor_sha.as_bytes()); }
+         if let Some(config) = &pose_config {
+             hash.update(b"verified-adult-arm-pose-v1");
+             hash.update(config);
+@@ -597,6 +606,7 @@
+                 composed: None,
+             }),
+             swatch_catalog,
++            generic_dress,
+             hair: OwnedOpaqueTexture::new(1024, 2048, hair_opaque)?,
+             mask: hair_rgba,
+             pose_config,
+@@ -617,7 +627,7 @@
+         values: [i32; 4],
+         pose: i32,
+     ) -> Result<Frame, &'static str> {
+-        self.render_pose_swatch(swatch_catalog::DEFAULT_ID, yaw, values, pose)
++        self.render_pose_swatch(self.default_swatch_id(), yaw, values, pose)
+     }
+     pub fn render_pose_swatch(
+         &self,
+@@ -637,7 +647,7 @@
+         yaw: i32,
+         values: [i32; 4],
+     ) -> Result<Frame, &'static str> {
+-        self.render_clip_swatch(swatch_catalog::DEFAULT_ID, id, frame, yaw, values)
++        self.render_clip_swatch(self.default_swatch_id(), id, frame, yaw, values)
+     }
+     pub fn render_clip_swatch(
+         &self,
+@@ -1187,6 +1197,7 @@
+             lower: base(),
+             material: Mutex::new(active()),
+             swatch_catalog: None,
++            generic_dress: None,
+             raster_pool: None,
+             hair: OwnedOpaqueTexture::new(1, 1, vec![0, 0, 0, 255]).unwrap(),
+             mask: Vec::new(),
+@@ -1304,6 +1315,7 @@
+                 composed: None,
+             }),
+             swatch_catalog: None,
++            generic_dress: None,
+             raster_pool: None,
+             hair: OwnedOpaqueTexture::new(1024, 2048, vec![255; 1024 * 2048 * 4]).unwrap(),
+             mask: vec![0; 1024 * 2048 * 4],
+--- a/examples/preview_server.rs
++++ b/examples/preview_server.rs
+@@ -303,6 +303,7 @@
+     Some((sample, yaw, id, catalog, scene))
+ }
+ // Optional real dress swatch is a compiled allowlisted identity, never a path.
++#[cfg(test)]
+ fn parse_cc_frame(path: &str) -> Option<(Vec<i32>, &str)> {
+     let mut params: Vec<_> = path.strip_prefix("/cc-frame?")?.split('&').collect();
+     let swatch = if params.last().is_some_and(|p| p.starts_with("swatch=")) {
+@@ -314,6 +315,15 @@
+     let values = params.iter().zip(names).map(|(p,n)| p.strip_prefix(n)?.parse::<i32>().ok()).collect::<Option<Vec<_>>>()?;
+     Some((values, swatch))
+ }
++// A prepared generic scene may use a different source-bound default ID.
++fn parse_cc_frame_for<'a>(path: &'a str, cc: &'a cc_scene::CcScene) -> Option<(Vec<i32>, &'a str)> {
++    let mut params:Vec<_>=path.strip_prefix("/cc-frame?")?.split('&').collect();
++    let swatch=if params.last().is_some_and(|p|p.starts_with("swatch=")){params.pop()?.strip_prefix("swatch=")?}else{cc.default_swatch_id()};
++    if !cc.swatch_allowed(swatch)||!(params.len()==5||params.len()==6){return None;}
++    let names=["yaw=","brightness=","saturation=","hue=","opacity=","pose="];
++    let values=params.iter().zip(names).map(|(p,n)|p.strip_prefix(n)?.parse::<i32>().ok()).collect::<Option<Vec<_>>>()?;
++    Some((values,swatch))
++}
+ fn needs_render_queue(path: &str) -> bool {
+     ["/frame?", "/cc-frame?", "/clip-frame?", "/accessory-inspection-frame?"].iter().any(|prefix| path.starts_with(prefix))
+ }
+@@ -427,12 +437,9 @@
+             let Some(cc) = &state.cc else {
+                 return Ok(respond(s, "404 Not Found", "text/plain", b"CC scene unavailable", "")?);
+             };
+-            let entries: Vec<_> = cc.swatches().iter().map(|entry| {
+-                let colors = entry.colors_argb.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+-                format!("{{\"id\":\"{}\",\"order\":{},\"colors_argb\":[{}],\"width\":{},\"height\":{}}}",entry.id,entry.order,colors,entry.width,entry.height)
+-            }).collect();
+-            let digest = cc.swatch_catalog_identity().map(|v| format!("\"{v}\"")).unwrap_or_else(|| "null".into());
+-            let json = format!("{{\"schema\":1,\"scene_sha256\":\"{}\",\"catalog_sha256\":{},\"default_id\":\"{}\",\"enabled\":{},\"swatches\":[{}]}}",cc.hash,digest,cc_scene::swatch_catalog::DEFAULT_ID,cc.swatches_enabled(),entries.join(","));
++            let entries=cc.public_swatch_entries();
++            let digest=cc.swatch_catalog_identity().map(|v|format!("\"{v}\"")).unwrap_or_else(||"null".into());
++            let json=format!("{{\"schema\":1,\"scene_sha256\":\"{}\",\"catalog_sha256\":{},\"default_id\":\"{}\",\"enabled\":{},\"swatches\":[{}]}}",cc.hash,digest,cc.default_swatch_id(),cc.swatches_enabled(),entries);
+             if json.len()>32768 { return Err("swatch catalog response bound".into()); }
+             respond(s,"200 OK","application/json",json.as_bytes(),"")?;
+         }
+@@ -596,9 +603,9 @@
+             let swatch_id = if params.len() == names.len()+1 {
+                 params.pop().and_then(|value| value.strip_prefix("swatch="))
+             } else if params.len() == names.len() {
+-                Some(cc_scene::swatch_catalog::DEFAULT_ID)
++                Some(cc.default_swatch_id())
+             } else { None };
+-            let Some(swatch_id) = swatch_id.filter(|id| cc.swatches().iter().any(|entry| entry.id == *id)) else {
++            let Some(swatch_id) = swatch_id.filter(|id| cc.swatch_allowed(id)) else {
+                 return Ok(respond(s,"400 Bad Request","text/plain",b"Unknown or invalid swatch","")?);
+             };
+             if params.len() != names.len() {
+@@ -707,10 +714,10 @@
+                     "",
+                 )?);
+             };
+-            let Some((v, swatch_id)) = parse_cc_frame(path) else {
++            let Some((v, swatch_id)) = parse_cc_frame_for(path,cc) else {
+                 return Ok(respond(s, "400 Bad Request", "text/plain", b"CC parameters", "")?);
+             };
+-            if !cc.swatches().iter().any(|entry| entry.id == swatch_id) {
++            if !cc.swatch_allowed(swatch_id) {
+                 return Ok(respond(s, "400 Bad Request", "text/plain", b"CC swatch unavailable", "")?);
+             }
+             let wait = Instant::now();
+@@ -1769,6 +1776,31 @@
+     }
+ 
+     #[test]
++    #[ignore = "requires pinned private generic dress scene and pose library"]
++    fn generic_dress_scene_routes_use_source_identity() {
++        let args:Vec<String>=(0..5).map(|i|std::env::var(format!("CC_REAL_SCENE_ARG_{i}")).unwrap()).collect();
++        let cc=cc_scene::CcScene::load(&args).unwrap();
++        let id=std::env::var("CC_REAL_POSE_ID").unwrap();
++        let dress=std::env::var("CC_GENERIC_DRESS_ID").unwrap();
++        assert_eq!(cc.default_swatch_id(),dress); assert!(!cc.swatches_enabled());
++        assert!(cc.swatch_allowed(&dress));
++        let image=cc.render_clip_swatch(&dress,&id,0,0,[0,0,0,16384]).unwrap();
++        let repeated=cc.render_clip_swatch(&dress,&id,0,0,[0,0,0,16384]).unwrap();
++        assert_eq!(image.rgb,repeated.rgb);
++        let state=ServerState{host:"127.0.0.1:1".into(),raw:vec![],config:vec![],morph:None,
++            identity:Identity{scene:cc.hash.clone(),json:String::new(),renderer:"serial-cc".into(),workers:0,http_workers:1},
++            cc:Some(cc),render_gate:Mutex::new(()),texture:None,catalog:None,import_status:None,source_images:cc_source_images::Owner::default()};
++        let run=|path:String|{let request=ValidatedRequest{path,header_read_ms:0.0};let mut out=Vec::new();serve(&mut out,&state,&request,0.0).unwrap();out};
++        let cat=run("/swatch-catalog".into());let split=cat.windows(4).position(|w|w==b"\r\n\r\n").unwrap()+4;
++        let json=std::str::from_utf8(&cat[split..]).unwrap();assert!(json.contains(&format!("\"default_id\":\"{dress}\"")));assert!(json.contains("\"enabled\":false"));
++        let response=run(format!("/clip-frame?clip={id}&frame=0&yaw=0&brightness=0&saturation=0&hue=0&opacity=16384&swatch={dress}"));
++        let split=response.windows(4).position(|w|w==b"\r\n\r\n").unwrap()+4;let head=std::str::from_utf8(&response[..split]).unwrap();
++        assert!(head.contains("200 OK")&&head.contains(&format!("X-Swatch-ID: {dress}\r\n")));assert_eq!(&response[split..],image.rgb.as_slice());
++        let wrong=run(format!("/clip-frame?clip={id}&frame=0&yaw=0&brightness=0&saturation=0&hue=0&opacity=16384&swatch=034AEECB:80000000:FFFFFFFFFFFFFFFF"));
++        assert!(wrong.starts_with(b"HTTP/1.1 400"));
++    }
++
++    #[test]
+     #[ignore = "requires privately prepared real pose library and scene"]
+     fn real_creator_pose_catalog_and_frame_routes_match_scene() {
+         let args: Vec<String> = (0..5).map(|i| std::env::var(format!("CC_REAL_SCENE_ARG_{i}")).unwrap()).collect();
+--- /dev/null
++++ b/examples/cc_scene/generic_dress.rs
+@@ -0,0 +1,34 @@
++//! Single prepared dress bound to a pinned descriptor and exact local inputs.
++//! The trusted preparation parent must verify CASP/package provenance; this
++//! module verifies file identities, not source rights or game compatibility.
++use sha2::{Digest,Sha256};
++use std::{fs,io::Read,path::Path};
++#[derive(Debug)]
++pub struct GenericDress {pub id:String,pub order:u16,pub colors:Vec<u32>,pub material_sha:String,pub mesh_sha:String,pub descriptor_sha:String}
++fn digest(s:&str)->bool{s.len()==64&&s.bytes().all(|c|c.is_ascii_digit()||(b'a'..=b'f').contains(&c))}
++fn casp_id(s:&str)->bool{let b=s.as_bytes();b.len()==34&&&b[..9]==b"034AEECB:"&&b[17]==b':'&&b[9..17].iter().chain(b[18..].iter()).all(|c|c.is_ascii_digit()||(b'A'..=b'F').contains(c))}
++impl GenericDress {
++ pub fn parse(raw:&[u8],expected:&str)->Result<Self,&'static str>{
++  if raw.len()>4096||!digest(expected)||format!("{:x}",Sha256::digest(raw))!=expected{return Err("generic descriptor identity");}
++  let s=std::str::from_utf8(raw).map_err(|_|"generic descriptor encoding")?;
++  let lines:Vec<_>=s.lines().collect();if lines.len()!=7||lines[0]!="APX-GENERIC-DRESS-1"||!casp_id(lines[1]){return Err("generic descriptor shape");}
++  let order=lines[2].parse::<u16>().map_err(|_|"generic swatch order")?;
++  let colors:Vec<u32>=lines[3].split(',').map(|s|{if s.len()!=8||!s.bytes().all(|x|x.is_ascii_digit()||(b'a'..=b'f').contains(&x)){return Err("generic color");}u32::from_str_radix(s,16).map_err(|_|"generic color")}).collect::<Result<_,_>>()?;
++  if !(1..=8).contains(&colors.len())||!lines[4..7].iter().all(|x|digest(x)){return Err("generic descriptor bounds");}
++  Ok(Self{id:lines[1].into(),order,colors,material_sha:lines[4].into(),mesh_sha:lines[5].into(),descriptor_sha:expected.into()})
++ }
++ pub fn from_env()->Result<Option<Self>,Box<dyn std::error::Error>>{
++  match (std::env::var_os("APEX_GENERIC_DRESS"),std::env::var_os("APEX_GENERIC_DRESS_SHA256")){
++   (None,None)=>Ok(None),
++   (Some(path),Some(pin))=>{let path=Path::new(&path);let meta=fs::symlink_metadata(path)?;if !meta.file_type().is_file(){return Err("generic descriptor regular file required".into())};let mut raw=Vec::new();fs::File::open(path)?.take(4097).read_to_end(&mut raw)?;Ok(Some(Self::parse(&raw,pin.to_str().ok_or("descriptor pin encoding")?)?))},
++   _=>Err("generic dress descriptor and SHA must be supplied together".into())
++  }
++ }
++ pub fn check_assets(&self,material:&[u8],mesh:&[u8])->Result<(),&'static str>{if format!("{:x}",Sha256::digest(material))!=self.material_sha||format!("{:x}",Sha256::digest(mesh))!=self.mesh_sha{return Err("generic dress asset identity");}Ok(())}
++ pub fn entry_json(&self)->String{let colors=self.colors.iter().map(u32::to_string).collect::<Vec<_>>().join(",");format!("{{\"id\":\"{}\",\"order\":{},\"colors_argb\":[{}],\"width\":2048,\"height\":4096}}",self.id,self.order,colors)}
++}
++#[cfg(test)] mod tests{
++ use super::*;
++ fn raw()->Vec<u8>{format!("APX-GENERIC-DRESS-1\n034AEECB:80000000:0123456789ABCDEF\n5\nff404f40,ffcb9f50\n{}\n{}\n{}\n","a".repeat(64),"b".repeat(64),"c".repeat(64)).into_bytes()}
++ #[test] fn rejects_bad_id_pin_colors_and_extent(){let x=raw();let h=format!("{:x}",Sha256::digest(&x));assert!(GenericDress::parse(&x,&h).is_ok());assert!(GenericDress::parse(&x,&"0".repeat(64)).is_err());for changed in [String::from_utf8(x.clone()).unwrap().replace("034AEECB","../bad!!"),String::from_utf8(x.clone()).unwrap().replace("ff404f40","gg404f40"),String::from_utf8(x.clone()).unwrap()+"extra\n"]{let h=format!("{:x}",Sha256::digest(changed.as_bytes()));assert!(GenericDress::parse(changed.as_bytes(),&h).is_err());}}
++}
+--- /dev/null
++++ b/tools/research/prepare_pinned_diffuse.py
+@@ -0,0 +1,53 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Prepare one CASP-declared top diffuse as a private 2048x4096 diagnostic atlas.
++
++No game writes, shaders, mip-chain or compatibility claim. Inputs are trusted;
++codec execution and filesystem traversal are not an OS sandbox.
++"""
++import argparse,hashlib,io,json,pathlib,re,sys
++from PIL import Image
++root=pathlib.Path(__file__).resolve().parents[1];sys.path[:0]=[str(root/'inert-status-fixture/modules'),str(root/'rig-recovery/cc-materials'),str(root/'rig-recovery/cc-materials/lrle-gpl')]
++from cas_resource_catalog import Package,tgi
++from casp_material import casp_material
++from rle2_adapter import to_dds
++from decode import decode
++DIGEST=re.compile(r'[a-f0-9]{64}\Z');CASP=re.compile(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}\Z')
++def main():
++ ap=argparse.ArgumentParser();
++ for flag in ('package','package-sha','casp','casp-sha','texture-sha','output'):ap.add_argument('--'+flag,required=True)
++ a=ap.parse_args()
++ if not all(DIGEST.fullmatch(x) for x in (a.package_sha,a.casp_sha,a.texture_sha)) or not CASP.fullmatch(a.casp):raise ValueError('pinned identities required')
++ if not a.output or a.output in ('.','..') or pathlib.Path(a.output).name!=a.output:raise ValueError('single new output directory required')
++ path=pathlib.Path(a.package)
++ if path.is_symlink() or not path.is_file() or path.stat().st_size>64*1024*1024:raise ValueError('bounded regular package required')
++ pkg=Package(path,'mod')
++ if pkg.source_sha256!=a.package_sha or len(pkg.entries)>1024:raise ValueError('package pin/count')
++ ck=tuple(int(v,16) for v in a.casp.split(':'))
++ if ck not in pkg.entries:raise ValueError('CASP missing')
++ c=pkg.read_many([ck],max_total=1024*1024)[ck]
++ if hashlib.sha256(c).hexdigest()!=a.casp_sha:raise ValueError('CASP pin mismatch')
++ meta=casp_material(c);requested=meta['texture'];tk=tuple(int(v,16) for v in requested.split(':'));route='exact'
++ if tk not in pkg.entries and tk[0]==0x3453cf95:
++  alias=(0x2bc04edf,*tk[1:])
++  if alias in pkg.entries:tk=alias;route='lrle-same-group-instance'
++ if tk not in pkg.entries:raise ValueError('declared texture missing')
++ data=pkg.read_many([tk],max_total=32*1024*1024)[tk]
++ if hashlib.sha256(data).hexdigest()!=a.texture_sha:raise ValueError('texture pin mismatch')
++ if data[:8]==b'LRLEV002':im=decode(data);kind='LRLE V002'
++ elif data[:8]==b'DXT5RLE2':im=Image.open(io.BytesIO(to_dds(data))).convert('RGBA');kind='RLE2 BC3'
++ elif data[:4]==b'DDS ':im=Image.open(io.BytesIO(data)).convert('RGBA');kind='DDS'
++ else:raise ValueError('unsupported texture encoding')
++ if im.size not in ((1024,2048),(2048,4096)):raise ValueError('unsupported atlas dimensions')
++ im.load();im=im.convert('RGBA');source_size=im.size
++ if im.size!=(2048,4096):im=im.resize((2048,4096),Image.Resampling.NEAREST)
++ pixels=im.tobytes()
++ if len(pixels)!=2048*4096*4:raise ValueError('invalid atlas extent')
++ pkg.read_many([ck],max_total=1024*1024)
++ parent=root/'private-input-recovery'
++ if parent.is_symlink() or not parent.is_dir():raise ValueError('private parent unavailable')
++ out=parent/a.output;out.mkdir(mode=0o700,exist_ok=False)
++ with (out/'material.rgba').open('xb') as f:f.write(pixels)
++ report={'package_sha256':a.package_sha,'casp':a.casp,'casp_sha256':a.casp_sha,'requested_texture':requested,'resolved_texture':tgi(tk),'texture_sha256':a.texture_sha,'material_sha256':hashlib.sha256(pixels).hexdigest(),'source_dimensions':list(source_size),'output_dimensions':[2048,4096],'resampling':'nearest' if source_size!=(2048,4096) else 'none','format':kind,'route':route,'game_modified':False,'native_fidelity':'unverified'}
++ with (out/'report.json').open('x') as f:json.dump(report,f,indent=2)
++ print(json.dumps({'source_dimensions':source_size,'output_dimensions':[2048,4096],'resampling':report['resampling'],'game_modified':False,'native_fidelity':'unverified'}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/tools/research/build_generic_dress_descriptor.py
+@@ -0,0 +1,49 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Bind a trusted preparation's pinned CASP, mesh and diffuse to one descriptor.
++
++Requires reviewed preparation reports and trusted parent paths. The report hashes
++are identity checks, not proof of provenance, compatibility or native fidelity.
++No game writes; generated descriptors are for an isolated preview candidate.
++"""
++import argparse,hashlib,json,pathlib,re,sys
++root=pathlib.Path(__file__).resolve().parents[1];sys.path[:0]=[str(root/'inert-status-fixture/modules'),str(root/'rig-recovery/cc-materials/lrle-gpl')]
++from cas_resource_catalog import Package
++from casp_material import casp_material
++D=re.compile(r'[a-f0-9]{64}\Z')
++def read(path,digest,limit):
++ p=pathlib.Path(path)
++ if not D.fullmatch(digest) or p.is_symlink() or not p.is_file():raise ValueError('pinned regular file required')
++ with p.open('rb') as f:b=f.read(limit+1)
++ if len(b)>limit or hashlib.sha256(b).hexdigest()!=digest:raise ValueError('pin or extent mismatch')
++ return b
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--package',required=True);p.add_argument('--package-sha',required=True)
++ for name in ('resolution','mesh-report','material-report'):p.add_argument('--'+name,nargs=2,metavar=('PATH','SHA256'),required=True)
++ p.add_argument('--output',required=True);a=p.parse_args()
++ if not a.output or a.output in ('.','..') or pathlib.Path(a.output).name!=a.output:raise ValueError('single fresh output directory required')
++ src=pathlib.Path(a.package)
++ if src.is_symlink() or not src.is_file() or src.stat().st_size>64*1024*1024 or not D.fullmatch(a.package_sha):raise ValueError('package bound or identity')
++ pkg=Package(src,'mod')
++ if pkg.source_sha256!=a.package_sha or len(pkg.entries)>1024:raise ValueError('package pin/count')
++ res=json.loads(read(*a.resolution,1024*1024));mesh=json.loads(read(*a.mesh_report,1024*1024));mat=json.loads(read(*a.material_report,1024*1024))
++ if any(x.get('game_modified') is not False for x in (res,mesh,mat)) or res.get('package_sha256')!=a.package_sha or mat.get('package_sha256')!=a.package_sha or mat.get('casp')!=res.get('casp') or mat.get('casp_sha256')!=res.get('casp_sha256') or mesh.get('resolution_sha256')!=a.resolution[1]:raise ValueError('preparation identity mismatch')
++ if pathlib.Path(a.mesh_report[0]).parent.is_symlink() or pathlib.Path(a.material_report[0]).parent.is_symlink():raise ValueError('report parent symlink')
++ read(pathlib.Path(a.mesh_report[0]).parent/'mesh.apxmesh',mesh['mesh_sha256'],64*1024*1024);read(pathlib.Path(a.material_report[0]).parent/'material.rgba',mat['material_sha256'],64*1024*1024)
++ casp=res['casp'];key=tuple(int(v,16) for v in casp.split(':'))
++ if len(key)!=3 or key[0]!=0x034aeecb or key not in pkg.entries:raise ValueError('CASP absent')
++ raw=pkg.read_many([key],max_total=1024*1024)[key]
++ if hashlib.sha256(raw).hexdigest()!=res['casp_sha256']:raise ValueError('CASP identity mismatch')
++ meta=casp_material(raw)
++ if meta['texture']!=mat['requested_texture'] or not 1<=len(meta['swatch_colors_argb'])<=8 or not 0<=meta['swatch_order']<=65535:raise ValueError('metadata mismatch')
++ t=next((x for x in res['references'] if x['role']=='texture'),None)
++ if not t or t.get('resolved')!=mat['resolved_texture'] or t.get('sha256')!=mat['texture_sha256'] or t.get('state')!='source-present-not-rendered':raise ValueError('texture binding mismatch')
++ tk=tuple(int(v,16) for v in mat['resolved_texture'].split(':'))
++ if tk not in pkg.entries or hashlib.sha256(pkg.read_many([tk],max_total=32*1024*1024)[tk]).hexdigest()!=mat['texture_sha256']:raise ValueError('texture not from package')
++ lines=['APX-GENERIC-DRESS-1',casp,str(meta['swatch_order']),','.join(f'{v:08x}' for v in meta['swatch_colors_argb']),mat['material_sha256'],mesh['mesh_sha256'],a.package_sha]
++ payload=('\n'.join(lines)+'\n').encode('ascii')
++ parent=root/'private-input-recovery'
++ if parent.is_symlink() or not parent.is_dir():raise ValueError('private parent unavailable')
++ out=parent/a.output;out.mkdir(mode=0o700,exist_ok=False)
++ with (out/'descriptor.txt').open('xb') as f:f.write(payload)
++ print(json.dumps({'descriptor_sha256':hashlib.sha256(payload).hexdigest(),'game_modified':False,'native_fidelity':'unverified'}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/tools/research/test_generic_scene_http.py
+@@ -0,0 +1,34 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Opt-in real-source loopback diagnostic. No game writes; not browser QA."""
++import hashlib,json,os,pathlib,select,subprocess,sys,urllib.request,urllib.error
++if not __debug__: raise SystemExit("Assertions required; do not run with Python -O")
++root=pathlib.Path(__file__).resolve().parents[1]; binary=root/'generic-scene-candidate/target/release/examples/preview_server'
++args=[os.environ[f'CC_REAL_SCENE_ARG_{i}'] for i in range(5)]
++id=os.environ['CC_REAL_POSE_ID'];assert len(id)==64 and all(c in '0123456789abcdef' for c in id)
++env=os.environ.copy();env.pop('APEX_PREVIEW_PORT',None);env['APEX_REQUEST_BUDGET']='20'
++p=subprocess.Popen([str(binary),'--cc',*args],env=env,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
++try:
++ assert select.select([p.stdout],[],[],30)[0], 'Startup timed out'
++ line=p.stdout.readline().split();assert line and line[0].startswith('http://127.0.0.1:'), 'Unexpected listener'
++ url=line[0].rstrip('/')
++ def get(path):
++  try:
++   with urllib.request.urlopen(url+path,timeout=45) as r:return r.status,r.headers,r.read(1048577)
++  except urllib.error.HTTPError as e:return e.code,e.headers,e.read(1048577)
++ status,_,raw=get('/identity');identity=json.loads(raw);assert status==200 and identity['pose_library_ready'] is True
++ status,_,raw=get('/swatch-catalog');sw=json.loads(raw);assert status==200 and sw['default_id']=='034AEECB:80000000:B0AB3C0D731B68A9' and sw['enabled'] is False and len(sw['swatches'])==1
++ status,h,body=get('/cc-frame?yaw=0&brightness=0&saturation=0&hue=0&opacity=16384&pose=0&swatch='+sw['default_id']);assert status==200 and h['X-Swatch-ID']==sw['default_id'] and len(body)==512*512*3
++ status,_,raw=get('/pose-catalog');catalog=json.loads(raw);assert status==200 and catalog['autoplay'] is False
++ pose=next(x for x in catalog['poses'] if x['id']==id);assert pose['playback_ready'] is True
++ status,_,raw=get('/cas-room');assert status==200 and b'pose-app.bundle.mjs' in raw
++ swatch=pose.get('swatch_id')
++ status,h,body=get('/clip-frame?clip='+id+'&frame=0&yaw=0&brightness=0&saturation=0&hue=0&opacity=16384')
++ assert status==200 and h['X-Clip-ID']==id and h['X-Clip-Frame']=='0' and h['X-Scene']==identity['scene_sha256']
++ assert len(body)==512*512*3 and len(set(body))>1
++ bad,_,_=get('/clip-frame?clip='+id+'&frame=999&yaw=0&brightness=0&saturation=0&hue=0&opacity=16384');assert bad==400
++ client=subprocess.run(['node',str(root/'linked-candidate/preview-ui/private-pose-client-smoke.mjs'),url,id],capture_output=True,text=True,timeout=45,check=True); print(client.stdout.strip())
++ print(json.dumps({'catalog_poses':len(catalog['poses']),'selected_ready':True,'clip_frame_status':status,'invalid_frame_status':bad,'frame_bytes':len(body),'autoplay':False,'browser_tested':False,'game_modified':False,'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest()}))
++finally:
++ p.terminate()
++ try:p.wait(timeout=5)
++ except subprocess.TimeoutExpired:p.kill();p.wait(timeout=5)

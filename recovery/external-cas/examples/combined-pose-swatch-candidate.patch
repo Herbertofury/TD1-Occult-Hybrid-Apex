@@ -1,0 +1,37 @@
+--- a/examples/preview_server.rs
++++ b/examples/preview_server.rs
+@@ -1762,6 +1762,9 @@
+         let posed=cc.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,&id,0,0,[0,0,0,16384]).unwrap();
+         let repeated=cc.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,&id,0,0,[0,0,0,16384]).unwrap();
+         assert_eq!(posed.rgb.len(),512*512*3);assert_eq!(posed.rgb,repeated.rgb);
++        let alternate=cc_scene::swatch_catalog::SWATCHES[1].id;
++        let recolored=cc.render_clip_swatch(alternate,&id,0,0,[0,0,0,16384]).unwrap();
++        assert_ne!(posed.rgb,recolored.rgb);
+         assert!(cc.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,&id,999,0,[0,0,0,16384]).is_err());
+     }
+ 
+--- /dev/null
++++ b/tools/research/prepare_adult_rig_text.py
+@@ -0,0 +1,10 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Project a caller-supplied, hash-pinned rig into the sampler's bounded text format."""
++import argparse,hashlib,pathlib,sys
++root=pathlib.Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'rig-recovery'))
++from inspect_rig import inspect_rig
++p=argparse.ArgumentParser();p.add_argument('rig');p.add_argument('sha256');p.add_argument('output');a=p.parse_args();source=pathlib.Path(a.rig);assert source.is_file() and not source.is_symlink();raw=source.read_bytes();assert len(raw)<=4*1024*1024 and hashlib.sha256(raw).hexdigest()==a.sha256
++rig=inspect_rig(raw);bones=rig['bones'];assert len(bones)==165 and all(b['parent']<i for i,b in enumerate(bones)) and all(abs(v-1)<1e-6 for b in bones for v in b['scale'])
++text=str(len(bones))+'\n'+'\n'.join(' '.join(map(str,[b['hash'],b['parent'],*b['position'],*b['orientation'],*b['scale']])) for b in bones)+'\n'
++with pathlib.Path(a.output).open('x') as out:out.write(text)
++print('verified adult bones:',len(bones),'source sha256:',rig['sha256'])
+--- /dev/null
++++ b/examples/render_pose_diagnostic.rs
+@@ -0,0 +1,9 @@
++//! Private offline posed scene diagnostic; no game or collection writes.
++pub mod cc_scene;
++use std::{fs,io::Write};use sha2::{Digest,Sha256};
++fn main()->Result<(),Box<dyn std::error::Error>>{
++ let a:Vec<_>=std::env::args().collect();if a.len()!=8{return Err("scene-dir head dress shoes hair pose-id output.ppm".into());}
++ let scene=cc_scene::CcScene::load(&a[1..6])?;let frame=scene.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,&a[6],0,0,[0,0,0,16384])?;
++ let mut out=fs::OpenOptions::new().write(true).create_new(true).open(&a[7])?;out.write_all(b"P6\n512 512\n255\n")?;out.write_all(&frame.rgb)?;out.flush()?;
++ println!("{{\"rgb_sha256\":\"{:x}\",\"triangles\":{},\"covered_pixels\":{},\"game_applied\":false}}",Sha256::digest(&frame.rgb),frame.triangles,frame.covered_pixels);Ok(())
++}

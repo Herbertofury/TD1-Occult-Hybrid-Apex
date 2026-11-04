@@ -52,6 +52,7 @@
 #include <memory>
 
 #include "ApexUiData.h"
+#include "ApexEquippedCategoryIndex.h"
 #include "ApexResourceImage.h"
 #include "ApexLibraryTextureLifetime.h"
 #include "ApexOccultImage.h"
@@ -2738,22 +2739,17 @@ static void DrawEquippedList() {
     const auto& parts = outfits[static_cast<size_t>(g_studioOutfitIndex)]["parts"];
     struct Row { int index; std::string label, group; };
     std::vector<Row> rows;
-    auto categoryFor = [&](const ui::Json& part) -> const ui::Json* {
-        if (catalog != g_studioData.end()) for (const auto& category : *catalog)
-            if (ui::Scalar(category, "body_type") == ui::Scalar(part, "body_type")) return &category;
-        return nullptr;
-    };
+    const ui::EquippedCategoryIndex categories(catalog != g_studioData.end() ? &*catalog : nullptr,
+                                               parts, g_showEmptySlots);
     for (size_t i = 0; i < parts.size(); ++i) {
-        const auto* category = categoryFor(parts[i]);
+        const auto* group = categories.Group(parts[i]);
         const auto name = StudioPartName(parts[i], ResourcePartEditor(parts[i]), resourceCatalog, resourceCatalogValid);
         const auto nameMode = static_cast<resource::NameMode>(std::clamp(g_itemNameMode, 0, 2));
         rows.push_back({static_cast<int>(i), resource::EquippedNameLabel(name, nameMode) + " / " + ui::Scalar(parts[i], "label"),
-            category ? ui::Scalar(*category, "group") : "Runtime discovered"});
+            group ? *group : "Runtime discovered"});
     }
     if (g_showEmptySlots && catalog != g_studioData.end()) for (const auto& category : *catalog) {
-        bool equipped = false;
-        for (const auto& part : parts) if (ui::Scalar(part, "body_type") == ui::Scalar(category, "body_type")) equipped = true;
-        if (!equipped) rows.push_back({-1, ui::Scalar(category, "label"), ui::Scalar(category, "group")});
+        if (!categories.Equipped(category)) rows.push_back({-1, ui::Scalar(category, "label"), ui::Scalar(category, "group")});
     }
     if (g_equippedSort != 2) std::stable_sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) {
         if (g_equippedSort == 0 && (a.index >= 0) != (b.index >= 0)) return a.index >= 0;

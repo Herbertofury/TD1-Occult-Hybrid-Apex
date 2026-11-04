@@ -29,6 +29,12 @@
       "sha256": "3b7815856093c4fa7eb344d7a4141aa30bbf14a8baed70a4463a218a9f5b4af8"
     },
     {
+      "bytes": 376569,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "247b3022687bb1923e1c416d6bb3ac7485d8b82690c982827d25318ace855255"
+    },
+    {
       "bytes": 6747,
       "mode": "100644",
       "path": "tests/test_game_process_identity.py",
@@ -741,12 +747,6 @@
       "mode": "100644",
       "path": "tests/test_game_renderer_bootstrap.py",
       "sha256": "7c59bdbef0c44e4d7e94a05e7b06d42b0ecfb1585aa70f2eb4979bcdcb54bb6b"
-    },
-    {
-      "bytes": 15364,
-      "mode": "100644",
-      "path": "NativeOverlay/CMakeLists.txt",
-      "sha256": "df5d481a24121cdaa046322e5e827601342c8c7cfa2b4ade9281f9755b65b924"
     },
     {
       "bytes": 6457,
@@ -3923,6 +3923,12 @@
       "sha256": "6f181aa5291fd44dd7dd4a8ce09c3bd0c60dd0639d834219f62b8951fbc82388"
     },
     {
+      "bytes": 5513,
+      "mode": "100644",
+      "path": "NativeOverlay/Tests/EquippedCategoryIndexTests.cpp",
+      "sha256": "ae7cf5d4d4fed14886349bfb78257eddb2d95f91b415b07b1ec1a9a23df054ca"
+    },
+    {
       "bytes": 8113,
       "mode": "100644",
       "path": "tests/test_occult_add_guard.py",
@@ -4481,12 +4487,6 @@
       "sha256": "642e08077600e98917ebadf3810f0659c9e7f81e084a78a76c27747d067f3e6d"
     },
     {
-      "bytes": 376804,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "8808e03ed51ff2710d13e8c0936011828098a92bc8f439bee42e0c85001841c4"
-    },
-    {
       "bytes": 2245,
       "mode": "100644",
       "path": "tests/test_cas_owner_metadata_bytecode.py",
@@ -4857,6 +4857,12 @@
       "mode": "100644",
       "path": "tests/test_game_live_observe.py",
       "sha256": "eb90382671521a6de0db47278d0ddeaecad9a9abafe37093003e5466989c2497"
+    },
+    {
+      "bytes": 1117,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/ApexEquippedCategoryIndex.h",
+      "sha256": "44c57843885ed280ce4af23d2df37896d7a54acac6cb77b2624db7627a6422ad"
     },
     {
       "bytes": 9303,
@@ -5477,6 +5483,12 @@
       "sha256": "d1291d247c68b38513926f1bdad950dad6a32613fcf11b7b18f1ddee335a8673"
     },
     {
+      "bytes": 15807,
+      "mode": "100644",
+      "path": "NativeOverlay/CMakeLists.txt",
+      "sha256": "a00d46530cb40f704b80a4a572b514389dce841a3a555675980fdbef2d29aea5"
+    },
+    {
       "bytes": 4758,
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexCasExactRecordLookupWin.h",
@@ -5955,6 +5967,12 @@
       "mode": "100644",
       "path": "docs/USER_REPORTED_REGRESSIONS.md",
       "sha256": "e5811dc0dc3eaee461ed3f40177b34c12663614aa0f1616bea150c831e39992f"
+    },
+    {
+      "bytes": 1907,
+      "mode": "100644",
+      "path": "docs/F11_EQUIPPED_CATEGORY_INDEX.md",
+      "sha256": "10f662d710b59034e778438175a9a5aaf7663ac9b3bc302b6047a01efa9f6a31"
     },
     {
       "bytes": 2458,

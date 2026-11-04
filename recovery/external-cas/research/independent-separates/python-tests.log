@@ -1,0 +1,28 @@
+test_dress_and_pair (test_clothing_descriptor.TestDescriptors.test_dress_and_pair) ... ok
+test_refuses_wrong_identity_and_malformed_fields (test_clothing_descriptor.TestDescriptors.test_refuses_wrong_identity_and_malformed_fields) ... ok
+test_cross_slot_rejected_and_bad_transition_refused (test_extend_variant_bindings.SeparateTests.test_cross_slot_rejected_and_bad_transition_refused) ... ok
+test_independent_top_and_bottom_reuse_exact_prepared_scene (test_extend_variant_bindings.SeparateTests.test_independent_top_and_bottom_reuse_exact_prepared_scene) ... ok
+test_missing_or_conflicting_clothing_mode_refused (test_extend_variant_bindings.SeparateTests.test_missing_or_conflicting_clothing_mode_refused) ... ok
+test_new_bottom_retains_top_and_all_other_slots (test_extend_variant_bindings.SeparateTests.test_new_bottom_retains_top_and_all_other_slots) ... ok
+test_new_top_retains_bottom_and_all_other_slots (test_extend_variant_bindings.SeparateTests.test_new_top_retains_bottom_and_all_other_slots) ... ok
+test_eye_texture_preserves_other_three_slots (test_extend_variant_bindings.Tests.test_eye_texture_preserves_other_three_slots) ... ok
+test_inconsistent_transitions_and_cross_slot_rejected (test_extend_variant_bindings.Tests.test_inconsistent_transitions_and_cross_slot_rejected) ... ok
+test_new_part_extends_and_existing_is_reused (test_extend_variant_bindings.Tests.test_new_part_extends_and_existing_is_reused) ... ok
+test_remove_scene_preserves_other_transitions_without_data_deletion (test_extend_variant_bindings.Tests.test_remove_scene_preserves_other_transitions_without_data_deletion) ... ok
+test_shoes_change_preserves_dress_and_hair (test_extend_variant_bindings.Tests.test_shoes_change_preserves_dress_and_hair) ... ok
+test_tattoo_preserves_other_four_slots (test_extend_variant_bindings.Tests.test_tattoo_preserves_other_four_slots) ... ok
+test_combinatorial_bindings_validate_transitions (test_scene_gateway.Tests.test_combinatorial_bindings_validate_transitions) ... ok
+test_concurrent_same_generation_allows_one (test_scene_gateway.Tests.test_concurrent_same_generation_allows_one) ... ok
+test_cross_site_and_unlisted_paths_refused (test_scene_gateway.Tests.test_cross_site_and_unlisted_paths_refused) ... ok
+test_duplicate_json_fields_do_not_switch (test_scene_gateway.Tests.test_duplicate_json_fields_do_not_switch) ... ok
+test_full_registry_evicts_only_dynamic_scene_and_rolls_back_on_failure (test_scene_gateway.Tests.test_full_registry_evicts_only_dynamic_scene_and_rolls_back_on_failure) ... ok
+test_nine_scene_transition_set_is_accepted_and_seventeen_rejected (test_scene_gateway.Tests.test_nine_scene_transition_set_is_accepted_and_seventeen_rejected) ... ok
+test_opt_in_preparation_only_opaque_same_origin_selection (test_scene_gateway.Tests.test_opt_in_preparation_only_opaque_same_origin_selection) ... ok
+test_preparation_rebases_against_current_scene_and_generation (test_scene_gateway.Tests.test_preparation_rebases_against_current_scene_and_generation) ... ok
+test_prepared_bindings_require_unique_exact_catalog (test_scene_gateway.Tests.test_prepared_bindings_require_unique_exact_catalog) ... ok
+test_selection_requires_same_origin_and_custom_header (test_scene_gateway.Tests.test_selection_requires_same_origin_and_custom_header) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 6.529s
+
+OK

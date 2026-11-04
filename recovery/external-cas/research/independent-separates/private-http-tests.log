@@ -1,0 +1,2 @@
+PASS: source-bound top, bottom, top switches; other four slots retained; three distinct preview frames; stale and unknown switches retain last good; no game writes
+gateway exit 0

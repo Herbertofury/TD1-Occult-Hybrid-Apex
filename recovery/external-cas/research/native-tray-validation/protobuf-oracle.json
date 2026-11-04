@@ -1,0 +1,327 @@
+{
+  "ok": true,
+  "protobuf_version": "7.36.2",
+  "cases": [
+    {
+      "seed": 0,
+      "outfits": 1,
+      "native_bytes": 229
+    },
+    {
+      "seed": 1,
+      "outfits": 2,
+      "native_bytes": 283
+    },
+    {
+      "seed": 2,
+      "outfits": 3,
+      "native_bytes": 380
+    },
+    {
+      "seed": 3,
+      "outfits": 4,
+      "native_bytes": 477
+    },
+    {
+      "seed": 4,
+      "outfits": 5,
+      "native_bytes": 610
+    },
+    {
+      "seed": 5,
+      "outfits": 1,
+      "native_bytes": 274
+    },
+    {
+      "seed": 6,
+      "outfits": 2,
+      "native_bytes": 401
+    },
+    {
+      "seed": 7,
+      "outfits": 3,
+      "native_bytes": 524
+    },
+    {
+      "seed": 8,
+      "outfits": 4,
+      "native_bytes": 690
+    },
+    {
+      "seed": 9,
+      "outfits": 5,
+      "native_bytes": 437
+    },
+    {
+      "seed": 10,
+      "outfits": 1,
+      "native_bytes": 247
+    },
+    {
+      "seed": 11,
+      "outfits": 2,
+      "native_bytes": 326
+    },
+    {
+      "seed": 12,
+      "outfits": 3,
+      "native_bytes": 437
+    },
+    {
+      "seed": 13,
+      "outfits": 4,
+      "native_bytes": 550
+    },
+    {
+      "seed": 14,
+      "outfits": 5,
+      "native_bytes": 705
+    },
+    {
+      "seed": 15,
+      "outfits": 1,
+      "native_bytes": 291
+    },
+    {
+      "seed": 16,
+      "outfits": 2,
+      "native_bytes": 437
+    },
+    {
+      "seed": 17,
+      "outfits": 3,
+      "native_bytes": 586
+    },
+    {
+      "seed": 18,
+      "outfits": 4,
+      "native_bytes": 430
+    },
+    {
+      "seed": 19,
+      "outfits": 5,
+      "native_bytes": 529
+    },
+    {
+      "seed": 20,
+      "outfits": 1,
+      "native_bytes": 270
+    },
+    {
+      "seed": 21,
+      "outfits": 2,
+      "native_bytes": 361
+    },
+    {
+      "seed": 22,
+      "outfits": 3,
+      "native_bytes": 498
+    },
+    {
+      "seed": 23,
+      "outfits": 4,
+      "native_bytes": 537
+    },
+    {
+      "seed": 24,
+      "outfits": 5,
+      "native_bytes": 691
+    },
+    {
+      "seed": 25,
+      "outfits": 1,
+      "native_bytes": 289
+    },
+    {
+      "seed": 26,
+      "outfits": 2,
+      "native_bytes": 432
+    },
+    {
+      "seed": 27,
+      "outfits": 3,
+      "native_bytes": 318
+    },
+    {
+      "seed": 28,
+      "outfits": 4,
+      "native_bytes": 417
+    },
+    {
+      "seed": 29,
+      "outfits": 5,
+      "native_bytes": 512
+    },
+    {
+      "seed": 30,
+      "outfits": 1,
+      "native_bytes": 267
+    },
+    {
+      "seed": 31,
+      "outfits": 2,
+      "native_bytes": 354
+    },
+    {
+      "seed": 32,
+      "outfits": 3,
+      "native_bytes": 484
+    },
+    {
+      "seed": 33,
+      "outfits": 4,
+      "native_bytes": 619
+    },
+    {
+      "seed": 34,
+      "outfits": 5,
+      "native_bytes": 783
+    },
+    {
+      "seed": 35,
+      "outfits": 1,
+      "native_bytes": 307
+    },
+    {
+      "seed": 36,
+      "outfits": 2,
+      "native_bytes": 297
+    },
+    {
+      "seed": 37,
+      "outfits": 3,
+      "native_bytes": 379
+    },
+    {
+      "seed": 38,
+      "outfits": 4,
+      "native_bytes": 492
+    },
+    {
+      "seed": 39,
+      "outfits": 5,
+      "native_bytes": 618
+    },
+    {
+      "seed": 40,
+      "outfits": 1,
+      "native_bytes": 286
+    },
+    {
+      "seed": 41,
+      "outfits": 2,
+      "native_bytes": 392
+    },
+    {
+      "seed": 42,
+      "outfits": 3,
+      "native_bytes": 541
+    },
+    {
+      "seed": 43,
+      "outfits": 4,
+      "native_bytes": 703
+    },
+    {
+      "seed": 44,
+      "outfits": 5,
+      "native_bytes": 892
+    },
+    {
+      "seed": 45,
+      "outfits": 1,
+      "native_bytes": 240
+    },
+    {
+      "seed": 46,
+      "outfits": 2,
+      "native_bytes": 292
+    },
+    {
+      "seed": 47,
+      "outfits": 3,
+      "native_bytes": 364
+    },
+    {
+      "seed": 48,
+      "outfits": 4,
+      "native_bytes": 483
+    },
+    {
+      "seed": 49,
+      "outfits": 5,
+      "native_bytes": 594
+    },
+    {
+      "seed": 50,
+      "outfits": 1,
+      "native_bytes": 282
+    },
+    {
+      "seed": 51,
+      "outfits": 2,
+      "native_bytes": 388
+    },
+    {
+      "seed": 52,
+      "outfits": 3,
+      "native_bytes": 533
+    },
+    {
+      "seed": 53,
+      "outfits": 4,
+      "native_bytes": 675
+    },
+    {
+      "seed": 54,
+      "outfits": 5,
+      "native_bytes": 441
+    },
+    {
+      "seed": 55,
+      "outfits": 1,
+      "native_bytes": 238
+    },
+    {
+      "seed": 56,
+      "outfits": 2,
+      "native_bytes": 331
+    },
+    {
+      "seed": 57,
+      "outfits": 3,
+      "native_bytes": 423
+    },
+    {
+      "seed": 58,
+      "outfits": 4,
+      "native_bytes": 558
+    },
+    {
+      "seed": 59,
+      "outfits": 5,
+      "native_bytes": 693
+    },
+    {
+      "seed": 60,
+      "outfits": 1,
+      "native_bytes": 299
+    },
+    {
+      "seed": 61,
+      "outfits": 2,
+      "native_bytes": 424
+    },
+    {
+      "seed": 62,
+      "outfits": 3,
+      "native_bytes": 593
+    },
+    {
+      "seed": 63,
+      "outfits": 4,
+      "native_bytes": 415
+    }
+  ],
+  "scope": "Generated schemas and fixtures only; no installed-game validation"
+}

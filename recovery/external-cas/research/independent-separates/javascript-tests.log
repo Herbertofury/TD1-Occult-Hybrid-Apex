@@ -1,0 +1,15 @@
+✔ only exact catalog parts receive explicit preview action (3.78655ms)
+✔ wrong catalog identity exposes no actions (1.47566ms)
+✔ uncertain switch requires refresh rather than retry (9.805301ms)
+✔ hair binding names a prepared combination, not an equip (1.857712ms)
+✔ combinatorial selection preserves prepared counterpart and skips missing transitions (2.038482ms)
+✔ nine-scene catalog exposes only the active prepared transition (2.659622ms)
+✔ prepared top and bottom cards target distinct verified transitions (1.587026ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 133.732827

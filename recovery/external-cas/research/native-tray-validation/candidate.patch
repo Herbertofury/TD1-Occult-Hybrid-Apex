@@ -1,0 +1,730 @@
+--- a/tools/tray_library.py
++++ b/tools/tray_library.py
+@@ -69,10 +69,11 @@
+         if reserved or extent > len(raw) - 16 or len(raw) - 16 - extent > 4096: raise ValueError('Native v2 household extent differs.')
+         payload = raw[16:16 + extent]
+     else: payload = raw[8:]
+-    household = [v for n, w, v in fields(payload) if n == 1 and w == 2]
+-    if len(household) != 1: raise ValueError('Native household payload is absent or ambiguous.')
++    household = [(w, v) for n, w, v in fields(payload) if n == 1]
++    if len(household) != 1 or household[0][0] != 2:
++        raise ValueError('Native household payload is absent, ambiguous or has changed wire type.')
+     entries, names = [], []
+-    for number, wire, value in fields(household[0]):
++    for number, wire, value in fields(household[0][1]):
+         if number == 6:
+             if wire != 2: raise ValueError('Native household Sim field type differs.')
+             entries.append(value)
+--- a/tools/tray_complete_appearance.py
++++ b/tools/tray_complete_appearance.py
+@@ -12,8 +12,7 @@
+ import struct
+ import zipfile
+ 
+-from household_cli import blob, replace
+-from live_color_probe import chunks
++from tray_native_wire import blob, replace, chunks, schema_fields, validate_fields
+ from source_manifest import write_json
+ import tray_library
+ import reusable_profile
+@@ -32,14 +31,6 @@
+     for number, kind, value, wire in chunks(raw):
+         result.setdefault(number, []).append((kind, value, wire))
+     return result
+-
+-
+-def schema_fields(catalog, message):
+-    rows = catalog['field_schemas'][message]
+-    if (not isinstance(rows, list) or len(rows) > 4096 or
+-            len({r['number'] for r in rows}) != len(rows) or len({r['name'] for r in rows}) != len(rows)):
+-        raise ValueError('Native schema fields are duplicate or unbounded.')
+-    return {r['name']: r for r in rows}
+ 
+ 
+ def one(raw, field, kind):
+@@ -52,6 +43,13 @@
+ 
+ def complete(template, records, mapping, catalog):
+     """Use the current game's supplied descriptor catalog; never guess offsets."""
++    if (not isinstance(records, list) or not 1 <= len(records) <= 8 or
++            any(not isinstance(row, dict) for row in records) or
++            not isinstance(mapping, dict) or not 1 <= len(mapping) <= 8 or
++            any(not isinstance(k, str) or not isinstance(v, str) for k, v in mapping.items())):
++        raise ValueError('Bounded native records and explicit string identity mapping required.')
++    if not isinstance(catalog, dict) or not isinstance(catalog.get('native_message_type'), str):
++        raise ValueError('Explicit native message descriptor required.')
+     old = tray_library.sims(template)
+     if old['version'] != 2:
+         raise ValueError('A real current v2 game-generated household is required.')
+@@ -66,14 +64,19 @@
+     for name in ('occult_tracker', 'trait_tracker'):
+         if attributes[name]['type'] != 'message' or attributes[name]['repeated'] is not False:
+             raise ValueError('Native tracker descriptor contract changed.')
++    selected = {name: root[name] for name in (*ACTIVE, 'sim_id', 'attributes',
++                                             'first_name', 'last_name', 'age', 'gender')}
+     source = {}
+     for row in records:
+         raw = base64.b64decode(row['native_sim'], validate=True)
++        validate_fields(raw, selected, catalog)
+         sid = str(one(raw, root['sim_id'], 1))
+         if row['sim_id'] != sid or row['native_sha256'] != digest(raw) or sid in source:
+             raise ValueError('Canonical native identity/hash differs or repeats.')
+         source[sid] = raw
+     target = [base64.b64decode(raw, validate=True) for raw in old['sims']]
++    for raw in target:
++        validate_fields(raw, selected, catalog)
+     target_ids = [str(one(raw, root['sim_id'], 1)) for raw in target]
+     if (not 1 <= len(source) <= 8 or len(set(target_ids)) != len(target_ids) or
+             set(mapping) != set(source) or set(mapping.values()) != set(target_ids) or
+@@ -98,8 +101,12 @@
+             one(src_attributes, attributes[name], 2)
+             replacements[number] = [entry[2] for entry in tracker_fields[number]]
+         patched_attributes = replace(dst_attributes, replacements)
++        untouched_attributes = lambda data: [(n, k, wire) for n, k, _v, wire in chunks(data) if n not in replacements]
++        if untouched_attributes(dst_attributes) != untouched_attributes(patched_attributes):
++            raise ValueError('Completion changed an unselected native attribute owner.')
+         changes[root['attributes']['number']] = [blob(root['attributes']['number'], patched_attributes)]
+         patched = replace(raw, changes)
++        validate_fields(patched, selected, catalog)
+         actual = wire_map(patched)
+         if any([e[2] for e in actual.get(n, [])] != wanted for n, wanted in changes.items()):
+             raise ValueError('Completed native appearance failed complete wire readback.')
+--- /dev/null
++++ b/tools/tray_native_wire.py
+@@ -0,0 +1,168 @@
++"""Bounded native protobuf edits with exact retention of untouched wire bytes.
++
++Pure Python: no game imports, process contact, generated game classes or file IO.
++This validates structure, not whether The Sims 4 will accept a household.
++"""
++
++MAX_BYTES = 16 * 1024 * 1024
++MAX_FIELDS = 100000
++MAX_DEPTH = 32
++WIRE_TYPES = {
++    'double': 1, 'float': 5, 'int64': 0, 'uint64': 0, 'int32': 0,
++    'fixed64': 1, 'fixed32': 5, 'bool': 0, 'string': 2, 'message': 2,
++    'bytes': 2, 'uint32': 0, 'enum': 0, 'sfixed32': 5, 'sfixed64': 1,
++    'sint32': 0, 'sint64': 0,
++}
++
++
++def varint(value):
++    if type(value) is not int or not 0 <= value < 1 << 64:
++        raise ValueError('Native unsigned protobuf integer required.')
++    out = bytearray()
++    while value > 127:
++        out.append((value & 127) | 128)
++        value >>= 7
++    out.append(value)
++    return bytes(out)
++
++
++def _varint(raw, offset):
++    value = 0
++    for shift in range(0, 70, 7):
++        if offset >= len(raw):
++            raise ValueError('Truncated native protobuf varint.')
++        byte = raw[offset]
++        offset += 1
++        value |= (byte & 127) << shift
++        if not byte & 128:
++            if value >= 1 << 64:
++                raise ValueError('Native protobuf varint overflow.')
++            return value, offset
++    raise ValueError('Overlong native protobuf varint.')
++
++
++def chunks(raw):
++    if not isinstance(raw, bytes) or len(raw) > MAX_BYTES:
++        raise ValueError('Bounded native protobuf bytes required.')
++    offset = count = 0
++    while offset < len(raw):
++        count += 1
++        if count > MAX_FIELDS:
++            raise ValueError('Native protobuf field count exceeds its bound.')
++        start = offset
++        tag, offset = _varint(raw, offset)
++        number, kind = tag >> 3, tag & 7
++        if not 0 < number < 1 << 29:
++            raise ValueError('Invalid native protobuf field number.')
++        if kind == 0:
++            value, offset = _varint(raw, offset)
++        else:
++            if kind == 2:
++                size, offset = _varint(raw, offset)
++            elif kind in (1, 5):
++                size = 8 if kind == 1 else 4
++            else:
++                raise ValueError('Unsupported native protobuf wire type.')
++            if size > len(raw) - offset:
++                raise ValueError('Truncated native protobuf field.')
++            value = raw[offset:offset + size]
++            offset += size
++        yield number, kind, value, raw[start:offset]
++
++
++def blob(number, value):
++    if type(number) is not int or not 0 < number < 1 << 29 or not isinstance(value, bytes):
++        raise ValueError('Native protobuf field number/bytes required.')
++    return varint(number * 8 + 2) + varint(len(value)) + value
++
++
++def replace(raw, changes):
++    for number, entries in changes.items():
++        for wire in entries:
++            parsed = list(chunks(wire))
++            if len(parsed) != 1 or parsed[0][0] != number:
++                raise ValueError('Native replacement must match its exact field owner.')
++    out, done = [], set()
++    for number, _kind, _value, wire in chunks(raw):
++        if number not in changes:
++            out.append(wire)
++        elif number not in done:
++            out.extend(changes[number])
++            done.add(number)
++    for number in sorted(set(changes) - done):
++        out.extend(changes[number])
++    return b''.join(out)
++
++
++def schema_fields(catalog, message):
++    schemas = catalog.get('field_schemas') if isinstance(catalog, dict) else None
++    if not isinstance(schemas, dict) or not 1 <= len(schemas) <= 2048:
++        raise ValueError('Bounded native descriptor catalog required.')
++    rows = schemas.get(message)
++    if not isinstance(rows, list) or len(rows) > 4096:
++        raise ValueError('Bounded native descriptor field list required.')
++    names, numbers, result = set(), set(), {}
++    for row in rows:
++        if not isinstance(row, dict):
++            raise ValueError('Typed native descriptor field required.')
++        name, number, kind = row.get('name'), row.get('number'), row.get('type')
++        if (not isinstance(name, str) or not name or len(name) > 256 or
++                type(number) is not int or not 0 < number < 1 << 29 or
++                name in names or number in numbers or not isinstance(kind, str) or kind not in WIRE_TYPES or
++                type(row.get('repeated')) is not bool):
++            raise ValueError('Native schema fields are invalid, duplicate or unsupported.')
++        if kind == 'message' and (not isinstance(row.get('message_type'), str) or
++                                  row['message_type'] not in schemas):
++            raise ValueError('Native nested descriptor is missing.')
++        names.add(name)
++        numbers.add(number)
++        result[name] = row
++    return result
++
++
++def validate_fields(raw, selected, catalog, depth=0, budget=None):
++    """Validate selected owners and their declared descendants; preserve unknowns.
++
++    Repeated numeric protobuf fields permit packed, unpacked and mixed encoding.
++    A missing optional field is legitimate and remains absent. Singular fields
++    must never be silently merged or collapsed. Unknown valid wire is opaque.
++    """
++    if depth > MAX_DEPTH:
++        raise ValueError('Native descriptor nesting exceeds its bound.')
++    if budget is None:
++        budget = [0]
++    by_number = {row['number']: row for row in selected.values()}
++    seen = set()
++    for number, kind, value, _wire in chunks(raw):
++        budget[0] += 1
++        if budget[0] > MAX_FIELDS:
++            raise ValueError('Native descriptor field count exceeds its bound.')
++        row = by_number.get(number)
++        if row is None:
++            continue
++        if number in seen and not row['repeated']:
++            raise ValueError('Native singular field is ambiguous: ' + row['name'])
++        seen.add(number)
++        expected = WIRE_TYPES[row['type']]
++        packed = row['repeated'] and expected != 2 and kind == 2
++        if kind != expected and not packed:
++            raise ValueError('Native field wire type differs: ' + row['name'])
++        if packed:
++            if expected in (1, 5):
++                width = 8 if expected == 1 else 4
++                if len(value) % width:
++                    raise ValueError('Truncated packed native fixed-width field.')
++                budget[0] += len(value) // width
++            else:
++                offset = 0
++                while offset < len(value):
++                    _item, offset = _varint(value, offset)
++                    budget[0] += 1
++                    if budget[0] > MAX_FIELDS:
++                        raise ValueError('Native descriptor field count exceeds its bound.')
++            if budget[0] > MAX_FIELDS:
++                raise ValueError('Native descriptor field count exceeds its bound.')
++        elif row['type'] == 'message':
++            validate_fields(value, schema_fields(catalog, row['message_type']), catalog, depth + 1, budget)
++        elif row['type'] == 'string':
++            value.decode('utf-8')
+--- /dev/null
++++ b/tests/test_native_completion.py
+@@ -0,0 +1,384 @@
++"""Generated descriptor/wire fixtures, never game-validity evidence."""
++import base64
++import copy
++import hashlib
++import json
++from pathlib import Path
++import struct
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest.mock import patch
++import zipfile
++
++TOOLS = Path(__file__).resolve().parents[1] / 'tools'
++sys.path.insert(0, str(TOOLS))
++import tray_complete_appearance as completion
++import tray_library
++import tray_native_wire as wire
++
++
++def field(number, value, kind=2):
++    prefix = wire.varint(number * 8 + kind)
++    if kind == 2:
++        return prefix + wire.varint(len(value)) + value
++    if kind == 0:
++        return prefix + wire.varint(value)
++    return prefix + value
++
++
++def descriptor(name, number, kind, repeated=False, message=None):
++    result = dict(name=name, number=number, type=kind, repeated=repeated)
++    if message is not None:
++        result['message_type'] = message
++    return result
++
++
++def catalog_fixture():
++    kinds = ['uint32', 'string', 'bytes', 'fixed64', 'float', 'message',
++             'message', 'fixed64', 'message', 'float', 'uint32', 'uint32', 'message']
++    root = [descriptor('sim_id', 1, 'fixed64'), descriptor('first_name', 2, 'string'),
++            descriptor('last_name', 3, 'string'), descriptor('age', 4, 'uint32'),
++            descriptor('gender', 5, 'uint32'), descriptor('attributes', 6, 'message', message='Attributes')]
++    for index, (name, kind) in enumerate(zip(completion.ACTIVE, kinds), 10):
++        root.append(descriptor(name, index, kind, message='OutfitList' if name == 'outfits' else 'Opaque' if kind == 'message' else None))
++    return dict(native_message_type='Sim', field_schemas={
++        'Sim': root,
++        'Attributes': [descriptor('occult_tracker', 1, 'message', message='Tracker'),
++                       descriptor('trait_tracker', 2, 'message', message='Tracker'),
++                       descriptor('relationships', 3, 'bytes')],
++        'Tracker': [descriptor('values', 1, 'uint64', repeated=True)],
++        'OutfitList': [descriptor('outfits', 1, 'message', repeated=True, message='Outfit')],
++        'Outfit': [descriptor('outfit_id', 1, 'uint64'), descriptor('category', 2, 'uint32'),
++                   descriptor('parts', 5, 'message', message='Opaque'),
++                   descriptor('flags', 14, 'uint64', repeated=True)],
++        'Opaque': [],
++    })
++
++
++def sim_fixture(sid, variant, first='Person'):
++    schema = catalog_fixture()
++    attrs = (field(1, field(1, variant, 0) + field(200, b'unknown occult')) +
++             field(2, field(1, variant + 1, 0)) + field(3, b'relationship-' + bytes([variant])) +
++             field(202, b'future attribute-' + bytes([variant])))
++    out = (field(1, struct.pack('<Q', sid), 1) + field(2, first.encode()) + field(3, b'Native') +
++           field(4, 8, 0) + field(5, 1, 0) + field(6, attrs))
++    for row in schema['field_schemas']['Sim'][6:]:
++        kind = wire.WIRE_TYPES[row['type']]
++        if row['name'] == 'outfits':
++            # Fixture-only flags number. Real fields always come from catalog.
++            outfit = (field(1, 1000 + variant, 0) + field(2, 0, 0) +
++                      field(5, field(1, 1234 + variant, 0)) +
++                      field(14, wire.varint(variant) + wire.varint(variant + 1)) +
++                      field(14, variant + 2, 0) + field(211, b'unknown outfit'))
++            value = field(1, outfit) + field(220, b'unknown outfit-list')
++        elif row['type'] == 'message':
++            value = field(200, bytes([variant]))
++        elif kind == 2:
++            value = ('body-' + str(variant)).encode()
++        elif kind == 0:
++            value = variant
++        else:
++            value = bytes([variant]) * (8 if kind == 1 else 4)
++        out += field(row['number'], value, kind)
++    return out + field(230, b'unknown root-' + bytes([variant]))
++
++
++def household(sims, footer=b'\x91\x00\x00\x00\x00'):
++    body = field(3, b'Native household') + field(2, 2026, 0)
++    body += b''.join(field(6, sim) for sim in sims) + field(201, b'unknown household')
++    payload = field(1, body) + field(231, b'unknown outer')
++    return struct.pack('<IIII', 2, 12 + len(payload) + len(footer), 0, len(payload)) + payload + footer
++
++
++def record(raw, sid):
++    return dict(sim_id=str(sid), native_sim=base64.b64encode(raw).decode(),
++                native_sha256=hashlib.sha256(raw).hexdigest())
++
++
++def without(raw, numbers):
++    return [(n, k, b) for n, k, _v, b in wire.chunks(raw) if n not in numbers]
++
++
++class CompletionValidation(unittest.TestCase):
++    def setUp(self):
++        self.catalog = catalog_fixture()
++        self.source = sim_fixture(42, 7)
++        self.target = sim_fixture(101, 3)
++        self.template = household([self.target])
++        self.records = [record(self.source, 42)]
++        self.mapping = {'42': '101'}
++
++    def run_completion(self, **kwargs):
++        args = dict(template=self.template, records=self.records, mapping=self.mapping, catalog=self.catalog)
++        args.update(kwargs)
++        return completion.complete(**args)
++
++    def test_completes_offline_and_retains_all_unselected_native_bytes(self):
++        original = (self.template, copy.deepcopy(self.records), copy.deepcopy(self.catalog))
++        result, proof = self.run_completion()
++        parsed = tray_library.sims(result)
++        actual = base64.b64decode(parsed['sims'][0])
++        root = wire.schema_fields(self.catalog, 'Sim')
++        owners = {root[name]['number'] for name in completion.ACTIVE} | {root['attributes']['number']}
++        self.assertEqual(without(actual, owners), without(self.target, owners))
++        active = {root[name]['number'] for name in completion.ACTIVE}
++        self.assertEqual(without(actual, set(root[x]['number'] for x in root) - active | {230}),
++                         without(self.source, set(root[x]['number'] for x in root) - active | {230}))
++        actual_attrs = completion.one(actual, root['attributes'], 2)
++        original_attrs = completion.one(self.target, root['attributes'], 2)
++        self.assertEqual(without(actual_attrs, {1, 2}), without(original_attrs, {1, 2}))
++        old_extent, extent = struct.unpack_from('<I', self.template, 12)[0], struct.unpack_from('<I', result, 12)[0]
++        self.assertEqual(result[16 + extent:], self.template[16 + old_extent:])
++        outer_old, outer_new = self.template[16:16 + old_extent], result[16:16 + extent]
++        self.assertEqual(without(outer_old, {1}), without(outer_new, {1}))
++        body_old = completion.wire_map(outer_old)[1][0][1]
++        body_new = completion.wire_map(outer_new)[1][0][1]
++        self.assertEqual(without(body_old, {6}), without(body_new, {6}))
++        self.assertEqual(original, (self.template, self.records, self.catalog))
++        self.assertFalse(proof['native_library_load_verified'])
++        self.assertFalse(proof['native_metadata_regenerated'])
++
++    def test_no_game_python_modules_required_for_offline_completion(self):
++        script = "import tray_complete_appearance,sys; assert not any(x in sys.modules for x in ('household_cli','live_color_probe','apex_core'))"
++        result = subprocess.run([sys.executable, '-c', script], cwd=TOOLS,
++                                capture_output=True, text=True)
++        self.assertEqual(result.returncode, 0, result.stderr)
++
++    def test_multisim_mapping_preserves_template_order_and_native_ids(self):
++        source2, target2 = sim_fixture(43, 9, 'Other'), sim_fixture(102, 2, 'Other')
++        result, proof = self.run_completion(template=household([target2, self.target]),
++            records=[*self.records, record(source2, 43)], mapping={'42': '101', '43': '102'})
++        self.assertEqual([row['tray_sim_id'] for row in proof['members']], ['102', '101'])
++        self.assertEqual([row['source_sim_id'] for row in proof['members']], ['43', '42'])
++        self.assertEqual(len(tray_library.sims(result)['sims']), 2)
++
++    def test_absent_optional_owner_removes_only_that_target_owner(self):
++        root = wire.schema_fields(self.catalog, 'Sim')
++        number = root['custom_texture']['number']
++        source = wire.replace(self.source, {number: []})
++        result, _ = self.run_completion(records=[record(source, 42)])
++        actual = base64.b64decode(tray_library.sims(result)['sims'][0])
++        self.assertNotIn(number, completion.wire_map(actual))
++
++    def test_selected_active_wrong_wire_refused_in_source_and_template(self):
++        root = wire.schema_fields(self.catalog, 'Sim')
++        for name in completion.ACTIVE:
++            number, expected = root[name]['number'], wire.WIRE_TYPES[root[name]['type']]
++            bad = field(number, b'wrong' if expected != 2 else 7, 2 if expected != 2 else 0)
++            for which in ('source', 'template'):
++                with self.subTest(name=name, which=which), self.assertRaises(ValueError):
++                    raw = wire.replace(self.source if which == 'source' else self.target, {number: [bad]})
++                    self.run_completion(**({'records': [record(raw, 42)]} if which == 'source' else {'template': household([raw])}))
++
++    def test_duplicate_singular_active_fields_are_refused(self):
++        root = wire.schema_fields(self.catalog, 'Sim')
++        source_map = completion.wire_map(self.source)
++        for name in completion.ACTIVE:
++            with self.subTest(name=name), self.assertRaises(ValueError):
++                bad = self.source + source_map[root[name]['number']][0][2]
++                self.run_completion(records=[record(bad, 42)])
++
++    def test_nested_outfit_wrong_wire_duplicate_and_truncation_refused(self):
++        root = wire.schema_fields(self.catalog, 'Sim')
++        for bad in (field(1, b'wrong-id'), field(1, 1, 0) + field(1, 2, 0),
++                    field(14, b'\x80'), b'\x0a\x08\x01'):
++            with self.subTest(bad=bad), self.assertRaises(ValueError):
++                raw = wire.replace(self.source, {root['outfits']['number']: [field(root['outfits']['number'], field(1, bad))]})
++                self.run_completion(records=[record(raw, 42)])
++
++    def test_flags_mixed_packed_unpacked_and_unknown_outfit_fields_remain_exact(self):
++        result, _ = self.run_completion()
++        actual = base64.b64decode(tray_library.sims(result)['sims'][0])
++        number = wire.schema_fields(self.catalog, 'Sim')['outfits']['number']
++        self.assertEqual(completion.wire_map(actual)[number], completion.wire_map(self.source)[number])
++
++    def test_bad_catalog_field_shapes_fail_closed(self):
++        for update in ({'number': True}, {'number': 0}, {'number': -1}, {'number': 1 << 29},
++                       {'repeated': 0}, {'type': 'group'}, {'type': 'invented'}, {'name': ''}):
++            with self.subTest(update=update), self.assertRaises(ValueError):
++                catalog = copy.deepcopy(self.catalog)
++                catalog['field_schemas']['Sim'][6].update(update)
++                self.run_completion(catalog=catalog)
++
++    def test_duplicate_catalog_names_numbers_and_missing_children_refused(self):
++        for mode in ('name', 'number', 'child'):
++            with self.subTest(mode=mode), self.assertRaises(ValueError):
++                catalog = copy.deepcopy(self.catalog)
++                if mode == 'child':
++                    del catalog['field_schemas']['Outfit']
++                else:
++                    catalog['field_schemas']['Sim'][6][mode] = catalog['field_schemas']['Sim'][0][mode]
++                self.run_completion(catalog=catalog)
++
++    def test_native_hash_identity_and_demographic_mismatch_refused(self):
++        for mode in ('hash', 'id', 'first', 'last', 'age', 'gender'):
++            records = copy.deepcopy(self.records)
++            if mode == 'hash':
++                records[0]['native_sha256'] = '0' * 64
++            elif mode == 'id':
++                records[0]['sim_id'] = '43'
++            else:
++                number = {'first': 2, 'last': 3, 'age': 4, 'gender': 5}[mode]
++                bad = field(number, b'Other' if number in (2, 3) else 999, 2 if number in (2, 3) else 0)
++                records = [record(wire.replace(self.source, {number: [bad]}), 42)]
++            with self.subTest(mode=mode), self.assertRaises(ValueError):
++                self.run_completion(records=records)
++
++    def test_incomplete_duplicate_and_nonbijective_roster_refused(self):
++        for args in ({'records': []}, {'records': self.records * 2}, {'mapping': {}},
++                     {'mapping': {'42': '102'}}, {'template': household([self.target, self.target])}):
++            with self.subTest(args=args), self.assertRaises(ValueError):
++                self.run_completion(**args)
++
++    def test_record_and_mapping_bounds_rejected_before_decoding(self):
++        for args in ({'records': self.records * 9}, {'records': 'wrong'}, {'records': [None]},
++                     {'mapping': []}, {'mapping': {42: '101'}}, {'mapping': {'42': 101}}):
++            with (self.subTest(args=args),
++                  patch.object(completion.base64, 'b64decode', side_effect=AssertionError('decoded')),
++                  self.assertRaises(ValueError)):
++                self.run_completion(**args)
++
++    def test_wrong_wire_duplicate_household_owner_cannot_be_silently_dropped(self):
++        extent = struct.unpack_from('<I', self.template, 12)[0]
++        payload = self.template[16:16 + extent] + field(1, 0, 0)
++        bad = struct.pack('<IIII', 2, len(payload) + 17, 0, len(payload)) + payload + self.template[-5:]
++        with self.assertRaisesRegex(ValueError, 'ambiguous'):
++            self.run_completion(template=bad)
++
++    def test_opaque_footer_is_not_reinterpreted_as_member_count(self):
++        result, _ = self.run_completion()
++        self.assertEqual(result[-5:], b'\x91\0\0\0\0')
++        for footer in (b'', b'\0', b'123456', b'\1\0\0\0\1'):
++            with self.subTest(footer=footer), self.assertRaises(ValueError):
++                self.run_completion(template=household([self.target], footer))
++
++    def test_old_version_refused_without_attempting_new_envelope(self):
++        extent = struct.unpack_from('<I', self.template, 12)[0]
++        payload = self.template[16:16 + extent]
++        v1 = struct.pack('<II', 1, len(payload) + 4) + payload
++        with self.assertRaises(ValueError):
++            self.run_completion(template=v1)
++
++
++class NativeWireValidation(unittest.TestCase):
++    def test_malformed_wire_rejected(self):
++        for raw in (b'\0', b'\x0b', b'\x0e', b'\x0f', b'\x08\x80', b'\x0a\x03a',
++                    b'\x09abc', b'\x0dabc', b'\x08' + b'\xff' * 10,
++                    wire.varint(1 << 32), b'\x08' + b'\x80' * 11):
++            with self.subTest(raw=raw), self.assertRaises(ValueError):
++                list(wire.chunks(raw))
++
++    def test_parser_retains_noncanonical_valid_wire_and_unknown_fields(self):
++        raw = b'\x88\x00\x81\x00' + field(222, b'opaque') + field(1, 3, 0)
++        self.assertEqual(b''.join(row[3] for row in wire.chunks(raw)), raw)
++        self.assertEqual(wire.replace(raw, {}), raw)
++
++    def test_replacement_cannot_smuggle_another_owner(self):
++        with self.assertRaises(ValueError):
++            wire.replace(field(1, b'a'), {1: [field(2, b'b')]})
++        with self.assertRaises(ValueError):
++            wire.replace(field(1, b'a'), {1: [field(1, b'b') + field(1, b'c')]})
++
++    def test_packed_fixedwidth_and_varints_are_checked(self):
++        for kind, good, bad in (('fixed64', bytes(16), bytes(7)), ('float', bytes(8), bytes(3)),
++                                ('uint64', b'\x80\x01\x01', b'\x80')):
++            catalog = dict(field_schemas={'A': [descriptor('values', 1, kind, repeated=True)]})
++            fields = wire.schema_fields(catalog, 'A')
++            wire.validate_fields(field(1, good), fields, catalog)
++            with self.subTest(kind=kind), self.assertRaises(ValueError):
++                wire.validate_fields(field(1, bad), fields, catalog)
++
++    def test_recursion_and_aggregate_field_limits(self):
++        catalog = dict(field_schemas={'A': [descriptor('child', 1, 'message', message='A')]})
++        raw = b''
++        for _ in range(wire.MAX_DEPTH + 2):
++            raw = field(1, raw)
++        with self.assertRaisesRegex(ValueError, 'nesting'):
++            wire.validate_fields(raw, wire.schema_fields(catalog, 'A'), catalog)
++        catalog = dict(field_schemas={'A': [descriptor('values', 1, 'uint64', repeated=True)]})
++        with patch.object(wire, 'MAX_FIELDS', 10), self.assertRaisesRegex(ValueError, 'field count'):
++            wire.validate_fields(field(1, b'\0' * 11), wire.schema_fields(catalog, 'A'), catalog)
++
++    def test_invalid_utf8_in_known_string_refused(self):
++        catalog = dict(field_schemas={'A': [descriptor('label', 1, 'string')]})
++        with self.assertRaises(UnicodeDecodeError):
++            wire.validate_fields(field(1, b'\xff'), wire.schema_fields(catalog, 'A'), catalog)
++
++
++class CompletionCommandValidation(unittest.TestCase):
++    def setUp(self):
++        temporary = tempfile.TemporaryDirectory()
++        self.addCleanup(temporary.cleanup)
++        self.root = Path(temporary.name)
++        self.folder = self.root / 'External native template'
++        self.folder.mkdir()
++        self.item = '0x00000001!0x00f51748712e0032.trayitem'
++        self.binary = '0x00000000!0x00f51748712e0032.householdbinary'
++        self.image = '0x00000013!0x03f51748712e0033.sgi'
++        self.before = {self.item: b'fixture metadata retained exactly', self.image: b'fixture portrait retained exactly',
++                       self.binary: household([sim_fixture(101, 3)])}
++        for name, raw in self.before.items():
++            (self.folder / name).write_bytes(raw)
++        self.archive, self.proof = self.root / 'candidate.zip', self.root / 'proof.json'
++        self.documents = {'records': dict(ok=True, game_appearance_written=False, sims=[record(sim_fixture(42, 7), 42)]),
++                          'mapping': {'42': '101'}, 'catalog': catalog_fixture()}
++
++    def arguments(self):
++        arguments = ['--folder', str(self.folder), '--item', self.item,
++                     '--archive', str(self.archive), '--output', str(self.proof)]
++        for name, data in self.documents.items():
++            path = self.root / (name + '.json')
++            path.write_text(json.dumps(data), encoding='utf-8')
++            arguments += ['--' + name, str(path), '--' + name + '-sha256', hashlib.sha256(path.read_bytes()).hexdigest()]
++        return arguments
++
++    def test_command_runs_offline_and_retains_native_group_members(self):
++        result = subprocess.run([sys.executable, str(TOOLS / 'tray_complete_appearance.py'), *self.arguments()],
++                                capture_output=True, text=True)
++        self.assertEqual(result.returncode, 0, result.stderr)
++        self.assertFalse(json.loads(result.stdout)['native_library_load_verified'])
++        proof = json.loads(self.proof.read_text())
++        self.assertEqual(proof['status'], 'unverified-apex-completed-native-library-candidate')
++        self.assertFalse(proof['game_library_files_written'])
++        self.assertEqual(proof['archive_sha256'], hashlib.sha256(self.archive.read_bytes()).hexdigest())
++        with zipfile.ZipFile(self.archive) as archive:
++            self.assertEqual(set(archive.namelist()), set(self.before) | {'ApexAppearanceCompletion.json'})
++            self.assertEqual(archive.read(self.item), self.before[self.item])
++            self.assertEqual(archive.read(self.image), self.before[self.image])
++            self.assertNotEqual(archive.read(self.binary), self.before[self.binary])
++            self.assertEqual(archive.read(self.binary)[-5:], self.before[self.binary][-5:])
++        self.assertEqual({name: (self.folder / name).read_bytes() for name in self.before}, self.before)
++
++    def test_malformed_native_appearance_produces_no_candidate_or_receipt(self):
++        raw = wire.replace(sim_fixture(42, 7), {10: [field(10, b'wrong wire')]})
++        self.documents['records']['sims'] = [record(raw, 42)]
++        with self.assertRaises(ValueError):
++            completion.main(self.arguments())
++        self.assertFalse(self.archive.exists())
++        self.assertFalse(self.proof.exists())
++
++    def test_input_hash_mismatch_produces_no_candidate_or_receipt(self):
++        arguments = self.arguments()
++        arguments[arguments.index('--catalog-sha256') + 1] = '0' * 64
++        with self.assertRaisesRegex(ValueError, 'SHA-256'):
++            completion.main(arguments)
++        self.assertFalse(self.archive.exists())
++        self.assertFalse(self.proof.exists())
++
++    def test_candidate_must_be_new_and_outside_game_profiles(self):
++        self.archive.write_bytes(b'existing user artifact')
++        with self.assertRaises(ValueError):
++            completion.main(self.arguments())
++        self.assertEqual(self.archive.read_bytes(), b'existing user artifact')
++        profile = self.root / 'The Sims 4'
++        profile.mkdir()
++        self.archive = profile / 'candidate.zip'
++        with self.assertRaises(ValueError):
++            completion.main(self.arguments())
++        self.assertEqual(list(profile.iterdir()), [])
++
++
++if __name__ == '__main__':
++    unittest.main(verbosity=2)
+--- /dev/null
++++ b/tests/check_protobuf_oracle.py
+@@ -0,0 +1,78 @@
++"""Optional independent oracle. Requires protobuf from the official registry.
++
++Fixture-only descriptors; this is not installed-game schema evidence.
++Run with /tmp/tray-protobuf-oracle and this tests directory on PYTHONPATH.
++"""
++import json
++import random
++import struct
++
++import google.protobuf
++from google.protobuf import descriptor_pb2, descriptor_pool, message_factory
++from test_native_completion import catalog_fixture, descriptor, field, household, record, sim_fixture
++import tray_complete_appearance as completion
++import tray_library
++import tray_native_wire as wire
++import base64
++
++
++def model(catalog):
++    file = descriptor_pb2.FileDescriptorProto(name='generated_tray_fixture.proto', package='fixture', syntax='proto2')
++    for name, rows in catalog['field_schemas'].items():
++        message = file.message_type.add(name=name)
++        for row in rows:
++            item = message.field.add(name=row['name'], number=row['number'])
++            item.type = descriptor_pb2.FieldDescriptorProto.Type.Value('TYPE_' + row['type'].upper())
++            item.label = item.LABEL_REPEATED if row['repeated'] else item.LABEL_OPTIONAL
++            if row['type'] == 'message':
++                item.type_name = '.fixture.' + row['message_type']
++    pool = descriptor_pool.DescriptorPool()
++    pool.Add(file)
++    return message_factory.GetMessageClass(pool.FindMessageTypeByName('fixture.Sim'))
++
++
++def main():
++    catalog = catalog_fixture()
++    Sim = model(catalog)
++    root = wire.schema_fields(catalog, 'Sim')
++    proofs = []
++    for seed in range(64):
++        randomizer = random.Random(seed)
++        source = sim_fixture(42, 7)
++        target = sim_fixture(101, 3)
++        # Vary exact integer lengths, categories, order and packed/unpacked flags.
++        outfits = b''
++        count = 1 + seed % 5
++        for index in range(count):
++            flags = [randomizer.getrandbits(64) for _ in range(1 + seed % 9)]
++            mixed = field(14, b''.join(wire.varint(v) for v in flags[:-1])) + field(14, flags[-1], 0)
++            outfit = (field(1, randomizer.getrandbits(64), 0) + field(2, index % 3, 0) +
++                      field(5, field(1, randomizer.getrandbits(64), 0)) + mixed +
++                      field(211, bytes(randomizer.randrange(256) for _ in range(seed % 23))))
++            outfits += field(1, outfit)
++        source = wire.replace(source, {root['outfits']['number']: [field(root['outfits']['number'], outfits)]})
++        if seed % 2:
++            source = wire.replace(source, {root['custom_texture']['number']: []})
++        before = Sim.FromString(target)
++        canonical = Sim.FromString(source)
++        output, proof = completion.complete(household([target]), [record(source, 42)], {'42': '101'}, catalog)
++        native = base64.b64decode(tray_library.sims(output)['sims'][0])
++        actual = Sim.FromString(native)
++        assert actual.sim_id == before.sim_id == 101
++        for name in completion.ACTIVE:
++            assert actual.HasField(name) == canonical.HasField(name), (seed, name)
++            assert getattr(actual, name) == getattr(canonical, name), (seed, name)
++        assert actual.attributes.occult_tracker == canonical.attributes.occult_tracker
++        assert actual.attributes.trait_tracker == canonical.attributes.trait_tracker
++        assert actual.attributes.relationships == before.attributes.relationships
++        # The official protobuf parser must be able to deserialize its own
++        # reserialization too; native candidate bytes are not replaced by it.
++        assert Sim.FromString(actual.SerializeToString()) == actual
++        assert proof['native_library_load_verified'] is False
++        proofs.append({'seed': seed, 'outfits': count, 'native_bytes': len(native)})
++    print(json.dumps({'ok': True, 'protobuf_version': google.protobuf.__version__, 'cases': proofs,
++                      'scope': 'Generated schemas and fixtures only; no installed-game validation'}, indent=2))
++
++
++if __name__ == '__main__':
++    main()

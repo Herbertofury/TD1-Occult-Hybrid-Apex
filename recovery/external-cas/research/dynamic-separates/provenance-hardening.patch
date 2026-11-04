@@ -1,0 +1,70 @@
+--- a/rig-recovery/scene_gateway.py
++++ b/rig-recovery/scene_gateway.py
+@@ -49,6 +49,11 @@
+    catalogs={s.get('catalog',{}).get('index_sha') for s in owner.specs.values()}
+    if len(catalogs)!=1 or None in catalogs or any(v['catalog_sha'] not in catalogs for v in preparations.selections.values()):raise ValueError('preparation catalog mismatch')
+   if provenance is not None and (preparations is None or bindings is None or set(provenance)!=set(owner.specs)):raise ValueError('scene provenance mismatch')
++  # The stricter separates owner must never run the legacy unprovenanced
++  # activation branch. Reject missing or mixed clothing-mode provenance.
++  if preparations is not None and any('package_sources' in v.get('variant',{}) for v in preparations.selections.values()):
++   required={'top','bottom','hair','shoes','eyes','tattoo','pair'}
++   if bindings is None or type(provenance)is not dict or set(provenance)!=set(owner.specs) or any(type(row)is not dict or set(row)!=required for row in provenance.values()):raise ValueError('separates provenance required')
+   self.initial_tokens=frozenset(owner.specs);self.preparations=preparations;self.provenance=None if provenance is None else {k:dict(v) for k,v in provenance.items()}
+   self.owner=owner;self.labels=dict(labels);self.bindings=None if bindings is None else json.loads(json.dumps(bindings));self.slots=threading.BoundedSemaphore(4);super().__init__(('127.0.0.1',0),Handler);self.expected_host='127.0.0.1:'+str(self.server_address[1]);self.expected_origin='http://'+self.expected_host
+  def process_request(self,request,client_address):
+--- a/rig-recovery/separate_preparation_owner.py
++++ b/rig-recovery/separate_preparation_owner.py
+@@ -94,7 +94,7 @@
+      packages[kind]=x['package_sources'][digest]
+     args=[sys.executable,str(ROOT/'build_prepared_separates.py'),'--base',x['base'],'--base-sha',x['base_sha'],'--manifest',x['manifest'],x['manifest_sha'],'--top-pipeline',chosen['top'],'--bottom-pipeline',chosen['bottom'],'--top-package',packages['top'],'--bottom-package',packages['bottom'],'--hair-pipeline',chosen['hair'],'--shoes-pipeline',chosen['shoes'],'--eyes-pipeline',chosen['eyes'],'--tattoo-pipeline',chosen['tattoo'],'--binary',x['binary'],x['binary_sha'],'--output',x['output']]
+     v=self._execute(args,True)
+-    if type(v)is not dict or v.get('runtime')!=x['output'] or v.get('preview_frame_verified') is not True or v.get('game_modified') is not False or v.get('native_fidelity')!='unverified' or v.get('clothing_mode')!='separates' or not isinstance(v.get('pair_pipeline'),str) or not LONGNAME.fullmatch(v['pair_pipeline']) or not all(isinstance(v.get(k),str) and HASH.fullmatch(v[k]) for k in ('runtime_sha256','scene_sha256')) or not isinstance(v.get('swatch_id'),str):raise ValueError('invalid variant result')
++    if type(v)is not dict or v.get('runtime')!=x['output'] or v.get('preview_frame_verified') is not True or v.get('game_modified') is not False or v.get('native_fidelity')!='unverified' or v.get('clothing_mode')!='separates' or not isinstance(v.get('pair_pipeline'),str) or v['pair_pipeline']!=x['output']+'-pair' or not LONGNAME.fullmatch(v['pair_pipeline']) or not all(isinstance(v.get(k),str) and HASH.fullmatch(v[k]) for k in ('runtime_sha256','scene_sha256')) or not isinstance(v.get('swatch_id'),str):raise ValueError('invalid variant result')
+     result={'base_token':x['base_token'],'part_id':s['part_id'],'pipeline':s['name'],'pair_pipeline':v['pair_pipeline'],'slot':x['slot'],'spec':{'runtime':v['runtime'],'runtime_sha':v['runtime_sha256'],'scene_sha':v['scene_sha256'],'swatch_id':v['swatch_id'],'binary':x['binary'],'binary_sha':x['binary_sha'],'catalog':{'index':s['catalog'],'index_sha':s['catalog_sha'],'helper':x['helper'],'helper_sha':x['helper_sha'],'policy':x['policy']}}};state='preview_ready'
+   except TimeoutError:state='timed_out'
+   except Exception:state='failed'
+--- a/rig-recovery/build_prepared_separates.py
++++ b/rig-recovery/build_prepared_separates.py
+@@ -25,6 +25,9 @@
+  a=p.parse_args();names=[a.base,a.top_pipeline,a.bottom_pipeline,a.hair_pipeline,a.output]+[x for x in (a.shoes_pipeline,a.eyes_pipeline,a.tattoo_pipeline) if x is not None]
+  if not all(N.fullmatch(n) for n in names) or len(a.output)>21 or not D.fullmatch(a.base_sha):raise ValueError('invalid trusted names')
+  if PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('private parent unavailable')
++ base=PRIVATE/a.base
++ if base.is_symlink() or not base.is_dir():raise ValueError('base runtime unavailable')
++ pin(base/'runtime.json',a.base_sha,1048576)
+  # Resolve both package paths from trusted owner input, never browser or
+  # catalog path fields. The selected bottom is not the unchanged top package.
+  for slot,name,filename in (('top',a.top_pipeline,a.top_package),('bottom',a.bottom_pipeline,a.bottom_package)):
+--- a/rig-recovery/test_dynamic_separates_gateway.py
++++ b/rig-recovery/test_dynamic_separates_gateway.py
+@@ -18,6 +18,9 @@
+  def tearDown(self):self.g.shutdown();self.g.server_close();self.thread.join(5)
+  def post(self,path,data):
+   c=http.client.HTTPConnection(self.host,self.port,timeout=5);c.request('POST',path,json.dumps(data),{'Content-Type':'application/json','Origin':self.origin,'X-CAS-Request':'1'});r=c.getresponse();status=r.status;r.read();c.close();return status
++ def test_separate_owner_requires_complete_pair_provenance(self):
++  with self.assertRaises(ValueError):Gateway(self.o,{'1'*32:'Initial'},self.bindings,self.p,None)
++  with self.assertRaises(ValueError):Gateway(self.o,{'1'*32:'Initial'},self.bindings,self.p,{'1'*32:{'dress':'legacy','hair':'hair'}})
+  def test_prepare_rebases_complete_current_counterparts_and_rejects_stale(self):
+   with patch('scene_gateway.validate_provenance') as valid:
+    self.assertEqual(self.post('/prepare-selection',{'token':'f'*32,'generation':0}),409);self.assertEqual(self.p.calls,[])
+--- a/rig-recovery/test_build_prepared_separates.py
++++ b/rig-recovery/test_build_prepared_separates.py
+@@ -3,13 +3,17 @@
+ import build_prepared_separates as b
+ class Tests(unittest.TestCase):
+  def setUp(self):
+-  self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=pathlib.Path(self.temp.name);self.package=self.root/'top.package';self.package.write_bytes(b'top');d=self.root/'top-ready';d.mkdir();(d/'ready.json').write_text(json.dumps({'game_modified':False,'package_sha256':hashlib.sha256(b'top').hexdigest()}));self.bottom=self.root/'bottom.package';self.bottom.write_bytes(b'bottom');d=self.root/'bottom-ready';d.mkdir();(d/'ready.json').write_text(json.dumps({'game_modified':False,'package_sha256':hashlib.sha256(b'bottom').hexdigest()}));self.args=['x','--base','base','--base-sha','a'*64,'--top-pipeline','top','--bottom-pipeline','bottom','--top-package',str(self.package),'--bottom-package',str(self.bottom),'--hair-pipeline','hair','--manifest','/tmp/manifest','b'*64,'--binary','/tmp/binary','c'*64,'--output','variant'];self.calls=[]
++  self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=pathlib.Path(self.temp.name);self.package=self.root/'top.package';self.package.write_bytes(b'top');d=self.root/'top-ready';d.mkdir();(d/'ready.json').write_text(json.dumps({'game_modified':False,'package_sha256':hashlib.sha256(b'top').hexdigest()}));self.bottom=self.root/'bottom.package';self.bottom.write_bytes(b'bottom');d=self.root/'bottom-ready';d.mkdir();(d/'ready.json').write_text(json.dumps({'game_modified':False,'package_sha256':hashlib.sha256(b'bottom').hexdigest()}));base=self.root/'base';base.mkdir();(base/'runtime.json').write_bytes(b'base');self.args=['x','--base','base','--base-sha',hashlib.sha256(b'base').hexdigest(),'--top-pipeline','top','--bottom-pipeline','bottom','--top-package',str(self.package),'--bottom-package',str(self.bottom),'--hair-pipeline','hair','--manifest','/tmp/manifest','b'*64,'--binary','/tmp/binary','c'*64,'--output','variant'];self.calls=[]
+  def runit(self,execute):
+   with mock.patch.object(b,'PRIVATE',self.root),mock.patch.object(b.sys,'argv',self.args),mock.patch.object(b,'execute',side_effect=execute),contextlib.redirect_stdout(io.StringIO()) as out:b.main();return json.loads(out.getvalue())
+  def execute(self,script,args,timeout):
+   self.calls.append((script,args));return {'atlas_overlap':0,'game_modified':False,'native_fidelity':'unverified'} if script=='build_top_bottom_pair.py' else {'runtime':'variant','runtime_sha256':'d'*64,'scene_sha256':'e'*64,'swatch_id':'id','preview_frame_verified':True,'game_modified':False,'native_fidelity':'unverified'}
+  def test_pinned_source_pairs_before_frame_verified_variant(self):
+   out=self.runit(self.execute);self.assertEqual(out['clothing_mode'],'separates');self.assertEqual([x[0] for x in self.calls],['build_top_bottom_pair.py','build_prepared_variant.py']);self.assertEqual(self.calls[0][1][self.calls[0][1].index('--top-package')+1],str(self.package));self.assertEqual(self.calls[0][1][self.calls[0][1].index('--bottom-package')+1],str(self.bottom));self.assertEqual(self.calls[1][1][self.calls[1][1].index('--dress-pipeline')+1],'variant-pair')
++ def test_changed_base_fails_before_staging(self):
++  (self.root/'base/runtime.json').write_bytes(b'changed')
++  with self.assertRaises(ValueError):self.runit(self.execute)
++  self.assertEqual(self.calls,[])
+  def test_wrong_top_package_fails_before_staging(self):
+   self.package.write_bytes(b'wrong')
+   with self.assertRaises(ValueError):self.runit(self.execute)

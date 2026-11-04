@@ -1,0 +1,67 @@
+--- a/tools/tray_library.py
++++ b/tools/tray_library.py
+@@ -5,6 +5,7 @@
+ the native footer. Appearance extraction uses the separately licensed worker.
+ """
+ import base64
++import bisect
+ import hashlib
+ import json
+ from pathlib import Path
+@@ -39,13 +40,22 @@
+     folder = Path(folder).absolute(); no_redirected_ancestors(folder)
+     files = sorted(p for p in folder.iterdir() if p.is_file() and NAME.fullmatch(p.name))
+     if len(files) > 100000: raise ValueError('Tray library file count exceeds its bound.')
++    # Group once and binary-search offsets. The former nested scan was
++    # quadratic in the number of Tray entries. Preserve its exact sorted-path
++    # tie behavior: max(..., key=offset) selected the first equal-offset base.
+     bases = [p for p in files if keys(p.name)[2] == 'trayitem']
+     result = {p.name: [p] for p in bases}
++    by_base = {}
++    for p in bases:
++        group, offset, _ = keys(p.name)
++        by_base.setdefault(group, {}).setdefault(offset, p)
++    indexes = {group: (sorted(offsets), offsets) for group, offsets in by_base.items()}
+     for path in files:
+-        base, offset, ext = keys(path.name)
+-        if ext == 'trayitem': continue
+-        eligible = [p for p in bases if keys(p.name)[0] == base and keys(p.name)[1] <= offset]
+-        if eligible: result[max(eligible, key=lambda p: keys(p.name)[1]).name].append(path)
++        group, offset, ext = keys(path.name)
++        if ext == 'trayitem' or group not in indexes: continue
++        offsets, paths = indexes[group]
++        at = bisect.bisect_right(offsets, offset) - 1
++        if at >= 0: result[paths[offsets[at]].name].append(path)
+     return result
+ 
+ 
+--- /dev/null
++++ b/tests/test_group_equivalence.py
+@@ -0,0 +1,27 @@
++"""Generated fixtures only; not proof of Windows or game compatibility."""
++import random, tempfile, unittest
++from pathlib import Path
++import tray_library as candidate
++def reference_groups(folder):
++ files=sorted(p for p in folder.iterdir() if p.is_file() and candidate.NAME.fullmatch(p.name))
++ bases=[p for p in files if candidate.keys(p.name)[2]=='trayitem']; result={p.name:[p] for p in bases}
++ for path in files:
++  base,offset,ext=candidate.keys(path.name)
++  if ext=='trayitem':continue
++  eligible=[p for p in bases if candidate.keys(p.name)[0]==base and candidate.keys(p.name)[1]<=offset]
++  if eligible:result[max(eligible,key=lambda p:candidate.keys(p.name)[1]).name].append(path)
++ return result
++class GroupEquivalence(unittest.TestCase):
++ def test_random_boundaries_equal_offsets_and_unowned_files(self):
++  for seed in range(12):
++   r=random.Random(seed)
++   with tempfile.TemporaryDirectory() as d:
++    p=Path(d)
++    for group in range(10):
++     for typ in range(5):
++      for off in r.sample(range(32),r.randint(0,14)):
++       ext='trayitem' if typ<2 else ('sgi' if typ<4 else 'hhi')
++       (p/f'0x{typ:08x}!0x00{group:010x}{off:04x}.{ext}').touch()
++    (p/'irrelevant.txt').touch()
++    self.assertEqual(candidate.groups(p),reference_groups(p))
++if __name__=='__main__': unittest.main(verbosity=2)

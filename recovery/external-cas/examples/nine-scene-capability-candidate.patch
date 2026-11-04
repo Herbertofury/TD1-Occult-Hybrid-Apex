@@ -1,0 +1,96 @@
+--- a/scene_switch_supervisor.py
++++ b/scene_switch_supervisor.py
+@@ -51,12 +51,12 @@
+ class SceneSwitcher:
+  """Serialized all-or-nothing publication after observed pinned scene identity.
+ 
+- `specs` are parent-provided, not browser messages; max 8 accepted specs and at
++ `specs` are parent-provided, not browser messages; max 16 accepted specs and at
+  most one candidate plus the active process. A failed candidate leaves the old
+  owner untouched. Call close explicitly. No promise against parent SIGKILL.
+  """
+  def __init__(self,specs):
+-  if not isinstance(specs,dict) or not 1<=len(specs)<=8:raise Refused('invalid scene set')
++  if not isinstance(specs,dict) or not 1<=len(specs)<=16:raise Refused('invalid scene set')
+   self.specs={}
+   for token,s in specs.items():
+    if not isinstance(token,str) or not TOKEN.fullmatch(token) or not isinstance(s,dict) or set(s) not in ({'runtime','runtime_sha','binary','binary_sha','scene_sha','swatch_id'},{'runtime','runtime_sha','binary','binary_sha','scene_sha','swatch_id','catalog'}) or not all(isinstance(s[k],str) for k in ('runtime','runtime_sha','binary','binary_sha','scene_sha','swatch_id')) or not NAME.fullmatch(s['runtime']) or not all(HASH.fullmatch(s[k]) for k in ('runtime_sha','binary_sha','scene_sha')) or not CASP.fullmatch(s['swatch_id']) or not pathlib.Path(s['binary']).is_absolute():raise Refused('invalid trusted scene spec')
+--- a/test_scene_switch_supervisor.py
++++ b/test_scene_switch_supervisor.py
+@@ -33,6 +33,10 @@
+   with patch.object(m.subprocess,'Popen',return_value=candidate),patch.object(m,'line',return_value='http://127.0.0.1:2'),patch.object(m,'fetch',side_effect=[ident,swatch]),patch.object(m,'verify_frame',side_effect=m.Refused('bad frame')),patch.object(m,'stop') as stop:
+    with self.assertRaises(m.Refused):s.switch(two)
+    self.assertIs(s.active['proc'],old);self.assertEqual(s.generation,1);stop.assert_called_once_with(candidate);self.assertTrue(candidate.stdout.closed)
++ def test_sixteen_scene_limit_is_bounded(self):
++  scenes={format(i,'032x'):S for i in range(16)};owner=m.SceneSwitcher(scenes);self.assertEqual(len(owner.specs),16);owner.close()
++  scenes[format(16,'032x')]=S
++  with self.assertRaises(m.Refused):m.SceneSwitcher(scenes)
+  def test_malformed_specs_fail_closed(self):
+   for token,spec in [('x',S),('1'*32,{**S,'binary':'relative'}),('2'*32,{**S,'scene_sha':'0'}),('3'*32,{**S,'runtime':'../bad'})]:
+    with self.assertRaises(m.Refused):m.SceneSwitcher({token:spec})
+--- a/scene_gateway.py
++++ b/scene_gateway.py
+@@ -26,7 +26,7 @@
+  def __init__(self,owner,labels,bindings=None):
+   if set(labels)!=set(owner.specs) or any(not isinstance(k,str) or not TOKEN.fullmatch(k) or not isinstance(v,str) or not 1<=len(v)<=80 or any(ord(c)<32 or ord(c)==127 for c in v) for k,v in labels.items()):raise ValueError('invalid labels')
+   if bindings is not None:
+-   if type(bindings)is not dict or set(bindings)!={'schema','catalog_sha256','items','inspect_only','game_modified'} or bindings['schema'] not in (1,2,3) or bindings['inspect_only'] is not True or bindings['game_modified'] is not False or not isinstance(bindings['catalog_sha256'],str) or not re.fullmatch(r'[a-f0-9]{64}',bindings['catalog_sha256']) or not isinstance(bindings['items'],list) or not 1<=len(bindings['items'])<=8:raise ValueError('invalid prepared bindings')
++   if type(bindings)is not dict or set(bindings)!={'schema','catalog_sha256','items','inspect_only','game_modified'} or bindings['schema'] not in (1,2,3) or bindings['inspect_only'] is not True or bindings['game_modified'] is not False or not isinstance(bindings['catalog_sha256'],str) or not re.fullmatch(r'[a-f0-9]{64}',bindings['catalog_sha256']) or not isinstance(bindings['items'],list) or not 1<=len(bindings['items'])<=16:raise ValueError('invalid prepared bindings')
+    seen=set();seen_tokens=set()
+    for row in bindings['items']:
+     shape={'part_id','token'} if bindings['schema']==1 else {'part_id','token','kind'} if bindings['schema']==2 else {'part_id','kind','transitions'}
+@@ -37,7 +37,7 @@
+      seen_tokens.add(token)
+     else:
+      transitions=row['transitions']
+-     if type(transitions)is not dict or not 1<=len(transitions)<=8:raise ValueError('invalid transitions')
++     if type(transitions)is not dict or not 1<=len(transitions)<=16:raise ValueError('invalid transitions')
+      for source,target in transitions.items():
+       if not isinstance(source,str) or not isinstance(target,str) or source not in owner.specs or target not in owner.specs or owner.specs[source].get('catalog',{}).get('index_sha')!=bindings['catalog_sha256'] or owner.specs[target].get('catalog',{}).get('index_sha')!=bindings['catalog_sha256']:raise ValueError('invalid transition token')
+     seen.add(row['part_id'])
+--- a/test_scene_gateway.py
++++ b/test_scene_gateway.py
+@@ -57,6 +57,12 @@
+    if mutate=='duplicate':bad['items'].append(copy.deepcopy(bad['items'][0]))
+    if mutate=='mismatch':bad['catalog_sha256']='c'*64
+    with self.assertRaises(ValueError):Gateway(self.owner,{'1'*32:'First','2'*32:'Second'},bad)
++ def test_nine_scene_transition_set_is_accepted_and_seventeen_rejected(self):
++  specs={format(i,'032x'):{'catalog':{'index_sha':'b'*64}} for i in range(17)}
++  self.owner.specs=dict(list(specs.items())[:9]);labels={x:'scene' for x in self.owner.specs};pairs={x:x for x in self.owner.specs};obj={'schema':3,'catalog_sha256':'b'*64,'items':[{'part_id':'a'*64,'kind':'hair','transitions':pairs}],'inspect_only':True,'game_modified':False}
++  g=Gateway(self.owner,labels,obj);g.server_close()
++  self.owner.specs=specs;labels={x:'scene' for x in specs};obj['items'][0]['transitions']={x:x for x in specs}
++  with self.assertRaises(ValueError):Gateway(self.owner,labels,obj)
+  def test_duplicate_json_fields_do_not_switch(self):
+   hdr={'Content-Type':'application/json','Origin':self.origin,'X-CAS-Request':'1'};body='{"token":"'+('2'*32)+'","token":"'+('1'*32)+'","generation":1}'
+   self.assertEqual(self.request('POST','/scene-switch',body,hdr)[0],400);self.assertEqual(self.owner.generation,1)
+--- a/build_combinatorial_bindings.py
++++ b/build_combinatorial_bindings.py
+@@ -11,7 +11,7 @@
+  p=argparse.ArgumentParser();p.add_argument('--config',nargs=2,required=True,metavar=('PATH','SHA256'));p.add_argument('--output',required=True);a=p.parse_args()
+  if not N.fullmatch(a.output) or PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('fresh private output name required')
+  config=pathlib.Path(a.config[0]);pin(config,a.config[1],65536);obj=json.loads(config.read_bytes())
+- if type(obj)is not dict or set(obj)!={'schema','initial','scenes'} or obj['schema']!=1 or type(obj['scenes'])is not dict or not 1<=len(obj['scenes'])<=8 or obj['initial'] not in obj['scenes']:raise ValueError('config shape')
++ if type(obj)is not dict or set(obj)!={'schema','initial','scenes'} or obj['schema']!=1 or type(obj['scenes'])is not dict or not 1<=len(obj['scenes'])<=16 or obj['initial'] not in obj['scenes']:raise ValueError('config shape')
+  cats=[x.get('spec',{}).get('catalog') for x in obj['scenes'].values()]
+  if not all(isinstance(x,dict) for x in cats) or any(x!=cats[0] for x in cats):raise ValueError('one shared pinned catalog required')
+  cat=cats[0];index=pathlib.Path(cat['index']);pin(index,cat['index_sha'],256*1024*1024)
+--- a/prepared_dress_actions.mjs
++++ b/prepared_dress_actions.mjs
+@@ -5,5 +5,5 @@
+  const status=document.createElement('p');status.setAttribute('role','status');status.textContent='Checking prepared preview matches…';root.before(status);
+  const timed=async(path,options={},ms=8000)=>{const c=new AbortController(),timer=setTimeout(()=>c.abort(),ms);try{return await fetch(path,{...options,signal:c.signal,cache:'no-store',redirect:'error'});}finally{clearTimeout(timer);}};
+  const refresh=()=>{if(!map)return;for(const card of root.children){const binding=map.get(card.dataset.partId);if(!binding||card.querySelector('[data-prepared-dress-action]'))continue;const button=document.createElement('button');button.type='button';button.dataset.preparedDressAction='1';button.textContent='Preview prepared '+binding.kind+' combo';button.title=schema===3?'Keeps the other prepared slot where available. Preview only; no game changes.':'Opens a prepared combination; other appearance choices can change. No game changes.';button.addEventListener('click',async()=>{if(busy)return;busy=true;button.disabled=true;status.textContent='Preparing selected preview; no game changes.';try{const r=await timed('/scene-switch',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:binding.token,generation})},45000);if(!r.ok)throw Error('Selection failed or became stale');location.assign('/cas-room');}catch(e){status.textContent=e.message+'; refresh to check the current scene before trying again.';map=null;for(const x of root.querySelectorAll('[data-prepared-dress-action]'))x.disabled=true;}});card.append(button);}};
+- try{const [mr,cr,sr]=await Promise.all([timed('/prepared-dresses'),timed('/cc-catalog-state'),timed('/scene-catalog')]);if(!mr.ok||!cr.ok||!sr.ok)throw Error('Prepared preview matches unavailable');const [m,c,s]=await Promise.all([mr.json(),cr.json(),sr.json()]);if(![1,2,3].includes(m.schema)||m.inspect_only!==true||m.game_modified!==false||!Array.isArray(m.items)||m.items.length>8||!c.enabled||c.catalog_sha256!==m.catalog_sha256||!Number.isSafeInteger(s.generation))throw Error('Prepared preview identity mismatch');const tokens=new Set(s.entries.map(x=>x.token));if(!tokens.has(s.active))throw Error('Active scene unavailable');map=new Map();for(const x of m.items){if(!/^[a-f0-9]{64}$/.test(x.part_id)||map.has(x.part_id))throw Error('Invalid prepared preview binding');const kind=m.schema===1?'dress':x.kind;if(!['dress','hair'].includes(kind))throw Error('Invalid prepared slot');let target=x.token;if(m.schema===3){if(!x.transitions||typeof x.transitions!=='object'||Array.isArray(x.transitions)||Object.keys(x.transitions).length>8||Object.entries(x.transitions).some(([a,b])=>!tokens.has(a)||!tokens.has(b)))throw Error('Invalid prepared transitions');target=x.transitions[s.active];if(target===undefined)continue;}if(!/^[a-f0-9]{32}$/.test(target)||!tokens.has(target))throw Error('Invalid prepared target');map.set(x.part_id,{token:target,kind});}generation=s.generation;schema=m.schema;status.textContent='Prepared matches are preview only; no game changes.';new MutationObserver(refresh).observe(root,{childList:true});refresh();}catch(e){map=null;status.textContent='Prepared preview matches unavailable.';}
++ try{const [mr,cr,sr]=await Promise.all([timed('/prepared-dresses'),timed('/cc-catalog-state'),timed('/scene-catalog')]);if(!mr.ok||!cr.ok||!sr.ok)throw Error('Prepared preview matches unavailable');const [m,c,s]=await Promise.all([mr.json(),cr.json(),sr.json()]);if(![1,2,3].includes(m.schema)||m.inspect_only!==true||m.game_modified!==false||!Array.isArray(m.items)||m.items.length>16||!c.enabled||c.catalog_sha256!==m.catalog_sha256||!Number.isSafeInteger(s.generation))throw Error('Prepared preview identity mismatch');const tokens=new Set(s.entries.map(x=>x.token));if(!tokens.has(s.active))throw Error('Active scene unavailable');map=new Map();for(const x of m.items){if(!/^[a-f0-9]{64}$/.test(x.part_id)||map.has(x.part_id))throw Error('Invalid prepared preview binding');const kind=m.schema===1?'dress':x.kind;if(!['dress','hair'].includes(kind))throw Error('Invalid prepared slot');let target=x.token;if(m.schema===3){if(!x.transitions||typeof x.transitions!=='object'||Array.isArray(x.transitions)||Object.keys(x.transitions).length>16||Object.entries(x.transitions).some(([a,b])=>!tokens.has(a)||!tokens.has(b)))throw Error('Invalid prepared transitions');target=x.transitions[s.active];if(target===undefined)continue;}if(!/^[a-f0-9]{32}$/.test(target)||!tokens.has(target))throw Error('Invalid prepared target');map.set(x.part_id,{token:target,kind});}generation=s.generation;schema=m.schema;status.textContent='Prepared matches are preview only; no game changes.';new MutationObserver(refresh).observe(root,{childList:true});refresh();}catch(e){map=null;status.textContent='Prepared preview matches unavailable.';}
+ }
+--- a/test_prepared_dress_actions.mjs
++++ b/test_prepared_dress_actions.mjs
+@@ -19,3 +19,8 @@
+  const one='1'.repeat(32),two='2'.repeat(32),three='3'.repeat(32);globalThis.fetch=async(path,opts)=>{if(path==='/prepared-dresses')return {ok:true,json:async()=>({schema:3,catalog_sha256:'d'.repeat(64),inspect_only:true,game_modified:false,items:[{part_id:'a'.repeat(64),kind:'hair',transitions:{[one]:two}},{part_id:'b'.repeat(64),kind:'dress',transitions:{[one]:three}},{part_id:'c'.repeat(64),kind:'hair',transitions:{[two]:one}}]})};if(path==='/cc-catalog-state')return {ok:true,json:async()=>({enabled:true,catalog_sha256:'d'.repeat(64)})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:8,active:one,entries:[{token:one},{token:two},{token:three}]})};posts.push(JSON.parse(opts.body));return {ok:true}};
+  try{await import('./prepared_dress_actions.mjs?case='+Math.random());assert.equal(posts.length,0);assert.equal(a.children.length,1);assert.equal(b.children.length,1);assert.equal(none.children.length,0);assert.match(a.children[0].title,/Keeps the other prepared slot/);await a.children[0].handlers.click();assert.deepEqual(posts,[{token:two,generation:8}]);}finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
+ });
++test('nine-scene catalog exposes only the active prepared transition',async()=>{
++ const saved={document:globalThis.document,fetch:globalThis.fetch,location:globalThis.location,MutationObserver:globalThis.MutationObserver},root=new E(),card=new E();card.dataset.partId='a'.repeat(64);root.children=[card];let sent=null;const tokens=Array.from({length:9},(_,i)=>String(i+1).repeat(32)),map=Object.fromEntries(tokens.map(t=>[t,tokens[8]]));
++ globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.MutationObserver=class{observe(){}};globalThis.location={assign(){}};globalThis.fetch=async(path,opts)=>{if(path==='/prepared-dresses')return {ok:true,json:async()=>({schema:3,catalog_sha256:'b'.repeat(64),inspect_only:true,game_modified:false,items:[{part_id:'a'.repeat(64),kind:'dress',transitions:map}]})};if(path==='/cc-catalog-state')return {ok:true,json:async()=>({enabled:true,catalog_sha256:'b'.repeat(64)})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:2,active:tokens[0],entries:tokens.map(token=>({token}))})};sent=JSON.parse(opts.body);return {ok:true}};
++ try{await import('./prepared_dress_actions.mjs?case='+Math.random());assert.equal(card.children.length,1);await card.children[0].handlers.click();assert.deepEqual(sent,{token:tokens[8],generation:2});}finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
++});

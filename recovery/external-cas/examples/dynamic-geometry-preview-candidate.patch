@@ -1,0 +1,79 @@
+--- a/build_prepared_variant.py
++++ b/build_prepared_variant.py
+@@ -13,15 +13,31 @@
+  digest=ready.get('mesh_sha256')
+  if slot not in ('dress','hair') or ready.get('game_modified') is not False or not isinstance(digest,str) or not D.fullmatch(digest) or digest!=base.get('mesh_hashes',{}).get(slot+'.apxmesh'):raise ValueError('pose cache requires exact same mesh')
+ def main():
+- p=argparse.ArgumentParser();p.add_argument('--base',required=True);p.add_argument('--base-sha',required=True);p.add_argument('--manifest',nargs=2,required=True);p.add_argument('--dress-pipeline',required=True);p.add_argument('--hair-pipeline',required=True);p.add_argument('--binary',nargs=2,required=True);p.add_argument('--output',required=True);a=p.parse_args()
++ p=argparse.ArgumentParser();p.add_argument('--base',required=True);p.add_argument('--base-sha',required=True);p.add_argument('--manifest',nargs=2,required=True);p.add_argument('--dress-pipeline',required=True);p.add_argument('--hair-pipeline',required=True);p.add_argument('--binary',nargs=2,required=True);p.add_argument('--output',required=True);p.add_argument('--pose-config',nargs=2);a=p.parse_args()
+  if not all(N.fullmatch(x) for x in (a.base,a.dress_pipeline,a.hair_pipeline,a.output)) or not D.fullmatch(a.base_sha):raise ValueError('invalid trusted runtime names')
+- base=PRIVATE/a.base;marker=base/'runtime.json';pin(marker,a.base_sha,1024*1024);m=json.loads(marker.read_bytes());heads=[]
++ base=PRIVATE/a.base;marker=base/'runtime.json';pin(marker,a.base_sha,1024*1024);m=json.loads(marker.read_bytes());heads=[];mismatch=False
+  for slot,name in [('dress',a.dress_pipeline),('hair',a.hair_pipeline)]:
+   path=PRIVATE/(name+'-ready')/'ready.json'
+   if path.is_symlink() or not path.is_file() or path.stat().st_size>65536:raise ValueError('prepared source unavailable')
+-  v=json.loads(path.read_bytes());ensure_mesh_compatibility(m,slot,v);heads.append(v)
+- catalog=base/'poses'/'catalog.json';pin(catalog,m['pose_catalog_sha256'],1024*1024);pin(marker,a.base_sha,1024*1024);binary=pathlib.Path(a.binary[0]);pin(binary,a.binary[1],64*1024*1024)
+- args=[sys.executable,str(ROOT/'rig-recovery/stage_generic_runtime.py'),'--baseline',str(base/'assets'),'--manifest',*a.manifest,'--head',str(base/'head.apxmesh'),'--shoes',str(base/'shoes.apxmesh'),'--hair',str(base/'hair.apxmesh'),'--pipeline',a.dress_pipeline,'--hair-pipeline',a.hair_pipeline,'--pose-library',str(base/'poses'),'--pose-catalog-sha',m['pose_catalog_sha256'],'--output',a.output]
++  v=json.loads(path.read_bytes());digest=v.get('mesh_sha256')
++  if v.get('game_modified') is not False or not isinstance(digest,str) or not D.fullmatch(digest):raise ValueError('invalid prepared mesh')
++  if digest!=m.get('mesh_hashes',{}).get(slot+'.apxmesh'):mismatch=True
++  heads.append(v)
++ pose_dir=base/'poses';pose_sha=m['pose_catalog_sha256']
++ if mismatch:
++  if a.pose_config is None:raise ValueError('pose cache requires exact same mesh or explicit pinned rebuild')
++  cfg=pathlib.Path(a.pose_config[0]);pin(cfg,a.pose_config[1],65536);v=json.loads(cfg.read_bytes());keys={'package','package_sha','case','catalog','catalog_sha','rig','rig_sha','sampler','sampler_sha'}
++  if type(v)is not dict or set(v)!=keys or not all(isinstance(v[k],str) and pathlib.Path(v[k]).is_absolute() for k in ('package','rig','sampler')) or not all(isinstance(v[k],str) and D.fullmatch(v[k]) for k in ('package_sha','catalog_sha','rig_sha','sampler_sha')) or not all(isinstance(v[k],str) and N.fullmatch(v[k]) for k in ('case','catalog')):raise ValueError('invalid pinned pose rebuild config')
++  if len(a.output)>25:raise ValueError('output name too long for pose rebuild')
++  meshes=[base/'head.apxmesh',PRIVATE/(a.dress_pipeline+'-merged')/'mesh.apxmesh',base/'shoes.apxmesh',PRIVATE/(a.hair_pipeline+'-merged')/'mesh.apxmesh'];digests=[m['mesh_hashes']['head.apxmesh'],heads[0]['mesh_sha256'],m['mesh_hashes']['shoes.apxmesh'],heads[1]['mesh_sha256']]
++  for mesh,digest in zip(meshes,digests):pin(mesh,digest,64*1024*1024)
++  args=[sys.executable,str(ROOT/'real-recovery-evidence/prepare_pose_catalog.py'),'--package',v['package'],'--package-sha',v['package_sha'],'--case',v['case'],'--catalog',v['catalog'],'--catalog-sha',v['catalog_sha'],'--rig',v['rig'],'--rig-sha',v['rig_sha'],'--sampler',v['sampler'],'--sampler-sha',v['sampler_sha']]
++  for mesh,digest in zip(meshes,digests):args+=['--mesh',str(mesh),digest]
++  args+=['--output',a.output+'-poses'];r=subprocess.run(args,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=900,check=False)
++  if r.returncode or len(r.stdout)>65536 or len(r.stderr)>65536:raise ValueError('pose rebuild failed; evidence retained')
++  pose_dir=PRIVATE/v['case']/(a.output+'-poses');pose_sha=hashlib.sha256((pose_dir/'catalog.json').read_bytes()).hexdigest()
++ catalog=pose_dir/'catalog.json';pin(catalog,pose_sha,1024*1024);pin(marker,a.base_sha,1024*1024);binary=pathlib.Path(a.binary[0]);pin(binary,a.binary[1],64*1024*1024)
++ args=[sys.executable,str(ROOT/'rig-recovery/stage_generic_runtime.py'),'--baseline',str(base/'assets'),'--manifest',*a.manifest,'--head',str(base/'head.apxmesh'),'--shoes',str(base/'shoes.apxmesh'),'--hair',str(base/'hair.apxmesh'),'--pipeline',a.dress_pipeline,'--hair-pipeline',a.hair_pipeline,'--pose-library',str(pose_dir),'--pose-catalog-sha',pose_sha,'--output',a.output]
+  result=subprocess.run(args,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=120,check=False)
+  if result.returncode or len(result.stdout)>65536 or len(result.stderr)>65536:raise ValueError('staging failed; completed evidence retained')
+  target=PRIVATE/a.output;runtime_sha=hashlib.sha256((target/'runtime.json').read_bytes()).hexdigest();proc=subprocess.Popen([sys.executable,str(ROOT/'rig-recovery/launch_generic_runtime.py'),'--runtime',a.output,'--runtime-sha',runtime_sha,'--binary',str(binary),'--binary-sha',a.binary[1]],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
+--- a/preparation_owner.py
++++ b/preparation_owner.py
+@@ -31,7 +31,8 @@
+    if not all(isinstance(v[k],str) and pathlib.Path(v[k]).is_absolute() for k in ('catalog','package','rig')) or not all(isinstance(v[k],str) and HASH.fullmatch(v[k]) for k in ('catalog_sha','part_id','rig_sha')) or not isinstance(v['name'],str) or not NAME.fullmatch(v['name']):raise ValueError('selection identity')
+    if 'variant' in v:
+     x=v['variant'];keys={'base_token','base','base_sha','manifest','manifest_sha','counterpart','slot','binary','binary_sha','output','helper','helper_sha','policy'}
+-    if type(x)is not dict or set(x)!=keys or not isinstance(x['base_token'],str) or not TOKEN.fullmatch(x['base_token']) or x['slot'] not in ('hair','dress') or not all(isinstance(x[k],str) and pathlib.Path(x[k]).is_absolute() for k in ('manifest','binary','helper')) or not all(isinstance(x[k],str) and HASH.fullmatch(x[k]) for k in ('base_sha','manifest_sha','binary_sha','helper_sha')) or not all(isinstance(x[k],str) and LONGNAME.fullmatch(x[k]) for k in ('base','counterpart','output')) or x['policy'] not in ('sha256-per-request','trusted-immutable-linux'):raise ValueError('variant identity')
++    if type(x)is not dict or set(x) not in (keys,keys|{'pose_config','pose_config_sha'}) or not isinstance(x['base_token'],str) or not TOKEN.fullmatch(x['base_token']) or x['slot'] not in ('hair','dress') or not all(isinstance(x[k],str) and pathlib.Path(x[k]).is_absolute() for k in ('manifest','binary','helper')) or not all(isinstance(x[k],str) and HASH.fullmatch(x[k]) for k in ('base_sha','manifest_sha','binary_sha','helper_sha')) or not all(isinstance(x[k],str) and LONGNAME.fullmatch(x[k]) for k in ('base','counterpart','output')) or x['policy'] not in ('sha256-per-request','trusted-immutable-linux'):raise ValueError('variant identity')
++    if 'pose_config' in x and (not isinstance(x['pose_config'],str) or not pathlib.Path(x['pose_config']).is_absolute() or not isinstance(x['pose_config_sha'],str) or not HASH.fullmatch(x['pose_config_sha'])):raise ValueError('pose configuration identity')
+     v={**v,'variant':dict(x)}
+    self.selections[token]=dict(v)
+   if len({v['name'] for v in self.selections.values()})!=len(self.selections) or len({v['part_id'] for v in self.selections.values()})!=len(self.selections):raise ValueError('duplicate output name or part')
+@@ -70,6 +71,7 @@
+    if 'variant' in s:
+     x=s['variant'];dress=s['name'] if x['slot']=='dress' else x['counterpart'];hair=s['name'] if x['slot']=='hair' else x['counterpart']
+     args=[sys.executable,str(ROOT/'build_prepared_variant.py'),'--base',x['base'],'--base-sha',x['base_sha'],'--manifest',x['manifest'],x['manifest_sha'],'--dress-pipeline',dress,'--hair-pipeline',hair,'--binary',x['binary'],x['binary_sha'],'--output',x['output']]
++    if 'pose_config' in x:args+=['--pose-config',x['pose_config'],x['pose_config_sha']]
+     v=self._execute(args,True)
+     if type(v)is not dict or v.get('runtime')!=x['output'] or v.get('preview_frame_verified') is not True or v.get('game_modified') is not False or v.get('native_fidelity')!='unverified' or not all(isinstance(v.get(k),str) and HASH.fullmatch(v[k]) for k in ('runtime_sha256','scene_sha256')) or not isinstance(v.get('swatch_id'),str):raise ValueError('invalid variant result')
+     result={'base_token':x['base_token'],'part_id':s['part_id'],'slot':x['slot'],'spec':{'runtime':v['runtime'],'runtime_sha':v['runtime_sha256'],'scene_sha':v['scene_sha256'],'swatch_id':v['swatch_id'],'binary':x['binary'],'binary_sha':x['binary_sha'],'catalog':{'index':s['catalog'],'index_sha':s['catalog_sha'],'helper':x['helper'],'helper_sha':x['helper_sha'],'policy':x['policy']}}};state='preview_ready'
+--- a/test_preparation_owner.py
++++ b/test_preparation_owner.py
+@@ -63,6 +63,17 @@
+    state=o.activate(j['id'],lambda item:{'generation':2});self.assertEqual(state['generation'],2);self.assertEqual(o.status()['state'],'activated')
+    with self.assertRaises(ValueError):o.activate(j['id'],lambda item:{})
+    o.acknowledge(j['id']);o.close()
++ def test_optional_pose_rebuild_is_explicitly_pinned_and_passed(self):
++  v={'base_token':'1'*32,'base':'base','base_sha':'d'*64,'manifest':'/safe/manifest','manifest_sha':'e'*64,'counterpart':'other','slot':'hair','binary':'/safe/bin','binary_sha':'f'*64,'output':'scene-out','helper':'/safe/helper','helper_sha':'c'*64,'policy':'sha256-per-request','pose_config':'/safe/pose','pose_config_sha':'1'*64};o=PreparationOwner({'2'*32:{**S,'variant':v}});calls=[]
++  def execute(args,capture=False):
++   calls.append(args)
++   if not capture:return None
++   return {'runtime':'scene-out','runtime_sha256':'a'*64,'scene_sha256':'b'*64,'swatch_id':'034AEECB:80000000:0123456789ABCDEF','preview_frame_verified':True,'game_modified':False,'native_fidelity':'unverified'}
++  with mock.patch.object(o,'_execute',side_effect=execute):
++   j=o.start('2'*32);deadline=time.monotonic()+2
++   while o.status()['state']=='running' and time.monotonic()<deadline:time.sleep(.005)
++   self.assertEqual(o.status()['state'],'preview_ready');at=calls[1].index('--pose-config');self.assertEqual(calls[1][at+1:at+3],['/safe/pose','1'*64]);o.acknowledge(j['id']);o.close()
++  with self.assertRaises(ValueError):PreparationOwner({'2'*32:{**S,'variant':{**v,'pose_config_sha':'bad'}}})
+  def test_invalid_tokens_paths_and_duplicate_names_refused(self):
+   for entries in [{'bad':S},{'1'*32:{**S,'package':'relative'}},{'1'*32:S,'2'*32:S}]:
+    with self.assertRaises(ValueError):PreparationOwner(entries)

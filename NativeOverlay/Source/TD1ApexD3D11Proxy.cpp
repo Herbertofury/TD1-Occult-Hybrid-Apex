@@ -53,6 +53,7 @@
 
 #include "ApexUiData.h"
 #include "ApexResourceImage.h"
+#include "ApexLibraryTextureLifetime.h"
 #include "ApexOccultImage.h"
 #include "ApexSimPreview.h"
 #include "ApexLiveCatalog.h"
@@ -1615,15 +1616,18 @@ static void SynchronizeLibraryImages(const ui::Json& page) {
     for(auto& entry:received) {
         const auto& pixels=entry.second;
         if(!g_device||!pixels.width||!pixels.height||pixels.width>512||pixels.height>512||
-           pixels.rgba.size()!=size_t(pixels.width)*pixels.height*4||g_libraryImageTextures.size()>=60)continue;
+           pixels.rgba.size()!=size_t(pixels.width)*pixels.height*4||
+           (g_libraryImageTextures.size()>=60&&g_libraryImageTextures.find(entry.first)==g_libraryImageTextures.end()))continue;
         D3D11_TEXTURE2D_DESC description{};description.Width=pixels.width;description.Height=pixels.height;
         description.MipLevels=description.ArraySize=description.SampleDesc.Count=1;description.Format=DXGI_FORMAT_R8G8B8A8_UNORM;
         description.Usage=D3D11_USAGE_IMMUTABLE;description.BindFlags=D3D11_BIND_SHADER_RESOURCE;
         D3D11_SUBRESOURCE_DATA data{};data.pSysMem=pixels.rgba.data();data.SysMemPitch=pixels.width*4;
-        ID3D11Texture2D* texture=nullptr;ID3D11ShaderResourceView* view=nullptr;
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
+        Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> view;
         if(SUCCEEDED(g_device->CreateTexture2D(&description,&data,&texture))&&texture) {
-            const auto result=g_device->CreateShaderResourceView(texture,nullptr,&view);texture->Release();
-            if(SUCCEEDED(result)&&view){g_libraryImageTextures[entry.first]=view;g_libraryImageSizes[entry.first]=ImVec2(float(pixels.width),float(pixels.height));}
+            const auto result=g_device->CreateShaderResourceView(texture.Get(),nullptr,&view);
+            if(SUCCEEDED(result)&&view)td1::library_texture::Install(g_libraryImageTextures,g_libraryImageSizes,
+                entry.first,view,ImVec2(float(pixels.width),float(pixels.height)),60);
         }
     }
 }

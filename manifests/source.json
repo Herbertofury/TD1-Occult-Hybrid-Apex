@@ -137,6 +137,12 @@
       "sha256": "d817ac42dbe7acb394aaa69e3267ae3736353b6a6b52dc8fa80c6304792d1ecc"
     },
     {
+      "bytes": 1569,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/ApexLibraryTextureLifetime.h",
+      "sha256": "d2f0ec1ceee403248e4895afa2acf9e05a5a31092c84bb0fd9836bf13a42d8f0"
+    },
+    {
       "bytes": 2100,
       "mode": "100644",
       "path": "NativeOverlay/Tests/CasMenuWireTests.cpp",
@@ -1587,6 +1593,12 @@
       "mode": "100644",
       "path": "tests/test_game_lifecycle.py",
       "sha256": "bcf42a40aad891fb39c3a36e331ef3e19cf765a1517d6cebc797480a258787ba"
+    },
+    {
+      "bytes": 2390,
+      "mode": "100644",
+      "path": "docs/LIBRARY_TEXTURE_LIFETIME_20261104.md",
+      "sha256": "894e667c0c0ffbcb1cfecbb021f2fa3e6233f6a2e1ae2486032f69ab331b9cb4"
     },
     {
       "bytes": 19941,
@@ -4445,6 +4457,12 @@
       "sha256": "642e08077600e98917ebadf3810f0659c9e7f81e084a78a76c27747d067f3e6d"
     },
     {
+      "bytes": 376804,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "8808e03ed51ff2710d13e8c0936011828098a92bc8f439bee42e0c85001841c4"
+    },
+    {
       "bytes": 2245,
       "mode": "100644",
       "path": "tests/test_cas_owner_metadata_bytecode.py",
@@ -6263,6 +6281,12 @@
       "sha256": "e38385d0a2aa2617a61ef559d12f968680317595ecdacfc2cb00bc855d3e580f"
     },
     {
+      "bytes": 5722,
+      "mode": "100644",
+      "path": "NativeOverlay/Tests/LibraryTextureLifetimeTests.cpp",
+      "sha256": "22a1ed95b51974199d47d86258039d042e4965e145373336581880740ff4dcad"
+    },
+    {
       "bytes": 3713,
       "mode": "100644",
       "path": "Reports/CAS_SAVED_NAMED_UPGRADE_V263.json",
@@ -7037,6 +7061,12 @@
       "sha256": "1d908a080f608960fdb9394d954552fb9e2af24a87b60e6f623f690bb8cdbe08"
     },
     {
+      "bytes": 2803,
+      "mode": "100644",
+      "path": "NativeOverlay/Tests/LibraryTextureWarpTests.cpp",
+      "sha256": "5d92b4da5355711aee714551f434c16ae8806390864178c33e977edd98ea2a9f"
+    },
+    {
       "bytes": 9311,
       "mode": "100644",
       "path": "tests/test_cas_unconsumed_as.py",
@@ -7047,12 +7077,6 @@
       "mode": "100644",
       "path": "tests/test_phone_cas_hair.py",
       "sha256": "b95f9f873aa927e0f3844045cb49ff96643a19bedf3cf9ad13f119a9d807f1da"
-    },
-    {
-      "bytes": 376617,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "e05f50398ff7083e3203bc54efb6f20f485648c7efb672772812cc47511bee2a"
     },
     {
       "bytes": 2262,

@@ -1,0 +1,92 @@
+--- a/src/preview.rs
++++ b/src/preview.rs
+@@ -110,7 +110,7 @@
+     materials: &[usize],
+ ) -> Result<Frame, &'static str> {
+     if textures.is_empty()
+-        || textures.len() > 3
++        || textures.len() > 4
+         || materials.len() != inputs.len()
+         || materials.iter().any(|i| *i >= textures.len())
+     {
+@@ -169,7 +169,7 @@
+     textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:&[Option<texture::AlphaMask<'_>>],pairs:Option<&[Vec<bool>]>,
+ )->Result<Frame,&'static str>{
+     if textures.is_empty()
+-        || textures.len() > 3
++        || textures.len() > 4
+         || materials.len() != inputs.len()
+         || materials.iter().any(|i| *i >= textures.len())
+         || masks.len() != textures.len()
+@@ -411,6 +411,29 @@
+         b
+     }
+     #[test]
++    fn four_materials_keep_overlapping_uv_meshes_independent() {
++        let mut left = fixture(0., [0., 0., 1.], false);
++        let mut right = left.clone();
++        for (mesh, xs) in [(&mut left, [-1.0f32, -0.1, -0.55]), (&mut right, [0.1f32, 1.0, 0.55])] {
++            for (index, x) in xs.iter().enumerate() {
++                let off = 16 + index * STRIDE;
++                mesh[off..off + 4].copy_from_slice(&x.to_le_bytes());
++            }
++        }
++        let white = [255,255,255,255]; let green = [0,255,0,255];
++        let red = [255,0,0,255]; let blue = [0,0,255,255];
++        let texture_data = [white, green, red, blue];
++        let textures = texture_data.each_ref().map(|x| texture::OpaqueTexture::new(1,1,x).unwrap());
++        let masks = [None, None, None, None];
++        let inputs = [(left.as_slice(),1),(right.as_slice(),1)];
++        let frame = render_textured_cutout_camera(&inputs,64,64,0f32.into(),&textures,&[2,3],&masks).unwrap();
++        assert!(frame.rgb.chunks_exact(3).any(|p| p[0]>50 && p[1]==0 && p[2]==0));
++        assert!(frame.rgb.chunks_exact(3).any(|p| p[2]>50 && p[0]==0 && p[1]==0));
++        let five_data = [white,green,red,blue,white];
++        let five = five_data.each_ref().map(|x| texture::OpaqueTexture::new(1,1,x).unwrap());
++        assert!(render_textured_cutout_camera(&inputs,64,64,0f32.into(),&five,&[2,3],&[None,None,None,None,None]).is_err());
++    }
++    #[test]
+     fn reverse_face_pair_detection_is_exact_and_ambiguous_faces_stay() {
+         let base=fixture(0.,[0.,0.,1.],false);let mut two=base.clone();two[12..16].copy_from_slice(&6u32.to_le_bytes());two.extend([0u32,2,1].into_iter().flat_map(u32::to_le_bytes));
+         assert_eq!(pair_mask(&two,1).unwrap(),vec![true,true]);
+--- /dev/null
++++ b/examples/render_separate_materials.rs
+@@ -0,0 +1,39 @@
++//! Private bounded rest-pose material diagnostic, not native CAS or a game write.
++//! Two clothing meshes use independent atlases even when their UVs overlap.
++//! Paths are trusted local inputs supplied by the owner, not a hostile FS sandbox.
++use apex_external_cas_draft_research::preview::{self, layers::{compose,compose_over,Layer,Mode},skin_detail,texture::{AlphaMask,OpaqueTexture}};
++use sha2::{Digest,Sha256};
++use std::{env,fs::{self,OpenOptions},io::{Read,Write},path::Path};
++fn load(path:&str,expected:&str,limit:u64)->Result<Vec<u8>,Box<dyn std::error::Error>>{
++ if expected.len()!=64 || !expected.bytes().all(|c|c.is_ascii_digit()||(b'a'..=b'f').contains(&c)){return Err("invalid digest".into())}
++ let p=Path::new(path);let m=fs::symlink_metadata(p)?;if !m.file_type().is_file() || m.len()>limit{return Err("bounded regular input required".into())}
++ let mut raw=Vec::new();fs::File::open(p)?.take(limit+1).read_to_end(&mut raw)?;
++ if raw.len() as u64>limit || format!("{:x}",Sha256::digest(&raw))!=expected{return Err("input pin mismatch".into())}Ok(raw)
++}
++fn main()->Result<(),Box<dyn std::error::Error>>{
++ let args:Vec<String>=env::args().skip(1).collect();
++ if env::var_os("APEX_DIAGNOSTIC_CULL").is_some() || env::var_os("APEX_DIAGNOSTIC_SOLID").is_some(){return Err("unexpected diagnostic renderer override".into())}
++ // head, top, bottom, shoes, hair meshes; tone, skin, tattoo, eyes,
++ // shoe, top, bottom, hair RGBA, each as PATH SHA256; then output PPM.
++ if args.len()!=28{return Err("expected 13 path/digest pairs and two fresh outputs".into())}
++ let mut inputs=Vec::with_capacity(13);for i in 0..13{inputs.push(load(&args[2*i],&args[2*i+1],if i<5{64*1024*1024}else{32*1024*1024})?);}
++ let (w,h)=(2048,4096);let tone=&inputs[5];let skin=&inputs[6];let tattoo=&inputs[7];let eyes=&inputs[8];let shoe=&inputs[9];let top=&inputs[10];let bottom=&inputs[11];let hair=&inputs[12];
++ let skin_blend=skin_detail::blend(w,h,tone,skin,0.35,0.)?;
++ let lower=compose(w,h,[0,0,0],&[Layer{rgba:skin_blend.view().bytes(),mode:Mode::SourceOver},Layer{rgba:tattoo,mode:Mode::SourceOver},Layer{rgba:eyes,mode:Mode::SourceOver},Layer{rgba:shoe,mode:Mode::SourceOver}])?;
++ let top_tex=compose_over(lower.view(),&[Layer{rgba:top,mode:Mode::SourceOver}])?;
++ let bottom_tex=compose_over(lower.view(),&[Layer{rgba:bottom,mode:Mode::SourceOver}])?;
++ if hair.len()!=1024*2048*4{return Err("hair extent".into())}let mut hair_opaque=hair.clone();for x in hair_opaque.chunks_exact_mut(4){x[3]=255;}
++ let textures=[lower.view(),top_tex.view(),bottom_tex.view(),OpaqueTexture::new(1024,2048,&hair_opaque)?];
++ let masks=[None,None,None,Some(AlphaMask::new(1024,2048,hair,128)?)];
++ let meshes:Vec<_>=inputs[..5].iter().map(|x|(x.as_slice(),165)).collect();
++ let frame=preview::render_textured_cutout_camera(&meshes,512,512,0f32.into(),&textures,&[0,1,2,0,3],&masks)?;
++ // A second frame labels top-visible pixels red and bottom-visible pixels
++ // blue. It is a diagnostic label, not a native material or skin mask.
++ let red=[255,0,0,255];let blue=[0,0,255,255];
++ let labels=[lower.view(),OpaqueTexture::new(1,1,&red)?,OpaqueTexture::new(1,1,&blue)?,OpaqueTexture::new(1024,2048,&hair_opaque)?];
++ let labeled=preview::render_textured_cutout_camera(&meshes,512,512,0f32.into(),&labels,&[0,1,2,0,3],&masks)?;
++ for (path, data) in [(&args[26],&frame.rgb),(&args[27],&labeled.rgb)] {
++  let mut out=OpenOptions::new().write(true).create_new(true).open(path)?;write!(out,"P6\n512 512\n255\n")?;out.write_all(data)?;out.sync_all()?;
++ }
++ println!("{{\"width\":512,\"height\":512,\"triangles\":{},\"covered_pixels\":{},\"game_modified\":false,\"native_fidelity\":\"unverified\"}}",frame.triangles,frame.covered_pixels);Ok(())
++}

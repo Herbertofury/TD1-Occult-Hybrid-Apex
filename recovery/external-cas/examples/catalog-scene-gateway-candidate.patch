@@ -1,0 +1,95 @@
+--- a/tools/research/launch_generic_runtime.py
++++ b/tools/research/launch_generic_runtime.py
+@@ -15,7 +15,7 @@
+   for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
+  if h.hexdigest()!=digest:raise ValueError('runtime identity mismatch')
+ def main():
+- p=argparse.ArgumentParser();p.add_argument('--runtime',required=True);p.add_argument('--runtime-sha',required=True);p.add_argument('--binary',required=True);p.add_argument('--binary-sha',required=True);a=p.parse_args()
++ p=argparse.ArgumentParser();p.add_argument('--runtime',required=True);p.add_argument('--runtime-sha',required=True);p.add_argument('--binary',required=True);p.add_argument('--binary-sha',required=True);p.add_argument('--catalog-index');p.add_argument('--catalog-index-sha');p.add_argument('--catalog-helper');p.add_argument('--catalog-helper-sha');p.add_argument('--catalog-policy');a=p.parse_args()
+  if not N.fullmatch(a.runtime) or not D.fullmatch(a.runtime_sha) or not D.fullmatch(a.binary_sha):raise ValueError('invalid identity')
+  if PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('private parent unavailable')
+  root=PRIVATE/a.runtime
+@@ -35,6 +35,11 @@
+  if data['mesh_hashes']['dress.apxmesh']!=data['dress_mesh_sha256'] or data['asset_hashes']['FatalRose-PastelGothDress.2048.rgba']!=data['material_sha256']:raise ValueError('prepared asset mismatch')
+  binary=pathlib.Path(a.binary);pin(binary,a.binary_sha,64*1024*1024)
+  env={'PATH':'/usr/bin:/bin','APEX_GENERIC_DRESS':str(root/'descriptor.txt'),'APEX_GENERIC_DRESS_SHA256':data['descriptor_sha256'],'APEX_POSE_LIBRARY':str(root/'poses'),'APEX_REQUEST_BUDGET':'1000'}
++ fields=(a.catalog_index,a.catalog_index_sha,a.catalog_helper,a.catalog_helper_sha,a.catalog_policy)
++ if any(v is not None for v in fields):
++  if not all(v is not None for v in fields) or a.catalog_policy not in ('sha256-per-request','trusted-immutable-linux') or not pathlib.Path(a.catalog_index).is_absolute() or not pathlib.Path(a.catalog_helper).is_absolute():raise ValueError('complete trusted catalog pins required')
++  pin(pathlib.Path(a.catalog_index),a.catalog_index_sha,256*1024*1024);pin(pathlib.Path(a.catalog_helper),a.catalog_helper_sha,64*1024*1024)
++  env.update(APEX_CC_CATALOG_INDEX=a.catalog_index,APEX_CC_CATALOG_INDEX_SHA256=a.catalog_index_sha,APEX_CC_CATALOG_HELPER=a.catalog_helper,APEX_CC_CATALOG_HELPER_SHA256=a.catalog_helper_sha,APEX_CC_CATALOG_POLICY=a.catalog_policy)
+  argv=[str(binary),'--cc',str(root/'assets'),str(root/'head.apxmesh'),str(root/'dress.apxmesh'),str(root/'shoes.apxmesh'),str(root/'hair.apxmesh')]
+  os.execve(str(binary),argv,env)
+ if __name__=='__main__':main()
+--- a/tools/research/scene_switch_supervisor.py
++++ b/tools/research/scene_switch_supervisor.py
+@@ -59,7 +59,11 @@
+   if not isinstance(specs,dict) or not 1<=len(specs)<=8:raise Refused('invalid scene set')
+   self.specs={}
+   for token,s in specs.items():
+-   if not isinstance(token,str) or not TOKEN.fullmatch(token) or not isinstance(s,dict) or set(s)!={'runtime','runtime_sha','binary','binary_sha','scene_sha','swatch_id'} or not all(isinstance(v,str) for v in s.values()) or not NAME.fullmatch(s['runtime']) or not all(HASH.fullmatch(s[k]) for k in ('runtime_sha','binary_sha','scene_sha')) or not CASP.fullmatch(s['swatch_id']) or not pathlib.Path(s['binary']).is_absolute():raise Refused('invalid trusted scene spec')
++   if not isinstance(token,str) or not TOKEN.fullmatch(token) or not isinstance(s,dict) or set(s) not in ({'runtime','runtime_sha','binary','binary_sha','scene_sha','swatch_id'},{'runtime','runtime_sha','binary','binary_sha','scene_sha','swatch_id','catalog'}) or not all(isinstance(s[k],str) for k in ('runtime','runtime_sha','binary','binary_sha','scene_sha','swatch_id')) or not NAME.fullmatch(s['runtime']) or not all(HASH.fullmatch(s[k]) for k in ('runtime_sha','binary_sha','scene_sha')) or not CASP.fullmatch(s['swatch_id']) or not pathlib.Path(s['binary']).is_absolute():raise Refused('invalid trusted scene spec')
++   if 'catalog' in s:
++    c=s['catalog'];keys={'index','index_sha','helper','helper_sha','policy'}
++    if not isinstance(c,dict) or set(c)!=keys or not all(isinstance(v,str) for v in c.values()) or not pathlib.Path(c['index']).is_absolute() or not pathlib.Path(c['helper']).is_absolute() or not HASH.fullmatch(c['index_sha']) or not HASH.fullmatch(c['helper_sha']) or c['policy'] not in ('sha256-per-request','trusted-immutable-linux'):raise Refused('invalid trusted catalog spec')
++    s={**s,'catalog':dict(c)}
+    self.specs[token]=dict(s)
+   self.lock=threading.RLock();self.active=None;self.retired=[];self.generation=0;self.closed=False
+  def _retire(self,proc):
+@@ -80,6 +84,8 @@
+     if identity.get('harness')!=HARNESS or identity.get('scene_sha256')!=self.active['scene']:raise Refused('active identity changed')
+     return self.status()
+    s=self.specs[token];cmd=[sys.executable,str(ROOT/'rig-recovery/launch_generic_runtime.py'),'--runtime',s['runtime'],'--runtime-sha',s['runtime_sha'],'--binary',s['binary'],'--binary-sha',s['binary_sha']]
++   if 'catalog' in s:
++    c=s['catalog'];cmd+=['--catalog-index',c['index'],'--catalog-index-sha',c['index_sha'],'--catalog-helper',c['helper'],'--catalog-helper-sha',c['helper_sha'],'--catalog-policy',c['policy']]
+    candidate=subprocess.Popen(cmd,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,env={'PATH':'/usr/bin:/bin'},start_new_session=True)
+    try:
+     url=line(candidate);identity=fetch(url,'/identity',4096);swatch=fetch(url,'/swatch-catalog',32768)
+--- a/tools/research/scene_gateway.py
++++ b/tools/research/scene_gateway.py
+@@ -8,8 +8,9 @@
+ import http.server,json,pathlib,re,socketserver,threading,urllib.error,urllib.parse,urllib.request
+ from scene_switch_supervisor import Refused,TOKEN
+ ROOT=pathlib.Path(__file__).resolve().parent
+-EXACT={'/cas-room','/room-layout.css','/pose-app.bundle.mjs','/identity','/pose-catalog','/swatch-catalog','/accessory-catalog','/accessory-state','/cc-library','/cc-library.css','/cc-library.mjs','/cc-library-images.mjs','/cc-library-model.mjs','/controller.mjs','/frame-client.mjs','/swatch-model.mjs','/accessory-model.mjs','/thumbnail-pool.mjs','/hue-wheel-model.mjs','/hue-wheel-ui.mjs','/history-shortcuts.mjs','/pose-history-session.mjs','/pose-history.mjs','/pose-model.mjs','/room-fallback.mjs','/cc-history.mjs','/cc-history-session.mjs','/cc-swatch-history.mjs','/accessory-inspection.mjs'}
+-QUERY={'/clip-frame','/cc-frame','/accessory-inspection-frame','/cc-catalog','/cc-image'}
++EXACT={'/cas-room','/room-layout.css','/pose-app.bundle.mjs','/identity','/pose-catalog','/swatch-catalog','/accessory-catalog','/accessory-state','/cc-library','/cc-library.css','/cc-library.mjs','/cc-library-images.mjs','/cc-library-model.mjs','/cc-catalog-state','/cc-import-status','/controller.mjs','/frame-client.mjs','/swatch-model.mjs','/accessory-model.mjs','/thumbnail-pool.mjs','/hue-wheel-model.mjs','/hue-wheel-ui.mjs','/history-shortcuts.mjs','/pose-history-session.mjs','/pose-history.mjs','/pose-model.mjs','/room-fallback.mjs','/cc-history.mjs','/cc-history-session.mjs','/cc-swatch-history.mjs','/accessory-inspection.mjs'}
++QUERY={'/clip-frame','/cc-frame','/accessory-inspection-frame','/cc-catalog/query','/cc-source-images'}
++SOURCE_IMAGE=re.compile(r'/cc-source-image/[a-f0-9]{64}\.png\Z')
+ PNG=re.compile(r'/pose-image/[a-f0-9]{64}\.png\Z');SAFE_QUERY=re.compile(r'[A-Za-z0-9_:=&.\-]{0,4096}\Z')
+ class _NoRedirect(urllib.request.HTTPRedirectHandler):
+  def redirect_request(self,*args,**kwargs):return None
+@@ -55,18 +56,20 @@
+   if path=='/scene-picker.mjs' and not parts.query:return self.reply(200,'text/javascript',(ROOT/'scene_gateway_picker.mjs').read_bytes())
+   if path=='/scene-catalog' and not parts.query:
+    state=self.server.owner.status();data={'generation':state['generation'],'active':state.get('token'),'state':state['state'],'entries':[{'token':k,'label':v} for k,v in self.server.labels.items()]};return self.reply(200,'application/json',json.dumps(data,separators=(',',':')).encode())
+-  if not ((path in EXACT and not parts.query) or (path in QUERY and bool(parts.query)) or (PNG.fullmatch(path) and not parts.query)):return self.error(404)
++  if not ((path in EXACT and not parts.query) or (path in QUERY and bool(parts.query)) or (PNG.fullmatch(path) and not parts.query) or (SOURCE_IMAGE.fullmatch(path) and bool(parts.query))):return self.error(404)
+   try:
+    with self.server.owner.lock:
+     target,scene,generation=self.server.owner.current_target()
+-    with opener.open(target+self.path,timeout=15) as r:
+-     data=r.read(1048577);kind=r.headers.get('Content-Type','application/octet-stream');headers=[(k,v) for k,v in r.headers.items() if k.lower().startswith('x-') and re.fullmatch(r'[A-Za-z0-9-]{1,80}',k) and len(v)<512 and '\r' not in v and '\n' not in v]
+-     if r.status!=200 or len(data)>1048576:raise ValueError('upstream bound')
+-    if path=='/cas-room':
++    try:r=opener.open(target+self.path,timeout=15)
++    except urllib.error.HTTPError as e:r=e
++    with r:
++     data=r.read(1048577);kind=r.headers.get('Content-Type','application/octet-stream');headers=[(k,v) for k,v in r.headers.items() if k.lower().startswith('x-') and re.fullmatch(r'[A-Za-z0-9-]{1,80}',k) and len(v)<512 and '\r' not in v and '\n' not in v];status=r.status
++     if status not in (200,400,403,404,409,429,500,503) or len(data)>1048576:raise ValueError('upstream bound')
++    if path=='/cas-room' and status==200:
+      marker=b'</body>';addition=b'<script type="module" src="/scene-picker.mjs"></script>'
+      if data.count(marker)!=1:raise ValueError('room shape')
+      data=data.replace(marker,addition+marker)
+-    self.reply(200,kind,data,headers)
++    self.reply(status,kind,data,headers)
+   except Exception:self.error(503)
+  def do_POST(self):
+   if self.path!='/scene-switch' or not self.ok_origin(True) or self.headers.get_all('Content-Type',[])!=['application/json'] or self.headers.get('Transfer-Encoding'):return self.error(403)
+--- /dev/null
++++ b/preview-ui/private-catalog-gateway-smoke.mjs
+@@ -0,0 +1,4 @@
++// Real-source loopback smoke using production catalog controller, not browser QA.
++import assert from 'node:assert/strict';import {CatalogBrowser} from './cc-library-model.mjs';
++const base=process.argv[2];assert.match(base,/^http:\/\/127\.0\.0\.1:\d+$/);let resolve,reject;const done=new Promise((a,b)=>{resolve=a;reject=b;});const timer=setTimeout(()=>reject(Error('catalog timeout')),20000);let browser;
++try{browser=new CatalogBrowser({fetchImpl:(path,opts)=>fetch(base+path,opts),onChange:b=>{if(b.state==='ready')resolve(b);if(['error','invalid'].includes(b.state))reject(Error(b.message));}});browser.recheck();const b=await done;assert.equal(b.page.total,146);assert.equal(b.page.items.length,24);assert.equal(b.page.inspect_only,true);assert.equal(b.page.equip_allowed,false);console.log(JSON.stringify({total:b.page.total,shown:b.page.items.length,inspectOnly:true,equipAllowed:false,browserTested:false}));}finally{clearTimeout(timer);browser?.dispose();}

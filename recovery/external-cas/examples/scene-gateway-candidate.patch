@@ -1,0 +1,207 @@
+--- a/tools/research/scene_switch_supervisor.py
++++ b/tools/research/scene_switch_supervisor.py
+@@ -78,6 +78,10 @@
+    old=self.active;self.generation+=1;self.active={'token':token,'scene':s['scene_sha'],'url':url,'proc':candidate}
+    if old is not None:self._retire(old['proc'])
+    return self.status()
++ def switch_if(self,token,generation):
++  with self.lock:
++   if type(generation) is not int or generation!=self.generation:raise Refused('stale generation')
++   return self.switch(token)
+  def current_target(self):
+   """Private trusted transport only; never forward this raw target to a browser."""
+   with self.lock:
+--- /dev/null
++++ b/tools/research/scene_gateway.py
+@@ -0,0 +1,82 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Opt-in loopback-only preview gateway for a trusted prebound scene owner.
++
++No game writes, raw path API, cloud sharing, installer or native CAS claims.
++Security and lifecycle are experimental; untrusted local processes and parent
++SIGKILL are outside scope. Do not expose or deploy beyond a local diagnostic.
++"""
++import http.server,json,pathlib,re,socketserver,threading,urllib.error,urllib.parse,urllib.request
++from scene_switch_supervisor import Refused,TOKEN
++ROOT=pathlib.Path(__file__).resolve().parent
++EXACT={'/cas-room','/room-layout.css','/pose-app.bundle.mjs','/identity','/pose-catalog','/swatch-catalog','/accessory-catalog','/accessory-state','/cc-library','/cc-library.css','/cc-library.mjs','/cc-library-images.mjs','/cc-library-model.mjs','/controller.mjs','/frame-client.mjs','/swatch-model.mjs','/accessory-model.mjs','/thumbnail-pool.mjs','/hue-wheel-model.mjs','/hue-wheel-ui.mjs','/history-shortcuts.mjs','/pose-history-session.mjs','/pose-history.mjs','/pose-model.mjs','/room-fallback.mjs','/cc-history.mjs','/cc-history-session.mjs','/cc-swatch-history.mjs','/accessory-inspection.mjs'}
++QUERY={'/clip-frame','/cc-frame','/accessory-inspection-frame','/cc-catalog','/cc-image'}
++PNG=re.compile(r'/pose-image/[a-f0-9]{64}\.png\Z');SAFE_QUERY=re.compile(r'[A-Za-z0-9_:=&.\-]{0,4096}\Z')
++class _NoRedirect(urllib.request.HTTPRedirectHandler):
++ def redirect_request(self,*args,**kwargs):return None
++opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),_NoRedirect())
++def object_once(pairs):
++ out={}
++ for k,v in pairs:
++  if k in out:raise ValueError('duplicate key')
++  out[k]=v
++ return out
++class Gateway(socketserver.ThreadingMixIn,http.server.HTTPServer):
++ daemon_threads=True;allow_reuse_address=False
++ def __init__(self,owner,labels):
++  if set(labels)!=set(owner.specs) or any(not TOKEN.fullmatch(k) or not isinstance(v,str) or not 1<=len(v)<=80 or any(ord(c)<32 or ord(c)==127 for c in v) for k,v in labels.items()):raise ValueError('invalid labels')
++  self.owner=owner;self.labels=dict(labels);self.slots=threading.BoundedSemaphore(4);super().__init__(('127.0.0.1',0),Handler);self.expected_host='127.0.0.1:'+str(self.server_address[1]);self.expected_origin='http://'+self.expected_host
++ def process_request(self,request,client_address):
++  if not self.slots.acquire(blocking=False):self.shutdown_request(request);return
++  try:super().process_request(request,client_address)
++  except BaseException:self.slots.release();raise
++ def process_request_thread(self,request,client_address):
++  try:super().process_request_thread(request,client_address)
++  finally:self.slots.release()
++class Handler(http.server.BaseHTTPRequestHandler):
++ protocol_version='HTTP/1.1'
++ def setup(self):super().setup();self.connection.settimeout(10)
++ def log_message(self,*args):pass
++ def ok_origin(self,post=False):
++  hosts=self.headers.get_all('Host',[]);origins=self.headers.get_all('Origin',[]);sites=self.headers.get_all('Sec-Fetch-Site',[])
++  if len(hosts)!=1 or hosts[0]!=self.server.expected_host or len(origins)>1 or len(sites)>1:return False
++  if origins and origins[0]!=self.server.expected_origin:return False
++  if sites and sites[0] not in ('same-origin','none'):return False
++  return not post or (origins==[self.server.expected_origin] and self.headers.get_all('X-CAS-Request',[])==['1'])
++ def reply(self,status,kind,body,headers=()):
++  self.send_response(status);self.send_header('Content-Type',kind);self.send_header('Content-Length',str(len(body)));self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff');self.send_header('X-Frame-Options','DENY');self.send_header('Content-Security-Policy',"default-src 'self'; img-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'");self.send_header('Connection','close')
++  for k,v in headers:self.send_header(k,v)
++  self.end_headers();self.wfile.write(body);self.close_connection=True
++ def error(self,status):self.reply(status,'text/plain',b'Preview request refused')
++ def do_GET(self):
++  if not self.ok_origin() or self.headers.get_all('Transfer-Encoding',[]) or self.headers.get_all('Content-Length',[]) not in ([],['0']):return self.error(403)
++  parts=urllib.parse.urlsplit(self.path);path=parts.path
++  if parts.scheme or parts.netloc or parts.fragment or not SAFE_QUERY.fullmatch(parts.query) or '%' in path or '..' in path or '\\' in path:return self.error(400)
++  if path=='/' and not parts.query:return self.reply(302,'text/plain',b'', [('Location','/cas-room')])
++  if path=='/scene-picker.mjs' and not parts.query:return self.reply(200,'text/javascript',(ROOT/'scene_gateway_picker.mjs').read_bytes())
++  if path=='/scene-catalog' and not parts.query:
++   state=self.server.owner.status();data={'generation':state['generation'],'active':state.get('token'),'state':state['state'],'entries':[{'token':k,'label':v} for k,v in self.server.labels.items()]};return self.reply(200,'application/json',json.dumps(data,separators=(',',':')).encode())
++  if not ((path in EXACT and not parts.query) or (path in QUERY and bool(parts.query)) or (PNG.fullmatch(path) and not parts.query)):return self.error(404)
++  try:
++   with self.server.owner.lock:
++    target,scene,generation=self.server.owner.current_target()
++    with opener.open(target+self.path,timeout=15) as r:
++     data=r.read(1048577);kind=r.headers.get('Content-Type','application/octet-stream');headers=[(k,v) for k,v in r.headers.items() if k.lower().startswith('x-') and re.fullmatch(r'[A-Za-z0-9-]{1,80}',k) and len(v)<512 and '\r' not in v and '\n' not in v]
++     if r.status!=200 or len(data)>1048576:raise ValueError('upstream bound')
++    if path=='/cas-room':
++     marker=b'</body>';addition=b'<script type="module" src="/scene-picker.mjs"></script>'
++     if data.count(marker)!=1:raise ValueError('room shape')
++     data=data.replace(marker,addition+marker)
++    self.reply(200,kind,data,headers)
++  except Exception:self.error(503)
++ def do_POST(self):
++  if self.path!='/scene-switch' or not self.ok_origin(True) or self.headers.get_all('Content-Type',[])!=['application/json'] or self.headers.get('Transfer-Encoding'):return self.error(403)
++  lengths=self.headers.get_all('Content-Length',[])
++  if len(lengths)!=1 or not lengths[0].isdigit() or not 0<int(lengths[0])<=512:return self.error(400)
++  try:
++   data=json.loads(self.rfile.read(int(lengths[0])).decode('utf8'),object_pairs_hook=object_once)
++   if type(data)is not dict or set(data)!={'token','generation'} or not isinstance(data['token'],str) or not TOKEN.fullmatch(data['token']) or type(data['generation'])is not int:raise ValueError('invalid selection')
++  except (ValueError,UnicodeError,RecursionError):return self.error(400)
++  try:
++   state=self.server.owner.switch_if(data['token'],data['generation']);return self.reply(200,'application/json',json.dumps(state,separators=(',',':')).encode())
++  except Refused:return self.error(409)
++  except Exception:return self.error(500)
+--- /dev/null
++++ b/tools/research/scene_gateway_picker.mjs
+@@ -0,0 +1,10 @@
++// Opt-in private scene picker; explicit selection, no automatic playback.
++const host=document.querySelector('.header-context');
++if(host){
++ const label=document.createElement('label'),select=document.createElement('select'),button=document.createElement('button'),status=document.createElement('span');
++ label.textContent='Prepared dress ';select.setAttribute('aria-label','Prepared dress');button.type='button';button.textContent='Switch preview';button.disabled=true;status.setAttribute('role','status');label.append(select);host.append(label,button,status);
++ let catalog=null;
++ try {const r=await fetch('/scene-catalog',{cache:'no-store',redirect:'error'});if(!r.ok)throw Error('Scene list unavailable');catalog=await r.json();if(!Array.isArray(catalog.entries)||!Number.isSafeInteger(catalog.generation))throw Error('Invalid scene list');for(const row of catalog.entries){const o=document.createElement('option');o.value=row.token;o.textContent=row.label;select.append(o);}select.value=catalog.active;button.disabled=!catalog.entries.length;status.textContent='Prepared preview only; no game changes.';}
++ catch(e){status.textContent='Scene picker unavailable: '+e.message;}
++ button.addEventListener('click',async()=>{if(!catalog||button.disabled)return;button.disabled=true;select.disabled=true;status.textContent='Preparing selected preview; current frame is retained.';try{const r=await fetch('/scene-switch',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:select.value,generation:catalog.generation}),cache:'no-store',redirect:'error'});if(!r.ok)throw Error('Switch failed or selection became stale');status.textContent='Preview ready; reloading.';location.reload();}catch(e){status.textContent=e.message+'; refresh the page to check the current selection before trying again.';select.disabled=false;button.disabled=true;}});
++}
+--- /dev/null
++++ b/tools/research/run_scene_gateway.py
+@@ -0,0 +1,33 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Run an experimental loopback-only CAS scene picker from pinned local config.
++
++Config and runtime files must be trusted and prebound by the owner. This is not
++an installer, browser security boundary, native game integration or Tray export.
++SIGTERM/interrupt attempts cleanup; SIGKILL/power-loss containment is unproven.
++"""
++import argparse,hashlib,json,pathlib,signal,sys
++from scene_gateway import Gateway
++from scene_switch_supervisor import SceneSwitcher,TOKEN
++D=__import__('re').compile(r'[a-f0-9]{64}\Z')
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--config',required=True);p.add_argument('--config-sha',required=True);a=p.parse_args();src=pathlib.Path(a.config)
++ if not D.fullmatch(a.config_sha) or src.is_symlink() or not src.is_file() or src.stat().st_size>65536:raise ValueError('pinned config required')
++ with src.open('rb') as f:raw=f.read(65537)
++ if hashlib.sha256(raw).hexdigest()!=a.config_sha:raise ValueError('config identity')
++ obj=json.loads(raw)
++ if type(obj)is not dict or set(obj)!={'schema','initial','scenes'} or obj['schema']!=1 or type(obj['scenes'])is not dict or obj['initial'] not in obj['scenes']:raise ValueError('config shape')
++ specs={};labels={}
++ for token,row in obj['scenes'].items():
++  if not isinstance(token,str) or not TOKEN.fullmatch(token) or type(row)is not dict or set(row)!={'label','spec'}:raise ValueError('scene config')
++  specs[token]=row['spec'];labels[token]=row['label']
++ owner=SceneSwitcher(specs);gateway=None
++ def interrupt(signum,frame):raise KeyboardInterrupt()
++ old=signal.signal(signal.SIGTERM,interrupt)
++ try:
++  owner.switch(obj['initial']);gateway=Gateway(owner,labels)
++  print(f'http://{gateway.expected_host}/cas-room',flush=True);gateway.serve_forever(poll_interval=.25)
++ except KeyboardInterrupt:pass
++ finally:
++  if gateway:gateway.server_close()
++  owner.close();signal.signal(signal.SIGTERM,old)
++if __name__=='__main__':main()
+--- /dev/null
++++ b/tools/research/test_scene_gateway.py
+@@ -0,0 +1,41 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Synthetic gateway policy checks; not browser, native or production QA."""
++import http.client,json,threading,unittest
++from scene_gateway import Gateway
++from scene_switch_supervisor import Refused
++class FakeOwner:
++ def __init__(self):self.specs={'1'*32:{},'2'*32:{}};self.lock=threading.RLock();self.token='1'*32;self.generation=1
++ def status(self):return {'state':'ready','generation':self.generation,'token':self.token,'scene_sha256':'a'*64}
++ def switch_if(self,token,generation):
++  with self.lock:
++   if generation!=self.generation or token not in self.specs:raise Refused('stale or unknown')
++   self.token=token;self.generation+=1;return self.status()
++ def current_target(self):raise Refused('no backend in synthetic test')
++class Tests(unittest.TestCase):
++ def setUp(self):
++  self.owner=FakeOwner();self.g=Gateway(self.owner,{'1'*32:'First','2'*32:'Second'});self.t=threading.Thread(target=self.g.serve_forever,daemon=True);self.t.start();self.host,self.port=self.g.server_address;self.origin=f'http://{self.host}:{self.port}'
++ def tearDown(self):self.g.shutdown();self.g.server_close();self.t.join(5)
++ def request(self,method,path,body=None,headers={}):
++  c=http.client.HTTPConnection(self.host,self.port,timeout=5);c.request(method,path,body,headers);r=c.getresponse();data=r.read();code=r.status;h=dict(r.getheaders());c.close();return code,h,data
++ def test_selection_requires_same_origin_and_custom_header(self):
++  body=json.dumps({'token':'2'*32,'generation':1});hdr={'Content-Type':'application/json','Origin':self.origin,'X-CAS-Request':'1'}
++  self.assertEqual(self.request('POST','/scene-switch',body,{**hdr,'Origin':'https://evil.example'})[0],403)
++  self.assertEqual(self.request('POST','/scene-switch',body,{k:v for k,v in hdr.items() if k!='X-CAS-Request'})[0],403)
++  self.assertEqual(self.request('POST','/scene-switch',body,hdr)[0],200)
++  self.assertEqual(self.request('POST','/scene-switch',body,hdr)[0],409)
++  self.assertEqual(self.owner.generation,2)
++ def test_cross_site_and_unlisted_paths_refused(self):
++  self.assertEqual(self.request('GET','/scene-catalog',headers={'Origin':'https://evil.example'})[0],403)
++  self.assertEqual(self.request('GET','/scene-catalog',headers={'Sec-Fetch-Site':'cross-site'})[0],403)
++  self.assertEqual(self.request('GET','/../../secret')[0],400)
++  self.assertEqual(self.request('GET','/unknown')[0],404)
++  self.assertEqual(self.request('GET','/scene-catalog?bad=1')[0],404)
++  status,h,b=self.request('GET','/scene-catalog');self.assertEqual(status,200);self.assertNotIn('Access-Control-Allow-Origin',h);self.assertEqual(json.loads(b)['generation'],1)
++ def test_concurrent_same_generation_allows_one(self):
++  barrier=threading.Barrier(3);results=[];hdr={'Content-Type':'application/json','Origin':self.origin,'X-CAS-Request':'1'};body=json.dumps({'token':'2'*32,'generation':1})
++  def send():barrier.wait();results.append(self.request('POST','/scene-switch',body,hdr)[0])
++  a=threading.Thread(target=send);b=threading.Thread(target=send);a.start();b.start();barrier.wait();a.join(5);b.join(5);self.assertEqual(sorted(results),[200,409]);self.assertEqual(self.owner.generation,2)
++ def test_duplicate_json_fields_do_not_switch(self):
++  hdr={'Content-Type':'application/json','Origin':self.origin,'X-CAS-Request':'1'};body='{"token":"'+('2'*32)+'","token":"'+('1'*32)+'","generation":1}'
++  self.assertEqual(self.request('POST','/scene-switch',body,hdr)[0],400);self.assertEqual(self.owner.generation,1)
++if __name__=='__main__':unittest.main(verbosity=2)
+--- /dev/null
++++ b/tools/research/test_scene_gateway_picker.mjs
+@@ -0,0 +1,13 @@
++// Synthetic DOM tests; not a browser or native-game acceptance test.
++import test from 'node:test';import assert from 'node:assert/strict';
++class Element{constructor(){this.children=[];this.handlers={};this.disabled=false;this.value='';this.textContent='';}append(...v){this.children.push(...v);}setAttribute(){}addEventListener(n,f){this.handlers[n]=f;}}
++async function scenario(fail=false){
++ const old={document:globalThis.document,fetch:globalThis.fetch,location:globalThis.location};const host=new Element();let posts=0,reloaded=0;
++ globalThis.document={querySelector:s=>s==='.header-context'?host:null,createElement:()=>new Element()};
++ globalThis.location={reload(){reloaded++}};
++ globalThis.fetch=async(path,opt)=>{if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:4,active:'a'.repeat(32),entries:[{token:'a'.repeat(32),label:'One'},{token:'b'.repeat(32),label:'Two'}]})};assert.equal(path,'/scene-switch');posts++;assert.equal(opt.method,'POST');assert.equal(opt.headers['x-cas-request'],'1');assert.deepEqual(JSON.parse(opt.body),{token:'b'.repeat(32),generation:4});return {ok:!fail};};
++ try{await import('./scene_gateway_picker.mjs?case='+Math.random());const [label,button,status]=host.children,select=label.children[0];assert.equal(posts,0);assert.equal(reloaded,0);assert.equal(select.value,'a'.repeat(32));select.value='b'.repeat(32);await button.handlers.click();assert.equal(posts,1);assert.equal(reloaded,fail?0:1);if(fail){assert.equal(button.disabled,true);assert.match(status.textContent,/refresh the page/);}return true;}
++ finally{for(const [k,v] of Object.entries(old)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
++}
++test('selection changes only on explicit click',async()=>{await scenario(false)});
++test('failed switch does not retry or reload blindly',async()=>{await scenario(true)});

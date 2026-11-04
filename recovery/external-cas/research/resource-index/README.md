@@ -140,6 +140,11 @@ See `RENDERER-COMPAT.md` for APXMESH projection, existing renderer validation,
 rig ambiguity, alpha and coordinate-convention findings. Its comparison tools
 and optional Rust bridges do not integrate or validate native CAS rendering.
 
+See `LARGE-PACKAGE.md` for the independently compared Python streaming-index
+reader, its resource-accounting limits, integration contract and remaining
+preview pipeline changes. It does not silently remove the preview's existing
+package limits or establish load precedence.
+
 ## Next gates
 
 Compare broader samples from the installed version against independent tools,

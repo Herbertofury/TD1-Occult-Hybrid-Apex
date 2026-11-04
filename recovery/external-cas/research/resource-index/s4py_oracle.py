@@ -16,10 +16,13 @@ from s4py.package.dbpf import _DbpfReader, decodeRefPack
 
 if sys.argv[2] == '--refpack':
     print(binascii.hexlify(bytes(decodeRefPack(bytes.fromhex(sys.argv[3])))).decode('ascii'))
-elif sys.argv[2] == '--payload-hash':
+elif sys.argv[2] in ('--payload-hash', '--record-and-payload'):
     with open(sys.argv[3], 'rb') as handle:
         reader = _DbpfReader(handle)
-        item = list(reader.get_index())[int(sys.argv[4])]
+        ordinal = int(sys.argv[4])
+        item = next((record for index, record in enumerate(reader.get_index()) if index == ordinal), None)
+        if item is None:
+            raise ValueError('missing oracle ordinal')
         method = item.locator.compression[0]
         if method not in (0, 0x5a42, 0xffff) or item.size > 64 * 1024 * 1024 or item.locator.raw_len > 64 * 1024 * 1024:
             raise ValueError('unsupported bounded sample')
@@ -43,7 +46,14 @@ elif sys.argv[2] == '--payload-hash':
             decoded = stored
         if len(decoded) != item.size:
             raise ValueError('decoded size mismatch')
-        print(hashlib.sha256(decoded).hexdigest())
+        digest = hashlib.sha256(decoded).hexdigest()
+        if sys.argv[2] == '--payload-hash':
+            print(digest)
+        else:
+            print(json.dumps({'key': '{:08X}:{:08X}:{:016X}'.format(item.id.type, item.id.group, item.id.instance),
+                              'offset': item.locator.offset, 'storedSize': item.locator.raw_len, 'memorySize': item.size,
+                              'compression': item.locator.compression[0], 'committed': item.locator.compression[1],
+                              'decodedSha256': digest}))
 else:
     with open(sys.argv[2], 'rb') as handle:
         reader = _DbpfReader(handle)

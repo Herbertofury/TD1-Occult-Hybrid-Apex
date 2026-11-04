@@ -37,3 +37,12 @@ manual comparison in Sims 4 Studio's Warehouse CAS Part view. The complete TGI
 remains visible for checking type and group. This does not automatically select
 the resource or prove that Studio opened the package. The Warehouse instance
 location is described in the [Sims 4 Modders Reference](https://thesims4moddersreference.org/tutorials/modifying-sim-appearances/).
+
+When a matched thumbnail request fails to transport, decode, or upload, the
+equipped-item view offers an explicit **Retry thumbnail** action. It submits
+the same pinned row through the normal thumbnail request and verification
+path; it does not automatically retry, launch Studio, or substitute an image.
+An isolated Debug overlay compiled, and 140 existing native resource checks
+passed. The button itself has not been exercised in game. This does not solve
+catalog-generation retention, thumbnail-provider identity, current-equipped
+freshness, or automatic selection inside Studio.

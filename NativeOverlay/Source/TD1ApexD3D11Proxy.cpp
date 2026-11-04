@@ -2646,7 +2646,13 @@ static void DrawResourcePart(const ui::Json& part, const ui::Json& editor) {
             const float scale = std::min(1.0f, 180.0f / static_cast<float>(std::max(width, height)));
             ImGui::Image(reinterpret_cast<ImTextureID>(g_resourceTexture), ImVec2(width * scale, height * scale));
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Actual cached CAS thumbnail\nPNG SHA-256 %s\nResource %s", ui::Scalar(thumbnail, "sha256").c_str(), ui::Scalar(row, "resource_id").c_str());
-        } else ImGui::TextDisabled("%s", g_resourceImageBusy.load() ? "Loading the pinned thumbnail..." : "Thumbnail not decoded/uploaded.");
+        } else {
+            ImGui::TextDisabled("%s", g_resourceImageBusy.load() ? "Loading the pinned thumbnail..." : "Thumbnail not decoded/uploaded.");
+            // A failed request leaves the attempted key in place. Retry only on
+            // an explicit click, with the same pinned row and normal verifier.
+            if (!g_resourceImageBusy.load() && g_resourceRequestedImage == key &&
+                ImGui::SmallButton("Retry thumbnail")) QueueResource(2, row);
+        }
         if (!imageStatus.empty()) ImGui::TextWrapped("%s", imageStatus.c_str());
     } else ImGui::TextWrapped("Thumbnail unavailable: %s", ui::Scalar(thumbnail, "reason").c_str());
     const bool ready = ui::Scalar(row["studio_open"], "status") == "ready";

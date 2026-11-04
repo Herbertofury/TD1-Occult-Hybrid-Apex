@@ -215,6 +215,12 @@
       "sha256": "7f8d84324b2d9484e257ffd8b7a4ecd068edd7375e11e6293d1201092ce87c0b"
     },
     {
+      "bytes": 3255,
+      "mode": "100644",
+      "path": "docs/F11_COPY_RECEIPT_REVIEW_20261104.md",
+      "sha256": "979526b0c3c01852d309c6f8d574c21f249ee5654c0ea950e7be67d0b3fb4c85"
+    },
+    {
       "bytes": 5334,
       "mode": "100644",
       "path": "docs/SUPPLIED_DONOR_VERSION_AUDIT_20261104.md",
@@ -453,6 +459,12 @@
       "mode": "100644",
       "path": "Reports/CAS_DRAW_TRACE_V323.json",
       "sha256": "a597993c0c8d4c4f126147464009088609d4800a0a0bbb8cb3b773bfca540569"
+    },
+    {
+      "bytes": 375835,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "fc2843ce412374be3f487d59a66f245c02c2ba6969d0dfd17313fcf84cf59659"
     },
     {
       "bytes": 3186,
@@ -3971,12 +3983,6 @@
       "sha256": "7889f6f1b237e7e29715ef3ddc6f93f45f8664118e2a832fb261d9106e9b0833"
     },
     {
-      "bytes": 375490,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "bb44fc0d46a9730228cfb8e5523981ff769e7eee5a704b2be4af50c97d0e7a51"
-    },
-    {
       "bytes": 10854,
       "mode": "100644",
       "path": "tests/test_game_discard.py",
@@ -5589,12 +5595,6 @@
       "mode": "100644",
       "path": "Source/CASUi/catalog_grid_presentation_methods.as",
       "sha256": "90d96e562a2798dad3524bac65f6b240e2609272c3931f9f1c9a0caff2f2f484"
-    },
-    {
-      "bytes": 2670,
-      "mode": "100644",
-      "path": "docs/F11_COPY_RECEIPT_REVIEW_20261104.md",
-      "sha256": "ad16d52f81dd234e311c0243e76e6e8a74153c031d12fb23cb4ec82f6f78e56e"
     },
     {
       "bytes": 30071,

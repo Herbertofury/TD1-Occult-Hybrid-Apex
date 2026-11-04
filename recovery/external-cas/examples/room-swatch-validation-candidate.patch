@@ -1,0 +1,80 @@
+--- a/preview-ui/room-fallback.mjs
++++ b/preview-ui/room-fallback.mjs
+@@ -1,7 +1,7 @@
+ import {CcHistory,CC_DEFAULTS} from './cc-history.mjs';
+ import {loadCcHistory,saveCcHistory} from './cc-history-session.mjs';
+ import {createFrameClient,readLimited} from './frame-client.mjs';
+-import {validateSwatchCatalog,swatchLabel} from './swatch-model.mjs';
++import {validateSwatchCatalog,swatchLabel,authoredColorCss} from './swatch-model.mjs';
+ import {CcSwatchHistory,loadSwatchHistory,saveSwatchHistory} from './cc-swatch-history.mjs';
+ import {PreviewController} from './controller.mjs';
+ 
+@@ -21,11 +21,12 @@
+   $('#pose-branches').replaceChildren(...history.branches.map(b=>{let o=doc.createElement('option');o.value=String(b.id);o.textContent='Preview edit '+b.id;return o;}));
+   if(history.branches.length)$('#pose-branches').value=String(history.branches.at(-1).id);
+   $('#pose-branches').disabled=$('#redo-pose').disabled;
++  if(swatches){const selected=swatches.swatches.find(s=>s.id===history.value.swatchId);$('#swatch-select').value=history.value.swatchId;$('#swatch-colors').replaceChildren(...selected.colors_argb.map(color=>{const chip=doc.createElement('span');chip.style.backgroundColor=authoredColorCss(color);chip.style.display='inline-block';chip.style.width='20px';chip.style.height='20px';chip.style.border='1px solid currentColor';chip.style.marginRight='4px';chip.setAttribute('aria-label','Authored swatch color '+authoredColorCss(color));chip.title='Authored metadata color, not a sampled rendered pixel';return chip;}));}
+   $('#pose-history-status').textContent=`Preview history ${history.nodes.length}/${history.capacity}. No game or outfit writes. ${error}`;
+  }
+  function request(){controller.request({...history.value,...(swatches?{catalogScene:swatches.scene_sha256}:{})});}
+  function restore(){for(const n of names)control(n).value=String(history.value[n]);if(swatches)$('#swatch-select').value=history.value.swatchId;sync();request();}
+- async function prepareSwatches(){try{const c=await catalogLoader();if(!c||!c.enabled){$('#swatch-status').textContent='Prepared swatches unavailable; default selected CC remains visible.';return;}if(closed||!ready||c.scene_sha256!==scene||history.pending)throw Error('Scene or preview changed while swatches loaded');const next=new CcSwatchHistory(c);next.migrateLegacy(history,c.default_id);loadSwatchHistory(next,storage,scene,c.catalog_sha256);if(!poseReady&&next.value.pose!==0)throw Error('Saved rig pose requires the missing rig');history=next;swatches=c;const select=$('#swatch-select');select.replaceChildren(...c.swatches.map(x=>{const o=doc.createElement('option');o.value=x.id;o.textContent=swatchLabel(c,x.id);return o;}));select.disabled=false;select.value=history.value.swatchId;$('#swatch-status').textContent='Verified dress swatches only; preview does not equip or write to the game.';restore();}catch(e){$('#swatch-status').textContent='Swatches unavailable: '+e.message;}}
++ async function prepareSwatches(){try{const c=await catalogLoader();if(!c||!c.enabled){$('#swatch-status').textContent='Prepared swatches unavailable; default selected CC remains visible.';return;}if(history.pending){catalogStarted=false;$('#swatch-status').textContent='Finish the current preview edit to load swatches.';return;}if(closed||!ready||c.scene_sha256!==scene)throw Error('Scene or preview changed while swatches loaded');const next=new CcSwatchHistory(c);next.migrateLegacy(history,c.default_id);loadSwatchHistory(next,storage,scene,c.catalog_sha256);if(!poseReady&&next.value.pose!==0)throw Error('Saved rig pose requires the missing rig');history=next;swatches=c;const select=$('#swatch-select');select.replaceChildren(...c.swatches.map(x=>{const o=doc.createElement('option');o.value=x.id;o.textContent=swatchLabel(c,x.id);return o;}));select.disabled=false;select.value=history.value.swatchId;$('#swatch-status').textContent='Verified dress swatches only; preview does not equip or write to the game.';restore();}catch(e){$('#swatch-status').textContent='Swatches unavailable: '+e.message;}}
+  const controller=new PreviewController(r=>client.read(r),(frame,r)=>{
+   if(scene!==null&&scene!==frame.scene)throw Error('Preview scene changed');
+   ctx.putImageData(new ImageData(frame.rgba,512,512),0,0);
+@@ -35,7 +36,7 @@
+   canvas.setAttribute('aria-label','Selected CC diagnostic preview; no imported pose');canvas.dataset.scene=frame.scene;canvas.dataset.parameters=JSON.stringify(r);
+   $('#identity').textContent=`${frame.harness} · scene ${frame.scene}`;$('#metrics').textContent=`Render ${frame.cpuMs??'?'} ms · request ${frame.fetchMs.toFixed(1)} ms. Offline diagnostic; not game FPS.`;
+  },message=>{$('#frame-status').textContent='Pose library unavailable. Selected CC preview: '+message;});
+- for(const n of names){let input=control(n);input.addEventListener('input',()=>{try{history.stage({...history.value,...fields()});sync();request();}catch(e){error=e.message;sync();}});input.addEventListener('change',()=>{try{history.commit();save();sync();}catch(e){error=e.message;restore();}});}
++ for(const n of names){let input=control(n);input.addEventListener('input',()=>{try{history.stage({...history.value,...fields()});sync();request();}catch(e){error=e.message;sync();}});input.addEventListener('change',()=>{try{history.commit();save();sync();if(!swatches&&!catalogStarted&&ready){catalogStarted=true;queueMicrotask(prepareSwatches);}}catch(e){error=e.message;restore();}});}
+  $('#undo-pose').addEventListener('click',()=>{history.undo();save();restore();});
+  $('#redo-pose').addEventListener('click',()=>{try{history.redo(Number($('#pose-branches').value));save();restore();}catch(e){error=e.message;sync();}});
+  $('#reset-material').addEventListener('click',()=>{try{history.stage({...history.value,hue:0,brightness:0,saturation:0,opacity:16384});history.commit();save();restore();}catch(e){error=e.message;sync();}});
+--- a/preview-ui/room-fallback.test.mjs
++++ b/preview-ui/room-fallback.test.mjs
+@@ -1,13 +1,13 @@
+ import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+-import {CcSwatchHistory,loadSwatchHistory,saveSwatchHistory} from './cc-swatch-history.mjs';import {swatchLabel} from './swatch-model.mjs';
++import {CcSwatchHistory,loadSwatchHistory,saveSwatchHistory} from './cc-swatch-history.mjs';import {swatchLabel,authoredColorCss} from './swatch-model.mjs';
+ import {CcHistory,CC_DEFAULTS} from './cc-history.mjs';import {loadCcHistory,saveCcHistory} from './cc-history-session.mjs';import {PreviewController} from './controller.mjs';
+ const src=readFileSync(new URL('./room-fallback.mjs',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace('export function startRoomFallback','function startRoomFallback')+'\nreturn startRoomFallback;';
+ const tick=()=>new Promise(r=>setImmediate(r));
+ function fixture(storage={getItem(){return null},setItem(){}},catalogLoader=async()=>null){
+  const elements=new Map(),handlers={};function el(id){if(!elements.has(id))elements.set(id,{value:id==='opacity'?'16384':'0',disabled:false,textContent:'',dataset:{},events:{},children:[],addEventListener(n,f){(this.events[n]??=[]).push(f)},replaceChildren(...x){this.children=x},setAttribute(k,v){this[k]=v},getContext(){return {putImageData(){}}}});return elements.get(id)}
+- const doc={querySelector:s=>el(s.replace('#','')),createElement:()=>({value:'',textContent:''})},win={addEventListener(n,f){handlers[n]=f}},pending=[];
++ const doc={querySelector:s=>el(s.replace('#','')),createElement:()=>({value:'',textContent:'',style:{},setAttribute(k,v){this[k]=v}})},win={addEventListener(n,f){handlers[n]=f}},pending=[];
+  const createFrameClient=()=>({read:request=>new Promise(resolve=>pending.push({request,resolve}))});
+- const start=new Function('CcHistory','CC_DEFAULTS','loadCcHistory','saveCcHistory','createFrameClient','PreviewController','ImageData','CcSwatchHistory','loadSwatchHistory','saveSwatchHistory','swatchLabel',src)(CcHistory,CC_DEFAULTS,loadCcHistory,saveCcHistory,createFrameClient,PreviewController,class{},CcSwatchHistory,loadSwatchHistory,saveSwatchHistory,swatchLabel);
++ const start=new Function('CcHistory','CC_DEFAULTS','loadCcHistory','saveCcHistory','createFrameClient','PreviewController','ImageData','CcSwatchHistory','loadSwatchHistory','saveSwatchHistory','swatchLabel','authoredColorCss',src)(CcHistory,CC_DEFAULTS,loadCcHistory,saveCcHistory,createFrameClient,PreviewController,class{},CcSwatchHistory,loadSwatchHistory,saveSwatchHistory,swatchLabel,authoredColorCss);
+  const state=start(doc,win,storage,catalogLoader);const fire=(id,event)=>{for(const f of el(id).events[event]??[])f({})};
+  async function accept(scene='a'.repeat(64),poseReady=false){let x=pending.shift();x.resolve({rgba:new Uint8ClampedArray(4),scene,harness:'fixture',renderer:'fixture',fetchMs:1,poseReady});await tick();}
+  return {el,fire,pending,accept,state,windowEvent(n,e={}){handlers[n]?.(e)}};
+@@ -18,5 +18,6 @@
+ test('verified rig enables bounded arm diagnostic and reload retains it',async()=>{const m=new Map(),storage={getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)};let a=fixture(storage);await a.accept('a'.repeat(64),true);assert.equal(a.el('rig-pose').disabled,false);assert.equal(a.el('rig-pose-control').hidden,false);a.el('rig-pose').value='45';a.fire('rig-pose','input');a.fire('rig-pose','change');assert.equal(a.pending[0].request.pose,45);await a.accept('a'.repeat(64),true);let b=fixture(storage);await b.accept('a'.repeat(64),true);await tick();assert.equal(b.pending[0].request.pose,45);await b.accept('a'.repeat(64),true)});
+ test('missing rig cannot restore or overwrite nonzero saved pose',async()=>{const m=new Map(),storage={getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)};let a=fixture(storage);await a.accept('a'.repeat(64),true);a.el('rig-pose').value='45';a.fire('rig-pose','input');a.fire('rig-pose','change');await a.accept('a'.repeat(64),true);const before=[...m.values()][0];let b=fixture(storage);await b.accept('a'.repeat(64),false);assert.equal(b.el('rig-pose').disabled,true);assert.equal(b.el('rig-pose-control').hidden,true);assert.match(b.el('pose-history-status').textContent,/missing rig/);b.el('hue').value='12';b.fire('hue','input');b.fire('hue','change');await b.accept('a'.repeat(64),false);assert.equal([...m.values()][0],before)});
+ 
+-test('prepared swatches select, undo, redo and survive reload without game writes',async()=>{const m=new Map(),storage={getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)},scene='a'.repeat(64),digest='b'.repeat(64),one='034AEECB:80000000:E788BC6354CE1C3A',two='034AEECB:80000000:D6F66DF266A80F77',catalog={enabled:true,scene_sha256:scene,catalog_sha256:digest,default_id:one,swatches:[{id:one,order:10},{id:two,order:15}]};let a=fixture(storage,async()=>catalog);await a.accept(scene,true);await tick();assert.equal(a.el('swatch-select').disabled,false);assert.equal(a.pending[0].request.swatchId,one);await a.accept(scene,true);a.el('swatch-select').value=two;a.fire('swatch-select','change');assert.equal(a.pending[0].request.swatchId,two);await a.accept(scene,true);a.fire('undo-pose','click');assert.equal(a.pending[0].request.swatchId,one);await a.accept(scene,true);a.fire('redo-pose','click');assert.equal(a.pending[0].request.swatchId,two);await a.accept(scene,true);let b=fixture(storage,async()=>catalog);await b.accept(scene,true);await tick();assert.equal(b.pending[0].request.swatchId,two);await b.accept(scene,true);});
++test('prepared swatches select, undo, redo and survive reload without game writes',async()=>{const m=new Map(),storage={getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)},scene='a'.repeat(64),digest='b'.repeat(64),one='034AEECB:80000000:E788BC6354CE1C3A',two='034AEECB:80000000:D6F66DF266A80F77',catalog={enabled:true,scene_sha256:scene,catalog_sha256:digest,default_id:one,swatches:[{id:one,order:10,colors_argb:[0xff123456]},{id:two,order:15,colors_argb:[0xffabcdef]}]};let a=fixture(storage,async()=>catalog);await a.accept(scene,true);await tick();assert.equal(a.el('swatch-select').disabled,false);assert.equal(a.el('swatch-colors').children[0].style.backgroundColor,'#123456ff');assert.equal(a.pending[0].request.swatchId,one);await a.accept(scene,true);a.el('swatch-select').value=two;a.fire('swatch-select','change');assert.equal(a.pending[0].request.swatchId,two);await a.accept(scene,true);a.fire('undo-pose','click');assert.equal(a.pending[0].request.swatchId,one);await a.accept(scene,true);a.fire('redo-pose','click');assert.equal(a.pending[0].request.swatchId,two);await a.accept(scene,true);let b=fixture(storage,async()=>catalog);await b.accept(scene,true);await tick();assert.equal(b.pending[0].request.swatchId,two);await b.accept(scene,true);});
+ test('a foreign catalog cannot enable swatch controls',async()=>{const c={enabled:true,scene_sha256:'b'.repeat(64),catalog_sha256:'c'.repeat(64)};let a=fixture(undefined,async()=>c);a.el('swatch-select').disabled=true;await a.accept('a'.repeat(64),true);await tick();assert.equal(a.el('swatch-select').disabled,true);assert.match(a.el('swatch-status').textContent,/unavailable/);});
++test('catalog arrival during a staged edit defers until edit commits',async()=>{const m=new Map(),storage={getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)},scene='a'.repeat(64),one='034AEECB:80000000:E788BC6354CE1C3A',c={enabled:true,scene_sha256:scene,catalog_sha256:'b'.repeat(64),default_id:one,swatches:[{id:one,order:10,colors_argb:[0xff123456]}]};let finish,calls=0;const a=fixture(storage,()=>++calls===1?new Promise(r=>finish=r):Promise.resolve(c));await a.accept(scene,true);a.el('hue').value='23';a.fire('hue','input');finish(c);await tick();assert.match(a.el('swatch-status').textContent,/Finish/);a.fire('hue','change');await tick();assert.equal(a.el('swatch-select').disabled,false);assert.equal(a.state.history.value.hue,23);});
+--- a/examples/cc_scene/swatch_catalog.rs
++++ b/examples/cc_scene/swatch_catalog.rs
+@@ -667,4 +667,16 @@
+             .is_err()
+         );
+     }
++    #[test]
++    #[ignore = "requires privately recovered dress swatches"]
++    fn privately_recovered_all_swatches_pass_production_decoder() {
++        let dir = std::env::var("CC_REAL_SWATCH_DIR").unwrap();
++        let catalog = Catalog::open(Path::new(&dir)).unwrap();
++        assert_eq!(SWATCHES.len(), 30);
++        for entry in &SWATCHES {
++            let layer = catalog.load_layer(entry).expect("verified swatch layer");
++            drop(layer);
++        }
++    }
++
+ }

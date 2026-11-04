@@ -83,12 +83,6 @@
       "sha256": "5f0456f024ab157ec608cb0b19442b4b0f66edb08dcb38f350c0cc45ab57908b"
     },
     {
-      "bytes": 12520,
-      "mode": "100644",
-      "path": "docs/FRAME_BENCHMARK.md",
-      "sha256": "4a0bb51f9557196ab92fedda801820a6dcc91bfdd4cb27e67f5f0f61435cff77"
-    },
-    {
       "bytes": 3145,
       "mode": "100644",
       "path": "tools/inspect_script_code.py",
@@ -533,6 +527,12 @@
       "sha256": "d9af22f44cca4fd123b81706ead826df21f798248a6f544c936b35b8a2d5e485"
     },
     {
+      "bytes": 5594,
+      "mode": "100644",
+      "path": "Source/apex_core/genetics_snapshot.py",
+      "sha256": "e240b088b515015bed2ca7e77326888b0faeb5a685ee0e93684cdcc8bf0aead7"
+    },
+    {
       "bytes": 9484,
       "mode": "100644",
       "path": "tests/test_candidate_install.py",
@@ -731,12 +731,6 @@
       "sha256": "df5d481a24121cdaa046322e5e827601342c8c7cfa2b4ade9281f9755b65b924"
     },
     {
-      "bytes": 7060,
-      "mode": "100644",
-      "path": "tools/compare_hitch_stages.py",
-      "sha256": "324d3c8c9758d69a261384009a1badcd64c83b5331bdc11654c40754efcabcd9"
-    },
-    {
       "bytes": 6457,
       "mode": "100644",
       "path": "tests/test_cas_keyboard.py",
@@ -855,12 +849,6 @@
       "mode": "100644",
       "path": "Metadata/src/sources.rs",
       "sha256": "49adcddc0b825641e91c8d11c26e72e8f615327bd92d41b2f40e143d47da0121"
-    },
-    {
-      "bytes": 13569,
-      "mode": "100644",
-      "path": "tests/test_compare_frame_runs.py",
-      "sha256": "b4160e3d8901d8ff7d00cc3b8c5cef5ae5480248250d9a49967b67f641cd3e64"
     },
     {
       "bytes": 2643,
@@ -1229,12 +1217,6 @@
       "sha256": "87d7949550c88784abe8333579214e3587525c31d32f59ce2fa36976904a9834"
     },
     {
-      "bytes": 15497,
-      "mode": "100644",
-      "path": "tools/capture_frame_intervals.py",
-      "sha256": "caa137490b9d7e2574bc9e8a54f73eaa50b33e8efae904356a8a00fb3ec7e9df"
-    },
-    {
       "bytes": 2240,
       "mode": "100644",
       "path": "Reports/CAS_NATIVE_SEARCH_V265.json",
@@ -1293,12 +1275,6 @@
       "mode": "100644",
       "path": "tests/test_cas_grid_budget_chain.py",
       "sha256": "eb6fa4da46d025e0f235af6e67b062bb31aa8684019332b91783e883647faa02"
-    },
-    {
-      "bytes": 20790,
-      "mode": "100644",
-      "path": "tools/compare_frame_runs.py",
-      "sha256": "65b0e3543bd87beaf44806229706ff9177798493f24e93df21990aa3bd27a0f2"
     },
     {
       "bytes": 932,
@@ -1815,12 +1791,6 @@
       "mode": "100644",
       "path": "tests/test_native_form_select.py",
       "sha256": "8e0951caa2832289aa16ae8d2ce306e61a10721a00091d92835cdbfd06f723a4"
-    },
-    {
-      "bytes": 5554,
-      "mode": "100644",
-      "path": "tools/hitch_stage.py",
-      "sha256": "20b0181a37d76dfd24987374116ce0050e6f39b47c0d1405e5b8c201e21a5fcb"
     },
     {
       "bytes": 21297,
@@ -2363,12 +2333,6 @@
       "sha256": "bbdfb9b4b545c43d957d56761037a14741690c730cf21ee40d86c5d2eb8b89f0"
     },
     {
-      "bytes": 5410,
-      "mode": "100644",
-      "path": "tests/test_genetics_snapshot.py",
-      "sha256": "461a78b341691e40f2c0f4e18c65c841c69aaefc77743a90f1365ce652f41d45"
-    },
-    {
       "bytes": 2957,
       "mode": "100644",
       "path": "Source/apex_core/catalog_usage.py",
@@ -2463,12 +2427,6 @@
       "mode": "100644",
       "path": "tests/test_cas_draw_trace.py",
       "sha256": "2cd27345d17779db028876f33124db95d19298ea08daf0c5bbf2e8a9eba62f57"
-    },
-    {
-      "bytes": 9383,
-      "mode": "100644",
-      "path": "docs/APEX_NATIVE_CONTROL_20261104.md",
-      "sha256": "a1bc03b53431cf2eba67573b71c0434d1e9a734014bbac0bef2e7a10538573ac"
     },
     {
       "bytes": 9499,
@@ -3345,6 +3303,12 @@
       "mode": "100644",
       "path": "tests/test_installed_icon_resources.py",
       "sha256": "b73c2bcc5a3187571a315dfef80a607696e85d0add4aaa40205dfe98d27db471"
+    },
+    {
+      "bytes": 3893,
+      "mode": "100644",
+      "path": "tests/test_genetics_snapshot.py",
+      "sha256": "9be1531097dc31917f3c898ecd4f68d9691346fcdecabb5dd1fa68d8836b92d3"
     },
     {
       "bytes": 12319,
@@ -4769,12 +4733,6 @@
       "sha256": "33155a5c6b851bb1906550cd82c3e1a1684a0b0f5a6067257a07debbf48a15de"
     },
     {
-      "bytes": 9671,
-      "mode": "100644",
-      "path": "docs/APEX_BASELINE_REBUILD_CHECKPOINT_20261104.md",
-      "sha256": "c14a48eda2d092e01447a6c6bea09b5014a050b7e362c457b7390453ba7bf16d"
-    },
-    {
       "bytes": 10319,
       "mode": "100644",
       "path": "tests/test_cas_catalog_display_fault.py",
@@ -4859,22 +4817,10 @@
       "sha256": "ce995a7ba97ee257b641cca8cc817fb2cff62a08e827cffcf0a50067e34a3286"
     },
     {
-      "bytes": 12395,
-      "mode": "100644",
-      "path": "tests/test_capture_frame_intervals.py",
-      "sha256": "765f0fe554f9e121924d2c7b8217fa5b68d47bde48c78bd11ae99d40065130ca"
-    },
-    {
       "bytes": 3154,
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexNativeCasOwners.h",
       "sha256": "0e82169ac62c5f904b894bb0a2db2794daf6cba751d8e9e9ec367c8d2aff5ecd"
-    },
-    {
-      "bytes": 10938,
-      "mode": "100644",
-      "path": "tests/test_hitch_stage.py",
-      "sha256": "bdec07fa1c9be68f06a8b162876985ffc21c61707252f4fd8ec78fc42fb79373"
     },
     {
       "bytes": 267,
@@ -6399,12 +6345,6 @@
       "mode": "100644",
       "path": "Source/apex_core/cas_commit_plan.py",
       "sha256": "54dd6cf60a998048f9ce7571968c64205f9295bdf62c02f30b845c3f132b2933"
-    },
-    {
-      "bytes": 6152,
-      "mode": "100644",
-      "path": "Source/apex_core/genetics_snapshot.py",
-      "sha256": "e7e8e89a16b9daa096cb6e419d3c16109c8a4fd04de5e75fc960d68906539e28"
     },
     {
       "bytes": 18385,

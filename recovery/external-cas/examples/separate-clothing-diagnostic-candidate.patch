@@ -1,0 +1,234 @@
+--- a/prepare_pinned_diffuse.py
++++ b/prepare_pinned_diffuse.py
+@@ -15,7 +15,7 @@
+ def main():
+  ap=argparse.ArgumentParser();
+  for flag in ('package','package-sha','casp','casp-sha','texture-sha','output'):ap.add_argument('--'+flag,required=True)
+- ap.add_argument('--slot',choices=('dress','hair','shoes','eyes','tattoo'),default='dress');a=ap.parse_args()
++ ap.add_argument('--slot',choices=('dress','hair','shoes','eyes','tattoo','top','bottom'),default='dress');a=ap.parse_args()
+  if not all(DIGEST.fullmatch(x) for x in (a.package_sha,a.casp_sha,a.texture_sha)) or not CASP.fullmatch(a.casp):raise ValueError('pinned identities required')
+  if not a.output or a.output in ('.','..') or pathlib.Path(a.output).name!=a.output:raise ValueError('single new output directory required')
+  path=pathlib.Path(a.package)
+@@ -27,7 +27,7 @@
+  c=pkg.read_many([ck],max_total=1024*1024)[ck]
+  if hashlib.sha256(c).hexdigest()!=a.casp_sha:raise ValueError('CASP pin mismatch')
+  meta=casp_material(c)
+- if meta['body_type']!=({'dress':5,'hair':2,'shoes':8,'eyes':35,'tattoo':46}[a.slot]):raise ValueError('CASP body slot mismatch')
++ if meta['body_type']!=({'dress':5,'hair':2,'shoes':8,'eyes':35,'tattoo':46,'top':6,'bottom':7}[a.slot]):raise ValueError('CASP body slot mismatch')
+  requested=meta['texture'];tk=tuple(int(v,16) for v in requested.split(':'));route='exact'
+  if tk not in pkg.entries and tk[0]==0x3453cf95:
+   alias=(0x2bc04edf,*tk[1:])
+--- /dev/null
++++ b/prepare_top_pipeline.py
+@@ -0,0 +1,41 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Private trusted-parent pipeline for one pinned top CASP diagnostic.
++
++Only declared package-local LOD-0 meshes and top diffuse are prepared. It does
++not prove age/rig, shader, transparency or native-game fidelity, is not a
++sandbox, and does not modify game files. Failed stages are retained.
++"""
++import argparse,hashlib,json,pathlib,re,subprocess,sys
++root=pathlib.Path(__file__).resolve().parents[1];private=root/'private-input-recovery';D=re.compile(r'[a-f0-9]{64}\Z');N=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z');CASP=re.compile(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}\Z')
++def sha(p):
++ h=hashlib.sha256()
++ with p.open('rb') as f:
++  for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
++ return h.hexdigest()
++def run(script,args):
++ x=subprocess.run([sys.executable,str(root/'rig-recovery'/script),*map(str,args)],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90)
++ if len(x.stdout)>65536 or len(x.stderr)>65536:raise ValueError('stage output bound')
++ if x.returncode:raise ValueError('stage failed: '+script+'; '+x.stderr.decode('utf8','replace')[-1000:])
++def main():
++ p=argparse.ArgumentParser()
++ for f in ('package','package-sha','casp','casp-sha','rig','rig-sha','name'):p.add_argument('--'+f,required=True)
++ a=p.parse_args()
++ if not N.fullmatch(a.name) or not CASP.fullmatch(a.casp) or not all(D.fullmatch(x) for x in (a.package_sha,a.casp_sha,a.rig_sha)):raise ValueError('invalid selected identity')
++ if private.is_symlink() or not private.is_dir():raise ValueError('private parent unavailable')
++ names=[a.name+'-resolution',a.name+'-diffuse',a.name+'-merged',a.name+'-ready']+[a.name+'-geom-'+str(i) for i in range(8)]
++ if any((private/n).exists() or (private/n).is_symlink() for n in names):raise ValueError('fresh run name required')
++ run('resolve_pinned_casp.py',['--package',a.package,'--package-sha',a.package_sha,'--casp',a.casp,'--casp-sha',a.casp_sha,'--output',names[0]])
++ res=private/names[0]/'resolution.json';m=json.loads(res.read_bytes())
++ if m['body_type']!=6:raise ValueError('top CASP required; age/rig compatibility still unverified')
++ geom=[x for x in m['references'] if x['role']=='lod-0'];texture=[x for x in m['references'] if x['role']=='texture']
++ if not 1<=len(geom)<=8 or len(texture)!=1 or any(x['state']!='source-present-not-rendered' for x in geom+texture):raise ValueError('required resources missing')
++ run('prepare_pinned_diffuse.py',['--package',a.package,'--package-sha',a.package_sha,'--casp',a.casp,'--casp-sha',a.casp_sha,'--texture-sha',texture[0]['sha256'],'--slot','top','--output',names[1]])
++ projection=[]
++ for i,g in enumerate(geom):
++  n=names[4+i];run('project_pinned_geom.py',['--package',a.package,'--package-sha',a.package_sha,'--geom',g['resolved'],'--geom-sha',g['sha256'],'--rig',a.rig,'--rig-sha',a.rig_sha,'--output',n]);p=private/n/'report.json';projection+=['--projection',p,sha(p)]
++ run('merge_resolved_lod.py',['--resolution',res,sha(res),*projection,'--output',names[2]])
++ mesh=json.loads((private/names[2]/'report.json').read_bytes());material=json.loads((private/names[1]/'report.json').read_bytes());payload={'schema':1,'package_sha256':a.package_sha,'casp':a.casp,'casp_sha256':a.casp_sha,'mesh_sha256':mesh['mesh_sha256'],'material_sha256':material['material_sha256'],'source_meshes':len(geom),'game_modified':False,'native_fidelity':'unverified','age_rig_compatibility':'unverified'}
++ ready=private/names[3];ready.mkdir(mode=0o700,exist_ok=False)
++ with (ready/'ready.json').open('x') as f:json.dump(payload,f,indent=2)
++ print(json.dumps({'source_meshes':len(geom),'game_modified':False,'native_fidelity':'unverified','age_rig_compatibility':'unverified'}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/prepare_bottom_pipeline.py
+@@ -0,0 +1,41 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Private trusted-parent pipeline for one pinned bottom CASP diagnostic.
++
++Only declared package-local LOD-0 meshes and top diffuse are prepared. It does
++not prove age/rig, shader, transparency or native-game fidelity, is not a
++sandbox, and does not modify game files. Failed stages are retained.
++"""
++import argparse,hashlib,json,pathlib,re,subprocess,sys
++root=pathlib.Path(__file__).resolve().parents[1];private=root/'private-input-recovery';D=re.compile(r'[a-f0-9]{64}\Z');N=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z');CASP=re.compile(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}\Z')
++def sha(p):
++ h=hashlib.sha256()
++ with p.open('rb') as f:
++  for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
++ return h.hexdigest()
++def run(script,args):
++ x=subprocess.run([sys.executable,str(root/'rig-recovery'/script),*map(str,args)],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90)
++ if len(x.stdout)>65536 or len(x.stderr)>65536:raise ValueError('stage output bound')
++ if x.returncode:raise ValueError('stage failed: '+script+'; '+x.stderr.decode('utf8','replace')[-1000:])
++def main():
++ p=argparse.ArgumentParser()
++ for f in ('package','package-sha','casp','casp-sha','rig','rig-sha','name'):p.add_argument('--'+f,required=True)
++ a=p.parse_args()
++ if not N.fullmatch(a.name) or not CASP.fullmatch(a.casp) or not all(D.fullmatch(x) for x in (a.package_sha,a.casp_sha,a.rig_sha)):raise ValueError('invalid selected identity')
++ if private.is_symlink() or not private.is_dir():raise ValueError('private parent unavailable')
++ names=[a.name+'-resolution',a.name+'-diffuse',a.name+'-merged',a.name+'-ready']+[a.name+'-geom-'+str(i) for i in range(8)]
++ if any((private/n).exists() or (private/n).is_symlink() for n in names):raise ValueError('fresh run name required')
++ run('resolve_pinned_casp.py',['--package',a.package,'--package-sha',a.package_sha,'--casp',a.casp,'--casp-sha',a.casp_sha,'--output',names[0]])
++ res=private/names[0]/'resolution.json';m=json.loads(res.read_bytes())
++ if m['body_type']!=7:raise ValueError('bottom CASP required; age/rig compatibility still unverified')
++ geom=[x for x in m['references'] if x['role']=='lod-0'];texture=[x for x in m['references'] if x['role']=='texture']
++ if not 1<=len(geom)<=8 or len(texture)!=1 or any(x['state']!='source-present-not-rendered' for x in geom+texture):raise ValueError('required resources missing')
++ run('prepare_pinned_diffuse.py',['--package',a.package,'--package-sha',a.package_sha,'--casp',a.casp,'--casp-sha',a.casp_sha,'--texture-sha',texture[0]['sha256'],'--slot','bottom','--output',names[1]])
++ projection=[]
++ for i,g in enumerate(geom):
++  n=names[4+i];run('project_pinned_geom.py',['--package',a.package,'--package-sha',a.package_sha,'--geom',g['resolved'],'--geom-sha',g['sha256'],'--rig',a.rig,'--rig-sha',a.rig_sha,'--output',n]);p=private/n/'report.json';projection+=['--projection',p,sha(p)]
++ run('merge_resolved_lod.py',['--resolution',res,sha(res),*projection,'--output',names[2]])
++ mesh=json.loads((private/names[2]/'report.json').read_bytes());material=json.loads((private/names[1]/'report.json').read_bytes());payload={'schema':1,'package_sha256':a.package_sha,'casp':a.casp,'casp_sha256':a.casp_sha,'mesh_sha256':mesh['mesh_sha256'],'material_sha256':material['material_sha256'],'source_meshes':len(geom),'game_modified':False,'native_fidelity':'unverified','age_rig_compatibility':'unverified'}
++ ready=private/names[3];ready.mkdir(mode=0o700,exist_ok=False)
++ with (ready/'ready.json').open('x') as f:json.dump(payload,f,indent=2)
++ print(json.dumps({'source_meshes':len(geom),'game_modified':False,'native_fidelity':'unverified','age_rig_compatibility':'unverified'}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/build_top_bottom_pair.py
+@@ -0,0 +1,60 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Combine two trusted, source-bound clothing previews without atlas overlap.
++
++Diagnostic only. Requires independently prepared top and bottom from the same
++rig; no native compatibility, game write, texture fidelity or rights claim.
++"""
++import argparse,hashlib,json,pathlib,re,struct,sys
++import numpy as np
++root=pathlib.Path(__file__).resolve().parents[1];sys.path[:0]=[str(root/'inert-status-fixture/modules'),str(root/'rig-recovery/cc-materials/lrle-gpl')]
++from cas_resource_catalog import Package
++from casp_material import casp_material
++D=re.compile(r'[a-f0-9]{64}\Z');N=re.compile(r'[a-z0-9][a-z0-9-]{0,25}\Z');private=root/'private-input-recovery'
++def sha(b):return hashlib.sha256(b).hexdigest()
++def read(path,digest,limit):
++ if not isinstance(digest,str) or not D.fullmatch(digest) or path.is_symlink() or not path.is_file():raise ValueError('pinned regular file required')
++ with path.open('rb') as f:raw=f.read(limit+1)
++ if len(raw)>limit or sha(raw)!=digest:raise ValueError('source identity mismatch')
++ return raw
++def combine_disjoint_rgba(top_raw,bottom_raw):
++ if len(top_raw)!=len(bottom_raw) or not len(top_raw) or len(top_raw)%4 or len(top_raw)>32*1024*1024:raise ValueError('material extent')
++ top=np.frombuffer(top_raw,dtype=np.uint8).reshape(-1,4);bottom=np.frombuffer(bottom_raw,dtype=np.uint8).reshape(-1,4)
++ if np.any((top[:,3]>0)&(bottom[:,3]>0)):raise ValueError('atlas overlap requires separate material layers')
++ combined=top.copy();use=bottom[:,3]>0;combined[use]=bottom[use];return combined.tobytes()
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--top',required=True);p.add_argument('--bottom',required=True);p.add_argument('--top-package',required=True);p.add_argument('--output',required=True);a=p.parse_args()
++ if not all(N.fullmatch(x) for x in (a.top,a.bottom,a.output)) or a.top==a.bottom:raise ValueError('invalid source names')
++ names=[a.output+'-'+x for x in ('merged','diffuse','descriptor','ready')]
++ if any((private/n).exists() or (private/n).is_symlink() for n in names):raise ValueError('fresh output required')
++ parts=[]
++ for slot,name,typ in [('top',a.top,6),('bottom',a.bottom,7)]:
++  rr=private/(name+'-ready')/'ready.json';res=private/(name+'-resolution')/'resolution.json';mr=private/(name+'-merged')/'report.json'
++  if any(x.is_symlink() or not x.is_file() or x.stat().st_size>1048576 for x in (rr,res,mr)):raise ValueError('source report unavailable')
++  ready=json.loads(rr.read_bytes());resolution=json.loads(res.read_bytes());mesh_report=json.loads(mr.read_bytes())
++  if ready.get('game_modified') is not False or resolution.get('body_type')!=typ or resolution.get('casp')!=ready.get('casp') or resolution.get('casp_sha256')!=ready.get('casp_sha256') or resolution.get('package_sha256')!=ready.get('package_sha256') or mesh_report.get('resolution_sha256')!=sha(res.read_bytes()) or mesh_report.get('mesh_sha256')!=ready.get('mesh_sha256'):raise ValueError('source provenance mismatch')
++  mesh=read(private/(name+'-merged')/'mesh.apxmesh',ready['mesh_sha256'],64*1024*1024);material=read(private/(name+'-diffuse')/'material.rgba',ready['material_sha256'],32*1024*1024)
++  if len(material)!=2048*4096*4 or len(mesh)<16 or mesh[:8]!=b'APXMESH1':raise ValueError('asset extent')
++  nv,ni=struct.unpack_from('<II',mesh,8)
++  if not 0<nv<=500000 or ni>3000000 or ni%3 or len(mesh)!=16+nv*56+ni*4:raise ValueError('mesh extent')
++  ix=struct.unpack_from('<'+'I'*ni,mesh,16+nv*56)
++  if any(i>=nv for i in ix):raise ValueError('mesh index')
++  parts.append((ready,resolution,mesh_report,mesh,material,nv,ix))
++ if parts[0][2].get('rig_sha256')!=parts[1][2].get('rig_sha256') or not D.fullmatch(parts[0][2].get('rig_sha256','')):raise ValueError('different rig')
++ nv=sum(x[5] for x in parts);ni=sum(len(x[6]) for x in parts)
++ if nv>500000 or ni>3000000:raise ValueError('combined mesh budget')
++ mesh=b'APXMESH1'+struct.pack('<II',nv,ni)+b''.join(x[3][16:16+x[5]*56] for x in parts);offset=0;indices=[]
++ for x in parts:indices.extend(i+offset for i in x[6]);offset+=x[5]
++ mesh+=struct.pack('<'+'I'*ni,*indices)
++ material=combine_disjoint_rgba(parts[0][4],parts[1][4])
++ package_path=pathlib.Path(a.top_package);read(package_path,parts[0][0]['package_sha256'],64*1024*1024);pkg=Package(package_path,'mod')
++ if pkg.source_sha256!=parts[0][0]['package_sha256']:raise ValueError('top package identity')
++ key=tuple(int(x,16) for x in parts[0][0]['casp'].split(':'));raw=pkg.read_many([key])[key]
++ if sha(raw)!=parts[0][0]['casp_sha256']:raise ValueError('top CASP identity')
++ meta=casp_material(raw);colors=meta['swatch_colors_argb'];order=meta['swatch_order']
++ if not 1<=len(colors)<=8 or not 0<=order<=65535:raise ValueError('swatch metadata')
++ lines=['APX-GENERIC-PAIR-1',parts[0][0]['casp'],str(order),','.join(f'{v:08x}' for v in colors),sha(material),sha(mesh),parts[0][0]['package_sha256'],parts[1][0]['casp'],parts[1][0]['package_sha256']];descriptor=('\n'.join(lines)+'\n').encode('ascii')
++ for n in names:(private/n).mkdir(mode=0o700,exist_ok=False)
++ for filename,data in [(private/names[0]/'mesh.apxmesh',mesh),(private/names[1]/'material.rgba',material),(private/names[2]/'descriptor.txt',descriptor)]:
++  with filename.open('xb') as f:f.write(data)
++ ready={'schema':1,'descriptor_sha256':sha(descriptor),'mesh_sha256':sha(mesh),'material_sha256':sha(material),'game_modified':False,'native_fidelity':'unverified','pair_sources':2};(private/names[3]/'ready.json').write_text(json.dumps(ready));print(json.dumps({'vertices':nv,'triangles':ni//3,'atlas_overlap':0,'game_modified':False,'native_fidelity':'unverified'}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/test_build_top_bottom_pair.py
+@@ -0,0 +1,9 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++import unittest
++from build_top_bottom_pair import combine_disjoint_rgba
++class Tests(unittest.TestCase):
++ def test_disjoint_pixels_and_overlap_refusal(self):
++  top=bytes([4,5,6,255,0,0,0,0]);bottom=bytes([0,0,0,0,7,8,9,128]);self.assertEqual(combine_disjoint_rgba(top,bottom),bytes([4,5,6,255,7,8,9,128]))
++  with self.assertRaises(ValueError):combine_disjoint_rgba(top,bytes([1,2,3,1,0,0,0,0]))
++  with self.assertRaises(ValueError):combine_disjoint_rgba(top,b'bad')
++if __name__=='__main__':unittest.main(verbosity=2)
+--- a/examples/cc_scene/generic_dress.rs
++++ b/examples/cc_scene/generic_dress.rs
+@@ -1,21 +1,21 @@
+-//! Single prepared dress bound to a pinned descriptor and exact local inputs.
++//! Prepared dress or diagnostic top/bottom pair bound to exact local inputs.
+ //! The trusted preparation parent must verify CASP/package provenance; this
+ //! module verifies file identities, not source rights or game compatibility.
+ use sha2::{Digest,Sha256};
+ use std::{fs,io::Read,path::Path};
+ #[derive(Debug)]
+-pub struct GenericDress {pub id:String,pub order:u16,pub colors:Vec<u32>,pub material_sha:String,pub mesh_sha:String,pub descriptor_sha:String}
++pub struct GenericDress {pub id:String,pub order:u16,pub colors:Vec<u32>,pub material_sha:String,pub mesh_sha:String,pub descriptor_sha:String,pub pair_bottom:Option<String>}
+ fn digest(s:&str)->bool{s.len()==64&&s.bytes().all(|c|c.is_ascii_digit()||(b'a'..=b'f').contains(&c))}
+ fn casp_id(s:&str)->bool{let b=s.as_bytes();b.len()==34&&&b[..9]==b"034AEECB:"&&b[17]==b':'&&b[9..17].iter().chain(b[18..].iter()).all(|c|c.is_ascii_digit()||(b'A'..=b'F').contains(c))}
+ impl GenericDress {
+  pub fn parse(raw:&[u8],expected:&str)->Result<Self,&'static str>{
+   if raw.len()>4096||!digest(expected)||format!("{:x}",Sha256::digest(raw))!=expected{return Err("generic descriptor identity");}
+   let s=std::str::from_utf8(raw).map_err(|_|"generic descriptor encoding")?;
+-  let lines:Vec<_>=s.lines().collect();if lines.len()!=7||lines[0]!="APX-GENERIC-DRESS-1"||!casp_id(lines[1]){return Err("generic descriptor shape");}
++  let lines:Vec<_>=s.lines().collect();let pair=match lines.first().copied(){Some("APX-GENERIC-DRESS-1") if lines.len()==7=>None,Some("APX-GENERIC-PAIR-1") if lines.len()==9&&casp_id(lines[7])&&digest(lines[8])=>Some(lines[7].to_string()),_=>return Err("generic descriptor shape")};if !casp_id(lines[1]){return Err("generic descriptor shape");}
+   let order=lines[2].parse::<u16>().map_err(|_|"generic swatch order")?;
+   let colors:Vec<u32>=lines[3].split(',').map(|s|{if s.len()!=8||!s.bytes().all(|x|x.is_ascii_digit()||(b'a'..=b'f').contains(&x)){return Err("generic color");}u32::from_str_radix(s,16).map_err(|_|"generic color")}).collect::<Result<_,_>>()?;
+   if !(1..=8).contains(&colors.len())||!lines[4..7].iter().all(|x|digest(x)){return Err("generic descriptor bounds");}
+-  Ok(Self{id:lines[1].into(),order,colors,material_sha:lines[4].into(),mesh_sha:lines[5].into(),descriptor_sha:expected.into()})
++  Ok(Self{id:lines[1].into(),order,colors,material_sha:lines[4].into(),mesh_sha:lines[5].into(),descriptor_sha:expected.into(),pair_bottom:pair})
+  }
+  pub fn from_env()->Result<Option<Self>,Box<dyn std::error::Error>>{
+   match (std::env::var_os("APEX_GENERIC_DRESS"),std::env::var_os("APEX_GENERIC_DRESS_SHA256")){
+@@ -25,10 +25,11 @@
+   }
+  }
+  pub fn check_assets(&self,material:&[u8],mesh:&[u8])->Result<(),&'static str>{if format!("{:x}",Sha256::digest(material))!=self.material_sha||format!("{:x}",Sha256::digest(mesh))!=self.mesh_sha{return Err("generic dress asset identity");}Ok(())}
+- pub fn entry_json(&self)->String{let colors=self.colors.iter().map(u32::to_string).collect::<Vec<_>>().join(",");format!("{{\"id\":\"{}\",\"order\":{},\"colors_argb\":[{}],\"width\":2048,\"height\":4096}}",self.id,self.order,colors)}
++ pub fn entry_json(&self)->String{let colors=self.colors.iter().map(u32::to_string).collect::<Vec<_>>().join(",");let pair=self.pair_bottom.as_ref().map(|id|format!(",\"prepared_pair_bottom_id\":\"{}\"",id)).unwrap_or_default();format!("{{\"id\":\"{}\",\"order\":{},\"colors_argb\":[{}],\"width\":2048,\"height\":4096{}}}",self.id,self.order,colors,pair)}
+ }
+ #[cfg(test)] mod tests{
+  use super::*;
+  fn raw()->Vec<u8>{format!("APX-GENERIC-DRESS-1\n034AEECB:80000000:0123456789ABCDEF\n5\nff404f40,ffcb9f50\n{}\n{}\n{}\n","a".repeat(64),"b".repeat(64),"c".repeat(64)).into_bytes()}
++ #[test] fn pair_descriptor_validates_both_sources(){let x=format!("APX-GENERIC-PAIR-1\n034AEECB:80000000:0123456789ABCDEF\n5\nff404f40\n{}\n{}\n{}\n034AEECB:80000000:FEDCBA9876543210\n{}\n","a".repeat(64),"b".repeat(64),"c".repeat(64),"d".repeat(64)).into_bytes();let h=format!("{:x}",Sha256::digest(&x));let p=GenericDress::parse(&x,&h).unwrap();assert!(p.entry_json().contains("prepared_pair_bottom_id"));let bad=String::from_utf8(x).unwrap().replace("FEDCBA9876543210","not-valid-source").into_bytes();let h=format!("{:x}",Sha256::digest(&bad));assert!(GenericDress::parse(&bad,&h).is_err());}
+  #[test] fn rejects_bad_id_pin_colors_and_extent(){let x=raw();let h=format!("{:x}",Sha256::digest(&x));assert!(GenericDress::parse(&x,&h).is_ok());assert!(GenericDress::parse(&x,&"0".repeat(64)).is_err());for changed in [String::from_utf8(x.clone()).unwrap().replace("034AEECB","../bad!!"),String::from_utf8(x.clone()).unwrap().replace("ff404f40","gg404f40"),String::from_utf8(x.clone()).unwrap()+"extra\n"]{let h=format!("{:x}",Sha256::digest(changed.as_bytes()));assert!(GenericDress::parse(changed.as_bytes(),&h).is_err());}}
+ }
+--- /dev/null
++++ b/SEPARATE_CLOTHING_DIAGNOSTIC.md
+@@ -0,0 +1,7 @@
++# Separate clothing diagnostic
++
++An isolated local experiment used the publicly offered Harlequin Set by moicom: https://modthesims.info/d/651601/harlequin-set.html . The creator asks that the original mesh not be redistributed; no package, mesh, texture or rendered frame is included here.
++
++One top and one bottom source CASP each resolved a LOD0 mesh and texture. A private combined preview was built only because the sampled atlas alpha regions did not overlap, and a source-bound pair descriptor was added to an isolated renderer candidate. Local frame output exists, but visual comparison with the creator's reference showed darker rendering and possible skirt aliasing or other artifacts. It is not validated as faithful, independently selectable clothing, a general compatibility method or a working native CAS. Atlas overlap is rejected rather than silently merged. Keep this candidate isolated pending visual, clipping, pose, material and game-side validation.
++
++Synthetic tests: 43 Python, 11 JavaScript and 130 Rust tests passed; 10 Rust tests were ignored. These do not prove native compatibility.

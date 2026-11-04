@@ -16,6 +16,15 @@ function fixture() {
   chunk.writeUInt32LE(chunk.length - 16, 8);
   return Buffer.concat([u32(3), u32(0), u32(0), u32(0), u32(1), Buffer.alloc(16), u32(44), u32(chunk.length), chunk]);
 }
+function fixtureWithPalette() {
+  const vertices = [[0, 0, 0, 0, 0, 1, 0, 0], [1, 0, 0, 0, 0, 1, 1, 0], [0, 1, 0, 0, 0, 1, 0, 1]];
+  const vertexData = vertices.flatMap(vertex => [...vertex.map(f32), Buffer.from([0, 0, 0, 0]), Buffer.from([255, 0, 0, 0])]);
+  const chunk = Buffer.concat([Buffer.from('GEOM'), u32(12), u32(0), u32(4), u32(0), u32(0), u32(0), u32(3), u32(5),
+    element(1, 1, 12), element(2, 1, 12), element(3, 1, 8), element(4, 2, 4), element(5, 2, 4), ...vertexData,
+    u32(1), Buffer.from([2]), u32(3), u16(0), u16(1), u16(2), u32(0), u32(0), u32(2), u32(0x12345678), u32(0x87654321), u32(0)]);
+  chunk.writeUInt32LE(chunk.length - 16, 8);
+  return Buffer.concat([u32(3), u32(0), u32(0), u32(0), u32(1), Buffer.alloc(16), u32(44), u32(chunk.length), chunk]);
+}
 test('GEOM candidate retains positions, normals, UVs and triangle indices', () => {
   const geom = parseGeom(fixture());
   assert.equal(geom.status, 'geometry-candidate');
@@ -44,5 +53,11 @@ test('GEOM reports unsupported versions and missing essential vertex formats', (
   assert.equal(parseGeom(unknown).status, 'unsupported-vertex-layout');
 });
 test('synthetic geometry agrees with independent Blender GEOM reader', { skip: !(process.env.GEOM_ORACLE_PYTHON && process.env.GEOM_ORACLE_ROOT) }, () => {
-  assert.deepEqual(compareGeomReference(fixture(), process.env.GEOM_ORACLE_PYTHON, process.env.GEOM_ORACLE_ROOT), { version: 12, vertices: 3, triangles: 1, materialMatched: null });
+  assert.deepEqual(compareGeomReference(fixture(), process.env.GEOM_ORACLE_PYTHON, process.env.GEOM_ORACLE_ROOT), { version: 12, vertices: 3, triangles: 1, materialMatched: null, paletteMatched: null, weightsMatched: null });
+});
+test('v12 palette and raw weights agree with explicitly normalized reference input', { skip: !(process.env.GEOM_ORACLE_PYTHON && process.env.GEOM_ORACLE_ROOT) }, () => {
+  const raw = fixtureWithPalette(), original = Buffer.from(raw);
+  assert.deepEqual(compareGeomReference(raw, process.env.GEOM_ORACLE_PYTHON, process.env.GEOM_ORACLE_ROOT, true),
+    { version: 12, vertices: 3, triangles: 1, materialMatched: null, paletteMatched: true, weightsMatched: true });
+  assert.deepEqual(raw, original);
 });

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { parseGeom } from './geom.mjs';
 
-export function compareGeomReference(payload, python, root) {
+export function compareGeomReference(payload, python, root, normalizeV12 = false) {
   const geom = parseGeom(payload);
   if (geom.status !== 'geometry-candidate') throw new Error('unsupported GEOM');
   const digest = createHash('sha256'), packed = Buffer.alloc(32);
@@ -16,7 +16,7 @@ export function compareGeomReference(payload, python, root) {
   const packedIndex = Buffer.alloc(4);
   for (const index of geom.indices) { packedIndex.writeUInt32LE(index); digest.update(packedIndex); }
   const bridge = fileURLToPath(new URL('./geom_oracle.py', import.meta.url));
-  const oracle = JSON.parse(execFileSync(python, ['-B', bridge, root],
+  const oracle = JSON.parse(execFileSync(python, ['-B', bridge, root, ...(normalizeV12 ? ['--normalize-v12'] : [])],
     { input: payload, encoding: 'utf8', maxBuffer: 1024, stdio: ['pipe', 'pipe', 'pipe'] }));
   if (oracle.version !== geom.version || oracle.vertices !== geom.vertices.length || oracle.triangles !== geom.indices.length / 3 ||
       oracle.geometryHash !== digest.digest('hex')) throw new Error('GEOM disagreement');
@@ -32,5 +32,16 @@ export function compareGeomReference(payload, python, root) {
       Object.entries(known).every(([role, index]) => expected[role] === index);
     if (!materialMatched) throw new Error('material reference disagreement');
   }
-  return { version: geom.version, vertices: geom.vertices.length, triangles: geom.indices.length / 3, materialMatched };
+  let paletteMatched = null, weightsMatched = null;
+  if (geom.palette.status === 'palette-candidate') {
+    const paletteHash = createHash('sha256'), raw = Buffer.alloc(4);
+    for (const value of geom.palette.hashes) { raw.writeUInt32LE(value); paletteHash.update(raw); }
+    paletteMatched = geom.palette.hashes.length === oracle.paletteCount && paletteHash.digest('hex') === oracle.paletteHash;
+  }
+  if (geom.vertices.every(vertex => vertex.joints && vertex.weights)) {
+    const weightsHash = createHash('sha256');
+    for (const vertex of geom.vertices) { weightsHash.update(Buffer.from(vertex.joints)); weightsHash.update(Buffer.from(vertex.weights)); }
+    weightsMatched = weightsHash.digest('hex') === oracle.weightsHash;
+  }
+  return { version: geom.version, vertices: geom.vertices.length, triangles: geom.indices.length / 3, materialMatched, paletteMatched, weightsMatched };
 }

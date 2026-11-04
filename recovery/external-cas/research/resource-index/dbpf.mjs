@@ -72,12 +72,13 @@ export function decodeRefpack(input, expectedSize) {
   return output;
 }
 
-export async function indexPackage(filename) {
+async function inspectPackage(filename, hashPayload) {
   const file = await open(filename, 'r');
   try {
     const before = await file.stat();
     if (!before.isFile() || !Number.isSafeInteger(before.size) || before.size < HEADER) invalid('invalid package file');
     const header = await readExactly(file, 0, HEADER);
+    const indexHash = createHash('sha256').update(header);
     if (header.toString('ascii', 0, 4) !== 'DBPF') invalid('invalid DBPF magic');
     if (header.readUInt32LE(4) !== 2 || header.readUInt32LE(8) !== 1) invalid('unsupported DBPF version');
     const count = header.readUInt32LE(36), indexSize = header.readUInt32LE(44);
@@ -88,6 +89,7 @@ export async function indexPackage(filename) {
     if (count || indexSize) {
       if (indexSize < 4 || offset < HEADER) invalid('invalid index header');
       const data = await readExactly(file, offset, indexSize);
+      indexHash.update(data);
       let cursor = 0;
       function u32() { if (cursor + 4 > data.length) invalid('truncated index'); const n = data.readUInt32LE(cursor); cursor += 4; return n; }
       function u16() { if (cursor + 2 > data.length) invalid('truncated index'); const n = data.readUInt16LE(cursor); cursor += 2; return n; }
@@ -109,16 +111,20 @@ export async function indexPackage(filename) {
       }
       if (cursor !== data.length) invalid('unsupported trailing index bytes');
     }
-    const sha256 = await fingerprint(file, before.size);
+    const source = hashPayload ? { sha256: await fingerprint(file, before.size), size: before.size }
+      : { verification: 'index-only', indexSha256: indexHash.digest('hex'), size: before.size };
     if (!sameStat(before, await file.stat())) invalid('file changed during indexing');
-    return { schema: 1, source: { sha256, size: before.size }, rows };
+    return { schema: 1, source, rows };
   } finally { await file.close(); }
 }
+export async function indexPackage(filename) { return inspectPackage(filename, true); }
+// Discovery only: does not authenticate payload bytes and cannot authorize reads.
+export async function scanPackageIndex(filename) { return inspectPackage(filename, false); }
 
 // Re-index and hash once per bounded group to amortize source verification.
 // Locators and all returned bytes belong to the same verified, open file.
 export async function readResourceBatch(filename, indexed, ordinals) {
-  if (!indexed || !Array.isArray(ordinals) || ordinals.length === 0 || ordinals.length > 128 || new Set(ordinals).size !== ordinals.length ||
+  if (!indexed || !/^[0-9a-f]{64}$/.test(indexed.source?.sha256 ?? '') || !Array.isArray(ordinals) || ordinals.length === 0 || ordinals.length > 128 || new Set(ordinals).size !== ordinals.length ||
       ordinals.some(ordinal => !Number.isSafeInteger(ordinal) || ordinal < 0 || !indexed.rows?.[ordinal])) invalid('invalid locator');
   const current = await indexPackage(filename);
   if (current.source.sha256 !== indexed.source?.sha256 || current.source.size !== indexed.source?.size || ordinals.some(ordinal =>

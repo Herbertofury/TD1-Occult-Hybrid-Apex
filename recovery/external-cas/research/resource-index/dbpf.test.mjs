@@ -6,7 +6,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { indexPackage, readResource, readResourceBatch, caspReferences, resolveReferences, decodeRefpack } from './dbpf.mjs';
+import { indexPackage, scanPackageIndex, readResource, readResourceBatch, caspReferences, resolveReferences, decodeRefpack } from './dbpf.mjs';
 
 const u32 = n => { const b = Buffer.alloc(4); b.writeUInt32LE(n >>> 0); return b; };
 const u16 = n => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
@@ -94,6 +94,21 @@ test('batch read retains order, refuses duplicate or stale locators and returns 
     await assert.rejects(readResourceBatch(filename, forged, [0, 1]), /stale/);
     const changed = Buffer.from(bytes); changed[96] ^= 1; await writeFile(filename, changed);
     await assert.rejects(readResourceBatch(filename, index, [0, 1]), /stale/);
+  });
+});
+
+test('index-only discovery matches rows but cannot authorize payload reads', async () => {
+  const original = fixture([{ payload: Buffer.from('aaa') }]);
+  await withFile(original, async filename => {
+    const pinned = await indexPackage(filename), discovery = await scanPackageIndex(filename);
+    assert.deepEqual(discovery.rows, pinned.rows);
+    assert.equal(discovery.source.verification, 'index-only');
+    await assert.rejects(readResource(filename, discovery, 0), /invalid locator/);
+    const changed = Buffer.from(original); changed[96] ^= 1;
+    await writeFile(filename, changed);
+    const after = await scanPackageIndex(filename), changedPin = await indexPackage(filename);
+    assert.equal(discovery.source.indexSha256, after.source.indexSha256);
+    assert.notEqual(pinned.source.sha256, changedPin.source.sha256);
   });
 });
 

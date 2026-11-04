@@ -2,6 +2,7 @@
 // Bounded RCOL/GEOM vertex and index extraction; skin and material remain unqualified.
 import { tgi } from './dbpf.mjs';
 import { parseMaterial } from './material.mjs';
+import { parsePalette } from './palette.mjs';
 export function parseGeom(data) {
   if (!Buffer.isBuffer(data) || data.length < 60 || data.length > 32 * 1024 * 1024) throw new Error('invalid GEOM extent');
   let at = 0, limit = data.length;
@@ -68,6 +69,9 @@ export function parseGeom(data) {
   for (let i = 0; i < indexCount; i++) { const value = indexSize === 2 ? u16() : u32(); if (value >= vertexCount) throw new Error('GEOM index outside vertices'); indices.push(value); }
   // The rest contains version-dependent stitches, rig palette and references.
   // Keep its extent explicit and never claim a rigged or material-complete mesh.
+  let palette;
+  try { palette = parsePalette(data, at, limit, tgiFieldOffset + 4 + tgiOffset, version); }
+  catch { palette = { status: 'invalid-or-unsupported-layout', version }; }
   let material = { status: 'none' };
   if (shader !== 0) {
     try {
@@ -83,9 +87,10 @@ export function parseGeom(data) {
       material = parseMaterial(data.subarray(materialAt, materialAt + materialBytes), keys);
     } catch { material = { status: 'invalid-or-unsupported-material' }; }
   }
-  const limitations = ['rig-palette-unparsed', 'material-semantics-unqualified', 'stitches-unparsed'];
+  const limitations = ['rig-skeleton-unresolved', 'material-semantics-unqualified', 'stitches-unparsed'];
+  if (palette.status !== 'palette-candidate') limitations.push('rig-palette-unparsed');
   if (formats.some(format => ![1, 2, 3, 4, 5].includes(format.usage))) limitations.push('vertex-attributes-unparsed');
   return { status: 'geometry-candidate', wrapperVersion, version, chunkOffset, chunkSize, tgiOffset, tgiSize,
-    shader, materialBytes, material, mergeGroup, sortOrder, formats, vertices, indices, unparsedTailBytes: limit - at,
+    shader, materialBytes, material, palette, mergeGroup, sortOrder, formats, vertices, indices, unparsedTailBytes: limit - at,
     limitations };
 }

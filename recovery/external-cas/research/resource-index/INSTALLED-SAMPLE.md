@@ -81,7 +81,35 @@ The same mesh's recognized material fields yielded two candidate references,
 diffuse and alpha. Their indices matched the independent GEOM reader; both
 resource keys were missing from that deliberately limited package pair. The CASP's
 own diffuse and shadow used RLE2 resources and its specular used RLES. Their
-package payloads were verified, but no RLE2/RLES image was decoded or rendered.
+package payloads were verified; subsequent decoding is described below.
 The CASP's region map remained ambiguous across the two indexes, so no load-order
 winner was selected. The samples are small and do not establish general CAS or
 custom-content compatibility. No game or creator assets are included here.
+
+## Expanded material search and decoding
+
+A discovery-only scan of 21 selected base and pack full/delta indexes found no
+exact DDS-key match for either material reference. Fourteen further selected
+base indexes also had no exact match. The two material references share a group
+and instance; two same-group-and-instance RLE2 entries appeared in the pack full
+and delta indexes. These are alternate-type leads, not established aliases, and
+no source winner was selected. The discovery digest covers index bytes only;
+reading a candidate requires separate whole-file verification. The search does
+not prove absence from the full installation, authorized CC, or other sources.
+
+One CASP diffuse RLE2 payload was decoded in memory: 1024 by 2048 pixels with
+12 mip levels. Its first mip's BC3 blocks matched the independent Blender add-on
+converter, and its RGBA pixels matched Pillow 11.3.0 by private digest. This is
+one texture, not rendering or shader validation. The shadow texture and RLES
+specular were not decoded in this comparison. Neither pixels nor their digests
+were published.
+
+The sampled version 12 GEOM has a three-bone palette. Its raw weights matched
+the independent Blender reader, but its palette did not match that reader
+unmodified: the reader expects a seam count that the versioned TS4CAS Tools
+reader omits for version 12. Inserting a zero seam count into an in-memory copy
+and adjusting offsets produced a matching palette. That normalized comparison
+supports the candidate layout but is not independent validation of the original
+bytes. Bone selection, skeleton binding, weights in a renderer, poses and visual
+correctness remain unverified. No game process, live state or protected profile
+was accessed during these checks.

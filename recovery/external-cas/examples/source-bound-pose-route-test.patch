@@ -1,0 +1,51 @@
+--- a/tools/research/build_pose_catalog.py
++++ b/tools/research/build_pose_catalog.py
+@@ -108,7 +108,7 @@
+    changing=sum(len({tuple(k['values']) for k in t['frames']})>1 for t in x['tracks']) if x else None
+    poses.append({'id':ident,'pack_id':pid,'name':text(item.get('pose_display_name','')) or clip_name,'pack':name,'creator':creator,'package':'Selected private package','clip_name':clip_name,'clip_resource':resource_id,'clip_sha256':clip_record['resource_sha256'] if clip_record else None,'decoded_sha256':clip_record['decoded_sha256'] if clip_record else None,'description':text(item.get('pose_description','')),'order':int(item.get('sort_order','0')),'state':state,'icon':icon(item.get('icon','')),'changing_curves':changing,'playback_ready':False,'playing':False})
+  if len(packs)>128 or len({x['id'] for x in packs})!=len(packs) or len({x['id'] for x in poses})!=len(poses):raise ValueError('Duplicate catalog identity')
+- data=json.dumps({'schema':1,'packs':packs,'poses':poses,'autoplay':False,'game_connected':False,'shared_favorites_connected':False},ensure_ascii=False,indent=2).encode()
++ data=json.dumps({'schema':1,'source_package_sha256':args.package_sha256,'packs':packs,'poses':poses,'autoplay':False,'game_connected':False,'shared_favorites_connected':False},ensure_ascii=False,indent=2).encode()
+  if len(data)>1024*1024:raise ValueError('Catalog output bound')
+  with (output/'catalog.json').open('xb') as f:f.write(data)
+  print(json.dumps({'packs':len(packs),'poses':len(poses),'decoded':sum(p['state']=='decoded-not-prepared' for p in poses),'icons':sum(p['icon']['state']=='decoded-source-image' for p in poses),'playback_ready':0,'game_modified':False}))
+--- a/examples/preview_server.rs
++++ b/examples/preview_server.rs
+@@ -1770,6 +1770,37 @@
+ 
+     #[test]
+     #[ignore = "requires privately prepared real pose library and scene"]
++    fn real_creator_pose_catalog_and_frame_routes_match_scene() {
++        let args: Vec<String> = (0..5).map(|i| std::env::var(format!("CC_REAL_SCENE_ARG_{i}")).unwrap()).collect();
++        let cc = cc_scene::CcScene::load(&args).unwrap();
++        let id = std::env::var("CC_REAL_POSE_ID").unwrap();
++        let expected = cc.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID, &id, 0, 0, [0,0,0,16384]).unwrap();
++        let catalog = cc.pose_library.as_ref().unwrap().catalog.clone();
++        let state = ServerState {host:"127.0.0.1:1".into(),raw:vec![],config:vec![],morph:None,
++            identity:Identity{scene:cc.hash.clone(),json:String::new(),renderer:"serial-cc".into(),workers:0,http_workers:1},
++            cc:Some(cc),render_gate:Mutex::new(()),texture:None,catalog:None,import_status:None,source_images:cc_source_images::Owner::default()};
++        let run = |path: String| {
++            let request = ValidatedRequest {path, header_read_ms:0.0};
++            let mut bytes=Vec::new(); serve(&mut bytes,&state,&request,0.0).unwrap(); bytes
++        };
++        let response=run("/pose-catalog".into());
++        let split=response.windows(4).position(|w|w==b"\r\n\r\n").unwrap()+4;
++        assert!(std::str::from_utf8(&response[..split]).unwrap().contains("200 OK"));
++        assert_eq!(&response[split..],catalog.as_slice());
++        let path=format!("/clip-frame?clip={id}&frame=0&yaw=0&brightness=0&saturation=0&hue=0&opacity=16384");
++        let response=run(path);
++        let split=response.windows(4).position(|w|w==b"\r\n\r\n").unwrap()+4;
++        let headers=std::str::from_utf8(&response[..split]).unwrap();
++        assert!(headers.contains("200 OK"));
++        assert!(headers.contains(&format!("X-Clip-ID: {id}\r\n")));
++        assert!(headers.contains("X-Clip-Frame: 0\r\n"));
++        assert_eq!(&response[split..],expected.rgb.as_slice());
++        let bad=run(format!("/clip-frame?clip={id}&frame=999&yaw=0&brightness=0&saturation=0&hue=0&opacity=16384"));
++        assert!(bad.starts_with(b"HTTP/1.1 400"));
++    }
++
++    #[test]
++    #[ignore = "requires privately prepared real pose library and scene"]
+     fn every_prepared_creator_pose_renders_a_nonuniform_frame() {
+         let args: Vec<String> = (0..5).map(|i| std::env::var(format!("CC_REAL_SCENE_ARG_{i}")).unwrap()).collect();
+         let cc = cc_scene::CcScene::load(&args).unwrap();

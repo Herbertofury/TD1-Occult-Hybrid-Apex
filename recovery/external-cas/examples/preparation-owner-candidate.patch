@@ -1,0 +1,110 @@
+--- /dev/null
++++ b/tools/research/preparation_owner.py
+@@ -0,0 +1,54 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Bounded private single-job owner for trusted, pre-registered CAS selections.
++
++No HTTP surface, arbitrary browser-supplied paths, game write or native equip.
++Only an explicitly registered pinned local package, catalog and rig is used.
++Caller must keep ownership alive; abrupt-death containment is not guaranteed.
++"""
++import pathlib,re,subprocess,sys,threading,uuid
++from scene_switch_supervisor import TOKEN,HASH
++ROOT=pathlib.Path(__file__).resolve().parent
++NAME=re.compile(r'[a-z0-9][a-z0-9-]{0,15}\Z')
++class PreparationOwner:
++ def __init__(self,selections):
++  if type(selections)is not dict or not 1<=len(selections)<=64:raise ValueError('bounded trusted selections required')
++  self.selections={}
++  for token,v in selections.items():
++   if not isinstance(token,str) or not TOKEN.fullmatch(token) or type(v)is not dict or set(v)!={'catalog','catalog_sha','part_id','package','rig','rig_sha','name'}:raise ValueError('selection shape')
++   if not all(isinstance(v[k],str) and pathlib.Path(v[k]).is_absolute() for k in ('catalog','package','rig')) or not all(isinstance(v[k],str) and HASH.fullmatch(v[k]) for k in ('catalog_sha','part_id','rig_sha')) or not isinstance(v['name'],str) or not NAME.fullmatch(v['name']):raise ValueError('selection identity')
++   self.selections[token]=dict(v)
++  if len({v['name'] for v in self.selections.values()})!=len(self.selections):raise ValueError('duplicate output name')
++  self.lock=threading.RLock();self.job=None;self.child=None;self.closed=False;self.used=set()
++ def status(self):
++  with self.lock:return None if self.job is None else dict(self.job)
++ def start(self,token):
++  with self.lock:
++   if self.closed or self.job is not None or token not in self.selections or token in self.used:raise ValueError('selection unavailable or owner busy')
++   s=self.selections[token];self.used.add(token);job=uuid.uuid4().hex;self.job={'id':job,'selection':token,'state':'running'}
++   thread=threading.Thread(target=self._run,args=(job,s),daemon=True);thread.start();return dict(self.job)
++ def _run(self,job,s):
++  args=[sys.executable,str(ROOT/'prepare_catalog_selection.py'),'--catalog',s['catalog'],s['catalog_sha'],'--part-id',s['part_id'],'--package',s['package'],'--rig',s['rig'],s['rig_sha'],'--name',s['name']]
++  state='failed'
++  try:
++   proc=subprocess.Popen(args,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env={'PATH':'/usr/bin:/bin'})
++   with self.lock:self.child=proc
++   try:state='prepared' if proc.wait(timeout=1200)==0 else 'failed'
++   except subprocess.TimeoutExpired:
++    proc.terminate()
++    try:proc.wait(timeout=5)
++    except subprocess.TimeoutExpired:proc.kill();proc.wait(timeout=5)
++    state='timed_out'
++  except Exception:state='failed'
++  finally:
++   with self.lock:
++    self.child=None
++    if self.job and self.job['id']==job:self.job={**self.job,'state':state}
++ def acknowledge(self,job):
++  with self.lock:
++   if not self.job or self.job['id']!=job or self.job['state']=='running':raise ValueError('job unavailable or still running')
++   # No retry or deletion: the caller must register a new unused output name.
++   self.job=None
++ def close(self):
++  with self.lock:
++   if self.job and self.job['state']=='running':raise ValueError('job still running')
++   self.closed=True
+--- /dev/null
++++ b/tests/test_preparation_owner.py
+@@ -0,0 +1,50 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Synthetic process ownership tests, not game or crash-containment proof."""
++import threading,time,unittest
++from unittest import mock
++from preparation_owner import PreparationOwner
++S={'catalog':'/trusted/catalog','catalog_sha':'a'*64,'part_id':'b'*64,'package':'/trusted/package','rig':'/trusted/rig','rig_sha':'c'*64,'name':'run-one'}
++class Process:
++ def __init__(self):self.event=threading.Event()
++ def wait(self,timeout=None):self.event.wait(2);return 0
++class Tests(unittest.TestCase):
++ def test_explicit_start_single_job_no_paths_or_retries(self):
++  q=Process();o=PreparationOwner({'1'*32:S})
++  with mock.patch('preparation_owner.subprocess.Popen',return_value=q) as spawn:
++   self.assertIsNone(o.status());self.assertEqual(spawn.call_count,0);job=o.start('1'*32);self.assertEqual(job['state'],'running')
++   with self.assertRaises(ValueError):o.start('1'*32)
++   with self.assertRaises(ValueError):o.close()
++   self.assertNotIn('/trusted',str(o.status()));q.event.set()
++   deadline=time.monotonic()+2
++   while o.status()['state']=='running' and time.monotonic()<deadline:time.sleep(.005)
++   self.assertEqual(o.status()['state'],'prepared');o.acknowledge(job['id'])
++   with self.assertRaises(ValueError):o.start('1'*32)
++   o.close();self.assertEqual(spawn.call_count,1)
++ def test_failure_is_visible_and_not_retried(self):
++  class Bad:
++   def wait(self,timeout=None):return 1
++  o=PreparationOwner({'1'*32:S})
++  with mock.patch('preparation_owner.subprocess.Popen',return_value=Bad()) as spawn:
++   job=o.start('1'*32);deadline=time.monotonic()+2
++   while o.status()['state']=='running' and time.monotonic()<deadline:time.sleep(.005)
++   self.assertEqual(o.status()['state'],'failed');o.acknowledge(job['id'])
++   with self.assertRaises(ValueError):o.start('1'*32)
++   self.assertEqual(spawn.call_count,1);o.close()
++ def test_timeout_terminates_child_and_reports_failure(self):
++  import subprocess
++  class Slow:
++   def __init__(self):self.calls=0;self.terminated=False
++   def wait(self,timeout=None):
++    self.calls+=1
++    if self.calls==1:raise subprocess.TimeoutExpired('candidate',timeout)
++    return 0
++   def terminate(self):self.terminated=True
++  q=Slow();o=PreparationOwner({'1'*32:S})
++  with mock.patch('preparation_owner.subprocess.Popen',return_value=q):
++   job=o.start('1'*32);deadline=time.monotonic()+2
++   while o.status()['state']=='running' and time.monotonic()<deadline:time.sleep(.005)
++   self.assertEqual(o.status()['state'],'timed_out');self.assertTrue(q.terminated);o.acknowledge(job['id']);o.close()
++ def test_invalid_tokens_paths_and_duplicate_names_refused(self):
++  for entries in [{'bad':S},{'1'*32:{**S,'package':'relative'}},{'1'*32:S,'2'*32:S}]:
++   with self.assertRaises(ValueError):PreparationOwner(entries)
++if __name__=='__main__':unittest.main(verbosity=2)

@@ -1,0 +1,232 @@
+--- a/preparation_owner.py
++++ b/preparation_owner.py
+@@ -30,21 +30,24 @@
+    if not isinstance(token,str) or not TOKEN.fullmatch(token) or type(v)is not dict or set(v)!={'catalog','catalog_sha','part_id','package','rig','rig_sha','name'}:raise ValueError('selection shape')
+    if not all(isinstance(v[k],str) and pathlib.Path(v[k]).is_absolute() for k in ('catalog','package','rig')) or not all(isinstance(v[k],str) and HASH.fullmatch(v[k]) for k in ('catalog_sha','part_id','rig_sha')) or not isinstance(v['name'],str) or not NAME.fullmatch(v['name']):raise ValueError('selection identity')
+    self.selections[token]=dict(v)
+-  if len({v['name'] for v in self.selections.values()})!=len(self.selections):raise ValueError('duplicate output name')
+-  self.lock=threading.RLock();self.job=None;self.child=None;self.closed=False;self.used=set()
++  if len({v['name'] for v in self.selections.values()})!=len(self.selections) or len({v['part_id'] for v in self.selections.values()})!=len(self.selections):raise ValueError('duplicate output name or part')
++  self.lock=threading.RLock();self.job=None;self.child=None;self.closed=False;self.used=set();self.thread=None
++ def options(self):
++  with self.lock:return [{'token':k,'part_id':v['part_id'],'used':k in self.used} for k,v in self.selections.items()]
+  def status(self):
+   with self.lock:return None if self.job is None else dict(self.job)
+  def start(self,token):
+   with self.lock:
+    if self.closed or self.job is not None or token not in self.selections or token in self.used:raise ValueError('selection unavailable or owner busy')
+    s=self.selections[token];self.used.add(token);job=uuid.uuid4().hex;self.job={'id':job,'selection':token,'state':'running'}
+-   thread=threading.Thread(target=self._run,args=(job,s),daemon=True);thread.start();return dict(self.job)
++   self.thread=threading.Thread(target=self._run,args=(job,s),daemon=True);self.thread.start();return dict(self.job)
+  def _run(self,job,s):
+   args=[sys.executable,str(ROOT/'prepare_catalog_selection.py'),'--catalog',s['catalog'],s['catalog_sha'],'--part-id',s['part_id'],'--package',s['package'],'--rig',s['rig'],s['rig_sha'],'--name',s['name']]
+   state='failed'
+   try:
+-   proc=subprocess.Popen(args,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env={'PATH':'/usr/bin:/bin'},start_new_session=(os.name=='posix'))
+-   with self.lock:self.child=proc
++   with self.lock:
++    if self.closed:raise RuntimeError('owner closed')
++    proc=subprocess.Popen(args,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env={'PATH':'/usr/bin:/bin'},start_new_session=(os.name=='posix'));self.child=proc
+    try:state='prepared' if proc.wait(timeout=1200)==0 else 'failed'
+    except subprocess.TimeoutExpired:
+     stop_child(proc);state='timed_out'
+@@ -52,13 +55,15 @@
+   finally:
+    with self.lock:
+     self.child=None
+-    if self.job and self.job['id']==job:self.job={**self.job,'state':state}
++    if self.job and self.job['id']==job:self.job={**self.job,'state':'cancelled' if self.closed else state}
+  def acknowledge(self,job):
+   with self.lock:
+    if not self.job or self.job['id']!=job or self.job['state']=='running':raise ValueError('job unavailable or still running')
+    # No retry or deletion: the caller must register a new unused output name.
+    self.job=None
+  def close(self):
+-  with self.lock:
+-   if self.job and self.job['state']=='running':raise ValueError('job still running')
+-   self.closed=True
++  with self.lock:self.closed=True;proc=self.child;thread=self.thread
++  if proc is not None:stop_child(proc)
++  if thread is not None:
++   thread.join(timeout=10)
++   if thread.is_alive():raise RuntimeError('preparation cleanup pending')
+--- a/test_preparation_owner.py
++++ b/test_preparation_owner.py
+@@ -13,13 +13,19 @@
+   with mock.patch('preparation_owner.subprocess.Popen',return_value=q) as spawn:
+    self.assertIsNone(o.status());self.assertEqual(spawn.call_count,0);job=o.start('1'*32);self.assertEqual(job['state'],'running')
+    with self.assertRaises(ValueError):o.start('1'*32)
+-   with self.assertRaises(ValueError):o.close()
+    self.assertNotIn('/trusted',str(o.status()));q.event.set()
+    deadline=time.monotonic()+2
+    while o.status()['state']=='running' and time.monotonic()<deadline:time.sleep(.005)
+    self.assertEqual(o.status()['state'],'prepared');o.acknowledge(job['id'])
+    with self.assertRaises(ValueError):o.start('1'*32)
+    o.close();self.assertEqual(spawn.call_count,1)
++ def test_close_cancels_owned_running_job(self):
++  q=Process();o=PreparationOwner({'1'*32:S})
++  with mock.patch('preparation_owner.subprocess.Popen',return_value=q),mock.patch('preparation_owner.stop_child',side_effect=lambda p:q.event.set()) as stop:
++   o.start('1'*32);deadline=time.monotonic()+2
++   while o.child is None and time.monotonic()<deadline:time.sleep(.005)
++   o.close();self.assertEqual(o.status()['state'],'cancelled');stop.assert_called_once_with(q)
++   with self.assertRaises(ValueError):o.start('1'*32)
+  def test_failure_is_visible_and_not_retried(self):
+   class Bad:
+    def wait(self,timeout=None):return 1
+--- a/scene_gateway.py
++++ b/scene_gateway.py
+@@ -23,7 +23,7 @@
+  return out
+ class Gateway(socketserver.ThreadingMixIn,http.server.HTTPServer):
+  daemon_threads=True;allow_reuse_address=False
+- def __init__(self,owner,labels,bindings=None):
++ def __init__(self,owner,labels,bindings=None,preparations=None):
+   if set(labels)!=set(owner.specs) or any(not isinstance(k,str) or not TOKEN.fullmatch(k) or not isinstance(v,str) or not 1<=len(v)<=80 or any(ord(c)<32 or ord(c)==127 for c in v) for k,v in labels.items()):raise ValueError('invalid labels')
+   if bindings is not None:
+    if type(bindings)is not dict or set(bindings)!={'schema','catalog_sha256','items','inspect_only','game_modified'} or bindings['schema'] not in (1,2,3) or bindings['inspect_only'] is not True or bindings['game_modified'] is not False or not isinstance(bindings['catalog_sha256'],str) or not re.fullmatch(r'[a-f0-9]{64}',bindings['catalog_sha256']) or not isinstance(bindings['items'],list) or not 1<=len(bindings['items'])<=16:raise ValueError('invalid prepared bindings')
+@@ -41,6 +41,10 @@
+      for source,target in transitions.items():
+       if not isinstance(source,str) or not isinstance(target,str) or source not in owner.specs or target not in owner.specs or owner.specs[source].get('catalog',{}).get('index_sha')!=bindings['catalog_sha256'] or owner.specs[target].get('catalog',{}).get('index_sha')!=bindings['catalog_sha256']:raise ValueError('invalid transition token')
+     seen.add(row['part_id'])
++  if preparations is not None:
++   catalogs={s.get('catalog',{}).get('index_sha') for s in owner.specs.values()}
++   if len(catalogs)!=1 or None in catalogs or any(v['catalog_sha'] not in catalogs for v in preparations.selections.values()):raise ValueError('preparation catalog mismatch')
++  self.preparations=preparations
+   self.owner=owner;self.labels=dict(labels);self.bindings=None if bindings is None else json.loads(json.dumps(bindings));self.slots=threading.BoundedSemaphore(4);super().__init__(('127.0.0.1',0),Handler);self.expected_host='127.0.0.1:'+str(self.server_address[1]);self.expected_origin='http://'+self.expected_host
+  def process_request(self,request,client_address):
+   if not self.slots.acquire(blocking=False):self.shutdown_request(request);return
+@@ -69,6 +73,10 @@
+   parts=urllib.parse.urlsplit(self.path);path=parts.path
+   if parts.scheme or parts.netloc or parts.fragment or not SAFE_QUERY.fullmatch(parts.query) or '%' in path or '..' in path or '\\' in path:return self.error(400)
+   if path=='/' and not parts.query:return self.reply(302,'text/plain',b'', [('Location','/cas-room')])
++  if path=='/prepare-actions.mjs' and not parts.query and self.server.preparations is not None:return self.reply(200,'text/javascript',(ROOT/'prepare_actions.mjs').read_bytes())
++  if path=='/preparation-options' and not parts.query and self.server.preparations is not None:
++   options=self.server.preparations.options();return self.reply(200,'application/json',json.dumps({'items':options},separators=(',',':')).encode())
++  if path=='/preparation-status' and not parts.query and self.server.preparations is not None:return self.reply(200,'application/json',json.dumps({'job':self.server.preparations.status()},separators=(',',':')).encode())
+   if path=='/scene-picker.mjs' and not parts.query:return self.reply(200,'text/javascript',(ROOT/'scene_gateway_picker.mjs').read_bytes())
+   if path=='/prepared-dress-actions.mjs' and not parts.query:return self.reply(200,'text/javascript',(ROOT/'prepared_dress_actions.mjs').read_bytes())
+   if path=='/prepared-dresses' and not parts.query:
+@@ -93,14 +101,25 @@
+      marker=b'</body>';addition=b'<script type="module" src="/prepared-dress-actions.mjs"></script>'
+      if data.count(marker)!=1:raise ValueError('library shape')
+      data=data.replace(marker,addition+marker)
++    if path=='/cc-library' and status==200 and self.server.preparations is not None:
++     marker=b'</body>';addition=b'<script type="module" src="/prepare-actions.mjs"></script>'
++     if data.count(marker)!=1:raise ValueError('library shape')
++     data=data.replace(marker,addition+marker)
+     self.reply(status,kind,data,headers)
+   except Exception:self.error(503)
+  def do_POST(self):
+-  if self.path!='/scene-switch' or not self.ok_origin(True) or self.headers.get_all('Content-Type',[])!=['application/json'] or self.headers.get('Transfer-Encoding'):return self.error(403)
++  if self.path not in ('/scene-switch','/prepare-selection','/preparation-ack') or not self.ok_origin(True) or self.headers.get_all('Content-Type',[])!=['application/json'] or self.headers.get('Transfer-Encoding'):return self.error(403)
+   lengths=self.headers.get_all('Content-Length',[])
+   if len(lengths)!=1 or not lengths[0].isdigit() or not 0<int(lengths[0])<=512:return self.error(400)
+   try:
+    data=json.loads(self.rfile.read(int(lengths[0])).decode('utf8'),object_pairs_hook=object_once)
++   if self.path in ('/prepare-selection','/preparation-ack'):
++    if self.server.preparations is None or type(data)is not dict or set(data)!={'token'} or not isinstance(data['token'],str) or not TOKEN.fullmatch(data['token']):raise ValueError('invalid preparation request')
++    try:
++     if self.path=='/prepare-selection':state=self.server.preparations.start(data['token'])
++     else:self.server.preparations.acknowledge(data['token']);state=None
++     return self.reply(200,'application/json',json.dumps({'job':state},separators=(',',':')).encode())
++    except ValueError:return self.error(409)
+    if type(data)is not dict or set(data)!={'token','generation'} or not isinstance(data['token'],str) or not TOKEN.fullmatch(data['token']) or type(data['generation'])is not int:raise ValueError('invalid selection')
+   except (ValueError,UnicodeError,RecursionError):return self.error(400)
+   try:
+--- a/test_scene_gateway.py
++++ b/test_scene_gateway.py
+@@ -63,6 +63,23 @@
+   g=Gateway(self.owner,labels,obj);g.server_close()
+   self.owner.specs=specs;labels={x:'scene' for x in specs};obj['items'][0]['transitions']={x:x for x in specs}
+   with self.assertRaises(ValueError):Gateway(self.owner,labels,obj)
++ def test_opt_in_preparation_only_opaque_same_origin_selection(self):
++  class Prep:
++   def __init__(self):self.selections={'f'*32:{'catalog_sha':'b'*64,'part_id':'a'*64,'package':'/private/example'}};self.calls=[];self.job=None
++   def options(self):return [{'token':k,'part_id':v['part_id'],'used':False} for k,v in self.selections.items()]
++   def status(self):return self.job
++   def start(self,token):self.calls.append(token);self.job={'id':'e'*32,'selection':token,'state':'running'};return self.job
++   def acknowledge(self,token):self.calls.append('ack:'+token);self.job=None
++  self.owner.specs={'1'*32:{'catalog':{'index_sha':'b'*64}},'2'*32:{'catalog':{'index_sha':'b'*64}}};p=Prep();g=Gateway(self.owner,{'1'*32:'First','2'*32:'Second'},preparations=p);t=threading.Thread(target=g.serve_forever,daemon=True);t.start();host,port=g.server_address;origin=f'http://{host}:{port}'
++  def req(method,path,body=None,headers={}):
++   c=http.client.HTTPConnection(host,port,timeout=5);c.request(method,path,body,headers);r=c.getresponse();value=(r.status,r.read());c.close();return value
++  try:
++   status,data=req('GET','/preparation-options');self.assertEqual(status,200);self.assertNotIn(b'/private',data);self.assertEqual(p.calls,[])
++   body=json.dumps({'token':'f'*32});hdr={'Content-Type':'application/json','Origin':origin,'X-CAS-Request':'1'}
++   self.assertEqual(req('POST','/prepare-selection',body,{**hdr,'Origin':'https://evil.example'})[0],403);self.assertEqual(p.calls,[])
++   self.assertEqual(req('POST','/prepare-selection',body,hdr)[0],200);self.assertEqual(p.calls,['f'*32]);self.assertNotIn(b'/private',req('GET','/preparation-status')[1])
++   self.assertEqual(req('POST','/preparation-ack',json.dumps({'token':'e'*32}),hdr)[0],200)
++  finally:g.shutdown();g.server_close();t.join(5)
+  def test_duplicate_json_fields_do_not_switch(self):
+   hdr={'Content-Type':'application/json','Origin':self.origin,'X-CAS-Request':'1'};body='{"token":"'+('2'*32)+'","token":"'+('1'*32)+'","generation":1}'
+   self.assertEqual(self.request('POST','/scene-switch',body,hdr)[0],400);self.assertEqual(self.owner.generation,1)
+--- a/run_scene_gateway.py
++++ b/run_scene_gateway.py
+@@ -8,9 +8,10 @@
+ import argparse,hashlib,json,pathlib,signal,sys
+ from scene_gateway import Gateway
+ from scene_switch_supervisor import SceneSwitcher,TOKEN
++from preparation_owner import PreparationOwner
+ D=__import__('re').compile(r'[a-f0-9]{64}\Z')
+ def main():
+- p=argparse.ArgumentParser();p.add_argument('--config',required=True);p.add_argument('--config-sha',required=True);p.add_argument('--bindings');p.add_argument('--bindings-sha');a=p.parse_args();src=pathlib.Path(a.config)
++ p=argparse.ArgumentParser();p.add_argument('--config',required=True);p.add_argument('--config-sha',required=True);p.add_argument('--bindings');p.add_argument('--bindings-sha');p.add_argument('--preparations');p.add_argument('--preparations-sha');a=p.parse_args();src=pathlib.Path(a.config)
+  if not D.fullmatch(a.config_sha) or src.is_symlink() or not src.is_file() or src.stat().st_size>65536:raise ValueError('pinned config required')
+  with src.open('rb') as f:raw=f.read(65537)
+  if hashlib.sha256(raw).hexdigest()!=a.config_sha:raise ValueError('config identity')
+@@ -28,14 +29,26 @@
+   with path.open('rb') as f:data=f.read(65537)
+   if hashlib.sha256(data).hexdigest()!=a.bindings_sha:raise ValueError('bindings identity')
+   bindings=json.loads(data)
++ preparations=None
++ if (a.preparations is None)!=(a.preparations_sha is None):raise ValueError('complete preparations pin required')
++ if a.preparations is not None:
++  path=pathlib.Path(a.preparations)
++  if not D.fullmatch(a.preparations_sha) or path.is_symlink() or not path.is_file() or path.stat().st_size>65536:raise ValueError('pinned preparations required')
++  with path.open('rb') as f:data=f.read(65537)
++  if hashlib.sha256(data).hexdigest()!=a.preparations_sha:raise ValueError('preparations identity')
++  prep=json.loads(data)
++  if type(prep)is not dict or set(prep)!={'schema','selections'} or prep['schema']!=1:raise ValueError('preparations shape')
++  preparations=PreparationOwner(prep['selections'])
+  owner=SceneSwitcher(specs);gateway=None
+  def interrupt(signum,frame):raise KeyboardInterrupt()
+  old=signal.signal(signal.SIGTERM,interrupt)
+  try:
+-  owner.switch(obj['initial']);gateway=Gateway(owner,labels,bindings)
++  owner.switch(obj['initial']);gateway=Gateway(owner,labels,bindings,preparations)
+   print(f'http://{gateway.expected_host}/cas-room',flush=True);gateway.serve_forever(poll_interval=.25)
+  except KeyboardInterrupt:pass
+  finally:
+   if gateway:gateway.server_close()
+-  owner.close();signal.signal(signal.SIGTERM,old)
++  try:
++   if preparations:preparations.close()
++  finally:owner.close();signal.signal(signal.SIGTERM,old)
+ if __name__=='__main__':main()
+--- /dev/null
++++ b/prepare_actions.mjs
+@@ -0,0 +1,13 @@
++// Explicit private-source preparation. This does not equip or write to game.
++const root=document.querySelector('#results');
++if(root){
++ const status=document.createElement('p'),dismiss=document.createElement('button');status.setAttribute('role','status');dismiss.type='button';dismiss.textContent='Dismiss preparation result';dismiss.hidden=true;root.before(status);root.before(dismiss);
++ let mapping=null,job=null,busy=false,timer=null,closed=false;
++ const request=async(path,options={},ms=8000)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{return await fetch(path,{...options,cache:'no-store',redirect:'error',signal:c.signal})}finally{clearTimeout(t)}};
++ const refresh=()=>{if(!mapping)return;for(const card of root.children){const binding=mapping.get(card.dataset.partId);if(!binding||card.querySelector('[data-prepare-asset]'))continue;const {token}=binding;const button=document.createElement('button');button.type='button';button.dataset.prepareAsset='1';button.dataset.preparePart=card.dataset.partId;button.textContent='Prepare private preview asset';button.disabled=busy||job!==null||binding.used;button.addEventListener('click',async()=>{if(busy||job)return;busy=true;refreshButtons();try{const r=await request('/prepare-selection',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token})});if(!r.ok)throw Error('Preparation refused');const data=await r.json();job=data.job;binding.used=true;if(!job||job.state!=='running')throw Error('Preparation state uncertain');status.textContent='Preparing the private asset. No game changes.';poll()}catch(e){mapping=null;status.textContent='Preparation status uncertain. Refresh before trying again.'}finally{busy=false;refreshButtons()}});card.append(button);}};
++ const refreshButtons=()=>{for(const x of root.querySelectorAll('[data-prepare-asset]'))x.disabled=busy||job!==null||mapping===null||mapping.get(x.dataset.preparePart)?.used===true;};
++ const poll=async()=>{if(closed)return;try{const r=await request('/preparation-status');if(!r.ok)throw Error('status');const data=await r.json();job=data.job;if(!job){status.textContent='No preparation running.';dismiss.hidden=true;refreshButtons();return}if(!/^[a-f0-9]{32}$/.test(job.id)||!['running','prepared','failed','timed_out','cancelled'].includes(job.state))throw Error('invalid status');dismiss.hidden=job.state==='running';status.textContent=job.state==='running'?'Preparing the private asset. No game changes.':job.state==='prepared'?'Asset prepared privately. It is not yet available in the room or game.':'Preparation '+job.state+'. Existing evidence was retained.';refreshButtons();if(job.state==='running')timer=setTimeout(poll,1000)}catch(e){mapping=null;status.textContent='Preparation status unavailable. Refresh before trying again.';refreshButtons()}};
++ dismiss.addEventListener('click',async()=>{if(!job||job.state==='running'||busy)return;busy=true;refreshButtons();try{const r=await request('/preparation-ack',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:job.id})});if(!r.ok)throw Error('ack');job=null;dismiss.hidden=true;status.textContent='Result dismissed. No game changes.'}catch(e){mapping=null;status.textContent='Result state uncertain. Refresh before trying again.'}finally{busy=false;refreshButtons()}});
++ try{const [r,s]=await Promise.all([request('/preparation-options'),request('/preparation-status')]);if(!r.ok||!s.ok)throw Error('unavailable');const [data,state]=await Promise.all([r.json(),s.json()]);if(!Array.isArray(data.items)||data.items.length>64)throw Error('invalid options');mapping=new Map();for(const x of data.items){if(!/^[a-f0-9]{64}$/.test(x.part_id)||!/^[a-f0-9]{32}$/.test(x.token)||typeof x.used!=='boolean'||mapping.has(x.part_id))throw Error('invalid option');mapping.set(x.part_id,{token:x.token,used:x.used})}job=state.job;new MutationObserver(refresh).observe(root,{childList:true});refresh();if(job)poll();else status.textContent='Preparation is private and does not change the game.';}catch(e){mapping=null;status.textContent='Private preparation unavailable.';}
++ window.addEventListener('pagehide',()=>{closed=true;if(timer)clearTimeout(timer)});
++}
+--- /dev/null
++++ b/test_prepare_actions.mjs
+@@ -0,0 +1,9 @@
++// Synthetic DOM tests only; not browser or game acceptance.
++import test from 'node:test';import assert from 'node:assert/strict';
++class E{constructor(){this.children=[];this.dataset={};this.handlers={};this.disabled=false;this.hidden=false;this.textContent='';this.beforeNodes=[]}append(...x){this.children.push(...x)}before(x){this.beforeNodes.push(x)}setAttribute(){}addEventListener(n,f){this.handlers[n]=f}querySelector(q){return q==='[data-prepare-asset]'?this.children.find(x=>x.dataset.prepareAsset):null}querySelectorAll(q){return q==='[data-prepare-asset]'?this.children.flatMap(c=>c.children.filter(x=>x.dataset.prepareAsset)):[]}}
++test('preparation requires click and clearly reports preview is not in game',async()=>{
++ const saved={document:globalThis.document,fetch:globalThis.fetch,window:globalThis.window,MutationObserver:globalThis.MutationObserver},root=new E(),card=new E();card.dataset.partId='a'.repeat(64);root.children=[card];let posts=[],statusReads=0;const token='f'.repeat(32),id='e'.repeat(32);
++ globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.window={addEventListener(){}};globalThis.MutationObserver=class{observe(){}};globalThis.fetch=async(path,opts)=>{if(path==='/preparation-options')return {ok:true,json:async()=>({items:[{part_id:'a'.repeat(64),token,used:false}]})};if(path==='/preparation-status'){statusReads++;return {ok:true,json:async()=>({job:statusReads===1?null:{id,selection:token,state:'prepared'}})}}if(path==='/prepare-selection'){posts.push(JSON.parse(opts.body));return {ok:true,json:async()=>({job:{id,selection:token,state:'running'}})}}if(path==='/preparation-ack'){posts.push(JSON.parse(opts.body));return {ok:true}};throw Error(path)};
++ try{await import('./prepare_actions.mjs?test='+Math.random());assert.equal(posts.length,0);assert.equal(card.children.length,1);await card.children[0].handlers.click();await new Promise(r=>setTimeout(r,0));assert.deepEqual(posts,[{token}]);assert.match(root.beforeNodes[0].textContent,/not yet available in the room or game/);assert.equal(root.beforeNodes[1].hidden,false);await root.beforeNodes[1].handlers.click();assert.deepEqual(posts,[{token},{token:id}]);assert.equal(card.children[0].disabled,true);}
++ finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
++});

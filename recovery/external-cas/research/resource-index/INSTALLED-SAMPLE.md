@@ -10,7 +10,7 @@ or user profile data are included here.
 Observed markers across those ten indexes were 29,729 zlib (`5A42`), 148
 tombstones (`FFE0`), one uncompressed (`0000`) and one RefPack (`FFFF`). A
 bounded decoder for `FFFF` was added. One installed RefPack payload of 4,307,230
-decoded bytes matched s4py byte-for-byte via a private digest comparison; the
+decoded bytes had the same SHA-256 as s4py's output in a private comparison; the
 payload and digest were not saved or printed. Synthetic tests exercise four
 literal/backreference forms, compare output to s4py, and reject malformed input.
 Other RefPack streams and `FFFE` remain unverified; `FFFE` is reported as

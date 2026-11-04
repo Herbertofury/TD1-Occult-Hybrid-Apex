@@ -1,0 +1,195 @@
+--- a/examples/cc_scene/mod.rs
++++ b/examples/cc_scene/mod.rs
+@@ -76,10 +76,17 @@
+     key: MaterialKey,
+     texture: OwnedOpaqueTexture,
+ }
++// Two fully qualified recent swatches only; no unbounded library cache.
++struct RetainedMaterial {
++    swatch_id: &'static str,
++    cloth: PreparedColorLayer,
++    composed: Option<ComposedMaterial>,
++}
+ struct ActiveMaterial {
+     swatch_id: &'static str,
+     cloth: PreparedColorLayer,
+     composed: Option<ComposedMaterial>,
++    previous: Option<RetainedMaterial>,
+ }
+ impl ActiveMaterial {
+     fn render_transaction<T>(
+@@ -89,37 +96,34 @@
+         load: impl FnOnce() -> Result<PreparedColorLayer, &'static str>,
+         render: impl FnOnce(&OwnedOpaqueTexture) -> Result<T, &'static str>,
+     ) -> Result<T, &'static str> {
+-        let source = if self.swatch_id != key.swatch_id {
+-            Some(load()?)
+-        } else {
+-            None
+-        };
+-        let composed = if source.is_some() || self.composed.as_ref().is_none_or(|c| c.key != key) {
+-            let cloth = source.as_ref().unwrap_or(&self.cloth);
+-            Some(ComposedMaterial {
+-                key,
+-                texture: cloth.compose_over(ColorShift::decode(key.bits)?, lower)?,
+-            })
+-        } else {
+-            None
+-        };
+-        let texture = &composed
+-            .as_ref()
+-            .or(self.composed.as_ref())
+-            .ok_or("material unavailable")?
+-            .texture;
+-        let frame = render(texture)?;
+-        // Publication is AFTER the entire pose/raster result succeeds. On any
+-        // read, decode, hash, preparation, pose or raster error, candidates drop
+-        // and the last successful source, key and pixels remain untouched.
+-        if let Some(cloth) = source {
+-            self.cloth = cloth;
+-            self.swatch_id = key.swatch_id;
+-        }
+-        if let Some(complete) = composed {
+-            self.composed = Some(complete);
+-        }
+-        Ok(frame)
++        if self.swatch_id == key.swatch_id {
++            let candidate = if self.composed.as_ref().is_none_or(|c| c.key != key) {
++                Some(ComposedMaterial {key, texture:self.cloth.compose_over(ColorShift::decode(key.bits)?,lower)?})
++            } else {None};
++            let frame=render(&candidate.as_ref().or(self.composed.as_ref()).ok_or("material unavailable")?.texture)?;
++            if let Some(complete)=candidate {self.composed=Some(complete);}
++            return Ok(frame);
++        }
++        if self.previous.as_ref().is_some_and(|p|p.swatch_id==key.swatch_id) {
++            let previous=self.previous.as_ref().unwrap();
++            let candidate=if previous.composed.as_ref().is_none_or(|c|c.key!=key){
++                Some(ComposedMaterial{key,texture:previous.cloth.compose_over(ColorShift::decode(key.bits)?,lower)?})
++            } else {None};
++            let frame=render(&candidate.as_ref().or(previous.composed.as_ref()).ok_or("material unavailable")?.texture)?;
++            // Swap only after the complete pose and raster succeeded.
++            let mut previous=self.previous.take().unwrap();
++            if let Some(complete)=candidate {previous.composed=Some(complete);}
++            std::mem::swap(&mut self.swatch_id,&mut previous.swatch_id);
++            std::mem::swap(&mut self.cloth,&mut previous.cloth);
++            std::mem::swap(&mut self.composed,&mut previous.composed);
++            self.previous=Some(previous);return Ok(frame);
++        }
++        let source=load()?;
++        let complete=ComposedMaterial{key,texture:source.compose_over(ColorShift::decode(key.bits)?,lower)?};
++        let frame=render(&complete.texture)?;
++        // Replace the older slot only after a successful complete frame.
++        let old=RetainedMaterial{swatch_id:self.swatch_id,cloth:std::mem::replace(&mut self.cloth,source),composed:self.composed.replace(complete)};
++        self.swatch_id=key.swatch_id;self.previous=Some(old);Ok(frame)
+     }
+ }
+ 
+@@ -595,6 +599,7 @@
+                 swatch_id: swatch_catalog::DEFAULT_ID,
+                 cloth,
+                 composed: None,
++                previous: None,
+             }),
+             swatch_catalog,
+             hair: OwnedOpaqueTexture::new(1024, 2048, hair_opaque)?,
+@@ -757,16 +762,9 @@
+             })
+             .collect();
+         let bits = replace_lanes(0x4000000000000000, &edits)?;
+-        // Retained state is one prepared source and one composed texture, NOT
+-        // all 30 decoded atlases. On switches the old and candidate coexist:
+-        // each RGBA atlas/composed output is exactly 32 MiB, so up to four such
+-        // source/cache payloads (128 MiB) can overlap. Preparation additionally
+-        // attempts 16 MiB of u16 indices, <=65,536 RGBA palette/hash entries and
+-        // <=65,536 alpha runs (1 MiB of ranges on 64-bit); allocator/hash-table
+-        // overhead is separate. PNG input <=8 MiB and its decoder budget is
+-        // best-effort, not a hard RSS cap. Lower/hair, meshes,
+-        // pose and raster allocations are separate. Encoded bytes drop before
+-        // color preparation. Camera/pose-only hits reload/recompose nothing.
++        // Two recent source/composed pairs are retained. A third candidate may
++        // coexist until complete rendering succeeds; account for up to six 32 MiB
++        // atlas payloads plus decoder, palette, mesh and raster overhead.
+         let mut material = self.material.lock().map_err(|_| "material lock poisoned")?;
+         material.render_transaction(
+             MaterialKey {
+@@ -991,6 +989,7 @@
+         ActiveMaterial {
+             swatch_id: swatch_catalog::DEFAULT_ID,
+             cloth: PreparedColorLayer::new(vec![200, 100, 50, 255]).unwrap(),
++            previous: None,
+             composed: Some(ComposedMaterial {
+                 key: MaterialKey {
+                     swatch_id: swatch_catalog::DEFAULT_ID,
+@@ -1178,6 +1177,29 @@
+         assert_eq!(state.swatch_id, swatch_catalog::DEFAULT_ID);
+         assert!(state.composed.is_none());
+     }
++    #[test]
++    fn two_recent_sources_reuse_only_after_complete_frames_and_evict_safely() {
++        let mut state=active();let a=MaterialKey{swatch_id:swatch_catalog::DEFAULT_ID,bits:NEUTRAL};
++        let b=MaterialKey{swatch_id:swatch_catalog::SWATCHES[1].id,bits:NEUTRAL};
++        let c=MaterialKey{swatch_id:swatch_catalog::SWATCHES[2].id,bits:NEUTRAL};
++        let old_ptr=state.composed.as_ref().unwrap().texture.view().bytes().as_ptr();
++        state.render_transaction(b,base().view(),||PreparedColorLayer::new(vec![20,200,70,255]),|_|Ok(())).unwrap();
++        let b_ptr=state.composed.as_ref().unwrap().texture.view().bytes().as_ptr();
++        let failed:Result<(),_>=state.render_transaction(a,base().view(),||panic!("previous source reloaded"),|_|Err("raster failure"));
++        assert_eq!(failed,Err("raster failure"));assert_eq!(state.swatch_id,b.swatch_id);assert_eq!(state.composed.as_ref().unwrap().texture.view().bytes().as_ptr(),b_ptr);
++        state.render_transaction(a,base().view(),||panic!("previous source reloaded"),|t|{assert_eq!(t.view().bytes().as_ptr(),old_ptr);Ok(())}).unwrap();
++        assert_eq!(state.swatch_id,a.swatch_id);assert_eq!(state.previous.as_ref().unwrap().swatch_id,b.swatch_id);
++        let edited=MaterialKey{bits:NEUTRAL|256,..b};
++        let failed:Result<(),_>=state.render_transaction(edited,base().view(),||panic!("previous source reloaded"),|_|Err("pose failure"));
++        assert_eq!(failed,Err("pose failure"));assert_eq!(state.swatch_id,a.swatch_id);assert_eq!(state.previous.as_ref().unwrap().composed.as_ref().unwrap().key,b);
++        state.render_transaction(edited,base().view(),||panic!("previous source reloaded"),|_|Ok(())).unwrap();
++        assert_eq!(state.swatch_id,b.swatch_id);assert_eq!(state.composed.as_ref().unwrap().key,edited);
++        let failed:Result<(),_>=state.render_transaction(c,base().view(),||Err("read failure"),|_|Ok(()));
++        assert_eq!(failed,Err("read failure"));assert_eq!(state.swatch_id,b.swatch_id);assert_eq!(state.previous.as_ref().unwrap().swatch_id,a.swatch_id);
++        state.render_transaction(c,base().view(),||PreparedColorLayer::new(vec![30,40,210,255]),|_|Ok(())).unwrap();
++        assert_eq!(state.swatch_id,c.swatch_id);assert_eq!(state.previous.as_ref().unwrap().swatch_id,b.swatch_id);
++        let mut reloaded=false;state.render_transaction(a,base().view(),||{reloaded=true;PreparedColorLayer::new(vec![200,100,50,255])},|_|Ok(())).unwrap();assert!(reloaded);
++    }
+     fn failing_scene() -> CcScene {
+         CcScene {
+             meshes: std::array::from_fn(|_| Vec::new()),
+@@ -1302,6 +1324,7 @@
+                 swatch_id: swatch_catalog::DEFAULT_ID,
+                 cloth: PreparedColorLayer::new(vec![200, 100, 50, 255]).unwrap(),
+                 composed: None,
++                previous: None,
+             }),
+             swatch_catalog: None,
+             raster_pool: None,
+--- a/tools/research/prepare_new_pose_library.py
++++ b/tools/research/prepare_new_pose_library.py
+@@ -5,7 +5,12 @@
+ import numpy as np
+ from PIL import Image
+ resource.setrlimit(resource.RLIMIT_AS,(1024*1024*1024,)*2)
+-r=Path(__file__).resolve().parents[1];base=r/'private-input-recovery/new-pose';resources=base/'resources';out=base/'playback';out.mkdir(mode=0o700,exist_ok=True)
++r=Path(__file__).resolve().parents[1];base=r/'private-input-recovery/new-pose';resources=base/'resources'
++if len(sys.argv)>2:raise ValueError('Provide at most one new output directory name')
++name=sys.argv[1] if len(sys.argv)==2 else 'playback'
++if not name or name in ('.','..') or Path(name).name!=name:raise ValueError('Output must be a single new directory name')
++out=base/name;out.mkdir(mode=0o700,exist_ok=False) # never replace last-good preparation
++
+ sys.path.insert(0,str(r/'inert-status-fixture/modules'));sys.path.insert(0,str(r/'real-recovery-evidence/clip-gpl'));from cas_resource_catalog import stbl_strings;from dst_adapter import to_dds
+ package=base/'mosichaa-camera.package';package_hash=hashlib.sha256(package.read_bytes()).hexdigest();xmlfile=next(resources.glob('7DF2169C_*'));raw=xmlfile.read_bytes();assert len(raw)<1024*1024 and b'<!DOCTYPE' not in raw.upper() and b'<!ENTITY' not in raw.upper();tree=ET.fromstring(raw);assert tree.get('c')=='PosePackInstance' and len(list(tree.iter()))<10000
+ stbl=stbl_strings(next(resources.glob('220557DA_*_00*')).read_bytes())
+--- /dev/null
++++ b/examples/bench_pose_diagnostic.rs
+@@ -0,0 +1,4 @@
++//! Private same-scene bounded renderer comparison; no game writes.
++pub mod cc_scene;
++use sha2::{Digest,Sha256};use std::time::Instant;
++fn main()->Result<(),Box<dyn std::error::Error>>{let a:Vec<_>=std::env::args().collect();if a.len()!=7{return Err("scene-dir head dress shoes hair pose-id".into())}let scene=cc_scene::CcScene::load(&a[1..6])?;let mut first=None;for i in 0..4{let at=Instant::now();let f=scene.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,&a[6],0,0,[0,0,0,16384])?;let ms=at.elapsed().as_secs_f64()*1000.;let hash=format!("{:x}",Sha256::digest(&f.rgb));if let Some(ref prev)=first{if prev!=&hash{return Err("renderer output changed across repeats".into())}}else{first=Some(hash.clone())}println!("{{\"iteration\":{i},\"render_ms\":{ms:.3},\"rgb_sha256\":\"{hash}\",\"covered_pixels\":{}}}",f.covered_pixels);}Ok(())}
+--- /dev/null
++++ b/examples/bench_pose_corpus.rs
+@@ -0,0 +1,3 @@
++//! Private bounded real-corpus renderer comparison; no game writes.
++pub mod cc_scene;use sha2::{Digest,Sha256};use std::time::Instant;
++fn main()->Result<(),Box<dyn std::error::Error>>{let a:Vec<_>=std::env::args().collect();if a.len()!=6{return Err("scene-dir head dress shoes hair".into())}let ids=std::env::var("CC_REAL_POSE_IDS")?;let ids:Vec<_>=ids.split(',').collect();if ids.len()!=23{return Err("expected 23 prepared IDs".into())}let scene=cc_scene::CcScene::load(&a[1..6])?;let sw=[cc_scene::swatch_catalog::DEFAULT_ID,cc_scene::swatch_catalog::SWATCHES[1].id,cc_scene::swatch_catalog::SWATCHES[2].id];for (i,id) in ids.iter().enumerate(){for (j,s) in sw.iter().enumerate(){let at=Instant::now();let f=scene.render_clip_swatch(s,id,0,0,[0,0,0,16384])?;let ms=at.elapsed().as_secs_f64()*1000.;println!("{{\"pose\":{i},\"swatch\":{j},\"ms\":{ms:.3},\"rgb\":\"{:x}\",\"covered\":{}}}",Sha256::digest(&f.rgb),f.covered_pixels)}}Ok(())}
+--- /dev/null
++++ b/examples/TWO_SLOT_CANDIDATE.md
+@@ -0,0 +1,3 @@
++# Two-slot material candidate
++
++Isolated candidate; not adopted. Two alternating verified swatches over 23 real source poses yielded identical frame hashes to baseline in two runs and lower warm-switch median. Three-swatches cycling yielded identical hashes but a slightly slower single-run median. Cold selection remains slow. Real assets are private and excluded; no native-game, browser, or full-CAS acceptance is implied. Review retained private evidence and test memory, failure rollback, varied workloads, and target behavior before considering adoption.

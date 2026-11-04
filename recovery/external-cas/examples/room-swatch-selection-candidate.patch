@@ -1,0 +1,306 @@
+--- a/examples/preview_server.rs
++++ b/examples/preview_server.rs
+@@ -302,6 +302,18 @@
+     }
+     Some((sample, yaw, id, catalog, scene))
+ }
++// Optional real dress swatch is a compiled allowlisted identity, never a path.
++fn parse_cc_frame(path: &str) -> Option<(Vec<i32>, &str)> {
++    let mut params: Vec<_> = path.strip_prefix("/cc-frame?")?.split('&').collect();
++    let swatch = if params.last().is_some_and(|p| p.starts_with("swatch=")) {
++        params.pop()?.strip_prefix("swatch=")?
++    } else { cc_scene::swatch_catalog::DEFAULT_ID };
++    cc_scene::swatch_catalog::find(swatch).ok()?;
++    if params.len() != 5 && params.len() != 6 { return None; }
++    let names = ["yaw=", "brightness=", "saturation=", "hue=", "opacity=", "pose="];
++    let values = params.iter().zip(names).map(|(p,n)| p.strip_prefix(n)?.parse::<i32>().ok()).collect::<Option<Vec<_>>>()?;
++    Some((values, swatch))
++}
+ fn needs_render_queue(path: &str) -> bool {
+     ["/frame?", "/cc-frame?", "/clip-frame?", "/accessory-inspection-frame?"].iter().any(|prefix| path.starts_with(prefix))
+ }
+@@ -426,6 +438,7 @@
+         }
+         "/room-fallback.mjs" => respond(s,"200 OK","text/javascript",include_bytes!("../preview-ui/room-fallback.mjs"),"")?,
+         "/swatch-model.mjs" => respond(s,"200 OK","text/javascript",include_bytes!("../preview-ui/swatch-model.mjs"),"")?,
++        "/cc-swatch-history.mjs" => respond(s,"200 OK","text/javascript",include_bytes!("../preview-ui/cc-swatch-history.mjs"),"")?,
+         "/pose-library" | "/pose-library-bundled" | "/pose-library-modules" => respond(
+             s,
+             "200 OK",
+@@ -694,42 +707,12 @@
+                     "",
+                 )?);
+             };
+-            let params: Vec<_> = path[10..].split('&').collect();
+-            let names = [
+-                "yaw=",
+-                "brightness=",
+-                "saturation=",
+-                "hue=",
+-                "opacity=",
+-                "pose=",
+-            ];
+-            if params.len() != 5 && params.len() != 6 {
+-                return Ok(respond(
+-                    s,
+-                    "400 Bad Request",
+-                    "text/plain",
+-                    b"CC parameters",
+-                    "",
+-                )?);
+-            }
+-            let parsed: Result<Vec<i32>, _> = params
+-                .iter()
+-                .zip(names)
+-                .map(|(p, n)| {
+-                    p.strip_prefix(n)
+-                        .ok_or("CC parameter order")
+-                        .and_then(|v| v.parse().map_err(|_| "CC integer"))
+-                })
+-                .collect();
+-            let Ok(v) = parsed else {
+-                return Ok(respond(
+-                    s,
+-                    "400 Bad Request",
+-                    "text/plain",
+-                    b"CC parameters",
+-                    "",
+-                )?);
++            let Some((v, swatch_id)) = parse_cc_frame(path) else {
++                return Ok(respond(s, "400 Bad Request", "text/plain", b"CC parameters", "")?);
+             };
++            if !cc.swatches().iter().any(|entry| entry.id == swatch_id) {
++                return Ok(respond(s, "400 Bad Request", "text/plain", b"CC swatch unavailable", "")?);
++            }
+             let wait = Instant::now();
+             let guard = state
+                 .render_gate
+@@ -738,7 +721,7 @@
+             let wait_ms = wait.elapsed().as_secs_f64() * 1000.;
+             let start = Instant::now();
+             let frame =
+-                match cc.render_pose(v[0], [v[1], v[2], v[3], v[4]], *v.get(5).unwrap_or(&0)) {
++                match cc.render_pose_swatch(swatch_id, v[0], [v[1], v[2], v[3], v[4]], *v.get(5).unwrap_or(&0)) {
+                     Ok(v) => v,
+                     Err(_) => {
+                         return Ok(respond(
+@@ -761,7 +744,7 @@
+                 "application/octet-stream",
+                 &frame.rgb,
+                 &format!(
+-                    "X-Scene: {}\r\nX-Renderer: {renderer}\r\nX-HTTP-Workers: {http_workers}\r\nX-Header-Read-Ms: {header_read_ms:.3}\r\nX-Admission-Wait-Ms: {admission_wait_ms:.3}\r\nX-Render-Ms: {elapsed:.3}\r\nX-Render-Wait-Ms: {wait_ms:.3}\r\n{stages}",
++                    "X-Scene: {}\r\nX-Renderer: {renderer}\r\nX-HTTP-Workers: {http_workers}\r\nX-Header-Read-Ms: {header_read_ms:.3}\r\nX-Admission-Wait-Ms: {admission_wait_ms:.3}\r\nX-Render-Ms: {elapsed:.3}\r\nX-Render-Wait-Ms: {wait_ms:.3}\r\n{stages}X-Swatch-ID: {swatch_id}\r\n",
+                     identity.scene
+                 ),
+             )?;
+@@ -1726,3 +1709,48 @@
+   let mut config=vec![0;177];config[176]=2;assert!(validate_pose_scene_inputs(&[mesh(),mesh()],&config).is_err());
+  }
+ }
++
++#[cfg(test)]
++mod cc_swatch_route_tests {
++    use super::*;
++    #[test]
++    fn neutral_route_accepts_only_ordered_allowlisted_swatch() {
++        let base = "/cc-frame?yaw=0&brightness=0&saturation=0&hue=0&opacity=16384";
++        let (v, id) = parse_cc_frame(base).unwrap();
++        assert_eq!(v, [0,0,0,0,16384]);
++        assert_eq!(id, cc_scene::swatch_catalog::DEFAULT_ID);
++        let swatch = cc_scene::swatch_catalog::SWATCHES[1].id;
++        assert_eq!(parse_cc_frame(&format!("{base}&pose=15&swatch={swatch}")).unwrap().1, swatch);
++        for bad in [format!("{base}&swatch=bad"), format!("{base}&pose=1&swatch={swatch}&swatch={swatch}"), format!("{base}&swatch={swatch}&pose=1"), format!("{base}&pose=oops")] {
++            assert!(parse_cc_frame(&bad).is_none());
++        }
++    }
++}
++
++#[cfg(test)]
++mod private_swatch_scene_test {
++    use super::*;
++    #[test]
++    #[ignore = "requires privately recovered real scene and swatches"]
++    fn two_real_dress_swatches_render_distinctly_and_default_is_stable() {
++        let args: Vec<String> = (0..5).map(|i| std::env::var(format!("CC_REAL_SCENE_ARG_{i}")).unwrap()).collect();
++        let cc = cc_scene::CcScene::load(&args).unwrap();
++        assert!(cc.swatches_enabled());
++        let default = cc_scene::swatch_catalog::DEFAULT_ID;
++        let alternate = cc_scene::swatch_catalog::SWATCHES[1].id;
++        let old = cc.render_pose(0, [0,0,0,16384], 0).unwrap();
++        let same = cc.render_pose_swatch(default, 0, [0,0,0,16384], 0).unwrap();
++        let changed = cc.render_pose_swatch(alternate, 0, [0,0,0,16384], 0).unwrap();
++        assert_eq!(old.rgb, same.rgb);
++        assert_ne!(same.rgb, changed.rgb);
++        assert!(cc.render_pose_swatch("invalid", 0, [0,0,0,16384], 0).is_err());
++        let state = ServerState {host:"127.0.0.1:1".into(),raw:vec![],config:vec![],morph:None,
++            identity:Identity{scene:cc.hash.clone(),json:String::new(),renderer:"serial-cc".into(),workers:0,http_workers:1},
++            cc:Some(cc),render_gate:Mutex::new(()),texture:None,catalog:None,import_status:None,source_images:cc_source_images::Owner::default()};
++        let request = ValidatedRequest {path:format!("/cc-frame?yaw=0&brightness=0&saturation=0&hue=0&opacity=16384&pose=0&swatch={alternate}"),header_read_ms:0.0};
++        let mut output=Vec::new();serve(&mut output,&state,&request,0.0).unwrap();
++        let split=output.windows(4).position(|w|w==b"\r\n\r\n").unwrap()+4;
++        assert!(std::str::from_utf8(&output[..split]).unwrap().contains(&format!("X-Swatch-ID: {alternate}\r\n")));
++        assert_eq!(&output[split..],changed.rgb.as_slice());
++    }
++}
+--- a/preview-ui/frame-client.mjs
++++ b/preview-ui/frame-client.mjs
+@@ -43,13 +43,13 @@
+   let path;
+   const hasAccessory=['accessoryId','accessoryCatalog','accessoryScene'].some(key=>request[key]!==undefined);
+   if(hasAccessory&&(mode!=='clip'||!ACCESSORY_IDS.includes(request.accessoryId)||typeof request.accessoryCatalog!=='string'||!/^[a-f0-9]{64}$/.test(request.accessoryCatalog)||typeof request.accessoryScene!=='string'||!/^[a-f0-9]{64}$/.test(request.accessoryScene)))throw Error('Invalid prepared accessory identity');
+-  if(request.swatchId!==undefined&&(mode!=='clip'||typeof request.swatchId!=='string'||!SWATCH_ID.test(request.swatchId)))throw Error('Invalid swatch identity');
++  if(request.swatchId!==undefined&&(!['cc','clip'].includes(mode)||typeof request.swatchId!=='string'||!SWATCH_ID.test(request.swatchId)))throw Error('Invalid swatch identity');
+   if(request.catalogScene!==undefined&&(typeof request.catalogScene!=='string'||!/^[a-f0-9]{64}$/.test(request.catalogScene)))throw Error('Invalid catalog scene');
+   if(mode==='cc'||mode==='clip') {
+    if((request.pose!==undefined&&(!Number.isInteger(request.pose)||Math.abs(request.pose)>90))||!Number.isInteger(request.yaw)||Math.abs(request.yaw)>180||!['brightness','saturation','hue'].every(k=>Number.isInteger(request[k])&&Math.abs(request[k])<=8192)||!Number.isInteger(request.opacity)||request.opacity<3277||request.opacity>16384)throw Error('Invalid CC parameters');
+    path=`/cc-frame?yaw=${request.yaw}&brightness=${request.brightness}&saturation=${request.saturation}&hue=${request.hue}&opacity=${request.opacity}${request.pose===undefined?'':`&pose=${request.pose}`}`;
+    if(mode==='clip'){if(typeof request.clipId!=='string'||!/^[a-f0-9]{64}$/.test(request.clipId)||!Number.isInteger(request.frame)||request.frame<0||request.frame>=2048)throw Error('Invalid clip selection');path=`/clip-frame?clip=${request.clipId}&frame=${request.frame}&yaw=${request.yaw}&brightness=${request.brightness}&saturation=${request.saturation}&hue=${request.hue}&opacity=${request.opacity}`;}
+-   if(mode==='clip'&&request.swatchId!==undefined)path+=`&swatch=${request.swatchId}`;
++   if(request.swatchId!==undefined)path+=`&swatch=${request.swatchId}`;
+    if(hasAccessory)path+=`&accessory=${request.accessoryId}&accessory_catalog=${request.accessoryCatalog}&accessory_scene=${request.accessoryScene}`;
+    request={...request,format:'rgb'};
+   } else {
+--- a/preview-ui/frame-client.test.mjs
++++ b/preview-ui/frame-client.test.mjs
+@@ -58,3 +58,10 @@
+ test('pooled CC identity accepts only bounded named modes and remains frame-bound',async()=>{for(const renderer of ['pooled-cc-1','pooled-cc-2','pooled-cc-4','pooled-cc-3','pooled-cc-64']){let wrong=false;const c=createFrameClient({mode:'cc',fetchImpl:async p=>{if(p==='/identity')return new Response(JSON.stringify({harness,scene_sha256:scene,renderer,http_workers:1}),{headers:{'content-type':'application/json'}});const f=frame();f.headers.set('X-Renderer',wrong?'serial-cc':renderer);return f;}});const q={yaw:0,brightness:0,saturation:0,hue:0,opacity:16384};if(['pooled-cc-3','pooled-cc-64'].includes(renderer)){await assert.rejects(c.read(q),/Invalid scene identity/);}else{assert.equal((await c.read(q)).renderer,renderer);wrong=true;await assert.rejects(c.read(q),/Scene identity changed/);}}});
+ test('optional queue and render timing never treat blank or invalid values as zero',async()=>{let value='12.75';const c=client(()=>{const f=frame();f.headers.set('X-Admission-Wait-Ms',value);f.headers.set('X-Render-Ms',value);return f;});let r=await c.value.read(request);assert.equal(r.serverAdmissionMs,12.75);assert.equal(r.cpuMs,12.75);for(value of ['',' ','NaN','Infinity','-1']){r=await c.value.read(request);assert.equal(r.serverAdmissionMs,null);assert.equal(r.cpuMs,null);assert.equal(r.rgba.length,1048576);}});
+ test('swatch frames bind exact requested resource and catalog scene',async()=>{const swatchId='034AEECB:80000000:E788BC6354CE1C3A',clipId='b'.repeat(64);let wrong=false;const seen=[];const c=createFrameClient({mode:'clip',fetchImpl:async p=>{seen.push(p);if(p==='/identity')return new Response(JSON.stringify({harness,scene_sha256:scene,renderer:'serial-cc',http_workers:1,pose_library_ready:true}),{headers:{'content-type':'application/json'}});const f=frame();f.headers.set('X-Renderer','serial-cc');f.headers.set('X-Clip-ID',clipId);f.headers.set('X-Clip-Frame','0');f.headers.set('X-Swatch-ID',wrong?'034AEECB:80000000:0000000000000000':swatchId);return f;}});const q={clipId,frame:0,yaw:0,brightness:0,saturation:0,hue:0,opacity:16384,swatchId,catalogScene:scene};assert.equal((await c.read(q)).bytes,786432);assert.ok(seen[1].endsWith('&swatch='+swatchId));wrong=true;await assert.rejects(c.read(q),/Swatch identity changed/);const n=seen.length;await assert.rejects(c.read({...q,catalogScene:'c'.repeat(64)}),/catalog scene changed/);assert.equal(seen.length,n);await assert.rejects(c.read({...q,swatchId:'../file'}),/Invalid swatch/);assert.equal(seen.length,n);});
++
++test('CC client binds explicit swatch identity and rejects mismatched responses',async()=>{
++ const swatch='034AEECB:80000000:D6F66DF266A80F77',seen=[];let echo=swatch;
++ const c=createFrameClient({mode:'cc',fetchImpl:async p=>{seen.push(p);if(p==='/identity')return new Response(JSON.stringify({harness,scene_sha256:scene,renderer:'serial-cc',http_workers:1,pose_ready:true}),{headers:{'content-type':'application/json'}});const f=frame();f.headers.set('X-Renderer','serial-cc');f.headers.set('X-Swatch-ID',echo);return f;}});
++ const q={yaw:0,pose:0,brightness:0,saturation:0,hue:0,opacity:16384,swatchId:swatch,catalogScene:scene};
++ await c.read(q);assert.ok(seen[1].endsWith('&pose=0&swatch='+swatch));echo='034AEECB:80000000:E788BC6354CE1C3A';await assert.rejects(c.read(q),/Swatch identity/);await assert.rejects(c.read({...q,swatchId:'../bad'}),/Invalid swatch/);
++});
+--- a/preview-ui/room-fallback.mjs
++++ b/preview-ui/room-fallback.mjs
+@@ -1,18 +1,21 @@
+ import {CcHistory,CC_DEFAULTS} from './cc-history.mjs';
+ import {loadCcHistory,saveCcHistory} from './cc-history-session.mjs';
+-import {createFrameClient} from './frame-client.mjs';
++import {createFrameClient,readLimited} from './frame-client.mjs';
++import {validateSwatchCatalog,swatchLabel} from './swatch-model.mjs';
++import {CcSwatchHistory,loadSwatchHistory,saveSwatchHistory} from './cc-swatch-history.mjs';
+ import {PreviewController} from './controller.mjs';
+ 
+ // Explicit selected-CC fallback. Never pretends that native pose, outfit, or
+ // game application is available; this is the existing read-only renderer.
+-export function startRoomFallback(doc,win,storage){
++async function readSwatchCatalog(){const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),5000);try{const r=await fetch('/swatch-catalog',{signal:ctl.signal,cache:'no-store',redirect:'error',credentials:'same-origin'});if(!r.ok||(r.headers.get('content-type')||'').split(';')[0]!=='application/json')throw Error('Swatch catalog unavailable');return validateSwatchCatalog(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(await readLimited(r,{maxBytes:32768,signal:ctl.signal}))));}finally{clearTimeout(timer);ctl.abort();}}
++export function startRoomFallback(doc,win,storage,catalogLoader=readSwatchCatalog){
+  const $=s=>doc.querySelector(s),canvas=$('canvas'),ctx=canvas.getContext('2d');
+  const names=['yaw','pose','hue','brightness','saturation','opacity'];
+  let history=new CcHistory();const client=createFrameClient({mode:'cc',timeoutMs:15000});
+- let scene=null,ready=false,error='',reopen=false;
++ let scene=null,ready=false,error='',reopen=false,swatches=null,closed=false,catalogStarted=false,poseReady=false;
+  const control=n=>$('#'+(n==='pose'?'rig-pose':n));
+  const fields=()=>Object.fromEntries(names.map(n=>[n,Number(control(n).value)]));
+- function save(){if(!ready)return;try{saveCcHistory(history,storage,scene);error='';}catch(e){ready=false;error='Tab recovery unavailable: '+e.message;}}
++ function save(){if(!ready)return;try{if(swatches)saveSwatchHistory(history,storage,scene,swatches.catalog_sha256);else saveCcHistory(history,storage,scene);error='';}catch(e){ready=false;error='Tab recovery unavailable: '+e.message;}}
+  function sync(){
+   $('#undo-pose').disabled=!history.canUndo;$('#redo-pose').disabled=history.pending||history.branches.length===0;
+   $('#pose-branches').replaceChildren(...history.branches.map(b=>{let o=doc.createElement('option');o.value=String(b.id);o.textContent='Preview edit '+b.id;return o;}));
+@@ -20,25 +23,29 @@
+   $('#pose-branches').disabled=$('#redo-pose').disabled;
+   $('#pose-history-status').textContent=`Preview history ${history.nodes.length}/${history.capacity}. No game or outfit writes. ${error}`;
+  }
+- function restore(){for(const n of names)control(n).value=String(history.value[n]);sync();controller.request(history.value);}
++ function request(){controller.request({...history.value,...(swatches?{catalogScene:swatches.scene_sha256}:{})});}
++ function restore(){for(const n of names)control(n).value=String(history.value[n]);if(swatches)$('#swatch-select').value=history.value.swatchId;sync();request();}
++ async function prepareSwatches(){try{const c=await catalogLoader();if(!c||!c.enabled){$('#swatch-status').textContent='Prepared swatches unavailable; default selected CC remains visible.';return;}if(closed||!ready||c.scene_sha256!==scene||history.pending)throw Error('Scene or preview changed while swatches loaded');const next=new CcSwatchHistory(c);next.migrateLegacy(history,c.default_id);loadSwatchHistory(next,storage,scene,c.catalog_sha256);if(!poseReady&&next.value.pose!==0)throw Error('Saved rig pose requires the missing rig');history=next;swatches=c;const select=$('#swatch-select');select.replaceChildren(...c.swatches.map(x=>{const o=doc.createElement('option');o.value=x.id;o.textContent=swatchLabel(c,x.id);return o;}));select.disabled=false;select.value=history.value.swatchId;$('#swatch-status').textContent='Verified dress swatches only; preview does not equip or write to the game.';restore();}catch(e){$('#swatch-status').textContent='Swatches unavailable: '+e.message;}}
+  const controller=new PreviewController(r=>client.read(r),(frame,r)=>{
+   if(scene!==null&&scene!==frame.scene)throw Error('Preview scene changed');
+   ctx.putImageData(new ImageData(frame.rgba,512,512),0,0);
+-  if(scene===null){scene=frame.scene;try{const candidate=new CcHistory();let recovered=loadCcHistory(candidate,storage,scene);if(!frame.poseReady&&candidate.value.pose!==0)throw Error('Saved rig pose requires the missing rig');history=candidate;ready=true;if(recovered)queueMicrotask(restore);}catch(e){error='Tab recovery unavailable: '+e.message;}
+-   for(const n of names)control(n).disabled=(n==='pose'&&!frame.poseReady);$('#rig-pose-control').hidden=!frame.poseReady;$('#reset-material').disabled=false;sync();}
++  if(scene===null){scene=frame.scene;poseReady=frame.poseReady;try{const candidate=new CcHistory();let recovered=loadCcHistory(candidate,storage,scene);if(!frame.poseReady&&candidate.value.pose!==0)throw Error('Saved rig pose requires the missing rig');history=candidate;ready=true;if(recovered)queueMicrotask(restore);}catch(e){error='Tab recovery unavailable: '+e.message;}
++   for(const n of names)control(n).disabled=(n==='pose'&&!frame.poseReady);$('#rig-pose-control').hidden=!frame.poseReady;$('#reset-material').disabled=false;sync();if(ready&&!catalogStarted){catalogStarted=true;queueMicrotask(prepareSwatches);}}
++  if(swatches&&r.swatchId){canvas.dataset.swatchId=r.swatchId;$('#swatch-status').textContent=`Showing ${swatchLabel(swatches,r.swatchId)}. Preview only; no game write.`;}
+   canvas.setAttribute('aria-label','Selected CC diagnostic preview; no imported pose');canvas.dataset.scene=frame.scene;canvas.dataset.parameters=JSON.stringify(r);
+   $('#identity').textContent=`${frame.harness} · scene ${frame.scene}`;$('#metrics').textContent=`Render ${frame.cpuMs??'?'} ms · request ${frame.fetchMs.toFixed(1)} ms. Offline diagnostic; not game FPS.`;
+  },message=>{$('#frame-status').textContent='Pose library unavailable. Selected CC preview: '+message;});
+- for(const n of names){let input=control(n);input.addEventListener('input',()=>{try{history.stage({...history.value,...fields()});sync();controller.request(history.value);}catch(e){error=e.message;sync();}});input.addEventListener('change',()=>{try{history.commit();save();sync();}catch(e){error=e.message;restore();}});}
++ for(const n of names){let input=control(n);input.addEventListener('input',()=>{try{history.stage({...history.value,...fields()});sync();request();}catch(e){error=e.message;sync();}});input.addEventListener('change',()=>{try{history.commit();save();sync();}catch(e){error=e.message;restore();}});}
+  $('#undo-pose').addEventListener('click',()=>{history.undo();save();restore();});
+  $('#redo-pose').addEventListener('click',()=>{try{history.redo(Number($('#pose-branches').value));save();restore();}catch(e){error=e.message;sync();}});
+  $('#reset-material').addEventListener('click',()=>{try{history.stage({...history.value,hue:0,brightness:0,saturation:0,opacity:16384});history.commit();save();restore();}catch(e){error=e.message;sync();}});
+  for(const n of ['search','pack','creator','kind','availability','pinned-only','loop','playback-rate'])$('#'+n).disabled=true;
+  const unavailable=doc.createElement('option');unavailable.textContent='Pose library unavailable';unavailable.value='';$('#pose-select').replaceChildren(unavailable);
+- $('#swatch-status').textContent='Prepared swatch selection is unavailable in this fallback; default selected CC remains visible.';
++ $('#swatch-status').textContent='Checking prepared dress swatches; default selected CC remains visible.';
++ $('#swatch-select').addEventListener('change',()=>{if(!swatches)return;try{history.stage({...history.value,swatchId:$('#swatch-select').value});history.commit();save();sync();$('#swatch-status').textContent='Swatch requested; last complete frame remains visible while rendering.';request();}catch(e){error=e.message;restore();}});
+  $('#accessory-status').textContent='Prepared accessory selection is unavailable in this fallback.';
+  $('#undo-pose').setAttribute('aria-label','Undo preview edit');$('#redo-pose').setAttribute('aria-label','Redo preview edit');
+  $('#selected-title').textContent='Selected CC preview';$('#selected-detail').textContent='Pose library is unavailable; showing neutral rig diagnostic.';$('#play-state').textContent='Pose unavailable';
+- win.addEventListener('pagehide',()=>{reopen=controller.opened;controller.close();});win.addEventListener('pageshow',e=>{if(e.persisted&&reopen){reopen=false;controller.open();restore();}});
++ win.addEventListener('pagehide',()=>{closed=true;reopen=controller.opened;controller.close();});win.addEventListener('pageshow',e=>{if(e.persisted&&reopen){closed=false;reopen=false;controller.open();restore();}});
+  controller.open();restore();return {controller,get history(){return history;}};
+ }
+--- a/preview-ui/room-fallback.test.mjs
++++ b/preview-ui/room-fallback.test.mjs
+@@ -1,13 +1,14 @@
+ import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
++import {CcSwatchHistory,loadSwatchHistory,saveSwatchHistory} from './cc-swatch-history.mjs';import {swatchLabel} from './swatch-model.mjs';
+ import {CcHistory,CC_DEFAULTS} from './cc-history.mjs';import {loadCcHistory,saveCcHistory} from './cc-history-session.mjs';import {PreviewController} from './controller.mjs';
+ const src=readFileSync(new URL('./room-fallback.mjs',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace('export function startRoomFallback','function startRoomFallback')+'\nreturn startRoomFallback;';
+ const tick=()=>new Promise(r=>setImmediate(r));
+-function fixture(storage={getItem(){return null},setItem(){}}){
++function fixture(storage={getItem(){return null},setItem(){}},catalogLoader=async()=>null){
+  const elements=new Map(),handlers={};function el(id){if(!elements.has(id))elements.set(id,{value:id==='opacity'?'16384':'0',disabled:false,textContent:'',dataset:{},events:{},children:[],addEventListener(n,f){(this.events[n]??=[]).push(f)},replaceChildren(...x){this.children=x},setAttribute(k,v){this[k]=v},getContext(){return {putImageData(){}}}});return elements.get(id)}
+  const doc={querySelector:s=>el(s.replace('#','')),createElement:()=>({value:'',textContent:''})},win={addEventListener(n,f){handlers[n]=f}},pending=[];
+  const createFrameClient=()=>({read:request=>new Promise(resolve=>pending.push({request,resolve}))});
+- const start=new Function('CcHistory','CC_DEFAULTS','loadCcHistory','saveCcHistory','createFrameClient','PreviewController','ImageData',src)(CcHistory,CC_DEFAULTS,loadCcHistory,saveCcHistory,createFrameClient,PreviewController,class{});
+- const state=start(doc,win,storage);const fire=(id,event)=>{for(const f of el(id).events[event]??[])f({})};
++ const start=new Function('CcHistory','CC_DEFAULTS','loadCcHistory','saveCcHistory','createFrameClient','PreviewController','ImageData','CcSwatchHistory','loadSwatchHistory','saveSwatchHistory','swatchLabel',src)(CcHistory,CC_DEFAULTS,loadCcHistory,saveCcHistory,createFrameClient,PreviewController,class{},CcSwatchHistory,loadSwatchHistory,saveSwatchHistory,swatchLabel);
++ const state=start(doc,win,storage,catalogLoader);const fire=(id,event)=>{for(const f of el(id).events[event]??[])f({})};
+  async function accept(scene='a'.repeat(64),poseReady=false){let x=pending.shift();x.resolve({rgba:new Uint8ClampedArray(4),scene,harness:'fixture',renderer:'fixture',fetchMs:1,poseReady});await tick();}
+  return {el,fire,pending,accept,state,windowEvent(n,e={}){handlers[n]?.(e)}};
+ }
+@@ -16,3 +17,6 @@
+ 
+ test('verified rig enables bounded arm diagnostic and reload retains it',async()=>{const m=new Map(),storage={getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)};let a=fixture(storage);await a.accept('a'.repeat(64),true);assert.equal(a.el('rig-pose').disabled,false);assert.equal(a.el('rig-pose-control').hidden,false);a.el('rig-pose').value='45';a.fire('rig-pose','input');a.fire('rig-pose','change');assert.equal(a.pending[0].request.pose,45);await a.accept('a'.repeat(64),true);let b=fixture(storage);await b.accept('a'.repeat(64),true);await tick();assert.equal(b.pending[0].request.pose,45);await b.accept('a'.repeat(64),true)});
+ test('missing rig cannot restore or overwrite nonzero saved pose',async()=>{const m=new Map(),storage={getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)};let a=fixture(storage);await a.accept('a'.repeat(64),true);a.el('rig-pose').value='45';a.fire('rig-pose','input');a.fire('rig-pose','change');await a.accept('a'.repeat(64),true);const before=[...m.values()][0];let b=fixture(storage);await b.accept('a'.repeat(64),false);assert.equal(b.el('rig-pose').disabled,true);assert.equal(b.el('rig-pose-control').hidden,true);assert.match(b.el('pose-history-status').textContent,/missing rig/);b.el('hue').value='12';b.fire('hue','input');b.fire('hue','change');await b.accept('a'.repeat(64),false);assert.equal([...m.values()][0],before)});
++
++test('prepared swatches select, undo, redo and survive reload without game writes',async()=>{const m=new Map(),storage={getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)},scene='a'.repeat(64),digest='b'.repeat(64),one='034AEECB:80000000:E788BC6354CE1C3A',two='034AEECB:80000000:D6F66DF266A80F77',catalog={enabled:true,scene_sha256:scene,catalog_sha256:digest,default_id:one,swatches:[{id:one,order:10},{id:two,order:15}]};let a=fixture(storage,async()=>catalog);await a.accept(scene,true);await tick();assert.equal(a.el('swatch-select').disabled,false);assert.equal(a.pending[0].request.swatchId,one);await a.accept(scene,true);a.el('swatch-select').value=two;a.fire('swatch-select','change');assert.equal(a.pending[0].request.swatchId,two);await a.accept(scene,true);a.fire('undo-pose','click');assert.equal(a.pending[0].request.swatchId,one);await a.accept(scene,true);a.fire('redo-pose','click');assert.equal(a.pending[0].request.swatchId,two);await a.accept(scene,true);let b=fixture(storage,async()=>catalog);await b.accept(scene,true);await tick();assert.equal(b.pending[0].request.swatchId,two);await b.accept(scene,true);});
++test('a foreign catalog cannot enable swatch controls',async()=>{const c={enabled:true,scene_sha256:'b'.repeat(64),catalog_sha256:'c'.repeat(64)};let a=fixture(undefined,async()=>c);a.el('swatch-select').disabled=true;await a.accept('a'.repeat(64),true);await tick();assert.equal(a.el('swatch-select').disabled,true);assert.match(a.el('swatch-status').textContent,/unavailable/);});
+--- a/preview-ui/pose-bundle.test.mjs
++++ b/preview-ui/pose-bundle.test.mjs
+@@ -1,5 +1,5 @@
+ import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {createHash} from 'node:crypto';
+ const read=name=>readFileSync(new URL(name,import.meta.url));const hash=data=>createHash('sha256').update(data).digest('hex');
+ const receipt=JSON.parse(read('./pose-bundle-receipt.json'));
+-test('complete pinned bundle matches all current source inputs and exact output',()=>{assert.equal(receipt.version,'0.28.2');assert.equal(receipt.treeShaking,false);assert.equal(receipt.minify,false);assert.deepEqual(receipt.warnings,[]);assert.equal(Object.keys(receipt.inputs).length,14);for(const name of ['history-shortcuts','hue-wheel-model','hue-wheel-ui','swatch-model','accessory-model','accessory-inspection'])assert.ok(Object.hasOwn(receipt.inputs,'preview-ui/'+name+'.mjs'));for(const [name,digest] of Object.entries(receipt.inputs)){assert.match(name,/^preview-ui\/[a-z-]+\.mjs$/);assert.equal(hash(read('../'+name)),digest,name);}assert.equal(hash(read('./pose-app.bundle.mjs')),receipt.output_sha256);});
++test('complete pinned bundle matches all current source inputs and exact output',()=>{assert.equal(receipt.version,'0.28.2');assert.equal(receipt.treeShaking,false);assert.equal(receipt.minify,false);assert.deepEqual(receipt.warnings,[]);assert.deepEqual(Object.keys(receipt.inputs).sort(),['accessory-inspection','accessory-model','cc-history-session','cc-history','cc-swatch-history','controller','frame-client','history-shortcuts','hue-wheel-model','hue-wheel-ui','pose-app','pose-history-session','pose-history','pose-model','room-fallback','swatch-model','thumbnail-pool'].map(x=>'preview-ui/'+x+'.mjs').sort());for(const name of ['history-shortcuts','hue-wheel-model','hue-wheel-ui','swatch-model','accessory-model','accessory-inspection','room-fallback','cc-history-session','cc-history','cc-swatch-history'])assert.ok(Object.hasOwn(receipt.inputs,'preview-ui/'+name+'.mjs'));for(const [name,digest] of Object.entries(receipt.inputs)){assert.match(name,/^preview-ui\/[a-z-]+\.mjs$/);assert.equal(hash(read('../'+name)),digest,name);}assert.equal(hash(read('./pose-app.bundle.mjs')),receipt.output_sha256);});
+ test('default bundled and explicit module HTML differ only in script entry',()=>{const a=read('./poses.html').toString(),b=read('./poses-bundled.html').toString();assert.equal(b,a.replace('src="/pose-app.mjs"','src="/pose-app.bundle.mjs"'));assert.equal((b.match(/<script /g)||[]).length,1);});
+--- /dev/null
++++ b/preview-ui/cc-swatch-history.mjs
+@@ -0,0 +1,19 @@
++// Bounded preview-only history. The private scene and fixed catalog own every ID.
++import {PreviewHistory,CC_DEFAULTS} from './cc-history.mjs';
++const fields=['yaw','pose','brightness','saturation','hue','opacity'];
++const limits={yaw:[-180,180],pose:[-90,90],brightness:[-8192,8192],saturation:[-8192,8192],hue:[-8192,8192],opacity:[3277,16384]};
++const DIGEST=/^[a-f0-9]{64}$/;
++export class CcSwatchHistory extends PreviewHistory {
++ constructor(catalog,capacity=128){
++  if(!catalog?.enabled||!DIGEST.test(catalog.scene_sha256)||!DIGEST.test(catalog.catalog_sha256))throw Error('Verified swatch catalog required');
++  const ids=new Set(catalog.swatches.map(s=>s.id));if(!ids.has(catalog.default_id))throw Error('Default swatch missing');
++  const checked=v=>{if(!v||Object.keys(v).length!==7||!ids.has(v.swatchId))throw Error('Invalid swatch preview');for(const k of fields){const [min,max]=limits[k];if(!Number.isInteger(v[k])||v[k]<min||v[k]>max)throw Error('Invalid preview '+k);}return Object.freeze({...v});};
++  const same=(a,b)=>fields.every(k=>a[k]===b[k])&&a.swatchId===b.swatchId;
++  super({...CC_DEFAULTS,swatchId:catalog.default_id},capacity,{checked,same});
++ }
++ migrateLegacy(legacy,defaultId){const state=legacy.exportState();state.nodes=state.nodes.map(n=>({...n,value:{...n.value,swatchId:defaultId}}));this.restoreState(state);}
++}
++const LIMIT=65536,owners=new WeakMap();
++function key(scene,catalog){if(!DIGEST.test(scene)||!DIGEST.test(catalog))throw Error('Verified scene and catalog required');return 'apex.cc-swatch-preview.v1.'+scene+'.'+catalog;}
++export function loadSwatchHistory(history,storage,scene,catalog){const name=key(scene,catalog),raw=storage.getItem(name);if(raw!==null){if(typeof raw!=='string'||raw.length>LIMIT)throw Error('Retained swatch history exceeds limit');history.restoreState(JSON.parse(raw));}owners.set(history,{storage,name,raw});return raw!==null;}
++export function saveSwatchHistory(history,storage,scene,catalog){const name=key(scene,catalog),prior=owners.get(history),current=storage.getItem(name);if(!prior||prior.storage!==storage||prior.name!==name||prior.raw!==current)throw Error('Retained swatch history changed; refusing overwrite');const raw=JSON.stringify(history.exportState());if(raw.length>LIMIT)throw Error('Swatch history exceeds limit');storage.setItem(name,raw);if(storage.getItem(name)!==raw)throw Error('Swatch history readback changed');owners.set(history,{storage,name,raw});}
+--- /dev/null
++++ b/preview-ui/cc-swatch-history.test.mjs
+@@ -0,0 +1,6 @@
++import test from 'node:test';import assert from 'node:assert/strict';import {CcHistory} from './cc-history.mjs';import {CcSwatchHistory,loadSwatchHistory,saveSwatchHistory} from './cc-swatch-history.mjs';
++const scene='a'.repeat(64),digest='b'.repeat(64),one='034AEECB:80000000:E788BC6354CE1C3A',two='034AEECB:80000000:D6F66DF266A80F77',catalog={enabled:true,scene_sha256:scene,catalog_sha256:digest,default_id:one,swatches:[{id:one},{id:two}]};
++const storage=()=>{const m=new Map();return {getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,v)}};
++test('legacy controls and branches migrate with default and preserve swatch undo redo',()=>{const old=new CcHistory();old.stage({...old.value,hue:50});old.commit();old.undo();old.stage({...old.value,yaw:25});old.commit();const h=new CcSwatchHistory(catalog);h.migrateLegacy(old,one);assert.equal(h.value.yaw,25);h.stage({...h.value,swatchId:two});h.commit();assert.equal(h.value.swatchId,two);h.undo();assert.equal(h.value.swatchId,one);h.redo();assert.equal(h.value.swatchId,two);assert.throws(()=>h.stage({...h.value,swatchId:'../bad'}));});
++test('catalog and scene bind storage; external changes refuse overwrite',()=>{const s=storage(),h=new CcSwatchHistory(catalog);assert.equal(loadSwatchHistory(h,s,scene,digest),false);h.stage({...h.value,swatchId:two});h.commit();saveSwatchHistory(h,s,scene,digest);const copy=new CcSwatchHistory(catalog);assert.equal(loadSwatchHistory(copy,s,scene,digest),true);assert.equal(copy.value.swatchId,two);s.setItem('apex.cc-swatch-preview.v1.'+scene+'.'+digest,'other');assert.throws(()=>saveSwatchHistory(copy,s,scene,digest),/changed/);});
++test('foreign retained swatch and incomplete values fail closed',()=>{const h=new CcSwatchHistory(catalog);assert.throws(()=>h.stage({swatchId:one}),/Invalid swatch/);const s=storage();s.setItem('apex.cc-swatch-preview.v1.'+scene+'.'+digest,JSON.stringify({schema:1,capacity:128,current:0,nodes:[{value:{...h.value,swatchId:'034AEECB:80000000:FFFFFFFFFFFFFFFF'},parent:null,children:[]}]}));assert.throws(()=>loadSwatchHistory(h,s,scene,digest));});

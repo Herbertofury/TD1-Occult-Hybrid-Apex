@@ -35,6 +35,43 @@ async function fingerprint(file, size) {
   return hash.digest('hex');
 }
 
+// RefPack streams use literal and backward-copy commands. Fail closed on
+// unsupported headers, truncation, impossible distances and extra input.
+export function decodeRefpack(input, expectedSize) {
+  if (!Buffer.isBuffer(input) || input.length < 5 || !Number.isSafeInteger(expectedSize) || expectedSize < 0 || expectedSize > MAX_PAYLOAD)
+    invalid('invalid RefPack input');
+  let pos = 0;
+  const byte = () => { if (pos >= input.length) invalid('truncated RefPack'); return input[pos++]; };
+  const flags = byte();
+  if (byte() !== 0xfb) invalid('unsupported RefPack header');
+  let declared = 0;
+  for (let i = 0; i < ((flags & 0x80) ? 4 : 3); i++) declared = declared * 256 + byte();
+  if (declared !== expectedSize) invalid('RefPack declared size mismatch');
+  const output = Buffer.alloc(expectedSize);
+  let written = 0, ended = false;
+  while (pos < input.length && !ended) {
+    const op = byte();
+    let literals, length = 0, distance = 0;
+    if (op <= 0x7f) {
+      const b = byte(); literals = op & 3; length = ((op & 0x1c) >> 2) + 3;
+      distance = ((op & 0x60) << 3) + b + 1;
+    } else if (op <= 0xbf) {
+      const b = byte(), c = byte(); literals = b >> 6; length = (op & 0x3f) + 4;
+      distance = ((b & 0x3f) << 8) + c + 1;
+    } else if (op <= 0xdf) {
+      const b = byte(), c = byte(), d = byte(); literals = op & 3; length = ((op & 0x0c) << 6) + d + 5;
+      distance = ((op & 0x10) << 12) + (b << 8) + c + 1;
+    } else if (op <= 0xfb) literals = ((op & 0x1f) << 2) + 4;
+    else { literals = op & 3; ended = true; }
+    if (pos + literals > input.length || written + literals + length > output.length) invalid('invalid RefPack extent');
+    input.copy(output, written, pos, pos + literals); pos += literals; written += literals;
+    if (length && distance > written) invalid('invalid RefPack distance');
+    for (let i = 0; i < length; i++) { output[written] = output[written - distance]; written++; }
+  }
+  if (!ended || written !== output.length || pos !== input.length) invalid('incomplete RefPack stream');
+  return output;
+}
+
 export async function indexPackage(filename) {
   const file = await open(filename, 'r');
   try {
@@ -88,7 +125,7 @@ export async function readResource(filename, indexed, ordinal) {
   const row = current.rows[ordinal];
   if (row.deleted) return { status: 'deleted', row };
   if (row.committed !== 1) return { status: 'unsupported-storage-marker', row };
-  if (![0, 0x5a42].includes(row.compression)) return { status: 'unsupported-compression', row };
+  if (![0, 0x5a42, 0xffff].includes(row.compression)) return { status: 'unsupported-compression', row };
   if (row.storedSize > MAX_PAYLOAD || row.memorySize > MAX_PAYLOAD) invalid('payload limit');
   const file = await open(filename, 'r');
   try {
@@ -96,7 +133,8 @@ export async function readResource(filename, indexed, ordinal) {
     if (before.size !== current.source.size || await fingerprint(file, before.size) !== current.source.sha256) invalid('source changed');
     const bytes = await readExactly(file, row.offset, row.storedSize);
     if (!sameStat(before, await file.stat())) invalid('source changed during read');
-    const payload = row.compression === 0 ? bytes : inflateSync(bytes, { maxOutputLength: MAX_PAYLOAD });
+    const payload = row.compression === 0 ? bytes : row.compression === 0x5a42
+      ? inflateSync(bytes, { maxOutputLength: MAX_PAYLOAD }) : decodeRefpack(bytes, row.memorySize);
     if (payload.length !== row.memorySize) invalid('decompressed size mismatch');
     return { status: 'available', row, payload };
   } finally { await file.close(); }

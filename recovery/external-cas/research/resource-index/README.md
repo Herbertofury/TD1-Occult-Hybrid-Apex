@@ -2,7 +2,7 @@
 
 This is isolated research code, not an integrated CAS loader. It opens only
 explicitly supplied files and writes no files. It can index DBPF 2.1 package
-metadata, read bounded uncompressed or zlib payloads, inspect a CASP reference
+metadata, read bounded uncompressed, zlib or RefPack payloads, inspect a CASP reference
 table, and report matching candidates from an explicitly supplied package
 set. It does not modify the source packages or contact the game.
 
@@ -47,11 +47,11 @@ snapshot against concurrent mutation.
 
 ## Verification and source basis
 
-On Windows with Node 22.23.2, nine tests passed. They cover all eight index
+On Windows with Node 22.23.2, twelve tests passed. They cover all eight index
 shared-field masks, both index offset fields, large unsigned instances, mixed
 compression and deletion markers, bad extents/flags, changed package bytes,
 forged locators, ambiguous/missing/empty references, and a synthetic CLI flow.
-The last test compared the generated package indexes against the independently
+One test compared the generated package indexes against the independently
 obtained [s4py DBPF reader](https://github.com/thequux/s4py/blob/892150e78cfd0b6ca51258d5e0d740eb9adffcd1/lib/s4py/package/dbpf.py)
 at commit `892150e78cfd0b6ca51258d5e0d740eb9adffcd1`. Its unused YAML
 representer registration was stubbed in the test bridge; no reference parser
@@ -62,17 +62,16 @@ running the tests. Without these variables the comparison is skipped.
 The CASP table location and I64/group/type ordering were researched against
 [TS4CAS Tools' CASP implementation](https://github.com/CmarNYC-Tools/TS4CASTools/blob/main/src/XmodsDataLib/CASP.cs).
 The implementation here is separately written and retains no third-party source
-or assets. The comparison uses synthetic packages only: it establishes neither
-current-game compatibility nor CASP role correctness. No running game, user
-profile or installed package was accessed for this candidate.
+or assets. Synthetic checks alone do not establish CASP role correctness. See
+`INSTALLED-SAMPLE.md` for the narrowly bounded installed-package comparison.
 
 ## Next gates
 
-After the parent coordinates access, compare bounded samples from the installed
-version against independent tools, including real base/pack/delta and authorized
-CC sources. Confirm resource extents, compression, CASP table layout and
-reference semantics across versions. Resolve priority and source coverage from
-actual configured game/mod loading, with explicit conflict handling. Decode
+Compare broader samples from the installed version against independent tools,
+including authorized CC outside the protected original profile. Confirm resource
+extents, compression, CASP table layout and reference semantics across versions.
+Resolve priority and source coverage from actual configured game/mod loading,
+with explicit conflict handling. Decode
 and validate role-bearing CASP fields, cross-package geometry, textures, rigs,
 morphs, materials and poses before feeding the renderer. The present prototype
 does not implement those decoders, game synchronization, a native Tray writer,

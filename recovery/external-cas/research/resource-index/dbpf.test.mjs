@@ -6,7 +6,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { indexPackage, readResource, caspReferences, resolveReferences } from './dbpf.mjs';
+import { indexPackage, readResource, caspReferences, resolveReferences, decodeRefpack } from './dbpf.mjs';
 
 const u32 = n => { const b = Buffer.alloc(4); b.writeUInt32LE(n >>> 0); return b; };
 const u16 = n => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
@@ -17,7 +17,7 @@ function fixture(rows, flags = 0, useLowOffset = false) {
   let offset = 96;
   for (const [ordinal, row] of rows.entries()) {
     const content = row.payload ?? Buffer.from('abc');
-    const stored = row.compression === 0x5a42 ? deflateSync(content) : content;
+    const stored = row.stored ?? (row.compression === 0x5a42 ? deflateSync(content) : content);
     chunks.push(stored);
     const values = [row.type ?? shared[0], row.group ?? shared[1], row.hi ?? shared[2]];
     const entry = [];
@@ -138,6 +138,33 @@ test('resolution rejects unbounded or invalid supplied indexes before traversal'
   assert.throws(() => resolveReferences(Array(256), []), /resolution limit/);
 });
 
+test('bounded RefPack handles literal and overlapping backreferences and rejects malformed streams', async () => {
+  const streams = [
+    [Buffer.from('10fb000005e061626364fd65', 'hex'), 'abcde'],
+    [Buffer.from('10fb000007e0616263640003fc', 'hex'), 'abcdabc'],
+    [Buffer.from('10fb000008e061626364800003fc', 'hex'), 'abcdabcd'],
+    [Buffer.from('10fb000009e061626364c0000300fc', 'hex'), 'abcdabcda'],
+  ];
+  for (const [stream, expected] of streams) {
+    assert.equal(decodeRefpack(stream, expected.length).toString(), expected);
+    await withFile(fixture([{ payload: Buffer.from(expected), stored: stream, extended: true, compression: 0xffff }]), async filename => {
+      const index = await indexPackage(filename);
+      assert.equal((await readResource(filename, index, 0)).payload.toString(), expected);
+    });
+  }
+  for (const [bytes, size] of [
+    ['10fb0000040000fc', 4], ['10fb000004e06162', 4], ['10fb000004e061626364', 4],
+    ['10fb000004e061626364fc00', 4], ['10fa000004e061626364fc', 4],
+  ]) assert.throws(() => decodeRefpack(Buffer.from(bytes, 'hex'), size));
+  if (process.env.S4PY_ROOT && process.env.S4PY_PYTHON) {
+    const bridge = fileURLToPath(new URL('./s4py_oracle.py', import.meta.url));
+    for (const [stream, expected] of streams) {
+      const actual = execFileSync(process.env.S4PY_PYTHON, ['-B', bridge, process.env.S4PY_ROOT, '--refpack', stream.toString('hex')], { encoding: 'utf8' }).trim();
+      assert.equal(Buffer.from(actual, 'hex').toString(), expected);
+    }
+  }
+});
+
 test('synthetic indexes agree with independently obtained s4py', { skip: !(process.env.S4PY_ROOT && process.env.S4PY_PYTHON) }, async () => {
   const bridge = fileURLToPath(new URL('./s4py_oracle.py', import.meta.url));
   for (let flags = 0; flags < 8; flags++) {
@@ -151,4 +178,30 @@ test('synthetic indexes agree with independently obtained s4py', { skip: !(proce
       assert.deepEqual(actual, oracle);
     });
   }
+});
+
+test('private comparison reports counts without source keys, hashes or paths', { skip: !(process.env.S4PY_ROOT && process.env.S4PY_PYTHON) }, async () => {
+  const key = { type: 0x015a1849, group: 0x12345678, instance: 0x8765432100000002n };
+  const data = fixture([{ payload: casp([key]), extended: true, compression: 0x5a42 }, { type: key.type, lo: 2 }]);
+  await withFile(data, async one => withFile(data, async two => {
+    const cli = fileURLToPath(new URL('./compare-private.mjs', import.meta.url));
+    const output = execFileSync(process.execPath, [cli, one, two], { encoding: 'utf8' });
+    const report = JSON.parse(output);
+    assert.equal(report.sharedKeyPairs[0].sharedKeys, 2);
+    assert.equal(report.referenceResults.ambiguous, 2);
+    assert.equal(output.includes(one), false);
+    assert.equal(output.includes('015A1849'), false);
+    assert.equal(output.includes('sha256'), false);
+  }));
+});
+
+test('private RefPack comparison reports a match without publishing payload or hash', { skip: !(process.env.S4PY_ROOT && process.env.S4PY_PYTHON) }, async () => {
+  const stream = Buffer.from('10fb000005e061626364fd65', 'hex');
+  await withFile(fixture([{ payload: Buffer.from('abcde'), stored: stream, extended: true, compression: 0xffff }]), async filename => {
+    const cli = fileURLToPath(new URL('./compare-refpack-private.mjs', import.meta.url));
+    const output = execFileSync(process.execPath, [cli, filename], { encoding: 'utf8' });
+    assert.deepEqual(JSON.parse(output), { samples: 1, matched: true, outputBytes: 5 });
+    assert.equal(output.includes(filename), false);
+    assert.equal(output.includes('abcde'), false);
+  });
 });

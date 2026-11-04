@@ -7,7 +7,7 @@ table, and report matching candidates from an explicitly supplied package
 set. It does not modify the source packages or contact the game.
 
 ```powershell
-node --test dbpf.test.mjs
+node --test dbpf.test.mjs casp.test.mjs
 node inspect.mjs 034AEECB:00000000:0123456789ABCDEF C:\private\first.package C:\private\second.package
 ```
 
@@ -34,11 +34,11 @@ snapshot against concurrent mutation.
   flags, malformed extents, trailing index data and exceeded limits fail closed.
   Unknown compression or storage markers remain indexed and return an explicit
   unsupported status. Tombstones are reported instead of loaded.
-- CASP versions `0x20` through `0x34` receive a **table-only** inspection. Its
-  TGI entries are candidates, not proven required dependencies: the parser does
-  not decode version-specific fields that assign mesh, texture, LOD, material,
-  age or species roles. A future version is reported as unsupported. Table
-  extent mismatches fail closed.
+- CASP versions `0x20` through `0x34` can receive a bounded role-bearing
+  inspection for mesh LODs and texture, material-related and other references.
+  The older table-only view is retained. Reference roles and metadata remain
+  candidates; they are not proof of renderer readiness or applicability. Future
+  versions, unexplained fields, malformed offsets and bad indexes fail closed.
 - Resolution returns `empty`, `missing`, `ambiguous`, or
   `unique-in-supplied-indexes`, including all source candidates. A unique match
   only describes the explicitly supplied set. This code does not claim the set
@@ -47,7 +47,7 @@ snapshot against concurrent mutation.
 
 ## Verification and source basis
 
-On Windows with Node 22.23.2, twelve tests passed. They cover all eight index
+On Windows with Node 22.23.2, seventeen tests passed. They cover all eight index
 shared-field masks, both index offset fields, large unsigned instances, mixed
 compression and deletion markers, bad extents/flags, changed package bytes,
 forged locators, ambiguous/missing/empty references, and a synthetic CLI flow.
@@ -61,8 +61,12 @@ running the tests. Without these variables the comparison is skipped.
 
 The CASP table location and I64/group/type ordering were researched against
 [TS4CAS Tools' CASP implementation](https://github.com/CmarNYC-Tools/TS4CASTools/blob/main/src/XmodsDataLib/CASP.cs).
-The implementation here is separately written and retains no third-party source
-or assets. Synthetic checks alone do not establish CASP role correctness. See
+The CASP role parser and its integration/test bridges are GPL-3.0-or-later
+research code, with provenance from that implementation and the already retained
+`examples/pinned-casp-resource-candidate.patch`. The oracle bridge executes the
+retained GPL patch and supplies a bounded reader shim. Retain the applicable GPL
+license and notices when integrating; see `examples/LICENSE-GPL-3.0-POSE-TOOLS.txt`.
+Synthetic checks alone do not establish CASP role correctness. See
 `INSTALLED-SAMPLE.md` for the narrowly bounded installed-package comparison.
 
 ## Next gates
@@ -71,8 +75,8 @@ Compare broader samples from the installed version against independent tools,
 including authorized CC outside the protected original profile. Confirm resource
 extents, compression, CASP table layout and reference semantics across versions.
 Resolve priority and source coverage from actual configured game/mod loading,
-with explicit conflict handling. Decode
-and validate role-bearing CASP fields, cross-package geometry, textures, rigs,
+with explicit conflict handling. Broaden validation of role-bearing CASP fields,
+then decode cross-package geometry, textures, rigs,
 morphs, materials and poses before feeding the renderer. The present prototype
 does not implement those decoders, game synchronization, a native Tray writer,
 or in-game visual validation.

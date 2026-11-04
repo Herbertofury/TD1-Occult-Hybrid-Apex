@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Local aggregate-only comparison. The oracle's per-resource output stays in memory.
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { indexPackage, readResource, caspReferences, resolveReferences } from './dbpf.mjs';
+import { parseCasp } from './casp.mjs';
 
 const paths = process.argv.slice(2);
 if (!process.env.S4PY_ROOT || !process.env.S4PY_PYTHON || paths.length < 1 || paths.length > 4) {
@@ -11,7 +13,7 @@ if (!process.env.S4PY_ROOT || !process.env.S4PY_PYTHON || paths.length < 1 || pa
 } else {
   try {
     const bridge = fileURLToPath(new URL('./s4py_oracle.py', import.meta.url));
-    const report = [], indexes = [], tables = [];
+    const report = [], indexes = [], tables = [], roleSets = [];
     for (const [number, filename] of paths.entries()) {
       const index = await indexPackage(filename);
       indexes.push(index);
@@ -33,6 +35,8 @@ if (!process.env.S4PY_ROOT || !process.env.S4PY_PYTHON || paths.length < 1 || pa
             const table = caspReferences(read.payload);
             caspSample = table.status;
             if (table.status === 'table-only') tables.push(table);
+            const parsed = parseCasp(read.payload);
+            if (parsed.status === 'parsed-candidate') roleSets.push(parsed.roles);
           }
           catch { caspSample = 'invalid-or-unsupported-table'; }
         }
@@ -43,6 +47,11 @@ if (!process.env.S4PY_ROOT || !process.env.S4PY_PYTHON || paths.length < 1 || pa
     for (const table of tables) for (const result of resolveReferences(table.references, indexes)) {
       referenceResults[result.status] = (referenceResults[result.status] ?? 0) + 1;
     }
+    const roleResults = {};
+    for (const roles of roleSets) for (const result of resolveReferences(roles, indexes)) {
+      const summary = `${result.role}:${result.status}`;
+      roleResults[summary] = (roleResults[summary] ?? 0) + 1;
+    }
     const sharedKeyPairs = [];
     for (let a = 0; a < indexes.length; a++) for (let b = a + 1; b < indexes.length; b++) {
       const left = new Set(indexes[a].rows.map(row => row.key));
@@ -51,7 +60,7 @@ if (!process.env.S4PY_ROOT || !process.env.S4PY_PYTHON || paths.length < 1 || pa
       for (const key of right) if (left.has(key)) shared++;
       sharedKeyPairs.push({ packageA: a + 1, packageB: b + 1, sharedKeys: shared });
     }
-    console.log(JSON.stringify({ packages: report, sharedKeyPairs, sampledTables: tables.length, referenceResults }, null, 2));
+    console.log(JSON.stringify({ packages: report, sharedKeyPairs, sampledTables: tables.length, referenceResults, roleResults }, null, 2));
   } catch (error) {
     // Paths, resource IDs, source hashes and oracle data are intentionally omitted.
     const known = ['unsupported DBPF version', 'index limit', 'invalid index extent', 'invalid index header',

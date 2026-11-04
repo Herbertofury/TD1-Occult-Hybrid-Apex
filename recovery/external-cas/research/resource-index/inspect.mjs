@@ -1,5 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Explicit package set only; prints private metadata to stdout, never asset bytes.
 import { indexPackage, readResource, caspReferences, resolveReferences } from './dbpf.mjs';
+import { parseCasp } from './casp.mjs';
 
 const [key, ...paths] = process.argv.slice(2);
 if (!/^034AEECB:[0-9A-F]{8}:[0-9A-F]{16}$/.test(key ?? '') || !paths.length || paths.length > 16) {
@@ -24,9 +26,14 @@ if (!/^034AEECB:[0-9A-F]{8}:[0-9A-F]{16}$/.test(key ?? '') || !paths.length || p
     const result = await readResource(paths[packageIndex], indexes[packageIndex], row.ordinal);
     if (result.status !== 'available') throw new Error(`CASP payload ${result.status}`);
     const table = caspReferences(result.payload);
+    let parsed;
+    try {
+      parsed = parseCasp(result.payload);
+      if (parsed.status === 'parsed-candidate') parsed.roleCandidates = resolveReferences(parsed.roles, indexes);
+    } catch { parsed = { status: 'unsupported-or-invalid-fields' }; }
     console.log(JSON.stringify({ source: indexes[packageIndex].source, casp: row, table: {
       status: table.status, version: table.version, references: resolveReferences(table.references, indexes),
-    } }, null, 2));
+    }, parsed }, null, 2));
   } catch (error) {
     console.error(`Inspection failed: ${error.message}`);
     process.exitCode = 1;

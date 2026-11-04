@@ -833,12 +833,6 @@
       "sha256": "eca665a2df5e1e24c4da044bf37432f95dc1f0e655dc295a325721b0aa5e7a17"
     },
     {
-      "bytes": 2225,
-      "mode": "100644",
-      "path": "docs/F11_COPY_RECEIPT_REVIEW_20261104.md",
-      "sha256": "d113d0455ebe5a386af961225eccf83b8c35b3fd6b12de368b195d0200e49012"
-    },
-    {
       "bytes": 1338,
       "mode": "100644",
       "path": "tests/test_native_http.py",
@@ -2157,12 +2151,6 @@
       "mode": "100644",
       "path": "tests/test_cas_native_position_chain.py",
       "sha256": "076b4ac22dcfd6a3a47d64b1fbf8069d08be846c2a69c6185960c95e3000aa9f"
-    },
-    {
-      "bytes": 29741,
-      "mode": "100644",
-      "path": "NativeOverlay/Tests/ResourceTests.cpp",
-      "sha256": "38731ae10a159b9a55f2b71171552b7e0e12bbc646cd65629fc9a7e5d6b7d45e"
     },
     {
       "bytes": 3406,
@@ -3983,6 +3971,12 @@
       "sha256": "7889f6f1b237e7e29715ef3ddc6f93f45f8664118e2a832fb261d9106e9b0833"
     },
     {
+      "bytes": 375490,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "bb44fc0d46a9730228cfb8e5523981ff769e7eee5a704b2be4af50c97d0e7a51"
+    },
+    {
       "bytes": 10854,
       "mode": "100644",
       "path": "tests/test_game_discard.py",
@@ -4547,12 +4541,6 @@
       "sha256": "3234d1c8847e2288774740b40633129a913db1790e7fdd5bb788500203ebfbc7"
     },
     {
-      "bytes": 14053,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/ApexResourceData.h",
-      "sha256": "9f05bae810d9e7e6090ffcd051179c50ed47591b0d50a381156f3b4fc4a318ca"
-    },
-    {
       "bytes": 14503,
       "mode": "100644",
       "path": "wiki/How-Apex-Works.md",
@@ -4835,12 +4823,6 @@
       "sha256": "eb90382671521a6de0db47278d0ddeaecad9a9abafe37093003e5466989c2497"
     },
     {
-      "bytes": 375178,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "a73569d9396171ff47bdd7bf322f401a3af5671cdd65965c98f4b9aa529ad542"
-    },
-    {
       "bytes": 9303,
       "mode": "100644",
       "path": "tests/cas_provider_chain_fixtures.py",
@@ -4983,6 +4965,12 @@
       "mode": "100644",
       "path": "Source/CASUi/catalog_product_grid_row_guard.as",
       "sha256": "cec57446ef815b55a7566390149e0b349a744d4ec8a6905e42eed4aad869df73"
+    },
+    {
+      "bytes": 30231,
+      "mode": "100644",
+      "path": "NativeOverlay/Tests/ResourceTests.cpp",
+      "sha256": "92aea768d7f8185971c1c3d56c4c5a7ecf6b49d1000ff1f036b79cdb8d292558"
     },
     {
       "bytes": 17023,
@@ -5601,6 +5589,12 @@
       "mode": "100644",
       "path": "Source/CASUi/catalog_grid_presentation_methods.as",
       "sha256": "90d96e562a2798dad3524bac65f6b240e2609272c3931f9f1c9a0caff2f2f484"
+    },
+    {
+      "bytes": 2670,
+      "mode": "100644",
+      "path": "docs/F11_COPY_RECEIPT_REVIEW_20261104.md",
+      "sha256": "ad16d52f81dd234e311c0243e76e6e8a74153c031d12fb23cb4ec82f6f78e56e"
     },
     {
       "bytes": 30071,
@@ -7143,6 +7137,12 @@
       "mode": "100644",
       "path": "tests/test_cas_socket.py",
       "sha256": "b1e468eda4d9d86ac667944b765162f4c395eff0da756d5cad8b5b1e784a6b84"
+    },
+    {
+      "bytes": 14167,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/ApexResourceData.h",
+      "sha256": "7456694582be927326bcf3c0f14d94f1990dbc8c65f7bdda3673e110c36147c7"
     },
     {
       "bytes": 1215,

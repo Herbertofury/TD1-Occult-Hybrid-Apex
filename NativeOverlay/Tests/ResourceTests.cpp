@@ -169,6 +169,11 @@ int main(int argc, char** argv) {
     badImageRequest=imageRequest;badImageRequest["path"]="C:/arbitrary";
     check(!library::ImagesRequest(badImageRequest),"column image request cannot provide host paths");
     Json catalog = {{"schema", 1}, {"items", Json::array({row})}};
+    check(resource::CaspInstance("034AEECB:80000000:FEDCBA9876543210") == "FEDCBA9876543210",
+        "manual Studio lookup retains the full hexadecimal CASP instance");
+    for (const auto& bad : {"034AEECB:80000000:FEDCBA987654321", "034AEECB:80000000:fedcba9876543210",
+                            "00000000:80000000:FEDCBA9876543210", "034AEECB:80000000:FEDCBA987654321G"})
+        check(resource::CaspInstance(bad).empty(), "malformed or non-CASP keys cannot be copied as instances");
     Json part = {{"cas_part_hex", "00000000000003E7"}, {"cas_part_id", "999"}, {"target", "0:7:0"}, {"body_type", 7}};
     Json editor = {{"target", "0:7:0"}, {"cas_part_id", "999"}, {"body_type", 7},
         {"appearance_sha256", appearance}, {"resource_sha256", effective}, {"resource_tgi", tgi}};

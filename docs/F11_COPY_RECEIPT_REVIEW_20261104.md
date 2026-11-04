@@ -31,3 +31,9 @@ same-CASP/different-package change after resolution. Full unshimmed broker
 tests, real image decoding, Studio GUI behavior, current owner/resource
 freshness and game behavior remain unverified. No package or game files were
 installed, and recovery/epoch compatibility still needs review before use.
+
+For a matched CASP, F11 can copy the full 16-digit hexadecimal instance for
+manual comparison in Sims 4 Studio's Warehouse CAS Part view. The complete TGI
+remains visible for checking type and group. This does not automatically select
+the resource or prove that Studio opened the package. The Warehouse instance
+location is described in the [Sims 4 Modders Reference](https://thesims4moddersreference.org/tutorials/modifying-sim-appearances/).

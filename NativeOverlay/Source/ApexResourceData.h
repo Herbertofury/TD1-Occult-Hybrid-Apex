@@ -20,6 +20,9 @@ inline bool Tgi(const std::string& value) {
     return value.size() == 34 && value.substr(0, 9) == "034AEECB:" && value[17] == ':' &&
         Hex(value.substr(9, 8), 8, true) && Hex(value.substr(18), 16, true);
 }
+inline std::string CaspInstance(const std::string& tgi) {
+    return Tgi(tgi) ? tgi.substr(18) : std::string{};
+}
 inline bool NullableText(const Json& object, const char* field, size_t bound) {
     const auto found = object.find(field);
     return found != object.end() && (found->is_null() || (found->is_string() &&

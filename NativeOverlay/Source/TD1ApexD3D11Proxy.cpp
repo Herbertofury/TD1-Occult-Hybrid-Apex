@@ -2629,6 +2629,11 @@ static void DrawResourcePart(const ui::Json& part, const ui::Json& editor) {
     else ImGui::TextDisabled("Item name unavailable in the verified package.");
     ImGui::TextDisabled("%s | %s", name.source.c_str(), ui::Scalar(row["provenance"], "origin").c_str());
     ImGui::TextDisabled("%s", ui::Scalar(row, "resource_tgi").c_str());
+    const auto caspInstance = resource::CaspInstance(ui::Scalar(row, "resource_tgi"));
+    if (!caspInstance.empty()) {
+        if (ImGui::SmallButton("Copy CASP instance")) ImGui::SetClipboardText(caspInstance.c_str());
+        ImGui::TextWrapped("In Studio's Warehouse, compare the CAS Part Instance.");
+    }
     const auto key = ResourceKey(row); const auto& thumbnail = row["thumbnail"];
     if (ui::Scalar(thumbnail, "status") == "resolved") {
         if (g_resourceRequestedImage != key && !g_resourceImageBusy.load() && QueueResource(2, row)) g_resourceRequestedImage = key;

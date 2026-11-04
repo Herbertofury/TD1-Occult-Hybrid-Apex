@@ -1,0 +1,12 @@
+test_invalid_inputs_refused (test_atlas_visibility.VisibilityTests.test_invalid_inputs_refused) ... ok
+test_matches_scalar_reference (test_atlas_visibility.VisibilityTests.test_matches_scalar_reference) ... ok
+test_opaque_layer_hides_change (test_atlas_visibility.VisibilityTests.test_opaque_layer_hides_change) ... ok
+test_stream_multiple_chunks_and_mismatch (test_atlas_visibility.VisibilityTests.test_stream_multiple_chunks_and_mismatch) ... ok
+test_transparent_and_partial_layers (test_atlas_visibility.VisibilityTests.test_transparent_and_partial_layers) ... ok
+test_transparent_rgb_changes_do_not_count (test_atlas_visibility.VisibilityTests.test_transparent_rgb_changes_do_not_count) ... ok
+test_upper_can_round_away_difference (test_atlas_visibility.VisibilityTests.test_upper_can_round_away_difference) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.030s
+
+OK

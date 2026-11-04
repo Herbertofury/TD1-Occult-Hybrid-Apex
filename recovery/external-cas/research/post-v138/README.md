@@ -1,0 +1,9 @@
+# Private CAS visibility diagnostic
+
+This isolated research tool compares two RGBA texture selections through the preview's integer source-over layering. It reads explicitly supplied local files and prints aggregate pixel counts only. It does not send or save textures, modify game files, prove geometric visibility, or reproduce native Sims 4 materials. NumPy is required. Inputs and any diagnostic derivatives should remain private. The tool is not a sandbox for hostile files or a production import pipeline.
+
+Example (supply local file paths): `python atlas_visibility.py --base BASE --old OLD --new NEW --upper EYES --upper SHOES --upper CLOTH`. The base must be opaque, all inputs must have equal nonzero 4-byte-aligned lengths, and each file is limited to 64 MiB. Upper layers are applied in argument order. A partial layer can round away a difference, so an upper layer's being non-opaque is not proof of visible change.
+
+For a recovered private example, a tone-only base approximation gave 65,984 initially changed atlas texels for two tattoo selections. Subsequent eye and shoe layers retained all 65,984. One dress's fully opaque layer covered every changed texel and produced zero final changes; another left 59,068 final differences. The full preview uses a skin-blended base rather than the tone-only approximation, so these exact counts are not a full-render measurement. Complete opaque coverage of the raw changed tattoo texels independently explains the zero-change case for that composition at full clothing opacity. It does not prove that the same occlusion is native game behavior, or that uncovered texels are visible on screen.
+
+Seven synthetic unit tests pass, including 1,000 randomized scalar-reference pixels, multichunk and invalid inputs. This is a diagnostic checkpoint, not an integrated CAS feature.

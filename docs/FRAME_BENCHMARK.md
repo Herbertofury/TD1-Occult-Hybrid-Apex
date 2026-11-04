@@ -212,6 +212,17 @@ real compiled behavior rather than inventing a feature toggle. Dependency-bound
 components may form one documented group. Profiling partitions are not permission
 to omit a feature from the final mod or disable its preservation guard.
 
+An evaluated transition refuses removal or renaming of a previous artifact,
+or a loaded declaration changing from true to false. A same-path hash change is
+reported and stops later evaluations for review. After reviewing a replacement,
+either comparison CLI accepts `--continuity-review` with a JSON file inside
+`.work`: schema 1 and a `reviews` array whose entries contain the exact
+`control_stage_sha256`, `candidate_stage_sha256`, `replaced_artifacts` list from
+the report, and `review_evidence_sha256`. This is a caller declaration: the
+tool does not inspect or authenticate the referenced evidence, prove feature
+retention, or override an observed slowdown. Consumers must check
+`not_evaluated` and the per-comparison `continuity` field.
+
 A schema 2 mod-state record retains the PID/creation-time, observed-inventory
 and `other_mods_sha256` fields above, and carries `stage`, `stage_sha256` and
 the three observed component booleans. `stage_sha256` is

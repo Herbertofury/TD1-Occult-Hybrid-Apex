@@ -671,6 +671,12 @@
       "sha256": "74f8cf6e8b767c2356d827fc8918686b479facc0a7e8d67f2a0cec75dffcc2ca"
     },
     {
+      "bytes": 18114,
+      "mode": "100644",
+      "path": "tools/compare_provenance_stages.py",
+      "sha256": "295456347a27f76de5dd9cb0b1f62f8c1deb46fbb2dd749dbf6b67cbbaee966f"
+    },
+    {
       "bytes": 95249,
       "mode": "100644",
       "path": "Source/apex_core/cas_bank_transaction.py",
@@ -1517,12 +1523,6 @@
       "sha256": "6a4f7a77d31f97d175fd430ef9478d979afe0bd1fc0f33d4f9eb8bea404e316a"
     },
     {
-      "bytes": 8689,
-      "mode": "100644",
-      "path": "tools/compare_hitch_stages.py",
-      "sha256": "916db7203a083eede15328aff9be4bdf0c00832093eaf7c2fc5bba030f6db1e9"
-    },
-    {
       "bytes": 5972,
       "mode": "100644",
       "path": "tests/test_cas_rejected_entry_recovery.py",
@@ -1551,12 +1551,6 @@
       "mode": "100644",
       "path": "tests/test_cas_failed_commit_archive.py",
       "sha256": "e7b096c06353a5156a96a73a1ddf650a8ea032ee29ad3e5075e77c6edfd923f3"
-    },
-    {
-      "bytes": 14625,
-      "mode": "100644",
-      "path": "docs/FRAME_BENCHMARK.md",
-      "sha256": "c1d2701ee96bc71b4ac538c55e039d98b3bd090218b7f2501a6bf354c25bd7ef"
     },
     {
       "bytes": 2572,
@@ -2007,12 +2001,6 @@
       "mode": "100644",
       "path": "Source/apex_core/human_werewolf.py",
       "sha256": "9bafd4df1783f6a3c526242b9a40c42033e3dad4d2f8029e0046633b2f4a363e"
-    },
-    {
-      "bytes": 23796,
-      "mode": "100644",
-      "path": "tests/test_compare_provenance_stages.py",
-      "sha256": "6bde281f6098ba71aa822e9fffcc06070f43495e995f43164c8f2993af6cdd00"
     },
     {
       "bytes": 368,
@@ -2613,6 +2601,12 @@
       "mode": "100644",
       "path": "Reports/CAS_LISTENER_AND_CATALOGUE_V331.json",
       "sha256": "039d9d1cd7156e0cca9d6f6e2e75ec195fd4b0d5657063708372b0ba3db27552"
+    },
+    {
+      "bytes": 31354,
+      "mode": "100644",
+      "path": "tests/test_compare_provenance_stages.py",
+      "sha256": "d755c872d90d14e11b8a37e7e280046245e0e631c92ba10be559d199cb923043"
     },
     {
       "bytes": 7431,
@@ -3875,6 +3869,12 @@
       "sha256": "ec473439073c4eec1f347a493f0a319b349ce4578cf28dbff0f6bf65bd066443"
     },
     {
+      "bytes": 11722,
+      "mode": "100644",
+      "path": "tests/test_stage_continuity.py",
+      "sha256": "a4bc171f2f5415749535e1a5cf1c59237587f7035ac1ab4a4ed61294568fed4a"
+    },
+    {
       "bytes": 26729,
       "mode": "100644",
       "path": "Reports/HOUSEHOLD_CAS_2026-10-15.md",
@@ -4913,12 +4913,6 @@
       "sha256": "56fb14b42ad8e0a39619633f391e8bc6a9140600dd4b573093af68cccf434d28"
     },
     {
-      "bytes": 16909,
-      "mode": "100644",
-      "path": "tools/compare_provenance_stages.py",
-      "sha256": "87f9699ec5ee7fe880bf3f8603b6dade787984558d14025e3134c44fc0b91158"
-    },
-    {
       "bytes": 7939,
       "mode": "100644",
       "path": "docs/OFFLINE_ETW_CAPTURE.md",
@@ -5537,6 +5531,12 @@
       "sha256": "2ef28a8e0daae88e45b71240a35b34564ecfb600f6243bcd6cb4bbaf7630dfce"
     },
     {
+      "bytes": 15369,
+      "mode": "100644",
+      "path": "docs/FRAME_BENCHMARK.md",
+      "sha256": "8cc9a15acc22c590c0bf1d68e9b61aef8e6a7f34158cefc3a8d818325ab9b0a4"
+    },
+    {
       "bytes": 47388,
       "mode": "100644",
       "path": "Reports/HOUSEHOLD_CAS_2026-10-14.md",
@@ -5823,6 +5823,12 @@
       "mode": "100644",
       "path": "tools/cas_grid_presentation.py",
       "sha256": "5e20e8b32ab2c6aa3188b116404946ec3e5649d71067c39449ea58ea2e4567eb"
+    },
+    {
+      "bytes": 13453,
+      "mode": "100644",
+      "path": "tools/compare_hitch_stages.py",
+      "sha256": "e4692261bf69569ede7fe8a3ee9647f46394defa66d12dedf275298f76ce5ac6"
     },
     {
       "bytes": 6680,

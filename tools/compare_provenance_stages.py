@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import json
 import ntpath
+import os
 from pathlib import Path
 
 import compare_frame_runs as frames
@@ -37,13 +38,21 @@ def _read(value,directory,work,limit):
     data,sha=provenance.read_json_file(path,work,limit)
     return path,data,sha
 
-def compare_strict(manifest,directory,work):
+def compare_strict(manifest,directory,work,continuity_review=None):
     """Validate all declared proofs, then delegate metric evaluation unchanged."""
     if (not isinstance(manifest,dict) or set(manifest)!={'schema','experiment','proofs'} or
             type(manifest['schema']) is not int or manifest['schema']!=1):
         raise ValueError('Strict comparison needs exact schema, experiment and proofs')
     work=provenance._unlinked(work)
     experiment_path,experiment,experiment_sha=_read(manifest['experiment'],directory,work,4*1024*1024)
+    review_path=None;review_value=None;review_sha=None
+    if continuity_review is not None:
+        candidate=Path(continuity_review)
+        if not candidate.is_absolute():candidate=Path(directory)/candidate
+        candidate=Path(os.path.abspath(str(candidate)))
+        if not provenance._inside(candidate,work):
+            raise ValueError('Continuity review must stay inside private .work')
+        review_path,review_value,review_sha=_read(str(continuity_review),directory,work,4*1024*1024)
     if (not isinstance(experiment,dict) or set(experiment)!={'schema','scenario','stages','comparisons'} or
             type(experiment.get('schema')) is not int or experiment['schema']!=2):
         raise ValueError('An existing schema-2 staged experiment is required')
@@ -88,6 +97,7 @@ def compare_strict(manifest,directory,work):
             raise ValueError('Each capture needs one unique before/after provenance pair')
         by_capture[proof['capture_sha256']]=proof
     run_info=[];capture_seen=set();file_pins=[(experiment_path,experiment_sha)]
+    if review_path is not None:file_pins.append((review_path,review_sha))
     for run,stage in run_specs:
         capture_path,capture,capture_sha=_read(run.get('capture'),experiment_path.parent,work,4*1024*1024)
         if capture_sha in capture_seen or capture_sha not in by_capture:
@@ -99,7 +109,10 @@ def compare_strict(manifest,directory,work):
         file_pins.append((capture_path,capture_sha))
     if capture_seen!=set(by_capture):raise ValueError('A provenance pair is unused')
     if not run_info:
-        result=stages.compare(experiment,experiment_path.parent)
+        result=stages.compare(experiment,experiment_path.parent,continuity_reviews=review_value)
+        for path,sha in file_pins:
+            if provenance.hash_file(path,work)['sha256']!=sha:
+                raise ValueError('Experiment or continuity review changed during comparison')
         result.update(strict_provenance_mode=True,provenance_pairs_checked=0,
             other_mods_inventory_sha256=None,game_profile_opened_proven=False,package_load_proven=False,
             complete_apex_absence_proven=False,loaded_memory_bytes_proven=False,
@@ -107,6 +120,7 @@ def compare_strict(manifest,directory,work):
             stage_artifact_hashes_match_observations=False,loaded_flags_independently_verified=False,
             save_content_independently_verified=False)
         result['experiment_sha256']=experiment_sha
+        if review_sha is not None:result['continuity_review_declarations_sha256']=review_sha
         return result
     baseline_info=next((x for x in run_info if x[1]['id']==ladder[0]['id']),None)
     if baseline_info is None:raise ValueError('An observed control inventory is required')
@@ -194,7 +208,7 @@ def compare_strict(manifest,directory,work):
                           (csv_path,csv_identity['sha256']),(action_path,action_sha)))
     # The original comparator independently validates ETL/CSV/action evidence,
     # order, stage declarations, and halts metric evaluation at a slowdown.
-    result=stages.compare(experiment,experiment_path.parent)
+    result=stages.compare(experiment,experiment_path.parent,continuity_reviews=review_value)
     for path,sha in file_pins:
         if provenance.hash_file(path,work)['sha256']!=sha:
             raise ValueError('Experiment or provenance evidence changed during comparison')
@@ -215,18 +229,20 @@ def compare_strict(manifest,directory,work):
         'The observed control can still contain undeclared Apex components; exact profile opening and actual package loading are not proven.',
         'Only snapshots outside the capture window are compared; intervening changes and loaded in-memory bytes are not proven.',
         'Every declared proof is validated up front; metric evaluation still stops at the first observed slowdown.'])
+    if review_sha is not None:result['continuity_review_declarations_sha256']=review_sha
     return result
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--manifest',type=Path,required=True);parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--continuity-review',type=Path,help='Optional review declarations, inside private .work only')
     args=parser.parse_args();work=provenance._unlinked(frames.ROOT/'.work')
     path=_path(str(args.manifest),Path.cwd(),work)
     manifest,manifest_sha=provenance.read_json_file(path,work,4*1024*1024)
     output=_path(str(args.output.parent),Path.cwd(),work)/args.output.name
     if output.exists() or not output.parent.is_dir() or ':' in output.name:
         raise ValueError('A fresh output inside private .work is required')
-    result=compare_strict(manifest,path.parent,work);result['strict_manifest_sha256']=manifest_sha
+    result=compare_strict(manifest,path.parent,work,continuity_review=args.continuity_review);result['strict_manifest_sha256']=manifest_sha
     if provenance.hash_file(path,work)['sha256']!=manifest_sha:
         raise ValueError('Strict manifest changed during comparison')
     with output.open('x',encoding='utf-8') as stream:json.dump(result,stream,indent=2,allow_nan=False);stream.write('\n')

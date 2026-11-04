@@ -169,6 +169,101 @@ class StrictStageTests(unittest.TestCase):
         report=strict.compare_strict(dict(schema=1,experiment=str(self.exp_path),proofs=[]),self.work,self.work)
         self.assertEqual(report['state'],'awaiting_measurements');self.assertEqual(report['provenance_pairs_checked'],0)
 
+    def review_fixture(self):
+        ui=definition('ui',['hybrid','ui'],[dict(path='Apex/ApexOccultHybrid.ts4script',sha256='b'*64)])
+        self.experiment['stages'].append(ui)
+        extra=[self.build_run(i,s) for i,s in enumerate((self.hybrid,ui,ui,self.hybrid),start=4)]
+        self.experiment['comparisons'].append(dict(control='hybrid',candidate='ui',runs=extra))
+        self.refresh_experiment()
+        declaration=dict(schema=1,reviews=[dict(control_stage_sha256=hitch_stage.digest(self.hybrid),
+            candidate_stage_sha256=hitch_stage.digest(ui),
+            replaced_artifacts=legacy.transition_continuity(self.hybrid,ui)['replaced_artifacts'],
+            review_evidence_sha256='e'*64)])
+        path=self.work/'continuity-review.json';write(path,declaration)
+        return path
+
+    def test_review_path_in_private_work_is_bound_and_existing_parse_log_proof_survives(self):
+        path=self.review_fixture()
+        report=strict.compare_strict(self.manifest,self.work,self.work,continuity_review=path)
+        self.assertEqual(report['continuity_review_declarations_sha256'],digest(path))
+        self.assertEqual(report['state'],'slowdown_observed')
+        self.assertEqual(report['not_evaluated'],['ui'])
+        self.assertTrue(all(run['parse_log_verification']=='sha256_loss_checked'
+                            for pair in report['comparisons'] for run in pair['runs']))
+        self.assertFalse(report['performance_pass'])
+
+    def test_review_path_outside_work_is_refused(self):
+        path=self.root/'outside-review.json';write(path,dict(schema=1,reviews=[]))
+        with patch.object(provenance,'_unlinked',wraps=provenance._unlinked) as unlinked:
+            with self.assertRaisesRegex(ValueError,'inside private'):
+                strict.compare_strict(self.manifest,self.work,self.work,continuity_review=path)
+        self.assertNotIn(str(path),[str(call[0][0]) for call in unlinked.call_args_list])
+
+    def test_duplicate_key_review_and_simulated_link_are_refused(self):
+        path=self.work/'review-invalid.json';path.write_text('{"schema":1,"schema":1,"reviews":[]}',encoding='utf-8')
+        with self.assertRaisesRegex(ValueError,'Duplicate'):
+            strict.compare_strict(self.manifest,self.work,self.work,continuity_review=path)
+        write(path,dict(schema=1,reviews=[]))
+        original=provenance._unlinked
+        def reject_link(value):
+            if Path(value)==path:raise ValueError('simulated reparse entry')
+            return original(value)
+        with patch.object(provenance,'_unlinked',side_effect=reject_link):
+            with self.assertRaisesRegex(ValueError,'reparse'):
+                strict.compare_strict(self.manifest,self.work,self.work,continuity_review=path)
+
+    def test_changed_review_file_rejected_after_comparison(self):
+        path=self.review_fixture(); original=strict.stages.compare
+        def mutate(*args,**kwargs):
+            result=original(*args,**kwargs);write(path,dict(schema=1,reviews=[]));return result
+        with patch.object(strict.stages,'compare',side_effect=mutate):
+            with self.assertRaisesRegex(ValueError,'changed during comparison'):
+                strict.compare_strict(self.manifest,self.work,self.work,continuity_review=path)
+
+    def test_strict_entry_passes_bound_review_to_evaluated_replacement(self):
+        path=self.review_fixture()
+        def simulated_analysis(run,scenario,directory,stage):
+            value=10
+            return dict(kind=run['kind'],started_ns=run['started_ns'],ended_ns=run['ended_ns'],
+                capture_sha256=digest(run['capture']),trace_sha256=digest(run['actions']),csv_sha256=digest(run['csv']),
+                collector_sha256='f'*64,present_runtime='DXGI',collector_options=[],configured_seconds=30,
+                statistics=dict(p95_ms=value,p99_ms=value,max_ms=value,over_33_3ms_per_1000=0),
+                action_windows=[dict(action=name,max_ms=value,frames=10,over_33_3ms=0,
+                    over_33_3ms_per_1000=0,duration_ms=1,p95_ms=value,p99_ms=value)
+                    for name in scenario['actions']])
+        # Strict file/observation checks are real synthetic-fixture checks;
+        # metric/ETL analysis is stubbed solely to reach the later stage.
+        with patch.object(strict.stages.frames,'analyze_run',side_effect=simulated_analysis):
+            report=strict.compare_strict(self.manifest,self.work,self.work,continuity_review=path)
+        self.assertEqual(len(report['comparisons']),2)
+        self.assertTrue(report['comparisons'][1]['continuity']['review_declaration_matched'])
+        self.assertFalse(report['comparisons'][1]['continuity']['retention_proven'])
+        self.assertFalse(report['performance_pass'])
+
+    def test_review_declaration_cannot_bypass_bound_parser_loss(self):
+        path=self.review_fixture();run=self.runs[0]
+        capture_path=Path(run['capture']);capture=json.loads(capture_path.read_text())
+        log=Path(capture['offline_etw']['parse_log_path'])
+        log.write_bytes('warning: 5 overflowed present events detected.\n'.encode('utf-16'))
+        capture['offline_etw']['parse_log_sha256']=digest(log);write(capture_path,capture)
+        action_path=Path(run['actions']);action=json.loads(action_path.read_text())
+        action['capture_sha256']=digest(capture_path);write(action_path,action)
+        self.proofs[0].update(capture_sha256=digest(capture_path),action_trace_sha256=digest(action_path))
+        self.rewrite_pair(0,lambda observation:None)
+        with self.assertRaisesRegex(ValueError,'reports loss'):
+            strict.compare_strict(self.manifest,self.work,self.work,continuity_review=path)
+
+    def test_empty_comparison_rechecks_review_file(self):
+        empty=copy.deepcopy(self.experiment);empty['comparisons']=[];write(self.exp_path,empty)
+        path=self.work/'review-empty.json';write(path,dict(schema=1,reviews=[]))
+        original=strict.stages.compare
+        def mutate(*args,**kwargs):
+            result=original(*args,**kwargs);write(path,dict(schema=1,reviews=[{}]));return result
+        with patch.object(strict.stages,'compare',side_effect=mutate):
+            with self.assertRaisesRegex(ValueError,'changed during comparison'):
+                strict.compare_strict(dict(schema=1,experiment=str(self.exp_path),proofs=[]),
+                    self.work,self.work,continuity_review=path)
+
     def test_missing_extra_duplicate_and_reused_proofs_are_refused(self):
         for change in ('missing','extra','duplicate','reuse'):
             value=copy.deepcopy(self.manifest)
@@ -323,5 +418,20 @@ class StrictStageTests(unittest.TestCase):
             self.assertEqual(report['strict_manifest_sha256'],digest(manifest_path))
             with self.assertRaisesRegex(ValueError,'fresh output'):strict.main()
             self.assertEqual(saved,output.read_bytes())
+
+    def test_cli_accepts_relative_private_review_and_rejects_outside(self):
+        review=self.review_fixture();manifest_path=self.work/'strict-review.json';write(manifest_path,self.manifest)
+        output=self.work/'reviewed-report.json'
+        args=['compare_provenance_stages.py','--manifest',str(manifest_path),'--output',str(output),
+              '--continuity-review',review.name]
+        with patch.object(strict.frames,'ROOT',self.root),patch.object(sys,'argv',args),contextlib.redirect_stdout(io.StringIO()):
+            strict.main()
+        report=json.loads(output.read_text());self.assertEqual(report['continuity_review_declarations_sha256'],digest(review))
+        self.assertEqual(report['state'],'slowdown_observed')
+        outside=self.root/'outside.json';write(outside,dict(schema=1,reviews=[]))
+        second=self.work/'rejected-report.json';args[-3]=str(second);args[-1]=str(outside)
+        with patch.object(strict.frames,'ROOT',self.root),patch.object(sys,'argv',args),contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(ValueError,'inside private'):strict.main()
+        self.assertFalse(second.exists())
 
 if __name__=='__main__':unittest.main()

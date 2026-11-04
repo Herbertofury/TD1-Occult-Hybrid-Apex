@@ -282,6 +282,28 @@ int main(int argc, char** argv) {
     check(!resource::HttpBody("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nContent-Length: 0\r\n\r\n", 100, body), "duplicate length headers rejected");
     check(!resource::HttpBody("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\n", 100, body), "unsupported chunked response rejected");
     check(!resource::HttpBody("HTTP/1.1 200 OK\r\nContent-Length: +1\r\n\r\nx", 100, body), "signed malformed length rejected");
+    bool supportsProof = true;
+    check(resource::HttpBody(http, bytes.size(), body, &supportsProof) && !supportsProof,
+          "old broker response keeps the legacy thumbnail route");
+    const auto advertised = "HTTP/1.0 200 OK\r\nContent-Length: " + std::to_string(bytes.size()) +
+        "\r\nX-Apex-Thumbnail-Proof: 1\r\n\r\n" + bytes;
+    check(resource::HttpBody(advertised, bytes.size(), body, &supportsProof) && supportsProof && body == bytes,
+          "advertised capability accompanies the verified response");
+    check(!resource::HttpBody("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nX-Apex-Thumbnail-Proof: 1\r\nX-Apex-Thumbnail-Proof: 1\r\n\r\n", 100, body, &supportsProof) && !supportsProof,
+          "duplicate capability headers are refused");
+    check(!resource::HttpBody("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nX-Apex-Thumbnail-Proof: 0\r\n\r\n", 100, body, &supportsProof) && !supportsProof,
+          "unknown capability values are refused");
+    auto routeRow = row;
+    const auto legacyPath = "/v1/resources/" + id + "/thumbnail";
+    check(resource::ThumbnailRequestPath(routeRow) == legacyPath, "legacy row uses legacy route");
+    routeRow["_local_thumbnail_proof"] = true;
+    resource::SetThumbnailProofCapability(routeRow, false);
+    check(resource::ThumbnailRequestPath(routeRow) == legacyPath, "legacy response overrides a spoofed item flag");
+    resource::SetThumbnailProofCapability(routeRow, true);
+    check(resource::ThumbnailRequestPath(routeRow) == legacyPath + "?cache_proof=" + ui::Scalar(row, "cache_proof"),
+          "negotiated row binds the thumbnail request to its exact proof");
+    routeRow["cache_proof"] = "invalid";
+    check(resource::ThumbnailRequestPath(routeRow).empty(), "invalid proof cannot enter a request path");
     resource::Pixels pixels; std::string reason;
     check(resource::DecodeThumbnail(bytes, row, pixels, reason) && pixels.width == 1 && pixels.height == 1 &&
         pixels.rgba == std::vector<unsigned char>({17,34,51,255}), "actual WIC decode yields exact owned RGBA pixels");

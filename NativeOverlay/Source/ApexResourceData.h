@@ -178,12 +178,26 @@ inline bool OpenReceipt(const Json& receipt, const Json& requestedRow) {
         evidence["launch_requested"] == true && evidence["package_open_verified"] == false &&
         evidence["individual_resource_selected_verified"] == false && evidence["current_equipped_resource_verified"] == false;
 }
-inline bool HttpBody(const std::string& raw, size_t bound, std::string& body) {
+// The local flag is attached by the transport after parsing the broker's
+// response header, never trusted from an incoming JSON item.
+inline void SetThumbnailProofCapability(Json& row, bool supported) {
+    row["_local_thumbnail_proof"] = supported;
+}
+inline std::string ThumbnailRequestPath(const Json& row) {
+    if (!Hash(row, "resource_id") || !Hash(row, "cache_proof")) return {};
+    auto path = "/v1/resources/" + ui::Scalar(row, "resource_id") + "/thumbnail";
+    if (row.contains("_local_thumbnail_proof") && row["_local_thumbnail_proof"] == true)
+        path += "?cache_proof=" + ui::Scalar(row, "cache_proof");
+    return path;
+}
+
+inline bool HttpBody(const std::string& raw, size_t bound, std::string& body, bool* thumbnailProof = nullptr) {
     body.clear();
+    if (thumbnailProof) *thumbnailProof = false;
     const auto split = raw.find("\r\n\r\n");
     if (split == std::string::npos || split > 16384 ||
         (raw.find("HTTP/1.1 200 ") != 0 && raw.find("HTTP/1.0 200 ") != 0)) return false;
-    size_t length = 0; bool gotLength = false;
+    size_t length = 0; bool gotLength = false, gotThumbnailProof = false;
     size_t line = raw.find("\r\n") + 2;
     while (line < split) {
         const auto end = raw.find("\r\n", line);
@@ -194,6 +208,13 @@ inline bool HttpBody(const std::string& raw, size_t bound, std::string& body) {
         auto key = header.substr(0, colon);
         std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return char(std::tolower(c)); });
         if (key == "transfer-encoding") return false;
+        if (key == "x-apex-thumbnail-proof" && thumbnailProof) {
+            if (gotThumbnailProof) return false;
+            auto text = header.substr(colon + 1);
+            const auto first = text.find_first_not_of(' '), last = text.find_last_not_of(' ');
+            if (first == std::string::npos || text.substr(first, last - first + 1) != "1") return false;
+            gotThumbnailProof = true;
+        }
         if (key == "content-length") {
             if (gotLength) return false;
             auto text = header.substr(colon + 1);
@@ -212,6 +233,7 @@ inline bool HttpBody(const std::string& raw, size_t bound, std::string& body) {
     }
     if (!gotLength || raw.size() - split - 4 != length) return false;
     body.assign(raw.data() + split + 4, length);
+    if (thumbnailProof) *thumbnailProof = gotThumbnailProof;
     return true;
 }
 } // namespace td1::resource

@@ -50,9 +50,16 @@ freshness, or automatic selection inside Studio.
 Both local thumbnail handlers also accept an optional exact `cache_proof`
 query parameter. If present, it must match the current broker row before PNG
 bytes are returned; malformed, absent-item and stale proofs are refused. The
-existing ID-only route is unchanged for older clients. This is an additive
-broker capability, not yet used by the overlay: old brokers do not understand
-the new route, and neither handler retains a previous broker generation. It
-does not prove the game's active thumbnail or item. In-memory HTTP tests cover
-both handlers, old and proof-bound requests, and current-broker replacement;
-the PNG decoder and Studio executable were mocked for those fixtures.
+existing ID-only route is unchanged for older clients. The overlay uses the
+proof-bound route only when the item response advertises it in the
+`X-Apex-Thumbnail-Proof: 1` header; a response without that header uses the
+legacy route. A malformed or duplicate capability header is rejected. An item
+field cannot enable the route by itself. If the broker is replaced between
+advertisement and image retrieval, a proof-bound request can fail and the user
+can refresh; it is not silently retried on the legacy route. Neither handler
+retains a previous broker generation. This does not prove the game's active
+thumbnail or item. In-memory HTTP tests cover both handlers, legacy and
+proof-bound requests, and current-broker replacement; the PNG decoder and
+Studio executable were mocked for those fixtures. An isolated Debug overlay
+compiled and 148 native resource checks passed, including negotiation and
+request-path checks. This change has not been exercised in game.

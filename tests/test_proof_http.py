@@ -66,6 +66,7 @@ class ProofHttpTests(unittest.TestCase):
                 self.assertEqual(legacy[0], 200); self.assertEqual(bound[0], 200)
                 self.assertEqual(legacy[2], b'synthetic-png'); self.assertEqual(bound[2], legacy[2])
                 self.assertIn(b'Content-Type: image/png', legacy[1]); self.assertIn(b'Content-Type: image/png', bound[1])
+                self.assertIn(b'X-Apex-Thumbnail-Proof: 1', legacy[1]); self.assertIn(b'X-Apex-Thumbnail-Proof: 1', bound[1])
                 expected = 404 if port == 8022 else 409
                 for query in ('?cache_proof=' + '0'*64, '?cache_proof=', '?cache_proof=' + 'g'*64,
                               '?cache_proof=' + self.proof.upper(), '?cache_proof=' + self.proof + '&x=1',

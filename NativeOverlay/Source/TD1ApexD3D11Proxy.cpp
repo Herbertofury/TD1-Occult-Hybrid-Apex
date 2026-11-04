@@ -284,6 +284,7 @@ static bool g_resourceCatalogAttempted = false; // render thread
 static std::atomic<uint64_t> g_resourceSelectionSerial{0};
 static std::string g_resourceViewKey, g_resourceRequestedImage; // render thread
 static std::string g_resourceImageKey, g_resourceImageStatus, g_resourceOpenKey, g_resourceOpenStatus;
+static bool g_resourceCatalogProofQuery = false; // worker and render, g_dataMutex
 static resource::Pixels g_resourcePixels; // worker, g_dataMutex
 static uint64_t g_resourcePixelReceipt = 0, g_resourceTextureReceipt = 0;
 static ID3D11ShaderResourceView* g_resourceTexture = nullptr; // render thread only
@@ -707,8 +708,9 @@ static std::string ResourceKey(const ui::Json& row) {
     return ui::Scalar(row, "resource_id") + ":" + ui::Scalar(row, "cache_proof");
 }
 
-static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) {
+static bool ResourceHttp(int operation, const ui::Json& row, std::string& body, bool* thumbnailProof = nullptr) {
     body.clear();
+    if (thumbnailProof) *thumbnailProof = false;
     if (operation < 1 || operation > 10) return false;
     if (operation > 1 && operation < 4 && !resource::CatalogIdentities({{"schema", 1}, {"items", ui::Json::array({row})}})) return false;
     if (operation == 4 && !library::Query(row) || operation == 5 && !library::Selection(row) ||
@@ -736,7 +738,7 @@ static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) 
     }
     const size_t bound = operation == 2 || operation==9 || operation==10 ? 8 * 1024 * 1024 : 512 * 1024;
     const std::string path = operation == 1 ? "/v1/resources" : operation == 2 ?
-        "/v1/resources/" + ui::Scalar(row, "resource_id") + "/thumbnail" : operation == 3 ? "/v1/open" :
+        resource::ThumbnailRequestPath(row) : operation == 3 ? "/v1/open" :
         operation == 4 ? "/v1/catalog/query" : operation == 5 ? "/v1/catalog/inspect" : operation==7 ? "/v1/catalog/images" :
         operation==8?"/v1/tray/query":operation==9?"/v1/tray/inspect":operation==10?"/v1/tray/image":"/v1/catalog/favorite";
     const std::string payload = operation == 3 ? ui::Json({{"resource_id", row["resource_id"]},
@@ -778,7 +780,7 @@ static bool ResourceHttp(int operation, const ui::Json& row, std::string& body) 
         }
     }
     closesocket(socketHandle);
-    return resource::HttpBody(raw, bound, body);
+    return resource::HttpBody(raw, bound, body, thumbnailProof);
 }
 
 static bool PreviewHttp(const std::string& path, std::string& body, const std::string& payload = "", size_t bound = 8*1024*1024) {
@@ -991,12 +993,12 @@ static void RunResourceCommand(const QueuedCommand& command) {
         ui::Json page;{std::lock_guard<std::mutex> lock(g_dataMutex);page=g_libraryPage;}
         const auto current=[&](){return command.generation==g_selectionGeneration&&command.resourceSelection==g_libraryImageSerial.load();};
         if(!current())return;
-        std::string raw;const bool received=ResourceHttp(7,command.resourceRow,raw);
+        std::string raw;bool proofQuery=false;const bool received=ResourceHttp(7,command.resourceRow,raw,&proofQuery);
         const auto result=ui::ParseObject(raw);
         const bool valid=received&&library::ImagesPage(result,command.resourceRow,page);
         std::map<std::string,resource::Pixels> decoded;std::map<std::string,std::string> errors;
         if(valid)for(const auto& item:result["items"]) {
-            const auto id=ui::Scalar(item,"part_id");const auto& row=item["resource"];std::string reason;resource::Pixels pixels;
+            const auto id=ui::Scalar(item,"part_id");auto row=item["resource"];resource::SetThumbnailProofCapability(row,proofQuery);std::string reason;resource::Pixels pixels;
             if(row["thumbnail"]["status"]!="resolved")errors[id]=ui::Scalar(row["thumbnail"],"reason");
             else if(current()&&ResourceHttp(2,row,raw)&&resource::DecodeThumbnail(raw,row,pixels,reason))decoded[id]=std::move(pixels);
             else errors[id]=reason.empty()?"Image verification or transport failed.":reason;
@@ -1008,8 +1010,9 @@ static void RunResourceCommand(const QueuedCommand& command) {
         bool current;
         { std::lock_guard<std::mutex> lock(g_dataMutex); current = command.generation == g_selectionGeneration && command.resourceSelection == g_librarySerial.load(); }
         std::string body;
-        const bool received = current && ResourceHttp(operation, command.resourceRow, body);
-        const auto value = ui::ParseObject(body);
+        bool proofQuery = false;
+        const bool received = current && ResourceHttp(operation, command.resourceRow, body, &proofQuery);
+        auto value = ui::ParseObject(body);
         const bool valid = received && (operation == 4 ? library::Page(value, command.resourceRow) :
             operation == 5 ? library::Inspection(value, command.resourceRow) :
             value.value("ok", ui::Json(false)) == true && value.value("part_id", ui::Json()) == command.resourceRow["part_id"] &&
@@ -1017,7 +1020,10 @@ static void RunResourceCommand(const QueuedCommand& command) {
         std::lock_guard<std::mutex> lock(g_dataMutex);
         if (command.generation == g_selectionGeneration && command.resourceSelection == g_librarySerial.load()) {
             if (valid && operation == 4) g_libraryPage = value;
-            if (valid && operation == 5) g_libraryInspection = value;
+            if (valid && operation == 5) {
+                resource::SetThumbnailProofCapability(value["resource"], proofQuery);
+                g_libraryInspection = value;
+            }
             g_libraryStatus = valid ? (operation == 5 ? "Selected package and CASP bytes verified. Compatibility is checked in the game before preview." : "Catalog page received. Browsing has not changed the Sim.") :
                 "Catalog unavailable or request refused. " +
                 (ui::Scalar(value, "reason").empty() ? ui::Scalar(value, "message") : ui::Scalar(value, "reason"));
@@ -1032,7 +1038,8 @@ static void RunResourceCommand(const QueuedCommand& command) {
             (operation == 1 || command.resourceSelection == g_resourceSelectionSerial.load());
     }
     std::string body, message; resource::Pixels pixels;
-    bool ok = current && ResourceHttp(operation, command.resourceRow, body);
+    bool proofQuery = false;
+    bool ok = current && ResourceHttp(operation, command.resourceRow, body, &proofQuery);
     ui::Json catalog = ui::Json::object();
     if (operation == 1) {
         catalog = ui::ParseObject(body); ok = ok && resource::CatalogIdentities(catalog);
@@ -1050,7 +1057,7 @@ static void RunResourceCommand(const QueuedCommand& command) {
     }
     std::lock_guard<std::mutex> lock(g_dataMutex);
     if (operation == 1) {
-        if (ok) g_resourceCatalog = std::move(catalog);
+        if (ok) { g_resourceCatalog = std::move(catalog); g_resourceCatalogProofQuery = proofQuery; }
         g_resourceCatalogStatus = message; g_resourceCatalogBusy = false;
     } else if (operation == 2) {
         g_resourceImageKey = ResourceKey(command.resourceRow); g_resourceImageStatus = message;
@@ -2607,9 +2614,9 @@ static void DrawResourcePart(const ui::Json& part, const ui::Json& editor) {
         ui::Scalar(g_studioData, "inspected_form_flags") + ":" + ui::Scalar(part, "target") + ":" + ui::Scalar(part, "cas_part_id");
     if (g_resourceViewKey != viewKey) { g_resourceViewKey = viewKey; ++g_resourceSelectionSerial; g_resourceRequestedImage.clear(); }
     if (!g_resourceCatalogAttempted) { g_resourceCatalogAttempted = true; QueueResource(1); }
-    ui::Json catalog; std::string catalogStatus;
-    { std::lock_guard<std::mutex> lock(g_dataMutex); catalog = g_resourceCatalog; catalogStatus = g_resourceCatalogStatus; }
-    const auto row = resource::Equipped(catalog, part, editor, ui::Scalar(g_studioData, "appearance_sha256"));
+    ui::Json catalog; std::string catalogStatus; bool proofQuery = false;
+    { std::lock_guard<std::mutex> lock(g_dataMutex); catalog = g_resourceCatalog; catalogStatus = g_resourceCatalogStatus; proofQuery = g_resourceCatalogProofQuery; }
+    auto row = resource::Equipped(catalog, part, editor, ui::Scalar(g_studioData, "appearance_sha256"));
     ImGui::SeparatorText("Item / source package");
     ImGui::BeginDisabled(g_resourceCatalogBusy.load());
     if (ImGui::Button("Refresh resource cache")) QueueResource(1);
@@ -2624,6 +2631,10 @@ static void DrawResourcePart(const ui::Json& part, const ui::Json& editor) {
         ImGui::BeginDisabled(); ImGui::Button("Open containing package in Sims 4 Studio"); ImGui::EndDisabled();
         return;
     }
+    // This row came from the 8022 catalog response; do not let a JSON field
+    // redirect the negotiated capability or its item request to port 8023.
+    row.erase("broker_port");
+    resource::SetThumbnailProofCapability(row, proofQuery);
     const auto name = resource::Name(row, static_cast<resource::NameMode>(std::clamp(g_itemNameMode, 0, 2)));
     if (!name.text.empty()) ImGui::TextWrapped("%s", name.text.c_str());
     else ImGui::TextDisabled("Item name unavailable in the verified package.");

@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/tools/research/test_private_pose_http.py
+@@ -0,0 +1,32 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Opt-in real-source loopback diagnostic. No game writes; not browser QA."""
++import hashlib,json,os,pathlib,select,subprocess,sys,urllib.request,urllib.error
++if not __debug__: raise SystemExit("Assertions required; do not run with Python -O")
++root=pathlib.Path(__file__).resolve().parents[1]; binary=root/'linked-candidate/target/release/examples/preview_server'
++args=[os.environ[f'CC_REAL_SCENE_ARG_{i}'] for i in range(5)]
++id=os.environ['CC_REAL_POSE_ID'];assert len(id)==64 and all(c in '0123456789abcdef' for c in id)
++env=os.environ.copy();env.pop('APEX_PREVIEW_PORT',None);env['APEX_REQUEST_BUDGET']='20'
++p=subprocess.Popen([str(binary),'--cc',*args],env=env,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
++try:
++ assert select.select([p.stdout],[],[],30)[0], 'Startup timed out'
++ line=p.stdout.readline().split();assert line and line[0].startswith('http://127.0.0.1:'), 'Unexpected listener'
++ url=line[0].rstrip('/')
++ def get(path):
++  try:
++   with urllib.request.urlopen(url+path,timeout=45) as r:return r.status,r.headers,r.read(1048577)
++  except urllib.error.HTTPError as e:return e.code,e.headers,e.read(1048577)
++ status,_,raw=get('/identity');identity=json.loads(raw);assert status==200 and identity['pose_library_ready'] is True
++ status,_,raw=get('/pose-catalog');catalog=json.loads(raw);assert status==200 and catalog['autoplay'] is False
++ pose=next(x for x in catalog['poses'] if x['id']==id);assert pose['playback_ready'] is True
++ status,_,raw=get('/cas-room');assert status==200 and b'pose-app.bundle.mjs' in raw
++ swatch=pose.get('swatch_id')
++ status,h,body=get('/clip-frame?clip='+id+'&frame=0&yaw=0&brightness=0&saturation=0&hue=0&opacity=16384')
++ assert status==200 and h['X-Clip-ID']==id and h['X-Clip-Frame']=='0' and h['X-Scene']==identity['scene_sha256']
++ assert len(body)==512*512*3 and len(set(body))>1
++ bad,_,_=get('/clip-frame?clip='+id+'&frame=999&yaw=0&brightness=0&saturation=0&hue=0&opacity=16384');assert bad==400
++ client=subprocess.run(['node',str(root/'linked-candidate/preview-ui/private-pose-client-smoke.mjs'),url,id],capture_output=True,text=True,timeout=45,check=True); print(client.stdout.strip())
++ print(json.dumps({'catalog_poses':len(catalog['poses']),'selected_ready':True,'clip_frame_status':status,'invalid_frame_status':bad,'frame_bytes':len(body),'autoplay':False,'browser_tested':False,'game_modified':False,'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest()}))
++finally:
++ p.terminate()
++ try:p.wait(timeout=5)
++ except subprocess.TimeoutExpired:p.kill();p.wait(timeout=5)
+--- /dev/null
++++ b/preview-ui/private-pose-client-smoke.mjs
+@@ -0,0 +1,19 @@
++// Opt-in loopback client integration. No browser, game or native-save claim.
++import assert from 'node:assert/strict';
++import {validateCatalog} from './pose-model.mjs';
++import {validateSwatchCatalog} from './swatch-model.mjs';
++import {validateAccessoryCatalog} from './accessory-model.mjs';
++import {createFrameClient} from './frame-client.mjs';
++const [base,id]=process.argv.slice(2);
++assert.match(base,/^http:\/\/127\.0\.0\.1:\d+$/);assert.match(id,/^[a-f0-9]{64}$/);
++const local=(path,opts)=>fetch(base+path,opts);
++async function json(path){const r=await local(path);assert.equal(r.status,200);return r.json();}
++const swatches=validateSwatchCatalog(await json('/swatch-catalog'));
++const accessories=validateAccessoryCatalog(await json('/accessory-catalog'));
++const catalog=validateCatalog(await json('/pose-catalog'));
++assert.equal(swatches.scene_sha256,accessories.scene_sha256);
++const pose=catalog.poses.find(p=>p.id===id);assert.equal(pose.playback_ready,true);assert.equal(catalog.autoplay,false);
++const client=createFrameClient({mode:'clip',fetchImpl:local,timeoutMs:30000});
++const frame=await client.read({clipId:id,frame:0,yaw:0,brightness:0,saturation:0,hue:0,opacity:16384,swatchId:swatches.default_id,catalogScene:swatches.scene_sha256});
++assert.equal(frame.scene,swatches.scene_sha256);assert.equal(frame.rgba.length,512*512*4);
++console.log(JSON.stringify({poseCount:catalog.poses.length,swatches:swatches.swatches.length,accessoriesEnabled:accessories.enabled,clientFrameBytes:frame.rgba.length,autoplay:false,browserTested:false,gameModified:false}));

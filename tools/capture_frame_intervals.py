@@ -113,6 +113,18 @@ def event_loss(log):
     # Check each clause: a zero-events report cannot conceal dropped buffers
     # later on the same line. Unknown loss counts remain conservatively invalid.
     for line in log.splitlines():
+        # Optional PresentMon 2.6.0 real-time status. These snapshots are not
+        # proof of complete or timely sampling; absence is not zero-loss proof.
+        if re.match(r'^\s*\[ETW\b', line, re.I):
+            sample=re.fullmatch(r'\s*\[ETW Status\]\s+BufferFillPct=([0-9]{1,3}\.[0-9])%\s+'
+                r'BuffersInUse=([0-9]{1,10})\s+TotalBuffers=([0-9]{1,10})\s+'
+                r'EventsLost=([0-9]{1,10})\s+BuffersLost=([0-9]{1,10}),\s+'
+                r'OverflowedPresents=([0-9]{1,10})\s*',line,re.I)
+            if sample is None:return True
+            fill=float(sample.group(1)); used,total,events,buffers,overflow=map(int,sample.groups()[1:])
+            if (fill>100 or used>total or any(x>0xffffffff for x in (used,total,events,buffers,overflow)) or
+                    events or buffers or overflow):return True
+            continue
         # PresentMon 2.6.0 reports its own ring overflow separately from ETW
         # loss, and only emits this warning when the overflow count is positive.
         if re.search(r'\bwarning:\s*0*[1-9][0-9]*\s+overflowed\s+present\s+events\s+detected\b', line, re.I):

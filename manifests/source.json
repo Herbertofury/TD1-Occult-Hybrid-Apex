@@ -41,6 +41,12 @@
       "sha256": "778f289631c7cae7710f398f33b02abf2bb50f3735cb9590aa85791baa3f2c16"
     },
     {
+      "bytes": 4972,
+      "mode": "100644",
+      "path": "tests/test_etw_status.py",
+      "sha256": "7c1fbdf03b356623a197e057fc5bda916bebed2aa7894eef7a5c64e8f6ae44a3"
+    },
+    {
       "bytes": 2076,
       "mode": "100644",
       "path": "tools/cas_catalog_schedule_stage.py",
@@ -977,12 +983,6 @@
       "sha256": "fb2d10bbd99b028ce05fd9bc27fcf3470b29ef27f6e4e606eb79f805ec7f2384"
     },
     {
-      "bytes": 14247,
-      "mode": "100644",
-      "path": "docs/FRAME_BENCHMARK.md",
-      "sha256": "e3aab750b294622b27b63200e38b282d9f5ffe4c1e833c66f42889eae23f6402"
-    },
-    {
       "bytes": 15749,
       "mode": "100644",
       "path": "Source/CASUi/catalog_grid_authority_methods.as",
@@ -1551,6 +1551,12 @@
       "mode": "100644",
       "path": "tests/test_cas_failed_commit_archive.py",
       "sha256": "e7b096c06353a5156a96a73a1ddf650a8ea032ee29ad3e5075e77c6edfd923f3"
+    },
+    {
+      "bytes": 14625,
+      "mode": "100644",
+      "path": "docs/FRAME_BENCHMARK.md",
+      "sha256": "c1d2701ee96bc71b4ac538c55e039d98b3bd090218b7f2501a6bf354c25bd7ef"
     },
     {
       "bytes": 2572,
@@ -3585,6 +3591,12 @@
       "mode": "100644",
       "path": "Source/apex_core/dresser_parts.py",
       "sha256": "3f6d532eead00d0822d8bc1c629616479a74f46e532b78dca7860200202de477"
+    },
+    {
+      "bytes": 16649,
+      "mode": "100644",
+      "path": "tools/capture_frame_intervals.py",
+      "sha256": "6e15584999cc6b6c9e8c57020036a4cdd5b87615cafc7a8b06a091a95a8539ab"
     },
     {
       "bytes": 3396,
@@ -6543,12 +6555,6 @@
       "mode": "100644",
       "path": "Source/apex_core/cas_commit_plan.py",
       "sha256": "54dd6cf60a998048f9ce7571968c64205f9295bdf62c02f30b845c3f132b2933"
-    },
-    {
-      "bytes": 15789,
-      "mode": "100644",
-      "path": "tools/capture_frame_intervals.py",
-      "sha256": "9e6004b3004ffd11059e8f99fc8e520003f6ab11f5f94a3d9368d437a640b4eb"
     },
     {
       "bytes": 18385,

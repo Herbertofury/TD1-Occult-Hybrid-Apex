@@ -57,6 +57,11 @@ four failed game captures. None of those retained captures reported this ring
 warning, so this check does not explain their loss or qualify a new capture.
 Offline unit and mocked-collector tests cover the warning and preserve the
 existing zero-loss behavior; they are not in-game measurements.
+When PresentMon emits an optional ETW status line, the diagnostic also rejects
+positive loss or overflow counters and malformed status records. Status
+tracking is not enabled by this change; absent, zero or stale samples do not
+prove that all events were captured. Its CSV status fields and sampling
+overhead require separate qualification before that mode is used for a claim.
 
 For newly recorded offline ETL captures, the adapter retains a hash of the
 PresentMon parser log and the comparison rechecks that same log for recognized

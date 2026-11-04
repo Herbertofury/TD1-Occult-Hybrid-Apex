@@ -1,0 +1,100 @@
+--- a/examples/preview_server.rs
++++ b/examples/preview_server.rs
+@@ -1753,4 +1753,32 @@
+         assert!(std::str::from_utf8(&output[..split]).unwrap().contains(&format!("X-Swatch-ID: {alternate}\r\n")));
+         assert_eq!(&output[split..],changed.rgb.as_slice());
+     }
+-}
++    #[test]
++    #[ignore = "requires privately prepared real pose library and scene"]
++    fn real_creator_pose_renders_on_recovered_scene() {
++        let args: Vec<String> = (0..5).map(|i| std::env::var(format!("CC_REAL_SCENE_ARG_{i}")).unwrap()).collect();
++        let cc = cc_scene::CcScene::load(&args).unwrap();
++        let id = std::env::var("CC_REAL_POSE_ID").unwrap();
++        let posed=cc.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,&id,0,0,[0,0,0,16384]).unwrap();
++        let repeated=cc.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,&id,0,0,[0,0,0,16384]).unwrap();
++        assert_eq!(posed.rgb.len(),512*512*3);assert_eq!(posed.rgb,repeated.rgb);
++        assert!(cc.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,&id,999,0,[0,0,0,16384]).is_err());
++    }
++
++    #[test]
++    #[ignore = "requires privately prepared real pose library and scene"]
++    fn every_prepared_creator_pose_renders_a_nonuniform_frame() {
++        let args: Vec<String> = (0..5).map(|i| std::env::var(format!("CC_REAL_SCENE_ARG_{i}")).unwrap()).collect();
++        let cc = cc_scene::CcScene::load(&args).unwrap();
++        let ids=std::env::var("CC_REAL_POSE_IDS").unwrap();let mut hashes=std::collections::HashSet::new();let mut count=0;
++        for id in ids.split(',') {
++            assert!(id.len()==64 && id.bytes().all(|b|b.is_ascii_hexdigit()));
++            let frame=cc.render_clip_swatch(cc_scene::swatch_catalog::DEFAULT_ID,id,0,0,[0,0,0,16384]).unwrap();
++            assert_eq!(frame.rgb.len(),512*512*3);
++            assert!(frame.rgb.chunks_exact(3).any(|p|p!=&frame.rgb[..3]));
++            hashes.insert(format!("{:x}",Sha256::digest(&frame.rgb))); count+=1;
++        }
++        assert_eq!(count,23);assert!(hashes.len()>=20);
++    }
++
++}
+--- /dev/null
++++ b/tools/research/sample_new_pose.py
+@@ -0,0 +1,16 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Private, bounded sampling only. No installed game or user files modified."""
++from pathlib import Path
++import json,struct,hashlib,subprocess,resource,sys
++resource.setrlimit(resource.RLIMIT_AS,(768*1024*1024,)*2)
++r=Path(__file__).resolve().parents[1]; base=r/'private-input-recovery/new-pose'; out=base/'sampled';out.mkdir(exist_ok=True);sampler=base/'sample_actual_clip';mesh=r/'private-input-recovery/projected/yfHead_lod0.simgeom.rig-bound.apxmesh';poser=r/'linked-candidate/target/debug/examples/pose_mesh';summary=[]
++for p in sorted((base/'decoded').glob('6B*.json')):
++ x=json.loads(p.read_text());assert not x['unsupported_channels'];lines=[f"{x['duration']!r} {x['frame_duration']!r} {len(x['tracks'])}"]
++ for track in x['tracks']:
++  lines.append(f"{track['key']} {track['kind']} {len(track['frames'])}")
++  for key in track['frames']:
++   at=struct.unpack('<f',struct.pack('<f',key['frame']*x['frame_duration']))[0];v=key['values'] if track['kind']==2 else key['values']+[0.];lines.append(' '.join(map(repr,[at,*v])))
++ text=out/(p.stem+'.clip.txt');text.write_text('\n'.join(lines)+'\n');mat=out/(p.stem+'.f32');o=subprocess.run([str(sampler),str(base/'adult-rig.txt'),str(text),'0',str(mat),'normalize'],capture_output=True,text=True,timeout=10,check=True);metrics=json.loads(o.stdout);assert metrics['bones']==165 and metrics['max_matrix_orthogonality_error']<1e-4 and mat.stat().st_size==165*48
++ posed=out/(p.stem+'.apxmesh');c=subprocess.run([str(poser),str(mesh),str(mat),str(posed)],capture_output=True,text=True,timeout=20,check=True)
++ summary.append({'name':x['name'],'rig_hash_matches':len({t['key'] for t in x['tracks']}),'matrix_sha256':hashlib.sha256(mat.read_bytes()).hexdigest(),'posed_head_sha256':hashlib.sha256(posed.read_bytes()).hexdigest(),'orthogonality':metrics['max_matrix_orthogonality_error']})
++(out/'private-samples.json').write_text(json.dumps(summary,indent=2));print('decoded clips',len(summary),'sampled and rigid-head tested',len(summary),'distinct head hashes',len(set(x['posed_head_sha256'] for x in summary)),'worst orthogonality',max(x['orthogonality'] for x in summary))
+--- /dev/null
++++ b/tools/research/prepare_new_pose_library.py
+@@ -0,0 +1,42 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Bounded private source pose preparation; no native game writes or asset distribution."""
++from pathlib import Path
++import sys,hashlib,struct,json,xml.etree.ElementTree as ET,io,math,subprocess,resource
++import numpy as np
++from PIL import Image
++resource.setrlimit(resource.RLIMIT_AS,(1024*1024*1024,)*2)
++r=Path(__file__).resolve().parents[1];base=r/'private-input-recovery/new-pose';resources=base/'resources';out=base/'playback';out.mkdir(mode=0o700,exist_ok=True)
++sys.path.insert(0,str(r/'inert-status-fixture/modules'));sys.path.insert(0,str(r/'real-recovery-evidence/clip-gpl'));from cas_resource_catalog import stbl_strings;from dst_adapter import to_dds
++package=base/'mosichaa-camera.package';package_hash=hashlib.sha256(package.read_bytes()).hexdigest();xmlfile=next(resources.glob('7DF2169C_*'));raw=xmlfile.read_bytes();assert len(raw)<1024*1024 and b'<!DOCTYPE' not in raw.upper() and b'<!ENTITY' not in raw.upper();tree=ET.fromstring(raw);assert tree.get('c')=='PosePackInstance' and len(list(tree.iter()))<10000
++stbl=stbl_strings(next(resources.glob('220557DA_*_00*')).read_bytes())
++def resolve(t):
++ if not t:return ''
++ if t.startswith('0x'):
++  return '' if int(t,16)==0 else stbl.get(int(t,16),t)
++ return t
++def fields(node):
++ d={}
++ for t in node.findall('T'):
++  k=t.get('n');assert k not in d;d[k]=t.text or ''
++ return d
++header=fields(tree);pkid=hashlib.sha256((package_hash+xmlfile.name.replace('_',':')).encode()).hexdigest();pack={'id':pkid,'name':resolve(header['display_name']) or header['sort_name'],'creator':resolve(header['creator_name']) or 'mosichaa','package':package.name}
++clips={json.loads(p.read_text())['name']:(p,json.loads(p.read_text())) for p in (base/'decoded').glob('6B*.json')};images={int(p.name.split('_')[-1],16):p for p in resources.glob('00B2D882_*')}
++def icon(ref):
++ try:
++  parts=ref.split(':');source=images[int(parts[2],16)];raw=source.read_bytes();im=Image.open(io.BytesIO(to_dds(raw)));im.load();assert 0<im.width<=512 and 0<im.height<=512;digest=hashlib.sha256(raw).hexdigest();name=digest+'.png';im.convert('RGBA').save(out/name,format='PNG');return {'state':'decoded-source-image','file':name,'width':im.width,'height':im.height}
++ except (KeyError,IndexError,ValueError,OSError,AssertionError):return {'state':'missing-resource'}
++g=r/'private-input-recovery/projected-cc';meshes=[r/'private-input-recovery/projected/yfHead_lod0.simgeom.rig-bound.apxmesh',g/'FatalRose-PastelGothDress-015A1849_80E07075_ACBBF0348A3F9CC4.apxmesh',g/'Jius-BowFlipFlops01-015A1849_8061B6BD_CDAF8BA8C227A887.apxmesh',g/'AH00B-SugarHair-V1-Plain-015A1849_808C2326_44A30B96BDCE7F28.apxmesh'];dtype=np.dtype(dict(names=['p','n','uv','j','w'],formats=[('<f4',3),('<f4',3),('<f4',2),('<u2',4),('<f4',4)],offsets=[0,12,24,32,40],itemsize=56));vertices=[];mh=hashlib.sha256()
++for f in meshes:
++ b=f.read_bytes();assert b[:8]==b'APXMESH1';mh.update(struct.pack('<Q',len(b)));mh.update(b);v=np.frombuffer(b,dtype,count=struct.unpack_from('<I',b,8)[0],offset=16);vertices.append((np.c_[v['p'].astype(float),np.ones(len(v))],v['j'],v['w'].astype(float)))
++mesh_hash=mh.digest();items=[];total_frames=0;worst=0
++for node in tree.findall("L[@n='pose_list']/U"):
++ meta=fields(node);p,x=clips[meta['pose_name']];assert not x['unsupported_channels']; key=hashlib.sha256((pkid+'\0'+meta['pose_name']).encode()).hexdigest();changing=sum(len({tuple(k['values']) for k in t['frames']})>1 for t in x['tracks']);duration=x['duration'];step=x['frame_duration'];frames=1 if changing==0 else math.ceil(duration/step)+1;assert 1<=frames<=2048
++ text=base/'sampled'/(p.stem+'.clip.txt');assert text.exists();data=bytearray();lo=np.array([np.inf]*3);hi=-lo
++ for i in range(frames):
++  at=min(i*step,duration);tmp=base/'sampled/current.f32';run=subprocess.run([str(base/'sample_actual_clip'),str(base/'adult-rig.txt'),str(text),str(at),str(tmp),'normalize'],capture_output=True,text=True,timeout=10,check=True);metrics=json.loads(run.stdout);worst=max(worst,metrics['max_matrix_orthogonality_error']);assert metrics['max_matrix_orthogonality_error']<1e-4;matrixbytes=tmp.read_bytes();assert len(matrixbytes)==165*48;data.extend(matrixbytes);matrix=np.frombuffer(matrixbytes,dtype='<f4').reshape(165,3,4).astype(float)
++  for pos,j,w in vertices:
++   projected=(np.einsum('nikl,nl->nik',matrix[j],pos)*w[:,:,None]).sum(axis=1)/w.sum(axis=1)[:,None];lo=np.minimum(lo,projected.min(axis=0));hi=np.maximum(hi,projected.max(axis=0))
++ lo-=0.0001;hi+=0.0001;assert np.isfinite(lo).all() and np.isfinite(hi).all() and (hi>lo).all();blob=b'APXPOSE1'+mesh_hash+struct.pack('<IIff6f',165,frames,step,duration,*lo,*hi)+data;(out/(key+'.posebin')).write_bytes(blob);total_frames+=frames
++ items.append({'id':key,'pack_id':pkid,'pack':pack['name'],'creator':pack['creator'],'package':package.name,'name':resolve(meta['pose_display_name']) or meta['pose_name'],'description':resolve(meta.get('pose_description','')),'clip_name':meta['pose_name'],'order':int(meta['sort_order']),'icon':icon(meta.get('icon','')),'duration':duration,'frame_duration':step,'changing_curves':changing,'prepared_frames':frames,'playback_ready':True,'playing':False,'state':'prepared-not-playing'})
++assert len(items)==23 and len({x['id'] for x in items})==23
++(out/'catalog.json').write_text(json.dumps({'schema':1,'packs':[pack],'poses':items,'autoplay':False,'game_connected':False,'shared_favorites_connected':False},ensure_ascii=False,indent=2)+'\n');print('poses',len(items),'frames',total_frames,'icons',sum(i['icon']['state']=='decoded-source-image' for i in items),'worst orthogonality',worst,'all game disconnected')

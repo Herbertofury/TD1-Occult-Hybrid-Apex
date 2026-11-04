@@ -3299,6 +3299,12 @@
       "sha256": "ea1484624a4d8717379f170829122b9234e07998290ce43b8653a3d856477875"
     },
     {
+      "bytes": 3752,
+      "mode": "100644",
+      "path": "docs/ETW_SYNTHETIC_CALIBRATION_20261104.md",
+      "sha256": "90d1d1fd40dbf700e62b243b8881d632dd45ca812dc2f67cc35aa2e25c23ab49"
+    },
+    {
       "bytes": 10694,
       "mode": "100644",
       "path": "tools/tray_complete_appearance.py",
@@ -3477,6 +3483,12 @@
       "mode": "100644",
       "path": "NativeOverlay/Tests/ServiceTimingTests.cpp",
       "sha256": "dd8b10e599339720f82980a188687d8e2b7c0488bc5f26fdc3d6bbe4f754c699"
+    },
+    {
+      "bytes": 14670,
+      "mode": "100644",
+      "path": "tests/test_mod_provenance.py",
+      "sha256": "32230f09864dedb4d2efac42fb926fabc243851f3fe734e8d1df1f274336bdbd"
     },
     {
       "bytes": 1469,
@@ -5429,6 +5441,12 @@
       "sha256": "a1b76884501a2b3941f83362641ba637c302a58d3f4c4f23db87171d8ed778e6"
     },
     {
+      "bytes": 27246,
+      "mode": "100644",
+      "path": "tools/mod_provenance.py",
+      "sha256": "ff34640ad4fc68411d3a189609dc9ec11b019d60b9636e5cdc727b020bb7071d"
+    },
+    {
       "bytes": 4262,
       "mode": "100644",
       "path": "tests/test_runtime_profile.py",
@@ -6567,6 +6585,12 @@
       "mode": "100644",
       "path": "tests/test_cas_household_commit.py",
       "sha256": "105f6db24d6f9f535d1fd45a8a7a6daea3b7ede42948a4110f9b686cc7fd1df4"
+    },
+    {
+      "bytes": 5035,
+      "mode": "100644",
+      "path": "docs/MOD_PROVENANCE.md",
+      "sha256": "3e4d075595d58c41f089c64bde9eb1aa6cd1e0e1d3fb32f349b1089636587e0d"
     },
     {
       "bytes": 13216,

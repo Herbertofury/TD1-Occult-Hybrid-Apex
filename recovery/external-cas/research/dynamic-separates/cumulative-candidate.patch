@@ -1,0 +1,1047 @@
+--- a/rig-recovery/extend_variant_bindings.py
++++ b/rig-recovery/extend_variant_bindings.py
+@@ -7,13 +7,24 @@
+ import re
+ from scene_switch_supervisor import TOKEN,Refused
+ D=re.compile(r'[a-f0-9]{64}\Z')
++SLOTS=('dress','top','bottom','hair','shoes','eyes','tattoo')
++# A scene contains exactly one complete clothing mode. Do not infer a missing
++# counterpart or silently transition between dresses and separates.
++def valid_slots(slots):
++ shared={'hair'}
++ optional={'shoes','eyes','tattoo'}
++ if not shared <= slots or not slots <= shared | optional | {'dress','top','bottom'}:return False
++ clothing=slots & {'dress','top','bottom'}
++ if clothing not in ({'dress'},{'top','bottom'}):return False
++ extras=slots & optional
++ return extras in (set(),{'shoes'},{'shoes','eyes'},{'shoes','eyes','tattoo'})
+ def extend(bindings,tokens,base,new,slot,part):
+- if type(bindings)is not dict or bindings.get('schema')!=3 or not isinstance(tokens,set) or not 1<=len(tokens)<=16 or base not in tokens or new in tokens or not isinstance(new,str) or not TOKEN.fullmatch(new) or slot not in ('dress','hair','shoes','eyes','tattoo') or not isinstance(part,str) or not D.fullmatch(part):raise Refused('invalid binding extension')
++ if type(bindings)is not dict or bindings.get('schema')!=3 or not isinstance(tokens,set) or not 1<=len(tokens)<=16 or base not in tokens or new in tokens or not isinstance(new,str) or not TOKEN.fullmatch(new) or slot not in SLOTS or not isinstance(part,str) or not D.fullmatch(part):raise Refused('invalid binding extension')
+  rows=bindings.get('items');
+  if not isinstance(rows,list) or not 1<=len(rows)<=16:raise Refused('invalid bindings')
+  pairs={};kinds={}
+  for row in rows:
+-  if type(row)is not dict or set(row)!={'part_id','kind','transitions'} or row['kind'] not in ('dress','hair','shoes','eyes','tattoo') or not isinstance(row['part_id'],str) or not D.fullmatch(row['part_id']) or row['part_id'] in kinds or type(row['transitions'])is not dict:raise Refused('invalid binding row')
++  if type(row)is not dict or set(row)!={'part_id','kind','transitions'} or row['kind'] not in SLOTS or not isinstance(row['part_id'],str) or not D.fullmatch(row['part_id']) or row['part_id'] in kinds or type(row['transitions'])is not dict:raise Refused('invalid binding row')
+   kinds[row['part_id']]=row['kind']
+  for token in tokens:
+   pair={}
+@@ -21,7 +32,7 @@
+    if row['transitions'].get(token)==token:
+     if row['kind'] in pair:raise Refused('ambiguous active part')
+     pair[row['kind']]=row['part_id']
+-  if set(pair) not in ({'dress','hair'},{'dress','hair','shoes'},{'dress','hair','shoes','eyes'},{'dress','hair','shoes','eyes','tattoo'}):raise Refused('missing active part')
++  if not valid_slots(set(pair)):raise Refused('missing active part')
+   pairs[token]=pair
+  slots=set(pairs[base])
+  if slot not in slots or any(set(v)!=slots for v in pairs.values()):raise Refused('inconsistent scene slots')
+--- a/rig-recovery/build_combinatorial_bindings.py
++++ b/rig-recovery/build_combinatorial_bindings.py
+@@ -6,7 +6,25 @@
+ """
+ import argparse,hashlib,json,pathlib,re,sqlite3,time
+ from build_scene_bindings import pin,ROOT,PRIVATE,D,T,N
++from extend_variant_bindings import valid_slots
++from pair_source_identity import validate as validate_pair
+ CASP=re.compile(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}\Z')
++def clothing_sources(lines, marker, expected_swatch):
++ """Validate descriptor-to-runtime identity before binding any catalog parts."""
++ if type(lines)is not list or not ((len(lines)==7 and lines[0]=='APX-GENERIC-DRESS-1') or (len(lines)==9 and lines[0]=='APX-GENERIC-PAIR-1')):raise ValueError('clothing descriptor shape')
++ if not CASP.fullmatch(lines[1]) or lines[1]!=expected_swatch or not lines[2].isascii() or not lines[2].isdigit() or int(lines[2])>65535:raise ValueError('clothing descriptor selection')
++ colors=lines[3].split(',')
++ if not 1<=len(colors)<=8 or any(not re.fullmatch(r'[a-f0-9]{8}',x) for x in colors) or any(not D.fullmatch(x) for x in lines[4:7]):raise ValueError('clothing descriptor values')
++ if lines[4]!=marker.get('asset_hashes',{}).get('FatalRose-PastelGothDress.2048.rgba') or lines[5]!=marker.get('mesh_hashes',{}).get('dress.apxmesh'):raise ValueError('clothing asset identity mismatch')
++ if lines[0]=='APX-GENERIC-PAIR-1':
++  if not CASP.fullmatch(lines[7]) or not D.fullmatch(lines[8]):raise ValueError('pair source identity')
++  pair=marker.get('pair_source')
++  if pair is not None:
++   sources=validate_pair(pair,lines)['sources']
++   return {'top':(lines[6],lines[1],6,sources['top']['casp_sha256']),'bottom':(lines[8],lines[7],7,sources['bottom']['casp_sha256'])}
++  return {'top':(lines[6],lines[1],6,None),'bottom':(lines[8],lines[7],7,None)}
++ if 'pair_source' in marker:raise ValueError('unexpected pair source record')
++ return {'dress':(lines[6],lines[1],5,None)}
+ def main():
+  p=argparse.ArgumentParser();p.add_argument('--config',nargs=2,required=True,metavar=('PATH','SHA256'));p.add_argument('--output',required=True);a=p.parse_args()
+  if not N.fullmatch(a.output) or PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('fresh private output name required')
+@@ -17,14 +35,14 @@
+  cat=cats[0];index=pathlib.Path(cat['index']);pin(index,cat['index_sha'],256*1024*1024)
+  if index.stat().st_nlink!=1 or any(pathlib.Path(str(index)+s).exists() or pathlib.Path(str(index)+s).is_symlink() for s in ('-wal','-shm','-journal')):raise ValueError('catalog must be standalone')
+  db=sqlite3.connect(index.as_uri()+'?mode=ro&immutable=1',uri=True);deadline=time.monotonic()+10;db.set_progress_handler(lambda:int(time.monotonic()>deadline),10000);pairs={}
+- def lookup(package,casp,expected_sha=None):
++ def lookup(package,casp,expected_sha=None,expected_type=None):
+   if not isinstance(package,str) or not D.fullmatch(package) or not isinstance(casp,str) or not CASP.fullmatch(casp):raise ValueError('source identity')
+   rows=db.execute("SELECT part_id,row_json FROM parts WHERE json_extract(row_json,'$.package_sha256')=? AND json_extract(row_json,'$.resource_tgi')=? LIMIT 2",(package,casp)).fetchall()
+   if len(rows)!=1:raise ValueError('catalog part missing or ambiguous')
+   part,raw=rows[0]
+   if not isinstance(part,str) or not D.fullmatch(part) or len(raw)>1024*1024:raise ValueError('part identity')
+   row=json.loads(raw)
+-  if row.get('part_id')!=part or row.get('package_sha256')!=package or row.get('resource_tgi')!=casp or (expected_sha is not None and row.get('resource_sha256')!=expected_sha):raise ValueError('catalog identity mismatch')
++  if row.get('part_id')!=part or row.get('package_sha256')!=package or row.get('resource_tgi')!=casp or (expected_sha is not None and row.get('resource_sha256')!=expected_sha) or (expected_type is not None and row.get('body_type')!=expected_type):raise ValueError('catalog identity mismatch')
+   return part
+  try:
+   for token,row in obj['scenes'].items():
+@@ -34,23 +52,25 @@
+    runtime=PRIVATE/name
+    if runtime.is_symlink() or not runtime.is_dir():raise ValueError('runtime unavailable')
+    marker=runtime/'runtime.json';pin(marker,spec['runtime_sha'],1024*1024);m=json.loads(marker.read_bytes());desc=runtime/'descriptor.txt';pin(desc,m['descriptor_sha256'],4096);lines=desc.read_text('ascii').splitlines();h=m.get('hair_source')
+-   if len(lines)!=7 or lines[0]!='APX-GENERIC-DRESS-1' or lines[1]!=spec['swatch_id'] or type(h)is not dict or set(h)!={'package_sha256','casp','casp_sha256','mesh_sha256','material_sha256'} or h['mesh_sha256']!=m['mesh_hashes']['hair.apxmesh'] or h['material_sha256']!=m['asset_hashes']['AH00B-SugarHair-V1-Plain.rgba']:raise ValueError('scene component identity')
+-   pairs[token]={'dress':lookup(lines[6],lines[1]),'hair':lookup(h['package_sha256'],h['casp'],h['casp_sha256'])}
++   sources=clothing_sources(lines,m,spec['swatch_id'])
++   if type(h)is not dict or set(h)!={'package_sha256','casp','casp_sha256','mesh_sha256','material_sha256'} or h['mesh_sha256']!=m['mesh_hashes']['hair.apxmesh'] or h['material_sha256']!=m['asset_hashes']['AH00B-SugarHair-V1-Plain.rgba']:raise ValueError('scene component identity')
++   pairs[token]={'hair':lookup(h['package_sha256'],h['casp'],h['casp_sha256'],2)}
++   for kind,(package,casp,body_type,casp_sha) in sources.items():pairs[token][kind]=lookup(package,casp,expected_sha=casp_sha,expected_type=body_type)
+    if 'shoes_source' in m:
+     shoe=m['shoes_source']
+     if type(shoe)is not dict or set(shoe)!={'package_sha256','casp','casp_sha256','mesh_sha256','material_sha256'} or shoe['mesh_sha256']!=m['mesh_hashes']['shoes.apxmesh'] or shoe['material_sha256']!=m['asset_hashes']['Jius-BowFlipFlops01.2048.rgba']:raise ValueError('shoe source identity')
+-    pairs[token]['shoes']=lookup(shoe['package_sha256'],shoe['casp'],shoe['casp_sha256'])
++    pairs[token]['shoes']=lookup(shoe['package_sha256'],shoe['casp'],shoe['casp_sha256'],8)
+    if 'eyes_source' in m:
+     eye=m['eyes_source']
+     if type(eye)is not dict or set(eye)!={'package_sha256','casp','casp_sha256','material_sha256'} or eye['material_sha256']!=m['asset_hashes']['eyes.2048.rgba']:raise ValueError('eye source identity')
+-    pairs[token]['eyes']=lookup(eye['package_sha256'],eye['casp'],eye['casp_sha256'])
++    pairs[token]['eyes']=lookup(eye['package_sha256'],eye['casp'],eye['casp_sha256'],35)
+    if 'tattoo_source' in m:
+     tattoo=m['tattoo_source']
+     if type(tattoo)is not dict or set(tattoo)!={'package_sha256','casp','casp_sha256','material_sha256'} or tattoo['material_sha256']!=m['asset_hashes']['myshunosun-caroline-tattoo.2048.rgba']:raise ValueError('tattoo source identity')
+-    pairs[token]['tattoo']=lookup(tattoo['package_sha256'],tattoo['casp'],tattoo['casp_sha256'])
++    pairs[token]['tattoo']=lookup(tattoo['package_sha256'],tattoo['casp'],tattoo['casp_sha256'],46)
+  finally:db.close()
+  slots=set(next(iter(pairs.values())))
+- if slots not in ({'dress','hair'},{'dress','hair','shoes'},{'dress','hair','shoes','eyes'},{'dress','hair','shoes','eyes','tattoo'}) or any(set(x)!=slots for x in pairs.values()):raise ValueError('inconsistent scene slots')
++ if not valid_slots(slots) or any(set(x)!=slots for x in pairs.values()):raise ValueError('inconsistent scene slots')
+  if len({tuple(x[k] for k in sorted(slots)) for x in pairs.values()})!=len(pairs):raise ValueError('duplicate combination')
+  kinds={}
+  for pair in pairs.values():
+--- a/rig-recovery/scene_gateway.py
++++ b/rig-recovery/scene_gateway.py
+@@ -9,6 +9,8 @@
+ from scene_switch_supervisor import Refused,TOKEN
+ from register_prepared_variant import register
+ from extend_variant_bindings import extend,remove_scene
++from scene_provenance import validate as validate_provenance
++from verify_prepared_source import verify as verify_source
+ ROOT=pathlib.Path(__file__).resolve().parent
+ EXACT={'/cas-room','/room-layout.css','/pose-app.bundle.mjs','/identity','/pose-catalog','/swatch-catalog','/accessory-catalog','/accessory-state','/cc-library','/cc-library.css','/cc-library.mjs','/cc-library-images.mjs','/cc-library-model.mjs','/cc-catalog-state','/cc-import-status','/controller.mjs','/frame-client.mjs','/swatch-model.mjs','/accessory-model.mjs','/thumbnail-pool.mjs','/hue-wheel-model.mjs','/hue-wheel-ui.mjs','/history-shortcuts.mjs','/pose-history-session.mjs','/pose-history.mjs','/pose-model.mjs','/room-fallback.mjs','/cc-history.mjs','/cc-history-session.mjs','/cc-swatch-history.mjs','/accessory-inspection.mjs'}
+ QUERY={'/clip-frame','/cc-frame','/accessory-inspection-frame','/cc-catalog/query','/cc-source-images'}
+@@ -32,7 +34,7 @@
+    seen=set();seen_tokens=set()
+    for row in bindings['items']:
+     shape={'part_id','token'} if bindings['schema']==1 else {'part_id','token','kind'} if bindings['schema']==2 else {'part_id','kind','transitions'}
+-    if type(row)is not dict or set(row)!=shape or (bindings['schema'] in (2,3) and row['kind'] not in ('dress','hair','shoes','eyes','tattoo')) or not isinstance(row['part_id'],str) or not re.fullmatch(r'[a-f0-9]{64}',row['part_id']) or row['part_id'] in seen:raise ValueError('invalid prepared binding')
++    if type(row)is not dict or set(row)!=shape or (bindings['schema'] in (2,3) and row['kind'] not in ('dress','top','bottom','hair','shoes','eyes','tattoo')) or not isinstance(row['part_id'],str) or not re.fullmatch(r'[a-f0-9]{64}',row['part_id']) or row['part_id'] in seen:raise ValueError('invalid prepared binding')
+     if bindings['schema'] in (1,2):
+      token=row['token']
+      if not isinstance(token,str) or token in seen_tokens or token not in owner.specs or owner.specs[token].get('catalog',{}).get('index_sha')!=bindings['catalog_sha256']:raise ValueError('invalid prepared token')
+@@ -139,10 +141,29 @@
+          candidate=remove_scene(old_bindings,evict);del owner.specs[evict];del self.server.labels[evict]
+          if self.server.provenance is not None:del self.server.provenance[evict]
+          target,bindings=extend(candidate,set(owner.specs),v['base_token'],token,v['slot'],v['part_id'])
+-        if bindings is None:return owner.switch_if(target,data['generation'])
+         prior=self.server.provenance.get(v['base_token']) if self.server.provenance is not None else None
+         if self.server.provenance is not None and prior is None:raise Refused('missing scene provenance')
+-        if prior is not None:self.server.provenance[token]={**prior,v['slot']:v['pipeline']}
++        if prior is None or 'dress' in prior:
++         if bindings is None:return owner.switch_if(target,data['generation'])
++         if prior is not None:self.server.provenance[token]={**prior,v['slot']:v['pipeline']}
++        else:
++         expected={'top','bottom','hair','shoes','eyes','tattoo','pair'}
++         if set(prior)!=expected or v['slot'] not in expected-{'pair'}:raise Refused('unsupported clothing mode')
++         candidates=[s for s in self.server.preparations.selections.values() if s['part_id']==v['part_id'] and s['name']==v['pipeline']]
++         if len(candidates)!=1:raise Refused('selected source not registered')
++         try:
++          verify_source(candidates[0],v['slot'])
++          validate_provenance({v['base_token']:owner.specs[v['base_token']]},{v['base_token']:prior})
++          if bindings is None:
++           existing=self.server.provenance[target]
++           validate_provenance({target:owner.specs[target]},{target:existing})
++           verify_source({**candidates[0],'name':existing[v['slot']]},v['slot'])
++          else:
++           proposed={**prior,v['slot']:v['pipeline'],'pair':v['pair_pipeline']}
++           validate_provenance({token:v['spec']},{token:proposed})
++         except (ValueError,KeyError):raise Refused('prepared provenance invalid')
++         if bindings is None:return owner.switch_if(target,data['generation'])
++         self.server.provenance[token]=proposed
+         self.server.bindings=bindings
+         return register(owner,self.server.labels,base_token=v['base_token'],generation=data['generation'],token=token,spec=v['spec'],label='Prepared private variation')
+        except BaseException:
+@@ -161,10 +182,16 @@
+        with self.server.owner.lock:
+         current=self.server.owner.status();base=current.get('token');row=self.server.provenance.get(base);spec=self.server.owner.specs.get(base);selection=self.server.preparations.selections.get(data['token'])
+         if current.get('state')!='ready' or current.get('generation')!=data['generation'] or row is None or spec is None or selection is None or 'variant' not in selection:raise ValueError('stale or unsupported base')
+-        v=selection['variant'];other='dress' if v['slot']=='hair' else 'hair';override={**v,'base_token':base,'base':spec['runtime'],'base_sha':spec['runtime_sha'],'counterpart':row[other],'binary':spec['binary'],'binary_sha':spec['binary_sha']}
+-        if 'shoes' in row:override['counterparts']=dict(row)
+-        elif v['slot'] in ('shoes','eyes','tattoo'):raise ValueError('untracked additional slot')
+-        if v['slot'] in ('eyes','tattoo') and v['slot'] not in row:raise ValueError('untracked texture base')
++        v=selection['variant'];expected={'top','bottom','hair','shoes','eyes','tattoo','pair'}
++        if 'dress' in row:
++         other='dress' if v['slot']=='hair' else 'hair';override={**v,'base_token':base,'base':spec['runtime'],'base_sha':spec['runtime_sha'],'counterpart':row[other],'binary':spec['binary'],'binary_sha':spec['binary_sha']}
++         if 'shoes' in row:override['counterparts']=dict(row)
++         elif v['slot'] in ('shoes','eyes','tattoo'):raise ValueError('untracked additional slot')
++         if v['slot'] in ('eyes','tattoo') and v['slot'] not in row:raise ValueError('untracked texture base')
++        else:
++         if set(row)!=expected or v['slot'] not in expected-{'pair'}:raise ValueError('unsupported clothing mode')
++         validate_provenance({base:spec},{base:row})
++         override={**v,'base_token':base,'base':spec['runtime'],'base_sha':spec['runtime_sha'],'counterparts':{k:row[k] for k in expected-{'pair'}},'binary':spec['binary'],'binary_sha':spec['binary_sha']}
+       state=self.server.preparations.start(data['token'],override) if override is not None else self.server.preparations.start(data['token'])
+      else:
+       if set(data)!={'token'}:raise ValueError('invalid acknowledgement')
+--- a/rig-recovery/prepared_dress_actions.mjs
++++ b/rig-recovery/prepared_dress_actions.mjs
+@@ -4,6 +4,6 @@
+  let map=null,generation=null,busy=false,schema=null;
+  const status=document.createElement('p');status.setAttribute('role','status');status.textContent='Checking prepared preview matches…';root.before(status);
+  const timed=async(path,options={},ms=8000)=>{const c=new AbortController(),timer=setTimeout(()=>c.abort(),ms);try{return await fetch(path,{...options,signal:c.signal,cache:'no-store',redirect:'error'});}finally{clearTimeout(timer);}};
+- const refresh=()=>{if(!map)return;for(const card of root.children){const binding=map.get(card.dataset.partId);if(!binding||card.querySelector('[data-prepared-dress-action]'))continue;const button=document.createElement('button');button.type='button';button.dataset.preparedDressAction='1';button.textContent='Preview prepared '+binding.kind+' combo';button.title=schema===3?'Keeps the other prepared slot where available. Preview only; no game changes.':'Opens a prepared combination; other appearance choices can change. No game changes.';button.addEventListener('click',async()=>{if(busy)return;busy=true;button.disabled=true;status.textContent='Preparing selected preview; no game changes.';try{const r=await timed('/scene-switch',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:binding.token,generation})},45000);if(!r.ok)throw Error('Selection failed or became stale');location.assign('/cas-room');}catch(e){status.textContent=e.message+'; refresh to check the current scene before trying again.';map=null;for(const x of root.querySelectorAll('[data-prepared-dress-action]'))x.disabled=true;}});card.append(button);}};
+- try{const [mr,cr,sr]=await Promise.all([timed('/prepared-dresses'),timed('/cc-catalog-state'),timed('/scene-catalog')]);if(!mr.ok||!cr.ok||!sr.ok)throw Error('Prepared preview matches unavailable');const [m,c,s]=await Promise.all([mr.json(),cr.json(),sr.json()]);if(![1,2,3].includes(m.schema)||m.inspect_only!==true||m.game_modified!==false||!Array.isArray(m.items)||m.items.length>16||!c.enabled||c.catalog_sha256!==m.catalog_sha256||!Number.isSafeInteger(s.generation))throw Error('Prepared preview identity mismatch');const tokens=new Set(s.entries.map(x=>x.token));if(!tokens.has(s.active))throw Error('Active scene unavailable');map=new Map();for(const x of m.items){if(!/^[a-f0-9]{64}$/.test(x.part_id)||map.has(x.part_id))throw Error('Invalid prepared preview binding');const kind=m.schema===1?'dress':x.kind;if(!['dress','hair','shoes','eyes','tattoo'].includes(kind))throw Error('Invalid prepared slot');let target=x.token;if(m.schema===3){if(!x.transitions||typeof x.transitions!=='object'||Array.isArray(x.transitions)||Object.keys(x.transitions).length>16||Object.entries(x.transitions).some(([a,b])=>!tokens.has(a)||!tokens.has(b)))throw Error('Invalid prepared transitions');target=x.transitions[s.active];if(target===undefined)continue;}if(!/^[a-f0-9]{32}$/.test(target)||!tokens.has(target))throw Error('Invalid prepared target');map.set(x.part_id,{token:target,kind});}generation=s.generation;schema=m.schema;status.textContent='Prepared matches are preview only; no game changes.';new MutationObserver(refresh).observe(root,{childList:true});refresh();}catch(e){map=null;status.textContent='Prepared preview matches unavailable.';}
++ const refresh=()=>{if(!map)return;for(const card of root.children){const binding=map.get(card.dataset.partId);if(!binding||card.querySelector('[data-prepared-dress-action]'))continue;const button=document.createElement('button');button.type='button';button.dataset.preparedDressAction='1';button.textContent='Preview prepared '+binding.kind+' combo';button.title=schema===3?'Keeps the other prepared slots where available. Preview only; no game changes.':'Opens a prepared combination; other appearance choices can change. No game changes.';button.addEventListener('click',async()=>{if(busy)return;busy=true;button.disabled=true;status.textContent='Preparing selected preview; no game changes.';try{const r=await timed('/scene-switch',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:binding.token,generation})},45000);if(!r.ok)throw Error('Selection failed or became stale');location.assign('/cas-room');}catch(e){status.textContent=e.message+'; refresh to check the current scene before trying again.';map=null;for(const x of root.querySelectorAll('[data-prepared-dress-action]'))x.disabled=true;}});card.append(button);}};
++ try{const [mr,cr,sr]=await Promise.all([timed('/prepared-dresses'),timed('/cc-catalog-state'),timed('/scene-catalog')]);if(!mr.ok||!cr.ok||!sr.ok)throw Error('Prepared preview matches unavailable');const [m,c,s]=await Promise.all([mr.json(),cr.json(),sr.json()]);if(![1,2,3].includes(m.schema)||m.inspect_only!==true||m.game_modified!==false||!Array.isArray(m.items)||m.items.length>16||!c.enabled||c.catalog_sha256!==m.catalog_sha256||!Number.isSafeInteger(s.generation))throw Error('Prepared preview identity mismatch');const tokens=new Set(s.entries.map(x=>x.token));if(!tokens.has(s.active))throw Error('Active scene unavailable');map=new Map();for(const x of m.items){if(!/^[a-f0-9]{64}$/.test(x.part_id)||map.has(x.part_id))throw Error('Invalid prepared preview binding');const kind=m.schema===1?'dress':x.kind;if(!['dress','top','bottom','hair','shoes','eyes','tattoo'].includes(kind))throw Error('Invalid prepared slot');let target=x.token;if(m.schema===3){if(!x.transitions||typeof x.transitions!=='object'||Array.isArray(x.transitions)||Object.keys(x.transitions).length>16||Object.entries(x.transitions).some(([a,b])=>!tokens.has(a)||!tokens.has(b)))throw Error('Invalid prepared transitions');target=x.transitions[s.active];if(target===undefined)continue;}if(!/^[a-f0-9]{32}$/.test(target)||!tokens.has(target))throw Error('Invalid prepared target');map.set(x.part_id,{token:target,kind});}generation=s.generation;schema=m.schema;status.textContent='Prepared matches are preview only; no game changes.';new MutationObserver(refresh).observe(root,{childList:true});refresh();}catch(e){map=null;status.textContent='Prepared preview matches unavailable.';}
+ }
+--- a/rig-recovery/test_extend_variant_bindings.py
++++ b/rig-recovery/test_extend_variant_bindings.py
+@@ -40,3 +40,37 @@
+   self.setUp()
+   with self.assertRaises(Refused):extend(self.bindings,self.tokens,'1'*32,'5'*32,'hair','a'*64)
+ if __name__=='__main__':unittest.main(verbosity=2)
++
++class SeparateTests(unittest.TestCase):
++ def setUp(self):
++  # Four complete synthetic scenes form a 2x2 top/bottom grid. Other slots are constant.
++  self.ids={'top':('a'*64,'b'*64),'bottom':('c'*64,'d'*64),'hair':('e'*64,),'shoes':('f'*64,),'eyes':('8'*64,),'tattoo':('9'*64,)}
++  self.scenes={str(i+1)*32:{'top':self.ids['top'][i//2], 'bottom':self.ids['bottom'][i%2], **{k:v[0] for k,v in self.ids.items() if k not in ('top','bottom')}} for i in range(4)}
++  items=[]
++  for kind,parts in self.ids.items():
++   for part in parts:
++    transitions={source:target for source,a in self.scenes.items() for target,b in self.scenes.items() if b[kind]==part and all(a[k]==b[k] for k in a if k!=kind)}
++    items.append({'part_id':part,'kind':kind,'transitions':transitions})
++  self.bindings={'schema':3,'catalog_sha256':'0'*64,'items':items,'inspect_only':True,'game_modified':False};self.tokens=set(self.scenes)
++ def test_independent_top_and_bottom_reuse_exact_prepared_scene(self):
++  self.assertEqual(extend(self.bindings,self.tokens,'1'*32,'5'*32,'top','b'*64),('3'*32,None))
++  self.assertEqual(extend(self.bindings,self.tokens,'1'*32,'5'*32,'bottom','d'*64),('2'*32,None))
++ def test_new_top_retains_bottom_and_all_other_slots(self):
++  dest,b=extend(self.bindings,self.tokens,'2'*32,'5'*32,'top','7'*64);self.assertEqual(dest,'5'*32)
++  selected={row['kind']:row['part_id'] for row in b['items'] if row['transitions'].get(dest)==dest}
++  self.assertEqual(selected,{**self.scenes['2'*32], 'top':'7'*64})
++  self.assertNotIn(dest,next(row for row in b['items'] if row['part_id']=='c'*64)['transitions'])
++ def test_new_bottom_retains_top_and_all_other_slots(self):
++  dest,b=extend(self.bindings,self.tokens,'3'*32,'5'*32,'bottom','7'*64)
++  selected={row['kind']:row['part_id'] for row in b['items'] if row['transitions'].get(dest)==dest}
++  self.assertEqual(selected,{**self.scenes['3'*32], 'bottom':'7'*64})
++ def test_missing_or_conflicting_clothing_mode_refused(self):
++  missing={**self.bindings,'items':[x for x in self.bindings['items'] if x['kind']!='bottom']}
++  with self.assertRaises(Refused):extend(missing,self.tokens,'1'*32,'5'*32,'top','7'*64)
++  extra={**self.bindings,'items':self.bindings['items']+[{'kind':'dress','part_id':'6'*64,'transitions':{t:t for t in self.tokens}}]}
++  with self.assertRaises(Refused):extend(extra,self.tokens,'1'*32,'5'*32,'top','7'*64)
++ def test_cross_slot_rejected_and_bad_transition_refused(self):
++  with self.assertRaises(Refused):extend(self.bindings,self.tokens,'1'*32,'5'*32,'top','c'*64)
++  broken={**self.bindings,'items':[dict(x,transitions=dict(x['transitions'])) for x in self.bindings['items']]}
++  broken['items'][0]['transitions']['1'*32]='4'*32
++  with self.assertRaises(Refused):extend(broken,self.tokens,'1'*32,'5'*32,'top','7'*64)
+--- a/rig-recovery/test_prepared_dress_actions.mjs
++++ b/rig-recovery/test_prepared_dress_actions.mjs
+@@ -17,10 +17,15 @@
+  const saved={document:globalThis.document,fetch:globalThis.fetch,location:globalThis.location,MutationObserver:globalThis.MutationObserver},root=new E(),a=new E(),b=new E(),none=new E();a.dataset.partId='a'.repeat(64);b.dataset.partId='b'.repeat(64);none.dataset.partId='c'.repeat(64);root.children=[a,b,none];let posts=[];
+  globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.MutationObserver=class{observe(){}};globalThis.location={assign:p=>assert.equal(p,'/cas-room')};
+  const one='1'.repeat(32),two='2'.repeat(32),three='3'.repeat(32);globalThis.fetch=async(path,opts)=>{if(path==='/prepared-dresses')return {ok:true,json:async()=>({schema:3,catalog_sha256:'d'.repeat(64),inspect_only:true,game_modified:false,items:[{part_id:'a'.repeat(64),kind:'hair',transitions:{[one]:two}},{part_id:'b'.repeat(64),kind:'dress',transitions:{[one]:three}},{part_id:'c'.repeat(64),kind:'hair',transitions:{[two]:one}}]})};if(path==='/cc-catalog-state')return {ok:true,json:async()=>({enabled:true,catalog_sha256:'d'.repeat(64)})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:8,active:one,entries:[{token:one},{token:two},{token:three}]})};posts.push(JSON.parse(opts.body));return {ok:true}};
+- try{await import('./prepared_dress_actions.mjs?case='+Math.random());assert.equal(posts.length,0);assert.equal(a.children.length,1);assert.equal(b.children.length,1);assert.equal(none.children.length,0);assert.match(a.children[0].title,/Keeps the other prepared slot/);await a.children[0].handlers.click();assert.deepEqual(posts,[{token:two,generation:8}]);}finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
++ try{await import('./prepared_dress_actions.mjs?case='+Math.random());assert.equal(posts.length,0);assert.equal(a.children.length,1);assert.equal(b.children.length,1);assert.equal(none.children.length,0);assert.match(a.children[0].title,/Keeps the other prepared slots/);await a.children[0].handlers.click();assert.deepEqual(posts,[{token:two,generation:8}]);}finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
+ });
+ test('nine-scene catalog exposes only the active prepared transition',async()=>{
+  const saved={document:globalThis.document,fetch:globalThis.fetch,location:globalThis.location,MutationObserver:globalThis.MutationObserver},root=new E(),card=new E();card.dataset.partId='a'.repeat(64);root.children=[card];let sent=null;const tokens=Array.from({length:9},(_,i)=>String(i+1).repeat(32)),map=Object.fromEntries(tokens.map(t=>[t,tokens[8]]));
+  globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.MutationObserver=class{observe(){}};globalThis.location={assign(){}};globalThis.fetch=async(path,opts)=>{if(path==='/prepared-dresses')return {ok:true,json:async()=>({schema:3,catalog_sha256:'b'.repeat(64),inspect_only:true,game_modified:false,items:[{part_id:'a'.repeat(64),kind:'dress',transitions:map}]})};if(path==='/cc-catalog-state')return {ok:true,json:async()=>({enabled:true,catalog_sha256:'b'.repeat(64)})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:2,active:tokens[0],entries:tokens.map(token=>({token}))})};sent=JSON.parse(opts.body);return {ok:true}};
+  try{await import('./prepared_dress_actions.mjs?case='+Math.random());assert.equal(card.children.length,1);await card.children[0].handlers.click();assert.deepEqual(sent,{token:tokens[8],generation:2});}finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
+ });
++test('prepared top and bottom cards target distinct verified transitions',async()=>{
++ const saved={document:globalThis.document,fetch:globalThis.fetch,location:globalThis.location,MutationObserver:globalThis.MutationObserver},root=new E(),top=new E(),bottom=new E();top.dataset.partId='a'.repeat(64);bottom.dataset.partId='b'.repeat(64);root.children=[top,bottom];let sent=[];const one='1'.repeat(32),two='2'.repeat(32),three='3'.repeat(32);
++ globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.MutationObserver=class{observe(){}};globalThis.location={assign(){}};globalThis.fetch=async(path,opts)=>{if(path==='/prepared-dresses')return {ok:true,json:async()=>({schema:3,catalog_sha256:'d'.repeat(64),inspect_only:true,game_modified:false,items:[{part_id:top.dataset.partId,kind:'top',transitions:{[one]:two}},{part_id:bottom.dataset.partId,kind:'bottom',transitions:{[one]:three}}]})};if(path==='/cc-catalog-state')return {ok:true,json:async()=>({enabled:true,catalog_sha256:'d'.repeat(64)})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:8,active:one,entries:[{token:one},{token:two},{token:three}]})};sent.push(JSON.parse(opts.body));return {ok:true}};
++ try{await import('./prepared_dress_actions.mjs?case='+Math.random());assert.match(top.children[0].textContent,/top combo/);assert.match(bottom.children[0].textContent,/bottom combo/);await top.children[0].handlers.click();await bottom.children[0].handlers.click();assert.deepEqual(sent,[{token:two,generation:8}]);}finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
++});
+--- a/rig-recovery/preflight_catalog_selection.py
++++ b/rig-recovery/preflight_catalog_selection.py
+@@ -18,7 +18,7 @@
+  finally:conn.close()
+  if len(rows)!=1 or len(rows[0][0])>1024*1024:raise ValueError('part absent or ambiguous')
+  row=json.loads(rows[0][0]);package=pathlib.Path(a.package)
+- if row.get('part_id')!=a.part_id or row.get('body_type') not in (2,5,8,35,46) or not all(isinstance(row.get(k),str) and D.fullmatch(row[k]) for k in ('package_sha256','resource_sha256')) or not isinstance(row.get('resource_tgi'),str) or not T.fullmatch(row['resource_tgi']):raise ValueError('unsupported or invalid catalog identity')
++ if row.get('part_id')!=a.part_id or row.get('body_type') not in (2,5,6,7,8,35,46) or not all(isinstance(row.get(k),str) and D.fullmatch(row[k]) for k in ('package_sha256','resource_sha256')) or not isinstance(row.get('resource_tgi'),str) or not T.fullmatch(row['resource_tgi']):raise ValueError('unsupported or invalid catalog identity')
+  pin(package,row['package_sha256'],64*1024*1024);pin(index,a.catalog[1],256*1024*1024)
+  out=PRIVATE/(a.output+'-resolution')
+  if out.exists() or out.is_symlink():raise ValueError('fresh output required')
+@@ -28,5 +28,5 @@
+  resolution=json.loads((out/'resolution.json').read_bytes());expected=row['body_type']
+  if resolution.get('body_type')!=expected:raise ValueError('source slot differs from catalog')
+  refs=resolution.get('references',[]);meshes=[x for x in refs if x.get('role')=='lod-0'];textures=[x for x in refs if x.get('role')=='texture'];ready=(len(meshes)==0 if expected in (35,46) else 1<=len(meshes)<=8) and len(textures)==1 and all(x.get('state')=='source-present-not-rendered' for x in meshes+textures)
+- print(json.dumps({'part_id':a.part_id,'slot':{2:'hair',5:'dress',8:'shoes',35:'eyes',46:'tattoo'}[expected],'declared_lod0':len(meshes),'declared_textures':len(textures),'resources_present':ready,'preview_prepared':False,'game_modified':False,'compatibility':'unverified'}))
++ print(json.dumps({'part_id':a.part_id,'slot':{2:'hair',5:'dress',6:'top',7:'bottom',8:'shoes',35:'eyes',46:'tattoo'}[expected],'declared_lod0':len(meshes),'declared_textures':len(textures),'resources_present':ready,'preview_prepared':False,'game_modified':False,'compatibility':'unverified'}))
+ if __name__=='__main__':main()
+--- a/rig-recovery/prepare_catalog_selection.py
++++ b/rig-recovery/prepare_catalog_selection.py
+@@ -18,14 +18,14 @@
+  if not N.fullmatch(a.name) or not D.fullmatch(a.part_id):raise ValueError('invalid run name or selected part')
+  pin(pathlib.Path(a.rig[0]),a.rig[1],16*1024*1024)
+  result=stage('preflight_catalog_selection.py',['--catalog',*a.catalog,'--part-id',a.part_id,'--package',a.package,'--output',a.name+'-preflight'],120)
+- if result.get('part_id')!=a.part_id or result.get('resources_present') is not True or result.get('game_modified') is not False or result.get('slot') not in ('hair','dress','shoes','eyes','tattoo'):raise ValueError('unsupported or incomplete source resources')
++ if result.get('part_id')!=a.part_id or result.get('resources_present') is not True or result.get('game_modified') is not False or result.get('slot') not in ('hair','dress','top','bottom','shoes','eyes','tattoo'):raise ValueError('unsupported or incomplete source resources')
+  index=pathlib.Path(a.catalog[0]);pin(index,a.catalog[1],256*1024*1024);db=sqlite3.connect(index.as_uri()+'?mode=ro&immutable=1',uri=True)
+  try:rows=db.execute('SELECT row_json FROM parts WHERE part_id=? LIMIT 2',(a.part_id,)).fetchall()
+  finally:db.close()
+  if len(rows)!=1 or len(rows[0][0])>1024*1024:raise ValueError('catalog part no longer unique')
+  row=json.loads(rows[0][0]);pin(index,a.catalog[1],256*1024*1024)
+- if row.get('part_id')!=a.part_id or row.get('body_type')!=({'hair':2,'dress':5,'shoes':8,'eyes':35,'tattoo':46}[result['slot']]) or not all(isinstance(row.get(k),str) and D.fullmatch(row[k]) for k in ('package_sha256','resource_sha256')) or not re.fullmatch(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}',row.get('resource_tgi','')):raise ValueError('catalog identity mismatch')
+- payload=stage({'hair':'prepare_hair_pipeline.py','dress':'prepare_dress_pipeline.py','shoes':'prepare_shoes_pipeline.py','eyes':'prepare_eyes_pipeline.py','tattoo':'prepare_tattoo_pipeline.py'}[result['slot']],['--package',a.package,'--package-sha',row['package_sha256'],'--casp',row['resource_tgi'],'--casp-sha',row['resource_sha256'],'--rig',a.rig[0],'--rig-sha',a.rig[1],'--name',a.name],900)
++ if row.get('part_id')!=a.part_id or row.get('body_type')!=({'hair':2,'dress':5,'top':6,'bottom':7,'shoes':8,'eyes':35,'tattoo':46}[result['slot']]) or not all(isinstance(row.get(k),str) and D.fullmatch(row[k]) for k in ('package_sha256','resource_sha256')) or not re.fullmatch(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}',row.get('resource_tgi','')):raise ValueError('catalog identity mismatch')
++ payload=stage({'hair':'prepare_hair_pipeline.py','dress':'prepare_dress_pipeline.py','top':'prepare_top_pipeline.py','bottom':'prepare_bottom_pipeline.py','shoes':'prepare_shoes_pipeline.py','eyes':'prepare_eyes_pipeline.py','tattoo':'prepare_tattoo_pipeline.py'}[result['slot']],['--package',a.package,'--package-sha',row['package_sha256'],'--casp',row['resource_tgi'],'--casp-sha',row['resource_sha256'],'--rig',a.rig[0],'--rig-sha',a.rig[1],'--name',a.name],900)
+  if payload.get('game_modified') is not False or payload.get('native_fidelity')!='unverified':raise ValueError('invalid preparation result')
+  print(json.dumps({'part_id':a.part_id,'slot':result['slot'],'source_meshes':payload['source_meshes'],'prepared':True,'game_modified':False,'native_fidelity':'unverified','age_rig_compatibility':'unverified'}))
+ if __name__=='__main__':main()
+--- a/rig-recovery/test_preflight_catalog_selection.py
++++ b/rig-recovery/test_preflight_catalog_selection.py
+@@ -7,13 +7,18 @@
+  def setUp(self):
+   self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=pathlib.Path(self.tmp.name);self.pkg=self.root/'creator.package';self.pkg.write_bytes(b'example');self.hash=hashlib.sha256(b'example').hexdigest();self.id='a'*64;self.cat=self.root/'catalog.sqlite';db=sqlite3.connect(self.cat);db.execute('CREATE TABLE parts(part_id TEXT PRIMARY KEY,row_json TEXT NOT NULL)');self.row={'part_id':self.id,'body_type':2,'package_sha256':self.hash,'resource_sha256':'b'*64,'resource_tgi':'034AEECB:80000000:0123456789ABCDEF'};db.execute('INSERT INTO parts VALUES(?,?)',(self.id,json.dumps(self.row)));db.commit();db.close();self.sha=hashlib.sha256(self.cat.read_bytes()).hexdigest();self.argv=['test','--catalog',str(self.cat),self.sha,'--part-id',self.id,'--package',str(self.pkg),'--output','case']
+  def runner(self,args,**kwargs):
+-  out=self.root/args[args.index('--output')+1];out.mkdir();(out/'resolution.json').write_text(json.dumps({'body_type':2,'references':[{'role':'lod-0','state':'source-present-not-rendered'},{'role':'texture','state':'source-present-not-rendered'}]}));return type('Run',(),{'stdout':b'', 'stderr':b'', 'returncode':0})()
++  out=self.root/args[args.index('--output')+1];out.mkdir();(out/'resolution.json').write_text(json.dumps({'body_type':self.row['body_type'],'references':[{'role':'lod-0','state':'source-present-not-rendered'},{'role':'texture','state':'source-present-not-rendered'}]}));return type('Run',(),{'stdout':b'', 'stderr':b'', 'returncode':0})()
+  def run_case(self,argv=None):
+   buf=io.StringIO()
+   with mock.patch.object(p,'PRIVATE',self.root),mock.patch.object(p.sys,'argv',argv or self.argv),mock.patch.object(p.subprocess,'run',side_effect=self.runner),contextlib.redirect_stdout(buf):p.main()
+   return json.loads(buf.getvalue())
+  def test_exact_identity_yields_bounded_preflight_only(self):
+   result=self.run_case();self.assertTrue(result['resources_present']);self.assertFalse(result['preview_prepared']);self.assertFalse(result['game_modified']);self.assertEqual(result['compatibility'],'unverified')
++ def test_top_and_bottom_are_resolved_without_equipping(self):
++  for body,slot in ((6,'top'),(7,'bottom')):
++   with self.subTest(slot=slot):
++    self.row['body_type']=body;db=sqlite3.connect(self.cat);db.execute('UPDATE parts SET row_json=?',(json.dumps(self.row),));db.commit();db.close();self.argv[self.argv.index('--catalog')+2]=hashlib.sha256(self.cat.read_bytes()).hexdigest()
++    result=self.run_case();self.assertEqual(result['slot'],slot);self.assertTrue(result['resources_present']);self.assertFalse(result['game_modified']);(self.root/'case-resolution'/'resolution.json').unlink();(self.root/'case-resolution').rmdir()
+  def test_wrong_package_and_unknown_part_refused_without_output(self):
+   self.pkg.write_bytes(b'different')
+   with self.assertRaises(ValueError):self.run_case()
+--- a/rig-recovery/test_prepare_catalog_selection.py
++++ b/rig-recovery/test_prepare_catalog_selection.py
+@@ -14,6 +14,13 @@
+   return json.loads(o.getvalue())
+  def test_selected_hair_passes_rig_and_hash_as_separate_flags(self):
+   result=self.runit();self.assertTrue(result['prepared']);self.assertEqual(self.calls[1][0],'prepare_hair_pipeline.py');args=self.calls[1][1];self.assertEqual(args[args.index('--rig')+1],str(self.rig));self.assertEqual(args[args.index('--rig-sha')+1],hashlib.sha256(b'rig').hexdigest());self.assertFalse(result['game_modified'])
++ def test_top_and_bottom_route_to_distinct_pipelines(self):
++  for body,slot in ((6,'top'),(7,'bottom')):
++   with self.subTest(slot=slot):
++    self.row['body_type']=body;c=sqlite3.connect(self.db);c.execute('UPDATE parts SET row_json=?',(json.dumps(self.row),));c.commit();c.close();self.args[self.args.index('--catalog')+2]=hashlib.sha256(self.db.read_bytes()).hexdigest();self.calls=[]
++    def selected(script,args,timeout):
++     self.calls.append((script,args));return {'part_id':'a'*64,'resources_present':True,'game_modified':False,'slot':slot} if script=='preflight_catalog_selection.py' else {'source_meshes':1,'game_modified':False,'native_fidelity':'unverified'}
++    result=self.runit(selected);self.assertEqual(result['slot'],slot);self.assertEqual(self.calls[1][0],'prepare_'+slot+'_pipeline.py')
+  def test_incomplete_preflight_does_not_prepare(self):
+   def bad(script,args,timeout):self.calls.append((script,args));return {'part_id':'a'*64,'resources_present':False,'game_modified':False,'slot':'hair'}
+   with self.assertRaises(ValueError):self.runit(bad)
+--- a/rig-recovery/build_top_bottom_pair.py
++++ b/rig-recovery/build_top_bottom_pair.py
+@@ -22,7 +22,7 @@
+  if np.any((top[:,3]>0)&(bottom[:,3]>0)):raise ValueError('atlas overlap requires separate material layers')
+  combined=top.copy();use=bottom[:,3]>0;combined[use]=bottom[use];return combined.tobytes()
+ def main():
+- p=argparse.ArgumentParser();p.add_argument('--top',required=True);p.add_argument('--bottom',required=True);p.add_argument('--top-package',required=True);p.add_argument('--output',required=True);a=p.parse_args()
++ p=argparse.ArgumentParser();p.add_argument('--top',required=True);p.add_argument('--bottom',required=True);p.add_argument('--top-package',required=True);p.add_argument('--bottom-package',required=True);p.add_argument('--output',required=True);a=p.parse_args()
+  if not all(N.fullmatch(x) for x in (a.top,a.bottom,a.output)) or a.top==a.bottom:raise ValueError('invalid source names')
+  names=[a.output+'-'+x for x in ('merged','diffuse','descriptor','ready')]
+  if any((private/n).exists() or (private/n).is_symlink() for n in names):raise ValueError('fresh output required')
+@@ -50,11 +50,19 @@
+  if pkg.source_sha256!=parts[0][0]['package_sha256']:raise ValueError('top package identity')
+  key=tuple(int(x,16) for x in parts[0][0]['casp'].split(':'));raw=pkg.read_many([key])[key]
+  if sha(raw)!=parts[0][0]['casp_sha256']:raise ValueError('top CASP identity')
+- meta=casp_material(raw);colors=meta['swatch_colors_argb'];order=meta['swatch_order']
++ # Re-open the independently authorized bottom package as well. A pinned
++ # top package does not establish the bottom component's CASP identity.
++ bottom_path=pathlib.Path(a.bottom_package);read(bottom_path,parts[1][0]['package_sha256'],64*1024*1024);bottom_pkg=Package(bottom_path,'mod')
++ if bottom_pkg.source_sha256!=parts[1][0]['package_sha256']:raise ValueError('bottom package identity')
++ bottom_key=tuple(int(x,16) for x in parts[1][0]['casp'].split(':'));bottom_raw=bottom_pkg.read_many([bottom_key])[bottom_key]
++ if sha(bottom_raw)!=parts[1][0]['casp_sha256'] or casp_material(bottom_raw)['body_type']!=7:raise ValueError('bottom CASP identity')
++ meta=casp_material(raw)
++ if meta['body_type']!=6:raise ValueError('top CASP identity')
++ colors=meta['swatch_colors_argb'];order=meta['swatch_order']
+  if not 1<=len(colors)<=8 or not 0<=order<=65535:raise ValueError('swatch metadata')
+  lines=['APX-GENERIC-PAIR-1',parts[0][0]['casp'],str(order),','.join(f'{v:08x}' for v in colors),sha(material),sha(mesh),parts[0][0]['package_sha256'],parts[1][0]['casp'],parts[1][0]['package_sha256']];descriptor=('\n'.join(lines)+'\n').encode('ascii')
+  for n in names:(private/n).mkdir(mode=0o700,exist_ok=False)
+  for filename,data in [(private/names[0]/'mesh.apxmesh',mesh),(private/names[1]/'material.rgba',material),(private/names[2]/'descriptor.txt',descriptor)]:
+   with filename.open('xb') as f:f.write(data)
+- ready={'schema':1,'descriptor_sha256':sha(descriptor),'mesh_sha256':sha(mesh),'material_sha256':sha(material),'game_modified':False,'native_fidelity':'unverified','pair_sources':2};(private/names[3]/'ready.json').write_text(json.dumps(ready));print(json.dumps({'vertices':nv,'triangles':ni//3,'atlas_overlap':0,'game_modified':False,'native_fidelity':'unverified'}))
++ ready={'schema':1,'descriptor_sha256':sha(descriptor),'mesh_sha256':sha(mesh),'material_sha256':sha(material),'game_modified':False,'native_fidelity':'unverified','pair_sources':2,'rig_sha256':parts[0][2]['rig_sha256'],'sources':{slot:{k:part[0][k] for k in ('package_sha256','casp','casp_sha256','mesh_sha256','material_sha256')} for slot,part in zip(('top','bottom'),parts)}};(private/names[3]/'ready.json').write_text(json.dumps(ready));print(json.dumps({'vertices':nv,'triangles':ni//3,'atlas_overlap':0,'game_modified':False,'native_fidelity':'unverified'}))
+ if __name__=='__main__':main()
+--- a/rig-recovery/stage_generic_runtime.py
++++ b/rig-recovery/stage_generic_runtime.py
+@@ -6,6 +6,7 @@
+ is not a sandbox, installer, interactive outfit switch, or native Tray export.
+ """
+ import argparse,hashlib,json,os,pathlib,re,shutil
++from pair_source_identity import validate as validate_pair
+ ROOT=pathlib.Path(__file__).resolve().parents[1];PRIVATE=ROOT/'private-input-recovery';D=re.compile(r'[a-f0-9]{64}\Z');N=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z')
+ FILES={'pose-config.bin':177,'AH00B-SugarHair-V1-Plain.rgba':8*1024*1024,'eyes.2048.rgba':32*1024*1024,'tone-base.2048.rgba':32*1024*1024,'miiko-rhea-skin.2048.rgba':32*1024*1024,'myshunosun-caroline-tattoo.2048.rgba':32*1024*1024,'Jius-BowFlipFlops01.2048.rgba':32*1024*1024}
+ def read_pin(path,digest,limit):
+@@ -66,7 +67,12 @@
+  ready=json.loads(ready_path.read_bytes())
+  if ready.get('schema')!=1 or ready.get('game_modified') is not False or not all(D.fullmatch(ready.get(k,'')) for k in ('descriptor_sha256','mesh_sha256','material_sha256')):raise ValueError('invalid pipeline marker')
+  descriptor=PRIVATE/(a.pipeline+'-descriptor')/'descriptor.txt';mesh=PRIVATE/(a.pipeline+'-merged')/'mesh.apxmesh';material=PRIVATE/(a.pipeline+'-diffuse')/'material.rgba'
+- read_pin(descriptor,ready['descriptor_sha256'],4096);read_pin(pose/'catalog.json',a.pose_catalog_sha,1024*1024)
++ descriptor_bytes=read_pin(descriptor,ready['descriptor_sha256'],4096);read_pin(pose/'catalog.json',a.pose_catalog_sha,1024*1024)
++ lines=descriptor_bytes.decode('ascii').splitlines();pair_source=None
++ if lines and lines[0]=='APX-GENERIC-PAIR-1':
++  if ready.get('pair_sources')!=2:raise ValueError('missing pair source record')
++  pair_source=validate_pair({'rig_sha256':ready.get('rig_sha256'),'sources':ready.get('sources')},lines)
++ elif any(k in ready for k in ('pair_sources','rig_sha256','sources')):raise ValueError('unexpected pair source record')
+  entries=list(pose.iterdir())
+  if len(entries)>2048 or any(x.is_symlink() or not x.is_file() or not (x.name=='catalog.json' or re.fullmatch(r'[a-f0-9]{64}\.(posebin|png)',x.name)) for x in entries):raise ValueError('pose directory entry refused')
+  if sum(x.stat().st_size for x in entries)>32*1024*1024:raise ValueError('pose directory budget')
+@@ -98,6 +104,7 @@
+   digest=a.pose_catalog_sha if source.name=='catalog.json' else hashlib.sha256(source.read_bytes()).hexdigest()
+   copied+=copy_pin(source,poses/source.name,digest,size);pose_hashes[source.name]=digest
+  record={'schema':1,'descriptor_sha256':ready['descriptor_sha256'],'dress_mesh_sha256':ready['mesh_sha256'],'material_sha256':ready['material_sha256'],'pose_catalog_sha256':a.pose_catalog_sha,'baseline_manifest_sha256':a.manifest[1],'asset_hashes':asset_hashes,'mesh_hashes':mesh_hashes,'pose_hashes':pose_hashes,'game_modified':False,'native_fidelity':'unverified','preview_only':True,'bytes':copied}
++ if pair_source is not None:record['pair_source']=pair_source
+  if hair_ready is not None:record['hair_source']={k:hair_ready[k] for k in ('package_sha256','casp','casp_sha256','mesh_sha256','material_sha256')}
+  if shoes_ready is not None:record['shoes_source']={k:shoes_ready[k] for k in ('package_sha256','casp','casp_sha256','mesh_sha256','material_sha256')}
+  if eyes_ready is not None:record['eyes_source']={k:eyes_ready[k] for k in ('package_sha256','casp','casp_sha256','material_sha256')}
+--- a/rig-recovery/launch_generic_runtime.py
++++ b/rig-recovery/launch_generic_runtime.py
+@@ -6,6 +6,7 @@
+ The runtime is a partial preview, not a native game, installer or Tray save.
+ """
+ import argparse,hashlib,json,os,pathlib,re,sys
++from pair_source_identity import validate as validate_pair
+ ROOT=pathlib.Path(__file__).resolve().parents[1];PRIVATE=ROOT/'private-input-recovery';D=re.compile(r'[a-f0-9]{64}\Z');N=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z')
+ ASSETS={'pose-config.bin','AH00B-SugarHair-V1-Plain.rgba','eyes.2048.rgba','tone-base.2048.rgba','miiko-rhea-skin.2048.rgba','myshunosun-caroline-tattoo.2048.rgba','Jius-BowFlipFlops01.2048.rgba','FatalRose-PastelGothDress.2048.rgba'};MESHES={'head.apxmesh','dress.apxmesh','shoes.apxmesh','hair.apxmesh'}
+ def pin(path,digest,limit):
+@@ -24,7 +25,7 @@
+   pth=root/child
+   if pth.is_symlink() or not pth.is_dir():raise ValueError('runtime directory refused')
+  record=root/'runtime.json';pin(record,a.runtime_sha,1024*1024);data=json.loads(record.read_bytes());keys={'schema','descriptor_sha256','dress_mesh_sha256','material_sha256','pose_catalog_sha256','baseline_manifest_sha256','asset_hashes','mesh_hashes','pose_hashes','game_modified','native_fidelity','preview_only','bytes'}
+- if not keys<=set(data) or set(data)-keys-{'hair_source','shoes_source','eyes_source','tattoo_source'} or data['schema']!=1 or data['game_modified'] is not False or data['native_fidelity']!='unverified' or data['preview_only'] is not True or set(data['asset_hashes'])!=ASSETS or set(data['mesh_hashes'])!=MESHES or not isinstance(data['pose_hashes'],dict) or not 1<=len(data['pose_hashes'])<=2048 or data['pose_hashes'].get('catalog.json')!=data['pose_catalog_sha256']:raise ValueError('runtime manifest shape')
++ if not keys<=set(data) or set(data)-keys-{'hair_source','shoes_source','eyes_source','tattoo_source','pair_source'} or data['schema']!=1 or data['game_modified'] is not False or data['native_fidelity']!='unverified' or data['preview_only'] is not True or set(data['asset_hashes'])!=ASSETS or set(data['mesh_hashes'])!=MESHES or not isinstance(data['pose_hashes'],dict) or not 1<=len(data['pose_hashes'])<=2048 or data['pose_hashes'].get('catalog.json')!=data['pose_catalog_sha256']:raise ValueError('runtime manifest shape')
+  if set(x.name for x in (root/'assets').iterdir())!=ASSETS or set(x.name for x in (root/'poses').iterdir())!=set(data['pose_hashes']):raise ValueError('runtime file inventory mismatch')
+  for name,digest in data['asset_hashes'].items():pin(root/'assets'/name,digest,32*1024*1024)
+  for name,digest in data['mesh_hashes'].items():pin(root/name,digest,64*1024*1024)
+@@ -32,6 +33,9 @@
+   if not(name=='catalog.json' or re.fullmatch(r'[a-f0-9]{64}\.(png|posebin)',name)):raise ValueError('pose file name')
+   pin(root/'poses'/name,digest,16*1024*1024)
+  pin(root/'descriptor.txt',data['descriptor_sha256'],4096)
++ descriptor=(root/'descriptor.txt').read_text('ascii').splitlines()
++ if descriptor and descriptor[0]=='APX-GENERIC-PAIR-1':validate_pair(data.get('pair_source'),descriptor)
++ elif 'pair_source' in data:raise ValueError('unexpected pair source record')
+  if data['mesh_hashes']['dress.apxmesh']!=data['dress_mesh_sha256'] or data['asset_hashes']['FatalRose-PastelGothDress.2048.rgba']!=data['material_sha256']:raise ValueError('prepared asset mismatch')
+  if 'hair_source' in data:
+   h=data['hair_source']
+--- a/rig-recovery/build_prepared_variant.py
++++ b/rig-recovery/build_prepared_variant.py
+@@ -51,13 +51,13 @@
+   if r.returncode or len(r.stdout)>65536 or len(r.stderr)>65536:raise ValueError('pose rebuild failed; evidence retained')
+   pose_dir=PRIVATE/v['case']/(a.output+'-poses');pose_sha=hashlib.sha256((pose_dir/'catalog.json').read_bytes()).hexdigest()
+  catalog=pose_dir/'catalog.json';pin(catalog,pose_sha,1024*1024);pin(marker,a.base_sha,1024*1024);binary=pathlib.Path(a.binary[0]);pin(binary,a.binary[1],64*1024*1024)
+- args=[sys.executable,str(ROOT/'rig-recovery/stage_generic_runtime.py'),'--baseline',str(base/'assets'),'--manifest',*a.manifest,'--head',str(base/'head.apxmesh'),'--shoes',str(base/'shoes.apxmesh'),'--hair',str(base/'hair.apxmesh'),'--pipeline',a.dress_pipeline,'--hair-pipeline',a.hair_pipeline,'--pose-library',str(pose_dir),'--pose-catalog-sha',pose_sha,'--output',a.output]
++ args=[sys.executable,str(pathlib.Path(__file__).resolve().parent/'stage_generic_runtime.py'),'--baseline',str(base/'assets'),'--manifest',*a.manifest,'--head',str(base/'head.apxmesh'),'--shoes',str(base/'shoes.apxmesh'),'--hair',str(base/'hair.apxmesh'),'--pipeline',a.dress_pipeline,'--hair-pipeline',a.hair_pipeline,'--pose-library',str(pose_dir),'--pose-catalog-sha',pose_sha,'--output',a.output]
+  if a.shoes_pipeline is not None:args+=['--shoes-pipeline',a.shoes_pipeline]
+  if a.eyes_pipeline is not None:args+=['--eyes-pipeline',a.eyes_pipeline]
+  if a.tattoo_pipeline is not None:args+=['--tattoo-pipeline',a.tattoo_pipeline]
+  result=subprocess.run(args,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=120,check=False)
+  if result.returncode or len(result.stdout)>65536 or len(result.stderr)>65536:raise ValueError('staging failed; completed evidence retained')
+- target=PRIVATE/a.output;runtime_sha=hashlib.sha256((target/'runtime.json').read_bytes()).hexdigest();proc=subprocess.Popen([sys.executable,str(ROOT/'rig-recovery/launch_generic_runtime.py'),'--runtime',a.output,'--runtime-sha',runtime_sha,'--binary',str(binary),'--binary-sha',a.binary[1]],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
++ target=PRIVATE/a.output;runtime_sha=hashlib.sha256((target/'runtime.json').read_bytes()).hexdigest();proc=subprocess.Popen([sys.executable,str(pathlib.Path(__file__).resolve().parent/'launch_generic_runtime.py'),'--runtime',a.output,'--runtime-sha',runtime_sha,'--binary',str(binary),'--binary-sha',a.binary[1]],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
+  try:
+   url=line(proc);identity=fetch(url,'/identity',1024*1024);swatch=fetch(url,'/swatch-catalog',1024*1024);scene=identity.get('scene_sha256');sid=swatch.get('default_id')
+   if identity.get('harness')!=HARNESS or not isinstance(scene,str) or not D.fullmatch(scene) or not isinstance(sid,str) or swatch.get('scene_sha256')!=scene or identity.get('pose_library_ready') is not True:raise ValueError('runtime identity mismatch')
+--- a/rig-recovery/test_build_prepared_variant.py
++++ b/rig-recovery/test_build_prepared_variant.py
+@@ -7,3 +7,17 @@
+   for slot,ready in [('hair',{'mesh_sha256':'b'*64,'game_modified':False}),('hair',{'mesh_sha256':'a'*64,'game_modified':True}),('dress',{'mesh_sha256':'a'*64,'game_modified':False}),('eyes',{'mesh_sha256':'a'*64,'game_modified':False})]:
+    with self.assertRaises(ValueError):ensure_mesh_compatibility(base,slot,ready)
+ if __name__=='__main__':unittest.main(verbosity=2)
++
++class RefusalTests(unittest.TestCase):
++ def test_changed_combined_mesh_refused_without_explicit_rebuild(self):
++  import hashlib,json,pathlib,sys,tempfile
++  from unittest import mock
++  import build_prepared_variant as m
++  with tempfile.TemporaryDirectory() as t:
++   root=pathlib.Path(t);(root/'base').mkdir();raw=json.dumps({'mesh_hashes':{'dress.apxmesh':'a'*64,'hair.apxmesh':'b'*64},'pose_catalog_sha256':'c'*64}).encode();(root/'base/runtime.json').write_bytes(raw)
++   for name,digest in [('clothing','d'*64),('hair','b'*64)]:
++    q=root/(name+'-ready');q.mkdir();(q/'ready.json').write_text(json.dumps({'game_modified':False,'mesh_sha256':digest}))
++   args=['x','--base','base','--base-sha',hashlib.sha256(raw).hexdigest(),'--manifest','/safe/manifest','e'*64,'--dress-pipeline','clothing','--hair-pipeline','hair','--binary','/safe/bin','f'*64,'--output','new']
++   with mock.patch.object(m,'PRIVATE',root),mock.patch.object(sys,'argv',args),mock.patch.object(m.subprocess,'run') as run,self.assertRaisesRegex(ValueError,'pose cache requires'):
++    m.main()
++   run.assert_not_called();self.assertFalse((root/'new').exists())
+--- a/rig-recovery/scene_switch_supervisor.py
++++ b/rig-recovery/scene_switch_supervisor.py
+@@ -83,7 +83,7 @@
+     identity=fetch(self.active['url'],'/identity',4096)
+     if identity.get('harness')!=HARNESS or identity.get('scene_sha256')!=self.active['scene']:raise Refused('active identity changed')
+     return self.status()
+-   s=self.specs[token];cmd=[sys.executable,str(ROOT/'rig-recovery/launch_generic_runtime.py'),'--runtime',s['runtime'],'--runtime-sha',s['runtime_sha'],'--binary',s['binary'],'--binary-sha',s['binary_sha']]
++   s=self.specs[token];cmd=[sys.executable,str(pathlib.Path(__file__).resolve().parent/'launch_generic_runtime.py'),'--runtime',s['runtime'],'--runtime-sha',s['runtime_sha'],'--binary',s['binary'],'--binary-sha',s['binary_sha']]
+    if 'catalog' in s:
+     c=s['catalog'];cmd+=['--catalog-index',c['index'],'--catalog-index-sha',c['index_sha'],'--catalog-helper',c['helper'],'--catalog-helper-sha',c['helper_sha'],'--catalog-policy',c['policy']]
+    candidate=subprocess.Popen(cmd,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,env={'PATH':'/usr/bin:/bin'},start_new_session=True)
+--- a/rig-recovery/scene_provenance.py
++++ b/rig-recovery/scene_provenance.py
+@@ -7,20 +7,35 @@
+ import json
+ from build_scene_bindings import pin,PRIVATE,N
+ from scene_switch_supervisor import Refused
++from pair_source_identity import validate as validate_pair
+ 
+ def validate(specs,rows):
+  if type(rows)is not dict or set(rows)!=set(specs) or not 1<=len(rows)<=16:raise Refused('scene provenance mismatch')
+  result={}
+  for token,row in rows.items():
+-  if type(row)is not dict or set(row) not in ({'dress','hair'},{'dress','hair','shoes'},{'dress','hair','shoes','eyes'},{'dress','hair','shoes','eyes','tattoo'}) or not all(isinstance(v,str) and N.fullmatch(v) for v in row.values()):raise Refused('pipeline names')
+-  spec=specs[token];base=PRIVATE/spec['runtime'];marker=base/'runtime.json';pin(marker,spec['runtime_sha'],1024*1024);m=json.loads(marker.read_bytes());ready={}
++  separate={'top','bottom','hair','shoes','eyes','tattoo','pair'}
++  if type(row)is not dict or set(row) not in ({'dress','hair'},{'dress','hair','shoes'},{'dress','hair','shoes','eyes'},{'dress','hair','shoes','eyes','tattoo'},separate) or not all(isinstance(v,str) and N.fullmatch(v) for v in row.values()):raise Refused('pipeline names')
++  spec=specs[token];base=PRIVATE/spec['runtime'];marker=base/'runtime.json';pin(marker,spec['runtime_sha'],1024*1024);m=json.loads(marker.read_bytes());ready={};is_pair=set(row)==separate
+   for slot,name in row.items():
+    path=PRIVATE/(name+'-ready')/'ready.json'
+    if path.is_symlink() or not path.is_file() or path.stat().st_size>65536:raise Refused('pipeline unavailable')
+    ready[slot]=json.loads(path.read_bytes())
+-   if ready[slot].get('game_modified') is not False or (slot not in ('eyes','tattoo') and ready[slot].get('mesh_sha256')!=m.get('mesh_hashes',{}).get(slot+'.apxmesh')):raise Refused('pipeline mesh differs')
+-  dress,hair=ready['dress'],ready['hair'];source=m.get('hair_source')
+-  if dress.get('descriptor_sha256')!=m.get('descriptor_sha256') or dress.get('material_sha256')!=m.get('material_sha256') or type(source)is not dict or any(source.get(k)!=hair.get(k) for k in ('package_sha256','casp','casp_sha256','mesh_sha256','material_sha256')):raise Refused('pipeline material or source differs')
++   if ready[slot].get('game_modified') is not False or (slot not in ('eyes','tattoo','top','bottom','pair') and ready[slot].get('mesh_sha256')!=m.get('mesh_hashes',{}).get(slot+'.apxmesh')):raise Refused('pipeline mesh differs')
++  hair=ready['hair'];source=m.get('hair_source')
++  if type(source)is not dict or any(source.get(k)!=hair.get(k) for k in ('package_sha256','casp','casp_sha256','mesh_sha256','material_sha256')):raise Refused('hair source differs')
++  clothing=ready['pair' if is_pair else 'dress']
++  if clothing.get('descriptor_sha256')!=m.get('descriptor_sha256') or clothing.get('material_sha256')!=m.get('material_sha256') or clothing.get('mesh_sha256')!=m.get('mesh_hashes',{}).get('dress.apxmesh'):raise Refused('pipeline material or source differs')
++  if is_pair:
++   descriptor=base/'descriptor.txt';pin(descriptor,m['descriptor_sha256'],4096)
++   try:pair=validate_pair(m.get('pair_source'),descriptor.read_text('ascii').splitlines())
++   except (ValueError,UnicodeError):raise Refused('pair identity mismatch')
++   if clothing.get('pair_sources')!=2 or clothing.get('rig_sha256')!=pair['rig_sha256'] or clothing.get('sources')!=pair['sources']:raise Refused('pair ready identity mismatch')
++   for slot in ('top','bottom'):
++    if any(pair['sources'][slot].get(k)!=ready[slot].get(k) for k in ('package_sha256','casp','casp_sha256','mesh_sha256','material_sha256')):raise Refused('component source differs')
++    report=PRIVATE/(row[slot]+'-merged')/'report.json'
++    if report.is_symlink() or not report.is_file() or report.stat().st_size>65536:raise Refused('component report unavailable')
++    data=json.loads(report.read_bytes())
++    if data.get('mesh_sha256')!=ready[slot]['mesh_sha256'] or data.get('rig_sha256')!=pair['rig_sha256']:raise Refused('component rig or mesh differs')
+   if 'shoes' in row:
+    shoe=ready['shoes'];source=m.get('shoes_source')
+    if type(source)is not dict or any(source.get(k)!=shoe.get(k) for k in ('package_sha256','casp','casp_sha256','mesh_sha256','material_sha256')) or source.get('material_sha256')!=m.get('asset_hashes',{}).get('Jius-BowFlipFlops01.2048.rgba'):raise Refused('shoe source differs')
+--- a/rig-recovery/test_scene_provenance.py
++++ b/rig-recovery/test_scene_provenance.py
+@@ -14,3 +14,32 @@
+   q=self.root/'h-ready/ready.json';x=json.loads(q.read_text());x['material_sha256']='2'*64;q.write_text(json.dumps(x))
+   with patch.object(p,'PRIVATE',self.root),self.assertRaises(Refused):p.validate(self.spec,self.rows)
+ if __name__=='__main__':unittest.main(verbosity=2)
++
++class PairTests(unittest.TestCase):
++ def setUp(self):
++  self.t=tempfile.TemporaryDirectory();self.addCleanup(self.t.cleanup);self.root=pathlib.Path(self.t.name);(self.root/'base').mkdir();self.token='1'*32
++  top={'package_sha256':'a'*64,'casp':'034AEECB:80000000:0123456789ABCDEF','casp_sha256':'b'*64,'mesh_sha256':'c'*64,'material_sha256':'d'*64,'game_modified':False}
++  bottom={'package_sha256':'e'*64,'casp':'034AEECB:80000000:FEDCBA9876543210','casp_sha256':'f'*64,'mesh_sha256':'1'*64,'material_sha256':'2'*64,'game_modified':False}
++  pair_source={'rig_sha256':'3'*64,'sources':{k:{q:v[q] for q in ('package_sha256','casp','casp_sha256','mesh_sha256','material_sha256')} for k,v in [('top',top),('bottom',bottom)]}}
++  desc=('\n'.join(['APX-GENERIC-PAIR-1',top['casp'],'0','ff000000','4'*64,'5'*64,top['package_sha256'],bottom['casp'],bottom['package_sha256']])+'\n').encode();(self.root/'base/descriptor.txt').write_bytes(desc);dh=hashlib.sha256(desc).hexdigest()
++  hair={'package_sha256':'6'*64,'casp':'034AEECB:80000000:1111111111111111','casp_sha256':'7'*64,'mesh_sha256':'8'*64,'material_sha256':'9'*64,'game_modified':False}
++  shoes={**hair,'package_sha256':'0'*64,'mesh_sha256':'a'*64,'material_sha256':'b'*64};eyes={k:v for k,v in hair.items() if k!='mesh_sha256'};eyes['material_sha256']='c'*64;tattoo={**eyes,'material_sha256':'d'*64}
++  pair={'descriptor_sha256':dh,'mesh_sha256':'5'*64,'material_sha256':'4'*64,'rig_sha256':'3'*64,'sources':pair_source['sources'],'pair_sources':2,'game_modified':False}
++  for name,obj in [('top',top),('bottom',bottom),('hair',hair),('shoes',shoes),('eyes',eyes),('tattoo',tattoo),('pair',pair)]:
++   q=self.root/(name+'-ready');q.mkdir();(q/'ready.json').write_text(json.dumps(obj))
++  for name,obj in [('top',top),('bottom',bottom)]:
++   q=self.root/(name+'-merged');q.mkdir();(q/'report.json').write_text(json.dumps({'mesh_sha256':obj['mesh_sha256'],'rig_sha256':'3'*64}))
++  keys=('package_sha256','casp','casp_sha256','mesh_sha256','material_sha256');texturekeys=('package_sha256','casp','casp_sha256','material_sha256')
++  marker={'descriptor_sha256':dh,'material_sha256':'4'*64,'mesh_hashes':{'dress.apxmesh':'5'*64,'hair.apxmesh':'8'*64,'shoes.apxmesh':'a'*64},'asset_hashes':{'Jius-BowFlipFlops01.2048.rgba':'b'*64,'eyes.2048.rgba':'c'*64,'myshunosun-caroline-tattoo.2048.rgba':'d'*64},'pair_source':pair_source,'hair_source':{k:hair[k] for k in keys},'shoes_source':{k:shoes[k] for k in keys},'eyes_source':{k:eyes[k] for k in texturekeys},'tattoo_source':{k:tattoo[k] for k in texturekeys}}
++  q=self.root/'base/runtime.json';q.write_text(json.dumps(marker));self.spec={self.token:{'runtime':'base','runtime_sha':hashlib.sha256(q.read_bytes()).hexdigest()}};self.rows={self.token:{k:k for k in ('top','bottom','hair','shoes','eyes','tattoo','pair')}}
++ def runit(self):
++  with patch.object(p,'PRIVATE',self.root):return p.validate(self.spec,self.rows)
++ def test_complete_pair_is_accepted(self):self.assertEqual(self.runit(),self.rows)
++ def test_component_source_and_rig_tampering_is_rejected(self):
++  for file,key in [('top-ready/ready.json','casp_sha256'),('bottom-merged/report.json','rig_sha256'),('pair-ready/ready.json','material_sha256')]:
++   q=self.root/file;old=q.read_text();x=json.loads(old);x[key]='f'*64;q.write_text(json.dumps(x))
++   with self.subTest(file=file),self.assertRaises(Refused):self.runit()
++   q.write_text(old)
++ def test_incomplete_pair_mode_is_rejected(self):
++  del self.rows[self.token]['bottom']
++  with self.assertRaises(Refused):self.runit()
+--- a/rig-recovery/run_scene_gateway.py
++++ b/rig-recovery/run_scene_gateway.py
+@@ -8,6 +8,7 @@
+ import argparse,hashlib,json,pathlib,signal,sys
+ from scene_gateway import Gateway
+ from scene_switch_supervisor import SceneSwitcher,TOKEN
++from separate_preparation_owner import SeparatePreparationOwner
+ from preparation_owner import PreparationOwner
+ from scene_provenance import validate as validate_provenance
+ D=__import__('re').compile(r'[a-f0-9]{64}\Z')
+@@ -39,7 +40,9 @@
+   if hashlib.sha256(data).hexdigest()!=a.preparations_sha:raise ValueError('preparations identity')
+   prep=json.loads(data)
+   if type(prep)is not dict or set(prep)!={'schema','selections'} or prep['schema']!=1:raise ValueError('preparations shape')
+-  preparations=PreparationOwner(prep['selections'])
++  modes={('package_sources' in v.get('variant',{})) for v in prep['selections'].values() if isinstance(v,dict) and 'variant' in v}
++  if len(modes)>1:raise ValueError('mixed preparation modes unsupported')
++  preparations=(SeparatePreparationOwner if modes=={True} else PreparationOwner)(prep['selections'])
+  provenance=None
+  if (a.provenance is None)!=(a.provenance_sha is None):raise ValueError('complete provenance pin required')
+  if a.provenance is not None:
+--- /dev/null
++++ b/rig-recovery/test_clothing_descriptor.py
+@@ -0,0 +1,16 @@
++import copy, unittest
++from build_combinatorial_bindings import clothing_sources
++
++class TestDescriptors(unittest.TestCase):
++ def setUp(self):
++  self.top='034AEECB:80000000:0123456789ABCDEF';self.bottom='034AEECB:80000000:FEDCBA9876543210';self.dress=['APX-GENERIC-DRESS-1',self.top,'5','ff112233','a'*64,'b'*64,'c'*64];self.marker={'asset_hashes':{'FatalRose-PastelGothDress.2048.rgba':'a'*64},'mesh_hashes':{'dress.apxmesh':'b'*64}}
++ def test_dress_and_pair(self):
++  self.assertEqual(set(clothing_sources(self.dress,self.marker,self.top)),{'dress'})
++  pair=['APX-GENERIC-PAIR-1',*self.dress[1:],self.bottom,'d'*64];v=clothing_sources(pair,self.marker,self.top);self.assertEqual(v['top'],('c'*64,self.top,6,None));self.assertEqual(v['bottom'],('d'*64,self.bottom,7,None))
++ def test_refuses_wrong_identity_and_malformed_fields(self):
++  for pos,value in [(1,'bad'),(2,'65536'),(3,'gg000000'),(4,'f'*64),(5,'e'*64),(6,'BAD')]:
++   bad=list(self.dress);bad[pos]=value
++   with self.subTest(pos=pos),self.assertRaises(ValueError):clothing_sources(bad,self.marker,self.top)
++  with self.assertRaises(ValueError):clothing_sources(self.dress,self.marker,self.bottom)
++  pair=['APX-GENERIC-PAIR-1',*self.dress[1:],'bad','d'*64]
++  with self.assertRaises(ValueError):clothing_sources(pair,self.marker,self.top)
+--- /dev/null
++++ b/rig-recovery/build_prepared_separates.py
+@@ -0,0 +1,45 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Build one pinned separate-clothing preview as an isolated staged variant.
++
++Trusted local parent only. Both pipelines and the top package must already be
++source-bound and explicitly authorized. No game writes or native-fidelity
++claim. Failure retains newly staged private evidence and leaves the active
++scene untouched. This helper is not an untrusted-input sandbox.
++"""
++import argparse, json, pathlib, re, subprocess, sys
++from build_scene_bindings import PRIVATE, N, D, pin
++ROOT=pathlib.Path(__file__).resolve().parents[1]
++
++
++def execute(script, args, timeout):
++ r=subprocess.run([sys.executable,str(pathlib.Path(__file__).resolve().parent/script),*map(str,args)],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=timeout,check=False)
++ if r.returncode or len(r.stdout)>65536 or len(r.stderr)>65536:raise ValueError('variant stage failed; evidence retained')
++ return json.loads(r.stdout)
++
++
++def main():
++ p=argparse.ArgumentParser()
++ for flag in ('base','base-sha','top-pipeline','bottom-pipeline','top-package','bottom-package','hair-pipeline','output'):p.add_argument('--'+flag,required=True)
++ for flag in ('shoes-pipeline','eyes-pipeline','tattoo-pipeline'):p.add_argument('--'+flag)
++ for flag in ('manifest','binary'):p.add_argument('--'+flag,nargs=2,required=True)
++ a=p.parse_args();names=[a.base,a.top_pipeline,a.bottom_pipeline,a.hair_pipeline,a.output]+[x for x in (a.shoes_pipeline,a.eyes_pipeline,a.tattoo_pipeline) if x is not None]
++ if not all(N.fullmatch(n) for n in names) or len(a.output)>21 or not D.fullmatch(a.base_sha):raise ValueError('invalid trusted names')
++ if PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('private parent unavailable')
++ # Resolve both package paths from trusted owner input, never browser or
++ # catalog path fields. The selected bottom is not the unchanged top package.
++ for slot,name,filename in (('top',a.top_pipeline,a.top_package),('bottom',a.bottom_pipeline,a.bottom_package)):
++  marker=PRIVATE/(name+'-ready')/'ready.json'
++  if marker.is_symlink() or not marker.is_file() or marker.stat().st_size>65536:raise ValueError('source marker unavailable')
++  source=json.loads(marker.read_bytes());package=pathlib.Path(filename)
++  if source.get('game_modified') is not False or not isinstance(source.get('package_sha256'),str) or not D.fullmatch(source['package_sha256']):raise ValueError('invalid source identity')
++  pin(package,source['package_sha256'],64*1024*1024)
++ pair=a.output+'-pair'
++ result=execute('build_top_bottom_pair.py',['--top',a.top_pipeline,'--bottom',a.bottom_pipeline,'--top-package',a.top_package,'--bottom-package',a.bottom_package,'--output',pair],180)
++ if result.get('atlas_overlap')!=0 or result.get('game_modified') is not False or result.get('native_fidelity')!='unverified':raise ValueError('invalid pairing result')
++ args=['--base',a.base,'--base-sha',a.base_sha,'--manifest',*a.manifest,'--dress-pipeline',pair,'--hair-pipeline',a.hair_pipeline,'--binary',*a.binary,'--output',a.output]
++ for flag,value in (('--shoes-pipeline',a.shoes_pipeline),('--eyes-pipeline',a.eyes_pipeline),('--tattoo-pipeline',a.tattoo_pipeline)):
++  if value is not None:args += [flag,value]
++ variant=execute('build_prepared_variant.py',args,1200)
++ if variant.get('runtime')!=a.output or variant.get('preview_frame_verified') is not True or variant.get('game_modified') is not False or variant.get('native_fidelity')!='unverified':raise ValueError('invalid preview verification')
++ print(json.dumps({**variant,'pair_pipeline':pair,'clothing_mode':'separates'}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/rig-recovery/pair_source_identity.py
+@@ -0,0 +1,15 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Source identity checks for trusted privately prepared pair descriptors."""
++import re
++D=re.compile(r'[a-f0-9]{64}\Z');CASP=re.compile(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}\Z')
++KEYS={'package_sha256','casp','casp_sha256','mesh_sha256','material_sha256'}
++def validate(pair,descriptor):
++ if type(pair)is not dict or set(pair)!={'rig_sha256','sources'} or not isinstance(pair['rig_sha256'],str) or not D.fullmatch(pair['rig_sha256']):raise ValueError('invalid pair rig identity')
++ sources=pair['sources']
++ if type(sources)is not dict or set(sources)!={'top','bottom'}:raise ValueError('invalid pair source slots')
++ for slot in ('top','bottom'):
++  source=sources[slot]
++  if type(source)is not dict or set(source)!=KEYS or not all(isinstance(source[k],str) and D.fullmatch(source[k]) for k in KEYS-{'casp'}) or not isinstance(source['casp'],str) or not CASP.fullmatch(source['casp']):raise ValueError('invalid pair source identity')
++ if sources['top']['casp']==sources['bottom']['casp'] and sources['top']['package_sha256']==sources['bottom']['package_sha256']:raise ValueError('pair source collision')
++ if type(descriptor)is not list or len(descriptor)!=9 or descriptor[0]!='APX-GENERIC-PAIR-1' or (descriptor[1],descriptor[6],descriptor[7],descriptor[8])!=(sources['top']['casp'],sources['top']['package_sha256'],sources['bottom']['casp'],sources['bottom']['package_sha256']):raise ValueError('pair descriptor source mismatch')
++ return pair
+--- /dev/null
++++ b/rig-recovery/verify_prepared_source.py
+@@ -0,0 +1,28 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Rebind a privately prepared source marker to a pinned catalog selection.
++
++This is a trusted-local-owner check, not a hostile-filesystem sandbox. It never
++opens a path supplied by catalog content, modifies game data or asserts fidelity.
++"""
++import json,pathlib,re,sqlite3
++from build_scene_bindings import D,N,PRIVATE,pin
++SLOTS={'hair':2,'dress':5,'top':6,'bottom':7,'shoes':8,'eyes':35,'tattoo':46}
++CASP=re.compile(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}\Z')
++
++def verify(selection,slot):
++ if type(selection)is not dict or slot not in SLOTS or not isinstance(selection.get('name'),str) or not N.fullmatch(selection['name']) or not isinstance(selection.get('part_id'),str) or not D.fullmatch(selection['part_id']):raise ValueError('invalid selected source')
++ catalog=pathlib.Path(selection['catalog']);pin(catalog,selection['catalog_sha'],256*1024*1024)
++ if catalog.stat().st_nlink!=1 or any(pathlib.Path(str(catalog)+s).exists() or pathlib.Path(str(catalog)+s).is_symlink() for s in ('-wal','-shm','-journal')):raise ValueError('standalone catalog required')
++ db=sqlite3.connect(catalog.as_uri()+'?mode=ro&immutable=1',uri=True)
++ try:rows=db.execute('SELECT row_json FROM parts WHERE part_id=? LIMIT 2',(selection['part_id'],)).fetchall()
++ finally:db.close()
++ if len(rows)!=1 or len(rows[0][0])>1048576:raise ValueError('source absent or ambiguous')
++ row=json.loads(rows[0][0])
++ if row.get('part_id')!=selection['part_id'] or row.get('body_type')!=SLOTS[slot] or not all(isinstance(row.get(k),str) and D.fullmatch(row[k]) for k in ('package_sha256','resource_sha256')) or not isinstance(row.get('resource_tgi'),str) or not CASP.fullmatch(row['resource_tgi']):raise ValueError('catalog source identity')
++ package=pathlib.Path(selection['package']);pin(package,row['package_sha256'],64*1024*1024)
++ marker=PRIVATE/(selection['name']+'-ready')/'ready.json'
++ if marker.is_symlink() or not marker.is_file() or marker.stat().st_size>65536:raise ValueError('prepared marker unavailable')
++ ready=json.loads(marker.read_bytes())
++ if ready.get('game_modified') is not False or ready.get('package_sha256')!=row['package_sha256'] or ready.get('casp')!=row['resource_tgi'] or ready.get('casp_sha256')!=row['resource_sha256'] or not isinstance(ready.get('material_sha256'),str) or not D.fullmatch(ready['material_sha256']) or (slot not in ('eyes','tattoo') and (not isinstance(ready.get('mesh_sha256'),str) or not D.fullmatch(ready['mesh_sha256']))):raise ValueError('prepared source identity mismatch')
++ pin(catalog,selection['catalog_sha'],256*1024*1024)
++ return ready
+--- /dev/null
++++ b/rig-recovery/separate_preparation_owner.py
+@@ -0,0 +1,124 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Bounded private single-job owner for trusted, pre-registered CAS selections.
++
++No HTTP surface, arbitrary browser-supplied paths, game write or native equip.
++Only an explicitly registered pinned local package, catalog and rig is used.
++Caller must keep ownership alive; abrupt-death containment is not guaranteed.
++"""
++import json,os,pathlib,re,signal,subprocess,sys,tempfile,threading,uuid
++from scene_switch_supervisor import TOKEN,HASH
++from verify_prepared_source import verify as verify_source
++ROOT=pathlib.Path(__file__).resolve().parent
++NAME=re.compile(r'[a-z0-9][a-z0-9-]{0,15}\Z'); LONGNAME=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z')
++def stop_child(proc):
++ # On POSIX the owned launcher starts a new process group, so its preparation
++ # stages receive the same signal. Windows descendant containment is unproven.
++ def send(force):
++  try:
++   if os.name=='posix':os.killpg(proc.pid,signal.SIGKILL if force else signal.SIGTERM)
++   elif force:proc.kill()
++   else:proc.terminate()
++  except ProcessLookupError:pass
++ send(False)
++ try:proc.wait(timeout=5)
++ except subprocess.TimeoutExpired:
++  send(True);proc.wait(timeout=5)
++class SeparatePreparationOwner:
++ def __init__(self,selections):
++  if type(selections)is not dict or not 1<=len(selections)<=64:raise ValueError('bounded trusted selections required')
++  self.selections={}
++  for token,v in selections.items():
++   if not isinstance(token,str) or not TOKEN.fullmatch(token) or type(v)is not dict or set(v) not in ({'catalog','catalog_sha','part_id','package','rig','rig_sha','name'},{'catalog','catalog_sha','part_id','package','rig','rig_sha','name','variant'}):raise ValueError('selection shape')
++   if not all(isinstance(v[k],str) and pathlib.Path(v[k]).is_absolute() for k in ('catalog','package','rig')) or not all(isinstance(v[k],str) and HASH.fullmatch(v[k]) for k in ('catalog_sha','part_id','rig_sha')) or not isinstance(v['name'],str) or not NAME.fullmatch(v['name']):raise ValueError('selection identity')
++   if 'variant' in v:
++    x=v['variant'];keys={'base_token','base','base_sha','manifest','manifest_sha','slot','binary','binary_sha','output','helper','helper_sha','policy','counterparts','package_sources'}
++    if type(x)is not dict or set(x)!=keys or not isinstance(x['base_token'],str) or not TOKEN.fullmatch(x['base_token']) or x['slot'] not in ('top','bottom','hair','shoes','eyes','tattoo') or not all(isinstance(x[k],str) and pathlib.Path(x[k]).is_absolute() for k in ('manifest','binary','helper')) or not all(isinstance(x[k],str) and HASH.fullmatch(x[k]) for k in ('base_sha','manifest_sha','binary_sha','helper_sha')) or not all(isinstance(x[k],str) and LONGNAME.fullmatch(x[k]) for k in ('base','output')) or x['policy'] not in ('sha256-per-request','trusted-immutable-linux'):raise ValueError('variant identity')
++    if type(x['counterparts']) is not dict or set(x['counterparts'])!={'top','bottom','hair','shoes','eyes','tattoo'} or not all(isinstance(y,str) and LONGNAME.fullmatch(y) for y in x['counterparts'].values()):raise ValueError('variant counterparts')
++    sources=x['package_sources']
++    if type(sources)is not dict or not 1<=len(sources)<=64 or not all(isinstance(k,str) and HASH.fullmatch(k) and isinstance(path,str) and pathlib.Path(path).is_absolute() for k,path in sources.items()):raise ValueError('authorized package map')
++    v={**v,'variant':{**x,'counterparts':dict(x['counterparts']),'package_sources':dict(sources)}}
++   self.selections[token]=dict(v)
++  if len({v['name'] for v in self.selections.values()})!=len(self.selections) or len({v['part_id'] for v in self.selections.values()})!=len(self.selections):raise ValueError('duplicate output name or part')
++  variant_outputs=[v['variant']['output'] for v in self.selections.values() if 'variant' in v]
++  if len(set(variant_outputs))!=len(variant_outputs) or set(variant_outputs)&{v['name'] for v in self.selections.values()}:raise ValueError('duplicate runtime output')
++  self.lock=threading.RLock();self.job=None;self.child=None;self.closed=False;self.used=set();self.prepared=set();self.thread=None;self.results={}
++ def options(self):
++  with self.lock:return [{'token':k,'part_id':v['part_id'],'used':k in self.used,'prepared':k in self.prepared} for k,v in self.selections.items()]
++ def status(self):
++  with self.lock:return None if self.job is None else dict(self.job)
++ def start(self,token,variant_override=None):
++  with self.lock:
++   if self.closed or self.job is not None or token not in self.selections or (token in self.used and token not in self.prepared):raise ValueError('selection unavailable or owner busy')
++   s=self.selections[token]
++   if variant_override is not None:
++    if 'variant' not in s:raise ValueError('selection cannot be rebased')
++    probe=SeparatePreparationOwner({token:{**s,'variant':variant_override}});s=probe.selections[token];probe.close()
++   if token in self.prepared and 'variant' not in s:raise ValueError('prepared source requires a variant')
++   self.used.add(token);job=uuid.uuid4().hex
++   if 'variant' in s:s={**s,'variant':{**s['variant'],'output':s['variant']['output'][:12]+'-'+job[:8]}}
++   self.job={'id':job,'selection':token,'state':'running','source_prepared':token in self.prepared}
++   self.thread=threading.Thread(target=self._run,args=(job,token,s),daemon=True);self.thread.start();return dict(self.job)
++ def _execute(self,args,capture=False):
++  with tempfile.TemporaryFile() as output:
++   with self.lock:
++    if self.closed:raise RuntimeError('owner closed')
++    proc=subprocess.Popen(args,stdin=subprocess.DEVNULL,stdout=output,stderr=subprocess.DEVNULL,env={'PATH':'/usr/bin:/bin','PYTHONPATH':str(ROOT)+os.pathsep+str(ROOT.parent/'rig-recovery')},start_new_session=(os.name=='posix'));self.child=proc
++   try:
++    try:code=proc.wait(timeout=1200)
++    except subprocess.TimeoutExpired:stop_child(proc);raise TimeoutError('stage timeout')
++    if code!=0:raise ValueError('stage failed')
++    if not capture:return None
++    output.seek(0);raw=output.read(65537)
++    if len(raw)>65536:raise ValueError('stage output bound')
++    return json.loads(raw)
++   finally:
++    with self.lock:self.child=None
++ def _run(self,job,token,s):
++  args=[sys.executable,str(ROOT/'prepare_catalog_selection.py'),'--catalog',s['catalog'],s['catalog_sha'],'--part-id',s['part_id'],'--package',s['package'],'--rig',s['rig'],s['rig_sha'],'--name',s['name']]
++  state='failed';result=None
++  try:
++   if token not in self.prepared:
++    self._execute(args)
++    with self.lock:
++     self.prepared.add(token)
++     if self.job and self.job['id']==job:self.job={**self.job,'source_prepared':True}
++   state='prepared'
++   if 'variant' in s:
++    x=s['variant'];verify_source(s,x['slot'])
++    chosen={**x['counterparts'],x['slot']:s['name']};packages={}
++    for kind in ('top','bottom'):
++     marker=ROOT.parent/'private-input-recovery'/(chosen[kind]+'-ready')/'ready.json'
++     if marker.is_symlink() or not marker.is_file() or marker.stat().st_size>65536:raise ValueError('component marker unavailable')
++     ready=json.loads(marker.read_bytes());digest=ready.get('package_sha256')
++     if not isinstance(digest,str) or not HASH.fullmatch(digest) or digest not in x['package_sources']:raise ValueError('authorized component package unavailable')
++     packages[kind]=x['package_sources'][digest]
++    args=[sys.executable,str(ROOT/'build_prepared_separates.py'),'--base',x['base'],'--base-sha',x['base_sha'],'--manifest',x['manifest'],x['manifest_sha'],'--top-pipeline',chosen['top'],'--bottom-pipeline',chosen['bottom'],'--top-package',packages['top'],'--bottom-package',packages['bottom'],'--hair-pipeline',chosen['hair'],'--shoes-pipeline',chosen['shoes'],'--eyes-pipeline',chosen['eyes'],'--tattoo-pipeline',chosen['tattoo'],'--binary',x['binary'],x['binary_sha'],'--output',x['output']]
++    v=self._execute(args,True)
++    if type(v)is not dict or v.get('runtime')!=x['output'] or v.get('preview_frame_verified') is not True or v.get('game_modified') is not False or v.get('native_fidelity')!='unverified' or v.get('clothing_mode')!='separates' or not isinstance(v.get('pair_pipeline'),str) or not LONGNAME.fullmatch(v['pair_pipeline']) or not all(isinstance(v.get(k),str) and HASH.fullmatch(v[k]) for k in ('runtime_sha256','scene_sha256')) or not isinstance(v.get('swatch_id'),str):raise ValueError('invalid variant result')
++    result={'base_token':x['base_token'],'part_id':s['part_id'],'pipeline':s['name'],'pair_pipeline':v['pair_pipeline'],'slot':x['slot'],'spec':{'runtime':v['runtime'],'runtime_sha':v['runtime_sha256'],'scene_sha':v['scene_sha256'],'swatch_id':v['swatch_id'],'binary':x['binary'],'binary_sha':x['binary_sha'],'catalog':{'index':s['catalog'],'index_sha':s['catalog_sha'],'helper':x['helper'],'helper_sha':x['helper_sha'],'policy':x['policy']}}};state='preview_ready'
++  except TimeoutError:state='timed_out'
++  except Exception:state='failed'
++  finally:
++   with self.lock:
++    if result is not None and not self.closed:self.results[job]=result
++    if self.job and self.job['id']==job:self.job={**self.job,'state':'cancelled' if self.closed else state}
++ def variant_result(self,job):
++  with self.lock:
++   if not self.job or self.job['id']!=job or self.job['state']!='preview_ready' or job not in self.results:raise ValueError('verified variant unavailable')
++   return json.loads(json.dumps(self.results[job]))
++ def activate(self,job,register):
++  with self.lock:
++   if self.closed or not self.job or self.job['id']!=job or self.job['state']!='preview_ready' or job not in self.results:raise ValueError('verified variant unavailable')
++   result=json.loads(json.dumps(self.results[job]));state=register(result)
++   self.results.pop(job,None);self.job={**self.job,'state':'activated'};return state
++ def acknowledge(self,job):
++  with self.lock:
++   if not self.job or self.job['id']!=job or self.job['state']=='running':raise ValueError('job unavailable or still running')
++   # No retry or deletion: the caller must register a new unused output name.
++   self.results.pop(job,None);self.job=None
++ def close(self):
++  with self.lock:self.closed=True;proc=self.child;thread=self.thread
++  if proc is not None:stop_child(proc)
++  if thread is not None:
++   thread.join(timeout=10)
++   if thread.is_alive():raise RuntimeError('preparation cleanup pending')
+--- /dev/null
++++ b/rig-recovery/build_separates_preparation_manifest.py
+@@ -0,0 +1,53 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Build an owner-pinned private on-demand selection list for separate clothing.
++
++All package paths come from an explicit trusted source map, never catalog rows.
++This only creates a private manifest; it prepares no source and changes no game.
++"""
++import argparse,hashlib,json,pathlib,sqlite3
++from build_scene_bindings import pin,PRIVATE,D,N
++from separate_preparation_owner import SeparatePreparationOwner
++from scene_provenance import validate as validate_provenance
++SLOTS={2:'hair',6:'top',7:'bottom',8:'shoes',35:'eyes',46:'tattoo'}
++
++def load(path,digest):
++ p=pathlib.Path(path);pin(p,digest,65536);return json.loads(p.read_bytes())
++
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--catalog',nargs=2,required=True);p.add_argument('--sources',nargs=2,required=True);p.add_argument('--context',nargs=2,required=True);p.add_argument('--part',action='append',required=True);p.add_argument('--output',required=True);a=p.parse_args()
++ if not N.fullmatch(a.output) or not 1<=len(a.part)<=64 or len(set(a.part))!=len(a.part) or not all(D.fullmatch(x) for x in a.part) or PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('bounded unique selected IDs required')
++ index=pathlib.Path(a.catalog[0]);pin(index,a.catalog[1],256*1024*1024)
++ if index.stat().st_nlink!=1 or any(pathlib.Path(str(index)+s).exists() or pathlib.Path(str(index)+s).is_symlink() for s in ('-wal','-shm','-journal')):raise ValueError('standalone catalog required')
++ src=load(*a.sources);ctx=load(*a.context)
++ if type(src)is not dict or set(src)!={'schema','packages'} or src['schema']!=1 or type(src['packages'])is not dict or not 1<=len(src['packages'])<=64 or not all(isinstance(k,str) and D.fullmatch(k) and isinstance(v,str) and pathlib.Path(v).is_absolute() for k,v in src['packages'].items()):raise ValueError('source manifest shape')
++ keys={'base_token','base','base_sha','manifest','manifest_sha','counterparts','pair_pipeline','binary','binary_sha','helper','helper_sha','policy','rig','rig_sha'}
++ if type(ctx)is not dict or set(ctx)!=keys:raise ValueError('context shape')
++ if type(ctx['counterparts'])is not dict or set(ctx['counterparts'])!={'top','bottom','hair','shoes','eyes','tattoo'} or not isinstance(ctx['pair_pipeline'],str) or not N.fullmatch(ctx['pair_pipeline']):raise ValueError('counterpart shape')
++ validate_provenance({ctx['base_token']:{'runtime':ctx['base'],'runtime_sha':ctx['base_sha']}},{ctx['base_token']:{**ctx['counterparts'],'pair':ctx['pair_pipeline']}})
++ for slot in ('top','bottom'):
++  marker=PRIVATE/(ctx['counterparts'][slot]+'-ready')/'ready.json'
++  if marker.is_symlink() or not marker.is_file() or marker.stat().st_size>65536:raise ValueError('counterpart unavailable')
++  ready=json.loads(marker.read_bytes());digest=ready.get('package_sha256')
++  if not isinstance(digest,str) or not D.fullmatch(digest) or digest not in src['packages']:raise ValueError('counterpart package not authorized')
++  pin(pathlib.Path(src['packages'][digest]),digest,64*1024*1024)
++ db=sqlite3.connect(index.as_uri()+'?mode=ro&immutable=1',uri=True);rows=[];verified={}
++ try:
++  for part in a.part:
++   matches=db.execute('SELECT row_json FROM parts WHERE part_id=? LIMIT 2',(part,)).fetchall()
++   if len(matches)!=1 or len(matches[0][0])>1048576:raise ValueError('part absent or ambiguous')
++   row=json.loads(matches[0][0]);digest=row.get('package_sha256');slot=SLOTS.get(row.get('body_type'))
++   if row.get('part_id')!=part or slot is None or not isinstance(digest,str) or not D.fullmatch(digest) or digest not in src['packages']:raise ValueError('unsupported or unauthorized source')
++   path=pathlib.Path(src['packages'][digest]);pin(path,digest,64*1024*1024);verified[digest]=path;rows.append((part,slot,path))
++ finally:db.close()
++ pin(index,a.catalog[1],256*1024*1024);selections={}
++ for part,slot,path in rows:
++  name='p'+part[:14];token=hashlib.sha256(('preparation:'+part).encode()).hexdigest()[:32];out='v'+part[:14]
++  variant={k:ctx[k] for k in ('base_token','base','base_sha','manifest','manifest_sha','counterparts','binary','binary_sha','helper','helper_sha','policy')};variant.update(slot=slot,output=out,package_sources=src['packages'])
++  if token in selections:raise ValueError('opaque token collision')
++  selections[token]={'catalog':str(index.resolve()),'catalog_sha':a.catalog[1],'part_id':part,'package':str(path),'rig':ctx['rig'],'rig_sha':ctx['rig_sha'],'name':name,'variant':variant}
++ owner=SeparatePreparationOwner(selections);owner.close();payload=json.dumps({'schema':1,'selections':selections},separators=(',',':')).encode()
++ if len(payload)>262144:raise ValueError('preparation manifest byte bound')
++ out=PRIVATE/a.output;out.mkdir(mode=0o700,exist_ok=False)
++ with (out/'preparations.json').open('xb') as f:f.write(payload)
++ print(json.dumps({'selected_parts':len(selections),'private_manifest_sha256':hashlib.sha256(payload).hexdigest(),'assets_prepared':False,'game_modified':False}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/rig-recovery/test_build_prepared_separates.py
+@@ -0,0 +1,26 @@
++import contextlib,hashlib,io,json,pathlib,tempfile,unittest
++from unittest import mock
++import build_prepared_separates as b
++class Tests(unittest.TestCase):
++ def setUp(self):
++  self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=pathlib.Path(self.temp.name);self.package=self.root/'top.package';self.package.write_bytes(b'top');d=self.root/'top-ready';d.mkdir();(d/'ready.json').write_text(json.dumps({'game_modified':False,'package_sha256':hashlib.sha256(b'top').hexdigest()}));self.bottom=self.root/'bottom.package';self.bottom.write_bytes(b'bottom');d=self.root/'bottom-ready';d.mkdir();(d/'ready.json').write_text(json.dumps({'game_modified':False,'package_sha256':hashlib.sha256(b'bottom').hexdigest()}));self.args=['x','--base','base','--base-sha','a'*64,'--top-pipeline','top','--bottom-pipeline','bottom','--top-package',str(self.package),'--bottom-package',str(self.bottom),'--hair-pipeline','hair','--manifest','/tmp/manifest','b'*64,'--binary','/tmp/binary','c'*64,'--output','variant'];self.calls=[]
++ def runit(self,execute):
++  with mock.patch.object(b,'PRIVATE',self.root),mock.patch.object(b.sys,'argv',self.args),mock.patch.object(b,'execute',side_effect=execute),contextlib.redirect_stdout(io.StringIO()) as out:b.main();return json.loads(out.getvalue())
++ def execute(self,script,args,timeout):
++  self.calls.append((script,args));return {'atlas_overlap':0,'game_modified':False,'native_fidelity':'unverified'} if script=='build_top_bottom_pair.py' else {'runtime':'variant','runtime_sha256':'d'*64,'scene_sha256':'e'*64,'swatch_id':'id','preview_frame_verified':True,'game_modified':False,'native_fidelity':'unverified'}
++ def test_pinned_source_pairs_before_frame_verified_variant(self):
++  out=self.runit(self.execute);self.assertEqual(out['clothing_mode'],'separates');self.assertEqual([x[0] for x in self.calls],['build_top_bottom_pair.py','build_prepared_variant.py']);self.assertEqual(self.calls[0][1][self.calls[0][1].index('--top-package')+1],str(self.package));self.assertEqual(self.calls[0][1][self.calls[0][1].index('--bottom-package')+1],str(self.bottom));self.assertEqual(self.calls[1][1][self.calls[1][1].index('--dress-pipeline')+1],'variant-pair')
++ def test_wrong_top_package_fails_before_staging(self):
++  self.package.write_bytes(b'wrong')
++  with self.assertRaises(ValueError):self.runit(self.execute)
++  self.assertEqual(self.calls,[])
++ def test_bad_pair_refuses_variant(self):
++  def bad(script,args,timeout):self.calls.append((script,args));return {'atlas_overlap':1,'game_modified':False,'native_fidelity':'unverified'}
++  with self.assertRaises(ValueError):self.runit(bad)
++  self.assertEqual(len(self.calls),1)
++ def test_unverified_frame_is_not_publishable(self):
++  def bad(script,args,timeout):
++   r=self.execute(script,args,timeout)
++   if script=='build_prepared_variant.py':r['preview_frame_verified']=False
++   return r
++  with self.assertRaises(ValueError):self.runit(bad)
+--- /dev/null
++++ b/rig-recovery/test_pair_source_identity.py
+@@ -0,0 +1,16 @@
++import copy,unittest
++from pair_source_identity import validate
++class TestPairIdentity(unittest.TestCase):
++ def setUp(self):
++  self.top='034AEECB:80000000:0123456789ABCDEF';self.bottom='034AEECB:80000000:FEDCBA9876543210';self.lines=['APX-GENERIC-PAIR-1',self.top,'0','ff000000','a'*64,'b'*64,'c'*64,self.bottom,'d'*64];self.pair={'rig_sha256':'e'*64,'sources':{'top':{'package_sha256':'c'*64,'casp':self.top,'casp_sha256':'1'*64,'mesh_sha256':'2'*64,'material_sha256':'3'*64},'bottom':{'package_sha256':'d'*64,'casp':self.bottom,'casp_sha256':'4'*64,'mesh_sha256':'5'*64,'material_sha256':'6'*64}}}
++ def test_valid_source_record(self):self.assertEqual(validate(self.pair,self.lines),self.pair)
++ def test_refuses_tampered_source_and_descriptor(self):
++  for slot,key,value in [('top','package_sha256','f'*64),('bottom','casp',self.top),('top','casp_sha256','bad')]:
++   v=copy.deepcopy(self.pair);v['sources'][slot][key]=value
++   with self.subTest(slot=slot,key=key),self.assertRaises(ValueError):validate(v,self.lines)
++  for index in (1,6,7,8):
++   v=list(self.lines);v[index]='a'*64
++   with self.subTest(index=index),self.assertRaises(ValueError):validate(self.pair,v)
++ def test_refuses_missing_or_extra_identity(self):
++  for pair in ({}, {'rig_sha256':'e'*64,'sources':{'top':self.pair['sources']['top']}}, {**self.pair,'extra':1}):
++   with self.assertRaises(ValueError):validate(pair,self.lines)
+--- /dev/null
++++ b/rig-recovery/test_verify_prepared_source.py
+@@ -0,0 +1,21 @@
++import hashlib,json,pathlib,sqlite3,tempfile,unittest
++from unittest import mock
++import verify_prepared_source as v
++class Tests(unittest.TestCase):
++ def setUp(self):
++  self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=pathlib.Path(self.temp.name);self.package=self.root/'package';self.package.write_bytes(b'source');self.cat=self.root/'catalog';self.pid='a'*64;self.casp='034AEECB:80000000:0123456789ABCDEF';self.row={'part_id':self.pid,'body_type':6,'package_sha256':hashlib.sha256(b'source').hexdigest(),'resource_sha256':'b'*64,'resource_tgi':self.casp};db=sqlite3.connect(self.cat);db.execute('create table parts(part_id text,row_json text)');db.execute('insert into parts values(?,?)',(self.pid,json.dumps(self.row)));db.commit();db.close();self.selection={'name':'candidate','part_id':self.pid,'catalog':str(self.cat),'catalog_sha':hashlib.sha256(self.cat.read_bytes()).hexdigest(),'package':str(self.package)};d=self.root/'candidate-ready';d.mkdir();self.marker=d/'ready.json';self.ready={'game_modified':False,'package_sha256':self.row['package_sha256'],'casp':self.casp,'casp_sha256':'b'*64,'mesh_sha256':'c'*64,'material_sha256':'d'*64};self.marker.write_text(json.dumps(self.ready))
++ def runit(self,slot='top'):
++  with mock.patch.object(v,'PRIVATE',self.root):return v.verify(self.selection,slot)
++ def test_exact_selected_source(self):self.assertEqual(self.runit(),self.ready)
++ def test_refuses_wrong_slot_and_changed_marker(self):
++  with self.assertRaises(ValueError):self.runit('bottom')
++  self.ready['casp_sha256']='e'*64;self.marker.write_text(json.dumps(self.ready))
++  with self.assertRaises(ValueError):self.runit()
++ def test_changed_package_or_catalog_refused(self):
++  self.package.write_bytes(b'changed')
++  with self.assertRaises(ValueError):self.runit()
++  self.package.write_bytes(b'source');self.selection['catalog_sha']='f'*64
++  with self.assertRaises(ValueError):self.runit()
++ def test_marker_missing_material_refused(self):
++  del self.ready['material_sha256'];self.marker.write_text(json.dumps(self.ready))
++  with self.assertRaises(ValueError):self.runit()
+--- /dev/null
++++ b/rig-recovery/test_separate_preparation_owner.py
+@@ -0,0 +1,32 @@
++import json,pathlib,tempfile,time,unittest
++from unittest import mock
++import separate_preparation_owner as p
++class Tests(unittest.TestCase):
++ def setUp(self):
++  self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=pathlib.Path(self.tmp.name);self.owner_root=self.root/'candidate';self.owner_root.mkdir();private=self.root/'private-input-recovery';private.mkdir();self.t='1'*32;self.b='2'*32
++  for name,sha in [('oldtop','a'*64),('oldbottom','b'*64),('selected','b'*64)]:
++   d=private/(name+'-ready');d.mkdir();(d/'ready.json').write_text(json.dumps({'package_sha256':sha}))
++  v={'base_token':self.b,'base':'base','base_sha':'c'*64,'manifest':'/safe/manifest','manifest_sha':'d'*64,'slot':'bottom','binary':'/safe/bin','binary_sha':'e'*64,'output':'output','helper':'/safe/helper','helper_sha':'f'*64,'policy':'sha256-per-request','counterparts':{'top':'oldtop','bottom':'oldbottom','hair':'hair','shoes':'shoes','eyes':'eyes','tattoo':'tattoo'},'package_sources':{'a'*64:'/safe/top','b'*64:'/safe/bottom'}}
++  self.selection={'catalog':'/safe/cat','catalog_sha':'4'*64,'part_id':'5'*64,'package':'/safe/bottom','rig':'/safe/rig','rig_sha':'6'*64,'name':'selected','variant':v};self.calls=[]
++ def wait(self,o):
++  end=time.monotonic()+3
++  while o.status()['state']=='running' and time.monotonic()<end:time.sleep(.005)
++  return o.status()
++ def execute(self,args,capture=False):
++  self.calls.append(args)
++  if not capture:return None
++  out=args[args.index('--output')+1];return {'runtime':out,'runtime_sha256':'7'*64,'scene_sha256':'8'*64,'swatch_id':'034AEECB:80000000:0123456789ABCDEF','pair_pipeline':out+'-pair','clothing_mode':'separates','preview_frame_verified':True,'game_modified':False,'native_fidelity':'unverified'}
++ def test_bottom_uses_independent_unchanged_top_package_and_revalidates_reuse(self):
++  o=p.SeparatePreparationOwner({self.t:self.selection})
++  with mock.patch.object(p,'ROOT',self.owner_root),mock.patch.object(p,'verify_source') as verify,mock.patch.object(o,'_execute',side_effect=self.execute):
++   first=o.start(self.t);self.assertEqual(self.wait(o)['state'],'preview_ready');result=o.variant_result(first['id']);args=self.calls[1];self.assertEqual(args[args.index('--top-package')+1],'/safe/top');self.assertEqual(args[args.index('--bottom-package')+1],'/safe/bottom');self.assertEqual(args[args.index('--top-pipeline')+1],'oldtop');self.assertEqual(args[args.index('--bottom-pipeline')+1],'selected');self.assertEqual(result['slot'],'bottom');o.activate(first['id'],lambda r:{});o.acknowledge(first['id'])
++   second=o.start(self.t);self.assertEqual(self.wait(o)['state'],'preview_ready');self.assertEqual(len(self.calls),3);self.assertEqual(verify.call_count,2);self.assertNotEqual(result['spec']['runtime'],o.variant_result(second['id'])['spec']['runtime']);o.acknowledge(second['id']);o.close()
++ def test_missing_authorized_top_package_fails_without_variant(self):
++  del self.selection['variant']['package_sources']['a'*64];o=p.SeparatePreparationOwner({self.t:self.selection})
++  with mock.patch.object(p,'ROOT',self.owner_root),mock.patch.object(p,'verify_source'),mock.patch.object(o,'_execute',side_effect=self.execute):
++   job=o.start(self.t);self.assertEqual(self.wait(o)['state'],'failed');self.assertEqual(len(self.calls),1);o.acknowledge(job['id']);o.close()
++ def test_incomplete_counterparts_and_unexpected_pose_rebuild_refused(self):
++  del self.selection['variant']['counterparts']['top']
++  with self.assertRaises(ValueError):p.SeparatePreparationOwner({self.t:self.selection})
++  self.selection['variant']['counterparts']['top']='oldtop';self.selection['variant']['pose_config']='/safe/pose'
++  with self.assertRaises(ValueError):p.SeparatePreparationOwner({self.t:self.selection})
+--- /dev/null
++++ b/rig-recovery/test_build_separates_manifest.py
+@@ -0,0 +1,22 @@
++import contextlib,hashlib,io,json,pathlib,sqlite3,sys,tempfile,unittest
++from unittest import mock
++import build_separates_preparation_manifest as m
++class Tests(unittest.TestCase):
++ def setUp(self):
++  self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);r=pathlib.Path(self.tmp.name);self.root=r;package=r/'item.package';package.write_bytes(b'fixture');self.h=lambda x:hashlib.sha256(x.read_bytes()).hexdigest();self.package=package;self.pid='a'*64;self.db=r/'catalog.sqlite';c=sqlite3.connect(self.db);c.execute('CREATE TABLE parts(part_id TEXT PRIMARY KEY,row_json TEXT)');c.execute('INSERT INTO parts VALUES(?,?)',(self.pid,json.dumps({'part_id':self.pid,'body_type':6,'package_sha256':self.h(package),'package_path':'/never/used'})));c.commit();c.close();self.src=r/'sources.json';self.src.write_text(json.dumps({'schema':1,'packages':{self.h(package):str(package)}}));self.ctx=r/'context.json';self.ctx.write_text(json.dumps({'base_token':'1'*32,'base':'base','base_sha':'b'*64,'manifest':'/safe/manifest','manifest_sha':'c'*64,'counterparts':{'top':'top','bottom':'bottom','hair':'hair','shoes':'shoes','eyes':'eyes','tattoo':'tattoo'},'pair_pipeline':'pair','binary':'/safe/binary','binary_sha':'d'*64,'helper':'/safe/helper','helper_sha':'e'*64,'policy':'sha256-per-request','rig':'/safe/rig','rig_sha':'f'*64}));
++  for n in ('top','bottom'):
++   d=r/(n+'-ready');d.mkdir();(d/'ready.json').write_text(json.dumps({'package_sha256':self.h(package)}))
++  self.args=['x','--catalog',str(self.db),self.h(self.db),'--sources',str(self.src),self.h(self.src),'--context',str(self.ctx),self.h(self.ctx),'--part',self.pid,'--output','output']
++ def invoke(self,args):
++  buf=io.StringIO()
++  with mock.patch.object(m,'PRIVATE',self.root),mock.patch.object(m,'validate_provenance') as valid,mock.patch.object(sys,'argv',args),contextlib.redirect_stdout(buf):m.main();valid.assert_called_once()
++  return json.loads(buf.getvalue())
++ def test_top_manifest_uses_explicit_source_not_catalog_path(self):
++  out=self.invoke(self.args);self.assertFalse(out['assets_prepared']);row=next(iter(json.loads((self.root/'output/preparations.json').read_text())['selections'].values()));self.assertEqual(row['variant']['slot'],'top');self.assertEqual(row['package'],str(self.package));self.assertNotEqual(row['package'],'/never/used')
++ def test_missing_counterpart_package_refuses_before_output(self):
++  q=self.root/'bottom-ready/ready.json';q.write_text(json.dumps({'package_sha256':'9'*64}))
++  with self.assertRaises(ValueError):self.invoke(self.args)
++  self.assertFalse((self.root/'output').exists())
++ def test_duplicate_part_and_bad_context_fail_without_output(self):
++  with self.assertRaises(ValueError):self.invoke(self.args+['--part',self.pid])
++  self.assertFalse((self.root/'output').exists())
+--- /dev/null
++++ b/rig-recovery/test_dynamic_separates_gateway.py
+@@ -0,0 +1,37 @@
++import http.client,json,threading,unittest
++from unittest.mock import patch
++from scene_gateway import Gateway
++from scene_switch_supervisor import Refused
++class Owner:
++ def __init__(self):self.lock=threading.RLock();self.token='1'*32;self.generation=1;self.specs={self.token:{'runtime':'base','runtime_sha':'c'*64,'binary':'/safe/bin','binary_sha':'d'*64,'catalog':{'index_sha':'b'*64}}}
++ def status(self):return {'state':'ready','token':self.token,'generation':self.generation}
++ def switch_if(self,token,generation):
++  if generation!=self.generation or token not in self.specs:raise Refused('stale')
++  self.token=token;self.generation+=1;return self.status()
++class Prep:
++ def __init__(self):self.selections={'f'*32:{'catalog_sha':'b'*64,'part_id':'a'*64,'name':'newtop','variant':{'slot':'top','package_sources':{}}}};self.calls=[];self.result={'base_token':'1'*32,'part_id':'a'*64,'pipeline':'newtop','pair_pipeline':'newpair','slot':'top','spec':{'runtime':'new','runtime_sha':'e'*64,'catalog':{'index_sha':'b'*64}}}
++ def start(self,t,override):self.calls.append(override);return {'id':'9'*32,'state':'running'}
++ def activate(self,job,callback):return callback(dict(self.result))
++class Tests(unittest.TestCase):
++ def setUp(self):
++  self.o=Owner();self.p=Prep();self.row={'top':'oldtop','bottom':'oldbottom','hair':'oldhair','shoes':'oldshoes','eyes':'oldeyes','tattoo':'oldtattoo','pair':'oldpair'};self.bindings={'schema':3,'catalog_sha256':'b'*64,'items':[{'part_id':str(i)*64,'kind':kind,'transitions':{self.o.token:self.o.token}} for i,kind in enumerate(('top','bottom','hair','shoes','eyes','tattoo'),1)],'inspect_only':True,'game_modified':False};self.g=Gateway(self.o,{self.o.token:'Initial'},self.bindings,self.p,{self.o.token:self.row});self.thread=threading.Thread(target=self.g.serve_forever,daemon=True);self.thread.start();self.host,self.port=self.g.server_address;self.origin='http://%s:%d'%(self.host,self.port)
++ def tearDown(self):self.g.shutdown();self.g.server_close();self.thread.join(5)
++ def post(self,path,data):
++  c=http.client.HTTPConnection(self.host,self.port,timeout=5);c.request('POST',path,json.dumps(data),{'Content-Type':'application/json','Origin':self.origin,'X-CAS-Request':'1'});r=c.getresponse();status=r.status;r.read();c.close();return status
++ def test_prepare_rebases_complete_current_counterparts_and_rejects_stale(self):
++  with patch('scene_gateway.validate_provenance') as valid:
++   self.assertEqual(self.post('/prepare-selection',{'token':'f'*32,'generation':0}),409);self.assertEqual(self.p.calls,[])
++   self.assertEqual(self.post('/prepare-selection',{'token':'f'*32,'generation':1}),200);v=self.p.calls[0];self.assertEqual(v['base'],'base');self.assertEqual(v['counterparts'],{k:self.row[k] for k in self.row if k!='pair'});valid.assert_called_once()
++ def test_bad_proposed_provenance_preserves_all_state(self):
++  old=self.g.bindings;prior=dict(self.g.provenance)
++  with patch('scene_gateway.verify_source'),patch('scene_gateway.validate_provenance',side_effect=[None,Refused('bad')]),patch('scene_gateway.register') as register:
++   self.assertEqual(self.post('/activate-prepared',{'token':'9'*32,'generation':1}),409);register.assert_not_called();self.assertEqual(self.g.bindings,old);self.assertEqual(self.g.provenance,prior);self.assertEqual(self.o.token,'1'*32)
++ def test_register_failure_rolls_back_all_metadata(self):
++  old=json.dumps(self.g.bindings,sort_keys=True);prior=dict(self.g.provenance)
++  def fail(owner,labels,**kwargs):owner.specs[kwargs['token']]=kwargs['spec'];labels[kwargs['token']]='attempt';raise Refused('frame failed')
++  with patch('scene_gateway.verify_source'),patch('scene_gateway.validate_provenance'),patch('scene_gateway.register',side_effect=fail):
++   self.assertEqual(self.post('/activate-prepared',{'token':'9'*32,'generation':1}),409);self.assertEqual(json.dumps(self.g.bindings,sort_keys=True),old);self.assertEqual(self.g.provenance,prior);self.assertEqual(set(self.o.specs),{'1'*32});self.assertEqual(self.o.token,'1'*32)
++ def test_success_publishes_exact_slot_and_pair(self):
++  def succeed(owner,labels,**kwargs):owner.specs[kwargs['token']]=kwargs['spec'];labels[kwargs['token']]='prepared';return owner.switch_if(kwargs['token'],kwargs['generation'])
++  with patch('scene_gateway.verify_source'),patch('scene_gateway.validate_provenance') as valid,patch('scene_gateway.register',side_effect=succeed):
++   self.assertEqual(self.post('/activate-prepared',{'token':'9'*32,'generation':1}),200);active=self.o.token;self.assertEqual(self.g.provenance[active],{**self.row,'top':'newtop','pair':'newpair'});self.assertEqual(valid.call_count,2)

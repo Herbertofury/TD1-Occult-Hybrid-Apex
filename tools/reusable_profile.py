@@ -7,6 +7,7 @@ content-addressed recovery store before their verified duplicate folders go away
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import uuid
 from contextlib import contextmanager
@@ -176,12 +177,39 @@ def generated_data(path, relative, mccc=False):
     return True
 
 
+def resource_config_status(profile, data):
+    """Require a readable Resource.cfg; an optional journal digest pins its bytes.
+
+    Presence is not a claim that the game accepts the configuration or that an
+    unpinned file matches a prior baseline.
+    """
+    mods = writable(profile / 'Mods')
+    if not mods.is_dir():
+        return {'ready': False, 'state': 'missing_mods_directory', 'sha256': None}
+    cfg = writable(mods / 'Resource.cfg')
+    if not cfg.is_file():
+        return {'ready': False, 'state': 'missing_resource_config', 'sha256': None}
+    digest = sha256(cfg)
+    if 'resource_cfg_sha256' not in data:
+        return {'ready': True, 'state': 'present_unpinned_unverified', 'sha256': digest}
+    expected = data['resource_cfg_sha256']
+    if not isinstance(expected, str) or re.fullmatch('[0-9a-f]{64}', expected) is None:
+        return {'ready': False, 'state': 'invalid_resource_config_pin', 'sha256': digest}
+    return {'ready': digest == expected,
+            'state': 'pinned_match' if digest == expected else 'pinned_mismatch', 'sha256': digest}
+
+
 def status(state, verify_original=False):
     state, data, profile, original = load(state)
+    resource_config = resource_config_status(profile, data)
     expected = {artifact_relative(row).casefold(): row for row in data['artifacts']}
     mccc = any(row.get('test_addon') == 'mccc-2026.5.0' for row in data['artifacts'])
     artifacts, unexpected = [], []
-    for directory, subdirs, files in os.walk(str(profile / 'Mods'), followlinks=False):
+    def walk_error(error):
+        raise error
+    walk = (() if resource_config['state'] == 'missing_mods_directory' else
+            os.walk(str(profile / 'Mods'), followlinks=False, onerror=walk_error))
+    for directory, subdirs, files in walk:
         for name in subdirs + files:
             writable(Path(directory) / name)
         for name in files:
@@ -200,16 +228,24 @@ def status(state, verify_original=False):
                 digest = sha256(path)
                 artifacts.append({'path': relative, 'sha256': digest, 'matches': digest == expected_row['sha256']})
     unexpected.extend('missing:' + name for name in expected)
-    ready = data.get('phase') == 'active' and not unexpected and len(artifacts) == len(data['artifacts']) and all(row['matches'] for row in artifacts)
+    ready = (data.get('phase') == 'active' and resource_config['ready'] and not unexpected and
+             len(artifacts) == len(data['artifacts']) and all(row['matches'] for row in artifacts))
     original_matches = None
+    original_error = None
     if verify_original:
-        baseline = json.loads(Path(data['previous_state']).read_text(encoding='utf-8'))['original_inventory']
-        original_matches = legacy.inventory(original) == baseline
-        if not original_matches:
+        previous = data.get('previous_state')
+        if not isinstance(previous, str) or not previous:
+            original_error = 'original_inventory_baseline_unavailable'
             ready = False
+        else:
+            baseline = json.loads(Path(previous).read_text(encoding='utf-8'))['original_inventory']
+            original_matches = legacy.inventory(original) == baseline
+            if not original_matches:
+                ready = False
     return {'ok': ready, 'phase': data['phase'], 'mode': data['mode'], 'profile': str(profile),
             'original': str(original), 'original_policy': 'read-only; owner alone renames/restores',
             'ready_to_launch': ready, 'original_inventory_verified_now': original_matches,
+            'original_verification_error': original_error, 'resource_config': resource_config,
             'artifacts': sorted(artifacts, key=lambda row: row['path']), 'unexpected_mod_files': sorted(unexpected),
             'test_save_files': sum(1 for path in (profile / 'saves').rglob('*') if path.is_file()),
             'test_tray_files': sum(1 for path in (profile / 'Tray').rglob('*') if path.is_file())}

@@ -1349,6 +1349,12 @@
       "sha256": "6c4edcede49cd10d9792147f3f93991b5217c936d7ac9efdc1c777b25226b4a1"
     },
     {
+      "bytes": 6811,
+      "mode": "100644",
+      "path": "tests/test_reusable_profile_readiness.py",
+      "sha256": "d9e6f396bf02795b8bf8e047a99782e205ef5753980bdcb45c91367372054aa8"
+    },
+    {
       "bytes": 52923,
       "mode": "100644",
       "path": "tools/game_lifecycle.py",
@@ -1677,6 +1683,12 @@
       "mode": "100644",
       "path": "Reports/GameBin-FileTypes.txt",
       "sha256": "058f1013e11bdb74ee8ffc77b043637d64af248c426d90576e21ab58034baa24"
+    },
+    {
+      "bytes": 1765,
+      "mode": "100644",
+      "path": "docs/PROFILE_READINESS.md",
+      "sha256": "77ec4cd7472fbc44963f8cf83799bb2af26a93a8afc0cd3db8ae6b0557c65386"
     },
     {
       "bytes": 6814,
@@ -3833,6 +3845,12 @@
       "sha256": "dcad435189961dc1a2375e35fc0a04e2e6304cf644a9b7d628a25e222f24e06d"
     },
     {
+      "bytes": 25163,
+      "mode": "100644",
+      "path": "tools/reusable_profile.py",
+      "sha256": "8bac0f3ccb2242cb36a4ee2a5318a87ee706dc364b709596fec6c5bdd33d5f2d"
+    },
+    {
       "bytes": 5710,
       "mode": "100644",
       "path": "tools/maru_companion_versions.py",
@@ -4797,12 +4815,6 @@
       "mode": "100644",
       "path": "tests/test_household_stress.py",
       "sha256": "474bf41fca1dca0005a3df5be78015a3c766f8bd0d9d64a014ecbc52b8712dde"
-    },
-    {
-      "bytes": 23473,
-      "mode": "100644",
-      "path": "tools/reusable_profile.py",
-      "sha256": "2f34f9bb5183d9c37e1983278ddd095e9863dd5330c13e7f7c9185f80c628ed8"
     },
     {
       "bytes": 27328,

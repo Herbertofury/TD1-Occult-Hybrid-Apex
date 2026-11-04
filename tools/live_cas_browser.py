@@ -178,9 +178,10 @@ class Browser:
             self._save()
             return dict(request, ok=True, game_contacted=False)
 
-    def thumbnail(self, ident):
+    def thumbnail(self, ident, proof=None):
         with self.lock:
-            return self.assets[resources.sha(ident)].thumbnail(ident)
+            broker = self.assets[resources.sha(ident)]
+            return broker.thumbnail(ident) if proof is None else broker.thumbnail(ident, proof)
 
     def open(self, ident, proof):
         with self.lock:
@@ -243,10 +244,11 @@ def handler(browser):
             try:
                 if not self.allowed():
                     raise ValueError('Loopback origin required.')
-                match = re.fullmatch(r'/v1/resources/([0-9a-f]{64})/thumbnail', self.path)
+                match = re.fullmatch(r'/v1/resources/([0-9a-f]{64})/thumbnail(?:\?cache_proof=([0-9a-f]{64}))?', self.path)
                 if match is None:
                     raise ValueError('Unknown typed route.')
-                self.reply(200, browser.thumbnail(match.group(1)), 'image/png')
+                raw = browser.thumbnail(match.group(1)) if match.group(2) is None else browser.thumbnail(match.group(1), match.group(2))
+                self.reply(200, raw, 'image/png')
             except (KeyError, ValueError, OSError) as error:
                 self.reply(409, {'ok': False, 'reason': str(error)})
 

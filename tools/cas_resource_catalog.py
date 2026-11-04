@@ -674,8 +674,10 @@ class Broker:
         if len(self.catalog) > MAX_RESPONSE:
             raise ValueError('Catalog transport exceeds its bound.')
 
-    def thumbnail(self, ident):
+    def thumbnail(self, ident, proof=None):
         record = self.records[sha(ident)]
+        if proof is not None and sha(proof) != record['row']['cache_proof']:
+            raise ValueError('Thumbnail requires this exact current cache proof.')
         row = record['row']['thumbnail']
         if row['status'] != 'resolved' or not record['thumbnail_file']:
             raise ValueError('Thumbnail is unresolved.')
@@ -750,11 +752,12 @@ def handler(broker):
             if self.path == '/v1/resources':
                 self.reply(200, broker.catalog)
                 return
-            match = re.fullmatch(r'/v1/resources/([0-9a-f]{64})/thumbnail', self.path)
+            match = re.fullmatch(r'/v1/resources/([0-9a-f]{64})/thumbnail(?:\?cache_proof=([0-9a-f]{64}))?', self.path)
             try:
                 if match is None:
                     raise ValueError('Unknown typed route.')
-                self.reply(200, broker.thumbnail(match.group(1)), 'image/png')
+                raw = broker.thumbnail(match.group(1)) if match.group(2) is None else broker.thumbnail(match.group(1), match.group(2))
+                self.reply(200, raw, 'image/png')
             except (KeyError, ValueError, OSError) as error:
                 self.reply(404, canonical({'ok': False, 'reason': str(error)}))
 

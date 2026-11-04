@@ -197,6 +197,12 @@
       "sha256": "7a3431798421888a07811d6661931a5fb0c1cbd5c084cf539d524dfe64e44d0d"
     },
     {
+      "bytes": 18120,
+      "mode": "100644",
+      "path": "tools/live_cas_browser.py",
+      "sha256": "168f70de98dec73f0038f5f8251f18fa00b543dfb24ae33cdc776dd9dc496d4e"
+    },
+    {
       "bytes": 12913,
       "mode": "100644",
       "path": "tests/test_cas_catalog_scheduling.py",
@@ -213,12 +219,6 @@
       "mode": "100644",
       "path": "tests/test_cas_owner_observation.py",
       "sha256": "7f8d84324b2d9484e257ffd8b7a4ecd068edd7375e11e6293d1201092ce87c0b"
-    },
-    {
-      "bytes": 3255,
-      "mode": "100644",
-      "path": "docs/F11_COPY_RECEIPT_REVIEW_20261104.md",
-      "sha256": "979526b0c3c01852d309c6f8d574c21f249ee5654c0ea950e7be67d0b3fb4c85"
     },
     {
       "bytes": 5334,
@@ -1149,6 +1149,12 @@
       "mode": "100644",
       "path": "Reports/CAS_RETAINED_CARDS_AND_GEOMETRY_V344.json",
       "sha256": "ffcd3872cd9f9adc6eb78956e2d9d1ad7d4177ca5d4654378956cc8962ba950b"
+    },
+    {
+      "bytes": 6363,
+      "mode": "100644",
+      "path": "tests/test_proof_http.py",
+      "sha256": "c36ac66f2e743f384e9d988d36ac21849915fc40d8833bc9a448a3bf29c3cf63"
     },
     {
       "bytes": 26004,
@@ -2705,12 +2711,6 @@
       "sha256": "b9e59d0bac851c380be48e3b9df2cf654357a97a227acd664e93d4769a035e24"
     },
     {
-      "bytes": 17887,
-      "mode": "100644",
-      "path": "tools/live_cas_browser.py",
-      "sha256": "cfdc58115d038d84caca3ef7a699ba9568c2f0bf6effdb8bb36a981cac2560ad"
-    },
-    {
       "bytes": 2575,
       "mode": "100644",
       "path": "tests/test_appearance_projection_cache.py",
@@ -4037,6 +4037,12 @@
       "sha256": "55293f6794b465ebd4a6a9ed47ad21ab143eebb67a4d1b2b59eca8db3200b235"
     },
     {
+      "bytes": 3939,
+      "mode": "100644",
+      "path": "docs/F11_COPY_RECEIPT_REVIEW_20261104.md",
+      "sha256": "42a00b4b72519c1be26055e29f9d76070fc2c7e76d6df24424b7427142b71990"
+    },
+    {
       "bytes": 3957,
       "mode": "100644",
       "path": "tests/test_launch_compatibility.py",
@@ -4257,6 +4263,12 @@
       "mode": "100644",
       "path": "tools/save_metadata.py",
       "sha256": "2c13dfb41b29a2aad3e84bdb6659d9e013b077b819d2b32bb2679661c6e14c1b"
+    },
+    {
+      "bytes": 40357,
+      "mode": "100644",
+      "path": "tools/cas_resource_catalog.py",
+      "sha256": "11fec7f9e02f8046e9035b50a9da3375c641bb0f8252290db1dc5e9daadc4925"
     },
     {
       "bytes": 5109,
@@ -6819,12 +6831,6 @@
       "mode": "100644",
       "path": "tests/test_cas_native_position_gate.py",
       "sha256": "7032b8194ae1348191ff8fb5cf37fbcf02a115b81e7c33cc3bffd073e0faf15b"
-    },
-    {
-      "bytes": 40046,
-      "mode": "100644",
-      "path": "tools/cas_resource_catalog.py",
-      "sha256": "3fd156cf0a5d55ef42a25bfccaab641fbde026bcf946e06a55dea55a9ab747ce"
     },
     {
       "bytes": 3200,

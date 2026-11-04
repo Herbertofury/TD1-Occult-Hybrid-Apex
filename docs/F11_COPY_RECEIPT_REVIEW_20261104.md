@@ -46,3 +46,13 @@ An isolated Debug overlay compiled, and 140 existing native resource checks
 passed. The button itself has not been exercised in game. This does not solve
 catalog-generation retention, thumbnail-provider identity, current-equipped
 freshness, or automatic selection inside Studio.
+
+Both local thumbnail handlers also accept an optional exact `cache_proof`
+query parameter. If present, it must match the current broker row before PNG
+bytes are returned; malformed, absent-item and stale proofs are refused. The
+existing ID-only route is unchanged for older clients. This is an additive
+broker capability, not yet used by the overlay: old brokers do not understand
+the new route, and neither handler retains a previous broker generation. It
+does not prove the game's active thumbnail or item. In-memory HTTP tests cover
+both handlers, old and proof-bound requests, and current-broker replacement;
+the PNG decoder and Studio executable were mocked for those fixtures.

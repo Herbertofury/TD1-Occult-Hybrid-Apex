@@ -1,0 +1,230 @@
+--- a/src/preview.rs
++++ b/src/preview.rs
+@@ -147,6 +147,14 @@
+     let frame=render_textured_cutout_view(inputs,width,height,RenderView{camera:band.camera,rows:Some(rows)},textures,materials,masks)?;
+     Ok(BandFrame{rows,frame})
+ }
++/// One explicitly bounded triangle partition inside a merged mesh. The
++/// partition is supplied only by a trusted, source-bound preparation owner.
++#[derive(Clone, Copy, Debug)]
++pub struct MaterialSplit { pub mesh:usize, pub first_after:usize, pub before:usize, pub after:usize }
++/// Rest-pose/posed geometry supplied by the caller; no native shader claim.
++pub fn render_textured_cutout_camera_split(inputs:&[(&[u8],usize)],width:usize,height:usize,camera:Camera,textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:&[Option<texture::AlphaMask<'_>>],split:MaterialSplit)->Result<Frame,&'static str>{
++ render_textured_cutout_view_split(inputs,width,height,camera.into(),textures,materials,masks,None,Some(split))
++}
+ pub fn render_textured_cutout_camera_cached(inputs:&[(&[u8],usize)],width:usize,height:usize,camera:Camera,textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:&[Option<texture::AlphaMask<'_>>],pairs:Option<&[Vec<bool>]>)->Result<Frame,&'static str>{
+  render_textured_cutout_view_cached(inputs,width,height,camera.into(),textures,materials,masks,pairs)
+ }
+@@ -168,6 +176,12 @@
+     inputs:&[(&[u8],usize)],width:usize,height:usize,camera:RenderView,
+     textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:&[Option<texture::AlphaMask<'_>>],pairs:Option<&[Vec<bool>]>,
+ )->Result<Frame,&'static str>{
++    render_textured_cutout_view_split(inputs,width,height,camera,textures,materials,masks,pairs,None)
++}
++fn render_textured_cutout_view_split(
++    inputs:&[(&[u8],usize)],width:usize,height:usize,camera:RenderView,
++    textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:&[Option<texture::AlphaMask<'_>>],pairs:Option<&[Vec<bool>]>,split:Option<MaterialSplit>,
++)->Result<Frame,&'static str>{
+     if textures.is_empty()
+         || textures.len() > 4
+         || materials.len() != inputs.len()
+@@ -192,6 +206,7 @@
+         materials,
+         Some(masks),
+         pairs,
++        split,
+     )
+ }
+ fn render_impl<const TEXTURED: bool>(
+@@ -203,10 +218,10 @@
+     materials: &[usize],
+     masks: Option<&[Option<texture::AlphaMask<'_>>]>,
+ ) -> Result<Frame, &'static str> {
+-    render_impl_with_pairs::<TEXTURED>(inputs,width,height,camera,textures,materials,masks,None)
++    render_impl_with_pairs::<TEXTURED>(inputs,width,height,camera,textures,materials,masks,None,None)
+ }
+ fn render_impl_with_pairs<const TEXTURED:bool>(
+- inputs:&[(&[u8],usize)],width:usize,height:usize,camera:impl Into<RenderView>,textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:Option<&[Option<texture::AlphaMask<'_>>]>,pairs:Option<&[Vec<bool>]>,
++ inputs:&[(&[u8],usize)],width:usize,height:usize,camera:impl Into<RenderView>,textures:&[texture::OpaqueTexture<'_>],materials:&[usize],masks:Option<&[Option<texture::AlphaMask<'_>>]>,pairs:Option<&[Vec<bool>]>,split:Option<MaterialSplit>,
+ )->Result<Frame,&'static str>{
+     let view = camera.into();
+     let camera = view.camera;
+@@ -226,6 +241,12 @@
+         .iter()
+         .map(|(bytes, bones)| budget.validate(bytes, *bones))
+         .collect::<Result<_, _>>()?;
++    if let Some(s) = split {
++        if !TEXTURED || s.mesh >= meshes.len() || s.before >= textures.len() || s.after >= textures.len()
++            || s.first_after == 0 || s.first_after >= meshes[s.mesh].indices.len()/12 {
++            return Err("split material mapping bounds");
++        }
++    }
+     let (sin, cos) = yaw.sin_cos();
+     let mut lo = [f32::INFINITY; 3];
+     let mut hi = [f32::NEG_INFINITY; 3];
+@@ -276,6 +297,9 @@
+     let mut depth = vec![f32::NEG_INFINITY; pixels];
+     let mut pixel_visits = 0usize;
+     let diagnostic_cull=std::env::var("APEX_DIAGNOSTIC_CULL").unwrap_or_default();
++    // Pair-culling currently groups triangles without material ownership, so
++    // it must not remove cross-material faces from a split mesh.
++    if split.is_some() && !diagnostic_cull.is_empty() { return Err("split with diagnostic culling unsupported"); }
+     let diagnostic_solid=std::env::var("APEX_DIAGNOSTIC_SOLID").as_deref()==Ok("1");
+     for (mesh_index, mesh) in meshes.iter().enumerate() {
+         let projected: Vec<_> = mesh
+@@ -300,6 +324,8 @@
+         let paired=if diagnostic_cull=="cached-paired" {pairs.and_then(|p|p.get(mesh_index))} else {computed.as_ref()};
+         if paired.is_some_and(|p|p.len()!=mesh.indices.len()/12) {return Err("pair mask extent");}
+         for (triangle_index,triangle) in mesh.indices.as_chunks::<12>().0.iter().enumerate() {
++            let material = split.filter(|s| s.mesh == mesh_index)
++                .map_or_else(|| if TEXTURED { materials[mesh_index] } else { 0 }, |s| if triangle_index < s.first_after { s.before } else { s.after });
+             let ids: [usize; 3] = std::array::from_fn(|i| {
+                 u32::from_le_bytes(triangle[i * 4..i * 4 + 4].try_into().unwrap()) as usize
+             });
+@@ -366,12 +392,12 @@
+                                     f64::from(weights[j]) * f64::from(f32_at(vertex, 24 + k * 4));
+                             }
+                         }
+-                        if let Some(mask) = masks.and_then(|m| m[materials[mesh_index]].as_ref())
++                        if let Some(mask) = masks.and_then(|m| m[material].as_ref())
+                             && !mask.visible(uv)?
+                         {
+                             continue;
+                         }
+-                        let color = if diagnostic_solid {[255.;3]} else {textures[materials[mesh_index]].sample(uv)?};
++                        let color = if diagnostic_solid {[255.;3]} else {textures[material].sample(uv)?};
+                         for (k, value) in color.iter().enumerate() {
+                             frame.rgb[at * 3 + k] =
+                                 (value * f64::from(shade) / 255.).round().clamp(0., 255.) as u8;
+@@ -434,6 +460,31 @@
+         assert!(render_textured_cutout_camera(&inputs,64,64,0f32.into(),&five,&[2,3],&[None,None,None,None,None]).is_err());
+     }
+     #[test]
++    fn split_merged_mesh_matches_independent_material_meshes() {
++        let mut left=fixture(0.,[0.,0.,1.],false);let mut right=left.clone();
++        for (mesh,xs) in [(&mut left,[-1.0f32,-0.1,-0.55]),(&mut right,[0.1f32,1.0,0.55])] {
++            for (i,x) in xs.iter().enumerate(){let off=16+i*STRIDE;mesh[off..off+4].copy_from_slice(&x.to_le_bytes());}
++        }
++        let mut merged=b"APXMESH1".to_vec();merged.extend(6u32.to_le_bytes());merged.extend(6u32.to_le_bytes());
++        merged.extend(&left[16..16+3*STRIDE]);merged.extend(&right[16..16+3*STRIDE]);
++        for i in [0u32,1,2,3,4,5]{merged.extend(i.to_le_bytes());}
++        let rgba=[[255,255,255,255],[255,0,0,255],[0,0,255,255],[0,255,0,255]];
++        let textures=rgba.each_ref().map(|x|texture::OpaqueTexture::new(1,1,x).unwrap());let masks=[None,None,None,None];
++        let separate=[(left.as_slice(),1),(right.as_slice(),1)];let combined=[(merged.as_slice(),1)];
++        for yaw in [0.0,0.3] {
++            let reference=render_textured_cutout_camera(&separate,64,64,yaw.into(),&textures,&[1,2],&masks).unwrap();
++            let split=render_textured_cutout_camera_split(&combined,64,64,yaw.into(),&textures,&[0],&masks,MaterialSplit{mesh:0,first_after:1,before:1,after:2}).unwrap();
++            assert_eq!(split.rgb,reference.rgb);assert_eq!(split.covered_pixels,reference.covered_pixels);assert_eq!(split.triangles,reference.triangles);
++        }
++        for split in [MaterialSplit{mesh:1,first_after:1,before:1,after:2},MaterialSplit{mesh:0,first_after:0,before:1,after:2},MaterialSplit{mesh:0,first_after:2,before:1,after:2},MaterialSplit{mesh:0,first_after:1,before:1,after:4}] {
++            assert_eq!(render_textured_cutout_camera_split(&combined,64,64,0f32.into(),&textures,&[0],&masks,split).unwrap_err(),"split material mapping bounds");
++        }
++        let clear=[0,0,0,0];let red_mask=texture::AlphaMask::new(1,1,&clear,128).unwrap();let masks=[None,Some(red_mask),None,None];
++        let reference=render_textured_cutout_camera(&separate,64,64,0f32.into(),&textures,&[1,2],&masks).unwrap();
++        let split=render_textured_cutout_camera_split(&combined,64,64,0f32.into(),&textures,&[0],&masks,MaterialSplit{mesh:0,first_after:1,before:1,after:2}).unwrap();
++        assert_eq!(split.rgb,reference.rgb);assert_eq!(split.covered_pixels,reference.covered_pixels);
++    }
++    #[test]
+     fn reverse_face_pair_detection_is_exact_and_ambiguous_faces_stay() {
+         let base=fixture(0.,[0.,0.,1.],false);let mut two=base.clone();two[12..16].copy_from_slice(&6u32.to_le_bytes());two.extend([0u32,2,1].into_iter().flat_map(u32::to_le_bytes));
+         assert_eq!(pair_mask(&two,1).unwrap(),vec![true,true]);
+--- a/examples/render_separate_materials.rs
++++ b/examples/render_separate_materials.rs
+@@ -1,7 +1,7 @@
+ //! Private bounded rest-pose material diagnostic, not native CAS or a game write.
+ //! Two clothing meshes use independent atlases even when their UVs overlap.
+ //! Paths are trusted local inputs supplied by the owner, not a hostile FS sandbox.
+-use apex_external_cas_draft_research::preview::{self, layers::{compose,compose_over,Layer,Mode},skin_detail,texture::{AlphaMask,OpaqueTexture}};
++use apex_external_cas_draft_research::{mesh::SceneBudget,preview::{self, layers::{compose,compose_over,Layer,Mode},skin_detail,texture::{AlphaMask,OpaqueTexture}}};
+ use sha2::{Digest,Sha256};
+ use std::{env,fs::{self,OpenOptions},io::{Read,Write},path::Path};
+ fn load(path:&str,expected:&str,limit:u64)->Result<Vec<u8>,Box<dyn std::error::Error>>{
+@@ -14,9 +14,10 @@
+  let args:Vec<String>=env::args().skip(1).collect();
+  if env::var_os("APEX_DIAGNOSTIC_CULL").is_some() || env::var_os("APEX_DIAGNOSTIC_SOLID").is_some(){return Err("unexpected diagnostic renderer override".into())}
+  // head, top, bottom, shoes, hair meshes; tone, skin, tattoo, eyes,
+- // shoe, top, bottom, hair RGBA, each as PATH SHA256; then output PPM.
+- if args.len()!=28{return Err("expected 13 path/digest pairs and two fresh outputs".into())}
+- let mut inputs=Vec::with_capacity(13);for i in 0..13{inputs.push(load(&args[2*i],&args[2*i+1],if i<5{64*1024*1024}else{32*1024*1024})?);}
++ // shoe, top, bottom, hair RGBA; merged pair mesh, all as PATH SHA256;
++ // then color and label PPM paths.
++ if args.len()!=30{return Err("expected 14 path/digest pairs and two fresh outputs".into())}
++ let mut inputs=Vec::with_capacity(14);for i in 0..14{inputs.push(load(&args[2*i],&args[2*i+1],if i<5 || i==13{64*1024*1024}else{32*1024*1024})?);}
+  let (w,h)=(2048,4096);let tone=&inputs[5];let skin=&inputs[6];let tattoo=&inputs[7];let eyes=&inputs[8];let shoe=&inputs[9];let top=&inputs[10];let bottom=&inputs[11];let hair=&inputs[12];
+  let skin_blend=skin_detail::blend(w,h,tone,skin,0.35,0.)?;
+  let lower=compose(w,h,[0,0,0],&[Layer{rgba:skin_blend.view().bytes(),mode:Mode::SourceOver},Layer{rgba:tattoo,mode:Mode::SourceOver},Layer{rgba:eyes,mode:Mode::SourceOver},Layer{rgba:shoe,mode:Mode::SourceOver}])?;
+@@ -26,13 +27,28 @@
+  let textures=[lower.view(),top_tex.view(),bottom_tex.view(),OpaqueTexture::new(1024,2048,&hair_opaque)?];
+  let masks=[None,None,None,Some(AlphaMask::new(1024,2048,hair,128)?)];
+  let meshes:Vec<_>=inputs[..5].iter().map(|x|(x.as_slice(),165)).collect();
++ // Verify that the merged pair has exactly the ordered component vertices and
++ // indices. This proves the split boundary for this pinned rest-pose input.
++ let mut one=SceneBudget::default();let top_mesh=one.validate(&inputs[1],165)?;let bottom_mesh=one.validate(&inputs[2],165)?;
++ let mut two=SceneBudget::default();let merged=two.validate(&inputs[13],165)?;
++ if merged.vertex_count!=top_mesh.vertex_count+bottom_mesh.vertex_count || merged.index_count!=top_mesh.index_count+bottom_mesh.index_count || !merged.vertices.starts_with(top_mesh.vertices) || &merged.vertices[top_mesh.vertices.len()..]!=bottom_mesh.vertices || !merged.indices.starts_with(top_mesh.indices){return Err("merged component mismatch".into())}
++ for (actual,original) in merged.indices[top_mesh.indices.len()..].chunks_exact(4).zip(bottom_mesh.indices.chunks_exact(4)) {
++  let a=u32::from_le_bytes(actual.try_into()?);let b=u32::from_le_bytes(original.try_into()?);
++  if b.checked_add(top_mesh.vertex_count)!=Some(a){return Err("merged index mismatch".into())}
++ }
++ let split=preview::MaterialSplit{mesh:1,first_after:(top_mesh.index_count/3) as usize,before:1,after:2};
++ let combined=[(inputs[0].as_slice(),165),(inputs[13].as_slice(),165),(inputs[3].as_slice(),165),(inputs[4].as_slice(),165)];
+  let frame=preview::render_textured_cutout_camera(&meshes,512,512,0f32.into(),&textures,&[0,1,2,0,3],&masks)?;
++ let split_frame=preview::render_textured_cutout_camera_split(&combined,512,512,0f32.into(),&textures,&[0,0,0,3],&masks,split)?;
++ if split_frame.rgb!=frame.rgb || split_frame.covered_pixels!=frame.covered_pixels || split_frame.triangles!=frame.triangles{return Err("split render differs from independent meshes".into())}
+  // A second frame labels top-visible pixels red and bottom-visible pixels
+  // blue. It is a diagnostic label, not a native material or skin mask.
+  let red=[255,0,0,255];let blue=[0,0,255,255];
+  let labels=[lower.view(),OpaqueTexture::new(1,1,&red)?,OpaqueTexture::new(1,1,&blue)?,OpaqueTexture::new(1024,2048,&hair_opaque)?];
+  let labeled=preview::render_textured_cutout_camera(&meshes,512,512,0f32.into(),&labels,&[0,1,2,0,3],&masks)?;
+- for (path, data) in [(&args[26],&frame.rgb),(&args[27],&labeled.rgb)] {
++ let split_labels=preview::render_textured_cutout_camera_split(&combined,512,512,0f32.into(),&labels,&[0,0,0,3],&masks,split)?;
++ if split_labels.rgb!=labeled.rgb{return Err("split labels differ from independent meshes".into())}
++ for (path, data) in [(&args[28],&frame.rgb),(&args[29],&labeled.rgb)] {
+   let mut out=OpenOptions::new().write(true).create_new(true).open(path)?;write!(out,"P6\n512 512\n255\n")?;out.write_all(data)?;out.sync_all()?;
+  }
+  println!("{{\"width\":512,\"height\":512,\"triangles\":{},\"covered_pixels\":{},\"game_modified\":false,\"native_fidelity\":\"unverified\"}}",frame.triangles,frame.covered_pixels);Ok(())
+--- /dev/null
++++ b/examples/validate_split_pose.rs
+@@ -0,0 +1,42 @@
++//! Private sample-pose equality check, not native CAS or game validation.
++use apex_external_cas_draft_research::{mesh::SceneBudget,preview::{self,Camera,FramingBounds,MaterialSplit,texture::OpaqueTexture},skin::pose_rigid};
++use sha2::{Digest,Sha256};
++use std::{env,fs,io::Read,path::Path};
++fn load(path:&str,expected:&str,limit:u64)->Result<Vec<u8>,Box<dyn std::error::Error>>{
++ if expected.len()!=64 || !expected.bytes().all(|c|c.is_ascii_digit()||(b'a'..=b'f').contains(&c)){return Err("invalid digest".into())}
++ let p=Path::new(path);let m=fs::symlink_metadata(p)?;if !m.file_type().is_file() || m.len()>limit{return Err("bounded regular input required".into())}
++ let mut raw=Vec::new();fs::File::open(p)?.take(limit+1).read_to_end(&mut raw)?;
++ if raw.len() as u64>limit || format!("{:x}",Sha256::digest(&raw))!=expected{return Err("input pin mismatch".into())}Ok(raw)
++}
++fn main()->Result<(),Box<dyn std::error::Error>>{
++ let args:Vec<_>=env::args().skip(1).collect();
++ // Six pairs: head, top, bottom, shoes, hair, combined; then 1..128 pose pairs.
++ if args.len()<14 || args.len()>268 || args.len()%2!=0{return Err("expected six mesh pairs and one or more pose pairs".into())}
++ if env::var_os("APEX_DIAGNOSTIC_CULL").is_some() || env::var_os("APEX_DIAGNOSTIC_SOLID").is_some(){return Err("unexpected diagnostic renderer override".into())}
++ let mut meshes=Vec::new();for i in 0..6{meshes.push(load(&args[2*i],&args[2*i+1],32*1024*1024)?);}
++ let mut b=SceneBudget::default();let top=b.validate(&meshes[1],165)?;let bottom=b.validate(&meshes[2],165)?;let mut b=SceneBudget::default();let merged=b.validate(&meshes[5],165)?;
++ if merged.vertex_count!=top.vertex_count+bottom.vertex_count || merged.index_count!=top.index_count+bottom.index_count || !merged.vertices.starts_with(top.vertices) || &merged.vertices[top.vertices.len()..]!=bottom.vertices || !merged.indices.starts_with(top.indices){return Err("merged component mismatch".into())}
++ for (actual,original) in merged.indices[top.indices.len()..].chunks_exact(4).zip(bottom.indices.chunks_exact(4)) {let a=u32::from_le_bytes(actual.try_into()?);let b=u32::from_le_bytes(original.try_into()?);if b.checked_add(top.vertex_count)!=Some(a){return Err("merged index mismatch".into())}}
++ let split=MaterialSplit{mesh:1,first_after:(top.index_count/3) as usize,before:1,after:2};
++ let mut digest=Sha256::new();for i in [0,5,3,4]{digest.update((meshes[i].len() as u64).to_le_bytes());digest.update(&meshes[i]);}let identity=digest.finalize();
++ let colors=[[255,255,255,255],[255,0,0,255],[0,0,255,255],[0,255,0,255]];let textures=colors.each_ref().map(|x|OpaqueTexture::new(1,1,x).unwrap());let masks=[None,None,None,None];let mut count=0usize;
++ for pair in args[12..].chunks_exact(2){
++  let raw=load(&pair[0],&pair[1],16*1024*1024)?;if raw.len()<80 || &raw[..8]!=b"APXPOSE1" || raw[8..40]!=identity[..]{return Err("pose cache mesh identity".into())}
++  let u=|i|u32::from_le_bytes(raw[i..i+4].try_into().unwrap()) as usize;let f=|i|f32::from_le_bytes(raw[i..i+4].try_into().unwrap());let bones=u(40);let frames=u(44);
++  if bones!=165 || !(1..=2048).contains(&frames) || raw.len()!=80+bones*frames*48{return Err("pose cache extent".into())}
++  let bounds=FramingBounds::new([f(56),f(60),f(64)],[f(68),f(72),f(76)])?;
++  let mut samples=vec![0,frames/2,frames-1];samples.sort_unstable();samples.dedup();
++  for frame in samples {
++   let offset=80+frame*bones*48;let matrices:Vec<[f32;12]>=(0..bones).map(|j|std::array::from_fn(|k|f32::from_le_bytes(raw[offset+j*48+k*4..offset+j*48+k*4+4].try_into().unwrap()))).collect();
++   let posed:Vec<Vec<u8>>=meshes.iter().map(|m|pose_rigid(m,&matrices)).collect::<Result<_,_>>()?;
++   let separate=[(posed[0].as_slice(),165),(posed[1].as_slice(),165),(posed[2].as_slice(),165),(posed[3].as_slice(),165),(posed[4].as_slice(),165)];
++   let joined=[(posed[0].as_slice(),165),(posed[5].as_slice(),165),(posed[3].as_slice(),165),(posed[4].as_slice(),165)];
++   for yaw in [-std::f32::consts::FRAC_PI_2,0.,std::f32::consts::FRAC_PI_2] {
++    let camera=Camera{yaw,framing:Some(bounds)};let a=preview::render_textured_cutout_camera(&separate,512,512,camera,&textures,&[0,1,2,0,3],&masks)?;
++    let b=preview::render_textured_cutout_camera_split(&joined,512,512,camera,&textures,&[0,0,0,3],&masks,split)?;
++    if a.rgb!=b.rgb || a.covered_pixels!=b.covered_pixels || a.triangles!=b.triangles{return Err("split pose output differs".into())}count+=1;
++   }
++  }
++ }
++ println!("PASS {count} source-bound pose/yaw frames: split merged mesh equals independent meshes; native fidelity unverified");Ok(())
++}

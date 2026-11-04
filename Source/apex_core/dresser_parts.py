@@ -7,6 +7,15 @@ adds alignment/range checks, owns its state, and never imports or hooks MCCC.
 NEUTRAL_SHIFT = 4611686018427387904  # Exact MCCC fallback; not an HSV decoder.
 
 
+class OutfitRollbackError(RuntimeError):
+    """A row write failed and one or more array restorations also failed."""
+
+    def __init__(self, failed_fields):
+        self.failed_fields = tuple(failed_fields)
+        super().__init__('Outfit row rollback failed for {}; the original write error is retained.'.format(
+            ', '.join(self.failed_fields)))
+
+
 def uint(value, bits):
     if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value < (1 << bits):
         raise ValueError('Expected an unsigned {}-bit integer.'.format(bits))
@@ -94,10 +103,17 @@ def write_rows(outfit, rows):
         for key, target in targets.items():
             del target[:]
             target.extend(prepared[key])
-    except Exception:
+    except Exception as write_error:
+        failed = []
         for key, target in targets.items():
-            del target[:]
-            target.extend(originals[key])
+            try:
+                del target[:]
+                target.extend(originals[key])
+            except Exception:
+                # One broken field must not prevent independent restorations.
+                failed.append('{}.{}'.format(*key))
+        if failed:
+            raise OutfitRollbackError(failed) from write_error
         raise
     # Keep row order, absent arrays and unknown composite protobuf fields.
     return len(rows)

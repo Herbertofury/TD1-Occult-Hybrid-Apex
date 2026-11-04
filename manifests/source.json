@@ -2207,6 +2207,12 @@
       "sha256": "42990a273c717b208261abe7931a16f660f3ee34b8cf86cce2ac4cacf391d95d"
     },
     {
+      "bytes": 4917,
+      "mode": "100644",
+      "path": "tests/test_dresser_rollback_callers.py",
+      "sha256": "da8c0adbb698686b24b36eccb758424b39a89cc8022a6a4e8c695c9ac89544f4"
+    },
+    {
       "bytes": 3576,
       "mode": "100644",
       "path": "tests/fixtures/cas_unconsumed_rejected354.json",
@@ -2411,6 +2417,12 @@
       "sha256": "a6f8047ea53c64472387e9b1c29b8911b2f1e0c5cc668952263e63c0a837ebb2"
     },
     {
+      "bytes": 5075,
+      "mode": "100644",
+      "path": "tests/test_dresser_rollback.py",
+      "sha256": "b494e7d72e9bf96e2299d91648ca3b35f89fd991db21cad578f0987e4a348a23"
+    },
+    {
       "bytes": 7530,
       "mode": "100644",
       "path": "tools/CasAcceptLayerTests.java",
@@ -2451,12 +2463,6 @@
       "mode": "100644",
       "path": "tests/test_cas_form_owner_select.py",
       "sha256": "6da96aad1f26553279e3ec59be745d64a42bc159644c44b873ec24ddcca8d789"
-    },
-    {
-      "bytes": 4623,
-      "mode": "100644",
-      "path": "Source/apex_core/dresser_parts.py",
-      "sha256": "f0c1fa1bc69e4cc67461db14fbb081c897e653c0f67b50b19dbd2c710359d71f"
     },
     {
       "bytes": 7906,
@@ -3549,6 +3555,12 @@
       "mode": "100644",
       "path": "tests/test_cas_product_leases.py",
       "sha256": "b52659c2ca835756921dee1821e0c018fc26452f672142d65648a92c51f20000"
+    },
+    {
+      "bytes": 5287,
+      "mode": "100644",
+      "path": "Source/apex_core/dresser_parts.py",
+      "sha256": "3f6d532eead00d0822d8bc1c629616479a74f46e532b78dca7860200202de477"
     },
     {
       "bytes": 3396,
@@ -4863,6 +4875,12 @@
       "mode": "100644",
       "path": "docs/OFFLINE_ETW_CAPTURE.md",
       "sha256": "6d21cc3b1cf0c1264324c9e910c66126478430b2a21c9e6a8267eff81a85d611"
+    },
+    {
+      "bytes": 2236,
+      "mode": "100644",
+      "path": "docs/DRESSER_ROLLBACK_REVIEW_20261104.md",
+      "sha256": "9c9f07ad5dcbf3a6eff72b520b1d7f52d79f924b4c3fcac9f8c73e82027f09b6"
     },
     {
       "bytes": 10450,

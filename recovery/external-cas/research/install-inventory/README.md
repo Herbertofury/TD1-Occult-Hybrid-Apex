@@ -28,6 +28,13 @@ CAS items, or evidence of usable renderer coverage. The running game and user
 profile were not accessed by the probe. It does not establish completeness of
 the installation or resource ownership.
 
+On this Windows host, all three inventory tests passed. Separately, the
+recovered dependency-free Rust core was compiled directly with
+`rustc --edition 2024 --test src/lib.rs` and all 114 core tests passed. The
+normal `cargo test --lib --offline` could not resolve its pinned dev dependency
+`libc = 0.2.191` from the local cache. The direct core test is not a substitute
+for the full Cargo test suite, renderer acceptance, or game validation.
+
 `Data/Client/Resource.cfg` declares client delta packages at priority -20 and
 client full packages at -30, with separate priorities for clip headers,
 thumbnails, and UI. This establishes that looking only in base full builds

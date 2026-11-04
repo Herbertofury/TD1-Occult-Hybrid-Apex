@@ -70,6 +70,12 @@ def compare(manifest, directory):
                     raise ValueError('Action windows differ between stages.')
                 delta = after['max_ms'] - before['max_ms']
                 action_deltas.append({'action': before['action'], 'max_delta_ms': delta,
+                    'control_over_33_3ms': before['over_33_3ms'],
+                    'candidate_over_33_3ms': after['over_33_3ms'],
+                    'over_33_3ms_count_delta': after['over_33_3ms'] - before['over_33_3ms'],
+                    'control_over_33_3ms_per_1000': before['over_33_3ms_per_1000'],
+                    'candidate_over_33_3ms_per_1000': after['over_33_3ms_per_1000'],
+                    'over_33_3ms_per_1000_delta': after['over_33_3ms_per_1000'] - before['over_33_3ms_per_1000'],
                     'duration_delta_ms': (None if before['duration_ms'] is None or after['duration_ms'] is None
                                           else after['duration_ms'] - before['duration_ms']),
                     'p95_delta_ms': after['p95_ms'] - before['p95_ms'],
@@ -98,6 +104,8 @@ def compare(manifest, directory):
         'limitations': ['Feature inventories and actual-load/UI-transition observations are runner-supplied declarations.',
             'Any positive tail/action-maximum delta stops evaluation; noise requires diagnosis and fresh repeats, not a causal claim.',
             'Action-window percentiles are descriptive and sample-size sensitive, particularly for short actions; intervals may overlap adjacent windows.',
+            'Raw hitch counts depend on window duration and frame count; counts per 1000 overlapping intervals are not rates per unit time and remain sample-size sensitive.',
+            'A present interval crossing adjacent action windows is counted in both; action-window counts must not be summed as unique hitches.',
             'Action duration uses only validated offline QPC frequency; matching labels or durations do not prove equivalent work.',
             'Equal source presence or passing fixture tests does not establish feature parity.',
             'Present intervals are not displayed frame times or input-to-photon latency.',

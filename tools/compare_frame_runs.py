@@ -101,11 +101,13 @@ def action_statistics(values, clocks, start, end, refresh):
     if not within:
         raise ValueError('An observed action has no frame timestamp within its recorded window.')
     ordered = sorted(within)
+    over_33_3ms = sum(x > 1000 / 30 for x in within)
     return {'frames': len(within), 'selection': 'present-interval-overlap',
             'p50_ms': percentile(ordered, .50), 'p95_ms': percentile(ordered, .95),
             'p99_ms': percentile(ordered, .99), 'max_ms': ordered[-1],
             'over_refresh_budget': sum(x > 1000 / refresh for x in within),
-            'over_33_3ms': sum(x > 1000 / 30 for x in within)}
+            'over_33_3ms': over_33_3ms,
+            'over_33_3ms_per_1000': 1000 * over_33_3ms / len(within)}
 
 
 def read_frames(path, pid, expected_sha):
@@ -321,6 +323,12 @@ def compare(manifest, manifest_dir):
                 raise ValueError('Paired action windows differ.')
             action_deltas.append({'action': base_action['action'],
                                   'baseline_frames': base_action['frames'], 'apex_frames': apex_action['frames'],
+                                  'baseline_over_33_3ms': base_action['over_33_3ms'],
+                                  'apex_over_33_3ms': apex_action['over_33_3ms'],
+                                  'over_33_3ms_count_delta': apex_action['over_33_3ms'] - base_action['over_33_3ms'],
+                                  'baseline_over_33_3ms_per_1000': base_action['over_33_3ms_per_1000'],
+                                  'apex_over_33_3ms_per_1000': apex_action['over_33_3ms_per_1000'],
+                                  'over_33_3ms_per_1000_delta': apex_action['over_33_3ms_per_1000'] - base_action['over_33_3ms_per_1000'],
                                   'duration_delta_ms': (None if base_action['duration_ms'] is None or apex_action['duration_ms'] is None
                                                         else apex_action['duration_ms'] - base_action['duration_ms']),
                                   'p50_delta_ms': apex_action['p50_ms'] - base_action['p50_ms'],
@@ -337,6 +345,8 @@ def compare(manifest, manifest_dir):
             'limitations': ['Scenario, mod-state and action observation evidence are supplied by the experiment runner.',
                 'Present intervals are not displayed frame times or an input-to-photon measurement.',
                 'Action-window comparisons can contain different frame counts; tail percentiles and maxima are sensitive to sample size and do not establish causation.',
+                'Raw hitch counts depend on window duration and frame count; counts per 1000 overlapping intervals are not rates per unit time and remain sample-size sensitive.',
+                'A present interval crossing adjacent action windows is counted in both; action-window counts must not be summed as unique hitches.',
                 'Action duration is derived only from validated offline QPC frequency; matching labels or durations do not prove equal work.',
                 'A finite matched sample cannot prove that all hitching is eliminated.']}
 

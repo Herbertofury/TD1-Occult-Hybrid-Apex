@@ -14,6 +14,29 @@ sys.path.insert(0, str(ROOT / 'tools'))
 import compare_frame_runs as perf
 
 
+def set_unequal_action_hitch_fixture(runs):
+    """Set one vs two long intervals across five vs six overlapping frames."""
+    for index, run in enumerate(runs[:2]):
+        path = Path(run['csv'])
+        with path.open(newline='', encoding='utf-8') as stream:
+            reader = csv.DictReader(stream)
+            fields, rows = reader.fieldnames, list(reader)
+        rows[11]['MsBetweenPresents'] = '50'
+        if index == 1:
+            rows[12]['MsBetweenPresents'] = '50'
+        with path.open('w', newline='', encoding='utf-8') as stream:
+            writer = csv.DictWriter(stream, fieldnames=fields)
+            writer.writeheader(); writer.writerows(rows)
+        capture_path = Path(run['capture']); capture = json.loads(capture_path.read_text())
+        capture['analysis']['csv_sha256'] = hashlib.sha256(path.read_bytes()).hexdigest()
+        capture_path.write_text(json.dumps(capture))
+        trace_path = Path(run['actions']); trace = json.loads(trace_path.read_text())
+        if index == 1:
+            trace['events'][0]['end_qpc'] = 1160
+        trace['capture_sha256'] = hashlib.sha256(capture_path.read_bytes()).hexdigest()
+        trace_path.write_text(json.dumps(trace))
+
+
 class MatchedFrameComparisonTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -94,9 +117,38 @@ class MatchedFrameComparisonTests(unittest.TestCase):
         self.assertEqual(left['p50_ms'], 26.5)
         self.assertAlmostEqual(left['p95_ms'], 47.65)
         self.assertEqual(left['over_33_3ms'], 1)
+        self.assertEqual(left['over_33_3ms_per_1000'], 500)
         self.assertEqual(right['frames'], 1)
         self.assertEqual(right['max_ms'], 50)
+        self.assertEqual(right['over_33_3ms'], 1)
+        self.assertEqual(right['over_33_3ms_per_1000'], 1000)
         self.assertEqual(perf.action_statistics(values, clocks, 10, 20, 60)['max_ms'], 2)
+
+    def test_paired_hitch_counts_and_rates_with_unequal_frame_counts(self):
+        set_unequal_action_hitch_fixture(self.manifest['runs'])
+        set_unequal_action_hitch_fixture(self.manifest['runs'][2:])
+        result = perf.compare(self.manifest, self.root)
+        action = result['pairs'][0]['action_windows'][0]
+        self.assertEqual((action['baseline_frames'], action['apex_frames']), (5, 6))
+        self.assertEqual((action['baseline_over_33_3ms'], action['apex_over_33_3ms']), (1, 2))
+        self.assertEqual(action['over_33_3ms_count_delta'], 1)
+        self.assertEqual(action['baseline_over_33_3ms_per_1000'], 200)
+        self.assertAlmostEqual(action['apex_over_33_3ms_per_1000'], 1000 / 3)
+        self.assertAlmostEqual(action['over_33_3ms_per_1000_delta'], 1000 / 3 - 200)
+        self.assertIsNone(action['duration_delta_ms'])
+        reverse = result['pairs'][1]['action_windows'][0]
+        self.assertEqual(reverse['over_33_3ms_count_delta'], -1)
+        self.assertAlmostEqual(reverse['over_33_3ms_per_1000_delta'], 200 - 1000 / 3)
+        self.assertFalse(result['performance_pass'])
+
+    def test_hitch_threshold_is_strict_and_zero_rate_is_reported(self):
+        clocks = [1, 2, 3]
+        stats = perf.action_statistics([1, 1000 / 30, 1000 / 30 + 0.001], clocks, 1, 3, 60)
+        self.assertEqual(stats['over_33_3ms'], 1)
+        self.assertEqual(stats['over_33_3ms_per_1000'], 500)
+        zero = perf.action_statistics([1, 10, 20], clocks, 1, 3, 60)
+        self.assertEqual(zero['over_33_3ms'], 0)
+        self.assertEqual(zero['over_33_3ms_per_1000'], 0)
 
     def test_action_selection_matches_independent_strict_overlap_reference(self):
         rng = random.Random(381)

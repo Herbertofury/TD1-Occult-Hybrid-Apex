@@ -153,6 +153,13 @@ It requires identical collector options and durations, and never reports
 A finite comparison, especially under declared conditions, cannot prove that
 all game hitches have been eliminated or isolate their cause.
 
+For each paired action, the report includes the raw count above 33.3 ms and
+the count per 1,000 overlapping present intervals for both runs and their
+differences. These normalized counts are not rates per unit time; unequal
+action durations and frame counts still affect interpretation. An interval
+crossing adjacent windows appears in both, so do not add window counts as
+unique hitches.
+
 ## Incremental rebuild measurements (November 4)
 
 `tools/compare_hitch_stages.py` adds schema 2 for cumulative feature experiments.

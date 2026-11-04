@@ -121,6 +121,22 @@ class StageEvidenceTests(unittest.TestCase):
             trace['capture_sha256'] = hashlib.sha256(capture_path.read_bytes()).hexdigest()
             trace_path.write_text(json.dumps(trace))
 
+    def test_stage_pair_reports_hitch_counts_and_rates_with_unequal_windows(self):
+        frame_fixture.set_unequal_action_hitch_fixture(self.manifest['comparisons'][0]['runs'])
+        frame_fixture.set_unequal_action_hitch_fixture(self.manifest['comparisons'][0]['runs'][2:])
+        result = incremental.compare(self.manifest, self.directory)
+        action = result['comparisons'][0]['pairs'][0]['action_windows'][0]
+        self.assertEqual((action['control_frames'], action['candidate_frames']), (5, 6))
+        self.assertEqual((action['control_over_33_3ms'], action['candidate_over_33_3ms']), (1, 2))
+        self.assertEqual(action['over_33_3ms_count_delta'], 1)
+        self.assertEqual(action['control_over_33_3ms_per_1000'], 200)
+        self.assertAlmostEqual(action['candidate_over_33_3ms_per_1000'], 1000 / 3)
+        self.assertAlmostEqual(action['over_33_3ms_per_1000_delta'], 1000 / 3 - 200)
+        reverse = result['comparisons'][0]['pairs'][1]['action_windows'][0]
+        self.assertEqual(reverse['over_33_3ms_count_delta'], -1)
+        self.assertAlmostEqual(reverse['over_33_3ms_per_1000_delta'], 200 - 1000 / 3)
+        self.assertFalse(result['performance_pass'])
+
     def test_real_analysis_of_synthetic_csv_stops_on_measured_slowdown(self):
         result = incremental.compare(self.manifest, self.directory)
         self.assertEqual(result['stopped_at_stage'], 'hybrid')

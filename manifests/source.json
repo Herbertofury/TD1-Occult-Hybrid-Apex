@@ -251,6 +251,12 @@
       "sha256": "153a26fe3bd9e72419e50686bfa139a572feb4c4def998ff784f167f1b0a194e"
     },
     {
+      "bytes": 8529,
+      "mode": "100644",
+      "path": "tools/compare_hitch_stages.py",
+      "sha256": "dde7a2ea56603d0265e36c19f3e5b69a1d78450f278e17e27c3fc88e03b6f56b"
+    },
+    {
       "bytes": 21266,
       "mode": "100644",
       "path": "tools/cas_household_commit.py",
@@ -683,12 +689,6 @@
       "sha256": "313c7ec5683e6696f6867a722a156e53be7e070947281bfd4ef4e6d81e4bc4ac"
     },
     {
-      "bytes": 11227,
-      "mode": "100644",
-      "path": "tests/test_hitch_stage.py",
-      "sha256": "4ecae7b391830a33f69e9aaa94704d598db6acad2a0181d7cb8eaa4e2d1b009b"
-    },
-    {
       "bytes": 6248,
       "mode": "100644",
       "path": "tools/cas_molecule_patch.py",
@@ -795,6 +795,12 @@
       "mode": "100644",
       "path": "tests/test_cas_cell_attach_chain.py",
       "sha256": "0a7d973e85a1834e8efb44637faa5c8d5ccf39e9d080628dd18c46abeec3e045"
+    },
+    {
+      "bytes": 23737,
+      "mode": "100644",
+      "path": "tools/compare_frame_runs.py",
+      "sha256": "87ae251c88198adae590d0f7c625e1b4cde1551086f3c5597f43410ad6100ce0"
     },
     {
       "bytes": 21121,
@@ -1943,12 +1949,6 @@
       "sha256": "704ef778eb5a398d46781e495a1f396b53ab886067319552b9d449a7c1fd9ca8"
     },
     {
-      "bytes": 12806,
-      "mode": "100644",
-      "path": "docs/FRAME_BENCHMARK.md",
-      "sha256": "027e545f7a870901ee2c1cd704fe195e90ae5ff6c4d8a30d06408e3e412fa122"
-    },
-    {
       "bytes": 1603,
       "mode": "100644",
       "path": "wiki/Apex-Occult-Hybrid-Core.md",
@@ -2615,12 +2615,6 @@
       "sha256": "c80e17232b96f9962d000010098a9b72d2276f87e2e20e93b9bbf338da4663fd"
     },
     {
-      "bytes": 7699,
-      "mode": "100644",
-      "path": "tools/compare_hitch_stages.py",
-      "sha256": "717507b4677a8444dfffa56be508fc5ab81d4d90694a23fba0c369ee3839e399"
-    },
-    {
       "bytes": 106856,
       "mode": "100644",
       "path": "tests/fixtures/catalog-slider-v344-pixel-ack.json",
@@ -2693,6 +2687,12 @@
       "sha256": "c628568d8807ad9c2dfef783a615b680dfe0ddb2f62040bb062662e3b06b77a7"
     },
     {
+      "bytes": 4835,
+      "mode": "100644",
+      "path": "docs/APEX_REBUILD_ACCEPTANCE_20261104.md",
+      "sha256": "b9e59d0bac851c380be48e3b9df2cf654357a97a227acd664e93d4769a035e24"
+    },
+    {
       "bytes": 2575,
       "mode": "100644",
       "path": "tests/test_appearance_projection_cache.py",
@@ -2757,6 +2757,12 @@
       "mode": "100644",
       "path": "tests/fixtures/cas_skin_custom_width_native.json",
       "sha256": "815204110536083f07208421ce8fade789b202a52afa71c046089a326167d5cc"
+    },
+    {
+      "bytes": 12419,
+      "mode": "100644",
+      "path": "tests/test_hitch_stage.py",
+      "sha256": "a71d413538d1d52b7c73e18d44e6a5cb876b542005c0e2adb236030b45c396ba"
     },
     {
       "bytes": 8497,
@@ -3027,12 +3033,6 @@
       "mode": "100644",
       "path": "tests/test_cas_grid_budget_cache.py",
       "sha256": "9c1817c0a7f2f261ae685a5289d64616bb5e818495f7e96c0bc63ffac38ac99f"
-    },
-    {
-      "bytes": 22679,
-      "mode": "100644",
-      "path": "tools/compare_frame_runs.py",
-      "sha256": "42ded148e4a7e4b0f1cc8683d265dfa3f549257eb4f4f0565990d366de3042bc"
     },
     {
       "bytes": 7229,
@@ -4409,6 +4409,12 @@
       "sha256": "12790cf3bd0a074893c74f6707fe4169038b42ed5e04c71e7e4bf5030fa1f0ba"
     },
     {
+      "bytes": 22991,
+      "mode": "100644",
+      "path": "tests/test_compare_frame_runs.py",
+      "sha256": "27073437fe9fb1bbac82180eddcce67d6ec5d12c5d824e5b5a9f4a12d359cff3"
+    },
+    {
       "bytes": 19391,
       "mode": "100644",
       "path": "Metadata/src/providers.rs",
@@ -4953,12 +4959,6 @@
       "mode": "100644",
       "path": "tests/test_cas_return_settle.py",
       "sha256": "50143770a16c02bc33496b61ea89b7c5223744d586520f87e6be4b43c714fdf8"
-    },
-    {
-      "bytes": 20021,
-      "mode": "100644",
-      "path": "tests/test_compare_frame_runs.py",
-      "sha256": "1bd5053c6231af4c4ba3ba461103ffaec417c2861b3912997124402dc5bad522"
     },
     {
       "bytes": 7107,
@@ -6363,6 +6363,12 @@
       "mode": "100644",
       "path": "NativeOverlay/Tests/OwnerMailboxTests.cpp",
       "sha256": "c06685ac4b4f2ef94140da62b220184b511defb1abf5defb429f6a1a04b73d42"
+    },
+    {
+      "bytes": 13196,
+      "mode": "100644",
+      "path": "docs/FRAME_BENCHMARK.md",
+      "sha256": "ef2390cc3881fe6e7ad8c3bfeb4a791f6f7a64ae41cd94e9cd147def884b10c8"
     },
     {
       "bytes": 1790,

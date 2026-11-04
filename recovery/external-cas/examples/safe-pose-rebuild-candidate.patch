@@ -1,0 +1,90 @@
+--- a/tools/research/sample_new_pose.py
++++ b/tools/research/sample_new_pose.py
+@@ -1,9 +1,15 @@
+ # SPDX-License-Identifier: GPL-3.0-or-later
+ """Private, bounded sampling only. No installed game or user files modified."""
++if not __debug__:raise RuntimeError('Optimized Python is unsupported for this validation tool')
+ from pathlib import Path
+ import json,struct,hashlib,subprocess,resource,sys
+ resource.setrlimit(resource.RLIMIT_AS,(768*1024*1024,)*2)
+-r=Path(__file__).resolve().parents[1]; base=r/'private-input-recovery/new-pose'; out=base/'sampled';out.mkdir(exist_ok=True);sampler=base/'sample_actual_clip';mesh=r/'private-input-recovery/projected/yfHead_lod0.simgeom.rig-bound.apxmesh';poser=r/'linked-candidate/target/debug/examples/pose_mesh';summary=[]
++r=Path(__file__).resolve().parents[1];base=r/'private-input-recovery/new-pose'
++if len(sys.argv)>2:raise ValueError('Provide at most one new sample directory name')
++name=sys.argv[1] if len(sys.argv)==2 else 'sampled'
++if not name or name in ('.','..') or Path(name).name!=name:raise ValueError('Output must be a single new directory name')
++out=base/name;out.mkdir(mode=0o700,exist_ok=False)
++sampler=base/'sample_actual_clip';mesh=r/'private-input-recovery/projected/yfHead_lod0.simgeom.rig-bound.apxmesh';poser=r/'linked-candidate/target/debug/examples/pose_mesh';summary=[]
+ for p in sorted((base/'decoded').glob('6B*.json')):
+  x=json.loads(p.read_text());assert not x['unsupported_channels'];lines=[f"{x['duration']!r} {x['frame_duration']!r} {len(x['tracks'])}"]
+  for track in x['tracks']:
+--- a/tools/research/prepare_new_pose_library.py
++++ b/tools/research/prepare_new_pose_library.py
+@@ -1,15 +1,20 @@
+ # SPDX-License-Identifier: GPL-3.0-or-later
+ """Bounded private source pose preparation; no native game writes or asset distribution."""
++if not __debug__:raise RuntimeError('Optimized Python is unsupported for this validation tool')
+ from pathlib import Path
+ import sys,hashlib,struct,json,xml.etree.ElementTree as ET,io,math,subprocess,resource
+ import numpy as np
+ from PIL import Image
+ resource.setrlimit(resource.RLIMIT_AS,(1024*1024*1024,)*2)
+ r=Path(__file__).resolve().parents[1];base=r/'private-input-recovery/new-pose';resources=base/'resources'
+-if len(sys.argv)>2:raise ValueError('Provide at most one new output directory name')
+-name=sys.argv[1] if len(sys.argv)==2 else 'playback'
++if len(sys.argv)>3:raise ValueError('Provide new output and optional sample directory names')
++name=sys.argv[1] if len(sys.argv)>=2 else 'playback'
+ if not name or name in ('.','..') or Path(name).name!=name:raise ValueError('Output must be a single new directory name')
+ out=base/name;out.mkdir(mode=0o700,exist_ok=False) # never replace last-good preparation
++sample_name=sys.argv[2] if len(sys.argv)==3 else 'sampled'
++if not sample_name or sample_name in ('.','..') or Path(sample_name).name!=sample_name:raise ValueError('Sample directory must be a single name')
++sampled=base/sample_name
++if not sampled.is_dir() or sampled.is_symlink():raise ValueError('Prepared sample directory unavailable')
+ 
+ sys.path.insert(0,str(r/'inert-status-fixture/modules'));sys.path.insert(0,str(r/'real-recovery-evidence/clip-gpl'));from cas_resource_catalog import stbl_strings;from dst_adapter import to_dds
+ package=base/'mosichaa-camera.package';package_hash=hashlib.sha256(package.read_bytes()).hexdigest();xmlfile=next(resources.glob('7DF2169C_*'));raw=xmlfile.read_bytes();assert len(raw)<1024*1024 and b'<!DOCTYPE' not in raw.upper() and b'<!ENTITY' not in raw.upper();tree=ET.fromstring(raw);assert tree.get('c')=='PosePackInstance' and len(list(tree.iter()))<10000
+@@ -28,7 +33,7 @@
+ clips={json.loads(p.read_text())['name']:(p,json.loads(p.read_text())) for p in (base/'decoded').glob('6B*.json')};images={int(p.name.split('_')[-1],16):p for p in resources.glob('00B2D882_*')}
+ def icon(ref):
+  try:
+-  parts=ref.split(':');source=images[int(parts[2],16)];raw=source.read_bytes();im=Image.open(io.BytesIO(to_dds(raw)));im.load();assert 0<im.width<=512 and 0<im.height<=512;digest=hashlib.sha256(raw).hexdigest();name=digest+'.png';im.convert('RGBA').save(out/name,format='PNG');return {'state':'decoded-source-image','file':name,'width':im.width,'height':im.height}
++  parts=ref.split(':');source=images[int(parts[2],16)];raw=source.read_bytes();im=Image.open(io.BytesIO(to_dds(raw)));assert im.format=='DDS' and 0<im.width<=512 and 0<im.height<=512;im.load();digest=hashlib.sha256(raw).hexdigest();name=digest+'.png';im.convert('RGBA').save(out/name,format='PNG');return {'state':'decoded-source-image','file':name,'width':im.width,'height':im.height}
+  except (KeyError,IndexError,ValueError,OSError,AssertionError):return {'state':'missing-resource'}
+ g=r/'private-input-recovery/projected-cc';meshes=[r/'private-input-recovery/projected/yfHead_lod0.simgeom.rig-bound.apxmesh',g/'FatalRose-PastelGothDress-015A1849_80E07075_ACBBF0348A3F9CC4.apxmesh',g/'Jius-BowFlipFlops01-015A1849_8061B6BD_CDAF8BA8C227A887.apxmesh',g/'AH00B-SugarHair-V1-Plain-015A1849_808C2326_44A30B96BDCE7F28.apxmesh'];dtype=np.dtype(dict(names=['p','n','uv','j','w'],formats=[('<f4',3),('<f4',3),('<f4',2),('<u2',4),('<f4',4)],offsets=[0,12,24,32,40],itemsize=56));vertices=[];mh=hashlib.sha256()
+ for f in meshes:
+@@ -36,12 +41,13 @@
+ mesh_hash=mh.digest();items=[];total_frames=0;worst=0
+ for node in tree.findall("L[@n='pose_list']/U"):
+  meta=fields(node);p,x=clips[meta['pose_name']];assert not x['unsupported_channels']; key=hashlib.sha256((pkid+'\0'+meta['pose_name']).encode()).hexdigest();changing=sum(len({tuple(k['values']) for k in t['frames']})>1 for t in x['tracks']);duration=x['duration'];step=x['frame_duration'];frames=1 if changing==0 else math.ceil(duration/step)+1;assert 1<=frames<=2048
+- text=base/'sampled'/(p.stem+'.clip.txt');assert text.exists();data=bytearray();lo=np.array([np.inf]*3);hi=-lo
++ text=sampled/(p.stem+'.clip.txt');assert text.exists();data=bytearray();lo=np.array([np.inf]*3);hi=-lo
+  for i in range(frames):
+-  at=min(i*step,duration);tmp=base/'sampled/current.f32';run=subprocess.run([str(base/'sample_actual_clip'),str(base/'adult-rig.txt'),str(text),str(at),str(tmp),'normalize'],capture_output=True,text=True,timeout=10,check=True);metrics=json.loads(run.stdout);worst=max(worst,metrics['max_matrix_orthogonality_error']);assert metrics['max_matrix_orthogonality_error']<1e-4;matrixbytes=tmp.read_bytes();assert len(matrixbytes)==165*48;data.extend(matrixbytes);matrix=np.frombuffer(matrixbytes,dtype='<f4').reshape(165,3,4).astype(float)
++  at=min(i*step,duration);tmp=out/'current.f32';run=subprocess.run([str(base/'sample_actual_clip'),str(base/'adult-rig.txt'),str(text),str(at),str(tmp),'normalize'],capture_output=True,text=True,timeout=10,check=True);metrics=json.loads(run.stdout);worst=max(worst,metrics['max_matrix_orthogonality_error']);assert metrics['max_matrix_orthogonality_error']<1e-4;matrixbytes=tmp.read_bytes();assert len(matrixbytes)==165*48;data.extend(matrixbytes);matrix=np.frombuffer(matrixbytes,dtype='<f4').reshape(165,3,4).astype(float)
+   for pos,j,w in vertices:
+    projected=(np.einsum('nikl,nl->nik',matrix[j],pos)*w[:,:,None]).sum(axis=1)/w.sum(axis=1)[:,None];lo=np.minimum(lo,projected.min(axis=0));hi=np.maximum(hi,projected.max(axis=0))
+  lo-=0.0001;hi+=0.0001;assert np.isfinite(lo).all() and np.isfinite(hi).all() and (hi>lo).all();blob=b'APXPOSE1'+mesh_hash+struct.pack('<IIff6f',165,frames,step,duration,*lo,*hi)+data;(out/(key+'.posebin')).write_bytes(blob);total_frames+=frames
++ tmp.unlink()
+  items.append({'id':key,'pack_id':pkid,'pack':pack['name'],'creator':pack['creator'],'package':package.name,'name':resolve(meta['pose_display_name']) or meta['pose_name'],'description':resolve(meta.get('pose_description','')),'clip_name':meta['pose_name'],'order':int(meta['sort_order']),'icon':icon(meta.get('icon','')),'duration':duration,'frame_duration':step,'changing_curves':changing,'prepared_frames':frames,'playback_ready':True,'playing':False,'state':'prepared-not-playing'})
+ assert len(items)==23 and len({x['id'] for x in items})==23
+ (out/'catalog.json').write_text(json.dumps({'schema':1,'packs':[pack],'poses':items,'autoplay':False,'game_connected':False,'shared_favorites_connected':False},ensure_ascii=False,indent=2)+'\n');print('poses',len(items),'frames',total_frames,'icons',sum(i['icon']['state']=='decoded-source-image' for i in items),'worst orthogonality',worst,'all game disconnected')
+--- a/tools/research/prepare_adult_rig_text.py
++++ b/tools/research/prepare_adult_rig_text.py
+@@ -1,10 +1,15 @@
+ # SPDX-License-Identifier: GPL-3.0-or-later
+ """Project a caller-supplied, hash-pinned rig into the sampler's bounded text format."""
+-import argparse,hashlib,pathlib,sys
++import argparse,hashlib,pathlib,re,sys
+ root=pathlib.Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'rig-recovery'))
+ from inspect_rig import inspect_rig
+-p=argparse.ArgumentParser();p.add_argument('rig');p.add_argument('sha256');p.add_argument('output');a=p.parse_args();source=pathlib.Path(a.rig);assert source.is_file() and not source.is_symlink();raw=source.read_bytes();assert len(raw)<=4*1024*1024 and hashlib.sha256(raw).hexdigest()==a.sha256
+-rig=inspect_rig(raw);bones=rig['bones'];assert len(bones)==165 and all(b['parent']<i for i,b in enumerate(bones)) and all(abs(v-1)<1e-6 for b in bones for v in b['scale'])
++p=argparse.ArgumentParser();p.add_argument('rig');p.add_argument('sha256');p.add_argument('output');a=p.parse_args();source=pathlib.Path(a.rig)
++if source.is_symlink() or not source.is_file():raise ValueError('A regular non-symlink rig file is required')
++if not re.fullmatch('[a-f0-9]{64}',a.sha256):raise ValueError('A lowercase SHA256 is required')
++with source.open('rb') as f:raw=f.read(4*1024*1024+1)
++if len(raw)>4*1024*1024 or hashlib.sha256(raw).hexdigest()!=a.sha256:raise ValueError('Rig extent or identity mismatch')
++rig=inspect_rig(raw);bones=rig['bones']
++if len(bones)!=165 or not all(b['parent']<i for i,b in enumerate(bones)) or not all(abs(v-1)<1e-6 for b in bones for v in b['scale']):raise ValueError('Unsupported adult rig structure')
+ text=str(len(bones))+'\n'+'\n'.join(' '.join(map(str,[b['hash'],b['parent'],*b['position'],*b['orientation'],*b['scale']])) for b in bones)+'\n'
+ with pathlib.Path(a.output).open('x') as out:out.write(text)
+ print('verified adult bones:',len(bones),'source sha256:',rig['sha256'])

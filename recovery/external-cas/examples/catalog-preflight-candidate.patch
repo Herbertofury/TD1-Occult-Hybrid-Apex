@@ -1,0 +1,67 @@
+--- /dev/null
++++ b/tools/research/preflight_catalog_selection.py
+@@ -0,0 +1,32 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Inspect a selected, pinned catalog part against a caller-selected package.
++
++Diagnostic only. Does not equip, alter the game, create native saves, assert
++rig compatibility, or sandbox hostile packages. The parent must review and
++own the package and rig; a catalog path is never opened implicitly.
++"""
++import argparse,hashlib,json,pathlib,re,sqlite3,subprocess,sys,time
++from build_scene_bindings import pin,PRIVATE,D,N
++T=re.compile(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}\Z')
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--catalog',nargs=2,required=True,metavar=('PATH','SHA256'));p.add_argument('--part-id',required=True);p.add_argument('--package',required=True);p.add_argument('--output',required=True);a=p.parse_args()
++ if not D.fullmatch(a.part_id) or not N.fullmatch(a.output):raise ValueError('opaque part ID and fresh output name required')
++ index=pathlib.Path(a.catalog[0]);pin(index,a.catalog[1],256*1024*1024)
++ if index.stat().st_nlink!=1 or any(pathlib.Path(str(index)+s).exists() or pathlib.Path(str(index)+s).is_symlink() for s in ('-wal','-shm','-journal')):raise ValueError('standalone catalog required')
++ conn=sqlite3.connect(index.as_uri()+'?mode=ro&immutable=1',uri=True);deadline=time.monotonic()+10;conn.set_progress_handler(lambda:int(time.monotonic()>deadline),10000)
++ try: rows=conn.execute('SELECT row_json FROM parts WHERE part_id=? LIMIT 2',(a.part_id,)).fetchall()
++ finally:conn.close()
++ if len(rows)!=1 or len(rows[0][0])>1024*1024:raise ValueError('part absent or ambiguous')
++ row=json.loads(rows[0][0]);package=pathlib.Path(a.package)
++ if row.get('part_id')!=a.part_id or row.get('body_type') not in (2,5) or not all(isinstance(row.get(k),str) and D.fullmatch(row[k]) for k in ('package_sha256','resource_sha256')) or not isinstance(row.get('resource_tgi'),str) or not T.fullmatch(row['resource_tgi']):raise ValueError('unsupported or invalid catalog identity')
++ pin(package,row['package_sha256'],64*1024*1024);pin(index,a.catalog[1],256*1024*1024)
++ out=PRIVATE/(a.output+'-resolution')
++ if out.exists() or out.is_symlink():raise ValueError('fresh output required')
++ script=pathlib.Path(__file__).resolve().parent/'resolve_pinned_casp.py';args=[sys.executable,str(script),'--package',str(package),'--package-sha',row['package_sha256'],'--casp',row['resource_tgi'],'--casp-sha',row['resource_sha256'],'--output',out.name]
++ run=subprocess.run(args,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90,check=False)
++ if len(run.stdout)>65536 or len(run.stderr)>65536 or run.returncode:raise ValueError('source resolution failed; completed evidence retained')
++ resolution=json.loads((out/'resolution.json').read_bytes());expected=row['body_type']
++ if resolution.get('body_type')!=expected:raise ValueError('source slot differs from catalog')
++ refs=resolution.get('references',[]);meshes=[x for x in refs if x.get('role')=='lod-0'];textures=[x for x in refs if x.get('role')=='texture'];ready=1<=len(meshes)<=8 and len(textures)==1 and all(x.get('state')=='source-present-not-rendered' for x in meshes+textures)
++ print(json.dumps({'part_id':a.part_id,'slot':'hair' if expected==2 else 'dress','declared_lod0':len(meshes),'declared_textures':len(textures),'resources_present':ready,'preview_prepared':False,'game_modified':False,'compatibility':'unverified'}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/tests/test_preflight_catalog_selection.py
+@@ -0,0 +1,29 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Synthetic preflight tests; no native game or hostile input claim."""
++import contextlib,hashlib,io,json,pathlib,sqlite3,tempfile,unittest
++from unittest import mock
++import preflight_catalog_selection as p
++class Tests(unittest.TestCase):
++ def setUp(self):
++  self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=pathlib.Path(self.tmp.name);self.pkg=self.root/'creator.package';self.pkg.write_bytes(b'example');self.hash=hashlib.sha256(b'example').hexdigest();self.id='a'*64;self.cat=self.root/'catalog.sqlite';db=sqlite3.connect(self.cat);db.execute('CREATE TABLE parts(part_id TEXT PRIMARY KEY,row_json TEXT NOT NULL)');self.row={'part_id':self.id,'body_type':2,'package_sha256':self.hash,'resource_sha256':'b'*64,'resource_tgi':'034AEECB:80000000:0123456789ABCDEF'};db.execute('INSERT INTO parts VALUES(?,?)',(self.id,json.dumps(self.row)));db.commit();db.close();self.sha=hashlib.sha256(self.cat.read_bytes()).hexdigest();self.argv=['test','--catalog',str(self.cat),self.sha,'--part-id',self.id,'--package',str(self.pkg),'--output','case']
++ def runner(self,args,**kwargs):
++  out=self.root/args[args.index('--output')+1];out.mkdir();(out/'resolution.json').write_text(json.dumps({'body_type':2,'references':[{'role':'lod-0','state':'source-present-not-rendered'},{'role':'texture','state':'source-present-not-rendered'}]}));return type('Run',(),{'stdout':b'', 'stderr':b'', 'returncode':0})()
++ def run_case(self,argv=None):
++  buf=io.StringIO()
++  with mock.patch.object(p,'PRIVATE',self.root),mock.patch.object(p.sys,'argv',argv or self.argv),mock.patch.object(p.subprocess,'run',side_effect=self.runner),contextlib.redirect_stdout(buf):p.main()
++  return json.loads(buf.getvalue())
++ def test_exact_identity_yields_bounded_preflight_only(self):
++  result=self.run_case();self.assertTrue(result['resources_present']);self.assertFalse(result['preview_prepared']);self.assertFalse(result['game_modified']);self.assertEqual(result['compatibility'],'unverified')
++ def test_wrong_package_and_unknown_part_refused_without_output(self):
++  self.pkg.write_bytes(b'different')
++  with self.assertRaises(ValueError):self.run_case()
++  self.assertFalse((self.root/'case-resolution').exists())
++  args=self.argv.copy();args[args.index('--part-id')+1]='c'*64
++  with self.assertRaises(ValueError):self.run_case(args)
++  self.assertFalse((self.root/'case-resolution').exists())
++ def test_existing_output_and_wrong_catalog_pin_refused(self):
++  (self.root/'case-resolution').mkdir()
++  with self.assertRaises(ValueError):self.run_case()
++  args=self.argv.copy();args[args.index('--catalog')+2]='d'*64
++  with self.assertRaises(ValueError):self.run_case(args)
++if __name__=='__main__':unittest.main(verbosity=2)

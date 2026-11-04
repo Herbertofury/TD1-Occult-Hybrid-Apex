@@ -7,7 +7,7 @@ table, and report matching candidates from an explicitly supplied package
 set. It does not modify the source packages or contact the game.
 
 ```powershell
-node --test dbpf.test.mjs casp.test.mjs region-map.test.mjs geom.test.mjs material.test.mjs palette.test.mjs rle2.test.mjs rig.test.mjs
+node --test dbpf.test.mjs casp.test.mjs region-map.test.mjs geom.test.mjs material.test.mjs palette.test.mjs rle2.test.mjs rig.test.mjs renderer-compat.test.mjs
 node inspect.mjs 034AEECB:00000000:0123456789ABCDEF C:\private\first.package C:\private\second.package
 ```
 
@@ -67,9 +67,11 @@ snapshot against concurrent mutation.
 - `parseRig` reads bounded version 3.1 rig candidates, retaining raw transforms,
   hierarchy and chains. `bindPalette` maps hashes to all matches without choosing
   a skeleton; `bindVertexWeights` links raw weights only after unique mapping.
-  `computeBindMatrices` produces row-major local, global and inverse
-  matrices only for unit scales and sufficiently normalized (or empty)
-  quaternions; other inputs are explicit unsupported cases. These are research
+  `computeBindMatrices` produces row-major local, global and inverse matrices
+  for unit scales and sufficiently normalized (or empty) quaternions; an explicit
+  near-unit tolerance produces a separately labeled approximation. Other inputs
+  are unsupported. `deriveSkinMatrices` forms posed-global times inverse-bind
+  for caller-supplied poses, rejecting non-rigid results. These are research
   candidates, not validated game-space skinning or animation.
 - Resolution returns `empty`, `missing`, `ambiguous`, or
   `unique-in-supplied-indexes`, including all source candidates. A unique match
@@ -79,7 +81,7 @@ snapshot against concurrent mutation.
 
 ## Verification and source basis
 
-On Windows with Node 22.23.2, 46 tests passed with optional independent readers enabled. They cover all eight index
+On Windows with Node 22.23.2, 53 tests passed with optional independent readers enabled. They cover all eight index
 shared-field masks, both index offset fields, large unsigned instances, mixed
 compression and deletion markers, bad extents/flags, changed package bytes,
 forged locators, ambiguous/missing/empty references, and a synthetic CLI flow.
@@ -133,6 +135,10 @@ above and Pillow 11.3.0's BC3 decoder. Set `RLE_ORACLE_SOURCE` to its
 `PILLOW_ORACLE_ROOT` to a private Pillow installation. Synthetic blocks and
 selected installed textures matched by private digest. The RLE and palette research code
 retains GPL-3.0-or-later provenance; retain license notices when integrating.
+
+See `RENDERER-COMPAT.md` for APXMESH projection, existing renderer validation,
+rig ambiguity, alpha and coordinate-convention findings. Its comparison tools
+and optional Rust bridges do not integrate or validate native CAS rendering.
 
 ## Next gates
 

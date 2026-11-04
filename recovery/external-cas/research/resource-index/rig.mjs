@@ -59,8 +59,10 @@ export function bindVertexWeights(geom, rig) {
 
 // Narrow transform candidate: unit scale and normalized (or empty) quaternions.
 // Row-major matrices act on column vectors. No animation or renderer conversion.
-export function computeBindMatrices(rig) {
+export function computeBindMatrices(rig, { scaleTolerance = 0 } = {}) {
   if (rig?.status !== 'rig-candidate') return { status: 'unavailable-rig' };
+  if (!Number.isFinite(scaleTolerance) || scaleTolerance < 0 || scaleTolerance > 1e-6) throw new Error('invalid scale tolerance');
+  let maxScaleDeviation = 0;
   const local = [], global = [], inverse = [];
   const multiply = (a, b) => Array.from({ length: 16 }, (_, i) => {
     const r = Math.floor(i / 4), c = i % 4;
@@ -68,7 +70,9 @@ export function computeBindMatrices(rig) {
   });
   for (let index = 0; index < rig.bones.length; index++) {
     const bone = rig.bones[index];
-    if (bone.scale.some(v => v !== 1)) return { status: 'unsupported-scale', boneIndex: index };
+    const deviation = Math.max(...bone.scale.map(v => Math.abs(v - 1)));
+    maxScaleDeviation = Math.max(maxScaleDeviation, deviation);
+    if (deviation > scaleTolerance) return { status: 'unsupported-scale', boneIndex: index };
     let [x, y, z, w] = bone.orientation;
     if (x === 0 && y === 0 && z === 0 && w === 0) w = 1;
     if (Math.abs(x*x + y*y + z*z + w*w - 1) > 1e-6) return { status: 'unsupported-quaternion', boneIndex: index };
@@ -90,5 +94,34 @@ export function computeBindMatrices(rig) {
       r[3],r[4],r[5],-(r[3]*tx+r[4]*ty+r[5]*tz),
       r[6],r[7],r[8],-(r[6]*tx+r[7]*ty+r[8]*tz),0,0,0,1]);
   }
-  return { status: 'bind-matrices-candidate', local, global, inverse };
+  return { status: maxScaleDeviation ? 'bind-matrices-approximate-unit-scale' : 'bind-matrices-candidate',
+    maxScaleDeviation, local, global, inverse };
+}
+
+// Renderer matrices are posed-global * inverse-bind, not the raw bind globals.
+// Caller supplies pose globals in the same rig order and coordinate convention.
+export function deriveSkinMatrices(bind, posedGlobals) {
+  if (!['bind-matrices-candidate', 'bind-matrices-approximate-unit-scale'].includes(bind?.status) ||
+      !Array.isArray(bind.inverse) || !Array.isArray(posedGlobals) || !bind.inverse.length ||
+      bind.inverse.length > 256 || posedGlobals.length !== bind.inverse.length) return { status: 'unavailable-input' };
+  const matrices = [];
+  for (let i = 0; i < posedGlobals.length; i++) {
+    const pose = posedGlobals[i], inv = bind.inverse[i];
+    if (!Array.isArray(pose) || pose.length !== 16 || pose.some(v => !Number.isFinite(v)) ||
+        !Array.isArray(inv) || inv.length !== 16 || inv.some(v => !Number.isFinite(v)) ||
+        [12, 13, 14, 15].some((n, j) => pose[n] !== [0, 0, 0, 1][j])) return { status: 'invalid-matrix', boneIndex: i };
+    const m = Array.from({ length: 12 }, (_, n) => {
+      const row = Math.floor(n / 4), col = n % 4;
+      return Math.fround([0, 1, 2, 3].reduce((sum, k) => sum + pose[row * 4 + k] * inv[k * 4 + col], 0));
+    });
+    if (m.some(v => !Number.isFinite(v))) return { status: 'invalid-matrix', boneIndex: i };
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+      let dot = 0; for (let k = 0; k < 3; k++) dot += m[r * 4 + k] * m[c * 4 + k];
+      if (Math.abs(dot - (r === c ? 1 : 0)) > 1e-4) return { status: 'unsupported-nonrigid-pose', boneIndex: i };
+    }
+    const determinant = m[0]*(m[5]*m[10]-m[6]*m[9])-m[1]*(m[4]*m[10]-m[6]*m[8])+m[2]*(m[4]*m[9]-m[5]*m[8]);
+    if (Math.abs(determinant - 1) > 1e-4) return { status: 'unsupported-nonrigid-pose', boneIndex: i };
+    matrices.push(m);
+  }
+  return { status: bind.status === 'bind-matrices-candidate' ? 'skin-matrices-candidate' : 'skin-matrices-approximate', matrices };
 }

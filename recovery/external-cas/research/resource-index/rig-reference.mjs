@@ -12,13 +12,17 @@ export function compareRigReference(payload, dotnet, dll) {
   return { status: 'reader-matched', bones: actual.length, chains: rig.chains.length };
 }
 
-export function compareRigMatrices(payload, dotnet, dll) {
-  const result = computeBindMatrices(parseRig(payload));
-  if (result.status !== 'bind-matrices-candidate') return { status: result.status };
+export function compareRigMatrices(payload, dotnet, dll, scaleTolerance = 0) {
+  const result = computeBindMatrices(parseRig(payload), { scaleTolerance });
+  if (!['bind-matrices-candidate', 'bind-matrices-approximate-unit-scale'].includes(result.status)) return { status: result.status };
   const expected = JSON.parse(execFileSync(dotnet, [dll, 'rigmat'], { input: payload, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'] }));
   if (expected.length !== result.local.length) throw new Error('rig matrix count disagreement');
+  let maxError = 0;
   for (let i = 0; i < expected.length; i++) for (const kind of ['local', 'global']) {
-    if (expected[i][kind].length !== 16 || expected[i][kind].some((value, n) => Math.abs(value - result[kind][i][n]) > 1e-6)) throw new Error('rig matrix disagreement');
+    if (expected[i][kind].length !== 16) throw new Error('rig matrix count disagreement');
+    for (let n = 0; n < 16; n++) maxError = Math.max(maxError, Math.abs(expected[i][kind][n] - result[kind][i][n]));
   }
+  if (scaleTolerance) return { status: 'comparison-only', candidateStatus: result.status, bones: expected.length, maxScaleDeviation: result.maxScaleDeviation, maxError };
+  if (maxError > 1e-6) throw new Error('rig matrix disagreement');
   return { status: 'matrices-matched', bones: expected.length };
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseRig, bindPalette, bindVertexWeights, computeBindMatrices } from './rig.mjs';
+import { parseRig, bindPalette, bindVertexWeights, computeBindMatrices, deriveSkinMatrices } from './rig.mjs';
 import { compareRigReference, compareRigMatrices } from './rig-reference.mjs';
 
 function fixture() {
@@ -56,8 +56,23 @@ test('unit-scale bind matrices preserve hierarchy and have inverse transforms', 
     assert.ok(Math.abs(value - (row === col ? 1 : 0)) < 1e-10);
   }
   rig.bones[1].scale[0] = 2; assert.equal(computeBindMatrices(rig).status, 'unsupported-scale');
+  rig.bones[1].scale[0] = 1 + 5e-7;
+  assert.equal(computeBindMatrices(rig).status, 'unsupported-scale');
+  assert.equal(computeBindMatrices(rig, { scaleTolerance: 1e-6 }).status, 'bind-matrices-approximate-unit-scale');
+  assert.throws(() => computeBindMatrices(rig, { scaleTolerance: 1e-5 }), /tolerance/);
   rig.bones[1].scale[0] = 1; rig.bones[1].orientation = [1, 0, 0, 1];
   assert.equal(computeBindMatrices(rig).status, 'unsupported-quaternion');
+});
+test('renderer skin matrices multiply posed globals by inverse bind and reject scale', () => {
+  const bind = computeBindMatrices(parseRig(fixture()));
+  const rest = deriveSkinMatrices(bind, bind.global);
+  assert.equal(rest.status, 'skin-matrices-candidate');
+  for (const matrix of rest.matrices) for (let i = 0; i < 12; i++) assert.ok(Math.abs(matrix[i] - (i === 0 || i === 5 || i === 10 ? 1 : 0)) < 1e-6);
+  const pose = bind.global.map(matrix => [...matrix]); pose[1][3] += 2;
+  assert.ok(Math.abs(deriveSkinMatrices(bind, pose).matrices[1][3] - 2) < 1e-6);
+  pose[1][0] *= 2; pose[1][4] *= 2; pose[1][8] *= 2;
+  assert.equal(deriveSkinMatrices(bind, pose).status, 'unsupported-nonrigid-pose');
+  assert.equal(deriveSkinMatrices(bind, []).status, 'unavailable-input');
 });
 test('synthetic rig matches TS4CAS Tools reader', { skip: !(process.env.CASP_ORACLE_DLL && process.env.DOTNET_BIN) }, () => {
   assert.deepEqual(compareRigReference(fixture(), process.env.DOTNET_BIN, process.env.CASP_ORACLE_DLL), { status: 'reader-matched', bones: 2, chains: 1 });

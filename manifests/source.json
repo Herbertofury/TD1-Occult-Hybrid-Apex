@@ -221,6 +221,12 @@
       "sha256": "7f8d84324b2d9484e257ffd8b7a4ecd068edd7375e11e6293d1201092ce87c0b"
     },
     {
+      "bytes": 5334,
+      "mode": "100644",
+      "path": "docs/SUPPLIED_DONOR_VERSION_AUDIT_20261104.md",
+      "sha256": "c998637060fa31eabef06a04e028d13ac809321d1b9dbd39c52c7249850e7792"
+    },
+    {
       "bytes": 7348,
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexOwnerMailboxApi.h",
@@ -1863,12 +1869,6 @@
       "mode": "100644",
       "path": "Source/CASUi/panel_layout_methods.as",
       "sha256": "c80ae3479512a37cfeca9e4449dc2611fe07d3b3575dc2c94643fa801161a511"
-    },
-    {
-      "bytes": 4864,
-      "mode": "100644",
-      "path": "docs/SUPPLIED_DONOR_VERSION_AUDIT_20261104.md",
-      "sha256": "53787bd1304adc15a45736cecf39d97ccea6ede858bc557c903036360715545d"
     },
     {
       "bytes": 6576,
@@ -3713,12 +3713,6 @@
       "sha256": "2c1da2ba1a2dab75c3546c381d00cecda9a1a942c6c98c4305fca3f93fd3f33d"
     },
     {
-      "bytes": 5786,
-      "mode": "100644",
-      "path": "tests/test_maru_companion_versions.py",
-      "sha256": "3c638363d7e7085597109702cdb5a514defe8d33e26e326685caab21a049a158"
-    },
-    {
       "bytes": 6959,
       "mode": "100644",
       "path": "Source/apex_core/installed_icon_resources.py",
@@ -3789,6 +3783,12 @@
       "mode": "100644",
       "path": "Source/apex_core/household_save_group.py",
       "sha256": "dcad435189961dc1a2375e35fc0a04e2e6304cf644a9b7d628a25e222f24e06d"
+    },
+    {
+      "bytes": 5710,
+      "mode": "100644",
+      "path": "tools/maru_companion_versions.py",
+      "sha256": "c4d7a5531a2e46910170abac6de67938411cbf325cc5928a314e207baa50012b"
     },
     {
       "bytes": 2681,
@@ -4697,6 +4697,12 @@
       "sha256": "89eda91fff7e3c47f276f9192a5d7dfaf4060835ab5a60627345dfa1df3fa90d"
     },
     {
+      "bytes": 6138,
+      "mode": "100644",
+      "path": "tests/test_maru_companion_versions.py",
+      "sha256": "0276a993d699cff711adf52bb706729b90c0cb14d34b315063cad0a8b8b63224"
+    },
+    {
       "bytes": 9118,
       "mode": "100644",
       "path": "Reports/Apex-V10-ModdersReference-VSCode-S4S-Audit.md",
@@ -4731,12 +4737,6 @@
       "mode": "100644",
       "path": "tests/test_household_stress.py",
       "sha256": "474bf41fca1dca0005a3df5be78015a3c766f8bd0d9d64a014ecbc52b8712dde"
-    },
-    {
-      "bytes": 5476,
-      "mode": "100644",
-      "path": "tools/maru_companion_versions.py",
-      "sha256": "2d5d52294c4929cca8d89541e0ac84ee6bb730ee491fb6a58dd0ba05c08545e0"
     },
     {
       "bytes": 23473,

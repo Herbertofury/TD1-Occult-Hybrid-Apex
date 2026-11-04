@@ -22,6 +22,8 @@ ROLES={
     '62ECC59A:00000000:3E752EBCB41E7298': 'plan-outfit-header',
     '62ECC59A:00000000:DBEC8F675D3E53B2': 'styled-looks',
 }
+REQUIRED_CONTROLS=('bottom-size-slider','bottom-column-slider','panel-edge-grip',
+                   'favorite-heart-filter','per-card-hearts')
 
 
 def _load(path):
@@ -87,6 +89,7 @@ def collision_report(donor_path,apex_path,apex_sha256):
     return dict(donor_version=donor['version'],donor_sha256=donor['package_sha256'],
         apex_sha256=actual_sha,collisions=collisions,role_status=role_status,precedence_selected=False,
         merge_authorized=False,feature_parity_verified=False,game_verified=False,
+        required_controls=[dict(name=name,verified=False) for name in REQUIRED_CONTROLS],
         note='Hash identity and collision reports do not verify bytecode semantics or runtime behavior.')
 
 

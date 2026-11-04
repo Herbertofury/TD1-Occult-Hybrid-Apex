@@ -51,6 +51,10 @@ class VersionTests(unittest.TestCase):
             self.skipTest('Set APEX_PRIVATE_MARU_DONOR and APEX_PRIVATE_CAS_BRIDGE to private fixtures')
         report=versions.collision_report(SUPPLIED,BRIDGE,BRIDGE_SHA)
         self.assertFalse(report['precedence_selected']);self.assertFalse(report['merge_authorized'])
+        controls={item['name']:item['verified'] for item in report['required_controls']}
+        self.assertEqual(set(controls),{'bottom-size-slider','bottom-column-slider','panel-edge-grip',
+                                        'favorite-heart-filter','per-card-hearts'})
+        self.assertTrue(all(value is False for value in controls.values()))
         rows={row['role']:row for row in report['collisions'] if row['role']!='other-resource'}
         self.assertEqual(set(rows),{'customizer-main','donor-grid-provider','plan-outfit-header'})
         for row in rows.values():

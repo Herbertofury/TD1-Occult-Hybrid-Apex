@@ -52,6 +52,13 @@ Apex comparison to a caller-supplied artifact SHA, enumerates overlaps and
 required roles, and never selects precedence or reports a merge as authorized.
 Missing roles are explicit. It cannot be used to bypass the existing merger.
 
+The owner explicitly requires retaining both bottom sliders: size and column
+count. The integrated panel-edge grip and interactive favorites/filter hearts
+are additional controls. The audit marks all five controls unverified; it must
+not treat source presence, donor identity or a compiled package as proof. The
+existing 2–32 column target, requested 20–160% card sizing, spacing and viewport
+fit remain required, with no panel covering the Sim or native controls.
+
 After placing the exact private donor and reviewed Apex artifact locally, the
 read-only audit can write a new hash-only report beneath this checkout's
 existing `.work` directory:

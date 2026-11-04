@@ -223,7 +223,7 @@ def observe_start(executable, prior_ids, seconds, probe=running_game_processes, 
 
 
 def launch(game_root, state, execute=False, headless=False, observe_seconds=60, offer_id=None, elevate_permission_once=False,
-           verified_launch_proof=None, expected_launch_proof_sha256=None):
+           verified_launch_proof=None, expected_launch_proof_sha256=None, permission_work=None):
     if headless:
         raise ValueError('A headless Sims 4 runtime is not implemented. Use the real-game bridge for CLI testing.')
     if verified_launch_proof is None and expected_launch_proof_sha256 is None:
@@ -236,6 +236,15 @@ def launch(game_root, state, execute=False, headless=False, observe_seconds=60, 
         elevate_permission_once = elevate_permission_once or remembered_permission
         plan['permission_strategy'] = 'remembered-normal-uac-one-shot' if remembered_permission else (
             'explicit-normal-uac-one-shot' if elevate_permission_once else 'normal-access')
+        if permission_work is not None and not elevate_permission_once:
+            raise ValueError('Permission evidence directory requires selected one-shot permission mode.')
+        broker_work = None
+        if permission_work is not None:
+            import ea_permission_broker
+            # A supplied directory must be safe before any launch handoff.
+            # An omitted directory retains the legacy post-handoff behavior.
+            broker_work = ea_permission_broker.evidence_directory(permission_work)
+            plan['permission_broker_evidence_directory'] = str(broker_work)
         test_profile.require_closed()
         # Recheck immediately before handoff so no launch can use a restored/live profile.
         if not test_profile.status(state)['ready_to_launch']:
@@ -289,7 +298,7 @@ def launch(game_root, state, execute=False, headless=False, observe_seconds=60, 
                 plan['handoff_evidence']['permission_context_observation_seconds'] = ea_permission_broker.LAUNCH_RECORD_WAIT_SECONDS
                 context = ea_permission_broker.wait_launch_context(plan, handoff_at, log_offset)
                 plan['ea_permission_broker'] = ea_permission_broker.elevate_once(
-                    Path(state).resolve().parent, launch_context=context)
+                    broker_work if broker_work is not None else Path(state).resolve().parent, launch_context=context)
             except (OSError, ValueError, RuntimeError) as error:
                 plan['ea_permission_broker'] = {'ok': False, 'acknowledged': False,
                     'game_start_verified': False, 'windows_uac_automated': False, 'message': str(error)}

@@ -77,12 +77,6 @@
       "sha256": "29c322319821a9f6a4084ddc0dee4ad6d5a7accc1e3997ea0dfad40c3d2f987c"
     },
     {
-      "bytes": 95903,
-      "mode": "100644",
-      "path": "tools/apex_cli.py",
-      "sha256": "b53b5d030e9c5123ab91bfdadd6894430879955bf20be49eeedc4495c6098b4a"
-    },
-    {
       "bytes": 12775,
       "mode": "100644",
       "path": "tools/cas_catalog_unconsumed.py",
@@ -915,12 +909,6 @@
       "mode": "100644",
       "path": "Reports/CAS_FUR_FAVORITES_V287.json",
       "sha256": "11654e868dcb85e62cdde81b415dadb3c8e3735ef95f21a5bfc130be07d612bb"
-    },
-    {
-      "bytes": 18976,
-      "mode": "100644",
-      "path": "tools/game_launch.py",
-      "sha256": "0886a0a416477d760bcce0294cafc88f587b826fbecc602fb87651349f977f82"
     },
     {
       "bytes": 1820,
@@ -2129,6 +2117,12 @@
       "sha256": "2eeac5c5ef12dd3f1555c30970c7303ebfa9edc5876effd492fc095f14041781"
     },
     {
+      "bytes": 1202,
+      "mode": "100644",
+      "path": "docs/EA_PERMISSION_WORK.md",
+      "sha256": "a16ffccc9865e018485585092000a94a33da476298def3ccf6c24494ed104bd1"
+    },
+    {
       "bytes": 5718,
       "mode": "100644",
       "path": "docs/APPEARANCE_TRANSFER.md",
@@ -2475,6 +2469,12 @@
       "mode": "100644",
       "path": "tools/windows_ocr.py",
       "sha256": "e711cb6d7834a96781cdc4d721d74783853b4cbb1bf8579cae69ca5bfbb09b96"
+    },
+    {
+      "bytes": 7846,
+      "mode": "100644",
+      "path": "tests/test_permission_work.py",
+      "sha256": "ade43fa12e533aae1bb82601a75365cf8dab76b59aa5fe229a4f73cfb8e9c853"
     },
     {
       "bytes": 7486,
@@ -3545,6 +3545,12 @@
       "sha256": "ba807c87a41a553528de134360ea3f13fc4a0acdfd39c21fa31ff7a5ab2ea805"
     },
     {
+      "bytes": 19638,
+      "mode": "100644",
+      "path": "tools/game_launch.py",
+      "sha256": "7f897d1d1d5ff3c4246ac25027f9fa8b7f6cc6b7fc5d96465f0562ee0418286a"
+    },
+    {
       "bytes": 60199,
       "mode": "100644",
       "path": "tests/test_cas_bank_transaction.py",
@@ -3615,6 +3621,12 @@
       "mode": "100644",
       "path": "Source/apex_core/cas_entry_context.py",
       "sha256": "9474f7dbb6251318e908676ac7ba8b4479c99b9d2bead59ae706eb023726140b"
+    },
+    {
+      "bytes": 96159,
+      "mode": "100644",
+      "path": "tools/apex_cli.py",
+      "sha256": "8e9a7bff3507e50af3a1bafb74195ada5d768c6b2cb4e2c256065ab2d27ef2d4"
     },
     {
       "bytes": 27097,
@@ -5589,6 +5601,12 @@
       "mode": "100644",
       "path": "tools/maru_companion_performance.py",
       "sha256": "86bdc5f81d67d1eb1627e427a160aa9c5d1e8d6abb59fadf5ea9748309da92ac"
+    },
+    {
+      "bytes": 1370,
+      "mode": "100644",
+      "path": "tests/test_real_permission_containment.py",
+      "sha256": "b2f2ffce8bb5f65fd452050bcc4a3678e636d89622367c71a533f2fe9076d800"
     },
     {
       "bytes": 19919,

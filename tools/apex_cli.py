@@ -221,6 +221,7 @@ def parser():
     launch.add_argument('--execute', action='store_true')
     launch.add_argument('--elevate-permission-once', action='store_true',
                         help='If exact EA consent is inaccessible, request normal UAC for one Sims-bound helper; approval remains manual')
+    launch.add_argument('--permission-work', type=Path, help='Existing repository .work evidence directory for selected one-shot permission helper')
     launch.add_argument('--headless', action='store_true', help='Fails explicitly until an actual headless runtime exists')
     launch.add_argument('--verified-launch-proof', type=Path, help='Retain the exact earlier successful account launch before EA rotates its logs')
     launch.add_argument('--expected-launch-proof-sha256')
@@ -851,6 +852,8 @@ def _execute(args):
         options = {}
         if args.verified_launch_proof is not None or args.expected_launch_proof_sha256 is not None:
             options.update(verified_launch_proof=args.verified_launch_proof, expected_launch_proof_sha256=args.expected_launch_proof_sha256)
+        if args.permission_work is not None:
+            options['permission_work'] = args.permission_work
         return game_launch.launch(args.game_root, args.state, args.execute, args.headless, offer_id=args.offer_id,
                                   elevate_permission_once=args.elevate_permission_once, **options)
     if args.command == 'profile':

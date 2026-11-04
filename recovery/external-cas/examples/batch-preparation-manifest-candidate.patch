@@ -1,0 +1,82 @@
+--- /dev/null
++++ b/build_preparation_manifest.py
+@@ -0,0 +1,44 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Build a private opt-in preparation list from explicit owned sources.
++
++No catalog-stored paths are used. Parent supplies reviewed pinned paths,
++context and exact opaque part IDs. No assets are prepared or game files changed.
++"""
++import argparse,hashlib,json,pathlib,sqlite3
++from build_scene_bindings import pin,PRIVATE,D,N
++from preparation_owner import PreparationOwner
++
++def load(path,digest):
++ p=pathlib.Path(path);pin(p,digest,65536);return json.loads(p.read_bytes())
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--catalog',nargs=2,required=True);p.add_argument('--sources',nargs=2,required=True);p.add_argument('--context',nargs=2,required=True);p.add_argument('--part',action='append',required=True);p.add_argument('--output',required=True);a=p.parse_args()
++ if not N.fullmatch(a.output) or not 1<=len(a.part)<=64 or len(set(a.part))!=len(a.part) or not all(D.fullmatch(x) for x in a.part):raise ValueError('bounded unique selected IDs required')
++ index=pathlib.Path(a.catalog[0]);pin(index,a.catalog[1],256*1024*1024)
++ if index.stat().st_nlink!=1 or any(pathlib.Path(str(index)+s).exists() or pathlib.Path(str(index)+s).is_symlink() for s in ('-wal','-shm','-journal')):raise ValueError('standalone catalog required')
++ src=load(*a.sources);ctx=load(*a.context)
++ if type(src)is not dict or set(src)!={'schema','packages'} or src['schema']!=1 or type(src['packages'])is not dict or not 1<=len(src['packages'])<=64:raise ValueError('source manifest shape')
++ keys={'base_token','base','base_sha','manifest','manifest_sha','dress_counterpart','hair_counterpart','binary','binary_sha','helper','helper_sha','policy','rig','rig_sha','pose_config','pose_config_sha'}
++ if type(ctx)is not dict or set(ctx)!=keys:raise ValueError('context shape')
++ conn=sqlite3.connect(index.as_uri()+'?mode=ro&immutable=1',uri=True);rows=[];verified={}
++ try:
++  for part in a.part:
++   matches=conn.execute('SELECT row_json FROM parts WHERE part_id=? LIMIT 2',(part,)).fetchall()
++   if len(matches)!=1 or len(matches[0][0])>1024*1024:raise ValueError('part absent or ambiguous')
++   row=json.loads(matches[0][0]);sha=row.get('package_sha256');slot={2:'hair',5:'dress'}.get(row.get('body_type'))
++   if row.get('part_id')!=part or not slot or not isinstance(sha,str) or not D.fullmatch(sha) or sha not in src['packages']:raise ValueError('unsupported or unauthorized source')
++   path=pathlib.Path(src['packages'][sha])
++   if sha not in verified:pin(path,sha,64*1024*1024);verified[sha]=path
++   elif verified[sha]!=path:raise ValueError('source mapping changed')
++   rows.append((part,slot,path))
++ finally:conn.close()
++ pin(index,a.catalog[1],256*1024*1024);selections={}
++ for part,slot,path in rows:
++  name='p'+part[:14];out='v'+part[:14];token=hashlib.sha256(('preparation:'+part).encode()).hexdigest()[:32]
++  variant={k:ctx[k] for k in ('base_token','base','base_sha','manifest','manifest_sha','binary','binary_sha','helper','helper_sha','policy','pose_config','pose_config_sha')};variant.update(slot=slot,counterpart=ctx['hair_counterpart' if slot=='hair' else 'dress_counterpart'],output=out)
++  selections[token]={'catalog':str(index),'catalog_sha':a.catalog[1],'part_id':part,'package':str(path),'rig':ctx['rig'],'rig_sha':ctx['rig_sha'],'name':name,'variant':variant}
++ owner=PreparationOwner(selections);owner.close();payload=json.dumps({'schema':1,'selections':selections},separators=(',',':')).encode()
++ if len(payload)>262144:raise ValueError('preparation manifest byte bound')
++ out=PRIVATE/a.output;out.mkdir(mode=0o700,exist_ok=False)
++ with (out/'preparations.json').open('xb') as f:f.write(payload)
++ print(json.dumps({'selected_parts':len(selections),'private_manifest_sha256':hashlib.sha256(payload).hexdigest(),'assets_prepared':False,'game_modified':False}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/test_build_preparation_manifest.py
+@@ -0,0 +1,19 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++import contextlib,hashlib,io,json,pathlib,sqlite3,sys,tempfile,unittest
++from unittest import mock
++import build_preparation_manifest as m
++class Tests(unittest.TestCase):
++ def setUp(self):
++  self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);r=pathlib.Path(self.tmp.name);self.root=r;package=r/'item.package';package.write_bytes(b'fixture');h=lambda x:hashlib.sha256(x.read_bytes()).hexdigest();self.pid='a'*64;self.db=r/'catalog.sqlite';c=sqlite3.connect(self.db);c.execute('CREATE TABLE parts(part_id TEXT PRIMARY KEY,row_json TEXT)');c.execute('INSERT INTO parts VALUES(?,?)',(self.pid,json.dumps({'part_id':self.pid,'body_type':2,'package_sha256':h(package),'package_path':'/never/used'})));c.commit();c.close();src=r/'sources.json';src.write_text(json.dumps({'schema':1,'packages':{h(package):str(package)}}));ctx=r/'context.json';ctx.write_text(json.dumps({'base_token':'1'*32,'base':'base','base_sha':'b'*64,'manifest':'/safe/manifest','manifest_sha':'c'*64,'dress_counterpart':'hair','hair_counterpart':'dress','binary':'/safe/binary','binary_sha':'d'*64,'helper':'/safe/helper','helper_sha':'e'*64,'policy':'sha256-per-request','rig':'/safe/rig','rig_sha':'f'*64,'pose_config':'/safe/pose','pose_config_sha':'1'*64}));self.args=['x','--catalog',str(self.db),h(self.db),'--sources',str(src),h(src),'--context',str(ctx),h(ctx),'--part',self.pid,'--output','output']
++ def invoke(self,args):
++  buf=io.StringIO()
++  with mock.patch.object(m,'PRIVATE',self.root),mock.patch.object(sys,'argv',args),contextlib.redirect_stdout(buf):m.main()
++  return json.loads(buf.getvalue())
++ def test_explicit_source_maps_without_preparing(self):
++  result=self.invoke(self.args);self.assertEqual(result['selected_parts'],1);self.assertFalse(result['assets_prepared']);data=json.loads((self.root/'output/preparations.json').read_text());row=next(iter(data['selections'].values()));self.assertNotEqual(row['package'],'/never/used');self.assertEqual(row['part_id'],self.pid)
++ def test_missing_or_duplicate_part_refused_before_output(self):
++  args=self.args.copy();args[args.index('--part')+1]='9'*64
++  with self.assertRaises(ValueError):self.invoke(args)
++  with self.assertRaises(ValueError):self.invoke(self.args+['--part',self.pid])
++  self.assertFalse((self.root/'output').exists())
++if __name__=='__main__':unittest.main(verbosity=2)
+--- a/run_scene_gateway.py
++++ b/run_scene_gateway.py
+@@ -33,8 +33,8 @@
+  if (a.preparations is None)!=(a.preparations_sha is None):raise ValueError('complete preparations pin required')
+  if a.preparations is not None:
+   path=pathlib.Path(a.preparations)
+-  if not D.fullmatch(a.preparations_sha) or path.is_symlink() or not path.is_file() or path.stat().st_size>65536:raise ValueError('pinned preparations required')
+-  with path.open('rb') as f:data=f.read(65537)
++  if not D.fullmatch(a.preparations_sha) or path.is_symlink() or not path.is_file() or path.stat().st_size>262144:raise ValueError('pinned preparations required')
++  with path.open('rb') as f:data=f.read(262145)
+   if hashlib.sha256(data).hexdigest()!=a.preparations_sha:raise ValueError('preparations identity')
+   prep=json.loads(data)
+   if type(prep)is not dict or set(prep)!={'schema','selections'} or prep['schema']!=1:raise ValueError('preparations shape')

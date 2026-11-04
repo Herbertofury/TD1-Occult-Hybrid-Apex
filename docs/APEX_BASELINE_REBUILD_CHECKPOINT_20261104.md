@@ -1,8 +1,12 @@
 # Baseline-first Apex continuation, 2026-11-04
 
-The game hitch remains unresolved. This checkpoint adds measurement support;
+The game hitch remains unresolved. This initial checkpoint adds measurement support;
 it is not a new playable build, a measured speedup, Maru parity, or permission
 to use the candidate on the owner's original save.
+
+The subsequent isolated native-CAS attempt, CLI handoff, failed collector
+qualification and complete profile restoration are recorded in
+[APEX_NATIVE_CONTROL_20261104.md](APEX_NATIVE_CONTROL_20261104.md).
 
 ## Preserved work and source identity
 
@@ -82,8 +86,9 @@ not an automatic-approval rejection and is no longer an outstanding access
 denial. No profile was changed. Repository clone creation also required the
 supported escalation; it succeeded in the task workspace.
 
-No new game run or frame capture has been performed. A reproducible no-Apex
-control has not yet been prepared or authenticated. Before game testing:
+At this initial checkpoint no new game run or frame capture had been performed.
+The subsequent clean-control attempt is documented in the linked continuation;
+a matched saved fixture and valid paired baseline remain outstanding. Before game testing:
 retain a recoverable snapshot of every disposable file that will change,
 verify its token and closed process, establish a base-game-compatible matched
 household/Sim and settings, account for all game-bin loaders and Mods resources,
@@ -121,11 +126,12 @@ removed to obtain these fixture results.
 Validation: 36 targeted collector/comparator/stage tests pass on both Python
 3.7.9 and the installed Python 3.13. A final independent rehash finds zero
 changes in all 2,066 preserved desktop source files and the original 929-entry
-Git status is identical. A preliminary broader `test_*frame*.py` discovery on
-the upstream clone was not clean: 55 cases, one `test_cas_grid_frame_build`
-contract failure, one missing `tests` package import from the external working
-directory, and seven skips. Those unrelated UI-build checks were not repaired
-or credited as passing; this branch changes no CAS runtime/build implementation.
+Git status is identical. A preliminary broader discovery under embedded Python
+3.7 from an external working directory was not clean. Repeating with Python
+3.13 and an explicit project import root resolved those test-environment
+failures without CAS code changes: the later run contains 60 cases, 53 passing
+and seven skipped. The continuation records the exact current validation;
+this branch changes no CAS runtime/build implementation.
 No full-mod or actual-game regression pass is claimed.
 
 ## Feature restoration remains the full accepted scope

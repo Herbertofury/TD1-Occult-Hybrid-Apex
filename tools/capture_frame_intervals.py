@@ -122,6 +122,25 @@ def event_loss(log):
     return False
 
 
+def read_collector_log(path, partial=False):
+    # Actual 2.6.0 stdout-mode diagnostics can carry a UTF-16 BOM. Preserve
+    # the raw bytes and never let an unrecognized encoding conceal a loss.
+    with Path(path).open('rb') as stream:
+        raw=stream.read(16*1024*1024+1)
+    if len(raw)>16*1024*1024:
+        raise ValueError('Collector log exceeds its bounded read size.')
+    encoding='utf-16' if raw.startswith((b'\xff\xfe',b'\xfe\xff')) else 'utf-8-sig'
+    try:
+        text=raw.decode(encoding)
+        if '\x00' in text:
+            raise ValueError('Collector diagnostics contain undecoded NUL bytes.')
+        return text
+    except (UnicodeError,ValueError):
+        if partial:
+            return ''  # A concurrent write may end inside a code unit.
+        raise ValueError('Collector diagnostic encoding could not be validated.')
+
+
 def outputs(prefix):
     prefix=Path(prefix).resolve()
     work=(ROOT/'.work').resolve()
@@ -170,7 +189,7 @@ def capture(args):
     # Pinned 2.6.0 default combined output has TimeInQPC, CPUStartQPC and
     # MsBetweenPresents. --v1_metrics uses different legacy column names.
     command=[str(PRESENTMON),'--process_id',str(args.pid),'--qpc_time','--timed',str(args.seconds),
-        '--terminate_after_timed','--no_console_stats','--no_track_input','--session_name',session,
+        '--terminate_after_timed','--no_console_stats','--no_track_input','--no_track_gpu','--no_track_display','--session_name',session,
         '--set_circular_buffer_size','16384','--output_file',str(paths['csv'])]
     record=dict(schema=1,state='prepared',mode='actions',benchmark_mode=args.mode,
         capture_kind=CAPTURE_KIND,configured_seconds=args.seconds,profile=str(profile),target_pid=args.pid,
@@ -191,7 +210,7 @@ def capture(args):
             _write(paths['metadata'],record);ready=False;start=time.monotonic();next_query=start
             while process.poll() is None:
                 if not ready:
-                    text=paths['log'].read_text(encoding='utf-8',errors='replace')
+                    text=read_collector_log(paths['log'],partial=True)
                     observed='Started recording.' in text
                     if not observed and time.monotonic()>=next_query:
                         next_query=time.monotonic()+1
@@ -216,10 +235,9 @@ def capture(args):
         if sha(args.exe)!=args.exe_sha256:
             raise ValueError('Game executable changed during the capture.')
         record['game_exe_hash_unchanged']=True
-        if paths['log'].stat().st_size>16*1024*1024:
-            raise ValueError('Collector log exceeds its bounded read size.')
-        log_text=paths['log'].read_text(encoding='utf-8',errors='replace')
+        log_text=read_collector_log(paths['log'])
         lost=event_loss(log_text)
+        record.update(collector_log_sha256=sha(paths['log']),collector_event_loss_warning=lost)
         if not paths['csv'].is_file():raise ValueError('PresentMon produced no CSV.')
         csv_sha=sha(paths['csv']);values,clocks,runtime=comparison.read_frames(paths['csv'],args.pid,csv_sha)
         record['analysis']=dict(valid=not lost,event_loss_warning=lost,csv_sha256=csv_sha,

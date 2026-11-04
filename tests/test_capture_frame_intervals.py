@@ -70,6 +70,47 @@ class CapturePreflightTests(unittest.TestCase):
                 ('Lost 0 events',False),('Lost 15 events',True),('12 buffers were dropped',True)]:
             self.assertEqual(capture.event_loss(text),expected,text)
 
+    def test_real_diagnostic_encodings_preserve_loss_and_refuse_unknown_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path=Path(temporary)/'raw.log'
+            for encoding in ('utf-8','utf-8-sig','utf-16','utf-16-be'):
+                raw='Started recording.\nwarning: 3016 ETW events were lost.\n'.encode(encoding)
+                if encoding=='utf-16-be':raw=b'\xfe\xff'+raw
+                path.write_bytes(raw)
+                self.assertTrue(capture.event_loss(capture.read_collector_log(path)),encoding)
+            for raw in (b'\xffbroken',b'w\x00a\x00r\x00n\x00',b'\xff\xfew'):
+                path.write_bytes(raw)
+                self.assertEqual(capture.read_collector_log(path,partial=True),'')
+                with self.assertRaisesRegex(ValueError,'encoding'):capture.read_collector_log(path)
+
+    def test_utf16_loss_invalidates_capture_even_with_usable_csv_rows(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder=Path(temporary);paths={name:folder/(name+ext) for name,ext in
+                (('csv','.csv'),('log','.log'),('metadata','.json'))}
+            before=dict(process_creation_filetime=42)
+            args=argparse.Namespace(pid=123,mode='baseline',seconds=10,exe=folder/'TS4_x64.exe',exe_sha256='1'*64)
+            class Collector:
+                pid=1000
+                returncode=0
+                def __init__(self,command,stdout,stderr,creationflags):
+                    self.polls=0
+                    stdout.buffer.write('Started recording.\nwarning: 3016 ETW events were lost.\n'.encode('utf-16'))
+                    stdout.buffer.flush();paths['csv'].write_text('mock valid CSV')
+                def poll(self):
+                    self.polls+=1
+                    return None if self.polls==1 else 0
+            with patch.object(capture,'verify_start',return_value=(folder,paths,before,self.state('baseline'),'a'*64)), \
+                    patch.object(capture,'window_snapshot',return_value=before), \
+                    patch.object(capture,'sha',return_value='1'*64), \
+                    patch.object(capture.comparison,'read_frames',return_value=([16]*150,list(range(150)),'DXGI')), \
+                    patch.object(capture.subprocess,'Popen',side_effect=Collector),patch.object(capture.time,'sleep'):
+                with self.assertRaisesRegex(ValueError,'evidence checks'):capture.capture(args)
+            result=json.loads(paths['metadata'].read_text())
+            self.assertEqual(result['state'],'invalid')
+            self.assertTrue(result['collector_event_loss_warning'])
+            self.assertTrue(result['analysis']['event_loss_warning'])
+            self.assertFalse(result['analysis']['valid'])
+
     def test_mock_collector_uses_qpc_and_writes_a_complete_baseline_without_input(self):
         with tempfile.TemporaryDirectory() as temporary:
             folder=Path(temporary);paths={name:folder/(name+ext) for name,ext in
@@ -106,6 +147,7 @@ class CapturePreflightTests(unittest.TestCase):
             self.assertFalse(result['displayed_fps_measured'])
             self.assertEqual(result['analysis']['csv_sha256'],hashlib.sha256(paths['csv'].read_bytes()).hexdigest())
             self.assertIn('--qpc_time',calls[0])
+            self.assertIn('--no_track_gpu', calls[0]); self.assertIn('--no_track_display', calls[0])
             self.assertNotIn('--v1_metrics', calls[0]);self.assertNotIn('--v2_metrics', calls[0])
             self.assertEqual(calls[0][calls[0].index('--process_id')+1],'123')
             self.assertFalse(result['appearance_write_requested']);self.assertEqual(result['ui_input_submitted'],0)

@@ -16,10 +16,12 @@ The existing private `.work/v344-frame-measurement/capture_frames.py` reports
 DXGI present intervals but requires Apex-specific profiler evidence and omits
 the QPC option. The new `tools/capture_frame_intervals.py` accepts either a
 baseline or Apex state and requests `--qpc_time`; its isolated preflight tests
-pass, but **it has not yet been exercised against the game**. Do not reuse an
-Apex-enabled run as the no-mod baseline or infer action coverage from an
-unaligned whole-session mean. The collector and separate action-trace workflow
-still need live verification in both states after the update is ready.
+pass. November 4 clean-control qualification reached native CAS, but the two
+30-second captures lost ETW events and produced no CSV. The collector is
+**not live-qualified**; see [the retained experiment checkpoint](APEX_NATIVE_CONTROL_20261104.md).
+Do not reuse an Apex-enabled run as the no-mod baseline or infer action coverage
+from an unaligned whole-session mean. The collector and separate action-trace
+workflow still need valid live evidence in both states.
 
 The new collector requires an already-running, visible disposable Sims process,
 an exact executable hash, an existing marked test-profile journal, and
@@ -31,6 +33,11 @@ evidence; for an Apex run the evidence must also show its optional diagnostic
 profilers are inactive and uninstalled. The baseline needs no Apex bridge.
 During capture the tool briefly queries the named ETW session at most once per
 second until ready; this is measurement overhead, not a hidden service.
+The present-only command disables GPU-duration, display and input tracking;
+this reduces requested metrics without establishing a cure for ETW loss. The
+pinned default combined CSV/QPC contract remains required. Raw diagnostics
+are decoded as UTF-8 or BOM-marked UTF-16; unknown/truncated final encodings
+invalidate the capture so loss warnings cannot disappear during decoding.
 
 ```powershell
 python tools/capture_frame_intervals.py --state .work/reusable-profile-session.json --pid <pid> --exe 'C:\Games\The Sims 4\Game\Bin\TS4_x64.exe' --exe-sha256 <sha256> --mode baseline --mod-state .work/benchmark/mod-state.json --seconds 30 --output .work/benchmark/baseline-1 --parent-ready --run

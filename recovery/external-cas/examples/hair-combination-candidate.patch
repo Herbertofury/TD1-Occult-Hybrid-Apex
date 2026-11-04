@@ -1,0 +1,271 @@
+--- a/tools/research/prepare_pinned_diffuse.py
++++ b/tools/research/prepare_pinned_diffuse.py
+@@ -1,5 +1,5 @@
+ # SPDX-License-Identifier: GPL-3.0-or-later
+-"""Prepare one CASP-declared top diffuse as a private 2048x4096 diagnostic atlas.
++"""Prepare one CASP-declared top diffuse as a private diagnostic slot atlas.
+ 
+ No game writes, shaders, mip-chain or compatibility claim. Inputs are trusted;
+ codec execution and filesystem traversal are not an OS sandbox.
+@@ -15,7 +15,7 @@
+ def main():
+  ap=argparse.ArgumentParser();
+  for flag in ('package','package-sha','casp','casp-sha','texture-sha','output'):ap.add_argument('--'+flag,required=True)
+- a=ap.parse_args()
++ ap.add_argument('--slot',choices=('dress','hair'),default='dress');a=ap.parse_args()
+  if not all(DIGEST.fullmatch(x) for x in (a.package_sha,a.casp_sha,a.texture_sha)) or not CASP.fullmatch(a.casp):raise ValueError('pinned identities required')
+  if not a.output or a.output in ('.','..') or pathlib.Path(a.output).name!=a.output:raise ValueError('single new output directory required')
+  path=pathlib.Path(a.package)
+@@ -26,7 +26,9 @@
+  if ck not in pkg.entries:raise ValueError('CASP missing')
+  c=pkg.read_many([ck],max_total=1024*1024)[ck]
+  if hashlib.sha256(c).hexdigest()!=a.casp_sha:raise ValueError('CASP pin mismatch')
+- meta=casp_material(c);requested=meta['texture'];tk=tuple(int(v,16) for v in requested.split(':'));route='exact'
++ meta=casp_material(c)
++ if meta['body_type']!=({'dress':5,'hair':2}[a.slot]):raise ValueError('CASP body slot mismatch')
++ requested=meta['texture'];tk=tuple(int(v,16) for v in requested.split(':'));route='exact'
+  if tk not in pkg.entries and tk[0]==0x3453cf95:
+   alias=(0x2bc04edf,*tk[1:])
+   if alias in pkg.entries:tk=alias;route='lrle-same-group-instance'
+@@ -39,15 +41,16 @@
+  else:raise ValueError('unsupported texture encoding')
+  if im.size not in ((1024,2048),(2048,4096)):raise ValueError('unsupported atlas dimensions')
+  im.load();im=im.convert('RGBA');source_size=im.size
+- if im.size!=(2048,4096):im=im.resize((2048,4096),Image.Resampling.NEAREST)
++ target=(2048,4096) if a.slot=='dress' else (1024,2048)
++ if im.size!=target:im=im.resize(target,Image.Resampling.NEAREST)
+  pixels=im.tobytes()
+- if len(pixels)!=2048*4096*4:raise ValueError('invalid atlas extent')
++ if len(pixels)!=target[0]*target[1]*4:raise ValueError('invalid atlas extent')
+  pkg.read_many([ck],max_total=1024*1024)
+  parent=root/'private-input-recovery'
+  if parent.is_symlink() or not parent.is_dir():raise ValueError('private parent unavailable')
+  out=parent/a.output;out.mkdir(mode=0o700,exist_ok=False)
+  with (out/'material.rgba').open('xb') as f:f.write(pixels)
+- report={'package_sha256':a.package_sha,'casp':a.casp,'casp_sha256':a.casp_sha,'requested_texture':requested,'resolved_texture':tgi(tk),'texture_sha256':a.texture_sha,'material_sha256':hashlib.sha256(pixels).hexdigest(),'source_dimensions':list(source_size),'output_dimensions':[2048,4096],'resampling':'nearest' if source_size!=(2048,4096) else 'none','format':kind,'route':route,'game_modified':False,'native_fidelity':'unverified'}
++ report={'package_sha256':a.package_sha,'casp':a.casp,'casp_sha256':a.casp_sha,'requested_texture':requested,'resolved_texture':tgi(tk),'texture_sha256':a.texture_sha,'material_sha256':hashlib.sha256(pixels).hexdigest(),'source_dimensions':list(source_size),'output_dimensions':list(target),'slot':a.slot,'resampling':'nearest' if source_size!=target else 'none','format':kind,'route':route,'game_modified':False,'native_fidelity':'unverified'}
+  with (out/'report.json').open('x') as f:json.dump(report,f,indent=2)
+- print(json.dumps({'source_dimensions':source_size,'output_dimensions':[2048,4096],'resampling':report['resampling'],'game_modified':False,'native_fidelity':'unverified'}))
++ print(json.dumps({'source_dimensions':source_size,'output_dimensions':list(target),'slot':a.slot,'resampling':report['resampling'],'game_modified':False,'native_fidelity':'unverified'}))
+ if __name__=='__main__':main()
+--- a/tools/research/stage_generic_runtime.py
++++ b/tools/research/stage_generic_runtime.py
+@@ -26,13 +26,20 @@
+  if hashlib.sha256(dest.read_bytes()).hexdigest()!=digest:raise ValueError('staged copy mismatch')
+  return count
+ def main():
+- p=argparse.ArgumentParser();p.add_argument('--baseline',required=True);p.add_argument('--manifest',nargs=2,required=True,metavar=('PATH','SHA256'));p.add_argument('--head',required=True);p.add_argument('--shoes',required=True);p.add_argument('--hair',required=True);p.add_argument('--pipeline',required=True);p.add_argument('--pose-library',required=True);p.add_argument('--pose-catalog-sha',required=True);p.add_argument('--output',required=True);a=p.parse_args()
++ p=argparse.ArgumentParser();p.add_argument('--baseline',required=True);p.add_argument('--manifest',nargs=2,required=True,metavar=('PATH','SHA256'));p.add_argument('--head',required=True);p.add_argument('--shoes',required=True);p.add_argument('--hair',required=True);p.add_argument('--pipeline',required=True);p.add_argument('--hair-pipeline');p.add_argument('--pose-library',required=True);p.add_argument('--pose-catalog-sha',required=True);p.add_argument('--output',required=True);a=p.parse_args()
+  if not N.fullmatch(a.pipeline) or not N.fullmatch(a.output) or not D.fullmatch(a.pose_catalog_sha):raise ValueError('invalid selection')
+  if PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('private parent unavailable')
+  base=pathlib.Path(a.baseline);pose=pathlib.Path(a.pose_library)
+  if base.is_symlink() or not base.is_dir() or pose.is_symlink() or not pose.is_dir():raise ValueError('trusted source directories required')
+  manifest=json.loads(read_pin(*a.manifest,65536))
+  if set(manifest)!={'schema','base','head','shoes','hair'} or manifest['schema']!=1 or set(manifest['base'])!=set(FILES) or not all(D.fullmatch(v) for v in [*manifest['base'].values(),manifest['head'],manifest['shoes'],manifest['hair']]):raise ValueError('invalid source manifest')
++ hair_ready=None
++ if a.hair_pipeline is not None:
++  if not N.fullmatch(a.hair_pipeline):raise ValueError('invalid hair pipeline')
++  hr=PRIVATE/(a.hair_pipeline+'-ready')/'ready.json'
++  if hr.is_symlink() or not hr.is_file() or hr.stat().st_size>65536:raise ValueError('prepared hair unavailable')
++  hair_ready=json.loads(hr.read_bytes())
++  if hair_ready.get('schema')!=1 or hair_ready.get('game_modified') is not False or not all(isinstance(hair_ready.get(k),str) and D.fullmatch(hair_ready[k]) for k in ('package_sha256','casp_sha256','mesh_sha256','material_sha256')) or not re.fullmatch(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}',hair_ready.get('casp','')):raise ValueError('invalid hair marker')
+  ready_path=PRIVATE/(a.pipeline+'-ready')/'ready.json'
+  if ready_path.is_symlink() or not ready_path.is_file() or ready_path.stat().st_size>65536:raise ValueError('prepared pipeline unavailable')
+  ready=json.loads(ready_path.read_bytes())
+@@ -44,12 +51,15 @@
+  if sum(x.stat().st_size for x in entries)>32*1024*1024:raise ValueError('pose directory budget')
+  output=PRIVATE/a.output;output.mkdir(mode=0o700,exist_ok=False);assets=output/'assets';poses=output/'poses';assets.mkdir(mode=0o700);poses.mkdir(mode=0o700)
+  copied=0;asset_hashes=dict(manifest['base']);mesh_hashes={};pose_hashes={}
+- for name,size in FILES.items():copied+=copy_pin(base/name,assets/name,manifest['base'][name],size)
++ for name,size in FILES.items():
++  if name=='AH00B-SugarHair-V1-Plain.rgba' and hair_ready is not None:
++   copied+=copy_pin(PRIVATE/(a.hair_pipeline+'-diffuse')/'material.rgba',assets/name,hair_ready['material_sha256'],size);asset_hashes[name]=hair_ready['material_sha256']
++  else:copied+=copy_pin(base/name,assets/name,manifest['base'][name],size)
+  copied+=copy_pin(material,assets/'FatalRose-PastelGothDress.2048.rgba',ready['material_sha256'],32*1024*1024);asset_hashes['FatalRose-PastelGothDress.2048.rgba']=ready['material_sha256']
+  for name,path in [('head',a.head),('shoes',a.shoes),('hair',a.hair)]:
+-  source=pathlib.Path(path);size=source.stat().st_size
++  source=PRIVATE/(a.hair_pipeline+'-merged')/'mesh.apxmesh' if name=='hair' and hair_ready is not None else pathlib.Path(path);digest=hair_ready['mesh_sha256'] if name=='hair' and hair_ready is not None else manifest[name];size=source.stat().st_size
+   if not 16<=size<=64*1024*1024:raise ValueError('mesh extent')
+-  copied+=copy_pin(source,output/(name+'.apxmesh'),manifest[name],size);mesh_hashes[name+'.apxmesh']=manifest[name]
++  copied+=copy_pin(source,output/(name+'.apxmesh'),digest,size);mesh_hashes[name+'.apxmesh']=digest
+  for name,source,digest,limit in [('dress.apxmesh',mesh,ready['mesh_sha256'],64*1024*1024),('descriptor.txt',descriptor,ready['descriptor_sha256'],4096)]:
+   size=source.stat().st_size
+   if not 0<size<=limit:raise ValueError('prepared extent')
+@@ -61,6 +71,7 @@
+   digest=a.pose_catalog_sha if source.name=='catalog.json' else hashlib.sha256(source.read_bytes()).hexdigest()
+   copied+=copy_pin(source,poses/source.name,digest,size);pose_hashes[source.name]=digest
+  record={'schema':1,'descriptor_sha256':ready['descriptor_sha256'],'dress_mesh_sha256':ready['mesh_sha256'],'material_sha256':ready['material_sha256'],'pose_catalog_sha256':a.pose_catalog_sha,'baseline_manifest_sha256':a.manifest[1],'asset_hashes':asset_hashes,'mesh_hashes':mesh_hashes,'pose_hashes':pose_hashes,'game_modified':False,'native_fidelity':'unverified','preview_only':True,'bytes':copied}
++ if hair_ready is not None:record['hair_source']={k:hair_ready[k] for k in ('package_sha256','casp','casp_sha256','mesh_sha256','material_sha256')}
+  with (output/'runtime.json').open('x') as f:json.dump(record,f,indent=2)
+  print(json.dumps({'bytes':copied,'pose_files':len(entries),'game_modified':False,'preview_only':True,'native_fidelity':'unverified'}))
+ if __name__=='__main__':main()
+--- a/tools/research/launch_generic_runtime.py
++++ b/tools/research/launch_generic_runtime.py
+@@ -24,7 +24,7 @@
+   pth=root/child
+   if pth.is_symlink() or not pth.is_dir():raise ValueError('runtime directory refused')
+  record=root/'runtime.json';pin(record,a.runtime_sha,1024*1024);data=json.loads(record.read_bytes());keys={'schema','descriptor_sha256','dress_mesh_sha256','material_sha256','pose_catalog_sha256','baseline_manifest_sha256','asset_hashes','mesh_hashes','pose_hashes','game_modified','native_fidelity','preview_only','bytes'}
+- if set(data)!=keys or data['schema']!=1 or data['game_modified'] is not False or data['native_fidelity']!='unverified' or data['preview_only'] is not True or set(data['asset_hashes'])!=ASSETS or set(data['mesh_hashes'])!=MESHES or not isinstance(data['pose_hashes'],dict) or not 1<=len(data['pose_hashes'])<=2048 or data['pose_hashes'].get('catalog.json')!=data['pose_catalog_sha256']:raise ValueError('runtime manifest shape')
++ if set(data) not in (keys,keys|{'hair_source'}) or data['schema']!=1 or data['game_modified'] is not False or data['native_fidelity']!='unverified' or data['preview_only'] is not True or set(data['asset_hashes'])!=ASSETS or set(data['mesh_hashes'])!=MESHES or not isinstance(data['pose_hashes'],dict) or not 1<=len(data['pose_hashes'])<=2048 or data['pose_hashes'].get('catalog.json')!=data['pose_catalog_sha256']:raise ValueError('runtime manifest shape')
+  if set(x.name for x in (root/'assets').iterdir())!=ASSETS or set(x.name for x in (root/'poses').iterdir())!=set(data['pose_hashes']):raise ValueError('runtime file inventory mismatch')
+  for name,digest in data['asset_hashes'].items():pin(root/'assets'/name,digest,32*1024*1024)
+  for name,digest in data['mesh_hashes'].items():pin(root/name,digest,64*1024*1024)
+@@ -33,6 +33,9 @@
+   pin(root/'poses'/name,digest,16*1024*1024)
+  pin(root/'descriptor.txt',data['descriptor_sha256'],4096)
+  if data['mesh_hashes']['dress.apxmesh']!=data['dress_mesh_sha256'] or data['asset_hashes']['FatalRose-PastelGothDress.2048.rgba']!=data['material_sha256']:raise ValueError('prepared asset mismatch')
++ if 'hair_source' in data:
++  h=data['hair_source']
++  if type(h)is not dict or set(h)!={'package_sha256','casp','casp_sha256','mesh_sha256','material_sha256'} or not all(isinstance(h[k],str) and D.fullmatch(h[k]) for k in ('package_sha256','casp_sha256','mesh_sha256','material_sha256')) or not isinstance(h['casp'],str) or not re.fullmatch(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}',h['casp']) or h['mesh_sha256']!=data['mesh_hashes']['hair.apxmesh'] or h['material_sha256']!=data['asset_hashes']['AH00B-SugarHair-V1-Plain.rgba']:raise ValueError('prepared hair identity')
+  binary=pathlib.Path(a.binary);pin(binary,a.binary_sha,64*1024*1024)
+  env={'PATH':'/usr/bin:/bin','APEX_GENERIC_DRESS':str(root/'descriptor.txt'),'APEX_GENERIC_DRESS_SHA256':data['descriptor_sha256'],'APEX_POSE_LIBRARY':str(root/'poses'),'APEX_REQUEST_BUDGET':'1000'}
+  fields=(a.catalog_index,a.catalog_index_sha,a.catalog_helper,a.catalog_helper_sha,a.catalog_policy)
+--- a/tools/research/build_scene_bindings.py
++++ b/tools/research/build_scene_bindings.py
+@@ -26,23 +26,31 @@
+  try:
+   for token,row in obj['scenes'].items():
+    if not isinstance(token,str) or not T.fullmatch(token):raise ValueError('scene token')
+-   spec=row['spec'];name=spec['runtime']
+-   if not isinstance(name,str) or not N.fullmatch(name) or spec['catalog']!=cat:raise ValueError('runtime binding')
++   if type(row)is not dict or set(row) not in ({'label','spec'},{'label','spec','bind_slot'}):raise ValueError('scene row')
++   spec=row['spec'];name=spec['runtime'];slot=row.get('bind_slot','dress')
++   if slot not in ('dress','hair') or not isinstance(name,str) or not N.fullmatch(name) or spec['catalog']!=cat:raise ValueError('runtime binding')
+    runtime=PRIVATE/name
+    if runtime.is_symlink() or not runtime.is_dir():raise ValueError('runtime unavailable')
+    marker=runtime/'runtime.json';pin(marker,spec['runtime_sha'],1024*1024);m=json.loads(marker.read_bytes());desc=runtime/'descriptor.txt';pin(desc,m['descriptor_sha256'],4096);lines=desc.read_text('ascii').splitlines()
+    if len(lines)!=7 or lines[0]!='APX-GENERIC-DRESS-1' or lines[1]!=spec['swatch_id'] or not D.fullmatch(lines[6]):raise ValueError('scene source identity')
+-   rows=db.execute("SELECT part_id,row_json FROM parts WHERE json_extract(row_json,'$.package_sha256')=? AND json_extract(row_json,'$.resource_tgi')=? LIMIT 2",(lines[6],lines[1])).fetchall()
++   if slot=='hair':
++    h=m.get('hair_source')
++    if type(h)is not dict or set(h)!={'package_sha256','casp','casp_sha256','mesh_sha256','material_sha256'} or h['mesh_sha256']!=m['mesh_hashes']['hair.apxmesh'] or h['material_sha256']!=m['asset_hashes']['AH00B-SugarHair-V1-Plain.rgba']:raise ValueError('hair source identity')
++    package_id,casp_id=h['package_sha256'],h['casp']
++   else:package_id,casp_id=lines[6],lines[1]
++   if not isinstance(package_id,str) or not D.fullmatch(package_id) or not isinstance(casp_id,str) or not re.fullmatch(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}',casp_id):raise ValueError('slot source identity')
++   rows=db.execute("SELECT part_id,row_json FROM parts WHERE json_extract(row_json,'$.package_sha256')=? AND json_extract(row_json,'$.resource_tgi')=? LIMIT 2",(package_id,casp_id)).fetchall()
+    if len(rows)!=1:raise ValueError('catalog mapping missing or ambiguous')
+    part,raw=rows[0]
+    if not isinstance(part,str) or not D.fullmatch(part) or len(raw)>1024*1024:raise ValueError('part identity')
+    decoded=json.loads(raw)
+-   if decoded.get('part_id')!=part or decoded.get('package_sha256')!=lines[6] or decoded.get('resource_tgi')!=lines[1]:raise ValueError('catalog row mismatch')
+-   items.append({'part_id':part,'token':token})
++   if decoded.get('part_id')!=part or decoded.get('package_sha256')!=package_id or decoded.get('resource_tgi')!=casp_id:raise ValueError('catalog row mismatch')
++   if slot=='hair' and decoded.get('resource_sha256')!=h['casp_sha256']:raise ValueError('hair CASP hash mismatch')
++   items.append({'part_id':part,'token':token,'kind':slot})
+  finally:db.close()
+  if len({x['part_id'] for x in items})!=len(items):raise ValueError('ambiguous part binding')
+  pin(index,cat['index_sha'],256*1024*1024)
+- output=PRIVATE/a.output;output.mkdir(mode=0o700,exist_ok=False);data={'schema':1,'catalog_sha256':cat['index_sha'],'items':items,'inspect_only':True,'game_modified':False}
++ output=PRIVATE/a.output;output.mkdir(mode=0o700,exist_ok=False);data={'schema':2,'catalog_sha256':cat['index_sha'],'items':items,'inspect_only':True,'game_modified':False}
+  with (output/'bindings.json').open('x') as f:json.dump(data,f,indent=2)
+  print(json.dumps({'bound_parts':len(items),'inspect_only':True,'game_modified':False}))
+ if __name__=='__main__':main()
+--- a/tools/research/scene_gateway.py
++++ b/tools/research/scene_gateway.py
+@@ -26,10 +26,10 @@
+  def __init__(self,owner,labels,bindings=None):
+   if set(labels)!=set(owner.specs) or any(not isinstance(k,str) or not TOKEN.fullmatch(k) or not isinstance(v,str) or not 1<=len(v)<=80 or any(ord(c)<32 or ord(c)==127 for c in v) for k,v in labels.items()):raise ValueError('invalid labels')
+   if bindings is not None:
+-   if type(bindings)is not dict or set(bindings)!={'schema','catalog_sha256','items','inspect_only','game_modified'} or bindings['schema']!=1 or bindings['inspect_only'] is not True or bindings['game_modified'] is not False or not isinstance(bindings['catalog_sha256'],str) or not re.fullmatch(r'[a-f0-9]{64}',bindings['catalog_sha256']) or not isinstance(bindings['items'],list) or not 1<=len(bindings['items'])<=8:raise ValueError('invalid prepared bindings')
++   if type(bindings)is not dict or set(bindings)!={'schema','catalog_sha256','items','inspect_only','game_modified'} or bindings['schema'] not in (1,2) or bindings['inspect_only'] is not True or bindings['game_modified'] is not False or not isinstance(bindings['catalog_sha256'],str) or not re.fullmatch(r'[a-f0-9]{64}',bindings['catalog_sha256']) or not isinstance(bindings['items'],list) or not 1<=len(bindings['items'])<=8:raise ValueError('invalid prepared bindings')
+    seen=set();seen_tokens=set()
+    for row in bindings['items']:
+-    if type(row)is not dict or set(row)!={'part_id','token'} or not isinstance(row['part_id'],str) or not re.fullmatch(r'[a-f0-9]{64}',row['part_id']) or not isinstance(row['token'],str) or row['part_id'] in seen or row['token'] in seen_tokens or row['token'] not in owner.specs or owner.specs[row['token']].get('catalog',{}).get('index_sha')!=bindings['catalog_sha256']:raise ValueError('invalid prepared binding')
++    if type(row)is not dict or set(row)!=({'part_id','token'} if bindings['schema']==1 else {'part_id','token','kind'}) or (bindings['schema']==2 and row['kind'] not in ('dress','hair')) or not isinstance(row['part_id'],str) or not re.fullmatch(r'[a-f0-9]{64}',row['part_id']) or not isinstance(row['token'],str) or row['part_id'] in seen or row['token'] in seen_tokens or row['token'] not in owner.specs or owner.specs[row['token']].get('catalog',{}).get('index_sha')!=bindings['catalog_sha256']:raise ValueError('invalid prepared binding')
+     seen.add(row['part_id']);seen_tokens.add(row['token'])
+   self.owner=owner;self.labels=dict(labels);self.bindings=None if bindings is None else json.loads(json.dumps(bindings));self.slots=threading.BoundedSemaphore(4);super().__init__(('127.0.0.1',0),Handler);self.expected_host='127.0.0.1:'+str(self.server_address[1]);self.expected_origin='http://'+self.expected_host
+  def process_request(self,request,client_address):
+--- a/tools/research/run_scene_gateway.py
++++ b/tools/research/run_scene_gateway.py
+@@ -18,7 +18,7 @@
+  if type(obj)is not dict or set(obj)!={'schema','initial','scenes'} or obj['schema']!=1 or type(obj['scenes'])is not dict or obj['initial'] not in obj['scenes']:raise ValueError('config shape')
+  specs={};labels={}
+  for token,row in obj['scenes'].items():
+-  if not isinstance(token,str) or not TOKEN.fullmatch(token) or type(row)is not dict or set(row)!={'label','spec'}:raise ValueError('scene config')
++  if not isinstance(token,str) or not TOKEN.fullmatch(token) or type(row)is not dict or set(row) not in ({'label','spec'},{'label','spec','bind_slot'}) or row.get('bind_slot','dress') not in ('dress','hair'):raise ValueError('scene config')
+   specs[token]=row['spec'];labels[token]=row['label']
+  bindings=None
+  if (a.bindings is None)!=(a.bindings_sha is None):raise ValueError('complete bindings pin required')
+--- a/tools/research/prepared_dress_actions.mjs
++++ b/tools/research/prepared_dress_actions.mjs
+@@ -4,6 +4,6 @@
+  let map=null,generation=null,busy=false;
+  const status=document.createElement('p');status.setAttribute('role','status');status.textContent='Checking prepared preview matches…';root.before(status);
+  const timed=async(path,options={},ms=8000)=>{const c=new AbortController(),timer=setTimeout(()=>c.abort(),ms);try{return await fetch(path,{...options,signal:c.signal,cache:'no-store',redirect:'error'});}finally{clearTimeout(timer);}};
+- const refresh=()=>{if(!map)return;for(const card of root.children){const token=map.get(card.dataset.partId);if(!token||card.querySelector('[data-prepared-dress-action]'))continue;const button=document.createElement('button');button.type='button';button.dataset.preparedDressAction='1';button.textContent='Preview prepared dress';button.title='Preview only; this does not equip or change the game.';button.addEventListener('click',async()=>{if(busy)return;busy=true;button.disabled=true;status.textContent='Preparing selected preview; no game changes.';try{const r=await timed('/scene-switch',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token,generation})},45000);if(!r.ok)throw Error('Selection failed or became stale');location.assign('/cas-room');}catch(e){status.textContent=e.message+'; refresh to check the current scene before trying again.';map=null;for(const x of root.querySelectorAll('[data-prepared-dress-action]'))x.disabled=true;}});card.append(button);}};
+- try{const [mr,cr,sr]=await Promise.all([timed('/prepared-dresses'),timed('/cc-catalog-state'),timed('/scene-catalog')]);if(!mr.ok||!cr.ok||!sr.ok)throw Error('Prepared preview matches unavailable');const [m,c,s]=await Promise.all([mr.json(),cr.json(),sr.json()]);if(m.schema!==1||m.inspect_only!==true||m.game_modified!==false||!Array.isArray(m.items)||m.items.length>8||!c.enabled||c.catalog_sha256!==m.catalog_sha256||!Number.isSafeInteger(s.generation))throw Error('Prepared preview identity mismatch');const tokens=new Set(s.entries.map(x=>x.token));map=new Map();for(const x of m.items){if(!/^[a-f0-9]{64}$/.test(x.part_id)||!/^[a-f0-9]{32}$/.test(x.token)||!tokens.has(x.token)||map.has(x.part_id))throw Error('Invalid prepared preview binding');map.set(x.part_id,x.token);}generation=s.generation;status.textContent='Prepared matches are preview only; no game changes.';new MutationObserver(refresh).observe(root,{childList:true});refresh();}catch(e){map=null;status.textContent='Prepared preview matches unavailable.';}
++ const refresh=()=>{if(!map)return;for(const card of root.children){const binding=map.get(card.dataset.partId);if(!binding||card.querySelector('[data-prepared-dress-action]'))continue;const button=document.createElement('button');button.type='button';button.dataset.preparedDressAction='1';button.textContent='Preview prepared '+binding.kind+' combo';button.title='Opens a prepared combination; other appearance choices can change. No game changes.';button.addEventListener('click',async()=>{if(busy)return;busy=true;button.disabled=true;status.textContent='Preparing selected preview; no game changes.';try{const r=await timed('/scene-switch',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:binding.token,generation})},45000);if(!r.ok)throw Error('Selection failed or became stale');location.assign('/cas-room');}catch(e){status.textContent=e.message+'; refresh to check the current scene before trying again.';map=null;for(const x of root.querySelectorAll('[data-prepared-dress-action]'))x.disabled=true;}});card.append(button);}};
++ try{const [mr,cr,sr]=await Promise.all([timed('/prepared-dresses'),timed('/cc-catalog-state'),timed('/scene-catalog')]);if(!mr.ok||!cr.ok||!sr.ok)throw Error('Prepared preview matches unavailable');const [m,c,s]=await Promise.all([mr.json(),cr.json(),sr.json()]);if(![1,2].includes(m.schema)||m.inspect_only!==true||m.game_modified!==false||!Array.isArray(m.items)||m.items.length>8||!c.enabled||c.catalog_sha256!==m.catalog_sha256||!Number.isSafeInteger(s.generation))throw Error('Prepared preview identity mismatch');const tokens=new Set(s.entries.map(x=>x.token));map=new Map();for(const x of m.items){if(!/^[a-f0-9]{64}$/.test(x.part_id)||!/^[a-f0-9]{32}$/.test(x.token)||!tokens.has(x.token)||map.has(x.part_id))throw Error('Invalid prepared preview binding');const kind=m.schema===1?'dress':x.kind;if(!['dress','hair'].includes(kind))throw Error('Invalid prepared slot');map.set(x.part_id,{token:x.token,kind});}generation=s.generation;status.textContent='Prepared matches are preview only; no game changes.';new MutationObserver(refresh).observe(root,{childList:true});refresh();}catch(e){map=null;status.textContent='Prepared preview matches unavailable.';}
+ }
+--- a/tools/research/test_prepared_dress_actions.mjs
++++ b/tools/research/test_prepared_dress_actions.mjs
+@@ -1,13 +1,15 @@
+ // Synthetic DOM only; does not claim browser or native CAS acceptance.
+ import test from 'node:test';import assert from 'node:assert/strict';
+ class E{constructor(){this.children=[];this.dataset={};this.handlers={};this.disabled=false;this.textContent='';}append(...xs){this.children.push(...xs);}before(x){this.beforeNode=x;}setAttribute(){}addEventListener(n,f){this.handlers[n]=f;}querySelector(q){return q==='[data-prepared-dress-action]'?this.children.find(x=>x.dataset.preparedDressAction):null;}querySelectorAll(q){return q==='[data-prepared-dress-action]'?this.children.flatMap(c=>c.children.filter(x=>x.dataset.preparedDressAction)):[];}}
+-async function scenario({mismatch=false,fail=false}={}){
++async function scenario({mismatch=false,fail=false,hair=false}={}){
+  const saved={document:globalThis.document,fetch:globalThis.fetch,location:globalThis.location,MutationObserver:globalThis.MutationObserver};const root=new E(),known=new E(),unknown=new E();known.dataset.partId='a'.repeat(64);unknown.dataset.partId='c'.repeat(64);root.children=[known,unknown];let posts=0,navigated=0,obs=null;
+  globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.MutationObserver=class{constructor(f){obs=f}observe(){}};globalThis.location={assign(path){assert.equal(path,'/cas-room');navigated++;}};
+- globalThis.fetch=async(path,opts)=>{if(path==='/prepared-dresses')return {ok:true,json:async()=>({schema:1,catalog_sha256:'b'.repeat(64),inspect_only:true,game_modified:false,items:[{part_id:'a'.repeat(64),token:'1'.repeat(32)}]})};if(path==='/cc-catalog-state')return {ok:true,json:async()=>({enabled:true,catalog_sha256:(mismatch?'d':'b').repeat(64)})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:5,entries:[{token:'1'.repeat(32)}]})};assert.equal(path,'/scene-switch');posts++;assert.deepEqual(JSON.parse(opts.body),{token:'1'.repeat(32),generation:5});return {ok:!fail};};
+- try{await import('./prepared_dress_actions.mjs?case='+Math.random());assert.equal(posts,0);assert.equal(unknown.children.length,0);if(mismatch){assert.equal(known.children.length,0);return;}assert.equal(known.children.length,1);obs();assert.equal(known.children.length,1);const button=known.children[0];assert.match(button.textContent,/Preview/);await button.handlers.click();assert.equal(posts,1);assert.equal(navigated,fail?0:1);if(fail){assert.equal(button.disabled,true);assert.match(root.beforeNode.textContent,/refresh/);}}
++ globalThis.fetch=async(path,opts)=>{if(path==='/prepared-dresses')return {ok:true,json:async()=>({schema:hair?2:1,catalog_sha256:'b'.repeat(64),inspect_only:true,game_modified:false,items:[{part_id:'a'.repeat(64),token:'1'.repeat(32),...(hair?{kind:'hair'}:{})}]})};if(path==='/cc-catalog-state')return {ok:true,json:async()=>({enabled:true,catalog_sha256:(mismatch?'d':'b').repeat(64)})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:5,entries:[{token:'1'.repeat(32)}]})};assert.equal(path,'/scene-switch');posts++;assert.deepEqual(JSON.parse(opts.body),{token:'1'.repeat(32),generation:5});return {ok:!fail};};
++ try{await import('./prepared_dress_actions.mjs?case='+Math.random());assert.equal(posts,0);assert.equal(unknown.children.length,0);if(mismatch){assert.equal(known.children.length,0);return;}assert.equal(known.children.length,1);obs();assert.equal(known.children.length,1);const button=known.children[0];assert.match(button.textContent,hair?/hair combo/:/dress combo/);await button.handlers.click();assert.equal(posts,1);assert.equal(navigated,fail?0:1);if(fail){assert.equal(button.disabled,true);assert.match(root.beforeNode.textContent,/refresh/);}}
+  finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
+ }
+ test('only exact catalog parts receive explicit preview action',async()=>scenario());
+ test('wrong catalog identity exposes no actions',async()=>scenario({mismatch:true}));
+ test('uncertain switch requires refresh rather than retry',async()=>scenario({fail:true}));
++
++test('hair binding names a prepared combination, not an equip',async()=>scenario({hair:true}));
+--- /dev/null
++++ b/tools/research/prepare_hair_pipeline.py
+@@ -0,0 +1,41 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Private trusted-parent pipeline for one pinned hair CASP diagnostic.
++
++Only declared package-local LOD-0 meshes and top diffuse are prepared. It does
++not prove age/rig, shader, transparency or native-game fidelity, is not a
++sandbox, and does not modify game files. Failed stages are retained.
++"""
++import argparse,hashlib,json,pathlib,re,subprocess,sys
++root=pathlib.Path(__file__).resolve().parents[1];private=root/'private-input-recovery';D=re.compile(r'[a-f0-9]{64}\Z');N=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z');CASP=re.compile(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}\Z')
++def sha(p):
++ h=hashlib.sha256()
++ with p.open('rb') as f:
++  for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
++ return h.hexdigest()
++def run(script,args):
++ x=subprocess.run([sys.executable,str(root/'rig-recovery'/script),*map(str,args)],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90)
++ if len(x.stdout)>65536 or len(x.stderr)>65536:raise ValueError('stage output bound')
++ if x.returncode:raise ValueError('stage failed: '+script+'; '+x.stderr.decode('utf8','replace')[-1000:])
++def main():
++ p=argparse.ArgumentParser()
++ for f in ('package','package-sha','casp','casp-sha','rig','rig-sha','name'):p.add_argument('--'+f,required=True)
++ a=p.parse_args()
++ if not N.fullmatch(a.name) or not CASP.fullmatch(a.casp) or not all(D.fullmatch(x) for x in (a.package_sha,a.casp_sha,a.rig_sha)):raise ValueError('invalid selected identity')
++ if private.is_symlink() or not private.is_dir():raise ValueError('private parent unavailable')
++ names=[a.name+'-resolution',a.name+'-diffuse',a.name+'-merged',a.name+'-ready']+[a.name+'-geom-'+str(i) for i in range(8)]
++ if any((private/n).exists() or (private/n).is_symlink() for n in names):raise ValueError('fresh run name required')
++ run('resolve_pinned_casp.py',['--package',a.package,'--package-sha',a.package_sha,'--casp',a.casp,'--casp-sha',a.casp_sha,'--output',names[0]])
++ res=private/names[0]/'resolution.json';m=json.loads(res.read_bytes())
++ if m['body_type']!=2:raise ValueError('hair CASP required; age/rig compatibility still unverified')
++ geom=[x for x in m['references'] if x['role']=='lod-0'];texture=[x for x in m['references'] if x['role']=='texture']
++ if not 1<=len(geom)<=8 or len(texture)!=1 or any(x['state']!='source-present-not-rendered' for x in geom+texture):raise ValueError('required resources missing')
++ run('prepare_pinned_diffuse.py',['--package',a.package,'--package-sha',a.package_sha,'--casp',a.casp,'--casp-sha',a.casp_sha,'--texture-sha',texture[0]['sha256'],'--slot','hair','--output',names[1]])
++ projection=[]
++ for i,g in enumerate(geom):
++  n=names[4+i];run('project_pinned_geom.py',['--package',a.package,'--package-sha',a.package_sha,'--geom',g['resolved'],'--geom-sha',g['sha256'],'--rig',a.rig,'--rig-sha',a.rig_sha,'--output',n]);p=private/n/'report.json';projection+=['--projection',p,sha(p)]
++ run('merge_resolved_lod.py',['--resolution',res,sha(res),*projection,'--output',names[2]])
++ mesh=json.loads((private/names[2]/'report.json').read_bytes());material=json.loads((private/names[1]/'report.json').read_bytes());payload={'schema':1,'package_sha256':a.package_sha,'casp':a.casp,'casp_sha256':a.casp_sha,'mesh_sha256':mesh['mesh_sha256'],'material_sha256':material['material_sha256'],'source_meshes':len(geom),'game_modified':False,'native_fidelity':'unverified','age_rig_compatibility':'unverified'}
++ ready=private/names[3];ready.mkdir(mode=0o700,exist_ok=False)
++ with (ready/'ready.json').open('x') as f:json.dump(payload,f,indent=2)
++ print(json.dumps({'source_meshes':len(geom),'game_modified':False,'native_fidelity':'unverified','age_rig_compatibility':'unverified'}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/preview-ui/private-catalog-gateway-eight-smoke.mjs
+@@ -0,0 +1,4 @@
++// Real-source loopback smoke using production catalog controller, not browser QA.
++import assert from 'node:assert/strict';import {CatalogBrowser} from './cc-library-model.mjs';
++const base=process.argv[2];assert.match(base,/^http:\/\/127\.0\.0\.1:\d+$/);let resolve,reject;const done=new Promise((a,b)=>{resolve=a;reject=b;});const timer=setTimeout(()=>reject(Error('catalog timeout')),20000);let browser;
++try{browser=new CatalogBrowser({fetchImpl:(path,opts)=>fetch(base+path,opts),onChange:b=>{if(b.state==='ready')resolve(b);if(['error','invalid'].includes(b.state))reject(Error(b.message));}});browser.recheck();const b=await done;assert.equal(b.page.total,216);assert.equal(b.page.items.length,24);assert.equal(b.page.inspect_only,true);assert.equal(b.page.equip_allowed,false);console.log(JSON.stringify({total:b.page.total,shown:b.page.items.length,inspectOnly:true,equipAllowed:false,browserTested:false}));}finally{clearTimeout(timer);browser?.dispose();}

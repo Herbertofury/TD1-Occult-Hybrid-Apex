@@ -1,6 +1,7 @@
 import copy
 import csv
 import hashlib
+import inspect
 import random
 from pathlib import Path
 import sys
@@ -198,6 +199,8 @@ class OfflineEvidenceTests(unittest.TestCase):
         self.assertEqual(run.call_count,2)
         result=__import__('json').loads(paths['metadata'].read_text())
         self.assertEqual(result['state'],'invalid');self.assertTrue(result['cleanup_stop_succeeded'])
+        self.assertEqual(result['stop_outcome'],'confirmed_stopped')
+        self.assertFalse(result['manual_inspection_required'])
         self.assertEqual(result['capture_error_type'],'KeyboardInterrupt')
         self.assertEqual(run.call_args_list[1][0][0],[str(executable),'-stop',result['offline_etw']['session']])
 
@@ -216,6 +219,51 @@ class OfflineEvidenceTests(unittest.TestCase):
         result=__import__('json').loads(paths['metadata'].read_text())
         self.assertEqual(result['state'],'invalid');self.assertEqual(result['start_outcome'],'uncertain')
         self.assertTrue(result['manual_inspection_required'])
+
+    def test_interrupt_between_start_return_and_started_assignment_is_uncertain(self):
+        executable=self.work/'xperf.exe';executable.write_bytes(b'fixture')
+        state=self.work/'state.json';state.write_text('{}')
+        args=SimpleNamespace(state=state,xperf_sha256=hashlib.sha256(executable.read_bytes()).hexdigest(),
+            pid=123,mode='baseline',seconds=5,exe=self.work/'game',exe_sha256='1'*64)
+        paths={key:self.work/('run'+suffix) for key,suffix in [('csv','.csv'),('log','.log'),('metadata','.json')]}
+        lines,first=inspect.getsourcelines(offline.capture)
+        target=first+next(i for i,line in enumerate(lines) if line.strip()=='started=True')
+        def trace(frame,event,arg):
+            if frame.f_code is offline.capture.__code__ and event=='line' and frame.f_lineno==target:
+                raise KeyboardInterrupt('after confirmed command return, before assignment')
+            return trace
+        with patch.object(offline,'XPERF',executable), \
+                patch.object(offline.base,'verify_start',return_value=(self.work,paths,{'process_creation_filetime':42},{},'a'*64)), \
+                patch.object(offline.shutil,'disk_usage',return_value=SimpleNamespace(free=3*1024**3)), \
+                patch.object(offline,'run_to_log') as run:
+            try:
+                sys.settrace(trace)
+                with self.assertRaises(KeyboardInterrupt):offline.capture(args)
+            finally:sys.settrace(None)
+        self.assertEqual(run.call_count,1)
+        result=__import__('json').loads(paths['metadata'].read_text())
+        self.assertEqual(result['state'],'invalid')
+        self.assertEqual(result['start_outcome'],'uncertain')
+        self.assertTrue(result['manual_inspection_required'])
+
+    def test_uncertain_start_is_persisted_before_launch(self):
+        executable=self.work/'xperf.exe';executable.write_bytes(b'fixture')
+        state=self.work/'state.json';state.write_text('{}')
+        args=SimpleNamespace(state=state,xperf_sha256=hashlib.sha256(executable.read_bytes()).hexdigest(),
+            pid=123,mode='baseline',seconds=5,exe=self.work/'game',exe_sha256='1'*64)
+        paths={key:self.work/('run'+suffix) for key,suffix in [('csv','.csv'),('log','.log'),('metadata','.json')]}
+        def observe_journal(*unused):
+            result=__import__('json').loads(paths['metadata'].read_text())
+            self.assertEqual(result['state'],'starting')
+            self.assertEqual(result['start_outcome'],'uncertain')
+            self.assertTrue(result['manual_inspection_required'])
+            raise KeyboardInterrupt('simulated interruption in start')
+        with patch.object(offline,'XPERF',executable), \
+                patch.object(offline.base,'verify_start',return_value=(self.work,paths,{'process_creation_filetime':42},{},'a'*64)), \
+                patch.object(offline.shutil,'disk_usage',return_value=SimpleNamespace(free=3*1024**3)), \
+                patch.object(offline,'run_to_log',side_effect=observe_journal) as run:
+            with self.assertRaises(KeyboardInterrupt):offline.capture(args)
+        self.assertEqual(run.call_count,1)
 
     def test_uncertain_cleanup_stop_is_not_retried(self):
         executable=self.work/'xperf.exe';executable.write_bytes(b'fixture')

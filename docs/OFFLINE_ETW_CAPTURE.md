@@ -45,8 +45,10 @@ the adapter does not blindly retry or stop a generic session. Catchable
 interruptions after a confirmed start trigger one attempt to stop that owned
 session; a failed or uncertain stop is not retried automatically. An
 uncatchable process kill or machine interruption can leave a session behind.
-The metadata written before starting records its unique name and intended ETL
-path. Query xperf/logman read-only, verify both name and path, and stop only
+Before launching xperf, metadata records `state: starting`, an uncertain start
+outcome, a manual-inspection requirement, the unique name and intended ETL
+path. The flag remains set while the session may exist and is cleared only
+after a confirmed stop. Query xperf/logman read-only, verify both name and path, and stop only
 that exact verified owned session if still running. Never use upstream's example stop script, which
 uses generic session names and can affect unrelated sessions.
 

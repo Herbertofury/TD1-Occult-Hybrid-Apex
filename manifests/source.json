@@ -167,6 +167,12 @@
       "sha256": "a1ca7c21f8a68afe92d020ef10f14865a9a66c6cf74c1be8c6f44e1e2277fbd8"
     },
     {
+      "bytes": 24038,
+      "mode": "100644",
+      "path": "tools/offline_xperf.py",
+      "sha256": "825345eb895da3280c653b28d8792e22c1d370740e00c03c1720d2e146d350fb"
+    },
+    {
       "bytes": 5245,
       "mode": "100644",
       "path": "Metadata/src/identity.rs",
@@ -1275,12 +1281,6 @@
       "mode": "100644",
       "path": "tests/test_saved_named_forms.py",
       "sha256": "d93cda095c6674b2b644f7485ae2783265babf6cf8dd1fa3eb4edfe2020b6984"
-    },
-    {
-      "bytes": 23590,
-      "mode": "100644",
-      "path": "tools/offline_xperf.py",
-      "sha256": "d70700c2cd99228bc86d803d0a51e8decc432142eac2353da2e9f96dd53c0ac5"
     },
     {
       "bytes": 4953,
@@ -3659,12 +3659,6 @@
       "sha256": "415583100b72347ceaa01e839269af7c8e235cbb7b0433e4e456d9e7f899cbe5"
     },
     {
-      "bytes": 7770,
-      "mode": "100644",
-      "path": "docs/OFFLINE_ETW_CAPTURE.md",
-      "sha256": "46e4510d14058d6baafdd71ac655b623f9437483f34327b399119b5cb3d794bf"
-    },
-    {
       "bytes": 4826,
       "mode": "100644",
       "path": "tests/test_serialization_shared_guard.py",
@@ -4499,6 +4493,12 @@
       "sha256": "3234d1c8847e2288774740b40633129a913db1790e7fdd5bb788500203ebfbc7"
     },
     {
+      "bytes": 22253,
+      "mode": "100644",
+      "path": "tests/test_offline_xperf.py",
+      "sha256": "526e068eae4a18454efd83c239c96e4a5430a8c3d9de45b9eeeb96710a4e0d58"
+    },
+    {
       "bytes": 14503,
       "mode": "100644",
       "path": "wiki/How-Apex-Works.md",
@@ -4833,6 +4833,12 @@
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexNativeServiceProfilerWin.h",
       "sha256": "56fb14b42ad8e0a39619633f391e8bc6a9140600dd4b573093af68cccf434d28"
+    },
+    {
+      "bytes": 7939,
+      "mode": "100644",
+      "path": "docs/OFFLINE_ETW_CAPTURE.md",
+      "sha256": "6d21cc3b1cf0c1264324c9e910c66126478430b2a21c9e6a8267eff81a85d611"
     },
     {
       "bytes": 10450,
@@ -6153,12 +6159,6 @@
       "mode": "100644",
       "path": "tests/test_cas_preflight_refresh.py",
       "sha256": "5e791ff70fe9731e66e4603315a1c48e611b3eaba6e8adcedff1323b43e2b583"
-    },
-    {
-      "bytes": 18960,
-      "mode": "100644",
-      "path": "tests/test_offline_xperf.py",
-      "sha256": "3ec41c4e622fd6a6abba71cdad9c48e8db4eca38f76e8a58d44426a72914bf67"
     },
     {
       "bytes": 6293,

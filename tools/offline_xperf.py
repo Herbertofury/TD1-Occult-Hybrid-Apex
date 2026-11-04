@@ -249,7 +249,10 @@ def capture(args):
     parse=[str(base.PRESENTMON),'--etl_file',str(paths['etl']),'--process_id',str(args.pid),
         '--qpc_time','--no_track_input','--no_track_gpu','--no_track_display','--no_console_stats',
         '--output_file',str(paths['raw_csv'])]
-    record=dict(schema=1,state='prepared',mode='actions',benchmark_mode=args.mode,
+    # Persist uncertainty before launching xperf. If this process is killed at
+    # any point while the trace may exist, the journal remains conservative.
+    record=dict(schema=1,state='starting',start_outcome='uncertain',manual_inspection_required=True,
+        mode='actions',benchmark_mode=args.mode,
         capture_backend='xperf_etl',capture_kind=base.CAPTURE_KIND,configured_seconds=args.seconds,
         profile=str(profile),target_pid=args.pid,game_exe_sha256=args.exe_sha256,window_before=before,
         collector_sha256=base.PRESENTMON_SHA,collector_command=parse,mod_state_sha256=mods_sha,
@@ -262,13 +265,14 @@ def capture(args):
     base._write(paths['metadata'],record,True)
     started=False;stop_attempted=False
     try:
-        try:run_to_log(start,paths['startlog'],30)
+        try:
+            run_to_log(start,paths['startlog'],30)
+            started=True
         except BaseException as error:
-            record['start_outcome']='uncertain';record['manual_inspection_required']=True
-            if isinstance(error,Exception):
+            if not started and isinstance(error,Exception):
                 raise RuntimeError('Trace start failed or timed out; inspect exact owned session and path before any stop') from error
             raise
-        started=True
+        record['start_outcome']='confirmed_started'
         actual_buffers=snapshot_logger(session,paths['etl'],paths['logger'])
         record['offline_etw'].update(actual_buffers=actual_buffers,logger_sha256=base.sha(paths['logger']))
         current=base.window_snapshot(args.pid,Path(args.exe).resolve(),before['process_creation_filetime'])
@@ -307,6 +311,7 @@ def capture(args):
             raise ValueError('Actual ETW buffer configuration changed')
         record['offline_etw']['logger_end_sha256']=base.sha(paths['logger_end'])
         stop_attempted=True;run_to_log(stop,paths['stoplog'],30);started=False
+        record['stop_outcome']='confirmed_stopped';record['manual_inspection_required']=False
         if not paths['etl'].is_file() or not 0<paths['etl'].stat().st_size<(MAX_MB-1)*1024**2:
             raise ValueError('ETL missing, empty or near its fixed size limit')
         run_to_log([str(XPERF),'-i',str(paths['etl']),'-a','tracestats','-timespan'],paths['header'],30)
@@ -331,7 +336,8 @@ def capture(args):
         if started and not stop_attempted:
             try:
                 run_to_log(stop,paths['stoplog'],30);started=False
-                record['cleanup_stop_succeeded']=True
+                record.update(start_outcome='confirmed_started',stop_outcome='confirmed_stopped',
+                              cleanup_stop_succeeded=True,manual_inspection_required=False)
             except BaseException as cleanup:
                 record['cleanup_error']=str(cleanup);record['cleanup_error_type']=type(cleanup).__name__;record['manual_inspection_required']=True
         elif started:

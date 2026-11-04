@@ -67,3 +67,21 @@ region entries. The inspection path now exposes those bindings for later rendere
 work and keeps unmatched or ambiguous cases explicit. It does not load mesh
 geometry, decide visibility, or render the scene. Game/live state and the protected
 profile were not accessed for these checks.
+
+## Cross-package resource chain
+
+In one small installed pack, a selected CASP's mesh, diffuse, shadow and specular
+references each had a unique candidate across the supplied simulation and client
+indexes. Their expanded-payload SHA-256 values matched s4py. The sampled mesh was
+GEOM version 12 with 66 vertices and 72 triangles; positions, normals, first UVs
+and indices matched the independent Blender GEOM reader by private digest. This
+does not validate bone mapping, remaining vertex attributes or rendered output.
+
+The same mesh's recognized material fields yielded two candidate references,
+diffuse and alpha. Their indices matched the independent GEOM reader; both
+resource keys were missing from that deliberately limited package pair. The CASP's
+own diffuse and shadow used RLE2 resources and its specular used RLES. Their
+package payloads were verified, but no RLE2/RLES image was decoded or rendered.
+The CASP's region map remained ambiguous across the two indexes, so no load-order
+winner was selected. The samples are small and do not establish general CAS or
+custom-content compatibility. No game or creator assets are included here.

@@ -112,3 +112,35 @@ test('old and recent synthetic CASPs agree with the independent C# reader', { sk
     assert.equal(compareCaspReference(sample(version), process.env.DOTNET_BIN, process.env.CASP_ORACLE_DLL).meshReferences, 1);
   }
 });
+
+test('cross-package dependency probe verifies payloads and emits aggregate results', { skip: !(process.env.S4PY_ROOT && process.env.S4PY_PYTHON) }, async () => {
+  function packageFile(items) {
+    let offset = 96;
+    const rows = [], payloads = [];
+    for (const item of items) {
+      rows.push(...item.key.map(dword), dword(offset), dword(item.data.length), dword(item.data.length));
+      payloads.push(item.data); offset += item.data.length;
+    }
+    const index = Buffer.concat([dword(0), ...rows]), header = Buffer.alloc(96);
+    header.write('DBPF'); header.writeUInt32LE(2, 4); header.writeUInt32LE(1, 8);
+    header.writeUInt32LE(items.length, 36); header.writeUInt32LE(index.length, 44); header.writeUInt32LE(offset, 64);
+    return Buffer.concat([header, ...payloads, index]);
+  }
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'cas-cross-package-'));
+  try {
+    const source = path.join(dir, 'source.package'), deps = path.join(dir, 'dependencies.package');
+    await writeFile(source, packageFile([{ key: [0x034aeecb, 0, 0, 1], data: sample(52) }]));
+    await writeFile(deps, packageFile([
+      { key: [0x015a1849, 0x22, 0, 0x11], data: Buffer.from('private-mesh') },
+      { key: [0x2f7d0004, 0x44, 0, 0x33], data: Buffer.from('private-texture') },
+    ]));
+    const cli = fileURLToPath(new URL('./compare-resolved-private.mjs', import.meta.url));
+    const text = execFileSync(process.execPath, [cli, source, deps], { encoding: 'utf8' });
+    const report = JSON.parse(text);
+    assert.equal(report.roles.mesh.status, 'payload-digest-matched');
+    assert.equal(report.roles.diffuse.status, 'payload-digest-matched');
+    assert.equal(text.includes(source), false);
+    assert.equal(text.includes('private-mesh'), false);
+    assert.equal(text.includes('015A1849:00000022'), false);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

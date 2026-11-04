@@ -7,7 +7,7 @@ table, and report matching candidates from an explicitly supplied package
 set. It does not modify the source packages or contact the game.
 
 ```powershell
-node --test dbpf.test.mjs casp.test.mjs region-map.test.mjs
+node --test dbpf.test.mjs casp.test.mjs region-map.test.mjs geom.test.mjs material.test.mjs
 node inspect.mjs 034AEECB:00000000:0123456789ABCDEF C:\private\first.package C:\private\second.package
 ```
 
@@ -34,6 +34,10 @@ snapshot against concurrent mutation.
   flags, malformed extents, trailing index data and exceeded limits fail closed.
   Unknown compression or storage markers remain indexed and return an explicit
   unsupported status. Tombstones are reported instead of loaded.
+- Bounded batch reads verify one indexed source for up to 128 distinct selected
+  records, retaining order and limiting total stored and expanded bytes to 64 MiB.
+  All locators are checked before payloads are returned; an invalid record aborts
+  the batch. This reduces repeated hashing but is not a whole-installation cache.
 - CASP versions `0x1F` through `0x34` can receive a bounded role-bearing
   inspection for mesh LODs and texture, material-related and other references.
   The older table-only view is retained. Reference roles and metadata remain
@@ -45,6 +49,13 @@ snapshot against concurrent mutation.
   This is a renderer-facing data candidate, not visibility, layer precedence,
   replacement semantics or proof of an actual rendered scene. Region-map object
   offset metadata is retained without claiming to validate its meaning.
+- The GEOM candidate reads bounded positions, normals, UVs, raw bone assignment
+  and byte-weight fields, and triangle indices for supported RCOL layouts and
+  GEOM versions 12-15. Version-specific stitches and rig palettes remain
+  unparsed, other vertex attributes are explicitly marked, and geometry is not
+  yet a rigged renderer mesh. Known MTNF/MTRL texture fields yield candidate TGI
+  references; unknown fields and missing indices remain explicit. Shader behavior
+  and texture image decoding remain unverified.
 - Resolution returns `empty`, `missing`, `ambiguous`, or
   `unique-in-supplied-indexes`, including all source candidates. A unique match
   only describes the explicitly supplied set. This code does not claim the set
@@ -53,7 +64,7 @@ snapshot against concurrent mutation.
 
 ## Verification and source basis
 
-On Windows with Node 22.23.2, twenty-three tests passed. They cover all eight index
+On Windows with Node 22.23.2, thirty-one tests passed. They cover all eight index
 shared-field masks, both index offset fields, large unsigned instances, mixed
 compression and deletion markers, bad extents/flags, changed package bytes,
 forged locators, ambiguous/missing/empty references, and a synthetic CLI flow.
@@ -85,14 +96,23 @@ the build output and intermediate files to an isolated temporary directory. Set
 enable the C# oracle tests. These compare parsed fields and region blocks in
 memory. They do not compare the final game rendering.
 
+The geometry oracle bridge imports the independently obtained
+[Blender GEOM reader](https://github.com/blancodagoat/blender-sims4-geom/tree/551b560e9e3929a9f840f787be3cfba91da149d7)
+at commit `551b560e9e3929a9f840f787be3cfba91da149d7` without loading Blender.
+It compares in-memory positions, normals, first UVs and indices via a private
+digest, and compares recognized material reference indices. The reader's source
+is GPL-3.0-or-later; the GEOM, material and comparison files retain that
+provenance. Set `GEOM_ORACLE_ROOT` to its `io_simgeom` directory and
+`GEOM_ORACLE_PYTHON` to a compatible Python executable to enable the optional
+geometry oracle test. Neither game assets nor oracle source are vendored here.
+
 ## Next gates
 
 Compare broader samples from the installed version against independent tools,
 including authorized CC outside the protected original profile. Confirm resource
 extents, compression, CASP table layout and reference semantics across versions.
 Resolve priority and source coverage from actual configured game/mod loading,
-with explicit conflict handling. Broaden validation of role-bearing CASP fields,
-then decode cross-package geometry, textures, rigs,
-morphs, materials and poses before feeding the renderer. The present prototype
-does not implement those decoders, game synchronization, a native Tray writer,
-or in-game visual validation.
+with explicit conflict handling. Broaden validation of role-bearing CASP and
+GEOM fields, then decode texture images, rig palettes, morphs and poses before
+feeding the renderer. The present prototype does not provide a complete renderer,
+game synchronization, a native Tray writer, or in-game visual validation.

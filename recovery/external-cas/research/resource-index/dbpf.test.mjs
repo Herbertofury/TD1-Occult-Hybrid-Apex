@@ -6,7 +6,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { indexPackage, readResource, caspReferences, resolveReferences, decodeRefpack } from './dbpf.mjs';
+import { indexPackage, readResource, readResourceBatch, caspReferences, resolveReferences, decodeRefpack } from './dbpf.mjs';
 
 const u32 = n => { const b = Buffer.alloc(4); b.writeUInt32LE(n >>> 0); return b; };
 const u16 = n => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
@@ -76,6 +76,24 @@ test('refuses stale source and forged locators', async () => {
     const changed = fixture([{ payload: Buffer.from('xyz') }]);
     await writeFile(filename, changed);
     await assert.rejects(readResource(filename, index, 0), /stale/);
+  });
+});
+
+test('batch read retains order, refuses duplicate or stale locators and returns unsupported explicitly', async () => {
+  const bytes = fixture([{ payload: Buffer.from('one') }, { payload: Buffer.from('two'), extended: true, compression: 0x5a42 },
+    { extended: true, compression: 0xbeef }]);
+  await withFile(bytes, async filename => {
+    const index = await indexPackage(filename);
+    const results = await readResourceBatch(filename, index, [1, 2, 0]);
+    assert.deepEqual(results.map(item => item.status), ['available', 'unsupported-compression', 'available']);
+    assert.equal(results[0].payload.toString(), 'two');
+    assert.equal(results[2].payload.toString(), 'one');
+    await assert.rejects(readResourceBatch(filename, index, [0, 0]), /invalid locator/);
+    await assert.rejects(readResourceBatch(filename, index, []), /invalid locator/);
+    const forged = structuredClone(index); forged.rows[1].memorySize++;
+    await assert.rejects(readResourceBatch(filename, forged, [0, 1]), /stale/);
+    const changed = Buffer.from(bytes); changed[96] ^= 1; await writeFile(filename, changed);
+    await assert.rejects(readResourceBatch(filename, index, [0, 1]), /stale/);
   });
 });
 

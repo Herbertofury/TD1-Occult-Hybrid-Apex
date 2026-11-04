@@ -115,29 +115,42 @@ export async function indexPackage(filename) {
   } finally { await file.close(); }
 }
 
-// Re-index and hash before reading so callers cannot substitute a stale locator.
-// This is deliberately expensive; consumers must design a pinned-session cache.
-export async function readResource(filename, indexed, ordinal) {
-  if (!indexed || !Number.isSafeInteger(ordinal) || ordinal < 0 || !indexed.rows?.[ordinal]) invalid('invalid locator');
+// Re-index and hash once per bounded group to amortize source verification.
+// Locators and all returned bytes belong to the same verified, open file.
+export async function readResourceBatch(filename, indexed, ordinals) {
+  if (!indexed || !Array.isArray(ordinals) || ordinals.length === 0 || ordinals.length > 128 || new Set(ordinals).size !== ordinals.length ||
+      ordinals.some(ordinal => !Number.isSafeInteger(ordinal) || ordinal < 0 || !indexed.rows?.[ordinal])) invalid('invalid locator');
   const current = await indexPackage(filename);
-  if (current.source.sha256 !== indexed.source?.sha256 || current.source.size !== indexed.source?.size ||
-      JSON.stringify(current.rows[ordinal]) !== JSON.stringify(indexed.rows[ordinal])) invalid('stale source or locator');
-  const row = current.rows[ordinal];
-  if (row.deleted) return { status: 'deleted', row };
-  if (row.committed !== 1) return { status: 'unsupported-storage-marker', row };
-  if (![0, 0x5a42, 0xffff].includes(row.compression)) return { status: 'unsupported-compression', row };
-  if (row.storedSize > MAX_PAYLOAD || row.memorySize > MAX_PAYLOAD) invalid('payload limit');
+  if (current.source.sha256 !== indexed.source?.sha256 || current.source.size !== indexed.source?.size || ordinals.some(ordinal =>
+      JSON.stringify(current.rows[ordinal]) !== JSON.stringify(indexed.rows[ordinal]))) invalid('stale source or locator');
+  const rows = ordinals.map(ordinal => current.rows[ordinal]);
+  let storedTotal = 0, memoryTotal = 0;
+  for (const row of rows) {
+    if (row.deleted || row.committed !== 1 || ![0, 0x5a42, 0xffff].includes(row.compression)) continue;
+    storedTotal += row.storedSize; memoryTotal += row.memorySize;
+    if (storedTotal > MAX_PAYLOAD || memoryTotal > MAX_PAYLOAD) invalid('payload limit');
+  }
   const file = await open(filename, 'r');
   try {
     const before = await file.stat();
     if (before.size !== current.source.size || await fingerprint(file, before.size) !== current.source.sha256) invalid('source changed');
-    const bytes = await readExactly(file, row.offset, row.storedSize);
+    const results = [];
+    for (const row of rows) {
+      if (row.deleted) { results.push({ status: 'deleted', row }); continue; }
+      if (row.committed !== 1) { results.push({ status: 'unsupported-storage-marker', row }); continue; }
+      if (![0, 0x5a42, 0xffff].includes(row.compression)) { results.push({ status: 'unsupported-compression', row }); continue; }
+      const bytes = await readExactly(file, row.offset, row.storedSize);
+      const payload = row.compression === 0 ? bytes : row.compression === 0x5a42
+        ? inflateSync(bytes, { maxOutputLength: MAX_PAYLOAD }) : decodeRefpack(bytes, row.memorySize);
+      if (payload.length !== row.memorySize) invalid('decompressed size mismatch');
+      results.push({ status: 'available', row, payload });
+    }
     if (!sameStat(before, await file.stat())) invalid('source changed during read');
-    const payload = row.compression === 0 ? bytes : row.compression === 0x5a42
-      ? inflateSync(bytes, { maxOutputLength: MAX_PAYLOAD }) : decodeRefpack(bytes, row.memorySize);
-    if (payload.length !== row.memorySize) invalid('decompressed size mismatch');
-    return { status: 'available', row, payload };
+    return results;
   } finally { await file.close(); }
+}
+export async function readResource(filename, indexed, ordinal) {
+  return (await readResourceBatch(filename, indexed, [ordinal]))[0];
 }
 
 // This reads the CASP reference table only, not semantic roles or applicability.

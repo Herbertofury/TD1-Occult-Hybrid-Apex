@@ -60,7 +60,7 @@ if (paths.length !== 2 || !process.env.S4PY_ROOT || !process.env.S4PY_PYTHON) {
           if (['diffuse', 'shadow', 'specular', 'normal', 'emission', 'color-shift-mask'].includes(role) && resource.payload.length >= 16) {
             report[role].textureHeader = { fourcc: resource.payload.toString('ascii', 0, 4), format: resource.payload.toString('ascii', 4, 8),
               width: resource.payload.readUInt16LE(8), height: resource.payload.readUInt16LE(10), mipCount: resource.payload.readUInt16LE(12) };
-            if (role === 'diffuse' && process.env.RLE_ORACLE_PYTHON && process.env.RLE_ORACLE_SOURCE && process.env.PILLOW_ORACLE_ROOT) {
+            if (['diffuse', 'specular'].includes(role) && process.env.RLE_ORACLE_PYTHON && process.env.RLE_ORACLE_SOURCE && process.env.PILLOW_ORACLE_ROOT) {
               try {
                 compareRleReference(resource.payload, process.env.RLE_ORACLE_PYTHON, process.env.RLE_ORACLE_SOURCE, process.env.PILLOW_ORACLE_ROOT);
                 report[role].textureDecode = 'rle-and-rgba-oracles-matched';

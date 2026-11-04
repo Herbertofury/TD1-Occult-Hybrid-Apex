@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeRle2, decodeBc3 } from './rle2.mjs';
+import { decodeRle2, decodeRles, decodeBc3 } from './rle2.mjs';
 import { compareRleReference } from './rle-reference.mjs';
 
 function fixture(op = 2) {
@@ -17,6 +17,27 @@ function fixture(op = 2) {
   const command = Buffer.alloc(2); command.writeUInt16LE(4 | op);
   return Buffer.concat([header, command, color, colorIndices, alphaEndpoints, alphaIndices]);
 }
+function rlesFixture(op = 2) {
+  const old = fixture(op), header = Buffer.alloc(40);
+  old.copy(header, 0, 0, 36); header.write('RLES', 4);
+  for (let i = 0; i < 5; i++) header.writeUInt32LE(old.readUInt32LE(16 + i * 4) + 4, 16 + i * 4);
+  header.writeUInt32LE(old.length + 4, 36);
+  return Buffer.concat([header, old.subarray(36), Buffer.from([7, 8, 9])]);
+}
+test('RLES retains its uninterpreted stream while producing candidate BC3', () => {
+  for (const op of [0, 1, 2]) {
+    const decoded = decodeRles(rlesFixture(op));
+    assert.equal(decoded.status, 'decoded-bc3-with-uninterpreted-stream');
+    assert.deepEqual(decoded.mips[0].bc3, decodeRle2(fixture(op)).mips[0].bc3);
+    assert.deepEqual(decoded.mips[0].uninterpretedStreams.map(stream => [...stream]), [[], [], [7, 8, 9]]);
+  }
+  const bad = rlesFixture(); bad.writeUInt32LE(bad.length + 1, 36);
+  assert.throws(() => decodeRles(bad), /extent/);
+  const original = rlesFixture(), extraAt = original.readUInt32LE(36);
+  const extra = Buffer.concat([original.subarray(0, extraAt), Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]), original.subarray(extraAt)]);
+  extra.writeUInt32LE(extraAt + 2, 32); extra.writeUInt32LE(extraAt + 8, 36);
+  assert.deepEqual(decodeRles(extra).mips[0].uninterpretedStreams.map(stream => [...stream]), [[1, 2], [3, 4, 5, 6, 7, 8], [7, 8, 9]]);
+});
 test('RLE2 decodes opaque, translucent and transparent BC3 blocks', () => {
   for (const op of [0, 1, 2]) {
     const decoded = decodeRle2(fixture(op));
@@ -44,5 +65,8 @@ test('synthetic RLE2 blocks and pixels match independent readers', {
 }, () => {
   for (const op of [0, 1, 2]) assert.deepEqual(
     compareRleReference(fixture(op), process.env.RLE_ORACLE_PYTHON, process.env.RLE_ORACLE_SOURCE, process.env.PILLOW_ORACLE_ROOT),
+    { width: 4, height: 4, mipCount: 1 });
+  for (const op of [0, 1, 2]) assert.deepEqual(
+    compareRleReference(rlesFixture(op), process.env.RLE_ORACLE_PYTHON, process.env.RLE_ORACLE_SOURCE, process.env.PILLOW_ORACLE_ROOT),
     { width: 4, height: 4, mipCount: 1 });
 });

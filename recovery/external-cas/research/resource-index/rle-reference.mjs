@@ -2,12 +2,12 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { decodeRle2, decodeBc3 } from './rle2.mjs';
+import { decodeRle2, decodeRles, decodeBc3 } from './rle2.mjs';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 export function compareRleReference(payload, python, referenceSource, pillowPath) {
-  const texture = decodeRle2(payload);
-  if (texture.status !== 'decoded-bc3') throw new Error('unsupported texture');
+  const texture = payload.toString('ascii', 4, 8) === 'RLES' ? decodeRles(payload) : decodeRle2(payload);
+  if (!['decoded-bc3', 'decoded-bc3-with-uninterpreted-stream'].includes(texture.status)) throw new Error('unsupported texture');
   const rgba = decodeBc3(texture.width, texture.height, texture.mips[0].bc3);
   const bridge = fileURLToPath(new URL('./rle_oracle.py', import.meta.url));
   const oracle = JSON.parse(execFileSync(python, ['-B', bridge, referenceSource, pillowPath], {

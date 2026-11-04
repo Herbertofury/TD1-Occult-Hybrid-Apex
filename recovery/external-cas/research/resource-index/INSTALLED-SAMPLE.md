@@ -100,9 +100,8 @@ not prove absence from the full installation, authorized CC, or other sources.
 One CASP diffuse RLE2 payload was decoded in memory: 1024 by 2048 pixels with
 12 mip levels. Its first mip's BC3 blocks matched the independent Blender add-on
 converter, and its RGBA pixels matched Pillow 11.3.0 by private digest. This is
-one texture, not rendering or shader validation. The shadow texture and RLES
-specular were not decoded in this comparison. Neither pixels nor their digests
-were published.
+one texture, not rendering or shader validation. The shadow texture was not
+decoded in this comparison. Neither pixels nor their digests were published.
 
 The sampled version 12 GEOM has a three-bone palette. Its raw weights matched
 the independent Blender reader, but its palette did not match that reader
@@ -113,3 +112,29 @@ supports the candidate layout but is not independent validation of the original
 bytes. Bone selection, skeleton binding, weights in a renderer, poses and visual
 correctness remain unverified. No game process, live state or protected profile
 was accessed during these checks.
+
+## RLES, alternate sources and rig candidates
+
+The sampled CASP's 512 by 1024 RLES specular resource has 11 mips. Its first
+mip produced BC3 and RGBA matching the Blender converter and Pillow by private
+digest. Some RLES stream bytes are not interpreted by that converter and are
+preserved separately; the result is not a complete specular-material decode.
+
+The full and delta RLE2 alternate-type leads were separately read from verified
+package sources. Both expanded payloads matched s4py and their first mips matched
+the independent converter and Pillow. Their payloads differ, and their shared
+group and instance are not those of any sampled CASP role. The installed pack
+configuration lists delta at priority -20 and full at -30, but that alone does
+not establish the winner or that either RLE2 is an alias for the DDS material
+references. No source was automatically selected.
+
+Three disjoint groups of 128 installed base rig resources were compared: all 384
+matched TS4CAS Tools on names, hashes, parents, positions and scales. A selected
+installed rig's candidate local and global matrices also matched that reader.
+None of the 384 matched the sampled mesh palette. The palette's three hashes
+did map uniquely to a separately supplied adult-human rig fixture from the
+TS4CAS Tools source tree, which also matched its reader; the candidate binding
+maps all 66 sampled vertices' raw weights. This does not establish that fixture
+as the game's selected rig. Its scale data falls outside the narrow
+matrix path and remains unsupported. Game-space skinning, hierarchy selection,
+poses, render output and live synchronization remain unvalidated.

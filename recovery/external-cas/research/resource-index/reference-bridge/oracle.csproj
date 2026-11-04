@@ -6,5 +6,11 @@
     <Compile Include="$(CaspToolsSrc)/RegionMap.cs" />
     <Compile Include="$(CaspToolsSrc)/TGI.cs" />
     <Compile Include="$(CaspToolsSrc)/Enums.cs" />
+    <Compile Include="$(CaspToolsSrc)/RIG.cs" />
+    <Compile Include="$(CaspToolsSrc)/Rotations.cs" />
+    <Compile Include="$(CaspToolsSrc)/Vector3.cs" />
+    <Compile Include="$(CaspToolsSrc)/Vector2.cs" />
+    <Compile Include="$(CaspToolsSrc)/Triangle.cs" />
+    <Compile Include="$(CaspToolsSrc)/Plane.cs" />
   </ItemGroup>
 </Project>

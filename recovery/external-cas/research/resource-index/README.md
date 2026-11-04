@@ -7,7 +7,7 @@ table, and report matching candidates from an explicitly supplied package
 set. It does not modify the source packages or contact the game.
 
 ```powershell
-node --test dbpf.test.mjs casp.test.mjs region-map.test.mjs geom.test.mjs material.test.mjs palette.test.mjs rle2.test.mjs
+node --test dbpf.test.mjs casp.test.mjs region-map.test.mjs geom.test.mjs material.test.mjs palette.test.mjs rle2.test.mjs rig.test.mjs
 node inspect.mjs 034AEECB:00000000:0123456789ABCDEF C:\private\first.package C:\private\second.package
 ```
 
@@ -59,10 +59,18 @@ snapshot against concurrent mutation.
   palettes and raw weight mappings; palettes in versions 13-15 are unsupported.
   No skeleton or transforms are selected. Known MTNF/MTRL texture fields yield
   candidate TGI references; unknown fields and missing indices remain explicit.
-- `decodeRle2` converts supported RLE2 mip streams to BC3 blocks, and
-  `decodeBc3` produces RGBA pixels. Both are bounded; RLES and other texture
-  formats remain unsupported. Decoding does not establish shader, color-space
-  or in-game appearance equivalence.
+- `decodeRle2` and `decodeRles` produce bounded BC3 candidates, and `decodeBc3`
+  produces RGBA pixels. RLES preserves unused stream bytes, whose purpose is
+  unverified; the candidate is not a complete material interpretation. Other
+  texture formats remain unsupported. Decoding does not establish shader,
+  color-space or in-game appearance equivalence.
+- `parseRig` reads bounded version 3.1 rig candidates, retaining raw transforms,
+  hierarchy and chains. `bindPalette` maps hashes to all matches without choosing
+  a skeleton; `bindVertexWeights` links raw weights only after unique mapping.
+  `computeBindMatrices` produces row-major local, global and inverse
+  matrices only for unit scales and sufficiently normalized (or empty)
+  quaternions; other inputs are explicit unsupported cases. These are research
+  candidates, not validated game-space skinning or animation.
 - Resolution returns `empty`, `missing`, `ambiguous`, or
   `unique-in-supplied-indexes`, including all source candidates. A unique match
   only describes the explicitly supplied set. This code does not claim the set
@@ -71,7 +79,7 @@ snapshot against concurrent mutation.
 
 ## Verification and source basis
 
-On Windows with Node 22.23.2, 39 tests passed with optional independent readers enabled. They cover all eight index
+On Windows with Node 22.23.2, 46 tests passed with optional independent readers enabled. They cover all eight index
 shared-field masks, both index offset fields, large unsigned instances, mixed
 compression and deletion markers, bad extents/flags, changed package bytes,
 forged locators, ambiguous/missing/empty references, and a synthetic CLI flow.
@@ -100,8 +108,10 @@ vendored here. Supply its `src/XmodsDataLib` directory as the MSBuild property
 `CaspToolsSrc`, use the included `NuGet.Config` to avoid package feeds, and direct
 the build output and intermediate files to an isolated temporary directory. Set
 `CASP_ORACLE_DLL` to the resulting `oracle.dll` and `DOTNET_BIN` to `dotnet` to
-enable the C# oracle tests. These compare parsed fields and region blocks in
-memory. They do not compare the final game rendering.
+enable the C# oracle tests. These compare parsed fields, region blocks, rig
+fields and supported local/global matrix candidates in memory. The rig reader
+and bridge retain GPL-3.0-or-later provenance from `XmodsDataLib/RIG.cs` and
+`Rotations.cs`. They do not compare final game rendering.
 
 The geometry oracle bridge imports the independently obtained
 [Blender GEOM reader](https://github.com/blancodagoat/blender-sims4-geom/tree/551b560e9e3929a9f840f787be3cfba91da149d7)
@@ -120,8 +130,8 @@ Neither game assets nor oracle source are vendored here.
 The RLE bridge independently executes the Blender add-on converter at the commit
 above and Pillow 11.3.0's BC3 decoder. Set `RLE_ORACLE_SOURCE` to its
 `io_simgeom/io/package_import.py`, `RLE_ORACLE_PYTHON` to Python, and
-`PILLOW_ORACLE_ROOT` to a private Pillow installation. Synthetic blocks and one
-installed texture matched by private digest. The RLE and palette research code
+`PILLOW_ORACLE_ROOT` to a private Pillow installation. Synthetic blocks and
+selected installed textures matched by private digest. The RLE and palette research code
 retains GPL-3.0-or-later provenance; retain license notices when integrating.
 
 ## Next gates
@@ -131,7 +141,7 @@ including authorized CC outside the protected original profile. Confirm resource
 extents, compression, CASP table layout and reference semantics across versions.
 Resolve priority and source coverage from actual configured game/mod loading,
 with explicit conflict handling. Broaden validation of role-bearing CASP and
-GEOM fields and supported texture and palette decoding; implement skeleton
-binding, remaining texture formats, morphs and poses before renderer parity.
+GEOM fields and supported texture and palette decoding; validate skeleton
+selection and binding, remaining texture semantics, morphs and poses before renderer parity.
 The present prototype does not provide a complete renderer,
 game synchronization, a native Tray writer, or in-game visual validation.

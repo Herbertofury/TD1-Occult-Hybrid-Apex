@@ -19,6 +19,20 @@ class Program {
     }
     input.Position = 0;
     using var reader = new BinaryReader(input);
+    if (args.Length > 0 && args[0] == "rigmat") {
+      var rig = new RIG(reader);
+      Console.Write(JsonSerializer.Serialize(rig.Bones.Select(b => new { local = b.LocalTransform.Values, global = b.GlobalTransform.Values }).ToArray()));
+      return;
+    }
+    if (args.Length > 0 && args[0] == "rig") {
+      var rig = new RIG(reader);
+      Console.Write(JsonSerializer.Serialize(rig.Bones.Select(b => new {
+        name = b.BoneName, hash = b.BoneHash, parentIndex = b.ParentBoneIndex,
+        position = new[] { b.PositionVector.X, b.PositionVector.Y, b.PositionVector.Z },
+        scale = new[] { b.ScalingVector.X, b.ScalingVector.Y, b.ScalingVector.Z }
+      }).ToArray()));
+      return;
+    }
     if (args.Length > 0 && args[0] == "region") {
       var region = new RegionMap(reader);
       Console.Write(JsonSerializer.Serialize(Enumerable.Range(0, region.NumberRegions).Select(i => new {

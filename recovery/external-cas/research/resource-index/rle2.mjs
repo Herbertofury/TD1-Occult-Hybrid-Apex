@@ -1,26 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Bounded RLE2 to BC3 blocks and BC3 to RGBA. RLES is deliberately unsupported.
+// Bounded RLE2 and RLES BC3 candidates; RLES auxiliary bytes remain uninterpreted.
 const LIMIT = 64 * 1024 * 1024;
-export function decodeRle2(data) {
+export function decodeRle2(data) { return decodeRle(data, 'RLE2'); }
+export function decodeRles(data) { return decodeRle(data, 'RLES'); }
+function decodeRle(data, expectedVersion) {
   if (!Buffer.isBuffer(data) || data.length < 36 || data.length > LIMIT) throw new Error('invalid RLE input');
   const fourcc = data.toString('ascii', 0, 4), version = data.toString('ascii', 4, 8);
-  if (fourcc !== 'DXT5' || version !== 'RLE2') return { status: 'unsupported-format', fourcc, version };
+  if (fourcc !== 'DXT5' || version !== expectedVersion) return { status: 'unsupported-format', fourcc, version };
+  const streamCount = version === 'RLES' ? 6 : 5, headerSize = streamCount * 4;
   const width = data.readUInt16LE(8), height = data.readUInt16LE(10), mipCount = data.readUInt16LE(12);
-  if (!width || !height || width * height > LIMIT / 4 || !mipCount || mipCount > 16 || 16 + mipCount * 20 > data.length)
+  if (!width || !height || width * height > LIMIT / 4 || !mipCount || mipCount > 16 || 16 + mipCount * headerSize > data.length)
     throw new Error('invalid RLE dimensions');
-  const headerEnd = 16 + mipCount * 20, headers = [];
+  const headerEnd = 16 + mipCount * headerSize, headers = [];
   for (let i = 0; i < mipCount; i++) {
-    const at = 16 + i * 20;
-    headers.push([0, 1, 2, 3, 4].map(n => data.readUInt32LE(at + n * 4)));
+    const at = 16 + i * headerSize;
+    headers.push(Array.from({ length: streamCount }, (_, n) => data.readUInt32LE(at + n * 4)));
   }
   const first = headers[0];
-  headers.push([first[1], first[2], first[3], first[4], data.length]);
+  headers.push([...first.slice(1), data.length]);
   const transparent = Buffer.from([0, 5, 0, 0, 0, 0, 0, 0]), opaque = Buffer.from([0, 5, 255, 255, 255, 255, 255, 255]);
   let total = 0;
   const mips = [];
   for (let i = 0; i < mipCount; i++) {
     const start = headers[i], end = headers[i + 1];
-    for (let n = 0; n < 5; n++) if (start[n] < headerEnd || end[n] < start[n] || end[n] > data.length) throw new Error('invalid RLE stream extent');
+    for (let n = 0; n < streamCount; n++) if (start[n] < headerEnd || end[n] < start[n] || end[n] > data.length) throw new Error('invalid RLE stream extent');
     const w = Math.max(1, width >> i), h = Math.max(1, height >> i), blocks = Math.ceil(w / 4) * Math.ceil(h / 4);
     total += blocks * 16;
     if (total > LIMIT || (end[0] - start[0]) % 2) throw new Error('RLE output limit');
@@ -41,10 +44,18 @@ export function decodeRle2(data) {
         else { opaque.copy(output, dst); copy(1, 4, dst + 8); copy(2, 4, dst + 12); }
       }
     }
-    if (count !== blocks || offsets.some((position, n) => position !== end[n])) throw new Error('incomplete RLE mip');
-    mips.push({ width: w, height: h, bc3: output });
+    const requiredStreams = version === 'RLES' ? 3 : 5;
+    if (count !== blocks || offsets.slice(0, requiredStreams).some((position, n) => position !== end[n])) throw new Error('incomplete RLE mip');
+    const mip = { width: w, height: h, bc3: output };
+    // Preserve all remaining RLES stream bytes, whose material meaning is not established.
+    if (version === 'RLES') {
+      total += offsets.slice(3).reduce((sum, position, n) => sum + end[n + 3] - position, 0);
+      if (total > LIMIT) throw new Error('RLE output limit');
+      mip.uninterpretedStreams = offsets.slice(3).map((position, n) => Buffer.from(data.subarray(position, end[n + 3])));
+    }
+    mips.push(mip);
   }
-  return { status: 'decoded-bc3', width, height, mipCount, mips };
+  return { status: version === 'RLES' ? 'decoded-bc3-with-uninterpreted-stream' : 'decoded-bc3', width, height, mipCount, mips };
 }
 
 export function decodeBc3(width, height, blocks) {

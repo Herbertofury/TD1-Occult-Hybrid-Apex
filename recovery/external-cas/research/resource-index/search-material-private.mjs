@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Scan explicitly supplied package indexes for a sampled mesh's material TGIs.
 import path from 'node:path';
+import os from 'node:os';
 import { indexPackage, readResource, resolveReferences, scanPackageIndex } from './dbpf.mjs';
 import { parseCasp } from './casp.mjs';
 import { parseGeom } from './geom.mjs';
 
+if (process.env.CAS_LOW_PRIORITY === '1') os.setPriority(0, os.constants.priority.PRIORITY_LOW);
 const args = process.argv.slice(2), [caspPath, meshPath, ...searchPaths] = args;
 if (!caspPath || !meshPath || !searchPaths.length || searchPaths.length > 32) {
   console.error('Supply CASP package, mesh package, and one to 32 explicit search packages.'); process.exitCode = 2;

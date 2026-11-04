@@ -11,7 +11,7 @@
 
 The [author's current description and dated update notes](https://www.curseforge.com/sims4/mods/dynamic-cas-columns) advertise **maru_Dynamic_CAS_Companion261104.zip** for **1.129.39**. The linked file page was unavailable to this research tool; its binary, hash and separate changelog were not inspected.
 
-- **Search:** requires names embedded by CAS Tooltip Studio. November 3 adds comma-separated terms; November 4 adds tooltip/search support to Eye Preview and Cheek subcategories. The documented text does not define AND/OR matching.
+- **Search:** requires names embedded by CAS Tooltip Studio. November 3 adds comma-separated terms; November 4 adds Eye Preview tooltip/search support and adds Cheek subcategories. The documented text does not define AND/OR matching.
 - **Presets:** November 2 adds favorites, hiding and thumbnail scaling. October 30 documents individual outfit-slot copying and a Styled Looks search fix.
 - **Styled Looks:** an upper-right icon toggles thumbnail view; the CC filter restricts custom looks. This is distinct from the ordinary clothing catalog.
 - **Input:** left/right navigate items; A/D change selected-item swatches. History, Swatch Preview and Current Outfit share `dynamic_cas_history.columns#number` and `dynamic_cas_history.thumbnail_scale#number`; the main catalog uses the corresponding `dynamic_cas_columns` keys.

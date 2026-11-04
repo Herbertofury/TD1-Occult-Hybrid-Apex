@@ -202,6 +202,7 @@ def analyze_run(spec, scenario, manifest_dir, stage=None):
     if target_index + 1 >= len(command) or command[target_index + 1] != str(pid):
         raise ValueError('Collector target PID differs from capture.')
     normalized_command = []
+    parse_log_verification = 'not_applicable'
     index = 1
     duration = capture.get('configured_seconds')
     if type(duration) not in (int, float) or not math.isfinite(duration) or duration <= 0:
@@ -209,6 +210,12 @@ def analyze_run(spec, scenario, manifest_dir, stage=None):
     if capture.get('capture_backend')=='xperf_etl':
         import offline_xperf
         normalized_command=offline_xperf.validate_offline_capture(capture,command,pid,duration,resolve(spec['csv']).resolve())
+        if 'parse_log=sha256_loss_checked' in normalized_command:
+            parse_log_verification='sha256_loss_checked'
+        elif 'parse_log=legacy_unverified' in normalized_command:
+            parse_log_verification='legacy_unverified'
+        else:
+            raise ValueError('Offline parse-log verification state is missing')
     elif capture.get('capture_backend') is None:
         unique_options = ('--process_id', '--output_file', '--session_name')
         if any(command.count(option) != 1 for option in unique_options):
@@ -284,6 +291,7 @@ def analyze_run(spec, scenario, manifest_dir, stage=None):
             'apex_candidate_sha256': artifact_sha, 'csv_sha256': analysis['csv_sha256'],
             'collector_sha256': capture['collector_sha256'], 'present_runtime': runtime,
             'collector_options': normalized_command, 'configured_seconds': duration,
+            'parse_log_verification': parse_log_verification,
             'fps_claimed': False, 'statistics': stats, 'action_windows': actions}
 
 
@@ -343,6 +351,7 @@ def compare(manifest, manifest_dir):
             'runs': results, 'pairs': comparisons, 'displayed_fps_measured': False,
             'hitch_free_claimed': False, 'performance_pass': False,
             'limitations': ['Scenario, mod-state and action observation evidence are supplied by the experiment runner.',
+                'Legacy offline captures have no bound parser log; see parse_log_verification for each run. The legacy loss declaration is not independent proof.',
                 'Present intervals are not displayed frame times or an input-to-photon measurement.',
                 'Action-window comparisons can contain different frame counts; tail percentiles and maxima are sensitive to sample size and do not establish causation.',
                 'Raw hitch counts depend on window duration and frame count; counts per 1000 overlapping intervals are not rates per unit time and remain sample-size sensitive.',

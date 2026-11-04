@@ -53,6 +53,7 @@ class StrictStageTests(unittest.TestCase):
         pid=100+i;creation=pid*100;prefix=self.work/('run%d'%i);base_qpc=10000+i*10000
         ready=base_qpc+1000;end=base_qpc+4000
         etl=Path(str(prefix)+'.etl');etl.write_bytes(('trace%d'%i).encode())
+        parse_log=Path(str(prefix)+'.parse.log');parse_log.write_text('Started recording.\nStopped recording.\n')
         header=Path(str(prefix)+'.header');header.write_text('Clock type : PerfCounter\nTotal # Lost Buffers : 0\n'
             'Total # Lost Events : 0\nNumber of Traces : 1\nLog file mode : Sequential\nTrace name: '+str(etl)+'\n')
         session='ApexOffline'+('%032x'%i)
@@ -91,6 +92,7 @@ class StrictStageTests(unittest.TestCase):
                 logger_path=str(logger),logger_sha256=digest(logger),actual_buffers=[64,120],
                 logger_end_path=str(logger_end),logger_end_sha256=digest(logger_end),
                 adapter_sha256=digest(Path(offline.__file__)),raw_csv_path=str(raw),raw_csv_sha256=digest(raw),
+                parse_log_path=str(parse_log),parse_log_sha256=digest(parse_log),
                 stop_succeeded=True,header_zero_loss=True,ready_qpc=ready,end_qpc=end,qpc_frequency=100,
                 session_polls_qpc=[ready-1]+list(range(ready+100,end,100))+[end+1]))
         cpath=Path(str(prefix)+'.capture.json');write(cpath,capture)
@@ -127,6 +129,15 @@ class StrictStageTests(unittest.TestCase):
         after['comparison']=expected;write(after_path,after)
         proof.update(before_sha256=digest(before_path),after_sha256=digest(after_path))
 
+    def make_legacy(self,index):
+        run=self.runs[index];capture_path=Path(run['capture']);capture=json.loads(capture_path.read_text())
+        evidence=capture['offline_etw'];evidence.pop('parse_log_path');evidence.pop('parse_log_sha256')
+        evidence['adapter_sha256']=offline.LEGACY_ADAPTER_SHA256;write(capture_path,capture)
+        action_path=Path(run['actions']);action=json.loads(action_path.read_text())
+        action['capture_sha256']=digest(capture_path);write(action_path,action)
+        self.proofs[index].update(capture_sha256=digest(capture_path),action_trace_sha256=digest(action_path))
+        self.rewrite_pair(index,lambda observation:None)
+
     def test_real_comparator_with_synthetic_files_stops_at_slowdown(self):
         report=self.compare()
         self.assertEqual(report['state'],'slowdown_observed');self.assertEqual(report['stopped_at_stage'],'hybrid')
@@ -137,6 +148,20 @@ class StrictStageTests(unittest.TestCase):
                     'loaded_flags_independently_verified','save_content_independently_verified'):
             self.assertFalse(report[key],key)
         self.assertTrue(report['stage_artifact_hashes_match_observations'])
+        self.assertTrue(all(run['parse_log_verification']=='sha256_loss_checked'
+                            for pair in report['comparisons'] for run in pair['runs']))
+
+    def test_strict_legacy_runs_remain_explicitly_unverified(self):
+        for index in range(4):self.make_legacy(index)
+        report=self.compare()
+        self.assertEqual(report['provenance_pairs_checked'],4)
+        self.assertTrue(all(run['parse_log_verification']=='legacy_unverified'
+                            for pair in report['comparisons'] for run in pair['runs']))
+        self.assertTrue(any('no bound parser log' in text for text in report['limitations']))
+
+    def test_strict_comparison_refuses_mixed_parse_log_generations(self):
+        self.make_legacy(1)
+        with self.assertRaisesRegex(ValueError,'Collector, options'):self.compare()
 
     def test_legacy_mode_and_empty_strict_experiment_remain_available(self):
         empty=copy.deepcopy(self.experiment);empty['comparisons']=[];write(self.exp_path,empty)

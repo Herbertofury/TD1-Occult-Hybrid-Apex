@@ -187,6 +187,7 @@ class MatchedFrameComparisonTests(unittest.TestCase):
             'Minimum Buffers : 64\nMaximum Buffers : 120\nMaximum File Size : 1024\n'
             'Log File Mode : Sequential IndependentSession\nLog Filename : '+str(etl)+'\nTrace Flags : '+offline.PROVIDERS+'\n')
         logger_end=work/'logger-end.txt';logger_end.write_text(logger.read_text())
+        parse_log=work/'trace.parse.log';parse_log.write_text('Started recording.\nStopped recording.\n')
         capture.update(capture_backend='xperf_etl',collector_sha256=offline.base.PRESENTMON_SHA,capture_elapsed_ns=30_000_000_000,
             collector_command=[str(offline.base.PRESENTMON),'--etl_file',str(etl),'--process_id',str(pid),
                 '--qpc_time','--no_track_input','--no_track_gpu','--no_track_display','--no_console_stats','--output_file',str(raw)],
@@ -197,6 +198,7 @@ class MatchedFrameComparisonTests(unittest.TestCase):
                 logger_path=str(logger),logger_sha256=hashlib.sha256(logger.read_bytes()).hexdigest(),actual_buffers=[64,120],
                 logger_end_path=str(logger_end),logger_end_sha256=hashlib.sha256(logger_end.read_bytes()).hexdigest(),
                 adapter_sha256=hashlib.sha256(Path(offline.__file__).read_bytes()).hexdigest(),
+                parse_log_path=str(parse_log),parse_log_sha256=hashlib.sha256(parse_log.read_bytes()).hexdigest(),
                 raw_csv_path=str(raw),raw_csv_sha256=hashlib.sha256(raw.read_bytes()).hexdigest(),
                 etl_bytes=etl.stat().st_size,stop_succeeded=True,header_zero_loss=True,ready_qpc=1000,end_qpc=2500,
                 qpc_frequency=50,session_polls_qpc=[999]+list(range(1099,2500,100))+[2501]))

@@ -102,6 +102,7 @@ def compare(manifest, directory):
         'state': 'slowdown_observed' if stopped else ('awaiting_measurements' if measured < len(stages) - 1 else 'review_required'),
         'displayed_fps_measured': False, 'performance_pass': False, 'hitch_free_claimed': False,
         'limitations': ['Feature inventories and actual-load/UI-transition observations are runner-supplied declarations.',
+            'Legacy offline captures have no bound parser log; see parse_log_verification for each run. The legacy loss declaration is not independent proof.',
             'Any positive tail/action-maximum delta stops evaluation; noise requires diagnosis and fresh repeats, not a causal claim.',
             'Action-window percentiles are descriptive and sample-size sensitive, particularly for short actions; intervals may overlap adjacent windows.',
             'Raw hitch counts depend on window duration and frame count; counts per 1000 overlapping intervals are not rates per unit time and remain sample-size sensitive.',

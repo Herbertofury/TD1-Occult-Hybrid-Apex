@@ -211,6 +211,7 @@ def compare_strict(manifest,directory,work):
         experiment_sha256=experiment_sha)
     result['limitations'].extend([
         'Provenance records and stage feature/load declarations remain caller-supplied, not cryptographic attestations.',
+        'Full ETL validation does not mean a legacy parser log was bound; see parse_log_verification for each evaluated run.',
         'The observed control can still contain undeclared Apex components; exact profile opening and actual package loading are not proven.',
         'Only snapshots outside the capture window are compared; intervening changes and loaded in-memory bytes are not proven.',
         'Every declared proof is validated up front; metric evaluation still stops at the first observed slowdown.'])

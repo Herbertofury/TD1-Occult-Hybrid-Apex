@@ -35,6 +35,7 @@ class OfflineEvidenceTests(unittest.TestCase):
             'Minimum Buffers : 64\nMaximum Buffers : 120\nMaximum File Size : 1024\n'
             'Log File Mode : Sequential IndependentSession\nLog Filename : '+str(self.etl)+'\nTrace Flags : '+offline.PROVIDERS+'\n')
         self.logger_end=self.work/'logger-end.txt';self.logger_end.write_text(self.logger.read_text())
+        self.parse_log=self.work/'trace.parse.log';self.parse_log.write_text('Started recording.\nStopped recording.\n')
         digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
         self.command=[str(offline.base.PRESENTMON),'--etl_file',str(self.etl),'--process_id',str(self.pid),
             '--qpc_time','--no_track_input','--no_track_gpu','--no_track_display','--no_console_stats','--output_file',str(self.raw)]
@@ -46,6 +47,7 @@ class OfflineEvidenceTests(unittest.TestCase):
             logger_path=str(self.logger),logger_sha256=digest(self.logger),actual_buffers=[64,120],
             logger_end_path=str(self.logger_end),logger_end_sha256=digest(self.logger_end),
             adapter_sha256=digest(Path(offline.__file__)),
+            parse_log_path=str(self.parse_log),parse_log_sha256=digest(self.parse_log),
             raw_csv_path=str(self.raw),raw_csv_sha256=digest(self.raw),
             stop_succeeded=True,header_zero_loss=True,ready_qpc=1000,end_qpc=1600,qpc_frequency=100,
             session_polls_qpc=[999,1100,1300,1500,1601]))

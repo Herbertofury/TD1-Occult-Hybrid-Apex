@@ -58,6 +58,14 @@ warning, so this check does not explain their loss or qualify a new capture.
 Offline unit and mocked-collector tests cover the warning and preserve the
 existing zero-loss behavior; they are not in-game measurements.
 
+For newly recorded offline ETL captures, the adapter retains a hash of the
+PresentMon parser log and the comparison rechecks that same log for recognized
+loss warnings. Captures made by the immediately previous adapter lack that
+binding and are labeled `legacy_unverified`; they cannot be compared with the
+new method. A matching log and no recognized warnings do not prove that every
+present was emitted or represented in the CSV. The offline collector and its
+coverage still need qualification with an independently verified game workload.
+
 `tools/compare_frame_runs.py` consumes completed, separately recorded evidence.
 Each capture metadata JSON must be in the format of the private capture tool:
 state `completed`, collector hash, stable process/window identity and geometry,

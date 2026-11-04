@@ -31,6 +31,9 @@ PROVIDERS=('802ec45a-1e99-4b83-9920-87c98277ba9d:0x90FFFF:5+'
     '9e9bba3c-2e38-40cb-99f4-9e8281425164:0xffff:6+'
     '8c416c79-d49b-4f01-a467-e56d3aa8234c:0x8400000440c01000:4')
 MAX_MB=1024
+# The immediately preceding adapter had no parse-log hash.  Preserve its
+# previously accepted evidence as explicitly unverified, never as new proof.
+LEGACY_ADAPTER_SHA256='825345eb895da3280c653b28d8792e22c1d370740e00c03c1720d2e146d350fb'
 OPTIONS=['-BufferSize','1024','-MinBuffers','30','-MaxBuffers','120',
          '-MaxFile',str(MAX_MB),'-FileMode','Sequential','-ClockType','PerfCounter']
 PROVIDER_NAMES={
@@ -177,6 +180,20 @@ def bounded_csv(raw,pid,ready_qpc,end_qpc,frequency):
     writer.writeheader();writer.writerows(rows)
     return output.getvalue().encode('utf-8')
 
+def parse_log_observation(path):
+    """Hash and decode the same bounded bytes; do not reopen between checks."""
+    with Path(path).open('rb') as stream:
+        raw=stream.read(16*1024*1024+1)
+    if len(raw)>16*1024*1024:
+        raise ValueError('PresentMon parse log exceeds bounded read size')
+    encoding='utf-16' if raw.startswith((b'\xff\xfe',b'\xfe\xff')) else 'utf-8-sig'
+    try:
+        text=raw.decode(encoding)
+        if '\x00' in text:raise ValueError('PresentMon parse log contains NUL')
+    except (UnicodeError,ValueError):
+        raise ValueError('PresentMon parse log encoding could not be validated')
+    return hashlib.sha256(raw).hexdigest(),text
+
 def validate_offline_capture(capture,command,pid,duration,csv_path):
     """Recheck the retained ETL/header and exact command provenance for comparison."""
     # Marked fixtures cannot be promoted by accidentally changing only state.
@@ -194,8 +211,9 @@ def validate_offline_capture(capture,command,pid,duration,csv_path):
     elapsed=capture.get('capture_elapsed_ns')
     if type(elapsed) is not int or not duration*1e9<=elapsed<=(duration+10)*1e9:
         raise ValueError('Offline capture duration is inconsistent')
+    adapter=evidence.get('adapter_sha256')
     if (not comparison._hash(evidence.get('xperf_sha256')) or
-            not comparison._hash(evidence.get('adapter_sha256')) or evidence['adapter_sha256']!=base.sha(__file__)):
+            not comparison._hash(adapter) or adapter not in (base.sha(__file__),LEGACY_ADAPTER_SHA256)):
         raise ValueError('Xperf or adapter fingerprint differs')
     etl=Path(evidence.get('etl_path','')).resolve();header=Path(evidence.get('header_path','')).resolve()
     logger=Path(evidence.get('logger_path','')).resolve();logger_end=Path(evidence.get('logger_end_path','')).resolve()
@@ -203,6 +221,22 @@ def validate_offline_capture(capture,command,pid,duration,csv_path):
     work=(base.ROOT/'.work').resolve()
     if any(work not in p.parents for p in (etl,header,logger,logger_end,raw)):raise ValueError('ETL, header, logger and raw CSV must stay in private work area')
     if evidence.get('max_file_mb')!=MAX_MB or not all(p.is_file() for p in (etl,header,logger,logger_end,raw)):raise ValueError('Bounded ETL, header, logger or raw CSV absent')
+    log_fields=('parse_log_path','parse_log_sha256')
+    if adapter==LEGACY_ADAPTER_SHA256:
+        if any(k in evidence for k in log_fields):raise ValueError('Legacy adapter cannot attest a parse log')
+        log_status='legacy_unverified'
+    else:
+        if not all(k in evidence for k in log_fields) or not comparison._hash(evidence.get('parse_log_sha256')):
+            raise ValueError('Parse-log identity and hash are required')
+        log_value=evidence.get('parse_log_path')
+        if not isinstance(log_value,str) or not log_value:raise ValueError('Parse-log path is required')
+        parse_log=Path(log_value).resolve()
+        if work not in parse_log.parents or parse_log!=Path(str(etl)[:-4]+'.parse.log'):
+            raise ValueError('Parse log must belong to the retained ETL')
+        actual_hash,parse_text=parse_log_observation(parse_log)
+        if actual_hash!=evidence['parse_log_sha256'] or base.event_loss(parse_text):
+            raise ValueError('PresentMon parse log differs or reports loss')
+        log_status='sha256_loss_checked'
     size=etl.stat().st_size
     if not 0<size<(MAX_MB-1)*1024**2 or evidence.get('etl_bytes')!=size:raise ValueError('ETL size differs or is near limit')
     if (base.sha(etl)!=evidence.get('etl_sha256') or base.sha(header)!=evidence.get('header_sha256') or
@@ -224,7 +258,7 @@ def validate_offline_capture(capture,command,pid,duration,csv_path):
     if (not csv_path.is_file() or csv_path.stat().st_size>comparison.MAX_CSV or
             bounded_csv(raw,pid,evidence.get('ready_qpc'),evidence.get('end_qpc'),evidence.get('qpc_frequency'))!=csv_path.read_bytes()):
         raise ValueError('Comparison CSV does not match the exact QPC-window subset')
-    return ['backend=xperf_etl','xperf_sha256='+evidence['xperf_sha256'],
+    return ['backend=xperf_etl','parse_log='+log_status,'xperf_sha256='+evidence['xperf_sha256'],
         'adapter_sha256='+evidence['adapter_sha256'],'actual_buffers='+str(actual_buffers),PROVIDERS]+OPTIONS+expected_parse[5:10]
 
 def run_to_log(command,path,timeout):
@@ -317,8 +351,9 @@ def capture(args):
         run_to_log([str(XPERF),'-i',str(paths['etl']),'-a','tracestats','-timespan'],paths['header'],30)
         header=base.read_collector_log(paths['header']);validate_header(header,paths['etl'])
         run_to_log(parse,paths['parselog'],120)
-        log=base.read_collector_log(paths['parselog'])
+        parse_hash,log=parse_log_observation(paths['parselog'])
         if base.event_loss(log):raise ValueError('PresentMon reported loss while parsing')
+        record['offline_etw'].update(parse_log_path=str(paths['parselog']),parse_log_sha256=parse_hash)
         filtered=bounded_csv(paths['raw_csv'],args.pid,ready_qpc,end_qpc,freq)
         with paths['csv'].open('xb') as stream:stream.write(filtered)
         csv_sha=base.sha(paths['csv']);values,clocks,runtime=comparison.read_frames(paths['csv'],args.pid,csv_sha)

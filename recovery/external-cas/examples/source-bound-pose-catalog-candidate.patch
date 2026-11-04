@@ -1,0 +1,190 @@
+--- a/tools/research/intake_pose_package.py
++++ b/tools/research/intake_pose_package.py
+@@ -22,24 +22,30 @@
+     if package.source_sha256!=a.sha256:raise ValueError('Package identity mismatch')
+     if len(package.entries)>1024 or sum(max(v[1:3]) for v in package.entries.values())>64*1024*1024:raise ValueError('Package resource budget exceeded')
+     rootdir=root/'private-input-recovery'/name;rootdir.mkdir(mode=0o700,exist_ok=False);resources=rootdir/'resources';decoded=rootdir/'decoded';resources.mkdir(mode=0o700);decoded.mkdir(mode=0o700)
+-    items=package.read_many(list(package.entries));result=[];claimed_keys=0;decoded_bytes=0
+-    for key,data in items.items():
+-     if len(data)>8*1024*1024:raise ValueError('Resource extent exceeded')
+-     ident=tgi(key).replace(':','_')
+-     with (resources/ident).open('xb') as f:f.write(data)
+-     if key[0]==0x6B20C4F3:
+-      try:
+-       cost=estimated_keys(data)
+-       if claimed_keys+cost>250000:raise ValueError('Package key expansion budget')
+-       claimed_keys+=cost;parsed=decode(data);raw=json.dumps(parsed,separators=(',',':'),allow_nan=False).encode()
+-       if len(raw)>16*1024*1024 or decoded_bytes+len(raw)>64*1024*1024:raise ValueError('Decoded output budget')
+-       decoded_bytes+=len(raw)
+-       with (decoded/(ident+'.json')).open('xb') as f:f.write(raw)
+-       result.append({'state':'decoded','unsupported':len(parsed['unsupported_channels'])})
+-      except (ValueError,UnicodeError,OverflowError,KeyError) as e:result.append({'state':'refused','error_type':type(e).__name__})
++    items=package.read_many(list(package.entries));result=[];records=[];claimed_keys=0;decoded_bytes=0
++    for key, data in items.items():
++        if len(data)>8*1024*1024:raise ValueError('Resource extent exceeded')
++        ident=tgi(key).replace(':','_')
++        record={'tgi':tgi(key),'resource_sha256':hashlib.sha256(data).hexdigest(),'decoded_sha256':None}
++        with (resources/ident).open('xb') as f:f.write(data)
++        if key[0]==0x6B20C4F3:
++            try:
++                cost=estimated_keys(data)
++                if claimed_keys+cost>250000:raise ValueError('Package key expansion budget')
++                claimed_keys+=cost
++                parsed=decode(data)
++                raw=json.dumps(parsed,separators=(',',':'),allow_nan=False).encode()
++                if len(raw)>16*1024*1024 or decoded_bytes+len(raw)>64*1024*1024:raise ValueError('Decoded output budget')
++                decoded_bytes+=len(raw)
++                with (decoded/(ident+'.json')).open('xb') as f:f.write(raw)
++                record['decoded_sha256']=hashlib.sha256(raw).hexdigest()
++                result.append({'state':'decoded','unsupported':len(parsed['unsupported_channels'])})
++            except (ValueError,UnicodeError,OverflowError,KeyError) as e:
++                result.append({'state':'refused','error_type':type(e).__name__})
++        records.append(record)
+     if hashlib.sha256(source.read_bytes()).hexdigest()!=a.sha256:raise ValueError('Source changed during intake')
+-    report={'resources':len(items),'clips':len(result),'decoded':sum(x['state']=='decoded' for x in result),'refused':sum(x['state']=='refused' for x in result),'unsupported':sum(x.get('unsupported',0) for x in result),'claimed_keys':claimed_keys,'decoded_bytes':decoded_bytes,'clip_decoding_complete':bool(result) and all(x['state']=='decoded' and x.get('unsupported',0)==0 for x in result),'game_modified':False}
++    report={'package_sha256':a.sha256,'records':records,'resources':len(items),'clips':len(result),'decoded':sum(x['state']=='decoded' for x in result),'refused':sum(x['state']=='refused' for x in result),'unsupported':sum(x.get('unsupported',0) for x in result),'claimed_keys':claimed_keys,'decoded_bytes':decoded_bytes,'clip_decoding_complete':bool(result) and all(x['state']=='decoded' and x.get('unsupported',0)==0 for x in result),'game_modified':False}
+     with (rootdir/'intake-report.json').open('x') as f:json.dump(report,f,indent=2)
+-    print(json.dumps(report))
++    print(json.dumps({k:v for k,v in report.items() if k not in ('package_sha256','records')}))
+ 
+ if __name__ == "__main__":main()
+--- /dev/null
++++ b/tools/research/build_pose_catalog.py
+@@ -0,0 +1,115 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Private inspect-only pose catalog from a hash-bound intake; no game writes."""
++import argparse,hashlib,io,json,pathlib,re,sys,xml.etree.ElementTree as ET
++from PIL import Image
++root=pathlib.Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'inert-status-fixture/modules'));sys.path.insert(0,str(root/'real-recovery-evidence/clip-gpl'))
++from cas_resource_catalog import Package,stbl_strings,tgi
++from dst_adapter import to_dds
++from decode_clip import decode
++from intake_pose_package import estimated_keys
++HEX=re.compile('[a-f0-9]{64}\\Z');TGI=re.compile('[0-9A-F]{8}:[0-9A-F]{8}:[0-9A-F]{16}\\Z')
++def bounded_text(v):
++ if not isinstance(v,str) or len(v)>2048:raise ValueError('Metadata text exceeds bound')
++ return v
++def bounded_read(p,limit):
++ if p.is_symlink() or not p.is_file():raise ValueError('Regular non-symlink resource required')
++ with p.open('rb') as f:data=f.read(limit+1)
++ if len(data)>limit:raise ValueError('Resource extent exceeded')
++ return data
++def main():
++ ap=argparse.ArgumentParser();ap.add_argument('package');ap.add_argument('case');ap.add_argument('package_sha256');ap.add_argument('output_name');args=ap.parse_args()
++ for name in (args.case,args.output_name):
++  if not name or name in ('.','..') or pathlib.Path(name).name!=name:raise ValueError('Single directory names required')
++ if not HEX.fullmatch(args.package_sha256):raise ValueError('Package SHA256 required')
++ source=pathlib.Path(args.package)
++ if source.is_symlink() or not source.is_file() or source.stat().st_size>8*1024*1024:raise ValueError('Bounded package required')
++ package=Package(source,'mod')
++ if package.source_sha256!=args.package_sha256 or len(package.entries)>1024 or sum(max(v[1:3]) for v in package.entries.values())>64*1024*1024:raise ValueError('Package identity or budget mismatch')
++ source_items={tgi(k):v for k,v in package.read_many(list(package.entries)).items()}
++ case=root/'private-input-recovery'/args.case
++ if case.is_symlink() or not case.is_dir():raise ValueError('Intake directory unavailable')
++ report=json.loads(bounded_read(case/'intake-report.json',1024*1024));records=report.get('records')
++ if report.get('package_sha256')!=args.package_sha256 or not isinstance(records,list) or len(records)>1024 or report.get('resources')!=len(records):raise ValueError('Intake identity mismatch')
++ resources={};decoded={};claimed_keys=0;decoded_total=0
++ for row in records:
++  if not isinstance(row,dict) or set(row)!={'tgi','resource_sha256','decoded_sha256'} or not TGI.fullmatch(row['tgi']) or not HEX.fullmatch(row['resource_sha256']) or row['tgi'] in resources:raise ValueError('Invalid resource identity')
++  ident=row['tgi'].replace(':','_');data=bounded_read(case/'resources'/ident,8*1024*1024)
++  if hashlib.sha256(data).hexdigest()!=row['resource_sha256'] or source_items.get(row['tgi'])!=data:raise ValueError('Resource changed or does not match package')
++  resources[row['tgi']]=data
++  if row['decoded_sha256'] is not None:
++   if not HEX.fullmatch(row['decoded_sha256']):raise ValueError('Invalid decoded identity')
++   raw=bounded_read(case/'decoded'/(ident+'.json'),16*1024*1024);decoded_total+=len(raw)
++   if decoded_total>64*1024*1024:raise ValueError('Decoded aggregate budget exceeded')
++   if hashlib.sha256(raw).hexdigest()!=row['decoded_sha256'] or not row['tgi'].startswith('6B20C4F3:'):raise ValueError('Decoded resource identity mismatch')
++   cost=estimated_keys(data);claimed_keys+=cost
++   if claimed_keys>250000:raise ValueError('Package key expansion budget')
++   x=decode(data);canonical=json.dumps(x,separators=(',',':'),allow_nan=False).encode()
++   if canonical!=raw:raise ValueError('Decoded resource does not match source')
++   name=bounded_text(x['name']);decoded.setdefault(name,[]).append((row['tgi'],x))
++ if set(resources)!=set(source_items):raise ValueError('Incomplete source resource inventory')
++ if hashlib.sha256(bounded_read(source,8*1024*1024)).hexdigest()!=args.package_sha256:raise ValueError('Package changed during catalog build')
++ english={}
++ for key,data in resources.items():
++  if key.startswith('220557DA:') and key.split(':')[2].startswith('00'):
++   for k,v in stbl_strings(data).items():english.setdefault(k,set()).add(v)
++ def text(v):
++  if not v:return ''
++  if v.startswith('0x'):
++   key=int(v,16)
++   if key==0:return ''
++   choices=english.get(key,set())
++   return bounded_text(next(iter(choices))) if len(choices)==1 else v
++  return bounded_text(v)
++ def fields(node):
++  d={}
++  for item in node.findall('T'):
++   key=item.get('n')
++   if not key or key in d:raise ValueError('Ambiguous XML field')
++   d[key]=item.text or ''
++  return d
++ output=case/args.output_name;output.mkdir(mode=0o700,exist_ok=False);packs=[];poses=[];images={};image_total=0
++ for key,data in resources.items():
++  if key.startswith('00B2D882:'):images.setdefault(key.split(':')[2],[]).append(data)
++ def icon(ref):
++  nonlocal image_total
++  pieces=ref.split(':')
++  if len(pieces)!=3 or not re.fullmatch('[0-9A-Fa-f]{16}',pieces[2]):return {'state':'missing-reference'}
++  options=images.get(pieces[2].upper(),[])
++  if len(options)!=1:return {'state':'missing-resource' if not options else 'ambiguous-resource'}
++  try:
++   data=options[0];im=Image.open(io.BytesIO(to_dds(data)))
++   if im.format!='DDS' or not (0<im.width<=512 and 0<im.height<=512):raise ValueError('Icon dimensions')
++   im.load();name=hashlib.sha256(data).hexdigest()+'.png';path=output/name
++   if not path.exists():
++    buffer=io.BytesIO();im.convert('RGBA').save(buffer,format='PNG');png=buffer.getvalue()
++    if len(png)>512*1024 or image_total+len(png)>16*1024*1024:return {'state':'overbudget'}
++    with path.open('xb') as f:f.write(png)
++    image_total+=len(png)
++   png_data=bounded_read(path,512*1024)
++   return {'state':'decoded-source-image','file':name,'width':im.width,'height':im.height,'png_sha256':hashlib.sha256(png_data).hexdigest(),'byte_count':len(png_data)}
++  except (ValueError,OSError):return {'state':'unsupported-image'}
++ for key,data in resources.items():
++  if not key.startswith('7DF2169C:'):continue
++  if len(data)>1024*1024 or b'<!DOCTYPE' in data.upper() or b'<!ENTITY' in data.upper():raise ValueError('Unsafe XML')
++  tree=ET.fromstring(data)
++  if len(list(tree.iter()))>10000:raise ValueError('XML node limit')
++  if tree.tag!='I' or tree.get('c')!='PosePackInstance':continue
++  meta=fields(tree);pid=hashlib.sha256((args.package_sha256+key).encode()).hexdigest();name=text(meta.get('display_name','')) or bounded_text(meta.get('sort_name','Unnamed pack'));creator=text(meta.get('creator_name','')) or 'Unknown creator';packs.append({'id':pid,'name':name,'creator':creator})
++  lists=tree.findall("L[@n='pose_list']")
++  if len(lists)!=1:raise ValueError('Pose list ambiguity')
++  for node in lists[0].findall('U'):
++   item=fields(node);clip_name=bounded_text(item['pose_name']);matches=decoded.get(clip_name,[]);ident=hashlib.sha256((pid+'\0'+clip_name).encode()).hexdigest()
++   if len(poses)>=1024:raise ValueError('Pose count exceeded')
++   state='decoded-not-prepared' if len(matches)==1 else 'missing-clip' if not matches else 'ambiguous-clip'
++   x=matches[0][1] if len(matches)==1 else None
++   resource_id=matches[0][0] if len(matches)==1 else None
++   clip_record=next((row for row in records if row['tgi']==resource_id),None)
++   if x and x.get('unsupported_channels'):state='unsupported-channels'
++   changing=sum(len({tuple(k['values']) for k in t['frames']})>1 for t in x['tracks']) if x else None
++   poses.append({'id':ident,'pack_id':pid,'name':text(item.get('pose_display_name','')) or clip_name,'pack':name,'creator':creator,'package':'Selected private package','clip_name':clip_name,'clip_resource':resource_id,'clip_sha256':clip_record['resource_sha256'] if clip_record else None,'decoded_sha256':clip_record['decoded_sha256'] if clip_record else None,'description':text(item.get('pose_description','')),'order':int(item.get('sort_order','0')),'state':state,'icon':icon(item.get('icon','')),'changing_curves':changing,'playback_ready':False,'playing':False})
++ if len(packs)>128 or len({x['id'] for x in packs})!=len(packs) or len({x['id'] for x in poses})!=len(poses):raise ValueError('Duplicate catalog identity')
++ data=json.dumps({'schema':1,'packs':packs,'poses':poses,'autoplay':False,'game_connected':False,'shared_favorites_connected':False},ensure_ascii=False,indent=2).encode()
++ if len(data)>1024*1024:raise ValueError('Catalog output bound')
++ with (output/'catalog.json').open('xb') as f:f.write(data)
++ print(json.dumps({'packs':len(packs),'poses':len(poses),'decoded':sum(p['state']=='decoded-not-prepared' for p in poses),'icons':sum(p['icon']['state']=='decoded-source-image' for p in poses),'playback_ready':0,'game_modified':False}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/tools/research/test_pose_catalog.py
+@@ -0,0 +1,19 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Private-source catalog tests; scratch copies only, no game writes."""
++import hashlib,json,os,pathlib,shutil,subprocess,sys,tempfile,unittest
++ROOT=pathlib.Path(__file__).resolve().parents[1];PRIVATE=ROOT/'private-input-recovery';SCRIPT=ROOT/'real-recovery-evidence/build_pose_catalog.py';SOURCE=PRIVATE/'pose-intake-manifest';PACKAGE=PRIVATE/'new-pose/mosichaa-camera.package'
++@unittest.skipUnless(SOURCE.is_dir() and PACKAGE.is_file(),'requires privately prepared creator package')
++class CatalogTests(unittest.TestCase):
++ def setUp(self):
++  self.temp=pathlib.Path(tempfile.mkdtemp(prefix='catalog-test-',dir=PRIVATE));self.case=self.temp.name
++  shutil.copytree(SOURCE/'resources',self.temp/'resources');shutil.copytree(SOURCE/'decoded',self.temp/'decoded');shutil.copy2(SOURCE/'intake-report.json',self.temp/'intake-report.json');self.sha=hashlib.sha256(PACKAGE.read_bytes()).hexdigest()
++ def tearDown(self):shutil.rmtree(self.temp)
++ def run_cli(self,out='catalog',digest=None):return subprocess.run([sys.executable,str(SCRIPT),str(PACKAGE),self.case,digest or self.sha,out],capture_output=True,text=True,timeout=20)
++ def test_real_metadata_is_inspect_only_and_no_overwrite(self):
++  r=self.run_cli();self.assertEqual(r.returncode,0,r.stderr);summary=json.loads(r.stdout);self.assertEqual((summary['packs'],summary['poses'],summary['decoded'],summary['icons'],summary['playback_ready']),(1,23,23,23,0));catalog=(self.temp/'catalog/catalog.json').read_bytes();self.assertNotEqual(self.run_cli().returncode,0);self.assertEqual((self.temp/'catalog/catalog.json').read_bytes(),catalog)
++ def test_forged_resource_digest_cannot_replace_original_package(self):
++  p=self.temp/'intake-report.json';report=json.loads(p.read_text());row=next(x for x in report['records'] if x['tgi'].startswith('6B20C4F3:'));f=self.temp/'resources'/row['tgi'].replace(':','_');raw=bytearray(f.read_bytes());raw[-1]^=1;f.write_bytes(raw);row['resource_sha256']=hashlib.sha256(raw).hexdigest();p.write_text(json.dumps(report));self.assertNotEqual(self.run_cli().returncode,0);self.assertFalse((self.temp/'catalog').exists())
++ def test_forged_decoded_digest_cannot_override_source(self):
++  p=self.temp/'intake-report.json';report=json.loads(p.read_text());row=next(x for x in report['records'] if x['decoded_sha256']);f=self.temp/'decoded'/(row['tgi'].replace(':','_')+'.json');v=json.loads(f.read_text());v['name']='forged';raw=json.dumps(v,separators=(',',':'),allow_nan=False).encode();f.write_bytes(raw);row['decoded_sha256']=hashlib.sha256(raw).hexdigest();p.write_text(json.dumps(report));self.assertNotEqual(self.run_cli().returncode,0);self.assertFalse((self.temp/'catalog').exists())
++ def test_wrong_package_hash_refused(self):self.assertNotEqual(self.run_cli(digest='0'*64).returncode,0);self.assertFalse((self.temp/'catalog').exists())
++if __name__=='__main__':unittest.main(verbosity=2)

@@ -1,0 +1,38 @@
+--- a/examples/cas_import_status.rs
++++ b/examples/cas_import_status.rs
+@@ -374,3 +374,35 @@
+   let f=Fixture::new();let expected=identity(&f.path).unwrap();fs::hard_link(&f.path,f.dir.join("alias")).unwrap();assert!(matches!(open_pinned(&f.path,expected),Err("pin identity")));
+  }
+ }
++
++#[cfg(all(test, target_os = "linux"))]
++mod private_inert_integration {
++    use super::*;
++    // A separately prepared inert configuration only; no live catalog or import.
++    #[test]
++    #[ignore = "requires explicitly pinned inert sidecar fixture"]
++    fn parent_probe_runs_and_reaps_status_only_child() {
++        let values: [String; 11] = std::array::from_fn(|i| std::env::var(format!("APEX_CAS_STATUS_{}", NAMES[i])).unwrap());
++        let mut cfg = config(values.map(Some)).unwrap().unwrap();
++        cfg.epoch = [0x35; 16];
++        let shared = Shared { state: Mutex::new(State { phase: Phase::Starting, stop: false,
++            deadline: Instant::now() + STARTUP, cleanup_pending: false }) };
++        run(&shared, cfg);
++        let result = lock(&shared);
++        assert!(matches!(result.phase, Phase::Complete), "status-only parent probe did not complete");
++        assert!(!result.cleanup_pending, "child cleanup remains uncertain");
++    }
++    #[test]
++    #[ignore = "requires explicitly pinned inert sidecar fixture"]
++    fn incorrect_config_pin_fails_closed_before_child() {
++        let mut values: [String; 11] = std::array::from_fn(|i| std::env::var(format!("APEX_CAS_STATUS_{}", NAMES[i])).unwrap());
++        values[4] = "0".repeat(64);
++        let cfg = config(values.map(Some)).unwrap().unwrap();
++        let shared = Shared { state: Mutex::new(State { phase: Phase::Starting, stop: false,
++            deadline: Instant::now() + STARTUP, cleanup_pending: false }) };
++        run(&shared, cfg);
++        let result = lock(&shared);
++        assert!(matches!(result.phase, Phase::Unavailable));
++        assert!(!result.cleanup_pending);
++    }
++}

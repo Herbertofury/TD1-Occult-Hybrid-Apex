@@ -1,0 +1,112 @@
+--- /dev/null
++++ b/tools/research/stage_generic_runtime.py
+@@ -0,0 +1,66 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Stage a pinned, private, single-dress diagnostic runtime in a fresh directory.
++
++Inputs and parent directories are trusted. A pin identifies bytes, not rights,
++source provenance, native fidelity or age compatibility. No game writes; this
++is not a sandbox, installer, interactive outfit switch, or native Tray export.
++"""
++import argparse,hashlib,json,os,pathlib,re,shutil
++ROOT=pathlib.Path(__file__).resolve().parents[1];PRIVATE=ROOT/'private-input-recovery';D=re.compile(r'[a-f0-9]{64}\Z');N=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z')
++FILES={'pose-config.bin':177,'AH00B-SugarHair-V1-Plain.rgba':8*1024*1024,'eyes.2048.rgba':32*1024*1024,'tone-base.2048.rgba':32*1024*1024,'miiko-rhea-skin.2048.rgba':32*1024*1024,'myshunosun-caroline-tattoo.2048.rgba':32*1024*1024,'Jius-BowFlipFlops01.2048.rgba':32*1024*1024}
++def read_pin(path,digest,limit):
++ p=pathlib.Path(path)
++ if not D.fullmatch(digest) or p.is_symlink() or not p.is_file():raise ValueError('pinned regular file required')
++ with p.open('rb') as f:b=f.read(limit+1)
++ if len(b)>limit or hashlib.sha256(b).hexdigest()!=digest:raise ValueError('input identity or size mismatch')
++ return b
++def copy_pin(source,dest,digest,size):
++ if not D.fullmatch(digest) or source.is_symlink() or not source.is_file():raise ValueError('regular source required')
++ h=hashlib.sha256();count=0
++ with source.open('rb') as i,dest.open('xb') as o:
++  for chunk in iter(lambda:i.read(1024*1024),b''):
++   count+=len(chunk)
++   if count>size:raise ValueError('asset size bound')
++   h.update(chunk);o.write(chunk)
++ if count!=size or h.hexdigest()!=digest:raise ValueError('asset identity mismatch')
++ if hashlib.sha256(dest.read_bytes()).hexdigest()!=digest:raise ValueError('staged copy mismatch')
++ return count
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--baseline',required=True);p.add_argument('--manifest',nargs=2,required=True,metavar=('PATH','SHA256'));p.add_argument('--head',required=True);p.add_argument('--shoes',required=True);p.add_argument('--hair',required=True);p.add_argument('--pipeline',required=True);p.add_argument('--pose-library',required=True);p.add_argument('--pose-catalog-sha',required=True);p.add_argument('--output',required=True);a=p.parse_args()
++ if not N.fullmatch(a.pipeline) or not N.fullmatch(a.output) or not D.fullmatch(a.pose_catalog_sha):raise ValueError('invalid selection')
++ if PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('private parent unavailable')
++ base=pathlib.Path(a.baseline);pose=pathlib.Path(a.pose_library)
++ if base.is_symlink() or not base.is_dir() or pose.is_symlink() or not pose.is_dir():raise ValueError('trusted source directories required')
++ manifest=json.loads(read_pin(*a.manifest,65536))
++ if set(manifest)!={'schema','base','head','shoes','hair'} or manifest['schema']!=1 or set(manifest['base'])!=set(FILES) or not all(D.fullmatch(v) for v in [*manifest['base'].values(),manifest['head'],manifest['shoes'],manifest['hair']]):raise ValueError('invalid source manifest')
++ ready_path=PRIVATE/(a.pipeline+'-ready')/'ready.json'
++ if ready_path.is_symlink() or not ready_path.is_file() or ready_path.stat().st_size>65536:raise ValueError('prepared pipeline unavailable')
++ ready=json.loads(ready_path.read_bytes())
++ if ready.get('schema')!=1 or ready.get('game_modified') is not False or not all(D.fullmatch(ready.get(k,'')) for k in ('descriptor_sha256','mesh_sha256','material_sha256')):raise ValueError('invalid pipeline marker')
++ descriptor=PRIVATE/(a.pipeline+'-descriptor')/'descriptor.txt';mesh=PRIVATE/(a.pipeline+'-merged')/'mesh.apxmesh';material=PRIVATE/(a.pipeline+'-diffuse')/'material.rgba'
++ read_pin(descriptor,ready['descriptor_sha256'],4096);read_pin(pose/'catalog.json',a.pose_catalog_sha,1024*1024)
++ entries=list(pose.iterdir())
++ if len(entries)>2048 or any(x.is_symlink() or not x.is_file() or not (x.name=='catalog.json' or re.fullmatch(r'[a-f0-9]{64}\.(posebin|png)',x.name)) for x in entries):raise ValueError('pose directory entry refused')
++ if sum(x.stat().st_size for x in entries)>32*1024*1024:raise ValueError('pose directory budget')
++ output=PRIVATE/a.output;output.mkdir(mode=0o700,exist_ok=False);assets=output/'assets';poses=output/'poses';assets.mkdir(mode=0o700);poses.mkdir(mode=0o700)
++ copied=0;asset_hashes=dict(manifest['base']);mesh_hashes={};pose_hashes={}
++ for name,size in FILES.items():copied+=copy_pin(base/name,assets/name,manifest['base'][name],size)
++ copied+=copy_pin(material,assets/'FatalRose-PastelGothDress.2048.rgba',ready['material_sha256'],32*1024*1024);asset_hashes['FatalRose-PastelGothDress.2048.rgba']=ready['material_sha256']
++ for name,path in [('head',a.head),('shoes',a.shoes),('hair',a.hair)]:
++  source=pathlib.Path(path);size=source.stat().st_size
++  if not 16<=size<=64*1024*1024:raise ValueError('mesh extent')
++  copied+=copy_pin(source,output/(name+'.apxmesh'),manifest[name],size);mesh_hashes[name+'.apxmesh']=manifest[name]
++ for name,source,digest,limit in [('dress.apxmesh',mesh,ready['mesh_sha256'],64*1024*1024),('descriptor.txt',descriptor,ready['descriptor_sha256'],4096)]:
++  size=source.stat().st_size
++  if not 0<size<=limit:raise ValueError('prepared extent')
++  copied+=copy_pin(source,output/name,digest,size)
++  if name=='dress.apxmesh':mesh_hashes[name]=digest
++ for source in entries:
++  size=source.stat().st_size
++  if size>16*1024*1024:raise ValueError('pose file bound')
++  digest=a.pose_catalog_sha if source.name=='catalog.json' else hashlib.sha256(source.read_bytes()).hexdigest()
++  copied+=copy_pin(source,poses/source.name,digest,size);pose_hashes[source.name]=digest
++ record={'schema':1,'descriptor_sha256':ready['descriptor_sha256'],'dress_mesh_sha256':ready['mesh_sha256'],'material_sha256':ready['material_sha256'],'pose_catalog_sha256':a.pose_catalog_sha,'baseline_manifest_sha256':a.manifest[1],'asset_hashes':asset_hashes,'mesh_hashes':mesh_hashes,'pose_hashes':pose_hashes,'game_modified':False,'native_fidelity':'unverified','preview_only':True,'bytes':copied}
++ with (output/'runtime.json').open('x') as f:json.dump(record,f,indent=2)
++ print(json.dumps({'bytes':copied,'pose_files':len(entries),'game_modified':False,'preview_only':True,'native_fidelity':'unverified'}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/tools/research/launch_generic_runtime.py
+@@ -0,0 +1,40 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Launch one explicitly pinned private CAS diagnostic on loopback.
++
++Only execute an independently reviewed locally built preview server. Trusted
++local paths are required; pin checks are not a hostile-filesystem sandbox.
++The runtime is a partial preview, not a native game, installer or Tray save.
++"""
++import argparse,hashlib,json,os,pathlib,re,sys
++ROOT=pathlib.Path(__file__).resolve().parents[1];PRIVATE=ROOT/'private-input-recovery';D=re.compile(r'[a-f0-9]{64}\Z');N=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z')
++ASSETS={'pose-config.bin','AH00B-SugarHair-V1-Plain.rgba','eyes.2048.rgba','tone-base.2048.rgba','miiko-rhea-skin.2048.rgba','myshunosun-caroline-tattoo.2048.rgba','Jius-BowFlipFlops01.2048.rgba','FatalRose-PastelGothDress.2048.rgba'};MESHES={'head.apxmesh','dress.apxmesh','shoes.apxmesh','hair.apxmesh'}
++def pin(path,digest,limit):
++ if not D.fullmatch(digest) or path.is_symlink() or not path.is_file() or path.stat().st_size>limit:raise ValueError('bounded pinned regular file required')
++ h=hashlib.sha256()
++ with path.open('rb') as f:
++  for b in iter(lambda:f.read(1024*1024),b''):h.update(b)
++ if h.hexdigest()!=digest:raise ValueError('runtime identity mismatch')
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--runtime',required=True);p.add_argument('--runtime-sha',required=True);p.add_argument('--binary',required=True);p.add_argument('--binary-sha',required=True);a=p.parse_args()
++ if not N.fullmatch(a.runtime) or not D.fullmatch(a.runtime_sha) or not D.fullmatch(a.binary_sha):raise ValueError('invalid identity')
++ if PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('private parent unavailable')
++ root=PRIVATE/a.runtime
++ if root.is_symlink() or not root.is_dir():raise ValueError('runtime unavailable')
++ for child in ('assets','poses'):
++  pth=root/child
++  if pth.is_symlink() or not pth.is_dir():raise ValueError('runtime directory refused')
++ record=root/'runtime.json';pin(record,a.runtime_sha,1024*1024);data=json.loads(record.read_bytes());keys={'schema','descriptor_sha256','dress_mesh_sha256','material_sha256','pose_catalog_sha256','baseline_manifest_sha256','asset_hashes','mesh_hashes','pose_hashes','game_modified','native_fidelity','preview_only','bytes'}
++ if set(data)!=keys or data['schema']!=1 or data['game_modified'] is not False or data['native_fidelity']!='unverified' or data['preview_only'] is not True or set(data['asset_hashes'])!=ASSETS or set(data['mesh_hashes'])!=MESHES or not isinstance(data['pose_hashes'],dict) or not 1<=len(data['pose_hashes'])<=2048 or data['pose_hashes'].get('catalog.json')!=data['pose_catalog_sha256']:raise ValueError('runtime manifest shape')
++ if set(x.name for x in (root/'assets').iterdir())!=ASSETS or set(x.name for x in (root/'poses').iterdir())!=set(data['pose_hashes']):raise ValueError('runtime file inventory mismatch')
++ for name,digest in data['asset_hashes'].items():pin(root/'assets'/name,digest,32*1024*1024)
++ for name,digest in data['mesh_hashes'].items():pin(root/name,digest,64*1024*1024)
++ for name,digest in data['pose_hashes'].items():
++  if not(name=='catalog.json' or re.fullmatch(r'[a-f0-9]{64}\.(png|posebin)',name)):raise ValueError('pose file name')
++  pin(root/'poses'/name,digest,16*1024*1024)
++ pin(root/'descriptor.txt',data['descriptor_sha256'],4096)
++ if data['mesh_hashes']['dress.apxmesh']!=data['dress_mesh_sha256'] or data['asset_hashes']['FatalRose-PastelGothDress.2048.rgba']!=data['material_sha256']:raise ValueError('prepared asset mismatch')
++ binary=pathlib.Path(a.binary);pin(binary,a.binary_sha,64*1024*1024)
++ env={'PATH':'/usr/bin:/bin','APEX_GENERIC_DRESS':str(root/'descriptor.txt'),'APEX_GENERIC_DRESS_SHA256':data['descriptor_sha256'],'APEX_POSE_LIBRARY':str(root/'poses'),'APEX_REQUEST_BUDGET':'1000'}
++ argv=[str(binary),'--cc',str(root/'assets'),str(root/'head.apxmesh'),str(root/'dress.apxmesh'),str(root/'shoes.apxmesh'),str(root/'hair.apxmesh')]
++ os.execve(str(binary),argv,env)
++if __name__=='__main__':main()

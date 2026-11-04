@@ -2531,6 +2531,12 @@
       "sha256": "28daea6c4b1b1fec0e3e20fdef212ccebdacaa31e1a4b71e9ae442febe39d8eb"
     },
     {
+      "bytes": 6533,
+      "mode": "100644",
+      "path": "docs/STRICT_PROVENANCE_COMPARISON.md",
+      "sha256": "d0acafc988a4f8f6df18dd35153cec8cbe98fbee05555bd8b8b31542ab00b50b"
+    },
+    {
       "bytes": 14588,
       "mode": "100644",
       "path": "tests/test_cas_grid_staging_attach_chain.py",
@@ -3791,6 +3797,12 @@
       "sha256": "c4d7a5531a2e46910170abac6de67938411cbf325cc5928a314e207baa50012b"
     },
     {
+      "bytes": 16782,
+      "mode": "100644",
+      "path": "tools/compare_provenance_stages.py",
+      "sha256": "efaf6dccb49ae6cf6a4ba1afc9fcf05bf8657a3e98bc38872a66072f4d919c8f"
+    },
+    {
       "bytes": 2681,
       "mode": "100644",
       "path": "tests/test_build_script.py",
@@ -4503,12 +4515,6 @@
       "mode": "100644",
       "path": "tests/test_genetics_voice_transfer.py",
       "sha256": "3234d1c8847e2288774740b40633129a913db1790e7fdd5bb788500203ebfbc7"
-    },
-    {
-      "bytes": 22253,
-      "mode": "100644",
-      "path": "tests/test_offline_xperf.py",
-      "sha256": "526e068eae4a18454efd83c239c96e4a5430a8c3d9de45b9eeeb96710a4e0d58"
     },
     {
       "bytes": 14503,
@@ -5373,6 +5379,12 @@
       "mode": "100644",
       "path": "tests/test_cas_transaction_integration.py",
       "sha256": "c17b7652071e04a6bcf9c45d33eb42acdc3bfb8fed1f5a97fc65e73659a66434"
+    },
+    {
+      "bytes": 22096,
+      "mode": "100644",
+      "path": "tests/test_compare_provenance_stages.py",
+      "sha256": "8117cf2a66bd27091c87d694b9bab491751175b17d7aa2f5313ee1c8bcfc9902"
     },
     {
       "bytes": 16403,
@@ -6747,6 +6759,12 @@
       "mode": "100644",
       "path": "docs/CAS_SWATCHES_TRAY_GALLERY.md",
       "sha256": "fb602fe2593d8fe6ffc6b3ce75ef4e8aa7184081c35b017a6b842a9c5e48b2e1"
+    },
+    {
+      "bytes": 22538,
+      "mode": "100644",
+      "path": "tests/test_offline_xperf.py",
+      "sha256": "941e03334db4db565668d3d53689e16a1d142532c998bdd6aff3895a6e0c53a7"
     },
     {
       "bytes": 14069,

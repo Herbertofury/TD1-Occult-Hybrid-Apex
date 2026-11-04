@@ -284,6 +284,7 @@ class OfflineEvidenceTests(unittest.TestCase):
 
     def test_normal_stop_timeout_is_uncertain_and_never_retried(self):
         executable=self.work/'xperf.exe';executable.write_bytes(b'fixture')
+        presentmon=self.work/'PresentMon.exe';presentmon.write_bytes(b'synthetic pinned collector')
         game=self.work/'game';game.write_bytes(b'fixture game')
         state=self.work/'state.json';state.write_text('{}')
         mods=self.work/'mods.json';mods.write_text('{}')
@@ -293,6 +294,8 @@ class OfflineEvidenceTests(unittest.TestCase):
         window=dict(process_creation_filetime=42)
         def snapshot(session,etl,dest):Path(dest).write_text('fixture');return [64,120]
         with patch.object(offline,'XPERF',executable), \
+                patch.object(offline.base,'PRESENTMON',presentmon), \
+                patch.object(offline.base,'PRESENTMON_SHA',hashlib.sha256(presentmon.read_bytes()).hexdigest()), \
                 patch.object(offline.base,'verify_start',return_value=(self.work,paths,window,{},hashlib.sha256(mods.read_bytes()).hexdigest())), \
                 patch.object(offline.shutil,'disk_usage',return_value=SimpleNamespace(free=3*1024**3)), \
                 patch.object(offline,'snapshot_logger',side_effect=snapshot), \

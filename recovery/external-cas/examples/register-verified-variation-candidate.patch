@@ -1,0 +1,108 @@
+--- /dev/null
++++ b/research/build_prepared_variant.py
+@@ -0,0 +1,34 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Stage and frame-verify a trusted same-mesh prepared variation privately.
++
++A source item is not equipped in game. Identical geometry is required before
++reusing pose caches; caller-supplied binary and paths must be independently
++reviewed. Failure keeps stages, never replaces an existing runtime.
++"""
++import argparse,hashlib,json,pathlib,re,subprocess,sys
++from build_scene_bindings import pin,PRIVATE,D,N
++from scene_switch_supervisor import HARNESS,line,fetch,verify_frame,stop
++ROOT=pathlib.Path(__file__).resolve().parents[1]
++def ensure_mesh_compatibility(base,slot,ready):
++ digest=ready.get('mesh_sha256')
++ if slot not in ('dress','hair') or ready.get('game_modified') is not False or not isinstance(digest,str) or not D.fullmatch(digest) or digest!=base.get('mesh_hashes',{}).get(slot+'.apxmesh'):raise ValueError('pose cache requires exact same mesh')
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--base',required=True);p.add_argument('--base-sha',required=True);p.add_argument('--manifest',nargs=2,required=True);p.add_argument('--dress-pipeline',required=True);p.add_argument('--hair-pipeline',required=True);p.add_argument('--binary',nargs=2,required=True);p.add_argument('--output',required=True);a=p.parse_args()
++ if not all(N.fullmatch(x) for x in (a.base,a.dress_pipeline,a.hair_pipeline,a.output)) or not D.fullmatch(a.base_sha):raise ValueError('invalid trusted runtime names')
++ base=PRIVATE/a.base;marker=base/'runtime.json';pin(marker,a.base_sha,1024*1024);m=json.loads(marker.read_bytes());heads=[]
++ for slot,name in [('dress',a.dress_pipeline),('hair',a.hair_pipeline)]:
++  path=PRIVATE/(name+'-ready')/'ready.json'
++  if path.is_symlink() or not path.is_file() or path.stat().st_size>65536:raise ValueError('prepared source unavailable')
++  v=json.loads(path.read_bytes());ensure_mesh_compatibility(m,slot,v);heads.append(v)
++ catalog=base/'poses'/'catalog.json';pin(catalog,m['pose_catalog_sha256'],1024*1024);pin(marker,a.base_sha,1024*1024);binary=pathlib.Path(a.binary[0]);pin(binary,a.binary[1],64*1024*1024)
++ args=[sys.executable,str(ROOT/'rig-recovery/stage_generic_runtime.py'),'--baseline',str(base/'assets'),'--manifest',*a.manifest,'--head',str(base/'head.apxmesh'),'--shoes',str(base/'shoes.apxmesh'),'--hair',str(base/'hair.apxmesh'),'--pipeline',a.dress_pipeline,'--hair-pipeline',a.hair_pipeline,'--pose-library',str(base/'poses'),'--pose-catalog-sha',m['pose_catalog_sha256'],'--output',a.output]
++ result=subprocess.run(args,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=120,check=False)
++ if result.returncode or len(result.stdout)>65536 or len(result.stderr)>65536:raise ValueError('staging failed; completed evidence retained')
++ target=PRIVATE/a.output;runtime_sha=hashlib.sha256((target/'runtime.json').read_bytes()).hexdigest();proc=subprocess.Popen([sys.executable,str(ROOT/'rig-recovery/launch_generic_runtime.py'),'--runtime',a.output,'--runtime-sha',runtime_sha,'--binary',str(binary),'--binary-sha',a.binary[1]],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
++ try:
++  url=line(proc);identity=fetch(url,'/identity',1024*1024);swatch=fetch(url,'/swatch-catalog',1024*1024);scene=identity.get('scene_sha256');sid=swatch.get('default_id')
++  if identity.get('harness')!=HARNESS or not isinstance(scene,str) or not D.fullmatch(scene) or not isinstance(sid,str) or swatch.get('scene_sha256')!=scene or identity.get('pose_library_ready') is not True:raise ValueError('runtime identity mismatch')
++  verify_frame(url,scene,sid)
++ finally:stop(proc);proc.stdout.close()
++ print(json.dumps({'runtime':a.output,'runtime_sha256':runtime_sha,'scene_sha256':scene,'swatch_id':sid,'preview_frame_verified':True,'native_fidelity':'unverified','game_modified':False}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/research/test_build_prepared_variant.py
+@@ -0,0 +1,9 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++import unittest
++from build_prepared_variant import ensure_mesh_compatibility
++class Tests(unittest.TestCase):
++ def test_exact_mesh_and_no_game_write_required(self):
++  base={'mesh_hashes':{'hair.apxmesh':'a'*64}};ensure_mesh_compatibility(base,'hair',{'mesh_sha256':'a'*64,'game_modified':False})
++  for slot,ready in [('hair',{'mesh_sha256':'b'*64,'game_modified':False}),('hair',{'mesh_sha256':'a'*64,'game_modified':True}),('dress',{'mesh_sha256':'a'*64,'game_modified':False}),('eyes',{'mesh_sha256':'a'*64,'game_modified':False})]:
++   with self.assertRaises(ValueError):ensure_mesh_compatibility(base,slot,ready)
++if __name__=='__main__':unittest.main(verbosity=2)
+--- /dev/null
++++ b/research/register_prepared_variant.py
+@@ -0,0 +1,18 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Atomically register and frame-verify a trusted same-mesh preview variant.
++
++This private helper does not accept browser paths or authorize native writes.
++The parent supplies the pinned specification, catalog and base generation.
++"""
++from scene_switch_supervisor import SceneSwitcher,Refused,TOKEN
++def register(owner,labels,*,base_token,generation,token,spec,label):
++ if not isinstance(token,str) or not TOKEN.fullmatch(token) or not isinstance(base_token,str) or not TOKEN.fullmatch(base_token) or type(generation)is not int or not isinstance(label,str) or not 1<=len(label)<=80 or any(ord(c)<32 or ord(c)==127 for c in label):raise Refused('invalid trusted variant identity')
++ probe=SceneSwitcher({token:spec});probe.close() # Validate the full trusted spec before mutation.
++ with owner.lock:
++  state=owner.status()
++  if state.get('state')!='ready' or state.get('token')!=base_token or state.get('generation')!=generation or token in owner.specs or token in labels or len(owner.specs)>=16:raise Refused('stale base or full scene set')
++  if spec.get('catalog')!=owner.specs[base_token].get('catalog') or spec.get('catalog') is None:raise Refused('catalog differs from active base')
++  owner.specs[token]=probe.specs[token];labels[token]=label
++  try:return owner.switch_if(token,generation)
++  except BaseException:
++   del owner.specs[token];del labels[token];raise
+--- /dev/null
++++ b/research/test_register_prepared_variant.py
+@@ -0,0 +1,22 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++import threading,unittest
++from unittest.mock import patch
++from scene_switch_supervisor import Refused
++from register_prepared_variant import register
++C={'index':'/safe/index','index_sha':'d'*64,'helper':'/safe/helper','helper_sha':'e'*64,'policy':'sha256-per-request'}
++S={'runtime':'base','runtime_sha':'a'*64,'binary':'/safe/bin','binary_sha':'b'*64,'scene_sha':'c'*64,'swatch_id':'034AEECB:80000000:0123456789ABCDEF','catalog':C}
++class Owner:
++ def __init__(self):self.lock=threading.RLock();self.specs={'1'*32:S};self.generation=4;self.fail=False
++ def status(self):return {'state':'ready','token':'1'*32,'generation':self.generation}
++ def switch_if(self,token,generation):
++  if self.fail:raise Refused('invalid frame')
++  self.generation+=1;return {'token':token,'generation':self.generation}
++class Tests(unittest.TestCase):
++ def test_only_matching_base_registers_and_switches(self):
++  o=Owner();labels={'1'*32:'Base'};result=register(o,labels,base_token='1'*32,generation=4,token='2'*32,spec=S,label='Prepared');self.assertEqual(result['token'],'2'*32);self.assertEqual(labels['2'*32],'Prepared')
++ def test_stale_catalog_and_failed_frame_leave_no_variant(self):
++  for stale,catalog,fail in [(True,C,False),(False,{**C,'index_sha':'f'*64},False),(False,C,True)]:
++   o=Owner();o.fail=fail;labels={'1'*32:'Base'}
++   with self.assertRaises(Refused):register(o,labels,base_token='1'*32,generation=3 if stale else 4,token='2'*32,spec={**S,'catalog':catalog},label='Prepared')
++   self.assertNotIn('2'*32,o.specs);self.assertNotIn('2'*32,labels)
++if __name__=='__main__':unittest.main(verbosity=2)
+--- a/scene_gateway.py
++++ b/scene_gateway.py
+@@ -83,7 +83,9 @@
+    if self.server.bindings is None:return self.error(404)
+    return self.reply(200,'application/json',json.dumps(self.server.bindings,separators=(',',':')).encode())
+   if path=='/scene-catalog' and not parts.query:
+-   state=self.server.owner.status();data={'generation':state['generation'],'active':state.get('token'),'state':state['state'],'entries':[{'token':k,'label':v} for k,v in self.server.labels.items()]};return self.reply(200,'application/json',json.dumps(data,separators=(',',':')).encode())
++   with self.server.owner.lock:
++    state=self.server.owner.status();data={'generation':state['generation'],'active':state.get('token'),'state':state['state'],'entries':[{'token':k,'label':v} for k,v in self.server.labels.items()]}
++   return self.reply(200,'application/json',json.dumps(data,separators=(',',':')).encode())
+   if not ((path in EXACT and not parts.query) or (path in QUERY and bool(parts.query)) or (PNG.fullmatch(path) and not parts.query) or (SOURCE_IMAGE.fullmatch(path) and bool(parts.query))):return self.error(404)
+   try:
+    with self.server.owner.lock:

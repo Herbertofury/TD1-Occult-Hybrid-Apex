@@ -1,0 +1,145 @@
+--- /dev/null
++++ b/tools/research/resolve_pinned_casp.py
+@@ -0,0 +1,44 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Inspect one selected, pinned CASP's declared resources in its own package.
++
++Private research only. No external resource search, renderer or game writes.
++A resolved reference is not a compatibility or native-game claim. This is not a
++sandbox for hostile packages. Dependencies are separately retained GPL tools.
++"""
++import argparse,hashlib,json,pathlib,re,sys
++root=pathlib.Path(__file__).resolve().parents[1];sys.path[:0]=[str(root/'inert-status-fixture/modules'),str(root/'rig-recovery/cc-materials/lrle-gpl')]
++from cas_resource_catalog import Package,tgi
++from casp_material import casp_material
++HEX=re.compile(r'[a-f0-9]{64}\Z');CASP=re.compile(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}\Z')
++def main():
++ ap=argparse.ArgumentParser();ap.add_argument('--package',required=True);ap.add_argument('--package-sha',required=True);ap.add_argument('--casp',required=True);ap.add_argument('--casp-sha',required=True);ap.add_argument('--output',required=True);a=ap.parse_args()
++ if not HEX.fullmatch(a.package_sha) or not HEX.fullmatch(a.casp_sha) or not CASP.fullmatch(a.casp):raise ValueError('identity required')
++ if not a.output or a.output in ('.','..') or pathlib.Path(a.output).name!=a.output:raise ValueError('single output directory name required')
++ path=pathlib.Path(a.package)
++ if path.is_symlink() or not path.is_file() or path.stat().st_size>64*1024*1024:raise ValueError('bounded regular package required')
++ package=Package(path,'mod')
++ if package.source_sha256!=a.package_sha or len(package.entries)>1024:raise ValueError('package pin or count mismatch')
++ key=tuple(int(v,16) for v in a.casp.split(':'))
++ if key not in package.entries:raise ValueError('CASP missing')
++ raw=package.read_many([key],max_total=1024*1024)[key]
++ if hashlib.sha256(raw).hexdigest()!=a.casp_sha:raise ValueError('CASP pin mismatch')
++ meta=casp_material(raw);refs=[];seen=set()
++ for role,ref in [('texture',meta['texture']),*[(f"lod-{lod['lod']}",geom) for lod in meta['lods'] for geom in lod['geometries']]]:
++  if (role,ref) in seen:raise ValueError('duplicate source reference')
++  seen.add((role,ref));parts=tuple(int(v,16) for v in ref.split(':'));resolved=parts;route='exact'
++  if resolved not in package.entries and role=='texture' and parts[0]==0x3453cf95:
++   alternate=(0x2bc04edf,*parts[1:])
++   if alternate in package.entries:resolved=alternate;route='lrle-same-group-instance'
++  if resolved not in package.entries:refs.append({'role':role,'requested':ref,'state':'missing-in-package'});continue
++  b=package.read_many([resolved],max_total=32*1024*1024)[resolved]
++  refs.append({'role':role,'requested':ref,'resolved':tgi(resolved),'route':route,'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'state':'source-present-not-rendered'})
++ if len(refs)>128:raise ValueError('too many references')
++ # Re-reading through the package's pinned checks detects source mutation.
++ package.read_many([key],max_total=1024*1024)
++ parent=root/'private-input-recovery'
++ if parent.is_symlink() or not parent.is_dir():raise ValueError('private parent unavailable')
++ out=parent/a.output;out.mkdir(mode=0o700,exist_ok=False)
++ result={'package_sha256':a.package_sha,'casp':a.casp,'casp_sha256':a.casp_sha,'casp_version':meta['version'],'body_type':meta['body_type'],'swatch_order':meta['swatch_order'],'references':refs,'game_modified':False,'rendered':False,'compatibility':'unverified'}
++ with (out/'resolution.json').open('x') as f:json.dump(result,f,indent=2)
++ print(json.dumps({'casp_version':meta['version'],'references':len(refs),'present':sum(x['state']=='source-present-not-rendered' for x in refs),'game_modified':False,'rendered':False}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/tools/research/casp_material.py
+@@ -0,0 +1,95 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++# Captured Apex metadata reader extended using pinned TS4SimRipper CASP.cs. Private research.
++import struct,sys,pathlib,math
++sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[3]/"td1-apex-active-review-20261030/tools"))
++from cas_resource_catalog import Reader,tgi
++def read_color_slider_settings(reader):
++    # Pinned TS4SimRipper CASP.cs: opacity(minimum, increment), then H/S/B(minimum, maximum, increment).
++    result = {}
++    for channel, fields in [('opacity', ('minimum', 'increment')), ('hue', ('minimum', 'maximum', 'increment')), ('saturation', ('minimum', 'maximum', 'increment')), ('brightness', ('minimum', 'maximum', 'increment'))]:
++        values = {field: reader.value('f') for field in fields}
++        if not all(math.isfinite(value) for value in values.values()):
++            raise ValueError('CASP color slider contains a nonfinite value')
++        result[channel] = values
++    return result
++
++def casp_material(raw):
++    if not 64 <= len(raw) <= 1024 * 1024:
++        raise ValueError('CASP length is invalid.')
++    r = Reader(raw)
++    version, table = r.value('I'), r.value('I') + 8
++    if version not in range(42, 53) or not 64 <= table < len(raw):
++        raise ValueError('CASP version/reference-table layout is unverified.')
++    r.limit = table
++    if r.value('i') != 0:
++        raise ValueError('CASP preset data is unsupported.')
++    length = 0
++    for n in range(5):
++        byte = r.value('B')
++        length |= (byte & 127) << (7 * n)
++        if not byte & 128:
++            break
++    else:
++        raise ValueError('Invalid CASP name length.')
++    if length > 4096 or length % 2:
++        raise ValueError('Invalid CASP name length.')
++    name = r.take(length).decode('utf-16-be')
++    sort_priority, swatch_order = r.value('f'), r.value('H')
++    outfit_id = r.value('I')
++    r.take(6)  # aural material and the two flag bytes
++    if version >= 50:
++        r.take(2)
++    r.take(r.count(512) * 8 if version >= 51 else 16)
++    r.take(8)
++    r.take(r.count(4096) * 6)
++    r.take(4)
++    title, description = r.value('I'), r.value('I')
++    # TS4SimRipper CASP's versioned constructor: v43 adds an unknown uint32
++    # before textureSpace. Installed v42 CC has only the texture-space byte.
++    r.take(5 if version >= 43 else 1)
++    body = r.value('I')
++    r.take(4)
++    age_gender, species = r.value('I'), r.value('I')
++    pack = r.value('h')
++    r.take(10)
++    colors = [r.value('I') for _ in range(r.value('B'))]
++    r.take(1)
++    thumb_index = r.value('B')
++    r.take(8) # voice effect
++    if r.value('B')>0:r.take(12)
++    r.take(4) # occult
++    if version>=46:r.take(8)
++    r.take(16) # opposite gender / fallback
++    slider_offset = r.position if version >= 44 else None
++    sliders = read_color_slider_settings(r) if version >= 44 else None
++    if version>=46:r.take(r.value('B'))
++    naked,parent=r.value('B'),r.value('B');layer=r.value('i')
++    lods=[]
++    for _ in range(r.value('B')):
++        lod=r.value('B');r.take(4);r.take(r.value('B')*12)
++        lods.append((lod,list(r.take(r.value('B')))))
++    r.take(r.value('B')) # slot keys
++    texture,shadow,composition,region=[r.value('B') for _ in range(4)]
++    r.take(r.value('B')*5)
++    normal,specular=r.value('B'),r.value('B');r.take(4)
++    emission=r.value('B');r.take(1)
++    if version>=49:r.take(1)
++    if version>=52:r.take(1)
++    if r.position!=table:raise ValueError('Unexplained CASP material bytes')
++    count = raw[table]
++    if table + 1 + 16 * count != len(raw):
++        raise ValueError('Invalid CASP IGT reference table.')
++    refs = []
++    for i in range(count):
++        instance, group, kind = struct.unpack_from('<QII', raw, table + 1 + 16 * i)
++        refs.append(tgi((kind, group, instance)))
++    if thumb_index >= count and thumb_index != 0:
++        raise ValueError('CASP thumbnail reference index is invalid.')
++    referenced=[texture,shadow,region,normal,specular,emission,naked,parent]+[i for _,ids in lods for i in ids]
++    if any(i>=count for i in referenced):raise ValueError('CASP material reference outside table')
++    return {'color_slider_settings': sliders, 'color_slider_settings_offset': slider_offset, 'texture':refs[texture], 'shadow':refs[shadow], 'normal':refs[normal], 'specular':refs[specular], 'composition':composition, 'sort_layer':layer, 'region_map':refs[region], 'lods':[{'lod':lod,'geometries':[refs[i] for i in ids]} for lod,ids in lods], 'version': version, 'internal_name': name or None, 'title_key': title,
++            'description_key': description, 'body_type': body, 'age_gender': age_gender,
++            'species': species, 'pack_id': pack, 'outfit_id': outfit_id,
++            'swatch_order': swatch_order, 'swatch_colors_argb': colors,
++            'variant_thumbnail_tgi': refs[thumb_index] if thumb_index < count else None}
++

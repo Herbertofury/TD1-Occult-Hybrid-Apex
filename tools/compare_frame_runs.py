@@ -183,32 +183,33 @@ def analyze_run(spec, scenario, manifest_dir, stage=None):
         raise ValueError('Collector target PID differs from capture.')
     normalized_command = []
     index = 1
-    unique_options = ('--process_id', '--output_file', '--session_name')
-    if any(command.count(option) != 1 for option in unique_options):
-        raise ValueError('Collector command has missing or duplicate run-specific options.')
-    while index < len(command):
-        item = command[index]
-        if item in unique_options:
-            if index + 1 >= len(command):
-                raise ValueError('Collector option is missing its value.')
-            index += 2
-        else:
-            normalized_command.append(item); index += 1
     duration = capture.get('configured_seconds')
     if type(duration) not in (int, float) or not math.isfinite(duration) or duration <= 0:
         raise ValueError('Capture duration is missing or invalid.')
-    if command.count('--timed') != 1 or command.index('--timed') + 1 >= len(command):
-        raise ValueError('Collector command must specify one capture duration.')
-    try:
-        command_duration = float(command[command.index('--timed') + 1])
-    except ValueError:
-        raise ValueError('Collector command duration is invalid.')
-    if command_duration != duration:
-        raise ValueError('Collector duration differs from capture metadata.')
-    command_csv = Path(command[command.index('--output_file') + 1])
-    if not command_csv.is_absolute(): command_csv = ROOT / command_csv
-    if command_csv.resolve() != resolve(spec['csv']).resolve():
-        raise ValueError('Collector output file differs from the CSV evidence.')
+    if capture.get('capture_backend')=='xperf_etl':
+        import offline_xperf
+        normalized_command=offline_xperf.validate_offline_capture(capture,command,pid,duration,resolve(spec['csv']).resolve())
+    elif capture.get('capture_backend') is None:
+        unique_options = ('--process_id', '--output_file', '--session_name')
+        if any(command.count(option) != 1 for option in unique_options):
+            raise ValueError('Collector command has missing or duplicate run-specific options.')
+        while index < len(command):
+            item = command[index]
+            if item in unique_options:
+                if index + 1 >= len(command):raise ValueError('Collector option is missing its value.')
+                index += 2
+            else:
+                normalized_command.append(item); index += 1
+        if command.count('--timed') != 1 or command.index('--timed') + 1 >= len(command):
+            raise ValueError('Collector command must specify one capture duration.')
+        try:command_duration = float(command[command.index('--timed') + 1])
+        except ValueError:raise ValueError('Collector command duration is invalid.')
+        if command_duration != duration:raise ValueError('Collector duration differs from capture metadata.')
+        command_csv = Path(command[command.index('--output_file') + 1])
+        if not command_csv.is_absolute(): command_csv = ROOT / command_csv
+        if command_csv.resolve() != resolve(spec['csv']).resolve():raise ValueError('Collector output file differs from the CSV evidence.')
+    else:
+        raise ValueError('Unknown collector backend')
     expected_present = spec['kind'] == 'apex'
     if stage is not None:
         observed_stage = hitch_stage.validate_mod_state(mods, pid, before['process_creation_filetime'])
@@ -229,6 +230,7 @@ def analyze_run(spec, scenario, manifest_dir, stage=None):
     if stage is None and ((expected_present and not _hash(artifact_sha)) or (not expected_present and artifact_sha is not None)):
         raise ValueError('Candidate artifact identity is inconsistent with its mod state.')
     values, clocks, runtime = read_frames(resolve(spec['csv']), pid, analysis['csv_sha256'])
+    if capture.get('capture_backend')=='xperf_etl':offline_xperf.validate_coverage(capture,clocks)
     if (not isinstance(trace, dict) or trace.get('capture_sha256') != capture_sha or
             trace.get('target_pid') != pid or trace.get('process_creation_filetime') != before.get('process_creation_filetime') or
             trace.get('clock') != 'QPC' or trace.get('ui_transitions_verified') is not True):

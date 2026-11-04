@@ -83,6 +83,12 @@
       "sha256": "5f0456f024ab157ec608cb0b19442b4b0f66edb08dcb38f350c0cc45ab57908b"
     },
     {
+      "bytes": 12520,
+      "mode": "100644",
+      "path": "docs/FRAME_BENCHMARK.md",
+      "sha256": "4a0bb51f9557196ab92fedda801820a6dcc91bfdd4cb27e67f5f0f61435cff77"
+    },
+    {
       "bytes": 3145,
       "mode": "100644",
       "path": "tools/inspect_script_code.py",
@@ -731,6 +737,12 @@
       "sha256": "df5d481a24121cdaa046322e5e827601342c8c7cfa2b4ade9281f9755b65b924"
     },
     {
+      "bytes": 7060,
+      "mode": "100644",
+      "path": "tools/compare_hitch_stages.py",
+      "sha256": "324d3c8c9758d69a261384009a1badcd64c83b5331bdc11654c40754efcabcd9"
+    },
+    {
       "bytes": 6457,
       "mode": "100644",
       "path": "tests/test_cas_keyboard.py",
@@ -969,6 +981,12 @@
       "mode": "100644",
       "path": "tests/test_cas_pair_controls.py",
       "sha256": "fb2d10bbd99b028ce05fd9bc27fcf3470b29ef27f6e4e606eb79f805ec7f2384"
+    },
+    {
+      "bytes": 21229,
+      "mode": "100644",
+      "path": "tools/compare_frame_runs.py",
+      "sha256": "203dc3c3b3be2adb1f899eaf9279c99a595f279b87815ab28bef2e831e6c5021"
     },
     {
       "bytes": 15749,
@@ -1217,6 +1235,12 @@
       "sha256": "87d7949550c88784abe8333579214e3587525c31d32f59ce2fa36976904a9834"
     },
     {
+      "bytes": 15497,
+      "mode": "100644",
+      "path": "tools/capture_frame_intervals.py",
+      "sha256": "caa137490b9d7e2574bc9e8a54f73eaa50b33e8efae904356a8a00fb3ec7e9df"
+    },
+    {
       "bytes": 2240,
       "mode": "100644",
       "path": "Reports/CAS_NATIVE_SEARCH_V265.json",
@@ -1251,6 +1275,12 @@
       "mode": "100644",
       "path": "tests/test_saved_named_forms.py",
       "sha256": "d93cda095c6674b2b644f7485ae2783265babf6cf8dd1fa3eb4edfe2020b6984"
+    },
+    {
+      "bytes": 23590,
+      "mode": "100644",
+      "path": "tools/offline_xperf.py",
+      "sha256": "d70700c2cd99228bc86d803d0a51e8decc432142eac2353da2e9f96dd53c0ac5"
     },
     {
       "bytes": 4953,
@@ -1791,6 +1821,12 @@
       "mode": "100644",
       "path": "tests/test_native_form_select.py",
       "sha256": "8e0951caa2832289aa16ae8d2ce306e61a10721a00091d92835cdbfd06f723a4"
+    },
+    {
+      "bytes": 5554,
+      "mode": "100644",
+      "path": "tools/hitch_stage.py",
+      "sha256": "20b0181a37d76dfd24987374116ce0050e6f39b47c0d1405e5b8c201e21a5fcb"
     },
     {
       "bytes": 21297,
@@ -2429,6 +2465,12 @@
       "sha256": "2cd27345d17779db028876f33124db95d19298ea08daf0c5bbf2e8a9eba62f57"
     },
     {
+      "bytes": 9383,
+      "mode": "100644",
+      "path": "docs/APEX_NATIVE_CONTROL_20261104.md",
+      "sha256": "a1bc03b53431cf2eba67573b71c0434d1e9a734014bbac0bef2e7a10538573ac"
+    },
+    {
       "bytes": 9499,
       "mode": "100644",
       "path": "tests/test_owner_mailbox_integration.py",
@@ -2577,6 +2619,12 @@
       "mode": "100644",
       "path": "tools/build_metadata_companion.py",
       "sha256": "f1c9f296f9e81e29e573b054a5d3173185f9d0ebcdc6634b4108b1221638a467"
+    },
+    {
+      "bytes": 17880,
+      "mode": "100644",
+      "path": "tests/test_compare_frame_runs.py",
+      "sha256": "590ddda92db457b2e5bea983a9df9072ade2161aca208e75eb91f9633bbcd648"
     },
     {
       "bytes": 2153,
@@ -3603,6 +3651,12 @@
       "mode": "100644",
       "path": "tests/test_cas_grid_featured_presentation.py",
       "sha256": "415583100b72347ceaa01e839269af7c8e235cbb7b0433e4e456d9e7f899cbe5"
+    },
+    {
+      "bytes": 7770,
+      "mode": "100644",
+      "path": "docs/OFFLINE_ETW_CAPTURE.md",
+      "sha256": "46e4510d14058d6baafdd71ac655b623f9437483f34327b399119b5cb3d794bf"
     },
     {
       "bytes": 4826,
@@ -4733,6 +4787,12 @@
       "sha256": "33155a5c6b851bb1906550cd82c3e1a1684a0b0f5a6067257a07debbf48a15de"
     },
     {
+      "bytes": 9671,
+      "mode": "100644",
+      "path": "docs/APEX_BASELINE_REBUILD_CHECKPOINT_20261104.md",
+      "sha256": "c14a48eda2d092e01447a6c6bea09b5014a050b7e362c457b7390453ba7bf16d"
+    },
+    {
       "bytes": 10319,
       "mode": "100644",
       "path": "tests/test_cas_catalog_display_fault.py",
@@ -4817,10 +4877,22 @@
       "sha256": "ce995a7ba97ee257b641cca8cc817fb2cff62a08e827cffcf0a50067e34a3286"
     },
     {
+      "bytes": 12395,
+      "mode": "100644",
+      "path": "tests/test_capture_frame_intervals.py",
+      "sha256": "765f0fe554f9e121924d2c7b8217fa5b68d47bde48c78bd11ae99d40065130ca"
+    },
+    {
       "bytes": 3154,
       "mode": "100644",
       "path": "NativeOverlay/Source/ApexNativeCasOwners.h",
       "sha256": "0e82169ac62c5f904b894bb0a2db2794daf6cba751d8e9e9ec367c8d2aff5ecd"
+    },
+    {
+      "bytes": 10938,
+      "mode": "100644",
+      "path": "tests/test_hitch_stage.py",
+      "sha256": "bdec07fa1c9be68f06a8b162876985ffc21c61707252f4fd8ec78fc42fb79373"
     },
     {
       "bytes": 267,
@@ -6063,6 +6135,12 @@
       "mode": "100644",
       "path": "tests/test_cas_preflight_refresh.py",
       "sha256": "5e791ff70fe9731e66e4603315a1c48e611b3eaba6e8adcedff1323b43e2b583"
+    },
+    {
+      "bytes": 18960,
+      "mode": "100644",
+      "path": "tests/test_offline_xperf.py",
+      "sha256": "3ec41c4e622fd6a6abba71cdad9c48e8db4eca38f76e8a58d44426a72914bf67"
     },
     {
       "bytes": 6293,

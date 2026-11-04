@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
@@ -76,6 +77,53 @@ class MatchedFrameComparisonTests(unittest.TestCase):
         self.assertEqual(action['apex_frames'], 5)
         self.assertEqual(action['p50_delta_ms'], 1)
         self.assertEqual(action['max_delta_ms'], 1)
+
+    def test_offline_backend_is_comparator_compatible_without_forging_live_options(self):
+        import offline_xperf as offline
+        work=self.root/'.work';work.mkdir()
+        etl=work/'trace.etl';etl.write_bytes(b'synthetic etl')
+        header=work/'header.txt';header.write_text('Clock type : PerfCounter\nTotal # Lost Buffers : 0\n'
+            'Total # Lost Events : 0\nNumber of Traces : 1\nLog file mode : Sequential\nTrace name: '+str(etl)+'\n')
+        run=self.manifest['runs'][0];cpath=Path(run['capture']);capture=json.loads(cpath.read_text())
+        session='ApexOffline'+'a'*32;pid=capture['target_pid'];csv_path=Path(run['csv']).resolve()
+        raw=work/'trace.raw.csv';raw.write_bytes(csv_path.read_bytes())
+        with raw.open('r',newline='',encoding='utf-8') as stream:
+            reader=csv.DictReader(stream);fields=reader.fieldnames;rows=list(reader)
+        for row in rows:row['MsBetweenPresents']='200.00000000000000'
+        with raw.open('w',newline='',encoding='utf-8') as stream:
+            writer=csv.DictWriter(stream,fieldnames=fields);writer.writeheader();writer.writerows(rows)
+        csv_path.write_bytes(offline.bounded_csv(raw,pid,1000,2500,50))
+        capture['analysis']['csv_sha256']=hashlib.sha256(csv_path.read_bytes()).hexdigest()
+        logger=work/'logger.txt';logger.write_text('Logger Name : '+session+'\nBuffer Size : 1024\n'
+            'Minimum Buffers : 64\nMaximum Buffers : 120\nMaximum File Size : 1024\n'
+            'Log File Mode : Sequential IndependentSession\nLog Filename : '+str(etl)+'\nTrace Flags : '+offline.PROVIDERS+'\n')
+        logger_end=work/'logger-end.txt';logger_end.write_text(logger.read_text())
+        capture.update(capture_backend='xperf_etl',collector_sha256=offline.base.PRESENTMON_SHA,capture_elapsed_ns=30_000_000_000,
+            collector_command=[str(offline.base.PRESENTMON),'--etl_file',str(etl),'--process_id',str(pid),
+                '--qpc_time','--no_track_input','--no_track_gpu','--no_track_display','--no_console_stats','--output_file',str(raw)],
+            offline_etw=dict(session=session,start_command=[str(offline.XPERF),'-start',session,'-on',offline.PROVIDERS]+
+                offline.OPTIONS+['-f',str(etl)],stop_command=[str(offline.XPERF),'-stop',session],
+                xperf_sha256='a'*64,etl_path=str(etl),header_path=str(header),max_file_mb=offline.MAX_MB,
+                etl_sha256=hashlib.sha256(etl.read_bytes()).hexdigest(),header_sha256=hashlib.sha256(header.read_bytes()).hexdigest(),
+                logger_path=str(logger),logger_sha256=hashlib.sha256(logger.read_bytes()).hexdigest(),actual_buffers=[64,120],
+                logger_end_path=str(logger_end),logger_end_sha256=hashlib.sha256(logger_end.read_bytes()).hexdigest(),
+                adapter_sha256=hashlib.sha256(Path(offline.__file__).read_bytes()).hexdigest(),
+                raw_csv_path=str(raw),raw_csv_sha256=hashlib.sha256(raw.read_bytes()).hexdigest(),
+                etl_bytes=etl.stat().st_size,stop_succeeded=True,header_zero_loss=True,ready_qpc=1000,end_qpc=2500,
+                qpc_frequency=50,session_polls_qpc=[999]+list(range(1099,2500,100))+[2501]))
+        cpath.write_text(json.dumps(capture))
+        apath=Path(run['actions']);actions=json.loads(apath.read_text())
+        actions['capture_sha256']=hashlib.sha256(cpath.read_bytes()).hexdigest();apath.write_text(json.dumps(actions))
+        with patch.object(offline.base,'ROOT',self.root):
+            result=perf.analyze_run(run,self.scenario,self.root)
+            self.assertIn('backend=xperf_etl',result['collector_options'])
+            capture['synthetic_identity_stubs']=True;cpath.write_text(json.dumps(capture))
+            actions['capture_sha256']=hashlib.sha256(cpath.read_bytes()).hexdigest();apath.write_text(json.dumps(actions))
+            with self.assertRaisesRegex(ValueError,'Synthetic'):perf.analyze_run(run,self.scenario,self.root)
+            del capture['synthetic_identity_stubs'];cpath.write_text(json.dumps(capture))
+            actions['capture_sha256']=hashlib.sha256(cpath.read_bytes()).hexdigest();apath.write_text(json.dumps(actions))
+            etl.write_bytes(b'tampered')
+            with self.assertRaises(ValueError):perf.analyze_run(run,self.scenario,self.root)
 
     def test_changed_content_display_action_or_cache_invalidates_comparison(self):
         for field, value in (('hardware_sha256','a'*64),('save_sha256','b'*64),

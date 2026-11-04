@@ -1,0 +1,57 @@
+--- a/tools/research/scene_switch_supervisor.py
++++ b/tools/research/scene_switch_supervisor.py
+@@ -18,6 +18,17 @@
+   b=r.read(limit+1)
+  if len(b)>limit:raise Refused('ready response bound')
+  return json.loads(b)
++def verify_frame(url,scene,swatch):
++ catalog=fetch(url,'/pose-catalog',1048576)
++ poses=catalog.get('poses')
++ if catalog.get('autoplay') is not False or not isinstance(poses,list) or len(poses)>1024:raise Refused('invalid pose catalog')
++ pose=next((p for p in poses if isinstance(p,dict) and p.get('playback_ready') is True and isinstance(p.get('id'),str) and HASH.fullmatch(p['id']) and type(p.get('prepared_frames')) is int and 1<=p['prepared_frames']<=2048),None)
++ if pose is None:raise Refused('no prepared pose')
++ path='/clip-frame?clip='+pose['id']+'&frame=0&yaw=0&brightness=0&saturation=0&hue=0&opacity=16384&swatch='+swatch
++ with _opener.open(url+path,timeout=15) as r:
++  if r.status!=200 or (r.headers.get('content-type') or '').split(';')[0]!='application/octet-stream' or r.headers.get('X-Harness')!=HARNESS or r.headers.get('Content-Length')!=str(512*512*3) or r.headers.get('X-Scene')!=scene or r.headers.get('X-Clip-ID')!=pose['id'] or r.headers.get('X-Clip-Frame')!='0' or r.headers.get('X-Swatch-ID')!=swatch:raise Refused('ready frame identity')
++  raw=r.read(512*512*3+1)
++ if len(raw)!=512*512*3:raise Refused('ready frame extent')
+ def line(proc,seconds=30):
+  deadline=time.monotonic()+seconds;data=bytearray();fd=proc.stdout.fileno()
+  while time.monotonic()<deadline:
+@@ -73,6 +84,8 @@
+    try:
+     url=line(candidate);identity=fetch(url,'/identity',4096);swatch=fetch(url,'/swatch-catalog',32768)
+     if candidate.poll() is not None or identity.get('harness')!=HARNESS or identity.get('scene_sha256')!=s['scene_sha'] or identity.get('pose_library_ready') is not True or swatch.get('scene_sha256')!=s['scene_sha'] or swatch.get('default_id')!=s['swatch_id'] or swatch.get('enabled') is not False:raise Refused('ready identity mismatch')
++    verify_frame(url,s['scene_sha'],s['swatch_id'])
++    if candidate.poll() is not None:raise Refused('candidate exited before publish')
+    except BaseException:
+     self._retire(candidate);raise
+    old=self.active;self.generation+=1;self.active={'token':token,'scene':s['scene_sha'],'url':url,'proc':candidate}
+--- a/tools/research/test_scene_switch_supervisor.py
++++ b/tools/research/test_scene_switch_supervisor.py
+@@ -27,6 +27,12 @@
+    with self.assertRaises(m.Refused):s.switch('1'*32)
+    s.close()
+   self.assertTrue(p.stdout.closed);self.assertEqual(s.status()['state'],'closed')
++ def test_failed_frame_verification_keeps_prior_owner(self):
++  one='1'*32;two='2'*32;s=m.SceneSwitcher({one:S,two:S});old=Fake();candidate=Fake();s.active={'token':one,'scene':'c'*64,'url':'http://127.0.0.1:1','proc':old};s.generation=1
++  ident={'harness':m.HARNESS,'scene_sha256':'c'*64,'pose_library_ready':True};swatch={'scene_sha256':'c'*64,'default_id':S['swatch_id'],'enabled':False}
++  with patch.object(m.subprocess,'Popen',return_value=candidate),patch.object(m,'line',return_value='http://127.0.0.1:2'),patch.object(m,'fetch',side_effect=[ident,swatch]),patch.object(m,'verify_frame',side_effect=m.Refused('bad frame')),patch.object(m,'stop') as stop:
++   with self.assertRaises(m.Refused):s.switch(two)
++   self.assertIs(s.active['proc'],old);self.assertEqual(s.generation,1);stop.assert_called_once_with(candidate);self.assertTrue(candidate.stdout.closed)
+  def test_malformed_specs_fail_closed(self):
+   for token,spec in [('x',S),('1'*32,{**S,'binary':'relative'}),('2'*32,{**S,'scene_sha':'0'}),('3'*32,{**S,'runtime':'../bad'})]:
+    with self.assertRaises(m.Refused):m.SceneSwitcher({token:spec})
+--- a/tools/research/scene_gateway_picker.mjs
++++ b/tools/research/scene_gateway_picker.mjs
+@@ -4,7 +4,8 @@
+  const label=document.createElement('label'),select=document.createElement('select'),button=document.createElement('button'),status=document.createElement('span');
+  label.textContent='Prepared dress ';select.setAttribute('aria-label','Prepared dress');button.type='button';button.textContent='Switch preview';button.disabled=true;status.setAttribute('role','status');label.append(select);host.append(label,button,status);
+  let catalog=null;
+- try {const r=await fetch('/scene-catalog',{cache:'no-store',redirect:'error'});if(!r.ok)throw Error('Scene list unavailable');catalog=await r.json();if(!Array.isArray(catalog.entries)||!Number.isSafeInteger(catalog.generation))throw Error('Invalid scene list');for(const row of catalog.entries){const o=document.createElement('option');o.value=row.token;o.textContent=row.label;select.append(o);}select.value=catalog.active;button.disabled=!catalog.entries.length;status.textContent='Prepared preview only; no game changes.';}
++ const timedFetch=async(path,options,ms)=>{const c=new AbortController(),timer=setTimeout(()=>c.abort(),ms);try{return await fetch(path,{...options,signal:c.signal});}finally{clearTimeout(timer);}};
++ try {const r=await timedFetch('/scene-catalog',{cache:'no-store',redirect:'error'},8000);if(!r.ok)throw Error('Scene list unavailable');catalog=await r.json();if(!Array.isArray(catalog.entries)||!Number.isSafeInteger(catalog.generation))throw Error('Invalid scene list');for(const row of catalog.entries){const o=document.createElement('option');o.value=row.token;o.textContent=row.label;select.append(o);}select.value=catalog.active;button.disabled=!catalog.entries.length;status.textContent='Prepared preview only; no game changes.';}
+  catch(e){status.textContent='Scene picker unavailable: '+e.message;}
+- button.addEventListener('click',async()=>{if(!catalog||button.disabled)return;button.disabled=true;select.disabled=true;status.textContent='Preparing selected preview; current frame is retained.';try{const r=await fetch('/scene-switch',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:select.value,generation:catalog.generation}),cache:'no-store',redirect:'error'});if(!r.ok)throw Error('Switch failed or selection became stale');status.textContent='Preview ready; reloading.';location.reload();}catch(e){status.textContent=e.message+'; refresh the page to check the current selection before trying again.';select.disabled=false;button.disabled=true;}});
++ button.addEventListener('click',async()=>{if(!catalog||button.disabled)return;button.disabled=true;select.disabled=true;status.textContent='Preparing selected preview; current frame is retained.';try{const r=await timedFetch('/scene-switch',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token:select.value,generation:catalog.generation}),cache:'no-store',redirect:'error'},45000);if(!r.ok)throw Error('Switch failed or selection became stale');status.textContent='Preview ready; reloading.';location.reload();}catch(e){status.textContent=e.message+'; refresh the page to check the current selection before trying again.';select.disabled=false;button.disabled=true;}});
+ }

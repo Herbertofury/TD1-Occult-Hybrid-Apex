@@ -1,0 +1,282 @@
+{
+  "schema": 1,
+  "work": "native incremental CAS catalog and compact geometry",
+  "updated_utc": "2026-10-25T00:21:32.192439+00:00",
+  "production_ready": false,
+  "performance_gain_claimed": false,
+  "zero_hitch_claimed": false,
+  "candidate": {
+    "epoch": "2026-10-24-rendered-grid-owner-v330",
+    "sha256": "d1ecb9408cc1aea7d764d9800425d98a2857ae4891650be398a244cbd28ac696",
+    "script_sha256": "d31a3312ae61532be857fa673e36596baae586be5102a4434070f90150a33a7a"
+  },
+  "changes": [
+    "Catalog width is independent of column count/card size/gaps; up to 32 columns fit beside the Sim.",
+    "Both actual GridLayout providers have identical authenticated transaction semantics. Native defaults remain unarmed outside the captured scope.",
+    "Owned card construction, attachment, retirement, position, binding and publication use64-operation/soft 1 ms steps; individual engine callbacks cannot be preempted.",
+    "Native initializer arms before initial Sim delivery; its late transport reset preserves only that unstepped bootstrap.",
+    "Fresh selected Sim/outfit and authoritative native owner/generation checks guard write input. The physical rendered owner is distinct from EA's hybrid shell kind.",
+    "Keyboard and fallback random-favorite direct dispatches now validate the same readiness, exact lease and intended sorted item.",
+    "Disabled Draw tracing has one branch and no per-marker checks; actual runtime gain remains unproved.",
+    "Search imports the native ScrollerEvent class instead of an unresolved olympus runtime property."
+  ],
+  "source_checks": {
+    "focused_source_ui_tests": {
+      "passed": 138
+    },
+    "native_ctest_targets": {
+      "passed": 21
+    },
+    "native_grid_serialized_fixtures": {
+      "passed": 21
+    },
+    "provider_chain_tests": {
+      "passed": 8
+    },
+    "main_orchestration_tests": {
+      "passed": 19,
+      "included_in_focused_138": true
+    },
+    "draw_fast_path_tests": {
+      "passed": 5
+    },
+    "native_bootstrap_bytecode_groups": {
+      "passed": 4,
+      "serialized_cases": 15
+    },
+    "full_suite": {
+      "complete": false,
+      "reason": "Broad serialized-bytecode suite was stopped for quiet in-game measurement; no full-suite pass claimed."
+    }
+  },
+  "actual_v329": {
+    "save_cold_load_all40_complete_native_fields": true,
+    "named_looks_retained": 155,
+    "normal_full_cas_entry_all195_complete_fields": true,
+    "post_ui_all195_complete_fields": true,
+    "all21_save_files_unchanged": true,
+    "performance_pass": false,
+    "failure": "Grid stayed in bootstrap with0 operations. EA shell occultType4 differed from the independently rendered Alien kind2; the Main check conflated those identities.",
+    "fix_built_v330": "Keep EA shell kind as a separate observed primitive; use verified native cursor kind for the rendered UI and exact owner/generation for writes.",
+    "zero_work_is_not_a_speed_pass": true
+  },
+  "actual_v330": {
+    "status": "nonempty catalogs publish; performance still fails",
+    "cold_load_all40_complete_native_fields": true,
+    "named_looks_retained": 155,
+    "normal_full_cas_entry_all195_complete_fields": true,
+    "compact_12_columns_screenshot_sha256": "e607ef1466feb87338ebe812df94a582f09e9358ac32ef8a1bdc8c968b7d93d2",
+    "sim_unobscured": true,
+    "native_grid": {
+      "active": true,
+      "appearance_written": false,
+      "context": {
+        "household_id": "285159751289798668",
+        "layer": 0,
+        "native_generation": "42",
+        "native_kind": 2,
+        "outfit_index": 0,
+        "outfit_type": 9,
+        "owner": "active/2",
+        "phase": "bound",
+        "session": 1,
+        "shell_kind": 4,
+        "sim_id": "285159751289798669",
+        "state": -2134376418
+      },
+      "enabled": true,
+      "error": "",
+      "frame": 4845,
+      "frame_timing": {
+        "clock_resolution_ms": 1,
+        "max_ms": 54,
+        "over_1ms": 1322
+      },
+      "generation": 7,
+      "invalidations": 3,
+      "native": {
+        "bootstrap": false,
+        "cancelled": false,
+        "cells": 180,
+        "cellsY": 180,
+        "coalesced": 545,
+        "counts": {
+          "attach": 133,
+          "bind": 228,
+          "construct": 133,
+          "position": 228,
+          "publish": 2,
+          "retire": 177
+        },
+        "deferred_events": 9,
+        "dirty": false,
+        "error": null,
+        "generation": 4,
+        "index": 180,
+        "lastOperation": "publish",
+        "lastPhase": "publish",
+        "lease": false,
+        "map": 180,
+        "maxMS": {
+          "attach": 42,
+          "bind": 53,
+          "construct": 3,
+          "position": 1,
+          "publish": 1,
+          "retire": 2
+        },
+        "measured_aspect": 1,
+        "measured_generation": 4,
+        "measured_height": 70.75233644859813,
+        "measured_scale": 0.4813084112149533,
+        "measurement_ready": true,
+        "natural_aspect": 1,
+        "natural_height": 147,
+        "natural_width": 107,
+        "operations": 908,
+        "pendingCell": false,
+        "phase": "done",
+        "publishes": 2,
+        "reason": "",
+        "reentrant": 0,
+        "revision": 0,
+        "staleBinds": 0,
+        "target": 180
+      },
+      "running": false,
+      "waiting_reason": ""
+    },
+    "frame_capture": {
+      "scope": "45s action capture; includes idle/CLI observation time; no before/without-mod comparison",
+      "frames": 5348,
+      "median_ms": 6.9283,
+      "p95_ms": 16.5595,
+      "p99_ms": 42.2883,
+      "max_ms": 329.51840000000004,
+      "over_16_67ms": 267,
+      "over_33_33ms": 134,
+      "over_50ms": 21,
+      "event_loss_reported": false,
+      "csv_sha256": "32cd1584c9494f95e6c425faa46ec8ab41190153e3deeb0e2561fd7491083874",
+      "performance_pass": false
+    },
+    "bounded_draw_trace": {
+      "aggregates": {
+        "decoration": {
+          "calls": 55,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "draw": {
+          "calls": 55,
+          "max_ms": 7,
+          "total_ms": 89
+        },
+        "favorite": {
+          "calls": 55,
+          "max_ms": 1,
+          "total_ms": 6
+        },
+        "icons": {
+          "calls": 52,
+          "max_ms": 1,
+          "total_ms": 4
+        },
+        "other": {
+          "calls": 55,
+          "max_ms": 7,
+          "total_ms": 77
+        },
+        "super": {
+          "calls": 55,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "swatches": {
+          "calls": 1,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "thumbnail": {
+          "calls": 54,
+          "max_ms": 1,
+          "total_ms": 2
+        }
+      },
+      "completed": 55,
+      "errors": 0,
+      "expired": false,
+      "incomplete": []
+    },
+    "whole_binding_is_not_draw_only": true,
+    "performance_pass": false,
+    "next_fix": "Native global message listener membership indexing; separate selection atom; no hidden clothing work."
+  },
+  "proof_chain": {
+    "cas_ui_sha256": "d55266f053d3bb01cfd35c34cfdfac491d17b6b90cdf135b92bab3b1016aee9e",
+    "source_pins": {
+      "Source/CASUi/catalog_cards_methods.as": "05df1e51f12728dfe179a92b26b275f3d80ef786ff0c70afd2c9e7021298f40d",
+      "Source/CASUi/catalog_columns_methods.as": "b8b82f6947d6ff6f6aaba11f46f9db1c90fc36668f8a5102983961d0a6bd6e18",
+      "Source/CASUi/catalog_companion_methods.as": "3fc35a977df2c4c5256f9e9627c2cfc3e2d7c6b0c94bbcc29d0a156f7a179d34",
+      "Source/CASUi/catalog_grid_geometry_methods.as": "56eac6b360c60526c277aa2ec809652918894324ba95ef8e2e5e4ead6ad742a8",
+      "Source/CASUi/catalog_grid_transaction_methods.as": "d355eae8caee00ba24041cf1d25d0cb26adaa5ae4062744d96c076e11d4d285f",
+      "Source/CASUi/catalog_keyboard_methods.as": "8a49940c89bd425922385a25db1aef3d080989233ae0c8db3c1e432d8a5c309f",
+      "Source/CASUi/catalog_layout_trace_methods.as": "39a5385306ca2db264dab6649a3dbcb8228c578964c4c6bdbdb74afc4b13702d",
+      "Source/CASUi/catalog_search_methods.as": "1d275ea0b415d9623cbb2dd256b6851d08e279fb40aef863a19d4edd20b55e76",
+      "Source/CASUi/catalog_trace_methods.as": "53c41aa49daa6ca6a7b98c4d62c63773b403c12e8859d03689ba19cd3687468a",
+      "Source/CASUi/catalog_workspace_methods.as": "ba0f57c701977ba22148e7c8826cdfa28fcedc4856ec42f576164b87a06059ce",
+      "Source/CASUi/equipped_category_methods.as": "2972c34ae8134748749a0ddb384b472ab7dd5c6ed767e436dd63eb36ea37a4b6",
+      "Source/CASUi/form_strip_methods.as": "ee2811887b5e0f46e759e4a416d93f1154add46a8deb0f941eb2eb96f2341657",
+      "Source/CASUi/pair_controls_methods.as": "e41b0e165a0a4aeae100cdb82b511e4bde75d50c2f3a2a3785d270fc799dec2d",
+      "Source/CASUi/panel_consumer_methods.as": "bcb7d21a56e3f7f9eab7ff539154dfcec3bfdc562f7f64f7586ee40f7ef0084e",
+      "Source/CASUi/panel_input_methods.as": "142dfa4b91f87acbe85623ce4088913d98d8d5ad799de030dc72d052d3782936",
+      "Source/CASUi/panel_layout_methods.as": "c5f0ba25695c7f34e1738a19b1a73bc853180c24528402b64c8c02a890b01515",
+      "Source/CASUi/selector_methods.as": "105c95af4fde703dd50e37f2c034c9028b7a28d31f033905fdcc65b74a99894c",
+      "Source/CASUi/semantic_methods.as": "69512ecb718194a5cbac2da6176cccdc146113c9286393c8172af2d885fc13d7",
+      "Source/apex_core/cas_controls.py": "cdb963108f5eaeb923935baaf5548e6418c1bb49eca3b2fc05f6b9481bfefd41",
+      "Source/apex_core/cas_panels.py": "3c87dea0c46651915b773d5ec8e9e33b96a58fa4c8b34ba49c2ae36e0eb99374",
+      "tools/CasBytecodePatch.java": "66eecdd1838aa2d85647dfa7a513cb69b3b91f34649508a62c97c87618f581cb",
+      "tools/CasCatalogBytecodePatch.java": "60aafefc173dc78ac58c2cf872f17fa6a96d988b8619dea57f44de2042f6cce1",
+      "tools/CasDrawFastPathPatch.java": "ce05fef89b456e5bab3c594581c90e7f543cd1fc7b2b363fde8a374e89828bb7",
+      "tools/CasGridBytecodePatch.java": "4530adf158e72e003af254fb377d1b2a2d7daa1c80b67ec66cd2214e33d1ec4a",
+      "tools/CasGridTransactionPatch.java": "c4394f7939eb0ea1c0571134c33240abf6bad2756ac9cbe94b3f6d127ae6b8a4",
+      "tools/CasMoleculeBytecodePatch.java": "ddfd543d8818d5c69530cd0939a2f0c548e66351bb10a511a4af8de3d2164cd6",
+      "tools/CasSelectorBytecodePatch.java": "ded6e30583cfa5cd7191e541f3b483e8686c5dcc2a4e7c54a5ee62b715fb3571",
+      "tools/CasStructuralRolesPatch.java": "f60fc6d3ca07b1da9d9d73a902f63bf4c6bac71ba97af7f316a180ec209c8cd6",
+      "tools/CasVoiceBytecodePatch.java": "f146b3774f23c222cc718d498c884bdc397075149792693147e0ab8ea79e3c9b",
+      "tools/cas_catalog_workspace.py": "25745dada5aeaf506f945b41c30904a1e4225bd63932f0f40222667a88520771",
+      "tools/cas_draw_fast_path.py": "d1291d247c68b38513926f1bdad950dad6a32613fcf11b7b18f1ddee335a8673",
+      "tools/cas_equipped_catalog.py": "676c3266b8ba7020a42da72cfd7bd0ed4a504443375a09a9bd5a989dc6f62628",
+      "tools/cas_grid_transaction.py": "eef8aa9cca30b6ad1b149353e105d00ee6c5220e0f58e43181254837939c3a28",
+      "tools/cas_molecule_patch.py": "b909704457b65d450d5b63cfb9e9ce544970e84ef46c3ab07a9ca5f0a27c546f",
+      "tools/cas_pair_panel_patch.py": "b7f51830b44d63783eb5d8b91aaabf619563fb540120f7461ce116c8188b1de2",
+      "tools/cas_pelt_patch.py": "43c3fcea9bd25682fd3e8133b289797529ee1df74a5c4331dc540925d1bdc556",
+      "tools/cas_structural_roles.py": "b3face3e7692cce17d5f57b4d52238c7d31f4e089efc0effb80589350ba29bc9",
+      "tools/maru_companion.py": "b14c5e59c40a24358d1dcf801de8891144433b22c9c49452835b9b1db5d8a52f",
+      "tools/maru_companion_adapters.py": "89eda91fff7e3c47f276f9192a5d7dfaf4060835ab5a60627345dfa1df3fa90d",
+      "tools/maru_companion_performance.py": "86bdc5f81d67d1eb1627e427a160aa9c5d1e8d6abb59fadf5ea9748309da92ac",
+      "tools/maru_companion_resources.json": "c1deba1c390fbe1be119c434c4f5fc9b00ad3838357b2c47b3f9d4c9f6a2d9e0"
+    },
+    "native_bootstrap_pre_sim_delivery_verified": true,
+    "grid_providers": {
+      "62ECC59A:00000000:12272E1AC0C1F8E2": {
+        "base": "5f475a80a4f9c77f9a0439e133221a31f766cb929318f74191b4b9bad98e8cae",
+        "patched": "b44eb4918a53c238b3f39547cda10825f7e18b9932d202ee2b4ca085c1f128fa"
+      },
+      "62ECC59A:00000000:89D13757C58C2E05": {
+        "base": "6ddb983fee2bd284a2b7efec155e1544bfe99d27f16d4d28097bada25e1864f0",
+        "patched": "9d64a678c449620f71e0692aaaee4d6e71871ce485b2d9893ecc373af286a2e7"
+      }
+    },
+    "draw_fast_path_abc": "6f93fac6dabc562b21a45d095b81120ef3412c355f09f2b6e4391befa073db29"
+  },
+  "open_gates": [
+    "Actual nonempty coherent catalog publication and request/first-result timing",
+    "Quiet frame-time capture and individual native callback maxima",
+    "Search no-match/clear/matching and native selection correctness",
+    "12/32-column geometry, native row/hit areas and visible Sim",
+    "Body/Tattoo/Hair, favorites/hide/panels, keyboard, owner/member changes",
+    "Unsupported/new owner handoff after a supported captured scope",
+    "All normal save/load/Tray/Gallery routes and edited-category isolation"
+  ]
+}

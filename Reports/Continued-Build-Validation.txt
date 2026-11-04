@@ -1,0 +1,25 @@
+TD1 Occult Hybrid Apex continued build validation
+Generated: 2026-05-28T05:53:34.035793Z
+Python source size: 77131
+ts4script size: 16381
+native DLL size: 4096
+Python 3.7 syntax parse: OK
+ts4script entries: td1_occult_hybrid_apex.py
+ts4script zip test: OK
+DLL file type: /mnt/data/apex_continue/TD1 Occult Hybrid Apex/Native/TD1OccultNativeBridge.dll: PE32+ executable for MS Windows 6.00 (DLL), x86-64, 3 sections
+Native export count: 15
+export: [   0] +base[   1]  0000 TD1OccultChooseNext
+export: [   1] +base[   2]  0001 TD1OccultChooseSafeForm
+export: [   2] +base[   3]  0002 TD1OccultFnv1a64
+export: [   3] +base[   4]  0003 TD1OccultIsPowerOfTwo
+export: [   4] +base[   5]  0004 TD1OccultLowestBit
+export: [   5] +base[   6]  0005 TD1OccultMaskAdd
+export: [   6] +base[   7]  0006 TD1OccultMaskCount
+export: [   7] +base[   8]  0007 TD1OccultMaskHas
+export: [   8] +base[   9]  0008 TD1OccultMaskNormalizeSupported
+export: [   9] +base[  10]  0009 TD1OccultMaskRemove
+export: [  10] +base[  11]  000a TD1OccultMaskToggle
+export: [  11] +base[  12]  000b TD1OccultNativeVersion
+export: [  12] +base[  13]  000c TD1OccultNormalizeCurrent
+export: [  13] +base[  14]  000d TD1OccultSimIdLooksValid
+export: [  14] +base[  15]  000e TD1OccultStateScore

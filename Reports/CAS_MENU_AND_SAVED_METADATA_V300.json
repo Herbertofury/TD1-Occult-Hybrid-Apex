@@ -1,0 +1,57 @@
+{
+  "actual_runtime": {
+    "actual_native_wing_palette_and_layer_picker_used": true,
+    "actual_strip_pointer_clicks": 6,
+    "complete_cold_native_appearances_retained": 40,
+    "input_queue_handler_clock_resolution_ms": 1,
+    "input_queue_handler_max_ms": 0,
+    "loaded": true,
+    "member_ui_frames": 44,
+    "member_ui_milliseconds": 1624,
+    "menu_timing_qualified": false,
+    "named_looks_retained": 155,
+    "native_appearance_restoration_requested": false,
+    "native_pair_panel_visible_for_actual_clicks": true,
+    "palette_scope": "Actual native swatch and layer picker recolor only Fairy pelt_layers, with Human unchanged; complete Undo is not qualified.",
+    "queued_to_bound_milliseconds": {
+      "maximum": 56,
+      "minimum": 31
+    },
+    "save_files_unchanged": true,
+    "simulation_advanced": true,
+    "undo_regression_fixed": false,
+    "wing_color_survives_two_vampire_roundtrips": true,
+    "wing_palette_controls_qualified": false,
+    "wing_undo_cli_qualified": false
+  },
+  "candidate_epoch": "2026-10-24-instant-variant-menu-v300",
+  "candidate_sha256": "675954d85ff6464b7eafca5a5c9c4fef0a3a78d9fef38c96769cf9c6d3c2b5ce",
+  "changes": {
+    "back_scale_collapse_lock_reset_and_paging_share_next_frame_presentation": true,
+    "native_recovery_authority_unchanged": true,
+    "new_inline_native_input_calls": false,
+    "new_polling_added": false,
+    "unknown_source_refused": true,
+    "v295_saved_named_metadata_predecessor": "1eb9997146db3e2426e0acc4f847fc729f732baaf3ec1bc1f2f26dec68e39fbe",
+    "variant_open_and_same_owner_close_defer_to_next_rendered_frame": true
+  },
+  "evidence_sha256": {
+    "cold_load": "d420ae14ca7ed136e1c8e2f112a586fb5d111520be55bc0ddc20d9f0adc5af9e",
+    "v300_clicks": "5bca44b1e40423fe80985ed886eb4460169f0768a9b6ee518148ed51f2e25dc4",
+    "v300_palette": "32b11326b6ce12ed1538403ae0829a4dbbd05003a450ee33b44f7a1e266b886b",
+    "v300_variants": "59042d96c6cdc9eaf8bd85875813c19c98f1a557f86052f69d24469e4ee07f93"
+  },
+  "production_ready": false,
+  "protected_original_written": false,
+  "schema": 1,
+  "validation": {
+    "compiled_python37_modules": 108,
+    "independent_rust_validated_resources": 275,
+    "native_targets_passed": 17,
+    "saved_named_tests_passed": 15,
+    "seal_tests_passed": 26,
+    "serialized_form_selection_cases_passed": 39,
+    "serialized_menu_cases_passed": 33,
+    "serialized_owner_metadata_cases_passed": 39
+  }
+}

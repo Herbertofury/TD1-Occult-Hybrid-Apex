@@ -1,0 +1,234 @@
+{
+  "actual_f11": {
+    "build": "V272; identical DLL and HTTP implementation retained in V273",
+    "notes": "CLI wall times include identity verification and polling; not measured mouse-to-card latency",
+    "queries": [
+      {
+        "families": 3,
+        "text": "household:\"Sim\""
+      },
+      {
+        "families": 2,
+        "text": "sim:\"Test Sim\""
+      },
+      {
+        "families": 1,
+        "text": "sim-id:349336084686110946"
+      },
+      {
+        "families": 0,
+        "text": "sim:\"Definitely Not In This Save\""
+      }
+    ],
+    "save_files_unchanged": true
+  },
+  "actual_native": {
+    "all195_fields_retained_on_entry": true,
+    "appearance_edit_requested": false,
+    "build": "V273",
+    "clear_restores_original_feed": true,
+    "complete_comparison_reuses_capture_pages_in_memory": true,
+    "final_mode": "Full CAS; no accept or save submitted in V273",
+    "internal_records": 195,
+    "named_looks": 155,
+    "native_appearances": 40,
+    "original_profile_written": false,
+    "pid": 123508,
+    "raw_owner_dtos_exported": false,
+    "results": {
+      "cleared": {
+        "indexed": 0,
+        "publish_ms": 4,
+        "ui_elapsed_ms": 532,
+        "visible_cards": 5
+      },
+      "household": {
+        "indexed": 4,
+        "publish_ms": 0,
+        "ui_elapsed_ms": 636,
+        "visible_cards": 1
+      },
+      "none": {
+        "indexed": 0,
+        "publish_ms": 0,
+        "ui_elapsed_ms": 633,
+        "visible_cards": 0
+      },
+      "other_same_named_members": {
+        "indexed": 2,
+        "publish_ms": 1,
+        "ui_elapsed_ms": 626,
+        "visible_cards": 1
+      },
+      "scoped": {
+        "indexed": 0,
+        "publish_ms": 2,
+        "ui_elapsed_ms": 626,
+        "visible_cards": 0
+      },
+      "sim": {
+        "indexed": 2,
+        "publish_ms": 4,
+        "ui_elapsed_ms": 1765,
+        "visible_cards": 1
+      },
+      "typed": {
+        "indexed": 1,
+        "publish_ms": 0,
+        "ui_elapsed_ms": 624,
+        "visible_cards": 1
+      }
+    },
+    "saves_and_backups_unchanged": 20,
+    "selected_sim_unchanged": true,
+    "sims": 5,
+    "two_worn_eyelash_swatches_show_one_native_card": true,
+    "unresolved_other_member_resources": []
+  },
+  "build_epoch": "2026-10-21-native-swatch-parent-v273",
+  "candidate": {
+    "artifact": "Apex_Development_Candidate_2026-10-21-native-swatch-parent-v273.zip",
+    "bytes": 9112763,
+    "compiled_modules": 106,
+    "independent_rust_verified": true,
+    "members": 31,
+    "packages": 7,
+    "resource_count": 210,
+    "sha256": "5c473edab8ab4c25fe8911964d4fb8cb82d0dc93dc060bcb01dda02733e575f3"
+  },
+  "capture": {
+    "bytes": 1441484,
+    "reference_sqlite_bytes": 90112,
+    "sims": 5,
+    "source_epoch": "2577b8c02a9d4e4e968bdad1f3cfc226"
+  },
+  "examples": [
+    "sim:\"Bella Goth\"",
+    "household:\"Goth Family\"",
+    "sim-id:123456789",
+    "sim:\"Bella Goth\" form:Alien outfit:everyday/2",
+    "household:\"Goth Family\" folder:Makeup author:\"Magic Hand\""
+  ],
+  "implementation": {
+    "asset_exports": false,
+    "bridge_fix": {
+      "compact_bytes": 3192463,
+      "fields_removed": 0,
+      "native_bound_bytes": 4194304,
+      "pretty_bytes": 5831131
+    },
+    "data": "Immutable, save- and catalogue-pinned reference sidecar",
+    "new_windows_service_installed": false,
+    "package_rename": false,
+    "package_scans_while_typing": false,
+    "swatch_fix": "Resolve full native family from worn swatch; require one eligible native parent; cache detached IDs across that family",
+    "worker": "Offline Rust SQLite on existing DLL metadata worker; no HTTP/CLI features in game library"
+  },
+  "prior_live_return": {
+    "all_save_files_unchanged": true,
+    "build": "V272",
+    "first_body_hair_footer": "Explicit failed native acceptance; panel closed and outfit precommit completed",
+    "household_members_reviewed": 5,
+    "named_looks_retained": 155,
+    "native_appearances_retained": 40,
+    "normal_unsaved_exit_verified": true,
+    "subsequent_ready_footer": "Live transition observed without replaying the submitted input; all appearances retained"
+  },
+  "production_ready": false,
+  "proofs": [
+    {
+      "path": ".work/v272-f11-actor-search.json",
+      "sha256": "c36be30d547eee2c985f40b04a2ac0eba658ce65e1cb9ea54cad772f76ebe64d"
+    },
+    {
+      "path": ".work/v272-normal-automatic-entry.json",
+      "sha256": "bddeb9610e59f32f4076c4bbc5258dd0192c699670ffd5992884ed811c388007"
+    },
+    {
+      "path": ".work/v272-actor-native-search.json",
+      "sha256": "b03067ef715ec390616ee12446a77077505cba6e1e0f68be004307e7d7071a6b"
+    },
+    {
+      "path": ".work/v272-native-leah-parent-family.json",
+      "sha256": "7d65b2270f0e02cf541c691044de0a40a1d2ef720fef39307761ab7ab3788d69"
+    },
+    {
+      "path": ".work/v272-native-leah-worn-family.json",
+      "sha256": "7b32a5a9ffec51f9633d45305eeda00d8937d558e4b3f47a9675d3833241e380"
+    },
+    {
+      "path": ".work/v272-after-ea-accept-native-status.json",
+      "sha256": "f64d581eadaec416cb9c5933e69959b739cb714afb6b93b03485a590745fb5f3"
+    },
+    {
+      "path": ".work/v272-ready-ui-return-observation.json",
+      "sha256": "dabab00ae6f1d97f6d467ae9b2681cfc302cdfad8849dd60105dff8594af9612"
+    },
+    {
+      "path": ".work/v272-actual-ui-exit-retention-r2.json",
+      "sha256": "3733b9ee01692c2059abccaf4d7f46e13392f829152b643b8ee97fd7aa875c0b"
+    },
+    {
+      "path": ".work/v272-ui-return-household-review.json",
+      "sha256": "23557736da4c9b1233b1fee99668ebf5ec674636c89f428989198a657ddc7fd6"
+    },
+    {
+      "path": ".work/v272-normal-unsaved-exit-for-v273.json",
+      "sha256": "cdc4b2f77f80de30d0cd1146297812daec3919bbc7bffd65389d2557f832d591"
+    },
+    {
+      "path": ".work/v273-install-launch-live.json",
+      "sha256": "c7d4736d86a9640096457f5e6c998e949c194c4b5ac9eb46608a773e8e676f24"
+    },
+    {
+      "path": ".work/v273-normal-automatic-entry.json",
+      "sha256": "3166a6b3b85eb6e9a7c6ac34e3abe4cf8724054cb5e86d4380f43948bf6413d5"
+    },
+    {
+      "path": ".work/v273-actor-native-search.json",
+      "sha256": "11509105fbe5c89b3906a2b0507ec32af8ba5d42dad215d58cdbc7d0d05ab4f6"
+    },
+    {
+      "path": ".work/v273-real-usage-capture.json",
+      "sha256": "4f13e307e387cad259f13651764a04d13fe284aeb65dc804232ecafa6e4aeccf"
+    },
+    {
+      "path": ".work/v273-live-usage-import.log",
+      "sha256": "fc38c58e18e4cbe6994e1c18f4753c3b83ea5ad87d9cbeb46f6863578b235439"
+    }
+  ],
+  "remaining": [
+    "Automatic production capture and refresh after CAS, Live and Tray edits, with an integrated refresh control",
+    "CAS-exit precommit path after body-hair browsing",
+    "Effective-resource hashes for ambiguous EA equipped attribution",
+    "Actor search in F11 saved/favorite/recent views is not qualified",
+    "Preview helper must release package handles before updates; this run stopped its exact idle helper and used checked install recovery",
+    "Full edited-category hybrid, link/copy, household, save and Tray/Gallery release matrix and UI layout qualification",
+    "WCIF creator 8981 source count discrepancy; prior archive remains incomplete"
+  ],
+  "schema": 1,
+  "semantics": {
+    "activation_required": false,
+    "default_origin": "CC for equipped-reference predicates; origin:ea is explicit",
+    "duplicate_names": "Match all corresponding Sims; sim-id: chooses one",
+    "f11": "All categories in main library view",
+    "items_equipped_by_search": false,
+    "native_cas": "Current native eligible category and ordinary swatches",
+    "production_capture_refresh": "Explicit committed capture; automatic CAS/Live/Tray refresh remains open"
+  },
+  "status": "Sim/household search qualified; complete hybrid release remains blocked",
+  "tests": {
+    "candidate_epoch": 5,
+    "compact_http": 2,
+    "compiled_python37_modules": 106,
+    "form_seal": 26,
+    "independently_verified_resources": 210,
+    "native_targets": 15,
+    "packages": 7,
+    "previous_commit_ci": "48efdb1: push and PR workflows passed; latest commit CI is separate",
+    "python_companion_cases": 4,
+    "python_search_cases": 5,
+    "serialized_companion_mutations": 6,
+    "serialized_search_mutations": 11
+  }
+}

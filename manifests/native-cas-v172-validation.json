@@ -1,0 +1,44 @@
+{
+  "build_epoch": "2026-10-16-native-cas-isolate-pelts-and-empty-outfits-v172",
+  "bundle_sha256": "5ca84d7566267ac1e5b2ab7da0bbc8f608cf351c6291c89b98c9ce6cb74b941d",
+  "cas_accept_submitted": false,
+  "native_ctest_targets": 9,
+  "production_ready": false,
+  "runtime": {
+    "attempted_hair_hook_invocations": 0,
+    "cas_entry_accepted": false,
+    "cold_originals_exact": true,
+    "cold_proof_sha256": "bbef622b40fdb9b71a16956eed5f720060fe2b4fe1336dc58289ba75bf615803",
+    "comparison_sha256": "beb3248f2c5aace6c9bfe2787af8c8f4ac885428b844b8b5da2cdada00d79cfe",
+    "crashed": false,
+    "differences": [
+      {
+        "changed_fields": [
+          "__outfits__"
+        ],
+        "native_kind": 16,
+        "owner_id": "native/16",
+        "sim_id": "285159751289798669"
+      },
+      {
+        "changed_fields": [
+          "__outfits__"
+        ],
+        "native_kind": 16,
+        "owner_id": "witch/witch_primary",
+        "sim_id": "285159751289798669"
+      }
+    ],
+    "entry_refused_before_cas": true,
+    "genetics_match_all_owners": true,
+    "original_appearance_owners": 40,
+    "owners_compared": 195,
+    "pelts_match_all_owners": true,
+    "pre_entry_import_qualified": false,
+    "read_only_all195_sha256": "baffc479511139c9f24b78d26bdb76848e1775f642cb6be95efb87ad251051f6",
+    "unchanged_owners": 193
+  },
+  "save_submitted": false,
+  "schema": 1,
+  "source_checks": 47
+}

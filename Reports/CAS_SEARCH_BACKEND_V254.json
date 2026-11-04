@@ -1,0 +1,43 @@
+{
+  "index_sha256": "d8ecd1f2a9324a974b2c4e63400de747dbd1df3d2aa528bfd1026d40f1515113",
+  "index_rows": 539005,
+  "schema": 4,
+  "queries": [
+    {
+      "text": "eyebrow",
+      "total": 1,
+      "search_mode": "prefix",
+      "corrections": [],
+      "cold_ms": 0.8220000000000001,
+      "warm_p50_ms": 0.14699995517730713,
+      "warm_max_ms": 0.23290002718567848
+    },
+    {
+      "text": "eyeborw",
+      "total": 1,
+      "search_mode": "fuzzy",
+      "corrections": [
+        {
+          "typed": "eyeborw",
+          "suggestions": [
+            "eyebrow"
+          ]
+        }
+      ],
+      "cold_ms": 0.78,
+      "warm_p50_ms": 0.1494500320404768,
+      "warm_max_ms": 0.21609989926218987
+    },
+    {
+      "text": "necklace",
+      "total": 317,
+      "search_mode": "prefix",
+      "corrections": [],
+      "cold_ms": 56.434,
+      "warm_p50_ms": 0.38745009806007147,
+      "warm_max_ms": 0.5036001093685627
+    }
+  ],
+  "game_contacted": false,
+  "includes_transport_or_rendering": false
+}

@@ -1,0 +1,109 @@
+{
+  "actual_companion": {
+    "add_remove_favorite_pass": true,
+    "all195_appearance_fields_unchanged": true,
+    "all_features_qualified": false,
+    "donor_handlers_used": true,
+    "favorites_all_modes_pass": true,
+    "native_right_click_qualified": false,
+    "preference_restored": true,
+    "restart_persistence_qualified": true,
+    "second_favorites_store": false
+  },
+  "animated_attachments": {
+    "actual_simultaneous_animation_qualified": false,
+    "adapter_installed_in_game": true,
+    "cas_f11_selection_qualified": false,
+    "focused_tests_passed": 9,
+    "original_resource_files_modified": false,
+    "polling": false
+  },
+  "cold_live": {
+    "animated_bases_installed": true,
+    "native_appearances_retained": 40
+  },
+  "date": "2026-10-23",
+  "evidence_sha256": {
+    ".work/v287-attachment-tests-final.log": "cd1fb326541b2ad5c0dc790223614f8df77f4b01b00ac68abd82904a3f789b47",
+    ".work/v287-donor-favorite-visible.bmp": "766b4ea8a86c899ef27b7bb41692b353fb67c1219614b9461ae06ab3e9029b88",
+    ".work/v287-donor-favorites-qa.json": "7535c64dd4ad462c2749fd8943bd7579b5a53ade66e94b7de3e395fb6b4315ac",
+    ".work/v287-fur-options-qa.json": "f74f3a3f0aa3af6bdfc8a3a51f1c38f58a83be9d81eafda9ae938e0ff234ea9d",
+    ".work/v287-fur-removed.bmp": "905b3f1167f3b2ca7caaaa12e520ff1cc3d7a9fc77222e02a28dcdb19fd7ae72",
+    ".work/v287-fur-restored.bmp": "77653d4b2901e1ec04be14bee677ffbb8355d2eb24799cff51ad1c9d81ac8f64",
+    ".work/v287-install-launch-live.json": "65ed10e2c29928b7af36e7727c964f78f9349bdc24d21c3b0792a7fe02956f84",
+    ".work/v287-native-tests.log": "2ea279d9e1461a08c4d49db797c2d48dbf615c086097d03f210913dab3a162e9",
+    ".work/v287-normal-automatic-entry-late-r2.json": "eaeefb30e5cd013bd412032c6b8716af575b34996bd0cfce9425ab5b68156a8c",
+    ".work/v287-normal-automatic-entry.json": "7e7285909330c07b817c75d1bed6a14e1aeef54c598e51ceb09b9d20908bc7b7",
+    ".work/v288-automatic-household-disposition.json": "49dcd8488a55bf7dee044350067cb7ec17c00f6bc310e1a297b2aadb3c72bcaf",
+    ".work/v288-candidate-build.log": "e66dfc822611e4f3742a10c8297ae4be055e7c3fc70d8e173bf437de3dcb025d",
+    ".work/v288-catalog-bytecode-tests.log": "0955bedbdd62bc006214e7d9a29c53ccc89964067e68917373251ce44357fd1d",
+    ".work/v288-donor-control-tests.log": "2611207c2e57a8d8b8c43f01d87936cad1ee289aca83ff67e5e20b86925aae27",
+    ".work/v288-favorite-persistence.json": "5e98e9aa610bb6b73593b6bd8560faf182929656c563ed374787908687f0d2f7",
+    ".work/v288-full-python-tests.log": "4c5d20e550e148a669d50bd8f1a02b34aeda01e1785aaf9dd9b59db41b8f0b2c",
+    ".work/v288-normal-automatic-entry.json": "bc6f8f355ccb8a0d1fe0b78938ed94691bf0cdfb48deb5fa9ce31bdf18278974",
+    ".work/v288-player-full-cas-entry.json": "0ddb9689bc57d3c10b597e9af722baedffd8f0136e3c0ba0fce8970b75681ae7",
+    ".work/v288-return-disposition.json": "b51fb3e9d3d91dd050e7195d07be03ba9f82dd1efea42c4b0f71ce2134770fdc"
+  },
+  "full_cas": {
+    "all195_appearance_fields_unchanged": true,
+    "original_entry_observed_late_without_replay": true,
+    "original_entry_timing_gate_pass": false
+  },
+  "fur": {
+    "actual_pixels_reviewed": true,
+    "canine_head_and_ears_retained": true,
+    "chosen_cc_part_retained": "14079556799788105642",
+    "default_female_outfit_bottom": "0x5f71",
+    "default_female_outfit_top": "0x5f69",
+    "default_genetics_bottom": "0x1990",
+    "default_genetics_top": "0x198c",
+    "female_cas_off_on_readback_pass": true,
+    "fur_on_preserves_clothing": true,
+    "guard_weakened": false,
+    "human_body_without_fur_visible": true,
+    "live_rendering_qualified": false,
+    "male_defaults_qualified": false,
+    "other194_records_unchanged": true,
+    "remaining_ear_eye_deformation": true,
+    "shape_and_unrelated_fields_retained": true,
+    "werewolf_and_fairy_roundtrips_pass": true
+  },
+  "next_built_candidate": "2026-10-23-cas-unload-release-v288",
+  "original_profile_written": false,
+  "production_ready": false,
+  "remaining": [
+    "Exact native Live Dark Form interaction from Fairy, deferred at owner request",
+    "Ear/head/eye geometry repair",
+    "Actual simultaneous animated parts and form-specific CAS/F11 selectors",
+    "Mermaid swimming and animation while unpaused",
+    "Full donor feature and preference persistence tests",
+    "Performance and complete actual-save/Tray/MCCC qualification"
+  ],
+  "runtime_candidate": "2026-10-23-native-favorites-animated-parts-v287",
+  "save_submitted": false,
+  "unload": {
+    "actual_retired_tuning_redraw_exception_identified": true,
+    "cancellation_stall_cause_proven": false,
+    "compiled_regression_pass": true,
+    "reference_only_disposal_built": true,
+    "runtime_unload_qualified": true
+  },
+  "v288": {
+    "all195_fields_unchanged": true,
+    "all40_before_and_after_no_edit_disposition_exact": true,
+    "candidate_sha256": "35c16eed4d009125d5241e960852a725514922a8a7710658844d35d703046966",
+    "cold_native_appearances_retained": 40,
+    "edited_fur_live_save_cycle_qualified": false,
+    "full_cas_entry_seconds": 41.788660399848595,
+    "full_python_tests_passed": 2848,
+    "named_looks_retained": 155,
+    "native_acceptance_verified": true,
+    "native_favorite_survived_normal_restart": true,
+    "native_scope_retired": true,
+    "native_targets_passed": 16,
+    "new_rotated_ui_reports": {},
+    "original_preference_restored": true,
+    "python_seconds": 1203.401,
+    "save_backup_files_unchanged": 20
+  }
+}

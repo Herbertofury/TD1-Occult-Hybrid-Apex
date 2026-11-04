@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "scope": "fifth-member-edit-and-outgoing-fourth-member-handoff",
+  "ok": false,
+  "candidate_epoch": "2026-10-21-equipped-stream-v253",
+  "source_proof_sha256": "8ae4f21cf103d246ec2b648c6f8d402d28b513a4b82035619a7d6d32b3ee6410",
+  "selected_member_ordinal": 5,
+  "outgoing_member_ordinal": 4,
+  "selected_member_edits": [
+    {
+      "base_data_id": "320731",
+      "data_id": "320731",
+      "kind": 2,
+      "owner_id": "active/2",
+      "panel": "eyebrows",
+      "selected_readback_verified": true
+    },
+    {
+      "base_data_id": "268894",
+      "data_id": "268894",
+      "kind": 2,
+      "owner_id": "active/2",
+      "panel": "skin_details",
+      "selected_readback_verified": true
+    },
+    {
+      "base_data_id": "110006",
+      "data_id": "110007",
+      "kind": 2,
+      "owner_id": "active/2",
+      "panel": "earrings",
+      "selected_readback_verified": true
+    },
+    {
+      "base_data_id": "320731",
+      "data_id": "320724",
+      "kind": 4,
+      "owner_id": "native/4",
+      "panel": "eyebrows",
+      "selected_readback_verified": true
+    },
+    {
+      "base_data_id": "268894",
+      "data_id": "268894",
+      "kind": 4,
+      "owner_id": "native/4",
+      "panel": "skin_details",
+      "selected_readback_verified": true
+    },
+    {
+      "base_data_id": "110006",
+      "data_id": "110008",
+      "kind": 4,
+      "owner_id": "native/4",
+      "panel": "earrings",
+      "selected_readback_verified": true
+    }
+  ],
+  "selected_member_visits": [
+    {
+      "all_three_categories_retained": true,
+      "kind": 2,
+      "owner_id": "active/2"
+    },
+    {
+      "all_three_categories_retained": true,
+      "kind": 4,
+      "owner_id": "native/4"
+    },
+    {
+      "all_three_categories_retained": true,
+      "kind": 2,
+      "owner_id": "active/2"
+    }
+  ],
+  "all195_owners_compared": true,
+  "unexpected_owner": "fourth-member/native/2",
+  "changed_fields": [
+    "__outfits__",
+    "genetic_data"
+  ],
+  "changed_outfits": [
+    [
+      4,
+      0
+    ],
+    [
+      10,
+      0
+    ],
+    [
+      11,
+      0
+    ]
+  ],
+  "removed_parts": [
+    {
+      "body_type": 34,
+      "part_id": 283802
+    },
+    {
+      "body_type": 38,
+      "part_id": 36931
+    }
+  ],
+  "added_parts": [
+    {
+      "body_type": 34,
+      "part_id": 320731
+    },
+    {
+      "body_type": 38,
+      "part_id": 268894
+    }
+  ],
+  "added_parts_match_outgoing_members_approved_edits": true,
+  "other_outfit_fields_unchanged": true,
+  "genetic_changed_root_fields": [
+    2
+  ],
+  "genetic_physique_after_matches_outgoing_owners_existing_scalar": true,
+  "cross_member_appearance_merge_proved": false,
+  "causal_settled_handoff_qualified": false,
+  "diagnosis": "Consistent with delayed outgoing-model synchronization; the complete stable-household gate remains failed pending a controlled flush and isolated handoff.",
+  "checks_weakened": false,
+  "cas_accept_submitted": false,
+  "save_submitted": false,
+  "production_ready": false,
+  "controlled_selected_member_handoff": {
+    "ok": true,
+    "member_ordinal": 5,
+    "explicit_unlinked_sync_before_baseline": true,
+    "all39_fields_unchanged_after_leaving_member": true,
+    "save_files_unchanged": true,
+    "source_proof_sha256": "e300726835f7275dd85a7381adb747bc106b112ccc556630afc1d09e1e05aa8e",
+    "scope": "One controlled handoff; full edited household CAS/Live/save/Tray gate remains open."
+  }
+}

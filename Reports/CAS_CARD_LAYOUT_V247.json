@@ -1,0 +1,250 @@
+{
+  "build": {
+    "native_unrelated_customizer_methods_preserved": 1784,
+    "packages": 7,
+    "python37_modules": 105,
+    "rust_verified_resources": 210,
+    "shared_layout_library_override": false
+  },
+  "build_epoch": "2026-10-21-cas-card-outline-v247",
+  "controls": {
+    "automatic_viewport_fit": true,
+    "card_scale": [
+      0.65,
+      1.6
+    ],
+    "ea_card_reset": true,
+    "horizontal_gap": [
+      0,
+      32
+    ],
+    "requested_columns": [
+      2,
+      12
+    ],
+    "semantic_operations_verified": 18,
+    "vertical_gap": [
+      0,
+      32
+    ]
+  },
+  "evidence_sha256": {
+    "v244-native-tests.log": "211022a0b129da3732f7228f01c648b5eb71c2f1e8db43a29f3d817b1273cf5b",
+    "v247-card-physical-ui.json": "2d52482b8d509bd5f4bf821a88085d3b334aeed8b0f25e1ed284a0dee754fe3e",
+    "v247-card-runtime-qualification.json": "131fb195f34c9780f17531649e74cc11c2a3d23e1d0482438c55ed3ba5569afa",
+    "v247-card-visual-review.json": "c6f633c63ff35288f7026c7e7a7b48d2ece624dbeac2e243e8efc68c33a66720",
+    "v247-focused-tests.log": "bfd94d17f2bf29a012de3617b14d15f7b8804a4ac38132f2d95e05f3af6324d0",
+    "v247-full-regression.log": "7ee20943d33bc64d04ea3af0d2b8a42d0fb9d69566b2e8bf016481f362d57ab6",
+    "v247-lifestate-menu-tests-r2.log": "cbbcdedead719ffdbca3dc55f8e9ea80c9edd98e253026cd586f5f8a0d92f97d",
+    "v247-ui-appearance-isolation-r2.json": "3b91e8c644fb052731c326a7fbe5ec1572a2622a538914f6ba50807bd4f1ce6d"
+  },
+  "feature_runtime_qualified": true,
+  "isolation": {
+    "all20_save_and_backup_files_unchanged": true,
+    "all_record_fields_unchanged": true,
+    "original_profile_written": false,
+    "physical_controls_are_ui_only": true,
+    "save_submitted": false,
+    "semantic_control_pass_retained_appearance_records": 39
+  },
+  "layouts": [
+    {
+      "actual": {
+        "card_height": 95.55087280273438,
+        "card_width": 69.55,
+        "columns": 6,
+        "gap_x": 0,
+        "gap_y": 0,
+        "hit_width": 66.95011901855469,
+        "pitch_x": 69.55,
+        "pitch_y": 95.55087280273438,
+        "scale": 0.65,
+        "width": 457.3
+      },
+      "name": "compact",
+      "rendered_cell_count": 5,
+      "requested": {
+        "gap_x": 0,
+        "gap_y": 0,
+        "scale": 0.65
+      }
+    },
+    {
+      "actual": {
+        "card_height": 147.0013427734375,
+        "card_width": 107,
+        "columns": 5,
+        "gap_x": 4,
+        "gap_y": 4,
+        "hit_width": 103.0001831054688,
+        "pitch_x": 111,
+        "pitch_y": 151.0013427734375,
+        "scale": 1,
+        "width": 595
+      },
+      "name": "native",
+      "rendered_cell_count": 5,
+      "requested": {
+        "gap_x": 4,
+        "gap_y": 4,
+        "scale": 1
+      }
+    },
+    {
+      "actual": {
+        "card_height": 198.45181274414,
+        "card_width": 144.45,
+        "columns": 3,
+        "gap_x": 16,
+        "gap_y": 6,
+        "hit_width": 139.0502471923828,
+        "pitch_x": 160.45,
+        "pitch_y": 204.45181274414,
+        "scale": 1.35,
+        "width": 521.35
+      },
+      "name": "spaced",
+      "rendered_cell_count": 5,
+      "requested": {
+        "gap_x": 16,
+        "gap_y": 6,
+        "scale": 1.35
+      }
+    },
+    {
+      "actual": {
+        "card_height": 235.2021484375,
+        "card_width": 171.2,
+        "columns": 3,
+        "gap_x": 32,
+        "gap_y": 32,
+        "hit_width": 164.80029296875,
+        "pitch_x": 203.2,
+        "pitch_y": 267.2021484375,
+        "scale": 1.6,
+        "width": 649.6
+      },
+      "name": "large",
+      "rendered_cell_count": 5,
+      "requested": {
+        "gap_x": 32,
+        "gap_y": 32,
+        "scale": 1.6
+      }
+    }
+  ],
+  "native_pointer_input": {
+    "focus_requested": false,
+    "independent_values_verified": true,
+    "reset_button_verified": true,
+    "three_sliders_verified": true,
+    "transport": "Window-addressed background clicks through game CLI"
+  },
+  "open_gates": [
+    "Preferences across restarts",
+    "Animated outline pixel qualification",
+    "Large-catalog hitch profiling",
+    "Native equipped-thumbnail category",
+    "Direct hybrid outfit/genetics normalization",
+    "Full edited household/MCCC/save/Tray round trips"
+  ],
+  "production_ready": false,
+  "schema": 1,
+  "scope": "Native CAS card layout and static selection outline",
+  "static_outline": {
+    "all_four_edges_verified": true,
+    "border_width": 5,
+    "cases": [
+      {
+        "all_four_edges": true,
+        "capture_sha256": "6117b500b01d3188e73d2be09aa55f54e941b2e6fa75a291373fb8888e62cf9b",
+        "central_edge_coverage": {
+          "bottom": 1.0,
+          "left": 1.0,
+          "right": 1.0,
+          "top": 1.0
+        },
+        "name": "compact",
+        "outline_pixel_bounds": [
+          873,
+          180,
+          937,
+          273
+        ]
+      },
+      {
+        "all_four_edges": true,
+        "capture_sha256": "154c4163b488c947db3886cd7995304e0f1b3ddf785607c02531b93b0149512a",
+        "central_edge_coverage": {
+          "bottom": 1.0,
+          "left": 1.0,
+          "right": 1.0,
+          "top": 1.0
+        },
+        "name": "native",
+        "outline_pixel_bounds": [
+          783,
+          183,
+          883,
+          326
+        ]
+      },
+      {
+        "all_four_edges": true,
+        "capture_sha256": "5c3401ea5ad4e634e81d42e6d27fd920d719808c5fd07c1f7b15b0dc62326d71",
+        "central_edge_coverage": {
+          "bottom": 1.0,
+          "left": 1.0,
+          "right": 1.0,
+          "top": 1.0
+        },
+        "name": "spaced",
+        "outline_pixel_bounds": [
+          921,
+          184,
+          1055,
+          378
+        ]
+      },
+      {
+        "all_four_edges": true,
+        "capture_sha256": "161effa26b24319e17ca943b8c17ffb05aa53e412a1873b40d43fdfc659af3ca",
+        "central_edge_coverage": {
+          "bottom": 1.0,
+          "left": 1.0,
+          "right": 1.0,
+          "top": 1.0
+        },
+        "name": "large",
+        "outline_pixel_bounds": [
+          852,
+          186,
+          1012,
+          416
+        ]
+      }
+    ],
+    "color_rgb": 16724689
+  },
+  "validation": {
+    "focused_python_tests": 171,
+    "full_regression": {
+      "corrected_fixture_suite": {
+        "active_ea_panel_rejects_inline_action": true,
+        "retired_callback_rejects_input": true,
+        "status": "passed",
+        "tests": 23
+      },
+      "failure": "Obsolete bytecode fixture expected a listener inside the deliberately retired floating pair callback.",
+      "failures": 1,
+      "passing": 2731,
+      "production_code_changed_for_fixture": false,
+      "tests_run": 2732
+    },
+    "native_ctests": 14
+  },
+  "viewport": {
+    "height": 1376,
+    "width": 1278
+  }
+}

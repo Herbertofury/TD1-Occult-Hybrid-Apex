@@ -1,0 +1,20 @@
+TD1 Occult Hybrid Apex - ImGui DX11 Overlay V5.1 validation notes
+
+Fixes applied after V5 static review:
+- CMake target renamed from d3d11 to TD1ApexD3D11Proxy while keeping OUTPUT_NAME d3d11, preventing a self-link against the target when also linking the Windows d3d11.lib import library.
+- /api/overlay/state now calls _submit_action('status', wait_seconds=2.5) so visible overlay status polling goes through the Sims game-thread alarm queue instead of reading SimInfo directly on the HTTP socket thread.
+- Removed duplicate overlay key from the overlay state payload.
+- Visible overlay polling interval changed from 1000 ms to 1500 ms.
+- Native worker sleep changed from 35 ms visible / 120 ms hidden to 120 ms visible / 250 ms hidden to reduce idle wakeups while preserving responsive buttons.
+- Native WndProc now consumes mouse/keyboard messages when ImGui wants capture, so pressing overlay controls is less likely to leak input into Live Mode.
+- DllMain now calls DisableThreadLibraryCalls on its own HINSTANCE instead of using GetModuleHandleW("d3d11.dll").
+
+Validated in this environment:
+- Python source AST parse: OK.
+- Repacked ts4script zip integrity: OK.
+- Final zip integrity: OK.
+- Helper DLL remains PE32+ x64 and exports occult + overlay helper functions.
+
+Still requires Windows/in-game validation:
+- Visual Studio/CMake build of NativeOverlay/build/Release/d3d11.dll.
+- In-game DX11 smoke test with TS4_x64.exe and F11 overlay toggle.

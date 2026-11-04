@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-native-button-domain-v332",
+  "candidate_sha256": "9acebdce01cb814695de89f5d2b827796071a7cc5abda98c8ab4ff11b368362c",
+  "production_ready": false,
+  "performance_pass": false,
+  "implemented": [
+    "Third exact earlier Button/communication library override with original compiler authority retained separately",
+    "Explicit catalog-only authenticated readbacks; full appearance/form/edit/save observations retained",
+    "No hidden clothing-grid clocks, queries or pool work while another panel is current"
+  ],
+  "providers": {
+    "62ECC59A:00000000:12272E1AC0C1F8E2": "74701ad23ea1eb9e97775a75d374ea72a1e3e1e9b40f7fdecd8e68f19b3139d3",
+    "62ECC59A:00000000:89D13757C58C2E05": "2501f2bc00caeb7d3b69b24e80ee81621c87110f569a442a5c090cce04246c79",
+    "62ECC59A:00000000:3FFE72432A703655": "5ff049dc49739a0672115f8dace4bd2f6b745ab37484cfd27970c6e27d87b41c"
+  },
+  "offline_validation": {
+    "chain_tests": 34,
+    "domain_tests": 4,
+    "compiled_domain_corruptions": 54,
+    "thin_readback_tests": 13,
+    "candidate_resource_inventory_tests": 4,
+    "independent_rust_resources": 277,
+    "python37_modules": 109,
+    "packages": 7
+  },
+  "actual": {
+    "cold_load_complete_native": 40,
+    "cold_load_named": 155,
+    "full_cas_complete_records": 195,
+    "after_ui_complete_records": 195,
+    "all195_fields_unchanged": true,
+    "all21_save_files_unchanged": true,
+    "search_baseline": 436,
+    "search_cc_match": 2,
+    "no_match_cards": 0,
+    "clear_restores_all": true,
+    "frame_time": {
+      "scope": "45s real action capture including explicit catalog-only CLI observations; not a no-mod matched baseline",
+      "frames": 5422,
+      "median_ms": 6.892049999999999,
+      "p95_ms": 15.9949,
+      "p99_ms": 41.9133,
+      "max_ms": 239.1338,
+      "over_33_33ms": 137,
+      "event_loss_reported": false,
+      "performance_pass": false,
+      "csv_sha256": "bc588daef161d0925b9603d22c1e78056ba5fe102a86abcd77c29fea1f705e26"
+    },
+    "final_native": {
+      "bootstrap": false,
+      "cancelled": false,
+      "cells": 180,
+      "cellsY": 180,
+      "coalesced": 576,
+      "counts": {
+        "attach": 133,
+        "bind": 228,
+        "construct": 133,
+        "data": 684,
+        "draw": 228,
+        "position": 228,
+        "publish": 2,
+        "retire": 177,
+        "selected_setter": 228,
+        "selection": 228
+      },
+      "deferred_events": 10,
+      "dirty": false,
+      "error": null,
+      "generation": 4,
+      "index": 180,
+      "lastOperation": "publish",
+      "lastPhase": "publish",
+      "lease": false,
+      "map": 180,
+      "maxMS": {
+        "attach": 42,
+        "bind": 58,
+        "construct": 3,
+        "data": 1,
+        "draw": 58,
+        "position": 1,
+        "publish": 1,
+        "retire": 2,
+        "selected_setter": 0,
+        "selection": 2
+      },
+      "measured_aspect": 1,
+      "measured_generation": 4,
+      "measured_height": 70.75233644859813,
+      "measured_scale": 0.4813084112149533,
+      "measurement_ready": true,
+      "natural_aspect": 1,
+      "natural_height": 147,
+      "natural_width": 107,
+      "operations": 1136,
+      "pendingCell": false,
+      "phase": "done",
+      "publishes": 2,
+      "reason": "",
+      "reentrant": 0,
+      "revision": 2,
+      "staleBinds": 0,
+      "target": 180
+    },
+    "button_listener": {
+      "appearance_written": false,
+      "available": true,
+      "button_provider": "62ECC59A:00000000:12272E1AC0C1F8E2",
+      "listener_membership": null
+    },
+    "compact_12_screenshot_sha256": "c914be47500bf745278fb4585f88197eefc328e9249ccedc8a38aaf2d918959d"
+  },
+  "remaining": [
+    "Fix OWNED listener diagnostic to use original native lexical static singleton and dynamic-map namespaces; actual null was not listener-absence proof",
+    "Guard negative non-dispatching native RemoveFunction misses with existing valid membership index; preserve original positive/deferred/null/alias paths",
+    "Repeat actual listener coverage/counter and frame/atom captures",
+    "Complete Body/Tattoo/Hair,32columns and switching responsiveness",
+    "Edited category/allmember/phone/MCCC/F11,category link/copy and full native+named save/Tray/Gallery qualification"
+  ],
+  "limits": "A successful adapter/build/cold load does not prove hitch-free play. No matched no-mod baseline; frame capture includes explicit CLI observations. This build still fails responsiveness."
+}

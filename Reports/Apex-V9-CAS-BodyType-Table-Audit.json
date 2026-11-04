@@ -1,0 +1,19 @@
+{
+  "count": 116,
+  "critical_present": {
+    "EYELASHES": true,
+    "FULL_BODY": true,
+    "GLOVES": true,
+    "HEAD_DECORATION": true,
+    "LIPS_TICK": true,
+    "LOWER_BODY": true,
+    "SHOES": true,
+    "SKIN_OVERLAY": true,
+    "SKIN_SPECULARITY": true,
+    "TATTOO_HEAD_WINGS": true,
+    "UPPER_BODY": true
+  },
+  "duplicate_keys": [],
+  "duplicate_values": [],
+  "missing_0_112": []
+}

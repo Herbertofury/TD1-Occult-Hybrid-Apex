@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-cas-input-priority-v294",
+  "candidate_sha256": "1177ac52f3a5073744b30741a277f2b685df8d2698d024ccec0338e4c668cd9b",
+  "production_ready": false,
+  "problem": "The shared command gate holds a player's form or pair input while a read-only CLI status command awaits its timer-owned readback.",
+  "change": {
+    "read_only_status_can_coexist_with_same_sim_form_input": true,
+    "requires_exact_visible_sim_and_claim_nonce": true,
+    "only_status_operation_at_readback_phase_one": true,
+    "unknown_received_commands_still_block_input": true,
+    "mutating_commands_keep_write_ownership": true,
+    "native_calls_inside_classifier": false,
+    "native_calls_inside_input_callback_added": false,
+    "separate_ui_events_keep_native_calls_non_reentrant": true,
+    "pair_panel_completion_fix_retained": true,
+    "permanent_appearance_guard_retained": true
+  },
+  "build_validation": {
+    "compiled_python37_modules": 108,
+    "packages": 7,
+    "independently_rust_validated_resources": 275,
+    "serialized_lifestate_input_mutation_tests": 31,
+    "serialized_owner_metadata_mutation_tests": 39,
+    "native_donor_method_retention": true
+  },
+  "matching_runtime_validation": {
+    "loaded": false,
+    "same_sim_input_with_status_in_flight": false,
+    "all_household_forms": false,
+    "zero_to_one_ms_switching_qualified": false
+  },
+  "protected_original_written": false,
+  "remaining": [
+    "Finish the existing V292 complete form-field comparison and retain the actual wing edit through acceptance.",
+    "Load matching V294 and verify actual strip input during read-only status requests and every mutating ownership refusal.",
+    "Finish the broader edited-category, member setup, Companion, save and Tray/Gallery release gates."
+  ]
+}

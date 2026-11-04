@@ -1,0 +1,338 @@
+"""Recognize and acknowledge EA's exact launch dialog when Qt exposes no UIA.
+
+Only verified EA windows, their own captured pixels and the one English game
+permission dialog are accepted. Never targets UAC, another app, or access errors.
+"""
+import ctypes
+from ctypes import wintypes as W
+import hashlib
+import json
+import math
+from pathlib import Path
+import struct
+import subprocess
+import time
+
+from test_profile import unlinked
+from reusable_profile import writable
+from windows_ocr import recognize
+from game_launch import process_image
+
+
+class WindowPlacement(ctypes.Structure):
+    _fields_ = [('length', W.UINT), ('flags', W.UINT), ('show', W.UINT),
+                ('minimum', W.POINT), ('maximum', W.POINT), ('normal', W.RECT)]
+
+
+def blank_rgb(raw):
+    """PrintWindow may report success while Qt returns a uniform blank surface."""
+    return bool(raw) and len(raw) % 4 == 0 and all(len(set(raw[offset::4])) == 1 for offset in (0,1,2))
+
+
+def graphics_capture(row, output):
+    """Capture the bound EA window even behind another app, without input."""
+    helper = Path(__file__).resolve().parents[1] / 'NativeOverlay' / 'build' / 'permission-capture' / 'Release' / 'ApexPermissionCapture.exe'
+    helper = unlinked(helper); output = writable(output)
+    if not helper.is_file() or output.exists():
+        raise ValueError('Build the native EA capture helper and use a fresh external output.')
+    reply = subprocess.run([str(helper),str(row['hwnd']),str(row['pid']),str(row['width']),str(row['height']),str(output)],
+        capture_output=True,text=True,encoding='utf-8',timeout=8,creationflags=subprocess.CREATE_NO_WINDOW)
+    if reply.returncode or not output.is_file():
+        raise ValueError('Windows Graphics Capture refused this EA window: '+reply.stderr[-1000:])
+    receipt=json.loads(reply.stdout)
+    if (receipt.get('ok') is not True or receipt.get('foreground_changed') is not False or receipt.get('input_sent') is not False or
+            receipt.get('client_width')!=row['width'] or receipt.get('client_height')!=row['height']):
+        raise ValueError('EA graphics capture receipt differs from the bound window.')
+    raw=output.read_bytes();width,height=row['width'],row['height']
+    if len(raw)!=54+width*height*4 or raw[:2]!=b'BM' or struct.unpack_from('<ii',raw,18)!=(width,-height) or blank_rgb(raw[54:]):
+        raise ValueError('EA graphics capture has invalid or blank client pixels.')
+    return hashlib.sha256(raw).hexdigest()
+
+
+def dialog_button(observation):
+    if (not isinstance(observation, dict) or observation.get('ok') is not True or
+            type(observation.get('width')) is not int or type(observation.get('height')) is not int or
+            not 200 <= observation['width'] <= 2600 or not 150 <= observation['height'] <= 2600):
+        raise ValueError('Captured window has no typed bounded EA viewport.')
+    lines = observation.get('lines')
+    if (not isinstance(lines, list) or not 0 < len(lines) <= 64 or
+            any(not isinstance(row, dict) or not isinstance(row.get('text'), str) or
+                not isinstance(row.get('words'), list) or not 0 < len(row['words']) <= 64 for row in lines)):
+        raise ValueError('Captured window has no bounded EA dialog text inventory.')
+    def rectangle(word):
+        if not isinstance(word, dict) or not isinstance(word.get('text'), str):
+            raise ValueError('EA dialog word is not typed.')
+        values = [word.get(name) for name in ('x', 'y', 'width', 'height')]
+        if any(type(value) not in (int, float) or not math.isfinite(value) for value in values):
+            raise ValueError('EA dialog word requires finite measured bounds.')
+        x, y, width, height = values
+        if not (0 <= x < x + width <= observation['width'] and 0 <= y < y + height <= observation['height']):
+            raise ValueError('EA dialog word exceeds its verified viewport.')
+        return x, y, width, height
+    for row in lines:
+        for word in row['words']: rectangle(word)
+    text = ' '.join(' '.join(row['text'].split()) for row in lines).lower()
+    if 'this game requires permissions' not in text or (
+        'this game requires administrative privileges. do you want to grant access and launch the game?' not in text):
+        raise ValueError('Captured window is not the exact EA game permission dialog.')
+    # Windows OCR reads the round O on EA's blue button as zero in the retained
+    # 635x287 modal. Accept this one glyph variant only after complete wording.
+    ok = [row for row in lines if row['text'].strip().upper() in ('OK', '0K')]
+    close = [row for row in lines if row.get('text', '').strip().upper() == 'CLOSE']
+    heading = [row for row in lines if ' '.join(row['text'].split()).lower() == 'this game requires permissions']
+    if (len(ok) != 1 or len(close) != 1 or len(heading) != 1 or
+            len(ok[0]['words']) != 1 or len(close[0]['words']) != 1 or
+            ok[0]['words'][0]['text'].strip().upper() != ok[0]['text'].strip().upper() or
+            close[0]['words'][0]['text'].strip().upper() != 'CLOSE'):
+        raise ValueError('Exact EA dialog buttons are absent or ambiguous.')
+    word = ok[0]['words'][0]
+    ox, oy, ow, oh = rectangle(word)
+    cx, cy, cw, ch = rectangle(close[0]['words'][0])
+    x, y = ox + ow / 2, oy + oh / 2
+    heading_y = max(item['y'] + item['height'] for item in heading[0]['words'])
+    if (not heading_y < min(oy, cy) or not ox + ow < cx or
+            abs(y - (cy + ch / 2)) > max(oh, ch)):
+        raise ValueError('EA buttons are not a distinct measured row below the verified permission heading.')
+    return round(x), round(y)
+
+
+class NativeEA:
+    def __init__(self, pids):
+        self.pids = set(pids)
+        self.user = ctypes.WinDLL('user32', use_last_error=True)
+        self.gdi = ctypes.WinDLL('gdi32', use_last_error=True)
+        specs = {
+            'EnumWindows': ([ctypes.WINFUNCTYPE(W.BOOL, W.HWND, W.LPARAM), W.LPARAM], W.BOOL),
+            'GetWindowThreadProcessId': ([W.HWND, ctypes.POINTER(W.DWORD)], W.DWORD),
+            'IsWindowVisible': ([W.HWND], W.BOOL), 'GetClientRect': ([W.HWND, ctypes.POINTER(W.RECT)], W.BOOL),
+            'GetWindowRect': ([W.HWND, ctypes.POINTER(W.RECT)], W.BOOL),
+            'IsIconic': ([W.HWND], W.BOOL),
+            'GetWindowPlacement': ([W.HWND, ctypes.POINTER(WindowPlacement)], W.BOOL),
+            'ShowWindowAsync': ([W.HWND, ctypes.c_int], W.BOOL),
+            'GetClassNameW': ([W.HWND, W.LPWSTR, ctypes.c_int], ctypes.c_int),
+            'GetWindowTextW': ([W.HWND, W.LPWSTR, ctypes.c_int], ctypes.c_int),
+            'GetForegroundWindow': ([], W.HWND), 'SetForegroundWindow': ([W.HWND], W.BOOL),
+            'ClientToScreen': ([W.HWND, ctypes.POINTER(W.POINT)], W.BOOL),
+            'WindowFromPoint': ([W.POINT], W.HWND), 'GetAncestor': ([W.HWND, W.UINT], W.HWND),
+            'GetDC': ([W.HWND], W.HDC), 'ReleaseDC': ([W.HWND, W.HDC], ctypes.c_int),
+            'PrintWindow': ([W.HWND, W.HDC, W.UINT], W.BOOL),
+            'SendMessageTimeoutW': ([W.HWND, W.UINT, W.WPARAM, W.LPARAM, W.UINT, W.UINT, ctypes.POINTER(ctypes.c_size_t)], W.LPARAM)}
+        for name, (args, result) in specs.items():
+            func = getattr(self.user, name); func.argtypes = args; func.restype = result
+        for name, args, result in (
+            ('CreateCompatibleDC', [W.HDC], W.HDC), ('CreateCompatibleBitmap', [W.HDC, ctypes.c_int, ctypes.c_int], W.HBITMAP),
+            ('SelectObject', [W.HDC, W.HANDLE], W.HANDLE), ('DeleteObject', [W.HANDLE], W.BOOL),
+            ('DeleteDC', [W.HDC], W.BOOL),
+            ('BitBlt', [W.HDC,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int,W.HDC,ctypes.c_int,ctypes.c_int,W.DWORD],W.BOOL),
+            ('GetDIBits', [W.HDC, W.HBITMAP, W.UINT, W.UINT, ctypes.c_void_p, ctypes.c_void_p, W.UINT], ctypes.c_int)):
+            func = getattr(self.gdi, name); func.argtypes = args; func.restype = result
+
+    def owner(self, hwnd):
+        pid = W.DWORD(); self.user.GetWindowThreadProcessId(hwnd, ctypes.byref(pid)); return pid.value
+
+    def identity(self, hwnd):
+        pid = self.owner(hwnd)
+        name, title, rect = ctypes.create_unicode_buffer(256), ctypes.create_unicode_buffer(256), W.RECT()
+        self.user.GetClassNameW(hwnd, name, len(name)); self.user.GetWindowTextW(hwnd, title, len(title))
+        self.user.GetClientRect(hwnd, ctypes.byref(rect))
+        if pid not in self.pids or not self.user.IsWindowVisible(hwnd) or not name.value.startswith('Qt') or title.value != 'EA':
+            raise ValueError('Window is not a verified visible EA surface.')
+        width, height = rect.right - rect.left, rect.bottom - rect.top
+        if not 200 <= width <= 2600 or not 150 <= height <= 2600:
+            raise ValueError('EA window dimensions exceed the recognition bound.')
+        return {'pid': pid, 'hwnd': int(hwnd), 'width': width, 'height': height, 'class': name.value}
+
+    def windows(self):
+        rows = []
+        callback = self.user.EnumWindows.argtypes[0]
+        @callback
+        def visit(hwnd, _value):
+            try: rows.append(self.identity(hwnd))
+            except ValueError: pass
+            return True
+        if not self.user.EnumWindows(visit, 0):
+            raise OSError('EA window enumeration failed.')
+        return rows
+
+    def minimized_identity(self, hwnd):
+        """Read a bounded, same-process EA surface's restored placement.
+
+        This is only a candidate for restoration, never proof of permission.
+        Actual wording and the measured OK button still require fresh pixels.
+        """
+        pid = self.owner(hwnd)
+        name, title = ctypes.create_unicode_buffer(256), ctypes.create_unicode_buffer(256)
+        self.user.GetClassNameW(hwnd, name, len(name))
+        self.user.GetWindowTextW(hwnd, title, len(title))
+        if (pid not in self.pids or not self.user.IsWindowVisible(hwnd) or
+                not self.user.IsIconic(hwnd) or not name.value.startswith('Qt') or title.value != 'EA'):
+            raise ValueError('Window is not a verified minimized EA surface.')
+        place = WindowPlacement()
+        place.length = ctypes.sizeof(place)
+        if not self.user.GetWindowPlacement(hwnd, ctypes.byref(place)) or place.show != 2:
+            raise ValueError('EA minimized placement is unavailable or changed.')
+        rect = place.normal
+        if not 200 <= rect.right - rect.left <= 2600 or not 150 <= rect.bottom - rect.top <= 2600:
+            raise ValueError('Minimized EA window is outside the bounded capture placement.')
+        return {'pid': pid, 'hwnd': int(hwnd), 'class': name.value,
+                'normal': [rect.left, rect.top, rect.right, rect.bottom]}
+
+    def minimized_windows(self):
+        rows = []
+        callback = self.user.EnumWindows.argtypes[0]
+        @callback
+        def visit(hwnd, _value):
+            try: rows.append(self.minimized_identity(hwnd))
+            except ValueError: pass
+            return True
+        if not self.user.EnumWindows(visit, 0):
+            raise OSError('EA minimized window enumeration failed.')
+        return rows
+
+    def restore_minimized(self, row, deadline, clock=time.time, pause=time.sleep):
+        if clock() >= deadline or self.minimized_identity(row['hwnd']) != row:
+            raise ValueError('Minimized EA window changed or restoration expired.')
+        # SW_SHOWNOACTIVATE restores the recent size without activating the
+        # window. This does not acknowledge EA or touch the Windows UAC desktop.
+        # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
+        if not self.user.ShowWindowAsync(row['hwnd'], 4):
+            raise OSError('Windows refused the exact EA window restoration.')
+        until = min(deadline, clock() + 2)
+        while clock() < until:
+            try:
+                restored = self.identity(row['hwnd'])
+                if not self.user.IsIconic(row['hwnd']):
+                    return restored
+            except ValueError:
+                pass
+            pause(min(0.05, max(0, until - clock())))
+        raise ValueError('EA window did not restore within the recognition lease.')
+
+    def capture(self, row, output):
+        if self.identity(row['hwnd']) != row:
+            raise ValueError('EA window changed before capture.')
+        hwnd, width, height = row['hwnd'], row['width'], row['height']
+        dc = self.user.GetDC(hwnd)
+        memory = self.gdi.CreateCompatibleDC(dc)
+        bitmap = self.gdi.CreateCompatibleBitmap(dc, width, height)
+        if not dc or not memory or not bitmap:
+            if bitmap: self.gdi.DeleteObject(bitmap)
+            if memory: self.gdi.DeleteDC(memory)
+            if dc: self.user.ReleaseDC(hwnd, dc)
+            raise OSError('EA capture resources unavailable.')
+        prior = self.gdi.SelectObject(memory, bitmap)
+        try:
+            printed = self.user.PrintWindow(hwnd, memory, 3)  # CLIENTONLY | RENDERFULLCONTENT
+            self.gdi.SelectObject(memory, prior); prior = None
+            header = struct.pack('<IiiHHIIiiII', 40, width, -height, 1, 32, 0, width * height * 4, 0, 0, 0, 0)
+            info = ctypes.create_string_buffer(header)
+            pixels = ctypes.create_string_buffer(width * height * 4)
+            if self.gdi.GetDIBits(memory, bitmap, 0, height, pixels, info, 0) != height:
+                raise OSError('EA client pixel readback failed.')
+            if not printed or blank_rgb(pixels.raw):
+                # EA's frameless Qt modal can reject WM_PRINTCLIENT while
+                # supporting a full-window print. Accept that alternative only
+                # when the measured full window is exactly the client viewport;
+                # no desktop crop, guessed border or obscuring app is included.
+                bounds = W.RECT()
+                if (self.user.GetWindowRect(hwnd, ctypes.byref(bounds)) and
+                        bounds.right-bounds.left == width and bounds.bottom-bounds.top == height):
+                    prior = self.gdi.SelectObject(memory, bitmap)
+                    printed = self.user.PrintWindow(hwnd, memory, 2)
+                    self.gdi.SelectObject(memory, prior); prior = None
+                    if self.gdi.GetDIBits(memory, bitmap, 0, height, pixels, info, 0) != height:
+                        raise OSError('EA frameless pixel readback failed.')
+            if not printed or blank_rgb(pixels.raw):
+                # WGC captures the selected window's compositor surface rather
+                # than desktop pixels, so other apps may cover it.
+                digest=graphics_capture(row,output)
+                if self.identity(hwnd)!=row:raise ValueError('EA identity changed after graphics capture.')
+                return digest
+            if self.identity(hwnd) != row:
+                raise ValueError('EA identity changed after window print.')
+            raw = struct.pack('<2sIHHI', b'BM', 54 + len(pixels.raw), 0, 0, 54) + header + pixels.raw
+            output = writable(output)
+            if output.exists(): raise ValueError('Capture evidence already exists.')
+            output.write_bytes(raw)
+            return hashlib.sha256(raw).hexdigest()
+        finally:
+            if prior: self.gdi.SelectObject(memory, prior)
+            self.gdi.DeleteObject(bitmap); self.gdi.DeleteDC(memory); self.user.ReleaseDC(hwnd, dc)
+
+    def visible_client(self, row):
+        if self.identity(row['hwnd']) != row: raise ValueError('EA visible client identity changed.')
+        if self.user.GetForegroundWindow() != row['hwnd']:
+            raise ValueError('EA permission client is behind another app; no focus will be taken.')
+        for x in (1,row['width']//2,row['width']-2):
+            for y in (1,row['height']//2,row['height']-2):
+                point=W.POINT(x,y)
+                if not self.user.ClientToScreen(row['hwnd'],ctypes.byref(point)):
+                    raise ValueError('EA client visibility is unavailable.')
+                hit=self.user.WindowFromPoint(point)
+                if not hit or self.user.GetAncestor(hit,2)!=row['hwnd']:
+                    raise ValueError('EA permission client is obscured; no focus will be taken.')
+
+    def click(self, row, point):
+        hwnd = row['hwnd']
+        if self.identity(hwnd) != row:
+            raise ValueError('EA window changed before acknowledgement.')
+        x, y = point
+        if not 0 < x < row['width'] or not 0 < y < row['height']:
+            raise ValueError('EA acknowledgement outside the recognized window.')
+        packed = x | (y << 16)
+        result = ctypes.c_size_t()
+        if not self.user.SendMessageTimeoutW(hwnd, 0x201, 1, packed, 2, 1000, ctypes.byref(result)):
+            raise OSError('EA mouse down could not be delivered; no acknowledgement claimed.')
+        try:
+            time.sleep(0.1)
+        finally:
+            # Always release the same button on the same EA window.
+            if not self.user.SendMessageTimeoutW(hwnd, 0x202, 0, packed, 2, 1000, ctypes.byref(result)):
+                raise OSError('EA mouse release could not be delivered; acknowledgement remains unverified.')
+
+
+def acknowledge(work):
+    work = writable(work)
+    if not work.is_dir(): raise ValueError('An existing external evidence directory is required.')
+    result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+        "@(Get-Process -Name EADesktop -ErrorAction SilentlyContinue | Select-Object Id,Path) | ConvertTo-Json -Compress"],
+        capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
+    rows = json.loads(result.stdout) if result.stdout.strip() else []
+    rows = rows if isinstance(rows, list) else [rows]
+    for row in rows:
+        if not row.get('Path'):
+            row['Path'] = process_image(row['Id'])
+    expected = Path(r'C:\Program Files\Electronic Arts\EA Desktop\EA Desktop\EADesktop.exe')
+    pids = [row['Id'] for row in rows if row.get('Path') and Path(row['Path']).resolve() == expected.resolve()]
+    if len(pids) != 1: raise ValueError('Exactly one verified installed EA Desktop process is required.')
+    native = NativeEA(pids)
+    matched, attempts = [], []
+    for row in native.windows():
+        output = work / ('ea-permission-' + str(time.time_ns()) + '.bmp')
+        try:
+            image_hash = native.capture(row, output)
+            observed = recognize(output)
+        except (OSError, ValueError) as error:
+            attempts.append({'window': row, 'capture_error': str(error)})
+            continue
+        try: point = dialog_button(observed)
+        except ValueError as error:
+            attempts.append({'window': row, 'sha256': image_hash, 'match_error': str(error)})
+            continue
+        matched.append((row, point, observed, output, image_hash))
+    if len(matched) != 1:
+        return {'ok': False, 'acknowledged': False, 'windows_uac_approved': False, 'attempts': attempts,
+                'message': 'One exact EA permission dialog was not recognized; no input sent.'}
+    row, point, observed, output, image_hash = matched[0]
+    # Re-observe immediately: button position and complete dialog wording must match.
+    fresh = work / ('ea-permission-' + str(time.time_ns()) + '.bmp')
+    fresh_hash = native.capture(row, fresh)
+    if dialog_button(recognize(fresh)) != point:
+        raise ValueError('EA permission button moved; no input sent.')
+    native.click(row, point)
+    receipt = {'ok': True, 'acknowledged': True, 'window': row, 'point': point,
+               'observed': observed, 'capture_sha256': image_hash, 'fresh_capture_sha256': fresh_hash,
+               'windows_uac_approved': False, 'game_start_verified': False,
+               'message': 'Clicked the exact recognized EA permission OK; game start requires separate observation.'}
+    output.with_suffix('.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
+    return receipt

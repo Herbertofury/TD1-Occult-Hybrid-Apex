@@ -1,0 +1,440 @@
+import copy
+import hashlib
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
+from types import SimpleNamespace
+import unittest
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
+import game_lifecycle
+import windows_ocr
+
+
+def observation(scale=2):
+    labels = ['MENU', 'Save', 'Save As...', 'Exit Game']
+    return {'ok': True, 'width': 1278, 'height': 1376, 'future_diagnostic': {'preserved': True},
+            'preprocessing': {'requested_scale': 2, 'scale': scale, 'ocr_width': 1278 * scale,
+                              'ocr_height': 1376 * scale, 'interpolation': 'cubic', 'coordinates': 'scaled-bitmap'},
+            'lines': [{'text': label, 'future_line': index,
+                       'words': [{'text': label, 'x': 200 * scale, 'y': (100 + index * 40) * scale,
+                                  'width': 100 * scale, 'height': 20 * scale, 'future_word': {'raw': 'kept'}}]}
+                      for index, label in enumerate(labels)]}
+
+
+def home_observation(home=False):
+    result = observation()
+    labels = ['MARKETPLACE', 'LOAD GAME', 'NEW GAME', 'GALLERY', 'RESUME GAME']
+    if home: labels.insert(0, 'HOME')
+    result['lines'] = [{'text': text, 'words': [{'text': text, 'x': 200, 'y': 100 + index * 80,
+        'width': 300, 'height': 40}]} for index, text in enumerate(labels)]
+    return result
+
+
+class CoordinateTests(unittest.TestCase):
+    def test_winrt_deskewed_resume_box_maps_to_actual_button_not_load_game(self):
+        # Actual 1278x720 captured Home menu: WinRT TextAngle=8.5 placed
+        # Resume's boxes near y=393 when simply divided by two. The visible
+        # Resume button is y=324; y=395 is the different Load Game control.
+        source = observation()
+        source.update(width=1278,height=720,text_angle=8.5)
+        source['preprocessing'].update(ocr_height=1440)
+        source['lines']=[dict(text='RESUME GAME',words=[
+            dict(text='RESUME',x=164,y=765,width=213,height=69),
+            dict(text='GAME',x=397,y=739,width=153,height=59)])]
+        original=copy.deepcopy(source)
+        result=windows_ocr.original_viewport(source,2)
+        words=result['lines'][0]['words']
+        x=(min(w['x'] for w in words)+max(w['x']+w['width'] for w in words))/2
+        y=(min(w['y'] for w in words)+max(w['y']+w['height'] for w in words))/2
+        self.assertTrue(175<x<185);self.assertTrue(320<y<330)
+        self.assertEqual(source,original)
+
+    def test_invalid_winrt_angles_refuse_coordinates(self):
+        for angle in (True,'8.5',float('nan'),float('inf'),181,-181):
+            with self.subTest(angle=angle),self.assertRaisesRegex(ValueError,'angle'):
+                windows_ocr.original_viewport(dict(observation(),text_angle=angle),2)
+
+    def test_rotation_direction_and_all_four_box_corners(self):
+        for angle,expected in ((90,(380,100,20,40)),(-90,(200,460,20,40))):
+            source=observation();source.update(width=600,height=600,text_angle=angle)
+            source['preprocessing'].update(ocr_width=1200,ocr_height=1200)
+            source['lines']=[dict(text='button',words=[dict(text='button',x=200,y=400,width=80,height=40)])]
+            word=windows_ocr.original_viewport(source,2)['lines'][0]['words'][0]
+            for name,value in zip(('x','y','width','height'),expected):
+                with self.subTest(angle=angle,field=name):self.assertAlmostEqual(word[name],value)
+
+    def test_two_times_coordinates_return_to_original_viewport_without_losing_fields(self):
+        source = observation()
+        unchanged = copy.deepcopy(source)
+        result = windows_ocr.original_viewport(source, 2)
+        self.assertEqual(source, unchanged)
+        self.assertEqual((result['width'], result['height']), (1278, 1376))
+        self.assertEqual(result['preprocessing']['coordinates'], 'original-viewport')
+        self.assertEqual(result['future_diagnostic'], source['future_diagnostic'])
+        self.assertEqual(result['lines'][3]['future_line'], 3)
+        word = result['lines'][3]['words'][0]
+        self.assertEqual({key: word[key] for key in ('x', 'y', 'width', 'height')},
+                         {'x': 200, 'y': 220, 'width': 100, 'height': 20})
+        self.assertEqual(word['future_word'], {'raw': 'kept'})
+        self.assertEqual(game_lifecycle.button(result, 'menu'),
+                         {'command': 1, 'x': 250, 'y': 230, 'width': 1278, 'height': 1376})
+
+    def test_bounded_one_times_fallback_keeps_original_positions(self):
+        source = observation(scale=1)
+        result = windows_ocr.original_viewport(source, 2)
+        self.assertEqual(result['lines'], source['lines'])
+        self.assertEqual(result['preprocessing']['scale'], 1)
+
+    def test_fractional_rectangles_map_exactly_without_rounded_or_fixed_click_positions(self):
+        source = observation()
+        word = source['lines'][3]['words'][0]
+        word.update(x=400.5, y=440.25, width=200.5, height=40.5)
+        result = windows_ocr.original_viewport(source, 2)
+        actual = result['lines'][3]['words'][0]
+        self.assertEqual((actual['x'], actual['y'], actual['width'], actual['height']),
+                         (200.25, 220.125, 100.25, 20.25))
+
+    def test_scaling_does_not_weaken_complete_menu_or_ambiguity_validation(self):
+        source = observation()
+        source['lines'].pop(1)  # Missing Save remains a refusal.
+        with self.assertRaisesRegex(ValueError, 'not recognized'):
+            game_lifecycle.button(windows_ocr.original_viewport(source, 2), 'menu')
+        source = observation()
+        source['lines'].append(copy.deepcopy(source['lines'][3]))
+        with self.assertRaisesRegex(ValueError, 'ambiguous'):
+            game_lifecycle.button(windows_ocr.original_viewport(source, 2), 'menu')
+
+    def test_boolean_nonfinite_negative_or_outside_word_rectangles_refuse_geometry(self):
+        for change in ({'x': True}, {'x': -0.5}, {'width': 0}, {'height': -1},
+                       {'x': float('nan')}, {'y': float('inf')}, {'x': 10 ** 1000},
+                       {'width': 3000}, {'y': 2700, 'height': 60}):
+            source = observation()
+            source['lines'][0]['words'][0].update(change)
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                windows_ocr.original_viewport(source, 2)
+
+    def test_unknown_scaling_original_dimensions_and_failed_or_double_mapped_observations_refuse(self):
+        changes = [{'scale': True}, {'scale': 3}, {'ocr_width': 1278}, {'ocr_height': True},
+                   {'requested_scale': 1}, {'coordinates': 'original-viewport'}]
+        for change in changes:
+            source = observation()
+            source['preprocessing'].update(change)
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                windows_ocr.original_viewport(source, 2)
+        for change in ({'ok': False}, {'width': True}, {'height': 0}, {'preprocessing': None}, {'lines': None}):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                windows_ocr.original_viewport(dict(observation(), **change), 2)
+
+    def test_scaled_pixel_and_word_inventory_bounds_are_enforced(self):
+        source = observation()
+        source.update(width=4096, height=4096)
+        source['preprocessing'].update(ocr_width=8192, ocr_height=8192)
+        with self.assertRaisesRegex(ValueError, 'dimensions'):
+            windows_ocr.original_viewport(source, 2)
+        source = observation()
+        source['lines'] = [source['lines'][0]] * 8193
+        with self.assertRaisesRegex(ValueError, 'line inventory'):
+            windows_ocr.original_viewport(source, 2)
+        source = observation()
+        source['lines'][0]['words'] = [source['lines'][0]['words'][0]] * 32769
+        with self.assertRaisesRegex(ValueError, 'word inventory'):
+            windows_ocr.original_viewport(source, 2)
+
+
+@unittest.skipUnless(os.name == 'nt', 'Windows native OCR launcher')
+class LauncherTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.image = Path(self.temporary.name) / 'image.bmp'
+        self.image.write_bytes(b'bounded capture fixture')
+
+    def test_missed_both_colored_tabs_requires_independent_complete_contrast_frame(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376),(30,95,70)).save(self.image)
+        primary=windows_ocr.original_viewport(home_observation(),2)
+        primary['lines']=[row for row in primary['lines'] if row['text'].casefold() not in ('home','marketplace')]
+        primary['lines'].append(dict(text='PLAY SCENARIO',words=[]))
+        fallback=windows_ocr.original_viewport(home_observation(),2)
+        if not any(row['text'].casefold()=='home' for row in fallback['lines']):
+            fallback['lines'].append(dict(text='HOME',words=[]))
+        with patch.object(windows_ocr,'_native_observation',side_effect=[primary,fallback]) as read:
+            result=windows_ocr.recognize(self.image)
+        self.assertEqual(read.call_count,2)
+        self.assertEqual(result['lines'],fallback['lines'])
+        self.assertEqual(result['raw_observation'],primary)
+        self.assertEqual(game_lifecycle.button(result,'resume')['command'],1)
+        broken=copy.deepcopy(fallback)
+        broken['lines']=[row for row in broken['lines'] if row['text'].casefold()!='marketplace']
+        broken['lines'].append(dict(text='PLAY SCENARIO',words=[]))
+        with patch.object(windows_ocr,'_native_observation',side_effect=[primary,broken,broken]):
+            rejected=windows_ocr.recognize(self.image)
+        self.assertFalse(rejected['contrast_fallback']['accepted'])
+        with self.assertRaises(ValueError):game_lifecycle.button(rejected,'resume')
+
+    def test_failed_colored_tab_read_can_use_complete_independent_white_glyph_frame(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376),(30,95,70)).save(self.image)
+        primary=windows_ocr.original_viewport(home_observation(),2)
+        primary['lines']=[row for row in primary['lines'] if row['text'].casefold() not in ('home','marketplace')]
+        primary['lines'].append(dict(text='PLAY SCENARIO',words=[]))
+        white=windows_ocr.original_viewport(home_observation(),2)
+        gray=copy.deepcopy(white)
+        for row in gray['lines']:
+            if row['text'].casefold()=='load game':row['text']='LOAD GABE'
+        with patch.object(windows_ocr,'_native_observation',side_effect=[primary,gray,white]) as read:
+            result=windows_ocr.recognize(self.image)
+        self.assertEqual(read.call_count,3)
+        self.assertTrue(result['white_text_fallback']['accepted'])
+        self.assertEqual(result['lines'],white['lines'])
+        self.assertEqual(game_lifecycle.button(result,'resume')['command'],1)
+
+    def test_default_scale_two_is_sent_only_over_stdin_and_source_is_read_only(self):
+        original = self.image.read_bytes()
+        result = SimpleNamespace(returncode=0, stdout=json.dumps(observation()), stderr='')
+        with patch.object(windows_ocr.subprocess, 'run', return_value=result) as run:
+            observed = windows_ocr.recognize(self.image)
+        args, kwargs = run.call_args
+        self.assertEqual(json.loads(kwargs['input']), {'path': str(self.image.resolve()), 'scale': 2})
+        self.assertEqual(kwargs['timeout'], 35)
+        self.assertNotIn(str(self.image), args[0])
+        self.assertEqual(self.image.read_bytes(), original)
+        self.assertEqual(observed['preprocessing']['coordinates'], 'original-viewport')
+        self.assertEqual(list(self.image.parent.iterdir()), [self.image])
+
+    def test_busy_home_background_uses_complete_white_text_frame_without_guessing_labels(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376),(30,95,70)).save(self.image)
+        original=self.image.read_bytes()
+        primary=windows_ocr.original_viewport(home_observation(),2)
+        primary['lines']=[row for row in primary['lines'] if row['text'] in ('MARKETPLACE','RESUME GAME')]
+        fallback=windows_ocr.original_viewport(home_observation(),2)
+        with patch.object(windows_ocr,'_native_observation',side_effect=[primary,fallback]) as read:
+            result=windows_ocr.recognize(self.image)
+        self.assertTrue(result['white_text_fallback']['accepted'])
+        self.assertEqual(result['lines'],fallback['lines'])
+        self.assertEqual(result['raw_observation'],primary)
+        self.assertEqual(game_lifecycle.button(result,'resume')['x'],175)
+        self.assertEqual(self.image.read_bytes(),original)
+        self.assertNotEqual(read.call_args_list[1].args[0],self.image)
+        self.assertEqual(list(self.image.parent.iterdir()),[self.image])
+
+    def test_white_text_missing_control_duplicate_or_modal_is_not_input_authority(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376)).save(self.image)
+        primary=windows_ocr.original_viewport(home_observation(),2)
+        primary['lines']=[row for row in primary['lines'] if row['text'] in ('MARKETPLACE','RESUME GAME')]
+        for damage in ('missing','duplicate','modal'):
+            fallback=windows_ocr.original_viewport(home_observation(),2)
+            if damage=='missing':fallback['lines'].pop(1)
+            elif damage=='duplicate':fallback['lines'].append(copy.deepcopy(fallback['lines'][1]))
+            else:fallback['lines'].append(dict(text='CANNOT SAVE',words=[]))
+            with self.subTest(damage=damage),patch.object(windows_ocr,'_native_observation',side_effect=[primary,fallback]):
+                result=windows_ocr.recognize(self.image)
+            self.assertFalse(result['white_text_fallback']['accepted'])
+            with self.assertRaises(ValueError):game_lifecycle.button(result,'resume')
+
+    def test_failed_native_size_home_read_still_allows_independent_white_glyph_read(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376),(30,95,70)).save(self.image)
+        original=self.image.read_bytes()
+        primary=windows_ocr.original_viewport(home_observation(),2)
+        primary['lines'][2]['text']='eNEW GAMEA'
+        unscaled=copy.deepcopy(primary);unscaled['lines'][1]['text']='L AD GAME'
+        fallback=windows_ocr.original_viewport(home_observation(),2)
+        with patch.object(windows_ocr,'_native_observation',side_effect=[primary,unscaled,fallback]) as read:
+            result=windows_ocr.recognize(self.image)
+        self.assertEqual([call.args[1] for call in read.call_args_list],[2,1,2])
+        self.assertTrue(result['white_text_fallback']['accepted'])
+        self.assertFalse(result['raw_observation']['scaling_fallback']['accepted'])
+        self.assertEqual(result['lines'],fallback['lines'])
+        self.assertEqual(game_lifecycle.button(result,'resume')['x'],175)
+        self.assertEqual(self.image.read_bytes(),original)
+
+    def test_invalid_scale_missing_input_and_native_failure_refuse_without_inventing_labels(self):
+        with patch.object(windows_ocr.subprocess, 'run') as run:
+            for scale in (True, 0, 3, 2.0):
+                with self.subTest(scale=scale), self.assertRaises(ValueError):
+                    windows_ocr.recognize(self.image, scale=scale)
+            with self.assertRaises(ValueError):
+                windows_ocr.recognize(self.image.with_name('absent.bmp'))
+            run.assert_not_called()
+        result = SimpleNamespace(returncode=1, stdout='', stderr='native decoder refused')
+        with patch.object(windows_ocr.subprocess, 'run', return_value=result), self.assertRaisesRegex(ValueError, 'decoder refused'):
+            windows_ocr.recognize(self.image)
+
+    def test_empty_scaled_inventory_uses_independent_native_size_read_of_same_frame(self):
+        empty = observation(); empty['lines'] = []
+        native = observation(scale=1); native['preprocessing']['requested_scale'] = 1
+        replies = [SimpleNamespace(returncode=0, stdout=json.dumps(row), stderr='') for row in (empty, native)]
+        with patch.object(windows_ocr.subprocess, 'run', side_effect=replies) as run:
+            observed = windows_ocr.recognize(self.image)
+        self.assertEqual([json.loads(call.kwargs['input'])['scale'] for call in run.call_args_list], [2, 1])
+        self.assertTrue(observed['scaling_fallback']['accepted'])
+        self.assertEqual(observed['raw_observation']['lines'], [])
+        self.assertEqual(observed['lines'][0]['words'][0]['x'], 200)
+        self.assertEqual(self.image.read_bytes(), b'bounded capture fixture')
+
+    def test_capture_change_during_native_size_read_blocks_geometry(self):
+        empty = observation(); empty['lines'] = []
+        native = observation(scale=1); native['preprocessing']['requested_scale'] = 1
+        replies = iter((empty, native))
+        def reply(*_args, **_kwargs):
+            row = next(replies)
+            if row is native: self.image.write_bytes(b'changed native frame')
+            return SimpleNamespace(returncode=0, stdout=json.dumps(row), stderr='')
+        with patch.object(windows_ocr.subprocess, 'run', side_effect=reply), self.assertRaisesRegex(ValueError, 'changed'):
+            windows_ocr.recognize(self.image)
+
+    def test_misread_home_load_uses_independent_exact_native_size_frame(self):
+        primary = home_observation()
+        primary['lines'][1]['text'] = 'Lv GAME'
+        primary['lines'][1]['words'][0]['text'] = 'Lv GAME'
+        primary['lines'][2]['text'] = "'NEW GAME"
+        native = home_observation()
+        native['preprocessing'].update(requested_scale=1, scale=1, ocr_width=1278, ocr_height=1376)
+        replies = [SimpleNamespace(returncode=0, stdout=json.dumps(row), stderr='') for row in (primary, native)]
+        with patch.object(windows_ocr.subprocess, 'run', side_effect=replies) as run:
+            observed = windows_ocr.recognize(self.image)
+        self.assertEqual([json.loads(call.kwargs['input'])['scale'] for call in run.call_args_list], [2, 1])
+        self.assertTrue(observed['scaling_fallback']['accepted'])
+        self.assertEqual(observed['raw_observation']['lines'][1]['text'], 'Lv GAME')
+        self.assertEqual(observed['lines'][1]['text'], 'LOAD GAME')
+        self.assertEqual(self.image.read_bytes(), b'bounded capture fixture')
+
+    def test_native_size_home_requires_unique_complete_controls_without_dialogs(self):
+        from PIL import Image
+        Image.new('RGB',(1278,1376)).save(self.image)
+        primary = home_observation(); primary['lines'][1]['text'] = 'Lv GAME'
+        for kind in ('still-misread', 'missing-gallery', 'duplicate-load', 'modal'):
+            native = home_observation()
+            native['preprocessing'].update(requested_scale=1, scale=1, ocr_width=1278, ocr_height=1376)
+            if kind == 'still-misread': native['lines'][1]['text'] = 'Lv GAME'
+            elif kind == 'missing-gallery': native['lines'].pop(3)
+            elif kind == 'duplicate-load': native['lines'].append(copy.deepcopy(native['lines'][1]))
+            else: native['lines'].append(dict(text='BUY NOW', words=[]))
+            masked=copy.deepcopy(native);masked['preprocessing']=copy.deepcopy(primary['preprocessing'])
+            replies = [SimpleNamespace(returncode=0, stdout=json.dumps(row), stderr='') for row in (primary, native, masked)]
+            with self.subTest(kind=kind), patch.object(windows_ocr.subprocess, 'run', side_effect=replies) as read:
+                observed = windows_ocr.recognize(self.image)
+                self.assertEqual(read.call_count,3 if kind in ('still-misread','missing-gallery') else 2)
+            self.assertFalse(observed['scaling_fallback']['accepted'])
+            self.assertEqual(observed['lines'][1]['text'], 'Lv GAME')
+
+
+@unittest.skipUnless(os.name == 'nt', 'Windows native OCR launcher')
+class ContrastTests(unittest.TestCase):
+    def setUp(self):
+        from PIL import Image
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.image = Path(self.temporary.name) / 'capture.bmp'
+        image = Image.new('RGB', (1278, 1376), (110, 255, 100))
+        image.putpixel((0, 0), (0, 0, 0)); image.putpixel((1, 0), (255, 255, 255))
+        image.save(self.image)
+        self.original = self.image.read_bytes()
+
+    def reply(self, value):
+        return SimpleNamespace(returncode=0, stdout=json.dumps(value), stderr='')
+
+    def test_damaged_resume_glyphs_allow_pixel_retry_but_only_exact_complete_result_authorizes_button(self):
+        primary=home_observation()
+        primary['lines'][-1]['text']='RESUME CAME'
+        primary['lines'][1]['text']='GAME'
+        exact=home_observation()
+        with patch.object(windows_ocr.subprocess,'run',side_effect=[self.reply(primary),self.reply(exact)]) as read:
+            result=windows_ocr.recognize(self.image)
+        self.assertEqual(read.call_count,2);self.assertTrue(result['white_text_fallback']['accepted'])
+        self.assertEqual(game_lifecycle.button(result,'resume')['command'],1)
+        self.assertEqual(self.image.read_bytes(),self.original)
+        with patch.object(windows_ocr.subprocess,'run',side_effect=[self.reply(primary),self.reply(primary)]):
+            result=windows_ocr.recognize(self.image)
+        self.assertFalse(result['white_text_fallback']['accepted'])
+        with self.assertRaises(ValueError):game_lifecycle.button(result,'resume')
+
+    def test_damaged_resume_retry_refuses_duplicate_resume_or_dialog(self):
+        primary=home_observation();primary['lines'][-1]['text']='RESUME CAME'
+        for label in ('RESUME GAME','RESUME CAME','Cancel','Get Missing Packs?','This game requires permissions'):
+            sample=copy.deepcopy(primary);sample['lines'].append(dict(text=label,words=[]))
+            with self.subTest(label=label):
+                self.assertFalse(windows_ocr._partial_home_candidate(sample,True))
+
+    def test_full_frame_grayscale_keeps_real_pixels_geometry_and_source_read_only(self):
+        from PIL import Image, ImageOps
+        paths = []
+        def run(_args, **kwargs):
+            request = json.loads(kwargs['input']); path = Path(request['path']); paths.append(path)
+            if len(paths) == 1:
+                self.assertEqual(path, self.image.resolve())
+                return self.reply(home_observation())
+            self.assertNotEqual(path, self.image)
+            with Image.open(path) as derived, Image.open(self.image) as source:
+                self.assertEqual(derived.size, source.size)
+                self.assertEqual(derived.mode, 'L')
+                self.assertEqual(derived.tobytes(), ImageOps.autocontrast(ImageOps.grayscale(source)).tobytes())
+            self.assertGreater(kwargs['timeout'], 0); self.assertLessEqual(kwargs['timeout'], 35)
+            return self.reply(home_observation(home=True))
+        with patch.object(windows_ocr.subprocess, 'run', side_effect=run):
+            result = windows_ocr.recognize(self.image)
+        self.assertEqual(len(paths), 2); self.assertFalse(paths[1].exists())
+        self.assertEqual(self.image.read_bytes(), self.original)
+        self.assertEqual(list(self.image.parent.iterdir()), [self.image])
+        self.assertEqual(result['preprocessing']['source_sha256'], hashlib.sha256(self.original).hexdigest())
+        self.assertEqual(result['preprocessing']['color_transform'], 'full-frame-grayscale-autocontrast')
+        self.assertEqual(result['preprocessing']['coordinates'], 'original-viewport')
+        self.assertNotIn('HOME', [line['text'] for line in result['raw_observation']['lines']])
+        self.assertEqual(game_lifecycle.button(result, 'resume'),
+                         {'command': 1, 'x': 175, 'y': 260, 'width': 1278, 'height': 1376})
+
+    def test_existing_home_other_surface_duplicates_and_dialogs_never_trigger_fallback(self):
+        samples = [home_observation(home=True), observation()]
+        for label in ('MARKETPLACE', 'RESUME GAME', 'Cancel', 'Buy Now', 'Save Game?'):
+            sample = home_observation()
+            sample['lines'].append({'text': label, 'words': [{'text': label, 'x': 100, 'y': 100, 'width': 80, 'height': 30}]})
+            samples.append(sample)
+        for sample in samples:
+            with self.subTest(sample=sample), patch.object(windows_ocr.subprocess, 'run', return_value=self.reply(sample)) as run:
+                result = windows_ocr.recognize(self.image)
+                self.assertEqual(run.call_count, 1)
+                self.assertNotIn('raw_observation', result)
+
+    def test_failed_contrast_labels_do_not_synthesize_home_or_hide_ambiguity(self):
+        samples = [home_observation(), home_observation(home=True), home_observation(home=True)]
+        samples[1]['lines'].append(copy.deepcopy(samples[1]['lines'][0]))
+        samples[2]['lines'].append({'text': 'Cancel', 'words': [{'text': 'Cancel', 'x': 100, 'y': 100, 'width': 80, 'height': 30}]})
+        for sample in samples:
+            with self.subTest(sample=sample), patch.object(windows_ocr.subprocess, 'run',
+                    side_effect=[self.reply(home_observation()), self.reply(sample)]) as run:
+                result = windows_ocr.recognize(self.image)
+                self.assertEqual(run.call_count, 2)
+                self.assertFalse(result['contrast_fallback']['accepted'])
+                with self.assertRaisesRegex(ValueError, 'Home menu'):
+                    game_lifecycle.button(result, 'resume')
+
+    def test_dimension_change_and_source_change_fail_closed(self):
+        changed = home_observation(home=True); changed['width'] = 1279
+        changed['preprocessing']['ocr_width'] = 2558
+        with patch.object(windows_ocr.subprocess, 'run', side_effect=[self.reply(home_observation()), self.reply(changed)]):
+            with self.assertRaisesRegex(ValueError, 'viewport changed'):
+                windows_ocr.recognize(self.image)
+        def run(_args, **_kwargs):
+            self.image.write_bytes(b'changed capture')
+            return self.reply(home_observation())
+        with patch.object(windows_ocr.subprocess, 'run', side_effect=run):
+            with self.assertRaisesRegex(ValueError, 'Capture changed'):
+                windows_ocr.recognize(self.image)
+
+    def test_total_fallback_deadline_is_bounded(self):
+        with patch.object(windows_ocr.subprocess, 'run', return_value=self.reply(home_observation())) as run:
+            with patch.object(windows_ocr.time, 'monotonic', side_effect=[10, 46]):
+                with self.assertRaisesRegex(ValueError, 'total deadline'):
+                    windows_ocr.recognize(self.image)
+        self.assertEqual(run.call_count, 1)
+
+
+if __name__ == '__main__':
+    unittest.main()

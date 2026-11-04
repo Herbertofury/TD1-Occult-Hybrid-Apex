@@ -1,0 +1,69 @@
+{
+  "actual_runtime": {
+    "all_saved_files_unchanged": true,
+    "automatic_entry_compared_records_retained": 195,
+    "cleared_native_cards": 41,
+    "cold_loaded_native_appearances_retained": 40,
+    "full_cas": true,
+    "input_embedded": true,
+    "input_password": false,
+    "native_filtered_card_click": true,
+    "no_match_native_cards": 0,
+    "plain_search": {
+      "completed_ms": 1744,
+      "indexed_variants": 30,
+      "native_cards": 1,
+      "publish_ms": 3
+    },
+    "post_search_undo_compared_records_retained": 195,
+    "readable_text_visually_verified": "lipstick",
+    "return_to_lips_requeries": true,
+    "stale_result_absent_after_category_change": true,
+    "typo_author_type_cc": {
+      "completed_ms": 1745,
+      "indexed_variants": 30,
+      "native_cards": 1
+    },
+    "undo_restores_exact_part_and_color_modifiers": true
+  },
+  "candidate_epoch": "2026-10-21-readable-native-search-v269",
+  "candidate_sha256": "700ae62fc7bfa3523223b13505513da0c24ca9a6d7091be11ca57c4004990c18",
+  "correction": "Use the embedded game font, retain native caret/selection during CHANGE, and prepare bounded resource-only pages on the background metadata worker. Keep exact channel/owner, ticket, index, page and native eligibility checks.",
+  "evidence_sha256": {
+    "v269-native-search-runtime.json": "249b42277e53befcc26b2525e059cae7212c734df376cd0b75fb0e191fa96b3d",
+    "v269-readable-search-and-native-result.bmp": "f6c2f1f243039623167c52c7e248282961d27f8e1a73792353a0987269d949c6",
+    "v269-search-card-and-undo.json": "923874adc3c39c7b040946ee2624a91dfe09c52829c7e84346b5b1ff8d684c77",
+    "v269-search-category-context.json": "b9bc79eacaa42bca9ba527038f7a85f9ce719bfdab93756af6976e47199a9f5f",
+    "v269-search-owner-isolation.json": "deec890c59a09e54346e927567d0c67c94b73d1129a7c1f9bdfa7583f03ab911"
+  },
+  "problem": "Typed characters rendered as blocks because system Arial is unavailable in GFx. Queries submitted but failed because the game runtime has no JSON class.",
+  "production_ready": false,
+  "qualification_scope": {
+    "copied_cc_packages": 5,
+    "index_sha256": "495fa44749a8ade5f1a49883a95e7b63c0943540e17e8b94632a4f343025929f",
+    "indexed_casps": 62,
+    "native_lip_source_cards": 41,
+    "note": "The 195 internal records are preservation audit coverage, not 195 playable forms or complete release coverage."
+  },
+  "remaining": [
+    "Physical typing, caret/selection and editing-key qualification beyond CLI text-setting and visual rendering.",
+    "Full EA/CC metadata-library qualification and automatic verified broker distribution/startup.",
+    "The complete hybrid category/form/route, link/copy, Tray/Gallery and responsiveness release matrix."
+  ],
+  "schema": 1,
+  "validation": {
+    "focused_python_tests": 5,
+    "full_local_python": {
+      "elapsed_seconds": 941.989,
+      "log_sha256": "8b907bebb901c7dbd540f9d3eeb00f9a706e9102dfdf4ffab8d43ecb08212ccb",
+      "result": "passed",
+      "tests": 2813
+    },
+    "native_targets": 15,
+    "packages": 7,
+    "python37_modules": 105,
+    "real_python37_abi_and_packaged_loader": "passed",
+    "rust_validated_resources": 210,
+    "serialized_bytecode_cases": 9
+  }
+}

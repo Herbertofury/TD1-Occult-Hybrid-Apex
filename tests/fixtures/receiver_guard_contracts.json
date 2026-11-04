@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "unchanged_guards": {
+    "bank_worker": {
+      "_Fence": "b032a1b306289e2a35a39c1a8f7e554a16ee1689eccdecdb35331a724649ab4c",
+      "_View": "0e28105b3773f82d5d6b15e8164bd6963934401248800a0e5e6da2b4fe65546a",
+      "NativeBinding": "04207d8fa782bc9339530ee893ad1cc3f362179937318f9acdf35dc177527354",
+      "_wire": "b03d7ffe857cdd787b25db69cb2f18d56fbb5bf01a37d61d0ad3e404ec28c163",
+      "_native_probe": "4dc5c7dd99b7df2d7ac069e247e58b6d7d02bd1699c775cbe60d15dcf504a683"
+    },
+    "cas_bank_transaction": {
+      "_pairs": "26da7d0d191ec540733aedf297a1944b5c90f039caf6592eb36d892b77d75808",
+      "_finite_float": "1aca612dfe3acc78219f80c6389770539d5a754e4c43f2cabd48df0c780cd96f",
+      "_invalid_constant": "dc2d2c78f1d50c4fec7a776f157b1c95eaef467e0075f2e24ccdb109867906da",
+      "_read": "45fc0975f82ccdf61159db05351211eb56c3fabcc6e17ff67eec2ace30c0c230",
+      "atomic_save": "f966cdc478c1427fbe1cb99fd2ab6976cacf7e79820458414b14de3201491c80",
+      "_writer_lease": "c467ef02d8b73560947458899f1b4be85d04d20bbedfa8a5a8f0f99559fbea57",
+      "_write_revision": "11cf2b145615dd5faef49b099605977f4b9184990675f7751a173b7cea6f59d7",
+      "_exact_json_tree": "c414495d7aa9e0d17d6d00d077d7e4823b6b3a9813db963fd1827eefb22e1b2b",
+      "_mutate": "cb2c58976615060b30e766711301160884cd649bb936351d092c3988b7c67ba1",
+      "_completed": "9ecda3cd6a9f4cdc63217461e393eb1aeb1e7f4a70a283d9709f406c73942632",
+      "_completed_uncached": "0f43f889102b391af2ff17d58bf60c0071ced9011d9a4ecb23a6f8678df96dd8",
+      "_same_json_receipt": "903e72ea7b9b05eef1fc93cc1c3a720f9483e9127b868d3c5f850edd312ca070",
+      "_blocked": "b461ab9cc3c2c98112c15a9cbd6ab538f9c8d1751cd9f5f3ae9ab1f23625f305",
+      "_argument": "2e5f8d234459443da85fbf93dd31656ba92573474121ea633d5dfd66401519e3",
+      "_selected": "9af3c5f31f594ecb4d08a51ea48b9a038540f62368055a6a992af833b4beac92",
+      "_commit_metadata": "4f58d94626a5268c47d0782c9112fc3c85ef06c9c01128428b55eda381f3038b",
+      "_write_journal": "613e87f47bc4d97b3ce080f6fa99b18aaa09ca343b9024f4f3d237670de103f5"
+    },
+    "outfit_hair": {
+      "enforce": "473a68ac4a909d5ea6f521e2b8c8a7ad8200c28378efa36f30c2e5f2fdc28fe3"
+    },
+    "form_bank": {
+      "assert_idle": "20dd32fee1ed124fdeb6998fa3e392f3602b42ea8df9747ae916e3585e981ae9"
+    },
+    "native_cas_engine": {
+      "_entry_scope": "cc0680b4b50339aab7de01084ad255cb56bf413a26e3634fd8f596db856d790c",
+      "_identity": "38e2e1bfb57acebe13c5313ebf2173b086249a11ba77742f9c309c3b96aef881",
+      "argument": "d10f3fb68ba439b830f1b1e1c0062aa60df5af6a0dce6dbb51f60ab42ba1dcd5",
+      "reply": "6458ed13a8ac7e641c055f1a9939aaaf86d373a50ad6d72e93d6d302d7ad38c8",
+      "selection_ready": "95d630766b629894606afb6d8e113b0ba170fb12bbdaffcfb9a0f411ceec7498",
+      "stage_view": "4430c60619ee82415f56cee3452365943452359543bf7e97bcaeb3ab4b677057",
+      "view_result": "d7839fbaced2aaa37a05ffc15b7692635dace7f9899d04f457686a3bdbdeb4f4",
+      "entry_ready": "bd52ddc411fc1a0da8cd4efd860e99f278fd530945b8817e358a731fc12e49b7",
+      "_verify_imported_owners": "7da75f8f2f5e90fef571edf461da744a44433238fda1a5a6fb89437e2bdbb65f",
+      "_stage_member_menus": "2c210bb7408ac61fa326362b2187fbd83d72b94b7a8559fb327497954349976a",
+      "seed_members": "664ee45eae9ad3aed86c969e7c2078823e389124ee049fad715ef80bcb345a0a",
+      "owns_return": "83cb4c2fb7095f8171bd8714f07af6df94da3a24d538c7115ef09c28933ffa79",
+      "load_owners": "d65f71c1809898825644e8cc4a1b573f01dd5f35005a3c466a6a273fc2e6f880",
+      "_accepted_load_generation": "4edacf939a3a7795d855e39012d7015b92a583657df100e5ee765432b4d0558c",
+      "complete_return": "63f69a8ae3425ce843b0aaeac4f48942f8859762cf5649e177e3b086612d6786",
+      "_retirement_argument": "6b34d096ce6d0c9bcf07f8924807e7a1f605273dc2f76223d90c32c9dc72bb73",
+      "returned_owners": "fbaedb7bb315bf4f3df5e514cb7d95c6d7f7cdde1011889de5ab1db98a0f4abf"
+    },
+    "cas_save_boundary": {
+      "_shape": "c736677b183cf1b321b98f50cdb237beaf1f176ff3e2e6bbd6c47170f9906ed1",
+      "_id": "455d68fe09a9d1cef2831a457d1da5d60114aa9b812a23750bbe85921df6b2f7",
+      "_nonfinite": "72267b819662cda5b4907cb51c8804abbbd0dc86349193a93d67390d502abeac",
+      "_stamp": "a6a998f523592cbe1996c270fea680ae06d419a9fe758d4b7af069b51e35c109",
+      "remember_read": "cfe07737e05a49c5fbc2c5d030a421b677f9dda528ac1c16d1ab33c89a5ce59d",
+      "admission": "d4f9ceda9a125e7c2df2634b528a61a0a2f8e336025ab4387dc09cd48705969b",
+      "install": "4ae7311b5eaf2d8a9aeb710459ae62cb37a478018892702e596b1741f5456dbc",
+      "require_installed": "2a04e07ee4975ef756f6cf3580115de8d03d03d167a4d2250be4232703065769",
+      "refresh_ui": "90eb67a9a221eafeb6ea57cc7618177ff763d41188fd2f0d664e3f96d31d0560",
+      "probe": "2bef6e530f1de932c997158d6c9b84ae0461c7d47c055239aa2552f8f59ac429"
+    }
+  },
+  "legacy_hair_policy_enabled_source": "def hair_policy_enabled(backend, sim):\n    \"\"\"Read only the opted-in bit from the current stable bank-read index.\n\n    This grants no repair authority. The enabled path still performs its fresh\n    idle, runtime and full wardrobe checks. No bank payload is cached here.\n    \"\"\"\n    from . import form_bank\n    path, key = form_bank.context(backend, sim)\n    path = _unlinked(path)\n    with bank._LOCK:\n        if bank._lease_path(path).exists() or not path.exists():\n            return False\n        before = _stamp(path)\n        index = _READ_INDEX\n        if not (isinstance(index, dict) and index['path'] == str(path) and index['stamp'] == before):\n            form_bank.load(path)  # Its validated stable read publishes a fresh compact index.\n            index = _READ_INDEX\n        if (not isinstance(index, dict) or index['path'] != str(path) or\n                index['stamp'] != before or _stamp(path) != before):\n            return False\n        return key in index.get('hair_enabled', ())",
+  "legacy_hair_policy_enabled_digest": "efac117c937b9c3cbbb9ea435e442a23632786150a54c978b8a646cec00f6bf0"
+}

@@ -1,0 +1,202 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-26-catalog-workflow-evidence-v350",
+  "build_source_commit": "fc3b1f2a141a52c5589a589f86a7e602886b107e",
+  "candidate_sha256": "2646600649b28eaaf314ce6036bce84f9044262b4f5ccf6678b825d21a826abf",
+  "cas_package_sha256": "6baafd35a8d69b4277cf0d536f89925cde9bbb519f23fdc5fa5ac0a364249411",
+  "cas_main_sha256": "ab98d692e5261d2b86de077ccc22f4ccd2e0200fee07b59accbe37a6b178f213",
+  "script_sha256": "0803bfab8ff4e0057943c1fba5f90ac228fc6b9086a08c7b134c13c47d2b13f5",
+  "native_dll_sha256": "ea25d60c004c4ba62a6f0ace71d8681b57b4d25e63958d616da1e78f1e54d629",
+  "actual_save_ready": false,
+  "zero_hitch_claimed": false,
+  "actual_fps_qualified": false,
+  "continuous_blank_free_proven": false,
+  "source_regression": {
+    "exact_commit": "fc3b1f2a141a52c5589a589f86a7e602886b107e",
+    "complete": true,
+    "discovered": 4115,
+    "tests_run": 3877,
+    "successful_methods": 3556,
+    "failures": 0,
+    "errors": 0,
+    "skip_entries": 330,
+    "skip_accounting": "321 individual methods and9 class entries; class skips are not tests_run.",
+    "proof": {
+      "private_receipt": "v348-clean-source-control/run-fc3b1f2a141a/completion-summary.json",
+      "sha256": "c8e61b9cebbeb524260e91506f83636cbbd589d971cb9af577e5b3434448bafa"
+    }
+  },
+  "runtime_failure": {
+    "original_cas_request_id": "fbf426180fa04e7db8f392179bb6648c",
+    "replayed": false,
+    "request_remained_quarantined": true,
+    "source_guard_bypassed": false,
+    "native_publication_error": "Navigation publication changed its original request, target or catalog [guard=logical-target]",
+    "controller_provider_error": "Error: Delta spare ownership/class changed",
+    "controller_reason": "error-abandon",
+    "whole_grid_hidden_by_error_abandon": true,
+    "counts_before_entering_bind": {
+      "attach": 48,
+      "bind": 48,
+      "construct": 48,
+      "data": 144,
+      "draw": 48,
+      "position": 48,
+      "publish": 1,
+      "retire": 0,
+      "selected_setter": 48,
+      "selection": 48
+    },
+    "root_cause": "The retained-row path treated every entry in the spare bank as an Apex-registered cell of the current constructor. The first full publication can instead retain pre-bootstrap EA cards without those intrinsics. The strict validation threw before any entering card was bound; controller error-abandon hid the entire view. The later logical-target rejection is secondary.",
+    "exact_rejected_subcondition_observed": false,
+    "subcondition_limit": "The failed build records a combined ownership/class refusal; it does not identify which individual spare predicate failed. Do not label one subtype as directly observed.",
+    "physical_vs_packet_kind": "Actual cached and held native rendering kind2; packet shell4 is a different domain and is not a replacement comparator.",
+    "proof": {
+      "private_receipt": "v350-row-009-page-down.json",
+      "sha256": "65437441e1eb2fd6672ce02681ae1dcc6a83b421d7f14f9e1db1776109e4a6a9"
+    }
+  },
+  "cold_draw_attribution": {
+    "explicit_opt_in": true,
+    "completed_draws": 48,
+    "aggregates": {
+      "context": {
+        "calls": 480,
+        "max_ms": 44,
+        "total_ms": 67
+      },
+      "decoration": {
+        "calls": 48,
+        "max_ms": 1,
+        "total_ms": 1
+      },
+      "draw": {
+        "calls": 48,
+        "max_ms": 50,
+        "total_ms": 111
+      },
+      "favorite": {
+        "calls": 48,
+        "max_ms": 1,
+        "total_ms": 2
+      },
+      "geometry": {
+        "calls": 288,
+        "max_ms": 1,
+        "total_ms": 1
+      },
+      "icons": {
+        "calls": 48,
+        "max_ms": 1,
+        "total_ms": 1
+      },
+      "other": {
+        "calls": 48,
+        "max_ms": 2,
+        "total_ms": 7
+      },
+      "overlay": {
+        "calls": 48,
+        "max_ms": 6,
+        "total_ms": 21
+      },
+      "state": {
+        "calls": 384,
+        "max_ms": 1,
+        "total_ms": 4
+      },
+      "super": {
+        "calls": 48,
+        "max_ms": 1,
+        "total_ms": 1
+      },
+      "swatches": {
+        "calls": 0,
+        "max_ms": 0,
+        "total_ms": 0
+      },
+      "thumbnail": {
+        "calls": 48,
+        "max_ms": 1,
+        "total_ms": 6
+      },
+      "tooltip": {
+        "calls": 48,
+        "max_ms": 0,
+        "total_ms": 0
+      }
+    },
+    "slow_card": {
+      "product_id": "272383",
+      "body_type": 2,
+      "total_ms": 50,
+      "context_ms": 44,
+      "overlay_ms": 6,
+      "favorites_ms": 0
+    },
+    "scope": "Inclusive synchronous wall milliseconds under an explicit trace; no CPU/GC attribution, exact static context site or ordinary FPS proof. Other aggregate maxima can concern different cards.",
+    "trace_disabled_before_actual_scroll": true,
+    "proof": {
+      "private_receipt": "v350-row-delta-runtime.json",
+      "sha256": "668d1928c4cb71eda6ad30b98088d16caf4f53382a0feab39ef7d07a0c108164"
+    }
+  },
+  "runtime_preservation": {
+    "cold_live_native_appearances": 40,
+    "cold_named_looks": 155,
+    "full_cas_original_owners": 195,
+    "after_failed_scroll_owners_exact": 195,
+    "native_cancel_actual_live_return": true,
+    "raw_return_owners_exact_before_prepare": 195,
+    "original_only_household_commits": 5,
+    "appearance_edits_accepted": false,
+    "save_submitted": false,
+    "normal_unsaved_exit": true,
+    "all21_save_backup_files_unchanged": true,
+    "proofs": [
+      {
+        "private_receipt": "v350-edited-saved-cold-load.json",
+        "sha256": "074ed11a77fbc42a73207a1cfcea1f6e28ea096c2dbcaa04218649f1c770a1c5"
+      },
+      {
+        "private_receipt": "v350-normal-automatic-entry.json",
+        "sha256": "b6343fdb1b9657fe158039dd6a9fb688b01a6913f8ff52752a66bdabfac7556a"
+      },
+      {
+        "private_receipt": "v350-after-scroll-failure-all195.json",
+        "sha256": "42a82170f3f7c2843e2080bd7616bf2d67c35e8c8f82e645e512ba9aef8758a3"
+      },
+      {
+        "private_receipt": "v350-scroll-native-cancel-live-observation.json",
+        "sha256": "d069f2b07318275eb96d84ca9c15c46b4666b5c5862336f86090b53f62b3d02f"
+      },
+      {
+        "private_receipt": "v350-scroll-cancel-raw-return-all195.json",
+        "sha256": "d0070e12934fc4dcd781f6cd3d7bcbb781d18fd0bd8a3d9a3ef0acd059f3bb2e"
+      },
+      {
+        "private_receipt": "v350-scroll-cancel-originals-household-commit.json",
+        "sha256": "50f33077883f17c633a2e940c5a5990279234665cdda1d822e73295d5502da97"
+      },
+      {
+        "private_receipt": "v351-final-normal-discard.json",
+        "sha256": "473d00fc37c028d6410e369ed025d8bd4c2b61575ba145c483bf44ea29f9ea63"
+      }
+    ]
+  },
+  "next_fix": {
+    "runtime_qualified": false,
+    "intent": "Qualify each spare independently, skip unowned or incompatible stock without adopting/deleting it, use explicit consumed membership, preserve the ready bank during entering-card work, revalidate custody at retirement.",
+    "main_and_native_dll_change_required": false,
+    "diagnostics_only_is_not_fix": true
+  },
+  "remaining_validation": [
+    "Corrected actual PageDown and one-row overlap reuse",
+    "Continuous rendered scrolling and separate Present cadence",
+    "Body and all applicable catalog categories with columns, size and right-edge drag",
+    "Aggregate category idle/convergence",
+    "Human paint/Medical Live return and match_hair_style origin",
+    "Independent member/form edits, link/copy, save and Tray/Gallery round trips"
+  ],
+  "protected_original_written": false
+}

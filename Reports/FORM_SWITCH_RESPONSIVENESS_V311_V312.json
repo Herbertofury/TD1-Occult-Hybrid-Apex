@@ -1,0 +1,152 @@
+{
+  "game_version": "1.128.90.1030",
+  "production_ready": false,
+  "remaining_gates": [
+    "Measured Live/member latency",
+    "Actual category copy/link/unlink propagation and Undo",
+    "Actual special-form meshes, shaders, wings, canine ears/fur/tails and animation",
+    "Full edited CAS/MCCC/phone/F11/preset/slider household routes",
+    "Native complete household Tray/Gallery round trip"
+  ],
+  "schema": 1,
+  "v310": {
+    "all195_cas_fields_unchanged": true,
+    "all_existing_live_appearance_fields_unchanged": true,
+    "cas_selections": 355,
+    "household_members": 5,
+    "live_explicit_selections": 45,
+    "live_outfit_addition": "EA appended one Spellcaster category-9 outfit; existing rows unchanged, complete-byte equality not claimed.",
+    "native_fairy_interaction": "Not enqueued: native swim posture test failed. Explicit Apex route qualified separately."
+  },
+  "v311": {
+    "actual_member_ms": [
+      607,
+      697,
+      1023,
+      605,
+      700
+    ],
+    "all20_save_files_unchanged": true,
+    "all40_fields_after_cas_cancel_unchanged": true,
+    "all40_live_fields_unchanged": true,
+    "disposition": "Native CAS cancellation, then normal unsaved exit via observed Cannot Save confirmation; no exit replay.",
+    "live_switch_ms": [
+      4074.7215999290347,
+      4146.365400170907,
+      4143.289000028744
+    ],
+    "pair_link_failure": {
+      "appearance_written": false,
+      "category_flags": 32,
+      "message": "Pre-link-change synchronization failed.",
+      "ok": false,
+      "operation": "link",
+      "request_id": "e1b77a3a65c8412f8dbea3d90000000b",
+      "scope": "selected-categories",
+      "sim_id": "450667075246031055",
+      "source_owner_id": "native/1",
+      "target_owner_id": "native/16"
+    },
+    "python_tests": 2926
+  },
+  "v312": {
+    "actual_game_qualification": "Cold native/named preservation, 230 Live switches and initial complete CAS entry passed. Spellcaster link/unlink still rejected; appearance publication blocked. No production-readiness claim.",
+    "actual_member_ms": [
+      631,
+      749,
+      632,
+      673,
+      672
+    ],
+    "all20_save_files_unchanged": true,
+    "all40_fields_after_cas_cancel_unchanged": true,
+    "candidate_sha256": "cada1b168b6e5711abe850a1e1eed1a89f091de75469fbe22b821e5baefd0300",
+    "closure_cause": "Process observed absent before the later Cannot Save confirmation input could be submitted; no new crash report observed. Exit cause unqualified, no input replay.",
+    "host_history_compaction": {
+      "active_bank_unchanged": true,
+      "after_bytes": 3094726,
+      "all_original_fields_retained": true,
+      "before_bytes": 12979465,
+      "ok": true,
+      "saved_bytes": 9884739,
+      "scope": "Host Python microbenchmark of a private copy, not actual game latency"
+    },
+    "live_matrix": {
+      "all_existing_appearance_fields_unchanged": true,
+      "concurrent_host_regression_workload": true,
+      "directed_pairs_by_member": {
+        "285159751289798669": 42,
+        "349336084686110946": 42,
+        "349336084686110947": 42,
+        "450667075246031054": 42,
+        "450667075246031055": 42
+      },
+      "named_looks_retained": 155,
+      "ok": true,
+      "performance_comparison_qualified": false,
+      "runtime_outfit_appends": [
+        {
+          "existing_rows_and_unknown_bytes_unchanged": true,
+          "owner": 16,
+          "rows": [
+            {
+              "bytes": 171,
+              "category": 9,
+              "index": 0,
+              "sha256": "a111f74d806a475f7f3e5ec3152919443ebb2308afae73be86fe5d24df8c9b76"
+            }
+          ],
+          "sim_id": "285159751289798669",
+          "stage": "after-285159751289798669"
+        }
+      ],
+      "selections": 230
+    },
+    "live_uncontended_initial_switch_ms": [
+      2042.90880006738,
+      1472.6199000142515,
+      1536.1611999105662
+    ],
+    "native_tests": 19,
+    "normal_exit_qualified": false,
+    "pair_action_result": {
+      "appearance_written": false,
+      "category_flags": 32,
+      "message": "Pre-link-change synchronization failed.",
+      "ok": false,
+      "operation": "link",
+      "request_id": "e2f8431bcbd04d649f29e90e0000000b",
+      "scope": "selected-categories",
+      "sim_id": "450667075246031055",
+      "source_owner_id": "native/1",
+      "target_owner_id": "native/16"
+    },
+    "pair_failure": {
+      "message": "Unchanged scoped appearance failed complete destination clone readback.",
+      "native_sync_blocked": true,
+      "sim_id": "450667075246031055",
+      "state": "unresolved"
+    },
+    "python_tests": 2932
+  },
+  "v313": {
+    "game_installed": false,
+    "python_tests": 2935,
+    "scope": "Batch archive-directory validation while retaining exact directory identity, leaf reparse checks and missing-reference rejection."
+  },
+  "v314": {
+    "game_installed": false,
+    "python_tests": 2942,
+    "scope": "Complete-byte durable write acknowledgment, exact JSON types before replacement, strict unknown/stale revision validation and signed-zero cache distinction."
+  },
+  "v315": {
+    "actual_game_qualification": "Pending original failure retest and measured Live latency.",
+    "candidate_sha256": "284c44b3b22fbffe68e1d084497190c7f1f8e6a663289fc7ee4c30931738fd82",
+    "native_rehash_first32_sha256": "2b5b14549aecc6f2535c848b5652487d788277f59969b7f46888e99c5d274707",
+    "native_rehash_rva": "0x1b2c60",
+    "native_tests": 19,
+    "scope": "Preserve hash-bucket category traversal in detached scoped copies only; no source node or outfit payload writes and no weakened appearance comparator. Adds the inspected/pinned native rehash function.",
+    "seal_tests": 26,
+    "upgrade_tests": 26
+  }
+}

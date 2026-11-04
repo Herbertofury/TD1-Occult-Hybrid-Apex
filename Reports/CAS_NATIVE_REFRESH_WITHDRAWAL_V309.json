@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "build_epoch": "2026-10-24-native-pair-retention-v309",
+  "production_ready": false,
+  "withdrawn": true,
+  "change": "Whole native HandleRefreshSimIcons recompilation attempted to retain exact actual hybrid rows before EA filtering.",
+  "outcome": "Native process exited with a changed crash report during accepted full-CAS entry before handshake/inventory.",
+  "native_entry_inventory_verified": false,
+  "earlier_live_cold_load": {
+    "native_appearances": 40,
+    "named_looks": 155,
+    "unchanged_after_simulation": true
+  },
+  "crash": {
+    "category": "0x140ef3f93",
+    "sha256": "dd88905e158124b2d13d2a6ed6eb6fbbdc710366b26f266615eabd1e880e7fda",
+    "causality_verified": false,
+    "report_pid_attribution_verified": false
+  },
+  "disposition": {
+    "whole_native_rewrite_removed": true,
+    "failed_sources_retained_privately": true,
+    "all_twenty_save_files_unchanged": true,
+    "archived_only_captured_metadata": true,
+    "archived_members": 5,
+    "bank_lanes_unchanged": true,
+    "normal_return_or_save_reload_claim": false
+  },
+  "next_candidate": "V310 retains the original native handler and isolates exact-pair widget/filter reuse. Runtime qualification required."
+}

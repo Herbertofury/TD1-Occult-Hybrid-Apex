@@ -1,0 +1,19 @@
+TD1 Occult Hybrid Apex - Glorious UI V4 Validation
+==================================================
+
+Validation performed in this build environment:
+
+- Continued from TD1_Occult_Hybrid_Apex_Full_Mod_PRIDE_V3.zip.
+- Kept same root install folder: TD1 Occult Hybrid Apex.
+- Updated Source/td1_occult_hybrid_apex.py.
+- Repacked TD1_OccultHybridApex.ts4script with td1_occult_hybrid_apex.py at archive root.
+- Python syntax checked with py_compile.
+- Python source parsed with ast feature_version=(3,7) to check Python 3.7 compatibility.
+- Extracted browser panel HTML and JavaScript from the Python source.
+- JavaScript syntax checked with node --check.
+- Native DLL inspected as PE32+ x86-64 Windows DLL.
+- Native DLL export table inspected: 21 named exports.
+- Final folder archive tested with unzip -t.
+
+In-game limitation:
+  This environment cannot launch The Sims 4 or a user save, so live gameplay smoke testing still has to be done in-game. Static structure, syntax, archive integrity, DLL type, and UI script syntax were verified here.

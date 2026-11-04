@@ -1,0 +1,67 @@
+{
+  "actual_predecessor_palette_evidence": {
+    "candidate": "V295",
+    "disabled_native_controls_reproduced": true,
+    "evidence_sha256": "2b94e898aa954adc4d8534aa8d684616066e18031e57d3741ee27ed6c49267fd",
+    "exact_argb_layers": [
+      "ff537ec8",
+      "ff858fb7",
+      "ff2b888e",
+      "fff6f6f6",
+      "ffddeafb"
+    ],
+    "human_hair_edit_unchanged": true,
+    "native_blue_purple_teal_swatch_applied": true,
+    "only_changed_fairy_field": "pelt_layers",
+    "selected_wing_shape": "470699"
+  },
+  "build_validation": {
+    "bootstrap_priority_tests_passed": 5,
+    "full_python_suite_completed": true,
+    "independent_rust_validated_resources": 275,
+    "packages": 7,
+    "python37_modules": 108,
+    "python_suite_seconds": 942.432,
+    "python_tests_passed": 2888
+  },
+  "candidate_epoch": "2026-10-24-wing-palette-reenable-v297",
+  "candidate_sha256": "e85828034a10c4ebd4b702c50912b36f95412f45355b3af0501872bc87f8a7fa",
+  "literal_companion_retention": {
+    "combined_resources": 71,
+    "donor_dependency_resources_retained": 65,
+    "native_method_count": 2650,
+    "reviewed_adapters": 18,
+    "unchanged_native_methods": 2632
+  },
+  "matching_runtime_validation": {
+    "all_switches_qualified": false,
+    "loaded": false,
+    "member_setup_latency_measured": false,
+    "palette_controls_enabled_after_empty_to_valid": false,
+    "universal_zero_to_one_ms_qualified": false
+  },
+  "native_palette_problem": "EA disables its layer controls for an empty saved palette, then sets valid selected colors without re-enabling the controls.",
+  "palette_change": {
+    "automatic_recoloring": false,
+    "native_method": "PeltMarkingsPane.GetPeltColors",
+    "native_read_calls_retained_exactly": true,
+    "only_exact_resolved_selected_palette_entries": true,
+    "re_enable_before_native_color_assignment": true,
+    "unknown_palette_entries_still_unresolved": true
+  },
+  "production_ready": false,
+  "protected_original_written": false,
+  "remaining": [
+    "Finish the current V295 complete household comparison, undo and actual edited return.",
+    "Load V297 and reproduce the native empty-to-valid palette transition; verify its actual controls and persistence.",
+    "Measure actual form clicks and member/pair setup; retain every unqualified Live/save/Tray/Companion/animated-part gate."
+  ],
+  "schema": 1,
+  "transport_change": {
+    "appearance_write_authority_added": false,
+    "initial_owner_catalog_and_state_precede_cli_claim": true,
+    "new_polling_or_service": false,
+    "normal_command_priority_after_first_bootstrap": true,
+    "unavailable_metadata_falls_back_without_duplicate_claim": true
+  }
+}

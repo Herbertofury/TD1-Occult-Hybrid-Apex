@@ -1,12 +1,716 @@
 # Apex Occult Hybrid — Codex Master Execution Contract
 
-Last reconciled: 2026-10-06
-Recovered baseline: V9.5 Final Accounting / Runtime Safe
+Last reconciled: 2026-10-18
+Recovered baseline: owner-selected newer V9.6; V9.5 Final Accounting provenance retained
 Authorized concrete hybrid baseline: Occult Hybrid Unlocker & Stabilizer 1.13.7 (FIXE) package/script set — import and work upward from it; not a required final dependency
+
+## Controlling CAS product correction — 2026-10-17
+
+The owner requires one shared Human appearance per Sim and an integrated EA
+portrait selector. Preserve existing form-specific layouts. For forms without
+a paired portrait interface, implement that form above the shared Human below
+with full linking/copying. Reusing the UI pattern never means assigning Vampire
+data/gameplay or merging independent appearances. **Alien keeps EA's existing
+portrait arrangement and selection behavior; add its missing linking/copying
+without imposing the Vampire ordering.**
+Implement actual UI and editing/link/copy behavior for all supported forms,
+including special life states. Internal canonical/active/named records must not
+be exposed as duplicate forms or separate Human appearances for each occult.
+Preserve distinct existing looks during migration; do not silently discard them.
+
+Use self-agency and common sense throughout development and QA: design for
+enjoyable real play, remove obvious friction, preserve data and other-mod
+compatibility, and prove actual behavior. Follow the persistent
+[player-focused hybrid rule](../.cursor/rules/apex-player-first-hybrids.mdc).
+
+The controlling requirements and implementation/QA checklist are
+[Native CAS forms: shared Human and EA portrait layout](CAS_SHARED_HUMAN_REQUIREMENTS.md).
+The historical 195-owner test topology below does not qualify this product
+layout, correct form semantics, full-category editing or save/Tray retention.
+All implementation and runtime acceptance items remain open unless individually
+supported by evidence; this correction records requirements only.
+
+V194 menu checkpoint: the CAS strip groups variants under one life-state button,
+including one Imaginary Friend entry with four independent variant owners and
+a shortcut to the existing shared Human / Real appearance. Special artwork
+references come from installed game tuning; native hover descriptions use
+EA's tooltip lifecycle. The CLI can browse a family or return to all forms
+without selecting an appearance. The package builds and focused metadata,
+menu, catalog, control and serialized bytecode checks pass. V193's frozen
+regression run passes 2,583 tests. V194 adds selected-button no-op behavior,
+readable variant tiles, cached group metadata and a metadata-only V192 save
+upgrade; 108 focused checks pass. Actual full CAS shows fourteen unique
+life-state groups, thirteen installed occult/special icons and one Imaginary
+Friend entry. Its four labelled variant tiles use their own game artwork;
+Human / Real references the one shared Human. Native hover text is visibly
+verified. Browsing leaves all five graph generations, selected owners and
+logical bindings unchanged; clicking the selected Alien is a verified no-op.
+Actual button clicks open Imaginary Friend and select the exact Spooky Kid
+owner; Pegacorn and the starting actual Alien remain separately selectable.
+A complete post-switch export retains every field in all 39 member owners.
+This is menu/selection proof, not special-state gameplay or native link/copy
+qualification. Human still uses text until shared portrait artwork is wired.
+
+V192 now also completes distinct eyebrow, head skin-detail and earring edits
+on the second member's actual Alien and Vampire. Nine readbacks retain all
+choices through Alien -> Vampire -> Alien, followed by its original Werewolf
+view. The complete 195-owner audit finds changes only in that member's two
+chosen appearances (outfit/genetic fields); the other 193 remain identical.
+A known ordinary eyebrow family works; the first catalog family's colour
+request remains a failed result, not a qualified selection. This checkpoint
+also completes all five receiver commits, retains all forty Live appearances
+after 1,396 ticks and passes Alien -> Vampire -> Alien -> original Werewolf
+with full-household checks and no added outfits. One normal save completes
+under its original UUID, creates all five named seals and preserves all forty
+post-save appearances. Its host observer initially stops too early; the CLI
+now spends the remaining bounded timeout polling only the original request
+instead of abandoning it after one short poll. Twenty-seven save checks pass.
+V194 cold loading reopens all five saved named documents and retains all
+forty appearances before and after another 685 simulation ticks, with the
+save file and seal ledger unchanged and no native appearance restoration.
+In-game menu presentation and exact variant selection now pass as described
+above. Full-category/every-member coverage, universal shared-Human ownership,
+native link/copy and household Tray/Gallery remain open release gates.
+
+V192 development checkpoint: ordinary CAS selections bind an exact visible
+parent and returned colour variant, with native selected-item readback. V191
+actually applies different child earring colours to the second member's Alien
+and Vampire, retains both through Alien -> Vampire -> Alien and restores the
+starting Werewolf view. This is a CAS-only earring qualification. Its eyebrow
+colour request remains a failed result: the palette widget changed its index,
+but the native colour stayed on the base. V192 resolves the requested identity
+from the refreshed widget's actual feed and avoids its duplicate refresh.
+
+The second-member test also catches an initial portrait-binding race before
+part editing. Explicit views consume only an unsubmitted automatic bootstrap;
+readback requires the exact bound owner as well as its actual native genus.
+Pending readback can poll owner metadata with the original nonce and one-frame
+lease. An already-bound owner skips redundant bootstrap. Twelve serialized
+bytecode fixtures, seven bounded preflight checks and eleven socket checks pass.
+V191's frozen regression suite passes 2,575 tests; V192 passes 2,579 tests.
+
+Cancelling the V191 test retains all forty original Live appearances and all
+five memberships. Normal unsaved closure leaves every save file unchanged.
+Closed-only recovery preserves every captured checkpoint and never invents an
+inventory, CAS acceptance or reload pass. A stale CAS peer/captured guard still
+requires explicit test cleanup after cancellation; automatic player cancellation
+lifecycle, full category/member coverage, shared-Human Live/F11 ownership,
+native link/copy and Tray/Gallery remain release gates. V192 builds 103 Python
+3.7 modules, seven packages and 207 Rust-verified resources. It is a development
+candidate; V192 runtime palette/member-switch qualification remains open.
+
+V188 category-retention checkpoint: the first member receives distinct actual
+Alien and Vampire eyebrow, head skin-detail and earring items through full CAS.
+Nine selected-item readbacks pass through Alien -> Vampire -> Alien. Complete
+committed exports and unchanged companion graph generations account for all
+195 owners: only that member's chosen Alien and Vampire records change, in
+outfit and genetic fields. The active visible owner is captured on departure;
+a committed-only export taken before that departure is not a loss verdict.
+
+After declining two unrelated self-discovery trait prompts, the original CAS
+Accept is completed without replay. All five receiver commits pass. All forty
+Live appearances match the intended CAS choices after another 1,163 simulation
+ticks. Normal Save and Exit creates fresh five-member named-form seals. Cold
+loading that exact file then retains the separate category edits, all five
+independent Ghost documents and all forty native appearances after another
+727 ticks, with save/ledger unchanged and Live paused. This is a first-member,
+three-category test; it is not an all-category/every-member qualification.
+
+The CLI now reconnects after the exact pre-queue transport refusal proving no
+native request was created. Issued/unknown UUIDs and started operations never
+enter that path. Five reconnect, 22 intent-journal, 16 workbench, 12 member and
+30 form-navigation checks pass, alongside both CI jobs. A legitimate colour
+family child absent from the filtered base list is still refused before write;
+ordinary-part base/variant capabilities remain open under issue #7. The final
+cold launch also exercises a successful EA-only restart to clear a blank stale
+Qt permission surface; account and every save remain unchanged by the restart.
+
+V188 checkpoint: the ordinary native Save and Exit path creates a fresh
+five-member household seal with all independent named documents, writes the
+normal save and exits normally. Cold loading that exact file reopens each
+member's distinct Ghost metadata independently of Human. Every field in all
+forty native appearances remains correct before and after 667 simulation ticks;
+the save and seal ledger stay unchanged, no native appearance restoration is
+requested, and the game is paused again. Repeated named inventory reads do not
+rewrite the bank. The owner's protected original remains read/copy-only.
+
+V188 also passes Alien -> Vampire -> Alien across all five members in Live,
+with eighteen settled transitions including restoration of each starting form.
+Each transition checks the full household: stored and active appearance fields
+stay intact, every independent named document stays unchanged, no outfits are
+added, and the normal save is unchanged. This is actual occult switching after
+the saved-metadata cold load, not a Human-only test.
+
+V187's frozen regression run passes 2,548 tests. Its first real metadata cold
+load exposed an admission refusal despite exact native appearance retention.
+V188 accepts an exact current saved native match without depending on an early
+tracker-load sample, while divergent current fields still require a complete
+matching load observation. It adds bounded diagnostic reasons and an exact
+V187 schema-compatible metadata transition; this grants no native restoration
+authority. Focused checks pass: 11 saved-name, 6 household-seal, 23 core-seal,
+26 audited-upgrade, 55 CAS receiver, 18 save-admission and 9 save-lifecycle tests.
+The candidate builds 103 Python 3.7 modules, seven packages and 207 independently
+Rust-verified resources. Actual Save As, complete-category editing, native
+link/copy, universal Live/F11 form ownership and Tray/Gallery remain unqualified.
+This is a development candidate, not an actual-save release.
+
+Current checkpoint: V182 completed 60 actual full-CAS form visits across all
+five hybrid household members, with 20 distinct Human/Alien/Vampire/Ghost
+physique edits. A second switching pass retained every marker. Complete native
+exports cover all 195 captured owners: exactly the 20 intended physique fields
+changed, with no unrelated changes or added outfits. These are body-edit tests,
+not complete-category or special-gameplay qualification. The original small
+fourth-member Alien gesture and its larger follow-up also passed.
+
+CAS returned to the same Live Sim/household, advanced simulation ticks and was
+paused again. The host recovered its acknowledged Accept intent after a
+read-only zone-transition timeout, without replaying Accept. All five native
+return archives were retained before any plan or commit. This exposed a real
+boundary gap: EA's returned Live wrappers still held older canonical appearances,
+although the native CAS graph retained the edits. No stale appearance commit or
+save was submitted. The disposable session closed without saving; all twenty
+save files remain unchanged, and complete pending/returned records are archived.
+
+V183 projects the graph's captured logical owner bindings into the existing
+explicit accept/restore transaction. Shared Human and the active Alien alias
+are exact identities; named special forms cannot substitute for canonical lanes
+by matching genus. Actual Live wrappers remain separate durable rollback and
+concurrency evidence. Receiver tests prove separate Human/Alien acceptance,
+Vampire restoration and independent Ghost variants. Focused checks pass: 55
+receiver, 43 transaction, 2 projection, 10 engine, 67 return-observer, 13 household,
+23 seal and 26 upgrade tests. V183 builds 100 Python 3.7 modules, seven packages
+and 207 independently Rust-verified resources. Runtime CAS-to-Live retention,
+full-category edits, copy/link, save/cold-load and Tray qualification remain open.
+
+V184 separates pure historical graph-receipt validation from current-runtime
+receiver authority, so a completed receipt can survive a cold load without
+authorizing replay. Three projection checks cover this separation; the 55
+receiver checks also validate a completed receipt under a later process ID.
+The host CLI now defaults to full-household CAS; explicit native/MCCC routes
+remain available. Runtime checks caught an accidentally requested single-Sim
+entry before edits and refused household-member navigation. This is retained
+as a failed test attempt, not a household qualification.
+
+V183's untouched single-editor visit completed five receiver transactions;
+a fresh Live audit exactly matched all forty saved appearances. Its next full
+CAS entry then refused before native entry because the ready graph could not
+be reseeded. This exposed a repeated-visit lifecycle gap, not an edited-form
+retention pass. The session exited normally without saving; all twenty files
+were unchanged and the five never-entered checkpoints remain archived.
+
+V186 now also completes the second return and all five receiver commits. After
+1,351 further simulation ticks, all forty Live appearances still match. One
+controlled normal save, normal game closure and cold load then preserve all
+five members, six occult memberships each and every field in all forty native
+appearances. A further 750-tick selected-member reload audit passes without
+appearance or bank restoration, followed by another full-household comparison.
+The original profile remains untouched. This establishes the body-edit native
+save boundary; it does not qualify every CAS category or Tray/Gallery.
+
+That cold load exposed a separate named-form metadata gap: V186 certifies only
+the selected member and cannot reopen independently edited Ghost looks as saved
+variants. V187 captures all household bank members in one save group, retains
+separate named documents, and distinguishes a new load tracker from later Live
+edits. Saved metadata admission writes no native appearance; unsaved looks stay
+in content-addressed recovery history. An explicit legacy draft import never
+claims old uncaptured names were saved. The normal EA save generator now captures
+and finishes the same group, including Save As, without a second save. Synthetic
+checks pass for failure/cancellation, no replay, household isolation and named
+reloads; the matching V187 runtime qualification remains pending. Native copy/link,
+full-category edits, universal Live/F11 form semantics and Tray gates remain open.
+
+V186 adds private completed-session retirement. Source requires verified
+completion of every scoped receiver; the DLL requires the entire exact graph
+generation roster, no active native view and a finished/disconnected transport.
+Only then are the old detached graph/undo owners released. Installed hooks and
+the armed roster remain ready for a fresh checkpointed import. Public research
+commands cannot request retirement; the loader requires the held Source
+completion object, and an attempted retirement is never replayed. Six Source
+checks exercise the real loader validation, and eleven native checks pass,
+including refusal for stale/missing members and successful fresh reseeding.
+V186's actual full-household run repeats all sixty visits and twenty independent
+Human/Alien/Vampire/Ghost physique edits. Complete returned native data matches
+all 195 CAS exports byte for byte. All five explicit receiver commits pass,
+including the separate Ghost choices; only the fifth completed receiver retires
+the graph. The native counter verifies one retirement with the armed roster
+retained and no imported graph. After 1,294 further simulation ticks, all forty
+active/stored Live appearances match the intended logical CAS choices in every
+captured field, and the game is paused again. All five named Ghost records match
+their edited exports. No save was submitted. The frozen Source regression run
+passes 2,506 tests. A second full-CAS visit in the same process then passes
+thirty Human/Alien/Vampire/Ghost visits across all five members, retaining every
+distinct body edit. Its complete 195-owner audit matches every expected field,
+including the untouched outfit and skin-detail data. The host observes EA's
+initially selected captured household member without replaying entry or sending
+selection input; 25 entry and 26 transition checks pass. All-category edits,
+native copy/link, save/cold-load and Tray qualification remain open.
+
+V182's native-owned UI transport completed this matrix without the previously
+reproduced allocator crash. It does not establish universal crash freedom or
+prove a root cause. Eleven native checks pass; diagnostic owner-memory guards
+remain enabled in this development DLL. This is not a production release.
+
+A same-build V180 session successfully changed one actual EA body preset on the
+fourth member's actual Alien with the bridge connected. Its exact native preset
+and physique changed. This does not establish an exact EA slider comparison.
+The session was cancelled and closed normally without saving; all twenty saves
+remained byte-identical. Production, native copy/link, complete-category and
+save/Tray gates remain open.
+
+Historical V180 preparation: the V179 allocator crash did not hit an Apex
+owner guard. Event callbacks now queue socket cleanup for the next UI Timer,
+ignore stale socket events, and send a single retained ASCII frame with lossless
+Unicode JSON escaping. All 76 focused checks pass, including serialized unsafe
+callback/buffer cases. Earlier full CAS checks passed 959 tests and ten native
+checks pass. V180 runtime qualification remains open; production use is not
+qualified, and all save/Tray and native copy/link gates stay open.
+
+Current checkpoint — V179 diagnostic preparation:
+V178 completed the cold fourth-member edits, then crashed on the first member's
+Alien -> Human return (nine visits, six body edits). The collapsed-strip A/B run
+also crashed on the first member's Alien body edit after six visits/four edits.
+Icons are not a necessary trigger. Both failures are preserved; all twenty test
+save files remain unchanged. Idle metadata deduplication and authenticated
+background window restoration pass their focused checks. The next native build
+adds opt-in guarded/quarantined Apex owner records to localize memory misuse;
+this is diagnostic preparation, not a demonstrated crash fix. Actual copy/link,
+all-category, CAS/Live/save and Tray/Gallery release gates remain open.
+
+Historical V178 preparation:
+V177's cold fourth-member Alien body edit reproduced the allocator crash at
+`TS4_x64+0x112c645`; retaining the native layer lifecycle did not resolve it.
+Its full pre-gesture CAS regression suite passed 957 checks, and all twenty
+save files remain unchanged. V178 follows the inspected EA slider lifecycle:
+one preview, then one owner-checked completion on a later UI tick, followed by
+final value verification. The compiled bytecode checker verifies both native
+setter sites and consumption of the completion phase before its native call.
+The new cold runtime test is pending. Candidate SHA-256:
+`c41702d6886c86366b5476aca43c4a441611dba5a65ce1f2e4ebaa430647b219`.
+No crash-fix or production-readiness claim is supported yet.
+
+Historical V177 checkpoint:
+V177 is built with EA's original physical-layer transition lifecycle retained
+inside independent owner selection. Nine native checks pass; its cold runtime
+test is pending. It is not a production release. V176 reproduced the fourth
+member's cold Alien-edit allocator crash. A subsequent V176 session accepted
+distinct Human/Vampire/Alien body edits on that member and retained them through
+six switches. Independent full export audit of all 195 owners finds exactly
+the three intended physique edits, zero other changes, no missing original
+records and zero added outfits. No CAS acceptance or save was submitted.
+Normal cancellation/unsaved closure leaves all twenty saves unchanged. The CLI
+has a bounded refresh for definite pre-queue expiry refusals and qualified
+background capture of the CAS cancellation dialog. Actual copy/link controls,
+all-category editing and CAS/Live/save/Tray release gates remain open.
+
+Historical V176 checkpoint:
+The V176 candidate is installed only in the disposable profile. It carries the
+shared-Human/EA portrait work, exact visible-owner cache bindings, direct-only
+link propagation and current-panel-only UI snapshots. Nine native checks pass;
+the actual adapter regression reproduces the old cache mismatch and verifies
+the correction. V175's runtime test completed twelve distinct body edits and
+eighteen form visits across three Sims, then crashed on the fourth member's
+first body-slider edit. The preserved dump faults at `TS4_x64+0x112c645`; the
+corrupting call is not identified. No CAS acceptance or save occurred, and all
+twenty existing test save files remain byte-identical. V176's cold readback
+matches all forty original active/stored appearances; the old CAS transaction
+metadata is archived without altering saved files or form-bank appearances.
+The new runtime matrix remains open. Actual EA Link/Unlink/partial Copy,
+all-category edits and CAS/Live/save/Tray qualification are unfinished.
+See the controlling checklist for evidence limits. Production release remains
+blocked; fixture counts and the existing native Alien portrait image do not
+establish safety for the owner's original save.
+
+Historical V174 checkpoint:
+V174 is built, not installed or runtime-qualified. Its CAS-return receiver
+captures every committed canonical, active and named native DTO with complete
+raw bytes, binds it to the member's exact pre-entry transaction, and retains
+named forms by their exact IDs. Changed named forms require individual typed
+keep/discard decisions through the CLI; cancellation never implies acceptance.
+Missing or changed native readback blocks completion instead of merging from
+the seven native rendering lanes. The return, save/cold-load, phone/F11 review
+and Tray workflows still require runtime qualification.
+
+The native bridge now copies selection observations inside CAS callbacks.
+Source/socket status and view staging no longer follow live controller/group/
+model pointers; the actual callback still checks the engine objects before
+selection. Nine native targets pass, including an unreadable singleton-pointer
+test. This change is in the built V174 candidate, not the running V173 session.
+
+V173 completed distinct actual physique edits for all 195 appearances/five Sims.
+The strict original-field audit then failed: 130 owners acquired 756 additional
+outfits. Complete original outfit child bytes, unknown top-level outfit bytes,
+and all other untouched appearance fields remain intact for all 195 owners.
+The full unchanged-field result remains false; added outfits are not declared
+user-authorized. The matrix stopped between completed commands. A separate
+post-initialization revisit compares all 195 owners with their edited baselines
+and complete native snapshot hashes; that run is still in progress. No CAS
+acceptance or save was submitted. Native automatic outfit generation remains
+under investigation, including whether bulk UI getters create missing outfits.
+
+Additional host validation compares every untouched decoded appearance field
+with its fresh pre-entry original, excluding only the explicitly edited
+physique field; two focused tests pass. A native snapshot optimization is built
+and passes all nine native targets: linked targets are enumerated directly
+instead of rebuilding/scanning the entire owner list for every owner. It is
+not installed in the running V173 game and carries no measured FPS claim.
+
+V173 passes the real complete pre-entry comparison for all 195 independent
+appearances across all five Sims. Full CAS accepted the entry and completed its
+client handshake. All twelve captured appearance fields match each owner's
+fresh original, including Fairy genetics, separate pelts and empty Spellcaster
+outfits. Nine native targets and 31 epoch/migration checks pass. The edited
+195-owner first edit pass completed; the strict untouched-field audit reported
+the additional outfits described above. CAS-return persistence and production
+qualification remain open. Host tooling now reuses only sub-second completed
+native acknowledgements inside a bounded batch, retains all Source/native
+freshness guards, and compares complete household bytes at cycle barriers.
+Thirty-six host-tool checks pass. A .stop file requests a stop between completed
+commands without terminating a process or replaying an unresolved request.
+
+V172's real all-195 comparison verifies the per-form pelt fix: 193 appearances
+match completely; only the first Sim's native/named Spellcaster empty outfit
+differs. The attempted later part-assignment hook was never invoked and does
+not qualify the hair fix. Inspected runtime helper 0x330a40 explicitly inserts
+default hair 0x24236/0x24237; V173 replaces the unused hook with suppression of
+that exact call from the detached record loader. Normal game loaders and other
+call sites keep the native helper. V173 runtime qualification remains open.
+
+V171 refused CAS entry after its new complete import audit found eleven changed
+owners out of 195. All genetics now match, but nine canonical owners inherited
+the active appearance's pelt, and the first Sim's native/named Spellcaster
+received invented hair in an empty outfit. The game remained in Live mode;
+no entry was retried. V172 imports each canonical owner with its own complete
+root fields (EA's occult records cannot hold pelt/custom texture), and suppresses
+only the inspected detached-loader outfit-fill call. Normal CAS part selection
+and other call sites retain native behavior. Runtime proof remains open.
+
+V170 crashed during accepted full-CAS entry before the client handshake.
+The preserved dump faults at 0x14112c678, a previously observed allocator
+failure; the corrupting call is not identified. Do not qualify V170 from its
+offline tests. V171 puts both detached setters inside the canonical owner's
+normalization scope and adds complete per-owner import readback before CAS
+entry. The scope fix is concrete; crash causality remains unproven. The new
+readback compares every native, active and named owner with fresh pre-entry
+fields and refuses missing, stale or changed data, including genetics.
+
+V170 corrects a newly reproduced pre-entry import loss: named Fairy appearances
+lost wing part 464564 from genetics, although their later native snapshots
+remained stable. The primary/null-record loader regenerates genetics; the
+full occult-record loader preserves the complete supplied message. Named and
+active entry owners now use detached full-record projections; canonical owners
+remain independent. All 155 named projections across five Sims retain all twelve
+appearance fields and exact record genetics using the installed descriptors.
+Nine native targets and 55 transport plus 31 epoch/migration checks pass.
+In-game V170 import and subsequent retention remain unqualified.
+
+V168's expanded matrix was stopped after 94 completed visits and two complete
+members when the independent import comparison exposed that genetics loss.
+The interrupted final read was resolved with its original request identity;
+no CAS acceptance or save was submitted. Its six panel retention passes remain
+valid post-import evidence, not proof that entry preserved original genetics.
+
+V169 is built, not installed or runtime-qualified. It adds bounded read-only
+native owner pages and `cas-owner-export`, defaulting to the complete scoped
+household. Pages preserve exact bytes, owner IDs, revisions, directed links,
+selected owner and membership, with generation/cursor checks and complete
+inventory validation. Nine native CTests and 57 Python checks pass. This is
+collection infrastructure; CAS-return/bank/save persistence is still open.
+The running game remains V168 until normal unsaved closure for V170 installation.
+
+V168 is installed only in the disposable profile. Its real tattoo-panel
+Alien -> Vampire -> Alien rerun now retains identical complete snapshot bytes;
+V167 had lost five outfit parts. The complete five-point Fairy round trip also
+retains identical bytes. V168 restores the current owner's reversible hair,
+clothing and Fairy-wing preview modes before deep copying; the destructive
+stock regeneration/cross-layer synchronizer remains bypassed. Native CAS has
+imported 39 separate appearance owners for each of the five household members
+(195 total). Nine native tests, 31 epoch/migration checks, seven matrix-tool
+tests and six native-engine CLI tests pass. All six panel round trips pass:
+tattoos, head/body skin details, eye makeup, nose and skin color retain byte-
+identical Alien snapshots. The edited 195-owner byte matrix remains open.
+These are independent appearance owners;
+special gameplay roles and production use remain unqualified.
+
+V167 replaces the scoped native synchronizer's destructive regeneration with
+deep copying of the current edited complete CasData. Real V166 exports proved
+122 fields changed on Fairy leave; V167's complete cross-form round trip and
+same-owner synchronization retain identical snapshot bytes. The full repeat/
+member matrix passes 142 visits across all 71 captured owners and five Sims,
+with no returned Sim-field/equipped-panel differences. Household
+navigation now validates the actual base roster even when EA filters alternate
+thumbnails, and can resume a member's last alternate layer. Nine native tests,
+893 CAS tests and 31 epoch/migration checks pass. All twenty disposable save
+files remain unchanged through V166's normal unsaved closure.
+
+October 16 V167 validation progress:
+- [x] Reproduce actual Fairy outfit/genetic loss with complete committed native exports, not a catalog-only assumption.
+- [x] Replace scoped destructive synchronization with complete current-model deep copies; preserve the permanent Source guard.
+- [x] Verify identical complete Fairy snapshot bytes before selection, after leaving, after Werewolf/Alien/Vampire round trip and after another synchronization.
+- [x] Select every one of the five household members and return to the first through the semantic CLI, despite EA filtering alternate thumbnails.
+- [x] Pass 893 CAS tests, nine native CTests, 33 export/seal tests and 31 epoch/migration checks.
+- [x] Give all 71 captured appearance owners across five Sims distinct observed native physique values; preserve the stopped float-boundary requests separately.
+- [x] Revisit all 39 first-Sim owners after editing the other household members; every returned Sim field and equipped panel matches its own edited baseline.
+- [x] Finish unique actual edit markers and repeated field/panel readback for all 71 currently captured owners: 142 visits, zero differences. This covers returned CLI fields/panels and does not certify every native field or save/Tray persistence.
+- [ ] Finish all-category edits on each form/member, CAS/Live/MCCC/F11 return, complete named-owner persistence, normal save/cold load and household Tray/Gallery round trips.
+- [ ] Qualify production use and special gameplay roles; appearance templates alone do not close these gates.
+
+V166 adds read-only native owner protobuf snapshots and declared-field catalogs.
+V164 selected all 39 separate owners through the semantic CLI, but its revisit
+matrix failed at the Fairy alternate's four body-hair swatches. V165's temporary
+matching suppression also failed in game and is removed. Do not call that issue
+fixed or the matrix passed by synthetic checks alone. The committed exports
+confirmed actual outfit/genetic changes. These DTO snapshots can have nonappearance
+construction defaults and must never replace an entire Sim. All twenty disposable
+save files remain unchanged through V165's unsaved closure. Production remains
+unqualified; special gameplay roles and full edited save/Tray persistence are open.
+
+V164 retains the V163 direct native rendering fix and reads the active model
+genus through the inspected GetSimOccult getter, separately from the unchanged
+CASGetSimInfo family metadata. V163's native Alien -> Vampire dark -> Alien
+round trip verifies exact independent owners, model genera, full memberships
+and separate undo contexts; Alien's older semantic readback remained a failure.
+The first Sim has 39 separate native/named appearance owners; the remaining four
+retain eight each. Named appearance templates do not qualify special gameplay
+roles. All forty original Live appearances and twenty save files were checked
+after unsaved closures. V164's semantic readback, edited all-form household
+matrix, complete graph export, repeated entries and save/Tray persistence
+remain open. The protected original is unchanged and production is unqualified.
+
+V159 expands ownership beyond EA's seven kind bits: named family/variant
+identities keep same-kind alternates separate, including every registered
+special lifestate. The five native active appearances also have separate
+owners from their 35 stored forms. The direct native adapter replaces the
+unconditional pair copy, binds complete owned CasData, retains per-owner
+native undo contexts, and keeps the inactive owner independent during history
+rebind. A paged native `.package` drawer and typed CLI selection transport are
+implemented. Fresh named captures read current native data without authorizing
+an older appearance bank. Nine native CTests (including actual DXGI successor
+chain replacement), 16 named-form tests and 26 migration checks pass.
+V158's first native-hook activation was correctly refused by fingerprint
+validation; its subsequent stock CAS visit is NOT a passing adapter test.
+After cancellation and unpausing, one Werewolf member's stored/active skin
+tone changed. That unsaved session was discarded; all 20 disk save files are
+unchanged. V159 corrects the undo pins using inspected runtime code and fixes
+capture/F11 attachment across same-window DXGI chain replacement. Actual
+all-form edits/undo/return, native export, copy/link UI, MCCC, cold persistence
+and Tray/Gallery remain qualification gates. Production saves remain unqualified.
+
+V156 corrects the architecture after the user's observed blending. The
+SetSimOccult conversion route is blocked in Source, AS and the scoped native
+service/history hooks. A new native owner graph deep-copies each complete
+appearance, makes selection cursor-only, starts every form unlinked, requires
+exact Sim/form/generation for edits, and supplies explicit copy/link/unlink
+operations. The five-Sim/seven-owner fixture passes repeated separation, all
+fixture fields, stale/cross-Sim refusal and allocation-failure atomicity. Nine
+native CTest targets pass. These are code-level checks; the direct native
+view/undo binding and literal clickable cross-occult selector remain unfinished.
+The failed V155 CAS visit was cancelled without applying. After 27,806 real
+simulation ticks, all five Sims/all 40 appearances exactly match the canonical
+capture. All 20 save/backup files remain unchanged. The running game still has
+V155 cached. No production-readiness or in-game selector claim is made.
+
+V155 corrects the native history visitor's composite alternate key at the
+controller rebind boundary. V154 reached both patched native selection hooks,
+but the client still reported Vampire; its paused Live return did not resolve
+the selected Sim before that unsaved session was discarded. This is a failed,
+unsettled return, not a passing switch or proof of permanent deletion. All 20
+saved/backup files remained unchanged. V155's cold reload verifies all five
+Sims and all 40 appearances. All five never-observed V154 checkpoints were
+archived through the existing metadata-only receiver, retaining their complete
+originals and unchanged bank appearance lanes; a second all-40 comparison passes.
+Eight final native CTests, Python 3.7 ABI checks and 26 migration checks pass.
+Actual cross-kind edit retention and settled return remain under test.
+
+V154 implements direct native importer, conversion-history, normalization and
+selection-service hooks. V152's actual five-member CAS visit imported all 35
+stored owners and returned with all 40 stored/active appearances matching;
+normal unsaved exit preserved all 20 save/backup files. V153 extends native
+capture to the five active appearances, also observed in the actual game.
+Its Alien request exposed another native limitation: `SetSimOccult` compares
+the requested kind to the first membership bit, so it never reached the
+patched controller. V154 replaces that service decision and restores the
+explicit active kind after appearance deserialization. Eight native CTests,
+the Python 3.7 sidecar ABI checks and 26 frozen migration checks pass.
+Actual edited Alien → Vampire → Alien switching remains the immediate gate;
+all-owned strip buttons, all-category household edits, save/cold load and
+Tray/Gallery qualification remain open. Production saves are not qualified.
+
+V149 verifies a bounded native kind-cache metadata reader in the unloaded
+main menu. It declares metadata access accurately and does not read appearance
+payloads or mutate native state. The next direct-engine step is to compare
+the populated cache with the complete captured household, then patch native
+selection/construction to retain the correct existing owner per occult/layer.
+
+V148 follows the native kind-conversion model's constructor and rebinding
+interface, rather than treating the public kind setter as the complete
+engine operation. These reads do not install a native fix. The highest
+priority is a direct native owner-retention and selection fix, with the
+permanent guard retained alongside it. Cross-kind navigation remains gated.
+
+V147 implements the form strip in the native CAS `.package`, with CAS fonts,
+game occult icons, a draggable header and scale/lock/collapse/reset controls.
+All seven captured memberships remain visible; cross-kind cards are disabled
+while unsafe conversion is quarantined. V146's in-game CLI layout movement and
+scale pass, but a later input attempt was followed by a native crash. Its
+clicked target was not established; later CAS clicks exposed stale hit-testing.
+V147 delegates same-pair navigation to EA's complete, unchanged selector
+handler instead of duplicating only its low-level setters. The typed CLI's
+actual Alien → Human disguise → Alien round trip, native acceptance and five
+independent commits retain all 40 owners exactly. Normal unsaved exit leaves
+all 20 save/backup files unchanged. This does not qualify production saves or close the native
+all-owned CAS, MCCC or household Tray gates.
+
+V142 quarantines the experimental cache conversion in both host CLI and Source
+receiver after V141's actual Alien-to-Vampire selection was followed by a native
+crash. Returning to Alien was refused before submission because the new Vampire
+pair had an empty alternate placeholder. This is **not** an accepted hybrid
+round trip. The crash and original UUIDs are retained, all 40 originals are
+preserved, and the complete 20 save/backup-file inventory is unchanged. The
+literal all-owned CAS selector and the actual native prevention fix remain open;
+the deletion warning is retained. Production saves are not qualified.
+
+V139/V140 resolve and inspect the actual native conversion controller and
+its keyed occult cache without calling it or modifying game memory. V141 adds
+a separate disposable-token-gated cache-navigation qualification path, with
+actual pre-entry membership authority and no appearance-retention claim.
+The literal native CAS all-owned portrait selector, additive memberships,
+cross-route edits and whole-household Tray round trip remain release gates.
+The deletion warning must be removed only after its underlying destructive
+behavior is demonstrably fixed; the permanent guard remains enabled.
+See the updated native inspection ledger below.
+
+V136/V137's explicit read-only diagnostic works in the actual main-menu process,
+finds seven live CAS service references and returns 17 bounded code regions;
+it requires no household or foreground handoff. The selector takes a Boolean
+primary/alternate choice, not an occult-kind argument. V138 adds bounded
+contexts for split handlers; this is inspection, not a qualified native patch.
+All seven native CTests pass. All
+40 appearances remain exact after V135's unedited full-CAS visit and all five
+commits. Native CAS still exposes one pair per member; whether that mask
+describes the editor view or persisted membership is under investigation.
+See [native-code inspection and remaining gates](../Reports/NATIVE_CAS_CODE_INSPECTION_2026-10-15.md).
+
+V135 removes Apex's own
+CAS-entry narrowing to Human plus the current occult. Entry now requires the
+complete tracker-verified membership set and a captured owner for every
+registered member. A native setter that reduces that set blocks entry and
+retains its complete originals. All 801 CAS tests and 26 upgrade/migration
+tests pass against the frozen current source; a separate Rust pass validates
+all seven package indexes and all 207 extracted resource payloads. V134's real
+CAS receipt still exposed only Human/Alien and is retained as a failed gate.
+After that unedited visit, all five commits and all 40 appearance comparisons
+pass; normal unsaved exit leaves every disposable save/backup unchanged.
+Actual V135 preparation retains all six non-Human bits on all five Sims, but
+the raw game-to-CAS packet still narrows each member to one pair before EA's
+ActionScript handler. The native-view probe refuses before any view mutation.
+Within-visit native switching/editing and additive membership remain open;
+the native editor's pair-shaped packet has a separately reproduced boundary.
+See [the native membership implementation and evidence](../Reports/NATIVE_CAS_HYBRID_MEMBERSHIP_2026-10-15.md).
+
+V134 exports every
+tracker-verified native occult membership instead of exposing the inherited
+Human-plus-one-occult projection. A typed `cas occult-view` command and F11
+buttons invoke the installed native `SetSimOccult` handler for an already-owned
+form. Fresh native acknowledgements must retain the complete membership mask;
+lost membership or a wrong selected form leaves the request unresolved.
+This is selection transport, not yet proof of within-visit hybrid editing.
+Native-CAS additive membership, independent appearance retention after that
+navigation and special-state gameplay remain acceptance gates. All 798 CAS
+tests, 51 form-bank tests, 25 native-retention tests, 28 life-state tests and
+six native CTests pass. The game launched with the CLI acknowledging EA's
+permission dialog. The exact existing manual test save cold-loads with all
+40 appearance owners unchanged. No production profile has been changed.
+
+V133 adds independent named life-state appearance variants, inactive Studio
+editing, explicit original binding/selection, accepted-CAS synchronization,
+F11 controls and a UUID-recording CLI. The native game enum remains unchanged.
+Its 28 focused tests, existing 36 Studio tests, eight preview-service tests,
+six native CTests and separately staged worker self-tests pass. The broad
+V133 core run passes 2,232 tests in 938.254 seconds. Actual captured Alien
+appearance bytes also assemble through the staged named-owner worker without
+asset exports. Its implementation is included in the installed V134 candidate;
+actual named-owner runtime qualification remains open. Complete special
+gameplay, within-visit native CAS hybrid selection/addition and cross-session
+variant/Tray persistence remain open. Fourteen current Gauntlet releases were
+downloaded and inspected; packages are not installed wholesale.
+See [life-state implementation and remaining gates](../Reports/LIFESTATE_FORMS_2026-10-15.md).
+
+V126 cold-loads the mixed five-hybrid save with all 35 stored and five active
+appearances exact. The actual installed MCCC full-CAS/Library visit captures
+every member. The phone/F11 Source review actors complete all five reviews
+after real normal simulation ticks; all 40 appearances return to the saved
+baseline exactly. The actual native EA save generator refuses serialization
+with unresolved companions, remains locked after the first commit and clears
+only after the final commit. Direct native copy prevention and permanent
+protection remain enabled together.
+
+Native Library export now has actual game-generated metadata and portraits
+for all five Sims. Inspection exposes lost visible-owner Apex metadata and
+unintended Human outfit/genetics changes. An external completion candidate
+retains canonical active appearances, complete occult/trait trackers and the
+game's other data, metadata and images. The completed item lists and opens in
+the actual local Library with all five members and alternate portraits.
+**Its native whole-household import remains unverified.** V126 fixes queued
+review cancellation and sends the inspected native save-UI notification after
+commits; these changes still require runtime qualification. Semantic Fairy
+wing selection is quarantined after a mismatched native color result and a
+later native crash of unproven cause.
+
+V131 passes 2,204 tests; both hosted Windows checks pass for `178f5c8`.
+All six native CTests pass. The explicit manual-save load retains all 40
+appearances. The actual DayWalkers-style exposure hook is verified on all five
+Sims: four would be exposed by EA's predicate but remain protected by Apex.
+Phone controls use installed occult icon keys. F11's Python image reads return
+no bytes, so V130/V131 add bounded background reads of the exact installed client
+textures, with no artwork export or per-frame I/O. All six match independently
+decoded installed images. V131 verifies all six through the actual game worker
+and F11 backbuffer. Normal Save and Exit, restart and 3,755 actual simulation
+ticks retain all 40 appearances exactly. The EA permission helper also completes
+an actual authenticated acknowledgement. V132 compacts icon/text spacing and
+passes all six native CTests; its DLL loads on a subsequent restart.
+PlantSim/Robot/Servo/Ghost/Skeleton/Scarecrow/Imaginary Friend hybrid ownership
+and complete switching remain open; their menu cards are not acceptance proof.
+This candidate remains disposable-only. Production
+acceptance, full native Tray/Gallery reload, complete CAS/special-state coverage
+and preview fidelity remain open, as do all seven GitHub issues. The protected
+original is read/copy only.
+See [October 15 runtime evidence](../Reports/HOUSEHOLD_CAS_2026-10-15.md).
+
+
 
 ## Objective
 
+Owner household stress requirement, October 13:
+
+- [x] Keep one reusable disposable profile and verify its five-member roster, six actual occult memberships per member and seven appearance owners per member.
+- [x] V114 directly prevents native physique/hidden-outfit merging while permanent protection stays enabled; all five pass seven-form Live cycles, all-40 comparisons, normal save and cold reload.
+- [x] V115 fixes post-load companion switching through fresh native checkpoints, with all five Vampire → Alien round trips and final saved all-40 verification passing without manual checkpoint transactions.
+- [x] Add whole-roster CLI capture/compare/cycle checks. Preserve every returned readable field and full packet; detect changed companions and newly added fields. Record mutation UUIDs before submission and unpause before assessing actual simulation effects.
+- [x] Enumerate all 5,390 CAS coverage cells: every member × every appearance owner × 77 panels × single-member/whole-household edit scopes. All begin untested. Empty/unavailable panels remain explicit and cannot count as edited.
+- [x] Fix mutation of the immutable stored-form load source. V92 cold reload preserves all five stored Alien genetic records before/after 2,368 actual simulation ticks.
+- [x] Implement and unit-test a bounded per-occult pelt/custom-texture carrier for fields absent from the native occult schema. Preserve unknown wire fields/groups and refuse collisions/corruption. V93 frozen suite: 1,832 passing tests.
+- [x] Prove every pelt/custom-texture record through normal save and cold reload. V93's failed attempt remains retained; V94 qualifies all 35 stored owners, including the four imported Werewolf pelts. V97 subsequently qualifies all five active owners after initialization as recorded below.
+- [x] V94 cold load retains all 35 stored form records before/after real unpause, including the Werewolf pelts. The indexed fallback binds exact native incoming core, Sim/household/slot/GUID and source file; old banks cannot provide authority. All five active appearances initially match, but two later change during initialization. Active-owner parity remains open.
+- [x] V97 fixes queued load-time body-hair updates replacing restored CAS parts. Retain exact pre-readiness queued requests and immutable native owner capabilities; consume once only if the current complete loaded appearance and owner identities still match. Changed/later requests and fresh Live edits keep native behavior. All 35 stored plus five active owners match every returned appearance field before and after 2,336 actual simulation ticks. V95/V96 failed reproductions remain evidence.
+- [x] V98 preserves newer edits made before the first simulation tick as well. Bind each queued load request to its per-slot generation and exact native owner, so old initialization cannot overwrite a fresh Live appearance. Later genuine same-level requests stay native. Actual pre-first-unpause hue edit remains at Q14 value 0.1500244140625 after 2,360 ticks, with all other fields/forms/Sims intact; Undo restores every original appearance.
+- [x] Record 25 passing targeted transitions with all five members checked after each actual unpause. Classify bounded native active outfit appends without dropping existing rows/indexes or unknown bytes. Preserve step 26's failed unselected Alien-to-Human change and its complete originals; do not claim full-cycle acceptance.
+- [x] V98 completes all 45 targeted transitions across five members, including Alien → Vampire → Alien per member and all other actual forms. Actual simulation advances 1,465–2,478 ticks per step. Two observed companion transitions retain every source/target/other field; one bounded empty native outfit initialization is recorded separately. Native trigger causality and actual CAS editing coverage are not inferred from these transitions.
+- [x] V99 fixes normal save recalculating independently edited active physiques from shared fitness stats. The actual corrected save and cold restart retain all 35 stored and five active appearances after 2,359 ticks; genuine gameplay fit/fat and unrelated Sims stay native. Earlier failed post-save proof remains immutable.
+- [x] V100 checkpoints all five hybrid members before full household CAS changes availability. The household CLI observes every member before planning/writing, reuses the selected member's existing return journal without replay, and restores each independently captured context. All five native appearance/context commits verify.
+- [x] Perform fourteen actual Alien panel edits in native full-household CAS (mode 0), including eyebrows, face presets, skin tone, hair, clothing, head skin details, eyelashes, lips and jewelry. Body skin details have no different eligible item and are not counted. Only Alien/active fields change; all other stored forms and companions remain exact.
+- [x] Verify those edits through Alien → Vampire → Alien (2,420/2,416 actual ticks), normal save and V101 cold load before/after 2,343 ticks, comparing all 40 appearance owners. This is one member/form subset, not whole edit-matrix completion.
+- [ ] Finish tattoo region/layer retention. V101 applies an exact EA tattoo layer but native SaveAndExitCAS rejects it. Two Undo operations restore the empty original; corrected return and all five context commits verify. V102 replaces the failed reflective definition lookup with an exact imported native definition; runtime and retention checks are pending.
+- [x] V102 verifies all 11 actual native tattoo regions and region-46 selection through the PC selection grid. The same exact part also fails acceptance on Human, so an Alien-only cause is not certified. Undo and independent commits restore every appearance to the saved baseline.
+- [x] Preserve V103's first-slot native crash and the unchanged normal save. Archive all five exact never-observed current-entry captures atomically, keeping every original and bank lane; validate paired native availability extensions and reject foreign/observed/missing member captures before any archive write.
+- [ ] Complete native first-tattoo insertion and retention. The V103 prototype acknowledges part 399362 in the temporary first slot then crashes in native code; causality remains unproven. V104 quarantines insertion before any part/layer mutation. No tattoo completion or production-readiness claim.
+- [ ] Complete every single-member full-CAS category edit on every actual occult of every member, including presets, eyebrows, skin details, tattoos/layers, jewelry and every outfit category/ordinal. Verify untouched forms and companions.
+- [x] Complete multi-member editing in one full household CAS visit with independent per-member/per-form decisions and restoration of every original native availability context. V120 accepts actual Werewolf and Fairy alternate edits on two different companions in one visit, restoring all 36 unselected owners exactly. This closes the multi-member transaction leaf; exhaustive panel/outfit coverage remains open.
+- [ ] Repeat Alien → Vampire → Alien first, then all other forms, with real simulation ticks; verify household exit/reentry, controlled normal save/cold reload and native Tray reload.
+- [ ] Resolve old interrupted/cross-runtime bank metadata through exact retained evidence, without replaying stale appearances or inventing successful native edits. First V93 whole-roster cycle refuses an uncertified prior-runtime bank before native mutation.
+
 Finish Apex Occult Hybrid as a fully standalone, safe, polished, observable hybrid-occult system that independently matches the useful behavior of current hybrid solutions, fixes the known failure modes, and materially improves usability, recovery, diagnostics, patch resilience and CAS integration while preserving all still-valid Apex V9.5 work.
+
+Owner addition, October 13: qualify DLL overhead and integrate proven loading/frame-time improvements with TS4 Accelerator. Keep separate optional component ownership initially and preserve content, visuals, simulation and compatibility. Exact source lineage, matched game measurements and nonregression gates are recorded in `docs/APEX_ACCELERATOR_INTEGRATION.md`; no current FPS gain is claimed.
 
 ## Context
 
@@ -41,18 +745,23 @@ Continue from the earliest unchecked or invalidated task whose dependencies are 
 
 ## Phase A — Recover and normalize V9.5
 
-- [ ] **T001** · Verify the recovered archive SHA-256 and current repository source manifest against the V9.5 recovery record.
-- [ ] **T002** · Normalize the repository layout without deleting historical reports or provenance.
-- [ ] **T003** · Resolve the canonical Sims/Python backend entrypoint and document every packaged script/module owner.
-- [ ] **T004** · Resolve the canonical native-overlay entrypoint, DX11 proxy/export model and installation path.
-- [ ] **T005** · Identify all duplicated/obsolete V5–V9 compatibility paths inside the large Python source and mark which remain runtime-reachable.
-- [ ] **T006** · Add deterministic source-manifest generation for text and binary artifacts.
+- [x] **T001** · Verify the recovered archive SHA-256 and current repository source manifest against the V9.5 recovery record. **Supersession/proof:** owner explicitly selected the newer local V9.6 source on 2026-10-06. Exact backend matches the embedded V9.6 script; source/overlay/ImGui hashes and differences from V9.5 are retained in `Reports/RECOVERY_2026-10-06.md`. Original bytes checkpointed in `44b2827`; unavailable V9.5 archive is not relabeled or claimed verified.
+- [x] **T002** · Normalize the repository layout without deleting historical reports or provenance. **Proof:** recovered Source, NativeOverlay/Source, vendored ImGui/license and every local historical report preserved in `44b2827`; builds, private form data and staging excluded from Git. Original desktop kit remains intact.
+- [x] **T003** · Resolve the canonical Sims/Python backend entrypoint and document every packaged script/module owner. **Proof:** `docs/BUILD_AND_OWNERS.md`, `manifests/baseline-inventory.json` and `manifests/runtime-owners.json` distinguish the recovered entrypoint, all 36 historical hybrid modules and each MCCC module; no baseline code executed by inventory.
+- [x] **T004** · Resolve the canonical native-overlay entrypoint, DX11 proxy/export model and installation path. **Proof:** the default candidate now loads `Mods/Apex/Native/ApexOverlay.dll` through the game's `_ctypes` extension, with fixed protocol/hash/host checks and system DXGI hooks. MSVC x64 builds, an actual independent render host and the packaged Python 3.7 loading path pass. The historical proxy remains available only for separately verified imports; no Game/Bin deployment or live-game proof is claimed. See T207.
+- [ ] **T005** · Identify all duplicated/obsolete V5–V9 compatibility paths inside the large Python source and mark which remain runtime-reachable. **Progress:** AST inventory records every global definition, alias capture, startup call and superseded owner without importing the backend. Wrapper chains are preserved. NEXT: inspect nested callback/registration and dynamic-global reachability before deleting any legacy path; static classification alone is not exhaustive runtime proof.
+- [x] **T006** · Add deterministic source-manifest generation for text and binary artifacts. **Proof:** canonical Git blob SHA-256 identities survive checkout line-ending differences, reject unstaged/missing/outside/linked sources and write atomically. Script builds now contain deterministic source plus Python 3.7 bytecode with module/artifact hashes, fixed hash seed and stable filenames. Reproducibility/private-data/syntax/wrong-runtime fixtures pass; earlier source-only packaging was invalidated by actual importer evidence and is tracked in T201.
+- [x] **T197** · Protect the owner's complete live user profile with external recovery journals, save SHA-256 verification, collision/link rejection and separate retained test saves. **Proof/current steering:** the original `The Sims 4 DO NOT FUCKING TOUCH!!!` remains strictly read/copy-only; only the owner may rename it. All 369 protected save hashes exactly match the retained reference, with zero writes (proof SHA-256 `fa123dd67178b02ec14052c1d78679525e65512d2c732144ec63e7b98cff302b`). One retained test profile is reused with external recovery. Agent CLI testing is reauthorized; no original restoration is authorized. See `Reports/LIVE_CLI_2026-10-07.md`.
+- [ ] **T200** · Expose isolated test preparation, exact artifact checks, EA launch handoff, bridge readiness, game-thread commands and proof export through one reusable CLI for Apex and future Foundry integration. **Progress:** game-thread controls, Human CAS regression/return, seven-owner finish, controlled sealed Slot02 save, normal no-save exit and explicit sealed-assisted seven-owner reload have actual proof. EA normal update/restart to 13.805 is verified; the reusable `ea-update` CLI has 21 fixtures and its new pre-permission parser retains exact account/path/lease gates. Fresh installed 9e87 candidate CLI launch autonomously acknowledged EA permission and observed exact PID 44372 process start; a separate read-only check verified the intended Slot02 household already loaded/paused with no Resume input. New F11 renders all 13 active Swimwear CASP names and the selected Hair PNG. Earlier PID 45012 came through a separate EA Client Play record and PID 37064 Resume failed before input on a Load modal. NEXT: repeatable autonomous full launch/disk-slot load, complete F11 metadata/images/Studio acceptance and broader native/CAS persistence. A real headless engine remains unsupported. See `Reports/LIVE_CLI_2026-10-07.md`.
+- [x] **T201** · Correct actual Sims script discovery/bytecode packaging instead of relying on syntax-only source archives. **Proof:** pinned Python 3.7.9 produces correct game bytecode, portable filenames and exact module hashes. The historical 50-module candidate imported in the actual game and answered loaded-household CLI commands. Exact script/protocol/native pairs are verified before installation. This closes packaging/discovery, not all gameplay/native/release gates.
+- [ ] **T202** · Remove recovered startup assumptions about unavailable game Python modules without losing core functionality. **Progress:** missing `ctypes` is optional, verified Python mask operations remain and the patched packaged bridge imported. Offline import never starts a server or creates user-data directories. NEXT: owner current-candidate evidence and remaining current-runtime API/module audit; no helper DLL/game-file patch is added to hide an unavailable API.
+- [x] **T203** · Build concrete authorized-baseline Apex package/script candidates with exact resource/module ownership. **Proof:** six packages/204 resources, a 50-module script and matching native sidecar build; custom module references resolve. Independent Foundry Rust extraction verifies every resource hash. Candidate installation is confined to the marked disposable profile with external recovery. This source/build leaf does not close patch semantics, full parity or release gates.
 - [ ] **G001 · GATE** — Recovery is reproducible and no V9.5 capability was silently lost.
 
 ## Phase B — 1.13.7 behavioral regression/reference floor
 
-- [ ] **T007** · Acquire/hash/inventory the actual newest authorized 1.13.7 hybrid package/script set, diff its package resources and runtime modules against recovered Apex/current-game behavior, and use that real implementation as the starting baseline before changing it.
-- [ ] **T008** · Preserve or port the authorized working 1.13.7 STBL coverage into Apex-owned resources, then verify and improve it where needed.
+- [ ] **T007** · Acquire/hash/inventory the actual newest authorized 1.13.7 hybrid package/script set, diff its package resources and runtime modules against recovered Apex/current-game behavior, and use that real implementation as the starting baseline before changing it. **Progress:** official upstream release ZIP hash `012e1a04eeaf15c3a6bd78bd05171724a0514ae369c7a3fd32bc114d7e1a9124` matches the local ZIP; eight files/36 modules inventoried. GitHub reports the exact asset uploaded 2026-05-16, consistent with CurseForge FIXE file ID 8100056's update date; identical cross-provider bytes remain unverified because the CDN refused acquisition. NEXT: package/resource/current-game diff and archive identity reconciliation using available evidence.
+- [ ] **T008** · Preserve or port the authorized working 1.13.7 STBL coverage into Apex-owned resources, then verify and improve it where needed. **Progress:** all baseline hybrid STBL resources are preserved byte-for-byte in the candidate and have per-resource hashes. NEXT: owner language/menu evidence and improved Apex labels/coverage where required.
 - [ ] **T009** · Preserve or port the authorized working TMex PhoneSearch / PlantSim Pie Menu compatibility behavior, then verify it on the current build.
 - [ ] **T010** · Start from the authorized current Werewolf tuning injections, port/re-ID them into Apex ownership as needed, and verify/improve current-build coverage.
 - [ ] **T011** · Start from the authorized current Fairy tuning injections, port/re-ID them into Apex ownership as needed, and verify/improve current-build coverage.
@@ -68,21 +777,21 @@ Continue from the earliest unchecked or invalidated task whose dependencies are 
 - [ ] **T017** · Make one canonical typed model for active occult types, current form, available forms, linked SimInfos and pending mutations.
 - [ ] **T018** · Distinguish authoritative save-backed state from transient mod caches and CAS-session caches.
 - [ ] **T019** · Add stable per-Sim diagnostics that explain why an occult/form is present, absent, pending or inconsistent.
-- [ ] **T020** · Detect unsupported/unknown/custom occult types without deleting them.
+- [ ] **T020** · Detect unsupported/unknown/custom occult types without deleting them. **Progress:** authorized tracker load/save port retains unresolved serialized form records and membership bits, restores temporary flags in finally and lets newer serialized records win. Four targeted fixtures pass. NEXT: integrate the typed model/diagnostics and owner current-game save/reload proof.
 - [ ] **T021** · Add explicit ambiguity states instead of guessing when multiple occult/form owners could match.
 - [ ] **T022** · Make add/remove/switch/repair actions idempotent where the Sims runtime allows it.
 - [ ] **G003 · GATE** — Occult state has one observable owner and ambiguous data cannot be silently destroyed.
 
 ## Phase D — F11 control center UX
 
-- [ ] **T023** · Preserve F11 as the default overlay toggle and make the binding configurable/persisted.
+- [x] **T023** · Preserve F11 as the default overlay toggle and make the binding configurable/persisted. **Source/build proof:** `NativeOverlay/ApexOverlay.ini` and the compiled loader support persisted F1–F24 configuration with F11 default, foreground-window guarding and no per-frame disk reads. Native loader/input runtime proof remains T046/T047 and G004/G007.
 - [ ] **T024** · Rebuild the home dashboard around selected Sim, active occults, current form, health/drift status and next safe actions.
 - [ ] **T025** · Add one-click occult enable/disable controls with confirmation only when the action is destructive or ambiguous.
 - [ ] **T026** · Add clear per-occult form switching with current/target state preview.
 - [ ] **T027** · Make Saved Forms searchable, renameable, duplicate-safe and visibly scoped to Sim/occult.
 - [ ] **T028** · Make CAS Categories expose face/body/hair/makeup/clothing/accessory and other discovered scopes without hardcoded silent loss.
 - [ ] **T029** · Add before/after summaries to copy/paste/commit/apply-all operations.
-- [ ] **T030** · Add undo/rollback affordance for the latest safe reversible appearance mutation.
+- [ ] **T030** · Add undo/rollback affordance for the latest safe reversible appearance mutation. **Progress:** new Studio mutations support Preview/Apply/Cancel, readback rollback and previewed Undo/Redo/Jump in the rebuilt F11 component. Legacy appearance actions are not yet all covered; NEXT: reconcile them into the same service and obtain owner runtime proof.
 - [ ] **T031** · Add keyboard navigation, focus preservation and clear disabled-state explanations.
 - [ ] **T032** · Ensure every visible button/control is wired end-to-end to real domain logic; no fake/placeholder controls.
 - [ ] **G004 · GATE** — A user can manage hybrids/forms safely from F11 without relying on console commands for normal workflows.
@@ -109,6 +818,9 @@ Continue from the earliest unchecked or invalidated task whose dependencies are 
 - [ ] **T046** · Validate DX11 proxy/export compatibility against the current game executable before installation.
 - [ ] **T047** · Fail closed on unknown/changed DX11 import/export surfaces instead of partially hooking.
 - [ ] **T048** · Measure overlay frame-time impact on equivalent scenes and preserve rendering/gameplay quality.
+- [ ] **T198** · Repair recovered transport ownership/queue faults without losing accepted work: weak-referenceable alarm owner, game-thread-only bootstrap/read/write execution, bounded admission/results/drain, expired-pending cancellation and queryable already-running outcomes. **Progress:** production dispatcher integrated with `apex_core.command_queue`; 11 queue/production-wiring fixtures pass. Native queue rejects overflow and ignores stale selection responses; current C++ build passes. NEXT: exact packaged live-game bridge/zone lifecycle proof; keep all runtime gates open.
+- [x] **T199** · Replace string-search DX11 installation approval with bounded normal/delay PE import validation and reject missing/ordinal/unknown/truncated import surfaces before any install. **Proof:** production verifier and five fixtures pass; current x64 executable exposes only `Core/Activation64.dll` ordinal imports, so verifier rejects it. No proxy installed. T046/T047 runtime compatibility remains open; NEXT: obtain actual loaded D3D11 module/import evidence without changing the game's loader.
+- [x] **T207** · Build a mod-folder native F11 sidecar path independent of the wrapped executable's static D3D11 imports, with owned game-thread startup, fixed hash/protocol/host checks, safe render/input initialization and an independent real DX11 render test. **Proof:** `overlay_loader.py`, three fixed native exports and pinned MinHook v1.3.4 load from `Mods/Apex/Native`; first-key initialization, eight RTVs/depth restoration, resize and teardown/reinit pass in a hidden WARP host. The actual built script loads the matching native extension without pure ctypes and the production DLL rejects the non-game host. Seven loader fixtures pass; no Game/Bin/profile changes. T046/T047/G004/G007 still require owner game evidence.
 - [ ] **G006 · GATE** — Overlay/control-plane overhead is measured, bounded and materially non-regressive.
 
 ## Phase G — Testing matrix
@@ -153,12 +865,14 @@ The detailed reproduction/acceptance contract is `docs/USER_REPORTED_REGRESSIONS
 
 Detailed product/architecture contract: `docs/CAS_HISTORY_STUDIO.md`.
 
-- [ ] **T073** · Create one canonical CAS Change Journal service shared by CAS History, Drift Guard, Post-CAS Commit, MCCC Shield and Saved Forms instead of separate snapshot/diff implementations.
-- [ ] **T074** · Detect CAS lifecycle boundaries and capture a deterministic full checkpoint at CAS entry without starting a per-frame scan.
+- [ ] **T073** · Create one canonical CAS Change Journal service shared by CAS History, Drift Guard, Post-CAS Commit, MCCC Shield and Saved Forms instead of separate snapshot/diff implementations. **Progress:** `apex_core.change_journal` is the persistent owner for new Studio transactions, save GUID/slot/Sim/current-form lanes, previews and recovery. Eight journal and five Studio production-path fixtures pass. NEXT: integrate all legacy service owners, full appearance surfaces, event observation and semantic deltas; no full-history parity claim.
+- [x] **T205** · Implement the bounded current-form outfit Studio transaction slice with persistent pre-write recovery, stale-preview rejection, verified readback/rollback, previewed Undo/Redo/Jump, named checkpoints and preserved branches. **Proof:** journal/Studio fixtures exercise actual source paths, uint64 colors, untouched object/layer metadata, failed writes, cross-form lane rejection, tampering and external edits. Console/F11 controls are compiled and use the canonical dispatcher. Full Phase J scope and runtime proof remain open.
+- [x] **T206** · Replace raw-only Studio selection with typed serialized outfit/part selectors and selectable/searchable preserved history, retaining explicit row identity for layered parts, absent-color/runtime BodyType explanations and cleared completed preview tokens. **Source/build proof:** four additional production Studio fixtures and 18 compiled native reader checks pass; the actual x64 F11 component builds. T078/T079/T184 and native/runtime gates retain their full scope and remain open.
+- [ ] **T074** · Detect CAS lifecycle boundaries and capture a deterministic full checkpoint at CAS entry without starting a per-frame scan. **Progress:** V117 captures every hybrid household member at the exact native Python entry commands used by the game and MCCC, including cached aliases. V118 actual full CAS captured all five before entry; the CLI selected the requested companion semantically. Direct native UI routes and every MCCC menu still need proof. Explicit per-form return decisions remain required; raw differences do not establish user intent. See docs/NATIVE_CAS_ENTRY.md.
 - [ ] **T075** · Capture meaningful CAS changes live as semantic events with target Sim, exact form identity, outfit slot, category/scope, source/provenance and before/after data.
 - [ ] **T076** · Coalesce continuous slider/sculpt/high-frequency edits into one useful history action without merging unrelated operations.
 - [ ] **T077** · Implement compact periodic checkpoint + semantic-delta storage with content-addressed deduplication, preserving the complete active CAS session without serializing every full form on every change.
-- [ ] **T078** · Build the F11 Photoshop-style CAS History timeline with selectable entries, clear active-form lane, action labels, timestamps, verification state and filtering/search by form/outfit/category/source.
+- [ ] **T078** · Build the F11 Photoshop-style CAS History timeline with selectable entries, clear active-form lane, action labels, timestamps, verification state and filtering/search by form/outfit/category/source. **Progress:** compiled current-form timeline supports selectable entries, label/identity search, current-state marker, branch parent and timestamp inspection. NEXT: semantic/form/outfit/category/source filters, full visual inspector and owner runtime evidence.
 - [ ] **T079** · Build the change inspector showing added/removed/replaced CAS parts, resource IDs/names when resolvable, swatches, sliders/modifiers, skin details, tattoos, makeup, hair/headwear, accessories, clothing/body parts, occult-only parts, outfit scope and observed-vs-inferred provenance.
 - [ ] **T080** · Implement Undo and Redo as validated new mutations through the canonical action queue; history evidence remains append-only.
 - [ ] **T081** · Implement Jump to history state by computing the minimal current -> target delta, previewing protected changes, applying through the canonical action path, verifying result and recording the restore as a new event.
@@ -198,7 +912,7 @@ Detailed architecture: `docs/APEX_CAS_UNLOCK_CORE.md`. Current challenger resear
 - [ ] **T109** · Add event-bound “stay unlocked” verification: when an enabled category unexpectedly disappears, journal the event, attempt one safe policy reassertion, verify it, and expose failure instead of looping.
 - [ ] **T110** · Integrate unlock visibility/application events with CAS History Studio while keeping visibility changes separate from actual appearance mutations.
 - [ ] **T111** · Detect likely overlapping CAS unlock overrides/packages, including Crilender/Loulicorn-style overlap where identifiable, report conflicting TGIs/winner order, and never delete third-party files.
-- [ ] **T112** · Import/inventory the authorized Crilender v1.9h package/addon resources as the initial unlock coverage matrix, then use Sims package tooling (including S4TK/LlamaLogic/ModTS4 where useful) to consolidate and improve them into the Apex package build.
+- [x] **T112** · Import/inventory the authorized Crilender v1.9h package/addon resources and consolidate the initial coverage into the Apex package build. **Proof:** all seven packages/full resources are inventoried; deterministic `ApexCASUnlocks.package` contains 39 unique resources. Two Fairy overlaps have explicit addon ownership, removing filename-order ambiguity. Foundry independently extracts/verifies all resource hashes. Current-game policy generation and behavior remain T093–T111/T113 and G012.
 - [ ] **T113** · Prove current-build runtime behavior across Human, Vampire/Dark Form, Werewolf, Mermaid, Fairy, Alien/disguise and a representative multi-occult hybrid through CAS entry/re-entry, outfit switch, form switch, MCCC CAS, CAS History undo/redo and save/reload/restart.
 - [ ] **T114** · Benchmark equivalent CAS interaction with unlock core disabled/enabled and prove category reassertion/catalog lookups add no material frame-time, input-latency, CPU or memory regression; expensive game-resource scans must remain outside active CAS.
 - [ ] **T115** · Implement a native reward-unlock lane for CAS resources governed by the game's own reward/ownership system, preferring durable Sim/household unlock semantics over forced CASP visibility when the native path is available; discover from current game data and journal/verify persistence.
@@ -218,7 +932,7 @@ Detailed architecture: `docs/APEX_OCCULT_HYBRID_CORE.md`.
 - [ ] **T123** · Build the canonical `ApexOccultHybrid.ts4script` runtime entrypoint and domain modules; production code must not import or require TD1/TwelfthDoctor1/IcedCream/LordPercival runtime modules.
 - [ ] **T124** · Implement independent hybrid membership support so a compatible Sim can hold multiple supported occult identities without one identity erasing another.
 - [ ] **T125** · Independently unlock compatible official occult transformation paths for already-occult Sims using the narrowest current-build tuning/injection changes rather than globally deleting unrelated tests.
-- [ ] **T126** · Implement Apex Add Occult and Remove Occult actions with explicit previews, idempotence and verification; removing one occult must preserve every unrelated occult form, appearance, rank, perks, motives and progression.
+- [ ] **T126** · Implement Apex Add Occult and Remove Occult actions with explicit previews, idempotence and verification; removing one occult must preserve every unrelated occult form, appearance, rank, perks, motives and progression. **Progress:** all six memberships/form switches passed actual CLI tests. Existing-member Add now returns without reapplying gameplay loot or copying over stored appearances; new-form initialization preserves existing Human/form edits in fixtures. Full preview/remove/progression/current-candidate acceptance remains open.
 - [ ] **T127** · Replace blind “always human first” switching with an explicit transformation state machine that uses a safe intermediate only when current-game behavior actually requires it.
 - [ ] **T128** · Detect/recover stuck or contradictory transformation state: pending never clears, snap-back, current form absent from available forms, missing linked form, partial visual switch or multiple conflicting current-form indicators.
 - [ ] **T129** · Implement independent selected gameplay/perk-panel state so a hybrid can choose which occult UI/powers/motives are in focus without changing occult membership.
@@ -227,7 +941,7 @@ Detailed architecture: `docs/APEX_OCCULT_HYBRID_CORE.md`.
 - [ ] **T132** · Model PlantSim, Ghost, Servo and other temporary/pseudo-occult/mechanical states through capabilities instead of forcing every state into the same linked-form implementation.
 - [ ] **T133** · Integrate hybrid membership/form transitions with the canonical CAS Change Journal so CAS History records transformations, membership changes, repairs and target-form commits with provenance.
 - [ ] **T134** · Replace historical remove-all-occults-before-CAS behavior with form inventory + minimal checkpoint + targeted post-CAS reconciliation; never remove every occult as the default CAS strategy.
-- [ ] **T135** · Preserve independent human/occult appearance ownership through CAS, MCCC, form switching, Saved Forms and Drift Guard; prove no cross-form flattening or stale snapshot overwrite.
+- [ ] **T135** · Preserve independent human/occult appearance ownership through CAS, MCCC, form switching, Saved Forms and Drift Guard; prove no cross-form flattening or stale snapshot overwrite. **Progress:** current-form color Apply/Undo/Redo preserves inactive Vampire bytes in actual game proof; Saved Forms now serializes native outfit protobuf bytes. Existing-member Add no longer reinitializes appearances. Full CAS/form-switch/reload/progression workflows remain open.
 - [ ] **T136** · Preserve occult-specific progression through unrelated hybrid/form operations, including rank, powers/perks, weaknesses, points/currency, motives/commodities, spell knowledge, Fury/charge and pack-specific persistent state where applicable.
 - [ ] **T137** · Implement F11 hybrid diagnostics showing membership, current/available forms, linked-form identities, pending transition, selected gameplay panel, relevant motives/orbs, cache/recovery state and exact inconsistency reasons.
 - [ ] **T138** · Add patch-aware discovery of current occult traits/forms/transformation interactions/UI/tuning; new EA occult surfaces must appear as `unclassified / support review required` rather than being treated as human or discarded.
@@ -244,7 +958,8 @@ Detailed architecture: `docs/APEX_OCCULT_HYBRID_CORE.md`.
 
 Detailed architecture: `docs/APEX_LIVE_CAS_STUDIO.md`. Authorized MCCC capability matrix: `docs/MCCC_CAS_BASELINE_MATRIX.md`.
 
-- [ ] **T146** · Acquire/hash/inventory the newest author-authorized MCCC baseline available to the project, at minimum the current public MCCC 2026.5.0 MC CAS/MC Dresser/shared CAS-related modules unless a newer authorized source/package build is available.
+- [x] **T146** · Acquire/hash/inventory the newest author-authorized MCCC baseline available to the project, at minimum the current public MCCC 2026.5.0 MC CAS/MC Dresser/shared CAS-related modules unless a newer authorized source/package build is available. **Proof:** official downloads page rechecked; public 2026.5.0 ZIP acquired from its linked Google Drive file, SHA-256 `5596e47a5d4dab0c4800e80426caf17d28d15508cd711848f083b9c9f63672c9`; all 14 files and each script module/bytecode header hashed in `manifests/baseline-inventory.json`. Runtime behavior is not claimed by acquisition.
+- [x] **T204** · Port the authorized dependency-free MCCC Dresser part/color helper slice and replace silent outfit-array loss with a strict exact-value model. **Proof:** four actual `DresserOutfitObject` helpers match nine original-bytecode cases; `manifests/mccc-dresser-port.json` records identities. Production category reads/writes use strict uint64 colors, original order, preserved absent arrays and object/layer/unknown fields. Full MC CAS/Dresser parity remains Phase M.
 - [ ] **T147** · Build a source/resource capability map for MC CAS, MC Dresser and their shared helpers: exact body-part manipulation, appearance/face/body copy-paste, occult synchronization, Tray paste, outfit save/load/copy/randomize, include/exclude lists, custom definitions, Sim lookup and persistence helpers.
 - [ ] **T148** · Create a current-game CAS-surface registry so Apex can enumerate every safely editable CAS field/category/body type/form surface rather than hardcoding only the MCCC 2026.5.0 list.
 - [ ] **T149** · Build the F11 Live CAS Studio Sim/source picker supporting current Sim, household Sim, off-lot Sim lookup, Saved Form, history checkpoint, appearance preset and Tray Sim/household sources.
@@ -270,6 +985,13 @@ Detailed architecture: `docs/APEX_LIVE_CAS_STUDIO.md`. Authorized MCCC capabilit
 - [ ] **T169** · Implement bounded multi-Sim CAS operations: copy an outfit/category/preset to selected Sims, clear one unwanted part, apply lock/include rules or normalize a selected category, always with target-count and incompatibility preview.
 - [ ] **T170** · Use current MCCC 2026.4/2026.5 occult appearance/body-part persistence fixes as permanent regression cases: copied appearance and Set Body Part changes must survive occult form switch away/back and save/reload.
 - [ ] **T171** · For every CAS operation, attempt a direct safe Live Mode runtime path first, then supported non-UI EA CAS service path; opening the full CAS UI is a last-resort fallback that must expose the exact engine limitation and preserve the same history transaction.
+- [ ] **T225** · Build a full Live CAS item browser with adjustable columns, all installed EA/CC candidates, every discovered category including skin details, presets, eyebrows and jewelry, name/package/code toggles, thumbnails, swatches, search, filters, favorites/recent items and hide-empty option. Use virtualized pages and worker-side indexing so browsing never loads a CAS room. **Progress:** immutable FTS5 snapshots preserve exact duplicate/group/provenance identity. V38 implements the loopback service, virtualized F11 columns/search/categories/name modes, persistent favorites/recent items and selected-item thumbnail/Studio-copy inspection. `studio catalog-preview` verifies loaded CASP identity/age/species before replacing an exact row or filling an empty category through full appearance history; inactive-owner and Undo/Redo fixtures pass. Actual 30-lipstick page takes .037 seconds and selected-container verification .084 seconds; native validators accept both. Grid images, swatch families, presets, restricted-frame/dynamic-attachment/layered-append contracts, full-library performance and broader in-game equipment coverage remain open. The actual V38 CC selection/retention leaf below passes. See `Reports/LIVE_CAS_LIBRARY_2026-10-10.md`.
+  - [x] V38 implementation/build leaf: bounded loopback pages, Windows immutable lease, F11 virtualized columns, categories/search/name modes, persistent favorites/recent items, selected asset inspector, CLI panel open and guarded journaled replace/empty insert. Twelve new browser/mutation fixtures; final unchanged-source 1,621 Python + four native checks pass. Actual CC socket/native-validator leaf passes. Broader game equipment coverage, images/swatches/presets/fitting and parent acceptance remain open.
+  - [x] V38 actual CC-selection leaf: different loaded lipstick on Alien Swimwear, non-mutating Preview, exact Apply scope including unknown bytes, stale-preview refusal, unpaused actual Alien → Vampire → Alien and Undo restoring all seven stored/distinct Live owners. No input/focus/save; desktop HWND unchanged. Exact receipt `9f6ee2e055b1c72580baa6d0e8a9d28710a8983cef9d494bcf04f58feb3dd231`. Corrected fixed64 evidence decoder retains the earlier failed receipt without replaying the equip. Visual render, broader selection and cold-load acceptance remain separate.
+  - [x] V40 background startup leaf: unique process-owned Canvas attachment, plain cold capture with hidden F11/zero UI frames, and public background Resume into the exact paused test household. Normal unsaved exit and guarded install retain all save/sidecar hashes. Final unchanged-source 1,632 Python + four native checks pass. Cold-load owner-bank preservation, full CAS/CC coverage and headless game acceptance remain open; detailed hashes are in the library ledger.
+- [ ] **T226** · Render the selected Sim/form/outfit inside F11 as an independent inventory-style 3D preview with rotation, zoom, pan, poses, lighting and before/after comparison. Preserve the exact selected appearance and CC materials even while the Live Sim walks or another stored form is selected. Pose/camera controls must affect the preview only. **Progress:** current primary renderer/mesh sources and licenses researched; actual geometry, morph/material assembly and F11 renderer are unfinished. See `docs/APEX_LIVE_CAS_STUDIO.md`.
+- [ ] **T227** · Extend T171/T175 to every CAS panel/control through the same Live workspace and CLI: face/body presets and sculpt values, all equipped layers, skin details, tattoos, hair/colors per outfit number, traits, voice, preferences and future fields. Preserve independent human/occult ownership and complete history through Apply/Undo/Redo, manual/MCCC/full CAS return, unpaused form switches and save/reload. A catalog row or preview render does not certify an equipment mutation.
+  - [x] V40 full-household Alien/disguise leaf: real native mode 0/forced full CAS, semantic Alternate navigation, separate skin detail/earring/lipstick/eyebrow/top edits, original-Sim Live return, raw changed lanes exactly 1/2, explicit two-owner commit and unpaused Vampire/Alien/disguise switches. Every stored/distinct Live appearance stays exact; the other five forms stay original. Receipt `897623732a8628c55f9a96e7fd304df19fa03caa5ba1a8537ea57bc28467a5f2`. The native eyebrow color-family remap leaves its exact requested-ID command failed; that control issue, every category/form, hair policy, manual/MCCC and disk persistence remain open.
 - [ ] **T172** · Detect MCCC when installed and prevent ambiguous double-mutation ownership; support coexistence diagnostics, but Apex capabilities must remain complete when MCCC is removed.
 - [ ] **T173** · Prove clean-profile Live CAS operation with no MCCC/MC CAS/MC Dresser installed across human, Vampire, Werewolf, Mermaid, Fairy, Alien/disguise, Spellcaster and representative hybrid Sims.
 - [ ] **T174** · Benchmark F11 open, Sim/source search, category open, item search, part apply, slider drag, whole-outfit copy, all-outfits copy, whole-appearance copy, Tray apply and undo/redo; keep CAS responsiveness materially non-regressive with full history/safety checks enabled.
@@ -281,14 +1003,15 @@ Detailed architecture: `docs/APEX_LIVE_CAS_STUDIO.md`. Authorized MCCC capabilit
 
 Detailed architecture: `docs/APEX_COLOR_STUDIO.md`. Authorized baseline matrix: `docs/PANCAKE_COLOR_SLIDER_BASELINE.md`.
 
-- [ ] **T177** · Acquire/hash/inventory the newest author-authorized thepancake1 Color Sliders package/tooling available to the project, at minimum current public v4f unless a newer authorized build/source exists.
+- [ ] **T177** · Acquire/hash/inventory the newest author-authorized thepancake1 Color Sliders package/tooling available to the project, at minimum current public v4f unless a newer authorized build/source exists. **Progress:** official public v4f UI and eyebrow packages acquired; SHA-256 `22067dff43f5312d3961cf9468f2132db7c50c24fbbe7521b78eb49054019345` and `9e16caa878c6cdae0b52fb76a15a3bfe86787c663f8300987f8f8293b07a735f`; both structurally identify as DBPF. NEXT: resource inventory, conversion/tooling ownership and patch/texture coverage.
 - [ ] **T178** · Inventory v4f slider-enable UI, eyebrow UI, `classlibrarygamedata`/`cascustomizer` changes, converted-texture packages, pack/category layout, conversion tooling and saved-color behavior; record exact resource ownership/provenance.
-- [ ] **T179** · Resolve the actual current-game serialized color fields/state from the authorized baseline + game data and define one canonical typed ColorState covering base swatch, Hue, Saturation, Brightness/Value, Opacity, part/form/outfit scope, compatibility and provenance.
+- [ ] **T179** · Resolve the actual current-game serialized color fields/state from the authorized baseline + game data and define one canonical typed ColorState covering base swatch, Hue, Saturation, Brightness/Value, Opacity, part/form/outfit scope, compatibility and provenance. **Progress:** uint64 color_shift now has an exact signed Q14 decoder/editor; neutral 2^62 and channel semantics are corroborated by baseline UI and SimRipper. The effective CASP reader matches 32 current-game resources and nine original-writer versions against the original C# parser. NEXT: texture compatibility, base-swatch/full canonical ColorState and all-service integration. See T208.
 - [ ] **T180** · Integrate ColorState into the canonical Apex appearance model used by Live CAS Studio, CAS History, Saved Forms, Drift Guard, presets, Tray sources and the copy engine.
 - [ ] **T181** · Make single-part/category copy preserve exact compatible ColorState by default, with explicit Part+Color, Part-only/preserve-destination-color, Color-only and base-swatch-only modes where safe.
 - [ ] **T182** · Make same-Sim outfit copy, cross-Sim outfit copy and all-outfits copy preserve every included part's exact compatible ColorState; add regressions preventing custom colors from collapsing to stock EA swatches.
 - [ ] **T183** · Make Face/Body/Appearance Clone, selected-form/all-compatible-form copy, Saved Form, history checkpoint, preset and Tray appearance paths preserve exact ColorState when present/resolvable.
-- [ ] **T184** · Build F11 Color Studio with Hue/Saturation/Brightness/Opacity controls, numeric values, base swatches, reset, color copy/paste, favorites/recent colors, saved palettes and live reversible preview.
+- [ ] **T184** · Build F11 Color Studio with Hue/Saturation/Brightness/Opacity controls, numeric values, base swatches, reset, color copy/paste, favorites/recent colors, saved palettes and live reversible preview. **Progress:** real part selectors, exact color copy, numeric H/S/B/O with effective CASP bounds and per-channel reset, preview/Apply/Cancel and history are implemented. Only edited lanes change; stale save/form/appearance/resource revisions and disabled channels are refused. Actual PID 27852 renders the bounded wheel after slider inspection; its color mutation/preview/Apply/Undo is unproved. NEXT: palettes/favorites/recent/base swatches, full surface and owner runtime/texture proof. See T208.
+- [x] **T208** · Implement exact signed-Q14 part-color decoding/editing and bounded effective CASP slider inspection with shared persistent preview/Apply/Undo safety, native numeric controls and independent format comparisons. **Proof:** five codec/metadata fixtures and two production numeric Studio scenarios pass; 32 current-game CASPs and nine original-writer versions match SimRipper's original C# parser. The real hidden DX11 host renders numeric controls, and 21 native data checks pass. `manifests/cas-color-format.json` records provenance. This source/build leaf does not close palettes, texture conversion, all-appearance integration or live-game gates.
 - [ ] **T185** · Evolve the authorized native-CAS slider UI approach into first-party Apex slider enablement (target `ApexColorSliders.package` or explicitly owned equivalent integration) so normal CAS slider support can work without the original Color Sliders mod installed.
 - [ ] **T186** · Port the authorized v4 texture/conversion architecture into a patch-aware Apex converter that maps current CASP/texture resources, detects already-compatible CC and deterministically emits only required converted resources.
 - [ ] **T187** · Make converted-texture coverage installed-pack aware and eliminate manual per-pack/per-category download selection; if prebuilt distribution is inappropriate, provide an automated local builder/updater from the user's installed game.
@@ -303,4 +1026,390 @@ Detailed architecture: `docs/APEX_COLOR_STUDIO.md`. Authorized baseline matrix: 
 - [ ] **T196** · Benchmark slider interaction, color apply, colored outfit/all-outfit copy, full appearance clone, Undo/Redo, form switch and save/reload; preserve equivalent render result and materially non-regressive interaction/frame/CPU/memory behavior.
 - [ ] **G015 · GATE** — Apex Color Studio is current-game-runtime-proven: full compatible ColorState survives every accepted copy/preset/history/form path, Apex exposes full color controls without requiring the original Color Sliders mod, patch-aware texture conversion/coverage works for current EA/CC content, overlapping UI mods are handled safely, hybrid form colors remain isolated, exact values persist through save/reload/restart, and equivalent-work performance is materially non-regressive.
 
+- [ ] **T209** · Preserve the complete TD1 phone/Sim menu, settings, iconography and navigation, then integrate every accepted Apex feature/settings page through the canonical dispatcher with persistent preferences, safe confirmations and current-game phone/UI/CLI proof. **Progress:** authorized main picker extended with Apex Settings, Forms, Saved Forms, CAS History, Drift Guard, F11 visibility/status and diagnostics; module-tuning/icon/species/localization defects repaired. Stale settings refuse updates and history restores remain previews. The v7b candidate now wires per-owner phone/F11 CAS review into the canonical receiver and protects 19 exact legacy boundaries: 16 entry guards and three retired unsafe CAS/cache commands. Both Main and Phone_Bypass use ApexPhoneMenu, while verified settings/icons remain. Full rendering, complete controls, settings persistence and current-candidate runtime proof remain open.
+- [ ] **T210** · Provide an optional fully human-looking Werewolf occult form while Werewolf form remains active and retains Werewolf abilities, fury, transformations, motives, perks and progression. Preserve both original Werewolf and Human appearances, provide reversible per-Sim configuration in phone/F11/CLI, and prove outfit/form changes, CAS, save/reload/restart and representative hybrids without forcing the Sim into Human gameplay state. **Progress:** strict appearance-only copy, exact readback, durable original receipt, per-Sim/save identity, newer-CAS-edit refusal and phone/F11/CLI actions implemented; offline active-form/gameplay-preservation and rollback fixtures pass. Actual game/visual/progression/reload proof remains open.
+- [ ] **T211** · Track and manipulate ALL Sim data, without relevance-based omissions: every native serialized field including unknown/extensions/absent fields, all runtime-owned records, appearance, identity/references, traits, relationships, statistics, skills, careers, inventories, occult state, perks/progression and pack/mod additions. Provide complete schema/capability discovery, typed owner-aware editing, reference integrity, exact before/after evidence, transactional previews/history/recovery, and current-game save/reload/restart proof. **Progress:** current native Sim serializer contract inspected; complete native bytes and recursive schema catalog implemented with absent fields and exact uint64/bytes. Runtime-only coverage, owner editing handlers and live completeness proof remain open. Appearance fields also include current skin-tone brightness shift, custom textures and custom tattoos.
+
+- [ ] **T212** · Preserve separate hairstyles and exact colors for every outfit category/number and every occult form, including changes made inside native CAS. Prove actual CAS hairstyle/color edits, repeated numbered outfit switching, unpaused Live return, save/reload and restart. **Progress:** opt-in event-driven Live guards, explicit CAS hair-target retention and numbered-outfit duplication implemented. All nine disposable outfits retained exact distinct hair colors in unpaused Live switching. Actual native CAS reproduced cross-category hairstyle propagation; held outfits had match_hair_style=true. Opt-in pre-CAS flag clearing retains full originals and verifies native readback, with preservation/failure fixtures. Its in-session propagation effect and multi-target editing remain open.
+- [ ] **T213** · Control native CAS through semantic CLI and F11 commands without coordinate clicks; expose current in-progress equipped items, empty-category preference, search, complete returned item/Sim fields and direct category navigation, native history and outfit selection. **Progress:** typed request/acknowledgement protocol, 72-panel raw catalog/presets, F11 CAS view and exact-version UI package builder are implemented. Catalog-isolated PID 164/package 61c4f785/script a0dff198 passed primary Human entry, exact swatch→Undo→Redo→Undo, all eight standard categories and native Everyday 2 append in 38.61 seconds. Native bulk metadata enrichment is disabled pending getter contract proof after the preceding entry crash. Exact unpaused Live return and explicit seven-owner finish passed separately. Automatic full freshness, full editing, inactive/alternate-layer coverage and complete field ownership remain open.
+
+- [x] **T214** · Build a repeatable already-open native CAS CLI regression runner, retain exact owner/native UUIDs before response loss, forbid blind replay, distinguish partial slot coverage, and prove exact hair swatch/history identities plus every standard outfit category and native Everyday2 append. **Proof:** PID30552/package0adca8/script58ec10 completed all checks in37.8228434seconds; external proof SHA-256 `a2dd07697b77174820091ef77519f4378df006200890221658e496a7360be329`. Full raw inventory entry and F11 rendering also passed. This leaf does not close CAS accept, hairstyle independence, hybrid preservation or persistence.
+
+- [ ] **T215** · Add a native semantic CAS accept intent with exact mode7/existing-household/from-Live preflight, once-only commit after owning ACK, and separate game-thread Live proof requiring exact Sim/household/client/zone and unpaused clock advancement. Preserve failed/ambiguous receipts, then prove normal return, CAS form-bank reconciliation and save/reload/restart. **Progress:** PID 164 passed primary Human regression, exact Live return, seven-owner finish, sealed Slot02 save and normal no-save exit. Historical PID 27852/gen36 passed another Human entry/return with 750 reported game-clock ticks/final pause and explicit finish; those deltas do not certify simulation progression; independent comparison found all seven native stored appearances unchanged (proof `86c48020a84c84feb3e1bfffa7420f586417b041ab85e21ba35ec775a0363a2e`). New controlled Slot02 save/seal passed, but its reload and final native commit ACK remain unverified. The first native owner-pair diagnostic is incomplete and authorizes no alternate-layer accept. Earlier sealed-assisted recovery recreated missing Spellcaster; unassisted reload, alternate occult return/switch stability, individual edits and MCCC coverage remain open. Historical generation 40 installed the guarded Source/AS v4 transport; its sole-entry-lane finish did not preserve same-visit Human/alternate edits. Generation 41 installed the all-owner receiver with raw stored/active originals, durable return retention before serialization, explicit decisions for every changed owner and complete native verification before metadata commit. Phone/F11 review and typed CLI paths are wired. Its actual native hair swatch ACK and independent seven-owner comparison through 1,676 TimeService simulation ticks are verified leaves, but semantic return failed on conflicting Witch records before review/commit. Generation 42 installs V3 serialization mitigation with 1,313 Python/four native checks passed, but actual return failed again after entry/hair ACK and 1,590 actual simulation ticks. The V4 mask-16 correction passed its full suite and is installed in generation 43. Its primary hair edit returned the original Sim to native Live through 454 actual simulation ticks and final Pause; Source raw-observe then terminally refused the stale pre-CAS Python object capability before observation/serializer/writes. Same-visit multi-form review/commit, alternate acceptance and save/reload remain unproved; T215 remains open.
+
+- [ ] **T216** · Keep the visible F11 native CAS equipped/history views fresh automatically, with exact-Sim peer checks, one outstanding request, bounded cadence/backoff, no hidden-overlay polling and equipped-first readable presentation; prove native rendering and manual/CLI coexistence. **Progress:** PID34892/package54600/script3b1ef7/DLL700ebf verified repeated automatic reads, readable equipped-first native rendering and CLI hide/drain/restore coexistence during a40.47second CAS regression. Later DLLf23db29 adds stale automatic-read ownership reconciliation and passes106 native data/WARP checks. Full current-candidate/native-history editing/freshness remains open.
+
+- [x] **T217** · Build a repeatable read-only native CAS outfit-hair audit with complete returned category metadata, two observation passes over every verified existing clothing selector, original-selection restoration only after acknowledged operations, bounded full raw evidence and explicit unsupported/unknown coverage. **Proof:** PID51380 completed eight supported slots twice in41.715733seconds; external proof SHA-256 `0253cc43e1d82bf81f71b3742b9c9827870a9dc5725d7d7a0f0d8580f6ccb421`. All14 category metadata records are retained. This leaf does not prove hidden-category selectors, style-family/color decoding or hair independence.
+
+- [x] **T218** · Harden normal shutdown against active or uncertain native CAS, retain crash/final-process evidence on every failure, and prove a normal Live save-and-exit after verified semantic CAS return. **Proof:** typed pre-quit/pre-input guards pass57 focused fixtures. Bounded2× OCR recovered the small native labels without weakening validation or fixed coordinates. PID51380 completed normal Save and Exit from the already-open menu after verified CAS return; only disposable Slot02 rewrote and no new crash appeared. Proof SHA-256 `0f6d29efddefcbf6fe4aeb51007753be274a4cb3bf36116f5f3b53d5ca814a57`. This leaf does not close save/reload, full hybrid CAS or persistence gates.
+
+- [ ] **T219** · Launch quickly through the exact verified EA account handoff and handle the EA permission window with a narrowly bound one-shot helper using normal Windows UAC. **Progress:** EA normal update/restart 13.796→13.805 is verified; `ea-update` has 21 fixtures. Strict fresh pipeline parsing/deduplication and latest-request worker revalidation preserve 90-second account/path/context gates. Fresh CLI acknowledgements observed exact PIDs 44372 and later 27852, each after about 1.36 seconds; earlier launch proof SHA-256 `d7589a4594dde49a63261445cf54dbe983d3b59ef398233b4ae43dcc0c4e468a`. The PID 27852 Resume observer failed during delayed Live readiness, accepting no Resume input. The host fix repeats exact ready Live Sim/household/GUID/manager/save preflight before menu input; all 45 lifecycle fixtures pass, including six new transition cases. The later gen37 actual CLI recheck verified already-loaded exact paused Live without Resume input (proof `38fb2c01658192a88ddc6c6dc1a73952624c12d7eb68584255eb5554d43c9761`). NEXT: repeatable full saved-household load with the exact selected native save slot. Windows UAC automation and a headless engine remain unimplemented. Generation 40 fresh EA launch observed PID 3460 and startup core ticks. Initial focus-denied load submitted no input; a later one-use elevated helper verified exact focus without game input/UAC automation. Focused load still refused at native slot `0xFFFFFFFF` despite already-loaded paused Live context. Normal Exit Without Save completed with every save/backup unchanged at that checkpoint. A later exact confirmation reached Home, but visible autosaving/six disposable autosave-file changes failed the overall unchanged-save gate; Slot02/backups unchanged and no Save input/command issued. Read-only indexing then bound Slot02 to `My Saved Game 1`; the recovered original native Play ACK and a neighborhood map are observed. The subsequent marker request refused foreground verification before input, with no marker click/Play. Six bounded autosave-family deltas remain recorded with unchanged Slot02/backups and false all-18-unchanged status; causality unverified. Exact native Slot02 load remains open. Historical v5: one measured household Play reached original paused Live in PID 27788/native slot 0, but its immutable result remains failed after six autosave changes. A separate read-only two-snapshot observation passes all-18-unchanged only within its own boundary; native normal-slot verification remains false.
+
+- [ ] **T220** · Capture durable native CAS hair-edit intent for multiple independent slots/forms, including ordinary direct UI edits, CLI edits and Undo/Redo, bound to the original owner/save/form/category/ordinal/outfit identity. **Progress:** listener-only native hook locations are identified for direct style clicks, swatch cell events and variation selection, preserving original native bodies. A click attempt is not an accepted edit; programmatic refresh/randomization, custom colors, apply-all, deletion, reordering, native exit and history need explicit coverage. Pure exact-UID multiple-target validation is implemented; automatic intent production/durable acknowledgement and runtime preservation remain open.
+
+- [ ] **T221** · Verify CAS appearance persistence against actual native stored wrappers after normal save/exit/restart, with exact save-file/Sim/household/GUID bindings and repeated unpaused readback. **Progress:** earlier first restart lacked native Spellcaster; explicit certified-seal Source recovery recreated it, followed by independent seven-owner/active/membership verification in both phases with 750 reported game-clock ticks/final pause and unchanged save/bank/reference; actual simulation progression remains unproved (proof `1a44bf95f947c0c990a3f44f22d8e31311de3fc8f5f7f6312c4e1b9b242ca851`). Historical PID 27852 Human CAS retained all seven native appearances exactly. Controlled existing Slot02 save produced file `90004c7d8d4cd5b9ee11be50c5a550a1c0f46734b9d5014a18bdf15aaea70ebb` and new seal `065029c32adcce53ef0ec146b5b6b93ecce09a46b67f3451de7dc0a9e51e75a8`, with save-file/seal verification true and save_reload_verified:false. NEXT: reload of that new save, unassisted native seven-form persistence, alternate occult CAS stability, all individual occult/MCCC edits and repeated full restart coverage. Generation 40 install/startup, already-loaded Live observation and normal no-save exit supply no native seven-form reload proof. Both-layer edits in one CAS visit were blocked by generation 40 sole-entry-lane reconciliation. Generation 41 returned from a native primary hair edit without the manager-owned Sim after conflicting Witch records failed load; no bank completion or Save ran. Generation 42 retained the all-owner receiver but repeated the native return failure after an acknowledged hair edit; no bank completion or Save ran. V4 passed the full suite and is installed in generation 43; native runtime and seven-form commit/reload proof remain pending. Slot0 static scratch/default conventions supply no manual-slot/A0 authority. Historical paused presence and equipped inventory do not certify missing Witch/seven-form restoration, unassisted reload or accepted CAS edits.
+
+- [ ] **T222** · Prevent native CAS acceptance from returning the wrong or missing household Sim. **Progress:** existing-household binding is checked before intent and commit. The earlier Fairy alternate-layer session returned without the exact test Sim; no save/second accept was submitted. Nonzero/unknown native layers remain refused for semantic acceptance. Historical PID 27852 owner-pair diagnostic reports complete:false, feed.delivered:false and household_query:invalid-record, so it supplies no verified mapping. The historical selector raw-entry observer/private read service was built and verified offline: 460 unchanged native methods, two exact-strip hooks and pinned inherited widget cleanup; 35 safety fixtures pass. The selector AS/native update was installed in historical gen37/PID20644. Actual Fairy entry captures complete delivered raw Human/Fairy layers sharing the same original Sim ID, with current retained Fairy selection; household primitives report isNew:true and no household/layer fields. Mapping/alternate_accept_authorized remain false. Source owner/metadata changes were uninstalled in gen37; generation 40 installed them without new CAS acceptance proof. That alternate session later crashed at 21:00:40/category0x14112c645 after opening the Cancel popup but before confirmation input; saves/backups unchanged, causality unverified (proof `708c4ebe47c2d0475b48ccc6124567369ee8594d4948ffff80bc6770e8aee61d`). Native context remains mode7/new_family:false/fromLive:true despite raw household isNew:true. Owner mapping, alternate-layer acceptance and occult return/switch stability remain open. AS v4 now has independent_occult_sync_default_verified:true: only the unseen-owner Boolean changes, requesting `syncFlags:0` while retaining explicit current-widget choices. Forty-nine selector fixtures and actual serialized-package audit pass, with 459 of 462 native methods unchanged. Runtime zero-sync effect/cross-session persistence remain unproved; layer-zero accept guard is unchanged. Generation 41 also failed primary-layer semantic return after an acknowledged hair edit: conflicting Witch records prevented the exact Sim from loading, although native persistence retained the same Sim/household/GUID. The immutable return receipt remains failed/unresolved; no Save/repeated accept ran. Generation 42 V3 repeated the primary return failure with the same conflicting-owner sequence; native persisted presence again prevents an identity-deletion certificate. Built V4 remains unproved in runtime.
+
+- [ ] **T223** · Recover an abandoned disposable CAS test without rewriting its appearance originals or certifying a failed accept. **Progress:** exact failed-return proof, old/new process identity, unchanged save hash, selected Sim/household/GUID and pending hash bind a metadata-only archive command. A separate normal unsaved-exit observer is limited to the exact failed CAS return. Offline fixtures pass; the former process ended before the exit observer could submit input. Slot02 is unchanged. Restart/archive runtime proof remains open.
+
+- [ ] **T224** · Show the exact localized item name and actual CAS thumbnail for every equipped CAS part in F11, including all skin details, accessories, jewelry, presets and newly discovered categories; group/filter by form, outfit category and outfit number, and open the containing package in Sims 4 Studio from the selected item. Preserve exact resource/provenance identity and explain unresolved names, thumbnails or resource mappings instead of substituting IDs or placeholder pictures. **Progress:** Source resolves 221 equipped rows/29 BodyTypes/63 CASP codes; original broker has 63 resources/62 verified PNGs/one unresolved image. Gen36 PID 27852 F11 renders the equipped list, preferred-name chooser and exact selected Hair name/PNG. Separate gen36 color-wheel rendering passed but that capture has unresolved names/image. Gen37 later installed the new native DLL/AS observer; post-fix wheel retention remains unproved. Generation 40 installs the Source context update, AS v4 and DLL; its initial startup checkpoint supplied no F11 name/image or accepted color-mutation proof. Three sealed CC addons installed with A0/artifacts/save backups preserved; merged static manifest contains 91 records. A fresh small freckles CC copy opened in Studio PID 13208, independently verified through exact window/path, unchanged hash, two swatches and Texture/Warehouse tabs (proof `74e988a73381208c1c0c43d8ebd470993020834d511ecd0e7a2a226ffe280783`). This closes only the small real CC containing-package GUI leaf. Specific CASP selection remains unsupported/unverified. NEXT: all localized names/images, all name-mode transitions, native CAS enrichment, color mutation/persistence and remaining Studio package coverage. See `docs/F11_RESOURCE_CATALOG.md`. Historical v5: final inventory verifies 865 rows/61 outfits across six existing native owners with typed eight-row paging and final appearance/outfit readbacks, without form activation/Apply/Save; native Spellcaster is absent. All 865 rows resolve native CASP metadata, 740 match the catalog and 679 have resolved thumbnails; 44 distinct parts remain outside the cache. Historical generation 40 F11 renders 13 Swimwear names/119 categories and, after broker/cache refresh, selected Hair name/104 × 148 PNG, exact CASP identity and enabled Studio-copy button. Four-channel wheel/ranges/steps render with unchanged values 0/0/0/1; no Preview/Apply, CC equip, Studio copy or color mutation. All 18 saves unchanged during v5 observations. Proofs `54ba16586b170fc4e2c7f9dfcb399119dd9ba587cdb1bdccc37045f923315b0f` and `72bc5472d9f5e1fc16e55a74918dceca09a81e6e28de63201ebb94ecd415ca3a` close these exact inventory/render leaves only.
+
+### October 8 verified leaves and current limits
+
+- [x] Primary Human CAS entry/regression/return on PID 164: hair swatch Undo/Redo/Undo, eight standard categories and Everyday 2 append; explicit finish verified all seven native owners.
+- [x] Controlled existing disposable Slot02 save sealed to the accepted bank, followed by normal no-save exit; save/backup bytes unchanged during exit.
+- [x] Source-equipped resource inspection/pinned broker: 221 rows, 29 BodyTypes, 63 CASP internal names and 62 verified PNGs; one unresolved image explicit.
+- [x] Actual EA permission dialog autonomously acknowledged in its retained earlier launch proof.
+- [x] Normal native UIA EA update/restart from 13.796 to 13.805 independently verified; reusable `ea-update` CLI readiness has 21 fixtures.
+- [x] Explicit certified-seal Source recovery recreated missing native Spellcaster; independent read-only seven-owner/active/membership verification passed both phases with 750 reported game-clock ticks/final pause and unchanged save/bank/reference; actual simulation progression remains unproved.
+- [x] All 369 protected save hashes match the reference with zero original-profile writes.
+- [x] Reconciled PID 45012 exited normally without saving after exact native input-owner verification; every disposable save/backup remained unchanged.
+- [ ] Unassisted native seven-form reload and individual occult/CAS/MCCC preservation; T215/T221 remain open.
+- [x] Fresh installed 9e87 candidate CLI EA permission acknowledgement and exact PID 44372 process start; no manual EA permission input.
+- [x] Historical candidate read-only CLI verified exact expected household already loaded in native Live and paused; no Resume input was sent.
+- [x] Late-Live Resume host correction passes 45 lifecycle fixtures, including six new exact-identity/readiness transitions; earlier runtime failure remains retained.
+- [x] Gen37 actual CLI late-Live recheck verified exact already-loaded paused household; no Resume input or disk-slot reload claimed.
+- [ ] Delivered menu input and repeatable full saved-household load; T219 remains open.
+- [x] Installed 9e87 DLL actual Live F11 rendered 13 Swimwear CASP names and selected Hair PNG; 119 category choices visible and two metadata pages completed.
+- [x] Generation 35 guarded installation of three sealed original-basename CC files preserved A0, existing artifact records and every save/backup.
+- [x] Generation 36 Human CAS round trip retained all seven native stored appearances; new controlled Slot02 save/file seal verified.
+- [x] Actual gen36 F11 selected Hair name/PNG and preferred-name chooser rendered; a separate color-wheel view rendered without color mutation acceptance.
+- [x] Small real freckles CC containing package visibly opened in Studio with exact copy/PID/path, two swatches and Texture/Warehouse tabs; copy unchanged.
+- [x] Offline selector raw-entry splice preserves 460 methods and both hooked bodies after stripping, with pinned inherited cleanup; 35 synthetic safety fixtures pass.
+- [x] Gen37 installed AS/native diagnostic passed actual Fairy entry/handshake/inventory and delivered complete raw Human/Fairy paired feed before native filtering; fresh retained Fairy selection observed. Mapping and alternate acceptance remain false.
+- [ ] Gen37 alternate CAS exit remains failed: native crash after Cancel popup before confirmation input; all saves unchanged and cause unverified.
+- [x] Generation 40 Source upgrade preserved bank/old seal/saves/14 artifact records; fresh startup core bridge observed on PID 3460. Installation is not replay/reload/appearance proof.
+- [x] AS v4 compiled unseen-owner default requests zero-sync with exact current-widget explicit choices preserved; 49 selector fixtures pass and 459 of 462 native methods remain unchanged. Runtime effect remains open.
+- [x] One-use elevated exact-focus helper passed without game input or UAC automation; initial focus-denied load failure remains retained.
+- [x] Generation 40 normal Exit Without Save ended PID 3460 and preserved every save/backup; save/reload flags remain false.
+- [x] Exact native unsaved main-menu confirmation reached Home; overall unchanged-save gate failed after visible autosaving and six disposable autosave-file changes. Slot02/backups unchanged; no Save input/command or prior-click replay.
+- [x] Read-only indexed Slot02/name/file metadata and recovered original completed native Play receipt retained; native neighborhood map observed. This leaf is not exact Slot02/paused Live verification.
+- [ ] Actual measured marker input refused at foreground guard; no marker click/Play or replay. Six explicitly permitted autosave-family deltas are retained with false all-18-unchanged status; normal Slot02/day/week files remain unchanged and cause unverified.
+- [ ] Focused/restarted loads refused native slot `0xFFFFFFFF`; later load from verified Home refused an exact save-name mismatch before row selection. Indexed Slot02/name Play later has a recovered original native ACK and captured map only; marker focus refused before input. Exact native Slot02/paused Live and seven-form reload remain open.
+- [ ] Same-visit Human/alternate edits were not preserved by historical sole-entry-lane finish. Generation 41 installed the explicit all-owner receiver but native CAS return failed before review; generation 42 retained it with V3 serialization mitigation, whose actual return also failed. Generation 43 now installs V4 with native runtime proof pending. Complete appearance preservation remains open.
+- [ ] Native paired-owner mapping, alternate CAS return/switch stability, new-seal reload, all fields/localized names/images, every name-mode transition, accepted color edits and individual Studio CASP selection; T215/T221/T222/T224 remain open.
+- [x] One actual household Play reached the original paused Live context in PID 27788, clock speed 0/native slot 0. Its original MapPlay result stays failed after six autosave-file changes (proof `c96c8eee9a9ae4395f20f382795d00e80f958d5c5fd8638d2c17b698adfd4df8`); this leaf certifies delivered Play/presence only.
+- [x] Separate read-only paused-presence observation verifies two exact native snapshots and all 18 save files unchanged within its own boundary (proof `aca27686122e3d29f99d3ee29371b9f847439303dfa2b2dfe50ad5c1c45d9896`); native normal-slot verification remains false and old failures are retained.
+- [x] Static exact installed scratch/default slot0 evidence retained without private game bytes (proof `9a1024f4573590affc91bdb67a6cfb03c8617331dd6c4c46687227f626ed8edf`); no manual-slot/A0 restore authority.
+- [x] Actual Human typed equipped inventory completes 221 rows/29 BodyTypes with eight-row paging and exact final readbacks; no form activation, Apply or Save (proof `7d95c60bdf98db93a293a183bb880fa47c2918dacc3fd1823f98670641471132`).
+- [x] Historical generation40 F11 inspected capture shows 13 equipped Swimwear names and 119 categories, with thumbnails unavailable while the broker was off (proof `43a1570e1ab77238d826a0f2940c9b070c517b8c9bda371b24bd47717d90d937`).
+- [x] Standalone frozen native-header validation verifies 91 resource/name records and 84 actual WIC-decoded images (proof `5b2a0ffb3d2e7c3f82c64c8b0f89db22bfb129668e4f86ff303b64b38d6d2ba9`); it does not prove current F11 runtime images.
+- [x] Final six-existing-owner equipped inventory verifies 865 rows/61 outfits, all native CASP metadata and exact final owner/appearance/outfit readbacks, without form activation/Apply/Save. Native Witch is absent and never reconstructed (proof `54ba16586b170fc4e2c7f9dfcb399119dd9ba587cdb1bdccc37045f923315b0f`).
+- [x] Historical generation40 resource-cache refresh is followed by actual selected Hair name/104 × 148 PNG and four-channel wheel rendering; values unchanged, no Preview/Apply/color edit/CC equip/Studio copy/Save. All 18 saves unchanged and same paused clock (aggregate `72bc5472d9f5e1fc16e55a74918dceca09a81e6e28de63201ebb94ecd415ca3a`).
+- [x] Host snapshot/key/click/move honor `--output` with pre-submission new-external-path validation and retained failure/success JSON receipts; 40 CLI fixtures pass. This is not another native input/transition proof.
+- [ ] Seven-owner inventory, all localized names/images, accepted color changes and complete Studio-copy execution remain open; no parent feature/runtime gate closes.
+- [ ] Generation 43 installs wired all-owner commit, phone/F11 review and typed CLI routes, with V4 frozen offline/build checks passed. Current-runtime proof, complete history/fields, native CAS hair isolation, ML tooling and full MCCC/Tray parity remain unfinished.
+
+The historical generation 40 used Source script `9cb1938eacc18dd3b6ce7aed730cc7d84f3b6c55277ff1018feae2dc2eef24a5`, AS v4 package `9edad97e7218bcb3d693d1faf123ea611a331eb09efce716b188b592cd9381b3` and DLL `3d7c59603f4d850661a8a013f9718110637461bf01d161b41b5ae92ddb8bef6e`, from full candidate `ced3c2569f3e99777abeb6c5ce70e19d1f838b79198acfaf2359df2885bbc56a`. The actual bundle contains seven packages/206 resources and 62 compiled script modules. The retained whole Python command passed 960 tests in 110.874 seconds, with saved receipt `a3c14bac1d37f6e529a4b03ab5cb1e5f0043198342dae1d9495283128311fae9`. That historical run predates later map/focus/inventory and all-owner changes; the current frozen result is recorded below. Twenty-five focused map fixtures pass separately. All three native CTest targets have retained passing build checkpoints. These checks do not prove runtime appearance behavior.
+
+PID 3460 verified the installed Source startup core bridge. The initial load refused at exact-focus verification without game input; a compatible elevated one-use helper later verified exact game focus with no game input/UAC automation. The focused load still refused at native slot `0xFFFFFFFF` despite separately observed exact already-loaded paused Live context. Normal Exit Without Save ended that process with every save/backup unchanged at that checkpoint. A later exact confirmation reached Home, but visible autosaving and six changed disposable autosave files failed the overall unchanged-save gate; Slot02 and its backups stayed unchanged, and no Save input/command was issued. Load from Home later refused an exact save-name mismatch before save-row selection, with no replay/save write and false native Live/slot gates. Read-only indexing later bound Slot02 to `My Saved Game 1`; its recovered original native Play ACK and captured neighborhood map supply no exact Slot02/paused Live acceptance. The actual marker request was refused before input at foreground verification, with six explicitly bounded autosave-family deltas retained and unchanged Slot02/backups. Exact disk-slot load, native seven-form reload, migration replay and new CAS acceptance remain open. Historical Human round trips, sealed-assisted Spellcaster recovery and gen37 paired-feed observation remain separate from the retained alternate return/crash failures.
+
+Historical v5 reached the original disposable paused Live context in PID 27788 through one native household Play, with clock speed 0/native slot 0. The immutable Play receipt remains failed after six autosave-family changes; a separate read-only two-snapshot proof verifies stable presence and all 18 save files unchanged only during that later observation. Installed static scratch/default-zero contracts do not prove a manual load or authorize A0 restore. Final equipped inventory verifies 865 rows/61 outfits in all six existing native owners, no activation/Apply/Save and final native appearance/outfit readbacks. Witch is absent; no prior bank or missing owner is invented. The old pre-refresh unavailable-thumbnail frame is retained separately. Later actual F11 captures verify selected Hair name/104 × 148 PNG and four-channel wheel rendering with values unchanged, no Preview/Apply/color mutation; all 18 saves remain unchanged through v5 observation/UI/inventory. Host catalog validation of 91 resource/name records/84 decoded images is a separate leaf. Host snapshot/key/click/move output validation now retains new external JSON receipts; 40 CLI fixtures pass. Exact proof identities are in the v5 ledger section.
+
+AS v4's unseen-owner default requests zero occult auto-sync flags and preserves explicit choices held in the current widget's memory. Its runtime effect and cross-session persistence remain unproved. The legacy generation 40 bank finish selected only the captured entry lane and restored other captured forms. The all-owner receiver introduced in generation 41 remains installed in generation 43 for explicit review; V2 and V3 returns failed before review; V4 full-suite/gen43 installation and primary native Live return passed; Source raw-return capability refusal blocks all-owner review/commit and persistence. Editing both Human and an alternate layer in one CAS visit still lacks current-runtime proof. Full MCCC/Tray parity, complete native/unknown fields, palettes, texture conversion, all localized names/images and a headless engine remain open. All 369 protected original save hashes were rechecked read-only with zero mismatches/writes. Exact receipt hashes/outcomes remain in `Reports/LIVE_CLI_2026-10-07.md`.
+
+### October 8 — generation 41 frozen verification and guarded installation
+
+- [x] Historical epoch `2026-10-08-all-owner-cas-v2` built as candidate SHA-256 `102b19e96cb36c99dc0026bb7f1c66dd9427e6e11cfd431d8a4b96b4fca99dcb`: 66 matching Python 3.7 compiled modules, seven packages and 206 independently Rust-verified resource hashes; 19 audited Source dependency pins plus the separate self-body pin.
+- [x] Exact legacy adaptation inventory is 19 boundaries: 16 guarded original bodies and three retired unsafe CAS/cache commands. Constructed fixtures verify mutation-time gates, delayed settings callbacks, original defaults and passive imports; actual baseline code was only passively transformed/inspected.
+- [x] Frozen complete Python suite: 1,277 tests passed in 136.420 seconds, plus all four native CTest targets. Retained verification `owner-qol-v7b-frozen-source-verification.json`, SHA-256 `2d4912b69a2d30396a854e0dd2e1efa30aaf5ec0761d6e2a7ccd77b51ffdc966`, records unchanged Source and false runtime/headless gates.
+- [x] Guarded closed-game installation advanced the disposable profile to generation 41, matching all 14 artifact records and preserving every one of its 18 saves/backups and all retained sidecars. Proof `owner-qol-v7-guarded-install-proof.json`, SHA-256 `426279030b54c443547bfacc41f1ea5c6b8d357f2e41762fc6cfd41df9cc17ce`. The latest backup again verified all 369 protected original saves unchanged; the original profile remains read/copy-only.
+- [x] Generation 41's actual EA launch passed, followed by native current-owner Witch construction and an independent seven-owner comparison through 1,676 actual TimeService simulation ticks and final Pause. Native primary CAS hair swatch `414264 → 414266` was acknowledged. These are narrowly scoped leaves, not acceptance/persistence completion.
+- [ ] Generation 41 CAS return failed/unresolved: the exact Sim was absent from the manager/active household after conflicting Witch records failed native load. Native persistence still retained the same Sim/household/GUID, so deletion is unproved. Original return proof `c673b3f4afe3f56e4b5d387613dc675406c3874c40fa754a43a35aaf767c5124` remains failed; no form-bank completion, Save or accept replay ran.
+- [x] The guarded CLI exited normally without saving. Separate recovery preserved six CAS-written autosaves externally and restored their pinned pre-test hashes; all 18 save/backup hashes then matched, normal Slot02 remained unchanged and a fresh backup verified 38 disposable files plus all 369 protected original save hashes. Exit/recovery do not certify a repaired CAS return.
+- [ ] T215/T219/T221/T222/T224 and G009 remain open. No Source fixture, package hash, installation or native host test certifies current-game multi-owner CAS edits, phone/F11 decision commits, save/reload, automatic MCCC coverage or all-field editing.
+
+At generation 41 the installed script was `d1d9b2e47bd4d0dfde0dc367116d838fdf049eb08a8c00cc3ed7582a8f3b1cc8`, DLL `676a12123b381c0e554196e7b26ff0c2787ade398fa61f025d9e9cc6a281a0ad`, and hybrid package `db8d3b8ec49fed2d798f4d061a919b4f8d116ac320a8556fc0b4880a776055c2`. AS v4 was unchanged at `9edad97e7218bcb3d693d1faf123ea611a331eb09efce716b188b592cd9381b3`. These exact V2 artifacts and runtime receipts are historical. Existing CC inputs, A0 and prior receipts remain retained; old metadata does not authorize the V3 epoch.
+
+The preceding 1,271-test run had 19 failures and six errors after strict simulation-origin validation was added. Its log `owner-qol-v7-frozen-check-0.log`, SHA-256 `2f68c0b703cb7094db1703f74eaab30931b87571bed60fa0ee904ca796030f37`, remains immutable. Host archival validation now checks historical native Live identity separately from new simulation-time proof; current reload/return fixtures and guards require `services.time_service().sim_now`. Historical `sim_now_ticks` producers used game-clock `now`, so their positive deltas do not certify simulation progression. Their actual native entry, appearance/readback, presence and file evidence remains scoped to its original receipts. No historical receipt is rewritten or promoted to clock-progress, normal-slot, A0-restore or save-reload authority.
+
+### October 8 — generation 42 V3 frozen verification and guarded installation
+
+- [x] Epoch `2026-10-08-cas-pair-order-v3` is built as candidate SHA-256 `1dfafa6ebf1be44246d3002e3debd6c9a9dc629f3ce75e909a1de00eb76458d7`, with script `6d39855fa27b73219477f14b8ee9864e0285f7b93e423290d65f253466878d3c`. The DLL, hybrid package and AS v4 hashes remain unchanged from V2. Inventory is 66 Python 3.7 modules, seven packages/206 independently Rust-verified resources, 19 audited Source dependencies plus the separate self-body pin, and 19 legacy adaptations (sixteen guards/three retired commands).
+- [x] Frozen V3 Source verification passed 1,313 Python tests in 186.932 seconds and all four native CTest targets. Proof `owner-qol-v8-frozen-source-verification.json`, SHA-256 `33d3c99f058ba7c7d788a56bf43457283dbeff8dae0d2c983e93950dfc0873f9`, binds unchanged Source and retains false runtime/headless flags.
+- [x] Candidate verification `owner-qol-v8-candidate-verification.json`, SHA-256 `10e895d3d197e8162d93f3d0f528d491048c8522cfacf0dd7b78ad121c81bef8`, independently checks artifacts/modules/resources/pins, actual packaged Main passive import and native host/extension-loader boundaries. No game/profile writes or native runtime acceptance are inferred.
+- [x] The public guarded closed-game installation advanced the same marked disposable profile to generation 42. All 14 artifact records matched; every one of its 18 save/backup hashes and all checked sidecars remained unchanged, with no protected original writes. Proof `owner-qol-v8-gen42-guarded-install-proof.json`, SHA-256 `10233ce65a6b2b64950ae124e8776281c9a757057661362929259045f9f7fd97`.
+- [ ] V3 native return failed after an acknowledged primary hair edit. The actual native save projection emitted pure Witch mask `16`, skipping the Human-inclusive `17` pair guard despite four passing native-protobuf ordering fixtures. The missed guard is verified; the native C++ ownership mechanism and a repaired return remain unproved. Exact-byte duplicate handling does not merge distinct payloads, replace owner IDs or restore prior bank data. Both failed V2/V3 receipts stay retained/refused; no failed UUID is replayed.
+- [ ] T215/T219/T221/T222/T224 and G009 remain open. All-owner native CAS edits/decision commits, seven-form save/restart/reload, manual/MCCC automatic checkpoints, native per-outfit hair isolation, complete field/history/image coverage, full MCCC/Tray parity and headless game acceptance still require independent runtime proof.
+
+### October 8 — generation 42 actual failure/recovery and built V4 correction
+
+- [x] Exact V3 launched through the verified EA account identity in PID 25356; Resume verified the original paused native household without disk-slot/save-reload authority. Launch proof `e74aa478844d3f6ed947c976c439c566e6574be1f66ced72f164278490a7c235`; Resume proof `7018af2c96972c2db1ccc492f3fbf41a386e1eeba3c8a84e562a53790193d329`. Failed permission recognizers are not relabelled as successful input.
+- [x] Old Gen41 schema-2 metadata archive completed under original UUID `b24e9d76ccf545d6b3e1b0d007a1c907`, independently verified without replay or appearance/Save writes: proof `fcbe9a48774312cdade28f26925eac4bd709fac390a251ac3c9e52a230cc4e62`. Initial two-second host wait `d79f4c25cea3532014942ee38c7756a12986ade0ddda56a231ab20266789e191` stays unresolved in its own receipt; all raw originals/history remain retained.
+- [x] Fresh current-owner Witch construction and 1,590 actual TimeService simulation ticks retained all seven appearances, followed by Pause. Proofs `b0f2caa71cd437cca74c54b55179d0662468685fd472fc786eb21ee6fe18d04f` and `7d004557e994e306ec8a87b8780647a420d918035bdfff7804a6bc00b84175fd`. Primary CAS entry and hair `414264 → 414266` passed under proofs `55c6a24f9b05f3d8e26e66492ce892ca3dcc71942f45619d132bf94b2e5b20b1` and `24c2e6eb7217ea0989b02967367468c308238cb9c34c625a7f86fb28fdd3ca8a`.
+- [ ] Actual V3 retained-Sim return failed/unresolved: `d0e7322ab5f8073abd05adb46556b2880882c820e4bbcf82259e6cbe97e49226`. Exact native UUID `a8eb2965153b4ea7876f262cd4a2efc8` remains retained; no final native commit success, bank completion, Save or replay. Native inventory `4b8daf0cb074d4a52406a85ec7fe6dc0eebba459e984ccb85a7b4ffa801d8323` again has rows `1,16,4,8,32,64,16`. Selected Sim is absent from manager/active household but retained with persisted household membership and the same GUID; identity deletion is unproved.
+- [x] Normal unsaved exit passed under proof `1ccdcc64861b545168cd92d533ec52414366896e43da444a20059c8c1670fd31`, with no repeated accept/new crash and unchanged saves during exit. Separate closed-game six-autosave recovery `633dbb8c6b7427dc693e4b299387d3244fd2d149bd03e5e100524b98fe5866bf` retained changed files externally and restored pinned pre-test hashes; normal Slot02 remains `90004c7d8d4cd5b9ee11be50c5a550a1c0f46734b9d5014a18bdf15aaea70ebb`. All 18 pre-test save/backup hashes match; fresh backup verifies 38 disposable files/all 369 protected original save hashes. The game is closed; no original/normal-slot write or automatic replay is authorized.
+- [x] V4 epoch `2026-10-08-custom-cas-pair-v4` is built and portable-Python-3.7 verified: bundle `83780116fa9973ad8e31503098447fc13a3979bb41d166b1210add98a20633cb`, script `8f7c7e965cd9ec47f2330df5f7797cde7e6c224aa0b31e0b3b7a7d42e400a3c8`, candidate verification `df59a451995003e4f16477985f9ad2f7a2d9898b4a96cf9ec626da51e1d25a99`. It covers pure single-bit projection while preserving actual mask/owner bytes/unknown fields; 39 focused cases include the real mask-16 seven-owner path. Inventory remains 66 modules/seven packages/206 Rust-verified resources.
+- [ ] At the V4 build-only checkpoint, full suite/install/runtime were pending; later generation-43 verification/install checks are recorded below. At that build-only checkpoint native runtime remained pending; later v10 verifies the primary native return leaf, without complete persistence. The V3 1,313-test receipt is not proof for changed V4 Source. No conflicting-owner merge, ID replacement, prior-bank restore or old request replay is inferred. T215/T219/T221/T222/T224/G009 and all parent gates stay open.
+
+### October 8 — generation 43 V4 frozen verification and guarded installation
+
+- [x] V4 epoch `2026-10-08-custom-cas-pair-v4` passed its own complete frozen suite: 1,325 Python tests in 196.049 seconds (197.417 seconds wall time), plus four native CTest targets in 0.914 seconds. The full Source/tools/tests/Native inventory stayed unchanged. Proof `owner-qol-v9-frozen-source-verification.json`, SHA-256 `221254e2d4684523b1ecae14252c5770d3e1d8d7964b28477779070c1b455f32`, retains false runtime/headless gates.
+- [x] Current candidate/script remain `83780116fa9973ad8e31503098447fc13a3979bb41d166b1210add98a20633cb` / `8f7c7e965cd9ec47f2330df5f7797cde7e6c224aa0b31e0b3b7a7d42e400a3c8`. DLL/hybrid/AS v4 hashes are unchanged; inventory is 66 modules/seven packages/206 Rust-verified resources, 19 audited dependencies plus the separate self-body pin and 19 legacy adaptations (sixteen guards/three retired commands). Portable candidate verification `df59a451995003e4f16477985f9ad2f7a2d9898b4a96cf9ec626da51e1d25a99` remains distinct from native-game acceptance.
+- [x] Guarded public CLI installation advanced the single marked disposable profile from generation 42 to 43. All 14 artifact records matched; all 18 save/backup hashes and checked sidecars remained unchanged, with no protected original writes. Proof `owner-qol-v9-gen43-guarded-install-proof.json`, SHA-256 `592d93afd3fde4276985e8b0722c9731b95a6dd8dd0a2d853a56b91beba9f6ee`.
+- [x] Host metadata-abandon observation polls only its original submitted UUID within the whole deadline; 24 modern/15 legacy fixtures pass. The initial Gen42 timeout remains unresolved in its own receipt, separate from its later same-UUID completion verification; no mutation replay or appearance repair is inferred.
+- [ ] At this frozen/install checkpoint native runtime remained pending. The later v10 launch, pre-CAS and primary native return leaves below passed, while all-owner review/commit and persistence remain blocked by Source's stale-object gate. The actual V2/V3 failures, original raw payloads and separate recovery receipts stay unchanged. The pure-mask Source correction is not complete persistence proof or proof of the C++ ownership mechanism; no conflicting payload merge, ID replacement, prior-bank restore or failed-request replay is authorized.
+- [ ] All T215/T219/T221/T222/T224/G009 parent gates remain open. Native all-owner return/edit/commit, seven-form save/restart/reload, outfit hair independence, manual/MCCC automatic checkpoints, complete fields/history/images, full MCCC/Tray parity and headless game acceptance require independent runtime proof.
+
+### October 8 — generation 44 native Live presence and old metadata archive
+
+- [x] Initial cold Resume retained exact-focus failure before any Resume/Pause input, proof `b7dba4315683c7063f796b5f2b28821455571e02a850c4afcc9e3bfa86e51439`. A separate public, exact-lifetime foreground helper passed without game input/UAC automation, proof `owner-qol-v12-gen44-game-focus.json`, SHA-256 `ae6a7cb31df235e439fc1e4c851d60489593e4276def1f535014b370d84b966b`.
+- [x] One genuine public Resume input reached original-Sim/household/GUID native Live and paused readback with all ten persistence checks, in approximately 40.22 seconds. Proof `owner-qol-v12-gen44-focused-resume.json`, SHA-256 `6a09e669be5c5a6365fee11178422372b0ef3034287a17e3b0ab2c619159cbbd`. `pause_submission_attempted:false`, `household_loaded_verified:false` and `save_reload_verified:false` remain false; native slot 0 is not a disk-Slot02/seven-form reload certificate.
+- [x] Host recovery now binds the Source canonical raw checkpoint SHA to both checkpoint fields and separately the transaction-envelope SHA to the failed original observer, preserving the existing UTF-8 archive digest. Real distinct-envelope/Unicode fixtures and six mismatch cases pass before native input. Forty-eight focused tests postdate the frozen 1,415-test inventory; no later full-suite pass is claimed. Source and installed candidate hashes are unchanged. The earlier invalid-slot and incorrect-hash-comparison preflight failures stay retained.
+- [x] Corrected public archival of the old generation-43 pre-binding observer failure completed under its original archive UUID after ten read-only polls, approximately 8.55 seconds. Proof `owner-qol-v12-gen44-prior-schema2-corrected-hashes.json`, SHA-256 `cbba75c41fd237d0ae751da8609f61b0278449ec22e8891b2ff72e7b625b99e4`. Full raw checkpoint/transaction remain in failed history; bank lanes, other Sim records and normal Slot02 remain unchanged, with no appearance or Save writes. Explicit native-slot-0 metadata-only scope grants no clock advancement, disk-slot or reload authority.
+- [ ] Generation-44 accepted CAS edits, complete raw-return capture/explicit decisions/commit, all-form switching, independent outfit hair, manual/MCCC coverage and save/reload require new runtime proof. T215/T219/T221/T222/T224/G009 remain open.
+
+### October 8 — generation 44 V6 verified installation and process start
+
+- [x] V6 epoch `2026-10-08-all-owner-hair-receiver-v6` is built and portable Python 3.7 import verified: candidate ZIP `28c3e5c743e73a58c4ba3ea828fe9ea392c4e19937d6f6a5b53a48be678e4ed5`, script `16d2340a7344327ec5b3abe118d74d9ec87a72fe4a5fb95cd8ba53c511449bcb`. Candidate proof `bf8706bdc91ade8f53694d0ff4cc9848c50d8bc15e78ce93d94c1afc27f72312`; dependency/self-body epoch proof `2a6f9ac9123b165667e61e2d201ba3b34b586f6667d3774985727ca888fb53cf`. Inventory remains 66 compiled modules/seven packages/206 Rust-verified resources/19 dependencies plus self-body/19 exact legacy adaptations.
+- [x] Final unchanged-inventory verification passed 1,415 Python tests in 157.319 seconds (158.136 seconds wall time) and four native CTest targets in 0.140 seconds. Proof `owner-qol-v12b-frozen-source-verification.json`, SHA-256 `a81c23c9d327984aa1b4877f22d5f1a90678128542e420f4ebd5248d52f23020`. This is fixture/build evidence, not game acceptance.
+- [x] The first V6 full check failed one of 1,409 tests, a stat-only resource-source integrity assumption. Immutable receipt `9dea5c46c5ec1853907a4b07fa4a4fa3ac597d9c69549df384d685aa15107fe3` remains failed. Corrected host reads return resource bytes from their full-source SHA stream; source copies require the original pin and sealed Studio caches are checked before copying. Six same-size/preserved-stat/chunk-boundary regressions and 71 relevant host fixtures pass. The host correction did not change candidate Source or packages.
+- [x] V6 all-owner switch prepares complete enabled hair-policy ownership after WAL capture and before native writes, retaining prior policy/new plan and committing bank+policy together after final native readback. Twenty-eight new switch/24 bank/18 hair fixtures and independent read-only review pass. Native issued/attempted intent is durable before the sole switch call; no runtime hair/switch success is inferred.
+- [x] Public guarded generation-44 installation matched all fourteen artifacts and retained all eighteen save files/checked sidecars unchanged, without protected-original writes. Proof `owner-qol-v12b-gen44-guarded-install-proof.json`, SHA-256 `270ef48dc287fe62c40a130a046cded909149592af296fb9f3999ee794bbb421`. The protected-original inventory was separately reverified read-only before launch.
+- [x] Correct-account content ID `1015806` handoff observed a fresh Sims process in generation 44. Proof `owner-qol-v12-gen44-correct-account-launch-proof.json`, SHA-256 `0965ecfa08dd48ded84200fa4899c254b13dd02c8e5822359dcea8059f06dc07`. Permission recognition/fresh-log broker remained false; no dialog ACK or household/CAS readiness is claimed.
+- [ ] Generation-44 primary CAS raw observation/explicit decisions/commit, all-form/MCCC edit retention, independent outfit hair and save/reload need actual runtime proof. T215/T219/T221/T222/T224/G009 remain open. V5 remains superseded/uninstalled; no previous failed receipt is promoted by this installation.
+
+### October 8 — closed V4 session and superseded, uninstalled V5 build
+
+- [x] The public CLI normal unsaved exit closed the generation-43 game, with no Save and all eighteen save files exact across the shutdown boundary. Proof `owner-qol-v10-gen43-unsaved-exit-proof.json`, SHA-256 `95e1ec5d7aa16a2ebbc71ac0a1d8c3783037dce127b4ee1bcea1eaf113311598`. This does not claim no earlier CAS autosave writes.
+- [x] The public disposable-autosave recovery retained the six changed files and restored their pinned pre-test bytes, with normal Slot02 unchanged. Proof `e64662e44ea12c412e90768e6219b570ffaaa2450e29ef8261d91068c65ff243`; fresh 38-file backup manifest `2492a0e91dfaffe05cdc5f07d860d58fbffbef9021855f85ec3ff2b5b3dec66e`. All prior CAS/observer failures and raw/native inventories remain retained.
+- [x] V5 epoch `2026-10-08-native-owner-receiver-v5` was built with exact candidate ZIP `afd53631cc47f6506938288517b63d4b7b7dfb6047dd85d9e8a51f7512d517bb` and script `393535d1ca779d9c68cff33b730f441979434c27497f9f7ee4e798fc759796f5`. Candidate/portable-import proof `eeb2e436923ba56e3c17a1caaa0b3a020ebd2d72e489877ecac04f2fd570bf35`; source epoch proof `044bac9b4b9a86a6f68fabcc0de9e3b1ca6e4ae47b9ac42b8840fd00a7d43651`. Both explicitly report installation/runtime false.
+- [x] The frozen V5 check passed 1,392 Python tests in 149.993 seconds (150.742 seconds wall time) plus four native CTest targets in 0.704 seconds, with unchanged inventory. Proof `c4b142d977f23fe799f842b817eb7a00f0670f270a1c6b72cbbb9882e5b9272e`. Its 66 modules/seven packages/206 Rust-verified resources and 19 dependencies plus self-body pin are build results, separate from runtime acceptance.
+- [x] Constructed checks cover initial recreated-primary receiver binding (51), phone compatibility (23), all-owner switch (18 new/24 existing), host Resume (53) and metadata-abandon/schema-2/CLI (90 combined). The new archive branch requires an exact terminal original observer UUID/pre-binding refusal, passing original-Sim Live/ticks/Pause, separate normal unsaved exit, captured schema-2 originals/no journal, dead prior PID and unchanged normal Slot02. It permits metadata archival only; no actual V5 archive/receiver request has run.
+- [ ] Review found stale enabled hair-policy metadata after the new all-owner switch. V5 is superseded before installation; its results cannot certify the correction. A new candidate, its verification and native accepted-edit/independent-hair/switch/reload testing remain required.
+- [ ] T215/T219/T221/T222/T224/G009 remain open. Full all-form CAS/MCCC edits and retention, every-field Photoshop-style history, independent outfit hair and save/reload have no complete current-candidate proof.
+
+### October 8 — generation 43 public EA restart and primary native CAS return
+
+- [x] Added public `ea-restart status/restart/restore` with 24 focused host fixtures, separately from the prior frozen 1,325-test/four-native check. Exact manifest/lifetime/token/profile binding, passive-exit races, exclusive close-only nonce claims, bounded no-replay waits and exact-hash registry restoration are covered. Source and installed candidate hashes stayed unchanged.
+- [x] Actual CLI restart removed only the exact EA HKCU `~ RUNASADMIN` token, retained its full recovery value and normally closed the old elevated EA lifetime through ordinary UAC's close-only helper. The original medium host started a fresh verified medium EA client; no force termination occurred and all 18 test save hashes/bytes/mtimes remained identical. Proof `owner-qol-v10-gen43-ea-normal-restart-proof.json`, SHA-256 `b37d445aca4ff49bc07a7d52f9444665fda5b6793fbba50f1b23d24bdda1f1a4`.
+- [x] The correct-account handoff independently observed Sims PID 22184 with generation-43 artifacts, proof `dcd396149de11aee7930c770704ad86da7e8af2a544b105be785aaf2b46b55fa`. Permission recognizers returned false and remain so; they do not supply the separate process-start evidence. Earlier failed launches and delayed-readiness probes remain retained.
+- [x] Ready Live recheck verified the original native Sim/household/GUID and manager/persisted membership, paused, without Resume/Pause input. Proof `077538611c1a4d9cc3a08d72e934cf8c73988683b593c38271327d8daf83645a`; native slot 0 remains uncertified for normal disk-slot/reload or A0 restore authority.
+- [x] The old generation-42 schema-2 failed transaction was archived as metadata only under its original submitted request UUID; bounded read-only polling completed the delayed ACK without resubmission. All raw originals/history were retained, bank appearances stayed unchanged and no native serializer/appearance/Save writes ran. Proof `aad4214eeeddf8a77cc0a0f7062dda302c1ff52258cae84a754737c1ac16e583`.
+- [x] Fresh native Witch construction on the exact current Human owner used no prior-bank appearance restoration, proof `1520f744ad4fa61940f28761fee4b258d7bd4f95baad0f081a8d70712a1b6416`. All seven native appearances stayed equal through 1,569 actual `services.time_service().sim_now` ticks and final Pause, proof `88fae80ddc277fe45962fdd0056e25f8c1b55c14f6c1b558398c9ad90329ae7d`.
+- [x] Primary CAS entry and hair swatch `414264 → 414266` were acknowledged, followed by original-Sim native Live return with all ten persistence checks, 454 actual simulation ticks and final Pause. The immutable containing receipt `af5aa211d8e366cb7b9f3480c47df3d1b0626d9a935e06b3c03e60304f94fbc4` stays overall unresolved at the Source observation step; its narrower native return leaf passes.
+- [ ] Original raw-observe UUID readback terminally failed the stale pre-CAS primary Python Sim object capability: `2c341a66eb5046f38c58b3dfe418cec55499aa5c7c15f5ecf8cd4f3419e1e713`. It refused before raw observation, serializer or native/bank writes; no request replay occurred. First post-CAS manager binding is being corrected and has no installed/runtime proof.
+- [ ] Full primary/alternate all-owner review/edits/commit, seven-form save/restart/reload, independent outfit hair, automatic manual/MCCC checkpoints, all fields/history/images, full MCCC/Tray parity and a headless engine remain unfinished. T215/T219/T221/T222/T224/G009 and all parent release gates remain open; the primary native return leaf does not certify complete hybrid persistence.
+
+### October 10: live-color and focus-free CC checkpoint
+
+- [x] V35 generation 72 full-household CAS equips copied Magic Hand lipstick and Simbience blush on the actual Alien owner through semantic CLI. Only Alien changes on return; explicit acceptance verifies all seven stored/distinct Live appearances. Alien → Vampire → Alien retains them after 1,677 / 1,505 actual simulation ticks. Exact scoped receipts are in `Reports/LIVE_COLOR_2026-10-10.md`.
+- [x] Actual F11 DX11 frame capture leaves the host foreground unchanged, with no focus fallback or input. This proves rendering of the equipped-items workspace, not a color-wheel gesture.
+- [x] Atomic hash-bound `studio color-live`, F11 gesture-release submission and a reversible `test live-color` CLI are implemented. V35's first real CC probe correctly stops before any color write when resource inspection fails; this failed receipt remains failed.
+- [x] V36 fixes the integer-to-group-zero resource assumption by resolving the unique actual native indexed TGI. Missing/conflicting groups refuse; bytes/hash are read fresh. Focused host regression tests and actual compiled candidate/import/resource verification pass.
+- [x] V36 actual group-80000000 CC inspection and public four-channel lipstick regression pass after native ticks, preserving untargeted fields/unknown outfit bytes, other owners, stale-state refusal and Undo/Redo. The first harness failure incorrectly conflated native stored and distinct Live owners; its receipt remains failed and the corrected independent-owner check has dedicated coverage.
+- [x] Separate actual close-ups show changed lipstick/blush after unpause, retention through Alien → Vampire → Alien, and restored original colors after Undo plus normal form synchronization. All seven stored/distinct Live appearances verify exactly; the same original Sim/household/process survives. No focus/input/Save/launch/shutdown is submitted.
+- [x] Public inactive Alien blush regression passes all four channels after 354 ticks with Vampire staying active and its distinct Live appearance untouched. Every other field/outfit/form remains exact; stale refusal, Undo/Redo and final native original-state restoration pass.
+- [x] Final unchanged-source verification, including the new host catalog, passes 1,609 Python tests and four native targets (`061fc4900094adb904814c11b9ff65a80a0fcd49099e0f456e092dff1072a121`); matching V36 compiled Python 3.7 imports and 206 independent Rust resource checks pass separately.
+- [x] Actual F11 hue-wheel and opacity-slider releases apply and read back after 431 ticks; two Undo/Apply operations restore all original stored/distinct Live appearances after 472/434 ticks. Final receipt `c7079699fc70ba7000bf079db747b054a138ca23a7d06c155086651322fd4860`. Earlier stale-coordinate and cancelled read-only receipts remain failed; no gesture replay. F11 hidden, same game left open/paused, no Save/launch/shutdown.
+- [ ] Full manual/MCCC/every-category, disk persistence, custom room/default selector, Live catalog/preview and G009 remain open.
+
 - [ ] **G009 · FINAL COMPLETION GATE** — All accepted tasks/gates are complete; no unresolved blocker remains; production packaging succeeds; the current TS4 build has exercised the exact standalone `ApexOccultHybrid.package` + `ApexOccultHybrid.ts4script` pair, Apex Live CAS Studio outside-CAS editing/copy/preset/Tray workflows with exact full ColorState preservation and Apex-native Color Studio, F11 occult toggles, form switching, Saved Forms, CAS Categories, Apex CAS Unlock Core/Unlock Matrix and the exact release `ApexCASUnlocks.package`, Photoshop-style CAS History/Undo/Redo, MCCC Shield, Drift Guard, diagnostics, save/reload/restart and representative hybrid combinations; every R001–R010 original-mod regression is proven fixed on the current supported game build; the useful 1.13.7 behavioral reference floor is independently satisfied without upstream runtime files; overlay performance is measured on equivalent workloads; and no requested capability was silently removed or replaced by a placeholder.
+
+## October 8: current alternate-CAS priority
+
+- [x] One Human full-CAS hair edit accepted with explicit per-owner decisions; all seven complete appearances retained after 1,636 actual Live ticks.
+- [x] Live switches through Vampire, Fairy, Alien and Mermaid retained the stored and distinct active owners after unpause/pause. These unsaved receipts do not certify disk reload.
+- [x] Preserve the reopened Fairy alternate hair edit, primary-navigation refusal and subsequent native crash as failures.
+- [x] Build/install generation 45 V7b with exact original-producer navigation during unloaded Live and synchronous native full-edit readback; same one disposable profile, save files unchanged.
+- [x] Public closed-crash metadata archival with full original bank backup, complete Source validator and no native/save writes.
+- [ ] Prove alternate full-CAS edits first: Fairy, Alien, Mermaid, Werewolf, Witch where native CAS supports it; Vampire last.
+- [ ] Complete return, explicit acceptance of intended alternate only, unpaused all-owner readback, away/back switches and native save/reload for every supported alternate.
+- [ ] Add a native CAS selector exposing every owned occult together. The current pair selector must not be described as an all-occult chooser.
+- [ ] T215/T219/T221/T222/T224/G009, manual/MCCC paths, independent outfit hair, full MCCC/Tray parity, palettes, texture conversion and true headless runtime remain open.
+
+## Custom CAS room and persistent occult selector — accepted October 8
+
+**Current progress:** generation 47 V9 passed Fairy full-CAS layer-one hair edit,
+layer-zero return, explicit Fairy-only seven-owner reconciliation and Live
+switch away/back through actual simulation ticks. Alien creature layer zero
+edited, but its return failed the Witch core readback and was closed unsaved;
+that receipt remains failed. V10/V11 cold loads also failed genetics readback.
+V12 rendered all seven retained owners in actual full CAS, but Alien return
+still failed. Its complete diagnostics identify EA's exact growth-part duplicate
+cleanup as the remaining genetics mismatch. Generation 51 V13 is installed
+after 1,472 frozen Python checks and four native targets. Its comparison keeps
+raw payloads, every distinct record and all unknown fields. Actual V13 alternate
+Mermaid hair edit/return and unpaused all-owner away/back switching passed.
+Werewolf alternate outfit addition/return and away/back switching also passed.
+The controlled disposable save and normal unsaved exit are verified; native
+disk reload, other alternates and manual/MCCC remain open. Normal Slot02 remains unchanged.
+The native default selector, custom room scene and all-form same-visit editing
+remain open. See
+[the scoped alternate test ledger](../Reports/ALTERNATE_CAS_2026-10-08.md).
+
+- [ ] Build an Apex custom CAS room with every owned occult visible together; preserve the per-form wardrobe, presets, genetics, colors and full undo history.
+- [x] Render all seven retained owners together in the F11 CAS workspace; unsupported native pairs remain visible with their current edit limitation. This narrower leaf does not complete the custom room parent.
+- [ ] Extend the default CAS selector to show every owned occult rather than hiding all but one alternate.
+- [ ] Preserve occult membership and every original form during default, Apex and MCCC CAS entry/return. Implicit native cleanup must not be treated as an explicit user removal.
+- [ ] Test form editing/return, Live unpause and away/back switching before enabling a new navigation path.
+- [ ] Explicit Remove Occult remains a deliberate user action with retained original data; unknown native cleanup/appearance outcomes remain blocked for review.
+
+The inspected native selector currently exposes a base and one alternate via
+`CasSelectOccultForm({select:boolean})`, not an arbitrary seven-owner native
+selector. Its create/remove form services and the existing hybrid save-pair
+projection must not be mistaken for persistent multi-form ownership. The Apex
+room needs its own retained form inventory and explicit transaction decisions;
+a new button that merely changes the displayed mask does not prove this work.
+
+
+### October 9 native load/alternate regression leaves
+
+- [x] V13 Mermaid alternate hair edit in verified full CAS, original-Sim primary-layer return, explicit seven-owner reconciliation and unpaused away/back switching. Exact scope/proofs: `Reports/ALTERNATE_CAS_2026-10-08.md`.
+- [x] V13 Werewolf alternate outfit addition, full CAS/return/explicit seven-owner reconciliation and unpaused away/back switching. Unsupported hair-swatch query is retained and is not an accepted hair test.
+- [x] V13 controlled Slot02 save/seal and normal unsaved exit, with preceding normal save preserved; its cold-reload failures remain failed.
+- [x] V18 generation 55 frozen 1,501 Python/four native checks, 68 imports, 206 independent package-resource checks and fourteen installed matches. Saves/sidecars unchanged at install.
+- [x] V18 actual cold reload: original Sim, all seven stored forms and distinct active Alien match all 12 readable fields before/after 1,656 TimeService ticks; unchanged save/bank and final Pause. Receipt `b2ea61a7ef360e6e33d323b8480201e21d1c919b78e936908e49afd92139d5d5`.
+- [ ] Fresh current-script alternate CAS, new controlled seal/same-script reload, repeated restart and manual/MCCC paths. An uncertified historical bank remains refused; fresh native checkpointing is separate from old-bank replay.
+- [ ] T215/T219/T221/T222/T224/G009 and broader all-field, custom-room/default-selector, independent hair, MCCC/Tray, palettes/texture conversion, performance and headless-engine gates remain open.
+
+- [x] V18 native Werewolf/Mermaid/Fairy/Spellcaster/Human/Alien Live switches preserve all seven appearances and membership after unpaused TimeService progression; exact receipt table in the alternate ledger.
+- [x] V18 Alien creature hair edit in verified full CAS, original-Sim Live return, original-UUID observation continuation, explicit seven-owner commit and unpaused away/back retention. Native final commit ACK is unobserved; Human-disguise navigation was refused. Subsequent controlled edited Slot02 save/seal passed and V19 changed-script reload retains all seven forms; no new same-script public certificate is claimed.
+- [x] V19 fixes Human-base-only navigation for the reversed Alien pair; native ACKs verify a genuine layer-one Human-disguise hair edit and navigation back to the observed Alien layer-zero owner in full CAS. Sequence `15d4eb2617109e3cf74ebf29429edda58b4e52ec823e4569a0337abec7ea763b`.
+- [ ] Complete the disguise-only retention case. Original-Sim unpaused Live return and independent comparison preserve all six other stored owners/distinct active Alien; only Human outfits/genetics changed (`5d0ec5db3fd68d41afbfb42a1e7965cb17904a206fcaad5b63b3e783a8d70cd7`). BLOCKED: serializer journal append exceeded the 48 MiB form-bank limit after raw return was retained; original UUID failed, no commit/away-back/reload is claimed. The complete raw-observed record is now archived after verified normal closure without save/appearance writes. History storage has no arbitrary count or document-size cutoff. A fresh disguise case still requires explicit commit and away/back proof.
+- [ ] Repeat F11 renderer selection on a fresh launch; this V18 launch failed selection and used a separate bounded Win32 Home observation/Resume message. No current-launch F11 render proof is inferred.
+
+- [x] V19 generation 56: matching observed-pair Source/AS changes; 1,503 frozen Python/four native checks, 68 imports, 206 resources and fourteen installed matches with unchanged saves/sidecars. Build proof `35891d637967aa41d00e7e961e04600cce154868c98e974f57deac17032388ea`.
+- [x] V19 actual edited-save reload: original Sim/all ten persistence checks and all seven stored/distinct active appearances exact across 12 readable fields before/after 1,644 ticks, unchanged save/bank and final Pause. Receipt `9581403c7e8f7b99a8075e408d4c941836361d50dd49d3013706abd8bc3f24d9`.
+- [x] V19 fresh native renderer submits frames/captures Home. Public pointer input refused before submission; separate bound game-window messages dismissed observed news and selected Resume. This scoped capture is not full F11 panel/action or native input proof.
+
+## October 9: complete CAS CLI scope and durable history
+
+- [x] Remove arbitrary form-bank/history record and document-size cutoffs. Archive complete inactive records by SHA-256 and length, verify/fsync before publishing references, keep active originals/WAL and latest legacy completion inline. No historical native mutation is replayed.
+- [x] Preserve and archive the V19 raw-observed capacity failure only after normal unsaved closure; all bank lanes and saves remain unchanged.
+- [x] V20 generation 57: 1,522 frozen Python/four native checks; fourteen matching artifacts, unchanged saves/sidecars; seventy actual Python 3.7 modules imported.
+- [x] Fresh current native baseline completes with no old-bank replay. All seven stored/distinct active appearances match before/after 1,539 actual TimeService ticks. The native autosave slot is explicitly not disk-reload authority.
+- [x] Native Fairy Live switch preserves all seven stored owners, distinct active Fairy and membership after 1,639 ticks and final Pause.
+- [x] V20 actual full CAS with boolean forced_full_edit true: hair catalog paging and exact Fairy hair selection acknowledged.
+- [ ] V20 eyebrow preset-index readback failed after mutation; Windows APPCRASH PID 44908 at 16:19:09 ends the case before Live return. Complete originals/checkpoint retained and closed metadata archived; no accepted retention or save claimed.
+- [x] V21: 1,532 frozen Python/four native checks, 70 compiled imports, 206 independently verified Rust resources. Native eyebrow/whisker part selection, four color-slider controls with returned ranges, hair matching flags and the all-77-panel workbench are built.
+- [ ] Prove all applicable panel edits, tattoo regions/layers, presets, jewelry, details, palettes and per-outfit hair on every form through actual full CAS, explicit owner decisions, Live unpause, away/back and native reload. Vampire remains after the less stable forms.
+- [ ] Direct sculpting/paint, featured looks, complete identity/voice/traits/preferences/relationship/confirmation handlers, default all-form selector/custom room and manual/MCCC parity remain open. A 77-panel registry is not full native feature coverage.
+
+Command details and actual readback requirements: [CAS CLI controls](CAS_CLI_CONTROLS.md). All parent gates remain open.
+
+
+### October 9 complete native control dispatch checkpoint
+
+- [x] Preserve generation 58 V21's actual failed eyebrow variant readback, unresolved hair-matching query and Windows 0xc0000005 crash as failed native evidence; archive only closed captured metadata, retaining complete originals and unchanged appearance owners/saves.
+- [x] Verify V23 source/serialized-bytecode dispatch for all 27 typed controls and immediate owned copies of every native snapshot getter. Seventy actual Python 3.7 imports and 206 independent Rust resource checks pass. This does not establish native crash causality or edit retention.
+- [x] V23 frozen rerun passes 1,541 Python checks and four native targets with source unchanged (`b7700d9d2b670586cd5acba500fbe5c64fe8c051f1646e89bcfc59b006fc0d68`); generation 59 installs fourteen matching artifacts with every save/sidecar unchanged (`7a3b81a772be8787019eb4bf8ac73314d65eee35d126562c4798a10821db2a79`). Both earlier failed suites remain retained.
+- [ ] Complete the matching candidate alternate-form full CAS retest, including Live return and unpaused switching.
+- [ ] Native voice/pitch/walkstyle/detail/filter controls, all applicable 77-panel edit paths, full Live return/unpause/away-back/reload and every parent release gate remain open until real-game evidence exists.
+
+
+- [x] Generation 59 V23 full Fairy CAS: exact hair, eyebrow, head skin-detail and nose-preset edits acknowledged; primary navigation and one semantic accept returned the original Sim to Live with actual ticks/final Pause. Explicit Fairy-only acceptance restores incidental Human propagation and verifies all seven stored/distinct active owners.
+- [x] Edited Fairy -> Human -> Fairy through 2,189 / 1,601 actual unpaused ticks retains all owners and membership; controlled normal Slot02 save and matching form-bank seal complete. Scoped evidence is in the alternate ledger; no cold-reload or all-panel parity is inferred.
+- [ ] Expand native panel/control discovery and edits beyond the four scoped Fairy categories, then prove other alternate forms before Vampire. Manual/MCCC, default all-occult selector/custom-room and G009 stay open.
+
+
+- [x] Subsequent frozen host/Source verification including automatic exact-session form-selection preflight passes 1,543 Python tests and four native targets with source unchanged (`f98129c1752af033af33fd0ee201e1e06d0c9015370d02df817060b69b82ffcd`). The installed V23 script/package bytes remain unchanged by this host-only improvement.
+
+- [x] Requested actual Alien → Vampire → Alien Live sequence: all seven stored appearances, distinct active owner and membership remain exact after unpause and final pause. Proof: October 9 priority table in Reports/ALTERNATE_CAS_2026-10-08.md. This scoped result does not close full CAS/MCCC/save-reload release gates.
+- [x] Verify installed Crilender import: all seven inputs, 39 exact merged resource payloads including Fairy overlap ownership. Proof: aa53564a249bd31ab487ed26dc4dc557b755751c3018ed24ffd6859564111e0a. Full cross-occult category/item availability remains open.
+
+### October 10: actual Alien household CAS and native finalization
+
+- [x] Confirm the full existing-household editor: native mode 0/forced full edit, original Sim/household, voice/personality controls, traits and actual Alien layer 0. Complete sealed filter fields and native Alien/disguise navigation acknowledge.
+- [x] Edit eleven actual Alien panels through the CLI workbench, return through the native household confirmation, capture raw changes only to Alien and explicitly accept that form. All seven stored appearances and distinct active Alien verify; no Human stand-in. Twelve-panel workbench hash: `68f3b768579c59bde5258b08bc36fcb1174360269ab321ec3a3c8f5c6ed0497a`.
+- [x] Edited Alien → Vampire → Alien verifies all seven owners and membership after 1,498/1,532 unpaused ticks and final Pause. Controlled normal Slot02 save/seal passed. See the complete alternate ledger.
+- [x] Retain the false semantic exit, tattoo native query failures and native load genetics warning. Add native household name/family validation before one consumed commit; retain exact original typed primary-layer checks in serialized bytecode.
+- [x] Replace the host shutdown's outdated operation allowlist with the complete public typed registry. All controls remain blocked while pending, unknown or attached to a native CAS peer.
+- [x] V25 frozen 1,549 Python/four native checks and generation 61 guarded install; disposable saves and sidecars unchanged at install.
+- [x] Generation 61 actual Alien → Vampire → Alien Live sequence after unpaused simulation; all seven stored appearances and the distinct active owner exact. Reopened saved Alien edits also match before/after simulation; native autosave context does not certify normal Slot02 reload.
+- [x] Generation 61 eleven actual Vampire Dark layer edits in full household CAS, native primary-layer return, retained original observation UUID and explicit Vampire-only plan. Preserve the failed Mermaid genetic tail readback and complete unsaved transaction.
+- [x] Close failed generation 61 normally without saving; archive only its resolved closed-session metadata after exact exit/save/bank checks. Complete bank and returned edits remain retained; no failed transaction replay or save overwrite.
+- [x] Add explicit native Primary/Dark navigation to CLI/F11 for pairs whose two native kinds are both Vampire; retain raw kinds and independent acceptance guard. Add selective changed-field restore with complete all-field readback.
+- [x] Generation 62 V27 actual native Primary/Dark/Primary semantic navigation and eleven Dark edits in full household CAS; original observer completes after unpause. Preserve the return deadline failure and Mermaid genetic-tail reconciliation failure. Normal unsaved CLI closure and complete closed metadata archive leave all saves/backups unchanged.
+- [x] Generation 62 native indexed Slot02 load, original household/Sim, all seven stored/distinct active appearance equality before/after 1,551 TimeService ticks; actual Alien → Vampire → Alien before new Dark edits retains all owners after 1,666/1,603 ticks.
+- [ ] Vampire-only reconciliation and actual Alien → Vampire → Alien retention after Dark edits; direct cold normal-slot first load, matching candidate save/reload and full MCCC/manual parity.
+- [ ] Universal cross-occult item selection, same-visit all-occult room, every-panel edits and complete voice/traits/default-control coverage remain open. T215/T219/T221/T222/T224/G009 remain open.
+
+### October 10: captured native context and filtered genetics
+
+- [x] Generation 64 actual Alien hair edit in full existing-household CAS, explicit Alien-only reconciliation and unpaused Alien → Vampire → Alien retention; all seven stored and distinct active appearance owners remain exact. Eyebrow readback failure stops the broader panel run.
+- [x] Generation 64 ten native Vampire Dark edits and semantic Dark → Primary selection; original-Sim return with unpaused clock progress and final Pause. Preserve the Mermaid genetics failure before bank commit and the fresh already-narrowed availability masks.
+- [x] Normal unsaved CLI closure preserves all saves/backups; complete closed-session metadata archive preserves originals, returned edits and partial-write evidence without replay or bank-lane changes.
+- [x] V30 temporary existing-owner appearance write context with exact preceding-context restoration and complete appearance checks. Frozen 1,582 Python/four native checks, 71 compiled Python 3.7 imports and 206 independent Rust resource checks pass. Generation 65 guarded install preserves every save/sidecar.
+- [x] Generation 65 ten actual full-household Vampire Dark edits, semantic Primary navigation and original-Sim Live return after simulation progress. Preserve the temporary-context admission failure; normal unsaved closure and metadata archival leave all saves/backups and bank lanes unchanged.
+- [x] V31 exact complete-shared or selected-owner native availability admission, current-kind preservation, separate stage diagnostics and exact preceding-context restoration. Frozen 1,585 Python/four native checks, 71 compiled Python 3.7 imports and 206 independent Rust resource checks pass. Generation 66 guarded install preserves every save/sidecar.
+- [x] Generation 66 actual Dark edits and original-Sim unpaused return. Stage diagnostics identify unchanged Human availability 4 when offered 5, before its appearance payload call; all other native contexts remain exact. Normal unsaved closure and complete metadata archival preserve all saves/backups and bank lanes.
+- [x] V32 Human appearance writes retain their preceding context, with one payload call and complete native readback. Seventeen context fixtures, frozen 1,586 Python/four native checks, compiled imports and independent Rust resources pass. Generation 67 guarded install preserves every save/sidecar.
+- [x] Wider Home-menu native OCR admission requires both exact Home/Resume headers plus Load/New/Gallery when Marketplace is absent; duplicates, partial surfaces and known blocking dialogs refuse. Fourteen load tests and the subsequent frozen 1,587 Python/four native suite pass with source unchanged (`085a0bacb7b81752dcbe4cbfc0a4a66b92fb581e0468c9b53c4150e8a67a1114`).
+- [ ] Actual V32 Mermaid tail restoration and post-Dark Alien → Vampire → Alien retention; matching controlled save/reload, manual/MCCC and every native category remain separate gates.
+- [x] Generation 67 actual V32 Human restoration and exact Mermaid selected-owner availability 12 admission/payload/restoration diagnostics. Preserve the immediate genetic-tail assignment loss before bank commit; normal unsaved closure leaves all twenty saves/backups unchanged and complete closed metadata archival preserves every returned edit and bank lane.
+- [x] V33 tests only the existing non-Human kind when missing from preceding availability, retaining exact preceding-context restoration and complete appearance checks. Eighteen context fixtures, frozen 1,588 Python/four native checks (`3598cea9c419d52830a9f8f2d54a53feec4f25dc394627c53e0666fc03586cec`), compiled imports and independent Rust resource checks pass. Generation 68 installs fourteen artifacts with all saves/sidecars unchanged.
+- [x] Generation 68 actual full-household Vampire Dark edits, semantic Primary navigation and original-Sim Live return with clock progression/final Pause. Explicit Vampire-only reconciliation verifies all seven stored/distinct active appearances and exact Mermaid tail genetics (`8bfea32fc9970ad49c510ae6e2beeed9430d925c927a465e4fd22be90264b255`).
+- [x] Edited Vampire → Alien → Vampire → Alien preserves all seven appearances and memberships after 2,012 / 1,601 / 1,708 actual unpaused ticks. Controlled normal Slot02 save/seal and normal unsaved closure pass; complete receipts are in the alternate ledger.
+- [x] V33 same-script certified normal Slot02 cold reload verifies all seven stored/distinct active appearances before/after 982 actual simulation ticks, original Sim/household/GUID and ten persistence checks. Save/bank/reference remain unchanged; the observer issues no appearance repair (`c5ddb613498e8883d8040ab243a474b2d64e47528582afc434cc066ad7460cb6`).
+- [ ] Automatic no-repair current-bank authorization after certified reload. The first switch refuses the prior-PID bank; the exact sealed-load handoff refuses a raw load-boundary change. Preserve both guard receipts and diagnose the raw difference without weakening appearance or identity checks.
+- [x] After explicit zero-change current-native metadata adoption, eight post-reload switches (Alien → Vampire → Alien → Mermaid → Werewolf → Fairy → Spellcaster → Human → Alien) preserve all seven stored/distinct active appearances and membership after actual unpaused ticks. Final normal unsaved CLI closure leaves every save/backup unchanged. This does not close automatic certification handoff, manual/MCCC or every-category gates.
+
+### October 11 independent appearance-room leaves
+
+Exact scope and retained failures:
+[`Reports/LIVE_APPEARANCE_ROOM_2026-10-11.md`](../Reports/LIVE_APPEARANCE_ROOM_2026-10-11.md).
+
+- [x] Independent actual D3D11 mesh/texture/rig preview, memory-only in-place resource assembly, camera/animation controls and stored-form/outfit selection without activating that form.
+- [x] Adjustable room layouts and two to eight virtualized columns; strict CLI workspace controls for layout, columns, tabs, filters and thumbnail gender without OS mouse input.
+- [x] Exact thumbnail provenance/decode/GPU-upload fixtures, content-addressed image cache and exclusive Windows loopback listeners. Complete actual EA thumbnail providers and swatch families remain open.
+- [x] V50 frozen 1,688 Python/five native checks, 74 Python 3.7 modules and 206 independently Rust-verified package resources. History reads preserve edited physique through MCCC wrappers; normal save/other-Sim behavior remains native.
+- [x] Actual V49 try-on/Discard leaves the complete Sim unchanged; Live physique Apply retains the edited Alien through unpaused Alien → Vampire → Alien while all other stored appearances remain exact. Its stored-Alien Undo failure remains failed.
+- [x] V50 synchronizes the requested Live edit/Undo fields with the existing stored current-form wrapper, verifies both after visual resend and rolls both back on rejection in distinct-owner fixtures.
+- [x] CLI acknowledgements of the verified EA permission dialog and normal unsaved game closure; disposable save/backup hashes remain unchanged. A minimized verified dialog is restored and freshly rechecked before acknowledgement.
+- [x] Actual V50 try-on/Discard, immediate shape Apply, unpaused Alien → Vampire → Alien and Undo restore all seven stored/distinct active appearances exactly. Inactive Werewolf shape edit/Undo preserves active Alien and all six other stored forms; the actual CC thumbnail GPU-column/layout check also leaves the Sim unchanged. Exact receipt hashes are in the appearance-room ledger.
+- [x] Actual V50 compatible CC lipstick hue Apply retains its exact Q14 value after unpause; Undo restores all seven stored/distinct active appearances. Visible Live close-up/shader equivalence remains a separate check.
+- [ ] Fresh full CAS/manual/MCCC alternate edits, every-category isolation and same-script controlled save/reload acceptance.
+- [ ] Full EA shader/material equality, all presets/voice/traits, effective catalog deduplication/swatches, portable helper installation and thousand-Sim acceptance. The full custom room and G009 completion gates remain open.
+
+### October 11 Werewolf styles and native Tray transfer leaves
+
+Scoped evidence and retained failures:
+[`Reports/WEREWOLF_TRAY_TRANSFER_2026-10-11.md`](../Reports/WEREWOLF_TRAY_TRANSFER_2026-10-11.md).
+
+- [x] New occult generation retains the EA alternate appearance and restores only generator side effects on existing owners. Explicit EA Werewolf default try-on retains/restores every original owner before returning detached fields.
+- [x] Actual V51 EA Werewolf Apply affects only the inactive Werewolf; its independent preview has the EA wolf head/body. After unpause, Undo restores all captured stored/active appearances. Human/CC style toggles retain separate looks and actual inactive toggle/preview/off preserves every other owner and membership.
+- [x] Bounded immutable clipboards and selective cross-form paste preserve destination outfit IDs/categories, unselected rows and their parallel arrays. Retain V51's rejected category-order paste as a complete rollback failure; do not mark that probe successful.
+- [x] Actual V54 Alien → Human and Vampire → Mermaid skin-tone/forehead-detail paste changes only the selected destination fields after unpause; Undo restores the complete Sim. Detached generated EA outfit IDs render before Apply and preparation/render/Cancel leave all owners unchanged.
+- [x] Read-only native Tray v1/v2 projection retains exact source bytes and reports represented/shared fields. Actual independent Tray Human/Vampire source switching preserves the destination Sim. Complete five-file native Tray exchange verifies hashes and identical import skips every existing file without overwriting it.
+- [ ] Fresh corrected displayed-Tray clipboard copy and cross-form full-wardrobe/tattoo Apply/unpause/Undo, actual Live Human/CC Werewolf visual/powers, full CAS/MCCC and controlled save/reload remain separate acceptance leaves.
+- [ ] Current-Live-Sim creation of a new native Library/Tray item, full MCCC/Tray parity and universal room/CC/shader/thousand-Sim acceptance remain open. T215/T219/T221/T222/T224/G009 are not closed by these scoped leaves.
+
+### October 11 CAS swatches and native Tray gallery
+
+- [x] Bounded native OutfitID family grouping, exact ARGB swatches/order, duplicate-container collapse and distinct conflicting variants. Flat CLI resource pages remain available. The full read-only installed index has 539,005 container CASPs, 195,895 distinct variants and 54,334 fitting/source-scoped families across 5,004 packages, with no source errors.
+- [x] Host/native typed swatch pages, a color picker bound to the exact resource, thumbnail-provider lookup in separate EA packages, and native Tray name/creator/portrait browsing with source-Sim/form selection.
+- [x] Actual host CC lipstick family and swatches, native resource protocol validation and test-household Tray portrait/projection leave the complete disposable Sim unchanged. Runtime receipt: `35cb832d3f773bcfe930f584e64c5984a7d080d8b50efe14ccd18492e98a26f9`.
+- [x] V55 displayed-Tray clipboard copy succeeds without Sim writes (`cb115d543bec2fefe74bfbe527cd7529ade7525ca6c3b9c10350b4fa5a6ebde8`). One-outfit Vampire → Mermaid and tattoo-category Vampire → Human Apply/unpause/Undo preserve other owners and restore the complete baseline (`b0f8d6e4b5f929a168875263c8fed97958fdfcf6912a4eb16bdfe97cf0c46e6d`).
+- [x] Fresh V58 F11 item-family selection and non-default swatch retain exact CASP/hash/ARGB colors; the 30-color CC lipstick is one card. Its absent image renders at 256×256 in a detached GPU scene. Native Tray portrait, household selection and represented Vampire 3D source view all succeed with the destination separate and every captured stored/active appearance unchanged (`fb6c8344dc2949d309b8eb16968bb47cf5beec212ab7ba8b84210c7ee21c9c92`).
+- [ ] Universal thumbnail fitting/material coverage and full Gallery/Tray Importer parity remain open. The scoped real-image proof does not certify every item or lot/room reconstruction.
+- [ ] Full-appearance/all-wardrobe Tray paste remains rejected and fully rolled back (`164c32b6a6c282afaab6e8e61e15d649e315dc6d52992217c18a9c2da69238e8`). The binary32 voice projection is corrected; the outfit readback mismatch remains acceptance work. Existing broad occult/CAS/MCCC/save-reload gates stay open.
+
+### October 12 multi-hybrid creation and crash isolation
+
+- [x] Preserve every existing stored and active appearance during native occult additions, including wrapper identity, physical flags and membership. Actual twelve additions give three Sims seven stored owners each; no original Sim is removed.
+- [x] Verify fourteen distinct stored-form physique edits across two new Sims after unpause. Retain the legitimate current-Human wardrobe synchronization separately from cross-form changes.
+- [x] Verify actual Alien → Vampire → Alien and Mermaid/Werewolf/Fairy/Spellcaster switches against all seven stored owners after simulation progression. Human from Spellcaster remains a failed separate leaf.
+- [x] Archive/quarantine only the two generated test Tray files after exact-byte backup. Retain both native startup dumps and confirm the same build reaches Live with the original five disposable Tray files.
+- [x] Prevent unverified generated Gallery entries from being staged into active Tray. Add external native-record archives, exact external source readers, partial-import journals and guarded recovery without removing existing Sims.
+- [x] Archive a failed native switch after exact unsaved closed-runtime/unchanged-save evidence, preserving all preimages without certifying CAS or replaying old bank appearances.
+- [x] V71/V75 load two native-record hybrid clones once, complete asynchronous spawns after actual simulation, restore exact captured startup availability and verify all represented stored fields plus ten persistence-buffer checks on both Sims. The existing household member remains unchanged; no disk save occurs.
+- [x] Retain fourteen distinct physique values across the two imported Sims. Preserve the failed imported Human → Alien transition and its complete originals. Identify four distinct body-hair deletions without weakening genetics equality.
+- [ ] Accept native multi-hybrid household reconstruction and its full stored-field save/cold-reload round trip. Native stored schemas omit some pelt/custom texture fields; complete appearance sidecars and real acceptance are required.
+- [x] Verify detached native CASP preparation with complete genetics and every real owner/context unchanged. V76 actual runtime proof passes; V80 uses a complete existing same-kind source. Unknown bytes, distinct current/preferred growth swatches and every other appearance field retain identity.
+- [x] Reject stale candidate recovery epoch/self/module pins before package writes; the packaging check imports no mod code. V81's invalid stale-pin candidate is retained as failure evidence and receives no household acceptance claim.
+- [x] Preserve read-only guards for both owner-selected original folder names; an absent location cannot silently select another sibling. Update only the external test journal after the owner's explicit rename confirmation.
+- [x] Verify real V84/V85 complete body-hair/genetics restoration with original CC outfit bytes, every unselected owner and native context unchanged. Retain detached full-appearance proof and reject unknown/other-field changes. This closes the isolated repair leaf, not the outer form switch.
+- [x] Trace native public trait cleanup and fix the unrelated nested Human switch. V88 verifies eighteen transitions across both imported hybrids, including Human → Alien and Alien → Vampire → Alien. Prior failed UUIDs and originals stay retained.
+- [x] Commit six distinct full-CAS Alien edits on the existing Sim and verify unpaused Alien → Vampire → Alien plus the other occult forms, all seven stored owners and both companions. V89 gives eleven passing transitions with at least 508 actual simulation ticks per step. Eyebrow exact-color selection remains a retained failure.
+- [x] Fix and runtime-verify Human selection from Spellcaster on both imported Sims and the existing Sim. Historical failed UUIDs and native bytes remain unchanged.
+- [ ] Complete imported alternate-form CAS edits and all-member saved cold reload. V88 full-household entry crashed; V89's one stable full-CAS pass does not certify universal crash resolution or unselected-member context restoration.
+- [ ] Fix whole-wardrobe Mermaid paste. Preserve its failed UUIDs, native bytes and verified rollback; do not relabel it passing.
+- [x] Complete CLI normal unsaved closure despite the old retained complete failed swatch acknowledgement. Preserve its exact Source result, require detached CAS and fresh matching paused Live context, select both menus without focus, and verify all twenty save/backup hashes unchanged. This permits no save, CAS writer unlock or input replay.
+- [x] Verify V90 full CAS editing, terminal failed-swatch receipt, fresh status and semantic CAS return without human input. Actual matching Live return advances 865 simulation ticks and ends paused; its slower original bank-observation UUID completes separately and records Alien as the sole changed lane. Native commit ACK and appearance/save/reload certification remain separate. The final unchanged-source full suite passes 1,812 tests.
+- [x] Repeat normal unsaved shutdown after successful complete V71/V75 imports; no new crash and all twenty save/backup hashes unchanged. Earlier partial-load shutdown crashes remain retained; the overall crash gate stays open.
+
+- [x] V91 full-CAS same-visit Alien/Human disguise editing: twelve distinct verified selections, primary/disguise/primary navigation and semantic original-Sim Live return entirely through CLI. Only Human and Alien change; explicit two-lane commit verifies all seven native owners. Unpaused Vampire → Alien → Human → Alien retains every stored/existing active field and both companions, with at least 2,200 actual ticks per step. Controlled normal Slot02 save/seal pass; this new paired-edit cold reload remains separate.
+- [x] V90 same-script original-Sim certified cold reload: all seven stored owners, distinct active appearance and six memberships match before/after 1,789 actual ticks. No appearance/bank/save writes or input; normal saved file unchanged. Full household comparison separately fails on both imported Sims’ stored Alien genetics and active outfits, with complete differences retained.
+- [x] EA account-bound CLI permission acknowledgement succeeds without foreground ownership or cursor movement. Exact window/PID/creation time, fresh complete dialog pixels and current account launch record remain required. Actual launch/readiness is observed separately; Windows UAC is not automated.

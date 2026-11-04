@@ -1,0 +1,220 @@
+{
+  "schema": 1,
+  "build_epoch": "2026-10-24-local-publication-profile-v308",
+  "production_ready": false,
+  "changes": [
+    "Reuse exact prepared game icon IDs; native lookup only for missing displayed-family icons",
+    "Bounded incoming-member timing counters only; no idle profiling loop",
+    "Fresh Sims launch-context verification immediately before EA UIA Invoke, including blank Qt capture cases"
+  ],
+  "tests": {
+    "full_python_tests": 2915,
+    "native_dll_unchanged_from_19_target_pass": true,
+    "owner_metadata_bytecode_tests": 47,
+    "life_state_bytecode_tests": 37,
+    "form_select_bytecode_tests": 39,
+    "seal_tests": 26,
+    "saved_named_tests": 15,
+    "ea_permission_tests": 73
+  },
+  "retained": {
+    "cold_native_appearances": 40,
+    "cold_named_looks": 155,
+    "after_live_simulation_unchanged": true,
+    "normal_full_cas_complete_records_unchanged": 195
+  },
+  "actual_member_clicks": {
+    "qualified": false,
+    "samples": [
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 1388,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "349336084686110946",
+        "timing": {
+          "catalog_ms": 0,
+          "first_frame_delay_ms": 1160,
+          "graphics_ms": 2,
+          "icons_ms": 1,
+          "menu_ms": 0,
+          "pair_ms": 205,
+          "prime_ms": 0,
+          "state_ms": 1
+        },
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 1758,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "349336084686110947",
+        "timing": {
+          "catalog_ms": 0,
+          "first_frame_delay_ms": 1428,
+          "graphics_ms": 2,
+          "icons_ms": 0,
+          "menu_ms": 0,
+          "pair_ms": 309,
+          "prime_ms": 0,
+          "state_ms": 1
+        },
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 1759,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "450667075246031054",
+        "timing": {
+          "catalog_ms": 1,
+          "first_frame_delay_ms": 1504,
+          "graphics_ms": 0,
+          "icons_ms": 0,
+          "menu_ms": 254,
+          "pair_ms": 253,
+          "prime_ms": 255,
+          "state_ms": 1
+        },
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 1034,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "285159751289798669",
+        "timing": {
+          "catalog_ms": 0,
+          "first_frame_delay_ms": 700,
+          "graphics_ms": 2,
+          "icons_ms": 0,
+          "menu_ms": 0,
+          "pair_ms": 319,
+          "prime_ms": 0,
+          "state_ms": 1
+        },
+        "transport_error": ""
+      },
+      {
+        "member_ui_milliseconds": 4139,
+        "member_ui_frames": 0,
+        "timing": {
+          "catalog_ms": 0,
+          "first_frame_delay_ms": -1,
+          "graphics_ms": 2,
+          "icons_ms": 0,
+          "menu_ms": 0,
+          "pair_ms": 403,
+          "prime_ms": 0,
+          "state_ms": 1
+        },
+        "prepared_local_catalog": false
+      }
+    ],
+    "fifth_member_missed_bounded_local_bootstrap": true
+  },
+  "actual_form_clicks": [
+    {
+      "exact_owner_and_kind": true,
+      "input_handler": {
+        "clock_resolution_ms": 1,
+        "max_ms": 0,
+        "over_budget": 0,
+        "samples": 1,
+        "scope": "accepted-CAS-input-queue-handler",
+        "target_ms": 1,
+        "total_ms": 0
+      },
+      "native_bind_ms": 27.2118,
+      "native_pair_visible": true,
+      "owner_id": "native/4",
+      "queued_to_bound_ms": 44
+    },
+    {
+      "exact_owner_and_kind": true,
+      "input_handler": {
+        "clock_resolution_ms": 1,
+        "max_ms": 0,
+        "over_budget": 0,
+        "samples": 2,
+        "scope": "accepted-CAS-input-queue-handler",
+        "target_ms": 1,
+        "total_ms": 0
+      },
+      "native_bind_ms": 16.7183,
+      "native_pair_visible": true,
+      "owner_id": "native/1",
+      "queued_to_bound_ms": 28
+    },
+    {
+      "exact_owner_and_kind": true,
+      "input_handler": {
+        "clock_resolution_ms": 1,
+        "max_ms": 0,
+        "over_budget": 0,
+        "samples": 3,
+        "scope": "accepted-CAS-input-queue-handler",
+        "target_ms": 1,
+        "total_ms": 0
+      },
+      "native_bind_ms": 34.4821,
+      "native_pair_visible": true,
+      "owner_id": "active/2",
+      "queued_to_bound_ms": 57
+    }
+  ],
+  "measured_costs": {
+    "before_first_frame_ms": [
+      1160,
+      1428,
+      1504,
+      700,
+      -1
+    ],
+    "pair_refresh_ms": [
+      205,
+      309,
+      253,
+      319,
+      403
+    ],
+    "icons_ms": [
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    "graphics_ms": [
+      2,
+      2,
+      0,
+      2,
+      2
+    ]
+  },
+  "interpretation": "Most incoming-member delay precedes the first frame. Pair publication also costs about 200-320 ms in the four bounded samples. Icons and drawing are not the dominant cost. Concurrent regression tests were running; this is not a clean comparative performance win.",
+  "next_work": [
+    "Prevent native selector filtering of actual complete hybrid pairs before the permanent preservation observer runs",
+    "Avoid rebuilding unchanged pair filter definitions and repeated panel state",
+    "Repeat actual pointer timings and all appearance retention checks"
+  ],
+  "ea_launch": {
+    "first_attempt_succeeded": true,
+    "matching_bridge_verified": true,
+    "normal_uac_not_automated": true,
+    "foreground_activation_not_requested": true
+  },
+  "release_qualification": "open"
+}

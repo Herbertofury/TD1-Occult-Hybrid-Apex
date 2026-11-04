@@ -1,0 +1,76 @@
+{
+  "actual_runtime": {
+    "all195_first_entry_fields_retained": true,
+    "all195_second_entry_fields_retained": true,
+    "all40_after_disposition_retained": true,
+    "all40_and155_named_after_upgrade_qualified": true,
+    "all40_direct_live_before_disposition_retained": true,
+    "all_saved_files_unchanged": true,
+    "evidence_sha256": {
+      "all195_second_export": "ae301caa060756e97ddc0f4a3ccfb1851d0d844511c4b57aee1b73fcef29f605",
+      "automatic_entry": "9892dbf207f3dec35def0fe780d4abd7506e8e2d34101ee12590f9739ef6b65f",
+      "return_retirement_reentry": "7bd1bb33e75539fbc76533bf296ff27212d6c5e313a3447578961d4f87431402",
+      "upgrade_live": "2e1f59edd70aa0812bda53bd89f13a7243a00f94a306f21251cdfbdb113eb65a"
+    },
+    "first_native_scope_retired": true,
+    "fresh_scope_same_process_and_household": true,
+    "installed": true,
+    "manual_arm_submitted": false,
+    "matching_script_bridge_observed": true,
+    "named_documents_155_exact_before_and_after_return": true,
+    "native_restore_requested": false,
+    "new_pid": 74956,
+    "normal_acceptance_replayed": false,
+    "normal_automatic_cas_entry_qualified": true,
+    "other_household_roster_runtime_qualified": false,
+    "player_responsiveness_qualified": false,
+    "qualification_scope": "Reviewed saved-name upgrade and same-household automatic-entry/return/retirement/reentry only",
+    "qualified": true
+  },
+  "build_verified": true,
+  "candidate_epoch": "2026-10-21-saved-named-upgrade-v263",
+  "candidate_sha256": "7d2486888ed59338b72b90e576f105ff28c02cbccb5844070c0f0d111fd0691d",
+  "checks": {
+    "compiled_python37_modules": 105,
+    "complete_new_ci_pending": true,
+    "final_saved_named_tests_passed": 14,
+    "frozen_recovery_and_saved_named_tests_passed": 66,
+    "matching_native_dll_unchanged_from_v262": true,
+    "packages": 7,
+    "private_python37_native_abi_and_packaged_loader_passed": true,
+    "rust_validated_resources": 210
+  },
+  "dll_sha256": "c88ff1e3c8807dbd8f5fd1f0c48025ca1f7f30854af04bfed84d98bbe7d6391d",
+  "fix": {
+    "current_native_or_complete_load_observation_checks_retained": true,
+    "exact_sim_and_household_coverage_required": true,
+    "immutable_seal_and_saved_file_checks_retained": true,
+    "native_restoration_authority_added": false,
+    "old_seal_or_save_rewritten": false,
+    "producer_real_save_cold_load_passed": true,
+    "reviewed_metadata_only_producer": "30b38b03923e8d32cf191feec719f621a0e4b62bd1516209759ca007417995b4",
+    "unknown_producers_still_refused": true
+  },
+  "problem": "V262 retains the native save but correctly refuses named metadata from an unreviewed V261 producer. This prevents normal CAS preparation from reaching automatic arming.",
+  "production_ready": false,
+  "quiet_member_input_v263": {
+    "all195_fields_retained": true,
+    "desktop_focus_unchanged": true,
+    "full_click_to_controls_measured": false,
+    "notification_to_controls_ms": [
+      1066,
+      1166
+    ],
+    "report": "CAS_MEMBER_QUIET_V263.json",
+    "responsiveness_target_met": false,
+    "two_switches_verified": true
+  },
+  "recovery_self_body_sha256": "48564652cb4e032078c6ce936d4fc9e413262f275f2f325408f54fc5346ee60a",
+  "remaining": [
+    "Qualify reliable native portrait input and actual player responsiveness; the earlier incomplete/failed pointer probe stays open.",
+    "Qualify mixed ordinary/single-occult companions, new/main-menu CAS, cancellation and a different household roster at runtime.",
+    "Finish native Filter Items search, full Tray/Gallery, all requested forms/categories/edit routes, compatibility and the other release gates."
+  ],
+  "schema": 1,
+  "script_sha256": "36fa7f3d9db30dc13502c1b3b16a939055a649b8f419c2b18bb589892cb9307d"
+}

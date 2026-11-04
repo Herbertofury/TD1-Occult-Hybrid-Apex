@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-21-deferred-search-feed-v266",
+  "candidate_sha256": "a84bb7198019eefad91dac15dcbc8a3ca69cd22bfe61eed4af339ae63b9b18df",
+  "production_ready": false,
+  "actual_runtime": {
+    "cold_loaded_native_appearances_retained": 40,
+    "automatic_entry_compared_records_retained": 195,
+    "deferred_native_source_count": 41,
+    "exact_cli_query_acknowledged": true,
+    "completed_metadata_query": false,
+    "clearing_restored_native_card_count": 41,
+    "native_appearances_retained_before_and_after_disposition": 40,
+    "named_looks_retained": 155,
+    "all_saved_files_unchanged": true
+  },
+  "failure": "The source-admission correction works. Native search submission is nevertheless refused, so no metadata result selection is qualified.",
+  "diagnosis": "V267 retains the native refusal reason and actual parsed query. It identifies a transport ownership rejection. The script used the Sim ID in SEARCH/SEARCHREAD, whereas the existing STATE protocol and native Channel.Matches require the opaque channel ID. V268 corrects both calls; the native ownership check is retained.",
+  "additional_correction": "Clearing a refused query previously rebound an unchanged native list. The publisher now compares the actual product references/order and returns without removing/rebinding identical cards. A serialized mutation case requires this early return.",
+  "validation": {
+    "v266_ci_head": "0028587ed6d855c9af2ffc50e0f47d3ed6dfcb22",
+    "v266_ci_run": 39701882200,
+    "python_checks": 2619,
+    "native_targets": 15,
+    "result": "passed; later V267/V268 changes require their own qualification"
+  },
+  "remaining": [
+    "Corrected actual metadata results, clear and native selection.",
+    "Physical typing, focus/editing keys and all context transitions.",
+    "Full EA/CC library and verified broker startup/distribution.",
+    "The complete hybrid release matrix and responsiveness."
+  ]
+}

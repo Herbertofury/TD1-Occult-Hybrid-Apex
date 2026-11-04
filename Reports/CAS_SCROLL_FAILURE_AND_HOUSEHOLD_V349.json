@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-26-native-geometry-scheduler-v349",
+  "build_source_commit": "86a9008abd339bad4ee560703fe0aca8068df9b0",
+  "candidate_sha256": "8a27f816c43a7197c9cc98c072ad2433d3f095b8ad71d1ace40380509164a80d",
+  "cas_package_sha256": "4715705f94348045ea4553bfb0f2a5622da586b06aeded371b1eabaceeee6b73",
+  "cas_main_sha256": "a9f4284c585484e9817f8bfee48cbf7e9a4528be66af50f9a97c4f08522b975c",
+  "script_sha256": "ead09b87f652ef1e54585596cda656f3fc40f8bb74b2ef799ca4f79d33e7b5ff",
+  "native_dll_sha256": "ea25d60c004c4ba62a6f0ace71d8681b57b4d25e63958d616da1e78f1e54d629",
+  "actual_save_ready": false,
+  "zero_hitch_claimed": false,
+  "actual_fps_qualified": false,
+  "continuous_blank_free_proven": false,
+  "package_validation": {
+    "ui_source_pins": 127,
+    "ui_resources": 73,
+    "compiled_python37_modules": 114,
+    "independent_rust_resources": 277,
+    "packages": 7,
+    "independent_rust_verified": true,
+    "proof": {
+      "private_receipt": "v349-ui-input-qualified.json",
+      "sha256": "4f54070a8459795554eaa02c729990ce86f19c2083e3f9c8ee9c60cebb9607e6"
+    }
+  },
+  "source_regression": {
+    "exact_commit": "cd390bc74a4996aac283d14541e909821ebdfb15",
+    "canonical_source_files": 1088,
+    "complete": true,
+    "discovered": 4066,
+    "tests_run": 3828,
+    "successful_methods": 3517,
+    "failures": 0,
+    "errors": 0,
+    "skip_entries": 320,
+    "skip_accounting": "311 individual methods and9 class skip entries; class skips are not tests_run.",
+    "runtime_code_parity": "This test-only successor changes seven cache/AST fixtures plus their canonical manifest; all70 sealed runtime modules, seal self and127 UI inputs remain exact to86a9008.",
+    "proof": {
+      "private_receipt": "v348-clean-source-control/run-cd390bc74a49/completion-summary.json",
+      "sha256": "276bb3fcac758a8245f710267135831038c3651b424d86a8fa09522d3b23c217"
+    },
+    "earlier_run": {
+      "commit": "86a9008abd339bad4ee560703fe0aca8068df9b0",
+      "complete": true,
+      "failures": 4,
+      "error_entries": 69,
+      "cause": "Old AST/cache harnesses omitted the new Physical/Intrinsic continuation helper/imports and expected the previous terminal. Original cases and compiled adversary classes retained; tests now model all missing successors and refusal points.",
+      "proof": {
+        "private_receipt": "v348-clean-source-control/run-86a9008abd33/completion-summary.json",
+        "sha256": "1e3a2ded917c0403dd2d4207d44e08ad95cfb7e89c2aa77e4a2b450a2f5c6496"
+      }
+    }
+  },
+  "runtime_passes": {
+    "stored_household_cold_load": {
+      "native_appearances": 40,
+      "named_looks": 155,
+      "final_paused": true,
+      "proof": {
+        "private_receipt": "v349-edited-saved-cold-load.json",
+        "sha256": "d789850659e51bbd761b2b144bb96985d3cbd15c58ba91cd209ff6634f2d81c9"
+      }
+    },
+    "automatic_full_cas_entry": {
+      "members": 5,
+      "raw_owners_exact": 195,
+      "manual_arm_submitted": false,
+      "proof": {
+        "private_receipt": "v349-normal-automatic-entry.json",
+        "sha256": "fa81f3c124513b186fd9871057c5a7c2e71b4ff4b1dc690593583aad96f5f752"
+      }
+    },
+    "intrinsic_enablement": {
+      "captures": 1,
+      "reuses": 47,
+      "foreign": false,
+      "natural_width": 107,
+      "natural_height": 147,
+      "scope": "Actual completed initial Hair generation only. Later scroll and fractional-width convergence did not qualify.",
+      "proof": {
+        "private_receipt": "v349-row-006-home.json",
+        "sha256": "1fdf8699661a2e1c8d45587b11babc4201504264e4ce07d5ca750359179abe5b"
+      }
+    },
+    "integer_width_receipt": {
+      "desired_width": 706,
+      "native_width": 706,
+      "receipt_valid": true,
+      "fractional_width_or_drag_qualified": false
+    },
+    "after_failed_scroll": {
+      "raw_owners_exact": 195,
+      "appearance_input_sent": false,
+      "proof": {
+        "private_receipt": "v349-after-scroll-failure-all195.json",
+        "sha256": "154447bcfcf9d4b5ed35a814c27ffd3e8d46c06621b68ec4a689be0bf12d82be"
+      }
+    },
+    "native_cancel": {
+      "actual_live_return": true,
+      "clock_speed": 0,
+      "proof": {
+        "private_receipt": "v349-scroll-native-cancel-live-observation.json",
+        "sha256": "a1bd96e8e8cff5b39efc8ba83f7b4a195e9b2b4afd7bf0f3a8a7182ddcb7edb8"
+      }
+    },
+    "raw_return_before_prepare": {
+      "raw_owners_exact_to_original_entry": 195,
+      "proof": {
+        "private_receipt": "v349-scroll-cancel-raw-return-all195.json",
+        "sha256": "735b3857d7ac8d15c5edbd0800948f5f20e8389878bdbc09502f7b8ce7ab26f8"
+      }
+    },
+    "original_only_household_commit": {
+      "members": 5,
+      "accepted_edits": [],
+      "accepted_named_edits": [],
+      "proof": {
+        "private_receipt": "v349-scroll-cancel-originals-household-commit.json",
+        "sha256": "70de18ebd205b4a9909594b0d03040b15d2954eefb0c6f99fa8b3481d5b19c8d"
+      }
+    },
+    "normal_unsaved_exit": {
+      "all21_save_files_unchanged": true,
+      "proof": {
+        "private_receipt": "v350-final-normal-discard.json",
+        "sha256": "1bfe6d1ff4906122016917cb29925ea625320beffdcaf5a66341fc507640a2a4"
+      }
+    }
+  },
+  "runtime_failures": {
+    "page_down": {
+      "original_cas_request_id": "2222c8853bef4d1dbaa6fa707fb1b836",
+      "replayed": false,
+      "native_elapsed_ms": 498,
+      "native_target_index": 36,
+      "published": false,
+      "error": "Navigation publication changed its original request, target or catalog",
+      "native_before_after_context_equal": true,
+      "source_outcome": "invalid-native-acknowledgement",
+      "source_request_remained_pending": true,
+      "subsequent_status_refused": true,
+      "source_guard_bypassed": false,
+      "proof": {
+        "private_receipt": "v349-row-007-page-down.json",
+        "sha256": "7b57418ef36bee1f0514c4f0b41a210730baeee317e0515c18a2af8265ec0350"
+      }
+    },
+    "actual_blank_grid": {
+      "captured_window_pixels_blank": true,
+      "scope": "Actual Hair grid blank after failed PageDown; native header, swatches and scrollbar remained. This is not a no-blank pass.",
+      "image_private_receipt": "v349-row-after-refusal.bmp",
+      "image_sha256": "002149b1984a270fe19580f1e146b4626ff8c1ad035d6457356366e52f740cc6"
+    },
+    "cold_native_atoms": {
+      "max_ms": {
+        "attach": 44,
+        "bind": 68,
+        "construct": 3,
+        "data": 0,
+        "draw": 66,
+        "position": 1,
+        "publish": 9,
+        "retire": 0,
+        "selected_setter": 0,
+        "selection": 1
+      },
+      "main_frame_max_ms": 70,
+      "trace_enabled": false,
+      "scope": "Cumulative observed maxima may concern different cards. Draw66/bind68/attach44 are direct brackets, not HTTP durations. Do not subtract maxima or assign all to Home. Internal cause is unassigned; bounded granular Draw trace already exists."
+    }
+  },
+  "next_build": {
+    "runtime_qualified": false,
+    "purpose": "Expose copied bounded controller/provider/keyboard error evidence in the original incomplete failed ACK, while retaining unchanged Source quarantine. Add separately proved work-versus-input lifecycle distinction. Actual blank-grid cause still open.",
+    "source_python_changed": false,
+    "native_dll_changed": false,
+    "default_profiler_enabled": false,
+    "work_visibility_is_proven_actual_cause": false
+  },
+  "remaining_validation": [
+    "Exact blank-grid error attribution and correction",
+    "Real one-row overlap counts and continuous rendered scroll pixels",
+    "Body and all applicable category sizing on corrected build",
+    "Fractional/native right-edge width convergence and collisions",
+    "Aggregate category publish/idle",
+    "Human paint/Medical Live return and match_hair_style origin",
+    "Independent edits/link/copy/member/save/Tray/Gallery release matrix"
+  ],
+  "protected_original_written": false,
+  "save_files_written": false
+}

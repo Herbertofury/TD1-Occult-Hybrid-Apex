@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-21-native-filter-search-v265r3",
+  "candidate_sha256": "8dfdcdb8c5f9a4e8df316bef3e2994993a25a9f2195893eb1939a04e1c6e40f8",
+  "production_ready": false,
+  "implemented": [
+    "Editable native filter-pane field, clear control and existing filter chips/toggle.",
+    "Bounded URI-encoded CLI query with an exact UI-only intent acknowledgement.",
+    "Existing DLL metadata worker, paged resource resolution and intersection with the current native eligible feed.",
+    "Native cards and swatches; no new equip path or appearance setter."
+  ],
+  "actual_runtime": {
+    "cold_loaded_native_appearances_retained": 40,
+    "automatic_entry_compared_records_retained": 195,
+    "native_bar_visible_in_backbuffer_capture": true,
+    "native_filters_and_cards_visible": true,
+    "search_queries_submitted": 0,
+    "appearance_edits_requested": false,
+    "search_test_passed": false,
+    "failure": "Native search source unavailable: the bar is visible and native feed timing is present, but no source rows are admitted. The synchronous current/visible-panel gate is the suspected transition-order defect; the correction needs runtime confirmation."
+  },
+  "response": "V266 queues the native UI-owned feed and primitive identity, then admits it in an idle phase only when Sim, owner, generation, category and actual visible feed agree. This correction still needs a fresh actual-game test.",
+  "observed_initial_category_timing_ms": {
+    "native_fetch": 5,
+    "construct": 1,
+    "bind": 222,
+    "selected": 19,
+    "owned_frame_maximum": 621,
+    "owned_layout_maximum": 564
+  },
+  "timing_limits": [
+    "The maxima cover different nested scopes and must not be summed.",
+    "This is not an equivalent with/without-mod comparison or a search-query benchmark.",
+    "The requested responsiveness target is not qualified."
+  ],
+  "remaining": [
+    "Actual query/results/clear and card-selection proof after deferred-source correction.",
+    "Physical typing, editing keys, modals, member/form/category transitions and source retirement.",
+    "Large EA/CC library, exact loaded-source provenance and compatible mod matrix.",
+    "Automatic verified metadata-broker distribution/startup."
+  ]
+}

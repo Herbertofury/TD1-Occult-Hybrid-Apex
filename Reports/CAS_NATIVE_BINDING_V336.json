@@ -1,0 +1,263 @@
+{
+  "candidate_epoch": "2026-10-25-native-catalog-binding-v336",
+  "candidate_sha256": "3b600bbd1ed969090bcad0d6ed2d1a25c6d5a4865f698186176b027b86e31a2f",
+  "main_swf_sha256": "29240d7cf0eefd5f329540e98435e8a2a66f6f0ae3de58bcc6435e69890c4441",
+  "production_ready": false,
+  "hitch_free_claimed": false,
+  "scope": "Exact-message native panel binding; preserved initialized card pool",
+  "change": {
+    "native_first_panel_bind_uses_current_fitted_width_when_qualified": true,
+    "redundant_owned_second_bind_suppressed_only_for_same_verified_event": true,
+    "other_four_native_binds_unchanged": true,
+    "original_native_binding_method_unchanged": true,
+    "unmeasured_or_changed_context_retains_original_and_required_correction": true,
+    "borrowed_display_or_message_handles_exposed_in_status": false,
+    "new_main_fields": 0,
+    "full_ancestral_main_bytecode_rollback_required": true
+  },
+  "actual": {
+    "pid": 19288,
+    "cold_native_appearances_retained": 40,
+    "cold_named_looks_retained": 155,
+    "full_cas_entry_complete_records_unchanged": 195,
+    "post_category_complete_records_unchanged": 195,
+    "all21_save_files_unchanged": true,
+    "native_binding_applied_observed": true,
+    "native_binding_width": 706,
+    "body_tattoos_hair_round_trips_completed": true,
+    "appearance_edits_submitted": false,
+    "save_submitted": false
+  },
+  "action_capture": {
+    "seconds": 60,
+    "scope": "Body/Tattoos/Hair transitions including explicit CLI observations; own compilers stopped",
+    "frames": 6465,
+    "median_ms": 8.4715,
+    "p99_ms": 18.4055,
+    "max_ms": 562.8303,
+    "over33_33_ms": 15,
+    "event_loss_reported": false,
+    "matched_no_mod_baseline": false,
+    "performance_pass": false,
+    "largest_frame_cpu_busy_ms": 562.7016,
+    "largest_frame_gpu_time_ms": 6.8263,
+    "cause_of_remaining_stall_proved": false
+  },
+  "quiet_capture": {
+    "seconds": 30,
+    "frames": 3286,
+    "p99_ms": 14.1447,
+    "max_ms": 22.4693,
+    "over33_33_ms": 0,
+    "event_loss_reported": false,
+    "matched_no_mod_baseline": false,
+    "universal_performance_pass": false
+  },
+  "next": [
+    "Finish coordinated target-only CPU-stack analysis of the large category-action stalls; recording has stopped.",
+    "Qualify opt-in granular Draw markers separately from default frame performance.",
+    "Replace visible Live overlay periodic full-status/audit work with a fresh lightweight display endpoint.",
+    "Implement and qualify asynchronous ordered Live-switch bank I/O without weakening complete owner/identity checks, WAL durability or the permanent guard.",
+    "Retain all independent-edit, link/copy, MCCC/phone/F11 and native Tray/Gallery release gates."
+  ],
+  "cpu_trace": {
+    "trace_sha256": "c3d042bf2d68b37c52ea74fab78b245ac4f2289c01f97cc5f5ef2fccc9c8ebfa",
+    "trace_bytes": 2775580672,
+    "pid": 19288,
+    "actual_window_thread_id": 64604,
+    "events_lost": 0,
+    "aggregate_drops": {
+      "ip_occurrences": 0,
+      "thread_ip_occurrences": 0,
+      "stack_occurrences": 0,
+      "definitions": 0
+    },
+    "target_sample_events": 169072,
+    "thread_filter": "Actual process-owned visible Canvas window thread; read-only Win32 metadata",
+    "workload_windows": [
+      {
+        "name": "body",
+        "duration_ms": 4813.12,
+        "sample_events": 2812,
+        "first_sample_ms": 1903.1605,
+        "last_sample_ms": 6708.4658,
+        "first_raw_stack_ms": 1898.3455,
+        "last_raw_stack_ms": 6709.2756,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 697,
+          "rva_109e3d0_109e47f": 299,
+          "rva_edc9c0_edcbe6": 1,
+          "rva_ff78c0_ff7eb5": 192
+        }
+      },
+      {
+        "name": "tattoo",
+        "duration_ms": 5773.951,
+        "sample_events": 3889,
+        "first_sample_ms": 6718.7541,
+        "last_sample_ms": 12488.6664,
+        "first_raw_stack_ms": 6715.258,
+        "last_raw_stack_ms": 12488.9472,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 847,
+          "rva_109e3d0_109e47f": 339,
+          "rva_edc9c0_edcbe6": 461,
+          "rva_ff78c0_ff7eb5": 233
+        }
+      },
+      {
+        "name": "tattoo-done-0",
+        "duration_ms": 5887.555999999999,
+        "sample_events": 3719,
+        "first_sample_ms": 12495.0912,
+        "last_sample_ms": 18381.0017,
+        "first_raw_stack_ms": 12494.7258,
+        "last_raw_stack_ms": 18381.0017,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 1005,
+          "rva_109e3d0_109e47f": 413,
+          "rva_edc9c0_edcbe6": 0,
+          "rva_ff78c0_ff7eb5": 250
+        }
+      },
+      {
+        "name": "hair",
+        "duration_ms": 5831.607,
+        "sample_events": 3841,
+        "first_sample_ms": 18388.8497,
+        "last_sample_ms": 24211.7688,
+        "first_raw_stack_ms": 18385.2724,
+        "last_raw_stack_ms": 24213.0011,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 879,
+          "rva_109e3d0_109e47f": 347,
+          "rva_edc9c0_edcbe6": 319,
+          "rva_ff78c0_ff7eb5": 215
+        }
+      },
+      {
+        "name": "hair-done-0",
+        "duration_ms": 5297.572,
+        "sample_events": 3485,
+        "first_sample_ms": 24220.7855,
+        "last_sample_ms": 29515.9086,
+        "first_raw_stack_ms": 24219.6689,
+        "last_raw_stack_ms": 29516.1162,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 892,
+          "rva_109e3d0_109e47f": 370,
+          "rva_edc9c0_edcbe6": 0,
+          "rva_ff78c0_ff7eb5": 244
+        }
+      },
+      {
+        "name": "hair-done-1",
+        "duration_ms": 6132.278000000002,
+        "sample_events": 3595,
+        "first_sample_ms": 29521.2726,
+        "last_sample_ms": 35649.8561,
+        "first_raw_stack_ms": 29521.2726,
+        "last_raw_stack_ms": 32064.7592,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 906,
+          "rva_109e3d0_109e47f": 363,
+          "rva_edc9c0_edcbe6": 0,
+          "rva_ff78c0_ff7eb5": 231
+        }
+      },
+      {
+        "name": "body-repeat",
+        "duration_ms": 5996.501000000004,
+        "sample_events": 3485,
+        "first_sample_ms": 35657.608,
+        "last_sample_ms": 41650.7314,
+        "first_raw_stack_ms": null,
+        "last_raw_stack_ms": null,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 901,
+          "rva_109e3d0_109e47f": 394,
+          "rva_edc9c0_edcbe6": 0,
+          "rva_ff78c0_ff7eb5": 237
+        }
+      },
+      {
+        "name": "tattoo-repeat",
+        "duration_ms": 5485.963000000003,
+        "sample_events": 3705,
+        "first_sample_ms": 41658.3579,
+        "last_sample_ms": 47133.4023,
+        "first_raw_stack_ms": null,
+        "last_raw_stack_ms": null,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 855,
+          "rva_109e3d0_109e47f": 364,
+          "rva_edc9c0_edcbe6": 460,
+          "rva_ff78c0_ff7eb5": 230
+        }
+      },
+      {
+        "name": "tattoo-repeat-done-0",
+        "duration_ms": 5843.754000000001,
+        "sample_events": 3650,
+        "first_sample_ms": 47148.5922,
+        "last_sample_ms": 52990.8761,
+        "first_raw_stack_ms": null,
+        "last_raw_stack_ms": null,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 967,
+          "rva_109e3d0_109e47f": 414,
+          "rva_edc9c0_edcbe6": 0,
+          "rva_ff78c0_ff7eb5": 269
+        }
+      },
+      {
+        "name": "hair-repeat",
+        "duration_ms": 6578.312999999995,
+        "sample_events": 1412,
+        "first_sample_ms": 52997.2855,
+        "last_sample_ms": 55159.6995,
+        "first_raw_stack_ms": null,
+        "last_raw_stack_ms": null,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 356,
+          "rva_109e3d0_109e47f": 167,
+          "rva_edc9c0_edcbe6": 0,
+          "rva_ff78c0_ff7eb5": 109
+        }
+      },
+      {
+        "name": "hair-repeat-done-0",
+        "duration_ms": 6073.049999999996,
+        "sample_events": 0,
+        "first_sample_ms": null,
+        "last_sample_ms": null,
+        "first_raw_stack_ms": null,
+        "last_raw_stack_ms": null,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 0,
+          "rva_109e3d0_109e47f": 0,
+          "rva_edc9c0_edcbe6": 0,
+          "rva_ff78c0_ff7eb5": 0
+        }
+      },
+      {
+        "name": "hair-repeat-done-1",
+        "duration_ms": 6709.645000000004,
+        "sample_events": 0,
+        "first_sample_ms": null,
+        "last_sample_ms": null,
+        "first_raw_stack_ms": null,
+        "last_raw_stack_ms": null,
+        "exact_rva_range_weights": {
+          "rva_1002cf0_1002d9a": 0,
+          "rva_109e3d0_109e47f": 0,
+          "rva_edc9c0_edcbe6": 0,
+          "rva_ff78c0_ff7eb5": 0
+        }
+      }
+    ],
+    "classification": "Repeated allocator/free/radix-map and context-generation snapshot candidate; exact engine meaning and safe correction are still under review.",
+    "causal_fix_proved": false,
+    "recording_replayed": false
+  }
+}

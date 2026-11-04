@@ -1,0 +1,53 @@
+TD1 Occult Hybrid Apex V7 - Drift Guard / Post-CAS Commit / Reference Shots
+Date: 2026-05-28
+
+Build target
+- Continued from TD1 Occult Hybrid Apex V6.
+- Kept the same mod folder identity: TD1 Occult Hybrid Apex.
+- Repacked TD1_OccultHybridApex.ts4script with the V7 backend source.
+- Rewrote NativeOverlay/Source/TD1ApexD3D11Proxy.cpp as a clean V7 F11 ImGui command overlay source.
+
+Research applied
+- The Sims 4 Modders Reference appearance guide emphasizes that CAS parts include clothes, hair, tattoos, body/face details, eye colors, and more.
+- The same guide warns that occult forms use separate occult sim_info objects; editing the current form does not automatically sync the equivalent occult sim_info.
+- The guide notes that genetic appearance data, including tattoos and skin details, must be handled alongside outfit data when working by script.
+- The injector tutorial and Sims 4 injection references support using Python injection/event patterns to reduce file overrides and patch conflicts.
+- XML Injector is documented as useful for XML/tuning interaction injection, but V7 uses the existing Python backend and F11 DX11 overlay rather than adding another dependency.
+
+New backend features
+- Timerless Drift Guard:
+  scan_occult_drift, fix_occult_drift, accept_occult_baseline, clear_drift_warnings.
+- Post-CAS save protection:
+  commit_current_to_occult and commit_current_to_all_forms.
+- Baselines:
+  saved/accepted occult forms become expected-look baselines with SHA256 fingerprints by payload field.
+- Warning types:
+  appearance_drift, current_not_committed, missing_baseline, missing_form.
+- Fix behavior:
+  appearance_drift restores from baseline; current_not_committed commits the current visible form into the selected occult form instead of overwriting user edits.
+- No continuous timers were added. Drift scans run only on user command or once after Apex commands when the user-enabled toggle is on.
+
+New F11 overlay features
+- Drift Guard tab with Scan, Fix, Accept Baseline, Commit Current -> Selected Occult, Commit Current -> All Active Forms, Clear Warnings, and scan-after-command toggle.
+- Warning banner appears in the header when drift_warning_count is nonzero.
+- Reference Shots tab with Face, Body, and Full Frame capture buttons.
+- Native screenshot capture is implemented in the DX11 proxy source by copying the backbuffer before Dear ImGui is drawn and writing BMP files.
+- Screenshot output path: Documents\Electronic Arts\The Sims 4\TD1ApexScreenshots.
+
+Performance guards
+- Overlay hidden: no HTTP polling.
+- Screenshot capture: only on button press.
+- Drift guard: no background tick or timer; scans are fire-once.
+- Existing MCCC shield monitor remains dormant unless armed.
+- Auto repair remains off by default.
+
+Local validation completed
+- Python source py_compile: OK.
+- TS4SCRIPT zip integrity: OK.
+- Native overlay C++ brace/comment/string balance sanity check: OK.
+- Final ZIP integrity: OK.
+- Native helper DLL remains PE32+ x64.
+
+Runtime limitations
+- This environment cannot launch The Sims 4, MCCC, or a Windows DirectX 11 process.
+- The d3d11.dll proxy still needs to be compiled with Windows Visual Studio Build Tools and tested in-game.

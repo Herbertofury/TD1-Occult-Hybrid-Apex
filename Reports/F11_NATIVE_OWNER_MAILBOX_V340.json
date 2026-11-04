@@ -1,0 +1,65 @@
+{
+  "candidate_epoch": "2026-10-25-direct-owner-mailbox-advance-v340",
+  "candidate_sha256": "f3e3ce8d530c9035665eb88d6054b9cc41b507aca3d8dde75405f0ec88041a8d",
+  "production_ready": false,
+  "hitch_free_claimed": false,
+  "native_route": {
+    "accepted": 8,
+    "appearance_read": false,
+    "bytes": 123214,
+    "claimed": 8,
+    "completed": 8,
+    "mutation_authority": false,
+    "ok": true,
+    "pending": 0,
+    "ready": true,
+    "retained": 8,
+    "runtime_epoch": 2,
+    "transport": "in-process-immutable-owner-mailbox",
+    "unresolved": 0
+  },
+  "owner_handler_qpc": {
+    "avg_ms": 0.28,
+    "count": 24,
+    "fail": 0,
+    "last_ms": 0.42,
+    "max_ms": 0.56,
+    "ok": 24
+  },
+  "external_http_max_ms": 210.00419999472797,
+  "end_to_end_player_click_latency_qualified": false,
+  "fresh_display": {
+    "raw_flags": 65,
+    "queried_membership_mask": 126,
+    "all_six_memberships": true,
+    "one_shared_human_present": true,
+    "full_appearance_or_library_audit": false
+  },
+  "preserved": {
+    "cold_native": 40,
+    "cold_named": 155,
+    "entry_owners": 195,
+    "post_ui_owners": 195,
+    "after_no_edit_return_native": 40,
+    "after_no_edit_return_named": 155,
+    "all5_no_edit_transactions_completed": true,
+    "unchanged_save_files": 21,
+    "appearance_edits_submitted": false,
+    "save_submitted": false
+  },
+  "advance_diagnostic": {
+    "qualified": false,
+    "request_state": "completed",
+    "message": "Unwind pin hex is incomplete.",
+    "hooks_created": false,
+    "enabled": false,
+    "inflight": 0,
+    "source_fix": "One extra0 in the49-character MovieAdvance xdata literal; exact24-byte pin corrected against executable; production-definition oracle added"
+  },
+  "boundaries": [
+    "The native F11 route is proved by accepted/claimed/completed mailbox counters, not by external HTTP speed.",
+    "External urllib CLI keeps its existing HTTP transport; its latency does not measure the in-process route.",
+    "No actual Advance durations or normal-play speedup are claimed from the refused diagnostic.",
+    "Legacy whole-bank prepare/observe/commit remain synchronous in this immutable candidate."
+  ]
+}

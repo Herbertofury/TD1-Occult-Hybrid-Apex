@@ -1,0 +1,886 @@
+{
+  "interpretation": "Single cProfile samples; not unprofiled click-to-visible latency, p95, FPS, or a universal speed guarantee.",
+  "live_menu_checks_retained": true,
+  "measured_game": "1.128.90.1030",
+  "native_present_regression": {
+    "after": {
+      "native_targets_passed": 12,
+      "proof": "v209-present-lock-after-tests.log",
+      "sha256": "c79cfc590a08ce7585e2645ef8b05bda13ba8c12e6efeabdf668301b0bf942f0"
+    },
+    "before": {
+      "expected_result": "fails message-thread completion while Present holds render mutex",
+      "proof": "v209-present-lock-before-test.log",
+      "sha256": "2d250a4537d0a2713597528ee1278306dc1e81bf5a53a29de0541ad57097d22e"
+    },
+    "explanation": "Real DXGI Present, Present1 and ResizeBuffers run outside the overlay renderer mutex; production hook tests require another thread to enter WndProc before the simulated DXGI call returns."
+  },
+  "original_profile_written": false,
+  "production_ready": false,
+  "sample_count_per_build": 1,
+  "samples": [
+    {
+      "functions": {
+        "admission": {
+          "calls": 7,
+          "cumulative_ms": 76.3644,
+          "self_ms": 0.8767
+        },
+        "generate_choices": {
+          "calls": 1,
+          "cumulative_ms": 228.38899999999998,
+          "self_ms": 0.0537
+        },
+        "get_save_lock_tooltip": {
+          "calls": 7,
+          "cumulative_ms": 81.2866,
+          "self_ms": 4.9136
+        },
+        "is_valid_aop": {
+          "calls": 525,
+          "cumulative_ms": 183.57949999999997,
+          "self_ms": 2.0476
+        }
+      },
+      "game_thread_only": true,
+      "retained_proof": "v208-live-pie-profile.json",
+      "sha256": "b83acd664fac763b660782e0ebeec7aaee0a813063ea4724c81ead4211713d74",
+      "version": "v208"
+    },
+    {
+      "functions": {
+        "admission": {
+          "calls": 7,
+          "cumulative_ms": 76.5798,
+          "self_ms": 1.1418
+        },
+        "generate_choices": {
+          "calls": 1,
+          "cumulative_ms": 215.2072,
+          "self_ms": 0.059
+        },
+        "get_save_lock_tooltip": {
+          "calls": 7,
+          "cumulative_ms": 81.0307,
+          "self_ms": 4.443499999999999
+        },
+        "is_valid_aop": {
+          "calls": 525,
+          "cumulative_ms": 172.58859999999999,
+          "self_ms": 1.8316
+        }
+      },
+      "game_thread_only": true,
+      "retained_proof": "v209-live-pie-profile.json",
+      "sha256": "fece7b83c3ef4556e68d83e439aa2e2539505ab1870db53b2319cd022159a179",
+      "version": "v209"
+    },
+    {
+      "functions": {
+        "admission": {
+          "calls": 7,
+          "cumulative_ms": 8.724599999999999,
+          "self_ms": 0.1953
+        },
+        "generate_choices": {
+          "calls": 1,
+          "cumulative_ms": 134.1037,
+          "self_ms": 0.0542
+        },
+        "get_save_lock_tooltip": {
+          "calls": 7,
+          "cumulative_ms": 8.755799999999999,
+          "self_ms": 0.0248
+        },
+        "is_valid_aop": {
+          "calls": 525,
+          "cumulative_ms": 95.623,
+          "self_ms": 1.6685999999999999
+        }
+      },
+      "game_thread_only": true,
+      "retained_proof": "v210-live-pie-profile.json",
+      "sha256": "e1aacf80eab1d271c2a09dc0521da6001de2723474d75f5fea208dcc91626cc0",
+      "version": "v210"
+    }
+  ],
+  "save_files_unchanged": true,
+  "schema": 1,
+  "scope": "instrumented disposable Live pie-menu generation and scoped native input regression",
+  "v211": {
+    "actual_fairy_picker_and_human_werewolf_verification": {
+      "actual_ea_fairy_card": {
+        "membership": 127,
+        "passed": true,
+        "proof": "v211-actual-ea-fairy-picker.json",
+        "rendered_kind": 64,
+        "sha256": "ced062398f69d64ce9fadf997dd52c41dc6e7b2d9f7642e551a07dd64d0a7daf"
+      },
+      "all_five_members": false,
+      "complete_human_head_and_body": {
+        "image_sha256": "3c06ea62348744c800f4cc4b926c9a5b4eebafa7eb4c02c023c9d351a3cf26fe",
+        "independent_werewolf_view": true,
+        "members_visually_verified": 1,
+        "rendered_kind": 1,
+        "visually_verified": true
+      },
+      "failed_bulk_proof": {
+        "proof": "v211-complete-human-fairy-switches-r2.json",
+        "reason": "Requested hidden native/32 backup instead of member two visible active/32; original UUID retained without replay",
+        "sha256": "b655eff65c31c57e6ee39af2002632e6293072bfb45ec9cff799af85b40c88fd"
+      },
+      "first_member_completed_visits": 6
+    },
+    "bundle_sha256": "155d755a22a870262cbb39b98e0cf03aa4a9c9f972c2d0f77feba58e7ec8c6b8",
+    "compiled_ui_checks": 134,
+    "regression": {
+      "passed": true,
+      "proof": "v211-full-regression.log",
+      "sha256": "4d01b743be5c3f85933d92600b93dff21cad2f7da86b20713589024e2b3b6c68",
+      "tests": 2671
+    }
+  },
+  "v212": {
+    "bundle_sha256": "cc26fe351e426e936c82c3c1dee8700afdc26d62dfa37142ada9f7fffa98d244",
+    "cas_return_guard_retention": {
+      "all40_native_fields_retained": true,
+      "direct_native_isolation": false,
+      "final_paused": true,
+      "named_looks_retained": 155,
+      "ok": true,
+      "retained_proof": ".work/v212-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "b85badb3ac4482361d1a20d6e5d698b8177d05f9e0950fc043acaf9d5ef9a4dd"
+    },
+    "cas_return_live_save_tray_acceptance": false,
+    "ci": {
+      "both_success": true,
+      "commit": "2866ec6c02c3f8ece3248addf0009b974e1df87a",
+      "native_run": 39486181517,
+      "regression_run": 39486175276
+    },
+    "complete_human_initialization": {
+      "members": 5,
+      "native_appearances_changed": false,
+      "other_named_looks_changed": false,
+      "proof": "v212-complete-human-werewolf-initialization.json",
+      "sha256": "d6f11a695c98b079229132f11c2c70dbbe74a3c8f21f6c22ea592965bdec71c4"
+    },
+    "direct_cas_exit_native_isolation": false,
+    "five_member_cas_matrix": {
+      "actor_evidence": "In-process native callbacks and model readbacks; external memory access denied.",
+      "appearance_edits_submitted": false,
+      "appearance_records_compared": 195,
+      "changed_records": 0,
+      "members": 5,
+      "ok": true,
+      "proof": {
+        "complete_retention": {
+          "retained_proof": ".work/native-cas-v212-animation-all195-retention.json",
+          "sha256": "cfd3de0391909e67dec19d3d24dd77b8b0be5d09471b741a2479d94c40bff236"
+        },
+        "human_body_capture": {
+          "retained_proof": ".work/v212-complete-human-body-actual.bmp",
+          "sha256": "1c5ddd321eed3ab19f44d97814f59fdef2dafd8f1b97a36baf12b370791ab047"
+        },
+        "switches": {
+          "retained_proof": ".work/v212-complete-human-fairy-switches-r2.json",
+          "sha256": "6807d24e54c4070145011bd838bea79f4f00f95e9244c5da8ac6f507ba71aba1"
+        }
+      },
+      "save_files_unchanged": true,
+      "visits": 30
+    },
+    "hidden_backup_cli_selection": "Rejected before native staging using the exact fresh visible form catalog",
+    "pid_reuse_recovery": {
+      "in_game_five_member_load": {
+        "native_appearances_retained": 40,
+        "proof": "native-cas-v212-second-member-category-saved-reload-all40.json",
+        "save_files_unchanged": true,
+        "sha256": "6c80567e5d0bd3bbc9602d94c309cc48d74994ca9330b27df5d5b43f60abf1a8",
+        "simulation_ticks": 2961
+      },
+      "query_only": true,
+      "real_windows_probe": {
+        "proof": "v212-real-held-handle-image-query.log",
+        "sha256": "def080b6133a8a66f18f6a2f3a2484b4e5d895d6e62ef2e8f3f752766a3d1178"
+      },
+      "signals_sent": false,
+      "unknown_or_live_sims_identity_refuses": true
+    },
+    "regression": {
+      "passed": true,
+      "proof": "v212-full-regression.log",
+      "sha256": "f55cb83cbd9d8c077aaa072202060ed1d4226169632a15f85ca769298c9c6d97",
+      "tests": 2676
+    },
+    "script_sha256": "4bd6a100167be632c3aeae24a5a4037c83348f56e52c06e51ebbd170f8f4f22e"
+  },
+  "v214": {
+    "bundle_sha256": "cba637b697b3333f5644c6c52ac1b9b5741f5f4fe18e4f4f9008f460850a13b0",
+    "canonical_hash_compatibility_checks": 4,
+    "direct_cas_exit_fix_qualified": false,
+    "new_loader_checks": 10,
+    "offline_digest_benchmark": {
+      "retained_proof": ".work/v213-python37-digest-benchmark.json",
+      "scope": "Read-only Python 3.7 canonical hashing; not end-to-end game latency",
+      "sha256": "605f321ae40c124ac6a5c608743c69031d2e9dc5041b085fcc30436493965441"
+    },
+    "regression": {
+      "passed": 2690,
+      "retained_proof": ".work/v214-full-regression-r2.log",
+      "sha256": "884baa3706dabd0961f0f9e26e928f5ad5e584f24714a0394400f671b2fcfe65"
+    },
+    "runtime": {
+      "direct_isolation": false,
+      "guard_restored_all40_native": true,
+      "named_looks_retained": 155,
+      "retained_proof": ".work/v214-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "2cc9e92fcaf7883bec495972e20f7b69f9ef25823df6f66e1748869e48302d27",
+      "unselected_members_changed": 3
+    },
+    "script_sha256": "16eb8ae31790bf5c0874557af86b6459b8826ba4505e6595cd24e35762d0dfb1",
+    "shutdown": {
+      "crash_category": "0x14117dba1",
+      "normal_exit_verified": false,
+      "process_closed": true,
+      "retained_proof": ".work/v214-normal-unsaved-exit-for-v215.json",
+      "save_files_unchanged": true,
+      "sha256": "1ab045b6dc63b5295fe300e1e669bec04cf7c54c1490a5cb3fadc70563c82a75"
+    }
+  },
+  "v215": {
+    "bundle_sha256": "810de2ff5e5437cad392fff08af70dc9f6113d9f24527095d964d96ecddb1c21",
+    "closure": {
+      "explicit_user_authorized_discard": true,
+      "normal_exit": false,
+      "retained_proof": ".work/v215-explicit-discard-closure.json",
+      "save_files_unchanged": true,
+      "sha256": "0c65f1adf1c3898a797a16d24330f2c538cbb7d1dc64019d63be3b23aee3c95f"
+    },
+    "cold_load": {
+      "all40_native_retained": true,
+      "retained_proof": ".work/native-cas-v215-second-member-category-saved-reload-all40.json",
+      "sha256": "43ef3ae8a70c925b88df0fc4bb063e3a9d99447586e6bb15f47046bcd6147dc2"
+    },
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "6eaa8b07af035f62bea52214062439d6aa92315aadcc4fd7270365107afd3407",
+    "loader_acceptance_checks": {
+      "passed": 15,
+      "retained_proof": ".work/v215-load-gate-tests-r2.log",
+      "sha256": "c9e98f93c6d87f3f4bf30e2f1ff291069177cf30c9cabece4b040cdd1091d883"
+    },
+    "native_checks": {
+      "passed": 12,
+      "retained_proof": ".work/v215-native-tests.log",
+      "sha256": "2b7c75bb20ad518a1898162700a5ccba767a69d3af1262d67b2c84e4ada05140"
+    },
+    "production_ready": false,
+    "regression": {
+      "passed": 2695,
+      "retained_proof": ".work/v215-full-regression.log",
+      "seconds": 1094.086,
+      "sha256": "34d03b1de8ed3cabe311c3e9ce843826c8e49c5831b9643b1a74326a7968564e"
+    },
+    "runtime": {
+      "acceptance_rejected": true,
+      "direct_isolation_qualified": false,
+      "reason": "Complete canonical cache verification differs in the constructed serialization context; native acceptance not attempted",
+      "retained_proof": ".work/v215-rejected-native-status.json",
+      "sha256": "225e5dc8f5708a999e901372e63b348ad4310a19eab3ee9297299b49e1abec2c"
+    },
+    "script_sha256": "7352bfa8cb8b4dcd79a773ad072423264d1902d6c92644a55b94bb6e613ab7a4"
+  },
+  "v216": {
+    "bundle_sha256": "7818739ce6878b6409cb641b548e2850ec76c0ed9f38edccdacff4369c93603b",
+    "change": "Verify the complete copied native data in an exact source Sim shell, retaining all serialized fields",
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "323fbb9154697a0ed5a3428d297ea38f2101225d250c31055415f302f1a2f453",
+    "full_python_regression": "V215 2695 passed; V216 changes native verification and the recovery epoch only",
+    "native_checks": {
+      "passed": 12,
+      "retained_proof": ".work/v216-native-tests-r3.log",
+      "sha256": "379b678867d581df912afa9b105738699b2d1277edd4e0ce80416d346ce03922"
+    },
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v216-candidate-build.log",
+      "sha256": "43f45bea51f6df0632e3b950c44322dac2492ece348b673d8e72a860d329c20f"
+    },
+    "production_ready": false,
+    "runtime": {
+      "canonical_caches": 5,
+      "direct_isolation": false,
+      "guard_restored_all40_native": true,
+      "named_looks_retained": 155,
+      "native_acceptance_verified": true,
+      "retained_proof": ".work/v216r2-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "8541d7f3bc8e51bf161e093313783791bb22284ae416a7c86735693a7a2300f6",
+      "unselected_members_changed": 3
+    },
+    "script_sha256": "903aaf39239052507974b8e8d09779fee43b02c5de79a370f759115cee57962b",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v216-seal-tests.log",
+      "sha256": "64ea471a21d9987b8996b9028b69de046d0594559e35fc7f5bec81c3a3df1dd7"
+    },
+    "shutdown": {
+      "normal_exit_verified": true,
+      "repeat_shutdown_gate_closed": false,
+      "retained_proof": ".work/v216-normal-unsaved-exit-for-v217.json",
+      "save_files_unchanged": true,
+      "sha256": "2db820242bf345db4a03cd2bb6bc0f2d678aebe5da38fd500ccbb9cc69e5a2ac"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v216-upgrade-migration-tests.log",
+      "sha256": "73a9955343fe2b368dca066481d2394864d1ccb9960282224e7a9211ee08195a"
+    }
+  },
+  "v217": {
+    "bundle_sha256": "182e435783659d4ee7bb2d24666b65a5bfe1ca6c5483bf2c75525b8d4ca97ab1",
+    "change": "Project each independent native owner at the pinned CAS household serializer; validate detached game parse and complete readback",
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "7786e7ed1d724d1e3a4d33edc6418471005fa401a67a2b82c9263508f60e861f",
+    "full_python_regression": "V215 2695 passed; V217 changes native household serialization and the recovery epoch only",
+    "game_schema_oracle": {
+      "flags_and_gameplay_preserved": true,
+      "native_genera": 7,
+      "passed": true,
+      "retained_proof": ".work/v217r2-game-schema-wire-projection.json",
+      "sha256": "26c8764aff3040c08d93e5f02cd04db6189b783cf6bbb371df23bfa7afe841a4",
+      "unknown_fields_retained": true,
+      "whole_message_compared": true
+    },
+    "launch_observation": {
+      "duplicate_launch_submitted": false,
+      "new_pid": 95272,
+      "prior_exit_owner_confirmed_intentional": true,
+      "retained_proof": ".work/v217-reconnected-live.json",
+      "save_files_unchanged": true,
+      "sha256": "c110d023b067f08411d01ef6701ddbff3d4804092cee686e04445d0d8f44e162"
+    },
+    "layout_checks": {
+      "passed": 3,
+      "retained_proof": ".work/v217-layout-tests.log",
+      "sha256": "330eb602cbacc8889d927c9671c7b4d1a4cdfb8a7640706ee324fa1ba751bcfb"
+    },
+    "loader_checks": {
+      "passed": 15,
+      "retained_proof": ".work/v217-loader-tests.log",
+      "sha256": "a4657d9384eabe108599e2e360b5cc5194fefe8d4313ba7816353a12879f3eda"
+    },
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v217-native-tests-r2.log",
+      "sha256": "76fed852160476865a2a9b425f042d3eb2dcff9baf4b4be73a3fcd6aa4f8a8b5"
+    },
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v217-candidate-build.log",
+      "sha256": "6c808375f3d64fe00e17892ed78ddb5ec60e23f14d4b03661c5de46ff37e90ac"
+    },
+    "permanent_guard_retained": true,
+    "production_ready": false,
+    "runtime": {
+      "direct_isolation": false,
+      "guard_restored_all40_native": true,
+      "named_looks_retained": 155,
+      "native_acceptance_verified": true,
+      "native_export_receipts": 0,
+      "retained_proof": ".work/v217r2-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "ff5cb7e68d121ef6c2c96df3639468cd7944d256bc6f62e1e82307a07a1dfeaf",
+      "targeted_caller_observed": false,
+      "unselected_members_changed": 3
+    },
+    "script_sha256": "cd0f9d7a4bc3241f3c3fd1b600d4950b5883e381272d9b1cae1a4ccf8cb2f363",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v217-seal-tests.log",
+      "sha256": "ec340629e13f559b2efc4af0a68535809867e282b093da6b178c9bf5d385590c"
+    },
+    "shutdown": {
+      "normal_exit_verified": true,
+      "retained_proof": ".work/v217-normal-unsaved-exit-for-v218.json",
+      "save_files_unchanged": true,
+      "sha256": "03933f9b67bd74a17fbc898dafca7b843b9372c69dca94e54e09021dd92fe170"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v217-upgrade-tests.log",
+      "sha256": "d2eef40e8b8d6cf61c95397a29feb2d6b0768661d4e6349f702784af083e83dd"
+    }
+  },
+  "v218": {
+    "closure": {
+      "normal_exit_verified": false,
+      "process_closed": true,
+      "retained_proof": ".work/v218-explicit-discard-closure.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "cb9f764e98dc8ac04fecb0a3ff760d83fef5a55036ec437bca5bc68f5cf2726c",
+      "termination_attempt_denied": true
+    },
+    "direct_cas_exit_fix_qualified": false,
+    "native_unarmed": {
+      "armed": false,
+      "members": 0,
+      "retained_proof": ".work/v218-unarmed-native-status.json",
+      "selection_enabled": false,
+      "sha256": "3bbdfb9d25f46ef78fef33c4b0654eae44cce219116c395e47a514922955bd90"
+    },
+    "production_ready": false,
+    "reason": "Embedded native attributes object was incorrectly modeled as a pointer; adapter and fixture corrected in V219",
+    "status": "withdrawn-before-CAS-entry-or-arming"
+  },
+  "v219": {
+    "bundle_sha256": "6fb162464a92fc54af84c4b13a2a7c074e29a7f3885f9ce3ef884b809714f642",
+    "change": "Prepare exact CAS household roots before native acceptance, using embedded attributes objects and independent appearance owners",
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "b424bc5101332d5c34671b3ccb6dd6d03303d8c9eed48d35400c006ef2e4aaf0",
+    "full_python_regression": "V215 2695 passed; V219 changes native household preparation and the recovery epoch only",
+    "game_schema_oracle": {
+      "flags_and_gameplay_preserved": true,
+      "native_genera": 7,
+      "passed": true,
+      "retained_proof": ".work/v217r2-game-schema-wire-projection.json",
+      "sha256": "26c8764aff3040c08d93e5f02cd04db6189b783cf6bbb371df23bfa7afe841a4",
+      "unknown_fields_retained": true,
+      "whole_message_compared": true
+    },
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v219-native-tests-r2.log",
+      "sha256": "f3123d87a6fb792fdaa5a1a8722f67096da415a734ef7b0f0706c9be3ecacebd"
+    },
+    "outgoing_export_hook_installed": false,
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v219-candidate-build.log",
+      "sha256": "9e9888dac7f276ee5add49919eed7477e33776627d092f92e97bcb0507ae8ba5"
+    },
+    "permanent_guard_retained": true,
+    "production_ready": false,
+    "runtime": {
+      "all_five_original_roots_restored": true,
+      "native_acceptance_attempted": false,
+      "native_accepted": false,
+      "other_sim_graphs_written": false,
+      "reason": "Prepared CAS household root differs on complete readback; acceptance blocked",
+      "retained_proof": ".work/v219-rejected-native-status.json",
+      "sha256": "9cbd1ed47444ad4d76e38359f7bd55b6efc774679a62c3eb4d7e957c336b3d9f"
+    },
+    "script_sha256": "9292da02ce6641c68e63106bb6e82769e5453a26350b0cef7b8bbb481dfc1928",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v219-seal-tests.log",
+      "sha256": "f4818b7f10e460605c685fed65db9a6c79613de1f5b1b43ba565b3dcd223bf54"
+    },
+    "shutdown": {
+      "process_closed": true,
+      "retained_proof": ".work/v219-rejected-cas-normal-discard.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "f8c99f0c2b0e7e002e69e25465145fe46ff44183aaa543839aa07f441f21f068",
+      "shutdown_stability_qualified": false
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v219-upgrade-tests.log",
+      "sha256": "610eeda937c69372e6eee611fef32c9938330ede66778b154d1a460965372144"
+    }
+  },
+  "v220": {
+    "all_verification_fields_retained": true,
+    "bundle_sha256": "fb1cbc95a1664b590357264325ca14771c3cd00bd33097afb9fb0ea3641f09e6",
+    "change": "Bounded field-path, byte-count and digest diagnostics for complete native root rejection; no validation exclusions",
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "1b0bf35ccfb622b852b1f45a780e7f35c4927ea5ee483c12009ca969a2cdf356",
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v220-native-tests.log",
+      "sha256": "90a8e07d423a32f477ae15e417085124799433d0a291bd84bfaf8b93c2ead6e7"
+    },
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v220-candidate-build.log",
+      "sha256": "542ac9e9a4515463a3e74a76c6763d6e020eccf0a004d50d998c94814fdadcce"
+    },
+    "permanent_guard_retained": true,
+    "private_status_appearance_bytes_exported": false,
+    "production_ready": false,
+    "runtime": {
+      "affected_sim": "349336084686110946",
+      "all_original_roots_restored": true,
+      "changed_paths": [
+        "root/63",
+        "occult/1/17"
+      ],
+      "changed_stored_human_genetics": true,
+      "independent_sources_correct": true,
+      "missing_root_pelt": true,
+      "native_acceptance_attempted": false,
+      "retained_proof": ".work/v220-root-diagnostic-status.json",
+      "sha256": "417e37e4e6bd71561d3a408cacf10c4046a32e04854397923d2eaa4827382cd0"
+    },
+    "script_sha256": "ec3ecb0874704ca6b49bbe6fd43778a416c3978c0234b12ec7215941a147e2aa",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v220-seal-tests.log",
+      "sha256": "aa4717b588456b5f1dd58b224a8800de2232cf0ad49e6cbb9ac7681f0e276a70"
+    },
+    "shutdown": {
+      "process_closed": true,
+      "retained_proof": ".work/v220-rejected-cas-normal-discard.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "30687dbec1a98e3a3e25551e4e2c0a1e394441271aabecf8e6d2160d9961b488"
+    },
+    "source_owner_dtos": [
+      {
+        "native_kind": 1,
+        "private_appearance_payload": true,
+        "retained_proof": ".work/v220-sim2-owner-1-native-dto.json",
+        "sha256": "7c374d056f637601817a9fd1ec3d02c94ae07651c44f1d6e3d0b192a75c075b0"
+      },
+      {
+        "native_kind": 32,
+        "private_appearance_payload": true,
+        "retained_proof": ".work/v220-sim2-owner-32-native-dto.json",
+        "sha256": "a247c1130ec0d9c63e0aa8e50b51a8250300eafc8495aa62abdebe788b43e5d3"
+      }
+    ],
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v220-upgrade-tests.log",
+      "sha256": "e0a34c5d13f5898574525b636c6f7a4cb6a47c7ce27b2335af4a967a41f312d0"
+    }
+  },
+  "v221": {
+    "all_verification_fields_retained": true,
+    "bundle_sha256": "04167332a7f41bb6cd29c1bc348c1c66b0cf57ae552390e66f80bc9a28875333",
+    "change": "Project final serialized CAS output after stock pair reconstruction, scoped to fresh prepared roots/entities/generations",
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "da0c5672cfd909439348ba784c5c96e6ff8a5c5a59b5a074c8a655b15ced0bc3",
+    "guard_retention": {
+      "all40_native_appearances_retained": true,
+      "direct_fix_qualified": false,
+      "named_looks_retained": 155,
+      "retained_proof": ".work/v221-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "8ca8a00107b08a9ee170951fc31b056ccfb5fcc72497d162e29041a210cf7c48",
+      "simulation_advanced": true
+    },
+    "load_performance_findings": {
+      "full_sidecar_read_calls": 382,
+      "instrumentation_present": true,
+      "note_loaded_calls": 377,
+      "outfit_hair_status_calls": 17,
+      "retained_proof": ".work/v221-load-sidecar-performance-findings.json",
+      "sha256": "bdf09c38c977b285be38c7d23007059e0fdec80eb845bc90c799526330a41429",
+      "unprofiled_latency_claimed": false
+    },
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v221-native-tests.log",
+      "sha256": "2f4f1f019f918754d38559d2ade89d8704240574c0ebd902eddd49af2e98bc02"
+    },
+    "native_root_memory_written": false,
+    "ordinary_exporters_excluded": true,
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v221-candidate-build.log",
+      "sha256": "22102efe95b710cd4d908a69aca747e14bde46ce5bd18e5d979a7d4844425836"
+    },
+    "permanent_guard_retained": true,
+    "prepared_receipt_distinct_from_verified_output": true,
+    "production_ready": false,
+    "runtime": {
+      "actual_output_receipts_verified": 0,
+      "all_controllers_match": true,
+      "all_export_sources_differ_from_prepared_roots": true,
+      "direct_cas_exit_fix_qualified": false,
+      "guard_disposition": "passed separately; direct failure retained",
+      "native_acceptance_verified": true,
+      "observed_export_calls": 15,
+      "retained_proof": ".work/v221-actual-output-status.json",
+      "sha256": "6b2441a987fe67cb91905bec12575478ef9f0d8c3d4a78fd5577cbe416408411"
+    },
+    "script_sha256": "8180418e0355cdc9611cc75ce94c4de62c5d7c33d6e4d5ad0e04e0cebb31f696",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v221-seal-tests.log",
+      "sha256": "a3a1940e1fd77b070cb3339439a00c53bd462c4db9e20773206ddbad47013f44"
+    },
+    "shutdown": {
+      "normal_exit_verified": true,
+      "retained_proof": ".work/v221-normal-unsaved-exit-for-v222.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "cb45bc6339f0d5648d5efbe5d83e34e58d74101ddc20accd2bb528f035259d50"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v221-upgrade-tests.log",
+      "sha256": "13d5b798ba641de22a79822cb70386c1c9538ea5c91015c58403e6ce644436c6"
+    }
+  },
+  "v222": {
+    "bundle_sha256": "17c0a8a3fbb0a99ab49a628eba8729261b17c27aa82eff1cc371ba0c729de566",
+    "change": "Authenticate native outgoing household copies through constructor/assignment/destructor lifetimes",
+    "copy_depth_bounded": 16,
+    "copy_lifetimes_bounded": 128,
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "1aa24c953fd8733604d95a4e07424db6f0395389cf0b28124051fb4e9a332abc",
+    "guard_retention": {
+      "all40_native_appearances_retained": true,
+      "named_looks_retained": 155,
+      "retained_proof": ".work/v222-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "852ed282b3f168fbd099bf5426a578892bfa8c065dbfa20f0fd7efc06df0a534",
+      "simulation_advanced": true
+    },
+    "identity_alone_never_authorizes_projection": true,
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v222-native-tests.log",
+      "sha256": "2c0d79595884426bc5692b2fff3a78c4193575c7312025b5bd23198efeed9bfa"
+    },
+    "native_root_memory_written": false,
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v222-candidate-build.log",
+      "sha256": "9bb5eb955106f4e863e9bd84b16f24e490faa0ab4d7b61ddf504b1b6811e57e3"
+    },
+    "permanent_guard_retained": true,
+    "production_ready": false,
+    "runtime": {
+      "actual_output_receipts_verified": 3,
+      "direct_fix_qualified": false,
+      "earlier_exports_unproven": true,
+      "native_acceptance_qualified": false,
+      "native_fault_count": 1,
+      "retained_proof": ".work/v222-cas-live-retention.json",
+      "sha256": "852ed282b3f168fbd099bf5426a578892bfa8c065dbfa20f0fd7efc06df0a534",
+      "unselected_members_changed": 2
+    },
+    "script_sha256": "f2325edfb40f847f73e56083aa0e14028109c9bc229ce721961a7f8f94bccd17",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v222-seal-tests.log",
+      "sha256": "4495db638ff57fadbdc2bc85c0e26f97f79c89724b95478634838515b321e623"
+    },
+    "shutdown": {
+      "normal_exit_verified": true,
+      "retained_proof": ".work/v222-normal-unsaved-exit-for-v223.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "82e4884e6406abb6d65e079f97619d556eb038e4fd1b774622e1a4197d33216c"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v222-upgrade-tests.log",
+      "sha256": "1355ce26cc18a53fb3938753ff142a3c61ebb67556e25f676a78184304f3704a"
+    }
+  },
+  "v223": {
+    "bundle_sha256": "1ef24bd862f24b965c5f975db8dcf5d0621d312bb3dcc696af465f04e83bdfb9",
+    "change": "Authenticate complete native CAS dispatch before queued copying; preserve bounded independent fault history",
+    "complete_household_roster_required": true,
+    "direct_cas_exit_fix_qualified": false,
+    "dll_sha256": "c52b7e8369999e3af920314a062693ff2616b8d98fc9cee002aa53f3c14bcd58",
+    "failure_history_bounded": 8,
+    "guard_retention": {
+      "all40_native_appearances_retained": true,
+      "named_looks_retained": 155,
+      "retained_proof": ".work/v223-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "b2c3b8f7d3ed8166c7603af85ab62a8b44136c612165b0334a7bdc208bd2f652",
+      "simulation_advanced": true
+    },
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v223-native-tests.log",
+      "sha256": "929801ab67fb87a100210e14a0f97649471a1cc5adc3b84b66b78e6f13393fdd"
+    },
+    "native_root_memory_written": false,
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v223-candidate-build.log",
+      "sha256": "24fe94ef9080e1777f7bf283ad14d6653860c7ff40648c4003fe32cb39a50e8a"
+    },
+    "permanent_guard_retained": true,
+    "pinned_dispatch_caller": true,
+    "production_ready": false,
+    "runtime": {
+      "actual_output_receipts_verified": 5,
+      "all_outputs_dispatch_derived": true,
+      "direct_fix_qualified": false,
+      "fault_phase": "prepared-root-retired",
+      "native_acceptance_qualified": false,
+      "native_fault_count": 1,
+      "retained_proof": ".work/v223-actual-output-status.json",
+      "sha256": "9a24b7c0793e0de944f4582d249528ce04fc5b87454c04caab6cf2978927771d"
+    },
+    "script_sha256": "18ed0cd32d93f00598fd8bd38bef404e3fd7ea337c493ad319a3197e6e7b6b86",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v223-seal-tests.log",
+      "sha256": "a703ac0ee4afb7186b67166fcd0284dbb6921cf200da03491bcac73c26da07d2"
+    },
+    "shutdown": {
+      "normal_exit_verified": true,
+      "retained_proof": ".work/v223-normal-unsaved-exit-for-v224.json",
+      "save_files_unchanged": true,
+      "save_requested": false,
+      "sha256": "036ef1abc4d3956a888707c49bf0f72962c0d76c585a09d3ddf70f64b03fa62b"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v223-upgrade-tests.log",
+      "sha256": "dc6f669b249b9424317a8c5681e81bd51d80669ace5ba9d9fa42ef7ad64666b8"
+    }
+  },
+  "v224": {
+    "authenticated_copies_may_outlive_editor_and_controller": true,
+    "bundle_sha256": "b22e0031627107cf05b373c38979956f443cb1174158771c841a0ca59077bfed",
+    "change": "Retire editor addresses without invalidating independently authenticated native CAS dispatch copies",
+    "complete_core_comparison_unchanged": true,
+    "copy_tracking_disables_after_verified_delivery_and_destruction": true,
+    "direct_cas_exit_fix_qualified": true,
+    "dll_sha256": "33deb7bed4f4df0c175eaf29f69cf424cfce6b19f10b706c0ea6fec5a164f4a6",
+    "edited_category_qualification": "Next same-process five-member Alien/Vampire pass is starting; not yet claimed",
+    "guard_retention": {
+      "all40_native_appearances_retained": true,
+      "named_looks_retained": 155,
+      "retained_proof": ".work/v224-cas-live-retention.json",
+      "save_files_unchanged": true,
+      "sha256": "a2654e1c0149fdf48ecb5737a929bbd4abfe735dea78e6e08ab6051a8ca404b8",
+      "simulation_advanced": true
+    },
+    "native_checks": {
+      "passed": 13,
+      "retained_proof": ".work/v224-native-tests.log",
+      "sha256": "f7ea9f3c57dac1930f399f8384ba4b27cf99e5014fa01739f5cf24176028a166"
+    },
+    "native_root_memory_written": false,
+    "package_checks": {
+      "compiled_python37_modules": 105,
+      "independent_rust_resources": 208,
+      "packages": 7,
+      "retained_proof": ".work/v224-candidate-build.log",
+      "sha256": "ebeddbc0e0c290e9b3e1cc927864eb349be82b4b27792fe9600a837a03cbe8ef"
+    },
+    "permanent_guard_retained": true,
+    "production_ready": false,
+    "qualification_scope": "Five-member no-edit CAS acceptance; only first and last members selected; no edited-category or MCCC/save/Tray claim",
+    "retired_address_reuse_refused": true,
+    "runtime": {
+      "actual_no_edit_household_cycle_passed": true,
+      "actual_output_receipts_verified": 5,
+      "all40_fields_match_before_guard": true,
+      "all_five_editor_authorities_retired": true,
+      "copy_tracking_active_after_delivery": false,
+      "native_fault_count": 0,
+      "retained_proof": ".work/v224-cycle.json",
+      "sha256": "962af132dcb84dafda4692cf746b50d15d49d06b56eb68b71f40032ff26a6772",
+      "strict_load_receipts_verified": 5
+    },
+    "script_sha256": "18152a6421bc0906e6ee27193852669b86da6256d3b297dee2b31fdbb6dbbfe9",
+    "seal_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v224-seal-tests.log",
+      "sha256": "dd84795a6884d483b00e7d23a6f7dced1b238f3b799e60d17e29bb2021fc112c"
+    },
+    "upgrade_checks": {
+      "passed": 26,
+      "retained_proof": ".work/v224-upgrade-tests.log",
+      "sha256": "edde7e3ed472ccb26e92dedbc70195c70d9334ba2d44ca323d5a3f254892ac3e"
+    }
+  },
+  "v225_native_pair_panel": {
+    "actual_save_ready": false,
+    "cas_control_tests_passed": 20,
+    "category_scoped_direct_links": true,
+    "click_handler_target_ms": [
+      0,
+      1
+    ],
+    "epoch": "2026-10-20-native-pair-categories-v225",
+    "floating_controls_retired": true,
+    "latest_choice_scoped_to_sim_and_editor": true,
+    "native_panel_adapter_methods": 7,
+    "native_tests_passed": 14,
+    "runtime_click_handler_ms": null,
+    "runtime_model_bind_ms": null,
+    "runtime_verified": false,
+    "selector_bytecode_tests_passed": 60,
+    "ui_frame_transition_continuation": true,
+    "untouched_original": true
+  },
+  "v229_native_pair_runtime": {
+    "actual_save_ready": false,
+    "changed_owner_refresh": true,
+    "copy_panel_inner_widget_readback": true,
+    "entry_context_tests_passed": 16,
+    "epoch": "2026-10-20-native-pair-fixed64-v229",
+    "native_tests_passed": 14,
+    "original_profile_written": false,
+    "outfit_identifiers_packed_fixed64": true,
+    "read_only_status_allowed_during_cli_readback": true,
+    "runtime_pair_controls_verified": false,
+    "scalar_only_copy_preserves_unselected_raw_fields": true,
+    "selector_tests_passed": 60,
+    "v228_all195_entry_verified": true,
+    "v228_vampire_bind_ms": 10.0329,
+    "v228_voice_copy_appearance_written": false,
+    "v228_voice_copy_error": "Misaligned part/body arrays."
+  },
+  "v259_member_presentation": {
+    "bounded_ui_frames": true,
+    "build_verified": true,
+    "candidate_sha256": "d5a97200789ec609e145e60309be7ef4d9a47ece9a909850e8ad4bcc897c0bb8",
+    "cli_mutation_timer_ownership_retained": true,
+    "detached_when_idle": true,
+    "epoch": "2026-10-21-member-ui-frames-v259-r3",
+    "exact_current_member_gate": true,
+    "fast_bootstrap_budget_ms": 2000,
+    "focused_checks_passed": 146,
+    "native_notification": true,
+    "production_ready": false,
+    "report": "Reports/CAS_MEMBER_PRESENTATION_V259.json",
+    "runtime_verified": false
+  },
+  "v260_exact_occult_record_export": {
+    "build_verified": true,
+    "candidate_sha256": "fae1f757c0e8f57a1d01b77a9d97ee7ae70a5fc6f99638bfe526136d7a1e212b",
+    "production_ready": false,
+    "report": "Reports/CAS_EXACT_OCCULT_RECORD_V260.json",
+    "runtime_verified": false
+  },
+  "v261_retained_genetics_and_native_post": {
+    "build_verified": true,
+    "full_runtime_qualified": false,
+    "pre_entry_195_fields_verified": true,
+    "production_ready": false,
+    "report": "Reports/CAS_RETAINED_GENETICS_V261.json",
+    "stored_look_reset": false
+  }
+}

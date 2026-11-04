@@ -1,0 +1,178 @@
+{
+  "schema": 1,
+  "epoch": "2026-10-24-compact-layout-profile-v328",
+  "candidate_sha256": "3b05be554d398f391a7d7357af1e1cce716cc3bed3c49be1c2eb2512c5e1257c",
+  "pid": 88512,
+  "production_ready": false,
+  "status": "compact-layout-visible-performance-and-search-gates-failed",
+  "game_version": "1.128.90.1030",
+  "appearance_edit_submitted": false,
+  "save_submitted": false,
+  "original_profile_written": false,
+  "all40_cold_native_fields_retained": true,
+  "named_looks_retained": 155,
+  "automatic_full_cas_entry_all195_fields_retained": true,
+  "all21_save_backup_files_unchanged": true,
+  "compact_layout": {
+    "visible_columns": 12,
+    "compact_local_width": 706,
+    "catalog_covers_sim": false,
+    "actual_screenshot_sha256": "1c2a40ff9b678f1fa3ccf05dc2229895a525fbc876bc0471c3fd7d35de069380",
+    "screenshot": ".work/v328-compact-twelve-actual.bmp",
+    "other_viewports_in_game_qualified": false
+  },
+  "aggregate_profile": {
+    "first_owned_hair_navigation": {
+      "aggregates": {
+        "bind_ms": {
+          "calls": 1,
+          "max_ms": 374,
+          "total_ms": 374
+        },
+        "position_ms": {
+          "calls": 1,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "resize_ms": {
+          "calls": 1,
+          "max_ms": 1,
+          "total_ms": 1
+        },
+        "setup_ms": {
+          "calls": 1,
+          "max_ms": 33,
+          "total_ms": 33
+        },
+        "total_ms": {
+          "calls": 1,
+          "max_ms": 408,
+          "total_ms": 408
+        }
+      },
+      "appearance_written": false,
+      "available": true,
+      "completed": 1,
+      "elapsed_ms": 9456,
+      "enabled": false,
+      "errors": 0,
+      "expired": false,
+      "generation": 1,
+      "record_limit": 16,
+      "records": [
+        {
+          "after_count": 54,
+          "before_count": 534,
+          "bind_ms": 374,
+          "position_ms": 0,
+          "provider": "62ECC59A:00000000:12272E1AC0C1F8E2",
+          "resize_ms": 1,
+          "setup_ms": 33,
+          "total_ms": 408
+        }
+      ],
+      "requested_ms": 0,
+      "suppressed": 0,
+      "timing": "inclusive native reset phases in synchronous milliseconds; setup includes stage callbacks; bind includes Draw"
+    },
+    "six_to_twelve_columns": {
+      "aggregates": {
+        "bind_ms": {
+          "calls": 1,
+          "max_ms": 742,
+          "total_ms": 742
+        },
+        "position_ms": {
+          "calls": 1,
+          "max_ms": 1,
+          "total_ms": 1
+        },
+        "resize_ms": {
+          "calls": 1,
+          "max_ms": 0,
+          "total_ms": 0
+        },
+        "setup_ms": {
+          "calls": 1,
+          "max_ms": 3212,
+          "total_ms": 3212
+        },
+        "total_ms": {
+          "calls": 1,
+          "max_ms": 3955,
+          "total_ms": 3955
+        }
+      },
+      "appearance_written": false,
+      "available": true,
+      "completed": 1,
+      "elapsed_ms": 6786,
+      "enabled": false,
+      "errors": 0,
+      "expired": false,
+      "generation": 2,
+      "record_limit": 16,
+      "records": [
+        {
+          "after_count": 180,
+          "before_count": 48,
+          "bind_ms": 742,
+          "position_ms": 1,
+          "provider": "62ECC59A:00000000:12272E1AC0C1F8E2",
+          "resize_ms": 0,
+          "setup_ms": 3212,
+          "total_ms": 3955
+        }
+      ],
+      "requested_ms": 0,
+      "suppressed": 0,
+      "timing": "inclusive native reset phases in synchronous milliseconds; setup includes stage callbacks; bind includes Draw"
+    }
+  },
+  "native_hair_catalog": [
+    {
+      "bind_ms": 3214,
+      "clear_ms": 0,
+      "construct_ms": 8,
+      "count": 436,
+      "native_ms": 10,
+      "selected_ms": 17,
+      "state": -2134376418
+    }
+  ],
+  "search": {
+    "query": "zzzz_apex_unique_no_match_20261024",
+    "request_completed": true,
+    "filtering_qualified": false,
+    "paused_display_error": "Catalog display paused: Error #1069: Property olympus not found on any object on the scope stack and there is no default value.",
+    "failure": "Compiled custom package root olympus is unresolved in search ScrollerEvent construction.",
+    "source_fix": "Use imported native ScrollerEvent; compiler gate authenticates event QName and refuses unresolved custom package roots in every owned method.",
+    "fixed_candidate_installed": false,
+    "appearance_written": false
+  },
+  "limitations": [
+    "The first Hair label means the first controlled Hair navigation in this qualification pass, not proof of an initially empty native pool.",
+    "Setup includes constructors, stage attachment and native initialization callbacks; it is not constructor-isolated.",
+    "Bind includes native Draw; no per-Draw trace callbacks were enabled.",
+    "Phase durations include a few aggregate clocks and are not FPS or baseline frame times.",
+    "Agents held compiler/test subprocesses during bounded phase windows.",
+    "The matching full edited save/MCCC/F11/Tray/Gallery matrix remains open."
+  ],
+  "next_work": [
+    "Activate and qualify authenticated incremental native construction/attachment/binding, including prearming before first navigation.",
+    "Retain single-branch disabled Draw path and all donor card behavior.",
+    "Retest native search filtering and clear after imported-event fix.",
+    "Qualify all viewport/UI-scale layouts and repeated Body/Tattoo/form/member transitions."
+  ],
+  "evidence_sha256": {
+    ".work/v328-layout-stop.json": "fbd675da6377380a70ab89772ad1ca757df5220d9068a9a360c1da472ac73d7a",
+    ".work/v328-resize-stop.json": "0b2a42e6a6d5dcf9b20d92d99cac44590f4deab9b3fde4076cdca35f2df3b314",
+    ".work/v328-first-hair.json": "60019ec82f9f56c33dbdcf2cd431b83687ac691550c3db6c0ad0242710e7be35",
+    ".work/v328-search-no-match-settled.json": "43a0834ebde56283a9865f95d1d2bedb809913a1edb4f242f95d87cc180a5bfc",
+    ".work/v328-normal-automatic-entry.json": "26d2b3f353c8ca6e7d410584cbdc1f588227812b20d00d56376d8ec6483b9b36",
+    ".work/v328-edited-saved-cold-load.json": "c98f82b71a8109f3ffef4f4c4ec1ac736aa5efd1b889bf2eb876a9b6605c5594",
+    ".work/v328-post-ui-all195.json": "95223d55a2e080f67b9a44f881ff2263242f3604d77addfaf346da7e10566db8"
+  },
+  "post_ui_all195_complete_fields_retained": true,
+  "post_ui_differences": []
+}

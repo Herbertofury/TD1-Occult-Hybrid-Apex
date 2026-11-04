@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "epoch": "2026-10-24-named-contract-grid-v327",
+  "status": "responsiveness-and-layout-regression-failed",
+  "production_ready": false,
+  "game_version": "1.128.90.1030",
+  "game_executable_sha256": "916b852b187b9c41b9c2d77af55e0d5ed6aaf06909661397d7aa98f2e4db78ab",
+  "candidate_sha256": "2b3ec8aab1568c3bd0f3c891d7e1fb385d33cd02f789bde097335e8bb2d08099",
+  "actual_provider": "62ECC59A:00000000:12272E1AC0C1F8E2",
+  "save_round_trip": {
+    "source": "Reports/CAS_AUTOMATIC_HOUSEHOLD_SAVE_V325.json",
+    "new_slot": 3,
+    "sha256": "de5488dd6625536829e6834345814e32d51fcd0e19bdfcc829a5ebab5ad495b6",
+    "v327_cold_load_all40_complete_fields": true,
+    "v327_cold_load_all155_named_looks": true,
+    "after_live_simulation": true,
+    "native_appearance_restore_requested": false,
+    "automatic_full_cas_entry_all195_complete_records": true,
+    "manual_arm_requested": false,
+    "all21_save_and_backup_files_unchanged": true
+  },
+  "observations": [
+    {
+      "action": "native Hair category navigation",
+      "feed_items": 436,
+      "binding_ms": 2906,
+      "layout_max_ms": 455,
+      "owned_frame_max_ms": 841,
+      "qualified_as_fast": false
+    },
+    {
+      "action": "columns slider to32, original UUID followed without replay",
+      "request_id": "2f9bfce093d64b91801d1f9c44e7d03c",
+      "completed": true,
+      "columns": 32,
+      "cells_before": 48,
+      "cells_after": 640,
+      "feed_items": 436,
+      "effective_card_scale": 0.347196261682243,
+      "layout_max_ms": 23454,
+      "owned_frame_max_ms": 23491,
+      "qualified_as_fast": false
+    },
+    {
+      "action": "columns slider to12",
+      "request_id": "8a2f9d62d57a429696e3f253c1c8c272",
+      "native_columns": 12,
+      "native_fraction": 0.3331666666666667,
+      "requested_fraction": 0.3333333333333333,
+      "thumb_difference_pixels": 0.05,
+      "ui_only": true,
+      "appearance_write_requested": false,
+      "legacy_ack_validation_failed": true,
+      "source_fix_offline_qualified": true,
+      "source_fix_in_game_qualified": false
+    },
+    {
+      "action": "owner-reported catalog coverage",
+      "catalog_covers_sim": true,
+      "regression_accepted": true,
+      "fix_in_game_qualified": false
+    }
+  ],
+  "diagnostic_limits": [
+    "The layout bucket includes SetupCells, Draw and synchronous RESIZE listeners; construction is not yet isolated.",
+    "Owned frame metrics and native binding metrics do not establish FPS.",
+    "V327 search command was refused before dispatch because the original12-column request remained unresolved; no search-filtering pass is claimed."
+  ],
+  "next_gates": [
+    "Native setup/position/bind/resize phase timing.",
+    "Restore compact catalog footprint in correct native/local coordinate units.",
+    "Budget synchronous native card creation, binding and resize fanout while preserving selection and donor features.",
+    "Actual search filtering, body-to-tattoo, form/member switching and quiet frame-time comparison.",
+    "Full edited household, MCCC/phone/F11 and native Tray/Gallery round trips."
+  ]
+}

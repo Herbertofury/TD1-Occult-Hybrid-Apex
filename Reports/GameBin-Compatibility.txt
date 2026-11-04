@@ -1,0 +1,16 @@
+Game bin compatibility notes
+
+Supplied Bin archive was inspected for runtime assumptions.
+
+Observed:
+- TS4_x64.exe is a PE32+ x64 Windows executable.
+- Simulation_x64.dll is a PE32+ x64 Windows DLL.
+- python37_x64.dll is present.
+- Python\DLLs\_socket_x64.pyd is present, so the local browser socket server path is available.
+- Python\DLLs\_ctypes_x64.pyd is present, so the native bridge DLL path is available.
+- Python\generated.zip is present.
+- Existing OccultHybrid handler pyc files are CPython 3.7 magic 3394.
+
+Build choice:
+- TD1_OccultHybridApex.ts4script packages readable Python source instead of pyc. Sims 4 recognizes packaged Python source in .ts4script archives and compiles/loads it in-game.
+- TD1OccultNativeBridge.dll is x64 PE and has no CRT dependency. It exports bitmask, normalization, validation, and command-hash helpers for the Python bridge.

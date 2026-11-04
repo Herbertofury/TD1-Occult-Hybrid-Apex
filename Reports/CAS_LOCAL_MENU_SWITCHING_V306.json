@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "build_epoch": "2026-10-24-native-menu-local-pair-v306",
+  "production_ready": false,
+  "cold_load": {
+    "all40_complete_native_appearances_retained": true,
+    "named_looks_retained": 155,
+    "simulation_advanced": true,
+    "final_paused": true,
+    "native_appearance_restoration_requested": false
+  },
+  "normal_full_cas_entry": {
+    "manual_arm_submitted": false,
+    "members": 5,
+    "prepared_menu_owners_per_member": 20,
+    "all195_complete_fields_retained": true
+  },
+  "switching": {
+    "actual_typed_selections": 191,
+    "members": 5,
+    "visible_forms_per_member": 20,
+    "all42_directed_native_pairs_on_fifth_member": true,
+    "exact_selected_owner_and_rendered_native_kind": true,
+    "native_ea_link_copy_panel_verified_each_selection": true,
+    "all195_complete_fields_retained": true,
+    "all20_save_files_unchanged": true,
+    "differences": [],
+    "full_visual_mesh_and_shader_qualification": false
+  },
+  "actual_pointer_switches": [
+    {
+      "exact_owner_and_kind": true,
+      "input_handler": {
+        "clock_resolution_ms": 1,
+        "max_ms": 0,
+        "over_budget": 0,
+        "samples": 1,
+        "scope": "accepted-CAS-input-queue-handler",
+        "target_ms": 1,
+        "total_ms": 0
+      },
+      "native_bind_ms": 19.9943,
+      "native_pair_visible": true,
+      "owner_id": "native/4",
+      "queued_to_bound_ms": 31
+    },
+    {
+      "exact_owner_and_kind": true,
+      "input_handler": {
+        "clock_resolution_ms": 1,
+        "max_ms": 0,
+        "over_budget": 0,
+        "samples": 2,
+        "scope": "accepted-CAS-input-queue-handler",
+        "target_ms": 1,
+        "total_ms": 0
+      },
+      "native_bind_ms": 21.3964,
+      "native_pair_visible": true,
+      "owner_id": "native/1",
+      "queued_to_bound_ms": 33
+    },
+    {
+      "exact_owner_and_kind": true,
+      "input_handler": {
+        "clock_resolution_ms": 1,
+        "max_ms": 0,
+        "over_budget": 0,
+        "samples": 3,
+        "scope": "accepted-CAS-input-queue-handler",
+        "target_ms": 1,
+        "total_ms": 0
+      },
+      "native_bind_ms": 26.32,
+      "native_pair_visible": true,
+      "owner_id": "active/2",
+      "queued_to_bound_ms": 38
+    }
+  ],
+  "household_member_latency": {
+    "qualified": false,
+    "samples": [
+      {
+        "member_ui_frames": 3,
+        "member_ui_milliseconds": 1605,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "349336084686110946",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 2,
+        "member_ui_milliseconds": 2284,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "349336084686110947",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 2,
+        "member_ui_milliseconds": 1405,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "450667075246031054",
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 2,
+        "member_ui_milliseconds": 2331,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "285159751289798669",
+        "transport_error": ""
+      },
+      {
+        "member_ui_milliseconds": 3556,
+        "member_ui_frames": 0,
+        "prepared_local_catalog": false
+      }
+    ],
+    "minimum_ms": 1405,
+    "maximum_ms": 3556,
+    "fifth_member_missed_bounded_local_bootstrap": true,
+    "reason": "Prepared local metadata still waited for connected transport and fresh Sim-info bootstrap; this build is not a responsiveness win."
+  },
+  "follow_up": {
+    "build_epoch": "2026-10-24-local-lease-presentation-v307",
+    "change": "Prime the exact opened native lease and complete prepared menu before the separate Source connection/nonce handshake. Retain all native group/member/scope/bound-model checks and claimed-command isolation.",
+    "native_checks": 19,
+    "python_regressions": 2912,
+    "actual_runtime_timing": "Five members: 737-854 ms, one frame each; still fails 250 ms target. Actual form clicks: 31-43 ms."
+  },
+  "gates_still_open": [
+    "Actual V307 startup timing and pre-nonce player actions",
+    "Legacy inherited-hair Undo exact restoration",
+    "Native Tray/Gallery export/import of the full edited hybrid household",
+    "MCCC/phone/F11 edited persistence and remaining special-form visual/animation compatibility"
+  ]
+}

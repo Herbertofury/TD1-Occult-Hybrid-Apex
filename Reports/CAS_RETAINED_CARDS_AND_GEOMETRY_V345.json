@@ -1,0 +1,240 @@
+{
+  "actual_save_release_claimed": false,
+  "build_tests": {
+    "artifact_regressions": 49,
+    "artifact_test_errors": 0,
+    "artifact_test_failures": 0,
+    "artifact_test_skips": 0,
+    "compiled_python37_modules": 113,
+    "full_retained_ui_build": true,
+    "independent_rust_verified_resources": 277
+  },
+  "candidate_sha256": "7c26daca5034a8556a0a9448a9016e334c357822a441fcd10e6022cf657cf98e",
+  "epoch": "2026-10-25-retained-scroll-width-v345",
+  "evidence_sha256": {
+    "v345-artifact-binding-pool-draw-regression-proof.json": "e736ede3605890eea4fd198c3a8e924f91459bef1ccf27ccb23f6ff6aa38e600",
+    "v345-catalog-003-body35-slider.json": "abda722fdaaf2c3738aa86c7d06724a41567c4575c69edf0e7da097d844ca9c7",
+    "v345-catalog-007-width-before.json": "2ef900bf423e50ac4aab0353fe3bfc67c1ecbade7f50e423497977aaeca14754",
+    "v345-catalog-runtime.json": "61c4155104e6d4f9e02a56bff4a1cbce522deecb0fd4f2ad7c12e57b68f32091",
+    "v345-closed-install-launch.json": "96c7d0d8bbf9c790d02d2c4ced7f0859cb49ac012de84c8044b68684a2a3250f",
+    "v345-edited-saved-cold-load.json": "f22979f5a5213ebe5aec7dbd6bbfecb232f4a7b70baa5b87903e958dbad25205",
+    "v345-frame-native-key-actions.json": "e78634f27bff1c6f27136b2ab6e83dc16aa64896b80abe42064d8fc24f1db069",
+    "v345-manual-ea-return.json": "30a1d4f87daf40491d368a645063f91251e91df6fe84e3f5d4c6e3231040e17e",
+    "v345-membercap-031-page-down.json": "e83bd78f27dc63d78df4ff1572066be321985d23612073e8281138af42c2c1a6",
+    "v345-members-and-scroll-fresh.json": "4b340908ece36bb7f092f0d813dcebc12fb700da526793660b44b3a7da1c4981",
+    "v345-noedit-household-commit.json": "3e2593c3a58632763573fca2b13a243f8b922868c88d72e34cb0346ee7b1ef5f",
+    "v345-normal-automatic-entry.json": "789d893fab575e758e1fe9d7cda765cb13fe409bbc33019aae820876354a47fb",
+    "v345-other-families-and-scroll.json": "935db823a2f403a3274b7f1f2b3f3d26d53b6e56a548f100c1ece15596e1f6c4",
+    "v345-presentmon-stdout/actual-native-actions-bom-overlap.json": "0f97e415a25993074d1c4172ae89de104a0785135b33495356e5d8a222be7568",
+    "v345-presentmon-stdout/actual-native-actions-bom.json": "83272b3cb080543dd30d97136d293a660cca1907e35a6035c53680eb72f47bea",
+    "v345-raw-return-all195.json": "41c2c0b6f3ab6ac56f5f1f29b7b4e9d0f8a058ce5ed32702ac112f744e72c170",
+    "v345-rest-018-hair-wait6.json": "9c1af9142b832b4654aeeedd12aff7f17a94a7654c53821d54a013bcb3c47468",
+    "v345-rest-022-hair-wait10.json": "0843d22d9ca9aaad043858afb72290d86d13a95b25b3a26395dcbaff935bb933"
+  },
+  "failed": [
+    {
+      "case": "Width grip",
+      "input_submitted": false,
+      "observed_content_available": 876.9573974609375,
+      "observed_controls_available": 0,
+      "private_fix": "Clip only manufactured left sentinels to that band existing native attachment; real native/unknown/drawer bounds remain exact.25 fixtures and full private Main retainer passed; not yet runtime qualified.",
+      "reason": "native-protected-region-blocks-width",
+      "root_cause": "Actual native controlsOrigin.x1622.043 lies left of panel origin1651.043. Synthetic full-height left boundaries incorrectly block the already-existing controls band."
+    },
+    {
+      "case": "Semantic overflow navigation",
+      "native_message": "Navigation publication changed its original native Sim/form/outfit scope",
+      "private_reproduction": "Unspecified AS object key order makes encoded cloned/fresh objects compare unequal despite identical12scalar fields. Exact schema/scalar comparator reproduces old failure and passes14 cases. Old ACK lacks fresh after-context so it does not establish the sole actual cause.",
+      "request_id": "e523ee7729b149e1b13f735673d286c6",
+      "request_replayed": false,
+      "state": "pending-invalid-native-acknowledgement"
+    },
+    {
+      "case": "Cold Hair work",
+      "main_max_ms": 178,
+      "main_parts_ms": {
+        "pre": 1,
+        "step": 177
+      },
+      "native_inclusive_wall_max_ms": {
+        "attach": 51,
+        "bind": 48,
+        "draw": 48,
+        "publish": 177
+      },
+      "note": "Ready after10 status waits; includes possible scheduling/compiler contention. A local soft budget cannot interrupt one native atom. No exclusive native CPU attribution or cold no-mod baseline."
+    }
+  ],
+  "frame_sample": {
+    "action_smoothness_qualified": false,
+    "actions_fully_contained": 0,
+    "chains": 1,
+    "displayed_fps_measured": false,
+    "matched_no_mod_baseline": false,
+    "max_ms": 18.6622,
+    "note": "All six actual native action ACKs occur after capture. First submit overlaps only51.694ms at the end. These metrics cannot be claimed as action performance.",
+    "over_16_6667ms": 1,
+    "over_33_33ms": 0,
+    "p50_ms": 7.9876,
+    "p95_ms": 10.26208,
+    "p99_ms": 11.863144,
+    "scope": "Quiet/pending-UI DXGI API present cadence; GPU and display tracking disabled",
+    "target_intervals": 3657,
+    "valid": true
+  },
+  "hitch_free_claimed": false,
+  "next": [
+    "Provider-local wrap-safe soft budget and explicit read-only clock probe, with verified-prefix continuation cache.",
+    "Featured look/outfit/pack identity and retained same-URI native redraw staging; Styled Looks is a separate widget still open.",
+    "Real corrected width grow/shrink, semantic keyboard publication, cold/action frame testing.",
+    "Human paint/Medical exit, distinct appearance edits across categories/members/independent forms, link/copy isolation, phone/MCCC and household Tray/Gallery/save round trips."
+  ],
+  "package_sha256": "5ad923df7cbc7b799cad9b014fba434cc08aabc812db7830e8a33f4fb8287aad",
+  "passed": {
+    "actual_overflow_native_keys": {
+      "all_native_commands_completed": true,
+      "at_rest_cards_filled": true,
+      "before_after_screenshots_show_scroll": true,
+      "continuous_blank_free_proof": false,
+      "inputs": 6
+    },
+    "all21_save_files_unchanged": true,
+    "appearance_edits_submitted": false,
+    "automatic_full_cas_entry_unchanged_records": 195,
+    "body35_geometry": {
+      "actual_columns": 12,
+      "dimension_scope": "current-native-card-grid",
+      "fitted_scale": 0.3499999998,
+      "outer_family_dimensions": null,
+      "physical_cells": 176,
+      "pixel_clipping_visual_check_required": false,
+      "requested_columns": 12,
+      "requested_scale": 0.35,
+      "sampled_cards": 24,
+      "skin_family_count": 0
+    },
+    "body35_slider_ack": true,
+    "cold_named_looks": 155,
+    "cold_native_appearances": 40,
+    "completed_household_transactions": 5,
+    "household_native_ea_return": true,
+    "other_category_geometry": {
+      "eyes": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.35,
+        "outer_family_dimensions": null,
+        "physical_cells": 190,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "fullbody": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.35,
+        "outer_family_dimensions": null,
+        "physical_cells": 26,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "hair": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.35,
+        "outer_family_dimensions": null,
+        "physical_cells": 240,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "skin": {
+        "actual_columns": 12,
+        "dimension_scope": "first-nested-skin-family",
+        "fitted_scale": 0.35,
+        "outer_family_dimensions": [
+          1,
+          4
+        ],
+        "physical_cells": 9,
+        "pixel_clipping_visual_check_required": true,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 9,
+        "skin_family_count": 4
+      },
+      "tattoo": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.35,
+        "outer_family_dimensions": null,
+        "physical_cells": 6,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 6,
+        "skin_family_count": 0
+      }
+    },
+    "other_members_body_geometry": {
+      "349336084686110946": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.35,
+        "outer_family_dimensions": null,
+        "physical_cells": 176,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "349336084686110947": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.35,
+        "outer_family_dimensions": null,
+        "physical_cells": 176,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "450667075246031054": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.35,
+        "outer_family_dimensions": null,
+        "physical_cells": 176,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "450667075246031055": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.35,
+        "outer_family_dimensions": null,
+        "physical_cells": 176,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      }
+    },
+    "raw_return_owners_exact_before_prepare": 195
+  },
+  "production_ready": false,
+  "schema": 1
+}

@@ -1,0 +1,284 @@
+{
+  "candidate_epoch": "2026-10-25-qpc-membership-timer-v338",
+  "candidate_sha256": "eb7549c21e21a66b9754f8a571e7af1841c4caf2c79fc6b6f4114fbcb5c1c607",
+  "production_ready": false,
+  "hitch_free_claimed": false,
+  "change": [
+    "High-resolution QPC owner/queue clock instead of coarse Windows monotonic samples",
+    "Thin overlay tracker queries preserve raw flags separately from actual occult memberships",
+    "Real AVM2 getTimer QName fixes the opt-in granular Draw trace"
+  ],
+  "actual": {
+    "pid": 32580,
+    "cold_native_appearances_retained": 40,
+    "cold_named_looks_retained": 155,
+    "full_cas_entry_complete_owners_unchanged": 195,
+    "post_category_complete_owners_unchanged": 195,
+    "no_edit_household_return_native_appearances_retained": 40,
+    "no_edit_household_return_named_looks_retained": 155,
+    "all5_no_edit_transactions_completed": true,
+    "all21_save_files_unchanged": true,
+    "appearance_edits_submitted": false,
+    "save_submitted": false,
+    "final_paused": true,
+    "twelve_columns_compact_beside_fully_visible_sim_visually_checked": true
+  },
+  "granular_draw": {
+    "completed": 55,
+    "errors": 0,
+    "aggregates": {
+      "context": {
+        "calls": 544,
+        "max_ms": 4,
+        "total_ms": 49
+      },
+      "decoration": {
+        "calls": 55,
+        "max_ms": 1,
+        "total_ms": 3
+      },
+      "draw": {
+        "calls": 55,
+        "max_ms": 6,
+        "total_ms": 99
+      },
+      "favorite": {
+        "calls": 55,
+        "max_ms": 2,
+        "total_ms": 8
+      },
+      "geometry": {
+        "calls": 330,
+        "max_ms": 1,
+        "total_ms": 5
+      },
+      "icons": {
+        "calls": 53,
+        "max_ms": 1,
+        "total_ms": 1
+      },
+      "other": {
+        "calls": 55,
+        "max_ms": 1,
+        "total_ms": 13
+      },
+      "overlay": {
+        "calls": 55,
+        "max_ms": 1,
+        "total_ms": 5
+      },
+      "state": {
+        "calls": 440,
+        "max_ms": 3,
+        "total_ms": 11
+      },
+      "super": {
+        "calls": 55,
+        "max_ms": 0,
+        "total_ms": 0
+      },
+      "swatches": {
+        "calls": 0,
+        "max_ms": 0,
+        "total_ms": 0
+      },
+      "thumbnail": {
+        "calls": 55,
+        "max_ms": 2,
+        "total_ms": 3
+      },
+      "tooltip": {
+        "calls": 57,
+        "max_ms": 1,
+        "total_ms": 1
+      }
+    },
+    "callback_active_after_stop": false,
+    "scope": "Opt-in diagnostic includes its own marker overhead; synchronous Draw time is not whole-frame CPU time"
+  },
+  "action_capture": {
+    "scope": "60s actual Body/Tattoos/Hair actions including explicit CLI observations",
+    "matched_no_mod_baseline": false,
+    "frames": 6335,
+    "median_ms": 8.5326,
+    "p95_ms": 13.0324,
+    "p99_ms": 19.8297,
+    "max_ms": 692.1891,
+    "over_33_33ms": 18,
+    "event_loss_reported": false,
+    "performance_pass": false,
+    "csv_sha256": "9bbefda069661ca50a7df3fca25a1df11aa7c368c1c54a417c44a4dbc964c4b9"
+  },
+  "quiet_capture": {
+    "scope": "30s quiet visible CAS grid without CLI actions; own compilers stopped",
+    "matched_no_mod_baseline": false,
+    "frames": 3158,
+    "median_ms": 9.062850000000001,
+    "p95_ms": 12.3272,
+    "p99_ms": 14.5147,
+    "max_ms": 20.7408,
+    "over_33_33ms": 0,
+    "event_loss_reported": false,
+    "performance_pass": false,
+    "csv_sha256": "23c5324a04e7f2527167ced1c53189db8512af7e9aa5c8cde3ae7953a104605b"
+  },
+  "live_display": {
+    "samples": 16,
+    "http_wall_max_ms": 211.34510007686913,
+    "owner_qpc": {
+      "avg_ms": 0.29,
+      "count": 24,
+      "fail": 0,
+      "last_ms": 0.32,
+      "max_ms": 0.51,
+      "ok": 24
+    },
+    "raw_flags": 65,
+    "logical_memberships_mask": 126,
+    "shared_human_data_present": true,
+    "all_six_tracker_memberships_present": true,
+    "full_audit_performed": false
+  },
+  "transport_split": {
+    "appearance_written": false,
+    "ok": true,
+    "rows": [
+      {
+        "http_wall_ms": 165.04800016991794,
+        "index": 0,
+        "kind": "bridge"
+      },
+      {
+        "http_wall_ms": 201.1156000662595,
+        "index": 0,
+        "kind": "display"
+      },
+      {
+        "http_wall_ms": 167.09430003538728,
+        "index": 1,
+        "kind": "bridge"
+      },
+      {
+        "http_wall_ms": 202.84839998930693,
+        "index": 1,
+        "kind": "display"
+      },
+      {
+        "http_wall_ms": 165.05139996297657,
+        "index": 2,
+        "kind": "bridge"
+      },
+      {
+        "http_wall_ms": 198.6149000003934,
+        "index": 2,
+        "kind": "display"
+      },
+      {
+        "http_wall_ms": 166.6315000038594,
+        "index": 3,
+        "kind": "bridge"
+      },
+      {
+        "http_wall_ms": 165.78659997321665,
+        "index": 3,
+        "kind": "display"
+      },
+      {
+        "http_wall_ms": 132.6437999960035,
+        "index": 4,
+        "kind": "bridge"
+      },
+      {
+        "http_wall_ms": 200.66610001958907,
+        "index": 4,
+        "kind": "display"
+      },
+      {
+        "http_wall_ms": 163.9911998063326,
+        "index": 5,
+        "kind": "bridge"
+      },
+      {
+        "http_wall_ms": 201.7797001171857,
+        "index": 5,
+        "kind": "display"
+      },
+      {
+        "http_wall_ms": 131.73340004868805,
+        "index": 6,
+        "kind": "bridge"
+      },
+      {
+        "http_wall_ms": 200.3803001716733,
+        "index": 6,
+        "kind": "display"
+      },
+      {
+        "http_wall_ms": 166.35719989426434,
+        "index": 7,
+        "kind": "bridge"
+      },
+      {
+        "http_wall_ms": 197.4871999118477,
+        "index": 7,
+        "kind": "display"
+      }
+    ],
+    "save_requested": false,
+    "scope": "Readonly loopback HTTP comparison; bridge bypasses owner queue, display uses owner; no artifact directory validation in timed span"
+  },
+  "bank_owner_timing": {
+    "ok": true,
+    "scope": "Existing actual V338 QPC owner-handler timings during noedit household disposition; not exclusive CPU",
+    "performance": {
+      "cas_bank_observe": {
+        "count": 5,
+        "ok": 5,
+        "fail": 0,
+        "last_ms": 8203.62,
+        "avg_ms": 5538.2,
+        "max_ms": 8203.62
+      },
+      "cas_bank_status": {
+        "count": 10,
+        "ok": 10,
+        "fail": 0,
+        "last_ms": 225.26,
+        "avg_ms": 136.62,
+        "max_ms": 229.86
+      },
+      "cas_bank_prepare": {
+        "count": 5,
+        "ok": 5,
+        "fail": 0,
+        "last_ms": 4323.25,
+        "avg_ms": 4338.23,
+        "max_ms": 4391.75
+      },
+      "cas_bank_commit": {
+        "count": 5,
+        "ok": 5,
+        "fail": 0,
+        "last_ms": 13075.58,
+        "avg_ms": 12227.41,
+        "max_ms": 13220.32
+      }
+    }
+  },
+  "next": [
+    "Measure exact native renderer pointer-page allocations/frees and time before considering page recycling",
+    "Qualify V339 retained worker wake and framed native HTTP completion in game",
+    "Replace repeated synchronous full-bank journal I/O with owner continuations and immutable workers without dropping durable barriers",
+    "Keep independent edited-category, MCCC, link/copy, save/Tray and actual-save release gates open"
+  ],
+  "evidence_sha256": {
+    "v338-edited-saved-cold-load.json": "da099c578399121921607fea4a07bcac0b50fa3230f637f3cce3e4964f9d9268",
+    "v338-normal-automatic-entry.json": "4fb999aa1a80f61a65c79d0badb5ac9de59fb817ffd22f2ae33df4852d1a0ead",
+    "v338-post-ui-all195.json": "2aff2cf6f37fd642874e85a500d93b152e5d98d825d90f4f80bcb8534711e340",
+    "v338-live-no-edit-final.json": "a6aa6f28676dd85cda640b348a38dceb0c22478d78b608a753af32435285c93e",
+    "v338-granular-draw-runtime.json": "bf88dc0fd99c6da5c9c2be5b12a04101d9f831785682184742679b08297cc35f",
+    "v338-live-display-runtime.json": "89fcd45a748db63d33407a6d3d550211b26cbf98a3968751f6494870af831e5e",
+    "v338-transport-split.json": "1017f85a64fdd94e9a2faa9f4224558f305eacddb30cd85584fc2a2a8e3600cc",
+    "v338-no-edit-bank-owner-timings.json": "5cb9f24bf9ef6d8c2d95688dbcf3fc1d397973ae70a9d3ce251cc538628120d4"
+  }
+}

@@ -1,0 +1,15 @@
+TD1 Occult Hybrid Apex V5 - Dear ImGui / DX11 Overlay Research Summary
+=========================================================================
+
+Key decisions:
+1. Dear ImGui is used as the native overlay UI layer. The source kit uses imgui_impl_win32 and imgui_impl_dx11 backends from the provided Dear ImGui 1.92.8 archive.
+2. The overlay is designed as a d3d11.dll proxy because the reference RTBP archive contains a native d3d11.dll proxy and companion files, and Sims 4 now has a DirectX 11 path for Windows players.
+3. The overlay does not write Sims data directly from the DirectX Present thread. It talks to the existing Apex localhost API, and Apex executes mutating commands through its Sims game-thread alarm queue.
+4. Lot51 Core is optional/detected, not bundled. Lot51 public docs recommend depending on the packaged Core Library instead of including it inside another mod.
+5. Performance plan: hidden overlay has no HTTP polling; visible overlay polls compact state/logs at bounded intervals; no automatic Sim scan or repair is enabled by default.
+
+Sources checked in browser before this build:
+- Lot51 Core Library GitHub/official page: dependency, anti-conflict utility, event/config/logging facilities, do-not-bundle guidance.
+- EA/TS4 DX11 information: Sims 4 Windows path defaults/uses DirectX 11 for many GPUs.
+- Dear ImGui official examples/backends: Win32 + DirectX 11 backend structure.
+- Matroska/Sims script mod packaging reference: ts4script as a zip-style Python package recognized by Sims.

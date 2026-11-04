@@ -1,0 +1,5 @@
+# Fresh private preparation names
+
+Apply this patch after the cumulative dynamic-separates and provenance-hardening patches. New preparation manifests now generate fresh bounded random private source and output names and check known retained artifact paths. A collision is retried without deleting the old artifact; subsequent exclusive creation still fails safely if a race occurs. This fixes a reproduced collision when a new manifest reused a deterministic name from an earlier session. It does not restore a previous session or provide durable state.
+
+The candidate passed 63 Python tests. A clean application of all three patches passed 62 selected Python tests and 7 synthetic JavaScript tests. In one private source set, a local on-demand sequence changed top, bottom, hair, shoes, eyes and tattoo in order, retaining the other five identities each time; the five adjacent preview frames differed. This is limited to same-mesh selections and disjoint atlases in that fixture. No real-browser, native game, full CAS or broad CC compatibility claim is made. No private source packages, catalog, configuration or frames are included.

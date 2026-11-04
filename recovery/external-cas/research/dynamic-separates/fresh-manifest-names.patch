@@ -1,0 +1,51 @@
+--- a/rig-recovery/build_separates_preparation_manifest.py
++++ b/rig-recovery/build_separates_preparation_manifest.py
+@@ -4,11 +4,19 @@
+ All package paths come from an explicit trusted source map, never catalog rows.
+ This only creates a private manifest; it prepares no source and changes no game.
+ """
+-import argparse,hashlib,json,pathlib,sqlite3
++import argparse,hashlib,json,pathlib,secrets,sqlite3
+ from build_scene_bindings import pin,PRIVATE,D,N
+ from separate_preparation_owner import SeparatePreparationOwner
+ from scene_provenance import validate as validate_provenance
+ SLOTS={2:'hair',6:'top',7:'bottom',8:'shoes',35:'eyes',46:'tattoo'}
++def fresh_name(prefix,used):
++ # A new manifest must not inherit an abandoned source preparation. Check
++ # all known pipeline artifact names and leave stale artifacts untouched.
++ suffixes=('-preflight-resolution','-resolution','-diffuse','-merged','-ready',*(f'-geom-{i}' for i in range(8)))
++ for _ in range(64):
++  name=prefix+secrets.token_hex(7)
++  if name not in used and not any((PRIVATE/(name+s)).exists() or (PRIVATE/(name+s)).is_symlink() for s in suffixes) and not (PRIVATE/name).exists() and not (PRIVATE/name).is_symlink():used.add(name);return name
++ raise ValueError('unable to allocate fresh private name')
+ 
+ def load(path,digest):
+  p=pathlib.Path(path);pin(p,digest,65536);return json.loads(p.read_bytes())
+@@ -39,9 +47,9 @@
+    if row.get('part_id')!=part or slot is None or not isinstance(digest,str) or not D.fullmatch(digest) or digest not in src['packages']:raise ValueError('unsupported or unauthorized source')
+    path=pathlib.Path(src['packages'][digest]);pin(path,digest,64*1024*1024);verified[digest]=path;rows.append((part,slot,path))
+  finally:db.close()
+- pin(index,a.catalog[1],256*1024*1024);selections={}
++ pin(index,a.catalog[1],256*1024*1024);selections={};used=set()
+  for part,slot,path in rows:
+-  name='p'+part[:14];token=hashlib.sha256(('preparation:'+part).encode()).hexdigest()[:32];out='v'+part[:14]
++  name=fresh_name('p',used);token=hashlib.sha256(('preparation:'+part).encode()).hexdigest()[:32];out=fresh_name('v',used)
+   variant={k:ctx[k] for k in ('base_token','base','base_sha','manifest','manifest_sha','counterparts','binary','binary_sha','helper','helper_sha','policy')};variant.update(slot=slot,output=out,package_sources=src['packages'])
+   if token in selections:raise ValueError('opaque token collision')
+   selections[token]={'catalog':str(index.resolve()),'catalog_sha':a.catalog[1],'part_id':part,'package':str(path),'rig':ctx['rig'],'rig_sha':ctx['rig_sha'],'name':name,'variant':variant}
+--- a/rig-recovery/test_build_separates_manifest.py
++++ b/rig-recovery/test_build_separates_manifest.py
+@@ -13,6 +13,13 @@
+   return json.loads(buf.getvalue())
+  def test_top_manifest_uses_explicit_source_not_catalog_path(self):
+   out=self.invoke(self.args);self.assertFalse(out['assets_prepared']);row=next(iter(json.loads((self.root/'output/preparations.json').read_text())['selections'].values()));self.assertEqual(row['variant']['slot'],'top');self.assertEqual(row['package'],str(self.package));self.assertNotEqual(row['package'],'/never/used')
++ def test_new_manifest_uses_fresh_names_and_preserves_old_artifacts(self):
++  self.invoke(self.args);first=next(iter(json.loads((self.root/'output/preparations.json').read_text())['selections'].values()));artifact=self.root/(first['name']+'-ready');artifact.mkdir();(artifact/'keep').write_text('untouched')
++  args=self.args.copy();args[args.index('--output')+1]='second';self.invoke(args);second=next(iter(json.loads((self.root/'second/preparations.json').read_text())['selections'].values()));self.assertNotEqual(first['name'],second['name']);self.assertEqual((artifact/'keep').read_text(),'untouched')
++ def test_random_name_collision_is_retried_without_deleting(self):
++  q=self.root/('p'+'1'*14+'-ready');q.mkdir();(q/'keep').write_text('untouched')
++  with mock.patch.object(m.secrets,'token_hex',side_effect=['1'*14,'2'*14,'3'*14]):self.invoke(self.args)
++  data=json.loads((self.root/'output/preparations.json').read_text());self.assertEqual(next(iter(data['selections'].values()))['name'],'p'+'2'*14);self.assertEqual((q/'keep').read_text(),'untouched')
+  def test_missing_counterpart_package_refuses_before_output(self):
+   q=self.root/'bottom-ready/ready.json';q.write_text(json.dumps({'package_sha256':'9'*64}))
+   with self.assertRaises(ValueError):self.invoke(self.args)

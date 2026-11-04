@@ -190,11 +190,24 @@ int main(int argc, char** argv) {
         resource::Name(named, resource::NameMode::Package).text == "J\xC3\xA9welry_[Author].PACKAGE" &&
         resource::Name(named, resource::NameMode::Code).text == "yfAcc_Long_Internal_Code_01",
         "name modes retain actual localized title, Unicode containing filename and genuine internal code separately");
+    check(resource::EquippedNameLabel(resource::Name(named, resource::NameMode::Preferred), resource::NameMode::Preferred) ==
+        "Verified localized title", "preferred localized title has no filename marker");
     named["preferred_name"] = named["package_name"]; named["preferred_name_status"] = "cc-package-filename";
     named["display_name"] = named["preferred_name"]; named["name_status"] = named["preferred_name_status"];
     namedCatalog["items"][0] = named;
     check(resource::Catalog(namedCatalog) && resource::Name(named, resource::NameMode::Preferred).text ==
         "J\xC3\xA9welry_[Author].PACKAGE", "preferred CC fallback is the exact original containing filename");
+    check(resource::EquippedNameLabel(resource::Name(named, resource::NameMode::Preferred), resource::NameMode::Preferred) ==
+        "J\xC3\xA9welry_[Author].PACKAGE (package filename)", "preferred fallback is labeled as the package filename");
+    check(resource::EquippedNameLabel(resource::Name(named, resource::NameMode::Package), resource::NameMode::Package) ==
+        "J\xC3\xA9welry_[Author].PACKAGE", "explicit package mode retains the filename unchanged");
+    check(resource::EquippedNameLabel(resource::Name(named, resource::NameMode::Code), resource::NameMode::Code) ==
+        "yfAcc_Long_Internal_Code_01", "explicit code mode retains the code unchanged");
+    check(resource::EquippedNameLabel({"actual_casp_code", "casp-internal-name / native bytes"}, resource::NameMode::Preferred) ==
+        "actual_casp_code (internal code)", "native internal-code fallback remains marked");
+    check(resource::EquippedNameLabel({}, resource::NameMode::Preferred) == "Name unavailable" &&
+        resource::EquippedNameLabel({}, resource::NameMode::Package) == "Package name unavailable",
+        "missing names remain explicit for both name modes");
     auto forgedName = namedCatalog; forgedName["items"][0]["preferred_name"] = "Invented friendly label";
     check(!resource::Catalog(forgedName), "name aliases cannot substitute invented friendly labels");
     forgedName = namedCatalog; forgedName["items"][0]["code_name"] = "Pretty humanized code";

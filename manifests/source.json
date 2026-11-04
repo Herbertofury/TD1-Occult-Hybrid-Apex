@@ -71,6 +71,12 @@
       "sha256": "b53b5d030e9c5123ab91bfdadd6894430879955bf20be49eeedc4495c6098b4a"
     },
     {
+      "bytes": 375178,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "93b5578d1007984b6f36a6f4aad39622cbbee7d1927b44017d0da9ed83c725f8"
+    },
+    {
       "bytes": 12775,
       "mode": "100644",
       "path": "tools/cas_catalog_unconsumed.py",
@@ -1901,6 +1907,12 @@
       "sha256": "4acafd61bdd76b25e9e39d5897467b991d25bbecf02f85d63ffb2b26b1422a8d"
     },
     {
+      "bytes": 1566,
+      "mode": "100644",
+      "path": "docs/F11_EQUIPPED_LABEL_REVIEW_20261104.md",
+      "sha256": "7f5195bf68e74915cab00613686f297f5360ab1430bbc73203399f4160b0601b"
+    },
+    {
       "bytes": 1933,
       "mode": "100644",
       "path": "Reports/CAS_MEMBER_QUIET_V263.json",
@@ -3299,12 +3311,6 @@
       "sha256": "a8ff8b31a0c49c8b1972ba5d27b140cc091521d03bcccfb8283835f764bdf831"
     },
     {
-      "bytes": 375338,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "c99c8124180f37cbe1d211a88084bf1dc1146b701fa7f303de04d72e63156dca"
-    },
-    {
       "bytes": 18230,
       "mode": "100644",
       "path": "tools/cas_workbench.py",
@@ -4263,6 +4269,12 @@
       "mode": "100644",
       "path": "Reports/NATIVE_CAS_CODE_INSPECTION_2026-10-15.md",
       "sha256": "25309f0ebb2f1638232d1a5e364f3aa7f3b4992d3192224f70b3b3b1c1ba4650"
+    },
+    {
+      "bytes": 12283,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/ApexResourceData.h",
+      "sha256": "b02e8c001975811b0c487af2a53b074c685d36be62056383c396c2390515ef2c"
     },
     {
       "bytes": 18568,
@@ -6149,12 +6161,6 @@
       "sha256": "097e88240ed8828101de5389c8f966a76e2c393b821f0580808735b663b600cd"
     },
     {
-      "bytes": 11814,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/ApexResourceData.h",
-      "sha256": "5b149697532ee7f04cd94a8caf4b196afbbe7de1e9777ff71cefde83c10b5b5a"
-    },
-    {
       "bytes": 10964,
       "mode": "100644",
       "path": "tools/CasGridProductRowsPatch.java",
@@ -6579,6 +6585,12 @@
       "mode": "100644",
       "path": "Reports/Apex-V10.1-VSCode-Insiders-Studio-Warehouse-Validation.md",
       "sha256": "c33049e3066b381f1c3179ee1aa2c22ce6fb2dd2630890ed1ef94ce31d6a6ab5"
+    },
+    {
+      "bytes": 28082,
+      "mode": "100644",
+      "path": "NativeOverlay/Tests/ResourceTests.cpp",
+      "sha256": "03c853a4dfb942fce6ed4a2b5a8bd8ef736c035d6f6c2ec99183788f1dd6d5b0"
     },
     {
       "bytes": 1607,
@@ -7089,12 +7101,6 @@
       "mode": "100644",
       "path": "tests/test_cas_grid_presentation.py",
       "sha256": "2ba2471e7bd188f05bd3c9d961cb5c9cc80d3d3ad79ca662a3b0c5909ac828f0"
-    },
-    {
-      "bytes": 26710,
-      "mode": "100644",
-      "path": "NativeOverlay/Tests/ResourceTests.cpp",
-      "sha256": "04206ec5b69fe613a672234d5ae7f3d877d8b8d6b538197dc75edce8f4bf614e"
     },
     {
       "bytes": 4684,

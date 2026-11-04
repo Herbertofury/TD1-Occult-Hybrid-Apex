@@ -2720,10 +2720,8 @@ static void DrawEquippedList() {
     for (size_t i = 0; i < parts.size(); ++i) {
         const auto* category = categoryFor(parts[i]);
         const auto name = StudioPartName(parts[i], ResourcePartEditor(parts[i]), resourceCatalog, resourceCatalogValid);
-        const auto fallback = g_itemNameMode == 1 ? "Package name unavailable" : "Name unavailable";
-        const bool codeFallback = g_itemNameMode == 0 && name.source.find("casp-internal-name") == 0;
-        rows.push_back({static_cast<int>(i), (name.text.empty() ? fallback : name.text) +
-            (codeFallback ? " (internal code)" : "") + " / " + ui::Scalar(parts[i], "label"),
+        const auto nameMode = static_cast<resource::NameMode>(std::clamp(g_itemNameMode, 0, 2));
+        rows.push_back({static_cast<int>(i), resource::EquippedNameLabel(name, nameMode) + " / " + ui::Scalar(parts[i], "label"),
             category ? ui::Scalar(*category, "group") : "Runtime discovered"});
     }
     if (g_showEmptySlots && catalog != g_studioData.end()) for (const auto& category : *catalog) {

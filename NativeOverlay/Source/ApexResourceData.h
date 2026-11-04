@@ -27,6 +27,14 @@ inline bool NullableText(const Json& object, const char* field, size_t bound) {
 }
 enum class NameMode { Preferred, Package, Code };
 struct ItemName { std::string text, source; };
+inline std::string EquippedNameLabel(const ItemName& name, NameMode mode) {
+    if (name.text.empty()) return mode == NameMode::Package ? "Package name unavailable" : "Name unavailable";
+    if (mode == NameMode::Preferred && name.source.find("casp-internal-name") == 0)
+        return name.text + " (internal code)";
+    if (mode == NameMode::Preferred && name.source == "cc-package-filename")
+        return name.text + " (package filename)";
+    return name.text;
+}
 inline ItemName Name(const Json& row, NameMode mode) {
     if (!row.is_object()) return {};
     if (mode == NameMode::Preferred) {

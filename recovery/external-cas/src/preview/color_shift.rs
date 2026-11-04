@@ -391,18 +391,55 @@ impl PreparedColors {
         let mut table = std::collections::HashMap::<[u8; 4], u16>::new();
         let mut palette = Vec::new();
         let mut indices = Vec::with_capacity(rgba.len() / 4);
-        for &pixel in rgba.as_chunks::<4>().0 {
-            let index = match table.get(&pixel) {
-                Some(&index) => index,
-                None => {
-                    let index = u16::try_from(palette.len() / 4)
-                        .map_err(|_| "texture exceeds prepared palette budget")?;
-                    table.insert(pixel, index);
-                    palette.extend_from_slice(&pixel);
+        // Sampling selects between two exact algorithms. All pixels and hidden
+        // RGB values remain represented regardless of the selected path.
+        let pixels = rgba.as_chunks::<4>().0;
+        let window = 256usize.min(pixels.len());
+        let samples = 8usize.min((pixels.len() / window).max(1));
+        let mut adjacent = 0usize;
+        let mut comparisons = 0usize;
+        for i in 0..samples {
+            let start = if samples == 1 { 0 } else { (pixels.len() - window) * i / (samples - 1) };
+            for pair in pixels[start..start + window].windows(2) {
+                comparisons += 1;
+                if pair[0] == pair[1] { adjacent += 1; }
+            }
+        }
+        let repeated = comparisons > 0 && adjacent * 8 >= comparisons;
+        if repeated {
+            let mut last: Option<([u8; 4], u16)> = None;
+            for &pixel in pixels {
+                let index = if let Some((_, index)) = last.filter(|(prior, _)| *prior == pixel) {
                     index
-                }
-            };
-            indices.push(index);
+                } else {
+                    match table.get(&pixel) {
+                        Some(&index) => index,
+                        None => {
+                            let index = u16::try_from(palette.len() / 4)
+                                .map_err(|_| "texture exceeds prepared palette budget")?;
+                            table.insert(pixel, index);
+                            palette.extend_from_slice(&pixel);
+                            index
+                        }
+                    }
+                };
+                last = Some((pixel, index));
+                indices.push(index);
+            }
+        } else {
+            for &pixel in pixels {
+                let index = match table.get(&pixel) {
+                    Some(&index) => index,
+                    None => {
+                        let index = u16::try_from(palette.len() / 4)
+                            .map_err(|_| "texture exceeds prepared palette budget")?;
+                        table.insert(pixel, index);
+                        palette.extend_from_slice(&pixel);
+                        index
+                    }
+                };
+                indices.push(index);
+            }
         }
         Ok(Self { palette, indices, active_runs: bounded_alpha_runs(rgba) })
     }
@@ -439,6 +476,22 @@ mod prepared_color_tests {
         ] {
             let shift = ColorShift::decode(bits).unwrap();
             assert_eq!(prepared.apply(shift).unwrap(), shift.apply(&data).unwrap());
+        }
+    }
+    #[test]
+    fn sampled_path_preserves_exact_bytes_for_mixed_hidden_rgb_and_boundaries() {
+        for count in [1usize,2,255,256,257,2047,2048,2049,10000] {
+            for mode in 0..4 {
+                let data:Vec<u8>=(0..count).flat_map(|i| {
+                    let n=match mode {0=>0,1=>i&1,2=>i, _=>if i<count/2 {0} else {i}};
+                    [n as u8,(n>>8) as u8,(n.wrapping_mul(17)>>3) as u8,if i%3==0 {0} else {255}]
+                }).collect();
+                let p=PreparedColors::new(&data).unwrap();
+                for bits in [0x4000000000000000,0x3000e00010000800] {
+                    let shift=ColorShift::decode(bits).unwrap();
+                    assert_eq!(p.apply(shift).unwrap(),shift.apply(&data).unwrap());
+                }
+            }
         }
     }
     #[test]

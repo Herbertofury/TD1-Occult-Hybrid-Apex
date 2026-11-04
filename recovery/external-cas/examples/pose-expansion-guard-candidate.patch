@@ -1,0 +1,102 @@
+--- a/tools/research/intake_pose_package.py
++++ b/tools/research/intake_pose_package.py
+@@ -1,29 +1,45 @@
+ # SPDX-License-Identifier: GPL-3.0-or-later
+ """Private, bounded read-only pose package intake. No installation or game writes."""
+-import argparse,hashlib,json,pathlib,re,sys
++import argparse,hashlib,json,pathlib,re,struct,sys
+ root=pathlib.Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'inert-status-fixture/modules'));sys.path.insert(0,str(root/'real-recovery-evidence/clip-gpl'))
+ from cas_resource_catalog import Package,tgi
+ from decode_clip import decode
+-p=argparse.ArgumentParser();p.add_argument('package');p.add_argument('sha256');p.add_argument('output_name');a=p.parse_args();source=pathlib.Path(a.package);name=a.output_name
+-if not name or name in ('.','..') or pathlib.Path(name).name!=name:raise ValueError('Output must be one new directory name')
+-if not re.fullmatch('[a-f0-9]{64}',a.sha256):raise ValueError('Lowercase SHA256 required')
+-if source.is_symlink() or not source.is_file() or source.stat().st_size>8*1024*1024:raise ValueError('Bounded regular package required')
+-package=Package(source,'mod')
+-if package.source_sha256!=a.sha256:raise ValueError('Package identity mismatch')
+-if len(package.entries)>1024 or sum(max(v[1:3]) for v in package.entries.values())>64*1024*1024:raise ValueError('Package resource budget exceeded')
+-rootdir=root/'private-input-recovery'/name;rootdir.mkdir(mode=0o700,exist_ok=False);resources=rootdir/'resources';decoded=rootdir/'decoded';resources.mkdir(mode=0o700);decoded.mkdir(mode=0o700)
+-items=package.read_many(list(package.entries));result=[]
+-for key,data in items.items():
+- if len(data)>8*1024*1024:raise ValueError('Resource extent exceeded')
+- ident=tgi(key).replace(':','_')
+- with (resources/ident).open('xb') as f:f.write(data)
+- if key[0]==0x6B20C4F3:
+-  try:
+-   parsed=decode(data);raw=json.dumps(parsed,separators=(',',':'),allow_nan=False).encode();
+-   with (decoded/(ident+'.json')).open('xb') as f:f.write(raw)
+-   result.append({'state':'decoded','unsupported':len(parsed['unsupported_channels'])})
+-  except (ValueError,UnicodeError,OverflowError,KeyError) as e:result.append({'state':'refused','error_type':type(e).__name__})
+-if hashlib.sha256(source.read_bytes()).hexdigest()!=a.sha256:raise ValueError('Source changed during intake')
+-report={'resources':len(items),'clips':len(result),'decoded':sum(x['state']=='decoded' for x in result),'refused':sum(x['state']=='refused' for x in result),'unsupported':sum(x.get('unsupported',0) for x in result),'game_modified':False}
+-with (rootdir/'intake-report.json').open('x') as f:json.dump(report,f,indent=2)
+-print(json.dumps(report))
++# Refuse excessive expansion before the decoder builds Python key objects.
++def estimated_keys(data):
++ start=data.find(b'_pilC3S_')
++ if start<0 or len(data)-start<48:raise ValueError('Clip header unavailable')
++ raw=data[start:];count=struct.unpack_from('<I',raw,24)[0];offset=struct.unpack_from('<I',raw,32)[0]
++ if count>2048 or offset<48 or offset+count*20>len(raw):raise ValueError('Clip curve table bound')
++ total=sum(struct.unpack_from('<H',raw,offset+i*20+16)[0] for i in range(count))
++ if total>100000:raise ValueError('Clip key expansion budget')
++ return total
++def main():
++    p=argparse.ArgumentParser();p.add_argument('package');p.add_argument('sha256');p.add_argument('output_name');a=p.parse_args();source=pathlib.Path(a.package);name=a.output_name
++    if not name or name in ('.','..') or pathlib.Path(name).name!=name:raise ValueError('Output must be one new directory name')
++    if not re.fullmatch('[a-f0-9]{64}',a.sha256):raise ValueError('Lowercase SHA256 required')
++    if source.is_symlink() or not source.is_file() or source.stat().st_size>8*1024*1024:raise ValueError('Bounded regular package required')
++    package=Package(source,'mod')
++    if package.source_sha256!=a.sha256:raise ValueError('Package identity mismatch')
++    if len(package.entries)>1024 or sum(max(v[1:3]) for v in package.entries.values())>64*1024*1024:raise ValueError('Package resource budget exceeded')
++    rootdir=root/'private-input-recovery'/name;rootdir.mkdir(mode=0o700,exist_ok=False);resources=rootdir/'resources';decoded=rootdir/'decoded';resources.mkdir(mode=0o700);decoded.mkdir(mode=0o700)
++    items=package.read_many(list(package.entries));result=[];claimed_keys=0;decoded_bytes=0
++    for key,data in items.items():
++     if len(data)>8*1024*1024:raise ValueError('Resource extent exceeded')
++     ident=tgi(key).replace(':','_')
++     with (resources/ident).open('xb') as f:f.write(data)
++     if key[0]==0x6B20C4F3:
++      try:
++       cost=estimated_keys(data)
++       if claimed_keys+cost>250000:raise ValueError('Package key expansion budget')
++       claimed_keys+=cost;parsed=decode(data);raw=json.dumps(parsed,separators=(',',':'),allow_nan=False).encode()
++       if len(raw)>16*1024*1024 or decoded_bytes+len(raw)>64*1024*1024:raise ValueError('Decoded output budget')
++       decoded_bytes+=len(raw)
++       with (decoded/(ident+'.json')).open('xb') as f:f.write(raw)
++       result.append({'state':'decoded','unsupported':len(parsed['unsupported_channels'])})
++      except (ValueError,UnicodeError,OverflowError,KeyError) as e:result.append({'state':'refused','error_type':type(e).__name__})
++    if hashlib.sha256(source.read_bytes()).hexdigest()!=a.sha256:raise ValueError('Source changed during intake')
++    report={'resources':len(items),'clips':len(result),'decoded':sum(x['state']=='decoded' for x in result),'refused':sum(x['state']=='refused' for x in result),'unsupported':sum(x.get('unsupported',0) for x in result),'claimed_keys':claimed_keys,'decoded_bytes':decoded_bytes,'clip_decoding_complete':bool(result) and all(x['state']=='decoded' and x.get('unsupported',0)==0 for x in result),'game_modified':False}
++    with (rootdir/'intake-report.json').open('x') as f:json.dump(report,f,indent=2)
++    print(json.dumps(report))
++
++if __name__ == "__main__":main()
+--- /dev/null
++++ b/tools/research/test_intake_pose_package.py
+@@ -0,0 +1,27 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Synthetic-only CLI tests. Creates and removes only its own temporary files."""
++import hashlib,json,pathlib,shutil,struct,subprocess,sys,tempfile,unittest,uuid
++ROOT=pathlib.Path(__file__).resolve().parents[1];SCRIPT=ROOT/'real-recovery-evidence/intake_pose_package.py';DEST=ROOT/'private-input-recovery';sys.path.insert(0,str(SCRIPT.parent));from intake_pose_package import estimated_keys
++class IntakeTests(unittest.TestCase):
++ def setUp(self):
++  self.temp=tempfile.TemporaryDirectory(prefix='pose-intake-test-');self.src=pathlib.Path(self.temp.name)/'empty.package';h=[0]*24;h[0]=0x46504244;h[1]=2;h[2]=1;self.src.write_bytes(struct.pack('<24I',*h));self.sha=hashlib.sha256(self.src.read_bytes()).hexdigest();self.name='test-'+uuid.uuid4().hex;self.output=DEST/self.name
++ def tearDown(self):
++  if self.output.exists():shutil.rmtree(self.output)
++  self.temp.cleanup()
++ def run_cli(self,*args):return subprocess.run([sys.executable,'-O',str(SCRIPT),str(self.src),*args],capture_output=True,text=True,timeout=10)
++ def test_valid_empty_and_repeat_refuses_without_touching_last_good(self):
++  run=self.run_cli(self.sha,self.name);self.assertEqual(run.returncode,0,run.stderr);report=json.loads(run.stdout);self.assertEqual(report['resources'],0);self.assertFalse(report['clip_decoding_complete']);self.assertFalse(report['game_modified']);prior=(self.output/'intake-report.json').read_bytes();again=self.run_cli(self.sha,self.name);self.assertNotEqual(again.returncode,0);self.assertEqual((self.output/'intake-report.json').read_bytes(),prior)
++ def test_wrong_hash_and_unsafe_name_refused_before_output(self):
++  self.assertNotEqual(self.run_cli('0'*64,self.name).returncode,0);self.assertFalse(self.output.exists());self.assertNotEqual(self.run_cli(self.sha,'../escape').returncode,0);self.assertFalse(self.output.exists())
++ def test_clip_preflight_refuses_large_or_truncated_tables(self):
++  def clip(count,frames):
++   b=bytearray(48+count*20);b[:8]=b'_pilC3S_';struct.pack_into('<I',b,24,count);struct.pack_into('<I',b,32,48)
++   for i in range(count):struct.pack_into('<H',b,48+i*20+16,frames)
++   return bytes(b)
++  self.assertEqual(estimated_keys(clip(2,7)),14)
++  with self.assertRaises(ValueError):estimated_keys(clip(2,60000))
++  with self.assertRaises(ValueError):estimated_keys(clip(2049,0))
++  with self.assertRaises(ValueError):estimated_keys(clip(2,1)[:-1])
++ def test_invalid_package_and_symlink_refused(self):
++  self.src.write_bytes(b'not a package');h=hashlib.sha256(self.src.read_bytes()).hexdigest();self.assertNotEqual(self.run_cli(h,self.name).returncode,0);self.assertFalse(self.output.exists());link=pathlib.Path(self.temp.name)/'link.package';link.symlink_to(self.src);r=subprocess.run([sys.executable,str(SCRIPT),str(link),h,self.name],capture_output=True,timeout=10);self.assertNotEqual(r.returncode,0);self.assertFalse(self.output.exists())
++if __name__=='__main__':unittest.main(verbosity=2)

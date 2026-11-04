@@ -71,12 +71,6 @@
       "sha256": "b53b5d030e9c5123ab91bfdadd6894430879955bf20be49eeedc4495c6098b4a"
     },
     {
-      "bytes": 375178,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
-      "sha256": "93b5578d1007984b6f36a6f4aad39622cbbee7d1927b44017d0da9ed83c725f8"
-    },
-    {
       "bytes": 12775,
       "mode": "100644",
       "path": "tools/cas_catalog_unconsumed.py",
@@ -701,12 +695,6 @@
       "sha256": "b909704457b65d450d5b63cfb9e9ce544970e84ef46c3ab07a9ca5f0a27c546f"
     },
     {
-      "bytes": 16365,
-      "mode": "100644",
-      "path": "tools/live_cas_browser.py",
-      "sha256": "7b9acde3bc46b6dfd487fa1e2a0b0fd344a3a1f7f616ed7e29431dca91e7f575"
-    },
-    {
       "bytes": 13476,
       "mode": "100644",
       "path": "tools/CasGridWidthPatch.java",
@@ -843,6 +831,12 @@
       "mode": "100644",
       "path": "tests/test_ea_native_permission.py",
       "sha256": "eca665a2df5e1e24c4da044bf37432f95dc1f0e655dc295a325721b0aa5e7a17"
+    },
+    {
+      "bytes": 2225,
+      "mode": "100644",
+      "path": "docs/F11_COPY_RECEIPT_REVIEW_20261104.md",
+      "sha256": "d113d0455ebe5a386af961225eccf83b8c35b3fd6b12de368b195d0200e49012"
     },
     {
       "bytes": 1338,
@@ -2165,6 +2159,12 @@
       "sha256": "076b4ac22dcfd6a3a47d64b1fbf8069d08be846c2a69c6185960c95e3000aa9f"
     },
     {
+      "bytes": 29741,
+      "mode": "100644",
+      "path": "NativeOverlay/Tests/ResourceTests.cpp",
+      "sha256": "38731ae10a159b9a55f2b71171552b7e0e12bbc646cd65629fc9a7e5d6b7d45e"
+    },
+    {
       "bytes": 3406,
       "mode": "100644",
       "path": "Reports/CAS_HOUSEHOLD_HANDOFF_V253.json",
@@ -2687,12 +2687,6 @@
       "sha256": "975f5cf96239d14438ff1704849fd84c57392cce849bd2f9826c55071777c751"
     },
     {
-      "bytes": 11196,
-      "mode": "100644",
-      "path": "tests/test_live_cas_browser.py",
-      "sha256": "c0ea0a880daae4c9400dc6f4f0185df2f1de9eeb828f4ef88f3707dcc8970b8f"
-    },
-    {
       "bytes": 7644,
       "mode": "100644",
       "path": "PreviewWorker/ApexWorkerTests.cs",
@@ -2709,6 +2703,12 @@
       "mode": "100644",
       "path": "docs/APEX_REBUILD_ACCEPTANCE_20261104.md",
       "sha256": "b9e59d0bac851c380be48e3b9df2cf654357a97a227acd664e93d4769a035e24"
+    },
+    {
+      "bytes": 17887,
+      "mode": "100644",
+      "path": "tools/live_cas_browser.py",
+      "sha256": "cfdc58115d038d84caca3ef7a699ba9568c2f0bf6effdb8bb36a981cac2560ad"
     },
     {
       "bytes": 2575,
@@ -2745,6 +2745,12 @@
       "mode": "100644",
       "path": "tests/test_background_lifecycle.py",
       "sha256": "3d02e543a5e09adf1b83d72a5122d6785fafb8f16950f1240365e43d8ea156e3"
+    },
+    {
+      "bytes": 13041,
+      "mode": "100644",
+      "path": "tests/test_live_cas_browser.py",
+      "sha256": "71038fc3e414a045afa357e692199442d48c25ac0b5a78950b343ddc573e2cbb"
     },
     {
       "bytes": 11838,
@@ -4271,12 +4277,6 @@
       "sha256": "25309f0ebb2f1638232d1a5e364f3aa7f3b4992d3192224f70b3b3b1c1ba4650"
     },
     {
-      "bytes": 12283,
-      "mode": "100644",
-      "path": "NativeOverlay/Source/ApexResourceData.h",
-      "sha256": "b02e8c001975811b0c487af2a53b074c685d36be62056383c396c2390515ef2c"
-    },
-    {
       "bytes": 18568,
       "mode": "100644",
       "path": "Metadata/src/catalog.rs",
@@ -4545,6 +4545,12 @@
       "mode": "100644",
       "path": "tests/test_genetics_voice_transfer.py",
       "sha256": "3234d1c8847e2288774740b40633129a913db1790e7fdd5bb788500203ebfbc7"
+    },
+    {
+      "bytes": 14053,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/ApexResourceData.h",
+      "sha256": "9f05bae810d9e7e6090ffcd051179c50ed47591b0d50a381156f3b4fc4a318ca"
     },
     {
       "bytes": 14503,
@@ -4827,6 +4833,12 @@
       "mode": "100644",
       "path": "tests/test_game_live_observe.py",
       "sha256": "eb90382671521a6de0db47278d0ddeaecad9a9abafe37093003e5466989c2497"
+    },
+    {
+      "bytes": 375178,
+      "mode": "100644",
+      "path": "NativeOverlay/Source/TD1ApexD3D11Proxy.cpp",
+      "sha256": "a73569d9396171ff47bdd7bf322f401a3af5671cdd65965c98f4b9aa529ad542"
     },
     {
       "bytes": 9303,
@@ -6137,12 +6149,6 @@
       "sha256": "fc2ace5ec678cb90902ed7ef4820f25de991b0fe939d1b540425d72c6630ab12"
     },
     {
-      "bytes": 39606,
-      "mode": "100644",
-      "path": "tools/cas_resource_catalog.py",
-      "sha256": "2066d7d96efbdb3a60f62ee4e90aa0e72a3e17b807eb929d9fea19843cac2ea2"
-    },
-    {
       "bytes": 14033,
       "mode": "100644",
       "path": "tools/CasDrawFastPathPatch.java",
@@ -6587,12 +6593,6 @@
       "sha256": "c33049e3066b381f1c3179ee1aa2c22ce6fb2dd2630890ed1ef94ce31d6a6ab5"
     },
     {
-      "bytes": 28082,
-      "mode": "100644",
-      "path": "NativeOverlay/Tests/ResourceTests.cpp",
-      "sha256": "03c853a4dfb942fce6ed4a2b5a8bd8ef736c035d6f6c2ec99183788f1dd6d5b0"
-    },
-    {
       "bytes": 1607,
       "mode": "100644",
       "path": "NativeOverlay/third_party/minhook/UPSTREAM.json",
@@ -6825,6 +6825,12 @@
       "mode": "100644",
       "path": "tests/test_cas_native_position_gate.py",
       "sha256": "7032b8194ae1348191ff8fb5cf37fbcf02a115b81e7c33cc3bffd073e0faf15b"
+    },
+    {
+      "bytes": 40046,
+      "mode": "100644",
+      "path": "tools/cas_resource_catalog.py",
+      "sha256": "3fd156cf0a5d55ef42a25bfccaab641fbde026bcf946e06a55dea55a9ab747ce"
     },
     {
       "bytes": 3200,

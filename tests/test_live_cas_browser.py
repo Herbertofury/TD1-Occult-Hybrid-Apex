@@ -11,6 +11,7 @@ from unittest.mock import patch
 import test_live_cas_catalog as fixtures
 from test_cas_resource_catalog import picture
 import cas_resource_catalog as resources
+import dbpf_build
 import live_cas_browser as browser
 import live_cas_catalog as catalog
 from casp_fixture import casp
@@ -125,10 +126,19 @@ class BrowserTests(unittest.TestCase):
             self.browser.thumbnail(row['resource_id'])
             copy.assert_not_called()
             self.assertEqual(list(self.browser.cache.rglob('*.package')), [])
-            self.assertTrue(self.browser.open(row['resource_id'], row['cache_proof'])['ok'])
+            receipt = self.browser.open(row['resource_id'], row['cache_proof'])
+            self.assertTrue(receipt['ok'])
+            evidence = receipt['launch_evidence']
+            self.assertEqual(evidence['resource_tgi'], row['resource_tgi'])
+            self.assertEqual(evidence['effective_resource_sha256'], row['effective_resource_sha256'])
+            self.assertEqual(evidence['copied_package_sha256'], row['provenance']['package_sha256'])
+            self.assertTrue(evidence['launch_requested'])
+            self.assertFalse(evidence['package_open_verified'])
+            self.assertFalse(evidence['individual_resource_selected_verified'])
+            self.assertFalse(evidence['current_equipped_resource_verified'])
             copy.assert_called_once()
             launch.assert_called_once()
-            self.assertNotEqual(Path(launch.call_args.args[0][1]), self.source)
+            self.assertNotEqual(Path(launch.call_args[0][0][1]), self.source)
 
     def test_actual_column_images_preserve_names_paths_recent_items_and_source_packages(self):
         part = self.browser.query(self.query)['items'][0]['part_id']
@@ -155,6 +165,26 @@ class BrowserTests(unittest.TestCase):
         with patch.object(resources.subprocess, 'Popen') as launch, self.assertRaisesRegex(ValueError, 'changed since indexing'):
             self.browser.open(row['resource_id'], row['cache_proof'])
         launch.assert_not_called()
+
+    def test_studio_open_rejects_package_change_after_resolve_before_copy(self):
+        selected = dict(part_id=self.browser.query(self.query)['items'][0]['part_id'], index_sha256=self.hash)
+        package = resources.Package(self.source, 'mod')
+        entries = {key: package.read(key) for key in package.entries}
+        entries[(0x12345678, 0, 9)] = b'other content; same CASP bytes'
+        changed = dbpf_build.build(entries)
+        real_resolve = browser.resolve
+        def resolve_then_change(*args):
+            result = real_resolve(*args)
+            self.source.write_bytes(changed)
+            return result
+        with patch.object(resources, 'studio_executable', return_value=self.root / 'Studio.exe'):
+            row = self.browser.inspect(selected)['resource']
+        with patch.object(browser, 'resolve', side_effect=resolve_then_change), \
+                patch.object(resources.subprocess, 'Popen') as launch, \
+                self.assertRaisesRegex(ValueError, 'Package changed since indexing'):
+            self.browser.open(row['resource_id'], row['cache_proof'])
+        launch.assert_not_called()
+        self.assertEqual(self.source.read_bytes(), changed)
 
     def test_immutable_browser_cannot_be_changed_with_preserved_times(self):
         if os.name == 'nt':

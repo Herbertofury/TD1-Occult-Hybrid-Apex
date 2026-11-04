@@ -189,14 +189,32 @@ class Browser:
             if (resources.sha(proof) != row['cache_proof'] or row['status'] != 'resolved' or
                     row['studio_open']['status'] != 'ready'):
                 raise ValueError('Studio open requires the exact inspected item proof.')
+            original_key = resources.key(row['resource_tgi'])
+            original_hash = resources.sha(row['effective_resource_sha256'])
+            if (original_key[0] != resources.CASP or resources.tgi(original_key) != row['resource_tgi'] or
+                    resources.digest((row['resource_tgi'] + '\n' + original_hash).encode('ascii')) != ident or
+                    type(row.get('body_type')) is not int or not isinstance(row.get('provenance'), dict)):
+                raise ValueError('Originally inspected resource identity is incomplete or invalid.')
+            original_package_hash = resources.sha(row['provenance'].get('package_sha256'))
             # Browsing and thumbnails never copy whole EA/CC packages. Only
             # an explicit open revalidates its source and creates the sealed
             # copy, followed by Studio's independent editable copy.
             selected = resolve(self.index.path, self.index.expected, self.asset_sources[ident])
-            prepared = resources.prepare([selected['source']], [selected['request']], self.cache,
+            source = dict(selected['source'], expected_sha256=original_package_hash)
+            prepared = resources.prepare([source], [selected['request']], self.cache,
                                           locale=self.index.query(limit=1)['snapshot']['locale'])
             broker = resources.Broker(prepared['manifest'], prepared['manifest_sha256'])
             fresh = broker.records[ident]['row']
+            # This compares the newly prepared copy with the original pinned
+            # catalog row before any Studio launch. It does not prove that
+            # this resource remains equipped in the running game.
+            if (fresh['status'] != 'resolved' or
+                    any(fresh.get(field) != row.get(field) for field in
+                        ('resource_id', 'resource_tgi', 'effective_resource_sha256', 'body_type')) or
+                    not isinstance(fresh.get('provenance'), dict) or
+                    not isinstance(row.get('provenance'), dict) or
+                    resources.sha(fresh['provenance'].get('package_sha256')) != original_package_hash):
+                raise ValueError('Fresh Studio copy differs from the originally inspected resource or package.')
             return broker.open(ident, fresh['cache_proof'])
 
 

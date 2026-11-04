@@ -710,13 +710,19 @@ class Broker:
         # and mutable sealed-cache files cannot be opened through this endpoint.
         shutil.copyfile(source, target)
         target = safe_cache_file(self.cache, relative)
-        if file_hash(target) != row['provenance']['package_sha256']:
+        copied_hash = file_hash(target)
+        if copied_hash != row['provenance']['package_sha256']:
             target.unlink()
             raise ValueError('Package cache/copy hash differs.')
         (launcher or subprocess.Popen)([str(executable), str(target)], shell=False,
                                        cwd=str(executable.parent))
         return {'ok': True, 'resource_id': ident, 'selection': 'containing-package',
-                'resource_selection_supported': False}
+                'resource_selection_supported': False,
+                'launch_evidence': {'resource_tgi': row['resource_tgi'],
+                    'effective_resource_sha256': row['effective_resource_sha256'],
+                    'copied_package_sha256': copied_hash, 'launch_requested': True,
+                    'package_open_verified': False, 'individual_resource_selected_verified': False,
+                    'current_equipped_resource_verified': False}}
 
 
 def handler(broker):

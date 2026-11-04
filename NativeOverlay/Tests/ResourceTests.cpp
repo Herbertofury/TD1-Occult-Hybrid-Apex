@@ -244,7 +244,27 @@ int main(int argc, char** argv) {
     check(!resource::Catalog(changed), "containing package open cannot claim selected CASP editor parity");
     const auto id = ui::Scalar(row, "resource_id");
     Json receipt = {{"ok", true}, {"resource_id", id}, {"selection", "containing-package"}, {"resource_selection_supported", false}};
-    check(resource::OpenReceipt(receipt, id), "same exact resource receipt proves containing package delivery");
+    check(resource::OpenReceipt(receipt, id) && resource::OpenReceipt(receipt, row),
+        "legacy receipt accepts the requested resource without proving GUI delivery");
+    auto detailedReceipt = receipt;
+    detailedReceipt["launch_evidence"] = {{"resource_tgi", tgi}, {"effective_resource_sha256", effective},
+        {"copied_package_sha256", row["provenance"]["package_sha256"]}, {"launch_requested", true},
+        {"package_open_verified", false}, {"individual_resource_selected_verified", false},
+        {"current_equipped_resource_verified", false}};
+    check(resource::OpenReceipt(detailedReceipt, row), "copy evidence matches the queued resource and package");
+    for (const char* field : {"resource_tgi", "effective_resource_sha256", "copied_package_sha256",
+                              "launch_requested", "package_open_verified", "individual_resource_selected_verified",
+                              "current_equipped_resource_verified"}) {
+        auto missing = detailedReceipt; missing["launch_evidence"].erase(field);
+        check(!resource::OpenReceipt(missing, row), "partial copy evidence is rejected");
+    }
+    auto wrongEvidence = detailedReceipt;
+    wrongEvidence["launch_evidence"]["copied_package_sha256"] = std::string(64, 'e');
+    check(!resource::OpenReceipt(wrongEvidence, row), "different package hash is rejected");
+    wrongEvidence = detailedReceipt; wrongEvidence["launch_evidence"]["current_equipped_resource_verified"] = true;
+    check(!resource::OpenReceipt(wrongEvidence, row), "unsupported current-equipped claim is rejected");
+    wrongEvidence = detailedReceipt; wrongEvidence["launch_evidence"]["extra"] = "unexpected";
+    check(!resource::OpenReceipt(wrongEvidence, row), "unexpected copy evidence is rejected");
     receipt["resource_id"] = std::string(64, 'e');
     check(!resource::OpenReceipt(receipt, id), "foreign resource cannot acknowledge requested Studio delivery");
     std::string body;

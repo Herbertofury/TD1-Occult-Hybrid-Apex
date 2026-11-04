@@ -1044,8 +1044,8 @@ static void RunResourceCommand(const QueuedCommand& command) {
         else if (message.empty()) message = current ? "Thumbnail transport failed; no substitute image was used." : "Thumbnail selection changed before delivery.";
     } else if (operation == 3) {
         const auto receipt = ui::ParseObject(body);
-        ok = ok && resource::OpenReceipt(receipt, ui::Scalar(command.resourceRow, "resource_id"));
-        message = ok ? "Studio received the verified containing package copy. Selecting the individual resource is unsupported." :
+        ok = ok && resource::OpenReceipt(receipt, command.resourceRow);
+        message = ok ? "Studio launch requested with a verified containing-package copy. Package opening and individual-resource selection are unverified." :
             (current ? "Studio open outcome is unverified or rejected. The request was not replayed." : "Selection changed; Studio request was canceled before delivery.");
     }
     std::lock_guard<std::mutex> lock(g_dataMutex);

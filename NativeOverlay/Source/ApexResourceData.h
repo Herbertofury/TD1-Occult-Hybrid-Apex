@@ -155,6 +155,26 @@ inline bool OpenReceipt(const Json& receipt, const std::string& id) {
         ui::Scalar(receipt, "resource_id") == id && ui::Scalar(receipt, "selection") == "containing-package" &&
         receipt.contains("resource_selection_supported") && receipt["resource_selection_supported"] == false;
 }
+inline bool OpenReceipt(const Json& receipt, const Json& requestedRow) {
+    if (!requestedRow.is_object() || !OpenReceipt(receipt, ui::Scalar(requestedRow, "resource_id"))) return false;
+    // Legacy brokers have no evidence object. Preserve their prior accepted
+    // receipt; absence is never a proof that the item is currently equipped.
+    if (!receipt.contains("launch_evidence")) return true;
+    const auto& evidence = receipt["launch_evidence"];
+    if (!evidence.is_object() || evidence.size() != 7 ||
+        !requestedRow.contains("provenance") || !requestedRow["provenance"].is_object() ||
+        !Tgi(ui::Scalar(requestedRow, "resource_tgi")) || !Hash(requestedRow, "effective_resource_sha256") ||
+        !Hash(requestedRow["provenance"], "package_sha256")) return false;
+    for (const auto* field : {"resource_tgi", "effective_resource_sha256", "copied_package_sha256"})
+        if (!evidence.contains(field) || !evidence[field].is_string()) return false;
+    for (const auto* field : {"launch_requested", "package_open_verified", "individual_resource_selected_verified", "current_equipped_resource_verified"})
+        if (!evidence.contains(field) || !evidence[field].is_boolean()) return false;
+    return ui::Scalar(evidence, "resource_tgi") == ui::Scalar(requestedRow, "resource_tgi") &&
+        ui::Scalar(evidence, "effective_resource_sha256") == ui::Scalar(requestedRow, "effective_resource_sha256") &&
+        ui::Scalar(evidence, "copied_package_sha256") == ui::Scalar(requestedRow["provenance"], "package_sha256") &&
+        evidence["launch_requested"] == true && evidence["package_open_verified"] == false &&
+        evidence["individual_resource_selected_verified"] == false && evidence["current_equipped_resource_verified"] == false;
+}
 inline bool HttpBody(const std::string& raw, size_t bound, std::string& body) {
     body.clear();
     const auto split = raw.find("\r\n\r\n");

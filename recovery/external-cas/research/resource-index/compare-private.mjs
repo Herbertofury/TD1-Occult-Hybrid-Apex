@@ -26,7 +26,7 @@ if (!process.env.S4PY_ROOT || !process.env.S4PY_PYTHON || paths.length < 1 || pa
       for (const row of rows) methods[row.compression.toString(16).toUpperCase().padStart(4, '0')] =
         (methods[row.compression.toString(16).toUpperCase().padStart(4, '0')] ?? 0) + 1;
       const casps = index.rows.filter(row => row.key.startsWith('034AEECB:') && !row.deleted);
-      let caspSample = 'none';
+      let caspSample = 'none', caspSampleVersion = null;
       if (casps.length) {
         const read = await readResource(filename, index, casps[0].ordinal);
         if (read.status !== 'available') caspSample = read.status;
@@ -34,6 +34,7 @@ if (!process.env.S4PY_ROOT || !process.env.S4PY_PYTHON || paths.length < 1 || pa
           try {
             const table = caspReferences(read.payload);
             caspSample = table.status;
+            caspSampleVersion = table.version;
             if (table.status === 'table-only') tables.push(table);
             const parsed = parseCasp(read.payload);
             if (parsed.status === 'parsed-candidate') roleSets.push(parsed.roles);
@@ -41,7 +42,7 @@ if (!process.env.S4PY_ROOT || !process.env.S4PY_PYTHON || paths.length < 1 || pa
           catch { caspSample = 'invalid-or-unsupported-table'; }
         }
       }
-      report.push({ entries: rows.length, methods, caspCount: casps.length, caspSample, oracleMatched: true });
+      report.push({ entries: rows.length, methods, caspCount: casps.length, caspSample, caspSampleVersion, oracleMatched: true });
     }
     const referenceResults = {};
     for (const table of tables) for (const result of resolveReferences(table.references, indexes)) {

@@ -49,3 +49,21 @@ CC dependency compatibility remains untested. The protected original profile
 remained off limits. The running game,
 saves and live state were not contacted. No in-game behavior, visual fidelity,
 save correctness or game-load precedence was validated.
+
+## Further bounded checks
+
+Four additional small simulation packages contained 4,191 rows in total; each
+index matched s4py. The sample exposed CASP version 31, previously rejected by
+the candidate, so bounded support was added. Six installed CASP records from
+three small packages matched selected fields and 106 mesh-reference observations
+against independently compiled TS4CAS Tools source. For version 31, no species
+field is present, so no species value was inferred. Synthetic versions 31, 32
+and 52 also matched that reader. This remains a small sample.
+
+Two CASPs each resolved a unique region-map candidate within their own package.
+The candidate parser's four total region blocks and 13 mesh references matched
+the independent reader. All 13 corresponding CASP mesh observations mapped to
+region entries. The inspection path now exposes those bindings for later renderer
+work and keeps unmatched or ambiguous cases explicit. It does not load mesh
+geometry, decide visibility, or render the scene. Game/live state and the protected
+profile were not accessed for these checks.

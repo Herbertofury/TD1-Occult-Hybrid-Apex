@@ -2,6 +2,7 @@
 // Explicit package set only; prints private metadata to stdout, never asset bytes.
 import { indexPackage, readResource, caspReferences, resolveReferences } from './dbpf.mjs';
 import { parseCasp } from './casp.mjs';
+import { parseRegionMap, mapMeshRegions } from './region-map.mjs';
 
 const [key, ...paths] = process.argv.slice(2);
 if (!/^034AEECB:[0-9A-F]{8}:[0-9A-F]{16}$/.test(key ?? '') || !paths.length || paths.length > 16) {
@@ -29,7 +30,25 @@ if (!/^034AEECB:[0-9A-F]{8}:[0-9A-F]{16}$/.test(key ?? '') || !paths.length || p
     let parsed;
     try {
       parsed = parseCasp(result.payload);
-      if (parsed.status === 'parsed-candidate') parsed.roleCandidates = resolveReferences(parsed.roles, indexes);
+      if (parsed.status === 'parsed-candidate') {
+        parsed.roleCandidates = resolveReferences(parsed.roles, indexes);
+        const region = parsed.roleCandidates.find(item => item.role === 'region-map');
+        parsed.regionBinding = { status: region?.status ?? 'missing-role' };
+        if (region?.status === 'unique-in-supplied-indexes') {
+          try {
+            const candidate = region.candidates[0];
+            const sourceIndex = indexes.findIndex(i => i.source.sha256 === candidate.source.sha256 && i.source.size === candidate.source.size);
+            if (sourceIndex < 0) throw new Error('missing source');
+            const resource = await readResource(paths[sourceIndex], indexes[sourceIndex], candidate.row.ordinal);
+            parsed.regionBinding = { status: resource.status };
+            if (resource.status === 'available') {
+              const map = parseRegionMap(resource.payload);
+              parsed.regionBinding = { status: map.status };
+              if (map.status === 'parsed-candidate') parsed.regionBinding.meshes = mapMeshRegions(parsed, map);
+            }
+          } catch { parsed.regionBinding = { status: 'invalid-or-unsupported-region' }; }
+        }
+      }
     } catch { parsed = { status: 'unsupported-or-invalid-fields' }; }
     console.log(JSON.stringify({ source: indexes[packageIndex].source, casp: row, table: {
       status: table.status, version: table.version, references: resolveReferences(table.references, indexes),

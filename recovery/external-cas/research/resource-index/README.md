@@ -7,7 +7,7 @@ table, and report matching candidates from an explicitly supplied package
 set. It does not modify the source packages or contact the game.
 
 ```powershell
-node --test dbpf.test.mjs casp.test.mjs
+node --test dbpf.test.mjs casp.test.mjs region-map.test.mjs
 node inspect.mjs 034AEECB:00000000:0123456789ABCDEF C:\private\first.package C:\private\second.package
 ```
 
@@ -34,11 +34,17 @@ snapshot against concurrent mutation.
   flags, malformed extents, trailing index data and exceeded limits fail closed.
   Unknown compression or storage markers remain indexed and return an explicit
   unsupported status. Tombstones are reported instead of loaded.
-- CASP versions `0x20` through `0x34` can receive a bounded role-bearing
+- CASP versions `0x1F` through `0x34` can receive a bounded role-bearing
   inspection for mesh LODs and texture, material-related and other references.
   The older table-only view is retained. Reference roles and metadata remain
   candidates; they are not proof of renderer readiness or applicability. Future
   versions, unexplained fields, malformed offsets and bad indexes fail closed.
+- A bounded region-map parser retains mesh keys, region IDs, layers and raw
+  replacement flags. The inspection command maps all matching region entries
+  to each CASP mesh, retaining multiple matches and marking unmapped meshes.
+  This is a renderer-facing data candidate, not visibility, layer precedence,
+  replacement semantics or proof of an actual rendered scene. Region-map object
+  offset metadata is retained without claiming to validate its meaning.
 - Resolution returns `empty`, `missing`, `ambiguous`, or
   `unique-in-supplied-indexes`, including all source candidates. A unique match
   only describes the explicitly supplied set. This code does not claim the set
@@ -47,7 +53,7 @@ snapshot against concurrent mutation.
 
 ## Verification and source basis
 
-On Windows with Node 22.23.2, seventeen tests passed. They cover all eight index
+On Windows with Node 22.23.2, twenty-three tests passed. They cover all eight index
 shared-field masks, both index offset fields, large unsigned instances, mixed
 compression and deletion markers, bad extents/flags, changed package bytes,
 forged locators, ambiguous/missing/empty references, and a synthetic CLI flow.
@@ -68,6 +74,16 @@ retained GPL patch and supplies a bounded reader shim. Retain the applicable GPL
 license and notices when integrating; see `examples/LICENSE-GPL-3.0-POSE-TOOLS.txt`.
 Synthetic checks alone do not establish CASP role correctness. See
 `INSTALLED-SAMPLE.md` for the narrowly bounded installed-package comparison.
+
+For an additional independent comparison, `reference-bridge/` builds against
+separately obtained TS4CAS Tools source at commit
+`67d00ebb9016092b8f64ef94ec7ffb5329cf3342`; the upstream GPL source is not
+vendored here. Supply its `src/XmodsDataLib` directory as the MSBuild property
+`CaspToolsSrc`, use the included `NuGet.Config` to avoid package feeds, and direct
+the build output and intermediate files to an isolated temporary directory. Set
+`CASP_ORACLE_DLL` to the resulting `oracle.dll` and `DOTNET_BIN` to `dotnet` to
+enable the C# oracle tests. These compare parsed fields and region blocks in
+memory. They do not compare the final game rendering.
 
 ## Next gates
 

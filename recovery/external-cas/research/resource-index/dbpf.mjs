@@ -144,7 +144,7 @@ export async function readResource(filename, indexed, ordinal) {
 export function caspReferences(payload) {
   if (!Buffer.isBuffer(payload) || payload.length < 32) invalid('truncated CASP');
   const version = payload.readUInt32LE(0);
-  if (version < 0x20 || version > 0x34) return { status: 'unsupported-version', version, references: [] };
+  if (version < 0x1f || version > 0x34) return { status: 'unsupported-version', version, references: [] };
   const pos = payload.readUInt32LE(4) + 8;
   if (pos < 12 || pos >= payload.length) invalid('invalid CASP reference table');
   const count = payload[pos];

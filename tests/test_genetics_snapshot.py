@@ -53,6 +53,26 @@ class NativeGrowthSnapshotTests(unittest.TestCase):
             self.assertEqual(genetics_snapshot.normalize(original), original)
             self.assertNotEqual(genetics_snapshot.normalize(original), genetic([self.hair], [self.growth]))
 
+    def test_repeated_identical_base_rows_do_not_collapse_distinct_multiplicities(self):
+        one = genetic([self.hair, self.growth], [self.growth], self.base, self.root)
+        two = genetic([self.hair, self.growth, self.growth], [self.growth], self.base, self.root)
+        self.assertEqual(genetics_snapshot.normalize(two), two)
+        self.assertNotEqual(genetics_snapshot.normalize(two), genetics_snapshot.normalize(one))
+        self.assertNotEqual(form_appearance.fingerprint({'genetic_data': form_appearance.encode(two)}),
+                            form_appearance.fingerprint({'genetic_data': form_appearance.encode(one)}))
+
+    def test_repeated_identical_growth_rows_refuse_ambiguous_cleanup(self):
+        repeated = genetic([self.hair, self.growth], [self.growth, self.growth], self.base, self.root)
+        no_base_growth = genetic([self.hair], [self.growth, self.growth], self.base, self.root)
+        self.assertEqual(genetics_snapshot.normalize(repeated), repeated)
+        self.assertNotEqual(genetics_snapshot.normalize(repeated), genetics_snapshot.normalize(no_base_growth))
+
+    def test_several_distinct_singleton_cross_list_rows_remain_supported(self):
+        other = part(300337, 79, future=message(101, b'other growth row'))
+        original = genetic([self.hair, self.growth, other], [self.growth, other], self.base, self.root)
+        native = genetic([self.hair], [self.growth, other], self.base, self.root)
+        self.assertEqual(genetics_snapshot.normalize(original), native)
+
     def test_unknown_container_root_and_growth_bytes_stay_part_of_identity(self):
         original = genetic([self.hair, self.growth], [self.growth], self.base, self.root)
         expected = genetics_snapshot.normalize(original)

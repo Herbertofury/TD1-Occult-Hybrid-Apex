@@ -6,6 +6,7 @@ unique part and complete unknown row/container/root bytes. Raw retained
 appearance payloads are never rewritten by this read-only comparison.
 """
 from .outfit_snapshot import field, MAX_BYTES
+from collections import Counter
 import math
 import struct
 from functools import lru_cache
@@ -78,7 +79,15 @@ def _normalize(raw):
         base, growth = _parts(known[5][0]), _parts(known[6][0])
     except ValueError:
         return raw  # Unrecognized bytes never authorize omission or guessing.
-    growth_values = {value for number, kind, value, _chunk in growth if number == 1}
+    base_counts = Counter(value for number, _kind, value, _chunk in base if number == 1)
+    growth_counts = Counter(value for number, _kind, value, _chunk in growth if number == 1)
+    shared = base_counts.keys() & growth_counts.keys()
+    # Native cleanup has only been qualified for one identical row in each
+    # list. Greater multiplicity is ambiguous: retain the complete raw bytes
+    # so distinct appearances cannot acquire the same comparison fingerprint.
+    if any(base_counts[value] != 1 or growth_counts[value] != 1 for value in shared):
+        return raw
+    growth_values = set(growth_counts)
     retained = b''.join(chunk for number, kind, value, chunk in base
                         if number != 1 or value not in growth_values)
     known[5] = (retained, _varint((5 << 3) | 2) + _varint(len(retained)) + retained)

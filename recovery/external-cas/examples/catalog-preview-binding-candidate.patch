@@ -1,0 +1,174 @@
+--- a/tools/research/scene_gateway.py
++++ b/tools/research/scene_gateway.py
+@@ -23,9 +23,15 @@
+  return out
+ class Gateway(socketserver.ThreadingMixIn,http.server.HTTPServer):
+  daemon_threads=True;allow_reuse_address=False
+- def __init__(self,owner,labels):
+-  if set(labels)!=set(owner.specs) or any(not TOKEN.fullmatch(k) or not isinstance(v,str) or not 1<=len(v)<=80 or any(ord(c)<32 or ord(c)==127 for c in v) for k,v in labels.items()):raise ValueError('invalid labels')
+-  self.owner=owner;self.labels=dict(labels);self.slots=threading.BoundedSemaphore(4);super().__init__(('127.0.0.1',0),Handler);self.expected_host='127.0.0.1:'+str(self.server_address[1]);self.expected_origin='http://'+self.expected_host
++ def __init__(self,owner,labels,bindings=None):
++  if set(labels)!=set(owner.specs) or any(not isinstance(k,str) or not TOKEN.fullmatch(k) or not isinstance(v,str) or not 1<=len(v)<=80 or any(ord(c)<32 or ord(c)==127 for c in v) for k,v in labels.items()):raise ValueError('invalid labels')
++  if bindings is not None:
++   if type(bindings)is not dict or set(bindings)!={'schema','catalog_sha256','items','inspect_only','game_modified'} or bindings['schema']!=1 or bindings['inspect_only'] is not True or bindings['game_modified'] is not False or not isinstance(bindings['catalog_sha256'],str) or not re.fullmatch(r'[a-f0-9]{64}',bindings['catalog_sha256']) or not isinstance(bindings['items'],list) or not 1<=len(bindings['items'])<=8:raise ValueError('invalid prepared bindings')
++   seen=set();seen_tokens=set()
++   for row in bindings['items']:
++    if type(row)is not dict or set(row)!={'part_id','token'} or not isinstance(row['part_id'],str) or not re.fullmatch(r'[a-f0-9]{64}',row['part_id']) or not isinstance(row['token'],str) or row['part_id'] in seen or row['token'] in seen_tokens or row['token'] not in owner.specs or owner.specs[row['token']].get('catalog',{}).get('index_sha')!=bindings['catalog_sha256']:raise ValueError('invalid prepared binding')
++    seen.add(row['part_id']);seen_tokens.add(row['token'])
++  self.owner=owner;self.labels=dict(labels);self.bindings=None if bindings is None else json.loads(json.dumps(bindings));self.slots=threading.BoundedSemaphore(4);super().__init__(('127.0.0.1',0),Handler);self.expected_host='127.0.0.1:'+str(self.server_address[1]);self.expected_origin='http://'+self.expected_host
+  def process_request(self,request,client_address):
+   if not self.slots.acquire(blocking=False):self.shutdown_request(request);return
+   try:super().process_request(request,client_address)
+@@ -54,6 +60,10 @@
+   if parts.scheme or parts.netloc or parts.fragment or not SAFE_QUERY.fullmatch(parts.query) or '%' in path or '..' in path or '\\' in path:return self.error(400)
+   if path=='/' and not parts.query:return self.reply(302,'text/plain',b'', [('Location','/cas-room')])
+   if path=='/scene-picker.mjs' and not parts.query:return self.reply(200,'text/javascript',(ROOT/'scene_gateway_picker.mjs').read_bytes())
++  if path=='/prepared-dress-actions.mjs' and not parts.query:return self.reply(200,'text/javascript',(ROOT/'prepared_dress_actions.mjs').read_bytes())
++  if path=='/prepared-dresses' and not parts.query:
++   if self.server.bindings is None:return self.error(404)
++   return self.reply(200,'application/json',json.dumps(self.server.bindings,separators=(',',':')).encode())
+   if path=='/scene-catalog' and not parts.query:
+    state=self.server.owner.status();data={'generation':state['generation'],'active':state.get('token'),'state':state['state'],'entries':[{'token':k,'label':v} for k,v in self.server.labels.items()]};return self.reply(200,'application/json',json.dumps(data,separators=(',',':')).encode())
+   if not ((path in EXACT and not parts.query) or (path in QUERY and bool(parts.query)) or (PNG.fullmatch(path) and not parts.query) or (SOURCE_IMAGE.fullmatch(path) and bool(parts.query))):return self.error(404)
+@@ -69,6 +79,10 @@
+      marker=b'</body>';addition=b'<script type="module" src="/scene-picker.mjs"></script>'
+      if data.count(marker)!=1:raise ValueError('room shape')
+      data=data.replace(marker,addition+marker)
++    if path=='/cc-library' and status==200 and self.server.bindings is not None:
++     marker=b'</body>';addition=b'<script type="module" src="/prepared-dress-actions.mjs"></script>'
++     if data.count(marker)!=1:raise ValueError('library shape')
++     data=data.replace(marker,addition+marker)
+     self.reply(status,kind,data,headers)
+   except Exception:self.error(503)
+  def do_POST(self):
+--- a/tools/research/run_scene_gateway.py
++++ b/tools/research/run_scene_gateway.py
+@@ -10,7 +10,7 @@
+ from scene_switch_supervisor import SceneSwitcher,TOKEN
+ D=__import__('re').compile(r'[a-f0-9]{64}\Z')
+ def main():
+- p=argparse.ArgumentParser();p.add_argument('--config',required=True);p.add_argument('--config-sha',required=True);a=p.parse_args();src=pathlib.Path(a.config)
++ p=argparse.ArgumentParser();p.add_argument('--config',required=True);p.add_argument('--config-sha',required=True);p.add_argument('--bindings');p.add_argument('--bindings-sha');a=p.parse_args();src=pathlib.Path(a.config)
+  if not D.fullmatch(a.config_sha) or src.is_symlink() or not src.is_file() or src.stat().st_size>65536:raise ValueError('pinned config required')
+  with src.open('rb') as f:raw=f.read(65537)
+  if hashlib.sha256(raw).hexdigest()!=a.config_sha:raise ValueError('config identity')
+@@ -20,11 +20,19 @@
+  for token,row in obj['scenes'].items():
+   if not isinstance(token,str) or not TOKEN.fullmatch(token) or type(row)is not dict or set(row)!={'label','spec'}:raise ValueError('scene config')
+   specs[token]=row['spec'];labels[token]=row['label']
++ bindings=None
++ if (a.bindings is None)!=(a.bindings_sha is None):raise ValueError('complete bindings pin required')
++ if a.bindings is not None:
++  path=pathlib.Path(a.bindings)
++  if not D.fullmatch(a.bindings_sha) or path.is_symlink() or not path.is_file() or path.stat().st_size>65536:raise ValueError('pinned bindings required')
++  with path.open('rb') as f:data=f.read(65537)
++  if hashlib.sha256(data).hexdigest()!=a.bindings_sha:raise ValueError('bindings identity')
++  bindings=json.loads(data)
+  owner=SceneSwitcher(specs);gateway=None
+  def interrupt(signum,frame):raise KeyboardInterrupt()
+  old=signal.signal(signal.SIGTERM,interrupt)
+  try:
+-  owner.switch(obj['initial']);gateway=Gateway(owner,labels)
++  owner.switch(obj['initial']);gateway=Gateway(owner,labels,bindings)
+   print(f'http://{gateway.expected_host}/cas-room',flush=True);gateway.serve_forever(poll_interval=.25)
+  except KeyboardInterrupt:pass
+  finally:
+--- a/tools/research/test_scene_gateway.py
++++ b/tools/research/test_scene_gateway.py
+@@ -35,6 +35,17 @@
+   barrier=threading.Barrier(3);results=[];hdr={'Content-Type':'application/json','Origin':self.origin,'X-CAS-Request':'1'};body=json.dumps({'token':'2'*32,'generation':1})
+   def send():barrier.wait();results.append(self.request('POST','/scene-switch',body,hdr)[0])
+   a=threading.Thread(target=send);b=threading.Thread(target=send);a.start();b.start();barrier.wait();a.join(5);b.join(5);self.assertEqual(sorted(results),[200,409]);self.assertEqual(self.owner.generation,2)
++ def test_prepared_bindings_require_unique_exact_catalog(self):
++  self.owner.specs={'1'*32:{'catalog':{'index_sha':'b'*64}},'2'*32:{'catalog':{'index_sha':'b'*64}}};good={'schema':1,'catalog_sha256':'b'*64,'items':[{'part_id':'a'*64,'token':'1'*32}],'inspect_only':True,'game_modified':False}
++  g=Gateway(self.owner,{'1'*32:'First','2'*32:'Second'},good)
++  try:
++   good['items'][0]['part_id']='c'*64;self.assertEqual(g.bindings['items'][0]['part_id'],'a'*64)
++  finally:g.server_close()
++  for bad in [None,2,'d'*64]:
++   obj={'schema':1,'catalog_sha256':bad,'items':[],'inspect_only':True,'game_modified':False}
++   with self.assertRaises(ValueError):Gateway(self.owner,{'1'*32:'First','2'*32:'Second'},obj)
++  dup={'schema':1,'catalog_sha256':'b'*64,'items':[{'part_id':'a'*64,'token':'1'*32},{'part_id':'c'*64,'token':'1'*32}],'inspect_only':True,'game_modified':False}
++  with self.assertRaises(ValueError):Gateway(self.owner,{'1'*32:'First','2'*32:'Second'},dup)
+  def test_duplicate_json_fields_do_not_switch(self):
+   hdr={'Content-Type':'application/json','Origin':self.origin,'X-CAS-Request':'1'};body='{"token":"'+('2'*32)+'","token":"'+('1'*32)+'","generation":1}'
+   self.assertEqual(self.request('POST','/scene-switch',body,hdr)[0],400);self.assertEqual(self.owner.generation,1)
+--- /dev/null
++++ b/tools/research/build_scene_bindings.py
+@@ -0,0 +1,48 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Bind exact prepared scenes to exact parts in a pinned private catalog.
++
++Trusted local inputs only; does not establish game equip/native compatibility.
++This read-only research step never sends paths to the browser or writes game data.
++"""
++import argparse,hashlib,json,pathlib,re,sqlite3,time
++ROOT=pathlib.Path(__file__).resolve().parents[1];PRIVATE=ROOT/'private-input-recovery';D=re.compile(r'[a-f0-9]{64}\Z');T=re.compile(r'[a-f0-9]{32}\Z');N=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z')
++def pin(p,h,limit):
++ p=pathlib.Path(p)
++ if not isinstance(h,str) or not D.fullmatch(h) or p.is_symlink() or not p.is_file() or p.stat().st_size>limit:raise ValueError('pinned regular input required')
++ digest=hashlib.sha256()
++ with p.open('rb') as f:
++  for b in iter(lambda:f.read(1024*1024),b''):digest.update(b)
++ if digest.hexdigest()!=h:raise ValueError('input identity mismatch')
++def main():
++ p=argparse.ArgumentParser();p.add_argument('--config',nargs=2,required=True,metavar=('PATH','SHA256'));p.add_argument('--output',required=True);a=p.parse_args()
++ if not N.fullmatch(a.output) or PRIVATE.is_symlink() or not PRIVATE.is_dir():raise ValueError('fresh private output name required')
++ config=pathlib.Path(a.config[0]);pin(config,a.config[1],65536);obj=json.loads(config.read_bytes())
++ if type(obj)is not dict or set(obj)!={'schema','initial','scenes'} or obj['schema']!=1 or type(obj['scenes'])is not dict or not 1<=len(obj['scenes'])<=8:raise ValueError('config shape')
++ catalogs=[row.get('spec',{}).get('catalog') for row in obj['scenes'].values()]
++ if not all(isinstance(c,dict) for c in catalogs) or any(c!=catalogs[0] for c in catalogs):raise ValueError('one shared pinned catalog required')
++ cat=catalogs[0];index=pathlib.Path(cat['index']);pin(index,cat['index_sha'],256*1024*1024)
++ if index.stat().st_nlink!=1 or any(pathlib.Path(str(index)+x).exists() or pathlib.Path(str(index)+x).is_symlink() for x in ('-wal','-shm','-journal')):raise ValueError('catalog must be standalone')
++ db=sqlite3.connect(index.as_uri()+'?mode=ro&immutable=1',uri=True);deadline=time.monotonic()+10;db.set_progress_handler(lambda: int(time.monotonic()>deadline),10000);items=[]
++ try:
++  for token,row in obj['scenes'].items():
++   if not isinstance(token,str) or not T.fullmatch(token):raise ValueError('scene token')
++   spec=row['spec'];name=spec['runtime']
++   if not isinstance(name,str) or not N.fullmatch(name) or spec['catalog']!=cat:raise ValueError('runtime binding')
++   runtime=PRIVATE/name
++   if runtime.is_symlink() or not runtime.is_dir():raise ValueError('runtime unavailable')
++   marker=runtime/'runtime.json';pin(marker,spec['runtime_sha'],1024*1024);m=json.loads(marker.read_bytes());desc=runtime/'descriptor.txt';pin(desc,m['descriptor_sha256'],4096);lines=desc.read_text('ascii').splitlines()
++   if len(lines)!=7 or lines[0]!='APX-GENERIC-DRESS-1' or lines[1]!=spec['swatch_id'] or not D.fullmatch(lines[6]):raise ValueError('scene source identity')
++   rows=db.execute("SELECT part_id,row_json FROM parts WHERE json_extract(row_json,'$.package_sha256')=? AND json_extract(row_json,'$.resource_tgi')=? LIMIT 2",(lines[6],lines[1])).fetchall()
++   if len(rows)!=1:raise ValueError('catalog mapping missing or ambiguous')
++   part,raw=rows[0]
++   if not isinstance(part,str) or not D.fullmatch(part) or len(raw)>1024*1024:raise ValueError('part identity')
++   decoded=json.loads(raw)
++   if decoded.get('part_id')!=part or decoded.get('package_sha256')!=lines[6] or decoded.get('resource_tgi')!=lines[1]:raise ValueError('catalog row mismatch')
++   items.append({'part_id':part,'token':token})
++ finally:db.close()
++ if len({x['part_id'] for x in items})!=len(items):raise ValueError('ambiguous part binding')
++ pin(index,cat['index_sha'],256*1024*1024)
++ output=PRIVATE/a.output;output.mkdir(mode=0o700,exist_ok=False);data={'schema':1,'catalog_sha256':cat['index_sha'],'items':items,'inspect_only':True,'game_modified':False}
++ with (output/'bindings.json').open('x') as f:json.dump(data,f,indent=2)
++ print(json.dumps({'bound_parts':len(items),'inspect_only':True,'game_modified':False}))
++if __name__=='__main__':main()
+--- /dev/null
++++ b/tools/research/prepared_dress_actions.mjs
+@@ -0,0 +1,9 @@
++// Optional exact-snapshot preview actions. Never equips or writes to the game.
++const root=document.querySelector('#results');
++if(root){
++ let map=null,generation=null,busy=false;
++ const status=document.createElement('p');status.setAttribute('role','status');status.textContent='Checking prepared preview matches…';root.before(status);
++ const timed=async(path,options={},ms=8000)=>{const c=new AbortController(),timer=setTimeout(()=>c.abort(),ms);try{return await fetch(path,{...options,signal:c.signal,cache:'no-store',redirect:'error'});}finally{clearTimeout(timer);}};
++ const refresh=()=>{if(!map)return;for(const card of root.children){const token=map.get(card.dataset.partId);if(!token||card.querySelector('[data-prepared-dress-action]'))continue;const button=document.createElement('button');button.type='button';button.dataset.preparedDressAction='1';button.textContent='Preview prepared dress';button.title='Preview only; this does not equip or change the game.';button.addEventListener('click',async()=>{if(busy)return;busy=true;button.disabled=true;status.textContent='Preparing selected preview; no game changes.';try{const r=await timed('/scene-switch',{method:'POST',headers:{'content-type':'application/json','x-cas-request':'1'},body:JSON.stringify({token,generation})},45000);if(!r.ok)throw Error('Selection failed or became stale');location.assign('/cas-room');}catch(e){status.textContent=e.message+'; refresh to check the current scene before trying again.';map=null;for(const x of root.querySelectorAll('[data-prepared-dress-action]'))x.disabled=true;}});card.append(button);}};
++ try{const [mr,cr,sr]=await Promise.all([timed('/prepared-dresses'),timed('/cc-catalog-state'),timed('/scene-catalog')]);if(!mr.ok||!cr.ok||!sr.ok)throw Error('Prepared preview matches unavailable');const [m,c,s]=await Promise.all([mr.json(),cr.json(),sr.json()]);if(m.schema!==1||m.inspect_only!==true||m.game_modified!==false||!Array.isArray(m.items)||m.items.length>8||!c.enabled||c.catalog_sha256!==m.catalog_sha256||!Number.isSafeInteger(s.generation))throw Error('Prepared preview identity mismatch');const tokens=new Set(s.entries.map(x=>x.token));map=new Map();for(const x of m.items){if(!/^[a-f0-9]{64}$/.test(x.part_id)||!/^[a-f0-9]{32}$/.test(x.token)||!tokens.has(x.token)||map.has(x.part_id))throw Error('Invalid prepared preview binding');map.set(x.part_id,x.token);}generation=s.generation;status.textContent='Prepared matches are preview only; no game changes.';new MutationObserver(refresh).observe(root,{childList:true});refresh();}catch(e){map=null;status.textContent='Prepared preview matches unavailable.';}
++}
+--- /dev/null
++++ b/tools/research/test_prepared_dress_actions.mjs
+@@ -0,0 +1,13 @@
++// Synthetic DOM only; does not claim browser or native CAS acceptance.
++import test from 'node:test';import assert from 'node:assert/strict';
++class E{constructor(){this.children=[];this.dataset={};this.handlers={};this.disabled=false;this.textContent='';}append(...xs){this.children.push(...xs);}before(x){this.beforeNode=x;}setAttribute(){}addEventListener(n,f){this.handlers[n]=f;}querySelector(q){return q==='[data-prepared-dress-action]'?this.children.find(x=>x.dataset.preparedDressAction):null;}querySelectorAll(q){return q==='[data-prepared-dress-action]'?this.children.flatMap(c=>c.children.filter(x=>x.dataset.preparedDressAction)):[];}}
++async function scenario({mismatch=false,fail=false}={}){
++ const saved={document:globalThis.document,fetch:globalThis.fetch,location:globalThis.location,MutationObserver:globalThis.MutationObserver};const root=new E(),known=new E(),unknown=new E();known.dataset.partId='a'.repeat(64);unknown.dataset.partId='c'.repeat(64);root.children=[known,unknown];let posts=0,navigated=0,obs=null;
++ globalThis.document={querySelector:s=>s==='#results'?root:null,createElement:()=>new E()};globalThis.MutationObserver=class{constructor(f){obs=f}observe(){}};globalThis.location={assign(path){assert.equal(path,'/cas-room');navigated++;}};
++ globalThis.fetch=async(path,opts)=>{if(path==='/prepared-dresses')return {ok:true,json:async()=>({schema:1,catalog_sha256:'b'.repeat(64),inspect_only:true,game_modified:false,items:[{part_id:'a'.repeat(64),token:'1'.repeat(32)}]})};if(path==='/cc-catalog-state')return {ok:true,json:async()=>({enabled:true,catalog_sha256:(mismatch?'d':'b').repeat(64)})};if(path==='/scene-catalog')return {ok:true,json:async()=>({generation:5,entries:[{token:'1'.repeat(32)}]})};assert.equal(path,'/scene-switch');posts++;assert.deepEqual(JSON.parse(opts.body),{token:'1'.repeat(32),generation:5});return {ok:!fail};};
++ try{await import('./prepared_dress_actions.mjs?case='+Math.random());assert.equal(posts,0);assert.equal(unknown.children.length,0);if(mismatch){assert.equal(known.children.length,0);return;}assert.equal(known.children.length,1);obs();assert.equal(known.children.length,1);const button=known.children[0];assert.match(button.textContent,/Preview/);await button.handlers.click();assert.equal(posts,1);assert.equal(navigated,fail?0:1);if(fail){assert.equal(button.disabled,true);assert.match(root.beforeNode.textContent,/refresh/);}}
++ finally{for(const [k,v]of Object.entries(saved)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}}
++}
++test('only exact catalog parts receive explicit preview action',async()=>scenario());
++test('wrong catalog identity exposes no actions',async()=>scenario({mismatch:true}));
++test('uncertain switch requires refresh rather than retry',async()=>scenario({fail:true}));

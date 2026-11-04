@@ -7,6 +7,7 @@ are declarations supplied by the experiment runner; they are not independently
 discovered or proof of hardware/content identity. See FRAME_BENCHMARK.md.
 """
 import argparse
+import bisect
 import csv
 import hashlib
 import io
@@ -88,6 +89,23 @@ def statistics_for(values, refresh):
             'max_ms': ordered[-1], 'slowest_1pct_mean_ms': statistics.mean(slow),
             'over_refresh_budget_per_1000': 1000 * sum(x > 1000 / refresh for x in ordered) / len(ordered),
             'over_33_3ms_per_1000': 1000 * sum(x > 1000 / 30 for x in ordered) / len(ordered)}
+
+
+def action_statistics(values, clocks, start, end, refresh):
+    """Describe intervals overlapping an observed window, not its cause."""
+    # For interval i the endpoints are clocks[i-1], clocks[i]. Both
+    # inequalities are strict so a mere boundary touch is not overlap.
+    first = max(1, bisect.bisect_right(clocks, start))
+    last = min(len(clocks), bisect.bisect_left(clocks, end) + 1)
+    within = values[first:last]
+    if not within:
+        raise ValueError('An observed action has no frame timestamp within its recorded window.')
+    ordered = sorted(within)
+    return {'frames': len(within), 'selection': 'present-interval-overlap',
+            'p50_ms': percentile(ordered, .50), 'p95_ms': percentile(ordered, .95),
+            'p99_ms': percentile(ordered, .99), 'max_ms': ordered[-1],
+            'over_refresh_budget': sum(x > 1000 / refresh for x in within),
+            'over_33_3ms': sum(x > 1000 / 30 for x in within)}
 
 
 def read_frames(path, pid, expected_sha):
@@ -230,7 +248,10 @@ def analyze_run(spec, scenario, manifest_dir, stage=None):
     if stage is None and ((expected_present and not _hash(artifact_sha)) or (not expected_present and artifact_sha is not None)):
         raise ValueError('Candidate artifact identity is inconsistent with its mod state.')
     values, clocks, runtime = read_frames(resolve(spec['csv']), pid, analysis['csv_sha256'])
-    if capture.get('capture_backend')=='xperf_etl':offline_xperf.validate_coverage(capture,clocks)
+    qpc_frequency = None
+    if capture.get('capture_backend')=='xperf_etl':
+        offline_xperf.validate_coverage(capture,clocks)
+        qpc_frequency = capture['offline_etw']['qpc_frequency']
     if (not isinstance(trace, dict) or trace.get('capture_sha256') != capture_sha or
             trace.get('target_pid') != pid or trace.get('process_creation_filetime') != before.get('process_creation_filetime') or
             trace.get('clock') != 'QPC' or trace.get('ui_transitions_verified') is not True):
@@ -250,13 +271,11 @@ def analyze_run(spec, scenario, manifest_dir, stage=None):
         # Present() occurs after the recorded action. Never silently drop the hitch.
         # The first interval lacks an observed prior Present and is excluded from
         # action attribution; action windows already start at/after clocks[0].
-        within = [values[i] for i in range(1, len(values))
-                  if clocks[i - 1] < event['end_qpc'] and clocks[i] > event['start_qpc']]
-        if not within:
-            raise ValueError('An observed action has no frame timestamp within its recorded window.')
-        actions.append({'action': name, 'frames': len(within), 'selection': 'present-interval-overlap',
-                        'p50_ms': statistics.median(within), 'max_ms': max(within),
-                        'over_refresh_budget': sum(x > 1000 / scenario['refresh_hz'] for x in within)})
+        action = action_statistics(values, clocks, event['start_qpc'], event['end_qpc'], scenario['refresh_hz'])
+        action['action'] = name
+        action['duration_ms'] = (1000 * (event['end_qpc'] - event['start_qpc']) / qpc_frequency
+                                 if qpc_frequency is not None else None)
+        actions.append(action)
     stats = statistics_for(values, scenario['refresh_hz'])
     return {'kind': spec['kind'], 'started_ns': spec['started_ns'], 'ended_ns': spec['ended_ns'],
             'capture_sha256': capture_sha, 'trace_sha256': trace_sha, 'mod_state_sha256': mods_sha,
@@ -302,7 +321,11 @@ def compare(manifest, manifest_dir):
                 raise ValueError('Paired action windows differ.')
             action_deltas.append({'action': base_action['action'],
                                   'baseline_frames': base_action['frames'], 'apex_frames': apex_action['frames'],
+                                  'duration_delta_ms': (None if base_action['duration_ms'] is None or apex_action['duration_ms'] is None
+                                                        else apex_action['duration_ms'] - base_action['duration_ms']),
                                   'p50_delta_ms': apex_action['p50_ms'] - base_action['p50_ms'],
+                                  'p95_delta_ms': apex_action['p95_ms'] - base_action['p95_ms'],
+                                  'p99_delta_ms': apex_action['p99_ms'] - base_action['p99_ms'],
                                   'max_delta_ms': apex_action['max_ms'] - base_action['max_ms']})
         comparisons.append({'order': list(order[i // 2]), 'apex_minus_baseline_ms': {
             key: None if a[key] is None or b[key] is None else b[key] - a[key]
@@ -313,7 +336,8 @@ def compare(manifest, manifest_dir):
             'hitch_free_claimed': False, 'performance_pass': False,
             'limitations': ['Scenario, mod-state and action observation evidence are supplied by the experiment runner.',
                 'Present intervals are not displayed frame times or an input-to-photon measurement.',
-                'Action-window comparisons can contain different frame counts; maxima are sensitive to sample size and do not establish causation.',
+                'Action-window comparisons can contain different frame counts; tail percentiles and maxima are sensitive to sample size and do not establish causation.',
+                'Action duration is derived only from validated offline QPC frequency; matching labels or durations do not prove equal work.',
                 'A finite matched sample cannot prove that all hitching is eliminated.']}
 
 

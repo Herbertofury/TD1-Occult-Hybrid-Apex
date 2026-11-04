@@ -126,6 +126,11 @@ class StageEvidenceTests(unittest.TestCase):
         self.assertEqual(result['stopped_at_stage'], 'hybrid')
         self.assertEqual(result['state'], 'slowdown_observed')
         self.assertEqual(result['comparisons'][0]['pairs'][0]['candidate_minus_control']['max_ms'], 40)
+        action = result['comparisons'][0]['pairs'][0]['action_windows'][0]
+        self.assertEqual(action['control_frames'], 5)
+        self.assertEqual(action['candidate_frames'], 5)
+        self.assertEqual(action['p95_delta_ms'], 1)
+        self.assertEqual(action['p99_delta_ms'], 1)
         self.assertFalse(result['performance_pass']); self.assertFalse(result['hitch_free_claimed'])
 
     def test_later_stages_are_not_evaluated_after_a_slowdown(self):

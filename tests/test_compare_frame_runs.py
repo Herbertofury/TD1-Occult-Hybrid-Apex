@@ -2,6 +2,7 @@ import copy
 import csv
 import hashlib
 import json
+import random
 from pathlib import Path
 import sys
 import tempfile
@@ -76,7 +77,43 @@ class MatchedFrameComparisonTests(unittest.TestCase):
         self.assertEqual(action['baseline_frames'], 5)
         self.assertEqual(action['apex_frames'], 5)
         self.assertEqual(action['p50_delta_ms'], 1)
+        self.assertEqual(action['p95_delta_ms'], 1)
+        self.assertEqual(action['p99_delta_ms'], 1)
         self.assertEqual(action['max_delta_ms'], 1)
+        self.assertIsNone(action['duration_delta_ms'])
+        self.assertEqual(result['runs'][1]['action_windows'][1]['over_33_3ms'], 0)
+
+    def test_action_statistics_preserve_crossing_and_exclude_touching_intervals(self):
+        clocks = [10, 20, 30, 40, 50]
+        values = [1, 2, 3, 50, 5]
+        # The 30-40 interval overlaps both adjacent action windows. The
+        # interval ending at the first start is a touch and is excluded.
+        left = perf.action_statistics(values, clocks, 20, 35, 60)
+        right = perf.action_statistics(values, clocks, 35, 40, 60)
+        self.assertEqual(left['frames'], 2)
+        self.assertEqual(left['p50_ms'], 26.5)
+        self.assertAlmostEqual(left['p95_ms'], 47.65)
+        self.assertEqual(left['over_33_3ms'], 1)
+        self.assertEqual(right['frames'], 1)
+        self.assertEqual(right['max_ms'], 50)
+        self.assertEqual(perf.action_statistics(values, clocks, 10, 20, 60)['max_ms'], 2)
+
+    def test_action_selection_matches_independent_strict_overlap_reference(self):
+        rng = random.Random(381)
+        clocks = [10]
+        for _ in range(199): clocks.append(clocks[-1] + rng.randrange(1, 20))
+        values = [float(i + 1) for i in range(len(clocks))]
+        for _ in range(300):
+            start = rng.randrange(clocks[0], clocks[-1])
+            end = rng.randrange(start + 1, clocks[-1] + 1)
+            expected = [values[i] for i in range(1, len(values))
+                        if clocks[i - 1] < end and clocks[i] > start]
+            got = perf.action_statistics(values, clocks, start, end, 60)
+            self.assertEqual(got['frames'], len(expected))
+            self.assertEqual(got['max_ms'], max(expected))
+            self.assertEqual(got['p50_ms'], sorted(expected)[(len(expected)-1)//2]
+                             if len(expected) % 2 else
+                             (sorted(expected)[len(expected)//2-1] + sorted(expected)[len(expected)//2])/2)
 
     def test_offline_backend_is_comparator_compatible_without_forging_live_options(self):
         import offline_xperf as offline
@@ -117,6 +154,7 @@ class MatchedFrameComparisonTests(unittest.TestCase):
         with patch.object(offline.base,'ROOT',self.root):
             result=perf.analyze_run(run,self.scenario,self.root)
             self.assertIn('backend=xperf_etl',result['collector_options'])
+            self.assertEqual(result['action_windows'][0]['duration_ms'], 1000)
             capture['synthetic_identity_stubs']=True;cpath.write_text(json.dumps(capture))
             actions['capture_sha256']=hashlib.sha256(cpath.read_bytes()).hexdigest();apath.write_text(json.dumps(actions))
             with self.assertRaisesRegex(ValueError,'Synthetic'):perf.analyze_run(run,self.scenario,self.root)

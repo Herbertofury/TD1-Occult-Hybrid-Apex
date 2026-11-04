@@ -70,6 +70,10 @@ def compare(manifest, directory):
                     raise ValueError('Action windows differ between stages.')
                 delta = after['max_ms'] - before['max_ms']
                 action_deltas.append({'action': before['action'], 'max_delta_ms': delta,
+                    'duration_delta_ms': (None if before['duration_ms'] is None or after['duration_ms'] is None
+                                          else after['duration_ms'] - before['duration_ms']),
+                    'p95_delta_ms': after['p95_ms'] - before['p95_ms'],
+                    'p99_delta_ms': after['p99_ms'] - before['p99_ms'],
                     'control_frames': before['frames'], 'candidate_frames': after['frames']})
                 if delta > 0:
                     slowdowns.append({'pair': i // 2, 'action': before['action'],
@@ -93,6 +97,8 @@ def compare(manifest, directory):
         'displayed_fps_measured': False, 'performance_pass': False, 'hitch_free_claimed': False,
         'limitations': ['Feature inventories and actual-load/UI-transition observations are runner-supplied declarations.',
             'Any positive tail/action-maximum delta stops evaluation; noise requires diagnosis and fresh repeats, not a causal claim.',
+            'Action-window percentiles are descriptive and sample-size sensitive, particularly for short actions; intervals may overlap adjacent windows.',
+            'Action duration uses only validated offline QPC frequency; matching labels or durations do not prove equivalent work.',
             'Equal source presence or passing fixture tests does not establish feature parity.',
             'Present intervals are not displayed frame times or input-to-photon latency.',
             'No game, mod installation, profile, save or external CAS project was changed by this report.']}

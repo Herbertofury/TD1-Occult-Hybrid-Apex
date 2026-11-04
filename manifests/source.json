@@ -83,12 +83,6 @@
       "sha256": "5f0456f024ab157ec608cb0b19442b4b0f66edb08dcb38f350c0cc45ab57908b"
     },
     {
-      "bytes": 12520,
-      "mode": "100644",
-      "path": "docs/FRAME_BENCHMARK.md",
-      "sha256": "4a0bb51f9557196ab92fedda801820a6dcc91bfdd4cb27e67f5f0f61435cff77"
-    },
-    {
       "bytes": 3145,
       "mode": "100644",
       "path": "tools/inspect_script_code.py",
@@ -689,6 +683,12 @@
       "sha256": "313c7ec5683e6696f6867a722a156e53be7e070947281bfd4ef4e6d81e4bc4ac"
     },
     {
+      "bytes": 11227,
+      "mode": "100644",
+      "path": "tests/test_hitch_stage.py",
+      "sha256": "4ecae7b391830a33f69e9aaa94704d598db6acad2a0181d7cb8eaa4e2d1b009b"
+    },
+    {
       "bytes": 6248,
       "mode": "100644",
       "path": "tools/cas_molecule_patch.py",
@@ -747,12 +747,6 @@
       "mode": "100644",
       "path": "NativeOverlay/CMakeLists.txt",
       "sha256": "df5d481a24121cdaa046322e5e827601342c8c7cfa2b4ade9281f9755b65b924"
-    },
-    {
-      "bytes": 7060,
-      "mode": "100644",
-      "path": "tools/compare_hitch_stages.py",
-      "sha256": "324d3c8c9758d69a261384009a1badcd64c83b5331bdc11654c40754efcabcd9"
     },
     {
       "bytes": 6457,
@@ -993,12 +987,6 @@
       "mode": "100644",
       "path": "tests/test_cas_pair_controls.py",
       "sha256": "fb2d10bbd99b028ce05fd9bc27fcf3470b29ef27f6e4e606eb79f805ec7f2384"
-    },
-    {
-      "bytes": 21229,
-      "mode": "100644",
-      "path": "tools/compare_frame_runs.py",
-      "sha256": "203dc3c3b3be2adb1f899eaf9279c99a595f279b87815ab28bef2e831e6c5021"
     },
     {
       "bytes": 15749,
@@ -1955,6 +1943,12 @@
       "sha256": "704ef778eb5a398d46781e495a1f396b53ab886067319552b9d449a7c1fd9ca8"
     },
     {
+      "bytes": 12806,
+      "mode": "100644",
+      "path": "docs/FRAME_BENCHMARK.md",
+      "sha256": "027e545f7a870901ee2c1cd704fe195e90ae5ff6c4d8a30d06408e3e412fa122"
+    },
+    {
       "bytes": 1603,
       "mode": "100644",
       "path": "wiki/Apex-Occult-Hybrid-Core.md",
@@ -2621,6 +2615,12 @@
       "sha256": "c80e17232b96f9962d000010098a9b72d2276f87e2e20e93b9bbf338da4663fd"
     },
     {
+      "bytes": 7699,
+      "mode": "100644",
+      "path": "tools/compare_hitch_stages.py",
+      "sha256": "717507b4677a8444dfffa56be508fc5ab81d4d90694a23fba0c369ee3839e399"
+    },
+    {
       "bytes": 106856,
       "mode": "100644",
       "path": "tests/fixtures/catalog-slider-v344-pixel-ack.json",
@@ -2631,12 +2631,6 @@
       "mode": "100644",
       "path": "tools/build_metadata_companion.py",
       "sha256": "f1c9f296f9e81e29e573b054a5d3173185f9d0ebcdc6634b4108b1221638a467"
-    },
-    {
-      "bytes": 17880,
-      "mode": "100644",
-      "path": "tests/test_compare_frame_runs.py",
-      "sha256": "590ddda92db457b2e5bea983a9df9072ade2161aca208e75eb91f9633bbcd648"
     },
     {
       "bytes": 2153,
@@ -3033,6 +3027,12 @@
       "mode": "100644",
       "path": "tests/test_cas_grid_budget_cache.py",
       "sha256": "9c1817c0a7f2f261ae685a5289d64616bb5e818495f7e96c0bc63ffac38ac99f"
+    },
+    {
+      "bytes": 22679,
+      "mode": "100644",
+      "path": "tools/compare_frame_runs.py",
+      "sha256": "42ded148e4a7e4b0f1cc8683d265dfa3f549257eb4f4f0565990d366de3042bc"
     },
     {
       "bytes": 7229,
@@ -4931,12 +4931,6 @@
       "sha256": "0e82169ac62c5f904b894bb0a2db2794daf6cba751d8e9e9ec367c8d2aff5ecd"
     },
     {
-      "bytes": 10938,
-      "mode": "100644",
-      "path": "tests/test_hitch_stage.py",
-      "sha256": "bdec07fa1c9be68f06a8b162876985ffc21c61707252f4fd8ec78fc42fb79373"
-    },
-    {
       "bytes": 267,
       "mode": "100644",
       "path": "Source/CASUi/catalog_product_grid_row_guard.as",
@@ -4959,6 +4953,12 @@
       "mode": "100644",
       "path": "tests/test_cas_return_settle.py",
       "sha256": "50143770a16c02bc33496b61ea89b7c5223744d586520f87e6be4b43c714fdf8"
+    },
+    {
+      "bytes": 20021,
+      "mode": "100644",
+      "path": "tests/test_compare_frame_runs.py",
+      "sha256": "1bd5053c6231af4c4ba3ba461103ffaec417c2861b3912997124402dc5bad522"
     },
     {
       "bytes": 7107,

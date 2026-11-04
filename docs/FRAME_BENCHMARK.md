@@ -137,8 +137,12 @@ against their corresponding declared evidence. The output must be a new file
 inside `.work`. It reports per-run mean, median,
 p95, p99, maximum, average of the slowest 1% of present intervals and counts
 above the declared refresh budget or 33.3 ms normalized per 1,000 frames, plus
-frame count, median and maximum interval, and count over the refresh budget
-inside each recorded action window. Paired action deltas make it easier to
+frame count, median, p95, p99 and maximum interval, and counts over the refresh
+budget and 33.3 ms inside each recorded action window. Short action windows can
+contain too few frames for stable tail percentiles. For the offline ETL backend,
+action duration uses the validated QPC frequency; legacy capture duration is
+reported as unknown. Matching labels or durations do not prove equivalent work.
+Paired action deltas make it easier to
 locate a slow transition, but different frame counts and durations can skew
 their maxima and do not establish a cause. P99.9 is omitted for fewer than
 1,000 samples. Pair deltas are Apex minus baseline;

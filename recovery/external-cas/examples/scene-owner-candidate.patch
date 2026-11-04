@@ -1,0 +1,131 @@
+--- /dev/null
++++ b/tools/research/scene_switch_supervisor.py
+@@ -0,0 +1,92 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Private trusted-parent, two-scene diagnostic supervisor; no listener or UI.
++
++Only prebound, locally reviewed launchers and binaries may be registered. The
++constructor does not grant browser path or command authority. This is Linux
++research, not process-death containment, Windows qualification, a sandbox or
++native game integration. No automatic retries; callers own transport and auth.
++"""
++import json,os,pathlib,re,select,subprocess,sys,threading,time,urllib.request
++ROOT=pathlib.Path(__file__).resolve().parents[1];TOKEN=re.compile(r'[a-f0-9]{32}\Z');HASH=re.compile(r'[a-f0-9]{64}\Z');NAME=re.compile(r'[a-z0-9][a-z0-9-]{0,31}\Z');CASP=re.compile(r'034AEECB:[0-9A-F]{8}:[0-9A-F]{16}\Z');LINE=re.compile(rb'http://127\.0\.0\.1:([1-9][0-9]{0,4})/ apex-rust-preview-20261102-v71-import-ui-candidate\n\Z');HARNESS='apex-rust-preview-20261102-v71-import-ui-candidate'
++class Refused(ValueError):pass
++class NoRedirect(urllib.request.HTTPRedirectHandler):
++ def redirect_request(self,*args,**kwargs):return None
++_opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
++def fetch(url,path,limit):
++ with _opener.open(url+path,timeout=5) as r:
++  if r.status!=200 or (r.headers.get('content-type') or '').split(';')[0]!='application/json':raise Refused('invalid ready response')
++  b=r.read(limit+1)
++ if len(b)>limit:raise Refused('ready response bound')
++ return json.loads(b)
++def line(proc,seconds=30):
++ deadline=time.monotonic()+seconds;data=bytearray();fd=proc.stdout.fileno()
++ while time.monotonic()<deadline:
++  ready,_,_=select.select([fd],[],[],max(0,deadline-time.monotonic()))
++  if not ready:break
++  c=os.read(fd,1)
++  if not c:raise Refused('launcher exited before ready')
++  data+=c
++  if len(data)>512:raise Refused('launcher output bound')
++  if c==b'\n':
++   match=LINE.fullmatch(bytes(data))
++   if not match or int(match.group(1))>65535:raise Refused('launcher identity')
++   return 'http://127.0.0.1:'+match.group(1).decode()
++ raise Refused('launcher deadline')
++def stop(proc):
++ if proc is None or proc.poll() is not None:return
++ proc.terminate()
++ try:proc.wait(timeout=5)
++ except subprocess.TimeoutExpired:proc.kill();proc.wait(timeout=5)
++class SceneSwitcher:
++ """Serialized all-or-nothing publication after observed pinned scene identity.
++
++ `specs` are parent-provided, not browser messages; max 8 accepted specs and at
++ most one candidate plus the active process. A failed candidate leaves the old
++ owner untouched. Call close explicitly. No promise against parent SIGKILL.
++ """
++ def __init__(self,specs):
++  if not isinstance(specs,dict) or not 1<=len(specs)<=8:raise Refused('invalid scene set')
++  self.specs={}
++  for token,s in specs.items():
++   if not isinstance(token,str) or not TOKEN.fullmatch(token) or not isinstance(s,dict) or set(s)!={'runtime','runtime_sha','binary','binary_sha','scene_sha','swatch_id'} or not all(isinstance(v,str) for v in s.values()) or not NAME.fullmatch(s['runtime']) or not all(HASH.fullmatch(s[k]) for k in ('runtime_sha','binary_sha','scene_sha')) or not CASP.fullmatch(s['swatch_id']) or not pathlib.Path(s['binary']).is_absolute():raise Refused('invalid trusted scene spec')
++   self.specs[token]=dict(s)
++  self.lock=threading.RLock();self.active=None;self.retired=[];self.generation=0;self.closed=False
++ def _retire(self,proc):
++  if proc not in self.retired:self.retired.append(proc)
++  stop(proc);proc.stdout.close();self.retired.remove(proc)
++ def status(self):
++  with self.lock:
++   if self.retired:return {'state':'cleanup_pending','generation':self.generation}
++   if self.active is None:return {'state':'closed' if self.closed else 'idle','generation':self.generation}
++   return {'state':'ready' if self.active['proc'].poll() is None else 'failed','generation':self.generation,'token':self.active['token'],'scene_sha256':self.active['scene']}
++ def switch(self,token):
++  with self.lock:
++   if self.closed:raise Refused('owner closed')
++   if self.retired:raise Refused('cleanup pending')
++   if token not in self.specs:raise Refused('unknown selection')
++   if self.active is not None and self.active['token']==token and self.active['proc'].poll() is None:
++    identity=fetch(self.active['url'],'/identity',4096)
++    if identity.get('harness')!=HARNESS or identity.get('scene_sha256')!=self.active['scene']:raise Refused('active identity changed')
++    return self.status()
++   s=self.specs[token];cmd=[sys.executable,str(ROOT/'rig-recovery/launch_generic_runtime.py'),'--runtime',s['runtime'],'--runtime-sha',s['runtime_sha'],'--binary',s['binary'],'--binary-sha',s['binary_sha']]
++   candidate=subprocess.Popen(cmd,stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,env={'PATH':'/usr/bin:/bin'},start_new_session=True)
++   try:
++    url=line(candidate);identity=fetch(url,'/identity',4096);swatch=fetch(url,'/swatch-catalog',32768)
++    if candidate.poll() is not None or identity.get('harness')!=HARNESS or identity.get('scene_sha256')!=s['scene_sha'] or identity.get('pose_library_ready') is not True or swatch.get('scene_sha256')!=s['scene_sha'] or swatch.get('default_id')!=s['swatch_id'] or swatch.get('enabled') is not False:raise Refused('ready identity mismatch')
++   except BaseException:
++    self._retire(candidate);raise
++   old=self.active;self.generation+=1;self.active={'token':token,'scene':s['scene_sha'],'url':url,'proc':candidate}
++   if old is not None:self._retire(old['proc'])
++   return self.status()
++ def current_target(self):
++  """Private trusted transport only; never forward this raw target to a browser."""
++  with self.lock:
++   if self.retired or self.active is None or self.active['proc'].poll() is not None:raise Refused('scene unavailable')
++   return self.active['url'],self.active['scene'],self.generation
++ def close(self):
++  with self.lock:
++   if self.closed:return
++   if self.active is not None:
++    proc=self.active['proc'];self.active=None;self._retire(proc)
++   for proc in tuple(self.retired):self._retire(proc)
++   self.closed=True
+--- /dev/null
++++ b/tools/research/test_scene_switch_supervisor.py
+@@ -0,0 +1,33 @@
++# SPDX-License-Identifier: GPL-3.0-or-later
++"""Pure ownership failure tests; real process check is separately opt-in."""
++import sys,unittest
++from unittest.mock import patch
++sys.path.insert(0,__import__('pathlib').Path(__file__).resolve().parent.as_posix())
++import scene_switch_supervisor as m
++S={'runtime':'sample','runtime_sha':'a'*64,'binary':'/trusted/preview','binary_sha':'b'*64,'scene_sha':'c'*64,'swatch_id':'034AEECB:80000000:0123456789ABCDEF'}
++class Out:
++ def __init__(self):self.closed=False
++ def close(self):self.closed=True
++class Fake:
++ def __init__(self):self.stdout=Out()
++ def poll(self):return None
++class Tests(unittest.TestCase):
++ def test_untrusted_selection_never_spawns(self):
++  s=m.SceneSwitcher({'1'*32:S})
++  with patch.object(m.subprocess,'Popen') as p:
++   with self.assertRaises(m.Refused):s.switch('2'*32)
++   p.assert_not_called()
++  s.close();self.assertEqual(s.status()['state'],'closed')
++ def test_cleanup_failure_retains_owner_and_gates_transport(self):
++  s=m.SceneSwitcher({'1'*32:S});p=Fake();s.active={'token':'1'*32,'scene':'c'*64,'url':'http://127.0.0.1:1','proc':p}
++  with patch.object(m,'stop',side_effect=[OSError('failed'),None]):
++   with self.assertRaises(OSError):s.close()
++   self.assertEqual(s.status()['state'],'cleanup_pending')
++   with self.assertRaises(m.Refused):s.current_target()
++   with self.assertRaises(m.Refused):s.switch('1'*32)
++   s.close()
++  self.assertTrue(p.stdout.closed);self.assertEqual(s.status()['state'],'closed')
++ def test_malformed_specs_fail_closed(self):
++  for token,spec in [('x',S),('1'*32,{**S,'binary':'relative'}),('2'*32,{**S,'scene_sha':'0'}),('3'*32,{**S,'runtime':'../bad'})]:
++   with self.assertRaises(m.Refused):m.SceneSwitcher({token:spec})
++if __name__=='__main__':unittest.main(verbosity=2)

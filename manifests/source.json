@@ -3401,6 +3401,12 @@
       "sha256": "22b5cb0eb0cdac39589e76e02f15812a3d3d0503fbe1d3346f86a13ba291ce36"
     },
     {
+      "bytes": 4597,
+      "mode": "100644",
+      "path": "tools/source_manifest.py",
+      "sha256": "cb9210405c8579d601cf0f595cdb3e278b763e43de86d8e205dbd58474517390"
+    },
+    {
       "bytes": 3718,
       "mode": "100644",
       "path": "tests/test_installed_icon_resources.py",
@@ -4899,6 +4905,12 @@
       "mode": "100644",
       "path": "tools/cas_grid_width.py",
       "sha256": "2b4eff4bfa0e47732a86c33ba0a96a1ec4b1f27f078ef8125640b477cae83aea"
+    },
+    {
+      "bytes": 3339,
+      "mode": "100644",
+      "path": "tests/test_source_manifest_publication.py",
+      "sha256": "a84784b9d41535870eea9e6722e7568f5dac27ebae3d34212c0f2960c59614cc"
     },
     {
       "bytes": 8988,
@@ -7203,12 +7215,6 @@
       "mode": "100644",
       "path": "tests/test_cas_grid_presentation.py",
       "sha256": "2ba2471e7bd188f05bd3c9d961cb5c9cc80d3d3ad79ca662a3b0c5909ac828f0"
-    },
-    {
-      "bytes": 4684,
-      "mode": "100644",
-      "path": "tools/source_manifest.py",
-      "sha256": "c1482fd623b7d9c9006124e63ded1f1b8b4c0e4d5bd11a22b47a9e6f3d53c856"
     },
     {
       "bytes": 5759,

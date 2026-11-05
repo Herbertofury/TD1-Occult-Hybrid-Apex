@@ -19,7 +19,7 @@ class EvidencePublicationTests(unittest.TestCase):
             path = Path(directory) / 'proof.json'
             path.write_text('old evidence')
             real_replace = source_manifest.os.replace
-            with patch.object(source_manifest.os, 'replace', side_effect=[self.error(32), self.error(5), None]) as replace, patch.object(source_manifest.time, 'sleep') as sleep:
+            with patch.object(source_manifest.os, 'replace') as replace, patch.object(source_manifest.time, 'sleep') as sleep:
                 def publish(src, dst):
                     if replace.call_count < 3: raise self.error(32)
                     real_replace(src, dst)
@@ -33,7 +33,7 @@ class EvidencePublicationTests(unittest.TestCase):
     def test_permanent_lock_is_bounded_and_preserves_prior_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'proof.json'; path.write_text('prior')
-            with patch.object(source_manifest.os, 'replace', side_effect=self.error(5)) as replace, patch.object(source_manifest.time, 'sleep'):
+            with patch.object(source_manifest.os, 'replace', side_effect=self.error(33)) as replace, patch.object(source_manifest.time, 'sleep'):
                 with self.assertRaises(PermissionError): source_manifest.write_json(path, {'new': True})
                 self.assertEqual(replace.call_count, 11)
             self.assertEqual(path.read_text(), 'prior')

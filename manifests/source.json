@@ -839,12 +839,6 @@
       "sha256": "9bc3cc2721226be8ce9a785c2023e86f071223903af8198004a1f0fc1d56edb4"
     },
     {
-      "bytes": 2482,
-      "mode": "100644",
-      "path": "tests/test_evidence_publish.py",
-      "sha256": "15c4d8ecf3ee2960778fcbd4b91d4458e8ec9f67a60e0ea9dc055b6156321ac1"
-    },
-    {
       "bytes": 1238,
       "mode": "100644",
       "path": "tests/test_cas_grid_budget_producer.py",
@@ -873,6 +867,12 @@
       "mode": "100644",
       "path": "THIRD_PARTY_NOTICES.md",
       "sha256": "1f5a426c83b5d53594604d9bb27ed7f5bb0477a562ad6eced5da1c52c955e0b2"
+    },
+    {
+      "bytes": 2432,
+      "mode": "100644",
+      "path": "tests/test_evidence_publish.py",
+      "sha256": "15e86d8a0b32987761f332be794eb8c9fd1b5e401a45a0db13523cb6fbaba0c3"
     },
     {
       "bytes": 1795,

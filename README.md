@@ -161,3 +161,7 @@ The recovered V9.5 source passed recorded offline Python/static/audit checks, bu
 ## Provenance
 
 See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). Upstream behavior/release references are tracked there and in the engineering docs so Codex can distinguish **Apex-owned code**, **vendored dependencies**, **retained upstream artifacts**, and **research references**.
+
+## Competitive landscape and related approaches
+
+See the [source-led comparison and evaluation plan](docs/competitive-landscape.md). Documented capabilities, research proposals and measured results are kept separate.

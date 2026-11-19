@@ -1,0 +1,61 @@
+{
+  "ok": true,
+  "scope": "host-CLI-inventory-and-loopback-transport",
+  "same_exact_inventory": true,
+  "inventory_entries": 925,
+  "measurements": {
+    "before": {
+      "samples_ms": [
+        327.6790000963956,
+        227.52310009673238,
+        290.189600083977,
+        235.39350018836558,
+        266.5846000891179,
+        370.8830000832677
+      ],
+      "median_ms": 278.38710008654743
+    },
+    "after": {
+      "samples_ms": [
+        103.24890003539622,
+        102.20029996708035,
+        122.54599994048476,
+        110.07300019264221,
+        110.98839994519949,
+        108.51219994947314
+      ],
+      "median_ms": 109.29260007105768
+    }
+  },
+  "median_reduction_percent": 60.74078143811985,
+  "schema": 1,
+  "game_frame_latency_measured": false,
+  "game_restart_required": false,
+  "integrity": {
+    "full_hash_at_batch_entry": true,
+    "stamp_checked_before_every_request": true,
+    "same_exact_device_file_usn_identity": true,
+    "known_runtime_logs_only_exempt": true
+  },
+  "local_verification": {
+    "unique_tests_passed": 121,
+    "inventory_cases": 15,
+    "cli_cases": 51,
+    "cas_client_cases": 22,
+    "native_cli_cases": 7,
+    "matrix_cases": 15,
+    "export_cases": 3,
+    "postcondition_cases": 3,
+    "background_cases": 4,
+    "actual_http_cases": 1
+  },
+  "changes": [
+    "bind Windows metadata API once",
+    "retain lstat file IDs on Windows",
+    "enumerate each Mods entry once with unchanged content/USN checks",
+    "share CAS/game preflight lease with nested results",
+    "exclude unrelated TLS/certificate initialization from loopback HTTP polls"
+  ],
+  "whole_game_speedup_claimed": false,
+  "production_ready": false
+}

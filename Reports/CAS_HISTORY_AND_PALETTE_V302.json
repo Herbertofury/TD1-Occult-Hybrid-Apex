@@ -1,0 +1,35 @@
+{
+  "actual_runtime": {
+    "catalog_pre_action_regenerations_prevented": 1,
+    "cold_named_looks_retained": 155,
+    "cold_native_appearances_retained": 40,
+    "exact_legacy_undo_passed": false,
+    "full_cas_entry_complete_records_retained": 195,
+    "legacy_human_genetics_only_preparation": true,
+    "original_undo_native_fields_unchanged": true,
+    "real_hair_edit_updates_genetics": true,
+    "subsequent_native_undo_button_operations": 2,
+    "subsequent_native_undos_restore_exact_before": false,
+    "test_edits_discarded_without_saving": true,
+    "unresolved_original_undo_not_replayed": true
+  },
+  "candidate_epoch": "2026-10-24-pelt-history-evidence-v302",
+  "candidate_sha256": "011f86fdf252a26e36159f0933ccb737b4d0597673c8d3aec53e38042ccb6853",
+  "evidence_sha256": {
+    "v302_cold": "2061a0147291e678fd6e1cdd4fd8af597e07124006485474800c09e8098ac34b",
+    "v302_entry": "af1a537f2f996907de2b516ef20b4bc60d71080d152726cf808ee688e96eba10",
+    "v302_hair": "094d38ecdf8132d9a0bcb18b5f553160897d9e24fb1f393a249c6c806711bc62",
+    "v302_original_undo": "c784f32a9eba8b09d0eb7e68c81c5895f6126a462e3f653e8c4217b00c4a88f3",
+    "v302_second_undo": "67fd02d3067937bd27c0d474f4a1c11e57e186def84971492754b00798bfe55e",
+    "v302_third_undo": "56caa8b129d79cf5690b0a5a2ea1f0a8237237a20ea6ae096db2589c59818bc7"
+  },
+  "production_ready": false,
+  "protected_original_written": false,
+  "remaining": [
+    "Exact legacy inherited/outfit mismatch Undo restoration.",
+    "CLI handling of a complete no-effect native history response without stranding subsequent commands.",
+    "Actual palette history evidence in a fresh unblocked runtime.",
+    "All remaining release gates, including Tray/Gallery and every Live transition."
+  ],
+  "schema": 1
+}

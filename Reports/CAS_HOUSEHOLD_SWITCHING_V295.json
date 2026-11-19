@@ -1,0 +1,85 @@
+{
+  "actual_selection_validation": {
+    "all_directed_native_occult_pairs_on_one_member": 42,
+    "exact_selected_owner_verified": true,
+    "exposed_forms_per_member": 20,
+    "household_members": 5,
+    "native_pair_panel_visible_and_copy_enabled": true,
+    "rendered_native_kind_verified": true,
+    "selections": 191
+  },
+  "candidate": "V295",
+  "candidate_sha256": "a27bcb06308d92a07a47d05aa41ea44c79d5f3effc09d59f54c986839357efc2",
+  "complete_retention": {
+    "all_other_household_owners_unchanged": true,
+    "all_twenty_save_files_unchanged": true,
+    "appearance_records": 195,
+    "expected_edits": [
+      {
+        "fields": [
+          "genetic_data",
+          "__outfits__"
+        ],
+        "member": 5,
+        "owner": "native/1",
+        "reason": "Actual native hair card/swatch edit"
+      },
+      {
+        "fields": [
+          "pelt_layers"
+        ],
+        "member": 5,
+        "owner": "native/64",
+        "reason": "Actual native wing swatch; wing shape retained"
+      }
+    ],
+    "unexpected_field_changes": []
+  },
+  "edited_return_and_save": {
+    "actual_native_cas_exit": true,
+    "all155_named_looks_unchanged": true,
+    "all40_complete_fields_match_before_and_after_disposition": true,
+    "all40_complete_fields_unchanged_after_save": true,
+    "cold_candidate": "V300",
+    "cold_named_looks": 155,
+    "cold_reload_qualified": true,
+    "cold_simulation_advanced": true,
+    "complete_cold_native_appearances": 40,
+    "evidence_sha256": {
+      "cas_return": "eb944fd06cc6514c6693d89e43e15b4b4cadb18cc04373cf8a914fea3018bf26",
+      "save": "d2dbb34ab6dfc6058d793d9c3a90e0b75d0ebe11727b8051badcfe57f8a0d186"
+    },
+    "native_scope_retired": true,
+    "new_ui_reports": 0,
+    "one_existing_disposable_slot_saved": true,
+    "only_explicit_native_lanes_accepted": [
+      "member5:1",
+      "member5:64"
+    ],
+    "saved_slot_sha256": "65153aede2d0519ed7c0804fb4d7268bdb637f3435f969094d804a515bf8e34c"
+  },
+  "evidence_sha256": "2a8ddc7c17c3ec6df9141e983147769e764db49321edbeb2c920c44c2ca73554",
+  "not_yet_qualified": {
+    "all_actual_link_copy_actions": false,
+    "all_live_pairs": false,
+    "all_rendered_meshes_visually_inspected": false,
+    "edited_undo_redo": false,
+    "matching_v297_input_latency": false,
+    "tray_gallery_roundtrip": false,
+    "universal_zero_to_one_ms": false
+  },
+  "production_ready": false,
+  "protected_original_written": false,
+  "schema": 1,
+  "undo_regression": {
+    "all_other_human_fields_unchanged_after_two_undos": true,
+    "exercised": true,
+    "expected_inherited_hair": "277692",
+    "fix_required": true,
+    "observed_inherited_hair": "306960",
+    "original_inherited_hair_retained": false,
+    "restored_original_hair_outfit": true,
+    "save_submitted": false,
+    "two_original_redos_restore_exact_edited_human": true
+  }
+}

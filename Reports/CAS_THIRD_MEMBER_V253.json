@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "ok": true,
+  "candidate_epoch": "2026-10-21-equipped-stream-v253",
+  "script_sha256": "8a9f416abda477b73ebabd7a72f1f0e558302c8aa2a9d4ffd569b2cf90534d9b",
+  "game_version": "1.128.90.1030",
+  "household_member_ordinal": 3,
+  "actual_forms": [
+    "Alien",
+    "Vampire"
+  ],
+  "categories": [
+    "eyebrows",
+    "skin_details",
+    "earrings"
+  ],
+  "all195_owners_compared": true,
+  "other193_unchanged": true,
+  "save_files_unchanged": true,
+  "cas_accept_submitted": false,
+  "save_submitted": false,
+  "production_ready": false,
+  "scope": "actual-third-household-member-Alien-Vampire-Alien",
+  "source_proof_sha256": "016ec281f22ede6cbbada0851615261c6d1ec94404c046325d64f4bf97fc5600",
+  "edits": [
+    {
+      "base_data_id": "320731",
+      "data_id": "320731",
+      "kind": 2,
+      "owner_id": "native/2",
+      "panel": "eyebrows",
+      "selected_readback_verified": true
+    },
+    {
+      "base_data_id": "268894",
+      "data_id": "268894",
+      "kind": 2,
+      "owner_id": "native/2",
+      "panel": "skin_details",
+      "selected_readback_verified": true
+    },
+    {
+      "base_data_id": "110006",
+      "data_id": "110007",
+      "kind": 2,
+      "owner_id": "native/2",
+      "panel": "earrings",
+      "selected_readback_verified": true
+    },
+    {
+      "base_data_id": "320731",
+      "data_id": "320724",
+      "kind": 4,
+      "owner_id": "native/4",
+      "panel": "eyebrows",
+      "selected_readback_verified": true
+    },
+    {
+      "base_data_id": "268894",
+      "data_id": "268894",
+      "kind": 4,
+      "owner_id": "native/4",
+      "panel": "skin_details",
+      "selected_readback_verified": true
+    },
+    {
+      "base_data_id": "110006",
+      "data_id": "110008",
+      "kind": 4,
+      "owner_id": "native/4",
+      "panel": "earrings",
+      "selected_readback_verified": true
+    }
+  ],
+  "visits": [
+    {
+      "all_three_categories_retained": true,
+      "kind": 2,
+      "owner_id": "native/2"
+    },
+    {
+      "all_three_categories_retained": true,
+      "kind": 4,
+      "owner_id": "native/4"
+    },
+    {
+      "all_three_categories_retained": true,
+      "kind": 2,
+      "owner_id": "native/2"
+    }
+  ],
+  "changes": [
+    {
+      "fields": [
+        "__outfits__",
+        "genetic_data"
+      ],
+      "owner_id": "native/2",
+      "sim_id": "349336084686110947"
+    },
+    {
+      "fields": [
+        "__outfits__",
+        "genetic_data"
+      ],
+      "owner_id": "native/4",
+      "sim_id": "349336084686110947"
+    }
+  ],
+  "limitations": [
+    "Three categories on this member; CAS return, other categories, save/cold load and Tray/Gallery remain separate gates."
+  ]
+}

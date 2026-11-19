@@ -1,0 +1,99 @@
+{
+  "all_category_edits_qualified": false,
+  "build_epoch": "2026-10-16-native-cas-current-owner-sync-v167",
+  "bundle_sha256": "10f25b7382ee324acf95925f3f4b6f92c30ae5804c0d9e7f8c5bd6a74aeb22cd",
+  "cas_accept_submitted": false,
+  "cold_edited_reload_qualified": false,
+  "dll_sha256": "e01f474559885a4965d680644ed5a3454cfa370d6c89cfbfa4846aa34363b6a4",
+  "gameplay_roles_qualified": false,
+  "named_owner_persistence_qualified": false,
+  "native_source_commit": "50de85f",
+  "production_ready": false,
+  "runtime_cases": {
+    "edited_owner_revisit": {
+      "complete_native_fields_verified": false,
+      "cycles": 2,
+      "differences": 0,
+      "distinct_observed_physique_values": 71,
+      "families": [
+        "alien",
+        "fairy",
+        "ghost",
+        "human",
+        "imaginary_friend",
+        "mermaid",
+        "plantsim",
+        "reaper",
+        "scarecrow",
+        "servo",
+        "skeleton",
+        "vampire",
+        "werewolf",
+        "witch"
+      ],
+      "members": 5,
+      "native_kinds": [
+        1,
+        2,
+        4,
+        8,
+        16,
+        32,
+        64
+      ],
+      "ok": true,
+      "owners": 71,
+      "proof_sha256": "3cd6be3d6da78ce6151a10807794add3cf9d549d233c7a71fde84858c971df91",
+      "scope": "All returned CAS Sim fields, equipped panels, planned outfits and hair readbacks.",
+      "visits": 142
+    },
+    "fairy_cross_kind_complete_snapshot": {
+      "export_points": 5,
+      "identical_native_bytes": true,
+      "native_snapshot_sha256": "8f5776a83de19f7d7e31151e1dbf39ee24736c181bc22b12639024dcbd80121a",
+      "ok": true,
+      "steps": [
+        "Fairy",
+        "Werewolf",
+        "Alien",
+        "Vampire",
+        "Fairy",
+        "same-owner synchronization"
+      ]
+    },
+    "household_navigation": {
+      "members": 5,
+      "ok": true,
+      "returned_to_first": true
+    },
+    "panel_preview": {
+      "appearance_edits_submitted": false,
+      "failed_panel": "clothing_body_tattoos",
+      "ok": false,
+      "outfit_parts_after": 15,
+      "outfit_parts_before": 20,
+      "passed_panels": [
+        "clothing_head_skin_details",
+        "clothing_body_skin_details"
+      ],
+      "proof_sha256": "1b4c073884d6f800c215ed88429f55cb1617a7b92c9bb073c4269529850bf697"
+    },
+    "unchanged_cold_originals": {
+      "appearance_owners": 40,
+      "ok": true,
+      "proof_sha256": "db2be4c760f0435e129e45fca4c4374d752f81484ecc53e86b0f69a0887b9bea"
+    }
+  },
+  "save_submitted": false,
+  "schema": 1,
+  "script_sha256": "d8fda06df3a7f9d10c1feb66e0d5436ec40905d193ce56c13678b3140996b482",
+  "tests": {
+    "cas_suite": 893,
+    "epoch_migration": 31,
+    "export_seal": 33,
+    "matrix_tool": 5,
+    "native_ctest_targets": 9,
+    "workbench_owner_context": 16
+  },
+  "tray_gallery_roundtrip_qualified": false
+}

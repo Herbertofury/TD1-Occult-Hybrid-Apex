@@ -1,0 +1,31 @@
+{
+  "candidate_epoch": "2026-10-24-undo-history-trace-v298",
+  "candidate_sha256": "bf6d6008876b72e4aa80db77cbafec4247d1cd08aac92d9e10e087d31940ec75",
+  "diagnostic": {
+    "appearance_written": false,
+    "bounded_game_frames_per_call": 8,
+    "bounded_recent_calls": 16,
+    "disabled_by_default": true,
+    "disabled_when_scope_retires_or_arms": true,
+    "explicit_active_cas_scope_required": true,
+    "normal_path_has_no_stack_capture_or_file_io": true,
+    "worker_or_polling_added": false
+  },
+  "functional_undo_fix_implemented": false,
+  "problem": "Two native Undos restore the Human hair outfit but regenerate its inherited hair from 277692 to 306960. Two native Redos restore the exact edited Human.",
+  "production_ready": false,
+  "protected_original_written": false,
+  "remaining": [
+    "Qualify the saved edited household cold load.",
+    "Use explicit scoped tracing to identify the actual native Undo call path, then implement and retest the narrow functional fix.",
+    "Qualify the retained V297 palette/member input fixes in the matching loaded build."
+  ],
+  "schema": 1,
+  "validation": {
+    "compiled_python37_modules": 108,
+    "independently_rust_validated_resources": 275,
+    "matching_runtime_qualified": false,
+    "native_control_python_tests_passed": 11,
+    "native_ctest_targets_passed": 17
+  }
+}

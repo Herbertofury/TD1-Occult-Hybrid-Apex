@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-cas-pair-presentation-v293",
+  "candidate_sha256": "1b26fceb3467264c3dfb2eb50fd3c98d41b35c53fbd85584bfc50354aa58ef0d",
+  "production_ready": false,
+  "problem": "A typed CAS form selection can acknowledge its correctly bound native owner before the retained EA link/copy panel and displayed UI context have refreshed.",
+  "change": {
+    "same_pair_refresh_for_strip_and_typed_selection": true,
+    "fresh_sim_owner_generation_checked_after_panel_refresh": true,
+    "presentation_required_before_typed_owner_ack": true,
+    "second_native_form_bind": false,
+    "appearance_copy_added": false,
+    "polling_timer_added": false,
+    "native_ea_category_panel_retained": true,
+    "native_game_and_mod_cleanup_exceptions_preserved": true,
+    "post_cleanup_retired_actor_does_not_break_completed_interaction": true
+  },
+  "build_validation": {
+    "compiled_python37_modules": 108,
+    "packages": 7,
+    "independently_rust_validated_resources": 275,
+    "serialized_pair_refresh_checks": true,
+    "unreviewed_bytecode_trait_refused_before_rebuild": true,
+    "retained_native_and_donor_method_checks": true,
+    "form_owner_tests": 16,
+    "pair_control_tests": 7,
+    "source_pin_tests": 6,
+    "live_presentation_tests": 10,
+    "seal_tests": 26,
+    "projection_cache_tests": 4
+    ,"serialized_owner_metadata_mutation_tests": 39,
+    "serialized_form_selection_mutation_tests": 39
+  },
+  "runtime_qualification": {
+    "matching_candidate_loaded": false,
+    "actual_typed_selection_and_native_panel_together": false,
+    "all_forms_all_members": false,
+    "zero_to_one_ms_switching_qualified": false
+  },
+  "related_v292_observation": {
+    "one_actual_strip_click_queue_to_bound_owner_ms": 31,
+    "same_click_native_view_bind_ms": 16.9442,
+    "native_fairy_dark_fairy_stable_after_24_seconds_each": true,
+    "complete_household_native_appearance_fields_retained": true,
+    "actual_ea_wing_card_colors_visible_after_vampire_round_trip": true,
+    "native_cli_wing_write_quarantine_retained": true,
+    "all_form_transition_matrix_in_progress": true
+  },
+  "protected_original_written": false,
+  "release_gates": [
+    "Load matching V293 and qualify typed selection plus EA pair panel on actual native and named forms.",
+    "Complete directed native transitions and all exposed alternate appearances across the household.",
+    "Measure actual member-change setup separately from same-member strip clicks and EA transformation animation.",
+    "Complete native swatch/paint persistence, the remaining literal Companion UI features, edited save/Tray cycles and the release checklist."
+  ]
+}

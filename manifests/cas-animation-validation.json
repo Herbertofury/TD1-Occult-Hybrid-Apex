@@ -1,0 +1,101 @@
+{
+  "artifacts": {
+    "bundle_sha256": "5a2c02a2b97471bfbc1dbc7919210cbc48ec8a0b2634a725931d43467cdd0a2d",
+    "dll_sha256": "2fe6bf0b2fdb84f640ed8dd16f0288a7870d6e8d6f50650f8a78ea87e7162450",
+    "script_sha256": "1d57fa6f3b53a18e479ee9ebd6bc8176c8895a7255a9b27b09b04839bb101423"
+  },
+  "build_epoch": "2026-10-18-cas-actor-construction-isolation-v207",
+  "evidence": [
+    {
+      "path": ".work/native-cas-v207-first-preview-animation.json",
+      "sha256": "6a0a44c6e1431046a4bd932c5ef6ae883d3c8dce1fbf0e37cf871a2b85a119cb"
+    },
+    {
+      "path": ".work/native-cas-v207-animation-isolation.json",
+      "sha256": "b7bed4491eb217b2a0dc95d30da5bcf7ab92480b12d7f7d1b1f4632446545bfc"
+    },
+    {
+      "path": ".work/native-cas-v207-animation-all195-retention.json",
+      "sha256": "1e44546b79b2b178e48bb6efa4f70e247b18162d4e22025265e85631a6f5b3b3"
+    },
+    {
+      "path": ".work/native-cas-v207-second-member-category-saved-reload-all40.json",
+      "sha256": "6cea5e33d988eefa86b49c86f80bccf9d1cb1b27288d8fc529ea1805cfd40b75"
+    },
+    {
+      "path": ".work/native-cas-v205-animation-r2-isolation-r2.json",
+      "sha256": "4f251b650528490e4887e66e8d6fb82886ee5cdc312357c70d4c7d2dc0dccb28"
+    },
+    {
+      "path": ".work/native-cas-v205-animation-all195-retention.json",
+      "sha256": "db5da69f3c64a340ae761f41bccc5a242b179b4e085a1c75daaa23434ac84126"
+    },
+    {
+      "path": ".work/native-cas-v206-first-preview-animation.json",
+      "sha256": "42c313222a15bd77167f554ee68350ee3a76cb993e20a4eedeb25bdc42cdd13c"
+    }
+  ],
+  "local_checks": {
+    "form_bank_seal_tests": 23,
+    "native_targets": 12,
+    "script_upgrade_tests": 26
+  },
+  "production_ready": false,
+  "release_blockers": [
+    "Direct CAS-exit Human paint isolation",
+    "EA category checkbox link/copy panel and selective isolation/undo",
+    "Complete category/member, MCCC and mod compatibility qualification",
+    "Household Tray/Gallery round trips",
+    "Special-state gameplay and performance qualification"
+  ],
+  "runtime": {
+    "appearance_edit_submitted": false,
+    "first_cas_entry": {
+      "animation_mask": 2,
+      "form_switch_submitted": false,
+      "owned_mask": 127,
+      "selected_genus": 2,
+      "source": "exact-cas-preview-construction",
+      "verified": true,
+      "werewolf_animation": false
+    },
+    "original_profile_written": false,
+    "prior_failed_startup_checks_retained": [
+      "V205",
+      "V206"
+    ],
+    "save_submitted": false,
+    "v205_switch_matrix": {
+      "all195_fields_retained": true,
+      "members": 5,
+      "native_genera": 7,
+      "verified": true,
+      "visits": 37
+    },
+    "v207_after_matrix": {
+      "all_fields_retained": true,
+      "changed_owners": 0,
+      "owners_checked": 195,
+      "save_files_unchanged": true
+    },
+    "v207_cold_load": {
+      "final_paused_before_cas": true,
+      "named_documents": 5,
+      "native_appearances": 40,
+      "save_and_ledger_unchanged": true,
+      "simulation_progress_ticks": 731
+    },
+    "v207_matrix": {
+      "members": 5,
+      "native_genera": 7,
+      "scope": "Initial CAS entry on the first Sim; other members checked after selecting their original occult owner.",
+      "verified": true,
+      "visits": 13,
+      "werewolf_animation_only_on_werewolf": true
+    }
+  },
+  "schema": 1,
+  "scope": "CAS preview animation isolation only",
+  "supported_executable_sha256": "916b852b187b9c41b9c2d77af55e0d5ed6aaf06909661397d7aa98f2e4db78ab",
+  "supported_game_version": "1.128.90.1030"
+}

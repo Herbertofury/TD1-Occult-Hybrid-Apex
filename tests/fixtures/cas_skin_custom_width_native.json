@@ -1,0 +1,137 @@
+{
+  "provenance": {
+    "donor_package_sha256": "054ca6a189a587063290df004a42072c5381e59404d33e58ddb737ab821cf9c3",
+    "donor_native_method_code_sha256": "31c3a74c47a66e24be6c579c62d81d6c4507c6926d904bad0020cce1e930b1b7",
+    "actual_receipt_sha256": "aa332bb985d7c6a6f00774f94a6c281b5f0223dd8a135f7771dd4bf8a7f66831",
+    "nested_width_rule": "ApexSkinToneApply passes card_layout.width - 40; nested width is derived, not an observed receipt field",
+    "runtime_fixed_claimed": false
+  },
+  "native_methods": {
+    "SetWidth": "public function SetWidth(param1:Number) : void\n      {\n         if(this.mSwatchType == CASSwatchType.SKINTONE)\n         {\n            this.dccSkinLayoutWidth = param1;\n            this.DCCReflowSkinSwatches();\n            return;\n         }\n         var _loc2_:Number = NaN;\n         var _loc3_:Number = NaN;\n         if(this.mbPreserveBackgroundWidth)\n         {\n            _loc2_ = this.mCenterX * 2;\n            _loc3_ = _loc2_ - this.mcSelectionGridBackground.width;\n            this.mcSelectionGridBackground.width = param1 - _loc3_;\n         }\n         this.mCenterX = param1 * 0.5;\n         this.ResetLayout();\n      }",
+    "ResetLayout": "protected function ResetLayout() : void\n      {\n         if(this.mSwatchType == CASSwatchType.SKINTONE)\n         {\n            this.DCCReflowSkinSwatches();\n            return;\n         }\n         var _loc8_:* = undefined;\n         var _loc1_:SelectionGrid = this.mcSelectionGrid;\n         var _loc2_:GridLayout = this.mGrid;\n         var _loc3_:int = this.mDataFeed.length;\n         var _loc4_:int = Math.max(1,Math.ceil(_loc3_ / this.mMaxCols));\n         var _loc5_:Number = _loc2_.GetCellBounds().width + _loc2_.GetCellPadding().Horizontal;\n         var _loc6_:Number = Math.min(_loc3_,this.mMaxCols) * _loc5_ + CASTunables.SWATCH_PANEL_SCROLLING_LIST_MARGINS.Horizontal;\n         var _loc7_:Number = _loc2_.GetCellBounds().height + _loc2_.GetCellPadding().Vertical;\n         _loc8_ = CASTunables.SWATCH_PANEL_SCROLLING_LIST_MARGINS.Vertical + _loc7_ * _loc4_;\n         if(this.mbCenterSwatches)\n         {\n            _loc1_.x = this.mCenterX - _loc6_ * 0.5;\n         }\n         var _loc9_:MovieClip = this.mcSelectionGridBackground;\n         _loc9_.y = _loc1_.y - CASTunables.SWATCH_PANEL_BACKGROUND_PADDING;\n         if(this.mbPreserveBackgroundWidth)\n         {\n            _loc9_.x = this.mCenterX - _loc9_.width * 0.5;\n         }\n         else\n         {\n            _loc9_.x = _loc1_.x - CASTunables.SWATCH_PANEL_BACKGROUND_PADDING;\n            _loc9_.width = _loc6_ + 2 * CASTunables.SWATCH_PANEL_BACKGROUND_PADDING;\n         }\n         _loc9_.y = _loc1_.y - CASTunables.SWATCH_PANEL_BACKGROUND_PADDING;\n         _loc9_.height = _loc8_ + 2 * CASTunables.SWATCH_PANEL_BACKGROUND_PADDING;\n         this.cbMatchHairColor.x = this.mCenterX - this.cbMatchHairColor.textWidth * 0.5 - 10;\n         var _loc12_:ScrollList = this.mcScrollList;\n         _loc12_.width = CASCustomizerMain.modded_catalog_width - 44;\n         var _loc13_:Rectangle = _loc12_.ComputeLayoutBounds();\n         _loc12_.height = Math.min(_loc13_.height,220);\n         _loc9_.height = _loc12_.height + 2 * CASTunables.SWATCH_PANEL_BACKGROUND_PADDING;\n         _loc12_.x = _loc1_.x;\n         _loc12_.y = _loc1_.y;\n         if(this.mSwatchType == CASSwatchType.SKINTONE)\n         {\n            _loc12_.y = 0;\n         }\n         _loc12_.width = CASCustomizerMain.modded_catalog_width - 44;\n      }",
+    "DCCReflowSkinSwatches": "public function DCCReflowSkinSwatches() : void\n      {\n         if(this.mGrid)\n         {\n            var _loc1_:Number = this.dccSkinLayoutWidth;\n            if(_loc1_ <= 0)\n            {\n               _loc1_ = this.mcSelectionGridBackground.width;\n            }\n            var _loc2_:Number = CASTunables.SWATCH_PANEL_BACKGROUND_PADDING;\n            var _loc3_:Number = Math.max(1,_loc1_ - _loc2_ * 2);\n            var _loc4_:Rectangle = this.mGrid.GetCellBounds();\n            var _loc5_:Margin = this.mGrid.GetCellPadding();\n            var _loc6_:Number = _loc4_.width + _loc5_.Horizontal;\n            if(_loc6_ > 0)\n            {\n               var _loc7_:int = Math.max(1,Math.floor(_loc3_ / _loc6_));\n               this.mMaxCols = _loc7_;\n               this.mGrid.NumLines = _loc7_;\n               this.mCenterX = _loc1_ * 0.5;\n               this.mcScrollList.width = _loc3_;\n               this.mcScrollList.x = _loc2_;\n               this.mcSelectionGrid.x = _loc2_;\n               this.mcScrollList.y = 0;\n               this.mcSelectionGrid.y = 0;\n               this.mGrid.PositionCells();\n               var _loc8_:Number = Math.max(1,Math.ceil(this.mDataFeed.length / _loc7_)) * (_loc4_.height + _loc5_.Vertical) + CASTunables.SWATCH_PANEL_SCROLLING_LIST_MARGINS.Vertical;\n               this.mcScrollList.height = _loc8_;\n               this.mcSelectionGridBackground.width = _loc1_;\n               this.mcSelectionGridBackground.x = 0;\n               this.mcSelectionGridBackground.y = -_loc2_;\n               this.mcSelectionGridBackground.height = _loc8_ + _loc2_ * 2;\n            }\n         }\n      }"
+  },
+  "workspace": {
+    "preferences": {
+      "animation": "none",
+      "border": 3,
+      "color": 51691,
+      "columns": 12,
+      "glow": 0,
+      "period": 1.4,
+      "strength": 1
+    },
+    "card_preferences": {
+      "gap_x": 4,
+      "gap_y": 4,
+      "scale": 0.35
+    },
+    "card_layout": {
+      "available_width": 537.3775390625,
+      "card_height": 7.7000237346427,
+      "card_width": 7.700149622486647,
+      "columns": 12,
+      "columns_fit": true,
+      "gap_x": 4,
+      "gap_x_fitted": false,
+      "gap_y": 4,
+      "pitch_x": 11.70014962248665,
+      "pitch_y": 11.70002373464271,
+      "requested_columns": 12,
+      "requested_gap_x": 4,
+      "requested_scale": 0.35,
+      "right_growth": true,
+      "scale": 0.35,
+      "size_fitted": false,
+      "width": 537.3775390625
+    },
+    "grid_metrics": {
+      "dimension_scope": "first-nested-skin-family",
+      "dimensions": [
+        22,
+        0
+      ],
+      "gap_x": 0,
+      "gap_y": 0,
+      "grid_view_width": 537.4,
+      "horizontal": true,
+      "layout_height": 0,
+      "layout_width": 0,
+      "native_grid_provider": "unidentified",
+      "outer_family_dimensions": [
+        1,
+        4
+      ],
+      "physical_cell_count": 9,
+      "row_reflow_attempts": 0,
+      "scroll_list_height": 1166.7,
+      "scroll_list_width": 537.4,
+      "scroll_mask": {
+        "height": 1166.699951171875,
+        "width": 537.39990234375,
+        "x": 1484.700073242188,
+        "y": 144.3000030517578
+      },
+      "scroll_view_height": 1166.7,
+      "scroll_view_width": 537.4,
+      "scrollbar": {
+        "height": 1166.699951171875,
+        "local_x": 531.9,
+        "max": 0,
+        "min": 0,
+        "mouse_enabled": true,
+        "value": 0,
+        "visible": true,
+        "width": 13.0074462890625,
+        "x": 2015.550048828125,
+        "y": 144.3000030517578
+      },
+      "swatch_families": [
+        {
+          "dimensions": [
+            22,
+            0
+          ],
+          "gap_x": 0,
+          "gap_y": 0,
+          "layout_height": 0,
+          "layout_width": 0,
+          "physical_cell_count": 0
+        },
+        {
+          "dimensions": [
+            22,
+            0
+          ],
+          "gap_x": 0,
+          "gap_y": 0,
+          "layout_height": 0,
+          "layout_width": 0,
+          "physical_cell_count": 0
+        },
+        {
+          "dimensions": [
+            22,
+            0
+          ],
+          "gap_x": 0,
+          "gap_y": 0,
+          "layout_height": 0,
+          "layout_width": 0,
+          "physical_cell_count": 0
+        },
+        {
+          "dimensions": [
+            41,
+            1
+          ],
+          "gap_x": 4,
+          "gap_y": 4,
+          "layout_height": 11.70000028610229,
+          "layout_width": 105.3000030517578,
+          "physical_cell_count": 9
+        }
+      ]
+    }
+  }
+}

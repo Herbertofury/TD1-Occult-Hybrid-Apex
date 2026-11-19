@@ -1,0 +1,41 @@
+---
+description: Player-focused judgment, independent hybrid forms and compatible native CAS behavior
+alwaysApply: true
+---
+
+# Build hybrids the player can enjoy
+
+- Use self-agency and common sense throughout Apex development and QA. Consider
+  how someone would actually create, edit and play a hybrid household. Resolve
+  routine choices autonomously within the owner's authorized scope.
+- Improve obvious friction with useful, coherent quality-of-life behavior:
+  clear selection, relevant icons, compact native-looking controls, explicit
+  copy direction, previews, undo and sensible defaults. Avoid duplicate choices
+  and complexity that does not help the player.
+- Keep exactly one shared Human appearance per Sim. Preserve each occult and
+  genuine alternate appearance independently; keep other household Sims isolated.
+- Preserve EA's existing form-specific portrait arrangement and behavior,
+  especially Alien's. Add missing linking and copying to that arrangement.
+- For a form WITHOUT a paired portrait interface, implement an EA-style pair:
+  its own occult/special-form portrait above the shared Human below, with full
+  Link/Unlink and directional whole/partial Copy support.
+- Reuse the portrait interaction pattern without giving another form Vampire
+  data, identity, traits or gameplay. Ghost/Human and Imaginary Friend/Human
+  remain their own pairs. Selection must target the actual named form, not a
+  Vampire substitute or a shared merged appearance.
+- Never propagate edits outside the explicitly configured link or copy scope.
+  Unlinking stops subsequent propagation; copying affects only its chosen
+  destination and included details. Preserve gameplay identity and progression.
+- Study the actual code path and exercise the real UI. Correct destructive
+  behavior while retaining the permanent preservation guard. Prefer narrowly
+  scoped, patch-aware changes; account for other mods using the same resources
+  or hooks, and diagnose conflicts without silently overriding their behavior.
+- Protect saves, CC and other mods. The owner's original profile remains
+  read/copy-only; test in the single disposable profile. Do not trade data
+  preservation or compatibility for a shortcut or an unverified feature claim.
+- QA visibly distinct edits, every supported category, repeated actual-form
+  switches, link/unlink/copy isolation, multi-Sim edits, CAS/Live/MCCC/F11,
+  save/cold-load and Tray/Gallery round trips. Unpause where required. Check
+  responsiveness and relevant mod compatibility. Fixture passes and duplicate
+  record counts do not establish player-visible success or production readiness.
+- Follow docs/CAS_SHARED_HUMAN_REQUIREMENTS.md and keep failed/unproved gates open.

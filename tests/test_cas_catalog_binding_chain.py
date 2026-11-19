@@ -1,0 +1,310 @@
+"""Complete Main binding continuation and package admission; no compiler calls."""
+import copy
+import json
+from pathlib import Path
+import sys
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(ROOT / 'tools'), str(ROOT / 'tests')]
+import cas_catalog_binding as binding
+import cas_cell_attach as attach
+import cas_communication_index as communication
+import cas_ui_build as ui
+import dbpf_build
+import maru_companion
+import cas_draw_phase as phase
+import cas_grid_scroll as scroll
+import cas_grid_slice as grid_slice
+import cas_grid_budget as budget
+import cas_grid_featured as featured
+import cas_swatch_columns as skin
+import cas_grid_row_delta as row_delta
+import cas_grid_staging_attach as staging_attach
+import cas_grid_publication as publication
+from cas_main_chain_fixtures import READY, current_main, rollback_terminal_main, TERMINAL_MAIN_MARKERS
+
+KEY = maru_companion.CUSTOMIZER
+TEXT = dbpf_build.tgi(KEY)
+
+
+def fixture():
+    return current_main('binding')[:2]
+
+
+def baseline_fixture():
+    return current_main('binding')[2]
+
+
+def refresh(record):
+    record['previous_stage_sha256'] = communication.contract_digest(record['previous_stage_contract'])
+    record['catalog_binding_contract']['previous_stage_sha256'] = record['previous_stage_sha256']
+    record['postproof_sha256'] = communication.contract_digest(record['catalog_binding_contract'])
+
+
+def historical_binding_fixture(info, resources):
+    """Remove the later diagnostic with its exact bytes and unique tool pins."""
+    rollback_terminal_main(info,resources)
+    record = info.pop('draw_phase_native_bytecode_contract', None)
+    if record is not None:
+        assert phase.verify_contract(record, resources[KEY])
+        assert record['previous_stage_contract'] == info['catalog_binding_native_bytecode_contract']
+        resources[KEY] = phase.reconstruct_previous(resources[KEY], record['draw_phase_contract'])
+    for source in phase.SOURCES[:2]:
+        info['source_pins'].pop(source, None)
+    info['patched_resource_sha256'] = info['patched_resources'][TEXT] = binding.digest(resources[KEY])
+    return info, resources
+
+
+def install_fixture(info, resources):
+    historical_binding_fixture(info, resources)
+    record, final = fixture()
+    previous = record['previous_stage_contract']
+    info.update(copy.deepcopy(previous['previous_chain']))
+    for proof in previous['previous_chain'].values():
+        info['source_pins'].update(proof.get('source_sha256', {}))
+    info['cell_attach_native_bytecode_contract'] = copy.deepcopy(previous)
+    info['catalog_binding_native_bytecode_contract'] = copy.deepcopy(record)
+    info['source_pins'].update(previous['cell_attach_contract']['source_sha256'])
+    info['source_pins'].update(record['catalog_binding_contract']['source_sha256'])
+    resources[KEY] = final
+    info['patched_resource_sha256'] = info['patched_resources'][TEXT] = binding.digest(final)
+    return info, resources
+
+
+def historical_attach_fixture(info, resources):
+    historical_binding_fixture(info, resources)
+    record = info.pop('catalog_binding_native_bytecode_contract')
+    final = resources[KEY]
+    assert binding.verify_contract(record, final)
+    assert record['previous_stage_contract'] == info['cell_attach_native_bytecode_contract']
+    resources[KEY] = binding.reconstruct_previous(final, record['catalog_binding_contract'])
+    for source in binding.SOURCES[:2]:
+        info['source_pins'].pop(source, None)
+    info['patched_resource_sha256'] = info['patched_resources'][TEXT] = binding.digest(resources[KEY])
+    return info, resources
+
+
+@unittest.skipUnless(READY, 'Frozen complete binding continuation required')
+class BindingContinuationTests(unittest.TestCase):
+    def test_exact_main_history_reconstructs_its_complete_prior_and_retains_honest_counts(self):
+        record, final = fixture()
+        self.assertTrue(binding.verify_contract(record, final))
+        previous = record['previous_stage_contract']
+        before = binding.reconstruct_previous(final, record['catalog_binding_contract'])
+        self.assertEqual(before, baseline_fixture())
+        self.assertTrue(attach.verify_contract(previous, before))
+        self.assertNotEqual(binding.digest(final), previous['final_swf_sha256'])
+        proof = record['catalog_binding_contract']
+        self.assertEqual(tuple(proof[name] for name in ('changed_native_bodies', 'replaced_owned_bodies',
+                         'appended_methods', 'appended_fields')), (1, 1, 2, 0))
+        self.assertIs(proof['runtime_qualified'], False)
+        self.assertIs(proof['performance_gain_claimed'], False)
+        for source in binding.SOURCES[:2]:
+            self.assertIn(source, ui.source_pins())
+
+    def test_rehashed_counts_sources_native_authority_and_runtime_claims_cannot_be_forged(self):
+        record, final = fixture()
+        changes = [('ok', 1), ('phase', 'different'), ('changed_native_bodies', True),
+                   ('changed_native_bodies', 0), ('replaced_owned_bodies', True), ('replaced_owned_bodies', 2),
+                   ('appended_methods', 1), ('appended_fields', False), ('appended_fields', 1),
+                   ('native_first_bind_only_verified', False), ('other_four_binds_retained', 1),
+                   ('native_binding_body_retained', False), ('native_cfg_projection_verified', False),
+                   ('listener_insertion_order_verified', False), ('exact_dispatch_payload_verified', False),
+                   ('protected_namespace_bindings_verified', False), ('whole_abc_rollback_verified', False),
+                   ('all_other_bodies_retained', False), ('runtime_qualified', True),
+                   ('performance_gain_claimed', True), ('baseline_swf_sha256', '0' * 64),
+                   ('baseline_abc_sha256', '0' * 64), ('baseline_native_align_sha256', '0' * 64),
+                   ('native_bind_sha256', '0' * 64), ('abc_sha256', '0' * 64),
+                   ('helper_source_sha256', '0' * 64)]
+        for name, value in changes:
+            changed = copy.deepcopy(record)
+            changed['catalog_binding_contract'][name] = value
+            refresh(changed)
+            with self.subTest(field=name, value=value), self.assertRaises(ValueError):
+                binding.verify_contract(changed, final)
+        for source in binding.SOURCES:
+            changed = copy.deepcopy(record)
+            changed['catalog_binding_contract']['source_sha256'][source] = '0' * 64
+            refresh(changed)
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                binding.verify_contract(changed, final)
+
+    def test_final_byte_substitution_and_rehashed_complete_history_corruption_are_refused(self):
+        record, final = fixture()
+        for value in (baseline_fixture(), final + b'changed'):
+            with self.subTest(payload=binding.digest(value)), self.assertRaises(ValueError):
+                binding.verify_contract(record, value)
+        for stage, field in [('native_bytecode_contract', 'native_method_count'),
+                             ('structural_roles_native_bytecode_contract', 'main_and_height_preserved'),
+                             ('draw_fast_path_native_bytecode_contract', 'disabled_callback_reads')]:
+            changed = copy.deepcopy(record)
+            previous = changed['previous_stage_contract']
+            previous['previous_chain'][stage][field] = 0
+            previous['previous_chain_sha256'] = communication.contract_digest(previous['previous_chain'])
+            previous['cell_attach_contract']['previous_chain_sha256'] = previous['previous_chain_sha256']
+            previous['postproof_sha256'] = communication.contract_digest(previous['cell_attach_contract'])
+            refresh(changed)
+            with self.subTest(stage=stage), self.assertRaises(ValueError):
+                binding.verify_contract(changed, final)
+
+
+@unittest.skipUnless(READY and (ROOT / 'dist/candidate/ApexCASBridge.package').is_file(), 'Private merged package required')
+class BindingManifestTests(unittest.TestCase):
+    def setUp(self):
+        package = ROOT / 'dist/candidate/ApexCASBridge.package'
+        self.info = json.loads(Path(str(package) + '.manifest.json').read_text())
+        self.resources = dbpf_build.read(package.read_bytes())
+        install_fixture(self.info, self.resources)
+
+    def test_terminal_history_is_raw_rolled_back_with_only_its_unique_markers(self):
+        package=ROOT/'dist/candidate/ApexCASBridge.package'
+        info=json.loads(Path(str(package)+'.manifest.json').read_text())
+        resources=dbpf_build.read(package.read_bytes())
+        pins=dict(info['source_pins'])
+        native=copy.deepcopy(info['native_bytecode_contract'])
+        rollback_terminal_main(info,resources)
+        self.assertEqual(resources[KEY],current_main('phase')[1])
+        self.assertEqual(info['native_bytecode_contract'],native)
+        for envelope,markers in TERMINAL_MAIN_MARKERS.items():
+            self.assertNotIn(envelope,info)
+            for source in markers:self.assertNotIn(source,info['source_pins'])
+        for source in ('tools/cas_catalog_binding.py','tools/cas_cell_attach.py',
+                       'tools/CasStructuralRolesPatch.java','tools/CasCommunicationIndexPatch.java'):
+            self.assertEqual(info['source_pins'][source],pins[source])
+        snapshot=copy.deepcopy(info);before=resources[KEY]
+        rollback_terminal_main(info,resources)
+        self.assertEqual(info,snapshot);self.assertEqual(resources[KEY],before)
+
+    def test_terminal_fixture_downgrade_or_corruption_refuses_before_mutation(self):
+        package=ROOT/'dist/candidate/ApexCASBridge.package'
+        original=json.loads(Path(str(package)+'.manifest.json').read_text())
+        original_resources=dbpf_build.read(package.read_bytes());raw=original_resources[KEY]
+        for change in ('missing-row-delta','missing-row-delta-source','wrong-row-delta-history',
+                       'missing-row-delta-adapter','wrong-row-delta-bytes',
+                       'missing-preview','missing-swatch','missing-source','wrong-history','wrong-bytes',
+                       'missing-scroll','missing-scroll-source','missing-slice-source','missing-slice-adapter',
+                       'missing-scroll-adapter','wrong-scroll-history','wrong-slice-bytes',
+                       'missing-featured','missing-featured-source','missing-budget','missing-budget-source',
+                       'missing-featured-adapter','missing-budget-adapter','wrong-featured-history','wrong-budget-history',
+                       'missing-skin','missing-skin-source','wrong-skin-history','missing-skin-adapter','wrong-skin-kind',
+                       'missing-attach-source','missing-attach-adapter','wrong-attach-kind',
+                       'missing-publication','missing-publication-source','missing-publication-adapter','wrong-publication-history'):
+            info=copy.deepcopy(original);resources=dict(original_resources)
+            def provider_layer(contract):
+                adapter=info['grid_provider_adapters'][dbpf_build.tgi(maru_companion.GRID_LIBRARY)]
+                for _ in range(32):
+                    if not isinstance(adapter,dict):break
+                    if contract in adapter:return adapter
+                    adapter=adapter.get('previous_stage_adapter')
+                raise AssertionError('Current fixture lacks its required exact layer: '+contract)
+            if change=='missing-row-delta':info.pop('row_delta_main_native_bytecode_contract')
+            elif change=='missing-row-delta-source':info['source_pins'].pop(row_delta.SOURCES[0])
+            elif change=='wrong-row-delta-history':info['row_delta_main_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='missing-row-delta-adapter':provider_layer('row_delta_contract').pop('row_delta_contract')
+            elif change=='wrong-row-delta-bytes':resources[maru_companion.GRID_LIBRARY]+=b'corrupt-row-delta'
+            elif change=='missing-preview':info.pop('preview_transition_native_bytecode_contract')
+            elif change=='missing-swatch':info.pop('swatch_geometry_native_bytecode_contract')
+            elif change=='missing-source':info['source_pins'].pop('tools/cas_preview_transition.py')
+            elif change=='wrong-history':info['preview_transition_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='wrong-bytes':resources[KEY]=raw+b'corrupt'
+            elif change=='missing-scroll':info.pop('scroll_main_native_bytecode_contract')
+            elif change=='missing-scroll-source':info['source_pins'].pop(scroll.SOURCES[0])
+            elif change=='missing-slice-source':info['source_pins'].pop(grid_slice.SOURCES[0])
+            elif change=='missing-slice-adapter':
+                provider_layer('slice_contract').pop('slice_contract')
+            elif change=='missing-scroll-adapter':
+                provider_layer('scroll_contract').pop('scroll_contract')
+            elif change=='wrong-scroll-history':info['scroll_main_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='wrong-slice-bytes':resources[maru_companion.GRID_LIBRARY]+=b'corrupt'
+            elif change=='missing-featured':info.pop('featured_main_native_bytecode_contract')
+            elif change=='missing-featured-source':info['source_pins'].pop(featured.SOURCES[0])
+            elif change=='missing-budget':info.pop('budget_main_native_bytecode_contract')
+            elif change=='missing-budget-source':info['source_pins'].pop(budget.SOURCES[0])
+            elif change=='missing-featured-adapter':
+                provider_layer('featured_contract').pop('featured_contract')
+            elif change=='missing-budget-adapter':
+                provider_layer('budget_contract').pop('budget_contract')
+            elif change=='wrong-featured-history':info['featured_main_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='wrong-budget-history':info['budget_main_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='missing-skin':info.pop('swatch_columns_main_native_bytecode_contract')
+            elif change=='missing-skin-source':info['source_pins'].pop(skin.SOURCES[0])
+            elif change=='wrong-skin-history':info['swatch_columns_main_native_bytecode_contract']['previous_stage_contract']={}
+            elif change=='missing-skin-adapter':provider_layer('swatch_columns_contract').pop('swatch_columns_contract')
+            elif change=='wrong-skin-kind':provider_layer('swatch_columns_contract')['swatch_columns_contract']['previous_stage_kind']='featured-fixture'
+            elif change=='missing-attach-source':info['source_pins'].pop(staging_attach.SOURCES[0])
+            elif change=='missing-attach-adapter':provider_layer('staging_attach_contract').pop('staging_attach_contract')
+            elif change=='wrong-attach-kind':provider_layer('staging_attach_contract')['previous_stage_kind']='featured-fixture'
+            elif change=='missing-publication':info.pop('publication_trace_main_native_bytecode_contract')
+            elif change=='missing-publication-source':info['source_pins'].pop(publication.SOURCES[0])
+            elif change=='missing-publication-adapter':provider_layer('publication_trace_contract').pop('publication_trace_contract')
+            else:info['publication_trace_main_native_bytecode_contract']['previous_stage_contract']={}
+            snapshot=copy.deepcopy(info);before=dict(resources)
+            with self.subTest(change=change),self.assertRaises((AssertionError,ValueError)):
+                rollback_terminal_main(info,resources)
+            self.assertEqual(info,snapshot);self.assertEqual(resources,before)
+
+    def test_current_source_manifest_requires_exact_binding_history_and_actual_final_bytes(self):
+        self.assertTrue(maru_companion.verify_merged(self.info, self.resources))
+        record = self.info['catalog_binding_native_bytecode_contract']
+        self.assertEqual(record['previous_stage_contract'], self.info['cell_attach_native_bytecode_contract'])
+        self.assertEqual(binding.digest(self.resources[KEY]), record['final_swf_sha256'])
+        self.assertTrue(binding.verify_contract(record, self.resources[KEY]))
+
+    def test_missing_partial_or_all_binding_source_pins_and_missing_proof_are_refused(self):
+        for names in ((binding.SOURCES[0],), (binding.SOURCES[1],), binding.SOURCES[:2], binding.SOURCES):
+            changed = copy.deepcopy(self.info)
+            for name in names:
+                changed['source_pins'].pop(name, None)
+            with self.subTest(sources=names), self.assertRaises(ValueError):
+                maru_companion.verify_merged(changed, self.resources)
+        changed = copy.deepcopy(self.info)
+        changed.pop('catalog_binding_native_bytecode_contract')
+        with self.assertRaises(ValueError):
+            maru_companion.verify_merged(changed, self.resources)
+        for name in binding.SOURCES[:2]:
+            changed['source_pins'].pop(name, None)
+        # Stripping the marker and pins cannot make its altered bytes an old Main.
+        with self.assertRaises(ValueError):
+            maru_companion.verify_merged(changed, self.resources)
+
+    def test_retained_current_source_rejects_historical_bytes_and_independent_prior_relabelling(self):
+        changed, resources = copy.deepcopy(self.info), dict(self.resources)
+        historical_attach_fixture(changed, resources)
+        changed['source_pins'].update(self.info['catalog_binding_native_bytecode_contract']['catalog_binding_contract']['source_sha256'])
+        with self.assertRaises(ValueError):
+            maru_companion.verify_merged(changed, resources)
+        changed = copy.deepcopy(self.info)
+        changed['cell_attach_native_bytecode_contract']['previous_chain_sha256'] = '0' * 64
+        with self.assertRaises(ValueError):
+            maru_companion.verify_merged(changed, self.resources)
+        changed = copy.deepcopy(self.info)
+        del changed['cell_attach_native_bytecode_contract']
+        for source in attach.SOURCES[:2]:
+            changed['source_pins'].pop(source, None)
+        with self.assertRaises(ValueError):
+            maru_companion.verify_merged(changed, self.resources)
+
+    def test_rehashed_binding_claim_or_final_identity_cannot_enter_the_package(self):
+        changed = copy.deepcopy(self.info)
+        changed['catalog_binding_native_bytecode_contract']['catalog_binding_contract']['runtime_qualified'] = True
+        refresh(changed['catalog_binding_native_bytecode_contract'])
+        with self.assertRaises(ValueError):
+            maru_companion.verify_merged(changed, self.resources)
+        changed, resources = copy.deepcopy(self.info), dict(self.resources)
+        resources[KEY] = baseline_fixture()
+        changed['patched_resource_sha256'] = changed['patched_resources'][TEXT] = binding.digest(resources[KEY])
+        with self.assertRaises(ValueError):
+            maru_companion.verify_merged(changed, resources)
+
+    def test_explicit_historical_main_normalization_removes_only_binding_and_retains_full_attach(self):
+        historical_attach_fixture(self.info, self.resources)
+        self.assertNotIn('catalog_binding_native_bytecode_contract', self.info)
+        self.assertTrue(all(name not in self.info['source_pins'] for name in binding.SOURCES[:2]))
+        self.assertTrue(all(name in self.info['source_pins'] for name in binding.SOURCES[2:]))
+        self.assertTrue(attach.verify_contract(self.info['cell_attach_native_bytecode_contract'], self.resources[KEY]))
+        self.assertTrue(maru_companion.verify_merged(self.info, self.resources))
+
+
+if __name__ == '__main__':
+    unittest.main()

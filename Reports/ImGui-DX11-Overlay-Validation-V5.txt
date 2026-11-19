@@ -1,0 +1,28 @@
+Python AST syntax parse: OK
+TD1_OccultHybridApex.ts4script zip test: OK
+TD1_OccultHybridApex.ts4script entries: td1_occult_hybrid_apex.py
+TD1OccultNativeBridge.dll type: /mnt/data/apex_imgui_overlay_v5_work/TD1 Occult Hybrid Apex/Native/TD1OccultNativeBridge.dll: PE32+ executable for MS Windows 6.00 (DLL), x86-64, 2 sections
+TD1OccultNativeBridge.dll export count: 31
+Overlay helper exports present: TD1OverlayClampPollMs, TD1OverlayCommandSafeToPoll, TD1OverlayHiddenMode, TD1OverlayMaxLogLines, TD1OverlayNativeVersion, TD1OverlayPerfLevel, TD1OverlayProtocolHash, TD1OverlayProtocolVersion, TD1OverlayShouldPoll, TD1OverlayVirtualKeyF11
+Overlay source token VK_F11: OK
+Overlay source token ImGui_ImplDX11_RenderDrawData: OK
+Overlay source token D3D11CreateDeviceAndSwapChain: OK
+Overlay source token 127.0.0.1: OK
+Overlay source token /api/overlay/state: OK
+Overlay source token g_visible: OK
+Overlay source project compile status in this environment: NOT COMPILED - Windows SDK/DirectX import libraries are not available in the Linux sandbox; build scripts are included for Visual Studio x64.
+ImGui source imgui.cpp: OK
+ImGui source imgui.h: OK
+ImGui source backends/imgui_impl_dx11.cpp: OK
+ImGui source backends/imgui_impl_win32.cpp: OK
+ImGui source LICENSE.txt: OK
+Overlay robustness token HookFromDevice: OK
+Overlay robustness token CreateDummyWindow: OK
+Overlay robustness token IDXGIFactory: OK
+Overlay robustness token CreateSwapChain: OK
+Overlay robustness token D3D11CreateDevice returns and hooks from device: OK
+Overlay robustness token DisableThreadLibraryCalls(hInst): OK
+Overlay robustness token ExtractJsonValue: OK
+Local Python HTTP smoke test /api/overlay/capabilities: OK
+Local Python HTTP smoke test /api/overlay/state: OK
+Local Python HTTP smoke test /api/logs: OK

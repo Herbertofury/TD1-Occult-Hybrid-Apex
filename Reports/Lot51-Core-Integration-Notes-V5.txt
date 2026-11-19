@@ -1,0 +1,14 @@
+Lot51 Core Integration Notes - V5
+=================================
+
+This build does not bundle lot51_core.ts4script. Lot51's own GitHub README states that dependent mods should direct users to the current packaged Core Library rather than include a bundled copy, so Apex now detects Lot51 Core if installed and exposes its status through:
+
+- /api/diagnostics
+- /api/overlay/capabilities
+- /api/overlay/state
+
+The included detection is deliberately defensive. It imports lot51_core and probes optional modules like utils.log, utils.config, services.events, and events.zone without assuming exact APIs from a compiled .pyc package. If Lot51 changes, Apex should still load; diagnostics will simply report module_errors.
+
+Recommended user install:
+- Keep TD1 Occult Hybrid Apex in Mods/TD1 Occult Hybrid Apex.
+- Install exactly one current lot51_core.ts4script directly in Mods or one folder deep, following Lot51's own instructions.

@@ -1,0 +1,219 @@
+{
+  "schema": 1,
+  "build_epoch": "2026-10-24-native-pair-widget-cache-v310",
+  "production_ready": false,
+  "original_native_selector_handler_retained": true,
+  "changes": [
+    "Reuse existing EA link/copy widgets only after fresh exact Sim, pair, owner, generation, category flags, direction and labels agree.",
+    "Reuse the exact extended EA filter definitions within this CAS movie; refresh selection for each pair.",
+    "Avoid replacing an already complete actual typed native pair; preserve the permanent observer.",
+    "Fix CI comparison of canonical versus short Windows temporary paths.",
+    "Archive early accepted CAS-entry crash metadata only with verified closed runtime, exact captured checkpoints, unchanged disk save and preserved changed crash bytes."
+  ],
+  "candidate_sha256": "799de0c70e67b03caf482b5e2a1bbb09c158731b6d62ba056efe2ed529ca5c13",
+  "actual_member_clicks": {
+    "ok": true,
+    "samples": [
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 998,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "349336084686110946",
+        "timing": {
+          "catalog_ms": 0,
+          "first_frame_delay_ms": 630,
+          "graphics_ms": 2,
+          "icons_ms": 1,
+          "menu_ms": 0,
+          "pair_ms": 147,
+          "prime_ms": 0,
+          "state_ms": 1
+        },
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 777,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "349336084686110947",
+        "timing": {
+          "catalog_ms": 0,
+          "first_frame_delay_ms": 629,
+          "graphics_ms": 1,
+          "icons_ms": 1,
+          "menu_ms": 0,
+          "pair_ms": 126,
+          "prime_ms": 1,
+          "state_ms": 3
+        },
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 809,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "450667075246031054",
+        "timing": {
+          "catalog_ms": 0,
+          "first_frame_delay_ms": 663,
+          "graphics_ms": 2,
+          "icons_ms": 0,
+          "menu_ms": 0,
+          "pair_ms": 114,
+          "prime_ms": 1,
+          "state_ms": 1
+        },
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 969,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "285159751289798669",
+        "timing": {
+          "catalog_ms": 0,
+          "first_frame_delay_ms": 844,
+          "graphics_ms": 2,
+          "icons_ms": 0,
+          "menu_ms": 0,
+          "pair_ms": 111,
+          "prime_ms": 0,
+          "state_ms": 1
+        },
+        "transport_error": ""
+      },
+      {
+        "member_ui_frames": 1,
+        "member_ui_milliseconds": 745,
+        "native_pair_visible": true,
+        "owner": "active/2",
+        "owner_count": 20,
+        "prepared_local_catalog": true,
+        "sim_id": "450667075246031055",
+        "timing": {
+          "catalog_ms": 0,
+          "first_frame_delay_ms": 591,
+          "graphics_ms": 2,
+          "icons_ms": 0,
+          "menu_ms": 0,
+          "pair_ms": 118,
+          "prime_ms": 1,
+          "state_ms": 1
+        },
+        "transport_error": ""
+      }
+    ],
+    "minimum_ms": 745,
+    "maximum_ms": 998,
+    "target_ms": 250,
+    "within_target": false
+  },
+  "actual_form_clicks": {
+    "ok": true,
+    "switches": [
+      {
+        "exact_owner_and_kind": true,
+        "input_handler": {
+          "clock_resolution_ms": 1,
+          "max_ms": 0,
+          "over_budget": 0,
+          "samples": 1,
+          "scope": "accepted-CAS-input-queue-handler",
+          "target_ms": 1,
+          "total_ms": 0
+        },
+        "native_bind_ms": 30.6074,
+        "native_pair_visible": true,
+        "owner_id": "native/4",
+        "queued_to_bound_ms": 65
+      },
+      {
+        "exact_owner_and_kind": true,
+        "input_handler": {
+          "clock_resolution_ms": 1,
+          "max_ms": 0,
+          "over_budget": 0,
+          "samples": 2,
+          "scope": "accepted-CAS-input-queue-handler",
+          "target_ms": 1,
+          "total_ms": 0
+        },
+        "native_bind_ms": 20.8058,
+        "native_pair_visible": true,
+        "owner_id": "native/1",
+        "queued_to_bound_ms": 35
+      },
+      {
+        "exact_owner_and_kind": true,
+        "input_handler": {
+          "clock_resolution_ms": 1,
+          "max_ms": 0,
+          "over_budget": 0,
+          "samples": 3,
+          "scope": "accepted-CAS-input-queue-handler",
+          "target_ms": 1,
+          "total_ms": 0
+        },
+        "native_bind_ms": 25.4932,
+        "native_pair_visible": true,
+        "owner_id": "active/2",
+        "queued_to_bound_ms": 45
+      }
+    ],
+    "variant_menu_opened": true,
+    "variant_menu_did_not_select_an_unchosen_form": true
+  },
+  "retained": {
+    "cold_native_appearances": 40,
+    "cold_named_looks": 155,
+    "after_live_simulation_unchanged": true,
+    "normal_full_cas_complete_records_unchanged": 195
+  },
+  "tests": {
+    "selector_bytecode": 61,
+    "owner_metadata_bytecode": 47,
+    "life_state_bytecode": 37,
+    "form_select_bytecode": 39,
+    "seal": 26,
+    "saved_named": 15,
+    "closed_crash_archive": 22,
+    "post_entry_crash": 12,
+    "ea_uia_context": 3,
+    "full_python": 2918,
+    "full_python_passed": true,
+    "full_python_seconds": 553.916
+  },
+  "expanded_household_matrix": {
+    "status": "passed",
+    "planned_selections": 355,
+    "native_directed_pairs_per_member": 42,
+    "household_members": 5,
+    "exposed_forms_per_member": 20,
+    "includes_fairy_alternate_and_human_cc_werewolf_regression_legs": true,
+    "full_visual_qualification": false,
+    "selections": 355,
+    "directed_pairs_total": 210,
+    "all195_complete_fields_unchanged": true,
+    "all20_save_files_unchanged": true,
+    "comparison_scope": "Exact complete appearance field fingerprints; actual native owner/rendering kind and EA panel checks. Special-form meshes, shaders and animations remain unqualified."
+  },
+  "open_gates": [
+    "Actual member presentation remains above the 250 ms target; no universal 0-1 ms claim.",
+    "Complete hair/paint Undo and empty wing-palette defaults.",
+    "Edited phone/MCCC/F11 and whole-household Tray/Gallery round trips.",
+    "All lifestate meshes, shaders, animations, parts and slider/preset compatibility.",
+    "Matching baseline performance qualification in Live and large CAS catalogues."
+  ]
+}

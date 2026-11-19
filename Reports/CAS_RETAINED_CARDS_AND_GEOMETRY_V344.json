@@ -1,0 +1,102 @@
+{
+  "actual_save_release_claimed": false,
+  "candidate_sha256": "7657ccf66cdf922467cd4a3ee9c5964947bdcd469b616961c41962b3912dfeaf",
+  "epoch": "2026-10-25-retained-cards-fast-leases-v344",
+  "evidence_sha256": {
+    "v344-catalog-live-007-body-size20-ready-read-002.json": "f123078f8cbfb34cc5ace023ec5fac79d3cda51ec11491e73f8c3957f4cddf15",
+    "v344-catalog-second-006-body-size35.json": "79e5d2efaa446ac0715028fbccbc7477505e6d7e01ee1df3a57ac30f5ca1083f",
+    "v344-closed-install-launch.json": "304b054712f051f0feb5e2cc8d5da13dce33334f5e9fdda05b391efa6a1ba49f",
+    "v344-edited-saved-cold-load.json": "e2ddeefe256312c71662b495c5627a06455165b9848963773a2fd35422851f73",
+    "v344-geometry-004-width-grow.json": "db66df6d5d8d3da155497f10d981d3b9e31d7567c266ba74b0fec895f634ef2a",
+    "v344-manual-ea-return.json": "a04561758f24e2f63f787e1e4c376dc8cade0447c41b12c7dc6ebf416b030724",
+    "v344-noedit-household-commit.json": "7f90b456ee066350348a01f15eaf9a3aae7eef6900b8d9c6d58b5cc375ca22b9",
+    "v344-normal-automatic-entry.json": "1afdafb4b4ac034260e2667e4d7b3651c1ad96db70ff621bec13b1d23d2da42e",
+    "v344-other-families.json": "6a2aa3af6e01aa1858021c75d9503d3a6bc00eec7a070cc63756dfdf2410748a",
+    "v344-player-entry-pre-reference-all195.json": "2fb1b3bba0e4f49abda9cdffd420e51054796c0bc7cdede9d48056669e7f3290",
+    "v344-profilers-off.json": "35f844da291bb507abafcc90a9097fbae964a3e402f1a56bbee8210ba21a533b",
+    "v344-raw-return-all195.json": "85571e86266249b2cea17e8c9b424a6a7182ee2cdaf3d41ebac7701bd8811409",
+    "v344-scroll-real-006-page-down.json": "1908a1a31118a1de7a891b6b8cce6b3e360fe2648218a20e4a9bc5d961087a42"
+  },
+  "failures": [
+    {
+      "case": "Body35 slider acknowledgement",
+      "next_step": "V345 strict actual attached-thumb pixel postcondition, then runtime.",
+      "observation": "Native preference/layout and actual x32.1px are correct; the serialized thumb fraction0.1 is inconsistent. Original typed failure retained."
+    },
+    {
+      "case": "Width grip",
+      "next_step": "V345 actual Sprite.hitArea bounds and explicit bounded diagnostics, then grow/shrink runtime.",
+      "observation": "Refused before input because the protected native control bounds were unavailable. No width change claimed."
+    },
+    {
+      "case": "Overflow navigation acknowledgement",
+      "next_step": "V345 await the same exact key publication without reinjecting input.",
+      "observation": "PageDown consumed once; acknowledgement arrived while publication was incomplete and remains pending. No replay. Later background keys show filled cards at rest."
+    },
+    {
+      "case": "Scroll callback stall",
+      "next_step": "Separate sub-row position-only path, logical-phase deadline fix, runtime comparison and further attribution.",
+      "observation": "Main max172ms paired with pre1/Step171ms, per-atom maxima<=2ms. Source inspection does not establish the cause."
+    }
+  ],
+  "hitch_free_claimed": false,
+  "limits": [
+    "At-rest screenshots do not prove continuously blank-free scrolling.",
+    "Featured Looks and nested Skin Tone have distinct row schemas; five-class product scroll qualification does not cover them.",
+    "No actual appearance mutation was performed in this catalog pass.",
+    "Human paint, typed Medical exit, ordinary phone/MCCC acceptance, full cross-form editing and household Tray/Gallery/save round trips remain open."
+  ],
+  "passed": {
+    "category_geometry": {
+      "categories": [
+        "Body",
+        "Face Eyes",
+        "Skin Tone",
+        "Hair",
+        "Fullbody"
+      ],
+      "columns": 12,
+      "requested_scale": 0.35,
+      "skin_families_preserved": true
+    },
+    "cold_load": {
+      "all_fields_exact": true,
+      "complete_native_appearances": 40,
+      "named_appearances": 155
+    },
+    "dense_body": {
+      "at_rest_screenshot_filled": true,
+      "columns": 12,
+      "physical_cards": 176,
+      "requested_scale": 0.2,
+      "target": 180
+    },
+    "full_cas_automatic_entry": {
+      "all_195_fields_exact": true,
+      "manual_arm": false
+    },
+    "return_preservation": {
+      "all21_save_files_unchanged": true,
+      "appearance_edited": false,
+      "household_commit_members": 5,
+      "raw_owner_fields_exact": true,
+      "raw_owner_records_checked_before_prepare": 195,
+      "route": "Actual EA checkmark from Body to paused Live"
+    }
+  },
+  "performance": {
+    "body_dense_main_max_ms": 9,
+    "body_dense_paired_pre_ms": 1,
+    "body_dense_paired_step_ms": 8,
+    "matched_no_mod_baseline": false,
+    "measurement": "Existing ActionScript callback clocks; these are not presented frame times or FPS.",
+    "overflow_main_max_ms": 172,
+    "overflow_paired_pre_ms": 1,
+    "overflow_paired_step_ms": 171,
+    "presentmon_attempts": 3,
+    "presentmon_valid_samples": 0
+  },
+  "production_ready": false,
+  "schema": 1,
+  "scope": "Five hybrid members in disposable full CAS; no appearance edits or game-save writes in this catalog pass."
+}

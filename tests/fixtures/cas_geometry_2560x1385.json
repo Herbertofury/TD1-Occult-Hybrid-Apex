@@ -1,0 +1,70 @@
+{
+  "source": "Recorded V342 native CAS catalogue geometry at 2560x1385",
+  "source_sha256": "c61a5559712b7b038ed6733df12e4f249ea95bc3bfd7906205b413daa95210d3",
+  "catalog_bounds": {
+    "height": 1215.000122070313,
+    "local_x": 0,
+    "stage_height": 1385,
+    "stage_width": 2560,
+    "width": 706,
+    "x": 1598.800048828125,
+    "y": 106
+  },
+  "grid_metrics": {
+    "dimensions": [
+      12,
+      37
+    ],
+    "gap_x": 4,
+    "gap_y": 4,
+    "grid_view_width": 676,
+    "horizontal": true,
+    "layout_height": 2766,
+    "layout_width": 0,
+    "native_grid_provider": "62ECC59A:00000000:12272E1AC0C1F8E2",
+    "physical_cell_count": 0,
+    "row_reflow_attempts": 0,
+    "scroll_list_height": 1101.7,
+    "scroll_list_width": 706,
+    "scroll_mask": {
+      "height": 1105.699951171875,
+      "width": 676,
+      "x": 1607.800048828125,
+      "y": 205.3000030517578
+    },
+    "scroll_view_height": 1105.7,
+    "scroll_view_width": 676,
+    "scrollbar": {
+      "height": 1105.699951171875,
+      "local_x": 694.5,
+      "max": 1660,
+      "min": 0,
+      "mouse_enabled": true,
+      "value": 0,
+      "visible": true,
+      "width": 13.007568359375,
+      "x": 2283.25,
+      "y": 205.3000030517578
+    }
+  },
+  "catalog_controls": {
+    "columns": {
+      "fitted": 12,
+      "height": 35.999267578125,
+      "requested": 12,
+      "width": 199.9959716796875,
+      "x": 1591.74365234375,
+      "y": 1313.987548828125
+    },
+    "thumbnail": {
+      "fitted_percent": 48,
+      "height": 39.999267578125,
+      "requested_percent": 100,
+      "width": 229.9954833984375,
+      "x": 1936.736694335938,
+      "y": 1313.987548828125
+    },
+    "visible": true
+  },
+  "claim": "Recorded native catalogue/mask/control geometry only. Navigation button doubles in tests are explicitly synthetic; real hit rectangles are read via existing LayoutAPI at runtime."
+}

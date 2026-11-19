@@ -1,0 +1,219 @@
+{
+  "schema": 1,
+  "scope": "actual-CAS-card-keyboard-navigation-and-selection",
+  "ok": true,
+  "candidate_epoch": "2026-10-21-keyboard-scroll-handler-v257",
+  "candidate_sha256": "cefe716262eff84a6358041e74f628010309a699db3079d86c451cdfdf29c2eb",
+  "script_sha256": "6f13f308d6f4ab456110179f53bd6fe972211cac8338f4afc459eee480e48990",
+  "game_version": "1.128.90.1030",
+  "viewport": {
+    "width": 1278,
+    "height": 1376
+  },
+  "actual_form": "Alien",
+  "household_members_present": 5,
+  "edited_member_ordinal": 1,
+  "navigation": [
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 0,
+      "index_before": 1,
+      "key": 36,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 0,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    },
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 1,
+      "index_before": 0,
+      "key": 39,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 0,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    },
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 6,
+      "index_before": 1,
+      "key": 40,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 0,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    },
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 1,
+      "index_before": 6,
+      "key": 38,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 0,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    },
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 0,
+      "index_before": 1,
+      "key": 37,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 0,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    },
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 435,
+      "index_before": 0,
+      "key": 35,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 0,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    },
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 435,
+      "index_before": 435,
+      "key": 39,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 0,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    },
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 410,
+      "index_before": 435,
+      "key": 33,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 25,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    },
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 0,
+      "index_before": 410,
+      "key": 36,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 0,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    },
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 30,
+      "index_before": 0,
+      "key": 34,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 30,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    },
+    {
+      "click_dispatched": false,
+      "columns": 5,
+      "count": 436,
+      "index_after": 0,
+      "index_before": 30,
+      "key": 36,
+      "menu_state": -2134376418,
+      "menu_state_before": -2134376418,
+      "owner_id": "active/2",
+      "page_step": 0,
+      "sim_id": "285159751289798669",
+      "source_route": "semantic-navigation"
+    }
+  ],
+  "hair_items": 436,
+  "clothing_columns": 5,
+  "face_items": 274,
+  "face_columns": 2,
+  "scroller_mask_visibility_checked": true,
+  "scroll_captures_reviewed": true,
+  "shared_keyboard_handler_verified": true,
+  "window_key": {
+    "verified": true,
+    "source_route": "stage-keyboard-event",
+    "index_before": 2,
+    "index_after": 3
+  },
+  "enter": {
+    "native_card_click": true,
+    "original_hair": [
+      "272449"
+    ],
+    "selected_hair": [
+      "272455"
+    ],
+    "family_id": "272455",
+    "native_undo_restored_original": true
+  },
+  "desktop_focus_unchanged": true,
+  "equipped": {
+    "items": 20,
+    "enter_opened_correct_native_category": true,
+    "worn_part_unchanged": true,
+    "idle_navigation_observed": true,
+    "enter_replayed": false
+  },
+  "source_proofs": {
+    "v257-catalog-keyboard-runtime.json": "52727a9897b1986ddae22fb797648166f818cb841144217b421f87f6228d75f9",
+    "v257-keyboard-enter-face-runtime.json": "98401d3ab506b3b0fff06a8c981dc8ed2322a4a005e8d77b97c8a188f7ec8b38",
+    "v257-keyboard-equipped-observed.json": "8c8eeae4cc44eb47420c0e991646585ebbccebf318ab8b77ad151b4a6e9c0519"
+  },
+  "save_files_unchanged": true,
+  "cas_accept_submitted": false,
+  "save_submitted": false,
+  "original_profile_written": false,
+  "production_ready": false,
+  "limitations": [
+    "One selected Alien appearance and current outfit; this does not qualify the whole edited household or save/Tray round trips.",
+    "Actual text-field, modal, variation-popup, held-repeat and specialized palette/painter keyboard cases remain open.",
+    "In the narrow test viewport the movable form strip overlaps lower catalog cards; its layout needs further QA."
+  ]
+}

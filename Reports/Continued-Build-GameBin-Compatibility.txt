@@ -1,0 +1,8 @@
+Supplied Bin archive checked: Bin(1).zip
+Bin/python37_x64.dll: present size 3703664
+Bin/Python/DLLs/_ctypes_x64.pyd: present size 114176
+Bin/Python/DLLs/_socket_x64.pyd: present size 56832
+Bin/Python/DLLs/select_x64.pyd: present size 13824
+Bin/Python/generated.zip: present size 495874
+Bin/TS4_x64.exe: present size 45039472
+Bin/TS4_DX9_x64.exe: present size 43786608

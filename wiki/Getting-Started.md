@@ -8,10 +8,15 @@ Apex is a recovery-first hybrid-occult control suite built around an F11 in-game
 
 1. Back up the Sims 4 `saves` folder.
 2. Use a dedicated test save/household first.
-3. Install the recovered Apex script/package set only after removing duplicate obsolete hybrid files.
+3. Install the current matching Apex candidate package/script set in the test profile after checking duplicate hybrid owners.
 4. Enable Script Mods and Custom Content/Mods.
-5. For the native overlay, run the DX11 preflight before copying a proxy DLL beside `TS4_x64.exe`.
+5. Keep the matching native DLL/config/manifest under `Mods/Apex/Native`. Use DX11; after household loading, press F11. `apex.overlay.start/status` provide diagnostics. No Game/Bin copies are needed for this candidate.
 6. Start with auto repair disabled.
+
+The owner handles live tests with the single retained disposable profile. The
+original `The Sims 4 DO NOT FUCKING TOUCH!!!` folder is read/copy-only and only
+the owner may rename it. See [current installation steps](../docs/CANDIDATE_INSTALL_AND_TEST.md)
+and [verification/remaining work](../Reports/SIDECAR_AND_COLOR_2026-10-07.md).
 
 ## Recommended CAS / MCCC workflow
 

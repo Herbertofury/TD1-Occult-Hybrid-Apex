@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "strict_retention_pass": false,
+  "actual_appearance_cross_form_merge_proved": false,
+  "genetic_before_sha256": "3b40823560293e78afc19e5d878dbd2f62dcdd61011c164d62587038fd12bc3e",
+  "genetic_after_sha256": "30d62c2e0e97e6e4e17571e33abd48941cfa03deb2c38dc9bdd43f22f798032c",
+  "changed_genetic_fields": [
+    2,
+    5
+  ],
+  "cache_physique_before": "0.002,0.000,0.000,0.040,0.000,0.000,0.000,0.000,0.000,",
+  "cache_physique_after": "0.000,0.000,0.275,0.040,0.000,0.000,0.000,0.000,0.000,",
+  "baseline_human_physique": "0.000,0.000,0.275,0.040,0.000,0.000,0.000,0.000,0.000,",
+  "updated_physique_matches_already_stored_same_human": true,
+  "genetic_part_before": 272449,
+  "genetic_part_after": 414266,
+  "genetic_part_body_type": 2,
+  "other_genetic_root_chunks_identical": true,
+  "other_part_rows_and_unknown_fields_identical": true,
+  "unchanged_appearance_fields": [
+    "__outfits__",
+    "custom_texture",
+    "facial_attributes",
+    "parts_custom_tattoos",
+    "pelt_layers",
+    "physique",
+    "skin_tone",
+    "skin_tone_val_shift",
+    "voice_actor",
+    "voice_effect",
+    "voice_pitch"
+  ],
+  "diagnosis": "Difference is consistent with native genetic-cache reconciliation to this Human's existing appearance; causal tracing and controlled initialization qualification remain open.",
+  "checks_weakened": false,
+  "save_submitted": false,
+  "cas_accept_submitted": false,
+  "production_ready": false
+}

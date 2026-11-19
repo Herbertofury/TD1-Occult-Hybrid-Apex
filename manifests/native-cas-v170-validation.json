@@ -1,0 +1,33 @@
+{
+  "build_epoch": "2026-10-16-native-cas-complete-genetic-record-import-v170",
+  "bundle_sha256": "0ca09181ce767140b6439180f5519b698dccbf4d0bcafad2e042f2eee749e1a0",
+  "cas_accept_submitted": false,
+  "detached_named_projection": {
+    "appearances": 155,
+    "exact_record_genetics": true,
+    "fields_per_appearance": 12,
+    "members": 5,
+    "ok": true,
+    "proof_sha256": "6ca992fc82d4660a3e0e8acc42bbb1765cd12024bbeed3e35c5502daf86ab75b"
+  },
+  "epoch_migration_checks": 31,
+  "native_ctest_targets": 9,
+  "production_ready": false,
+  "runtime": {
+    "cold_originals_exact": true,
+    "cold_proof_sha256": "f0dfa2bbff583aee613740b9e72c18c1d99a41d4ffa38e8b73d34fee6fc85c0c",
+    "complete_import_qualified": false,
+    "crash_causality_verified": false,
+    "crash_pc": "0x14112c678",
+    "crash_report_sha256": "6dad169cc52d1afc3df800c761541f2f99fdc0f279c51493f831a42fdfda7fa2",
+    "crashed": true,
+    "entry_accepted": true,
+    "entry_proof_sha256": "bcd872f09bc2386ffb43d0791e35aa5c8f5b658ec1f16745f52755c5f735c39b",
+    "gameplay_roles_qualified": false,
+    "handshake_verified": false,
+    "original_appearance_owners": 40
+  },
+  "save_submitted": false,
+  "schema": 1,
+  "transport_checks": 55
+}

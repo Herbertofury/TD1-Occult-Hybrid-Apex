@@ -1,0 +1,33 @@
+{
+  "build_epoch": "2026-10-16-native-cas-exact-named-return-v174",
+  "built": true,
+  "bundle_sha256": "903f843efb2ee5a007aad90602de9085a8fa744f2edb16df7d8a1844c977066c",
+  "callback_snapshot_threading_fixture_passed": true,
+  "code_window_cli_checks": 6,
+  "compiled_python37_modules": 98,
+  "installed": false,
+  "known_scope": {
+    "cancel_is_not_acceptance": true,
+    "complete_native_bytes_retained": true,
+    "exact_named_owner_return": true,
+    "explicit_changed_named_dispositions_required": true,
+    "rendering_kind_does_not_merge_named_owners": true
+  },
+  "named_cli_and_comparison_host_checks": 31,
+  "native_ctest_targets": 9,
+  "production_ready": false,
+  "remaining_runtime_gates": [
+    "CAS return of independently edited named forms",
+    "all-category household edits",
+    "native copy/link/undo UI",
+    "phone/F11 named-form review",
+    "automatic outfit generation",
+    "Live/MCCC entry and repeated CAS scopes",
+    "normal save/cold load",
+    "household Tray/Gallery round trip",
+    "special gameplay roles"
+  ],
+  "return_receiver_checks": 114,
+  "runtime_qualified": false,
+  "schema": 1
+}

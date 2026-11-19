@@ -1,0 +1,47 @@
+{
+  "protocol": 1,
+  "scope": "recorded-native-cas-width-contract",
+  "runtime_rectangles_recorded": false,
+  "provider": {
+    "tgi": "62ECC59A:00000000:89D13757C58C2E05",
+    "original_sha256": "6ddb983fee2bd284a2b7efec155e1544bfe99d27f16d4d28097bada25e1864f0"
+  },
+  "button": {
+    "class": "olympus.gui.buttons.Button",
+    "decompiled_source_sha256": "da6e831babc4612fe256973c712b9e30a2bfa36deb387b392d713e815fc094da",
+    "overrides_flash_get_bounds": false,
+    "bounds_override": "GetBoundsOverride",
+    "configured_hit_area": "mcHitArea",
+    "bounds_override_statements": [
+      "if(mcHitArea)",
+      "return mcHitArea.getBounds(param1);",
+      "return getBounds(param1);"
+    ]
+  },
+  "component": {
+    "class": "olympus.controls.GUIComponent",
+    "decompiled_source_sha256": "3593834330a267f8ad1f73393c88daf14bed4e9aa90f93624c4e8ddb70d9380d",
+    "config_ui_statements": [
+      "hitArea = this.mcHitArea;",
+      "this.mcHitArea.mouseEnabled = false;",
+      "this.mcHitArea.visible = false;"
+    ]
+  },
+  "layout_api": {
+    "class": "olympus.gamepad.LayoutAPI",
+    "decompiled_source_sha256": "48086fab605f0ff9abfcc78816f68616f183c05fc1ea7e3953b2c72228b246e3",
+    "lookup_delegate": "return mLayoutMgr.GetLoadedWidgetByName(param1);"
+  },
+  "navigation": {
+    "class": "widgets.CAS.Navigation.CASNavigationMain",
+    "widget_name": "CASNavigation",
+    "decompiled_source_sha256": "cee0cafb500d99e9ae37b9d0acfcffe04f3584c75befa683cbbb9d16e8e50871",
+    "public_fields": [
+      "mcCenterPanel", "mcTrayLeft", "mcTrayCenter", "mcTrayRight",
+      "btnPlay", "btnSaveDemo", "btnCancel", "btnReset", "modelNavigatorClip",
+      "mcUndoRedoPanel", "btnRotateSimLeft", "btnRotateSimRight",
+      "mcRandomizePanel", "mcGalleryRandomizePanel"
+    ]
+  },
+  "limitations": "The native source hashes identify the audited decompilations. Tests exercise current Apex source using synthetic coordinates; this fixture does not prove actual runtime hit rectangles or successful width dragging."
+}

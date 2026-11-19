@@ -1,6 +1,20 @@
 # Apex Live CAS Studio — Full CAS-Grade Editing Outside CAS
 
-Last reconciled: 2026-10-06
+Last reconciled: 2026-10-11
+
+The V38 catalog-selection game leaf now verifies exact CC replacement,
+unpaused Alien → Vampire → Alien isolation and Undo restoring all original
+appearances without taking focus. V40 verifies cold capture with F11 hidden
+and public background Resume into the exact test household. The library uses
+the foreground-independent renderer and public background lifecycle routes.
+The October 11 candidate adds an independent native 3D appearance viewport,
+camera/layout controls, bounded actual thumbnail columns, immediate/try-on
+mode and face/body controls. It fixes serializer-induced shape reset and
+current-form stored-owner synchronization on Apply/Undo. See
+`Reports/LIVE_APPEARANCE_ROOM_2026-10-11.md` for build checks, actual runtime
+leaves, retained failures and remaining shader/catalog/persistence work.
+Cold-load owner-bank recovery also remains tracked in
+`Reports/LIVE_CAS_LIBRARY_2026-10-10.md`; this is not full Live/CAS parity.
 Current public MCCC baseline verified for research: MC Command Center 2026.5.0, compatible with Sims 4 PC 1.128.90.1030.
 
 ## Objective
@@ -581,6 +595,73 @@ Required workflows:
 ---
 
 # Completion standard
+
+## Owner addition: full catalog columns and an independent Sim preview
+
+The Live workspace must expose the complete current CAS surface in F11, with
+an adjustable, virtualized column grid for EA and custom content. Browsing is
+independent of the currently equipped wardrobe. Category/subcategory, swatch,
+pack, creator/package, availability and name-mode filters use exact resource
+identity; unknown future body types remain discoverable. Empty categories may
+be hidden by preference. Skin details, jewelry, eyebrows, tattoos and presets
+have the same search/select/history flow as clothing and hair. Per-form,
+outfit-category and outfit-number selection stays explicit and independent.
+
+The preview is a separately rendered copy of the selected appearance snapshot,
+including exact equipped parts, morphs, skin/occult details, layers and colors.
+It stays visible when the Live Sim moves, and supports orbit, zoom, pan,
+pose/animation selection, lighting and before/after comparison. Preview camera
+and pose controls change this rendered copy only. Rendering an inactive form
+must not activate that form or introduce a persisted household Sim. Selection
+and every edit are available through the CLI as well as the panel.
+
+The actual mesh/material pipeline must honor missing resources and renderer
+limitations explicitly. Preview state is labeled as staged or verified applied
+state, and stale appearance snapshots are refreshed before Apply. Item apply,
+full appearance edits, and Undo/Redo retain the shared canonical journal and
+all independent native owner checks. Native ticks and save/reload are separate
+acceptance steps; a rendered preview alone does not prove game persistence.
+
+The first implemented slice is `tools/live_cas_catalog.py`: a worker-side,
+content-bound SQLite/FTS5 catalog with stable paging, exact full TGI and package
+provenance, localized/package/internal-name modes and fresh selection checks.
+It scans a package's selected metadata in one verified stream instead of
+rehashing it for each swatch. Its public CLI operates without CAS or game input.
+The actual five private CC copies yield 62 parts in .049 seconds, with queries
+around 2 ms. This is a small-sample measurement; a large library benchmark,
+F11 grid integration, compatibility/equip and 3D preview remain open.
+
+V38 advances the library into the native workspace: two to eight virtualized
+columns, search, all discovered categories, origin/name modes, paging,
+persistent favorites and recent inspections. The loopback worker retains an
+immutable Windows index lease and verifies source bytes when selecting.
+Actual private lipstick HTTP paging takes .037 seconds and asset inspection
+.084 seconds; the native schema/identity validator accepts both. The existing
+thumbnail and Studio-copy broker handles selected assets; this CC sample has
+no verified thumbnail and remains explicitly unresolved.
+
+`studio catalog-preview` adds or replaces an exact outfit row after matching
+the loaded CASP's full TGI/hash/body type and age/species support. Apply,
+Undo/Redo and inactive-form edits use the same complete appearance journal.
+Reselecting an equipped item preserves its exact colors and layer. Dynamic
+attachments, restricted-frame fitting and layered append are explicitly
+unfinished implementation contracts, not claims of an engine limitation.
+Current fixtures exercise those refusals and preserve other owners/outfits.
+The WARP renderer test now exercises the actual library grid in a hidden
+window. Exact-candidate game rendering/equip, every CAS control, grid images,
+swatch groups, presets and independent 3D appearance assembly remain open.
+
+Primary source research, checked October 10, 2026:
+
+- [Maintained SimRipper mesh preview](https://github.com/CmarNYC-Tools/TS4SimRipper/blob/862a32949e5156b371e2d2f83de4e37e0bb1afcc/src/MorphPreview.xaml.cs) contains actual GEOM-to-mesh, texture/material, camera and rotation code. Its repository is GPL-3.0. October 11 uses its pinned assembly source in a separate no-window worker with complete corresponding source; Apex supplies its own D3D11 viewport. This does not establish full EA material matching.
+- [SimRipper performance fork](https://github.com/technificentConsulting/TS4-SimRipper) contains GEOM, rig, morph and preview sources under GPL-3.0; compare verified behavior before adopting changes.
+- [sims-package2glb](https://github.com/infinition/sims-package2glb) contains Rust/glTF conversion source; its [license text](https://github.com/infinition/sims-package2glb/blob/main/LICENSE) is MIT despite GitHub's API reporting `NOASSERTION`. Its object/package converter is a candidate component, with complete Sim morphs, skin composition and rig posing still requiring independent work.
+- [Blender GEOM importer](https://github.com/blancodagoat/blender-sims4-geom) contains mesh/morph/package parsers and a nested license file; the root API license is absent. Inspect that exact license before porting implementation.
+- [Sims4Viewer](https://github.com/zsofts/Sims4Viewer) describes a similar viewer, but the inspected tree contains only six documentation/icon/license files and no renderer implementation. Its feature claims provide no reusable renderer source or runtime proof.
+
+The exact research tree identities are retained in private receipt
+`a10c4fca535b7dcd4189aa3facb28ee073bd4c5bbf958e148770b0c5e19e0728`.
+No implementation from these repositories was imported in this slice.
 
 Apex Live CAS Studio is complete only when:
 

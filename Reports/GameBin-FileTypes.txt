@@ -1,0 +1,5 @@
+/mnt/data/work_extreme/gamebin/Bin/TS4_x64.exe:                 PE32+ executable for MS Windows 6.00 (GUI), x86-64, 8 sections
+/mnt/data/work_extreme/gamebin/Bin/Simulation_x64.dll:          PE32+ executable for MS Windows 6.00 (DLL), x86-64, 7 sections
+/mnt/data/work_extreme/gamebin/Bin/python37_x64.dll:            PE32+ executable for MS Windows 6.00 (DLL), x86-64, 7 sections
+/mnt/data/work_extreme/gamebin/Bin/Python/DLLs/_socket_x64.pyd: PE32+ executable for MS Windows 6.00 (DLL), x86-64, 5 sections
+/mnt/data/work_extreme/gamebin/Bin/Python/DLLs/_ctypes_x64.pyd: PE32+ executable for MS Windows 6.00 (DLL), x86-64, 6 sections

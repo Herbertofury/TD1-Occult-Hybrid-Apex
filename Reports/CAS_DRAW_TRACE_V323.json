@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-native-draw-trace-v323",
+  "candidate_sha256": "eac695441aae9c41963e01de211cc67da018ce03988ea35d8efef1a27b4a060e",
+  "production_ready": false,
+  "withdrawn": true,
+  "offline_python_regression": {
+    "tests": 2990,
+    "seconds": 671.917,
+    "passed": true
+  },
+  "native_targets": {
+    "tests": 21,
+    "passed": true
+  },
+  "actual_cold_load": {
+    "all40_complete_fields_retained": true,
+    "named_looks_retained": 155
+  },
+  "entry": {
+    "original_deadline_failed": true,
+    "original_status_uuid_completed_late": true,
+    "entry_replayed": false,
+    "all195_complete_fields_retained": true
+  },
+  "actual_draw_diagnostic": {
+    "enabled": true,
+    "completed": 0,
+    "errors_in_helper": 0,
+    "usable_timing": false
+  },
+  "actual_ui_regression": {
+    "exception_reports": 23,
+    "categories": [
+      "(AS)olympus.gui.buttons::Button"
+    ],
+    "exception": "TypeError#1009 at Olympus Button.Draw",
+    "native_catalog_navigation_unacknowledged": true,
+    "replayed": false,
+    "exception_xml_sha256": "649d8e857c527d1c6f5329140c268bdaeb157c14ba6054a74572ef6e39aed812"
+  },
+  "post_failure_preservation": {
+    "all195_complete_fields_retained": true,
+    "all20_save_backup_files_unchanged": true,
+    "appearance_edit_submitted": false,
+    "save_submitted": false,
+    "original_profile_written": false,
+    "closed_without_save": true,
+    "all40_post_cancel_native_fields_retained": true,
+    "exact_discarded_household_metadata_archived": true
+  },
+  "diagnosis": [
+    "Inserted marker code did not relocate original unconditional jump offsets because FFDec isBranch() omits isJump(). The prior fixture repeated the same error, so its control-flow equivalence claim was false.",
+    "The injected Function-call receiver used pushnull; the inspected compiler emits getglobalscope. New instrumentation must preserve the native scope prologue and this exact receiver ABI.",
+    "A shared callback also needs ownership-aware disposal and a reported callback_active state."
+  ],
+  "next_gates": [
+    "Independently verify all original jump/conditional targets, original operand flow and Function-call ABI; actual compiled-helper tests.",
+    "Prove actual Draw counters record the invoked UI path without new UI exceptions, before relying on phase times.",
+    "Remove measured card-binding stalls, retain complete-field isolation and finish all other release gates."
+  ],
+  "shutdown": {
+    "normal_wrapper_refused_orphaned_navigation_slot": true,
+    "end_task_denied_by_windows": true,
+    "closed_through_observed_native_live_menu": true,
+    "focus_stolen": false,
+    "save_submitted": false
+  }
+}

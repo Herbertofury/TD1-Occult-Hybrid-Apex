@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-lazy-swatch-grids-v320",
+  "candidate_sha256": "61b914ff843aedf29288deb31906b8fd503144b8d1e4bc45b8e6e877c96c7a7a",
+  "production_ready": false,
+  "all40_cold_fields_retained": true,
+  "named_looks_retained": 155,
+  "all195_cas_fields_retained": true,
+  "appearance_edit_submitted": false,
+  "save_submitted": false,
+  "quiet_current_outfit": {
+    "refresh_ms": 1823,
+    "max_slice_ms": 588,
+    "phase_timing_ms": {
+      "category_part": {
+        "max_ms": 0,
+        "calls": 18,
+        "total_ms": 0,
+        "last_ms": 0
+      },
+      "feed_publish": {
+        "max_ms": 588,
+        "calls": 4,
+        "total_ms": 1091,
+        "last_ms": 67
+      },
+      "position_cells": {
+        "max_ms": 0,
+        "calls": 4,
+        "total_ms": 0,
+        "last_ms": 0
+      },
+      "current_layout": {
+        "max_ms": 17,
+        "calls": 1,
+        "total_ms": 17,
+        "last_ms": 17
+      },
+      "context": {
+        "max_ms": 0,
+        "calls": 26,
+        "total_ms": 0,
+        "last_ms": 0
+      },
+      "selected_ids": {
+        "max_ms": 1,
+        "calls": 50,
+        "total_ms": 1,
+        "last_ms": 0
+      },
+      "eye_color": {
+        "max_ms": 2,
+        "calls": 4,
+        "total_ms": 2,
+        "last_ms": 0
+      },
+      "product": {
+        "max_ms": 0,
+        "calls": 18,
+        "total_ms": 0,
+        "last_ms": 0
+      }
+    }
+  },
+  "presentmon": {
+    "frames": 2112,
+    "lost_events_warning": false,
+    "percentile_method": "linear interpolation at (n-1)*p",
+    "MsBetweenPresents": {
+      "p50": 6.821149999999999,
+      "p95": 10.524645,
+      "max": 872.1198
+    },
+    "MsCPUBusy": {
+      "p50": 1.1351,
+      "p95": 5.898924999999998,
+      "max": 871.9629
+    },
+    "MsGPUBusy": {
+      "p50": 1.98,
+      "p95": 4.196359999999998,
+      "max": 6.3327
+    }
+  },
+  "conclusion": "Lazy swatches retain functionality in fixtures but do not resolve the dominant publication hitch; the next candidate reuses card control trees and publishes one full product per turn.",
+  "open_gates": [
+    "Current Outfit atomic frame stall",
+    "Other responsiveness and independent-edit/save/Tray/compatibility gates remain open"
+  ]
+}

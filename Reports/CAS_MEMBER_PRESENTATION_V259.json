@@ -1,0 +1,65 @@
+{
+  "build_verified": true,
+  "candidate_epoch": "2026-10-21-member-ui-frames-v259-r3",
+  "candidate_sha256": "d5a97200789ec609e145e60309be7ef4d9a47ece9a909850e8ad4bcc897c0bb8",
+  "changes": [
+    "Listen to the existing native CASSetSimInfo delivery without changing its typed mapping or EA handler.",
+    "Queue later UI frames to advance the existing exact-Sim handshake and native EA portrait/pair renderer.",
+    "Yield outstanding or newly received CLI claims to their original timer-owned execution/readback.",
+    "Require current native Sim, complete owner catalog, bound selection and matching pair generation before declaring setup ready.",
+    "Retain the first incoming-member timestamp through repeated deliveries and reconnection.",
+    "Clear a superseded incoming target when the player returns to the still-bound member.",
+    "Detach the frame listener when ready or closed; stop fast scheduling after two seconds and retain the ordinary timer fallback."
+  ],
+  "fast_bootstrap_budget_ms": 2000,
+  "focused_checks_passed": 146,
+  "idle_timer_interval_ms": 500,
+  "limitations": [
+    "Build/bytecode checks do not establish actual visible latency or idle frame cost.",
+    "Native EA link/copy visibility, correct target ownership, repeated member input and full-field preservation require the installed candidate.",
+    "A 0-1 ms input-handler target is separate from complete model/UI setup; no universal timing guarantee is claimed.",
+    "Full actual-save release gates remain open."
+  ],
+  "measured_member_ui_milliseconds": null,
+  "native_click_runtime_verified": false,
+  "native_dll_sha256": "771944929168c098665cbc6e025ab381e550ddbb24543c74349b357fdf1346ad",
+  "new_idle_frame_poller": false,
+  "problem": "Member detection and CONNECT/HELLO/owner-catalog/pair setup previously advanced through separate 500 ms timer waits.",
+  "production_ready": false,
+  "runtime_verified": false,
+  "schema": 1,
+  "scope": "native-CAS-member-presentation-scheduling",
+  "script_sha256": "79fd51cc429e69126cca929ab46ba7ebd6134f2c539c54eba660ada9e528b5e3",
+  "tests": {
+    "native_form_selection_bytecode": {
+      "passed": 39,
+      "proof": ".work/v259-form-selection-r4-tests.log",
+      "sha256": "55490e340d36cf74bc240c7dc8034b1feb36db978a971e8d2a66126c1818e6ab"
+    },
+    "owner_readback_presentation_bytecode": {
+      "passed": 29,
+      "proof": ".work/v259-member-bootstrap-bytecode-r4-tests.log",
+      "sha256": "2e102289d724512808e7a6e99197cd284776c8f3630cbb47a3add80e164cf86c"
+    },
+    "raw_ui_source_pins": {
+      "passed": 6,
+      "proof": ".work/v259-ui-pins-r3-tests.log",
+      "sha256": "7461451e1a41c1d99688c5c0709db8faff2dff7ff008ad7393a69b1260d8b179"
+    },
+    "save_bank_seal": {
+      "passed": 26,
+      "proof": ".work/v259-r3-seal-tests.log",
+      "sha256": "10d9a2fe2bc12c31c4e46ba8454696c69a02f8349caf347060ddd678d7bdc0ea"
+    },
+    "script_upgrade_migration": {
+      "passed": 26,
+      "proof": ".work/v259-r3-upgrade-tests.log",
+      "sha256": "899b99ec52bb80fb9c385776b43bb25ca2e92c21908840587f85321b6c9e6c62"
+    },
+    "typed_cas_controls": {
+      "passed": 20,
+      "proof": ".work/v259-controls-tests.log",
+      "sha256": "92dfbf4deb317d0345911378b36a52ef92de554fac764280ed7980e133a4c295"
+    }
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "candidate_epoch": "2026-10-25-native-transport-gfx-profile-v339",
+  "candidate_sha256": "9d3009ff2b9ad5043f2bb8e3070c984b6fd80d4fff582645cb4909e4d96a6804",
+  "production_ready": false,
+  "hitch_free_claimed": false,
+  "scope": "Explicit version-pinned diagnostic; counts and QPC wall spans include observer/scheduling cost",
+  "observations": {
+    "counts": {
+      "boundaries": [
+        {
+          "boundary": "ContextCapture",
+          "max_ms": 6.705500000000001,
+          "null_returns": 0,
+          "qualified_calls": 2194,
+          "returned": 2194,
+          "started": 2194,
+          "timed": true,
+          "total_ms": 6669.350100000001,
+          "unwound": 0
+        },
+        {
+          "boundary": "SnapshotDestructor",
+          "max_ms": 4.0161,
+          "null_returns": 0,
+          "qualified_calls": 2194,
+          "returned": 2194,
+          "started": 2194,
+          "timed": true,
+          "total_ms": 3857.789,
+          "unwound": 0
+        },
+        {
+          "boundary": "PointerAllocate",
+          "max_ms": null,
+          "null_returns": 0,
+          "qualified_calls": 2961734,
+          "returned": 2961734,
+          "started": 2961734,
+          "timed": false,
+          "total_ms": null,
+          "unwound": 0
+        },
+        {
+          "boundary": "PointerFree",
+          "max_ms": null,
+          "null_returns": 0,
+          "qualified_calls": 2961688,
+          "returned": 2961688,
+          "started": 2961688,
+          "timed": false,
+          "total_ms": null,
+          "unwound": 0
+        }
+      ],
+      "inflight": 0,
+      "dropped_records": 0,
+      "preparation_ms": 535.1202,
+      "native_entries_restored": true,
+      "page_retention": false,
+      "page_substitution": false
+    },
+    "timed": {
+      "boundaries": [
+        {
+          "boundary": "ContextCapture",
+          "max_ms": 6.308400000000001,
+          "null_returns": 0,
+          "qualified_calls": 1884,
+          "returned": 1884,
+          "started": 1884,
+          "timed": true,
+          "total_ms": 6656.1924,
+          "unwound": 0
+        },
+        {
+          "boundary": "SnapshotDestructor",
+          "max_ms": 3.9423000000000004,
+          "null_returns": 0,
+          "qualified_calls": 1884,
+          "returned": 1884,
+          "started": 1884,
+          "timed": true,
+          "total_ms": 3749.9406000000004,
+          "unwound": 0
+        },
+        {
+          "boundary": "PointerAllocate",
+          "max_ms": 0.277,
+          "null_returns": 0,
+          "qualified_calls": 2585583,
+          "returned": 2585583,
+          "started": 2585583,
+          "timed": true,
+          "total_ms": 1510.1343000000002,
+          "unwound": 0
+        },
+        {
+          "boundary": "PointerFree",
+          "max_ms": 0.2436,
+          "null_returns": 0,
+          "qualified_calls": 2585539,
+          "returned": 2585539,
+          "started": 2585539,
+          "timed": true,
+          "total_ms": 3373.434,
+          "unwound": 0
+        }
+      ],
+      "inflight": 0,
+      "dropped_records": 0,
+      "preparation_ms": 592.4063,
+      "native_entries_restored": true,
+      "page_retention": false,
+      "page_substitution": false
+    }
+  },
+  "action_capture": {
+    "scope": "60s actual Body/Tattoos/Hair actions including explicit CLI observations",
+    "matched_no_mod_baseline": false,
+    "frames": 6371,
+    "median_ms": 8.4407,
+    "p95_ms": 12.792,
+    "p99_ms": 19.2872,
+    "max_ms": 648.0623,
+    "over_33_33ms": 17,
+    "event_loss_reported": false,
+    "performance_pass": false,
+    "csv_sha256": "cdeac97fa1171285e1a8f556f5fbfbc62ec5435db970bfe7faef635b5f49660c"
+  },
+  "quiet_capture": {
+    "scope": "30s quiet visible CAS grid without CLI actions; own compilers stopped",
+    "matched_no_mod_baseline": false,
+    "frames": 3267,
+    "median_ms": 8.8374,
+    "p95_ms": 12.0896,
+    "p99_ms": 14.2295,
+    "max_ms": 20.0168,
+    "over_33_33ms": 0,
+    "event_loss_reported": false,
+    "performance_pass": false,
+    "csv_sha256": "24c23c81d41e29ddc2b7e01b50f070c76ad356453594f567e6ec1c3412e8854c"
+  },
+  "preserved": {
+    "cold_native": 40,
+    "cold_named": 155,
+    "entry_owners": 195,
+    "post_profile_owners": 195,
+    "after_no_edit_return_native": 40,
+    "after_no_edit_return_named": 155,
+    "unchanged_save_files": 21,
+    "appearance_edits_submitted": false,
+    "save_submitted": false
+  },
+  "interpretation": [
+    "Millions of exact renderer pointer-page calls were observed; sample-stack weights are no longer used as call counts.",
+    "Individual observed ContextCapture maxima below7ms do not explain the648ms whole-frame category stall.",
+    "Count-only page durations are null, not measured zeros. Timed spans are inclusive and not exclusive CPU cost.",
+    "Window allocation/free count differences do not establish a leak. No page replacement or retention is enabled.",
+    "A wider MovieAdvance span needs actual-game qualification."
+  ]
+}

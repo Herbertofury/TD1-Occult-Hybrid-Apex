@@ -1,0 +1,65 @@
+{
+  "actual_entry": {
+    "all_fields_retained": true,
+    "complete_appearance_records_compared": 195,
+    "full_cas": true
+  },
+  "actual_player_save": {
+    "all_original20_save_files_unchanged": true,
+    "appearance_edit_test": false,
+    "automatic_member_transactions_completed": 5,
+    "cold_load_verified": false,
+    "group_sealed": true,
+    "manual_dispositions_submitted": false,
+    "named_appearances_retained": 155,
+    "native_appearances_retained": 40,
+    "native_scope_retired_after_whole_household_verification": true,
+    "new_file_sha256": "de5488dd6625536829e6834345814e32d51fcd0e19bdfcc829a5ebab5ad495b6",
+    "route": "EA Menu / Save As / Add New Save / My Saved Game 3",
+    "slot_id": 3
+  },
+  "candidate": "2026-10-24-native-grid-save-boundaries-v325",
+  "candidate_sha256": "5895e4880d6ee51f65d28658f8f4e1b915184ed2ac7b6e091e5ae1902eabfee8",
+  "evidence_sha256": {
+    ".work/v325-accepted-live-check.json": "e92eb67d5f721b46aa14946fc7150a3962b8d1c6c7ea422518f3cf597bde3ccc",
+    ".work/v325-first-hair-navigation.json": "01e0b9b650146f6a34ed1942eb2e81ce1888bb16672d5a0f8bbe154b82c8f2e9",
+    ".work/v325-normal-automatic-entry.json": "f3ff0750f1704de09c53108e0fed13b6a5672d5bd3a725657dceff29d5205904",
+    ".work/v325-player-save-observe.json": "a858f9d8a8baea67e7b2c01061cc8ddc41b6e941ce7e541051094709b7042b51",
+    ".work/v325-player-save-verified.json": "9cb79b0cb10cf655fa519dbf61b481a257a7553f98722ea91e45e693c1f1f411"
+  },
+  "fixtures": {
+    "fixture_suites_overlap": true,
+    "native_ctest_targets": 21,
+    "native_ready_and_transition": 30,
+    "safety_lifecycle": 221,
+    "seal_and_upgrade": 52,
+    "switch_and_transition": 60,
+    "ui_focused_executions": 100
+  },
+  "game_version": "1.128.90.1030",
+  "hitch_free_claim": false,
+  "limits": [
+    "One no-edit CAS acceptance plus ordinary new-slot Save As is qualified; edited CAS, normal Save, cold Load, travel and other routes still need their own actual passes.",
+    "A clickable Gallery control is not proof of native/named import/export preservation.",
+    "V325 layout is unqualified and this candidate is not for the actual save.",
+    "No baseline frame-time or instantaneous-action result is established."
+  ],
+  "pid": 130288,
+  "release_ready": false,
+  "schema": 1,
+  "ui_runtime": {
+    "cause": "Getter appended to donor duplicate; earliest import-free ClassLibraryGamedata still supplied a setter-only class.",
+    "correction_pending": "Authenticate canonical12272 and donor89D independently; add origin readback before new runtime qualification.",
+    "error": "Catalog display paused: Error #1077: Illegal read of write-only property olympus.layout::RecyclingGridLayout/SuppressUpdates on [object SelectableRecyclingGridLayout].",
+    "first_hair_bind": {
+      "bind_ms": 2839,
+      "clear_ms": 0,
+      "construct_ms": 9,
+      "count": 436,
+      "native_ms": 12,
+      "selected_ms": 19,
+      "state": -2134376418
+    },
+    "qualified": false
+  }
+}

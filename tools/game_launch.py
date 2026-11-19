@@ -1,0 +1,300 @@
+"""EA launch handoff using installed metadata and the registered origin2 handler.
+
+Only an exact isolated test session may launch. This cannot silently approve an
+EA/Windows administrator prompt and does not implement a headless game engine.
+"""
+import ctypes
+from datetime import datetime, timezone
+import os
+from pathlib import Path, PureWindowsPath
+import re
+import json
+import math
+import subprocess
+import time
+import urllib.parse
+from xml.etree import ElementTree
+from source_manifest import sha256
+import test_profile
+import windows_process
+
+
+def account_launch_identity(game_root, log=None):
+    """Read a successful local account's Play record; never guess edition IDs."""
+    explicit_log = log is not None
+    log = test_profile.unlinked(log or Path(os.environ.get('PROGRAMDATA', r'C:\ProgramData')) / 'EA Desktop' / 'Logs' / 'EADesktop.log')
+    # EA rotates this exact file at 4 MiB. A new empty/current log must not
+    # discard the account's verified Client Play identity. Keep the bounded
+    # backup/current stream in chronological order, including rotation seams.
+    logs = [log] if explicit_log else [test_profile.unlinked(log.with_suffix('.bak')), log]
+    lines, sources = [], []
+    for source in logs:
+        if not source.is_file():
+            continue
+        with source.open('rb') as stream:
+            stream.seek(max(0, source.stat().st_size - 2 * 1024 * 1024))
+            current = stream.read().decode('utf-8', 'replace').splitlines()
+        lines.extend(current); sources.extend([source] * len(current))
+    if not lines:
+        raise ValueError('No local EA launch history; use EA Play once to establish this account\'s launch identity.')
+    executable = str(Path(game_root).resolve() / 'Game' / 'Bin' / 'TS4_Launcher_x64.exe')
+    for index in range(len(lines) - 1, -1, -1):
+        line = lines[index]
+        if 'Processing launch request:' not in line or 'requestSource[Client]' not in line:
+            continue
+        match = re.search(r'offerId\[([A-Za-z0-9:_-]+)\] contentId\[([0-9]{1,10})\] exe\[([^\]]+)\]', line)
+        if not match or os.path.normcase(match[3]) != os.path.normcase(executable):
+            continue
+        if not any('Successful launch.' in prior and 'offerKey.offerId=[' + match[1] + ']' in prior and
+                   'slug=[the-sims-4]' in prior for prior in lines[max(0, index - 30):index]):
+            continue
+        return {'offer_id': match[1], 'content_id': match[2], 'executable': executable,
+                'evidence': 'Successful EA Client Play request for this exact installation',
+                'log': str(log), 'record_log': str(sources[index]),
+                'record_sha256': __import__('hashlib').sha256(line.encode('utf-8')).hexdigest()}
+    raise ValueError('No verified successful EA Client Play record for this Sims installation; no launch ID will be guessed.')
+
+
+def retained_account_identity(game_root, state, proof=None, expected_sha256=None):
+    """Keep a verified Client Play identity when EA rotates its bounded logs."""
+    from source_manifest import write_json
+    root = test_profile.unlinked(game_root)
+    cache = test_profile.unlinked(Path(state).resolve().parent / 'verified-ea-account-launch.json')
+    if proof is not None or expected_sha256 is not None:
+        if proof is None or not isinstance(expected_sha256, str) or re.fullmatch('[0-9a-f]{64}', expected_sha256) is None:
+            raise ValueError('A retained EA launch proof requires its exact SHA-256.')
+        source = test_profile.unlinked(proof)
+    else:
+        if not cache.is_file() or cache.stat().st_size > 4096:
+            raise ValueError('No retained verified EA Client Play identity is available.')
+        held = json.loads(cache.read_text(encoding='utf-8'))
+        if not isinstance(held, dict) or set(held) != {'schema', 'proof', 'sha256'} or held['schema'] != 1:
+            raise ValueError('Retained EA account evidence is malformed.')
+        source = test_profile.unlinked(held['proof']); expected_sha256 = held['sha256']
+    if not source.is_file() or not 0 < source.stat().st_size <= 12 * 1024 * 1024 or sha256(source) != expected_sha256:
+        raise ValueError('Retained EA launch evidence is absent or changed.')
+    prior = json.loads(source.read_text(encoding='utf-8-sig'))
+    account = prior.get('account_launch_identity', {})
+    observed = prior.get('observation', {})
+    launcher = root / 'Game' / 'Bin' / 'TS4_Launcher_x64.exe'
+    executable = root / 'Game' / 'Bin' / 'TS4_x64.exe'
+    installer = root / '__Installer' / 'installerdata.xml'
+    if (prior.get('ok') is not True or prior.get('launched') is not True or
+            prior.get('mode') != 'ea-client-handoff' or observed.get('process_started') is not True or
+            type(observed.get('pid')) is not int or observed['pid'] <= 0 or
+            os.path.normcase(observed.get('executable', '')) != os.path.normcase(str(executable)) or
+            account.get('evidence') != 'Successful EA Client Play request for this exact installation' or
+            not isinstance(account.get('offer_id'), str) or re.fullmatch('[A-Za-z0-9:_-]+', account['offer_id']) is None or
+            not isinstance(account.get('content_id'), str) or re.fullmatch('[0-9]{1,10}', account['content_id']) is None or
+            os.path.normcase(account.get('executable', '')) != os.path.normcase(str(launcher)) or
+            not isinstance(account.get('record_sha256'), str) or re.fullmatch('[0-9a-f]{64}', account['record_sha256']) is None or
+            prior.get('executable_sha256') != sha256(executable) or
+            prior.get('installer_manifest_sha256') != sha256(installer) or
+            prior.get('url') != 'origin2://game/launch?' + urllib.parse.urlencode({'offerIds': account['content_id'], 'autoDownload': '0'})):
+        raise ValueError('Retained launch does not prove this unchanged installation and its successful account Play identity.')
+    if proof is not None:
+        write_json(cache, {'schema': 1, 'proof': str(source), 'sha256': expected_sha256})
+    return dict(account, evidence='Retained verified EA Client Play identity after log rotation',
+                retained_proof=str(source), retained_proof_sha256=expected_sha256)
+
+
+def launch_plan(game_root, state, offer_id=None, verified_launch_proof=None, expected_launch_proof_sha256=None):
+    isolation = test_profile.status(state)
+    if not isolation['ready_to_launch']:
+        raise ValueError('Launch requires an exact isolated test profile.')
+    root = test_profile.unlinked(game_root)
+    launcher = test_profile.unlinked(root / 'Game' / 'Bin' / 'TS4_Launcher_x64.exe')
+    executable = test_profile.unlinked(root / 'Game' / 'Bin' / 'TS4_x64.exe')
+    manifest = test_profile.unlinked(root / '__Installer' / 'installerdata.xml')
+    if not all(path.is_file() for path in (launcher, executable, manifest)):
+        raise ValueError('The selected installation lacks the Sims 4 launcher/executable/EA manifest.')
+    raw = manifest.read_bytes()
+    if len(raw) > 1024 * 1024 or b'<!DOCTYPE' in raw.upper() or b'<!ENTITY' in raw.upper():
+        raise ValueError('Unsupported EA installation manifest.')
+    try:
+        metadata = ElementTree.fromstring(raw)
+    except ElementTree.ParseError as error:
+        raise ValueError('Malformed EA installation manifest.') from error
+    version = metadata.find('./buildMetaData/gameVersion')
+    ids = [node.text for node in metadata.findall('./contentIDs/contentID')]
+    if not ids or len(ids) > 64 or any(not re.fullmatch(r'[0-9]{1,10}', value or '') for value in ids):
+        raise ValueError('EA manifest content IDs are missing or unsafe; no launch URL will be guessed.')
+    # This EA version's legacy offerIds URL parameter means CONTENT IDs.
+    # Pick the single edition actually launched by the owner's EA account.
+    retained = None
+    if verified_launch_proof is not None or expected_launch_proof_sha256 is not None:
+        retained = retained_account_identity(root, state, verified_launch_proof, expected_launch_proof_sha256)
+    try:
+        identity = account_launch_identity(root)
+    except ValueError:
+        identity = retained if retained is not None else retained_account_identity(root, state)
+    if offer_id is not None and offer_id != identity['offer_id']:
+        raise ValueError('Requested storefront ID differs from this account\'s successful Play record.')
+    if identity['content_id'] not in ids:
+        raise ValueError('Account launch content ID is not in this installation manifest.')
+    url = 'origin2://game/launch?' + urllib.parse.urlencode({'offerIds': identity['content_id'], 'autoDownload': '0'})
+    return {'ok': True, 'launched': False, 'mode': 'ea-client-handoff',
+            'url': url, 'account_launch_identity': identity, 'installer_content_ids': ids,
+            'game_version': version.get('version') if version is not None else None,
+            'executable_sha256': sha256(executable), 'installer_manifest_sha256': sha256(manifest),
+            'isolation': isolation, 'headless_game_runtime': False,
+            'permission_prompts': 'EA/Windows may still require the owner to approve an administrator prompt.',
+            'proof_scope': 'Validated launch plan only; success requires observed process and packaged bridge readiness.'}
+
+
+def running_game_processes():
+    result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                             "@(Get-Process -ErrorAction Stop | Where-Object { $_.ProcessName -in @('TS4_x64','TS4_DX9_x64','TS4') } | Select-Object Id,Path) | ConvertTo-Json -Compress"],
+                            capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+    rows = json.loads(result.stdout) if result.stdout.strip() else []
+    rows = rows if isinstance(rows, list) else [rows]
+    for row in rows:
+        if not row.get('Path'):
+            row['Path'] = process_image(row['Id'])
+    return rows
+
+
+def process_image(pid):
+    # Get-Process.Path can require more access than image-name inspection.
+    # Query only the executable identity; no process memory/injection or elevation.
+    import ctypes
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+    kernel.QueryFullProcessImageNameW.restype = wintypes.BOOL
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    handle = kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return None
+    try:
+        capacity = wintypes.DWORD(32768)
+        buffer = ctypes.create_unicode_buffer(capacity.value)
+        if kernel.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(capacity)):
+            return buffer.value
+        return None
+    finally:
+        kernel.CloseHandle(handle)
+
+
+def observe_game_process(pid, kernel=None, last_error=None, *, expected_path=None, expected_creation_time=None):
+    """Observe one exact live DX11 Sims PID through a single read-only handle.
+
+    No shell, enumeration, process memory or elevation is needed. A vanished or
+    exited PID returns None; inaccessible and reused non-Sims PIDs fail closed.
+    Native bindings may be supplied for tests without inspecting host processes.
+    Optional path and creation FILETIME guards reject a reused Sims PID too.
+    """
+    observed = windows_process.observe(pid, expected_path=expected_path,
+        expected_creation_time=expected_creation_time, kernel=kernel, last_error=last_error)
+    if observed and PureWindowsPath(observed['Path']).name.casefold() != 'ts4_x64.exe':
+        raise ValueError('Verified PID belongs to a different executable; no game command is authorized.')
+    return observed
+
+
+def observe_start(executable, prior_ids, seconds, probe=running_game_processes, monotonic=time.monotonic, pause=time.sleep):
+    if type(seconds) not in (int, float) or not math.isfinite(seconds) or not 0 < seconds <= 60:
+        raise ValueError('Launch observation must be between 0 and 60 seconds.')
+    started = monotonic(); deadline = started + seconds
+    observations = 0
+    while True:
+        rows = probe(); observations += 1
+        if not isinstance(rows, list) or len(rows) > 64:
+            raise ValueError('Sims launch process inventory exceeds its passive observation bound.')
+        final = []
+        for row in rows:
+            if (not isinstance(row, dict) or type(row.get('Id')) is not int or not 0 < row['Id'] <= 0xffffffff or
+                    row.get('Path') is not None and not isinstance(row['Path'], str)):
+                raise ValueError('Sims launch process inventory has no exact typed identity.')
+            final.append({'Id': row['Id'], 'Path': row.get('Path')})
+            if row['Id'] not in prior_ids and row.get('Path') and Path(row['Path']).resolve() == executable.resolve():
+                return {'process_started': True, 'pid': row['Id'], 'executable': row['Path'],
+                    'observation_limit_seconds': seconds, 'elapsed_seconds': max(0, monotonic() - started),
+                    'process_observation_count': observations, 'retry_attempted': False}
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            return {'process_started': False, 'outcome': 'start-unresolved', 'final_process_inventory': final,
+                'observation_limit_seconds': seconds, 'elapsed_seconds': max(0, monotonic() - started),
+                'process_observation_count': observations, 'retry_attempted': False,
+                'message': 'No verified Sims process was observed within this limit. The existing handoff may still complete; no retry was attempted.'}
+        pause(min(1, remaining))
+
+
+def launch(game_root, state, execute=False, headless=False, observe_seconds=60, offer_id=None, elevate_permission_once=False,
+           verified_launch_proof=None, expected_launch_proof_sha256=None):
+    if headless:
+        raise ValueError('A headless Sims 4 runtime is not implemented. Use the real-game bridge for CLI testing.')
+    if verified_launch_proof is None and expected_launch_proof_sha256 is None:
+        plan = launch_plan(game_root, state, offer_id)
+    else:
+        plan = launch_plan(game_root, state, offer_id, verified_launch_proof, expected_launch_proof_sha256)
+    if execute:
+        import launch_preferences
+        remembered_permission = launch_preferences.enabled(state,plan['account_launch_identity'])
+        elevate_permission_once = elevate_permission_once or remembered_permission
+        plan['permission_strategy'] = 'remembered-normal-uac-one-shot' if remembered_permission else (
+            'explicit-normal-uac-one-shot' if elevate_permission_once else 'normal-access')
+        test_profile.require_closed()
+        # Recheck immediately before handoff so no launch can use a restored/live profile.
+        if not test_profile.status(state)['ready_to_launch']:
+            raise ValueError('Test profile changed before launch.')
+        if os.name != 'nt':
+            raise RuntimeError('EA registered-protocol launch is supported only on Windows.')
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r'origin2\shell\open\command') as key:
+            registered = winreg.QueryValueEx(key, None)[0]
+        if not registered or 'EALauncher.exe' not in registered or '%1' not in registered:
+            raise ValueError('The origin2 handler is not the expected installed EA launcher.')
+        prior_ids = {row['Id'] for row in running_game_processes()}
+        if elevate_permission_once:
+            # This read offset excludes all old/other account launch attempts.
+            ea_log = test_profile.unlinked(plan['account_launch_identity']['log'])
+            log_offset = ea_log.stat().st_size
+        handoff_at = time.time()
+        plan['handoff_evidence'] = {
+            'timestamp': handoff_at,
+            'utc': datetime.fromtimestamp(handoff_at, timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z'),
+        }
+        if elevate_permission_once:
+            plan['handoff_evidence']['ea_log_start_offset'] = log_offset
+        os.startfile(plan['url'])
+        plan['handed_off'] = True
+        import ea_permission
+        time.sleep(1)
+        direct_broker = False
+        if elevate_permission_once:
+            import ea_permission_broker
+            try:
+                diagnostic = ea_permission_broker.diagnose()
+                plan['permission_integrity'] = diagnostic
+                direct_broker = (diagnostic.get('ok') is True and
+                    diagnostic.get('compatible_integrity') is False and
+                    diagnostic.get('normal_elevation_may_help') is True)
+            except (OSError, ValueError, RuntimeError) as error:
+                plan['permission_integrity'] = {'ok': False, 'message': str(error)}
+        if direct_broker:
+            plan['ea_permission'] = {'ok': False, 'acknowledged': False, 'input_sent': False,
+                'incompatible_uia_skipped': True, 'windows_uac_approved': False,
+                'message': 'Remembered one-shot helper selected for the exact higher-integrity EA owner; UIA input was not attempted.'}
+        else:
+            plan['ea_permission'] = ea_permission.acknowledge(Path(state).resolve().parent)
+        if (elevate_permission_once and not plan['ea_permission'].get('acknowledged') and
+                not plan['ea_permission'].get('acknowledgement_unresolved')):
+            import ea_permission_broker
+            try:
+                if not test_profile.status(state)['ready_to_launch']:
+                    raise ValueError('Test profile changed before the explicit permission helper.')
+                plan['handoff_evidence']['permission_context_observation_seconds'] = ea_permission_broker.LAUNCH_RECORD_WAIT_SECONDS
+                context = ea_permission_broker.wait_launch_context(plan, handoff_at, log_offset)
+                plan['ea_permission_broker'] = ea_permission_broker.elevate_once(
+                    Path(state).resolve().parent, launch_context=context)
+            except (OSError, ValueError, RuntimeError) as error:
+                plan['ea_permission_broker'] = {'ok': False, 'acknowledged': False,
+                    'game_start_verified': False, 'windows_uac_automated': False, 'message': str(error)}
+        plan['observation'] = observe_start(Path(game_root) / 'Game' / 'Bin' / 'TS4_x64.exe', prior_ids, observe_seconds)
+        plan['launched'] = plan['observation']['process_started']
+        plan['ok'] = plan['launched']
+        plan['proof_scope'] = 'EA handoff and process-start observation only; packaged bridge/household readiness is a separate check.'
+    return plan

@@ -1,0 +1,87 @@
+{
+  "actual_save_release_claimed": false,
+  "candidate_sha256": "1593e8ffb6d25d4eaaa549559a37d6ef344ff1a77d00b91f3bd3edf9f6efe868",
+  "epoch": "2026-10-25-retained-cards-common-geometry-v343",
+  "evidence_sha256": {
+    "v343-body-after-service-window.json": "27c2ee7cad41a14b2d493b918695e026c8393c33213df31519dc748b88d249e8",
+    "v343-body-replan-services.json": "57ba08b5d4062d7c28e8c275f7b50fc15695e6c1976c6c30b2066e4a5cf64ae5",
+    "v343-category-runtime.json": "52c49145fd269f9eaa22d7f62b06cd535e1a20ce596139644de28b58b72d2c02",
+    "v343-closed-install-launch.json": "9e1f2c425efcdf42958e62a8337a920fbef5af338d4bba32483381e023c97a1b",
+    "v343-edited-saved-cold-load.json": "c6d3cef26756d4eaa197e3845eb83c387d708be9caca0634f1bd48a7c47d35a8",
+    "v343-family-skin-state.json": "ad8127bb0fbe6085581d62a43c00f7ac745409be9abc692af82aba2777955f3c",
+    "v343-first-body-size-state.json": "e9f939dbbb123f59b89d2a24b33e5169538332cfd3ba15e4a4d3ad98626f36be",
+    "v343-medical-normal-cas-return.json": "fd9d185af5b68c2d0aede4d3fea76b1cbcb4297058b4f3261846c23f2bd8fae4",
+    "v343-normal-automatic-entry.json": "a5be9a986f75bd500d58e15b3a601f940d0209f9b9bc7c2a83c51fe32a48fec7",
+    "v343-scroll-hair-state-later.json": "c06feee2d29cb2eb57b09e5524066eef75ff44df256939e1374fc16597323524"
+  },
+  "failed": [
+    {
+      "case": "Body replan scheduling",
+      "next_fix": "One bounded admitted atom before the soft deadline; pure validation dedup; paired existing-clock phase attribution.",
+      "observation": "Selection index0 at frame495; eventually done index180/publishes1 at frame654. Severe temporary starvation, not a permanent texture wait."
+    },
+    {
+      "case": "Body size slider acknowledgement",
+      "next_fix": "Synchronize the actual slider thumb and redraw; preserve strict postcondition.",
+      "observation": "Actual preference/layout35% applied, but actual thumb transform failed the one-twip postcondition."
+    },
+    {
+      "case": "Skin Tone",
+      "next_fix": "Patch the actual declaring library provider; preserve absent canonical class; isolate faults by exact native panel/grid.",
+      "observation": "Family helper present, nested ColorSwatchPanel helper missing from library-resolved class. Global fault also stopped subsequent Hair layout."
+    },
+    {
+      "case": "Medical normal CAS return",
+      "next_fix": "Preserve native refusal reason and qualify precisely predicted shell/rendered normalization. Fixture repro proven; actual reason still requires new runtime test.",
+      "observation": "Original accept UUID retained as rejected before SaveAndExitCAS; old AS masked native refusal as identity shape error."
+    }
+  ],
+  "native_service_measurements": {
+    "enable_tattoo_mode": {
+      "calls": 1,
+      "max_ms": 3.8471
+    },
+    "get_catalog_base_items": {
+      "calls": 4,
+      "max_ms": 24.1302,
+      "total_ms": 35.382
+    },
+    "get_current_outfit_slot": {
+      "calls": 273,
+      "max_ms": 0.0071,
+      "total_ms": 1.012
+    },
+    "get_sim_info": {
+      "calls": 53,
+      "max_ms": 0.5715,
+      "total_ms": 12.4923
+    },
+    "scope": "Explicit opt-in bounded profile during actual navigation; timing subsequently disabled. Optional wrappers remain installed until process exit. No no-mod/FPS comparison."
+  },
+  "open_validation": [
+    "Actual corrected Body/Face/Skin/clothing sizing",
+    "Actual scrolling and no blank/stale card publication",
+    "Real width grip drag and obstruction bounds",
+    "Medical/Tattoo accepted return and raw all-owner preservation",
+    "Ordinary EA, phone and MCCC exit readiness",
+    "Human-only paint isolation",
+    "Household save/cold-load/Tray/Gallery round trips",
+    "Matched frame-time evidence and remaining native stalls"
+  ],
+  "passed": {
+    "body_columns": 12,
+    "body_requested_scales_observed": [
+      0.2,
+      0.3499999998
+    ],
+    "cold_load_complete_native_appearances": 40,
+    "cold_load_named_looks": 155,
+    "face_columns_observed": 12,
+    "full_cas_entry_complete_owner_fields": 195,
+    "medical_tattoo_armhair_preview_setter_calls": 1,
+    "unchanged_save_files": 21
+  },
+  "production_ready": false,
+  "scope": "Actual disposable all-occult household, five Sims. Protected original not written.",
+  "zero_hitch_or_instant_guarantee_claimed": false
+}

@@ -1,0 +1,20 @@
+Research and implementation notes
+
+Key external findings used:
+- Sims 4 script mods are Python 3.7 based .ts4script archives, and the game can load packaged Python source files.
+- Current Sims 4 hybrid issues revolve around both visible occult traits and the hidden occult_types value. Traits influence forms/interactions while occult_types influences CAS and needs-panel behavior.
+- Community hybrid workaround notes emphasize memory/holdout traits and preserving occult data around CAS edits.
+- Sims real-time alarms are the correct mechanism for repeated real-time callbacks, and alarm owners/handles need strong references so they are not garbage collected.
+- Loot actions are the game's tuning-level action mechanism, so this build uses vanilla occult loot actions as first-pass initializers when present, then normalizes hybrid flags and form data.
+
+Local sources used:
+- Uploaded TD1 Occult Hybrid Apex archive.
+- Original TD1 handler file inside the archive, including the visible StabilizeFix source.
+- Uploaded current Game/Bin archive.
+- Uploaded RTBP v2.3 archive for local client/server architecture style.
+
+What changed from the uploaded archive:
+- The same TD1 Occult Hybrid Apex folder and archive identity are preserved.
+- The Python commander was patched in place and repacked into the existing TD1_OccultHybridApex.ts4script file.
+- The native DLL was rebuilt as a PE32+ x64 Windows DLL with 15 exported helpers.
+- Reports and README were refreshed.

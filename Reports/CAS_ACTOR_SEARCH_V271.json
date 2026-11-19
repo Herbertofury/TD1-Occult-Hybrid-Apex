@@ -1,0 +1,153 @@
+{
+  "actual_game": {
+    "actual_ea_checkmark": "background CLI returned to paused Live",
+    "all195_retained_on_full_cas_entry": true,
+    "all40_and155_retained_after_actual_ea_ui_exit": true,
+    "all_save_and_backup_files_unchanged": true,
+    "appearance_edits_requested": false,
+    "clearing_restores_feed": true,
+    "direct_cas_service_exit": "explicitly rejected; not replayed",
+    "f11_global_runtime": "blocked by document delivery/owner state; not qualified",
+    "f11_matching_cpp_worker": {
+      "exact_query_page_validated": true,
+      "families": 3
+    },
+    "internal_records": 195,
+    "named_looks": 155,
+    "native_appearances": 40,
+    "native_household_query": {
+      "indexed": 4,
+      "visible_in_current_category": 1
+    },
+    "native_other_members_query": {
+      "indexed": 2,
+      "parent_swatch_mapping_qualified": false,
+      "visible": 0
+    },
+    "native_sim_query": {
+      "indexed": 2,
+      "visible_in_current_category": 1
+    },
+    "native_type_query": {
+      "indexed": 1,
+      "visible": 1
+    },
+    "native_unknown_name_query": {
+      "indexed": 0,
+      "visible": 0
+    },
+    "normal_checked_household_review": "all five committed; guard retained",
+    "original_profile_written": false,
+    "pid": 94132,
+    "selected_sim_unchanged": true,
+    "sims": 5
+  },
+  "candidate": {
+    "artifact": "Apex_Development_Candidate_2026-10-21-equipped-search-v271.zip",
+    "bytes": 9111416,
+    "compiled_modules": 106,
+    "independent_rust_verified": true,
+    "members": 31,
+    "packages": 7,
+    "resource_count": 210,
+    "sha256": "f280ed6ccbe3edf1388321dd59612c777b5ac62d9462c19eb725d361fdbff343"
+  },
+  "epoch": "2026-10-21-equipped-search-v271",
+  "implemented": [
+    "sim: and household: filters",
+    "sim-id: and household-id: filters",
+    "form: and one-based outfit: filters",
+    "save-scoped immutable equipped references",
+    "F11 used-by card metadata",
+    "offline Rust query worker without HTTP dependencies",
+    "explicit metadata sync and creator/source provenance",
+    "indexed swatch family pages",
+    "native CAS favorites/hidden/recent companion controls"
+  ],
+  "indexing": {
+    "ambiguous_unique": 502,
+    "captured_references": 27809,
+    "catalogue_families": 54334,
+    "catalogue_parts": 539005,
+    "full_sim_assets_exported": false,
+    "hidden_metadata_service_installed": false,
+    "matched_cc_resource_variants": 4,
+    "package_files_renamed": false,
+    "package_scan_during_search": false,
+    "resolved_references": 87,
+    "unresolved_unique": 56,
+    "usage_bytes": 90112
+  },
+  "performance": {
+    "card_identities_order_and_metadata_equal": true,
+    "compared_cards": 60,
+    "compared_families": 1423,
+    "ea_hair_page_after_ms": 2.024,
+    "ea_hair_page_before_ms": 1314.656,
+    "note": "Worker measurements exclude opening/hash verification and game frame cadence; background CAS warm UI delivery measured about 633–639 ms.",
+    "usage_query_worker_ms": [
+      0.368,
+      0.783
+    ]
+  },
+  "production_ready": false,
+  "proofs": [
+    {
+      "path": ".work/v271-normal-automatic-entry.json",
+      "sha256": "bd0e43c4ff6e991553d405491d551185400b94d7f288b79d697784d7c7ab3209"
+    },
+    {
+      "path": ".work/v271-actor-native-search-final.json",
+      "sha256": "266a3121b5f666bd9d54db588800b17b7a193a054229487e7898a4288edd1c08"
+    },
+    {
+      "path": ".work/v271-actual-ui-exit-retention.json",
+      "sha256": "a4622de3905c972840d1d05b639addaded07d84b5b4562d01beeb9e79635979b"
+    },
+    {
+      "path": ".work/v271-ui-return-household-review.json",
+      "sha256": "5af2e7d2bbda1215ec13180762c53c9b875dbaa1549b56015bd7e2788addcf7e"
+    },
+    {
+      "path": ".work/v271-exact-f11-offline-result.json",
+      "sha256": "82568b0cbbd8de9e6da585f7f237d5b7c42d112d2434c9d7553eb848da077294"
+    },
+    {
+      "path": ".work/v271-reviewed-library-status.json",
+      "sha256": "25c8cbf1eb7aa21c39b93d30826567b44144dcf4ee08b26bda0d0615a97dc093"
+    },
+    {
+      "path": ".work/v271-live-studio-document.json",
+      "sha256": "7d8b2ec4a380b516c68b43ec73ff3b3ec3314f35e330c9b7a58814d037675880"
+    },
+    {
+      "path": ".work/v271-reviewed-studio-status.json",
+      "sha256": "922db38fd7aefde3eaf4b021bc623cf884f0f7d48fe123f990b567222731b1c7"
+    }
+  ],
+  "remaining": [
+    "F11 catalogue document delivery / retained owner state",
+    "Native CAS parent-card resolution for equipped non-base swatches",
+    "Direct SaveAndExitCAS service path after body-hair browsing",
+    "Automatic production capture/refresh after CAS, Live and Tray changes",
+    "Direct compact RPC bridge qualification; current capture uses the existing validated DTO pages in memory",
+    "Effective resource-hash attribution for ambiguous EA references",
+    "Full donor Dynamic CAS feature parity",
+    "Full edited-category, MCCC and Tray release qualification",
+    "WCIF item coverage gap for creator 8981: reported 674 but only 670 returned; archive remains incomplete"
+  ],
+  "schema": 1,
+  "status": "development; release blocked",
+  "tests": {
+    "candidate_install_python": 8,
+    "capture_python": 7,
+    "companion_python_and_bytecode": 4,
+    "form_seal_python": 26,
+    "native_search_python_and_bytecode": 5,
+    "native_targets": 15,
+    "profile_config_python": 13,
+    "rust_integration": 21,
+    "rust_unit": 10,
+    "source_upgrade_python": 26
+  }
+}

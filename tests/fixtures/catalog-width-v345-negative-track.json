@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "source_receipt_sha256": "2ef900bf423e50ac4aab0353fe3bfc67c1ecbade7f50e423497977aaeca14754",
+  "provenance": "Actual V345 Body12/35 catalog-state width diagnostic; contains no appearance bytes.",
+  "probe": {
+    "appearance_written": false,
+    "available": 0,
+    "content": {
+      "height": 1213.699951171875,
+      "width": 507.39990234375,
+      "x": 1640.050048828125,
+      "y": 97.30000305175781
+    },
+    "content_available": 876.9573974609375,
+    "controls_available": 0,
+    "controls_bottom": 1353.987487792969,
+    "controls_maximum": 0,
+    "controls_origin": {
+      "x": 1622.043212890625,
+      "y": 1313.98779296875
+    },
+    "coordinate_scale": 1,
+    "gutter": 32,
+    "mask_present": true,
+    "mask_same_stage": true,
+    "navigation": {
+      "layout_manager_present": true,
+      "navigation_found": true,
+      "navigation_same_stage": true,
+      "navigation_widget_name": "CASNavigation",
+      "reason": "navigation-hit-rectangles-read"
+    },
+    "ok": false,
+    "origin": {
+      "x": 1651.042602539063,
+      "y": 52.01266098022461
+    },
+    "panel_kind": "cards",
+    "protocol": 1,
+    "reason": "native-protected-region-blocks-width",
+    "regions": [
+      {
+        "bounds_source": "published-conservative-bounds",
+        "height": 1385,
+        "kind": "avatar-native-attachment",
+        "width": 1651.042602539063,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "bounds_source": "published-conservative-bounds",
+        "height": 1385,
+        "kind": "traits-native-left",
+        "width": 1651.042602539063,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "bounds_source": "published-conservative-bounds",
+        "height": 1385,
+        "kind": "radial-native-left",
+        "width": 1651.042602539063,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "bounds_source": "native-sprite-hit-area",
+        "height": 52.0008544921875,
+        "kind": "native-navigation-button",
+        "width": 51.979736328125,
+        "x": 2498,
+        "y": 1327.5
+      },
+      {
+        "bounds_source": "native-sprite-hit-area",
+        "height": 42.4111328125,
+        "kind": "native-navigation-button",
+        "width": 41.768798828125,
+        "x": 2453.550048828125,
+        "y": 1338.050048828125
+      },
+      {
+        "bounds_source": "native-sprite-hit-area",
+        "height": 51.8492431640625,
+        "kind": "native-navigation-button",
+        "width": 60.999755859375,
+        "x": 1437.900024414063,
+        "y": 1275.200073242188
+      },
+      {
+        "bounds_source": "native-sprite-hit-area",
+        "height": 55.2490234375,
+        "kind": "native-navigation-button",
+        "width": 60.999755859375,
+        "x": 1062.900024414063,
+        "y": 1273
+      },
+      {
+        "bounds_source": "native-sprite-hit-area",
+        "height": 30.0093994140625,
+        "kind": "native-navigation-button",
+        "width": 57.5113525390625,
+        "x": 1222.333374023438,
+        "y": 1336
+      },
+      {
+        "bounds_source": "native-sprite-hit-area",
+        "height": 29.9984130859375,
+        "kind": "native-navigation-button",
+        "width": 53.5360107421875,
+        "x": 1280.815673828125,
+        "y": 1336
+      },
+      {
+        "bounds_source": "native-sprite-hit-area",
+        "height": 24.999755859375,
+        "kind": "native-navigation-button",
+        "width": 24.999755859375,
+        "x": 1183.75,
+        "y": 1339.599975585938
+      },
+      {
+        "bounds_source": "native-sprite-hit-area",
+        "height": 17.9744873046875,
+        "kind": "native-navigation-button",
+        "width": 13.9998779296875,
+        "x": 1164.75,
+        "y": 1345
+      },
+      {
+        "bounds_source": "native-sprite-hit-area",
+        "height": 32.003173828125,
+        "kind": "native-navigation-button",
+        "width": 28.9921875,
+        "x": 1345.450073242188,
+        "y": 1341
+      }
+    ],
+    "scope": "native-catalog-width-bounds",
+    "scrollbar": {
+      "height": 1213.699951171875,
+      "width": 13.00750732421875,
+      "x": 495.8500061035156,
+      "y": 45.29999923706055
+    },
+    "unit": {
+      "x": 1652.042602539063,
+      "y": 52.01266098022461
+    },
+    "vertical": {
+      "x": 1651.042602539063,
+      "y": 53.01265335083
+    }
+  },
+  "catalog_bounds": {
+    "height": 1269.000122070313,
+    "local_x": 0,
+    "stage_height": 1385,
+    "stage_width": 2560,
+    "width": 537.39990234375,
+    "x": 1631.050048828125,
+    "y": 52
+  },
+  "card_width": 537.3999997431999
+}

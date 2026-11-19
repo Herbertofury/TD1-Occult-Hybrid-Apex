@@ -1,0 +1,22 @@
+{
+  "appearance_written": false,
+  "bank_persistence_qualified": false,
+  "build_epoch": "2026-10-16-native-cas-bounded-owner-pages-v169",
+  "bundle_sha256": "96860f989d8d00ce0fe24099538508beac559b8f1590fb3335dd1a01af65ea9a",
+  "cas_accept_submitted": false,
+  "dll_sha256": "76e381c95d41df3a6828082c7232035a74424d99c42dc14d612b41f16f0e4a65",
+  "installed_in_disposable": false,
+  "production_ready": false,
+  "runtime_qualified": false,
+  "save_submitted": false,
+  "schema": 1,
+  "script_sha256": "784681284ec00277dadb8d0e22d3f9d213d901aab4aee56023adc5e74c1c3bd3",
+  "tests": {
+    "epoch_migration": 31,
+    "native_ctest_targets": 9,
+    "native_engine": 10,
+    "native_engine_cli": 7,
+    "owner_export_cli": 3,
+    "page_collector": 6
+  }
+}

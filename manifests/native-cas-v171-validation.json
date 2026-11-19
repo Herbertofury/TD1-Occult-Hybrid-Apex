@@ -1,0 +1,115 @@
+{
+  "build_epoch": "2026-10-16-native-cas-verify-complete-entry-import-v171",
+  "bundle_sha256": "8aa651ac6ad8c19874e6bbb3401696822a207aaf2adc22058c972ac808265a55",
+  "cas_accept_submitted": false,
+  "epoch_migration_checks": 31,
+  "import_checks": 33,
+  "native_ctest_targets": 9,
+  "production_ready": false,
+  "runtime": {
+    "cas_entry_accepted": false,
+    "cold_originals_exact": true,
+    "cold_proof_sha256": "f5aa74e57fa7827dbf95d741b5e5538c619e1da5505ddf0edc660c27a8690915",
+    "comparison_sha256": "b5d97235cac2232216b7c9984e6ec4a976d92565d4889c4deee36cbf61a863be",
+    "crashed": false,
+    "differences": [
+      {
+        "changed_fields": [
+          "__outfits__"
+        ],
+        "native_kind": 16,
+        "owner_id": "native/16",
+        "sim_id": "285159751289798669"
+      },
+      {
+        "changed_fields": [
+          "__outfits__"
+        ],
+        "native_kind": 16,
+        "owner_id": "witch/witch_primary",
+        "sim_id": "285159751289798669"
+      },
+      {
+        "changed_fields": [
+          "pelt_layers"
+        ],
+        "native_kind": 1,
+        "owner_id": "native/1",
+        "sim_id": "349336084686110946"
+      },
+      {
+        "changed_fields": [
+          "pelt_layers"
+        ],
+        "native_kind": 16,
+        "owner_id": "native/16",
+        "sim_id": "349336084686110946"
+      },
+      {
+        "changed_fields": [
+          "pelt_layers"
+        ],
+        "native_kind": 2,
+        "owner_id": "native/2",
+        "sim_id": "349336084686110946"
+      },
+      {
+        "changed_fields": [
+          "pelt_layers"
+        ],
+        "native_kind": 4,
+        "owner_id": "native/4",
+        "sim_id": "349336084686110946"
+      },
+      {
+        "changed_fields": [
+          "pelt_layers"
+        ],
+        "native_kind": 64,
+        "owner_id": "native/64",
+        "sim_id": "349336084686110946"
+      },
+      {
+        "changed_fields": [
+          "pelt_layers"
+        ],
+        "native_kind": 8,
+        "owner_id": "native/8",
+        "sim_id": "349336084686110946"
+      },
+      {
+        "changed_fields": [
+          "pelt_layers"
+        ],
+        "native_kind": 32,
+        "owner_id": "native/32",
+        "sim_id": "349336084686110947"
+      },
+      {
+        "changed_fields": [
+          "pelt_layers"
+        ],
+        "native_kind": 32,
+        "owner_id": "native/32",
+        "sim_id": "450667075246031054"
+      },
+      {
+        "changed_fields": [
+          "pelt_layers"
+        ],
+        "native_kind": 32,
+        "owner_id": "native/32",
+        "sim_id": "450667075246031055"
+      }
+    ],
+    "entry_refused_before_cas": true,
+    "genetics_match_all_owners": true,
+    "original_appearance_owners": 40,
+    "owners_compared": 195,
+    "pre_entry_import_qualified": false,
+    "read_only_all195_sha256": "5cff14d5ab94a6ab5dbc9358fbb447660b049cf3e54ef15ae7d0d6b19c473c3e",
+    "unchanged_owners": 184
+  },
+  "save_submitted": false,
+  "schema": 1
+}

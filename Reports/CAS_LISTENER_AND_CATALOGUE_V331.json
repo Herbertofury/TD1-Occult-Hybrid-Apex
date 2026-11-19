@@ -1,0 +1,210 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-listener-index-catalog-v331",
+  "candidate_sha256": "9bf3c501d84a74ca7b4446f18b7736360bc19bfc16a3f739cd3ae52dcda34f64",
+  "production_ready": false,
+  "runtime_performance_qualified": false,
+  "engine_changes": {
+    "listener_membership": "Indexed native CommunicationObject membership; native dispatch order, deferred removals and array removal bodies retained. Null/alias/eligibility/allocation failure uses original behavior.",
+    "providers": {
+      "62ECC59A:00000000:12272E1AC0C1F8E2": {
+        "final_sha256": "2f74987d872080437fe9695a9f219e8a71c139f37c1f6c3c806f5888f98e8cf3",
+        "historical_grid_sha256": "525b5db224f243b4fc60fafe2dc9365409076a8c234358e62083ec922e33746f",
+        "whole_abc_rollback": true
+      },
+      "62ECC59A:00000000:89D13757C58C2E05": {
+        "final_sha256": "b7ab103c2e1070ee474b88bd82c77279d176e4985d4f2caa7f27dab3ef85fe6f",
+        "historical_grid_sha256": "f286299b7822fe857b13eaada6775de3e4c8ab536c741cd0582234d7fdd92792",
+        "whole_abc_rollback": true
+      }
+    },
+    "selection": "Separate guarded Draw and selection atoms. Fresh exact target primitives and native owner/feed/view/revision/generation checks precede writes; no borrowed product crosses a frame.",
+    "hidden_panel": "No engine queries, clocks or pool operations while the clothing panel is hidden or another panel is current.",
+    "primitive_runtime_stats": [
+      "indexes_built",
+      "indexed_calls",
+      "alias_fallbacks",
+      "eligibility_fallbacks",
+      "error_fallbacks"
+    ],
+    "native_latency_claimed": false
+  },
+  "metadata": {
+    "packages_installed": 904,
+    "catalogue_sha256": "a459b0016fd6265d456cbc2ef18a8a51424a2aec3ce77ffd6fad0bebb201e895",
+    "parts": 542860,
+    "ea_rows": 538943,
+    "cc_rows": 3917,
+    "cc_hair": 111,
+    "simbience_hair_fts": 86,
+    "newly_indexed_casp": 3855,
+    "old_rows_retained": 539005,
+    "unclassified_cc": 0,
+    "old_unclassified_ea_retained": 89314,
+    "creator_directory": 789,
+    "metadata_sources": 4801,
+    "provider_profiles": 757,
+    "legacy_versions_independently_verified": {
+      "42": 2085,
+      "43": 490
+    },
+    "production_parser_versions": [
+      42,
+      52
+    ],
+    "resource_files_renamed": false,
+    "visual_assets_exported": false,
+    "network_at_runtime": false,
+    "background_service": false,
+    "usage_compatibility_copy_sha256": "733164b9fbbfd547f86b10e842ba5bfec2bcc038e3763613da5588f5f2b2c737",
+    "usage_actors_preserved": 5,
+    "usage_rows_preserved": 87,
+    "usage_epoch": "2577b8c02a9d4e4e968bdad1f3cfc226",
+    "usage_is_current_runtime_capture": false,
+    "original_catalogue_usage_and_protected_profile_unchanged": true
+  },
+  "offline_validation": {
+    "communication_tests": 11,
+    "compiled_adversarial_cases": 28,
+    "grid_selection_tests": 26,
+    "chain_tests": 17,
+    "main_lease_tests": 20,
+    "catalogue_tests": 35
+  },
+  "actual_pending": [
+    "Cold load and normal full-CAS complete-field comparison",
+    "Runtime index active vs fallback counters",
+    "Quiet frame-time and per-atom latency capture",
+    "12/32 columns and Body/Tattoo/Hair transition responsiveness",
+    "Positive CC author/package/folder search with the exact new snapshot",
+    "All195 fields after UI tests and every save unchanged"
+  ],
+  "qualification_limit": "Offline tests and operation-count models do not establish game FPS, instant switching or actual-save readiness.",
+  "actual": {
+    "cold_load_all40_complete_fields": true,
+    "named_looks_retained": 155,
+    "normal_full_cas_entry_all195_complete_fields": true,
+    "native_grid": {
+      "active": true,
+      "appearance_written": false,
+      "context": {
+        "household_id": "285159751289798668",
+        "layer": 0,
+        "native_generation": "42",
+        "native_kind": 2,
+        "outfit_index": 0,
+        "outfit_type": 9,
+        "owner": "active/2",
+        "phase": "bound",
+        "session": 1,
+        "shell_kind": 4,
+        "sim_id": "285159751289798669",
+        "state": -2134376418
+      },
+      "enabled": true,
+      "error": "",
+      "frame": 592,
+      "frame_timing": {
+        "clock_resolution_ms": 1,
+        "max_ms": 67,
+        "over_1ms": 570
+      },
+      "generation": 5,
+      "invalidations": 2,
+      "native": {
+        "bootstrap": false,
+        "cancelled": false,
+        "cells": 180,
+        "cellsY": 180,
+        "coalesced": 590,
+        "counts": {
+          "attach": 133,
+          "bind": 228,
+          "construct": 133,
+          "data": 684,
+          "draw": 228,
+          "position": 228,
+          "publish": 2,
+          "retire": 177,
+          "selected_setter": 228,
+          "selection": 228
+        },
+        "deferred_events": 11,
+        "dirty": false,
+        "error": null,
+        "generation": 3,
+        "index": 180,
+        "lastOperation": "publish",
+        "lastPhase": "publish",
+        "lease": false,
+        "map": 180,
+        "maxMS": {
+          "attach": 41,
+          "bind": 65,
+          "construct": 3,
+          "data": 1,
+          "draw": 65,
+          "position": 1,
+          "publish": 1,
+          "retire": 2,
+          "selected_setter": 1,
+          "selection": 2
+        },
+        "measured_aspect": 1,
+        "measured_generation": 3,
+        "measured_height": 70.75233644859813,
+        "measured_scale": 0.4813084112149533,
+        "measurement_ready": true,
+        "natural_aspect": 1,
+        "natural_height": 147,
+        "natural_width": 107,
+        "operations": 1135,
+        "pendingCell": false,
+        "phase": "done",
+        "publishes": 2,
+        "reason": "",
+        "reentrant": 0,
+        "revision": 2,
+        "staleBinds": 0,
+        "target": 180
+      },
+      "running": false,
+      "waiting_reason": ""
+    },
+    "reflected_stats_before": {
+      "alias_fallbacks": 0,
+      "appearance_written": false,
+      "available": true,
+      "eligibility_fallbacks": 0,
+      "error_fallbacks": 0,
+      "indexed_calls": 935,
+      "indexes_built": 151,
+      "scope": "native-listener-membership-index"
+    },
+    "reflected_stats_after": {
+      "alias_fallbacks": 0,
+      "appearance_written": false,
+      "available": true,
+      "eligibility_fallbacks": 0,
+      "error_fallbacks": 0,
+      "indexed_calls": 935,
+      "indexes_built": 151,
+      "scope": "native-listener-membership-index"
+    },
+    "index_counters_advance_during_card_attach": false,
+    "frame_capture": {
+      "scope": "45s real action capture including CLI observations; not a no-mod matched baseline",
+      "frames": 5274,
+      "median_ms": 6.9091,
+      "p95_ms": 18.1881,
+      "p99_ms": 42.2232,
+      "max_ms": 347.3326,
+      "over_33_33ms": 144,
+      "event_loss_reported": false,
+      "performance_pass": false,
+      "csv_sha256": "19ed9f356e298bb0a12f1eb3c47e67d77b086ce5d92858280f2e7c74568c77c2"
+    },
+    "performance_pass": false,
+    "next_fix": "Earlier3FFE communication dependency is a separate class domain; qualify actual Button lexical-domain diagnostic before attribution."
+  }
+}

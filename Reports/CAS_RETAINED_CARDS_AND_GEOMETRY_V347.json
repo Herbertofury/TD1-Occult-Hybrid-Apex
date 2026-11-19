@@ -1,0 +1,167 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-26-ready-card-attach-swatch-v347",
+  "source_commit": "e177b5fd406c443c59d46a747e7914e74d494a51",
+  "candidate_sha256": "6d42e7557bf9793074480eb46b4c8506b99d0cc73973289e17ab9fa895c85561",
+  "cas_package_sha256": "d4454ab749f26efa6c0c9964c25bd36843dc32cbba342abb55b7163d2ce1bb0f",
+  "actual_save_ready": false,
+  "zero_hitch_claimed": false,
+  "actual_fps_qualified": false,
+  "source_regression": {
+    "complete": true,
+    "tests_run": 3641,
+    "failures": 0,
+    "errors": 0,
+    "successful_test_methods": 3360,
+    "skip_entries": 290,
+    "canonical_source_files": 1046,
+    "skip_accounting": "281 individual skips and 9 setUpClass entries; do not subtract entries from tests_run.",
+    "proof": {
+      "private_receipt": "v347-clean-source-control/run-e177b5fd406c/proof.json",
+      "sha256": "e31badcec8d71d74a8693a615e83857668cd416c2df8b8ab07d74bc11e0f66ca"
+    }
+  },
+  "package_validation": {
+    "resources": 73,
+    "ui_source_pins": 112,
+    "rust_independent_resources": 277,
+    "rust_packages": 7,
+    "rust_qualification": "Separate exact immutable-archive-bound postbuild proof; original archive flags were not rewritten.",
+    "rust_proof": {
+      "private_receipt": "v347-independent-rust-resource-proof.json",
+      "sha256": "dec49676e08f6d53d7a0084690f9b1ee9d0e3349e837ae9c08c08f7d06fec6cc"
+    },
+    "artifact_regression": "Separate immutable V347 run; retain its original failures and exact repaired-case results."
+  },
+  "runtime_passes": {
+    "body_columns_size_and_width": {
+      "requested_columns": 12,
+      "requested_scale": 0.35,
+      "actual_width_input": true,
+      "native_left_attachment_retained": true,
+      "navigation_rectangles_checked": 9,
+      "proof": {
+        "private_receipt": "v347-catalog-runtime.json",
+        "sha256": "60a5c356eb24974377dfb6ff11fa68260259b886e3442fb91b78426440cbd82c"
+      }
+    },
+    "families_and_members": {
+      "families": [
+        "Eyes",
+        "Skin",
+        "Hair",
+        "Fullbody",
+        "Tattoo"
+      ],
+      "skin_width_grow_shrink_retains_twelve_columns": true,
+      "skin_empty_family_policy_checked": true,
+      "body_geometry_other_household_members": 4,
+      "automatic_equipped_text_refresh": true,
+      "native_overflow_keys": [
+        "PageDown",
+        "End",
+        "PageUp",
+        "Home"
+      ],
+      "proof": {
+        "private_receipt": "v347-families-members-runtime.json",
+        "sha256": "b07133493d005bdb78e68def430c086bc21a38f62e4fe0f2ff8a6c66945ae32a"
+      }
+    },
+    "no_edit_return": {
+      "raw_owner_payloads_exact_before_prepare": 195,
+      "household_members": 5,
+      "normal_ea_checkmark": true,
+      "household_commit": true,
+      "save_files_unchanged": true,
+      "raw_proof": {
+        "private_receipt": "v347-raw-return-all195.json",
+        "sha256": "47d208da5068c2161044a8017015161a5fe7a1af7a60df35386f9a131c5b81d8"
+      },
+      "commit_proof": {
+        "private_receipt": "v347-noedit-household-commit.json",
+        "sha256": "dfededa2408edcf6d6cf2109854dae30fbe39f390b0da1b14266719645678822"
+      }
+    },
+    "same_process_reentry": {
+      "original_entry_submitted_once": true,
+      "original_observer_http_timeout_preserved": true,
+      "fresh_readonly_followup": true,
+      "raw_owner_payloads_exact": 195,
+      "proof": {
+        "private_receipt": "v347-paint2-entry-qualified.json",
+        "sha256": "bfbea8b6ce9bcff32f085e6c4a28213402a3ba90066ae84ee841ed6771a88fd4"
+      }
+    }
+  },
+  "unqualified_or_failed": {
+    "featured": {
+      "actual_native_panel_navigation": true,
+      "eligible_cards": 0,
+      "nonempty_geometry_qualified": false,
+      "original_harness_zero_card_success_not_adopted": true,
+      "proof": {
+        "private_receipt": "v347-featured-runtime-qualification.json",
+        "sha256": "a0462b224ff4a339a4e1c3ce66dbec31affec5befaddad7462c5a9493b5b1d92"
+      }
+    },
+    "blank_free_scrolling": {
+      "continuous_visual_proof": false,
+      "settled_filled_images_do_not_prove_no_intermediate_blank": true
+    },
+    "cold_hair": {
+      "first_process_hair_visit": true,
+      "trace_expired_at_thirty_seconds": true,
+      "logical_operations": 1684,
+      "coalesced_requests": 584,
+      "publication_total_ms": 201,
+      "visibility_interval_ms": 196,
+      "visibility_interval_complete": false,
+      "completed_per_setter_average_qualified": false,
+      "cpu_gc_attribution_qualified": false,
+      "proof": {
+        "private_receipt": "v347-hair-publication-trace.json",
+        "sha256": "3e25925a2ea06d7682da37c6e8444a76cdd1910b62964befc5a2f7b0ba8697fe"
+      }
+    },
+    "human_paint_medical_return": {
+      "actual_compatible_unlocked_ea_part_id": "42119",
+      "body_type": 33,
+      "human_unlinked": true,
+      "normal_return_native_acceptance": "refused before native save",
+      "reason": "Acceptance original pre-harvest form identity changed.",
+      "native_save_attempted": false,
+      "live_return_proven": false,
+      "old_accept_uuid_replayed": false,
+      "current_cas_graph_other_owner_payloads_exact": 194,
+      "single_paint_strict_audit_pass": false,
+      "additional_selected_outfit_delta": "Field9 (installed optional bool match_hair_style) changed from false to true.",
+      "all_nonpaint_part_rows_and_other_outfits_exact": true,
+      "unknown_field_waiver": false,
+      "graph_proof": {
+        "private_receipt": "v347-paint2-committed-graph-after-edit-full.json",
+        "sha256": "a062c65947190e556d8f74d3a54494df1626d09984a3364486848232407d8987"
+      },
+      "outfit_delta_proof": {
+        "private_receipt": "v347-paint2-selected-outfit-protobuf-delta.json",
+        "sha256": "66dcb589430d1e0178a803213907bc08fcc6d1b16fe124ef11fa81f907fb2df2"
+      },
+      "primary_schema_proof": {
+        "private_receipt": "v348-outfit-field9-audit/primary-schema.json",
+        "sha256": "c0248e8aeedd21678d793677ff4109a9354d049310ec553bc9046cc9db32f804"
+      }
+    }
+  },
+  "next_candidate": {
+    "acceptance_operand": "Use already-attested physical view kind for bound native envelope; keep packet shell separately checked.",
+    "native_cpp_identity_guards_relaxed": false,
+    "scrolling": "Retain ready overlapping cards; prepare entering rows; coalesce pending wheel input.",
+    "runtime_performance_claimed": false
+  },
+  "remaining_release_gates": [
+    "Actual reloaded Human paint \u2192 Medical \u2192 normal Live return with raw before-prepare audit.",
+    "Resolve unintended hair-match flag change without overriding deliberate user controls.",
+    "Continuous scroll/category visual and frame-time qualification.",
+    "Full independent cross-form edit, household, save/reload and Tray/Gallery round trips."
+  ]
+}

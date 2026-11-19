@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "candidate_epoch": "2026-10-24-precompiled-preview-rust-v319",
+  "candidate_sha256": "d89e0b2a3be25ddb25a0d5b632e3faf930c8f6587ac589b9b5e8c887f8ccf410",
+  "production_ready": false,
+  "actual_save_release": false,
+  "implemented": [
+    "Queue and coalesce Current Outfit refresh; bounded slices, exact context/fresh snapshot verification before publication",
+    "Apex owns clothing geometry; eight donor adapters retain original fallback bytes and avoid competing rebuilds",
+    "Preserve donor favorites/hide/panels and slider interactions; restore dedicated Apex 2-12 column slider",
+    "Movable/scalable drawer with unified transformed bounds and non-overflowing labels/tooltips",
+    "Rust 1.99/edition2024 immutable protobuf canonicalization/SHA on a bounded Rayon pool: 1-2 workers, at most4 in-flight snapshots, no game pointers or I/O; main thread only captures and polls",
+    "Preview shaders compiled into embedded DXBC at build time; same-device scene changes reuse immutable vertex/pixel shaders and input layout; GPU skinning unchanged"
+  ],
+  "offline": {
+    "native_targets": 20,
+    "rust_tests": 33,
+    "cpp_differential_packets": 64,
+    "worker_failures_tested": [
+      "malformed",
+      "stale-context",
+      "replaced-ticket",
+      "oversize"
+    ],
+    "large_fixture_bytes": 4194304,
+    "large_fixture_only": true,
+    "native_capture_limit_bytes": 524288,
+    "large_fixture_submit_ms": 0.6177,
+    "large_fixture_worker_ms": 3.0812,
+    "large_fixture_prior_synchronous_ms": 5.1965,
+    "actual_game_fps_measured": false,
+    "gpu_readback_precompiled_and_reused_pipeline_pixels_identical": true
+  },
+  "prior_runtime": {
+    "v315": {
+      "pair_settings_passed": 8,
+      "changed_category_copy": "refused: no unique destination appearance record",
+      "changed_copy_appearance_written": false
+    },
+    "v317": {
+      "cold_native_appearances": 40,
+      "cold_named_looks": 155,
+      "cas_complete_records": 195,
+      "cas_all_complete_fields_unchanged": true,
+      "all40_after_cancel_unchanged": true
+    },
+    "v318": {
+      "cold_native_appearances": 40,
+      "cold_named_looks": 155,
+      "cas_complete_records": 195,
+      "cas_all_complete_fields_unchanged": true,
+      "current_outfit_completed": true,
+      "actual_packet_bytes": 17733,
+      "actual_capture_submit_ms": 0.6361,
+      "actual_worker_ms": 0.0671,
+      "worker_threads": 2,
+      "initial_refresh_ms": 2048,
+      "initial_max_slice_ms": 682,
+      "initial_slice_over_1ms": 4,
+      "initial_slice_samples": 25,
+      "measurement_concurrent_with_native_gpu_test_suite": true,
+      "uncontended_fps_qualification": false
+    }
+  },
+  "current_runtime": {
+    "status": "Quiet V319 test confirms a remaining synchronous feed-publication CPU hitch; release gate failed",
+    "all40_cold_fields_retained": true,
+    "named_looks_retained": 155,
+    "all195_cas_fields_retained": true,
+    "quiet": true,
+    "refresh_ms": 2007,
+    "feed_publish_total_ms": 1259,
+    "feed_publish_max_ms": 583,
+    "all50_selected_queries_total_ms": 1,
+    "all18_product_queries_total_ms": 2,
+    "actual_packet_bytes": 17733,
+    "capture_submit_ms": 0.5545,
+    "worker_ms": 0.0594,
+    "worker_threads": 2,
+    "presentmon": {
+      "version": "2.6.0",
+      "frames": 2088,
+      "lost_event_warning": false,
+      "between_presents_ms": {
+        "p50": 6.6914,
+        "p95": 11.8556,
+        "max": 918.3442
+      },
+      "cpu_busy_ms": {
+        "p50": 0.6934,
+        "p95": 5.8031,
+        "max": 918.1806
+      },
+      "gpu_busy_ms": {
+        "p50": 2.1833,
+        "p95": 4.2273,
+        "max": 8.9249
+      }
+    }
+  },
+  "open_gates": [
+    "Actual Current Outfit/card navigation/frame-time comparison without host workload contention",
+    "Actual form-switch and multi-member timing; 0-1ms is not established",
+    "Real selected-category copy/Undo/linked propagation",
+    "Other independent form/edit/save/Tray/Gallery and compatibility gates remain open"
+  ]
+}

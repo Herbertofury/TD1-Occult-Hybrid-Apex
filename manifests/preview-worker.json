@@ -1,0 +1,16 @@
+{
+  "upstream": "https://github.com/CmarNYC-Tools/TS4SimRipper",
+  "commit": "862a32949e5156b371e2d2f83de4e37e0bb1afcc",
+  "source_url": "https://codeload.github.com/CmarNYC-Tools/TS4SimRipper/zip/862a32949e5156b371e2d2f83de4e37e0bb1afcc",
+  "source_sha256": "64944a9e004a427de20505aac305d3516a1f9e94648337cf07e86f8dff139366",
+  "dependency_url": "https://github.com/CmarNYC-Tools/TS4SimRipper/releases/download/3.14.2.11/CmarNYC_TS4SimRipper_3_14_2_11.zip",
+  "dependency_sha256": "182b4cfa22b3a01eb20c192cdd24b43a61687d3d6ae32d529cb2b87ed5d17bb4",
+  "adapters": {
+    "ApexClip.cs": "e67676466cd1fdaa4af073c1148efe21ddd2f089a4ffe03be0b035fc39ca74c4",
+    "ApexDmap.cs": "66f14cad319fb916cea24ea656656d2d5443127bdfe2d1b58a54d0af187df230",
+    "ApexTray.cs": "2ca222fd0804dee954236cef662ab4b6220179523d83faaad43d1f75c0f86cdf",
+    "ApexWorker.cs": "bad58b9e528a5786f5f6cedaaa645fbd81857cd687eadfd6b7f351d31bd71d13",
+    "ApexWorkerTests.cs": "481214145912df986cc37d151ab1d909064fed8db190ea7418d792de6802a8da"
+  },
+  "recipe_sha256": "e056c6ddb652749838360b2b2136f07b68350d266653955eab3f1d70f5106a7b"
+}

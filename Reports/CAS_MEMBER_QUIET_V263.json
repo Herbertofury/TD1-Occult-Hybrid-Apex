@@ -1,0 +1,41 @@
+{
+  "actual_native_input": {
+    "all195_captured_fields_unchanged": true,
+    "all_saved_files_unchanged": true,
+    "appearance_edits_requested": false,
+    "foreground_changed": false,
+    "idle_setup_frames_stopped": true,
+    "native_link_copy_panel_visible": true,
+    "ordinary_window_messages": true,
+    "shared_human_count_per_sim": 1,
+    "sim_ordinal_order": [
+      5,
+      1
+    ],
+    "verified_switches": 2
+  },
+  "appearance_export_sha256": "c94f32118cd1bd97f6ec21b3b2e337bff6258f22663a7fc68b307b9d536602bb",
+  "candidate_epoch": "2026-10-21-saved-named-upgrade-v263",
+  "candidate_sha256": "7d2486888ed59338b72b90e576f105ff28c02cbccb5844070c0f0d111fd0691d",
+  "evidence_sha256": "7566c90810c4261f4794dd4f1b90aaf9e73d9b7488da70c0520cafb741b149a1",
+  "limitations": [
+    "Timing starts at native CASSetSimInfo delivery, not physical click/posted-input consumption. Click-to-notification latency is not measured.",
+    "Forty quiet seconds precede each status observation. No semantic CAS claim is sent during that interval.",
+    "The two background switches do not qualify every portrait or establish reliable input generally; the earlier fourth-click failure remains documented.",
+    "The old V261 21-23 second samples were observer-contaminated and are not an equivalent performance baseline.",
+    "About 1.1 seconds of control setup still fails the requested responsiveness target. Initial preparation also recorded a game-thread command exceeding 35 seconds; profile its stages separately."
+  ],
+  "measured_notification_to_controls_ms": {
+    "clock_resolution_ms": 1,
+    "maximum": 1166,
+    "median": 1116.0,
+    "minimum": 1066,
+    "samples": [
+      1066,
+      1166
+    ]
+  },
+  "production_ready": false,
+  "runtime_qualified_scope": "Two quiet background portrait switches between first and fifth members, native panel visibility, idle setup cleanup and complete retained fields.",
+  "schema": 1
+}

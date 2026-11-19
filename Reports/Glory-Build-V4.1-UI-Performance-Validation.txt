@@ -1,0 +1,44 @@
+TD1 Occult Hybrid Apex - Glory UI/Performance Build v4.1
+Build date: 2026-05-28
+
+Scope
+- Continued the same TD1 Occult Hybrid Apex standalone mod folder.
+- Rebuilt TD1_OccultHybridApex.ts4script from the existing source file.
+- Rebuilt Native/TD1OccultNativeBridge.dll as PE32+ x64 with 21 exported helper functions.
+- Focused on UI, observability, and low-idle behavior without changing the mod identity.
+
+UI changes
+- Added/retained a full three-panel local web interface: navigation, command workspace, and persistent Running Log dock.
+- Running Log polls /api/logs and displays queue/start/done/fail/detail lines.
+- Added copy/export log controls.
+- Added performance widgets for queue, auto repair, latest timing, and native bridge state.
+- Added command timing output in Diagnostics.
+- Fixed the Sim Browser render path so Sim cards are not overwritten after list_sims.
+- Fixed performance widget handling for both diagnostics and status payload formats.
+
+Performance posture
+- Auto repair defaults to OFF.
+- Queue interval is 1.0 real second instead of an aggressive high-frequency tick.
+- No all-Sim repair sweep or active Sim repair runs unless the user explicitly presses a command or enables auto repair.
+- Status refresh happens only on panel load, button press, or after a command.
+- Running Log polling reads only the mod's in-memory log through the local socket handler; it does not query Sims data.
+- The command queue uses Sims real-time alarms and keeps strong global references to alarm owner and handle.
+
+Research notes checked during this build
+- ts4script packaging remains archive-based and supports packaged Python source / Python 3.7-era script mods.
+- Script mods must remain no more than one folder deep under Mods.
+- Sims real-time alarms are the appropriate way to schedule real-second callbacks, and alarm handles/owners need strong references.
+- Hybrid stability work must keep traits, form data, and occult_types/current_occult_types aligned.
+
+Validation
+- Python source parsed with Python 3.7 AST compatibility: OK.
+- Embedded browser JavaScript passed node --check: OK.
+- Offline _panel_html smoke test: OK.
+- TD1_OccultHybridApex.ts4script integrity test: OK.
+- Native DLL file type: PE32+ x64 Windows DLL: OK.
+- Native DLL export table count: 21: OK.
+- Final archive integrity test: OK.
+
+Limitations
+- This environment cannot launch The Sims 4 or load a live save, so in-game smoke testing is still required on the user's machine.
+- No mod can honestly guarantee literal zero CPU impact; this build minimizes idle impact by avoiding background repair scans and keeping gameplay mutations command-driven.

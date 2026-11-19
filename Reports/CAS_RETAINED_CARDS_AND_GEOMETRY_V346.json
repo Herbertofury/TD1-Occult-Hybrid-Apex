@@ -1,0 +1,319 @@
+{
+  "actual_save_release_claimed": false,
+  "build_validation": {
+    "artifact_errors": 0,
+    "artifact_failures": 0,
+    "artifact_regressions": 85,
+    "artifact_skips": 0,
+    "fresh_full_current_ui_retention_and_merged_gate": true,
+    "python37_modules": 113,
+    "rust_verified_resources": 277,
+    "source_suite_at_checkpoint": {
+      "artifacts_unchanged": true,
+      "canonical_source_count": 1025,
+      "changed_sources": [],
+      "complete": false,
+      "counts": {
+        "completed_tests": 507,
+        "current": "test_cas_communication_domain_chain.HistoricalDomainManifestTests.test_current_manifest_authenticates_all_three_final_wrappers_and_source_sets",
+        "elapsed_seconds": 1425.0632299000863,
+        "errors": 0,
+        "expected_failures": 0,
+        "failures": 0,
+        "passed": 481,
+        "skipped": 26,
+        "started_tests": 508,
+        "unexpected_successes": 0
+      },
+      "elapsed_seconds": 1464.9840522999875,
+      "full_source_suite_pass_claimed": false,
+      "ok": false,
+      "reason": "Parent explicitly ended duplicate artifact-heavy baseline before new Source promotion.",
+      "source_after": "c331d327d0a8827b6b65bf249fc13a2dd950ec09",
+      "source_before": "c331d327d0a8827b6b65bf249fc13a2dd950ec09",
+      "state": "INCOMPLETE"
+    }
+  },
+  "candidate_sha256": "59770576beee06763b5e900025a1f64c9e8c780d3e4be0f666589a7759d3c046",
+  "epoch": "2026-10-26-provider-budget-featured-width-v346",
+  "evidence_sha256": {
+    "v345-presentmon-stdout/v346-native-actions-50s.json": "1942c0b8fe03bed28875f062a2d820e5909bcfef7361bce3ae1e10c600de5c3d",
+    "v346-artifact-regression/proof.json": "41956b9d9b314b742e549e77f13f418ce7ea5b0450bd5d7310e67703c2e3f666",
+    "v346-catalog-runtime.json": "83822fffff3ef2c51e91abb04ae30ac37ebc91782edb7efa593d6a0b29474682",
+    "v346-extra-012-clothing_looks.json": "10f9637a8ff7ac4734a43ea787f3370ab27b6b4aded9de6ecec3b46970f9abbd",
+    "v346-extra-panels.json": "a29dfb3ade7aadde42e48f914c738c0e2fe07320637fd749f4aeea4c978d63b0",
+    "v346-families-members-runtime.json": "d450ae47b147f0a38149eee759050511cfcf910681696e8925533a243b554d48",
+    "v346-full-source-regression/proof.json": "c55252f436480b7fa6c7e1432d716700c09f749bb7a0babb128d3cf82671bc27",
+    "v346-full-source-regression/stopped-incomplete.json": "4a56cb1f9a0b74deca9d748888acfd9dd99351468b78bd3f9ea38d34080acbec",
+    "v346-looks-clear-filters-exact-panel.json": "b997626940b947998b8228f541d376945da72212fd86491bf00787cb1f979a75",
+    "v346-manual-ea-return.json": "5338b4c39668127ed768bc176941c8a35148a23bb9157edaa157e98813600fe4",
+    "v346-noedit-household-commit.json": "a36b11d5bcaa3e93e4b7139c7087da846344b7c72f6f18a096eb990461e501e8",
+    "v346-raw-return-all195.json": "a200c4b38da6b67cfc82b304bf75724181218262b91d114c5910fd860ba580e6",
+    "v346-remaining-012-hair-wait10.json": "74b0a2ee62c53cb4379c8f7fa64c940ad6f9367309b1686da5ead785b30e2913",
+    "v346-resumed-member-geometry.json": "cdcf8ca37402a4a11e402eba3ff79f284aa9a15e36eee859e0bb44fe0c1dd2e7"
+  },
+  "frame_evidence": {
+    "all_hitching_removed_qualified": false,
+    "current_action_sample_qualified": false,
+    "displayed_fps_qualified": false,
+    "orphan_private_etw_session_cleanup": "Stopped only the exact expired V345 orphan; private collector graceful cleanup fixed and mocked tests passed; not proof it caused all sample loss",
+    "prior_valid_v345_sample": "Quiet target API cadence only; zero complete action envelopes contained, not displayed FPS or interaction smoothness",
+    "reason": "V34650-second collector produced BOM-only output, zero target rows and40150 lost ETW events; pre-armed watcher refused and submitted zero actions"
+  },
+  "hitch_free_claimed": false,
+  "noedit_preservation": {
+    "actual_normal_ea_checkmark_return": true,
+    "all_five_native_availability_and_commits_verified": true,
+    "all_save_files_unchanged": true,
+    "appearance_edits_qualified": false,
+    "raw_all_fields_exact_before_guard_preparation": true,
+    "raw_record_count": 195,
+    "record_count_is_not_playable_forms_count": true
+  },
+  "open_release_gates": [
+    "Continuous scrolling/first publication blank-free runtime verification after Attach fix",
+    "Actual Skin four-family width/column fix and separate eligible Featured/Styled Looks widgets",
+    "Cold publication and interaction profiling with matched actions/no-mod baseline",
+    "Distinct per-category Human/occult edits and isolation/link/unlink/partial-copy/Undo across every member",
+    "CAS/Live/MCCC/phone/save/cold/Tray/Gallery round trips",
+    "Human paint and Medical CAS-exit actual mutation isolation",
+    "Animated parts, Fairy wing colors, wolf human CC anatomy and slider/preset isolation"
+  ],
+  "passed": {
+    "actual_native_right_edge_drag": {
+      "independent_controls_preserved": true,
+      "left_attachment_preserved": true,
+      "measured_navigation_rectangles_clear": 9,
+      "negative_pixels": -200,
+      "positive_pixels": 200
+    },
+    "additional_categories": {
+      "clothing_accessories_fingernail": {
+        "actual_dimensions": [
+          12,
+          5
+        ],
+        "columns": 12,
+        "error": "",
+        "native_phase": "done",
+        "requested_scale": 0.35
+      },
+      "clothing_body_skinspecularity": {
+        "actual_dimensions": [
+          12,
+          1
+        ],
+        "columns": 12,
+        "error": "",
+        "native_phase": "done",
+        "requested_scale": 0.35
+      },
+      "clothing_face_teeth": {
+        "actual_dimensions": [
+          12,
+          3
+        ],
+        "columns": 12,
+        "error": "",
+        "native_phase": "done",
+        "requested_scale": 0.35
+      },
+      "clothing_shoes": {
+        "actual_dimensions": [
+          12,
+          1
+        ],
+        "columns": 12,
+        "error": "",
+        "native_phase": "done",
+        "requested_scale": 0.35
+      },
+      "profile_head_whole_heads": {
+        "actual_dimensions": [
+          12,
+          1
+        ],
+        "columns": 12,
+        "error": "",
+        "native_phase": "done",
+        "requested_scale": 0.35
+      }
+    },
+    "body_all_five_members": {
+      "285159751289798669": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.3499825070580219,
+        "outer_family_dimensions": null,
+        "physical_cells": 176,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "349336084686110946": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.3499825070580219,
+        "outer_family_dimensions": null,
+        "physical_cells": 176,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "349336084686110947": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.3499825070580219,
+        "outer_family_dimensions": null,
+        "physical_cells": 176,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "450667075246031054": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.3499825070580219,
+        "outer_family_dimensions": null,
+        "physical_cells": 176,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      },
+      "450667075246031055": {
+        "actual_columns": 12,
+        "dimension_scope": "current-native-card-grid",
+        "fitted_scale": 0.3499825070580219,
+        "outer_family_dimensions": null,
+        "physical_cells": 176,
+        "pixel_clipping_visual_check_required": false,
+        "requested_columns": 12,
+        "requested_scale": 0.35,
+        "sampled_cards": 24,
+        "skin_family_count": 0
+      }
+    },
+    "hair_fullbody_tattoo_eye_column_size_checks": true,
+    "typed_overflow_navigation": {
+      "each_original_key_resolved_without_replay": true,
+      "keys": [
+        "pagedown",
+        "end",
+        "pageup",
+        "home"
+      ]
+    }
+  },
+  "schema": 1,
+  "source_checkpoint": "c331d327d0a8827b6b65bf249fc13a2dd950ec09",
+  "test_process_id": 65840,
+  "ui_package_sha256": "b39cc4b0af40d982344c4badba7b4d1eea51c317ddf031d05a9678440e55c1da",
+  "unresolved": [
+    {
+      "case": "SkinTone custom width",
+      "native_families": [
+        {
+          "dimensions": [
+            22,
+            0
+          ],
+          "gap_x": 0,
+          "gap_y": 0,
+          "layout_height": 0,
+          "layout_width": 0,
+          "physical_cell_count": 0
+        },
+        {
+          "dimensions": [
+            22,
+            0
+          ],
+          "gap_x": 0,
+          "gap_y": 0,
+          "layout_height": 0,
+          "layout_width": 0,
+          "physical_cell_count": 0
+        },
+        {
+          "dimensions": [
+            22,
+            0
+          ],
+          "gap_x": 0,
+          "gap_y": 0,
+          "layout_height": 0,
+          "layout_width": 0,
+          "physical_cell_count": 0
+        },
+        {
+          "dimensions": [
+            41,
+            1
+          ],
+          "gap_x": 4,
+          "gap_y": 4,
+          "layout_height": 11.70000028610229,
+          "layout_width": 105.3000030517578,
+          "physical_cell_count": 9
+        }
+      ],
+      "next_fix_runtime_qualified": false,
+      "requested_columns": 12,
+      "requested_scale": 0.35,
+      "root_cause": "Merged donor DCCReflowSkinSwatches recomputes and overwrites Apex explicit columns after native SetWidth/ResetLayout"
+    },
+    {
+      "case": "Cold Hair publication",
+      "exclusive_native_cpu_or_gc_attribution": false,
+      "inclusive_native_max_ms": {
+        "attach": 46,
+        "bind": 49,
+        "construct": 7,
+        "data": 1,
+        "draw": 49,
+        "position": 2,
+        "publish": 165,
+        "retire": 0,
+        "selected_setter": 1,
+        "selection": 1
+      },
+      "next_opt_in_attribution_runtime_qualified": false,
+      "owned_frame_timing": {
+        "binding_max_ms": 29,
+        "layout_max_ms": 11,
+        "max_ms": 30,
+        "over_1ms": 10866,
+        "samples": 51854,
+        "total_ms": 55915
+      },
+      "reason": "Provider-local soft deadline cannot interrupt one synchronous native publication atom"
+    },
+    {
+      "automatic_refresh_fix_runtime_qualified": false,
+      "case": "Equipped text inventory after member change",
+      "explicit_native_view_refresh_recovered": true,
+      "observed_error": "Sim or form changed. Refresh equipped items."
+    },
+    {
+      "case": "Styled Looks separate native widget",
+      "columns_and_nonempty_results_unqualified": true,
+      "original_input_replayed": false,
+      "original_request_id": "ddc1f23b3d3643b49a6a376e8757c143",
+      "reason": "Native Styled Looks opened with No results under Swimwear/Feminine, but navigation proof relies on mCurrentPanel which is absent for this separate widget",
+      "request_state": "failed"
+    },
+    {
+      "case": "Fresh staging card can obscure retained bank",
+      "evidence": "Exact native creation/attachment path does not hide root before adding the new child; current fixture reproduces visible item=null widget",
+      "narrow_attach_fix_runtime_qualified": false
+    }
+  ]
+}
